@@ -67,5 +67,11 @@
   "packs": [],
   "socket": true,
   "background": "assets/sr2e-background.webp",
+  "media": [
+    {
+      "type": "icon",
+      "url": "assets/sr2e-logo.png"
+    }
+  ],
   "flags": {}
 }
