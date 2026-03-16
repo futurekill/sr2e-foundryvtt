@@ -1,0 +1,122 @@
+# GitHub Actions workflow for creating FoundryVTT system releases.
+#
+# USAGE:
+#   1. Update the version in system.json
+#   2. Create and push a git tag matching the version: git tag v0.1.0 && git push --tags
+#   3. The workflow automatically creates a GitHub Release with:
+#      - system.json (with correct manifest/download URLs baked in)
+#      - sr2e.zip (the installable system package)
+#
+# FoundryVTT installation URL (paste into Foundry):
+#   https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  SYSTEM_ID: sr2e
+  REPO: futurekill/sr2e-foundryvtt
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      # ---------------------------------------------------------------
+      # 1. Checkout the code at the tagged commit
+      # ---------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------
+      # 2. Extract version from the tag (strips leading 'v')
+      # ---------------------------------------------------------------
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦 Building release for version ${VERSION}"
+
+      # ---------------------------------------------------------------
+      # 3. Update system.json with correct version, manifest & download
+      # ---------------------------------------------------------------
+      - name: Update system.json
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+
+          # Use jq to update the manifest fields
+          jq \
+            --arg ver "$VERSION" \
+            --arg manifest "https://github.com/${{ env.REPO }}/releases/latest/download/system.json" \
+            --arg download "https://github.com/${{ env.REPO }}/releases/download/${TAG}/${{ env.SYSTEM_ID }}.zip" \
+            --arg changelog "https://github.com/${{ env.REPO }}/releases/tag/${TAG}" \
+            --arg url "https://github.com/${{ env.REPO }}" \
+            --arg bugs "https://github.com/${{ env.REPO }}/issues" \
+            '.version = $ver
+             | .manifest = $manifest
+             | .download = $download
+             | .changelog = $changelog
+             | .url = $url
+             | .bugs = $bugs' \
+            system.json > system.json.tmp && mv system.json.tmp system.json
+
+          echo "✅ Updated system.json:"
+          cat system.json | jq '{version, manifest, download, changelog}'
+
+      # ---------------------------------------------------------------
+      # 4. Package the system into a zip archive
+      #    The zip must contain a top-level folder matching the system id
+      # ---------------------------------------------------------------
+      - name: Package system zip
+        run: |
+          # Create a staging directory with the system id as the folder name
+          mkdir -p staging/${{ env.SYSTEM_ID }}
+
+          # Copy all system files (exclude CI/dev files)
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='staging' \
+            --exclude='node_modules' \
+            --exclude='.gitignore' \
+            --exclude='*.md' \
+            ./ staging/${{ env.SYSTEM_ID }}/
+
+          # Create the zip from the staging directory
+          cd staging
+          zip -r ../${{ env.SYSTEM_ID }}.zip ${{ env.SYSTEM_ID }}/
+          cd ..
+
+          echo "✅ Created ${{ env.SYSTEM_ID }}.zip"
+          ls -lh ${{ env.SYSTEM_ID }}.zip
+          echo "📁 Contents:"
+          unzip -l ${{ env.SYSTEM_ID }}.zip | head -30
+
+      # ---------------------------------------------------------------
+      # 5. Create the GitHub Release with both artifacts
+      # ---------------------------------------------------------------
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.version.outputs.tag }}
+          name: "Shadowrun 2E v${{ steps.version.outputs.version }}"
+          generateReleaseNotes: true
+          artifacts: |
+            system.json
+            ${{ env.SYSTEM_ID }}.zip
+          artifactContentType: application/zip
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+          draft: false

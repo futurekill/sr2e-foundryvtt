@@ -47,16 +47,47 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 
 ## Installation
 
+### Automatic (Recommended)
+
 1. In FoundryVTT, go to **Game Systems** → **Install System**
-2. Paste the manifest URL into the **Manifest URL** field
+2. Paste the following **Manifest URL** into the field at the bottom:
+   ```
+   https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json
+   ```
 3. Click **Install**
+4. FoundryVTT will automatically download and install the latest release
 
 ### Manual Installation
 
-1. Download or clone this repository
-2. Place the `sr2e-foundryvtt` folder into your FoundryVTT `Data/systems/` directory
-3. Rename the folder to `sr2e`
-4. Restart FoundryVTT
+1. Download `sr2e.zip` from the [latest release](https://github.com/futurekill/sr2e-foundryvtt/releases/latest)
+2. Extract the zip into your FoundryVTT `Data/systems/` directory (it should create a `sr2e/` folder)
+3. Restart FoundryVTT
+
+### Development Installation
+
+1. Clone this repository into your FoundryVTT `Data/systems/` directory:
+   ```bash
+   cd /path/to/foundrydata/Data/systems
+   git clone https://github.com/futurekill/sr2e-foundryvtt.git sr2e
+   ```
+2. Restart FoundryVTT
+
+## Releasing a New Version
+
+This project uses GitHub Actions for automated releases:
+
+1. Update the `version` field in `system.json`
+2. Commit your changes
+3. Create and push a version tag:
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+4. The GitHub Action will automatically:
+   - Update `system.json` with the correct manifest/download URLs
+   - Package the system into `sr2e.zip`
+   - Create a GitHub Release with both files attached
+5. FoundryVTT users with the system installed will be notified of the update
 
 ## Compatibility
 
