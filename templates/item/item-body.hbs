@@ -1,0 +1,445 @@
+<section class="item-body">
+
+  {{!-- SKILL --}}
+  {{#ifEquals type "skill"}}
+  <div class="form-group">
+    <label>Category:</label>
+    <select name="system.category">
+      {{#each config.skillCategories as |label key|}}
+      <option value="{{key}}" {{selected ../system.category key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Linked Attribute:</label>
+    <select name="system.linkedAttribute">
+      {{#each config.attributes as |label key|}}
+      <option value="{{key}}" {{selected ../system.linkedAttribute key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    <input type="number" name="system.rating" value="{{system.rating}}" min="0" max="12" />
+  </div>
+  <div class="form-group">
+    <label>Concentration:</label>
+    <input type="text" name="system.concentration.name" value="{{system.concentration.name}}" placeholder="e.g., Pistols" />
+    {{#if system.concentration.name}}
+    <span>Rating: {{system.concentration.rating}}</span>
+    {{/if}}
+  </div>
+  <div class="form-group">
+    <label>Specialization:</label>
+    <input type="text" name="system.specialization.name" value="{{system.specialization.name}}" placeholder="e.g., Ares Predator" />
+    {{#if system.specialization.name}}
+    <span>Rating: {{system.specialization.rating}}</span>
+    {{/if}}
+  </div>
+  <div class="form-group">
+    <label>Magical Skill:</label>
+    <input type="checkbox" name="system.isMagical" {{checked system.isMagical}} />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- WEAPON --}}
+  {{#ifEquals type "weapon"}}
+  <div class="form-group">
+    <label>Weapon Type:</label>
+    <select name="system.weaponType">
+      {{#each config.weaponTypes as |label key|}}
+      <option value="{{key}}" {{selected ../system.weaponType key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Skill:</label>
+    <input type="text" name="system.skill" value="{{system.skill}}" />
+  </div>
+  <div class="form-group">
+    <label>Damage Code:</label>
+    <input type="text" name="system.damageCode" value="{{system.damageCode}}" placeholder="e.g., 6M" />
+  </div>
+  <div class="form-group">
+    <label>Damage Type:</label>
+    <select name="system.damageType">
+      <option value="physical" {{selected system.damageType "physical"}}>Physical</option>
+      <option value="stun" {{selected system.damageType "stun"}}>Stun</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Concealability:</label>
+    <input type="number" name="system.concealability" value="{{system.concealability}}" />
+  </div>
+  <div class="form-group">
+    <label>Reach:</label>
+    <input type="number" name="system.reach" value="{{system.reach}}" min="0" />
+  </div>
+
+  {{!-- Firearm-specific fields --}}
+  {{#ifEquals system.weaponType "firearm"}}
+  <fieldset>
+    <legend>Firing Modes</legend>
+    <label><input type="checkbox" name="system.firingModes.ss" {{checked system.firingModes.ss}} /> SS</label>
+    <label><input type="checkbox" name="system.firingModes.sa" {{checked system.firingModes.sa}} /> SA</label>
+    <label><input type="checkbox" name="system.firingModes.bf" {{checked system.firingModes.bf}} /> BF</label>
+    <label><input type="checkbox" name="system.firingModes.fa" {{checked system.firingModes.fa}} /> FA</label>
+  </fieldset>
+  <div class="form-group">
+    <label>Ammo (Current/Max):</label>
+    <input type="number" name="system.ammo.current" value="{{system.ammo.current}}" min="0" />
+    <span>/</span>
+    <input type="number" name="system.ammo.max" value="{{system.ammo.max}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Recoil Compensation:</label>
+    <input type="number" name="system.recoilComp" value="{{system.recoilComp}}" min="0" />
+  </div>
+  <fieldset>
+    <legend>Ranges</legend>
+    <div class="flexrow">
+      <div class="form-group"><label>Short:</label><input type="number" name="system.ranges.short" value="{{system.ranges.short}}" /></div>
+      <div class="form-group"><label>Medium:</label><input type="number" name="system.ranges.medium" value="{{system.ranges.medium}}" /></div>
+      <div class="form-group"><label>Long:</label><input type="number" name="system.ranges.long" value="{{system.ranges.long}}" /></div>
+      <div class="form-group"><label>Extreme:</label><input type="number" name="system.ranges.extreme" value="{{system.ranges.extreme}}" /></div>
+    </div>
+  </fieldset>
+  {{/ifEquals}}
+
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label>Weight:</label>
+    <input type="number" name="system.weight" value="{{system.weight}}" step="0.1" />
+  </div>
+  <div class="form-group">
+    <label>Availability:</label>
+    <input type="text" name="system.availability" value="{{system.availability}}" />
+  </div>
+  <div class="form-group">
+    <label>Legality:</label>
+    <input type="text" name="system.legality" value="{{system.legality}}" />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- ARMOR --}}
+  {{#ifEquals type "armor"}}
+  <div class="form-group">
+    <label>Ballistic:</label>
+    <input type="number" name="system.ballistic" value="{{system.ballistic}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Impact:</label>
+    <input type="number" name="system.impact" value="{{system.impact}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Concealability:</label>
+    <input type="number" name="system.concealability" value="{{system.concealability}}" />
+  </div>
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label>Equipped:</label>
+    <input type="checkbox" name="system.equipped" {{checked system.equipped}} />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- SPELL --}}
+  {{#ifEquals type "spell"}}
+  <div class="form-group">
+    <label>Category:</label>
+    <select name="system.category">
+      {{#each config.spellCategories as |label key|}}
+      <option value="{{key}}" {{selected ../system.category key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Type:</label>
+    <select name="system.type">
+      <option value="physical" {{selected system.type "physical"}}>Physical</option>
+      <option value="mana" {{selected system.type "mana"}}>Mana</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Range:</label>
+    <select name="system.range">
+      {{#each config.spellRanges as |label key|}}
+      <option value="{{key}}" {{selected ../system.range key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Duration:</label>
+    <select name="system.duration">
+      {{#each config.spellDurations as |label key|}}
+      <option value="{{key}}" {{selected ../system.duration key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Force:</label>
+    <input type="number" name="system.force" value="{{system.force}}" min="1" />
+  </div>
+  <div class="form-group">
+    <label>Drain Code:</label>
+    <input type="text" name="system.drainCode" value="{{system.drainCode}}" placeholder="e.g., +1(M)" />
+  </div>
+  <div class="form-group">
+    <label>Target:</label>
+    <input type="text" name="system.target" value="{{system.target}}" />
+  </div>
+  <div class="form-group">
+    <label>Damage Code:</label>
+    <input type="text" name="system.damageCode" value="{{system.damageCode}}" placeholder="For combat spells" />
+  </div>
+  <div class="form-group">
+    <label>Area Effect:</label>
+    <input type="checkbox" name="system.isAreaEffect" {{checked system.isAreaEffect}} />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- CYBERWARE --}}
+  {{#ifEquals type "cyberware"}}
+  <div class="form-group">
+    <label>Location:</label>
+    <select name="system.location">
+      {{#each config.cyberwareLocations as |label key|}}
+      <option value="{{key}}" {{selected ../system.location key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Grade:</label>
+    <select name="system.grade">
+      <option value="standard" {{selected system.grade "standard"}}>Standard</option>
+      <option value="alpha" {{selected system.grade "alpha"}}>Alphaware</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Essence Cost:</label>
+    <input type="number" name="system.essenceCost" value="{{system.essenceCost}}" min="0" step="0.1" />
+    {{#ifEquals system.grade "alpha"}}
+    <span class="hint">(Actual: {{system.actualEssenceCost}})</span>
+    {{/ifEquals}}
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    <input type="number" name="system.rating" value="{{system.rating}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label>Installed:</label>
+    <input type="checkbox" name="system.installed" {{checked system.installed}} />
+  </div>
+  <fieldset>
+    <legend>Attribute Modifiers</legend>
+    <div class="attr-mods-grid">
+      <div class="form-group"><label>Body:</label><input type="number" name="system.attributeMods.body" value="{{system.attributeMods.body}}" /></div>
+      <div class="form-group"><label>Quickness:</label><input type="number" name="system.attributeMods.quickness" value="{{system.attributeMods.quickness}}" /></div>
+      <div class="form-group"><label>Strength:</label><input type="number" name="system.attributeMods.strength" value="{{system.attributeMods.strength}}" /></div>
+      <div class="form-group"><label>Reaction:</label><input type="number" name="system.attributeMods.reaction" value="{{system.attributeMods.reaction}}" /></div>
+      <div class="form-group"><label>Init Dice:</label><input type="number" name="system.attributeMods.initiativeDice" value="{{system.attributeMods.initiativeDice}}" /></div>
+    </div>
+  </fieldset>
+  {{/ifEquals}}
+
+  {{!-- PROGRAM --}}
+  {{#ifEquals type "program"}}
+  <div class="form-group">
+    <label>Category:</label>
+    <select name="system.category">
+      {{#each config.programCategories as |label key|}}
+      <option value="{{key}}" {{selected ../system.category key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
+  </div>
+  <div class="form-group">
+    <label>Multiplier:</label>
+    <input type="number" name="system.multiplier" value="{{system.multiplier}}" min="0" step="0.1" />
+  </div>
+  <div class="form-group">
+    <label>Size (MP):</label>
+    <span>{{system.size}}</span>
+  </div>
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label>Loaded:</label>
+    <input type="checkbox" name="system.loaded" {{checked system.loaded}} />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- GEAR --}}
+  {{#ifEquals type "gear"}}
+  <div class="form-group">
+    <label>Category:</label>
+    <input type="text" name="system.category" value="{{system.category}}" />
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    <input type="number" name="system.rating" value="{{system.rating}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Quantity:</label>
+    <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label>Equipped:</label>
+    <input type="checkbox" name="system.equipped" {{checked system.equipped}} />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- ADEPT POWER --}}
+  {{#ifEquals type "adept_power"}}
+  <div class="form-group">
+    <label>Point Cost (per level):</label>
+    <input type="number" name="system.pointCost" value="{{system.pointCost}}" min="0" step="0.25" />
+  </div>
+  <div class="form-group">
+    <label>Level:</label>
+    <input type="number" name="system.level" value="{{system.level}}" min="1" max="{{system.maxLevel}}" />
+  </div>
+  <div class="form-group">
+    <label>Max Level:</label>
+    <input type="number" name="system.maxLevel" value="{{system.maxLevel}}" min="1" />
+  </div>
+  <div class="form-group">
+    <label>Total Cost:</label>
+    <span>{{system.totalCost}}</span>
+  </div>
+  <fieldset>
+    <legend>Attribute Modifiers</legend>
+    <div class="form-group"><label>Body:</label><input type="number" name="system.attributeMods.body" value="{{system.attributeMods.body}}" /></div>
+    <div class="form-group"><label>Quickness:</label><input type="number" name="system.attributeMods.quickness" value="{{system.attributeMods.quickness}}" /></div>
+    <div class="form-group"><label>Strength:</label><input type="number" name="system.attributeMods.strength" value="{{system.attributeMods.strength}}" /></div>
+    <div class="form-group"><label>Reaction:</label><input type="number" name="system.attributeMods.reaction" value="{{system.attributeMods.reaction}}" /></div>
+  </fieldset>
+  {{/ifEquals}}
+
+  {{!-- CONTACT --}}
+  {{#ifEquals type "contact"}}
+  <div class="form-group">
+    <label>Type:</label>
+    <select name="system.contactType">
+      <option value="contact" {{selected system.contactType "contact"}}>Contact</option>
+      <option value="buddy" {{selected system.contactType "buddy"}}>Buddy</option>
+      <option value="follower" {{selected system.contactType "follower"}}>Follower</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Archetype:</label>
+    <input type="text" name="system.archetype" value="{{system.archetype}}" />
+  </div>
+  <div class="form-group">
+    <label>Loyalty:</label>
+    <input type="number" name="system.loyalty" value="{{system.loyalty}}" min="1" max="6" />
+  </div>
+  <div class="form-group">
+    <label>Influence:</label>
+    <input type="number" name="system.influence" value="{{system.influence}}" min="1" max="6" />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- LIFESTYLE --}}
+  {{#ifEquals type "lifestyle"}}
+  <div class="form-group">
+    <label>Level:</label>
+    <select name="system.level">
+      {{#each config.lifestyles as |ls key|}}
+      <option value="{{key}}" {{selected ../system.level key}}>{{localize ls.label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Monthly Cost:</label>
+    <span>{{system.monthlyCost}}¥</span>
+  </div>
+  <div class="form-group">
+    <label>Months Paid:</label>
+    <input type="number" name="system.monthsPaid" value="{{system.monthsPaid}}" min="0" />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- FOCUS --}}
+  {{#ifEquals type "focus"}}
+  <div class="form-group">
+    <label>Focus Type:</label>
+    <select name="system.focusType">
+      <option value="spell" {{selected system.focusType "spell"}}>Spell Focus</option>
+      <option value="spirit" {{selected system.focusType "spirit"}}>Spirit Focus</option>
+      <option value="power" {{selected system.focusType "power"}}>Power Focus</option>
+      <option value="weapon" {{selected system.focusType "weapon"}}>Weapon Focus</option>
+      <option value="spell_lock" {{selected system.focusType "spell_lock"}}>Spell Lock</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Force:</label>
+    <input type="number" name="system.force" value="{{system.force}}" min="1" />
+  </div>
+  <div class="form-group">
+    <label>Bonding Cost (Karma):</label>
+    <input type="number" name="system.bondingCost" value="{{system.bondingCost}}" min="1" />
+  </div>
+  <div class="form-group">
+    <label>Bonded:</label>
+    <input type="checkbox" name="system.bonded" {{checked system.bonded}} />
+  </div>
+  <div class="form-group">
+    <label>Active:</label>
+    <input type="checkbox" name="system.active" {{checked system.active}} />
+  </div>
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- AMMO --}}
+  {{#ifEquals type "ammo"}}
+  <div class="form-group">
+    <label>Ammo Type:</label>
+    <input type="text" name="system.ammoType" value="{{system.ammoType}}" />
+  </div>
+  <div class="form-group">
+    <label>Quantity:</label>
+    <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Damage Modifier:</label>
+    <input type="number" name="system.damageModifier" value="{{system.damageModifier}}" />
+  </div>
+  <div class="form-group">
+    <label>Armor Modifier:</label>
+    <input type="number" name="system.armorModifier" value="{{system.armorModifier}}" />
+  </div>
+  <div class="form-group">
+    <label>Cost:</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  {{/ifEquals}}
+
+  {{!-- Notes (common to all) --}}
+  <div class="form-group notes">
+    <label>Notes:</label>
+    <textarea name="system.notes">{{system.notes}}</textarea>
+  </div>
+
+</section>

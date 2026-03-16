@@ -1,0 +1,49 @@
+<section class="sr2e-ic-sheet">
+  <div class="ic-header flexrow">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" class="profile-img" />
+    <div class="header-info flexcol">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="IC Name" />
+      <div class="ic-details flexrow">
+        <div class="form-group">
+          <label>Type:</label>
+          <select name="system.icType">
+            {{#each config.icTypes as |label key|}}
+            <option value="{{key}}" {{selected ../system.icType key}}>{{localize label}}</option>
+            {{/each}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rating:</label>
+          <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <fieldset>
+    <legend>Persona Attributes</legend>
+    <div class="attr-grid">
+      <div class="attr-item"><label>Bod</label><input type="number" name="system.bod" value="{{system.bod}}" min="0" /></div>
+      <div class="attr-item"><label>Evasion</label><input type="number" name="system.evasion" value="{{system.evasion}}" min="0" /></div>
+      <div class="attr-item"><label>Masking</label><input type="number" name="system.masking" value="{{system.masking}}" min="0" /></div>
+      <div class="attr-item"><label>Sensor</label><input type="number" name="system.sensor" value="{{system.sensor}}" min="0" /></div>
+      <div class="attr-item"><label>Attack</label><input type="number" name="system.attack" value="{{system.attack}}" min="0" /></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Condition</legend>
+    <input type="number" name="system.conditionMonitor.value" value="{{system.conditionMonitor.value}}" min="0" max="{{system.conditionMonitor.max}}" />
+    <span>/ {{system.conditionMonitor.max}}</span>
+  </fieldset>
+
+  <fieldset>
+    <legend>Initiative</legend>
+    <span>{{system.initiative.value}} + {{system.initiative.dice}}d6</span>
+  </fieldset>
+
+  <fieldset>
+    <legend>Notes</legend>
+    {{editor system.notes target="system.notes" button=true editable=true}}
+  </fieldset>
+</section>

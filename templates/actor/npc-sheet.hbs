@@ -1,0 +1,138 @@
+<section class="sr2e-npc-sheet">
+  {{!-- Header --}}
+  <div class="npc-header flexrow">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" class="profile-img" />
+    <div class="header-info flexcol">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="NPC Name" />
+      <div class="npc-details flexrow">
+        <div class="form-group">
+          <label>Race:</label>
+          <input type="text" name="system.race" value="{{system.race}}" />
+        </div>
+        <div class="form-group">
+          <label>Professional Rating:</label>
+          <input type="number" name="system.professionalRating" value="{{system.professionalRating}}" min="0" max="6" />
+        </div>
+        <div class="form-group">
+          <label>Threat Rating:</label>
+          <input type="number" name="system.threatRating" value="{{system.threatRating}}" min="0" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{!-- Attributes --}}
+  <fieldset class="npc-attributes">
+    <legend>Attributes</legend>
+    <div class="attr-grid">
+      <div class="attr-item">
+        <label>B</label>
+        <input type="number" name="system.body.base" value="{{system.body.base}}" min="1" />
+      </div>
+      <div class="attr-item">
+        <label>Q</label>
+        <input type="number" name="system.quickness.base" value="{{system.quickness.base}}" min="1" />
+      </div>
+      <div class="attr-item">
+        <label>S</label>
+        <input type="number" name="system.strength.base" value="{{system.strength.base}}" min="1" />
+      </div>
+      <div class="attr-item">
+        <label>C</label>
+        <input type="number" name="system.charisma.base" value="{{system.charisma.base}}" min="1" />
+      </div>
+      <div class="attr-item">
+        <label>I</label>
+        <input type="number" name="system.intelligence.base" value="{{system.intelligence.base}}" min="1" />
+      </div>
+      <div class="attr-item">
+        <label>W</label>
+        <input type="number" name="system.willpower.base" value="{{system.willpower.base}}" min="1" />
+      </div>
+      <div class="attr-item">
+        <label>E</label>
+        <span>{{system.essence.value}}</span>
+      </div>
+      <div class="attr-item">
+        <label>R</label>
+        <span>{{system.reaction.value}}</span>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="npc-body flexrow">
+    {{!-- Condition & Combat --}}
+    <div class="npc-left flexcol">
+      <fieldset>
+        <legend>Condition</legend>
+        <div class="monitor-row">
+          <label>Physical:</label>
+          <input type="number" name="system.conditionMonitor.physical.value" value="{{system.conditionMonitor.physical.value}}" min="0" max="{{system.conditionMonitor.physical.max}}" />
+          <span>/ {{system.conditionMonitor.physical.max}}</span>
+        </div>
+        <div class="monitor-row">
+          <label>Stun:</label>
+          <input type="number" name="system.conditionMonitor.stun.value" value="{{system.conditionMonitor.stun.value}}" min="0" max="{{system.conditionMonitor.stun.max}}" />
+          <span>/ {{system.conditionMonitor.stun.max}}</span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Armor</legend>
+        <div class="flexrow">
+          <label>B:</label>
+          <input type="number" name="system.armor.ballistic" value="{{system.armor.ballistic}}" min="0" />
+          <label>I:</label>
+          <input type="number" name="system.armor.impact" value="{{system.armor.impact}}" min="0" />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Initiative</legend>
+        <div class="flexrow">
+          <span>{{system.initiative.value}} + {{system.initiative.dice}}d6</span>
+          <button type="button" data-action="rollInitiative" class="btn-small">
+            <i class="fas fa-dice"></i> Roll
+          </button>
+        </div>
+      </fieldset>
+    </div>
+
+    {{!-- Skills & Gear --}}
+    <div class="npc-right flexcol">
+      <fieldset>
+        <legend>Skills</legend>
+        {{#each skills as |skill|}}
+        <div class="npc-skill-row flexrow" data-item-id="{{skill.id}}">
+          <span>{{skill.name}}</span>
+          <span>{{skill.system.rating}}</span>
+          <a data-action="editItem"><i class="fas fa-edit"></i></a>
+        </div>
+        {{/each}}
+        <button type="button" data-action="addItem" data-type="skill" class="btn-add btn-small">
+          <i class="fas fa-plus"></i> Add Skill
+        </button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Weapons</legend>
+        {{#each weapons as |weapon|}}
+        <div class="npc-weapon-row flexrow" data-item-id="{{weapon.id}}">
+          <span data-action="rollWeapon">{{weapon.name}}</span>
+          <span>{{weapon.system.damageCode}}</span>
+          <a data-action="editItem"><i class="fas fa-edit"></i></a>
+        </div>
+        {{/each}}
+        <button type="button" data-action="addItem" data-type="weapon" class="btn-add btn-small">
+          <i class="fas fa-plus"></i> Add Weapon
+        </button>
+      </fieldset>
+    </div>
+  </div>
+
+  {{!-- Biography --}}
+  <fieldset>
+    <legend>Notes</legend>
+    {{editor enrichedBiography target="system.biography" button=true editable=true}}
+  </fieldset>
+</section>

@@ -1,0 +1,64 @@
+<section class="sr2e-spirit-sheet">
+  <div class="spirit-header flexrow">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" class="profile-img" />
+    <div class="header-info flexcol">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="Spirit Name" />
+      <div class="spirit-details flexrow">
+        <div class="form-group">
+          <label>Type:</label>
+          <input type="text" name="system.spiritType" value="{{system.spiritType}}" />
+        </div>
+        <div class="form-group">
+          <label>Force:</label>
+          <input type="number" name="system.force" value="{{system.force}}" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Services:</label>
+          <input type="number" name="system.services" value="{{system.services}}" min="0" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <fieldset class="spirit-attributes">
+    <legend>Attributes (derived from Force {{system.force}})</legend>
+    <div class="attr-grid">
+      <div class="attr-item"><label>B</label><span>{{system.body.value}}</span></div>
+      <div class="attr-item"><label>Q</label><span>{{system.quickness.value}}</span></div>
+      <div class="attr-item"><label>S</label><span>{{system.strength.value}}</span></div>
+      <div class="attr-item"><label>C</label><span>{{system.charisma.value}}</span></div>
+      <div class="attr-item"><label>I</label><span>{{system.intelligence.value}}</span></div>
+      <div class="attr-item"><label>W</label><span>{{system.willpower.value}}</span></div>
+      <div class="attr-item"><label>E</label><span>{{system.essence.value}}</span></div>
+      <div class="attr-item"><label>R</label><span>{{system.reaction.value}}</span></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Condition</legend>
+    <div class="flexrow">
+      <label>Physical:</label>
+      <input type="number" name="system.conditionMonitor.physical.value" value="{{system.conditionMonitor.physical.value}}" min="0" max="{{system.conditionMonitor.physical.max}}" />
+      <span>/ {{system.conditionMonitor.physical.max}}</span>
+    </div>
+    <div class="flexrow">
+      <label>Stun:</label>
+      <input type="number" name="system.conditionMonitor.stun.value" value="{{system.conditionMonitor.stun.value}}" min="0" max="{{system.conditionMonitor.stun.max}}" />
+      <span>/ {{system.conditionMonitor.stun.max}}</span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Powers</legend>
+    <div class="powers-list">
+      {{#each system.powers as |power|}}
+      <span class="power-tag">{{power}}</span>
+      {{/each}}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Notes</legend>
+    {{editor system.notes target="system.notes" button=true editable=true}}
+  </fieldset>
+</section>

@@ -1,0 +1,91 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="skills" data-group="primary">
+  <div class="skills-section">
+
+    {{!-- Active Skills --}}
+    <div class="skill-category">
+      <div class="skill-header flexrow">
+        <h3>{{localize "SR2E.Skills.Active"}}</h3>
+        <button type="button" data-action="addItem" data-type="skill" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="skill-list">
+        {{#each skills as |skill|}}
+        {{#ifEquals skill.system.category "active"}}
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
+          <span class="skill-name" data-action="rollSkill">
+            <i class="fas fa-dice"></i>
+            {{skill.name}}
+          </span>
+          <span class="skill-attr">({{skill.system.linkedAttribute}})</span>
+          <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
+                 class="skill-rating" min="0" max="12" />
+          {{#if skill.system.concentration.name}}
+          <span class="skill-conc" title="Concentration: {{skill.system.concentration.name}} ({{skill.system.concentration.rating}})">
+            C: {{skill.system.concentration.rating}}
+          </span>
+          {{/if}}
+          {{#if skill.system.specialization.name}}
+          <span class="skill-spec" title="Specialization: {{skill.system.specialization.name}} ({{skill.system.specialization.rating}})">
+            S: {{skill.system.specialization.rating}}
+          </span>
+          {{/if}}
+          <div class="item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/ifEquals}}
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Knowledge Skills --}}
+    <div class="skill-category">
+      <div class="skill-header flexrow">
+        <h3>{{localize "SR2E.Skills.Knowledge"}}</h3>
+      </div>
+      <div class="skill-list">
+        {{#each skills as |skill|}}
+        {{#ifEquals skill.system.category "knowledge"}}
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
+          <span class="skill-name" data-action="rollSkill">
+            <i class="fas fa-dice"></i>
+            {{skill.name}}
+          </span>
+          <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
+                 class="skill-rating" min="0" max="12" />
+          <div class="item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/ifEquals}}
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Language Skills --}}
+    <div class="skill-category">
+      <div class="skill-header flexrow">
+        <h3>{{localize "SR2E.Skills.Language"}}</h3>
+      </div>
+      <div class="skill-list">
+        {{#each skills as |skill|}}
+        {{#ifEquals skill.system.category "language"}}
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
+          <span class="skill-name">{{skill.name}}</span>
+          <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
+                 class="skill-rating" min="0" max="12" />
+          <div class="item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/ifEquals}}
+        {{/each}}
+      </div>
+    </div>
+
+  </div>
+</section>

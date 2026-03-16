@@ -1,0 +1,26 @@
+<div class="sr2e-roll-message">
+  <h3 class="sr2e-roll-header">{{label}}</h3>
+  <div class="sr2e-roll-info">
+    <span class="sr2e-roll-pool">Dice Pool: {{dicePool}}</span>
+    <span class="sr2e-roll-tn">Target Number: {{targetNumber}}</span>
+  </div>
+  <div class="sr2e-dice-results">
+    {{#each dice as |die|}}
+    <span class="sr2e-die {{#if die.success}}success{{else}}failure{{/if}} {{#if die.exploded}}exploded{{/if}}"
+          title="{{die.rolls}}">
+      {{die.total}}
+    </span>
+    {{/each}}
+  </div>
+  <div class="sr2e-roll-result">
+    <strong>Successes: {{successes}}</strong>
+    {{#if isCriticalGlitch}}
+    <span class="sr2e-critical-glitch">CRITICAL GLITCH!</span>
+    {{/if}}
+    {{#unless isSuccess}}
+    {{#unless isCriticalGlitch}}
+    <span class="sr2e-failure">FAILURE</span>
+    {{/unless}}
+    {{/unless}}
+  </div>
+</div>

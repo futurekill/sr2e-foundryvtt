@@ -1,0 +1,98 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="combat" data-group="primary">
+  <div class="combat-section">
+
+    {{!-- Weapons --}}
+    <div class="combat-category">
+      <div class="category-header flexrow">
+        <h3>{{localize "SR2E.Weapons"}}</h3>
+        <button type="button" data-action="addItem" data-type="weapon" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each weapons as |weapon|}}
+        <div class="item-row weapon-row flexrow" data-item-id="{{weapon.id}}">
+          <span class="item-name" data-action="rollWeapon">
+            <i class="fas fa-crosshairs"></i>
+            {{weapon.name}}
+          </span>
+          <span class="weapon-type">{{weapon.system.weaponType}}</span>
+          <span class="weapon-damage">{{weapon.system.damageCode}}</span>
+          {{#ifEquals weapon.system.weaponType "firearm"}}
+          <span class="weapon-ammo">
+            {{weapon.system.ammo.current}}/{{weapon.system.ammo.max}}
+          </span>
+          {{/ifEquals}}
+          <span class="weapon-modes">
+            {{#if weapon.system.firingModes.ss}}SS {{/if}}
+            {{#if weapon.system.firingModes.sa}}SA {{/if}}
+            {{#if weapon.system.firingModes.bf}}BF {{/if}}
+            {{#if weapon.system.firingModes.fa}}FA {{/if}}
+          </span>
+          <div class="item-controls">
+            <a data-action="toggleEquip" title="{{#if weapon.system.equipped}}Unequip{{else}}Equip{{/if}}">
+              <i class="fas {{#if weapon.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
+            </a>
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Armor --}}
+    <div class="combat-category">
+      <div class="category-header flexrow">
+        <h3>{{localize "SR2E.Armor"}}</h3>
+        <button type="button" data-action="addItem" data-type="armor" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="armor-totals flexrow">
+        <span><strong>Ballistic:</strong> {{system.armor.ballistic}}</span>
+        <span><strong>Impact:</strong> {{system.armor.impact}}</span>
+      </div>
+      <div class="item-list">
+        {{#each armors as |armor|}}
+        <div class="item-row armor-row flexrow" data-item-id="{{armor.id}}">
+          <span class="item-name">{{armor.name}}</span>
+          <span>B: {{armor.system.ballistic}}</span>
+          <span>I: {{armor.system.impact}}</span>
+          <div class="item-controls">
+            <a data-action="toggleEquip" title="{{#if armor.system.equipped}}Unequip{{else}}Equip{{/if}}">
+              <i class="fas {{#if armor.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
+            </a>
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Ammunition --}}
+    <div class="combat-category">
+      <div class="category-header flexrow">
+        <h3>Ammunition</h3>
+        <button type="button" data-action="addItem" data-type="ammo" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each ammo as |a|}}
+        <div class="item-row flexrow" data-item-id="{{a.id}}">
+          <span class="item-name">{{a.name}}</span>
+          <span>{{a.system.ammoType}}</span>
+          <span>Qty: {{a.system.quantity}}</span>
+          <div class="item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+  </div>
+</section>

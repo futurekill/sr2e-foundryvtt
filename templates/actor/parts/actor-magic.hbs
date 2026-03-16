@@ -1,0 +1,136 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="magic" data-group="primary">
+  <div class="magic-section">
+
+    {{!-- Magic Configuration --}}
+    <fieldset class="magic-config">
+      <legend>Magical Tradition</legend>
+      <div class="form-group">
+        <label>Type:</label>
+        <select name="system.magic.type">
+          {{#each config.magicTypes as |label key|}}
+          <option value="{{key}}" {{selected ../system.magic.type key}}>{{localize label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      {{#if isMagical}}
+      <div class="form-group">
+        <label>Tradition:</label>
+        <select name="system.magic.tradition">
+          {{#each config.magicTraditions as |label key|}}
+          <option value="{{key}}" {{selected ../system.magic.tradition key}}>{{localize label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      {{#ifEquals system.magic.tradition "shamanic"}}
+      <div class="form-group">
+        <label>Totem:</label>
+        <select name="system.magic.totem">
+          <option value="">None</option>
+          {{#each config.totems as |totem key|}}
+          <option value="{{key}}" {{selected ../system.magic.totem key}}>{{localize totem.label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      {{/ifEquals}}
+      <div class="form-group">
+        <label>Magic Rating:</label>
+        <input type="number" name="system.magic.value" value="{{system.magic.value}}" min="0" max="{{system.magic.max}}" />
+        <span>/ {{system.magic.max}}</span>
+      </div>
+      <div class="form-group">
+        <label>Initiate Grade:</label>
+        <input type="number" name="system.magic.initiateGrade" value="{{system.magic.initiateGrade}}" min="0" />
+      </div>
+      {{/if}}
+    </fieldset>
+
+    {{!-- Spells --}}
+    {{#if isMagical}}
+    <div class="spells-category">
+      <div class="category-header flexrow">
+        <h3>Spells</h3>
+        <button type="button" data-action="addItem" data-type="spell" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="spell-list-header flexrow">
+        <span class="spell-col name">Name</span>
+        <span class="spell-col category">Category</span>
+        <span class="spell-col type">Type</span>
+        <span class="spell-col force">Force</span>
+        <span class="spell-col drain">Drain</span>
+        <span class="spell-col controls">Controls</span>
+      </div>
+      <div class="item-list">
+        {{#each spells as |spell|}}
+        <div class="item-row spell-row flexrow" data-item-id="{{spell.id}}">
+          <span class="spell-col name" data-action="castSpell">
+            <i class="fas fa-magic"></i>
+            {{spell.name}}
+          </span>
+          <span class="spell-col category">{{spell.system.category}}</span>
+          <span class="spell-col type">{{spell.system.type}}</span>
+          <span class="spell-col force">{{spell.system.force}}</span>
+          <span class="spell-col drain">{{spell.system.drainCode}}</span>
+          <div class="spell-col controls item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Foci --}}
+    <div class="foci-category">
+      <div class="category-header flexrow">
+        <h3>Foci</h3>
+        <button type="button" data-action="addItem" data-type="focus" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each foci as |focus|}}
+        <div class="item-row flexrow" data-item-id="{{focus.id}}">
+          <span class="item-name">{{focus.name}}</span>
+          <span>{{focus.system.focusType}}</span>
+          <span>Force: {{focus.system.force}}</span>
+          <span>{{#if focus.system.bonded}}Bonded{{else}}Unbonded{{/if}}</span>
+          <div class="item-controls">
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Physical Adept Powers --}}
+    {{#ifEquals system.magic.type "physical_adept"}}
+    <div class="adept-powers-category">
+      <div class="category-header flexrow">
+        <h3>Adept Powers</h3>
+        <span class="power-points">Points: {{system.adeptPowerPoints.value}} / {{system.adeptPowerPoints.max}}</span>
+        <button type="button" data-action="addItem" data-type="adept_power" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each adeptPowers as |power|}}
+        <div class="item-row flexrow" data-item-id="{{power.id}}">
+          <span class="item-name">{{power.name}}</span>
+          <span>Level: {{power.system.level}}</span>
+          <span>Cost: {{power.system.totalCost}}</span>
+          <div class="item-controls">
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/ifEquals}}
+    {{/if}}
+
+  </div>
+</section>

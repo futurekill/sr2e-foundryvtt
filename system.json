@@ -1,0 +1,65 @@
+{
+  "id": "sr2e",
+  "title": "Shadowrun 2nd Edition",
+  "description": "A comprehensive game system for Shadowrun Second Edition (FASA 7901) built for Foundry Virtual Tabletop.",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "James Candalino",
+      "email": "jcandali@gmail.com"
+    }
+  ],
+  "compatibility": {
+    "minimum": 13,
+    "verified": 13
+  },
+  "esmodules": ["module/sr2e.mjs"],
+  "styles": ["css/sr2e.css"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "character": {
+        "htmlFields": ["biography"]
+      },
+      "npc": {
+        "htmlFields": ["biography"]
+      },
+      "vehicle": {},
+      "spirit": {},
+      "ic": {}
+    },
+    "Item": {
+      "skill": {},
+      "weapon": {},
+      "armor": {},
+      "spell": {},
+      "cyberware": {},
+      "gear": {},
+      "program": {},
+      "adept_power": {},
+      "contact": {},
+      "lifestyle": {},
+      "ammo": {},
+      "focus": {},
+      "vehicle_mod": {}
+    }
+  },
+  "grid": {
+    "type": 1,
+    "distance": 1,
+    "units": "m"
+  },
+  "primaryTokenAttribute": "conditionMonitor.physical",
+  "secondaryTokenAttribute": "conditionMonitor.stun",
+  "initiative": "1d6 + @initiative.dice d6",
+  "packs": [],
+  "socket": true,
+  "background": "assets/sr2e-background.webp",
+  "flags": {}
+}

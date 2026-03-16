@@ -1,0 +1,39 @@
+<section class="sr2e-sheet-header flexrow">
+  <div class="profile-img">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" />
+  </div>
+  <div class="header-info flexcol">
+    <div class="char-name">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="Character Name" />
+    </div>
+    <div class="header-details flexrow">
+      <div class="detail">
+        <label>{{localize "SR2E.Race"}}:</label>
+        <select name="system.race">
+          {{#each config.races as |label key|}}
+          <option value="{{key}}" {{selected ../system.race key}}>{{localize label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      <div class="detail">
+        <label>{{localize "SR2E.Essence"}}:</label>
+        <span class="essence-value">{{formatEssence system.essence.value}}</span>
+      </div>
+      <div class="detail">
+        <label>{{localize "SR2E.Nuyen"}}:</label>
+        <input type="number" name="system.nuyen" value="{{system.nuyen}}" />
+      </div>
+    </div>
+    <div class="header-status flexrow">
+      <div class="condition-summary">
+        <span class="wound-level wound-{{system.woundLevel}}">{{woundLevel (max system.conditionMonitor.physical.value system.conditionMonitor.stun.value)}}</span>
+      </div>
+      <div class="karma-display">
+        <label>Karma:</label>
+        <span>{{system.karma.current}}</span>
+        <label>Pool:</label>
+        <input type="number" name="system.karma.pool" value="{{system.karma.pool}}" min="0" class="small-input" />
+      </div>
+    </div>
+  </div>
+</section>

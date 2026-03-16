@@ -1,0 +1,171 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="attributes" data-group="primary">
+  <div class="attributes-grid">
+
+    {{!-- Physical Attributes --}}
+    <fieldset class="attribute-group">
+      <legend>{{localize "SR2E.Physical"}}</legend>
+      {{#each physicalAttributes as |attr|}}
+      <div class="attribute-row flexrow" data-attribute="{{attr}}">
+        <label class="attribute-label" data-action="rollAttribute" data-attribute="{{attr}}">
+          {{localize (lookup ../config.attributes attr)}}
+        </label>
+        <input type="number" name="system.{{attr}}.base" value="{{lookup ../system attr 'base'}}" class="attr-input" min="1" />
+        {{#ifGt (lookup ../system attr 'racial') 0}}
+        <span class="racial-mod positive">+{{lookup ../system attr 'racial'}}</span>
+        {{else}}
+        {{#ifGt 0 (lookup ../system attr 'racial')}}
+        <span class="racial-mod negative">{{lookup ../system attr 'racial'}}</span>
+        {{else}}
+        <span class="racial-mod">&mdash;</span>
+        {{/ifGt}}
+        {{/ifGt}}
+        {{#ifGt (lookup ../system attr 'mod') 0}}
+        <span class="cyber-mod positive">+{{lookup ../system attr 'mod'}}</span>
+        {{else}}
+        {{#ifGt 0 (lookup ../system attr 'mod')}}
+        <span class="cyber-mod negative">{{lookup ../system attr 'mod'}}</span>
+        {{else}}
+        <span class="cyber-mod">&mdash;</span>
+        {{/ifGt}}
+        {{/ifGt}}
+        <span class="attr-total">{{lookup ../system attr 'value'}}</span>
+      </div>
+      {{/each}}
+    </fieldset>
+
+    {{!-- Mental Attributes --}}
+    <fieldset class="attribute-group">
+      <legend>{{localize "SR2E.Mental"}}</legend>
+      {{#each mentalAttributes as |attr|}}
+      <div class="attribute-row flexrow" data-attribute="{{attr}}">
+        <label class="attribute-label" data-action="rollAttribute" data-attribute="{{attr}}">
+          {{localize (lookup ../config.attributes attr)}}
+        </label>
+        <input type="number" name="system.{{attr}}.base" value="{{lookup ../system attr 'base'}}" class="attr-input" min="1" />
+        {{#ifGt (lookup ../system attr 'racial') 0}}
+        <span class="racial-mod positive">+{{lookup ../system attr 'racial'}}</span>
+        {{else}}
+        <span class="racial-mod">&mdash;</span>
+        {{/ifGt}}
+        {{#ifGt (lookup ../system attr 'mod') 0}}
+        <span class="cyber-mod positive">+{{lookup ../system attr 'mod'}}</span>
+        {{else}}
+        <span class="cyber-mod">&mdash;</span>
+        {{/ifGt}}
+        <span class="attr-total">{{lookup ../system attr 'value'}}</span>
+      </div>
+      {{/each}}
+    </fieldset>
+
+    {{!-- Special Attributes --}}
+    <fieldset class="attribute-group">
+      <legend>{{localize "SR2E.Special"}}</legend>
+      <div class="attribute-row flexrow">
+        <label>{{localize "SR2E.Attributes.Essence"}}</label>
+        <span class="attr-total">{{formatEssence system.essence.value}}</span>
+      </div>
+      <div class="attribute-row flexrow">
+        <label>{{localize "SR2E.Attributes.Reaction"}}</label>
+        <span class="attr-total">{{system.reaction.value}}</span>
+      </div>
+      {{#if isMagical}}
+      <div class="attribute-row flexrow">
+        <label>{{localize "SR2E.Attributes.Magic"}}</label>
+        <span class="attr-total">{{system.magic.value}}</span>
+      </div>
+      {{/if}}
+    </fieldset>
+
+    {{!-- Condition Monitors --}}
+    <fieldset class="condition-monitors">
+      <legend>{{localize "SR2E.ConditionMonitor"}}</legend>
+      <div class="monitor-group">
+        <label>{{localize "SR2E.Damage.Physical"}}</label>
+        <div class="monitor-track flexrow">
+          <input type="number" name="system.conditionMonitor.physical.value"
+                 value="{{system.conditionMonitor.physical.value}}" min="0"
+                 max="{{system.conditionMonitor.physical.max}}" class="monitor-input" />
+          <span>/ {{system.conditionMonitor.physical.max}}</span>
+        </div>
+        {{{conditionMonitor system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}}
+      </div>
+      <div class="monitor-group">
+        <label>{{localize "SR2E.Damage.Stun"}}</label>
+        <div class="monitor-track flexrow">
+          <input type="number" name="system.conditionMonitor.stun.value"
+                 value="{{system.conditionMonitor.stun.value}}" min="0"
+                 max="{{system.conditionMonitor.stun.max}}" class="monitor-input" />
+          <span>/ {{system.conditionMonitor.stun.max}}</span>
+        </div>
+        {{{conditionMonitor system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}}
+      </div>
+    </fieldset>
+
+    {{!-- Dice Pools --}}
+    <fieldset class="dice-pools">
+      <legend>{{localize "SR2E.DicePools"}}</legend>
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Combat"}}</label>
+        <input type="number" name="system.dicePools.combat.value" value="{{system.dicePools.combat.value}}" min="0" max="{{system.dicePools.combat.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.combat.max}}</span>
+      </div>
+      {{#if isMagical}}
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Magic"}}</label>
+        <input type="number" name="system.dicePools.magic.value" value="{{system.dicePools.magic.value}}" min="0" max="{{system.dicePools.magic.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.magic.max}}</span>
+      </div>
+      {{/if}}
+      {{#if isDecker}}
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Hacking"}}</label>
+        <input type="number" name="system.dicePools.hacking.value" value="{{system.dicePools.hacking.value}}" min="0" max="{{system.dicePools.hacking.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.hacking.max}}</span>
+      </div>
+      {{/if}}
+      {{#if isRigger}}
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Control"}}</label>
+        <input type="number" name="system.dicePools.control.value" value="{{system.dicePools.control.value}}" min="0" max="{{system.dicePools.control.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.control.max}}</span>
+      </div>
+      {{/if}}
+      <button type="button" data-action="resetPools" class="btn-reset-pools">
+        <i class="fas fa-sync"></i> Reset Pools
+      </button>
+    </fieldset>
+
+    {{!-- Initiative --}}
+    <fieldset class="initiative-block">
+      <legend>{{localize "SR2E.Initiative"}}</legend>
+      <div class="init-row flexrow">
+        <label>Base:</label>
+        <span>{{system.initiative.value}}</span>
+        <label>Dice:</label>
+        <span>{{system.initiative.dice}}d6</span>
+      </div>
+      <button type="button" data-action="rollInitiative" class="btn-roll-init">
+        <i class="fas fa-dice"></i> Roll Initiative
+      </button>
+    </fieldset>
+
+    {{!-- Movement --}}
+    <fieldset class="movement-block">
+      <legend>{{localize "SR2E.Movement"}}</legend>
+      <div class="flexrow">
+        <label>Walk:</label><span>{{system.movement.walk}}m</span>
+        <label>Run:</label><span>{{system.movement.run}}m</span>
+      </div>
+    </fieldset>
+
+    {{!-- Armor --}}
+    <fieldset class="armor-block">
+      <legend>{{localize "SR2E.Armor"}}</legend>
+      <div class="flexrow">
+        <label>{{localize "SR2E.Armor.Ballistic"}}:</label><span>{{system.armor.ballistic}}</span>
+        <label>{{localize "SR2E.Armor.Impact"}}:</label><span>{{system.armor.impact}}</span>
+      </div>
+    </fieldset>
+
+  </div>
+</section>

@@ -1,0 +1,103 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="matrix" data-group="primary">
+  <div class="matrix-section">
+
+    {{!-- Cyberdeck Configuration --}}
+    <fieldset class="cyberdeck-config">
+      <legend>Cyberdeck</legend>
+      <div class="cyberdeck-grid">
+        <div class="form-group">
+          <label>MPCP:</label>
+          <input type="number" name="system.cyberdeck.mpcp" value="{{system.cyberdeck.mpcp}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Hardening:</label>
+          <input type="number" name="system.cyberdeck.hardening" value="{{system.cyberdeck.hardening}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Active Memory:</label>
+          <input type="number" name="system.cyberdeck.activeMemory" value="{{system.cyberdeck.activeMemory}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Storage Memory:</label>
+          <input type="number" name="system.cyberdeck.storageMemory" value="{{system.cyberdeck.storageMemory}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Load Speed:</label>
+          <input type="number" name="system.cyberdeck.loadSpeed" value="{{system.cyberdeck.loadSpeed}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>I/O Speed:</label>
+          <input type="number" name="system.cyberdeck.ioSpeed" value="{{system.cyberdeck.ioSpeed}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Response:</label>
+          <input type="number" name="system.cyberdeck.response" value="{{system.cyberdeck.response}}" min="0" />
+        </div>
+      </div>
+    </fieldset>
+
+    {{!-- Matrix Persona --}}
+    {{#if isDecker}}
+    <fieldset class="persona-config">
+      <legend>Persona</legend>
+      <div class="persona-grid">
+        <div class="form-group">
+          <label>Bod:</label>
+          <input type="number" name="system.matrixPersona.bod" value="{{system.matrixPersona.bod}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Evasion:</label>
+          <input type="number" name="system.matrixPersona.evasion" value="{{system.matrixPersona.evasion}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Masking:</label>
+          <input type="number" name="system.matrixPersona.masking" value="{{system.matrixPersona.masking}}" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Sensor:</label>
+          <input type="number" name="system.matrixPersona.sensor" value="{{system.matrixPersona.sensor}}" min="0" />
+        </div>
+      </div>
+    </fieldset>
+
+    {{!-- Hacking Pool --}}
+    <fieldset class="hacking-pool">
+      <legend>Hacking Pool</legend>
+      <div class="pool-row flexrow">
+        <input type="number" name="system.dicePools.hacking.value" value="{{system.dicePools.hacking.value}}" min="0" max="{{system.dicePools.hacking.max}}" />
+        <span>/ {{system.dicePools.hacking.max}}</span>
+      </div>
+    </fieldset>
+
+    {{!-- Programs --}}
+    <div class="programs-category">
+      <div class="category-header flexrow">
+        <h3>Programs</h3>
+        <button type="button" data-action="addItem" data-type="program" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each programs as |program|}}
+        <div class="item-row program-row flexrow" data-item-id="{{program.id}}">
+          <span class="item-name" data-action="rollProgram">
+            <i class="fas fa-microchip"></i>
+            {{program.name}}
+          </span>
+          <span>{{program.system.category}}</span>
+          <span>Rating: {{program.system.rating}}</span>
+          <span>Size: {{program.system.size}}</span>
+          <span>{{#if program.system.loaded}}<i class="fas fa-check text-success"></i> Loaded{{/if}}</span>
+          <div class="item-controls">
+            <a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+  </div>
+</section>

@@ -1,0 +1,113 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="gear" data-group="primary">
+  <div class="gear-section">
+
+    {{!-- Cyberware --}}
+    <div class="gear-category">
+      <div class="category-header flexrow">
+        <h3>Cyberware</h3>
+        <span class="essence-display">Essence: {{formatEssence system.essence.value}} / {{formatEssence system.essence.max}}</span>
+        <button type="button" data-action="addItem" data-type="cyberware" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each cyberware as |cyber|}}
+        <div class="item-row cyber-row flexrow" data-item-id="{{cyber.id}}">
+          <span class="item-name">
+            <i class="fas fa-microchip"></i>
+            {{cyber.name}}
+          </span>
+          <span class="cyber-location">{{cyber.system.location}}</span>
+          <span class="cyber-grade">{{cyber.system.grade}}</span>
+          <span class="cyber-essence">Ess: {{cyber.system.actualEssenceCost}}</span>
+          <span class="cyber-installed">
+            {{#if cyber.system.installed}}<i class="fas fa-check-circle"></i>{{else}}<i class="fas fa-times-circle"></i>{{/if}}
+          </span>
+          <div class="item-controls">
+            <a data-action="toggleEquip" title="Install/Remove"><i class="fas fa-wrench"></i></a>
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- General Gear --}}
+    <div class="gear-category">
+      <div class="category-header flexrow">
+        <h3>Equipment</h3>
+        <button type="button" data-action="addItem" data-type="gear" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each gear as |g|}}
+        <div class="item-row flexrow" data-item-id="{{g.id}}">
+          <span class="item-name">{{g.name}}</span>
+          {{#ifGt g.system.rating 0}}
+          <span>Rating: {{g.system.rating}}</span>
+          {{/ifGt}}
+          <span>Qty: {{g.system.quantity}}</span>
+          <span>{{g.system.cost}}¥</span>
+          <div class="item-controls">
+            <a data-action="toggleEquip" title="Equip/Unequip">
+              <i class="fas {{#if g.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
+            </a>
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Contacts --}}
+    <div class="gear-category">
+      <div class="category-header flexrow">
+        <h3>Contacts</h3>
+        <button type="button" data-action="addItem" data-type="contact" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each contacts as |contact|}}
+        <div class="item-row flexrow" data-item-id="{{contact.id}}">
+          <span class="item-name">{{contact.name}}</span>
+          <span>{{contact.system.contactType}}</span>
+          <span>{{contact.system.archetype}}</span>
+          <div class="item-controls">
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Lifestyles --}}
+    <div class="gear-category">
+      <div class="category-header flexrow">
+        <h3>Lifestyles</h3>
+        <button type="button" data-action="addItem" data-type="lifestyle" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each lifestyles as |ls|}}
+        <div class="item-row flexrow" data-item-id="{{ls.id}}">
+          <span class="item-name">{{ls.name}}</span>
+          <span>{{ls.system.level}}</span>
+          <span>{{ls.system.monthlyCost}}¥/month</span>
+          <span>Months: {{ls.system.monthsPaid}}</span>
+          <div class="item-controls">
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+  </div>
+</section>

@@ -1,0 +1,76 @@
+<section class="tab-content {{#unless tab.active}}hidden{{/unless}}" data-tab="bio" data-group="primary">
+  <div class="bio-section">
+
+    <fieldset class="bio-group">
+      <legend>Biography</legend>
+      <div class="editor-wrapper">
+        {{editor enrichedBiography target="system.biography" button=true editable=true}}
+      </div>
+    </fieldset>
+
+    <fieldset class="bio-group">
+      <legend>Notes</legend>
+      <div class="editor-wrapper">
+        {{editor enrichedNotes target="system.notes" button=true editable=true}}
+      </div>
+    </fieldset>
+
+    {{!-- Character Creation Info --}}
+    <fieldset class="chargen-info">
+      <legend>Character Creation</legend>
+      <div class="chargen-grid">
+        <div class="priority-row flexrow">
+          <label>Race Priority:</label>
+          <select name="system.chargen.priorities.race">
+            <option value="A" {{selected system.chargen.priorities.race "A"}}>A</option>
+            <option value="B" {{selected system.chargen.priorities.race "B"}}>B</option>
+            <option value="C" {{selected system.chargen.priorities.race "C"}}>C</option>
+            <option value="D" {{selected system.chargen.priorities.race "D"}}>D</option>
+            <option value="E" {{selected system.chargen.priorities.race "E"}}>E</option>
+          </select>
+        </div>
+        <div class="priority-row flexrow">
+          <label>Magic Priority:</label>
+          <select name="system.chargen.priorities.magic">
+            <option value="A" {{selected system.chargen.priorities.magic "A"}}>A</option>
+            <option value="B" {{selected system.chargen.priorities.magic "B"}}>B</option>
+            <option value="C" {{selected system.chargen.priorities.magic "C"}}>C</option>
+            <option value="D" {{selected system.chargen.priorities.magic "D"}}>D</option>
+            <option value="E" {{selected system.chargen.priorities.magic "E"}}>E</option>
+          </select>
+        </div>
+        <div class="priority-row flexrow">
+          <label>Attributes Priority:</label>
+          <select name="system.chargen.priorities.attributes">
+            <option value="A" {{selected system.chargen.priorities.attributes "A"}}>A</option>
+            <option value="B" {{selected system.chargen.priorities.attributes "B"}}>B</option>
+            <option value="C" {{selected system.chargen.priorities.attributes "C"}}>C</option>
+            <option value="D" {{selected system.chargen.priorities.attributes "D"}}>D</option>
+            <option value="E" {{selected system.chargen.priorities.attributes "E"}}>E</option>
+          </select>
+        </div>
+        <div class="priority-row flexrow">
+          <label>Skills Priority:</label>
+          <select name="system.chargen.priorities.skills">
+            <option value="A" {{selected system.chargen.priorities.skills "A"}}>A</option>
+            <option value="B" {{selected system.chargen.priorities.skills "B"}}>B</option>
+            <option value="C" {{selected system.chargen.priorities.skills "C"}}>C</option>
+            <option value="D" {{selected system.chargen.priorities.skills "D"}}>D</option>
+            <option value="E" {{selected system.chargen.priorities.skills "E"}}>E</option>
+          </select>
+        </div>
+        <div class="priority-row flexrow">
+          <label>Resources Priority:</label>
+          <select name="system.chargen.priorities.resources">
+            <option value="A" {{selected system.chargen.priorities.resources "A"}}>A</option>
+            <option value="B" {{selected system.chargen.priorities.resources "B"}}>B</option>
+            <option value="C" {{selected system.chargen.priorities.resources "C"}}>C</option>
+            <option value="D" {{selected system.chargen.priorities.resources "D"}}>D</option>
+            <option value="E" {{selected system.chargen.priorities.resources "E"}}>E</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+  </div>
+</section>

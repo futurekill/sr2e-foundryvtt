@@ -1,0 +1,83 @@
+<section class="sr2e-vehicle-sheet">
+  <div class="vehicle-header flexrow">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" class="profile-img" />
+    <div class="header-info flexcol">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="Vehicle Name" />
+      <div class="form-group">
+        <label>Type:</label>
+        <select name="system.vehicleType">
+          {{#each config.vehicleTypes as |label key|}}
+          <option value="{{key}}" {{selected ../system.vehicleType key}}>{{localize label}}</option>
+          {{/each}}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <fieldset class="vehicle-stats">
+    <legend>Vehicle Statistics</legend>
+    <div class="stat-grid">
+      <div class="stat-item">
+        <label>Handling</label>
+        <input type="number" name="system.handling" value="{{system.handling}}" />
+      </div>
+      <div class="stat-item">
+        <label>Speed</label>
+        <input type="number" name="system.speed" value="{{system.speed}}" />
+      </div>
+      <div class="stat-item">
+        <label>Accel</label>
+        <input type="number" name="system.acceleration" value="{{system.acceleration}}" />
+      </div>
+      <div class="stat-item">
+        <label>Body</label>
+        <input type="number" name="system.body" value="{{system.body}}" />
+      </div>
+      <div class="stat-item">
+        <label>Armor</label>
+        <input type="number" name="system.armor" value="{{system.armor}}" />
+      </div>
+      <div class="stat-item">
+        <label>Signature</label>
+        <input type="number" name="system.signature" value="{{system.signature}}" />
+      </div>
+      <div class="stat-item">
+        <label>Pilot</label>
+        <input type="number" name="system.pilot" value="{{system.pilot}}" />
+      </div>
+      <div class="stat-item">
+        <label>Sensor</label>
+        <input type="number" name="system.sensor" value="{{system.sensor}}" />
+      </div>
+      <div class="stat-item">
+        <label>Autonav</label>
+        <input type="number" name="system.autonav" value="{{system.autonav}}" />
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="vehicle-body flexrow">
+    <fieldset>
+      <legend>Condition</legend>
+      <input type="number" name="system.conditionMonitor.value" value="{{system.conditionMonitor.value}}" min="0" max="{{system.conditionMonitor.max}}" />
+      <span>/ {{system.conditionMonitor.max}}</span>
+    </fieldset>
+
+    <fieldset>
+      <legend>Details</legend>
+      <div class="form-group">
+        <label>Seating:</label>
+        <input type="text" name="system.seating" value="{{system.seating}}" />
+      </div>
+      <div class="form-group">
+        <label>Cost:</label>
+        <input type="number" name="system.cost" value="{{system.cost}}" />
+      </div>
+    </fieldset>
+  </div>
+
+  <fieldset>
+    <legend>Notes</legend>
+    {{editor system.notes target="system.notes" button=true editable=true}}
+  </fieldset>
+</section>
