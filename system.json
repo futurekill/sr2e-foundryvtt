@@ -66,11 +66,11 @@
   "initiative": "1d6 + @initiative.dice d6",
   "packs": [],
   "socket": true,
-  "background": "assets/sr2e-background.webp",
+  "background": "systems/sr2e/assets/sr2e-background.webp",
   "media": [
     {
       "type": "icon",
-      "url": "assets/sr2e-logo.png"
+      "url": "systems/sr2e/assets/sr2e-logo.png"
     }
   ],
   "flags": {}
