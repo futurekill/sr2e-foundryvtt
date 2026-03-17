@@ -75,34 +75,34 @@ Hooks.once("init", async () => {
   CONFIG.Dice.rolls.push(SR2ESuccessRoll);
 
   // ---------------------------------------------------------------------------
-  // Register Actor Sheets (V13 pattern — no need to unregister core sheets)
+  // Register Actor Sheets
   // ---------------------------------------------------------------------------
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ECharacterSheet, {
+  Actors.registerSheet("sr2e", SR2ECharacterSheet, {
     types: ["character"],
     makeDefault: true,
     label: "SR2E.Sheets.Character"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ENPCSheet, {
+  Actors.registerSheet("sr2e", SR2ENPCSheet, {
     types: ["npc"],
     makeDefault: true,
     label: "SR2E.Sheets.NPC"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EVehicleSheet, {
+  Actors.registerSheet("sr2e", SR2EVehicleSheet, {
     types: ["vehicle"],
     makeDefault: true,
     label: "SR2E.Sheets.Vehicle"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ESpiritSheet, {
+  Actors.registerSheet("sr2e", SR2ESpiritSheet, {
     types: ["spirit"],
     makeDefault: true,
     label: "SR2E.Sheets.Spirit"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EICSheet, {
+  Actors.registerSheet("sr2e", SR2EICSheet, {
     types: ["ic"],
     makeDefault: true,
     label: "SR2E.Sheets.IC"
@@ -112,7 +112,7 @@ Hooks.once("init", async () => {
   // Register Item Sheets
   // ---------------------------------------------------------------------------
 
-  DocumentSheetConfig.registerSheet(Item, "sr2e", SR2EItemSheet, {
+  Items.registerSheet("sr2e", SR2EItemSheet, {
     makeDefault: true,
     label: "SR2E.Sheets.Item"
   });
@@ -273,10 +273,9 @@ function _registerSystemSettings() {
 /*  Chat Message Hooks                          */
 /* -------------------------------------------- */
 
-Hooks.on("renderChatMessage", (message, html, data) => {
-  // In V13, html is an HTMLElement, not jQuery
-  const element = html instanceof HTMLElement ? html : html[0];
-  if (message.isRoll && element) {
-    element.classList.add("sr2e-roll");
+Hooks.on("renderChatMessageHTML", (message, html, data) => {
+  // V13: html is an HTMLElement (renderChatMessageHTML is the V13 hook)
+  if (message.isRoll && html instanceof HTMLElement) {
+    html.classList.add("sr2e-roll");
   }
 });

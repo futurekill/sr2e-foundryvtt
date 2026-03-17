@@ -176,6 +176,16 @@
   "SR2E.Lifestyle.High": "High",
   "SR2E.Lifestyle.Luxury": "Luxury",
 
+  "SR2E.Contact.Contact": "Contact",
+  "SR2E.Contact.Buddy": "Buddy",
+  "SR2E.Contact.Follower": "Follower",
+
+  "SR2E.Focus.Spell": "Spell Focus",
+  "SR2E.Focus.Spirit": "Spirit Focus",
+  "SR2E.Focus.Power": "Power Focus",
+  "SR2E.Focus.Weapon": "Weapon Focus",
+  "SR2E.Focus.SpellLock": "Spell Lock",
+
   "SR2E.Sheets.Character": "SR2E Character Sheet",
   "SR2E.Sheets.NPC": "SR2E NPC Sheet",
   "SR2E.Sheets.Vehicle": "SR2E Vehicle Sheet",
