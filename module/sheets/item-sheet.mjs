@@ -12,7 +12,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     classes: ["sr2e", "sheet", "item"],
     position: { width: 520, height: 480 },
     actions: {
-      rollItem: SR2EItemSheet.#onRollItem
+      rollItem: SR2EItemSheet._onRollItem
     },
     form: {
       submitOnChange: true
@@ -38,13 +38,19 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.config = CONFIG.SR2E;
     context.isOwned = !!item.parent;
     context.type = item.type;
+    context.editable = this.isEditable;
 
     // Provide enriched HTML for notes/descriptions
+    const enrichOpts = {
+      secrets: this.document.isOwner,
+      async: true,
+      relativeTo: this.document
+    };
     if (item.system.notes) {
-      context.enrichedNotes = await TextEditor.enrichHTML(item.system.notes, { async: true });
+      context.enrichedNotes = await TextEditor.enrichHTML(item.system.notes, enrichOpts);
     }
     if (item.system.description) {
-      context.enrichedDescription = await TextEditor.enrichHTML(item.system.description, { async: true });
+      context.enrichedDescription = await TextEditor.enrichHTML(item.system.description, enrichOpts);
     }
 
     // Type-specific context
@@ -79,9 +85,20 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /**
-   * Roll the item.
+   * V13 signature: _preparePartContext(partId, context, options)
+   * @override
    */
-  static async #onRollItem(event, target) {
+  async _preparePartContext(partId, context, options) {
+    context.partId = `${this.id}-${partId}`;
+    return context;
+  }
+
+  /**
+   * Roll the item.
+   * @param {Event} event
+   * @param {HTMLElement} target
+   */
+  static async _onRollItem(event, target) {
     event.preventDefault();
     return this.document.roll();
   }

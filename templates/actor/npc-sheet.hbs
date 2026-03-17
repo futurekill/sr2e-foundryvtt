@@ -133,6 +133,9 @@
   {{!-- Biography --}}
   <fieldset>
     <legend>Notes</legend>
-    {{editor enrichedBiography target="system.biography" button=true editable=true}}
+    {{{enrichedBiography}}}
+    {{#if editable}}
+    <textarea name="system.biography" style="display:none;">{{system.biography}}</textarea>
+    {{/if}}
   </fieldset>
 </section>

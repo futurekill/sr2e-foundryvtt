@@ -12,7 +12,10 @@ export class CharacterData extends SR2EDataModel {
       notes: new fields.HTMLField({ initial: "" }),
 
       // --- RACE ---
-      race: new fields.StringField({ required: true, initial: "human", choices: ["human", "dwarf", "elf", "ork", "troll"] }),
+      race: new fields.StringField({ required: true, initial: "human", choices: {
+        human: "SR2E.Races.Human", dwarf: "SR2E.Races.Dwarf", elf: "SR2E.Races.Elf",
+        ork: "SR2E.Races.Ork", troll: "SR2E.Races.Troll"
+      }}),
 
       // --- PHYSICAL ATTRIBUTES ---
       body: SR2EDataModel.attributeField(3),
@@ -32,8 +35,14 @@ export class CharacterData extends SR2EDataModel {
       magic: new fields.SchemaField({
         value: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
         max: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
-        tradition: new fields.StringField({ initial: "none", choices: ["none", "hermetic", "shamanic"] }),
-        type: new fields.StringField({ initial: "none", choices: ["none", "full_magician", "physical_adept", "shamanic_adept", "magical_adept"] }),
+        tradition: new fields.StringField({ initial: "none", choices: {
+          none: "SR2E.Magic.None", hermetic: "SR2E.Magic.Hermetic", shamanic: "SR2E.Magic.Shamanic"
+        }}),
+        type: new fields.StringField({ initial: "none", choices: {
+          none: "SR2E.Magic.TypeNone", full_magician: "SR2E.Magic.FullMagician",
+          physical_adept: "SR2E.Magic.PhysicalAdept", shamanic_adept: "SR2E.Magic.ShamanicAdept",
+          magical_adept: "SR2E.Magic.MagicalAdept"
+        }}),
         totem: new fields.StringField({ initial: "" }),
         initiateGrade: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),

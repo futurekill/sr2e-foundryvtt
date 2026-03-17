@@ -31,14 +31,20 @@
   "documentTypes": {
     "Actor": {
       "character": {
-        "htmlFields": ["biography"]
+        "htmlFields": ["biography", "notes"]
       },
       "npc": {
         "htmlFields": ["biography"]
       },
-      "vehicle": {},
-      "spirit": {},
-      "ic": {}
+      "vehicle": {
+        "htmlFields": ["notes"]
+      },
+      "spirit": {
+        "htmlFields": ["notes"]
+      },
+      "ic": {
+        "htmlFields": ["notes"]
+      }
     },
     "Item": {
       "skill": {},
@@ -48,9 +54,15 @@
       "cyberware": {},
       "gear": {},
       "program": {},
-      "adept_power": {},
-      "contact": {},
-      "lifestyle": {},
+      "adept_power": {
+        "htmlFields": ["description"]
+      },
+      "contact": {
+        "htmlFields": ["description"]
+      },
+      "lifestyle": {
+        "htmlFields": ["description"]
+      },
       "ammo": {},
       "focus": {},
       "vehicle_mod": {}
@@ -63,7 +75,7 @@
   },
   "primaryTokenAttribute": "conditionMonitor.physical",
   "secondaryTokenAttribute": "conditionMonitor.stun",
-  "initiative": "1d6 + @initiative.dice d6",
+  "initiative": "@initiative.value + @initiative.dice d6",
   "packs": [],
   "socket": true,
   "background": "systems/sr2e/assets/sr2e-background.webp",

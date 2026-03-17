@@ -44,6 +44,9 @@
 
   <fieldset>
     <legend>Notes</legend>
-    {{editor system.notes target="system.notes" button=true editable=true}}
+    <div class="editor-content">{{{system.notes}}}</div>
+    {{#if editable}}
+    <textarea name="system.notes" style="display:none;">{{system.notes}}</textarea>
+    {{/if}}
   </fieldset>
 </section>

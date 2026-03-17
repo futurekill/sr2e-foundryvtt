@@ -74,43 +74,45 @@ Hooks.once("init", async () => {
   // Register custom Roll class
   CONFIG.Dice.rolls.push(SR2ESuccessRoll);
 
-  // Register Actor Sheets
-  Actors.unregisterSheet("core", ActorSheet);
+  // ---------------------------------------------------------------------------
+  // Register Actor Sheets (V13 pattern — no need to unregister core sheets)
+  // ---------------------------------------------------------------------------
 
-  Actors.registerSheet("sr2e", SR2ECharacterSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ECharacterSheet, {
     types: ["character"],
     makeDefault: true,
     label: "SR2E.Sheets.Character"
   });
 
-  Actors.registerSheet("sr2e", SR2ENPCSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ENPCSheet, {
     types: ["npc"],
     makeDefault: true,
     label: "SR2E.Sheets.NPC"
   });
 
-  Actors.registerSheet("sr2e", SR2EVehicleSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EVehicleSheet, {
     types: ["vehicle"],
     makeDefault: true,
     label: "SR2E.Sheets.Vehicle"
   });
 
-  Actors.registerSheet("sr2e", SR2ESpiritSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ESpiritSheet, {
     types: ["spirit"],
     makeDefault: true,
     label: "SR2E.Sheets.Spirit"
   });
 
-  Actors.registerSheet("sr2e", SR2EICSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EICSheet, {
     types: ["ic"],
     makeDefault: true,
     label: "SR2E.Sheets.IC"
   });
 
+  // ---------------------------------------------------------------------------
   // Register Item Sheets
-  Items.unregisterSheet("core", ItemSheet);
+  // ---------------------------------------------------------------------------
 
-  Items.registerSheet("sr2e", SR2EItemSheet, {
+  DocumentSheetConfig.registerSheet(Item, "sr2e", SR2EItemSheet, {
     makeDefault: true,
     label: "SR2E.Sheets.Item"
   });
@@ -272,8 +274,9 @@ function _registerSystemSettings() {
 /* -------------------------------------------- */
 
 Hooks.on("renderChatMessage", (message, html, data) => {
-  // Add SR2E styling to chat messages
-  if (message.isRoll) {
-    html[0]?.classList?.add("sr2e-roll");
+  // In V13, html is an HTMLElement, not jQuery
+  const element = html instanceof HTMLElement ? html : html[0];
+  if (message.isRoll && element) {
+    element.classList.add("sr2e-roll");
   }
 });

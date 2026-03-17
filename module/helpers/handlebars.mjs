@@ -27,14 +27,14 @@ export function registerHandlebarsHelpers() {
    * Check if a value is greater than another.
    */
   Handlebars.registerHelper("ifGt", function (a, b, options) {
-    return a > b ? options.fn(this) : options.inverse(this);
+    return Number(a) > Number(b) ? options.fn(this) : options.inverse(this);
   });
 
   /**
    * Check if a value is less than or equal to another.
    */
   Handlebars.registerHelper("ifLte", function (a, b, options) {
-    return a <= b ? options.fn(this) : options.inverse(this);
+    return Number(a) <= Number(b) ? options.fn(this) : options.inverse(this);
   });
 
   /**
@@ -54,6 +54,40 @@ export function registerHandlebarsHelpers() {
 
   Handlebars.registerHelper("divide", function (a, b) {
     return b !== 0 ? Number(a) / Number(b) : 0;
+  });
+
+  /**
+   * Return the maximum of two numbers.
+   * Usage: {{max a b}}
+   */
+  Handlebars.registerHelper("max", function (a, b) {
+    return Math.max(Number(a) || 0, Number(b) || 0);
+  });
+
+  /**
+   * Return the minimum of two numbers.
+   * Usage: {{min a b}}
+   */
+  Handlebars.registerHelper("min", function (a, b) {
+    return Math.min(Number(a) || 0, Number(b) || 0);
+  });
+
+  /**
+   * Deep lookup — access nested properties by multiple keys.
+   * Usage: {{deepLookup ../system attr "base"}}
+   *   resolves to system[attr].base
+   * Supports 1-3 levels of nesting.
+   */
+  Handlebars.registerHelper("deepLookup", function (...args) {
+    // Last argument is the Handlebars options object
+    args.pop();
+    if (args.length < 2) return undefined;
+    let obj = args[0];
+    for (let i = 1; i < args.length; i++) {
+      if (obj == null) return undefined;
+      obj = obj[args[i]];
+    }
+    return obj;
   });
 
   /**
@@ -83,7 +117,7 @@ export function registerHandlebarsHelpers() {
 
   /**
    * Localize a config value.
-   * Usage: {{localize config.key}}
+   * Usage: {{sr2eLocalize config.key}}
    */
   Handlebars.registerHelper("sr2eLocalize", function (key) {
     return game.i18n.localize(key) || key;
@@ -91,6 +125,7 @@ export function registerHandlebarsHelpers() {
 
   /**
    * Select helper - marks an option as selected if it matches.
+   * Usage: {{selected currentValue optionValue}}
    */
   Handlebars.registerHelper("selected", function (value, option) {
     return value === option ? "selected" : "";

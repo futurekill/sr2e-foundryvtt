@@ -7,28 +7,28 @@
       {{#each physicalAttributes as |attr|}}
       <div class="attribute-row flexrow" data-attribute="{{attr}}">
         <label class="attribute-label" data-action="rollAttribute" data-attribute="{{attr}}">
-          {{localize (lookup ../config.attributes attr)}}
+          {{localize (deepLookup ../config.attributes attr)}}
         </label>
-        <input type="number" name="system.{{attr}}.base" value="{{lookup ../system attr 'base'}}" class="attr-input" min="1" />
-        {{#ifGt (lookup ../system attr 'racial') 0}}
-        <span class="racial-mod positive">+{{lookup ../system attr 'racial'}}</span>
+        <input type="number" name="system.{{attr}}.base" value="{{deepLookup ../system attr 'base'}}" class="attr-input" min="1" />
+        {{#ifGt (deepLookup ../system attr 'racial') 0}}
+        <span class="racial-mod positive">+{{deepLookup ../system attr 'racial'}}</span>
         {{else}}
-        {{#ifGt 0 (lookup ../system attr 'racial')}}
-        <span class="racial-mod negative">{{lookup ../system attr 'racial'}}</span>
+        {{#ifGt 0 (deepLookup ../system attr 'racial')}}
+        <span class="racial-mod negative">{{deepLookup ../system attr 'racial'}}</span>
         {{else}}
         <span class="racial-mod">&mdash;</span>
         {{/ifGt}}
         {{/ifGt}}
-        {{#ifGt (lookup ../system attr 'mod') 0}}
-        <span class="cyber-mod positive">+{{lookup ../system attr 'mod'}}</span>
+        {{#ifGt (deepLookup ../system attr 'mod') 0}}
+        <span class="cyber-mod positive">+{{deepLookup ../system attr 'mod'}}</span>
         {{else}}
-        {{#ifGt 0 (lookup ../system attr 'mod')}}
-        <span class="cyber-mod negative">{{lookup ../system attr 'mod'}}</span>
+        {{#ifGt 0 (deepLookup ../system attr 'mod')}}
+        <span class="cyber-mod negative">{{deepLookup ../system attr 'mod'}}</span>
         {{else}}
         <span class="cyber-mod">&mdash;</span>
         {{/ifGt}}
         {{/ifGt}}
-        <span class="attr-total">{{lookup ../system attr 'value'}}</span>
+        <span class="attr-total">{{deepLookup ../system attr 'value'}}</span>
       </div>
       {{/each}}
     </fieldset>
@@ -39,20 +39,20 @@
       {{#each mentalAttributes as |attr|}}
       <div class="attribute-row flexrow" data-attribute="{{attr}}">
         <label class="attribute-label" data-action="rollAttribute" data-attribute="{{attr}}">
-          {{localize (lookup ../config.attributes attr)}}
+          {{localize (deepLookup ../config.attributes attr)}}
         </label>
-        <input type="number" name="system.{{attr}}.base" value="{{lookup ../system attr 'base'}}" class="attr-input" min="1" />
-        {{#ifGt (lookup ../system attr 'racial') 0}}
-        <span class="racial-mod positive">+{{lookup ../system attr 'racial'}}</span>
+        <input type="number" name="system.{{attr}}.base" value="{{deepLookup ../system attr 'base'}}" class="attr-input" min="1" />
+        {{#ifGt (deepLookup ../system attr 'racial') 0}}
+        <span class="racial-mod positive">+{{deepLookup ../system attr 'racial'}}</span>
         {{else}}
         <span class="racial-mod">&mdash;</span>
         {{/ifGt}}
-        {{#ifGt (lookup ../system attr 'mod') 0}}
-        <span class="cyber-mod positive">+{{lookup ../system attr 'mod'}}</span>
+        {{#ifGt (deepLookup ../system attr 'mod') 0}}
+        <span class="cyber-mod positive">+{{deepLookup ../system attr 'mod'}}</span>
         {{else}}
         <span class="cyber-mod">&mdash;</span>
         {{/ifGt}}
-        <span class="attr-total">{{lookup ../system attr 'value'}}</span>
+        <span class="attr-total">{{deepLookup ../system attr 'value'}}</span>
       </div>
       {{/each}}
     </fieldset>

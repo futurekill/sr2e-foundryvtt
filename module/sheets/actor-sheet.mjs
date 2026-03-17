@@ -1,6 +1,219 @@
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
+// ---------------------------------------------------------------------------
+// SHARED ACTION HANDLERS
+// These are standalone async functions used by multiple sheet classes.
+// In V13 ApplicationV2, action handlers receive (event, target) and
+// `this` is bound to the Application instance.
+// ---------------------------------------------------------------------------
+
+/**
+ * Prompt the user for a target number using DialogV2.
+ * @returns {Promise<number|null>}
+ */
+async function promptTargetNumber() {
+  const result = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Target Number" },
+    content: `
+      <form>
+        <div class="form-group">
+          <label>Target Number:</label>
+          <input type="number" name="tn" value="4" min="2" max="30" autofocus>
+        </div>
+      </form>
+    `,
+    buttons: [
+      {
+        action: "roll",
+        label: "Roll",
+        default: true,
+        callback: (event, button, dialog) => {
+          const tn = parseInt(button.form.elements.tn.value);
+          return isNaN(tn) ? 4 : tn;
+        }
+      },
+      {
+        action: "cancel",
+        label: "Cancel",
+        callback: () => null
+      }
+    ],
+    close: () => null
+  });
+  return result;
+}
+
+/**
+ * Roll an attribute test.
+ * @this {ApplicationV2} The sheet application
+ */
+async function onRollAttribute(event, target) {
+  event.preventDefault();
+  const attribute = target.dataset.attribute;
+  const actor = this.document;
+  const tn = await promptTargetNumber();
+  if (tn === null) return;
+  return actor.rollAttributeTest(attribute, tn);
+}
+
+/**
+ * Roll a skill test.
+ * @this {ApplicationV2}
+ */
+async function onRollSkill(event, target) {
+  event.preventDefault();
+  const skillId = target.closest("[data-item-id]")?.dataset.itemId;
+  if (!skillId) return;
+  const tn = await promptTargetNumber();
+  if (tn === null) return;
+  return this.document.rollSkillTest(skillId, tn);
+}
+
+/**
+ * Roll initiative.
+ * @this {ApplicationV2}
+ */
+async function onRollInitiative(event, target) {
+  event.preventDefault();
+  return this.document.rollInitiative();
+}
+
+/**
+ * Roll a weapon attack.
+ * @this {ApplicationV2}
+ */
+async function onRollWeapon(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+  const tn = await promptTargetNumber();
+  if (tn === null) return;
+  return item.roll({ targetNumber: tn });
+}
+
+/**
+ * Cast a spell.
+ * @this {ApplicationV2}
+ */
+async function onCastSpell(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+  const tn = await promptTargetNumber();
+  if (tn === null) return;
+  return item.roll({ targetNumber: tn });
+}
+
+/**
+ * Roll a program action.
+ * @this {ApplicationV2}
+ */
+async function onRollProgram(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+  const tn = await promptTargetNumber();
+  if (tn === null) return;
+  return item.roll({ targetNumber: tn });
+}
+
+/**
+ * Toggle equip/install state for an item.
+ * @this {ApplicationV2}
+ */
+async function onToggleEquip(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+  const field = item.type === "cyberware" ? "system.installed" :
+                item.type === "program" ? "system.loaded" : "system.equipped";
+  const currentValue = item.type === "cyberware" ? item.system.installed :
+                       item.type === "program" ? item.system.loaded : item.system.equipped;
+  return item.update({ [field]: !currentValue });
+}
+
+/**
+ * Edit an item (open its sheet).
+ * @this {ApplicationV2}
+ */
+async function onEditItem(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (item) item.sheet.render(true);
+}
+
+/**
+ * Delete an item with confirmation.
+ * @this {ApplicationV2}
+ */
+async function onDeleteItem(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+
+  const confirmed = await foundry.applications.api.DialogV2.confirm({
+    window: { title: `Delete ${item.name}?` },
+    content: `<p>Are you sure you want to delete <strong>${item.name}</strong>?</p>`
+  });
+
+  if (confirmed) return item.delete();
+}
+
+/**
+ * Add a new item of a given type.
+ * @this {ApplicationV2}
+ */
+async function onAddItem(event, target) {
+  event.preventDefault();
+  const type = target.dataset.type;
+  const name = `New ${type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}`;
+  return this.document.createEmbeddedDocuments("Item", [{ name, type }]);
+}
+
+/**
+ * Reset all dice pools to their maximum values.
+ * @this {ApplicationV2}
+ */
+async function onResetPools(event, target) {
+  event.preventDefault();
+  const system = this.document.system;
+  const updates = {};
+  for (const pool of ["combat", "hacking", "magic", "control"]) {
+    if (system.dicePools[pool]) {
+      updates[`system.dicePools.${pool}.value`] = system.dicePools[pool].max;
+    }
+  }
+  return this.document.update(updates);
+}
+
+// ---------------------------------------------------------------------------
+// Shared actions map used by character sheet and NPC sheet
+// ---------------------------------------------------------------------------
+const SHARED_ACTIONS = {
+  rollAttribute: onRollAttribute,
+  rollSkill: onRollSkill,
+  rollInitiative: onRollInitiative,
+  rollWeapon: onRollWeapon,
+  castSpell: onCastSpell,
+  rollProgram: onRollProgram,
+  toggleEquip: onToggleEquip,
+  editItem: onEditItem,
+  deleteItem: onDeleteItem,
+  addItem: onAddItem,
+  resetPools: onResetPools
+};
+
+// =========================================================================
+// CHARACTER SHEET
+// =========================================================================
+
 /**
  * Character Sheet for Shadowrun 2E player characters.
  * Uses the V13 ApplicationV2 framework with HandlebarsApplicationMixin.
@@ -11,19 +224,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "character"],
     position: { width: 800, height: 700 },
-    actions: {
-      rollAttribute: SR2ECharacterSheet.#onRollAttribute,
-      rollSkill: SR2ECharacterSheet.#onRollSkill,
-      rollInitiative: SR2ECharacterSheet.#onRollInitiative,
-      rollWeapon: SR2ECharacterSheet.#onRollWeapon,
-      castSpell: SR2ECharacterSheet.#onCastSpell,
-      rollProgram: SR2ECharacterSheet.#onRollProgram,
-      toggleEquip: SR2ECharacterSheet.#onToggleEquip,
-      editItem: SR2ECharacterSheet.#onEditItem,
-      deleteItem: SR2ECharacterSheet.#onDeleteItem,
-      addItem: SR2ECharacterSheet.#onAddItem,
-      resetPools: SR2ECharacterSheet.#onResetPools
-    },
+    actions: SHARED_ACTIONS,
     form: {
       submitOnChange: true
     },
@@ -59,6 +260,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     context.system = system;
     context.actor = actor;
     context.config = CONFIG.SR2E;
+    context.editable = this.isEditable;
 
     // Organize items by type
     context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name));
@@ -77,9 +279,19 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     // Tab state
     context.tabs = this._getTabs();
 
-    // Enriched HTML
-    context.enrichedBiography = await TextEditor.enrichHTML(system.biography || "", { async: true });
-    context.enrichedNotes = await TextEditor.enrichHTML(system.notes || "", { async: true });
+    // Enriched HTML fields
+    context.enrichedBiography = await TextEditor.enrichHTML(system.biography || "", {
+      secrets: this.document.isOwner,
+      rollData: actor.getRollData(),
+      async: true,
+      relativeTo: this.document
+    });
+    context.enrichedNotes = await TextEditor.enrichHTML(system.notes || "", {
+      secrets: this.document.isOwner,
+      rollData: actor.getRollData(),
+      async: true,
+      relativeTo: this.document
+    });
 
     // Derived display values
     context.woundPenalty = system.woundPenalty;
@@ -88,17 +300,20 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     context.isDecker = system.isDecker;
     context.isRigger = system.isRigger;
 
-    // Attribute list for iteration
+    // Attribute lists for template iteration
     context.physicalAttributes = ["body", "quickness", "strength"];
     context.mentalAttributes = ["charisma", "intelligence", "willpower"];
 
     return context;
   }
 
-  /** @override */
-  async _preparePartContext(partId, context) {
+  /**
+   * @override
+   * V13 signature: _preparePartContext(partId, context, options)
+   */
+  async _preparePartContext(partId, context, options) {
     context.partId = `${this.id}-${partId}`;
-    context.tab = context.tabs[partId];
+    context.tab = context.tabs?.[partId];
     return context;
   }
 
@@ -123,202 +338,11 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
     return tabs;
   }
-
-  // -------------------------------------------------------------------------
-  // ACTION HANDLERS
-  // -------------------------------------------------------------------------
-
-  /**
-   * Roll an attribute test.
-   * @param {Event} event
-   * @param {HTMLElement} target
-   */
-  static async #onRollAttribute(event, target) {
-    event.preventDefault();
-    const attribute = target.dataset.attribute;
-    const actor = this.document;
-
-    // Prompt for target number
-    const tn = await SR2ECharacterSheet.#promptTargetNumber();
-    if (tn === null) return;
-
-    return actor.rollAttributeTest(attribute, tn);
-  }
-
-  /**
-   * Roll a skill test.
-   */
-  static async #onRollSkill(event, target) {
-    event.preventDefault();
-    const skillId = target.closest("[data-item-id]")?.dataset.itemId;
-    if (!skillId) return;
-
-    const tn = await SR2ECharacterSheet.#promptTargetNumber();
-    if (tn === null) return;
-
-    return this.document.rollSkillTest(skillId, tn);
-  }
-
-  /**
-   * Roll initiative.
-   */
-  static async #onRollInitiative(event, target) {
-    event.preventDefault();
-    return this.document.rollInitiative();
-  }
-
-  /**
-   * Roll a weapon attack.
-   */
-  static async #onRollWeapon(event, target) {
-    event.preventDefault();
-    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
-    const item = this.document.items.get(itemId);
-    if (!item) return;
-
-    const tn = await SR2ECharacterSheet.#promptTargetNumber();
-    if (tn === null) return;
-
-    return item.roll({ targetNumber: tn });
-  }
-
-  /**
-   * Cast a spell.
-   */
-  static async #onCastSpell(event, target) {
-    event.preventDefault();
-    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
-    const item = this.document.items.get(itemId);
-    if (!item) return;
-
-    const tn = await SR2ECharacterSheet.#promptTargetNumber();
-    if (tn === null) return;
-
-    return item.roll({ targetNumber: tn });
-  }
-
-  /**
-   * Roll a program action.
-   */
-  static async #onRollProgram(event, target) {
-    event.preventDefault();
-    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
-    const item = this.document.items.get(itemId);
-    if (!item) return;
-
-    const tn = await SR2ECharacterSheet.#promptTargetNumber();
-    if (tn === null) return;
-
-    return item.roll({ targetNumber: tn });
-  }
-
-  /**
-   * Toggle equip state for an item.
-   */
-  static async #onToggleEquip(event, target) {
-    event.preventDefault();
-    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
-    const item = this.document.items.get(itemId);
-    if (!item) return;
-
-    const field = item.type === "cyberware" ? "system.installed" : "system.equipped";
-    const currentValue = item.type === "cyberware" ? item.system.installed : item.system.equipped;
-    return item.update({ [field]: !currentValue });
-  }
-
-  /**
-   * Edit an item.
-   */
-  static async #onEditItem(event, target) {
-    event.preventDefault();
-    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
-    const item = this.document.items.get(itemId);
-    if (item) item.sheet.render(true);
-  }
-
-  /**
-   * Delete an item.
-   */
-  static async #onDeleteItem(event, target) {
-    event.preventDefault();
-    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
-    const item = this.document.items.get(itemId);
-    if (!item) return;
-
-    const confirm = await foundry.applications.api.DialogV2.confirm({
-      window: { title: `Delete ${item.name}?` },
-      content: `<p>Are you sure you want to delete <strong>${item.name}</strong>?</p>`
-    });
-
-    if (confirm) return item.delete();
-  }
-
-  /**
-   * Add a new item of a given type.
-   */
-  static async #onAddItem(event, target) {
-    event.preventDefault();
-    const type = target.dataset.type;
-    const name = `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
-
-    const itemData = { name, type };
-    return this.document.createEmbeddedDocuments("Item", [itemData]);
-  }
-
-  /**
-   * Reset all dice pools to their maximum values.
-   */
-  static async #onResetPools(event, target) {
-    event.preventDefault();
-    const system = this.document.system;
-    const updates = {};
-
-    for (const pool of ["combat", "hacking", "magic", "control"]) {
-      if (system.dicePools[pool]) {
-        updates[`system.dicePools.${pool}.value`] = system.dicePools[pool].max;
-      }
-    }
-
-    return this.document.update(updates);
-  }
-
-  /**
-   * Prompt for a target number.
-   * @returns {Promise<number|null>}
-   */
-  static async #promptTargetNumber() {
-    return new Promise((resolve) => {
-      const dialog = new foundry.applications.api.DialogV2({
-        window: { title: "Target Number" },
-        content: `
-          <form>
-            <div class="form-group">
-              <label>Target Number:</label>
-              <input type="number" name="tn" value="4" min="2" max="30" autofocus>
-            </div>
-          </form>
-        `,
-        buttons: [
-          {
-            action: "roll",
-            label: "Roll",
-            default: true,
-            callback: (event, button, dialog) => {
-              const tn = parseInt(button.form.elements.tn.value);
-              resolve(isNaN(tn) ? 4 : tn);
-            }
-          },
-          {
-            action: "cancel",
-            label: "Cancel",
-            callback: () => resolve(null)
-          }
-        ]
-      });
-      dialog.render(true);
-    });
-  }
 }
+
+// =========================================================================
+// NPC SHEET
+// =========================================================================
 
 /**
  * NPC Sheet - simplified version of the character sheet.
@@ -330,12 +354,12 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     classes: ["sr2e", "sheet", "actor", "npc"],
     position: { width: 650, height: 550 },
     actions: {
-      rollAttribute: SR2ECharacterSheet.prototype.constructor.DEFAULT_OPTIONS?.actions?.rollAttribute,
-      rollInitiative: SR2ECharacterSheet.prototype.constructor.DEFAULT_OPTIONS?.actions?.rollInitiative,
-      editItem: SR2ECharacterSheet.prototype.constructor.DEFAULT_OPTIONS?.actions?.editItem,
-      deleteItem: SR2ECharacterSheet.prototype.constructor.DEFAULT_OPTIONS?.actions?.deleteItem,
-      addItem: SR2ECharacterSheet.prototype.constructor.DEFAULT_OPTIONS?.actions?.addItem,
-      rollWeapon: SR2ECharacterSheet.prototype.constructor.DEFAULT_OPTIONS?.actions?.rollWeapon
+      rollAttribute: onRollAttribute,
+      rollInitiative: onRollInitiative,
+      rollWeapon: onRollWeapon,
+      editItem: onEditItem,
+      deleteItem: onDeleteItem,
+      addItem: onAddItem
     },
     form: {
       submitOnChange: true
@@ -359,17 +383,32 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.system = system;
     context.actor = actor;
     context.config = CONFIG.SR2E;
+    context.editable = this.isEditable;
 
     context.skills = actor.items.filter(i => i.type === "skill");
     context.weapons = actor.items.filter(i => i.type === "weapon");
     context.gear = actor.items.filter(i => i.type === "gear");
     context.spells = actor.items.filter(i => i.type === "spell");
 
-    context.enrichedBiography = await TextEditor.enrichHTML(system.biography || "", { async: true });
+    context.enrichedBiography = await TextEditor.enrichHTML(system.biography || "", {
+      secrets: this.document.isOwner,
+      async: true,
+      relativeTo: this.document
+    });
 
     return context;
   }
+
+  /** @override */
+  async _preparePartContext(partId, context, options) {
+    context.partId = `${this.id}-${partId}`;
+    return context;
+  }
 }
+
+// =========================================================================
+// VEHICLE SHEET
+// =========================================================================
 
 /**
  * Vehicle Sheet.
@@ -379,6 +418,11 @@ export class SR2EVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "vehicle"],
     position: { width: 550, height: 450 },
+    actions: {
+      editItem: onEditItem,
+      deleteItem: onDeleteItem,
+      addItem: onAddItem
+    },
     form: { submitOnChange: true },
     window: { resizable: true }
   };
@@ -392,11 +436,21 @@ export class SR2EVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.system = this.document.system;
     context.actor = this.document;
     context.config = CONFIG.SR2E;
+    context.editable = this.isEditable;
     context.weapons = this.document.items.filter(i => i.type === "weapon");
     context.mods = this.document.items.filter(i => i.type === "vehicle_mod");
     return context;
   }
+
+  async _preparePartContext(partId, context, options) {
+    context.partId = `${this.id}-${partId}`;
+    return context;
+  }
 }
+
+// =========================================================================
+// SPIRIT SHEET
+// =========================================================================
 
 /**
  * Spirit Sheet.
@@ -406,6 +460,11 @@ export class SR2ESpiritSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "spirit"],
     position: { width: 500, height: 450 },
+    actions: {
+      editItem: onEditItem,
+      deleteItem: onDeleteItem,
+      addItem: onAddItem
+    },
     form: { submitOnChange: true },
     window: { resizable: true }
   };
@@ -419,18 +478,33 @@ export class SR2ESpiritSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.system = this.document.system;
     context.actor = this.document;
     context.config = CONFIG.SR2E;
+    context.editable = this.isEditable;
+    return context;
+  }
+
+  async _preparePartContext(partId, context, options) {
+    context.partId = `${this.id}-${partId}`;
     return context;
   }
 }
 
+// =========================================================================
+// IC SHEET
+// =========================================================================
+
 /**
- * IC Sheet.
+ * IC (Intrusion Countermeasures) Sheet.
  */
 export class SR2EICSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "ic"],
     position: { width: 450, height: 400 },
+    actions: {
+      editItem: onEditItem,
+      deleteItem: onDeleteItem,
+      addItem: onAddItem
+    },
     form: { submitOnChange: true },
     window: { resizable: true }
   };
@@ -444,6 +518,12 @@ export class SR2EICSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.system = this.document.system;
     context.actor = this.document;
     context.config = CONFIG.SR2E;
+    context.editable = this.isEditable;
+    return context;
+  }
+
+  async _preparePartContext(partId, context, options) {
+    context.partId = `${this.id}-${partId}`;
     return context;
   }
 }

@@ -7,7 +7,10 @@ export class SkillData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      category: new fields.StringField({ required: true, initial: "active", choices: ["active", "knowledge", "language", "special"] }),
+      category: new fields.StringField({ required: true, initial: "active", choices: {
+        active: "SR2E.Skills.Active", knowledge: "SR2E.Skills.Knowledge",
+        language: "SR2E.Skills.Language", special: "SR2E.Skills.Special"
+      }}),
       linkedAttribute: new fields.StringField({ initial: "quickness" }),
       rating: new fields.NumberField({ required: true, integer: true, initial: 1, min: 0 }),
       concentration: new fields.SchemaField({
@@ -56,10 +59,16 @@ export class WeaponData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      weaponType: new fields.StringField({ required: true, initial: "firearm", choices: ["melee", "projectile", "throwing", "firearm", "heavy", "grenade"] }),
+      weaponType: new fields.StringField({ required: true, initial: "firearm", choices: {
+        melee: "SR2E.Weapons.Melee", projectile: "SR2E.Weapons.Projectile",
+        throwing: "SR2E.Weapons.Throwing", firearm: "SR2E.Weapons.Firearm",
+        heavy: "SR2E.Weapons.Heavy", grenade: "SR2E.Weapons.Grenade"
+      }}),
       skill: new fields.StringField({ initial: "firearms" }),
       damageCode: new fields.StringField({ initial: "6M" }),  // e.g., "6M", "8S", "10D"
-      damageType: new fields.StringField({ initial: "physical", choices: ["physical", "stun"] }),
+      damageType: new fields.StringField({ initial: "physical", choices: {
+        physical: "SR2E.Damage.Physical", stun: "SR2E.Damage.Stun"
+      }}),
       concealability: new fields.NumberField({ integer: true, initial: 6, min: 0 }),
       reach: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
@@ -142,10 +151,22 @@ export class SpellData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      category: new fields.StringField({ required: true, initial: "combat", choices: ["combat", "detection", "health", "illusion", "manipulation"] }),
-      type: new fields.StringField({ required: true, initial: "physical", choices: ["physical", "mana"] }),
-      range: new fields.StringField({ required: true, initial: "los", choices: ["touch", "los", "self", "area"] }),
-      duration: new fields.StringField({ required: true, initial: "instant", choices: ["instant", "sustained", "permanent"] }),
+      category: new fields.StringField({ required: true, initial: "combat", choices: {
+        combat: "SR2E.Spells.Combat", detection: "SR2E.Spells.Detection",
+        health: "SR2E.Spells.Health", illusion: "SR2E.Spells.Illusion",
+        manipulation: "SR2E.Spells.Manipulation"
+      }}),
+      type: new fields.StringField({ required: true, initial: "physical", choices: {
+        physical: "SR2E.Spells.Physical", mana: "SR2E.Spells.Mana"
+      }}),
+      range: new fields.StringField({ required: true, initial: "los", choices: {
+        touch: "SR2E.Spells.Touch", los: "SR2E.Spells.LOS",
+        self: "SR2E.Spells.Self", area: "SR2E.Spells.Area"
+      }}),
+      duration: new fields.StringField({ required: true, initial: "instant", choices: {
+        instant: "SR2E.Spells.Instant", sustained: "SR2E.Spells.Sustained",
+        permanent: "SR2E.Spells.Permanent"
+      }}),
       force: new fields.NumberField({ required: true, integer: true, initial: 1, min: 1 }),
       drainCode: new fields.StringField({ initial: "+1(M)" }),
       target: new fields.StringField({ initial: "" }),
@@ -186,8 +207,13 @@ export class CyberwareData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      location: new fields.StringField({ initial: "bodyware", choices: ["headware", "bodyware", "cyberlimb", "other"] }),
-      grade: new fields.StringField({ initial: "standard", choices: ["standard", "alpha"] }),
+      location: new fields.StringField({ initial: "bodyware", choices: {
+        headware: "SR2E.Cyberware.Headware", bodyware: "SR2E.Cyberware.Bodyware",
+        cyberlimb: "SR2E.Cyberware.Cyberlimb", other: "SR2E.Cyberware.Other"
+      }}),
+      grade: new fields.StringField({ initial: "standard", choices: {
+        standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha"
+      }}),
       essenceCost: new fields.NumberField({ required: true, initial: 0.5, min: 0 }),
       rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
@@ -246,7 +272,11 @@ export class ProgramData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      category: new fields.StringField({ initial: "persona", choices: ["persona", "combat", "defense", "sensor", "masking", "other"] }),
+      category: new fields.StringField({ initial: "persona", choices: {
+        persona: "SR2E.Matrix.Persona", combat: "SR2E.Matrix.CombatUtility",
+        defense: "SR2E.Matrix.DefenseUtility", sensor: "SR2E.Matrix.SensorUtility",
+        masking: "SR2E.Matrix.MaskingUtility", other: "SR2E.Matrix.OtherUtility"
+      }}),
       rating: new fields.NumberField({ required: true, integer: true, initial: 1, min: 1 }),
       size: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       multiplier: new fields.NumberField({ initial: 1, min: 0 }),
@@ -300,7 +330,9 @@ export class ContactData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      contactType: new fields.StringField({ initial: "contact", choices: ["contact", "buddy", "follower"] }),
+      contactType: new fields.StringField({ initial: "contact", choices: {
+        contact: "SR2E.Contact.Contact", buddy: "SR2E.Contact.Buddy", follower: "SR2E.Contact.Follower"
+      }}),
       archetype: new fields.StringField({ initial: "" }),
       loyalty: new fields.NumberField({ integer: true, initial: 1, min: 1, max: 6 }),
       influence: new fields.NumberField({ integer: true, initial: 1, min: 1, max: 6 }),
@@ -317,7 +349,11 @@ export class LifestyleData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      level: new fields.StringField({ initial: "low", choices: ["streets", "squatter", "low", "middle", "high", "luxury"] }),
+      level: new fields.StringField({ initial: "low", choices: {
+        streets: "SR2E.Lifestyle.Streets", squatter: "SR2E.Lifestyle.Squatter",
+        low: "SR2E.Lifestyle.Low", middle: "SR2E.Lifestyle.Middle",
+        high: "SR2E.Lifestyle.High", luxury: "SR2E.Lifestyle.Luxury"
+      }}),
       monthlyCost: new fields.NumberField({ initial: 1000, min: 0 }),
       monthsPaid: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       description: new fields.HTMLField({ initial: "" }),
@@ -358,7 +394,10 @@ export class FocusData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
-      focusType: new fields.StringField({ initial: "spell", choices: ["spell", "spirit", "power", "weapon", "spell_lock"] }),
+      focusType: new fields.StringField({ initial: "spell", choices: {
+        spell: "SR2E.Focus.Spell", spirit: "SR2E.Focus.Spirit", power: "SR2E.Focus.Power",
+        weapon: "SR2E.Focus.Weapon", spell_lock: "SR2E.Focus.SpellLock"
+      }}),
       force: new fields.NumberField({ required: true, integer: true, initial: 1, min: 1 }),
       bondingCost: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       bonded: new fields.BooleanField({ initial: false }),
