@@ -741,6 +741,44 @@
   padding: 6px;
 }
 
+/* Rigger stats block at top of vehicles tab */
+.rigger-stats {
+  margin-bottom: 4px;
+}
+
+.rigger-stats-row {
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.rigger-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rigger-stat label {
+  font-size: 10px;
+  color: var(--sr2e-text-muted);
+  text-transform: uppercase;
+}
+
+.vcr-input {
+  width: 44px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.pool-display {
+  align-items: center;
+  gap: 4px;
+}
+
+.pool-display .pool-max {
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+}
+
 .vehicles-instructions {
   color: var(--sr2e-text-dim, #888);
   font-size: 11px;
@@ -827,16 +865,36 @@
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  align-items: center;
 }
 
-.vehicle-card-controls a {
-  color: var(--sr2e-text-dim, #888);
+.vehicle-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--sr2e-border);
+  color: var(--sr2e-text-muted);
   cursor: pointer;
-  font-size: 13px;
+  white-space: nowrap;
 }
 
-.vehicle-card-controls a:hover {
-  color: var(--sr2e-highlight);
+.vehicle-ctrl-btn:hover {
+  color: var(--sr2e-text);
+  border-color: var(--sr2e-text-muted);
+}
+
+.vehicle-ctrl-btn.remove {
+  color: var(--sr2e-failure);
+  border-color: var(--sr2e-failure);
+  opacity: 0.7;
+}
+
+.vehicle-ctrl-btn.remove:hover {
+  opacity: 1;
+  background: rgba(248, 81, 73, 0.1);
 }
 
 .vehicle-stats-row {

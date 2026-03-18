@@ -1,8 +1,28 @@
 <section class="tab-content {{#if tab.active}}active{{/if}}" data-tab="vehicles" data-group="primary">
   <div class="vehicles-section">
 
+    {{!-- Rigger Stats: VCR + Control Pool --}}
+    <fieldset class="rigger-stats">
+      <legend>Rigger</legend>
+      <div class="rigger-stats-row flexrow">
+        <div class="rigger-stat">
+          <label>Vehicle Control Rig</label>
+          <input type="number" name="system.vehicleControlRig" value="{{system.vehicleControlRig}}" min="0" max="3" class="vcr-input" />
+        </div>
+        {{#if isRigger}}
+        <div class="rigger-stat">
+          <label>Control Pool</label>
+          <div class="pool-display flexrow">
+            <input type="number" name="system.dicePools.control.value" value="{{system.dicePools.control.value}}" min="0" max="{{system.dicePools.control.max}}" class="pool-input" />
+            <span class="pool-max">/ {{system.dicePools.control.max}}</span>
+          </div>
+        </div>
+        {{/if}}
+      </div>
+    </fieldset>
+
     <div class="vehicles-instructions">
-      <p>Drag a Vehicle or Drone actor from the sidebar to link it here.</p>
+      <p>Drag a Vehicle or Drone actor from the sidebar to link it.</p>
     </div>
 
     {{#if linkedVehicles.length}}
@@ -18,15 +38,19 @@
             <span class="vehicle-type">{{vehicle.system.vehicleType}}</span>
           </div>
           <div class="vehicle-card-controls">
-            <a data-action="openVehicle" title="Open Sheet"><i class="fas fa-external-link-alt"></i></a>
-            <a data-action="unlinkVehicle" title="Unlink Vehicle"><i class="fas fa-unlink"></i></a>
+            <a class="vehicle-ctrl-btn" data-action="openVehicle" title="Open Sheet">
+              <i class="fas fa-external-link-alt"></i> Sheet
+            </a>
+            <a class="vehicle-ctrl-btn remove" data-action="unlinkVehicle" title="Remove from character">
+              <i class="fas fa-times"></i> Remove
+            </a>
           </div>
         </div>
 
         {{!-- Vehicle Stats --}}
         <div class="vehicle-stats-row flexrow">
-          <span class="vehicle-stat" title="Handling"><i class="fas fa-steering-wheel"></i> {{vehicle.system.handling}}</span>
-          <span class="vehicle-stat" title="Speed"><i class="fas fa-tachometer-alt"></i> {{vehicle.system.speed}}</span>
+          <span class="vehicle-stat" title="Handling">Hand: {{vehicle.system.handling}}</span>
+          <span class="vehicle-stat" title="Speed">Spd: {{vehicle.system.speed}}</span>
           <span class="vehicle-stat" title="Acceleration">Acc: {{vehicle.system.acceleration}}</span>
           <span class="vehicle-stat" title="Body">Body: {{vehicle.system.body}}</span>
           <span class="vehicle-stat" title="Armor">Armor: {{vehicle.system.armor}}</span>
@@ -83,7 +107,6 @@
     <div class="vehicles-empty">
       <i class="fas fa-car fa-3x"></i>
       <p>No vehicles or drones linked.</p>
-      <p class="hint">Drag a Vehicle actor from the sidebar to link it.</p>
     </div>
     {{/if}}
 
