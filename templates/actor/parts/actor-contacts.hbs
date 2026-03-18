@@ -1,0 +1,67 @@
+<section class="tab-content {{#if tab.active}}active{{/if}}" data-tab="contacts" data-group="primary">
+  <div class="contacts-section">
+
+    <div class="contacts-toolbar flexrow">
+      <span class="contacts-count">{{contacts.length}} contact{{#ifGt contacts.length 1}}s{{/ifGt}}</span>
+      <button type="button" data-action="addItem" data-type="contact" class="btn-add">
+        <i class="fas fa-plus"></i> Add Contact
+      </button>
+    </div>
+
+    {{#if contacts.length}}
+    <div class="contacts-table">
+
+      <div class="contact-row contact-header-row flexrow">
+        <span class="col-name">Name</span>
+        <span class="col-archetype">Archetype</span>
+        <span class="col-type">Type</span>
+        <span class="col-loyalty">Loyalty</span>
+        <span class="col-influence">Influence</span>
+        <span class="col-controls"></span>
+      </div>
+
+      {{#each contacts as |contact|}}
+      <div class="contact-row flexrow" data-item-id="{{contact.id}}">
+
+        <span class="col-name contact-name">{{contact.name}}</span>
+
+        <span class="col-archetype contact-archetype">{{contact.system.archetype}}</span>
+
+        <span class="col-type">
+          <span class="contact-type-badge type-{{contact.system.contactType}}">{{contact.system.contactType}}</span>
+        </span>
+
+        <span class="col-loyalty">
+          <span class="rating-bar">
+            {{#times 6}}<span class="rating-pip {{#ifLte (add index 1) ../contact.system.loyalty}}filled{{/ifLte}}"></span>{{/times}}
+          </span>
+          <span class="rating-num">{{contact.system.loyalty}}</span>
+        </span>
+
+        <span class="col-influence">
+          <span class="rating-bar">
+            {{#times 6}}<span class="rating-pip {{#ifLte (add index 1) ../contact.system.influence}}filled{{/ifLte}}"></span>{{/times}}
+          </span>
+          <span class="rating-num">{{contact.system.influence}}</span>
+        </span>
+
+        <span class="col-controls item-controls">
+          <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+          <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+        </span>
+
+      </div>
+      {{/each}}
+
+    </div>
+
+    {{else}}
+    <div class="contacts-empty">
+      <i class="fas fa-address-book fa-3x"></i>
+      <p>No contacts yet.</p>
+      <p class="hint">Click <strong>+ Add Contact</strong> to add your first contact.</p>
+    </div>
+    {{/if}}
+
+  </div>
+</section>

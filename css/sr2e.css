@@ -938,6 +938,140 @@
 }
 
 /* ============================================================================
+   CONTACTS TAB
+   ============================================================================ */
+
+.contacts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px;
+}
+
+.contacts-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--sr2e-border);
+}
+
+.contacts-count {
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+}
+
+.contacts-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--sr2e-text-muted);
+}
+
+.contacts-empty i {
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.35;
+}
+
+.contacts-empty p {
+  margin: 4px 0;
+}
+
+.contacts-empty .hint {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Table layout */
+.contacts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contact-row {
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+
+.contact-row:not(.contact-header-row):hover {
+  background: var(--sr2e-bg-light);
+}
+
+.contact-header-row {
+  font-size: 10px;
+  color: var(--sr2e-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--sr2e-border);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+/* Column widths */
+.contact-row .col-name      { flex: 2; min-width: 0; }
+.contact-row .col-archetype { flex: 2; min-width: 0; font-size: 12px; color: var(--sr2e-text-muted); }
+.contact-row .col-type      { flex: 1; min-width: 60px; }
+.contact-row .col-loyalty   { flex: 1; display: flex; align-items: center; gap: 4px; }
+.contact-row .col-influence { flex: 1; display: flex; align-items: center; gap: 4px; }
+.contact-row .col-controls  { flex: 0 0 44px; justify-content: flex-end; }
+
+.contact-name {
+  font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-archetype {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Type badge */
+.contact-type-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--sr2e-border);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.contact-type-badge.type-contact  { color: var(--sr2e-text); border-color: var(--sr2e-border); }
+.contact-type-badge.type-buddy    { color: var(--sr2e-success); border-color: var(--sr2e-success); }
+.contact-type-badge.type-follower { color: var(--sr2e-highlight); border-color: var(--sr2e-highlight); }
+
+/* Rating pips */
+.rating-bar {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.rating-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--sr2e-border);
+  background: transparent;
+}
+
+.rating-pip.filled {
+  background: var(--sr2e-highlight);
+  border-color: var(--sr2e-highlight);
+}
+
+.rating-num {
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+  min-width: 10px;
+}
+
+/* ============================================================================
    BIO TAB
    ============================================================================ */
 

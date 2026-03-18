@@ -62,29 +62,6 @@
       </div>
     </div>
 
-    {{!-- Contacts --}}
-    <div class="gear-category">
-      <div class="category-header flexrow">
-        <h3>Contacts</h3>
-        <button type="button" data-action="addItem" data-type="contact" class="btn-add">
-          <i class="fas fa-plus"></i>
-        </button>
-      </div>
-      <div class="item-list">
-        {{#each contacts as |contact|}}
-        <div class="item-row flexrow" data-item-id="{{contact.id}}">
-          <span class="item-name">{{contact.name}}</span>
-          <span>{{contact.system.contactType}}</span>
-          <span>{{contact.system.archetype}}</span>
-          <div class="item-controls">
-            <a data-action="editItem"><i class="fas fa-edit"></i></a>
-            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
-          </div>
-        </div>
-        {{/each}}
-      </div>
-    </div>
-
     {{!-- Lifestyles --}}
     <div class="gear-category">
       <div class="category-header flexrow">

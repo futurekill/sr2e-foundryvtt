@@ -341,6 +341,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     matrix: { template: "systems/sr2e/templates/actor/parts/actor-matrix.hbs" },
     gear: { template: "systems/sr2e/templates/actor/parts/actor-gear.hbs" },
     vehicles: { template: "systems/sr2e/templates/actor/parts/actor-vehicles.hbs" },
+    contacts: { template: "systems/sr2e/templates/actor/parts/actor-contacts.hbs" },
     bio: { template: "systems/sr2e/templates/actor/parts/actor-bio.hbs" }
   };
 
@@ -508,6 +509,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       matrix: { id: "matrix", label: "SR2E.Tabs.Matrix", icon: "fas fa-laptop-code", group: "primary", active: false },
       gear: { id: "gear", label: "SR2E.Tabs.Gear", icon: "fas fa-toolbox", group: "primary", active: false },
       vehicles: { id: "vehicles", label: "SR2E.Tabs.Vehicles", icon: "fas fa-car", group: "primary", active: false },
+      contacts: { id: "contacts", label: "SR2E.Tabs.Contacts", icon: "fas fa-address-book", group: "primary", active: false },
       bio: { id: "bio", label: "SR2E.Tabs.Bio", icon: "fas fa-id-card", group: "primary", active: false }
     };
 
