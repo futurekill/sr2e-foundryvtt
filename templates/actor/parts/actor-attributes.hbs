@@ -79,25 +79,19 @@
     {{!-- Condition Monitors --}}
     <fieldset class="condition-monitors">
       <legend>{{localize "SR2E.ConditionMonitor"}}</legend>
-      <div class="monitor-group">
-        <label>{{localize "SR2E.Damage.Physical"}}</label>
-        <div class="monitor-track flexrow">
-          <input type="number" name="system.conditionMonitor.physical.value"
-                 value="{{system.conditionMonitor.physical.value}}" min="0"
-                 max="{{system.conditionMonitor.physical.max}}" class="monitor-input" />
-          <span>/ {{system.conditionMonitor.physical.max}}</span>
-        </div>
-        {{{conditionMonitor system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}}
+      <div class="monitor-row">
+        <label class="monitor-label">{{localize "SR2E.Damage.Physical"}}</label>
+        <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="physical">−</button>
+        <span class="monitor-value {{woundClass system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}">{{system.conditionMonitor.physical.value}}</span>
+        <span class="monitor-sep">/ {{system.conditionMonitor.physical.max}}</span>
+        <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="physical">+</button>
       </div>
-      <div class="monitor-group">
-        <label>{{localize "SR2E.Damage.Stun"}}</label>
-        <div class="monitor-track flexrow">
-          <input type="number" name="system.conditionMonitor.stun.value"
-                 value="{{system.conditionMonitor.stun.value}}" min="0"
-                 max="{{system.conditionMonitor.stun.max}}" class="monitor-input" />
-          <span>/ {{system.conditionMonitor.stun.max}}</span>
-        </div>
-        {{{conditionMonitor system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}}
+      <div class="monitor-row">
+        <label class="monitor-label">{{localize "SR2E.Damage.Stun"}}</label>
+        <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="stun">−</button>
+        <span class="monitor-value {{woundClass system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}">{{system.conditionMonitor.stun.value}}</span>
+        <span class="monitor-sep">/ {{system.conditionMonitor.stun.max}}</span>
+        <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="stun">+</button>
       </div>
     </fieldset>
 

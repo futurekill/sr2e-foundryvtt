@@ -196,6 +196,30 @@ async function onResetPools(event, target) {
   return this.document.update(updates);
 }
 
+/**
+ * Increment a condition monitor by 1 (up to max).
+ * @this {ApplicationV2}
+ */
+async function onIncrementMonitor(event, target) {
+  event.preventDefault();
+  const monitor = target.dataset.monitor;
+  const cm = this.document.system.conditionMonitor[monitor];
+  if (!cm || cm.value >= cm.max) return;
+  return this.document.update({ [`system.conditionMonitor.${monitor}.value`]: cm.value + 1 });
+}
+
+/**
+ * Decrement a condition monitor by 1 (down to 0).
+ * @this {ApplicationV2}
+ */
+async function onDecrementMonitor(event, target) {
+  event.preventDefault();
+  const monitor = target.dataset.monitor;
+  const cm = this.document.system.conditionMonitor[monitor];
+  if (!cm || cm.value <= 0) return;
+  return this.document.update({ [`system.conditionMonitor.${monitor}.value`]: cm.value - 1 });
+}
+
 // ---------------------------------------------------------------------------
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
@@ -210,7 +234,9 @@ const SHARED_ACTIONS = {
   editItem: onEditItem,
   deleteItem: onDeleteItem,
   addItem: onAddItem,
-  resetPools: onResetPools
+  resetPools: onResetPools,
+  incrementMonitor: onIncrementMonitor,
+  decrementMonitor: onDecrementMonitor
 };
 
 // =========================================================================

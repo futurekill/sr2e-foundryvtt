@@ -116,6 +116,19 @@ export function registerHandlebarsHelpers() {
   });
 
   /**
+   * Return a CSS class based on wound level (proportion of damage taken).
+   * Used to colour the monitor value: green → yellow → orange → red.
+   */
+  Handlebars.registerHelper("woundClass", function (current, max) {
+    if (!max || current === 0) return "wound-none";
+    const ratio = current / max;
+    if (ratio <= 0.25) return "wound-light";
+    if (ratio <= 0.5)  return "wound-moderate";
+    if (ratio <= 0.75) return "wound-serious";
+    return "wound-deadly";
+  });
+
+  /**
    * Localize a config value.
    * Usage: {{sr2eLocalize config.key}}
    */
