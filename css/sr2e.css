@@ -292,7 +292,7 @@
 }
 
 /* ============================================================================
-   CONDITION MONITOR  — compact stepper (− value / max +)
+   CONDITION MONITOR  — stepper row + visual bar track + wound status
    ============================================================================ */
 
 /* Sits in the 2-column attributes-grid alongside dice-pools */
@@ -300,11 +300,15 @@
   /* no grid-column override — natural 1-column width */
 }
 
+.monitor-group {
+  margin-bottom: 5px;
+}
+
 .monitor-row {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 4px 0;
+  margin-bottom: 3px;
 }
 
 .monitor-label {
@@ -343,7 +347,7 @@
 }
 
 /* Wound severity colours on the value number */
-.monitor-value.wound-none     { color: var(--sr2e-success); }
+.monitor-value.wound-none     { color: var(--sr2e-text-muted); }
 .monitor-value.wound-light    { color: var(--sr2e-warning); }
 .monitor-value.wound-moderate { color: orange; }
 .monitor-value.wound-serious  { color: var(--sr2e-failure); }
@@ -351,6 +355,73 @@
 
 .monitor-sep {
   font-size: 12px;
+  color: var(--sr2e-text-muted);
+}
+
+/* Visual bar track (the filled/empty boxes) */
+.condition-monitor {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.condition-box {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  text-align: center;
+  line-height: 16px;
+  font-size: 14px;
+  cursor: default;
+  border-radius: 2px;
+  border: 1px solid var(--sr2e-border);
+  color: var(--sr2e-text-muted);
+}
+
+.condition-box.filled {
+  color: var(--sr2e-failure);
+  background: rgba(248, 81, 73, 0.25);
+}
+
+/* Severity tint on the box border — shows wound thresholds at a glance */
+.condition-box.light    { border-color: var(--sr2e-warning); }
+.condition-box.moderate { border-color: orange; }
+.condition-box.serious  { border-color: var(--sr2e-failure); }
+.condition-box.deadly   { border-color: #ff0000; }
+
+.condition-separator {
+  color: var(--sr2e-text-muted);
+  font-size: 12px;
+  margin: 0 1px;
+  line-height: 16px;
+}
+
+/* Wound status banner — shows only when there's an active penalty */
+.wound-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 3px 6px;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid var(--sr2e-failure);
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.wound-label {
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wound-label[data-level="Light"]    { color: var(--sr2e-warning); }
+.wound-label[data-level="Moderate"] { color: orange; }
+.wound-label[data-level="Serious"]  { color: var(--sr2e-failure); }
+.wound-label[data-level="Deadly"]   { color: #ff0000; }
+
+.wound-penalty {
   color: var(--sr2e-text-muted);
 }
 
