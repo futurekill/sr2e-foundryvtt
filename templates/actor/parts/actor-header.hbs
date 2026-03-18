@@ -26,7 +26,7 @@
     </div>
     <div class="header-status flexrow">
       <div class="condition-summary">
-        <span class="wound-level wound-{{system.woundLevel}}">{{woundLevel (max system.conditionMonitor.physical.value system.conditionMonitor.stun.value)}}</span>
+        <span class="wound-level wound-{{system.woundLevel}}">{{woundLevelLabel (max system.conditionMonitor.physical.value system.conditionMonitor.stun.value)}}</span>
       </div>
       <div class="karma-display">
         <label>Karma:</label>

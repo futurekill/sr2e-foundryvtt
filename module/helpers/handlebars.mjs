@@ -168,14 +168,15 @@ export function registerHandlebarsHelpers() {
   });
 
   /**
-   * Get wound level label from damage value.
+   * Get wound level label from a raw damage value (used in actor-header).
+   * Named woundLevelLabel to avoid shadowing the woundLevel context property.
    */
-  Handlebars.registerHelper("woundLevel", function (damage) {
+  Handlebars.registerHelper("woundLevelLabel", function (damage) {
     if (damage <= 0) return "Undamaged";
-    if (damage <= 3) return "Light (+1)";
-    if (damage <= 6) return "Moderate (+2)";
-    if (damage <= 9) return "Serious (+3)";
-    return "Deadly (+4)";
+    if (damage <= 3) return "Light";
+    if (damage <= 6) return "Moderate";
+    if (damage <= 9) return "Serious";
+    return "Deadly";
   });
 
   /**
