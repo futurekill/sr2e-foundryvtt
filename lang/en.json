@@ -205,4 +205,26 @@
   "SR2E.Settings.AutoEssenceHint": "Automatically reduce Essence when cyberware is added to a character.",
   "SR2E.Settings.ConditionMonitorBoxes": "Condition Monitor Boxes",
   "SR2E.Settings.ConditionMonitorBoxesHint": "Number of boxes in each condition monitor (default 10)."
+,
+
+  "TYPES.Actor.character": "Character",
+  "TYPES.Actor.npc": "NPC",
+  "TYPES.Actor.vehicle": "Vehicle",
+  "TYPES.Actor.spirit": "Spirit",
+  "TYPES.Actor.ic": "IC",
+
+  "TYPES.Item.skill": "Skill",
+  "TYPES.Item.weapon": "Weapon",
+  "TYPES.Item.armor": "Armor",
+  "TYPES.Item.spell": "Spell",
+  "TYPES.Item.cyberware": "Cyberware",
+  "TYPES.Item.gear": "Gear",
+  "TYPES.Item.program": "Program",
+  "TYPES.Item.adept_power": "Adept Power",
+  "TYPES.Item.contact": "Contact",
+  "TYPES.Item.lifestyle": "Lifestyle",
+  "TYPES.Item.ammo": "Ammunition",
+  "TYPES.Item.focus": "Magical Focus",
+  "TYPES.Item.vehicle_mod": "Vehicle Modification"
+
 }

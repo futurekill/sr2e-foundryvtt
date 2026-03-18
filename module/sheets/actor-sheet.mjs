@@ -224,6 +224,12 @@ async function onDecrementMonitor(event, target) {
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
 const SHARED_ACTIONS = {
+  // Tab navigation — routes data-action="tab" clicks through V13 changeTab
+  tab: function(event, target) {
+    const tab = target.dataset.tab;
+    const group = target.dataset.group;
+    if (tab && group) this.changeTab(tab, group, { event });
+  },
   rollAttribute: onRollAttribute,
   rollSkill: onRollSkill,
   rollInitiative: onRollInitiative,

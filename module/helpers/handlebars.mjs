@@ -109,8 +109,7 @@ export function registerHandlebarsHelpers() {
       if (i > 1 && (i - 1) % 3 === 0) {
         html += '<span class="condition-separator">|</span>';
       }
-      const glyph = filled ? "&#9632;" : "&#9633;";
-      html += `<span class="condition-box ${filled} ${levelClass}" data-index="${i}">${glyph}</span>`;
+      html += `<span class="condition-box ${filled} ${levelClass}" data-index="${i}"></span>`;
     }
     html += "</div>";
     return new Handlebars.SafeString(html);

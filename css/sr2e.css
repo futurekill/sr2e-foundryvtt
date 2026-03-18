@@ -371,24 +371,19 @@
 
 .condition-box {
   display: inline-block;
-  width: 16px;
-  height: 16px;
-  text-align: center;
-  line-height: 16px;
-  font-size: 14px;
+  width: 14px;
+  height: 14px;
   cursor: default;
   border-radius: 2px;
   border: 1px solid var(--sr2e-border);
-  color: var(--sr2e-text-muted);
+  background: transparent;
 }
 
-/* Empty boxes: zone-coloured border so thresholds are visible unfilled */
-
 /* Filled boxes: solid block colour by wound zone */
-.condition-box.filled.light    { background: #d29922; color: #1a1a2e; border-color: #d29922; }
-.condition-box.filled.moderate { background: #f97316; color: #1a1a2e; border-color: #f97316; }
-.condition-box.filled.serious  { background: #f85149; color: #fff;    border-color: #f85149; }
-.condition-box.filled.deadly   { background: #b91c1c; color: #fff;    border-color: #b91c1c; }
+.condition-box.filled.light    { background: #d29922; border-color: #d29922; }
+.condition-box.filled.moderate { background: #f97316; border-color: #f97316; }
+.condition-box.filled.serious  { background: #f85149; border-color: #f85149; }
+.condition-box.filled.deadly   { background: #b91c1c; border-color: #b91c1c; }
 
 .condition-separator {
   color: var(--sr2e-text-muted);
