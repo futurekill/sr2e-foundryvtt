@@ -1,6 +1,9 @@
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
+// V13: TextEditor is namespaced; shim for backwards compat
+const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+
 /**
  * Base Item Sheet for the Shadowrun 2E system.
  * Handles all item types with dynamic template selection.

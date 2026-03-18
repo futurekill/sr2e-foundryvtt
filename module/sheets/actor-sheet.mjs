@@ -1,6 +1,9 @@
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
+// V13: TextEditor is namespaced; shim for backwards compat
+const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+
 // ---------------------------------------------------------------------------
 // SHARED ACTION HANDLERS
 // These are standalone async functions used by multiple sheet classes.
