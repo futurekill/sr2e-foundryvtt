@@ -110,41 +110,94 @@
 
 .sr2e-sheet-header .header-info {
   flex: 1;
+  gap: 4px;
 }
 
-.sr2e-sheet-header .char-name input {
+/* Row 1: name + wound badge */
+.sr2e-sheet-header .header-name-row {
+  align-items: center;
+  gap: 8px;
+}
+
+.sr2e-sheet-header .char-name-input {
+  flex: 1;
   font-size: 20px;
   font-family: var(--sr2e-font-header);
   font-weight: bold;
   border: none;
   background: transparent;
   color: var(--sr2e-text);
-  width: 100%;
   padding: 0;
+  min-width: 0;
 }
 
-.sr2e-sheet-header .header-details {
-  gap: 12px;
-  margin-top: 4px;
+/* Row 2: race dropdown */
+.sr2e-sheet-header .header-race-row {
+  align-items: center;
+  gap: 6px;
 }
 
-.sr2e-sheet-header .detail label {
+.sr2e-sheet-header .race-label {
   font-size: 10px;
   color: var(--sr2e-text-muted);
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sr2e-sheet-header .race-select {
+  flex: 1;
+  font-size: 12px;
+  max-width: 200px;
+}
+
+/* Row 3: stats grid */
+.sr2e-sheet-header .header-stats-row {
+  gap: 0;
+  border-top: 1px solid var(--sr2e-border);
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.sr2e-sheet-header .header-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 4px;
+  border-right: 1px solid var(--sr2e-border);
+}
+
+.sr2e-sheet-header .header-stat:last-child {
+  border-right: none;
+}
+
+.sr2e-sheet-header .hstat-label {
+  font-size: 9px;
+  color: var(--sr2e-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.sr2e-sheet-header .hstat-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--sr2e-text);
 }
 
 .sr2e-sheet-header .essence-value {
   color: var(--sr2e-essence);
+}
+
+.sr2e-sheet-header .hstat-input {
+  width: 52px;
+  font-size: 14px;
   font-weight: bold;
-}
-
-.sr2e-sheet-header .karma-display {
-  font-size: 11px;
-}
-
-.sr2e-sheet-header .small-input {
-  width: 35px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--sr2e-text);
+  padding: 0;
 }
 
 /* Wound Level Colors */
