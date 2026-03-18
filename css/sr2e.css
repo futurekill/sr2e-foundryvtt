@@ -69,8 +69,8 @@
   height: 16px;
 }
 
-/* Flex utilities */
-.flexrow {
+/* Flex utilities — scoped to sr2e sheets only so we don't stomp Foundry's globals */
+.sr2e.sheet .flexrow {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -78,7 +78,7 @@
   flex-wrap: wrap;
 }
 
-.flexcol {
+.sr2e.sheet .flexcol {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -201,12 +201,12 @@
   margin-bottom: 2px;
 }
 
-/* Tab Content */
-.tab-content {
+/* Tab Content — scoped so we don't affect Foundry's own sidebar tabs */
+.sr2e.sheet .tab-content {
   padding: 8px;
 }
 
-.tab-content.hidden {
+.sr2e.sheet .tab-content.hidden {
   display: none;
 }
 

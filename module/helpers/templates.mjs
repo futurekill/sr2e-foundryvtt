@@ -23,5 +23,7 @@ export async function preloadTemplates() {
     "systems/sr2e/templates/chat/roll-result.hbs"
   ];
 
-  return loadTemplates(templatePaths);
+  // V13: loadTemplates is now foundry.applications.handlebars.loadTemplates
+  const loader = foundry.applications?.handlebars?.loadTemplates ?? loadTemplates;
+  return loader(templatePaths);
 }

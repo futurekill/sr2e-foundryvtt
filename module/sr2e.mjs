@@ -75,44 +75,44 @@ Hooks.once("init", async () => {
   CONFIG.Dice.rolls.push(SR2ESuccessRoll);
 
   // ---------------------------------------------------------------------------
-  // Register Actor Sheets
+  // Register Actor Sheets (V13: DocumentSheetConfig is the correct API)
   // ---------------------------------------------------------------------------
 
-  Actors.registerSheet("sr2e", SR2ECharacterSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ECharacterSheet, {
     types: ["character"],
     makeDefault: true,
     label: "SR2E.Sheets.Character"
   });
 
-  Actors.registerSheet("sr2e", SR2ENPCSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ENPCSheet, {
     types: ["npc"],
     makeDefault: true,
     label: "SR2E.Sheets.NPC"
   });
 
-  Actors.registerSheet("sr2e", SR2EVehicleSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EVehicleSheet, {
     types: ["vehicle"],
     makeDefault: true,
     label: "SR2E.Sheets.Vehicle"
   });
 
-  Actors.registerSheet("sr2e", SR2ESpiritSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ESpiritSheet, {
     types: ["spirit"],
     makeDefault: true,
     label: "SR2E.Sheets.Spirit"
   });
 
-  Actors.registerSheet("sr2e", SR2EICSheet, {
+  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EICSheet, {
     types: ["ic"],
     makeDefault: true,
     label: "SR2E.Sheets.IC"
   });
 
   // ---------------------------------------------------------------------------
-  // Register Item Sheets
+  // Register Item Sheets (V13: DocumentSheetConfig avoids deprecated Items global)
   // ---------------------------------------------------------------------------
 
-  Items.registerSheet("sr2e", SR2EItemSheet, {
+  DocumentSheetConfig.registerSheet(Item, "sr2e", SR2EItemSheet, {
     makeDefault: true,
     label: "SR2E.Sheets.Item"
   });

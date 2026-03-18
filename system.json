@@ -2,10 +2,10 @@
   "id": "sr2e",
   "title": "Shadowrun 2nd Edition",
   "description": "A comprehensive game system for Shadowrun Second Edition (FASA 7901) built for Foundry Virtual Tabletop.",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "url": "https://github.com/futurekill/sr2e-foundryvtt",
   "manifest": "https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json",
-  "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.3.5/sr2e.zip",
+  "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.3.6/sr2e.zip",
   "bugs": "https://github.com/futurekill/sr2e-foundryvtt/issues",
   "changelog": "https://github.com/futurekill/sr2e-foundryvtt/releases",
   "authors": [
@@ -78,11 +78,11 @@
   "initiative": "@initiative.value + @initiative.dice d6",
   "packs": [],
   "socket": true,
-  "background": "systems/sr2e/assets/sr2e-background.webp",
+  "background": "systems/sr2e/assets/sr2e-logo.webp",
   "media": [
     {
       "type": "icon",
-      "url": "systems/sr2e/assets/sr2e-logo.png"
+      "url": "systems/sr2e/assets/sr2e-logo.webp"
     }
   ],
   "flags": {}
