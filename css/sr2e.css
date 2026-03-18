@@ -739,9 +739,9 @@
   margin-bottom: 6px;
 }
 
-.vehicle-portrait {
-  width: 40px;
-  height: 40px;
+.vehicle-portrait-thumb {
+  width: 32px;
+  height: 32px;
   object-fit: cover;
   border-radius: 3px;
   border: 1px solid var(--sr2e-border);
@@ -802,20 +802,20 @@
 }
 
 .vehicle-condition {
-  align-items: center;
-  gap: 6px;
   margin-bottom: 6px;
   font-size: 12px;
+}
+
+.vehicle-condition .monitor-row {
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .vehicle-condition .condition-label {
   font-weight: bold;
   flex-shrink: 0;
-}
-
-.vehicle-condition .condition-values {
-  color: var(--sr2e-text-dim, #888);
-  font-size: 11px;
+  flex: 1;
 }
 
 .vehicle-weapons h4 {
@@ -905,6 +905,15 @@
   padding: 8px;
   border-bottom: 2px solid var(--sr2e-matrix);
   gap: 8px;
+}
+
+.sr2e-vehicle-sheet .vehicle-header .profile-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border: 2px solid var(--sr2e-matrix);
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .stat-grid {

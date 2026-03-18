@@ -251,6 +251,37 @@ const SHARED_ACTIONS = {
   decrementMonitor: onDecrementMonitor,
 
   /**
+   * Increment the condition monitor of a linked vehicle actor.
+   * Uses data-vehicle-uuid on the button (or a parent) to find the vehicle.
+   * @this {ApplicationV2}
+   */
+  incrementVehicleMonitor: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const vehicle = await fromUuid(uuid);
+    if (!vehicle) return;
+    const cm = vehicle.system.conditionMonitor;
+    if (!cm || cm.value >= cm.max) return;
+    return vehicle.update({ "system.conditionMonitor.value": cm.value + 1 });
+  },
+
+  /**
+   * Decrement the condition monitor of a linked vehicle actor.
+   * @this {ApplicationV2}
+   */
+  decrementVehicleMonitor: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const vehicle = await fromUuid(uuid);
+    if (!vehicle) return;
+    const cm = vehicle.system.conditionMonitor;
+    if (!cm || cm.value <= 0) return;
+    return vehicle.update({ "system.conditionMonitor.value": cm.value - 1 });
+  },
+
+  /**
    * Open a linked vehicle's sheet.
    * @this {ApplicationV2}
    */

@@ -12,7 +12,7 @@
 
         {{!-- Vehicle Header --}}
         <div class="vehicle-card-header flexrow">
-          <img src="{{vehicle.img}}" alt="{{vehicle.name}}" class="vehicle-portrait" />
+          <img src="{{vehicle.img}}" alt="{{vehicle.name}}" class="vehicle-portrait-thumb" />
           <div class="vehicle-card-title">
             <span class="vehicle-name">{{vehicle.name}}</span>
             <span class="vehicle-type">{{vehicle.system.vehicleType}}</span>
@@ -36,10 +36,15 @@
         </div>
 
         {{!-- Vehicle Condition Monitor --}}
-        <div class="vehicle-condition flexrow">
-          <span class="condition-label">Condition:</span>
+        <div class="vehicle-condition">
+          <div class="monitor-row flexrow">
+            <span class="condition-label">Condition:</span>
+            <button type="button" class="monitor-btn" data-action="decrementVehicleMonitor">−</button>
+            <span class="monitor-value">{{vehicle.system.conditionMonitor.value}}</span>
+            <span class="monitor-sep">/ {{vehicle.system.conditionMonitor.max}}</span>
+            <button type="button" class="monitor-btn" data-action="incrementVehicleMonitor">+</button>
+          </div>
           {{{conditionMonitor vehicle.system.conditionMonitor.value vehicle.system.conditionMonitor.max}}}
-          <span class="condition-values">{{vehicle.system.conditionMonitor.value}} / {{vehicle.system.conditionMonitor.max}}</span>
         </div>
 
         {{!-- Vehicle Weapons --}}
