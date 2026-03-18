@@ -254,6 +254,49 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     primary: "attributes"
   };
 
+  /* -----------------------------------------------------------------------
+   * Drag-and-Drop
+   * V13 ApplicationV2: dragover must preventDefault to allow drops;
+   * _onDrop parses the transfer payload and dispatches to _onDropItem.
+   * ----------------------------------------------------------------------- */
+
+  /** @override */
+  _onDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  /** @override */
+  async _onDrop(event) {
+    event.preventDefault();
+    let data;
+    try { data = JSON.parse(event.dataTransfer.getData("text/plain")); }
+    catch(e) { return; }
+    if (!data?.type) return;
+    if (data.type === "Item") return this._onDropItem(event, data);
+  }
+
+  /**
+   * Handle dropping an Item onto the actor sheet.
+   * Supports compendium browser, world sidebar, and inter-actor drops.
+   * @override
+   */
+  async _onDropItem(event, data) {
+    if (!this.document.isOwner) return false;
+    let itemData;
+    if (data.uuid) {
+      const item = await fromUuid(data.uuid);
+      if (!item) return false;
+      if (item.parent?.uuid === this.document.uuid) return false;
+      itemData = item.toObject();
+    } else if (data.data) {
+      itemData = data.data;
+    } else {
+      return false;
+    }
+    return this.document.createEmbeddedDocuments("Item", [itemData]);
+  }
+
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
@@ -376,6 +419,23 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static PARTS = {
     npc: { template: "systems/sr2e/templates/actor/npc-sheet.hbs" }
   };
+
+  _onDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }
+
+  async _onDrop(event) {
+    event.preventDefault();
+    let data;
+    try { data = JSON.parse(event.dataTransfer.getData("text/plain")); } catch(e) { return; }
+    if (data?.type === "Item") return this._onDropItem(event, data);
+  }
+
+  async _onDropItem(event, data) {
+    if (!this.document.isOwner) return false;
+    const item = data.uuid ? await fromUuid(data.uuid) : null;
+    if (!item) return false;
+    if (item.parent?.uuid === this.document.uuid) return false;
+    return this.document.createEmbeddedDocuments("Item", [item.toObject()]);
+  }
 
   /** @override */
   async _prepareContext(options) {

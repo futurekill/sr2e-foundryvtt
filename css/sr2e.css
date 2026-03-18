@@ -201,13 +201,16 @@
   margin-bottom: 2px;
 }
 
-/* Tab Content — scoped so we don't affect Foundry's own sidebar tabs */
+/* Tab Content — scoped so we don't affect Foundry's own sidebar tabs.
+   V13 changeTab adds/removes the `active` class on [data-tab] elements;
+   we hide all sections by default and show only the active one. */
 .sr2e.sheet .tab-content {
+  display: none;
   padding: 8px;
 }
 
-.sr2e.sheet .tab-content.hidden {
-  display: none;
+.sr2e.sheet .tab-content.active {
+  display: block;
 }
 
 /* ============================================================================
