@@ -175,6 +175,9 @@
 
 .sr2e-tabs .tab {
   flex: 1;
+  /* Foundry V13 sets [data-tab]:not(.active){display:none} globally.
+     Override it here so all nav tabs remain visible at all times. */
+  display: block !important;
   text-align: center;
   padding: 6px 4px;
   cursor: pointer;
