@@ -8,10 +8,10 @@
   "SR2E.Mental": "Mental",
   "SR2E.Special": "Special",
   "SR2E.ConditionMonitor": "Condition Monitor",
-  "SR2E.DicePools": "Dice Pools",
+  "SR2E.DicePools.Label": "Dice Pools",
   "SR2E.Initiative": "Initiative",
   "SR2E.Movement": "Movement",
-  "SR2E.Weapons": "Weapons",
+  "SR2E.Weapons.Label": "Weapons",
 
   "SR2E.Attributes.Body": "Body",
   "SR2E.Attributes.Quickness": "Quickness",
@@ -78,7 +78,7 @@
   "SR2E.DicePools.Control": "Control Pool",
   "SR2E.DicePools.Karma": "Karma Pool",
 
-  "SR2E.Armor": "Armor",
+  "SR2E.Armor.Label": "Armor",
   "SR2E.Armor.Ballistic": "Ballistic",
   "SR2E.Armor.Impact": "Impact",
 
