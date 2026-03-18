@@ -224,11 +224,17 @@ async function onDecrementMonitor(event, target) {
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
 const SHARED_ACTIONS = {
-  // Tab navigation — routes data-action="tab" clicks through V13 changeTab
-  tab: function(event, target) {
+  // Tab navigation — use switchTab so V13's built-in _onClickTab never fires.
+  // changeTab() fails because content sections live inside <div data-part="x">
+  // wrappers that V13 injects, not as direct children of this.element.
+  // Instead: update tabGroups and re-render directly.
+  switchTab: function(event, target) {
     const tab = target.dataset.tab;
     const group = target.dataset.group;
-    if (tab && group) this.changeTab(tab, group, { event });
+    if (tab && group && group in this.tabGroups) {
+      this.tabGroups[group] = tab;
+      this.render();
+    }
   },
   rollAttribute: onRollAttribute,
   rollSkill: onRollSkill,

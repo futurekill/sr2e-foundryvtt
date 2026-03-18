@@ -1,6 +1,6 @@
 <nav class="sr2e-tabs" data-group="primary">
   {{#each tabs as |tab key|}}
-  <a class="tab {{#if tab.active}}active{{/if}}" data-action="tab" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  <a class="tab {{#if tab.active}}active{{/if}}" data-action="switchTab" data-tab="{{tab.id}}" data-group="{{tab.group}}">
     <i class="{{tab.icon}}"></i>
     <span>{{localize tab.label}}</span>
   </a>

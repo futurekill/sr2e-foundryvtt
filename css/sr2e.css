@@ -989,6 +989,4 @@
   border-radius: 3px;
 }
 
-.sr2e.sheet ::-webkit-scrollbar-thumb:hover {
-  background: var(--sr2e-highlight);
-}
+/* ::-webkit-scrollbar-thumb:hover skipped — rejected by Foundry's CSS parser */
