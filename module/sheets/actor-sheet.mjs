@@ -248,7 +248,32 @@ const SHARED_ACTIONS = {
   addItem: onAddItem,
   resetPools: onResetPools,
   incrementMonitor: onIncrementMonitor,
-  decrementMonitor: onDecrementMonitor
+  decrementMonitor: onDecrementMonitor,
+
+  /**
+   * Open a linked vehicle's sheet.
+   * @this {ApplicationV2}
+   */
+  openVehicle: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const vehicle = await fromUuid(uuid);
+    if (vehicle) vehicle.sheet.render(true);
+  },
+
+  /**
+   * Unlink a vehicle from this character.
+   * @this {ApplicationV2}
+   */
+  unlinkVehicle: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const current = this.document.system.linkedVehicles ?? [];
+    const updated = current.filter(v => v !== uuid);
+    return this.document.update({ "system.linkedVehicles": updated });
+  }
 };
 
 // =========================================================================
@@ -284,6 +309,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     magic: { template: "systems/sr2e/templates/actor/parts/actor-magic.hbs" },
     matrix: { template: "systems/sr2e/templates/actor/parts/actor-matrix.hbs" },
     gear: { template: "systems/sr2e/templates/actor/parts/actor-gear.hbs" },
+    vehicles: { template: "systems/sr2e/templates/actor/parts/actor-vehicles.hbs" },
     bio: { template: "systems/sr2e/templates/actor/parts/actor-bio.hbs" }
   };
 
@@ -312,6 +338,24 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     catch(e) { return; }
     if (!data?.type) return;
     if (data.type === "Item") return this._onDropItem(event, data);
+    if (data.type === "Actor") return this._onDropActor(event, data);
+  }
+
+  /**
+   * Handle dropping an Actor (vehicle/drone) onto the character sheet.
+   * Adds the actor's UUID to system.linkedVehicles if it is a vehicle type
+   * and is not already linked.
+   */
+  async _onDropActor(event, data) {
+    if (!this.document.isOwner) return false;
+    if (!data.uuid) return false;
+    const dropped = await fromUuid(data.uuid);
+    if (!dropped || dropped.type !== "vehicle") return false;
+    // Don't link an actor to itself
+    if (dropped.uuid === this.document.uuid) return false;
+    const current = this.document.system.linkedVehicles ?? [];
+    if (current.includes(dropped.uuid)) return false; // already linked
+    return this.document.update({ "system.linkedVehicles": [...current, dropped.uuid] });
   }
 
   /**
@@ -359,6 +403,24 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     context.lifestyles = actor.items.filter(i => i.type === "lifestyle");
     context.ammo = actor.items.filter(i => i.type === "ammo");
     context.foci = actor.items.filter(i => i.type === "focus");
+
+    // Resolve linked vehicles (Actor UUIDs → actor objects with their weapons)
+    const linkedUuids = system.linkedVehicles ?? [];
+    const vehicleActors = [];
+    for (const uuid of linkedUuids) {
+      const vActor = await fromUuid(uuid);
+      if (vActor) {
+        vehicleActors.push({
+          uuid,
+          id: vActor.id,
+          name: vActor.name,
+          img: vActor.img,
+          system: vActor.system,
+          weapons: vActor.items.filter(i => i.type === "weapon")
+        });
+      }
+    }
+    context.linkedVehicles = vehicleActors;
 
     // Tab state
     context.tabs = this._getTabs();
@@ -414,6 +476,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       magic: { id: "magic", label: "SR2E.Tabs.Magic", icon: "fas fa-hat-wizard", group: "primary", active: false },
       matrix: { id: "matrix", label: "SR2E.Tabs.Matrix", icon: "fas fa-laptop-code", group: "primary", active: false },
       gear: { id: "gear", label: "SR2E.Tabs.Gear", icon: "fas fa-toolbox", group: "primary", active: false },
+      vehicles: { id: "vehicles", label: "SR2E.Tabs.Vehicles", icon: "fas fa-car", group: "primary", active: false },
       bio: { id: "bio", label: "SR2E.Tabs.Bio", icon: "fas fa-id-card", group: "primary", active: false }
     };
 

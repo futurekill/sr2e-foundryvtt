@@ -678,6 +678,155 @@
 }
 
 /* ============================================================================
+   VEHICLES TAB
+   ============================================================================ */
+
+.vehicles-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px;
+}
+
+.vehicles-instructions {
+  color: var(--sr2e-text-dim, #888);
+  font-size: 11px;
+  text-align: center;
+  padding: 2px 0 4px;
+}
+
+.vehicles-instructions p {
+  margin: 0;
+}
+
+.vehicles-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--sr2e-text-dim, #888);
+}
+
+.vehicles-empty i {
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.4;
+}
+
+.vehicles-empty p {
+  margin: 4px 0;
+}
+
+.vehicles-empty .hint {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.vehicle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vehicle-card {
+  background: var(--sr2e-bg-light, rgba(0,0,0,0.2));
+  border: 1px solid var(--sr2e-border);
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.vehicle-card-header {
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.vehicle-portrait {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid var(--sr2e-border);
+  flex-shrink: 0;
+}
+
+.vehicle-card-title {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.vehicle-name {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--sr2e-highlight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vehicle-type {
+  font-size: 11px;
+  color: var(--sr2e-text-dim, #888);
+  text-transform: capitalize;
+}
+
+.vehicle-card-controls {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.vehicle-card-controls a {
+  color: var(--sr2e-text-dim, #888);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.vehicle-card-controls a:hover {
+  color: var(--sr2e-highlight);
+}
+
+.vehicle-stats-row {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 4px 0;
+  border-top: 1px solid var(--sr2e-border);
+  border-bottom: 1px solid var(--sr2e-border);
+  margin-bottom: 6px;
+}
+
+.vehicle-stat {
+  font-size: 11px;
+  color: var(--sr2e-text);
+  white-space: nowrap;
+}
+
+.vehicle-condition {
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.vehicle-condition .condition-label {
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.vehicle-condition .condition-values {
+  color: var(--sr2e-text-dim, #888);
+  font-size: 11px;
+}
+
+.vehicle-weapons h4 {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--sr2e-secondary);
+  border-bottom: 1px solid var(--sr2e-border);
+  padding-bottom: 2px;
+}
+
+/* ============================================================================
    BIO TAB
    ============================================================================ */
 

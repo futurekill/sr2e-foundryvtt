@@ -1,0 +1,86 @@
+<section class="tab-content {{#if tab.active}}active{{/if}}" data-tab="vehicles" data-group="primary">
+  <div class="vehicles-section">
+
+    <div class="vehicles-instructions">
+      <p>Drag a Vehicle or Drone actor from the sidebar to link it here.</p>
+    </div>
+
+    {{#if linkedVehicles.length}}
+    <div class="vehicle-list">
+      {{#each linkedVehicles as |vehicle|}}
+      <div class="vehicle-card" data-vehicle-uuid="{{vehicle.uuid}}">
+
+        {{!-- Vehicle Header --}}
+        <div class="vehicle-card-header flexrow">
+          <img src="{{vehicle.img}}" alt="{{vehicle.name}}" class="vehicle-portrait" />
+          <div class="vehicle-card-title">
+            <span class="vehicle-name">{{vehicle.name}}</span>
+            <span class="vehicle-type">{{vehicle.system.vehicleType}}</span>
+          </div>
+          <div class="vehicle-card-controls">
+            <a data-action="openVehicle" title="Open Sheet"><i class="fas fa-external-link-alt"></i></a>
+            <a data-action="unlinkVehicle" title="Unlink Vehicle"><i class="fas fa-unlink"></i></a>
+          </div>
+        </div>
+
+        {{!-- Vehicle Stats --}}
+        <div class="vehicle-stats-row flexrow">
+          <span class="vehicle-stat" title="Handling"><i class="fas fa-steering-wheel"></i> {{vehicle.system.handling}}</span>
+          <span class="vehicle-stat" title="Speed"><i class="fas fa-tachometer-alt"></i> {{vehicle.system.speed}}</span>
+          <span class="vehicle-stat" title="Acceleration">Acc: {{vehicle.system.acceleration}}</span>
+          <span class="vehicle-stat" title="Body">Body: {{vehicle.system.body}}</span>
+          <span class="vehicle-stat" title="Armor">Armor: {{vehicle.system.armor}}</span>
+          <span class="vehicle-stat" title="Pilot">Pilot: {{vehicle.system.pilot}}</span>
+          <span class="vehicle-stat" title="Sensor">Sensor: {{vehicle.system.sensor}}</span>
+          <span class="vehicle-stat" title="Signature">Sig: {{vehicle.system.signature}}</span>
+        </div>
+
+        {{!-- Vehicle Condition Monitor --}}
+        <div class="vehicle-condition flexrow">
+          <span class="condition-label">Condition:</span>
+          {{{conditionMonitor vehicle.system.conditionMonitor.value vehicle.system.conditionMonitor.max}}}
+          <span class="condition-values">{{vehicle.system.conditionMonitor.value}} / {{vehicle.system.conditionMonitor.max}}</span>
+        </div>
+
+        {{!-- Vehicle Weapons --}}
+        {{#if vehicle.weapons.length}}
+        <div class="vehicle-weapons">
+          <h4>Weapons</h4>
+          <div class="item-list">
+            {{#each vehicle.weapons as |weapon|}}
+            <div class="item-row weapon-row flexrow">
+              <span class="item-name">
+                <i class="fas fa-crosshairs"></i>
+                {{weapon.name}}
+              </span>
+              <span class="weapon-type">{{weapon.system.weaponType}}</span>
+              <span class="weapon-damage">{{weapon.system.damageCode}}</span>
+              {{#ifEquals weapon.system.weaponType "firearm"}}
+              <span class="weapon-ammo">{{weapon.system.ammo.current}}/{{weapon.system.ammo.max}}</span>
+              {{/ifEquals}}
+              <span class="weapon-modes">
+                {{#if weapon.system.firingModes.ss}}SS {{/if}}
+                {{#if weapon.system.firingModes.sa}}SA {{/if}}
+                {{#if weapon.system.firingModes.bf}}BF {{/if}}
+                {{#if weapon.system.firingModes.fa}}FA {{/if}}
+              </span>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+
+      </div>
+      {{/each}}
+    </div>
+
+    {{else}}
+    <div class="vehicles-empty">
+      <i class="fas fa-car fa-3x"></i>
+      <p>No vehicles or drones linked.</p>
+      <p class="hint">Drag a Vehicle actor from the sidebar to link it.</p>
+    </div>
+    {{/if}}
+
+  </div>
+</section>
