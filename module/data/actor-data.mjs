@@ -167,9 +167,9 @@ export class CharacterData extends SR2EDataModel {
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = this.reaction.base + this.reaction.mod;
 
-    // Calculate Initiative
+    // Calculate Initiative (wound penalty reduces score per SR2E rules)
     this.initiative.base = this.reaction.value;
-    this.initiative.value = this.reaction.value + this.initiative.mod;
+    this.initiative.value = this.reaction.value + this.initiative.mod - this.woundPenalty;
 
     // Calculate Essence-based Magic
     if (this.magic.type !== "none") {
@@ -437,9 +437,9 @@ export class NPCData extends SR2EDataModel {
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = this.reaction.base + this.reaction.mod;
 
-    // Initiative
+    // Initiative (wound penalty reduces score per SR2E rules)
     this.initiative.base = this.reaction.value;
-    this.initiative.value = this.reaction.value + this.initiative.mod;
+    this.initiative.value = this.reaction.value + this.initiative.mod - this.woundPenalty;
 
     // Combat Pool
     const combatPool = Math.floor(
@@ -455,6 +455,36 @@ export class NPCData extends SR2EDataModel {
     // Condition monitors
     this.conditionMonitor.physical.max = 10;
     this.conditionMonitor.stun.max = 10;
+  }
+
+  /**
+   * Get the wound penalty modifier based on current damage.
+   * @returns {number}
+   */
+  get woundPenalty() {
+    const physical = this.conditionMonitor.physical.value;
+    const stun = this.conditionMonitor.stun.value;
+    const maxDamage = Math.max(physical, stun);
+    if (maxDamage <= 0) return 0;
+    if (maxDamage <= 3) return 1;  // Light
+    if (maxDamage <= 6) return 2;  // Moderate
+    if (maxDamage <= 9) return 3;  // Serious
+    return 4;                      // Deadly
+  }
+
+  /**
+   * Get the current wound level label.
+   */
+  get woundLevel() {
+    const maxDamage = Math.max(
+      this.conditionMonitor.physical.value,
+      this.conditionMonitor.stun.value
+    );
+    if (maxDamage <= 0) return "Undamaged";
+    if (maxDamage <= 3) return "Light";
+    if (maxDamage <= 6) return "Moderate";
+    if (maxDamage <= 9) return "Serious";
+    return "Deadly";
   }
 }
 

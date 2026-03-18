@@ -57,9 +57,9 @@ export class SR2EActor extends Actor {
     system.reaction.base = Math.floor((system.quickness.value + system.intelligence.value) / 2);
     system.reaction.value = system.reaction.base + system.reaction.mod;
 
-    // Update initiative
+    // Update initiative (wound penalty reduces score per SR2E rules)
     system.initiative.base = system.reaction.value;
-    system.initiative.value = system.reaction.value + system.initiative.mod;
+    system.initiative.value = system.reaction.value + system.initiative.mod - (system.woundPenalty || 0);
     system.initiative.dice = 1 + cyberMods.initiativeDice;
 
     // Recalculate dice pools
@@ -185,28 +185,32 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Roll>}
    */
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
+    // Apply wound penalty to target number (SR2E rules: +1 TN per wound level)
+    const woundPenalty = this.system.woundPenalty ?? 0;
+    const effectiveTN = targetNumber + woundPenalty;
+
     const label = options.label || "Success Test";
-    const formula = `${dicePool}d6cs>=${targetNumber}`;
+    const formula = `${dicePool}d6cs>=${effectiveTN}`;
 
     const roll = new Roll(formula);
     await roll.evaluate();
 
-    // Count successes (dice >= targetNumber)
-    const successes = roll.terms[0].results.filter(r => r.result >= targetNumber && !r.discarded).length;
+    // Count successes (dice >= effectiveTN)
+    const successes = roll.terms[0].results.filter(r => r.result >= effectiveTN && !r.discarded).length;
 
-    // Check for Rule of Six (exploding 6s)
-    // In SR2E, each die that rolls a 6 is rerolled and added
-    // This is handled differently - SR2E doesn't use exploding dice by default
-    // The TN can exceed 6 by using the Rule of Six
+    // Build TN note for the chat message
+    const tnNote = woundPenalty > 0
+      ? `${effectiveTN} (base ${targetNumber} +${woundPenalty} wound)`
+      : `${effectiveTN}`;
 
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>${label}</h3><p>Target Number: ${targetNumber} | Dice: ${dicePool} | Successes: ${successes}</p>`,
+      flavor: `<h3>${label}</h3><p>Target Number: ${tnNote} | Dice: ${dicePool} | Successes: ${successes}</p>`,
       rolls: [roll]
     };
 
     await ChatMessage.create(messageData);
-    return { roll, successes, targetNumber };
+    return { roll, successes, targetNumber: effectiveTN };
   }
 
   /**
@@ -216,16 +220,23 @@ export class SR2EActor extends Actor {
    */
   async rollInitiative() {
     const system = this.system;
+    // initiative.value already has wound penalty applied from prepareDerivedData
     const base = system.initiative?.value || system.initiative?.base || 1;
     const dice = system.initiative?.dice || 1;
+    const woundPenalty = system.woundPenalty ?? 0;
 
     const formula = `${base} + ${dice}d6`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
+    // Show wound penalty breakdown if wounded
+    const baseNote = woundPenalty > 0
+      ? `${base} (−${woundPenalty} wound)`
+      : `${base}`;
+
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>Initiative</h3><p>Base: ${base} + ${dice}d6</p>`,
+      flavor: `<h3>Initiative</h3><p>Base: ${baseNote} + ${dice}d6</p>`,
       rolls: [roll]
     });
 

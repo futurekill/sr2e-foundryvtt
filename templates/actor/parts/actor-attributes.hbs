@@ -82,17 +82,6 @@
 
       <div class="monitor-group">
         <div class="monitor-row">
-          <label class="monitor-label">{{localize "SR2E.Damage.Physical"}}</label>
-          <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="physical">−</button>
-          <span class="monitor-value {{woundClass system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}">{{system.conditionMonitor.physical.value}}</span>
-          <span class="monitor-sep">/ {{system.conditionMonitor.physical.max}}</span>
-          <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="physical">+</button>
-        </div>
-        {{{conditionMonitor system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}}
-      </div>
-
-      <div class="monitor-group">
-        <div class="monitor-row">
           <label class="monitor-label">{{localize "SR2E.Damage.Stun"}}</label>
           <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="stun">−</button>
           <span class="monitor-value {{woundClass system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}">{{system.conditionMonitor.stun.value}}</span>
@@ -102,11 +91,22 @@
         {{{conditionMonitor system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}}
       </div>
 
+      <div class="monitor-group">
+        <div class="monitor-row">
+          <label class="monitor-label">{{localize "SR2E.Damage.Physical"}}</label>
+          <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="physical">−</button>
+          <span class="monitor-value {{woundClass system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}">{{system.conditionMonitor.physical.value}}</span>
+          <span class="monitor-sep">/ {{system.conditionMonitor.physical.max}}</span>
+          <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="physical">+</button>
+        </div>
+        {{{conditionMonitor system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}}
+      </div>
+
       {{!-- Wound status — only shown when damaged --}}
       {{#if woundPenalty}}
       <div class="wound-status">
         <span class="wound-label" data-level="{{woundLevel}}">{{woundLevel}}</span>
-        <span class="wound-penalty">−{{woundPenalty}} to all dice pools</span>
+        <span class="wound-penalty">−{{woundPenalty}} pools &bull; TN +{{woundPenalty}} &bull; Init −{{woundPenalty}}</span>
       </div>
       {{/if}}
 
