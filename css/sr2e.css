@@ -106,6 +106,12 @@
   object-fit: cover;
   border: 2px solid var(--sr2e-highlight);
   border-radius: 4px;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+.sr2e-sheet-header .profile-img img:hover {
+  opacity: 0.8;
+  border-color: var(--sr2e-text);
 }
 
 .sr2e-sheet-header .header-info {
@@ -131,13 +137,17 @@
   min-width: 0;
 }
 
-/* Row 2: race dropdown */
+/* Row 2: race dropdown — label + select sit together on the left */
 .sr2e-sheet-header .header-race-row {
+  display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
 }
 
 .sr2e-sheet-header .race-label {
+  flex: 0 0 auto;
   font-size: 10px;
   color: var(--sr2e-text-muted);
   text-transform: uppercase;
@@ -145,9 +155,9 @@
 }
 
 .sr2e-sheet-header .race-select {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 160px;
   font-size: 12px;
-  max-width: 200px;
 }
 
 /* Row 3: stats grid */

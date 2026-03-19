@@ -1,6 +1,6 @@
 <section class="sr2e-sheet-header flexrow">
   <div class="profile-img">
-    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" />
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-action="editImage" title="Click to change portrait" style="cursor:pointer;" />
   </div>
   <div class="header-info flexcol">
 
@@ -11,7 +11,7 @@
     </div>
 
     {{!-- Row 2: Race --}}
-    <div class="header-race-row flexrow">
+    <div class="header-race-row">
       <label class="race-label">{{localize "SR2E.Race"}}:</label>
       <select name="system.race" class="race-select">
         {{#each config.races as |label key|}}

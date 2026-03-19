@@ -383,6 +383,25 @@ const SHARED_ACTIONS = {
     const current = this.document.system.linkedVehicles ?? [];
     const updated = current.filter(v => v !== uuid);
     return this.document.update({ "system.linkedVehicles": updated });
+  },
+
+  /**
+   * Open a FilePicker to change the actor portrait.
+   * In V13 ApplicationV2, data-edit="img" is not automatically handled,
+   * so we wire it up via data-action="editImage".
+   * @this {ApplicationV2}
+   */
+  editImage: async function(event, target) {
+    event.preventDefault();
+    const actor = this.document;
+    const fp = new FilePicker({
+      type: "image",
+      current: actor.img,
+      callback: async (path) => {
+        await actor.update({ img: path });
+      }
+    });
+    fp.browse();
   }
 };
 
