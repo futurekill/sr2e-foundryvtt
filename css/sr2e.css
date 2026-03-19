@@ -1411,15 +1411,25 @@
   width: 100%;
 }
 
-.bio-textarea {
-  width: 100%;
-  min-height: 80px;
-  resize: vertical;
-  font-family: var(--sr2e-font);
-  font-size: 0.85em;
-  line-height: 1.5;
-  padding: 6px 8px;
-  box-sizing: border-box;
+/* prose-mirror element sits inside .editor-wrapper; give it a minimum height
+   so the editor is usable, and let Foundry's core ProseMirror styles handle
+   the toolbar and content area. */
+.sr2e-prose-mirror {
+  min-height: 120px;
+}
+
+/* Override Foundry's default white/light background on the ProseMirror editor
+   so it matches our dark theme. */
+.bio-group prose-mirror .editor-container,
+.bio-group prose-mirror .ProseMirror {
+  background: var(--sr2e-bg-input);
+  color: var(--sr2e-text);
+  min-height: 100px;
+}
+
+.bio-group prose-mirror menu {
+  background: var(--sr2e-bg-light);
+  border-bottom: 1px solid var(--sr2e-border);
 }
 
 .bio-enriched {

@@ -5,9 +5,13 @@
       <legend>Biography</legend>
       <div class="editor-wrapper">
         {{#if editable}}
-        <textarea name="system.biography" class="bio-textarea" rows="8">{{system.biography}}</textarea>
+        <prose-mirror name="system.biography"
+                      value="{{system.biography}}"
+                      document-uuid="{{actor.uuid}}"
+                      class="sr2e-prose-mirror">
+        </prose-mirror>
         {{else}}
-        <div class="bio-enriched">{{{enrichedBiography}}}</div>
+        <div class="editor-content bio-enriched">{{{enrichedBiography}}}</div>
         {{/if}}
       </div>
     </fieldset>
@@ -16,9 +20,13 @@
       <legend>Notes</legend>
       <div class="editor-wrapper">
         {{#if editable}}
-        <textarea name="system.notes" class="bio-textarea" rows="6">{{system.notes}}</textarea>
+        <prose-mirror name="system.notes"
+                      value="{{system.notes}}"
+                      document-uuid="{{actor.uuid}}"
+                      class="sr2e-prose-mirror">
+        </prose-mirror>
         {{else}}
-        <div class="bio-enriched">{{{enrichedNotes}}}</div>
+        <div class="editor-content bio-enriched">{{{enrichedNotes}}}</div>
         {{/if}}
       </div>
     </fieldset>
