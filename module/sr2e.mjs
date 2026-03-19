@@ -155,7 +155,45 @@ Hooks.once("ready", async () => {
     });
     game.user.setFlag("sr2e", "welcomeShown", true);
   }
+
+  // Auto-create GM utility macros (idempotent — skip if already present)
+  if (game.user.isGM) {
+    await _ensureSystemMacros();
+  }
 });
+
+/**
+ * Create SR2E system macros for the GM if they don't already exist.
+ * @private
+ */
+async function _ensureSystemMacros() {
+  const MACROS = [
+    {
+      name: "Award Karma",
+      img: "icons/svg/aura.svg",
+      src: "systems/sr2e/macros/award-karma.js"
+    }
+  ];
+
+  for (const def of MACROS) {
+    // Skip if a macro with this name already exists
+    if (game.macros.find(m => m.name === def.name && m.flags?.["sr2e"]?.systemMacro)) continue;
+    try {
+      const response = await fetch(def.src);
+      const command = await response.text();
+      await Macro.create({
+        name: def.name,
+        type: "script",
+        img: def.img,
+        command,
+        flags: { "sr2e": { systemMacro: true } }
+      });
+      console.log(`SR2E | Created system macro: ${def.name}`);
+    } catch(err) {
+      console.warn(`SR2E | Could not create macro "${def.name}":`, err);
+    }
+  }
+}
 
 /* -------------------------------------------- */
 /*  Hotbar Macros                               */
