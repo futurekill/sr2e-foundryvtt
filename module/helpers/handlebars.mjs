@@ -179,6 +179,21 @@ export function registerHandlebarsHelpers() {
   });
 
   /**
+   * Map a woundLevel string ("Undamaged", "Light", …) to a CSS modifier class.
+   * Used to drive per-severity colour on the header condition badge.
+   */
+  Handlebars.registerHelper("woundLevelClass", function (level) {
+    const map = {
+      Undamaged: "condition-undamaged",
+      Light:     "condition-light",
+      Moderate:  "condition-moderate",
+      Serious:   "condition-serious",
+      Deadly:    "condition-deadly",
+    };
+    return map[level] ?? "condition-undamaged";
+  });
+
+  /**
    * Format essence as decimal.
    */
   Handlebars.registerHelper("formatEssence", function (value) {

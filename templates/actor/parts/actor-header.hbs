@@ -47,6 +47,18 @@
       </div>
     </div>
 
+    {{!-- Row 2.5: Condition status --}}
+    <div class="header-condition-row flexrow">
+      <span class="condition-badge {{woundLevelClass woundLevel}}">
+        {{#ifEquals woundLevel "Undamaged"}}Healthy{{else}}{{woundLevel}}{{/ifEquals}}
+      </span>
+      <span class="condition-damage">
+        <span class="dmg-type">P</span>{{system.conditionMonitor.physical.value}}/{{system.conditionMonitor.physical.max}}
+        &nbsp;
+        <span class="dmg-type">S</span>{{system.conditionMonitor.stun.value}}/{{system.conditionMonitor.stun.max}}
+      </span>
+    </div>
+
     {{!-- Row 3: Stats grid — Essence | Nuyen | Good Karma | Karma Pool --}}
     <div class="header-stats-row flexrow">
       <div class="header-stat">

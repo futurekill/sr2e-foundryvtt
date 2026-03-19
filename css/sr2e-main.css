@@ -231,32 +231,105 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--sr2e-bg-dark, #0a0618);
+  background: var(--sr2e-bg-input);
   border: 1px solid var(--sr2e-neon-dim);
   border-radius: 3px;
-  padding: 1px 5px;
-  min-width: 34px;
+  padding: 2px 7px;
+  min-width: 42px;
   cursor: default;
 }
 
 .sr2e-sheet-header .pool-pip-label {
-  font-size: 7px;
+  font-size: 8px;
   font-family: var(--sr2e-font-header);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--sr2e-text-muted);
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .sr2e-sheet-header .pool-pip-value {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: bold;
   font-family: var(--sr2e-font-header);
   color: var(--sr2e-neon);
-  text-shadow: 0 0 6px var(--sr2e-neon);
-  line-height: 1.2;
+  text-shadow: 0 0 7px var(--sr2e-neon);
+  line-height: 1.25;
   white-space: nowrap;
+}
+
+/* Row 2.5: condition status */
+.sr2e-sheet-header .header-condition-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.sr2e-sheet-header .condition-badge {
+  font-size: 10px;
+  font-family: var(--sr2e-font-header);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+/* Colour per wound level — class set by HBS helper */
+.sr2e-sheet-header .condition-badge.condition-undamaged {
+  color: #44cc66;
+  text-shadow: 0 0 6px #44cc66;
+  border-color: #1a4428;
+  background: #061410;
+}
+.sr2e-sheet-header .condition-badge.condition-light {
+  color: #e8d820;
+  text-shadow: 0 0 6px #e8d820;
+  border-color: #4a4200;
+  background: #0e0c00;
+}
+.sr2e-sheet-header .condition-badge.condition-moderate {
+  color: #ff8c00;
+  text-shadow: 0 0 6px #ff8c00;
+  border-color: #4a2800;
+  background: #100800;
+}
+.sr2e-sheet-header .condition-badge.condition-serious {
+  color: #e63030;
+  text-shadow: 0 0 8px #e63030;
+  border-color: #601010;
+  background: #100404;
+}
+.sr2e-sheet-header .condition-badge.condition-deadly {
+  color: var(--sr2e-highlight);
+  text-shadow: 0 0 10px var(--sr2e-highlight);
+  border-color: var(--sr2e-border-red);
+  background: #0e0008;
+  animation: condition-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes condition-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+.sr2e-sheet-header .condition-damage {
+  font-size: 9px;
+  font-family: var(--sr2e-font-header);
+  color: var(--sr2e-text-muted);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.sr2e-sheet-header .condition-damage .dmg-type {
+  text-transform: uppercase;
+  font-size: 8px;
+  margin-right: 1px;
 }
 
 /* Row 3: stats band */
