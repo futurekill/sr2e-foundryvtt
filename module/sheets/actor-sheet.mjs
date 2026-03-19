@@ -37,13 +37,19 @@ function getPoolAvailable(actor, key) {
 /**
  * Prompt for a target number and optional pool dice via DialogV2.
  * Shows only pools that have available dice.
- * @param {Actor|null} actor     - Actor to read pools from (may be null for NPCs)
- * @param {number}    [skillCap] - Max pool dice allowed per pool (= skill rating being used).
- *                                 Defaults to Infinity (no cap) for attribute-only or uncapped rolls.
+ *
+ * Validation rules enforced in the dialog UI:
+ *   • Cannot exceed available dice in the pool (pool.value)
+ *   • Cannot exceed skillCap (= skill rating, if this is a skill roll)
+ * Both constraints are merged into `cap` for each pool.
+ * Live feedback: red outline + error label + Roll button disabled while any field is over cap.
+ *
+ * @param {Actor|null} actor     - Actor to read pools from.
+ * @param {number}    [skillCap] - Max pool dice per pool (= skill rating). Default: Infinity.
  * @returns {Promise<{tn: number, poolDice: object}|null>}
  */
 async function promptRollOptions(actor, skillCap = Infinity) {
-  // Collect non-zero pools, capping each by skillCap and available dice
+  // Collect pools that have dice available, capping each by both available and skillCap.
   const availablePools = POOL_DEFS
     .map(p => {
       const available = getPoolAvailable(actor, p.key);
@@ -56,23 +62,69 @@ async function promptRollOptions(actor, skillCap = Infinity) {
     ? `<p style="margin:0 0 4px;font-size:10px;color:#888;">Max pool dice per pool: ${skillCap} (= skill rating)</p>`
     : "";
 
+  // Each pool input carries data-pool-key / data-pool-cap for the validation hook.
   const poolHTML = availablePools.length ? `
     <hr style="margin:8px 0 6px;">
     <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
     ${capNote}
     ${availablePools.map(p => `
-    <div class="form-group" style="margin:3px 0;align-items:center;gap:6px;">
-      <label style="font-size:12px;flex:1;">${p.label}
+    <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
+      <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
         <span style="color:#888;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
-      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
-             style="width:48px;text-align:center;">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
+               data-pool-key="${p.key}" data-pool-cap="${p.cap}"
+               style="width:52px;text-align:center;">
+        <span class="sr2e-pool-error" data-for="${p.key}"
+              style="color:#e44;font-size:9px;display:none;line-height:1.2;text-align:right;"></span>
+      </div>
     </div>`).join("")}
   ` : "";
 
+  // ── Live validation via a one-shot renderDialogV2 hook ─────────────────────
+  // Foundry V13: ApplicationV2 fires "renderDialogV2" (html is an HTMLElement).
+  // We identify our dialog by the presence of data-pool-cap inputs.
+  let validationHookId = null;
+  if (availablePools.length > 0) {
+    validationHookId = Hooks.on("renderDialogV2", (app, html) => {
+      const inputs = html.querySelectorAll("input[data-pool-cap]");
+      if (!inputs.length) return;                    // not our dialog — stay registered
+      Hooks.off("renderDialogV2", validationHookId); // found it — deregister
+
+      const rollBtn = html.querySelector('[data-action="roll"]');
+
+      function validate() {
+        let allValid = true;
+        for (const input of inputs) {
+          const cap = parseInt(input.dataset.poolCap);
+          const val = parseInt(input.value) || 0;
+          const err = html.querySelector(`.sr2e-pool-error[data-for="${input.dataset.poolKey}"]`);
+          const over = val > cap;
+          const under = val < 0;
+          if (over || under) {
+            input.style.outline = "2px solid #c44";
+            if (err) {
+              err.textContent = under ? "Min: 0" : `Max: ${cap}`;
+              err.style.display = "block";
+            }
+            allValid = false;
+          } else {
+            input.style.outline = "";
+            if (err) err.style.display = "none";
+          }
+        }
+        if (rollBtn) rollBtn.disabled = !allValid;
+      }
+
+      for (const input of inputs) {
+        input.addEventListener("input", validate);
+      }
+    });
+  }
+
   // V13 IMPORTANT: DialogV2.wait() resolves with the ACTION STRING ("roll"/"cancel"),
-  // NOT the callback's return value. A naive `return result ?? null` fails because
-  // "cancel" is truthy. Fix: capture roll data as a side effect, then check action.
+  // NOT the callback's return value. Capture roll data as a side effect, then check action.
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Roll Options" },
@@ -96,10 +148,11 @@ async function promptRollOptions(actor, skillCap = Infinity) {
           const poolDice = {};
           for (const p of availablePools) {
             const raw = parseInt(button.form.elements[`pool_${p.key}`]?.value) || 0;
+            // Safety clamp — UI validation already prevents over-entry,
+            // but this guards against any race conditions or direct DOM edits.
             const clamped = Math.max(0, Math.min(raw, p.cap));
             if (clamped > 0) poolDice[p.key] = clamped;
           }
-          // Store as side effect — V13 DialogV2 ignores callback return values
           rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice };
         }
       },
@@ -109,7 +162,10 @@ async function promptRollOptions(actor, skillCap = Infinity) {
       }
     ]
   });
-  // Only proceed if the user explicitly clicked Roll (not Cancel or X)
+
+  // Clean up the hook in case the dialog was closed before it rendered (edge case).
+  if (validationHookId !== null) Hooks.off("renderDialogV2", validationHookId);
+
   return (action === "roll" && rollResult) ? rollResult : null;
 }
 
