@@ -12,18 +12,63 @@ const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globa
 // ---------------------------------------------------------------------------
 
 /**
- * Prompt the user for a target number using DialogV2.
- * @returns {Promise<number|null>}
+ * Pool definitions: key → display label.
+ * These map to system.dicePools.X.value except "karma" which maps to system.karma.pool.
  */
-async function promptTargetNumber() {
+const POOL_DEFS = [
+  { key: "combat",  label: "Combat Pool" },
+  { key: "magic",   label: "Magic Pool" },
+  { key: "hacking", label: "Hacking Pool" },
+  { key: "control", label: "Control Pool" },
+  { key: "karma",   label: "Karma Pool" }
+];
+
+/**
+ * Get the current available dice for a pool from an actor.
+ * @param {Actor} actor
+ * @param {string} key
+ * @returns {number}
+ */
+function getPoolAvailable(actor, key) {
+  if (!actor?.system) return 0;
+  if (key === "karma") return actor.system.karma?.pool ?? 0;
+  return actor.system.dicePools?.[key]?.value ?? 0;
+}
+
+/**
+ * Prompt for a target number and optional pool dice via DialogV2.
+ * Shows only pools that have available dice.
+ * @param {Actor|null} actor  - Actor to read pools from (may be null for NPCs)
+ * @returns {Promise<{tn: number, poolDice: object}|null>}
+ */
+async function promptRollOptions(actor) {
+  // Collect non-zero pools
+  const availablePools = POOL_DEFS
+    .map(p => ({ ...p, available: getPoolAvailable(actor, p.key) }))
+    .filter(p => p.available > 0);
+
+  const poolHTML = availablePools.length ? `
+    <hr style="margin:8px 0 6px;">
+    <p style="margin:0 0 4px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
+    ${availablePools.map(p => `
+    <div class="form-group" style="margin:3px 0;align-items:center;gap:6px;">
+      <label style="font-size:12px;flex:1;">${p.label}
+        <span style="color:#888;font-size:10px;">(${p.available} left)</span>
+      </label>
+      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.available}"
+             style="width:48px;text-align:center;">
+    </div>`).join("")}
+  ` : "";
+
   const result = await foundry.applications.api.DialogV2.wait({
-    window: { title: "Target Number" },
+    window: { title: "Roll Options" },
     content: `
       <form>
         <div class="form-group">
           <label>Target Number:</label>
           <input type="number" name="tn" value="4" min="2" max="30" autofocus>
         </div>
+        ${poolHTML}
       </form>
     `,
     buttons: [
@@ -33,7 +78,13 @@ async function promptTargetNumber() {
         default: true,
         callback: (event, button, dialog) => {
           const tn = parseInt(button.form.elements.tn.value);
-          return isNaN(tn) ? 4 : tn;
+          const poolDice = {};
+          for (const p of availablePools) {
+            const raw = parseInt(button.form.elements[`pool_${p.key}`]?.value) || 0;
+            const clamped = Math.max(0, Math.min(raw, p.available));
+            if (clamped > 0) poolDice[p.key] = clamped;
+          }
+          return { tn: isNaN(tn) ? 4 : tn, poolDice };
         }
       },
       {
@@ -55,9 +106,9 @@ async function onRollAttribute(event, target) {
   event.preventDefault();
   const attribute = target.dataset.attribute;
   const actor = this.document;
-  const tn = await promptTargetNumber();
-  if (tn === null) return;
-  return actor.rollAttributeTest(attribute, tn);
+  const opts = await promptRollOptions(actor);
+  if (opts === null) return;
+  return actor.rollAttributeTest(attribute, opts.tn, { poolDice: opts.poolDice });
 }
 
 /**
@@ -68,9 +119,10 @@ async function onRollSkill(event, target) {
   event.preventDefault();
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
-  const tn = await promptTargetNumber();
-  if (tn === null) return;
-  return this.document.rollSkillTest(skillId, tn);
+  const actor = this.document;
+  const opts = await promptRollOptions(actor);
+  if (opts === null) return;
+  return actor.rollSkillTest(skillId, opts.tn, { poolDice: opts.poolDice });
 }
 
 /**
@@ -91,9 +143,9 @@ async function onRollWeapon(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const tn = await promptTargetNumber();
-  if (tn === null) return;
-  return item.roll({ targetNumber: tn });
+  const opts = await promptRollOptions(this.document);
+  if (opts === null) return;
+  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
 }
 
 /**
@@ -105,9 +157,9 @@ async function onCastSpell(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const tn = await promptTargetNumber();
-  if (tn === null) return;
-  return item.roll({ targetNumber: tn });
+  const opts = await promptRollOptions(this.document);
+  if (opts === null) return;
+  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
 }
 
 /**
@@ -119,9 +171,9 @@ async function onRollProgram(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const tn = await promptTargetNumber();
-  if (tn === null) return;
-  return item.roll({ targetNumber: tn });
+  const opts = await promptRollOptions(this.document);
+  if (opts === null) return;
+  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
 }
 
 /**

@@ -188,28 +188,71 @@ export class SR2EActor extends Actor {
     // Apply wound penalty to target number (SR2E rules: +1 TN per wound level)
     const woundPenalty = this.system.woundPenalty ?? 0;
     const effectiveTN = targetNumber + woundPenalty;
-
     const label = options.label || "Success Test";
-    const formula = `${dicePool}d6cs>=${effectiveTN}`;
 
+    // --- Pool dice ---
+    const poolDice = options.poolDice || {};
+    const poolsUsed = [];   // { key, label, amount }
+    let poolDiceTotal = 0;
+
+    const poolLabels = {
+      combat: "Combat Pool", magic: "Magic Pool", hacking: "Hacking Pool",
+      control: "Control Pool", karma: "Karma Pool"
+    };
+
+    for (const [key, requested] of Object.entries(poolDice)) {
+      if (!requested || requested <= 0) continue;
+      const available = key === "karma"
+        ? (this.system.karma?.pool ?? 0)
+        : (this.system.dicePools?.[key]?.value ?? 0);
+      const amount = Math.min(requested, available);
+      if (amount > 0) {
+        poolsUsed.push({ key, label: poolLabels[key] || key, amount });
+        poolDiceTotal += amount;
+      }
+    }
+
+    // Roll base + pool dice together
+    const totalDice = dicePool + poolDiceTotal;
+    const formula = `${totalDice}d6cs>=${effectiveTN}`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
-    // Count successes (dice >= effectiveTN)
+    // Count successes
     const successes = roll.terms[0].results.filter(r => r.result >= effectiveTN && !r.discarded).length;
 
-    // Build TN note for the chat message
+    // Build chat notes
     const tnNote = woundPenalty > 0
       ? `${effectiveTN} (base ${targetNumber} +${woundPenalty} wound)`
       : `${effectiveTN}`;
 
+    let diceNote = `${dicePool}`;
+    if (poolDiceTotal > 0) {
+      const poolParts = poolsUsed.map(p => `+${p.amount} ${p.label}`).join(", ");
+      diceNote = `${dicePool} ${poolParts} = ${totalDice} total`;
+    }
+
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>${label}</h3><p>Target Number: ${tnNote} | Dice: ${dicePool} | Successes: ${successes}</p>`,
+      flavor: `<h3>${label}</h3><p>TN: ${tnNote} | Dice: ${diceNote} | Successes: ${successes}</p>`,
       rolls: [roll]
     };
-
     await ChatMessage.create(messageData);
+
+    // --- Reduce pools that were used ---
+    if (poolsUsed.length > 0) {
+      const updates = {};
+      for (const { key, amount } of poolsUsed) {
+        if (key === "karma") {
+          updates["system.karma.pool"] = Math.max(0, (this.system.karma?.pool ?? 0) - amount);
+        } else {
+          const cur = this.system.dicePools?.[key]?.value ?? 0;
+          updates[`system.dicePools.${key}.value`] = Math.max(0, cur - amount);
+        }
+      }
+      await this.update(updates);
+    }
+
     return { roll, successes, targetNumber: effectiveTN };
   }
 
@@ -249,24 +292,31 @@ export class SR2EActor extends Actor {
    * @param {number} targetNumber - Target number
    * @returns {Promise}
    */
-  async rollAttributeTest(attribute, targetNumber = 4) {
+  async rollAttributeTest(attribute, targetNumber = 4, options = {}) {
     const attrValue = this.system[attribute]?.value || 0;
     const label = game.i18n.localize(CONFIG.SR2E.attributes[attribute]) || attribute;
-    return this.rollSuccessTest(attrValue, targetNumber, { label: `${label} Test` });
+    return this.rollSuccessTest(attrValue, targetNumber, {
+      label: `${label} Test`,
+      poolDice: options.poolDice
+    });
   }
 
   /**
    * Roll a Skill Test.
    * @param {string} skillId - The item ID of the skill
    * @param {number} targetNumber - Target number
+   * @param {object} [options]
    * @returns {Promise}
    */
-  async rollSkillTest(skillId, targetNumber = 4) {
+  async rollSkillTest(skillId, targetNumber = 4, options = {}) {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
 
     const dicePool = skill.system.rating;
-    return this.rollSuccessTest(dicePool, targetNumber, { label: `${skill.name} Test` });
+    return this.rollSuccessTest(dicePool, targetNumber, {
+      label: `${skill.name} Test`,
+      poolDice: options.poolDice
+    });
   }
 
   /**

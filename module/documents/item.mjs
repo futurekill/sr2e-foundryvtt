@@ -62,7 +62,8 @@ export class SR2EItem extends Item {
     const dmg = this.system.parsedDamageCode;
 
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
-      label: `${this.name} Attack`
+      label: `${this.name} Attack`,
+      poolDice: options.poolDice
     });
 
     // Post damage info
@@ -105,9 +106,10 @@ export class SR2EItem extends Item {
     const force = this.system.force;
     const targetNumber = options.targetNumber || 4;
 
-    // Spellcasting test: roll Force dice against TN
+    // Spellcasting test: roll Force dice against TN (Magic Pool can be added)
     const result = await actor.rollSuccessTest(force, targetNumber, {
-      label: `Cast ${this.name} (Force ${force})`
+      label: `Cast ${this.name} (Force ${force})`,
+      poolDice: options.poolDice
     });
 
     // Drain resist test
@@ -133,7 +135,8 @@ export class SR2EItem extends Item {
 
     const targetNumber = options.targetNumber || 4;
     return actor.rollSuccessTest(this.system.rating, targetNumber, {
-      label: `${this.name} Test`
+      label: `${this.name} Test`,
+      poolDice: options.poolDice
     });
   }
 
@@ -149,7 +152,8 @@ export class SR2EItem extends Item {
     const targetNumber = options.targetNumber || 4;
 
     return actor.rollSuccessTest(rating, targetNumber, {
-      label: `${this.name} (Rating ${rating})`
+      label: `${this.name} (Rating ${rating})`,
+      poolDice: options.poolDice
     });
   }
 
