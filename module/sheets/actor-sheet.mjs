@@ -594,6 +594,55 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   }
 
   /**
+   * @override
+   * After every render, wire up prose-mirror editors for reliable saves.
+   *
+   * Problem: HTMLProseMirrorElement only commits its content on an explicit
+   * save gesture (Ctrl+S / toolbar button). It does NOT auto-save on blur,
+   * so content typed without an explicit save is silently lost when the sheet
+   * closes or re-renders.
+   *
+   * Fix: listen for `focusout` on each prose-mirror element. When focus leaves
+   * the editor entirely (not just moving to the toolbar), save immediately via
+   * document.update(). This is safe to call on every render because the old
+   * elements are replaced by the new ones each time.
+   */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    if (!this.isEditable) return;
+    for (const pm of this.element.querySelectorAll("prose-mirror[name]")) {
+      pm.addEventListener("focusout", (event) => {
+        // focusout bubbles — ignore when focus moves within the same editor
+        // (e.g. clicking a toolbar button keeps us inside the prose-mirror)
+        if (pm.contains(event.relatedTarget)) return;
+        const name = pm.getAttribute("name");
+        const value = pm.value ?? "";
+        if (name) this.document.update({ [name]: value });
+      });
+    }
+  }
+
+  /**
+   * @override
+   * Safety-net: inject prose-mirror values into form data before any
+   * submitOnChange submission. FormDataExtended may not reliably extract
+   * values from form-associated custom elements in all V13 builds. Without
+   * this, saving ANY other field (e.g. nuyen) could overwrite biography with
+   * an empty string.
+   */
+  async _processFormData(event, form, formData) {
+    for (const pm of form.querySelectorAll("prose-mirror[name]")) {
+      const name = pm.getAttribute("name");
+      if (!name) continue;
+      // Only inject if FormDataExtended didn't already capture the value
+      if (!formData.has(name) && typeof pm.value === "string") {
+        formData.set(name, pm.value);
+      }
+    }
+    return super._processFormData(event, form, formData);
+  }
+
+  /**
    * Build tab configuration.
    * @returns {object}
    * @private
