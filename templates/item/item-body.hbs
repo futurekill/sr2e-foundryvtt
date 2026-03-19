@@ -216,10 +216,28 @@
   <div class="form-group">
     <label>Grade:</label>
     <select name="system.grade">
-      <option value="standard" {{selected system.grade "standard"}}>Standard</option>
-      <option value="alpha" {{selected system.grade "alpha"}}>Alphaware</option>
+      {{#each config.cyberwareGrades as |grade key|}}
+      <option value="{{key}}" {{selected ../system.grade key}}>{{localize grade.label}}</option>
+      {{/each}}
     </select>
   </div>
+
+  {{!-- Rating: dropdown from table tiers (if tiered) or plain number input --}}
+  <div class="form-group">
+    <label>Rating:</label>
+    {{#if hasRatingTable}}
+    <select name="system.rating">
+      {{#each system.ratingStats}}
+      <option value="{{this.rating}}" {{selected ../system.rating this.rating}}>{{this.rating}}</option>
+      {{/each}}
+    </select>
+    {{else}}
+    <input type="number" name="system.rating" value="{{system.rating}}" min="0" />
+    {{/if}}
+  </div>
+
+  {{!-- Flat fields: only shown when there is NO rating table --}}
+  {{#unless hasRatingTable}}
   <div class="form-group">
     <label>Essence Cost:</label>
     <input type="number" name="system.essenceCost" value="{{system.essenceCost}}" min="0" step="0.1" />
@@ -228,17 +246,71 @@
     {{/ifEquals}}
   </div>
   <div class="form-group">
-    <label>Rating:</label>
-    <input type="number" name="system.rating" value="{{system.rating}}" min="0" />
-  </div>
-  <div class="form-group">
-    <label>Cost:</label>
+    <label>Cost (¥):</label>
     <input type="number" name="system.cost" value="{{system.cost}}" />
   </div>
+  <div class="form-group">
+    <label>Availability:</label>
+    <input type="text" name="system.availability" value="{{system.availability}}" />
+  </div>
+  <div class="form-group">
+    <label>Street Index:</label>
+    <input type="text" name="system.streetIndex" value="{{system.streetIndex}}" />
+  </div>
+  {{/unless}}
+
   <div class="form-group">
     <label>Installed:</label>
     <input type="checkbox" name="system.installed" {{checked system.installed}} />
   </div>
+
+  {{!-- Per-rating stats table --}}
+  {{#if hasRatingTable}}
+  <div class="rating-stats-section">
+    <div class="rating-stats-header">
+      <span>Per-Rating Stats</span>
+      {{#ifEquals system.grade "alpha"}}
+      <span class="hint">— Actual Essence at Rating {{system.rating}}: {{system.actualEssenceCost}}</span>
+      {{/ifEquals}}
+    </div>
+    <table class="rating-stats-table">
+      <thead>
+        <tr>
+          <th>Rating</th>
+          <th>Essence</th>
+          <th>Cost (¥)</th>
+          <th>Avail</th>
+          <th>Street Index</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each system.ratingStats}}
+        <tr class="{{#ifEquals ../system.rating this.rating}}active-rating-row{{/ifEquals}}">
+          <td><input type="number" name="system.ratingStats.{{@index}}.rating"       value="{{this.rating}}"       min="1" /></td>
+          <td><input type="number" name="system.ratingStats.{{@index}}.essenceCost"   value="{{this.essenceCost}}"  min="0" step="0.1" /></td>
+          <td><input type="number" name="system.ratingStats.{{@index}}.cost"          value="{{this.cost}}"         min="0" /></td>
+          <td><input type="text"   name="system.ratingStats.{{@index}}.availability"  value="{{this.availability}}"  /></td>
+          <td><input type="text"   name="system.ratingStats.{{@index}}.streetIndex"   value="{{this.streetIndex}}"   /></td>
+          <td>
+            <button type="button" class="remove-row-btn" data-action="removeRatingRow" data-index="{{@index}}" title="Remove row">
+              <i class="fas fa-times"></i>
+            </button>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  <div class="rating-stats-add">
+    <button type="button" class="add-rating-row-btn" data-action="addRatingRow">
+      <i class="fas fa-plus"></i>
+      {{#if hasRatingTable}}Add Rating Row{{else}}Enable Rating Table{{/if}}
+    </button>
+  </div>
+
   <fieldset>
     <legend>Attribute Modifiers</legend>
     <div class="attr-mods-grid">

@@ -1650,6 +1650,125 @@
 }
 
 /* ============================================================================
+   CYBERWARE RATING STATS TABLE
+   ============================================================================ */
+
+.rating-stats-section {
+  margin: 8px 0 4px;
+}
+
+.rating-stats-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sr2e-gold);
+}
+
+.rating-stats-header .hint {
+  color: var(--sr2e-text-muted);
+  font-size: 0.7rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rating-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.rating-stats-table th {
+  background: var(--sr2e-accent);
+  color: var(--sr2e-gold);
+  padding: 3px 5px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--sr2e-border);
+}
+
+.rating-stats-table td {
+  padding: 2px 3px;
+  border-bottom: 1px solid var(--sr2e-border);
+  text-align: center;
+}
+
+.rating-stats-table input[type="number"],
+.rating-stats-table input[type="text"] {
+  width: 100%;
+  text-align: center;
+  background: var(--sr2e-bg-input);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--sr2e-text);
+  padding: 2px 3px;
+  font-size: 0.72rem;
+}
+
+.rating-stats-table input[type="number"]:focus,
+.rating-stats-table input[type="text"]:focus {
+  border-color: var(--sr2e-gold-dim);
+  outline: none;
+}
+
+/* Highlight the currently-active rating row */
+.rating-stats-table tr.active-rating-row td {
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.rating-stats-table tr.active-rating-row input {
+  color: var(--sr2e-gold);
+}
+
+/* Remove-row button */
+.remove-row-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--sr2e-text-muted);
+  padding: 2px 4px;
+  border-radius: 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.remove-row-btn:hover {
+  color: var(--sr2e-highlight);
+}
+
+/* Add-row button */
+.rating-stats-add {
+  margin: 4px 0 8px;
+  text-align: left;
+}
+
+.add-rating-row-btn {
+  background: none;
+  border: 1px solid var(--sr2e-border);
+  border-radius: 2px;
+  color: var(--sr2e-text-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.add-rating-row-btn:hover {
+  border-color: var(--sr2e-gold-dim);
+  color: var(--sr2e-gold);
+}
+
+.add-rating-row-btn i {
+  margin-right: 3px;
+}
+
+/* ============================================================================
    CHAT MESSAGES / DICE ROLLS
    ============================================================================ */
 
