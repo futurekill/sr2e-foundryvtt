@@ -70,9 +70,11 @@ async function promptRollOptions(actor, skillCap = Infinity) {
     </div>`).join("")}
   ` : "";
 
-  // rejectClose: false so both Cancel button and X-close resolve (not reject).
-  // We return null for cancellation and check with !opts in all callers.
-  const result = await foundry.applications.api.DialogV2.wait({
+  // V13 IMPORTANT: DialogV2.wait() resolves with the ACTION STRING ("roll"/"cancel"),
+  // NOT the callback's return value. A naive `return result ?? null` fails because
+  // "cancel" is truthy. Fix: capture roll data as a side effect, then check action.
+  let rollResult = null;
+  const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Roll Options" },
     rejectClose: false,
     content: `
@@ -97,19 +99,18 @@ async function promptRollOptions(actor, skillCap = Infinity) {
             const clamped = Math.max(0, Math.min(raw, p.cap));
             if (clamped > 0) poolDice[p.key] = clamped;
           }
-          return { tn: isNaN(tn) ? 4 : tn, poolDice };
+          // Store as side effect — V13 DialogV2 ignores callback return values
+          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice };
         }
       },
       {
         action: "cancel",
-        label: "Cancel",
-        callback: () => null
+        label: "Cancel"
       }
-    ],
-    close: () => null
+    ]
   });
-  // null/undefined means the user cancelled; callers check `if (!opts) return`
-  return result ?? null;
+  // Only proceed if the user explicitly clicked Roll (not Cancel or X)
+  return (action === "roll" && rollResult) ? rollResult : null;
 }
 
 /**

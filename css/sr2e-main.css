@@ -1,33 +1,33 @@
 /* ============================================================================
    SHADOWRUN 2ND EDITION — FoundryVTT System Stylesheet
-   Theme: Classic SR2E Book  (black · red · gold)
+   Theme: Cyberpunk / Retrowave  (hot magenta · electric cyan · deep purple-black)
    ============================================================================ */
 
 /* --- CSS Variables / Theme --- */
 :root {
-  /* Palette */
-  --sr2e-primary:     #0a0806;    /* near-black with warm undertone */
-  --sr2e-secondary:   #130d08;    /* slightly lighter dark panel */
-  --sr2e-accent:      #1e0a04;    /* very dark burnt-red for hover states */
-  --sr2e-highlight:   #cc0000;    /* Shadowrun Red — main accent */
-  --sr2e-gold:        #c8921a;    /* SR2E book gold / amber */
-  --sr2e-gold-dim:    #8a6010;    /* dimmer gold for borders */
-  --sr2e-text:        #e0d4c0;    /* warm off-white */
-  --sr2e-text-muted:  #7a6e5e;    /* muted warm grey */
-  --sr2e-bg:          #0a0806;    /* sheet background */
-  --sr2e-bg-light:    #1a1208;    /* panel / fieldset background */
-  --sr2e-bg-input:    #0e0a06;    /* input fields */
-  --sr2e-border:      #3a1a08;    /* standard border (dark orange-brown) */
-  --sr2e-border-red:  #660000;    /* bright-ish red border for accents */
+  /* Palette — Cyberpunk / Retrowave */
+  --sr2e-primary:     #060412;    /* deep purple-black */
+  --sr2e-secondary:   #0d0a1a;    /* slightly lighter dark purple panel */
+  --sr2e-accent:      #1a0830;    /* dark purple for hover states */
+  --sr2e-highlight:   #e91e8c;    /* hot magenta — main accent */
+  --sr2e-gold:        #00e5ff;    /* electric cyan — header/value accent */
+  --sr2e-gold-dim:    #006688;    /* dimmer cyan for borders */
+  --sr2e-text:        #e0d4f0;    /* pale lavender-white */
+  --sr2e-text-muted:  #6a5a8a;    /* muted purple-grey */
+  --sr2e-bg:          #060412;    /* sheet background */
+  --sr2e-bg-light:    #100820;    /* panel / fieldset background */
+  --sr2e-bg-input:    #0a0618;    /* input fields */
+  --sr2e-border:      #2a1a40;    /* standard border (dark purple) */
+  --sr2e-border-red:  #660044;    /* dark magenta border for accents */
 
   /* Semantic colours */
   --sr2e-success:     #4a9950;
   --sr2e-failure:     #cc2200;
-  --sr2e-warning:     #c8921a;    /* gold doubles as warning */
-  --sr2e-magic:       #9955cc;
-  --sr2e-matrix:      #00aaaa;
+  --sr2e-warning:     #e91e8c;    /* magenta doubles as warning */
+  --sr2e-magic:       #bb66ff;    /* bright purple for magic */
+  --sr2e-matrix:      #00e5ff;    /* electric cyan for matrix */
   --sr2e-essence:     #44aa77;
-  --sr2e-nuyen:       #c8921a;
+  --sr2e-nuyen:       #00e5ff;
 
   /* Typography */
   --sr2e-font:        "Courier New", "Lucida Console", "Consolas", monospace;
@@ -47,11 +47,11 @@
 
 .sr2e.sheet .window-content {
   background-color: var(--sr2e-bg);
-  /* Layered background: diagonal carbon-fibre weave + faint hex circuit grid */
+  /* Layered background: CRT horizontal scanlines + faint magenta/cyan grid */
   background-image:
-    repeating-linear-gradient(45deg, rgba(200,146,26,0.025) 0px, rgba(200,146,26,0.025) 1px, transparent 1px, transparent 10px),
-    repeating-linear-gradient(-45deg, rgba(200,146,26,0.025) 0px, rgba(200,146,26,0.025) 1px, transparent 1px, transparent 10px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='52' viewBox='0 0 30 52'%3E%3Cpath fill='none' stroke='%23330a00' stroke-width='0.4' d='M15 1 L29 9 L29 25 L15 33 L1 25 L1 9 Z'/%3E%3Cpath fill='none' stroke='%23330a00' stroke-width='0.4' d='M15 19 L29 27 L29 43 L15 51 L1 43 L1 27 Z'/%3E%3Ccircle cx='15' cy='1' r='1' fill='%23440a00' fill-opacity='0.5'/%3E%3Ccircle cx='29' cy='9' r='1' fill='%23440a00' fill-opacity='0.5'/%3E%3Ccircle cx='29' cy='25' r='1' fill='%23440a00' fill-opacity='0.5'/%3E%3Ccircle cx='15' cy='33' r='1' fill='%23440a00' fill-opacity='0.5'/%3E%3Ccircle cx='1' cy='25' r='1' fill='%23440a00' fill-opacity='0.5'/%3E%3Ccircle cx='1' cy='9' r='1' fill='%23440a00' fill-opacity='0.5'/%3E%3C/svg%3E");
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg, rgba(233,30,140,0.05) 0px, rgba(233,30,140,0.05) 1px, transparent 1px, transparent 50px),
+    repeating-linear-gradient(0deg, rgba(0,229,255,0.04) 0px, rgba(0,229,255,0.04) 1px, transparent 1px, transparent 50px);
   padding: 8px;
   overflow-y: auto;
 }
@@ -73,7 +73,7 @@
 .sr2e.sheet select:focus {
   border-color: var(--sr2e-highlight);
   outline: none;
-  box-shadow: 0 0 4px rgba(204, 0, 0, 0.5);
+  box-shadow: 0 0 4px rgba(233, 30, 140, 0.5);
 }
 
 .sr2e.sheet input[type="number"] {
@@ -107,7 +107,7 @@
    ============================================================================ */
 
 .sr2e-sheet-header {
-  background: linear-gradient(160deg, #1a0a04 0%, #0a0604 60%, #12060a 100%);
+  background: linear-gradient(160deg, #1a0830 0%, #0d0618 60%, #12062a 100%);
   border-bottom: 2px solid var(--sr2e-highlight);
   padding: 8px;
   gap: 10px;
@@ -176,7 +176,7 @@
   color: var(--sr2e-text);
   padding: 0;
   min-width: 0;
-  text-shadow: 0 0 8px rgba(204, 0, 0, 0.3);
+  text-shadow: 0 0 8px rgba(233, 30, 140, 0.3);
 }
 
 .sr2e-sheet-header .char-name-input::placeholder {
@@ -248,7 +248,7 @@
   font-size: 15px;
   font-weight: bold;
   color: var(--sr2e-gold);
-  text-shadow: 0 0 6px rgba(200, 146, 26, 0.4);
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.4);
 }
 
 .sr2e-sheet-header .essence-value {
@@ -288,7 +288,7 @@
 
 .sr2e-tabs {
   display: flex;
-  background: #0f0804;
+  background: #08041a;
   border-bottom: 2px solid var(--sr2e-highlight);
   padding: 0;
   margin: 0;
@@ -313,13 +313,13 @@
 
 .sr2e-tabs .tab:hover {
   color: var(--sr2e-text);
-  background: rgba(204, 0, 0, 0.08);
+  background: rgba(233, 30, 140, 0.08);
 }
 
 .sr2e-tabs .tab.active {
   color: var(--sr2e-gold);
   border-bottom-color: var(--sr2e-gold);
-  background: rgba(200, 146, 26, 0.07);
+  background: rgba(0, 229, 255, 0.07);
 }
 
 .sr2e-tabs .tab i {
@@ -434,11 +434,11 @@
 
 .attribute-row {
   padding: 3px 4px;
-  border-bottom: 1px solid rgba(200, 146, 26, 0.06);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.06);
 }
 
 .attribute-row:hover {
-  background: rgba(204, 0, 0, 0.05);
+  background: rgba(233, 30, 140, 0.05);
 }
 
 .attribute-label {
@@ -477,7 +477,7 @@
   font-weight: bold;
   font-size: 14px;
   color: var(--sr2e-gold);
-  background: rgba(200, 146, 26, 0.1);
+  background: rgba(0, 229, 255, 0.1);
   border: 1px solid var(--sr2e-gold-dim);
   border-radius: 2px;
   padding: 1px 4px;
@@ -588,7 +588,7 @@
   gap: 8px;
   margin-top: 5px;
   padding: 3px 6px;
-  background: rgba(204, 34, 0, 0.1);
+  background: rgba(233, 30, 140, 0.1);
   border: 1px solid var(--sr2e-failure);
   border-radius: 2px;
   font-size: 10px;
@@ -679,7 +679,7 @@
 
 .btn-roll-init:hover {
   filter: brightness(1.2);
-  box-shadow: 0 0 6px rgba(204, 0, 0, 0.6);
+  box-shadow: 0 0 6px rgba(233, 30, 140, 0.6);
 }
 
 /* ============================================================================
@@ -724,12 +724,12 @@
 
 .skill-row {
   padding: 3px 4px;
-  border-bottom: 1px solid rgba(200, 146, 26, 0.06);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.06);
   font-size: 11px;
 }
 
 .skill-row:hover {
-  background: rgba(204, 0, 0, 0.06);
+  background: rgba(233, 30, 140, 0.06);
 }
 
 .skill-name {
@@ -828,13 +828,13 @@
 
 .item-row {
   padding: 3px 4px;
-  border-bottom: 1px solid rgba(200, 146, 26, 0.05);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.05);
   font-size: 11px;
   font-family: var(--sr2e-font);
 }
 
 .item-row:hover {
-  background: rgba(204, 0, 0, 0.05);
+  background: rgba(233, 30, 140, 0.05);
 }
 
 .item-name {
@@ -1090,7 +1090,7 @@
 
 .vehicle-ctrl-btn.remove:hover {
   opacity: 1;
-  background: rgba(204, 34, 0, 0.1);
+  background: rgba(233, 30, 140, 0.1);
 }
 
 .vehicle-stats-row {
@@ -1195,7 +1195,7 @@
 }
 
 .contact-row:not(.contact-header-row):hover {
-  background: rgba(204, 0, 0, 0.06);
+  background: rgba(233, 30, 140, 0.06);
 }
 
 .contact-header-row {
@@ -1270,7 +1270,7 @@
 .rating-pip.filled {
   background: var(--sr2e-highlight);
   border-color: var(--sr2e-highlight);
-  box-shadow: 0 0 2px rgba(204, 0, 0, 0.5);
+  box-shadow: 0 0 2px rgba(233, 30, 140, 0.5);
 }
 
 .rating-num {
@@ -1460,7 +1460,7 @@
    ============================================================================ */
 
 .sr2e-npc-sheet .npc-header {
-  background: linear-gradient(160deg, #1a0a04 0%, #0a0604 100%);
+  background: linear-gradient(160deg, #1a0830 0%, #0d0618 100%);
   padding: 8px;
   border-bottom: 2px solid var(--sr2e-highlight);
   gap: 8px;
@@ -1577,7 +1577,7 @@
    ============================================================================ */
 
 .sr2e.sheet.item .item-header {
-  background: linear-gradient(160deg, #1a0a04 0%, #0a0604 100%);
+  background: linear-gradient(160deg, #1a0830 0%, #0d0618 100%);
   padding: 8px;
   gap: 8px;
   border-bottom: 2px solid var(--sr2e-highlight);
@@ -1710,7 +1710,7 @@
 }
 
 .sr2e-die.failure {
-  background: rgba(58, 26, 8, 0.5);
+  background: rgba(26, 8, 58, 0.5);
   border-color: var(--sr2e-border);
   color: var(--sr2e-text-muted);
 }
@@ -1736,7 +1736,7 @@
 }
 
 .sr2e-damage-result {
-  background: rgba(204, 34, 0, 0.08);
+  background: rgba(233, 30, 140, 0.08);
   border: 1px solid var(--sr2e-failure);
   border-radius: 2px;
   padding: 6px;
@@ -1744,7 +1744,7 @@
 
 /* Welcome Message */
 .sr2e-welcome {
-  background: linear-gradient(160deg, #1a0a04 0%, #0a0604 100%);
+  background: linear-gradient(160deg, #1a0830 0%, #0d0618 100%);
   border: 1px solid var(--sr2e-gold-dim);
   border-radius: 2px;
   padding: 10px;
