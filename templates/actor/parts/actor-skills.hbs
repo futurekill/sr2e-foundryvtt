@@ -15,16 +15,11 @@
         <div class="skill-row flexrow" data-item-id="{{skill.id}}">
           <span class="skill-name" data-action="rollSkill">
             <i class="fas fa-dice"></i>
-            {{skill.name}}{{#if skill.system.concentration.name}} <span class="skill-conc-inline">({{skill.system.concentration.name}})</span>{{/if}}
+            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}
           </span>
           <span class="skill-attr">({{skill.system.linkedAttribute}})</span>
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
                  class="skill-rating" min="0" max="12" />
-          {{#if skill.system.specialization.name}}
-          <span class="skill-spec" title="Specialization: {{skill.system.specialization.name}} ({{skill.system.specialization.rating}})">
-            S: {{skill.system.specialization.rating}}
-          </span>
-          {{/if}}
           <div class="item-controls">
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
@@ -49,16 +44,11 @@
         <div class="skill-row flexrow" data-item-id="{{skill.id}}">
           <span class="skill-name" data-action="rollSkill">
             <i class="fas fa-dice"></i>
-            {{skill.name}}{{#if skill.system.concentration.name}} <span class="skill-conc-inline">({{skill.system.concentration.name}})</span>{{/if}}
+            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}
           </span>
           <span class="skill-attr">({{skill.system.linkedAttribute}})</span>
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
                  class="skill-rating" min="0" max="12" />
-          {{#if skill.system.specialization.name}}
-          <span class="skill-spec" title="Specialization: {{skill.system.specialization.name}} ({{skill.system.specialization.rating}})">
-            S: {{skill.system.specialization.rating}}
-          </span>
-          {{/if}}
           <div class="item-controls">
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
@@ -83,7 +73,7 @@
         <div class="skill-row flexrow" data-item-id="{{skill.id}}">
           <span class="skill-name" data-action="rollSkill">
             <i class="fas fa-dice"></i>
-            {{skill.name}}{{#if skill.system.concentration.name}} <span class="skill-conc-inline">({{skill.system.concentration.name}})</span>{{/if}}
+            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}
           </span>
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
                  class="skill-rating" min="0" max="12" />
