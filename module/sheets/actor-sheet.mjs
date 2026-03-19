@@ -13,14 +13,14 @@ const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globa
 
 /**
  * Pool definitions: key → display label.
- * These map to system.dicePools.X.value except "karma" which maps to system.karma.pool.
+ * These map to system.dicePools.X.value.
+ * Karma Pool is intentionally excluded — it is spent separately, not during a roll.
  */
 const POOL_DEFS = [
   { key: "combat",  label: "Combat Pool" },
   { key: "magic",   label: "Magic Pool" },
   { key: "hacking", label: "Hacking Pool" },
-  { key: "control", label: "Control Pool" },
-  { key: "karma",   label: "Karma Pool" }
+  { key: "control", label: "Control Pool" }
 ];
 
 /**
@@ -31,31 +31,41 @@ const POOL_DEFS = [
  */
 function getPoolAvailable(actor, key) {
   if (!actor?.system) return 0;
-  if (key === "karma") return actor.system.karma?.pool ?? 0;
   return actor.system.dicePools?.[key]?.value ?? 0;
 }
 
 /**
  * Prompt for a target number and optional pool dice via DialogV2.
  * Shows only pools that have available dice.
- * @param {Actor|null} actor  - Actor to read pools from (may be null for NPCs)
+ * @param {Actor|null} actor     - Actor to read pools from (may be null for NPCs)
+ * @param {number}    [skillCap] - Max pool dice allowed per pool (= skill rating being used).
+ *                                 Defaults to Infinity (no cap) for attribute-only or uncapped rolls.
  * @returns {Promise<{tn: number, poolDice: object}|null>}
  */
-async function promptRollOptions(actor) {
-  // Collect non-zero pools
+async function promptRollOptions(actor, skillCap = Infinity) {
+  // Collect non-zero pools, capping each by skillCap and available dice
   const availablePools = POOL_DEFS
-    .map(p => ({ ...p, available: getPoolAvailable(actor, p.key) }))
-    .filter(p => p.available > 0);
+    .map(p => {
+      const available = getPoolAvailable(actor, p.key);
+      const cap = skillCap === Infinity ? available : Math.min(available, skillCap);
+      return { ...p, available, cap };
+    })
+    .filter(p => p.cap > 0);
+
+  const capNote = skillCap !== Infinity
+    ? `<p style="margin:0 0 4px;font-size:10px;color:#888;">Max pool dice per pool: ${skillCap} (= skill rating)</p>`
+    : "";
 
   const poolHTML = availablePools.length ? `
     <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 4px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
+    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
+    ${capNote}
     ${availablePools.map(p => `
     <div class="form-group" style="margin:3px 0;align-items:center;gap:6px;">
       <label style="font-size:12px;flex:1;">${p.label}
-        <span style="color:#888;font-size:10px;">(${p.available} left)</span>
+        <span style="color:#888;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
-      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.available}"
+      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
              style="width:48px;text-align:center;">
     </div>`).join("")}
   ` : "";
@@ -81,7 +91,7 @@ async function promptRollOptions(actor) {
           const poolDice = {};
           for (const p of availablePools) {
             const raw = parseInt(button.form.elements[`pool_${p.key}`]?.value) || 0;
-            const clamped = Math.max(0, Math.min(raw, p.available));
+            const clamped = Math.max(0, Math.min(raw, p.cap));
             if (clamped > 0) poolDice[p.key] = clamped;
           }
           return { tn: isNaN(tn) ? 4 : tn, poolDice };
@@ -113,6 +123,7 @@ async function onRollAttribute(event, target) {
 
 /**
  * Roll a skill test.
+ * Pool dice are capped at the skill's current rating.
  * @this {ApplicationV2}
  */
 async function onRollSkill(event, target) {
@@ -120,7 +131,9 @@ async function onRollSkill(event, target) {
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
   const actor = this.document;
-  const opts = await promptRollOptions(actor);
+  const skill = actor.items.get(skillId);
+  const skillCap = skill?.system?.rating ?? Infinity;
+  const opts = await promptRollOptions(actor, skillCap);
   if (opts === null) return;
   return actor.rollSkillTest(skillId, opts.tn, { poolDice: opts.poolDice });
 }
@@ -136,6 +149,7 @@ async function onRollInitiative(event, target) {
 
 /**
  * Roll a weapon attack.
+ * Pool dice are capped at the rating of the skill linked to this weapon.
  * @this {ApplicationV2}
  */
 async function onRollWeapon(event, target) {
@@ -143,7 +157,20 @@ async function onRollWeapon(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const opts = await promptRollOptions(this.document);
+  // Find the skill linked to this weapon (matched by skill key on the weapon vs. skill name slug)
+  const weaponSkillKey = item.system?.skill ?? "";
+  const actor = this.document;
+  let skillCap = Infinity;
+  if (weaponSkillKey) {
+    // Look for a skill item whose name (lowercased, spaces→underscores) matches the weapon's skill key
+    const linkedSkill = actor.items.find(i =>
+      i.type === "skill" &&
+      (i.name.toLowerCase().replace(/\s+/g, "_") === weaponSkillKey.toLowerCase() ||
+       i.name.toLowerCase().replace(/[\s/()]+/g, "_") === weaponSkillKey.toLowerCase())
+    );
+    if (linkedSkill) skillCap = linkedSkill.system?.rating ?? Infinity;
+  }
+  const opts = await promptRollOptions(actor, skillCap);
   if (opts === null) return;
   return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
 }

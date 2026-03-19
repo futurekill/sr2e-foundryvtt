@@ -1372,6 +1372,55 @@
 }
 
 /* ============================================================================
+   BIO TAB
+   ============================================================================ */
+
+.bio-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px;
+}
+
+.bio-group {
+  border: 1px solid var(--sr2e-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.bio-group legend {
+  color: var(--sr2e-text-muted);
+  font-size: 0.8em;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0 6px;
+}
+
+.editor-wrapper {
+  width: 100%;
+}
+
+.bio-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  font-family: var(--sr2e-font);
+  font-size: 0.85em;
+  line-height: 1.5;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.bio-enriched {
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--sr2e-text-muted);
+  min-height: 24px;
+  padding: 2px 0;
+}
+
+/* ============================================================================
    KARMA LEDGER (Bio Tab)
    ============================================================================ */
 

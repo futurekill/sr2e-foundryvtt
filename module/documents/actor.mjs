@@ -197,14 +197,12 @@ export class SR2EActor extends Actor {
 
     const poolLabels = {
       combat: "Combat Pool", magic: "Magic Pool", hacking: "Hacking Pool",
-      control: "Control Pool", karma: "Karma Pool"
+      control: "Control Pool"
     };
 
     for (const [key, requested] of Object.entries(poolDice)) {
       if (!requested || requested <= 0) continue;
-      const available = key === "karma"
-        ? (this.system.karma?.pool ?? 0)
-        : (this.system.dicePools?.[key]?.value ?? 0);
+      const available = this.system.dicePools?.[key]?.value ?? 0;
       const amount = Math.min(requested, available);
       if (amount > 0) {
         poolsUsed.push({ key, label: poolLabels[key] || key, amount });
@@ -243,12 +241,8 @@ export class SR2EActor extends Actor {
     if (poolsUsed.length > 0) {
       const updates = {};
       for (const { key, amount } of poolsUsed) {
-        if (key === "karma") {
-          updates["system.karma.pool"] = Math.max(0, (this.system.karma?.pool ?? 0) - amount);
-        } else {
-          const cur = this.system.dicePools?.[key]?.value ?? 0;
-          updates[`system.dicePools.${key}.value`] = Math.max(0, cur - amount);
-        }
+        const cur = this.system.dicePools?.[key]?.value ?? 0;
+        updates[`system.dicePools.${key}.value`] = Math.max(0, cur - amount);
       }
       await this.update(updates);
     }

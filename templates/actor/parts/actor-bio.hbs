@@ -4,9 +4,10 @@
     <fieldset class="bio-group">
       <legend>Biography</legend>
       <div class="editor-wrapper">
-        {{{enrichedBiography}}}
         {{#if editable}}
-        <textarea name="system.biography" style="display:none;">{{system.biography}}</textarea>
+        <textarea name="system.biography" class="bio-textarea" rows="8">{{system.biography}}</textarea>
+        {{else}}
+        <div class="bio-enriched">{{{enrichedBiography}}}</div>
         {{/if}}
       </div>
     </fieldset>
@@ -14,9 +15,10 @@
     <fieldset class="bio-group">
       <legend>Notes</legend>
       <div class="editor-wrapper">
-        {{{enrichedNotes}}}
         {{#if editable}}
-        <textarea name="system.notes" style="display:none;">{{system.notes}}</textarea>
+        <textarea name="system.notes" class="bio-textarea" rows="6">{{system.notes}}</textarea>
+        {{else}}
+        <div class="bio-enriched">{{{enrichedNotes}}}</div>
         {{/if}}
       </div>
     </fieldset>
