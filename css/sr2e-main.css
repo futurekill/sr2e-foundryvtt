@@ -259,13 +259,15 @@
   white-space: nowrap;
 }
 
-/* Row 2.5: condition status */
+/* Row 2.5: condition status — shrink-wrap to content, don't bleed under pool pips */
 .sr2e-sheet-header .header-condition-row {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
   margin-top: 3px;
+  align-self: flex-start;
+  width: fit-content;
 }
 
 .sr2e-sheet-header .condition-badge {
