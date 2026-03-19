@@ -75,34 +75,38 @@ Hooks.once("init", async () => {
   CONFIG.Dice.rolls.push(SR2ESuccessRoll);
 
   // ---------------------------------------------------------------------------
-  // Register Actor Sheets (V13: DocumentSheetConfig is the correct API)
+  // Register Actor Sheets
+  // V13: DocumentSheetConfig moved to foundry.applications.apps namespace.
   // ---------------------------------------------------------------------------
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ECharacterSheet, {
+  // Shim: prefer the namespaced V13 location, fall back to legacy global for V12.
+  const SheetConfig = foundry.applications?.apps?.DocumentSheetConfig ?? globalThis.DocumentSheetConfig;
+
+  SheetConfig.registerSheet(Actor, "sr2e", SR2ECharacterSheet, {
     types: ["character"],
     makeDefault: true,
     label: "SR2E.Sheets.Character"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ENPCSheet, {
+  SheetConfig.registerSheet(Actor, "sr2e", SR2ENPCSheet, {
     types: ["npc"],
     makeDefault: true,
     label: "SR2E.Sheets.NPC"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EVehicleSheet, {
+  SheetConfig.registerSheet(Actor, "sr2e", SR2EVehicleSheet, {
     types: ["vehicle"],
     makeDefault: true,
     label: "SR2E.Sheets.Vehicle"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2ESpiritSheet, {
+  SheetConfig.registerSheet(Actor, "sr2e", SR2ESpiritSheet, {
     types: ["spirit"],
     makeDefault: true,
     label: "SR2E.Sheets.Spirit"
   });
 
-  DocumentSheetConfig.registerSheet(Actor, "sr2e", SR2EICSheet, {
+  SheetConfig.registerSheet(Actor, "sr2e", SR2EICSheet, {
     types: ["ic"],
     makeDefault: true,
     label: "SR2E.Sheets.IC"
@@ -112,7 +116,7 @@ Hooks.once("init", async () => {
   // Register Item Sheets (V13: DocumentSheetConfig avoids deprecated Items global)
   // ---------------------------------------------------------------------------
 
-  DocumentSheetConfig.registerSheet(Item, "sr2e", SR2EItemSheet, {
+  SheetConfig.registerSheet(Item, "sr2e", SR2EItemSheet, {
     makeDefault: true,
     label: "SR2E.Sheets.Item"
   });
