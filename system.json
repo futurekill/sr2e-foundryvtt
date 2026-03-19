@@ -2,7 +2,7 @@
   "id": "sr2e",
   "title": "Shadowrun 2nd Edition",
   "description": "A comprehensive game system for Shadowrun Second Edition (FASA 7901) built for Foundry Virtual Tabletop.",
-  "version": "0.3.41",
+  "version": "0.3.42",
   "url": "https://github.com/futurekill/sr2e-foundryvtt",
   "manifest": "https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json",
   "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.3.8/sr2e.zip",
@@ -90,6 +90,49 @@
     { "name": "programs",     "label": "SR2E Matrix Programs","path": "packs/programs",     "type": "Item",      "system": "sr2e", "folder": "Matrix" },
     { "name": "gear",         "label": "SR2E Equipment",      "path": "packs/gear",         "type": "Item",      "system": "sr2e", "folder": "Equipment" },
     { "name": "roll-tables",  "label": "SR2E Roll Tables",    "path": "packs/roll-tables",  "type": "RollTable", "system": "sr2e", "folder": "Reference" }
+  ],
+  "packFolders": [
+    {
+      "name": "Core Rules",
+      "sorting": "m",
+      "folders": [
+        {
+          "name": "Characters",
+          "sorting": "a",
+          "packs": ["skills", "contacts", "lifestyles"]
+        },
+        {
+          "name": "Combat",
+          "sorting": "a",
+          "packs": ["weapons", "armor", "ammo"]
+        },
+        {
+          "name": "Magic",
+          "sorting": "a",
+          "packs": ["spells", "foci", "adept-powers"]
+        },
+        {
+          "name": "Augmentations",
+          "sorting": "a",
+          "packs": ["cyberware"]
+        },
+        {
+          "name": "Matrix",
+          "sorting": "a",
+          "packs": ["programs"]
+        },
+        {
+          "name": "Equipment",
+          "sorting": "a",
+          "packs": ["gear"]
+        },
+        {
+          "name": "Reference",
+          "sorting": "a",
+          "packs": ["roll-tables"]
+        }
+      ]
+    }
   ],
   "socket": true,
   "background": "systems/sr2e/assets/sr2e-logo.webp",
