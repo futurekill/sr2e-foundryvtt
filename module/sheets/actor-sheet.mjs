@@ -70,8 +70,11 @@ async function promptRollOptions(actor, skillCap = Infinity) {
     </div>`).join("")}
   ` : "";
 
+  // rejectClose: false so both Cancel button and X-close resolve (not reject).
+  // We return null for cancellation and check with !opts in all callers.
   const result = await foundry.applications.api.DialogV2.wait({
     window: { title: "Roll Options" },
+    rejectClose: false,
     content: `
       <form>
         <div class="form-group">
@@ -105,7 +108,8 @@ async function promptRollOptions(actor, skillCap = Infinity) {
     ],
     close: () => null
   });
-  return result;
+  // null/undefined means the user cancelled; callers check `if (!opts) return`
+  return result ?? null;
 }
 
 /**
@@ -117,7 +121,7 @@ async function onRollAttribute(event, target) {
   const attribute = target.dataset.attribute;
   const actor = this.document;
   const opts = await promptRollOptions(actor);
-  if (opts === null) return;
+  if (!opts) return;
   return actor.rollAttributeTest(attribute, opts.tn, { poolDice: opts.poolDice });
 }
 
@@ -134,7 +138,7 @@ async function onRollSkill(event, target) {
   const skill = actor.items.get(skillId);
   const skillCap = skill?.system?.rating ?? Infinity;
   const opts = await promptRollOptions(actor, skillCap);
-  if (opts === null) return;
+  if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, { poolDice: opts.poolDice });
 }
 
@@ -171,7 +175,7 @@ async function onRollWeapon(event, target) {
     if (linkedSkill) skillCap = linkedSkill.system?.rating ?? Infinity;
   }
   const opts = await promptRollOptions(actor, skillCap);
-  if (opts === null) return;
+  if (!opts) return;
   return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
 }
 
@@ -250,13 +254,18 @@ async function onDeleteItem(event, target) {
 
 /**
  * Add a new item of a given type.
+ * Respects data-category on the button for categorised item types (e.g. skills).
  * @this {ApplicationV2}
  */
 async function onAddItem(event, target) {
   event.preventDefault();
   const type = target.dataset.type;
+  const category = target.dataset.category; // e.g. "build_repair" for B/R skill buttons
   const name = `New ${type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}`;
-  return this.document.createEmbeddedDocuments("Item", [{ name, type }]);
+  const itemData = { name, type };
+  // Pass the initial category into system data so the item lands in the right section.
+  if (category) itemData.system = { category };
+  return this.document.createEmbeddedDocuments("Item", [itemData]);
 }
 
 /**
