@@ -246,34 +246,43 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _calculateDicePools() {
-    // Combat Pool
+    // Helper: preserve dice already spent between re-preparations.
+    // When a pool is first initialised its saved max is 0; treat that as
+    // "full" (no dice spent yet).  Once we have persisted a non-zero max we
+    // can derive spent = savedMax - savedValue and carry it forward.
+    const applyPool = (pool, newMax) => {
+      const savedMax   = pool.max;
+      const savedValue = pool.value;
+      const spent = savedMax > 0 ? Math.max(0, savedMax - savedValue) : 0;
+      pool.max   = newMax;
+      pool.value = Math.max(0, newMax - spent);
+    };
+
+    // Combat Pool = floor((Quickness + Intelligence + Willpower) / 2)
     const combatPool = Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
     );
-    this.dicePools.combat.max = combatPool;
-    this.dicePools.combat.value = combatPool;
+    applyPool(this.dicePools.combat, combatPool);
 
-    // Magic Pool (for magicians)
+    // Magic Pool (magicians and shamans only)
     if (this.magic.type !== "none" && this.magic.type !== "physical_adept") {
       const magicPool = Math.floor(
         (this.intelligence.value + this.willpower.value + this.magic.value) / 3
       );
-      this.dicePools.magic.max = magicPool;
-      this.dicePools.magic.value = magicPool;
+      applyPool(this.dicePools.magic, magicPool);
     }
 
-    // Control Pool (for riggers with VCR)
+    // Control Pool (riggers with VCR)
     if (this.vehicleControlRig > 0) {
       const controlPool = this.vehicleControlRig * 2;
-      this.dicePools.control.max = controlPool;
-      this.dicePools.control.value = controlPool;
+      applyPool(this.dicePools.control, controlPool);
     }
 
-    // Hacking Pool - requires MPCP from cyberdeck
+    // Hacking Pool — resets fully each scene; no spent-tracking needed
     if (this.cyberdeck.mpcp > 0) {
-      // Will be recalculated when Computer skill is factored in
-      this.dicePools.hacking.max = Math.floor(this.cyberdeck.mpcp / 3);
-      this.dicePools.hacking.value = this.dicePools.hacking.max;
+      const hackingPool = Math.floor(this.cyberdeck.mpcp / 3);
+      this.dicePools.hacking.max   = hackingPool;
+      this.dicePools.hacking.value = hackingPool;
     }
   }
 
@@ -447,12 +456,15 @@ export class NPCData extends SR2EDataModel {
     this.initiative.base = this.reaction.value;
     this.initiative.value = this.reaction.value + this.initiative.mod - this.woundPenalty;
 
-    // Combat Pool
+    // Combat Pool — preserve spent dice across re-preparations
     const combatPool = Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
     );
-    this.dicePools.combat.max = combatPool;
-    this.dicePools.combat.value = combatPool;
+    const npcSpent = this.dicePools.combat.max > 0
+      ? Math.max(0, this.dicePools.combat.max - this.dicePools.combat.value)
+      : 0;
+    this.dicePools.combat.max   = combatPool;
+    this.dicePools.combat.value = Math.max(0, combatPool - npcSpent);
 
     // Movement
     this.movement.walk = this.quickness.value;

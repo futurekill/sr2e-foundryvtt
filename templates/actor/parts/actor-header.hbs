@@ -9,14 +9,42 @@
       <input type="text" name="name" value="{{actor.name}}" placeholder="Character Name" class="char-name-input" />
     </div>
 
-    {{!-- Row 2: Race --}}
-    <div class="header-race-row">
+    {{!-- Row 2: Race + dice pool indicators --}}
+    <div class="header-race-row flexrow">
       <label class="race-label">{{localize "SR2E.Race"}}:</label>
       <select name="system.race" class="race-select">
         {{#each config.races as |label key|}}
         <option value="{{key}}" {{selected ../system.race key}}>{{localize label}}</option>
         {{/each}}
       </select>
+
+      {{!-- Pool dice remaining — only show pools with a computed max > 0 --}}
+      <div class="header-pools">
+        {{#if system.dicePools.combat.max}}
+        <span class="pool-pip" title="Combat Pool — spent dice reset each combat round">
+          <span class="pool-pip-label">CP</span>
+          <span class="pool-pip-value">{{system.dicePools.combat.value}}/{{system.dicePools.combat.max}}</span>
+        </span>
+        {{/if}}
+        {{#if system.dicePools.magic.max}}
+        <span class="pool-pip" title="Magic Pool — spent dice reset each combat round">
+          <span class="pool-pip-label">MP</span>
+          <span class="pool-pip-value">{{system.dicePools.magic.value}}/{{system.dicePools.magic.max}}</span>
+        </span>
+        {{/if}}
+        {{#if system.dicePools.hacking.max}}
+        <span class="pool-pip" title="Hacking Pool">
+          <span class="pool-pip-label">HP</span>
+          <span class="pool-pip-value">{{system.dicePools.hacking.value}}/{{system.dicePools.hacking.max}}</span>
+        </span>
+        {{/if}}
+        {{#if system.dicePools.control.max}}
+        <span class="pool-pip" title="Control Pool">
+          <span class="pool-pip-label">CtP</span>
+          <span class="pool-pip-value">{{system.dicePools.control.value}}/{{system.dicePools.control.max}}</span>
+        </span>
+        {{/if}}
+      </div>
     </div>
 
     {{!-- Row 3: Stats grid — Essence | Nuyen | Good Karma | Karma Pool --}}

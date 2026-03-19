@@ -213,6 +213,46 @@
   border-color: var(--sr2e-border);
 }
 
+/* Pool pips — right-side of race row */
+.sr2e-sheet-header .header-pools {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.sr2e-sheet-header .pool-pip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--sr2e-bg-dark, #1a1a1a);
+  border: 1px solid var(--sr2e-border-red, #8b2222);
+  border-radius: 3px;
+  padding: 1px 5px;
+  min-width: 34px;
+  cursor: default;
+}
+
+.sr2e-sheet-header .pool-pip-label {
+  font-size: 7px;
+  font-family: var(--sr2e-font-header);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted, #888);
+  line-height: 1.1;
+}
+
+.sr2e-sheet-header .pool-pip-value {
+  font-size: 10px;
+  font-weight: bold;
+  font-family: var(--sr2e-font-header);
+  color: var(--sr2e-gold, #c9a84c);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 /* Row 3: stats band */
 .sr2e-sheet-header .header-stats-row {
   gap: 0;

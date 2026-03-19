@@ -64,12 +64,18 @@ export class SR2EActor extends Actor {
     system.initiative.value = system.reaction.value + system.initiative.mod - (system.woundPenalty || 0);
     system.initiative.dice = 1 + cyberMods.initiativeDice;
 
-    // Recalculate dice pools
+    // Recalculate combat pool max with cyberware-modified attributes.
+    // The data model already preserved spent dice in value; just recompute max
+    // and re-apply the same spent-preservation logic so cyberware boosts to
+    // Quickness/Intelligence/Willpower are reflected correctly.
     const combatPool = Math.floor(
       (system.quickness.value + system.intelligence.value + system.willpower.value) / 2
     );
-    system.dicePools.combat.max = combatPool;
-    system.dicePools.combat.value = Math.min(system.dicePools.combat.value, combatPool);
+    const spent = system.dicePools.combat.max > 0
+      ? Math.max(0, system.dicePools.combat.max - system.dicePools.combat.value)
+      : 0;
+    system.dicePools.combat.max   = combatPool;
+    system.dicePools.combat.value = Math.max(0, combatPool - spent);
 
     // Movement
     system.movement.walk = system.quickness.value;
@@ -258,11 +264,14 @@ export class SR2EActor extends Actor {
     await ChatMessage.create(messageData);
 
     // --- Reduce pools that were used ---
+    // Persist both `value` (remaining) and `max` (computed ceiling) so that
+    // _calculateDicePools() can recover the spent count on the next prepare.
     if (poolsUsed.length > 0) {
       const updates = {};
       for (const { key, amount } of poolsUsed) {
-        const cur = this.system.dicePools?.[key]?.value ?? 0;
-        updates[`system.dicePools.${key}.value`] = Math.max(0, cur - amount);
+        const pool = this.system.dicePools?.[key] ?? { value: 0, max: 0 };
+        updates[`system.dicePools.${key}.value`] = Math.max(0, pool.value - amount);
+        updates[`system.dicePools.${key}.max`]   = pool.max;
       }
       await this.update(updates);
     }
