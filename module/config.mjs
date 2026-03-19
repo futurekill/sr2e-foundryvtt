@@ -99,10 +99,11 @@ SR2E.damageTypes = {
 // SKILL CATEGORIES
 // ---------------------------------------------------------------------------
 SR2E.skillCategories = {
-  active: "SR2E.Skills.Active",
-  knowledge: "SR2E.Skills.Knowledge",
-  language: "SR2E.Skills.Language",
-  special: "SR2E.Skills.Special"
+  active:       "SR2E.Skills.Active",
+  build_repair: "SR2E.Skills.BuildRepair",
+  knowledge:    "SR2E.Skills.Knowledge",
+  language:     "SR2E.Skills.Language",
+  special:      "SR2E.Skills.Special"
 };
 
 // Active skill linked attributes

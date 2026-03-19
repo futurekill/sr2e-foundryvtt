@@ -620,14 +620,33 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   _onRender(context, options) {
     super._onRender?.(context, options);
     if (!this.isEditable) return;
+
+    // Prose-mirror blur → auto-save (biography, notes, etc.)
     for (const pm of this.element.querySelectorAll("prose-mirror[name]")) {
       pm.addEventListener("focusout", (event) => {
-        // focusout bubbles — ignore when focus moves within the same editor
-        // (e.g. clicking a toolbar button keeps us inside the prose-mirror)
         if (pm.contains(event.relatedTarget)) return;
         const name = pm.getAttribute("name");
         const value = pm.value ?? "";
         if (name) this.document.update({ [name]: value });
+      });
+    }
+
+    // Inline embedded-item field changes (e.g. skill rating inputs on the Skills tab).
+    // These inputs use data-field instead of name because they belong to an embedded
+    // Item, not the Actor, so the actor form's submitOnChange never touches them.
+    // We listen for "change" and update the embedded item directly.
+    for (const input of this.element.querySelectorAll("[data-item-id] [data-field]")) {
+      input.addEventListener("change", (event) => {
+        event.stopPropagation(); // prevent the actor form from also firing
+        const itemId = input.closest("[data-item-id]")?.dataset.itemId;
+        const field  = input.dataset.field;
+        if (!itemId || !field) return;
+        const item = this.document.items.get(itemId);
+        if (!item) return;
+        let value = input.value;
+        if (input.type === "number")   value = parseFloat(value) || 0;
+        if (input.type === "checkbox") value = input.checked;
+        item.update({ [field]: value });
       });
     }
   }
