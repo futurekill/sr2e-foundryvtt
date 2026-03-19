@@ -8,8 +8,11 @@ export class SkillData extends SR2EDataModel {
     const fields = foundry.data.fields;
     return {
       category: new fields.StringField({ required: true, initial: "active", choices: {
-        active: "SR2E.Skills.Active", knowledge: "SR2E.Skills.Knowledge",
-        language: "SR2E.Skills.Language", special: "SR2E.Skills.Special"
+        active: "SR2E.Skills.Active",
+        build_repair: "SR2E.Skills.BuildRepair",
+        knowledge: "SR2E.Skills.Knowledge",
+        language: "SR2E.Skills.Language",
+        special: "SR2E.Skills.Special"
       }}),
       linkedAttribute: new fields.StringField({ initial: "quickness" }),
       rating: new fields.NumberField({ required: true, integer: true, initial: 1, min: 0 }),

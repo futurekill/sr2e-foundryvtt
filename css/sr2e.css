@@ -588,7 +588,12 @@
   width: 35px !important;
 }
 
-.skill-conc, .skill-spec {
+.skill-conc-inline {
+  color: var(--sr2e-text-muted);
+  font-weight: normal;
+}
+
+.skill-spec {
   font-size: 10px;
   color: var(--sr2e-matrix);
   padding: 0 4px;
