@@ -1,5 +1,7 @@
 <section class="item-header flexrow">
-  <img src="{{item.img}}" alt="{{item.name}}" data-edit="img" class="item-img" />
+  <div class="item-icon-badge">
+    <i class="{{itemIcon}}"></i>
+  </div>
   <div class="header-info flexcol">
     <input type="text" name="name" value="{{item.name}}" placeholder="Item Name" />
     <span class="item-type">{{type}}</span>

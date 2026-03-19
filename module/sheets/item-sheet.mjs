@@ -56,6 +56,24 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       context.enrichedDescription = await TextEditor.enrichHTML(item.system.description, enrichOpts);
     }
 
+    // Map item type → FontAwesome icon class for the header display
+    const ITEM_ICONS = {
+      skill:       "fas fa-book",
+      weapon:      "fas fa-crosshairs",
+      armor:       "fas fa-shield-alt",
+      spell:       "fas fa-hat-wizard",
+      cyberware:   "fas fa-microchip",
+      gear:        "fas fa-toolbox",
+      program:     "fas fa-laptop-code",
+      ammo:        "fas fa-circle",
+      focus:       "fas fa-gem",
+      adept_power: "fas fa-bolt",
+      contact:     "fas fa-address-card",
+      lifestyle:   "fas fa-home",
+      vehicle_mod: "fas fa-wrench"
+    };
+    context.itemIcon = ITEM_ICONS[item.type] ?? "fas fa-box";
+
     // Type-specific context
     switch (item.type) {
       case "weapon":

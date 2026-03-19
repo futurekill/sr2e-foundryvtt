@@ -1583,12 +1583,22 @@
   border-bottom: 2px solid var(--sr2e-highlight);
 }
 
-.sr2e.sheet.item .item-img {
-  width: 50px;
-  height: 50px;
-  object-fit: cover;
+.sr2e.sheet.item .item-icon-badge {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--sr2e-gold-dim);
-  border-radius: 2px;
+  border-radius: 3px;
+  background: var(--sr2e-bg-light);
+}
+
+.sr2e.sheet.item .item-icon-badge i {
+  font-size: 22px;
+  color: var(--sr2e-gold);
+  opacity: 0.85;
 }
 
 .sr2e.sheet.item .item-type {
