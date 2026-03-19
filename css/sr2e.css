@@ -1372,6 +1372,87 @@
 }
 
 /* ============================================================================
+   KARMA LEDGER (Bio Tab)
+   ============================================================================ */
+
+.karma-ledger {
+  border: 1px solid var(--sr2e-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.karma-ledger legend {
+  color: var(--sr2e-warning);
+  font-weight: bold;
+  font-size: 0.9em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0 6px;
+}
+
+.karma-ledger-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.karma-ledger-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.karma-ledger-label {
+  flex: 1;
+  font-size: 0.85em;
+  color: var(--sr2e-text-muted);
+  cursor: default;
+}
+
+.karma-ledger-input {
+  width: 60px;
+  text-align: center;
+  font-size: 0.95em;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--sr2e-border);
+  background: var(--sr2e-bg-input);
+  color: var(--sr2e-text);
+}
+
+.karma-ledger-input.karma-available {
+  border-color: var(--sr2e-warning);
+  color: var(--sr2e-warning);
+  font-weight: bold;
+}
+
+.karma-ledger-input.karma-pool {
+  border-color: var(--sr2e-highlight);
+  color: var(--sr2e-highlight);
+}
+
+.karma-ledger-value {
+  width: 60px;
+  text-align: center;
+  font-size: 0.95em;
+  padding: 2px 4px;
+  color: var(--sr2e-text-muted);
+  font-style: italic;
+}
+
+.karma-spent-row .karma-ledger-label {
+  padding-left: 12px;
+  font-style: italic;
+}
+
+.karma-ledger-divider {
+  height: 1px;
+  background: var(--sr2e-border);
+  margin: 4px 0;
+}
+
+/* ============================================================================
    ANIMATIONS
    ============================================================================ */
 

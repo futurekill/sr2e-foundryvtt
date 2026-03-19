@@ -20,7 +20,7 @@
       </select>
     </div>
 
-    {{!-- Row 3: Stats grid — Essence | Nuyen | Karma | Karma Pool --}}
+    {{!-- Row 3: Stats grid — Essence | Nuyen | Good Karma | Karma Pool --}}
     <div class="header-stats-row flexrow">
       <div class="header-stat">
         <span class="hstat-label">{{localize "SR2E.Essence"}}</span>
@@ -30,11 +30,11 @@
         <span class="hstat-label">{{localize "SR2E.Nuyen"}} (¥)</span>
         <input type="number" name="system.nuyen" value="{{system.nuyen}}" class="hstat-input" />
       </div>
-      <div class="header-stat">
-        <span class="hstat-label">Karma</span>
-        <span class="hstat-value">{{system.karma.current}}</span>
+      <div class="header-stat" title="Good Karma available to spend on advancement">
+        <span class="hstat-label">Good Karma</span>
+        <input type="number" name="system.karma.current" value="{{system.karma.current}}" min="0" class="hstat-input" />
       </div>
-      <div class="header-stat">
+      <div class="header-stat" title="Karma Pool dice — usable on any roll, refresh each session">
         <span class="hstat-label">Karma Pool</span>
         <input type="number" name="system.karma.pool" value="{{system.karma.pool}}" min="0" class="hstat-input" />
       </div>

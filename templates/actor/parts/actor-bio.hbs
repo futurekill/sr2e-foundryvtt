@@ -21,6 +21,36 @@
       </div>
     </fieldset>
 
+    {{!-- Karma Ledger --}}
+    <fieldset class="bio-group karma-ledger">
+      <legend>Karma</legend>
+      <div class="karma-ledger-grid">
+
+        <div class="karma-ledger-row">
+          <span class="karma-ledger-label" title="Total karma earned by this character over their lifetime">Total Earned</span>
+          <input type="number" name="system.karma.total" value="{{system.karma.total}}" min="0" class="karma-ledger-input" />
+        </div>
+
+        <div class="karma-ledger-row">
+          <span class="karma-ledger-label" title="Karma available to spend on skill/attribute advancement">Good Karma (Available)</span>
+          <input type="number" name="system.karma.current" value="{{system.karma.current}}" min="0" class="karma-ledger-input karma-available" />
+        </div>
+
+        <div class="karma-ledger-row karma-spent-row">
+          <span class="karma-ledger-label" title="Karma already spent on advancement (Total − Available)">Spent</span>
+          <span class="karma-ledger-value karma-spent">{{subtract system.karma.total system.karma.current}}</span>
+        </div>
+
+        <div class="karma-ledger-divider"></div>
+
+        <div class="karma-ledger-row">
+          <span class="karma-ledger-label" title="Karma Pool dice — can be added to any roll, refresh per session/game event">Karma Pool</span>
+          <input type="number" name="system.karma.pool" value="{{system.karma.pool}}" min="0" class="karma-ledger-input karma-pool" />
+        </div>
+
+      </div>
+    </fieldset>
+
     {{!-- Character Creation Info --}}
     <fieldset class="chargen-info">
       <legend>Character Creation</legend>
