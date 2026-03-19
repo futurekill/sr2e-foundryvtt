@@ -1,6 +1,118 @@
 <section class="tab-content {{#if tab.active}}active{{/if}}" data-tab="attributes" data-group="primary">
   <div class="attributes-grid">
 
+    {{!-- ── ROW 1: Condition Monitors (left) + Dice Pools (right) ── --}}
+
+    {{!-- Condition Monitors --}}
+    <fieldset class="condition-monitors">
+      <legend>{{localize "SR2E.ConditionMonitor"}}</legend>
+
+      <div class="monitor-group">
+        <div class="monitor-row">
+          <label class="monitor-label">{{localize "SR2E.Damage.Stun"}}</label>
+          <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="stun">−</button>
+          <span class="monitor-value {{woundClass system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}">{{system.conditionMonitor.stun.value}}</span>
+          <span class="monitor-sep">/ {{system.conditionMonitor.stun.max}}</span>
+          <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="stun">+</button>
+        </div>
+        {{{conditionMonitor system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}}
+      </div>
+
+      <div class="monitor-group">
+        <div class="monitor-row">
+          <label class="monitor-label">{{localize "SR2E.Damage.Physical"}}</label>
+          <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="physical">−</button>
+          <span class="monitor-value {{woundClass system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}">{{system.conditionMonitor.physical.value}}</span>
+          <span class="monitor-sep">/ {{system.conditionMonitor.physical.max}}</span>
+          <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="physical">+</button>
+        </div>
+        {{{conditionMonitor system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}}
+      </div>
+
+      {{!-- Wound status banner — only shown when damaged --}}
+      {{#if woundPenalty}}
+      <div class="wound-status">
+        <span class="wound-label" data-level="{{woundLevel}}">{{woundLevel}}</span>
+        <span class="wound-penalty">−{{woundPenalty}} pools &bull; TN +{{woundPenalty}} &bull; Init −{{woundPenalty}}</span>
+      </div>
+      {{/if}}
+
+    </fieldset>
+
+    {{!-- Dice Pools --}}
+    <fieldset class="dice-pools">
+      <legend>{{localize "SR2E.DicePools.Label"}}</legend>
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Combat"}}</label>
+        <input type="number" name="system.dicePools.combat.value" value="{{system.dicePools.combat.value}}" min="0" max="{{system.dicePools.combat.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.combat.max}}</span>
+      </div>
+      {{#if isMagical}}
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Magic"}}</label>
+        <input type="number" name="system.dicePools.magic.value" value="{{system.dicePools.magic.value}}" min="0" max="{{system.dicePools.magic.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.magic.max}}</span>
+      </div>
+      {{/if}}
+      {{#if isDecker}}
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Hacking"}}</label>
+        <input type="number" name="system.dicePools.hacking.value" value="{{system.dicePools.hacking.value}}" min="0" max="{{system.dicePools.hacking.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.hacking.max}}</span>
+      </div>
+      {{/if}}
+      {{#if isRigger}}
+      <div class="pool-row flexrow">
+        <label>{{localize "SR2E.DicePools.Control"}}</label>
+        <input type="number" name="system.dicePools.control.value" value="{{system.dicePools.control.value}}" min="0" max="{{system.dicePools.control.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.control.max}}</span>
+      </div>
+      {{/if}}
+      <button type="button" data-action="resetPools" class="btn-reset-pools">
+        <i class="fas fa-sync"></i> Reset Pools
+      </button>
+    </fieldset>
+
+    {{!-- ── ROW 2: Initiative · Movement · Armor (compact full-width band) ── --}}
+    <div class="secondary-band">
+
+      <fieldset class="initiative-block secondary-block">
+        <legend>{{localize "SR2E.Initiative"}}</legend>
+        <div class="secondary-stat-row">
+          <span class="secondary-stat-label">Base</span>
+          <span class="secondary-stat-value">{{system.initiative.value}}</span>
+          <span class="secondary-stat-label">Dice</span>
+          <span class="secondary-stat-value">{{system.initiative.dice}}d6</span>
+        </div>
+        <button type="button" data-action="rollInitiative" class="btn-roll-init">
+          <i class="fas fa-dice"></i> Roll Initiative
+        </button>
+      </fieldset>
+
+      <fieldset class="movement-block secondary-block">
+        <legend>{{localize "SR2E.Movement"}}</legend>
+        <div class="secondary-stat-row">
+          <span class="secondary-stat-label">Walk</span>
+          <span class="secondary-stat-value">{{system.movement.walk}}m</span>
+          <span class="secondary-stat-label">Run</span>
+          <span class="secondary-stat-value">{{system.movement.run}}m</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="armor-block secondary-block">
+        <legend>{{localize "SR2E.Armor.Label"}}</legend>
+        <div class="secondary-stat-row">
+          <span class="secondary-stat-label">{{localize "SR2E.Armor.Ballistic"}}</span>
+          <span class="secondary-stat-value">{{system.armor.ballistic}}</span>
+          <span class="secondary-stat-label">{{localize "SR2E.Armor.Impact"}}</span>
+          <span class="secondary-stat-value">{{system.armor.impact}}</span>
+        </div>
+      </fieldset>
+
+    </div>
+
+    {{!-- ── ROW 3: Physical Attributes (left) + Mental Attributes (right) ── --}}
+
     {{!-- Physical Attributes --}}
     <fieldset class="attribute-group">
       <legend>{{localize "SR2E.Physical"}}</legend>
@@ -57,8 +169,8 @@
       {{/each}}
     </fieldset>
 
-    {{!-- Special Attributes --}}
-    <fieldset class="attribute-group">
+    {{!-- ── ROW 4: Special Attributes ── --}}
+    <fieldset class="attribute-group special-attributes">
       <legend>{{localize "SR2E.Special"}}</legend>
       <div class="attribute-row flexrow">
         <label>{{localize "SR2E.Attributes.Essence"}}</label>
@@ -74,108 +186,6 @@
         <span class="attr-total">{{system.magic.value}}</span>
       </div>
       {{/if}}
-    </fieldset>
-
-    {{!-- Condition Monitors --}}
-    <fieldset class="condition-monitors">
-      <legend>{{localize "SR2E.ConditionMonitor"}}</legend>
-
-      <div class="monitor-group">
-        <div class="monitor-row">
-          <label class="monitor-label">{{localize "SR2E.Damage.Stun"}}</label>
-          <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="stun">−</button>
-          <span class="monitor-value {{woundClass system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}">{{system.conditionMonitor.stun.value}}</span>
-          <span class="monitor-sep">/ {{system.conditionMonitor.stun.max}}</span>
-          <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="stun">+</button>
-        </div>
-        {{{conditionMonitor system.conditionMonitor.stun.value system.conditionMonitor.stun.max}}}
-      </div>
-
-      <div class="monitor-group">
-        <div class="monitor-row">
-          <label class="monitor-label">{{localize "SR2E.Damage.Physical"}}</label>
-          <button type="button" class="monitor-btn" data-action="decrementMonitor" data-monitor="physical">−</button>
-          <span class="monitor-value {{woundClass system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}">{{system.conditionMonitor.physical.value}}</span>
-          <span class="monitor-sep">/ {{system.conditionMonitor.physical.max}}</span>
-          <button type="button" class="monitor-btn" data-action="incrementMonitor" data-monitor="physical">+</button>
-        </div>
-        {{{conditionMonitor system.conditionMonitor.physical.value system.conditionMonitor.physical.max}}}
-      </div>
-
-      {{!-- Wound status — only shown when damaged --}}
-      {{#if woundPenalty}}
-      <div class="wound-status">
-        <span class="wound-label" data-level="{{woundLevel}}">{{woundLevel}}</span>
-        <span class="wound-penalty">−{{woundPenalty}} pools &bull; TN +{{woundPenalty}} &bull; Init −{{woundPenalty}}</span>
-      </div>
-      {{/if}}
-
-    </fieldset>
-
-    {{!-- Dice Pools --}}
-    <fieldset class="dice-pools">
-      <legend>{{localize "SR2E.DicePools.Label"}}</legend>
-      <div class="pool-row flexrow">
-        <label>{{localize "SR2E.DicePools.Combat"}}</label>
-        <input type="number" name="system.dicePools.combat.value" value="{{system.dicePools.combat.value}}" min="0" max="{{system.dicePools.combat.max}}" class="pool-input" />
-        <span>/ {{system.dicePools.combat.max}}</span>
-      </div>
-      {{#if isMagical}}
-      <div class="pool-row flexrow">
-        <label>{{localize "SR2E.DicePools.Magic"}}</label>
-        <input type="number" name="system.dicePools.magic.value" value="{{system.dicePools.magic.value}}" min="0" max="{{system.dicePools.magic.max}}" class="pool-input" />
-        <span>/ {{system.dicePools.magic.max}}</span>
-      </div>
-      {{/if}}
-      {{#if isDecker}}
-      <div class="pool-row flexrow">
-        <label>{{localize "SR2E.DicePools.Hacking"}}</label>
-        <input type="number" name="system.dicePools.hacking.value" value="{{system.dicePools.hacking.value}}" min="0" max="{{system.dicePools.hacking.max}}" class="pool-input" />
-        <span>/ {{system.dicePools.hacking.max}}</span>
-      </div>
-      {{/if}}
-      {{#if isRigger}}
-      <div class="pool-row flexrow">
-        <label>{{localize "SR2E.DicePools.Control"}}</label>
-        <input type="number" name="system.dicePools.control.value" value="{{system.dicePools.control.value}}" min="0" max="{{system.dicePools.control.max}}" class="pool-input" />
-        <span>/ {{system.dicePools.control.max}}</span>
-      </div>
-      {{/if}}
-      <button type="button" data-action="resetPools" class="btn-reset-pools">
-        <i class="fas fa-sync"></i> Reset Pools
-      </button>
-    </fieldset>
-
-    {{!-- Initiative --}}
-    <fieldset class="initiative-block">
-      <legend>{{localize "SR2E.Initiative"}}</legend>
-      <div class="init-row flexrow">
-        <label>Base:</label>
-        <span>{{system.initiative.value}}</span>
-        <label>Dice:</label>
-        <span>{{system.initiative.dice}}d6</span>
-      </div>
-      <button type="button" data-action="rollInitiative" class="btn-roll-init">
-        <i class="fas fa-dice"></i> Roll Initiative
-      </button>
-    </fieldset>
-
-    {{!-- Movement --}}
-    <fieldset class="movement-block">
-      <legend>{{localize "SR2E.Movement"}}</legend>
-      <div class="flexrow">
-        <label>Walk:</label><span>{{system.movement.walk}}m</span>
-        <label>Run:</label><span>{{system.movement.run}}m</span>
-      </div>
-    </fieldset>
-
-    {{!-- Armor --}}
-    <fieldset class="armor-block">
-      <legend>{{localize "SR2E.Armor.Label"}}</legend>
-      <div class="flexrow">
-        <label>{{localize "SR2E.Armor.Ballistic"}}:</label><span>{{system.armor.ballistic}}</span>
-        <label>{{localize "SR2E.Armor.Impact"}}:</label><span>{{system.armor.impact}}</span>
-      </div>
     </fieldset>
 
   </div>

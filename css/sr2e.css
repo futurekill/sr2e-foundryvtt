@@ -310,6 +310,45 @@
   gap: 6px;
 }
 
+/* ── Row 2: Initiative · Movement · Armor compact band ── */
+.secondary-band {
+  grid-column: 1 / -1;        /* spans both grid columns */
+  display: flex;
+  gap: 6px;
+}
+
+.secondary-block {
+  flex: 1;
+  padding: 5px 8px;
+}
+
+.secondary-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.secondary-stat-label {
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.secondary-stat-value {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--sr2e-text);
+  margin-right: 6px;
+}
+
+/* ── Row 4: Special attributes — left column only ── */
+.special-attributes {
+  grid-column: 1;
+}
+
 .attribute-group {
   margin-bottom: 4px;
 }

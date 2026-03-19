@@ -4,10 +4,9 @@
   </div>
   <div class="header-info flexcol">
 
-    {{!-- Row 1: Name + Wound Status --}}
+    {{!-- Row 1: Name (wound status moved to Attributes tab condition monitor) --}}
     <div class="header-name-row flexrow">
       <input type="text" name="name" value="{{actor.name}}" placeholder="Character Name" class="char-name-input" />
-      <span class="wound-level wound-{{system.woundLevel}}">{{woundLevelLabel (max system.conditionMonitor.physical.value system.conditionMonitor.stun.value)}}</span>
     </div>
 
     {{!-- Row 2: Race --}}
