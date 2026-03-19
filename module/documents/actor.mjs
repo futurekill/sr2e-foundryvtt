@@ -1,6 +1,8 @@
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
+import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
+
 export class SR2EActor extends Actor {
 
   /** @override */
@@ -210,14 +212,10 @@ export class SR2EActor extends Actor {
       }
     }
 
-    // Roll base + pool dice together
+    // Roll base + pool dice together using SR2ESuccessRoll (respects Rule of Six)
     const totalDice = dicePool + poolDiceTotal;
-    const formula = `${totalDice}d6cs>=${effectiveTN}`;
-    const roll = new Roll(formula);
-    await roll.evaluate();
-
-    // Count successes
-    const successes = roll.terms[0].results.filter(r => r.result >= effectiveTN && !r.discarded).length;
+    const testResult = await SR2ESuccessRoll.successTest(totalDice, effectiveTN);
+    const successes = testResult.successes;
 
     // Build chat notes
     const tnNote = woundPenalty > 0
@@ -230,10 +228,32 @@ export class SR2EActor extends Actor {
       diceNote = `${dicePool} ${poolParts} = ${totalDice} total`;
     }
 
+    // Build per-die display HTML
+    let diceHtml = '<div class="sr2e-dice-results">';
+    for (const die of testResult.dice) {
+      const successClass = die.success ? "success" : "failure";
+      const explodedClass = die.exploded ? "exploded" : "";
+      const title = die.exploded ? die.rolls.join(" + ") : String(die.total);
+      diceHtml += `<span class="sr2e-die ${successClass} ${explodedClass}" title="${title}">${die.total}</span>`;
+    }
+    diceHtml += "</div>";
+
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>${label}</h3><p>TN: ${tnNote} | Dice: ${diceNote} | Successes: ${successes}</p>`,
-      rolls: [roll]
+      content: `
+        <div class="sr2e-roll-message">
+          <h3 class="sr2e-roll-header">${label}</h3>
+          <div class="sr2e-roll-info">
+            <span class="sr2e-roll-pool">Dice: ${diceNote}</span>
+            <span class="sr2e-roll-tn">TN: ${tnNote}</span>
+          </div>
+          ${diceHtml}
+          <div class="sr2e-roll-result">
+            <strong>Successes: ${successes}</strong>
+            ${testResult.isCriticalGlitch ? '<span class="sr2e-critical-glitch">CRITICAL GLITCH!</span>' : ""}
+            ${!testResult.isSuccess && !testResult.isCriticalGlitch ? '<span class="sr2e-failure">FAILURE</span>' : ""}
+          </div>
+        </div>`
     };
     await ChatMessage.create(messageData);
 
@@ -247,7 +267,7 @@ export class SR2EActor extends Actor {
       await this.update(updates);
     }
 
-    return { roll, successes, targetNumber: effectiveTN };
+    return { ...testResult, successes, targetNumber: effectiveTN };
   }
 
   /**
