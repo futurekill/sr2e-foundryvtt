@@ -218,11 +218,25 @@ export class CyberwareData extends SR2EDataModel {
         standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha"
       }}),
       essenceCost: new fields.NumberField({ required: true, initial: 0.5, min: 0 }),
-      rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      rating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       availability: new fields.StringField({ initial: "" }),
+      streetIndex: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
       installed: new fields.BooleanField({ initial: true }),
+      // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
+      // are derived from the row matching the current rating (prepareDerivedData).
+      // For non-tiered items, leave this empty and fill the flat fields directly.
+      ratingStats: new fields.ArrayField(
+        new fields.SchemaField({
+          rating:       new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+          essenceCost:  new fields.NumberField({ initial: 0, min: 0 }),
+          cost:         new fields.NumberField({ initial: 0, min: 0 }),
+          availability: new fields.StringField({ initial: "" }),
+          streetIndex:  new fields.StringField({ initial: "" })
+        }),
+        { initial: [] }
+      ),
       // Attribute modifiers provided by this cyberware
       attributeMods: new fields.SchemaField({
         body: new fields.NumberField({ integer: true, initial: 0 }),
@@ -236,6 +250,21 @@ export class CyberwareData extends SR2EDataModel {
       }),
       notes: new fields.StringField({ initial: "" })
     };
+  }
+
+  /** @override */
+  prepareDerivedData() {
+    // If a rating stats table exists, derive the active stats from the current rating row.
+    if (this.ratingStats?.length > 0) {
+      const row = this.ratingStats.find(r => r.rating === this.rating)
+               ?? this.ratingStats.at(-1);
+      if (row) {
+        this.essenceCost  = row.essenceCost;
+        this.cost         = row.cost;
+        this.availability = row.availability;
+        this.streetIndex  = row.streetIndex;
+      }
+    }
   }
 
   /**
