@@ -173,9 +173,10 @@ export class CharacterData extends SR2EDataModel {
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = this.reaction.base + this.reaction.mod;
 
-    // Calculate Initiative (wound penalty reduces score per SR2E rules)
+    // Initiative base = Adjusted Reaction. Wound penalty reduces initiative dice at roll
+    // time (not the base score) per SR2E rules.
     this.initiative.base = this.reaction.value;
-    this.initiative.value = this.reaction.value + this.initiative.mod - this.woundPenalty;
+    this.initiative.value = this.reaction.value;
 
     // Calculate Essence-based Magic
     if (this.magic.type !== "none") {
@@ -452,9 +453,10 @@ export class NPCData extends SR2EDataModel {
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = this.reaction.base + this.reaction.mod;
 
-    // Initiative (wound penalty reduces score per SR2E rules)
+    // Initiative base = Adjusted Reaction. Wound penalty reduces initiative dice at roll
+    // time (not the base score) per SR2E rules.
     this.initiative.base = this.reaction.value;
-    this.initiative.value = this.reaction.value + this.initiative.mod - this.woundPenalty;
+    this.initiative.value = this.reaction.value;
 
     // Combat Pool — preserve spent dice across re-preparations
     const combatPool = Math.floor(

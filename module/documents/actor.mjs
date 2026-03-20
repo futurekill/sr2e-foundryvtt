@@ -59,9 +59,9 @@ export class SR2EActor extends Actor {
     system.reaction.base = Math.floor((system.quickness.value + system.intelligence.value) / 2);
     system.reaction.value = system.reaction.base + system.reaction.mod;
 
-    // Update initiative (wound penalty reduces score per SR2E rules)
+    // Initiative base = Adjusted Reaction. Wound penalty reduces dice at roll time, not the base.
     system.initiative.base = system.reaction.value;
-    system.initiative.value = system.reaction.value + system.initiative.mod - (system.woundPenalty || 0);
+    system.initiative.value = system.reaction.value;
     system.initiative.dice = 1 + cyberMods.initiativeDice;
 
     // Recalculate combat pool max with cyberware-modified attributes.
@@ -282,53 +282,68 @@ export class SR2EActor extends Actor {
   /**
    * Roll Initiative for this actor.
    * Build the initiative Roll for Foundry's Combat tracker.
-   * Called by Combat.rollInitiative() — must return a Roll object with a
-   * syntactically valid formula (no spaces between a variable and 'd6').
+   * Called by Combat.rollInitiative() — must return a Roll object.
+   * Per SR2E rules: Initiative = Adjusted Reaction + Initiative Dice roll.
+   * Wound penalties reduce the number of initiative dice (not the base score).
    * @override
    */
   getInitiativeRoll(formula) {
     const system = this.system;
-    const base = Math.max(0, system.initiative?.value ?? system.reaction?.value ?? 0);
-    const dice = Math.max(1, system.initiative?.dice ?? 1);
-    return Roll.create(`${base} + ${dice}d6`, this.getRollData());
+    // Use Reaction directly as the base (the "Adjusted Reaction Rating")
+    const base = system.reaction?.value ?? 0;
+    const totalDice = Math.max(1, system.initiative?.dice ?? 1);
+    const woundPenalty = system.woundPenalty ?? 0;
+    // Wound penalty removes initiative dice (minimum 0 dice)
+    const effectiveDice = Math.max(0, totalDice - woundPenalty);
+    const f = effectiveDice > 0 ? `${base} + ${effectiveDice}d6` : `${base}`;
+    return new Roll(f, this.getRollData());
   }
 
   /**
-   * Initiative = Reaction + Xd6 (where X depends on initiative dice from cyberware/magic).
+   * Initiative = Adjusted Reaction + Xd6 (where X = initiative dice minus wound penalty).
+   * Per SR2E p.56: "add his adjusted Reaction to the result of his Initiative roll."
    *
-   * If the actor is in an active combat, delegates to game.combat.rollInitiative() so
-   * the result is written back to the combatant and appears in the tracker.
-   * Otherwise rolls and posts to chat directly.
-   * @returns {Promise}
+   * Manually evaluates the roll and writes the result directly to the combatant record
+   * so the value always appears correctly in the tracker, regardless of which Foundry
+   * API path triggered the roll.
+   * @returns {Promise<Roll>}
    */
   async rollInitiative() {
     const system = this.system;
-    const base = Math.max(0, system.initiative?.value ?? system.reaction?.value ?? 0);
-    const dice = Math.max(1, system.initiative?.dice ?? 1);
+    // Base = Adjusted Reaction (floor((Quickness + Intelligence) / 2) + cyberware mods)
+    const base = system.reaction?.value ?? 0;
+    const totalDice = Math.max(1, system.initiative?.dice ?? 1);
     const woundPenalty = system.woundPenalty ?? 0;
+    // SR2E: wound penalty reduces initiative dice, not the base reaction
+    const effectiveDice = Math.max(0, totalDice - woundPenalty);
 
-    // If this actor is a combatant in the active combat, use the tracker flow
-    // so the rolled value is saved to the combatant and appears in the UI.
-    const combatant = game.combat?.getCombatantByActor?.(this)
-                   ?? game.combat?.combatants?.find(c => c.actorId === this.id);
-    if (combatant) {
-      return game.combat.rollInitiative([combatant.id]);
-    }
-
-    // Fallback: actor is not in any active combat — roll and post to chat.
-    const formula = `${base} + ${dice}d6`;
+    const formula = effectiveDice > 0 ? `${base} + ${effectiveDice}d6` : `${base}`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
-    const baseNote = woundPenalty > 0
-      ? `${base} (−${woundPenalty} wound)`
-      : `${base}`;
+    // Build readable notes for the chat message
+    let diceNote;
+    if (effectiveDice <= 0) {
+      diceNote = `0d6 (all dice removed by wounds)`;
+    } else if (woundPenalty > 0) {
+      diceNote = `${effectiveDice}d6 (${totalDice}d6 −${woundPenalty} wound)`;
+    } else {
+      diceNote = `${effectiveDice}d6`;
+    }
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>Initiative</h3><p>Base: ${baseNote} + ${dice}d6</p>`,
+      flavor: `<h3>Initiative</h3><p>Reaction: ${base} + ${diceNote}</p>`,
       rolls: [roll]
     });
+
+    // Write the result directly to the combatant so the tracker always shows
+    // the correct total, regardless of how Foundry V13 handles getInitiativeRoll.
+    const combatant = game.combat?.getCombatantByActor?.(this)
+                   ?? game.combat?.combatants?.find(c => c.actorId === this.id);
+    if (combatant) {
+      await combatant.update({ initiative: roll.total });
+    }
 
     return roll;
   }
