@@ -491,7 +491,11 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     },
     window: {
       resizable: true
-    }
+    },
+    // V13: register DragDrop so _onDragOver/_onDrop/_onDragStart are bound.
+    // Without this, dragover never calls preventDefault(), letting the browser's
+    // native drop behaviour fire on form <select> elements and corrupt their values.
+    dragDrop: [{ dragSelector: "[data-item-id]", dropSelector: null }]
   };
 
   /** @override */
@@ -524,6 +528,15 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   _onDragOver(event) {
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
+  }
+
+  /** @override */
+  _onDragStart(event) {
+    const li = event.currentTarget.closest("[data-item-id]");
+    if (!li) return;
+    const item = this.document.items.get(li.dataset.itemId);
+    if (!item) return;
+    event.dataTransfer.setData("text/plain", JSON.stringify({ type: "Item", uuid: item.uuid }));
   }
 
   /** @override */
@@ -778,7 +791,8 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     },
     window: {
       resizable: true
-    }
+    },
+    dragDrop: [{ dragSelector: "[data-item-id]", dropSelector: null }]
   };
 
   /** @override */
@@ -787,6 +801,14 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   };
 
   _onDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }
+
+  _onDragStart(event) {
+    const li = event.currentTarget.closest("[data-item-id]");
+    if (!li) return;
+    const item = this.document.items.get(li.dataset.itemId);
+    if (!item) return;
+    event.dataTransfer.setData("text/plain", JSON.stringify({ type: "Item", uuid: item.uuid }));
+  }
 
   async _onDrop(event) {
     event.preventDefault();
