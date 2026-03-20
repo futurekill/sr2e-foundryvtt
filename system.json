@@ -2,7 +2,7 @@
   "id": "sr2e",
   "title": "Shadowrun 2nd Edition",
   "description": "A comprehensive game system for Shadowrun Second Edition (FASA 7901) built for Foundry Virtual Tabletop.",
-  "version": "0.3.52",
+  "version": "0.3.53",
   "url": "https://github.com/futurekill/sr2e-foundryvtt",
   "manifest": "https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json",
   "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.3.8/sr2e.zip",
@@ -75,7 +75,7 @@
   },
   "primaryTokenAttribute": "conditionMonitor.physical",
   "secondaryTokenAttribute": "conditionMonitor.stun",
-  "initiative": "@initiative.value + @initiative.dice d6",
+  "initiative": "1d6",
   "packs": [
     { "name": "skills",       "label": "SR2E Skills",         "path": "packs/skills",       "type": "Item",      "system": "sr2e", "folder": "Characters" },
     { "name": "contacts",     "label": "SR2E Contacts",       "path": "packs/contacts",     "type": "Item",      "system": "sr2e", "folder": "Characters" },

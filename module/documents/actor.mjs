@@ -281,21 +281,45 @@ export class SR2EActor extends Actor {
 
   /**
    * Roll Initiative for this actor.
-   * Initiative = Reaction + Xd6 (where X depends on initiative dice from cyberware/magic)
+   * Build the initiative Roll for Foundry's Combat tracker.
+   * Called by Combat.rollInitiative() — must return a Roll object with a
+   * syntactically valid formula (no spaces between a variable and 'd6').
+   * @override
+   */
+  getInitiativeRoll(formula) {
+    const system = this.system;
+    const base = Math.max(0, system.initiative?.value ?? system.reaction?.value ?? 0);
+    const dice = Math.max(1, system.initiative?.dice ?? 1);
+    return Roll.create(`${base} + ${dice}d6`, this.getRollData());
+  }
+
+  /**
+   * Initiative = Reaction + Xd6 (where X depends on initiative dice from cyberware/magic).
+   *
+   * If the actor is in an active combat, delegates to game.combat.rollInitiative() so
+   * the result is written back to the combatant and appears in the tracker.
+   * Otherwise rolls and posts to chat directly.
    * @returns {Promise}
    */
   async rollInitiative() {
     const system = this.system;
-    // initiative.value already has wound penalty applied from prepareDerivedData
-    const base = system.initiative?.value || system.initiative?.base || 1;
-    const dice = system.initiative?.dice || 1;
+    const base = Math.max(0, system.initiative?.value ?? system.reaction?.value ?? 0);
+    const dice = Math.max(1, system.initiative?.dice ?? 1);
     const woundPenalty = system.woundPenalty ?? 0;
 
+    // If this actor is a combatant in the active combat, use the tracker flow
+    // so the rolled value is saved to the combatant and appears in the UI.
+    const combatant = game.combat?.getCombatantByActor?.(this)
+                   ?? game.combat?.combatants?.find(c => c.actorId === this.id);
+    if (combatant) {
+      return game.combat.rollInitiative([combatant.id]);
+    }
+
+    // Fallback: actor is not in any active combat — roll and post to chat.
     const formula = `${base} + ${dice}d6`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
-    // Show wound penalty breakdown if wounded
     const baseNote = woundPenalty > 0
       ? `${base} (−${woundPenalty} wound)`
       : `${base}`;
