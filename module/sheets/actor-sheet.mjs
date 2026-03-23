@@ -177,7 +177,10 @@ async function onRollAttribute(event, target) {
   event.preventDefault();
   const attribute = target.dataset.attribute;
   const actor = this.document;
-  const opts = await promptRollOptions(actor);
+  // SR2E p.86: Combat Pool is only valid for combat-related tests and Damage
+  // Resistance Tests — not for general attribute tests. Pass null to suppress
+  // pool inputs in the dialog.
+  const opts = await promptRollOptions(null);
   if (!opts) return;
   return actor.rollAttributeTest(attribute, opts.tn, { poolDice: opts.poolDice });
 }
@@ -192,9 +195,9 @@ async function onRollSkill(event, target) {
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
   const actor = this.document;
-  const skill = actor.items.get(skillId);
-  const skillCap = skill?.system?.rating ?? Infinity;
-  const opts = await promptRollOptions(actor, skillCap);
+  // SR2E p.86: Combat Pool is only for combat-related tests (Firearm, Melee, etc.)
+  // and Damage Resistance Tests. Pool dice are NOT valid for general skill checks.
+  const opts = await promptRollOptions(null);
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, { poolDice: opts.poolDice });
 }

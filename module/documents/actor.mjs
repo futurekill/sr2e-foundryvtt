@@ -289,13 +289,14 @@ export class SR2EActor extends Actor {
    */
   getInitiativeRoll(formula) {
     const system = this.system;
-    // Use Reaction directly as the base (the "Adjusted Reaction Rating")
-    const base = system.reaction?.value ?? 0;
-    const totalDice = Math.max(1, system.initiative?.dice ?? 1);
+    // SR2E p.114 Damage Modifiers table: the wound Initiative Modifier is applied
+    // to Reaction *before* Initiative dice are rolled — it reduces the base score,
+    // not the number of dice.
+    const reaction = system.reaction?.value ?? 0;
     const woundPenalty = system.woundPenalty ?? 0;
-    // Wound penalty removes initiative dice (minimum 0 dice)
-    const effectiveDice = Math.max(0, totalDice - woundPenalty);
-    const f = effectiveDice > 0 ? `${base} + ${effectiveDice}d6` : `${base}`;
+    const base = Math.max(0, reaction - woundPenalty);
+    const dice = Math.max(1, system.initiative?.dice ?? 1);
+    const f = `${base} + ${dice}d6`;
     return new Roll(f, this.getRollData());
   }
 
@@ -310,30 +311,29 @@ export class SR2EActor extends Actor {
    */
   async rollInitiative() {
     const system = this.system;
-    // Base = Adjusted Reaction (floor((Quickness + Intelligence) / 2) + cyberware mods)
-    const base = system.reaction?.value ?? 0;
-    const totalDice = Math.max(1, system.initiative?.dice ?? 1);
+    // SR2E p.114: wound Initiative Modifier reduces Reaction (the base) before
+    // Initiative dice are rolled — NOT the dice count.
+    const reaction = system.reaction?.value ?? 0;
     const woundPenalty = system.woundPenalty ?? 0;
-    // SR2E: wound penalty reduces initiative dice, not the base reaction
-    const effectiveDice = Math.max(0, totalDice - woundPenalty);
+    const base = Math.max(0, reaction - woundPenalty);
+    const dice = Math.max(1, system.initiative?.dice ?? 1);
 
-    const formula = effectiveDice > 0 ? `${base} + ${effectiveDice}d6` : `${base}`;
+    const formula = `${base} + ${dice}d6`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
     // Build readable notes for the chat message
-    let diceNote;
-    if (effectiveDice <= 0) {
-      diceNote = `0d6 (all dice removed by wounds)`;
-    } else if (woundPenalty > 0) {
-      diceNote = `${effectiveDice}d6 (${totalDice}d6 −${woundPenalty} wound)`;
+    let baseNote;
+    if (woundPenalty > 0) {
+      baseNote = `Reaction: ${reaction} −${woundPenalty} wound = ${base}`;
     } else {
-      diceNote = `${effectiveDice}d6`;
+      baseNote = `Reaction: ${base}`;
     }
+    const diceNote = `${dice}d6`;
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>Initiative</h3><p>Reaction: ${base} + ${diceNote}</p>`,
+      flavor: `<h3>Initiative</h3><p>${baseNote} + ${diceNote}</p>`,
       rolls: [roll]
     });
 
