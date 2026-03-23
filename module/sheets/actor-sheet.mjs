@@ -229,7 +229,13 @@ async function onRollWeapon(event, target) {
       (i.name.toLowerCase().replace(/\s+/g, "_") === weaponSkillKey.toLowerCase() ||
        i.name.toLowerCase().replace(/[\s/()]+/g, "_") === weaponSkillKey.toLowerCase())
     );
-    if (linkedSkill) skillCap = linkedSkill.system?.rating ?? Infinity;
+    if (linkedSkill) {
+      const rating = linkedSkill.system?.rating ?? 0;
+      // Only enforce the skill-rating cap when the character has training (rating > 0).
+      // An untrained character (rating 0) can still add pool dice to a combat test;
+      // capping at 0 would hide the pool inputs entirely.
+      skillCap = rating > 0 ? rating : Infinity;
+    }
   }
   const opts = await promptRollOptions(actor, skillCap);
   if (!opts) return;

@@ -13,6 +13,7 @@ import * as dataModels from "./data/_index.mjs";
 
 // Document Classes
 import * as documents from "./documents/_index.mjs";
+import { SR2ECombatant } from "./documents/combatant.mjs";
 
 // Sheets
 import {
@@ -44,6 +45,9 @@ Hooks.once("init", async () => {
   // Register custom Document classes
   CONFIG.Actor.documentClass = documents.SR2EActor;
   CONFIG.Item.documentClass = documents.SR2EItem;
+  // SR2ECombatant ensures getInitiativeRoll() on the Actor is always called
+  // from the combat tracker, so GM-side initiative rolls produce Reaction + Nd6.
+  CONFIG.Combatant.documentClass = SR2ECombatant;
 
   // Register TypeDataModels for Actor types
   CONFIG.Actor.dataModels = {
