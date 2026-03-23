@@ -105,15 +105,32 @@ jobs:
           unzip -l ${{ env.SYSTEM_ID }}.zip | head -30
 
       # ---------------------------------------------------------------
-      # 5. Create the GitHub Release with both artifacts
+      # 5. Extract commit message body for use as release notes
+      # ---------------------------------------------------------------
+      - name: Extract release notes from commit message
+        id: notes
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          # Subject line (first line of commit message)
+          SUBJECT=$(git log -1 --format="%s" "${TAG}")
+          # Body (everything after the first blank line)
+          BODY=$(git log -1 --format="%b" "${TAG}")
+          echo "subject=${SUBJECT}" >> "$GITHUB_OUTPUT"
+          # Write body to a file so newlines are preserved
+          printf '%s' "${BODY}" > /tmp/release_notes.txt
+          echo "📝 Release notes:"
+          cat /tmp/release_notes.txt
+
+      # ---------------------------------------------------------------
+      # 6. Create the GitHub Release with both artifacts
       # ---------------------------------------------------------------
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.version.outputs.tag }}
-          name: "Shadowrun 2E v${{ steps.version.outputs.version }}"
-          generateReleaseNotes: true
+          name: "${{ steps.notes.outputs.subject }}"
+          bodyFile: /tmp/release_notes.txt
           artifacts: |
             system.json
             ${{ env.SYSTEM_ID }}.zip
