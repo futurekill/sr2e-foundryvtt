@@ -246,6 +246,102 @@ async function onRollWeapon(event, target) {
 }
 
 /**
+ * Prompt for spell casting options.
+ *
+ * Per SR2E p.84: only Magic Pool dice may be used for spellcasting.
+ * Per SR2E p.84: the maximum Magic Pool dice added to a Spell Success Test
+ *   equals the caster's Magic Attribute.
+ * The player pre-allocates Magic Pool dice between the Spell test and the
+ *   Drain Resistance test (SR2E p.139 — allocation happens before rolling).
+ *
+ * @param {Actor} actor       - The casting actor
+ * @param {Item}  spell       - The spell item being cast
+ * @returns {Promise<{tn:number, poolDice:object, drainPoolDice:object}|null>}
+ */
+async function promptSpellOptions(actor, spell) {
+  const available  = getPoolAvailable(actor, "magic");
+  const magicAttr  = actor.system.magic?.value ?? 0;
+  const spellCap   = Math.min(available, magicAttr);     // cap for spell test
+  const drainCap   = available;                          // no cap for drain resist
+
+  // Totem note for shaman feedback
+  let totemNote = "";
+  if (actor.system.magic?.tradition === "shamanic" && actor.system.magic?.totem) {
+    const totemData = CONFIG.SR2E.totems[actor.system.magic.totem];
+    const cat = spell?.system?.category;
+    if (totemData && cat) {
+      const bonus   = totemData.spellBonus?.[cat]   ?? 0;
+      const penalty = totemData.spellPenalty?.[cat] ?? 0;
+      if (bonus > 0)   totemNote += `<p style="margin:2px 0;font-size:10px;color:#6a6;">⬆ Totem bonus +${bonus} dice (${cat})</p>`;
+      if (penalty > 0) totemNote += `<p style="margin:2px 0;font-size:10px;color:#a44;">⬇ Totem penalty −${penalty} dice (${cat})</p>`;
+    }
+  }
+
+  const poolSection = available > 0 ? `
+    <hr style="margin:8px 0 6px;">
+    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">
+      Magic Pool: ${available} available
+    </p>
+    ${totemNote}
+    <div class="form-group" style="margin:4px 0;">
+      <label style="font-size:12px;flex:1;">
+        Spell test
+        <span style="color:#888;font-size:10px;">(max ${spellCap})</span>
+      </label>
+      <input type="number" name="spell_pool" value="0" min="0" max="${spellCap}"
+             style="width:52px;text-align:center;">
+    </div>
+    <div class="form-group" style="margin:4px 0;">
+      <label style="font-size:12px;flex:1;">
+        Drain resist
+        <span style="color:#888;font-size:10px;">(no limit)</span>
+      </label>
+      <input type="number" name="drain_pool" value="0" min="0" max="${drainCap}"
+             style="width:52px;text-align:center;">
+    </div>
+    <p style="margin:2px 0;font-size:10px;color:#888;">
+      Total allocated cannot exceed ${available} available dice.
+    </p>
+  ` : totemNote;
+
+  let rollResult = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Cast Spell" },
+    rejectClose: false,
+    content: `<form>
+      <div class="form-group">
+        <label>Target Number:</label>
+        <input type="number" name="tn" value="4" min="2" max="30" autofocus>
+      </div>
+      ${poolSection}
+    </form>`,
+    buttons: [
+      {
+        action: "roll",
+        label: "Cast",
+        default: true,
+        callback: (event, button) => {
+          const tn = parseInt(button.form.elements.tn.value) || 4;
+          const rawSpell = parseInt(button.form.elements.spell_pool?.value) || 0;
+          const rawDrain = parseInt(button.form.elements.drain_pool?.value) || 0;
+          // Clamp each allocation; drain is capped by whatever is left
+          const spellAlloc = Math.max(0, Math.min(rawSpell, spellCap));
+          const drainAlloc = Math.max(0, Math.min(rawDrain, Math.max(0, available - spellAlloc)));
+          rollResult = {
+            tn,
+            poolDice:      spellAlloc > 0 ? { magic: spellAlloc } : {},
+            drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {}
+          };
+        }
+      },
+      { action: "cancel", label: "Cancel" }
+    ]
+  });
+
+  return (action === "roll" && rollResult) ? rollResult : null;
+}
+
+/**
  * Cast a spell.
  * @this {ApplicationV2}
  */
@@ -254,9 +350,10 @@ async function onCastSpell(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const opts = await promptRollOptions(this.document);
+  // Spell-specific dialog: Magic Pool only, split between spell test & drain resist
+  const opts = await promptSpellOptions(this.document, item);
   if (opts === null) return;
-  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
+  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice });
 }
 
 /**

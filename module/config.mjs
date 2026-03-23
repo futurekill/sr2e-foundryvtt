@@ -150,23 +150,103 @@ SR2E.magicTypes = {
 
 // ---------------------------------------------------------------------------
 // TOTEMS (Shamanic)
+// spellBonus:   extra Magic Pool dice when casting spells of that category
+// spellPenalty: lost Magic Pool dice when casting spells of that category
+// conjuringBonus: extra dice when conjuring spirits of that domain type
+// Special per-totem behaviours (berserk, time-of-day, etc.) are narrative/GM
 // ---------------------------------------------------------------------------
 SR2E.totems = {
-  bear:     { label: "SR2E.Totems.Bear",     environment: "forest" },
-  cat:      { label: "SR2E.Totems.Cat",      environment: "urban" },
-  coyote:   { label: "SR2E.Totems.Coyote",   environment: "any" },
-  dog:      { label: "SR2E.Totems.Dog",      environment: "urban" },
-  eagle:    { label: "SR2E.Totems.Eagle",    environment: "any" },
-  gator:    { label: "SR2E.Totems.Gator",    environment: "swamp" },
-  lion:     { label: "SR2E.Totems.Lion",     environment: "prairie" },
-  mouse:    { label: "SR2E.Totems.Mouse",    environment: "urban" },
-  owl:      { label: "SR2E.Totems.Owl",      environment: "forest" },
-  raccoon:  { label: "SR2E.Totems.Raccoon",  environment: "urban" },
-  rat:      { label: "SR2E.Totems.Rat",      environment: "urban" },
-  raven:    { label: "SR2E.Totems.Raven",    environment: "any" },
-  shark:    { label: "SR2E.Totems.Shark",    environment: "ocean" },
-  snake:    { label: "SR2E.Totems.Snake",    environment: "any" },
-  wolf:     { label: "SR2E.Totems.Wolf",     environment: "forest" }
+  // Bear: +2 health spells; +2 forest spirits (SR2E p.122)
+  bear:    { label: "SR2E.Totems.Bear",    environment: "forest",
+             spellBonus: { health: 2 },
+             spellPenalty: {},
+             conjuringBonus: { forest: 2 } },
+
+  // Cat: +2 illusion spells; +2 city spirits (SR2E p.122)
+  cat:     { label: "SR2E.Totems.Cat",     environment: "urban",
+             spellBonus: { illusion: 2 },
+             spellPenalty: {},
+             conjuringBonus: { city: 2 } },
+
+  // Coyote: no modifiers (SR2E p.122)
+  coyote:  { label: "SR2E.Totems.Coyote", environment: "any",
+             spellBonus: {},
+             spellPenalty: {},
+             conjuringBonus: {} },
+
+  // Dog: +2 detection spells; +2 field and hearth spirits (SR2E p.122)
+  dog:     { label: "SR2E.Totems.Dog",     environment: "urban",
+             spellBonus: { detection: 2 },
+             spellPenalty: {},
+             conjuringBonus: { field: 2, hearth: 2 } },
+
+  // Eagle: +2 detection spells; +2 wind spirits (SR2E p.122)
+  eagle:   { label: "SR2E.Totems.Eagle",   environment: "any",
+             spellBonus: { detection: 2 },
+             spellPenalty: {},
+             conjuringBonus: { wind: 2 } },
+
+  // Gator: +2 combat & detection; -1 illusion; +2 swamp/city spirits (SR2E p.123)
+  gator:   { label: "SR2E.Totems.Gator",   environment: "swamp",
+             spellBonus: { combat: 2, detection: 2 },
+             spellPenalty: { illusion: 1 },
+             conjuringBonus: { swamp: 2, city: 2 } },
+
+  // Lion: +2 combat; -1 health; +2 prairie spirits (SR2E p.123)
+  lion:    { label: "SR2E.Totems.Lion",    environment: "prairie",
+             spellBonus: { combat: 2 },
+             spellPenalty: { health: 1 },
+             conjuringBonus: { prairie: 2 } },
+
+  // Mouse: not described in core book — no mechanical modifiers
+  mouse:   { label: "SR2E.Totems.Mouse",   environment: "urban",
+             spellBonus: {},
+             spellPenalty: {},
+             conjuringBonus: {} },
+
+  // Owl: +2 any sorcery/conjuring at night; +2 TN to ALL tests in daylight
+  // Night bonus is handled as a generic +2 at cast time (GM adjudicates time-of-day)
+  owl:     { label: "SR2E.Totems.Owl",     environment: "forest",
+             spellBonus: {},
+             spellPenalty: {},
+             conjuringBonus: {} },
+
+  // Raccoon: +2 manipulation; -1 combat; +2 city spirits (SR2E p.123)
+  raccoon: { label: "SR2E.Totems.Raccoon", environment: "urban",
+             spellBonus: { manipulation: 2 },
+             spellPenalty: { combat: 1 },
+             conjuringBonus: { city: 2 } },
+
+  // Rat: +2 detection & illusion; -1 combat; +2 Spirits of Man (SR2E p.123)
+  rat:     { label: "SR2E.Totems.Rat",     environment: "urban",
+             spellBonus: { detection: 2, illusion: 2 },
+             spellPenalty: { combat: 1 },
+             conjuringBonus: { spirits_of_man: 2 } },
+
+  // Raven: +2 manipulation; -1 combat; +2 wind spirits (SR2E p.124)
+  raven:   { label: "SR2E.Totems.Raven",   environment: "any",
+             spellBonus: { manipulation: 2 },
+             spellPenalty: { combat: 1 },
+             conjuringBonus: { wind: 2 } },
+
+  // Shark: +2 combat & detection; +2 sea spirits (SR2E p.124)
+  shark:   { label: "SR2E.Totems.Shark",   environment: "ocean",
+             spellBonus: { combat: 2, detection: 2 },
+             spellPenalty: {},
+             conjuringBonus: { sea: 2 } },
+
+  // Snake: +2 health, illusion, detection; -1 combat spells DURING combat
+  // The in-combat penalty is narrative; the bonuses are always on (SR2E p.124)
+  snake:   { label: "SR2E.Totems.Snake",   environment: "any",
+             spellBonus: { health: 2, illusion: 2, detection: 2 },
+             spellPenalty: {},
+             conjuringBonus: {} },
+
+  // Wolf: +2 detection & combat; +2 forest or prairie spirits (SR2E p.124)
+  wolf:    { label: "SR2E.Totems.Wolf",    environment: "forest",
+             spellBonus: { detection: 2, combat: 2 },
+             spellPenalty: {},
+             conjuringBonus: { forest: 2, prairie: 2 } }
 };
 
 // ---------------------------------------------------------------------------

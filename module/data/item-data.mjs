@@ -195,11 +195,14 @@ export class SpellData extends SR2EDataModel {
 
   /**
    * Calculate the drain target number.
-   * Drain TN = Force / 2 (round down) + drain modifier
+   * Per SR2E p.140: "roll the spellcaster's Willpower dice... against a target
+   * number equal to the modified Force of the spell."
+   * Drain TN = Force + drain modifier  (NOT Force/2)
+   * e.g. drain code "+1(M)" on Force 4 spell → TN 5, damage level M
    */
   get drainTarget() {
     const drain = this.parsedDrainCode;
-    return Math.max(2, Math.floor(this.force / 2) + drain.modifier);
+    return Math.max(2, this.force + drain.modifier);
   }
 }
 

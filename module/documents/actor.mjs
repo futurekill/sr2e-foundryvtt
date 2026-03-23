@@ -20,6 +20,7 @@ export class SR2EActor extends Actor {
       this._recalculateEssence();
       this._recalculateInitiativeDice();
       this._recalculateHackingPool();
+      this._recalculateMagicPool();
     }
   }
 
@@ -130,7 +131,9 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Recalculate Hacking Pool from Computer skill and MPCP.
+   * Recalculate Hacking Pool from Computer skill and Reaction.
+   * SR2E p.84: "equal to his or her Computer Skill... plus the character's Reaction."
+   * Runs after _applyCyberwareModifiers so Reaction is the final post-cyberware value.
    * @private
    */
   _recalculateHackingPool() {
@@ -138,7 +141,6 @@ export class SR2EActor extends Actor {
     const system = this.system;
     if (system.cyberdeck.mpcp <= 0) return;
 
-    // Find computer skill
     let computerSkill = 0;
     for (const item of this.items) {
       if (item.type === "skill" && item.name.toLowerCase() === "computer") {
@@ -147,9 +149,41 @@ export class SR2EActor extends Actor {
       }
     }
 
-    const hackingPool = Math.floor((computerSkill + system.cyberdeck.mpcp) / 3);
-    system.dicePools.hacking.max = hackingPool;
+    const hackingPool = computerSkill + system.reaction.value;
+    system.dicePools.hacking.max   = hackingPool;
     system.dicePools.hacking.value = hackingPool;
+  }
+
+  /**
+   * Recalculate Magic Pool from Sorcery skill and power foci.
+   * SR2E p.84: "equal to his or her Sorcery Skill Rating… plus the rating of
+   * any applicable power foci."
+   * Runs after _applyCyberwareModifiers to ensure cyberware-modified values are final.
+   * @private
+   */
+  _recalculateMagicPool() {
+    if (this.type !== "character") return;
+    const system = this.system;
+    if (system.magic.type === "none" || system.magic.type === "physical_adept") return;
+
+    let sorceryRating = 0;
+    let powerFociBonus = 0;
+    for (const item of this.items) {
+      if (item.type === "skill" && item.name.toLowerCase() === "sorcery") {
+        sorceryRating = item.system.rating;
+      }
+      if (item.type === "focus" && item.system.focusType === "power" &&
+          item.system.bonded && item.system.active) {
+        powerFociBonus += item.system.force;
+      }
+    }
+
+    const magicPool = sorceryRating + powerFociBonus;
+    const spent = system.dicePools.magic.max > 0
+      ? Math.max(0, system.dicePools.magic.max - system.dicePools.magic.value)
+      : 0;
+    system.dicePools.magic.max   = magicPool;
+    system.dicePools.magic.value = Math.max(0, magicPool - spent);
   }
 
   /**

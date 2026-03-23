@@ -265,23 +265,50 @@ export class CharacterData extends SR2EDataModel {
     );
     applyPool(this.dicePools.combat, combatPool);
 
-    // Magic Pool (magicians and shamans only)
+    // Magic Pool = Sorcery Skill Rating + rating of active bonded power foci
+    // (SR2E p.84: "equal to his or her Sorcery Skill Rating... plus the rating
+    //  of any applicable power foci")
     if (this.magic.type !== "none" && this.magic.type !== "physical_adept") {
-      const magicPool = Math.floor(
-        (this.intelligence.value + this.willpower.value + this.magic.value) / 3
-      );
+      let sorceryRating = 0;
+      let powerFociBonus = 0;
+      if (this.parent?.items) {
+        for (const item of this.parent.items) {
+          if (item.type === "skill" && item.name.toLowerCase() === "sorcery") {
+            sorceryRating = item.system.rating;
+          }
+          if (item.type === "focus" && item.system.focusType === "power" &&
+              item.system.bonded && item.system.active) {
+            powerFociBonus += item.system.force;
+          }
+        }
+      }
+      const magicPool = sorceryRating + powerFociBonus;
       applyPool(this.dicePools.magic, magicPool);
     }
 
-    // Control Pool (riggers with VCR)
+    // Control Pool = Reaction (modified only by vehicle control rig)
+    // (SR2E p.84: "equal to the character's Reaction, modified only by a VCR")
     if (this.vehicleControlRig > 0) {
-      const controlPool = this.vehicleControlRig * 2;
+      // Reaction already includes any VCR modifier from cyberware attributeMods.
+      // The control pool is the Reaction value (final, post-cyberware) for riggers.
+      const controlPool = this.reaction.value;
       applyPool(this.dicePools.control, controlPool);
     }
 
-    // Hacking Pool — resets fully each scene; no spent-tracking needed
+    // Hacking Pool = Computer Skill + Reaction (SR2E p.84)
+    // Note: actor.mjs _recalculateHackingPool() re-runs after cyberware is applied
+    // and will override this with the final post-cyberware values.
     if (this.cyberdeck.mpcp > 0) {
-      const hackingPool = Math.floor(this.cyberdeck.mpcp / 3);
+      let computerSkill = 0;
+      if (this.parent?.items) {
+        for (const item of this.parent.items) {
+          if (item.type === "skill" && item.name.toLowerCase() === "computer") {
+            computerSkill = item.system.rating;
+            break;
+          }
+        }
+      }
+      const hackingPool = computerSkill + this.reaction.value;
       this.dicePools.hacking.max   = hackingPool;
       this.dicePools.hacking.value = hackingPool;
     }
