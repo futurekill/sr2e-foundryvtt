@@ -13,9 +13,9 @@
     <div class="header-race-row flexrow">
       <label class="race-label">{{localize "SR2E.Race"}}:</label>
       {{!-- Race drop zone: shows current race name; accepts a 'race' item dropped from compendium --}}
-      <div class="race-drop-zone" title="{{localize "SR2E.Race.DragHint"}}" data-drop="race">
+      <div class="race-drop-zone" title="Drag a metatype from the SR2E Metatypes compendium to set this character's race." data-drop="race">
         <span class="race-name">{{localizeRace system.race config.races}}</span>
-        <i class="fas fa-arrows-alt race-drop-icon" title="{{localize "SR2E.Race.DragHint"}}"></i>
+        <i class="fas fa-arrows-alt race-drop-icon"></i>
       </div>
 
       {{!-- Pool dice remaining — only show pools with a computed max > 0 --}}

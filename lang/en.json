@@ -254,6 +254,7 @@
   "TYPES.Item.lifestyle": "Lifestyle",
   "TYPES.Item.ammo": "Ammunition",
   "TYPES.Item.focus": "Magical Focus",
-  "TYPES.Item.vehicle_mod": "Vehicle Modification"
+  "TYPES.Item.vehicle_mod": "Vehicle Modification",
+  "TYPES.Item.race": "Metatype"
 
 }

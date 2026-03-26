@@ -503,7 +503,7 @@ export class RaceData extends SR2EDataModel {
 
       // Special racial abilities (e.g. low_light_vision, thermographic_vision, dermal_armor, reach_1)
       specialAbilities: new fields.ArrayField(
-        new fields.StringField({ required: true, initial: "" })
+        new fields.StringField({ initial: "" })
       ),
 
       // Karma cost to select this race during character creation (default 0 for humans)

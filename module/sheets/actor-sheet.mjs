@@ -731,14 +731,21 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const raceKey = itemData.system?.raceKey ?? "human";
     const currentRace = actor.system.race;
 
-    // Confirm if replacing an existing non-human race
+    // Confirm if replacing an existing non-human race.
+    // Use i18n with English fallbacks so the dialog is readable even if the
+    // language file hasn't loaded yet.
     if (currentRace && currentRace !== "human" && currentRace !== raceKey) {
+      const currentLabel = (() => {
+        const key = CONFIG.SR2E.races[currentRace];
+        if (!key) return currentRace.charAt(0).toUpperCase() + currentRace.slice(1);
+        const loc = game.i18n.localize(key);
+        return (loc && loc !== key) ? loc : currentRace.charAt(0).toUpperCase() + currentRace.slice(1);
+      })();
       const confirmed = await Dialog.confirm({
-        title: game.i18n.localize("SR2E.Race.ChangeTitle"),
-        content: `<p>${game.i18n.format("SR2E.Race.ChangeWarning", {
-          current: game.i18n.localize(CONFIG.SR2E.races[currentRace] ?? currentRace),
-          next: itemData.name
-        })}</p>`,
+        title: "Change Metatype?",
+        content: `<p>This character is currently a <strong>${currentLabel}</strong>.
+          Replace with <strong>${itemData.name}</strong>?
+          Racial attribute modifiers and maximums will be updated.</p>`,
         defaultYes: false
       });
       if (!confirmed) return false;
@@ -772,7 +779,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     };
 
     await actor.update(updateData);
-    ui.notifications.info(game.i18n.format("SR2E.Race.Applied", { name: itemData.name, actor: actor.name }));
+    ui.notifications.info(`${itemData.name} applied to ${actor.name}.`);
     return true;
   }
 
