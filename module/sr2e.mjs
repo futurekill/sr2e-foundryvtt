@@ -39,30 +39,6 @@ import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 Hooks.once("init", async () => {
   console.log("SR2E | Initializing Shadowrun 2nd Edition Game System");
 
-  // ---------------------------------------------------------------------------
-  // Load translations explicitly.
-  // Foundry V13 stores translations as nested objects and expands dotted keys
-  // (e.g. "SR2E.Tabs.Attributes" → translations.SR2E.Tabs.Attributes).
-  // In some self-hosted configurations the system's lang file is fetched but
-  // never merged into game.i18n.translations.  We do it manually here so that
-  // localization keys are always available before any sheet renders.
-  // ---------------------------------------------------------------------------
-  try {
-    const langResp = await fetch("systems/sr2e/lang/en.json");
-    if (langResp.ok) {
-      const langData = await langResp.json();
-      foundry.utils.mergeObject(
-        game.i18n.translations,
-        foundry.utils.expandObject(langData)
-      );
-      console.log("SR2E | Translations loaded.");
-    } else {
-      console.warn(`SR2E | Could not load lang/en.json (HTTP ${langResp.status})`);
-    }
-  } catch (err) {
-    console.warn("SR2E | Failed to load translations:", err);
-  }
-
   // Store configuration on the global CONFIG object
   CONFIG.SR2E = SR2E;
 

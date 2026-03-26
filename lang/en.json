@@ -1,7 +1,7 @@
 {
   "SR2E.SystemName": "Shadowrun 2nd Edition",
 
-  "SR2E.Race": "Race",
+  "SR2E.Race.Label": "Race",
   "SR2E.Essence": "Essence",
   "SR2E.Nuyen": "Nuyen",
   "SR2E.Physical": "Physical",
