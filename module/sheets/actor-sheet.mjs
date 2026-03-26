@@ -717,8 +717,8 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
   /**
    * Apply a dropped race item to the actor.
-   * Sets system.race to the race key, and stores racial modifier/maximum
-   * data directly on the actor so they survive without the item being owned.
+   * Sets system.race to the race key. Racial modifiers and maximums are read
+   * from CONFIG.SR2E.racialModifiers / racialMaximums during data preparation.
    * @param {object} itemData  Plain object from item.toObject()
    * @private
    */
@@ -751,31 +751,9 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       if (!confirmed) return false;
     }
 
-    // Build the update payload.
-    // Always set system.race (the key used by the CONFIG lookup).
-    // Also store per-item overrides and enable them, so custom homebrew races
-    // from the compendium can define stats that differ from the CONFIG table.
-    const mods = itemData.system?.attributeMods ?? {};
-    const maxes = itemData.system?.attributeMaximums ?? {};
+    // Set system.race — the CONFIG table handles all modifiers and maximums.
     const updateData = {
-      "system.race": raceKey,
-      "system.raceOverridesEnabled": true,
-      "system.raceOverrides.attributeMods.body":         mods.body         ?? 0,
-      "system.raceOverrides.attributeMods.quickness":    mods.quickness    ?? 0,
-      "system.raceOverrides.attributeMods.strength":     mods.strength     ?? 0,
-      "system.raceOverrides.attributeMods.charisma":     mods.charisma     ?? 0,
-      "system.raceOverrides.attributeMods.intelligence": mods.intelligence ?? 0,
-      "system.raceOverrides.attributeMods.willpower":    mods.willpower    ?? 0,
-      "system.raceOverrides.attributeMaximums.body":         maxes.body         ?? 6,
-      "system.raceOverrides.attributeMaximums.quickness":    maxes.quickness    ?? 6,
-      "system.raceOverrides.attributeMaximums.strength":     maxes.strength     ?? 6,
-      "system.raceOverrides.attributeMaximums.charisma":     maxes.charisma     ?? 6,
-      "system.raceOverrides.attributeMaximums.intelligence": maxes.intelligence ?? 6,
-      "system.raceOverrides.attributeMaximums.willpower":    maxes.willpower    ?? 6,
-      "system.raceOverrides.attributeMaximums.essence":      maxes.essence      ?? 6,
-      "system.raceOverrides.attributeMaximums.magic":        maxes.magic        ?? 6,
-      "system.raceOverrides.attributeMaximums.reaction":     maxes.reaction     ?? 6,
-      "system.raceOverrides.specialAbilities": itemData.system?.specialAbilities ?? []
+      "system.race": raceKey
     };
 
     await actor.update(updateData);

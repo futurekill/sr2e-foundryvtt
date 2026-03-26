@@ -13,41 +13,10 @@ export class CharacterData extends SR2EDataModel {
 
       // --- RACE ---
       // Set by dragging a race item from the Metatypes compendium onto the sheet.
-      // Do not use a choices constraint here so custom / homebrew races can be supported.
+      // Racial modifiers and maximums are always read from CONFIG.SR2E.racialModifiers
+      // and CONFIG.SR2E.racialMaximums using this key — no per-actor overrides needed
+      // for the standard five metatypes.
       race: new fields.StringField({ required: true, initial: "human" }),
-
-      // Set to true when a race item has been dragged onto the sheet, enabling
-      // raceOverrides instead of the CONFIG table. Defaults to false so standard
-      // play uses the CONFIG table and doesn't require a drag to apply racial stats.
-      raceOverridesEnabled: new fields.BooleanField({ initial: false }),
-
-      // Overrides stored from the last dragged race item.
-      // Only used when raceOverridesEnabled is true.
-      raceOverrides: new fields.SchemaField({
-        attributeMods: new fields.SchemaField({
-          body:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          quickness:    new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          strength:     new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          charisma:     new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          intelligence: new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          willpower:    new fields.NumberField({ required: true, integer: true, initial: 0 })
-        }),
-        attributeMaximums: new fields.SchemaField({
-          body:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          quickness:    new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          strength:     new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          charisma:     new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          intelligence: new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          willpower:    new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          essence:      new fields.NumberField({ required: true, initial: 0 }),
-          magic:        new fields.NumberField({ required: true, integer: true, initial: 0 }),
-          reaction:     new fields.NumberField({ required: true, integer: true, initial: 0 })
-        }),
-        specialAbilities: new fields.ArrayField(
-          new fields.StringField({ initial: "" }),
-          { initial: [] }
-        )
-      }),
 
       // --- PHYSICAL ATTRIBUTES ---
       body: SR2EDataModel.attributeField(3),
@@ -239,19 +208,11 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
-   * Apply racial attribute modifiers based on selected race.
-   * Prefers raceOverrides.attributeMods (set when a race item is dragged onto
-   * the sheet) over the CONFIG table, so custom compendium races work correctly.
+   * Apply racial attribute modifiers based on selected race using the CONFIG table.
    * @private
    */
   _applyRacialModifiers() {
-    // Use per-actor overrides when a race item has been explicitly dragged,
-    // otherwise use the built-in CONFIG table (default for standard play).
-    const configMods = CONFIG.SR2E.racialModifiers[this.race] || {};
-    const raceMods = (this.raceOverridesEnabled && this.raceOverrides?.attributeMods)
-      ? this.raceOverrides.attributeMods
-      : configMods;
-
+    const raceMods = CONFIG.SR2E.racialModifiers[this.race] || {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
         this[attr].racial = raceMods[attr] ?? 0;
@@ -264,12 +225,7 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _calculateAttributeValues() {
-    // Use override maximums only when a race item has been explicitly dragged.
-    const configMaxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
-    const maxes = (this.raceOverridesEnabled && this.raceOverrides?.attributeMaximums)
-      ? this.raceOverrides.attributeMaximums
-      : configMaxes;
-
+    const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
         this[attr].value = this[attr].base + this[attr].racial + this[attr].mod;
