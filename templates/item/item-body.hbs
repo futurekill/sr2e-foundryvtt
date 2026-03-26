@@ -508,10 +508,60 @@
   </div>
   {{/ifEquals}}
 
-  {{!-- Notes (common to all) --}}
-  <div class="form-group notes">
-    <label>Notes:</label>
-    <textarea name="system.notes">{{system.notes}}</textarea>
+  {{!-- RACE / METATYPE --}}
+  {{#ifEquals type "race"}}
+  <div class="form-group">
+    <label>Race Key:</label>
+    <select name="system.raceKey">
+      {{#each config.races as |label key|}}
+      <option value="{{key}}" {{selected ../system.raceKey key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
   </div>
+  <fieldset>
+    <legend>Attribute Modifiers</legend>
+    <div class="attr-mods-grid">
+      <div class="form-group"><label>Body:</label><input type="number" name="system.attributeMods.body" value="{{system.attributeMods.body}}" /></div>
+      <div class="form-group"><label>Quickness:</label><input type="number" name="system.attributeMods.quickness" value="{{system.attributeMods.quickness}}" /></div>
+      <div class="form-group"><label>Strength:</label><input type="number" name="system.attributeMods.strength" value="{{system.attributeMods.strength}}" /></div>
+      <div class="form-group"><label>Charisma:</label><input type="number" name="system.attributeMods.charisma" value="{{system.attributeMods.charisma}}" /></div>
+      <div class="form-group"><label>Intelligence:</label><input type="number" name="system.attributeMods.intelligence" value="{{system.attributeMods.intelligence}}" /></div>
+      <div class="form-group"><label>Willpower:</label><input type="number" name="system.attributeMods.willpower" value="{{system.attributeMods.willpower}}" /></div>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Attribute Maximums</legend>
+    <div class="attr-mods-grid">
+      <div class="form-group"><label>Body:</label><input type="number" name="system.attributeMaximums.body" value="{{system.attributeMaximums.body}}" min="1" /></div>
+      <div class="form-group"><label>Quickness:</label><input type="number" name="system.attributeMaximums.quickness" value="{{system.attributeMaximums.quickness}}" min="1" /></div>
+      <div class="form-group"><label>Strength:</label><input type="number" name="system.attributeMaximums.strength" value="{{system.attributeMaximums.strength}}" min="1" /></div>
+      <div class="form-group"><label>Charisma:</label><input type="number" name="system.attributeMaximums.charisma" value="{{system.attributeMaximums.charisma}}" min="1" /></div>
+      <div class="form-group"><label>Intelligence:</label><input type="number" name="system.attributeMaximums.intelligence" value="{{system.attributeMaximums.intelligence}}" min="1" /></div>
+      <div class="form-group"><label>Willpower:</label><input type="number" name="system.attributeMaximums.willpower" value="{{system.attributeMaximums.willpower}}" min="1" /></div>
+      <div class="form-group"><label>Essence:</label><input type="number" name="system.attributeMaximums.essence" value="{{system.attributeMaximums.essence}}" min="0" step="0.01" /></div>
+      <div class="form-group"><label>Magic:</label><input type="number" name="system.attributeMaximums.magic" value="{{system.attributeMaximums.magic}}" min="0" /></div>
+      <div class="form-group"><label>Reaction:</label><input type="number" name="system.attributeMaximums.reaction" value="{{system.attributeMaximums.reaction}}" min="1" /></div>
+    </div>
+  </fieldset>
+  <div class="form-group">
+    <label>Karma Cost:</label>
+    <input type="number" name="system.karmaCost" value="{{system.karmaCost}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Description:</label>
+    <prose-mirror name="system.description">{{{system.description}}}</prose-mirror>
+  </div>
+  {{/ifEquals}}
+
+  {{!-- Notes (common to all non-race items) --}}
+  {{#ifEquals type "skill"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "weapon"}}   <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "armor"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "cyberware"}}<div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "program"}}  <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "gear"}}     <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "focus"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "ammo"}}     <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "vehicle_mod"}}<div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
 
 </section>

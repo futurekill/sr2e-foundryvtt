@@ -12,10 +12,21 @@ export class CharacterData extends SR2EDataModel {
       notes: new fields.HTMLField({ initial: "" }),
 
       // --- RACE ---
-      race: new fields.StringField({ required: true, initial: "human", choices: {
-        human: "SR2E.Races.Human", dwarf: "SR2E.Races.Dwarf", elf: "SR2E.Races.Elf",
-        ork: "SR2E.Races.Ork", troll: "SR2E.Races.Troll"
-      }}),
+      // Set by dragging a race item from the Metatypes compendium onto the sheet.
+      // Do not use a choices constraint here so custom / homebrew races can be supported.
+      race: new fields.StringField({ required: true, initial: "human" }),
+
+      // Overrides stored from the last dragged race item.
+      // attributeMods / attributeMaximums take priority over CONFIG.SR2E.racialModifiers
+      // when they are non-empty, allowing compendium items to define custom stat profiles.
+      raceOverrides: new fields.SchemaField({
+        attributeMods: new fields.ObjectField({ initial: {} }),
+        attributeMaximums: new fields.ObjectField({ initial: {} }),
+        specialAbilities: new fields.ArrayField(
+          new fields.StringField({ initial: "" }),
+          { initial: [] }
+        )
+      }),
 
       // --- PHYSICAL ATTRIBUTES ---
       body: SR2EDataModel.attributeField(3),
@@ -208,13 +219,21 @@ export class CharacterData extends SR2EDataModel {
 
   /**
    * Apply racial attribute modifiers based on selected race.
+   * Prefers raceOverrides.attributeMods (set when a race item is dragged onto
+   * the sheet) over the CONFIG table, so custom compendium races work correctly.
    * @private
    */
   _applyRacialModifiers() {
-    const raceMods = CONFIG.SR2E.racialModifiers[this.race] || {};
+    // Use per-actor overrides when present (populated on race-item drop),
+    // otherwise fall back to the built-in CONFIG table.
+    const overrides = this.raceOverrides?.attributeMods ?? {};
+    const hasOverrides = Object.keys(overrides).length > 0;
+    const configMods = CONFIG.SR2E.racialModifiers[this.race] || {};
+    const raceMods = hasOverrides ? overrides : configMods;
+
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
-        this[attr].racial = raceMods[attr] || 0;
+        this[attr].racial = raceMods[attr] ?? 0;
       }
     }
   }
@@ -224,14 +243,19 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _calculateAttributeValues() {
+    // Prefer per-actor override maximums (from dragged race item) over CONFIG table.
+    const overrideMaxes = this.raceOverrides?.attributeMaximums ?? {};
+    const hasOverrideMaxes = Object.keys(overrideMaxes).length > 0;
+    const configMaxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
+    const maxes = hasOverrideMaxes ? overrideMaxes : configMaxes;
+
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
         this[attr].value = this[attr].base + this[attr].racial + this[attr].mod;
         // Enforce minimum of 1
         if (this[attr].value < 1) this[attr].value = 1;
         // Enforce racial maximum
-        const maxes = CONFIG.SR2E.racialMaximums[this.race];
-        if (maxes && this[attr].value > maxes[attr]) {
+        if (maxes[attr] != null && this[attr].value > maxes[attr]) {
           this[attr].value = maxes[attr];
         }
       }

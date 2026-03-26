@@ -199,4 +199,21 @@ export function registerHandlebarsHelpers() {
   Handlebars.registerHelper("formatEssence", function (value) {
     return Number(value).toFixed(2);
   });
+
+  /**
+   * Localize a race key using the CONFIG.SR2E.races label map.
+   * Falls back gracefully: capitalizes the key if no mapping found.
+   * Usage: {{localizeRace system.race config.races}}
+   */
+  Handlebars.registerHelper("localizeRace", function (raceKey, racesMap) {
+    if (!raceKey) return "Unknown";
+    // racesMap is the CONFIG.SR2E.races object { human: "SR2E.Races.Human", ... }
+    const labelKey = racesMap && racesMap[raceKey];
+    if (labelKey) {
+      const localized = game.i18n.localize(labelKey);
+      if (localized && localized !== labelKey) return localized;
+    }
+    // Fallback: capitalize the raw key
+    return raceKey.charAt(0).toUpperCase() + raceKey.slice(1);
+  });
 }

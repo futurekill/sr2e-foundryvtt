@@ -634,6 +634,15 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   _onDragOver(event) {
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
+    // Highlight race drop zone when something is being dragged over the sheet
+    const zone = this.element?.querySelector(".race-drop-zone");
+    if (zone) zone.classList.add("drag-over");
+  }
+
+  /** Clear drag-over highlight when drag leaves the sheet */
+  _onDragLeave(event) {
+    const zone = this.element?.querySelector(".race-drop-zone");
+    if (zone) zone.classList.remove("drag-over");
   }
 
   /** @override */
@@ -648,6 +657,10 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /** @override */
   async _onDrop(event) {
     event.preventDefault();
+    // Clear drag-over highlight
+    const zone = this.element?.querySelector(".race-drop-zone");
+    if (zone) zone.classList.remove("drag-over");
+
     let data;
     try { data = JSON.parse(event.dataTransfer.getData("text/plain")); }
     catch(e) { return; }
@@ -676,6 +689,8 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /**
    * Handle dropping an Item onto the actor sheet.
    * Supports compendium browser, world sidebar, and inter-actor drops.
+   * Race items are handled specially: they set the actor's race and apply
+   * racial stat adjustments rather than being added to the inventory.
    * @override
    */
   async _onDropItem(event, data) {
@@ -691,7 +706,58 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     } else {
       return false;
     }
+
+    // --- Race drop handling ---
+    if (itemData.type === "race") {
+      return this._onDropRace(itemData);
+    }
+
     return this.document.createEmbeddedDocuments("Item", [itemData]);
+  }
+
+  /**
+   * Apply a dropped race item to the actor.
+   * Sets system.race to the race key, and stores racial modifier/maximum
+   * data directly on the actor so they survive without the item being owned.
+   * @param {object} itemData  Plain object from item.toObject()
+   * @private
+   */
+  async _onDropRace(itemData) {
+    const actor = this.document;
+    if (actor.type !== "character") {
+      return ui.notifications.warn("SR2E | Races can only be applied to Player Characters.");
+    }
+
+    const raceKey = itemData.system?.raceKey ?? "human";
+    const currentRace = actor.system.race;
+
+    // Confirm if replacing an existing non-human race
+    if (currentRace && currentRace !== "human" && currentRace !== raceKey) {
+      const confirmed = await Dialog.confirm({
+        title: game.i18n.localize("SR2E.Race.ChangeTitle"),
+        content: `<p>${game.i18n.format("SR2E.Race.ChangeWarning", {
+          current: game.i18n.localize(CONFIG.SR2E.races[currentRace] ?? currentRace),
+          next: itemData.name
+        })}</p>`,
+        defaultYes: false
+      });
+      if (!confirmed) return false;
+    }
+
+    // Build the update payload.
+    // The actor-data prepareDerivedData() reads system.race and looks up
+    // racialModifiers / racialMaximums from CONFIG — we store the race key
+    // plus overrides in case the compendium item has custom values.
+    const updateData = {
+      "system.race": raceKey,
+      "system.raceOverrides.attributeMods": itemData.system?.attributeMods ?? {},
+      "system.raceOverrides.attributeMaximums": itemData.system?.attributeMaximums ?? {},
+      "system.raceOverrides.specialAbilities": itemData.system?.specialAbilities ?? []
+    };
+
+    await actor.update(updateData);
+    ui.notifications.info(game.i18n.format("SR2E.Race.Applied", { name: itemData.name, actor: actor.name }));
+    return true;
   }
 
   /** @override */
@@ -794,6 +860,19 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
+
+    // Bind dragleave on the sheet element to clear race-drop-zone highlight
+    // (dragleave fires when the drag leaves the entire sheet window)
+    if (this.element) {
+      this.element.addEventListener("dragleave", (event) => {
+        // Only clear when leaving the sheet itself (relatedTarget outside element)
+        if (!this.element.contains(event.relatedTarget)) {
+          const zone = this.element.querySelector(".race-drop-zone");
+          if (zone) zone.classList.remove("drag-over");
+        }
+      }, { passive: true });
+    }
+
     if (!this.isEditable) return;
 
     // Prose-mirror blur → auto-save (biography, notes, etc.)

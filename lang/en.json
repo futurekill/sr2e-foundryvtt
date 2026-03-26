@@ -29,6 +29,15 @@
   "SR2E.Races.Ork": "Ork",
   "SR2E.Races.Troll": "Troll",
 
+  "SR2E.Race.DragHint": "Drag a metatype from the SR2E Metatypes compendium to set this character's race.",
+  "SR2E.Race.ChangeTitle": "Change Metatype?",
+  "SR2E.Race.ChangeWarning": "This character is currently a {current}. Replace with {next}? Racial attribute modifiers and maximums will be updated.",
+  "SR2E.Race.Applied": "{name} applied to {actor}.",
+  "SR2E.Race.SpecialAbilities": "Special Abilities",
+  "SR2E.Race.AttributeMods": "Racial Modifiers",
+  "SR2E.Race.AttributeMaximums": "Racial Maximums",
+  "SR2E.Race.KarmaCost": "Karma Cost",
+
   "SR2E.Tabs.Attributes": "Attributes",
   "SR2E.Tabs.Skills": "Skills",
   "SR2E.Tabs.Combat": "Combat",

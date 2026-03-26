@@ -458,3 +458,59 @@ export class VehicleModData extends SR2EDataModel {
     };
   }
 }
+
+/**
+ * Data model for Metatype / Race items.
+ * Drag one of these onto a character sheet to set their race and apply
+ * racial attribute modifiers and maximums.
+ */
+export class RaceData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    return {
+      // The canonical race key used to look up CONFIG.SR2E.racialModifiers etc.
+      // Storing it here lets you override defaults per-item if needed.
+      raceKey: new fields.StringField({ required: true, initial: "human", choices: {
+        human: "SR2E.Races.Human",
+        dwarf: "SR2E.Races.Dwarf",
+        elf: "SR2E.Races.Elf",
+        ork: "SR2E.Races.Ork",
+        troll: "SR2E.Races.Troll"
+      }}),
+
+      // Racial attribute modifiers (additive bonuses to base attributes)
+      attributeMods: new fields.SchemaField({
+        body:         new fields.NumberField({ required: true, integer: true, initial: 0 }),
+        quickness:    new fields.NumberField({ required: true, integer: true, initial: 0 }),
+        strength:     new fields.NumberField({ required: true, integer: true, initial: 0 }),
+        charisma:     new fields.NumberField({ required: true, integer: true, initial: 0 }),
+        intelligence: new fields.NumberField({ required: true, integer: true, initial: 0 }),
+        willpower:    new fields.NumberField({ required: true, integer: true, initial: 0 })
+      }),
+
+      // Racial attribute maximums
+      attributeMaximums: new fields.SchemaField({
+        body:         new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 }),
+        quickness:    new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 }),
+        strength:     new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 }),
+        charisma:     new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 }),
+        intelligence: new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 }),
+        willpower:    new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 }),
+        essence:      new fields.NumberField({ required: true, initial: 6, min: 0 }),
+        magic:        new fields.NumberField({ required: true, integer: true, initial: 6, min: 0 }),
+        reaction:     new fields.NumberField({ required: true, integer: true, initial: 6, min: 1 })
+      }),
+
+      // Special racial abilities (e.g. low_light_vision, thermographic_vision, dermal_armor, reach_1)
+      specialAbilities: new fields.ArrayField(
+        new fields.StringField({ required: true, initial: "" })
+      ),
+
+      // Karma cost to select this race during character creation (default 0 for humans)
+      karmaCost: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+
+      // Flavour / rulebook text
+      description: new fields.HTMLField({ initial: "" })
+    };
+  }
+}

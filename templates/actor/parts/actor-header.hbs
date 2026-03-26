@@ -9,14 +9,14 @@
       <input type="text" name="name" value="{{actor.name}}" placeholder="Character Name" class="char-name-input" />
     </div>
 
-    {{!-- Row 2: Race + dice pool indicators --}}
+    {{!-- Row 2: Race (drag-drop from Metatypes compendium) + dice pool indicators --}}
     <div class="header-race-row flexrow">
       <label class="race-label">{{localize "SR2E.Race"}}:</label>
-      <select name="system.race" class="race-select">
-        {{#each config.races as |label key|}}
-        <option value="{{key}}" {{selected ../system.race key}}>{{localize label}}</option>
-        {{/each}}
-      </select>
+      {{!-- Race drop zone: shows current race name; accepts a 'race' item dropped from compendium --}}
+      <div class="race-drop-zone" title="{{localize "SR2E.Race.DragHint"}}" data-drop="race">
+        <span class="race-name">{{localizeRace system.race config.races}}</span>
+        <i class="fas fa-arrows-alt race-drop-icon" title="{{localize "SR2E.Race.DragHint"}}"></i>
+      </div>
 
       {{!-- Pool dice remaining — only show pools with a computed max > 0 --}}
       <div class="header-pools">

@@ -2,7 +2,7 @@
   "id": "sr2e",
   "title": "Shadowrun 2nd Edition",
   "description": "A comprehensive game system for Shadowrun Second Edition (FASA 7901) built for Foundry Virtual Tabletop.",
-  "version": "0.3.57",
+  "version": "0.3.58",
   "url": "https://github.com/futurekill/sr2e-foundryvtt",
   "manifest": "https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json",
   "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.3.8/sr2e.zip",
@@ -65,7 +65,10 @@
       },
       "ammo": {},
       "focus": {},
-      "vehicle_mod": {}
+      "vehicle_mod": {},
+      "race": {
+        "htmlFields": ["description"]
+      }
     }
   },
   "grid": {
@@ -89,7 +92,8 @@
     { "name": "adept-powers", "label": "SR2E Adept Powers",   "path": "packs/adept-powers", "type": "Item",      "system": "sr2e", "folder": "Magic" },
     { "name": "programs",     "label": "SR2E Matrix Programs","path": "packs/programs",     "type": "Item",      "system": "sr2e", "folder": "Matrix" },
     { "name": "gear",         "label": "SR2E Equipment",      "path": "packs/gear",         "type": "Item",      "system": "sr2e", "folder": "Equipment" },
-    { "name": "roll-tables",  "label": "SR2E Roll Tables",    "path": "packs/roll-tables",  "type": "RollTable", "system": "sr2e", "folder": "Reference" }
+    { "name": "roll-tables",  "label": "SR2E Roll Tables",    "path": "packs/roll-tables",  "type": "RollTable", "system": "sr2e", "folder": "Reference" },
+    { "name": "races",        "label": "SR2E Metatypes",       "path": "packs/races",        "type": "Item",      "system": "sr2e", "folder": "Characters" }
   ],
   "packFolders": [
     {
@@ -99,7 +103,7 @@
         {
           "name": "Characters",
           "sorting": "a",
-          "packs": ["skills", "contacts", "lifestyles"]
+          "packs": ["races", "skills", "contacts", "lifestyles"]
         },
         {
           "name": "Combat",

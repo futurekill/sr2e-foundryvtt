@@ -206,6 +206,7 @@
   white-space: nowrap;
 }
 
+/* Legacy select kept for reference — replaced by drag-drop zone */
 .sr2e-sheet-header .race-select {
   flex: 0 0 auto;
   width: 160px;
@@ -213,6 +214,47 @@
   font-family: var(--sr2e-font-header);
   letter-spacing: 0.04em;
   border-color: var(--sr2e-border);
+}
+
+/* Race drop zone */
+.sr2e-sheet-header .race-drop-zone {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  min-width: 120px;
+  max-width: 160px;
+  padding: 2px 8px;
+  border: 1px dashed var(--sr2e-border);
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--sr2e-font-header);
+  letter-spacing: 0.04em;
+  color: var(--sr2e-text-primary);
+  background: rgba(0,0,0,0.15);
+  cursor: default;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.sr2e-sheet-header .race-drop-zone:hover,
+.sr2e-sheet-header .race-drop-zone.drag-over {
+  border-color: var(--sr2e-border-red);
+  background: rgba(180,0,0,0.08);
+}
+
+.sr2e-sheet-header .race-name {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sr2e-sheet-header .race-drop-icon {
+  flex: 0 0 auto;
+  font-size: 9px;
+  color: var(--sr2e-text-muted);
+  opacity: 0.6;
 }
 
 /* Pool pips — right-side of race row */

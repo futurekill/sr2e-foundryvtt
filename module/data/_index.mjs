@@ -15,5 +15,6 @@ export {
   LifestyleData,
   AmmoData,
   FocusData,
-  VehicleModData
+  VehicleModData,
+  RaceData
 } from "./item-data.mjs";
