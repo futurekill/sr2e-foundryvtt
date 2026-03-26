@@ -745,13 +745,29 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     }
 
     // Build the update payload.
-    // The actor-data prepareDerivedData() reads system.race and looks up
-    // racialModifiers / racialMaximums from CONFIG — we store the race key
-    // plus overrides in case the compendium item has custom values.
+    // Always set system.race (the key used by the CONFIG lookup).
+    // Also store per-item overrides and enable them, so custom homebrew races
+    // from the compendium can define stats that differ from the CONFIG table.
+    const mods = itemData.system?.attributeMods ?? {};
+    const maxes = itemData.system?.attributeMaximums ?? {};
     const updateData = {
       "system.race": raceKey,
-      "system.raceOverrides.attributeMods": itemData.system?.attributeMods ?? {},
-      "system.raceOverrides.attributeMaximums": itemData.system?.attributeMaximums ?? {},
+      "system.raceOverridesEnabled": true,
+      "system.raceOverrides.attributeMods.body":         mods.body         ?? 0,
+      "system.raceOverrides.attributeMods.quickness":    mods.quickness    ?? 0,
+      "system.raceOverrides.attributeMods.strength":     mods.strength     ?? 0,
+      "system.raceOverrides.attributeMods.charisma":     mods.charisma     ?? 0,
+      "system.raceOverrides.attributeMods.intelligence": mods.intelligence ?? 0,
+      "system.raceOverrides.attributeMods.willpower":    mods.willpower    ?? 0,
+      "system.raceOverrides.attributeMaximums.body":         maxes.body         ?? 6,
+      "system.raceOverrides.attributeMaximums.quickness":    maxes.quickness    ?? 6,
+      "system.raceOverrides.attributeMaximums.strength":     maxes.strength     ?? 6,
+      "system.raceOverrides.attributeMaximums.charisma":     maxes.charisma     ?? 6,
+      "system.raceOverrides.attributeMaximums.intelligence": maxes.intelligence ?? 6,
+      "system.raceOverrides.attributeMaximums.willpower":    maxes.willpower    ?? 6,
+      "system.raceOverrides.attributeMaximums.essence":      maxes.essence      ?? 6,
+      "system.raceOverrides.attributeMaximums.magic":        maxes.magic        ?? 6,
+      "system.raceOverrides.attributeMaximums.reaction":     maxes.reaction     ?? 6,
       "system.raceOverrides.specialAbilities": itemData.system?.specialAbilities ?? []
     };
 
