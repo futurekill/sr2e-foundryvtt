@@ -923,6 +923,18 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       });
     }
 
+    // Magic type / tradition / totem selects live inside a tab section that is
+    // display:none when the sheet first renders (magic is not the default tab).
+    // Foundry's submitOnChange skips inputs hidden at registration time, so
+    // these selects never trigger an automatic form submit. Wire them up
+    // explicitly here — same pattern as embedded-item fields below.
+    for (const sel of this.element.querySelectorAll('select[name^="system.magic."]')) {
+      sel.addEventListener("change", (event) => {
+        event.stopPropagation();
+        this.document.update({ [sel.name]: sel.value });
+      });
+    }
+
     // Inline embedded-item field changes (e.g. skill rating inputs on the Skills tab).
     // These inputs use data-field instead of name because they belong to an embedded
     // Item, not the Actor, so the actor form's submitOnChange never touches them.
