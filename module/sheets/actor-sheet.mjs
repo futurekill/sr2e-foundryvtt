@@ -644,6 +644,15 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     primary: "attributes"
   };
 
+  /**
+   * True while an external drag is hovering over this sheet.
+   * Used to suppress spurious "change" events that browsers may fire on
+   * <select> elements when a dragged item passes over them — those events
+   * would trigger submitOnChange and corrupt magic.type / tradition before
+   * the actual drop is processed.
+   */
+  _isDragging = false;
+
   /* -----------------------------------------------------------------------
    * Drag-and-Drop
    * V13 ApplicationV2: dragover must preventDefault to allow drops;
@@ -654,6 +663,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   _onDragOver(event) {
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
+    this._isDragging = true;
     // Highlight race drop zone when something is being dragged over the sheet
     const zone = this.element?.querySelector(".race-drop-zone");
     if (zone) zone.classList.add("drag-over");
@@ -676,6 +686,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
   /** @override */
   async _onDrop(event) {
+    this._isDragging = false;
     event.preventDefault();
     // Clear drag-over highlight
     const zone = this.element?.querySelector(".race-drop-zone");
@@ -888,6 +899,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       this.element.addEventListener("dragleave", (event) => {
         // Only clear when leaving the sheet itself (relatedTarget outside element)
         if (!this.element.contains(event.relatedTarget)) {
+          this._isDragging = false;
           const zone = this.element.querySelector(".race-drop-zone");
           if (zone) zone.classList.remove("drag-over");
         }
@@ -924,6 +936,18 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         item.update({ [field]: value });
       });
     }
+  }
+
+  /**
+   * @override
+   * Suppress automatic form submission while an external drag is over the sheet.
+   * Browsers can fire spurious "change" events on <select> elements when a
+   * dragged item hovers over them — those events would corrupt magic.type /
+   * magic.tradition via submitOnChange before the drop is processed.
+   */
+  async _onChangeForm(formConfig, event) {
+    if (this._isDragging) return;
+    return super._onChangeForm(formConfig, event);
   }
 
   /**
