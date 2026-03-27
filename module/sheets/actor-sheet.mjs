@@ -478,14 +478,34 @@ const SHARED_ACTIONS = {
   // Tab navigation — use switchTab so V13's built-in _onClickTab never fires.
   // changeTab() fails because content sections live inside <div data-part="x">
   // wrappers that V13 injects, not as direct children of this.element.
-  // Instead: update tabGroups and re-render directly.
+  //
+  // IMPORTANT: Do NOT call this.render() here. The sheet uses submitOnChange:true,
+  // meaning any field change fires an async actor.update(). If we call render()
+  // synchronously on tab click, it races with the pending update and re-renders
+  // using stale actor data (e.g. magic.type reverts to "none").
+  //
+  // Instead: toggle active classes directly in the DOM. this.tabGroups is still
+  // updated so the correct tab is highlighted on the next legitimate re-render.
   switchTab: function(event, target) {
     const tab = target.dataset.tab;
     const group = target.dataset.group;
-    if (tab && group && group in this.tabGroups) {
-      this.tabGroups[group] = tab;
-      this.render();
-    }
+    if (!tab || !group || !(group in this.tabGroups)) return;
+
+    // Update internal state (used by _getTabs on next full re-render)
+    this.tabGroups[group] = tab;
+
+    const el = this.element;
+    if (!el) return;
+
+    // Update nav link active states
+    el.querySelectorAll(`.sr2e-tabs[data-group="${group}"] .tab`).forEach(a => {
+      a.classList.toggle("active", a.dataset.tab === tab);
+    });
+
+    // Update content section active states
+    el.querySelectorAll(`.tab-content[data-group="${group}"]`).forEach(section => {
+      section.classList.toggle("active", section.dataset.tab === tab);
+    });
   },
   rollAttribute: onRollAttribute,
   rollSkill: onRollSkill,
