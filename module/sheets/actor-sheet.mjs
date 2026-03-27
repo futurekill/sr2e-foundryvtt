@@ -664,6 +664,9 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
     this._isDragging = true;
+    // Disable pointer events on selects so browsers can't fire spurious
+    // "change" events on them as the dragged item passes over the sheet.
+    this.element?.classList.add("sr2e-dragging");
     // Highlight race drop zone when something is being dragged over the sheet
     const zone = this.element?.querySelector(".race-drop-zone");
     if (zone) zone.classList.add("drag-over");
@@ -687,6 +690,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   /** @override */
   async _onDrop(event) {
     this._isDragging = false;
+    this.element?.classList.remove("sr2e-dragging");
     event.preventDefault();
     // Clear drag-over highlight
     const zone = this.element?.querySelector(".race-drop-zone");
@@ -900,6 +904,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         // Only clear when leaving the sheet itself (relatedTarget outside element)
         if (!this.element.contains(event.relatedTarget)) {
           this._isDragging = false;
+          this.element.classList.remove("sr2e-dragging");
           const zone = this.element.querySelector(".race-drop-zone");
           if (zone) zone.classList.remove("drag-over");
         }
@@ -936,18 +941,6 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         item.update({ [field]: value });
       });
     }
-  }
-
-  /**
-   * @override
-   * Suppress automatic form submission while an external drag is over the sheet.
-   * Browsers can fire spurious "change" events on <select> elements when a
-   * dragged item hovers over them — those events would corrupt magic.type /
-   * magic.tradition via submitOnChange before the drop is processed.
-   */
-  async _onChangeForm(formConfig, event) {
-    if (this._isDragging) return;
-    return super._onChangeForm(formConfig, event);
   }
 
   /**

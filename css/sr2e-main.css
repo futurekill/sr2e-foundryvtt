@@ -492,6 +492,14 @@
   color: inherit;
 }
 
+/* Disable pointer events on selects while an external drag is over the sheet.
+   This prevents browsers from firing spurious "change" events on <select>
+   elements as a dragged item passes over them, which would corrupt magic.type
+   and magic.tradition via submitOnChange before the drop is processed. */
+.sr2e.sheet.sr2e-dragging select {
+  pointer-events: none;
+}
+
 /* Tab content sections */
 .sr2e.sheet .tab-content {
   display: none;
