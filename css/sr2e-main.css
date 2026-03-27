@@ -662,6 +662,8 @@
 }
 
 .monitor-label {
+  width: 68px;
+  flex-shrink: 0;
   font-size: 10px;
   font-family: var(--sr2e-font-header);
   font-weight: 700;
@@ -669,7 +671,6 @@
   text-transform: uppercase;
   color: var(--sr2e-text-muted);
   white-space: nowrap;
-  margin-right: 6px;
 }
 
 /* Box track fills the space between label and controls */
