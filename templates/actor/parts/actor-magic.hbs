@@ -4,23 +4,30 @@
     {{!-- Magic Configuration --}}
     <fieldset class="magic-config">
       <legend>Magical Tradition</legend>
-      <div class="form-group">
-        <label>Type:</label>
-        <select name="system.magic.type">
-          {{#each config.magicTypes as |label key|}}
-          <option value="{{key}}" {{selected ../system.magic.type key}}>{{localize label}}</option>
-          {{/each}}
-        </select>
+
+      {{!-- Tradition drop zone (shown when no tradition is set) --}}
+      {{#unless isMagical}}
+      <div class="tradition-drop-zone">
+        <i class="fas fa-hat-wizard"></i>
+        <span>{{localize "SR2E.Magic.DropTradition"}}</span>
       </div>
+      {{/unless}}
+
+      {{!-- Tradition display (shown when a tradition is active) --}}
       {{#if isMagical}}
-      <div class="form-group">
-        <label>Tradition:</label>
-        <select name="system.magic.tradition">
-          {{#each config.magicTraditions as |label key|}}
-          <option value="{{key}}" {{selected ../system.magic.tradition key}}>{{localize label}}</option>
-          {{/each}}
-        </select>
+      <div class="tradition-display flexrow">
+        <div class="tradition-info">
+          <span class="tradition-type">{{magicTypeLabel}}</span>
+          {{#if magicTraditionLabel}}
+          <span class="tradition-sep"> · </span>
+          <span class="tradition-name">{{magicTraditionLabel}}</span>
+          {{/if}}
+        </div>
+        <button type="button" data-action="clearTradition" title="{{localize "SR2E.Magic.ClearTradition"}}" class="tradition-clear btn-small">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
+
       {{#ifEquals system.magic.tradition "shamanic"}}
       <div class="form-group">
         <label>Totem:</label>

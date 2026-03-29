@@ -119,6 +119,8 @@
   "SR2E.Magic.PhysicalAdept": "Physical Adept",
   "SR2E.Magic.ShamanicAdept": "Shamanic Adept",
   "SR2E.Magic.MagicalAdept": "Magical Adept",
+  "SR2E.Magic.DropTradition": "Drop a Tradition here",
+  "SR2E.Magic.ClearTradition": "Remove tradition",
 
   "SR2E.Totems.Bear": "Bear",
   "SR2E.Totems.Cat": "Cat",

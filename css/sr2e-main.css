@@ -216,6 +216,69 @@
   border-color: var(--sr2e-border);
 }
 
+/* Tradition drop zone (magic tab) */
+.magic-config .tradition-drop-zone {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--sr2e-border);
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--sr2e-text-muted);
+  background: rgba(0,0,0,0.1);
+  cursor: default;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 4px;
+}
+
+.magic-config .tradition-drop-zone:hover,
+.magic-config .tradition-drop-zone.drag-over {
+  border-color: var(--sr2e-border-red);
+  background: rgba(180,0,0,0.08);
+  color: var(--sr2e-text-primary);
+}
+
+/* Tradition display (when a tradition is active) */
+.magic-config .tradition-display {
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  margin-bottom: 6px;
+}
+
+.magic-config .tradition-display .tradition-info {
+  flex: 1;
+  font-family: var(--sr2e-font-header);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--sr2e-text-primary);
+}
+
+.magic-config .tradition-display .tradition-sep {
+  color: var(--sr2e-text-muted);
+  font-weight: 400;
+}
+
+.magic-config .tradition-display .tradition-name {
+  color: var(--sr2e-accent-gold);
+}
+
+.magic-config .tradition-clear {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+.magic-config .tradition-clear:hover {
+  opacity: 1;
+  color: var(--sr2e-border-red);
+}
+
 /* Race drop zone */
 .sr2e-sheet-header .race-drop-zone {
   flex: 0 0 auto;

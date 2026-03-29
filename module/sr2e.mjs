@@ -73,7 +73,8 @@ Hooks.once("init", async () => {
     ammo: dataModels.AmmoData,
     focus: dataModels.FocusData,
     vehicle_mod: dataModels.VehicleModData,
-    race: dataModels.RaceData
+    race:      dataModels.RaceData,
+    tradition: dataModels.TraditionData
   };
 
   // Register custom Roll class

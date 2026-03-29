@@ -583,6 +583,18 @@ const SHARED_ACTIONS = {
    * so we wire it up via data-action="editImage".
    * @this {ApplicationV2}
    */
+  /**
+   * Clear the character's magical tradition — resets magic.type and
+   * magic.tradition to "none". Triggered by the × button on the magic tab.
+   */
+  clearTradition: async function(event, target) {
+    return this.document.update({
+      "system.magic.type":      "none",
+      "system.magic.tradition": "none",
+      "system.magic.totem":     ""
+    });
+  },
+
   editImage: async function(event, target) {
     event.preventDefault();
     const actor = this.document;
@@ -743,9 +755,10 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     }
 
     // --- Race drop handling ---
-    if (itemData.type === "race") {
-      return this._onDropRace(itemData);
-    }
+    if (itemData.type === "race") return this._onDropRace(itemData);
+
+    // --- Tradition drop handling ---
+    if (itemData.type === "tradition") return this._onDropTradition(itemData);
 
     return this.document.createEmbeddedDocuments("Item", [itemData]);
   }
@@ -792,6 +805,39 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     };
 
     await actor.update(updateData);
+    ui.notifications.info(`${itemData.name} applied to ${actor.name}.`);
+    return true;
+  }
+
+  /**
+   * Apply a dropped Tradition item to the actor.
+   * Sets system.magic.type and system.magic.tradition from the item's data.
+   * If the actor already has a tradition set, prompts for confirmation first.
+   * @param {object} itemData  Plain object from item.toObject()
+   * @private
+   */
+  async _onDropTradition(itemData) {
+    const actor = this.document;
+    if (actor.type !== "character") {
+      return ui.notifications.warn("SR2E | Traditions can only be applied to Player Characters.");
+    }
+
+    const currentType = actor.system.magic?.type ?? "none";
+    if (currentType !== "none") {
+      const currentLabel = game.i18n.localize(CONFIG.SR2E.magicTypes[currentType] ?? currentType);
+      const confirmed = await Dialog.confirm({
+        title: "Change Tradition?",
+        content: `<p>This character already has the <strong>${currentLabel}</strong> tradition set.
+          Replace with <strong>${itemData.name}</strong>?</p>`,
+        defaultYes: false
+      });
+      if (!confirmed) return false;
+    }
+
+    await actor.update({
+      "system.magic.type":      itemData.system.magicType,
+      "system.magic.tradition": itemData.system.tradition
+    });
     ui.notifications.info(`${itemData.name} applied to ${actor.name}.`);
     return true;
   }
@@ -862,6 +908,14 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
     context.isRigger = system.isRigger;
+
+    // Localized labels for the magic tradition display (read-only when set via drag-drop)
+    const magicType = system.magic?.type ?? "none";
+    const magicTrad = system.magic?.tradition ?? "none";
+    context.magicTypeLabel      = magicType !== "none"
+      ? game.i18n.localize(CONFIG.SR2E.magicTypes[magicType] ?? magicType) : "";
+    context.magicTraditionLabel = magicTrad !== "none"
+      ? game.i18n.localize(CONFIG.SR2E.magicTraditions[magicTrad] ?? magicTrad) : "";
 
     // Attribute lists for template iteration
     context.physicalAttributes = ["body", "quickness", "strength"];

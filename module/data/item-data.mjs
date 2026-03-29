@@ -514,3 +514,35 @@ export class RaceData extends SR2EDataModel {
     };
   }
 }
+
+/**
+ * Magical Tradition item.
+ * Drag one of these onto a character sheet to set their magic type and
+ * tradition (e.g. "Hermetic Full Magician", "Shamanic Adept", "Physical Adept").
+ * The Type and Tradition fields on the magic tab are locked to this item —
+ * drop a new tradition to change, or use the clear button to remove.
+ */
+export class TraditionData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    return {
+      // Which magic archetype this tradition represents
+      magicType: new fields.StringField({ required: true, initial: "full_magician", choices: {
+        full_magician:   "SR2E.Magic.FullMagician",
+        physical_adept:  "SR2E.Magic.PhysicalAdept",
+        shamanic_adept:  "SR2E.Magic.ShamanicAdept",
+        magical_adept:   "SR2E.Magic.MagicalAdept"
+      }}),
+
+      // Philosophical tradition (none = not applicable, e.g. Physical Adept)
+      tradition: new fields.StringField({ required: true, initial: "none", choices: {
+        none:     "SR2E.Magic.None",
+        hermetic: "SR2E.Magic.Hermetic",
+        shamanic: "SR2E.Magic.Shamanic"
+      }}),
+
+      // Flavour / rulebook text
+      description: new fields.HTMLField({ initial: "" })
+    };
+  }
+}
