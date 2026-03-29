@@ -923,15 +923,25 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       });
     }
 
-    // Magic type / tradition / totem selects live inside a tab section that is
-    // display:none when the sheet first renders (magic is not the default tab).
-    // Foundry's submitOnChange skips inputs hidden at registration time, so
-    // these selects never trigger an automatic form submit. Wire them up
-    // explicitly here — same pattern as embedded-item fields below.
-    for (const sel of this.element.querySelectorAll('select[name^="system.magic."]')) {
-      sel.addEventListener("change", (event) => {
+    // Named inputs/selects inside .tab-content sections — submitOnChange cannot
+    // register these at sheet-render time because all non-default tabs start as
+    // display:none. This affects every named field on the Magic, Skills, Combat,
+    // Matrix, Gear, Vehicles, Contacts, and Bio tabs.
+    // Wire them up explicitly here so any change saves immediately, bypassing
+    // the broken submitOnChange registration. Propagation is stopped to prevent
+    // a double-save in cases where submitOnChange also fires.
+    // Inputs inside [data-item-id] are excluded — those belong to embedded Items
+    // and are handled separately in the block below.
+    for (const input of this.element.querySelectorAll(
+      ".tab-content input[name], .tab-content select[name], .tab-content textarea[name]"
+    )) {
+      if (input.closest("[data-item-id]")) continue;
+      input.addEventListener("change", (event) => {
         event.stopPropagation();
-        this.document.update({ [sel.name]: sel.value });
+        let value = input.value;
+        if (input.type === "number")   value = parseFloat(value) || 0;
+        if (input.type === "checkbox") value = input.checked;
+        this.document.update({ [input.name]: value });
       });
     }
 
