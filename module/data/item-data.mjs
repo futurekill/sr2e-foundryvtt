@@ -159,7 +159,7 @@ export class SpellData extends SR2EDataModel {
         health: "SR2E.Spells.Health", illusion: "SR2E.Spells.Illusion",
         manipulation: "SR2E.Spells.Manipulation"
       }}),
-      subcategory: new fields.StringField({ initial: "", choices: {
+      subcategory: new fields.StringField({ initial: "", blank: true, choices: {
         "":               "SR2E.Spells.SubcatNone",
         control:          "SR2E.Spells.SubcatControl",
         telekinetic:      "SR2E.Spells.SubcatTelekinetic",
@@ -172,7 +172,8 @@ export class SpellData extends SR2EDataModel {
         touch:   "SR2E.Spells.Touch",
         los:     "SR2E.Spells.LOS",
         limited: "SR2E.Spells.Limited",
-        self:    "SR2E.Spells.Self"
+        self:    "SR2E.Spells.Self",
+        area:    "SR2E.Spells.Area"    // legacy — kept for backward compat with saved actors
       }}),
       duration: new fields.StringField({ required: true, initial: "instant", choices: {
         instant: "SR2E.Spells.Instant", sustained: "SR2E.Spells.Sustained",

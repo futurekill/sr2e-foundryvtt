@@ -161,6 +161,7 @@
   "SR2E.Spells.LOS": "Line of Sight",
   "SR2E.Spells.Limited": "Limited",
   "SR2E.Spells.Self": "Self",
+  "SR2E.Spells.Area": "Area (legacy)",
   "SR2E.Spells.Instant": "Instant",
   "SR2E.Spells.Sustained": "Sustained",
   "SR2E.Spells.Permanent": "Permanent",
