@@ -117,7 +117,7 @@
         {
           "name": "Magic",
           "sorting": "a",
-          "packs": ["spells", "foci", "adept-powers"]
+          "packs": ["traditions", "spells", "foci", "adept-powers"]
         },
         {
           "name": "Augmentations",
