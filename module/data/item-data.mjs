@@ -180,7 +180,7 @@ export class SpellData extends SR2EDataModel {
         permanent: "SR2E.Spells.Permanent"
       }}),
       force: new fields.NumberField({ required: true, integer: true, initial: 1, min: 1 }),
-      drainCode: new fields.StringField({ initial: "+1(M)" }),
+      drainCode: new fields.StringField({ initial: "(F / 2)M" }),
       target: new fields.StringField({ initial: "" }),
       damageCode: new fields.StringField({ initial: "" }),
       isAreaEffect: new fields.BooleanField({ initial: false }),
@@ -190,26 +190,47 @@ export class SpellData extends SR2EDataModel {
   }
 
   /**
-   * Parse the drain code into components.
-   * e.g., "+1(M)" -> { modifier: 1, level: "M" }
+   * Parse the drain code string into { modifier, level }.
+   *
+   * Supported formats (both legacy and canonical):
+   *   Canonical (stored as-is from rulebook):
+   *     "(F / 2)S"            → { modifier:  0, level: "S" }
+   *     "((F / 2) + 3)D"      → { modifier: +3, level: "D" }
+   *     "((F / 2) - 1)S"      → { modifier: -1, level: "S" }
+   *     "((F / 2) – 1)L"      → { modifier: -1, level: "L" }  (en-dash)
+   *   Legacy (old compact format, kept for backward compat):
+   *     "+3(D)"               → { modifier: +3, level: "D" }
+   *     "-1(S)"               → { modifier: -1, level: "S" }
    */
   get parsedDrainCode() {
-    const match = this.drainCode.match(/([+-]?\d+)\(([LMSD])\)/);
-    if (!match) return { modifier: 0, level: "M" };
-    return {
-      modifier: parseInt(match[1]),
-      level: match[2]
-    };
+    const s = this.drainCode ?? "";
+
+    // Canonical with modifier: ((F / 2) ± N)Level
+    const withMod = s.match(/\(\(F\s*\/\s*2\)\s*([+\-\u2013\u2014])\s*(\d+)\)\s*([LMSD])/);
+    if (withMod) {
+      const sign = withMod[1] === "+" ? 1 : -1;
+      return { modifier: sign * parseInt(withMod[2]), level: withMod[3] };
+    }
+
+    // Canonical without modifier: (F / 2)Level
+    const noMod = s.match(/\(F\s*\/\s*2\)\s*([LMSD])/);
+    if (noMod) return { modifier: 0, level: noMod[1] };
+
+    // Legacy compact: +3(D), -1(S), +0(M) etc.
+    const legacy = s.match(/([+-]?\d+)\(([LMSD])\)/);
+    if (legacy) return { modifier: parseInt(legacy[1]), level: legacy[2] };
+
+    return { modifier: 0, level: "M" };
   }
 
   /**
-   * Calculate the drain target number.
+   * Calculate the drain target number for a given force value.
    * Per SR2E p.140: TN = ⌊Force÷2⌋ + drain modifier.
-   * e.g. drain code "+1(M)" on Force 4 spell → TN = ⌊4÷2⌋+1 = 3, damage level M
+   * e.g. "((F / 2) + 3)D" on Force 4 → TN = ⌊4÷2⌋+3 = 5, damage level D
    */
   get drainTarget() {
     const drain = this.parsedDrainCode;
-    return Math.max(2, Math.floor(this.force / 2) + drain.modifier);
+    return Math.max(2, Math.floor(this.force / 2) + drain.modifier);  // ⌊F÷2⌋ + mod
   }
 }
 

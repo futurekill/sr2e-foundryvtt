@@ -270,9 +270,10 @@ async function promptSpellOptions(actor, spell) {
 
   // Parse drain code so we can display live drain TN in the dialog
   const drain        = spell?.system?.parsedDrainCode ?? { modifier: 0, level: "M" };
-  const drainMod     = drain.modifier;   // e.g. +1, -1, 0
+  const drainMod     = drain.modifier;   // numeric modifier used in live TN calc
   const drainLevel   = drain.level;      // L, M, S, D
-  const drainModStr  = drainMod >= 0 ? `+${drainMod}` : `${drainMod}`;
+  // Full formula string for display — matches the rulebook exactly
+  const drainFormula = spell?.system?.drainCode ?? `(F / 2)${drainLevel}`;
 
   // Initial values at Force 1
   const initDrainTN   = Math.max(2, Math.floor(1 / 2) + drainMod);
@@ -334,7 +335,7 @@ async function promptSpellOptions(actor, spell) {
         Drain: TN <span id="sr2e-cast-drain-tn">${initDrainTN}</span>
         · ${drainLevel}
         <span id="sr2e-cast-drain-type" style="color:${initTypeColor};">${initDrainType}</span>
-        <span style="color:#666;font-size:10px;">(drain code ${drainModStr})</span>
+        <span style="color:#666;font-size:10px;">${drainFormula}</span>
       </div>
       <div class="form-group">
         <label>Target Number:</label>

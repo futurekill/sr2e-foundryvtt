@@ -181,7 +181,9 @@ async function main() {
     const range       = mapRange(rangeRaw);
     const target      = buildTarget(tnRaw, resisted);
     const damageCode  = damageLevel === "N/A" ? "" : damageLevel;
-    const drainCode   = parseCsvDrain(drainRaw);
+    // Store the drain formula exactly as it appears in the rulebook / CSV.
+    // The parsedDrainCode getter in SpellData knows how to extract modifier + level.
+    const drainCode   = drainRaw;
     const isAreaEffect = detectAreaEffect(name, description);
     const isVoluntary  = detectVoluntary(description);
 
