@@ -541,6 +541,18 @@ export class TraditionData extends SR2EDataModel {
         shamanic: "SR2E.Magic.Shamanic"
       }}),
 
+      // Which magical skill(s) this tradition grants access to.
+      // "both"      = Full Magician or Shamanic Adept (Sorcery + Conjuring)
+      // "sorcery"   = Magical Adept (Sorcerer)
+      // "conjuring" = Magical Adept (Conjurer)
+      // "none"      = Physical Adept (no magical skills)
+      skill: new fields.StringField({ required: true, initial: "both", choices: {
+        none:      "SR2E.Magic.SkillNone",
+        sorcery:   "SR2E.Magic.SkillSorcery",
+        conjuring: "SR2E.Magic.SkillConjuring",
+        both:      "SR2E.Magic.SkillBoth"
+      }}),
+
       // Flavour / rulebook text
       description: new fields.HTMLField({ initial: "" })
     };

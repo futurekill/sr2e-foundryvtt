@@ -44,6 +44,12 @@ export class CharacterData extends SR2EDataModel {
           physical_adept: "SR2E.Magic.PhysicalAdept", shamanic_adept: "SR2E.Magic.ShamanicAdept",
           magical_adept: "SR2E.Magic.MagicalAdept"
         }}),
+        skill: new fields.StringField({ initial: "none", choices: {
+          none:      "SR2E.Magic.SkillNone",
+          sorcery:   "SR2E.Magic.SkillSorcery",
+          conjuring: "SR2E.Magic.SkillConjuring",
+          both:      "SR2E.Magic.SkillBoth"
+        }}),
         totem: new fields.StringField({ initial: "" }),
         initiateGrade: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),

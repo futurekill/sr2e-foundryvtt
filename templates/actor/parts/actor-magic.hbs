@@ -17,11 +17,13 @@
       {{#if isMagical}}
       <div class="tradition-display flexrow">
         <div class="tradition-info">
-          <span class="tradition-type">{{magicTypeLabel}}</span>
-          {{#if magicTraditionLabel}}
-          <span class="tradition-sep"> · </span>
-          <span class="tradition-name">{{magicTraditionLabel}}</span>
+          <span class="tradition-type">{{magicLabel}}</span>
+          {{#if magicSkillLabel}}
+          <span class="tradition-skill"> · {{magicSkillLabel}}</span>
           {{/if}}
+          <span class="tradition-astral {{#if hasAstral}}astral-yes{{else}}astral-no{{/if}}">
+            · {{#if hasAstral}}{{localize "SR2E.Magic.AstralAccess"}}{{else}}{{localize "SR2E.Magic.NoAstralAccess"}}{{/if}}
+          </span>
         </div>
         <button type="button" data-action="clearTradition" title="{{localize "SR2E.Magic.ClearTradition"}}" class="tradition-clear btn-small">
           <i class="fas fa-times"></i>
@@ -52,7 +54,7 @@
     </fieldset>
 
     {{!-- Spells --}}
-    {{#if isMagical}}
+    {{#if hasSorcery}}
     <div class="spells-category">
       <div class="category-header flexrow">
         <h3>Spells</h3>
@@ -112,8 +114,8 @@
       </div>
     </div>
 
-    {{!-- Physical Adept Powers --}}
-    {{#ifEquals system.magic.type "physical_adept"}}
+    {{!-- Adept Powers (Physical Adepts and Shamanic Adepts) --}}
+    {{#if hasAdeptPowers}}
     <div class="adept-powers-category">
       <div class="category-header flexrow">
         <h3>Adept Powers</h3>
@@ -136,7 +138,7 @@
         {{/each}}
       </div>
     </div>
-    {{/ifEquals}}
+    {{/if}}
     {{/if}}
 
   </div>

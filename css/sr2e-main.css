@@ -258,13 +258,22 @@
   color: var(--sr2e-text-primary);
 }
 
-.magic-config .tradition-display .tradition-sep {
-  color: var(--sr2e-text-muted);
+.magic-config .tradition-display .tradition-skill {
+  color: var(--sr2e-accent-gold);
   font-weight: 400;
 }
 
-.magic-config .tradition-display .tradition-name {
-  color: var(--sr2e-accent-gold);
+.magic-config .tradition-display .tradition-astral {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.magic-config .tradition-display .astral-yes {
+  color: #5b9bd5;
+}
+
+.magic-config .tradition-display .astral-no {
+  color: var(--sr2e-text-muted);
 }
 
 .magic-config .tradition-clear {

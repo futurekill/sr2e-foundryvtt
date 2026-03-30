@@ -591,6 +591,7 @@ const SHARED_ACTIONS = {
     return this.document.update({
       "system.magic.type":      "none",
       "system.magic.tradition": "none",
+      "system.magic.skill":     "none",
       "system.magic.totem":     ""
     });
   },
@@ -836,7 +837,8 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
     await actor.update({
       "system.magic.type":      itemData.system.magicType,
-      "system.magic.tradition": itemData.system.tradition
+      "system.magic.tradition": itemData.system.tradition,
+      "system.magic.skill":     itemData.system.skill ?? "both"
     });
     ui.notifications.info(`${itemData.name} applied to ${actor.name}.`);
     return true;
@@ -912,10 +914,43 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     // Localized labels for the magic tradition display (read-only when set via drag-drop)
     const magicType = system.magic?.type ?? "none";
     const magicTrad = system.magic?.tradition ?? "none";
-    context.magicTypeLabel      = magicType !== "none"
-      ? game.i18n.localize(CONFIG.SR2E.magicTypes[magicType] ?? magicType) : "";
-    context.magicTraditionLabel = magicTrad !== "none"
-      ? game.i18n.localize(CONFIG.SR2E.magicTraditions[magicTrad] ?? magicTrad) : "";
+    const magicSkill = system.magic?.skill ?? "none";
+
+    // Compute a human-readable label combining type + tradition + skill
+    const _ml = key => game.i18n.localize(key);
+    if (magicType === "full_magician") {
+      context.magicLabel = magicTrad === "shamanic" ? _ml("SR2E.Magic.Shaman") : _ml("SR2E.Magic.HermeticMagician");
+    } else if (magicType === "physical_adept") {
+      context.magicLabel = _ml("SR2E.Magic.PhysicalAdept");
+    } else if (magicType === "shamanic_adept") {
+      context.magicLabel = _ml("SR2E.Magic.ShamanicAdept");
+    } else if (magicType === "magical_adept") {
+      if (magicTrad === "shamanic") {
+        context.magicLabel = magicSkill === "conjuring" ? _ml("SR2E.Magic.ShamanicConjurer") : _ml("SR2E.Magic.ShamanicSorcerer");
+      } else {
+        context.magicLabel = magicSkill === "conjuring" ? _ml("SR2E.Magic.HermeticConjurer") : _ml("SR2E.Magic.HermeticSorcerer");
+      }
+    } else {
+      context.magicLabel = "";
+    }
+
+    // Skill access label (shown as a sub-line on the magic tab)
+    context.magicSkillLabel = magicSkill !== "none"
+      ? game.i18n.localize(`SR2E.Magic.Skill${magicSkill.charAt(0).toUpperCase() + magicSkill.slice(1)}`) : "";
+
+    // Astral access: full magicians and shamanic adepts only
+    context.hasAstral = magicType === "full_magician" || magicType === "shamanic_adept";
+
+    // Sorcery access: can cast spells
+    context.hasSorcery = magicType === "full_magician" || magicType === "shamanic_adept"
+      || (magicType === "magical_adept" && magicSkill === "sorcery");
+
+    // Adept powers: physical adepts and shamanic adepts
+    context.hasAdeptPowers = magicType === "physical_adept" || magicType === "shamanic_adept";
+
+    // Keep legacy labels for any other templates still using them
+    context.magicTypeLabel      = context.magicLabel;
+    context.magicTraditionLabel = "";
 
     // Attribute lists for template iteration
     context.physicalAttributes = ["body", "quickness", "strength"];
