@@ -254,15 +254,30 @@ async function onRollWeapon(event, target) {
  * The player pre-allocates Magic Pool dice between the Spell test and the
  *   Drain Resistance test (SR2E p.139 — allocation happens before rolling).
  *
+ * Force is chosen here (1 – Magic Rating). Drain TN = ⌊Force÷2⌋ + drain
+ * modifier (SR2E p.140). Drain is Physical if Force > Magic Rating; Stun
+ * otherwise.
+ *
  * @param {Actor} actor       - The casting actor
  * @param {Item}  spell       - The spell item being cast
- * @returns {Promise<{tn:number, poolDice:object, drainPoolDice:object}|null>}
+ * @returns {Promise<{force:number, tn:number, poolDice:object, drainPoolDice:object}|null>}
  */
 async function promptSpellOptions(actor, spell) {
   const available  = getPoolAvailable(actor, "magic");
   const magicAttr  = actor.system.magic?.value ?? 0;
   const spellCap   = Math.min(available, magicAttr);     // cap for spell test
   const drainCap   = available;                          // no cap for drain resist
+
+  // Parse drain code so we can display live drain TN in the dialog
+  const drain        = spell?.system?.parsedDrainCode ?? { modifier: 0, level: "M" };
+  const drainMod     = drain.modifier;   // e.g. +1, -1, 0
+  const drainLevel   = drain.level;      // L, M, S, D
+  const drainModStr  = drainMod >= 0 ? `+${drainMod}` : `${drainMod}`;
+
+  // Initial values at Force 1
+  const initDrainTN   = Math.max(2, Math.floor(1 / 2) + drainMod);
+  const initDrainType = 1 > magicAttr ? "Physical" : "Stun";
+  const initTypeColor = 1 > magicAttr ? "#c44" : "#888";
 
   // Totem note for shaman feedback
   let totemNote = "";
@@ -306,12 +321,24 @@ async function promptSpellOptions(actor, spell) {
 
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: "Cast Spell" },
+    window: { title: `Cast: ${spell.name}` },
     rejectClose: false,
     content: `<form>
       <div class="form-group">
+        <label>Force <span style="color:#888;font-size:10px;">(1–${magicAttr})</span>:</label>
+        <input type="number" name="force" id="sr2e-cast-force" value="1" min="1" max="${magicAttr}"
+               autofocus
+               oninput="var f=Math.max(1,Math.min(parseInt(this.value)||1,${magicAttr}));document.getElementById('sr2e-cast-drain-tn').textContent=Math.max(2,Math.floor(f/2)+(${drainMod}));var te=document.getElementById('sr2e-cast-drain-type');te.textContent=f>${magicAttr}?'Physical':'Stun';te.style.color=f>${magicAttr}?'#c44':'#888';">
+      </div>
+      <div style="margin:2px 0 6px;font-size:11px;color:#888;padding-left:4px;">
+        Drain: TN <span id="sr2e-cast-drain-tn">${initDrainTN}</span>
+        · ${drainLevel}
+        <span id="sr2e-cast-drain-type" style="color:${initTypeColor};">${initDrainType}</span>
+        <span style="color:#666;font-size:10px;">(drain code ${drainModStr})</span>
+      </div>
+      <div class="form-group">
         <label>Target Number:</label>
-        <input type="number" name="tn" value="4" min="2" max="30" autofocus>
+        <input type="number" name="tn" value="6" min="2" max="30">
       </div>
       ${poolSection}
     </form>`,
@@ -321,13 +348,15 @@ async function promptSpellOptions(actor, spell) {
         label: "Cast",
         default: true,
         callback: (event, button) => {
-          const tn = parseInt(button.form.elements.tn.value) || 4;
+          const force = Math.max(1, Math.min(parseInt(button.form.elements.force.value) || 1, magicAttr));
+          const tn = parseInt(button.form.elements.tn.value) || 6;
           const rawSpell = parseInt(button.form.elements.spell_pool?.value) || 0;
           const rawDrain = parseInt(button.form.elements.drain_pool?.value) || 0;
           // Clamp each allocation; drain is capped by whatever is left
           const spellAlloc = Math.max(0, Math.min(rawSpell, spellCap));
           const drainAlloc = Math.max(0, Math.min(rawDrain, Math.max(0, available - spellAlloc)));
           rollResult = {
+            force,
             tn,
             poolDice:      spellAlloc > 0 ? { magic: spellAlloc } : {},
             drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {}
@@ -353,7 +382,7 @@ async function onCastSpell(event, target) {
   // Spell-specific dialog: Magic Pool only, split between spell test & drain resist
   const opts = await promptSpellOptions(this.document, item);
   if (opts === null) return;
-  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice });
+  return item.roll({ force: opts.force, targetNumber: opts.tn, poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice });
 }
 
 /**

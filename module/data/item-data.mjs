@@ -159,12 +159,20 @@ export class SpellData extends SR2EDataModel {
         health: "SR2E.Spells.Health", illusion: "SR2E.Spells.Illusion",
         manipulation: "SR2E.Spells.Manipulation"
       }}),
+      subcategory: new fields.StringField({ initial: "", choices: {
+        "":               "SR2E.Spells.SubcatNone",
+        control:          "SR2E.Spells.SubcatControl",
+        telekinetic:      "SR2E.Spells.SubcatTelekinetic",
+        transformation:   "SR2E.Spells.SubcatTransformation"
+      }}),
       type: new fields.StringField({ required: true, initial: "physical", choices: {
         physical: "SR2E.Spells.Physical", mana: "SR2E.Spells.Mana"
       }}),
       range: new fields.StringField({ required: true, initial: "los", choices: {
-        touch: "SR2E.Spells.Touch", los: "SR2E.Spells.LOS",
-        self: "SR2E.Spells.Self", area: "SR2E.Spells.Area"
+        touch:   "SR2E.Spells.Touch",
+        los:     "SR2E.Spells.LOS",
+        limited: "SR2E.Spells.Limited",
+        self:    "SR2E.Spells.Self"
       }}),
       duration: new fields.StringField({ required: true, initial: "instant", choices: {
         instant: "SR2E.Spells.Instant", sustained: "SR2E.Spells.Sustained",
@@ -195,14 +203,12 @@ export class SpellData extends SR2EDataModel {
 
   /**
    * Calculate the drain target number.
-   * Per SR2E p.140: "roll the spellcaster's Willpower dice... against a target
-   * number equal to the modified Force of the spell."
-   * Drain TN = Force + drain modifier  (NOT Force/2)
-   * e.g. drain code "+1(M)" on Force 4 spell → TN 5, damage level M
+   * Per SR2E p.140: TN = ⌊Force÷2⌋ + drain modifier.
+   * e.g. drain code "+1(M)" on Force 4 spell → TN = ⌊4÷2⌋+1 = 3, damage level M
    */
   get drainTarget() {
     const drain = this.parsedDrainCode;
-    return Math.max(2, this.force + drain.modifier);
+    return Math.max(2, Math.floor(this.force / 2) + drain.modifier);
   }
 }
 

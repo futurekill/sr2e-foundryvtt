@@ -95,7 +95,7 @@ export class SR2EItem extends Item {
    *   Totem bonuses/penalties adjust the effective dice pool.
    *
    * Drain Resistance Test (SR2E p.140):
-   *   Roll Willpower dice + allocated Magic Pool dice vs. TN = Force + drain modifier.
+   *   Roll Willpower dice + allocated Magic Pool dice vs. TN = ⌊Force÷2⌋ + drain modifier.
    *   Every 2 successes reduces Drain Level by 1.
    *   Drain type = Physical if Force > Magic Rating; Stun otherwise.
    *
@@ -105,7 +105,8 @@ export class SR2EItem extends Item {
     const actor = this.parent;
     if (!actor) return;
 
-    const force = this.system.force;
+    // Force is provided by the cast dialog; fall back to the item's stored value
+    const force = options.force ?? this.system.force;
     const spellCategory = this.system.category; // combat, detection, health, illusion, manipulation
     const magicRating  = actor.system.magic?.value ?? 0;
     const targetNumber = options.targetNumber ?? 4;
@@ -141,8 +142,8 @@ export class SR2EItem extends Item {
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
     const drain = this.system.parsedDrainCode;
-    // TN = Force + drain modifier  (SR2E p.140 — NOT Force / 2)
-    const drainTN        = Math.max(2, force + drain.modifier);
+    // TN = ⌊Force÷2⌋ + drain modifier  (SR2E p.140)
+    const drainTN        = Math.max(2, Math.floor(force / 2) + drain.modifier);
     // Physical drain if Force > Magic Rating (SR2E p.138)
     const drainType      = force > magicRating ? "physical" : "stun";
     const startLevel     = drain.level;   // L, M, S, or D
