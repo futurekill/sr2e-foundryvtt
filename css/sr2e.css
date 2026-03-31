@@ -1799,8 +1799,8 @@
 /* ── No-active-scene background ─────────────────────────────────────────────
  * When no scene is active the system shows the Seattle city map.
  * The JS hook in sr2e.mjs toggles .sr2e-no-active-scene on <body>.
- * We target body (with and without the V12 "game" class for V13 compat),
- * #board (PIXI canvas), and #interface/#ui-left etc in case they cover body.
+ * We target body, then make known full-viewport wrapper elements transparent
+ * so the body background shows through.
  */
 body.sr2e-no-active-scene,
 body.game.sr2e-no-active-scene {
@@ -1819,8 +1819,14 @@ body.game.sr2e-no-active-scene #board {
   background-repeat: no-repeat !important;
 }
 
-/* In V13 the main content area is #interface; make it transparent so body shows through */
+/* Make full-viewport wrapper elements transparent so body background shows.
+ * #interface = V13 main wrapper; #main-ui / #ui / #app = other common names;
+ * #background = explicit bg div in some versions. */
 body.sr2e-no-active-scene #interface,
-body.game.sr2e-no-active-scene #interface {
+body.game.sr2e-no-active-scene #interface,
+body.sr2e-no-active-scene #main-ui,
+body.game.sr2e-no-active-scene #main-ui,
+body.sr2e-no-active-scene #background,
+body.game.sr2e-no-active-scene #background {
   background: transparent !important;
 }
