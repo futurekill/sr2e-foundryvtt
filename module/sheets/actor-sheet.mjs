@@ -1,3 +1,5 @@
+import { parseDrainCode } from "../data/item-data.mjs";
+
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -268,12 +270,14 @@ async function promptSpellOptions(actor, spell) {
   const spellCap   = Math.min(available, magicAttr);     // cap for spell test
   const drainCap   = available;                          // no cap for drain resist
 
-  // Parse drain code so we can display live drain TN in the dialog
-  const drain        = spell?.system?.parsedDrainCode ?? { modifier: 0, level: "M" };
+  // Parse drain code directly from the raw string — avoids DataModel prototype
+  // chain issues and works even with serialised/plain-object item data.
+  const drainCodeStr = spell?.system?.drainCode ?? "(F / 2)M";
+  const drain        = parseDrainCode(drainCodeStr);
   const drainMod     = drain.modifier;   // numeric modifier used in live TN calc
   const drainLevel   = drain.level;      // L, M, S, D
   // Full formula string for display — matches the rulebook exactly
-  const drainFormula = spell?.system?.drainCode ?? `(F / 2)${drainLevel}`;
+  const drainFormula = drainCodeStr;
 
   // Initial values at Force 1
   const initDrainTN   = Math.max(2, Math.floor(1 / 2) + drainMod);
@@ -320,6 +324,26 @@ async function promptSpellOptions(actor, spell) {
     </p>
   ` : totemNote;
 
+  // Wire up live drain TN update via a render hook (avoids CSP issues with
+  // inline event handlers in Foundry's ApplicationV2 rendering pipeline).
+  Hooks.once("renderDialogV2", (_app, html) => {
+    const forceInput = html.querySelector?.("#sr2e-cast-force")
+                    ?? html.getElementById?.("sr2e-cast-force");
+    if (!forceInput) return;
+    const tnSpan   = (html.querySelector ?? html.getElementById.bind(html))("#sr2e-cast-drain-tn");
+    const typeSpan = (html.querySelector ?? html.getElementById.bind(html))("#sr2e-cast-drain-type");
+    forceInput.addEventListener("input", () => {
+      const f = Math.max(1, Math.min(parseInt(forceInput.value) || 1, magicAttr));
+      const tn = Math.max(2, Math.floor(f / 2) + drainMod);
+      if (tnSpan)   tnSpan.textContent   = tn;
+      if (typeSpan) {
+        const isPhys = f > magicAttr;
+        typeSpan.textContent = isPhys ? "Physical" : "Stun";
+        typeSpan.style.color = isPhys ? "#c44" : "#888";
+      }
+    });
+  });
+
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Cast: ${spell.name}` },
@@ -328,8 +352,7 @@ async function promptSpellOptions(actor, spell) {
       <div class="form-group">
         <label>Force <span style="color:#888;font-size:10px;">(1–${magicAttr})</span>:</label>
         <input type="number" name="force" id="sr2e-cast-force" value="1" min="1" max="${magicAttr}"
-               autofocus
-               oninput="var f=Math.max(1,Math.min(parseInt(this.value)||1,${magicAttr}));document.getElementById('sr2e-cast-drain-tn').textContent=Math.max(2,Math.floor(f/2)+(${drainMod}));var te=document.getElementById('sr2e-cast-drain-type');te.textContent=f>${magicAttr}?'Physical':'Stun';te.style.color=f>${magicAttr}?'#c44':'#888';">
+               autofocus>
       </div>
       <div style="margin:2px 0 6px;font-size:11px;color:#888;padding-left:4px;">
         Drain: TN <span id="sr2e-cast-drain-tn">${initDrainTN}</span>

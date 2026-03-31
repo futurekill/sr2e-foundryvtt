@@ -1,6 +1,44 @@
 import { SR2EDataModel } from "./base-data.mjs";
 
 /**
+ * Parse a drain code string into { modifier, level }.
+ *
+ * Exported as a standalone function so it can be used anywhere without
+ * depending on the DataModel prototype chain (e.g. in actor-sheet.mjs
+ * or item.mjs where `item.system.parsedDrainCode` might not resolve if
+ * Foundry serialises the system data before the getter is called).
+ *
+ * Supported formats:
+ *   Canonical (stored as-is from rulebook):
+ *     "(F / 2)S"            → { modifier:  0, level: "S" }
+ *     "((F / 2) + 3)D"      → { modifier: +3, level: "D" }
+ *     "((F / 2) - 1)S"      → { modifier: -1, level: "S" }
+ *     "((F / 2) – 1)L"      → { modifier: -1, level: "L" }  (en-dash)
+ *   Legacy (old compact format, kept for backward compat):
+ *     "+3(D)"               → { modifier: +3, level: "D" }
+ *     "-1(S)"               → { modifier: -1, level: "S" }
+ *
+ * @param {string} s  The raw drain code string.
+ * @returns {{ modifier: number, level: string }}
+ */
+export function parseDrainCode(s) {
+  s = s ?? "";
+  // Canonical with modifier: ((F / 2) ± N)Level (handles en-dash / em-dash too)
+  const withMod = s.match(/\(\(F\s*\/\s*2\)\s*([+\-\u2013\u2014])\s*(\d+)\)\s*([LMSD])/);
+  if (withMod) {
+    const sign = withMod[1] === "+" ? 1 : -1;
+    return { modifier: sign * parseInt(withMod[2]), level: withMod[3] };
+  }
+  // Canonical without modifier: (F / 2)Level
+  const noMod = s.match(/\(F\s*\/\s*2\)\s*([LMSD])/);
+  if (noMod) return { modifier: 0, level: noMod[1] };
+  // Legacy compact: +3(D), -1(S), +0(M) etc.
+  const legacy = s.match(/([+-]?\d+)\(([LMSD])\)/);
+  if (legacy) return { modifier: parseInt(legacy[1]), level: legacy[2] };
+  return { modifier: 0, level: "M" };
+}
+
+/**
  * Data model for Skills.
  */
 export class SkillData extends SR2EDataModel {
@@ -191,36 +229,10 @@ export class SpellData extends SR2EDataModel {
 
   /**
    * Parse the drain code string into { modifier, level }.
-   *
-   * Supported formats (both legacy and canonical):
-   *   Canonical (stored as-is from rulebook):
-   *     "(F / 2)S"            → { modifier:  0, level: "S" }
-   *     "((F / 2) + 3)D"      → { modifier: +3, level: "D" }
-   *     "((F / 2) - 1)S"      → { modifier: -1, level: "S" }
-   *     "((F / 2) – 1)L"      → { modifier: -1, level: "L" }  (en-dash)
-   *   Legacy (old compact format, kept for backward compat):
-   *     "+3(D)"               → { modifier: +3, level: "D" }
-   *     "-1(S)"               → { modifier: -1, level: "S" }
+   * Delegates to the exported parseDrainCode() standalone function.
    */
   get parsedDrainCode() {
-    const s = this.drainCode ?? "";
-
-    // Canonical with modifier: ((F / 2) ± N)Level
-    const withMod = s.match(/\(\(F\s*\/\s*2\)\s*([+\-\u2013\u2014])\s*(\d+)\)\s*([LMSD])/);
-    if (withMod) {
-      const sign = withMod[1] === "+" ? 1 : -1;
-      return { modifier: sign * parseInt(withMod[2]), level: withMod[3] };
-    }
-
-    // Canonical without modifier: (F / 2)Level
-    const noMod = s.match(/\(F\s*\/\s*2\)\s*([LMSD])/);
-    if (noMod) return { modifier: 0, level: noMod[1] };
-
-    // Legacy compact: +3(D), -1(S), +0(M) etc.
-    const legacy = s.match(/([+-]?\d+)\(([LMSD])\)/);
-    if (legacy) return { modifier: parseInt(legacy[1]), level: legacy[2] };
-
-    return { modifier: 0, level: "M" };
+    return parseDrainCode(this.drainCode);
   }
 
   /**

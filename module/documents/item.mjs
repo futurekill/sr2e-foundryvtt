@@ -1,3 +1,5 @@
+import { parseDrainCode } from "../data/item-data.mjs";
+
 /**
  * Extended Item document for the Shadowrun 2E system.
  */
@@ -141,8 +143,11 @@ export class SR2EItem extends Item {
     });
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
-    const drain = this.system.parsedDrainCode;
+    // Parse directly from the raw string field — avoids any DataModel prototype
+    // chain issues that could silently return the fallback {modifier:0, level:"M"}.
+    const drain = parseDrainCode(this.system.drainCode);
     // TN = ⌊Force÷2⌋ + drain modifier  (SR2E p.140)
+    // e.g. Fireball "((F / 2) + 3)D" at Force 4 → TN = ⌊4÷2⌋+3 = 5, level D
     const drainTN        = Math.max(2, Math.floor(force / 2) + drain.modifier);
     // Physical drain if Force > Magic Rating (SR2E p.138)
     const drainType      = force > magicRating ? "physical" : "stun";
