@@ -327,3 +327,26 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     html.classList.add("sr2e-roll");
   }
 });
+
+/* -------------------------------------------- */
+/*  No-active-scene background                  */
+/* -------------------------------------------- */
+
+/**
+ * Toggle the CSS class that shows the Seattle map when no scene is active.
+ * Called on initial load and whenever a scene's active state changes.
+ */
+function _applyNoSceneBackground() {
+  document.body.classList.toggle("sr2e-no-active-scene", !game.scenes?.active);
+}
+
+// Apply on initial load
+Hooks.on("ready", _applyNoSceneBackground);
+
+// Re-apply whenever the canvas finishes drawing (scene activated or first load)
+Hooks.on("canvasReady", _applyNoSceneBackground);
+
+// Re-apply when a scene document is updated (active flag toggled on/off)
+Hooks.on("updateScene", (_scene, change) => {
+  if (Object.hasOwn(change, "active")) _applyNoSceneBackground();
+});

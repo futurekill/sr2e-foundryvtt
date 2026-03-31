@@ -1795,3 +1795,18 @@
   background: var(--sr2e-border-red);
   border-radius: 2px;
 }
+
+/* ── No-active-scene background ─────────────────────────────────────────────
+ * When no scene is active the system shows the Seattle city map.
+ * The JS hook in sr2e.mjs toggles .sr2e-no-active-scene on <body>.
+ * We target both body (shown by Foundry when canvas is off) and #board
+ * (the PIXI canvas element, used when canvas is initialised but blank).
+ * background-size: cover keeps the map filling the viewport at any ratio.
+ */
+body.game.sr2e-no-active-scene {
+  background: url('../assets/seattle_map.webp') center / cover no-repeat fixed;
+}
+
+body.game.sr2e-no-active-scene #board {
+  background: url('../assets/seattle_map.webp') center / cover no-repeat;
+}
