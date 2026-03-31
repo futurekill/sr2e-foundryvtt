@@ -2166,3 +2166,34 @@
   background: var(--sr2e-border-red);
   border-radius: 2px;
 }
+
+/* ── No-active-scene background ─────────────────────────────────────────────
+ * When no scene is active the system shows the Seattle city map.
+ * The JS hook in sr2e.mjs toggles .sr2e-no-active-scene on <body>.
+ */
+body.sr2e-no-active-scene,
+body.game.sr2e-no-active-scene {
+  background-image: url('../assets/seattle_map.webp') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+body.sr2e-no-active-scene #board,
+body.game.sr2e-no-active-scene #board {
+  background-image: url('../assets/seattle_map.webp') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Make full-viewport wrapper elements transparent so body background shows through */
+body.sr2e-no-active-scene #interface,
+body.game.sr2e-no-active-scene #interface,
+body.sr2e-no-active-scene #main-ui,
+body.game.sr2e-no-active-scene #main-ui,
+body.sr2e-no-active-scene #background,
+body.game.sr2e-no-active-scene #background {
+  background: transparent !important;
+}
