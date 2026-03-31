@@ -337,7 +337,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
  * Called on initial load and whenever a scene's active state changes.
  */
 function _applyNoSceneBackground() {
-  document.body.classList.toggle("sr2e-no-active-scene", !game.scenes?.active);
+  const hasActive = !!game.scenes?.active;
+  document.body.classList.toggle("sr2e-no-active-scene", !hasActive);
+  console.log(`SR2E | no-scene-bg: activeScene=${hasActive}, bodyHasClass=${document.body.classList.contains("sr2e-no-active-scene")}`);
 }
 
 // Apply on initial load
