@@ -136,12 +136,14 @@ function parseCSVLine(line) {
 
 // One folder per spell category. IDs are stable so re-running the script
 // always produces the same folder IDs (Foundry uses them as references).
+// IDs are stable 16-char hex strings — do not change them or existing
+// compendium references will break.
 const FOLDERS = {
-  combat:       { id: "folder-combat",       name: "Combat",       color: "#660044" },
-  detection:    { id: "folder-detection",    name: "Detection",    color: "#006688" },
-  health:       { id: "folder-health",       name: "Health",       color: "#1a7a4a" },
-  illusion:     { id: "folder-illusion",     name: "Illusion",     color: "#5522aa" },
-  manipulation: { id: "folder-manipulation", name: "Manipulation", color: "#aa6600" },
+  combat:       { id: "19d91418e8a36713", name: "Combat",       color: "#660044" },
+  detection:    { id: "f998bf7f58ce1843", name: "Detection",    color: "#006688" },
+  health:       { id: "351afa1b9f352545", name: "Health",       color: "#1a7a4a" },
+  illusion:     { id: "f8017241a9f6dd76", name: "Illusion",     color: "#5522aa" },
+  manipulation: { id: "26eccbc4cdef1e32", name: "Manipulation", color: "#aa6600" },
 };
 
 function makeFolderEntry(f) {
