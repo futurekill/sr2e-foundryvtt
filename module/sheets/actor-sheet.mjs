@@ -501,6 +501,19 @@ async function onResetPools(event, target) {
 }
 
 /**
+ * Reset a single dice pool back to its maximum value.
+ * The pool name is read from data-pool on the button.
+ * @this {ApplicationV2}
+ */
+async function onResetPool(event, target) {
+  event.preventDefault();
+  const pool = target.dataset.pool;
+  const poolData = this.document.system.dicePools[pool];
+  if (!poolData) return;
+  return this.document.update({ [`system.dicePools.${pool}.value`]: poolData.max });
+}
+
+/**
  * Increment a condition monitor by 1 (up to max).
  * @this {ApplicationV2}
  */
@@ -571,6 +584,7 @@ const SHARED_ACTIONS = {
   deleteItem: onDeleteItem,
   addItem: onAddItem,
   resetPools: onResetPools,
+  resetPool:  onResetPool,
   incrementMonitor: onIncrementMonitor,
   decrementMonitor: onDecrementMonitor,
 

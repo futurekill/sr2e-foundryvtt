@@ -46,12 +46,14 @@
         <label>{{localize "SR2E.DicePools.Combat"}}</label>
         <input type="number" name="system.dicePools.combat.value" value="{{system.dicePools.combat.value}}" min="0" max="{{system.dicePools.combat.max}}" class="pool-input" />
         <span>/ {{system.dicePools.combat.max}}</span>
+        <button type="button" data-action="resetPool" data-pool="combat" class="btn-reset-pool" title="Reset Combat Pool"><i class="fas fa-sync"></i></button>
       </div>
       {{#if isMagical}}
       <div class="pool-row flexrow">
         <label>{{localize "SR2E.DicePools.Magic"}}</label>
         <input type="number" name="system.dicePools.magic.value" value="{{system.dicePools.magic.value}}" min="0" max="{{system.dicePools.magic.max}}" class="pool-input" />
         <span>/ {{system.dicePools.magic.max}}</span>
+        <button type="button" data-action="resetPool" data-pool="magic" class="btn-reset-pool" title="Reset Magic Pool"><i class="fas fa-sync"></i></button>
       </div>
       {{/if}}
       {{#if isDecker}}
@@ -59,6 +61,7 @@
         <label>{{localize "SR2E.DicePools.Hacking"}}</label>
         <input type="number" name="system.dicePools.hacking.value" value="{{system.dicePools.hacking.value}}" min="0" max="{{system.dicePools.hacking.max}}" class="pool-input" />
         <span>/ {{system.dicePools.hacking.max}}</span>
+        <button type="button" data-action="resetPool" data-pool="hacking" class="btn-reset-pool" title="Reset Hacking Pool"><i class="fas fa-sync"></i></button>
       </div>
       {{/if}}
       {{#if isRigger}}
@@ -66,6 +69,7 @@
         <label>{{localize "SR2E.DicePools.Control"}}</label>
         <input type="number" name="system.dicePools.control.value" value="{{system.dicePools.control.value}}" min="0" max="{{system.dicePools.control.max}}" class="pool-input" />
         <span>/ {{system.dicePools.control.max}}</span>
+        <button type="button" data-action="resetPool" data-pool="control" class="btn-reset-pool" title="Reset Control Pool"><i class="fas fa-sync"></i></button>
       </div>
       {{/if}}
       <button type="button" data-action="resetPools" class="btn-reset-pools">
