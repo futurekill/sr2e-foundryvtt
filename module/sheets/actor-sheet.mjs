@@ -464,12 +464,16 @@ async function onDeleteItem(event, target) {
   const item = this.document.items.get(itemId);
   if (!item) return;
 
-  const confirmed = await foundry.applications.api.DialogV2.confirm({
-    window: { title: `Delete ${item.name}?` },
-    content: `<p>Are you sure you want to delete <strong>${item.name}</strong>?</p>`
-  });
+  const needsConfirm = game.settings.get("sr2e", "confirmDelete");
+  if (needsConfirm) {
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: `Delete ${item.name}?` },
+      content: `<p>Are you sure you want to delete <strong>${item.name}</strong>?</p>`
+    });
+    if (!confirmed) return;
+  }
 
-  if (confirmed) return item.delete();
+  return item.delete();
 }
 
 /**

@@ -316,6 +316,15 @@ function _registerSystemSettings() {
     }
   });
 
+  game.settings.register("sr2e", "confirmDelete", {
+    name: "Confirm Item Deletion",
+    hint: "Show a confirmation dialog before deleting items from character sheets. Disable to delete instantly.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register("sr2e", "terminalTheme", {
     name: "Shadownet Terminal Theme",
     hint: "Apply a retro green-phosphor terminal skin to the sidebar and chat. Each player can set this independently.",
