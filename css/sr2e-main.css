@@ -1133,7 +1133,6 @@
 .spell-col.name     { flex: 2; }
 .spell-col.category { width: 80px; }
 .spell-col.type     { width: 60px; }
-.spell-col.force    { width: 40px; text-align: center; }
 .spell-col.drain    { width: 60px; }
 .spell-col.controls { width: 50px; }
 
