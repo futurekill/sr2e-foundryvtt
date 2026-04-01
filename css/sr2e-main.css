@@ -2199,265 +2199,332 @@ body.game.sr2e-no-active-scene #background {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   SHADOWNET TERMINAL — Sidebar / Chat cyberpunk skin  (v2)
-   Avoids touching #sidebar container directly to preserve V13 flex layout.
-   Colours use the existing SR2E palette, pulled back for readability.
+   SHADOWNET TERMINAL THEME  (toggled via Settings → Shadownet Terminal Theme)
+   All rules scoped under body.sr2e-terminal-theme so they only apply when
+   the setting is ON. OFF = full default Foundry appearance.
+
+   Palette: dumb-terminal green phosphor on near-black.
+   Foundry's own CSS variables are overridden at the body level so that
+   Foundry's own rules draw in our colours — avoiding specificity wars.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Sidebar tab strip ────────────────────────────────────────────────────── */
-#sidebar nav.tabs,
-#sidebar-tabs {
-  background: var(--sr2e-bg) !important;
-  border-bottom: 1px solid var(--sr2e-border) !important;
+/* ── CSS variable overrides: replace Foundry's parchment/cream palette ───── */
+body.sr2e-terminal-theme {
+  /* Foundry V13 design-system variables (override at source) */
+  --color-bg:                   #000d00;
+  --color-bg-btn:               #001800;
+  --color-bg-option:            #000d00;
+  --sidebar-background:         #000d00;
+  --sidebar-item-background:    #000d00;
+  --color-chat-bg:              #000d00;
+  --color-paper:                #000d00;
+  --color-warm-1:               #000d00;
+  --color-warm-2:               #001000;
+  --color-warm-3:               #001400;
+  --color-cool-1:               #000d00;
+  --color-cool-2:               #001000;
+  --color-cool-3:               #001400;
+  --color-cool-4:               #001a00;
+  --color-cool-5:               #002000;
+  --color-border-dark:          #003a00;
+  --color-border-light:         #005500;
+  --color-shadow-dark:          rgba(0,0,0,0.8);
+  --color-shadow-primary:       rgba(0,180,0,0.15);
+  --color-text-dark-primary:    #33cc33;
+  --color-text-dark-secondary:  #1a7a1a;
+  --color-text-dark-inactive:   #0d4a0d;
+  --color-text-light-primary:   #33cc33;
+  --color-text-light-secondary: #1a7a1a;
+  --color-text-light-inactive:  #0d4a0d;
+  --color-text-hyperlink:       #55ff55;
+  /* SR2E variables: remap to terminal green for anything that leaks through */
+  --sr2e-bg:          #000d00;
+  --sr2e-bg-light:    #001400;
+  --sr2e-bg-input:    #000a00;
+  --sr2e-text:        #33cc33;
+  --sr2e-text-muted:  #1a661a;
+  --sr2e-border:      #003a00;
+  --sr2e-highlight:   #55ff55;
+  --sr2e-gold:        #55ff55;
+  --sr2e-gold-dim:    #1a6e1a;
+}
+
+/* ── Sidebar shell ────────────────────────────────────────────────────────── */
+body.sr2e-terminal-theme #sidebar {
+  background: #000d00 !important;
+  border-color: #003a00 !important;
+  font-family: "Courier New", "Consolas", monospace !important;
+}
+
+/* ── Tab strip ────────────────────────────────────────────────────────────── */
+body.sr2e-terminal-theme #sidebar nav.tabs,
+body.sr2e-terminal-theme #sidebar-tabs {
+  background: #000a00 !important;
+  border-bottom: 1px solid #003a00 !important;
   border-radius: 0 !important;
 }
 
-#sidebar nav.tabs .item,
-#sidebar-tabs .item {
+body.sr2e-terminal-theme #sidebar nav.tabs .item,
+body.sr2e-terminal-theme #sidebar-tabs .item {
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
-  color: var(--sr2e-text-muted) !important;
-  font-family: var(--sr2e-font) !important;
-  font-size: 10px !important;
-  transition: color 0.15s, background 0.15s !important;
+  color: #1a661a !important;
+  transition: color 0.1s, background 0.1s !important;
 }
 
-#sidebar nav.tabs .item:hover,
-#sidebar-tabs .item:hover {
-  background: var(--sr2e-accent) !important;
-  color: var(--sr2e-text) !important;
+body.sr2e-terminal-theme #sidebar nav.tabs .item:hover,
+body.sr2e-terminal-theme #sidebar-tabs .item:hover {
+  background: #001800 !important;
+  color: #33cc33 !important;
 }
 
-#sidebar nav.tabs .item.active,
-#sidebar-tabs .item.active {
-  background: var(--sr2e-bg-light) !important;
-  color: var(--sr2e-gold) !important;
-  border-bottom: 2px solid var(--sr2e-highlight) !important;
+body.sr2e-terminal-theme #sidebar nav.tabs .item.active,
+body.sr2e-terminal-theme #sidebar-tabs .item.active {
+  background: #001400 !important;
+  color: #55ff55 !important;
+  border-bottom: 2px solid #55ff55 !important;
+  text-shadow: 0 0 6px rgba(85, 255, 85, 0.5) !important;
+}
+
+/* ── Sidebar panels (all tabs, not just chat) ─────────────────────────────── */
+body.sr2e-terminal-theme #sidebar .tab,
+body.sr2e-terminal-theme #sidebar .sidebar-tab {
+  background: #000d00 !important;
 }
 
 /* ── Chat log ─────────────────────────────────────────────────────────────── */
-#chat-log,
-ol#chat-log {
-  background: var(--sr2e-bg) !important;
+body.sr2e-terminal-theme #chat-log,
+body.sr2e-terminal-theme ol#chat-log {
+  background: #000d00 !important;
   border: none !important;
-  padding: 4px 0 !important;
+  padding: 2px 0 !important;
 }
 
 /* ── Individual chat messages ─────────────────────────────────────────────── */
-#chat-log .chat-message,
-ol#chat-log li.chat-message {
-  background: rgba(16, 8, 32, 0.85) !important;
+body.sr2e-terminal-theme #chat-log .chat-message,
+body.sr2e-terminal-theme ol#chat-log li.chat-message,
+body.sr2e-terminal-theme .chat-message {
+  background: #000d00 !important;
   border: none !important;
-  border-top: 1px solid var(--sr2e-border) !important;
+  border-top: 1px solid #002800 !important;
   border-radius: 0 !important;
   padding: 5px 8px !important;
   margin: 0 !important;
-  transition: background 0.1s !important;
+  box-shadow: none !important;
 }
 
-#chat-log .chat-message:hover,
-ol#chat-log li.chat-message:hover {
-  background: rgba(26, 8, 48, 0.95) !important;
+body.sr2e-terminal-theme #chat-log .chat-message:hover,
+body.sr2e-terminal-theme ol#chat-log li.chat-message:hover {
+  background: #001400 !important;
 }
 
-/* Message header: sender + timestamp */
-.chat-message .message-header,
-.chat-message header {
+/* Message header */
+body.sr2e-terminal-theme .chat-message .message-header,
+body.sr2e-terminal-theme .chat-message header {
   background: transparent !important;
   border: none !important;
-  border-bottom: 1px solid var(--sr2e-border) !important;
+  border-bottom: 1px solid #002800 !important;
   padding: 2px 0 3px !important;
   margin-bottom: 4px !important;
   display: flex !important;
   align-items: baseline !important;
   gap: 6px !important;
+  box-shadow: none !important;
 }
 
-/* Sender name — electric cyan, uppercase mono */
-.chat-message .message-sender,
-.chat-message .author {
-  color: var(--sr2e-gold) !important;
-  font-family: var(--sr2e-font) !important;
+/* Sender name */
+body.sr2e-terminal-theme .chat-message .message-sender,
+body.sr2e-terminal-theme .chat-message .author {
+  color: #55ff55 !important;
+  font-family: "Courier New", "Consolas", monospace !important;
   font-size: 10px !important;
   font-weight: bold !important;
   letter-spacing: 1px !important;
   text-transform: uppercase !important;
+  text-shadow: 0 0 4px rgba(85, 255, 85, 0.4) !important;
 }
 
-/* Terminal prompt prefix on sender */
-.chat-message .message-sender::before,
-.chat-message .author::before {
+body.sr2e-terminal-theme .chat-message .message-sender::before,
+body.sr2e-terminal-theme .chat-message .author::before {
   content: "> ";
-  color: var(--sr2e-highlight);
+  color: #1a7a1a;
   font-weight: normal;
+  text-shadow: none !important;
 }
 
-/* Timestamp — very dim, pushed right */
-.chat-message .message-timestamp,
-.chat-message time {
-  color: var(--sr2e-text-muted) !important;
-  font-family: var(--sr2e-font) !important;
+/* Timestamp */
+body.sr2e-terminal-theme .chat-message .message-timestamp,
+body.sr2e-terminal-theme .chat-message time {
+  color: #0d4a0d !important;
+  font-family: "Courier New", "Consolas", monospace !important;
   font-size: 9px !important;
   margin-left: auto !important;
-  opacity: 0.5 !important;
 }
 
-/* Message body — pale lavender (matches sheet text, easier than green) */
-.chat-message .message-content,
-.chat-message .content {
+/* Message body */
+body.sr2e-terminal-theme .chat-message .message-content,
+body.sr2e-terminal-theme .chat-message .content {
   background: transparent !important;
-  color: var(--sr2e-text) !important;
-  font-family: var(--sr2e-font) !important;
+  color: #33cc33 !important;
+  font-family: "Courier New", "Consolas", monospace !important;
   font-size: 11px !important;
   line-height: 1.6 !important;
   padding: 2px 0 !important;
 }
 
-/* ── SR2E roll cards in chat ──────────────────────────────────────────────── */
-.sr2e-roll-message {
-  background: var(--sr2e-bg-light) !important;
-  border: 1px solid var(--sr2e-border) !important;
-  border-left: 3px solid var(--sr2e-border-red) !important;
-  border-radius: 0 !important;
-  padding: 6px 8px !important;
-  font-family: var(--sr2e-font) !important;
+/* Any stray <p> or <span> inside message content */
+body.sr2e-terminal-theme .chat-message .message-content *,
+body.sr2e-terminal-theme .chat-message .content * {
+  color: inherit !important;
+  font-family: inherit !important;
+  background: transparent !important;
 }
 
-/* Roll title — softer than full magenta; still stands out */
-.sr2e-roll-header {
-  color: #cc88cc !important;
-  font-family: var(--sr2e-font) !important;
+/* ── SR2E roll cards ──────────────────────────────────────────────────────── */
+body.sr2e-terminal-theme .sr2e-roll-message {
+  background: #000a00 !important;
+  border: 1px solid #003a00 !important;
+  border-left: 2px solid #55ff55 !important;
+  border-radius: 0 !important;
+  padding: 6px 8px !important;
+  font-family: "Courier New", "Consolas", monospace !important;
+}
+
+body.sr2e-terminal-theme .sr2e-roll-header {
+  color: #55ff55 !important;
+  font-family: "Courier New", "Consolas", monospace !important;
   font-size: 11px !important;
   font-weight: bold !important;
   letter-spacing: 1px !important;
   text-transform: uppercase !important;
-  border-bottom: 1px solid var(--sr2e-border) !important;
+  text-shadow: 0 0 5px rgba(85, 255, 85, 0.4) !important;
+  border-bottom: 1px solid #003a00 !important;
   margin: 0 0 5px !important;
   padding-bottom: 4px !important;
 }
 
-.sr2e-roll-header::before {
+body.sr2e-terminal-theme .sr2e-roll-header::before {
   content: "// ";
-  color: var(--sr2e-text-muted);
+  color: #1a661a;
   font-weight: normal;
 }
 
-.sr2e-roll-info {
+body.sr2e-terminal-theme .sr2e-roll-info {
   display: flex !important;
   gap: 12px !important;
   font-size: 10px !important;
-  color: var(--sr2e-text-muted) !important;
+  color: #1a7a1a !important;
   margin-bottom: 6px !important;
 }
 
-.sr2e-roll-info span::before {
+body.sr2e-terminal-theme .sr2e-roll-info span::before {
   content: "# ";
-  color: var(--sr2e-border);
+  color: #0d4a0d;
 }
 
 /* Dice pips */
-.sr2e-die {
+body.sr2e-terminal-theme .sr2e-die {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   width: 22px !important;
   height: 22px !important;
-  border: 1px solid var(--sr2e-border) !important;
-  border-radius: 2px !important;
-  font-family: var(--sr2e-font) !important;
+  border: 1px solid #003a00 !important;
+  border-radius: 0 !important;
+  font-family: "Courier New", "Consolas", monospace !important;
   font-size: 11px !important;
   font-weight: bold !important;
   margin: 1px !important;
-  background: var(--sr2e-bg) !important;
-  color: var(--sr2e-text-muted) !important;
+  background: #000a00 !important;
+  color: #1a661a !important;
 }
 
-.sr2e-die.success {
-  border-color: var(--sr2e-gold) !important;
-  color: var(--sr2e-gold) !important;
-  text-shadow: 0 0 5px rgba(0, 229, 255, 0.5) !important;
-  background: rgba(0, 229, 255, 0.05) !important;
+body.sr2e-terminal-theme .sr2e-die.success {
+  border-color: #55ff55 !important;
+  color: #55ff55 !important;
+  text-shadow: 0 0 5px rgba(85, 255, 85, 0.6) !important;
+  background: #001a00 !important;
 }
 
-.sr2e-die.exploded {
-  border-color: var(--sr2e-highlight) !important;
-  color: var(--sr2e-highlight) !important;
-  text-shadow: 0 0 6px rgba(233, 30, 140, 0.6) !important;
-  background: rgba(233, 30, 140, 0.07) !important;
+body.sr2e-terminal-theme .sr2e-die.exploded {
+  border-color: #ffcc00 !important;
+  color: #ffcc00 !important;
+  text-shadow: 0 0 5px rgba(255, 204, 0, 0.5) !important;
+  background: #0d0a00 !important;
 }
 
-.sr2e-roll-result {
+body.sr2e-terminal-theme .sr2e-roll-result {
   margin-top: 5px !important;
-  border-top: 1px solid var(--sr2e-border) !important;
+  border-top: 1px solid #003a00 !important;
   padding-top: 4px !important;
   font-size: 11px !important;
-  color: var(--sr2e-text) !important;
+  color: #33cc33 !important;
 }
 
-.sr2e-roll-result strong {
-  color: var(--sr2e-gold) !important;
+body.sr2e-terminal-theme .sr2e-roll-result strong {
+  color: #55ff55 !important;
 }
 
-.sr2e-critical-glitch {
-  color: var(--sr2e-failure) !important;
+body.sr2e-terminal-theme .sr2e-critical-glitch {
+  color: #ff3333 !important;
   font-weight: bold !important;
   letter-spacing: 2px !important;
+  text-shadow: 0 0 6px rgba(255, 51, 51, 0.5) !important;
 }
 
-.sr2e-failure {
-  color: #aa4422 !important;
+body.sr2e-terminal-theme .sr2e-failure {
+  color: #884400 !important;
 }
 
 /* ── Chat input area ─────────────────────────────────────────────────────── */
-#chat-form,
-#chat .chat-form {
-  background: var(--sr2e-bg) !important;
-  border-top: 1px solid var(--sr2e-border) !important;
-  padding: 6px 8px !important;
+body.sr2e-terminal-theme #chat-form,
+body.sr2e-terminal-theme #chat .chat-form {
+  background: #000a00 !important;
+  border-top: 1px solid #003a00 !important;
   border-radius: 0 !important;
+  padding: 6px 8px !important;
 }
 
-#chat-message,
-#chat-form textarea,
-#chat .chat-form textarea {
-  background: var(--sr2e-bg-input) !important;
-  border: 1px solid var(--sr2e-border) !important;
-  border-left: 2px solid var(--sr2e-border-red) !important;
+body.sr2e-terminal-theme #chat-message,
+body.sr2e-terminal-theme #chat-form textarea,
+body.sr2e-terminal-theme #chat .chat-form textarea {
+  background: #000a00 !important;
+  border: 1px solid #003a00 !important;
+  border-left: 2px solid #1a7a1a !important;
   border-radius: 0 !important;
-  color: var(--sr2e-text) !important;
-  font-family: var(--sr2e-font) !important;
+  color: #33cc33 !important;
+  font-family: "Courier New", "Consolas", monospace !important;
   font-size: 11px !important;
   padding: 4px 6px !important;
   resize: none !important;
-  caret-color: var(--sr2e-highlight) !important;
+  caret-color: #55ff55 !important;
 }
 
-#chat-message:focus,
-#chat-form textarea:focus {
-  border-color: var(--sr2e-highlight) !important;
-  box-shadow: 0 0 4px rgba(233, 30, 140, 0.15) !important;
+body.sr2e-terminal-theme #chat-message:focus,
+body.sr2e-terminal-theme #chat-form textarea:focus {
+  border-color: #55ff55 !important;
+  box-shadow: 0 0 4px rgba(85, 255, 85, 0.2) !important;
   outline: none !important;
 }
 
-/* Send/roll-type buttons in chat */
-#chat-form button[type="submit"],
-#chat-form .chat-control-icon {
+body.sr2e-terminal-theme #chat-form button,
+body.sr2e-terminal-theme #chat-form .chat-control-icon {
   background: transparent !important;
-  border: 1px solid var(--sr2e-border) !important;
-  border-radius: 2px !important;
-  color: var(--sr2e-text-muted) !important;
-  transition: color 0.15s, border-color 0.15s !important;
+  border: 1px solid #003a00 !important;
+  border-radius: 0 !important;
+  color: #1a661a !important;
+  transition: color 0.1s, border-color 0.1s !important;
 }
 
-#chat-form button[type="submit"]:hover,
-#chat-form .chat-control-icon:hover {
-  border-color: var(--sr2e-highlight) !important;
-  color: var(--sr2e-highlight) !important;
+body.sr2e-terminal-theme #chat-form button:hover,
+body.sr2e-terminal-theme #chat-form .chat-control-icon:hover {
+  border-color: #55ff55 !important;
+  color: #55ff55 !important;
 }
 
-/* ── Scrollbar in chat log ────────────────────────────────────────────────── */
-#chat-log::-webkit-scrollbar        { width: 4px; }
-#chat-log::-webkit-scrollbar-track  { background: var(--sr2e-bg); }
-#chat-log::-webkit-scrollbar-thumb  { background: var(--sr2e-border); border-radius: 0; }
-#chat-log::-webkit-scrollbar-thumb:hover { background: var(--sr2e-gold-dim); }
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+body.sr2e-terminal-theme #chat-log::-webkit-scrollbar        { width: 4px; }
+body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-track  { background: #000a00; }
+body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb  { background: #003a00; border-radius: 0; }
+body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: #1a7a1a; }

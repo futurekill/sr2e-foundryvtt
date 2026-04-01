@@ -315,6 +315,18 @@ function _registerSystemSettings() {
       step: 1
     }
   });
+
+  game.settings.register("sr2e", "terminalTheme", {
+    name: "Shadownet Terminal Theme",
+    hint: "Apply a retro green-phosphor terminal skin to the sidebar and chat. Each player can set this independently.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: value => {
+      document.body.classList.toggle("sr2e-terminal-theme", value);
+    }
+  });
 }
 
 /* -------------------------------------------- */
@@ -341,6 +353,12 @@ function _applyNoSceneBackground() {
   document.body.classList.toggle("sr2e-no-active-scene", !hasActive);
   console.log(`SR2E | no-scene-bg: activeScene=${hasActive}, bodyHasClass=${document.body.classList.contains("sr2e-no-active-scene")}`);
 }
+
+// Apply terminal theme class on initial load
+Hooks.on("ready", () => {
+  const enabled = game.settings.get("sr2e", "terminalTheme");
+  document.body.classList.toggle("sr2e-terminal-theme", enabled);
+});
 
 // Apply on initial load
 Hooks.on("ready", _applyNoSceneBackground);
