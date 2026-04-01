@@ -90,18 +90,19 @@ async function promptRollOptions(actor, skillCap = Infinity) {
   let validationHookId = null;
   if (availablePools.length > 0) {
     validationHookId = Hooks.on("renderDialogV2", (app, html) => {
-      const inputs = html.querySelectorAll("input[data-pool-cap]");
+      const root = (html instanceof Element) ? html : document;
+      const inputs = root.querySelectorAll("input[data-pool-cap]");
       if (!inputs.length) return;                    // not our dialog — stay registered
       Hooks.off("renderDialogV2", validationHookId); // found it — deregister
 
-      const rollBtn = html.querySelector('[data-action="roll"]');
+      const rollBtn = root.querySelector('[data-action="roll"]');
 
       function validate() {
         let allValid = true;
         for (const input of inputs) {
           const cap = parseInt(input.dataset.poolCap);
           const val = parseInt(input.value) || 0;
-          const err = html.querySelector(`.sr2e-pool-error[data-for="${input.dataset.poolKey}"]`);
+          const err = root.querySelector(`.sr2e-pool-error[data-for="${input.dataset.poolKey}"]`);
           const over = val > cap;
           const under = val < 0;
           if (over || under) {
@@ -327,11 +328,14 @@ async function promptSpellOptions(actor, spell) {
   // Wire up live drain TN update via a render hook (avoids CSP issues with
   // inline event handlers in Foundry's ApplicationV2 rendering pipeline).
   Hooks.once("renderDialogV2", (_app, html) => {
-    const forceInput = html.querySelector?.("#sr2e-cast-force")
-                    ?? html.getElementById?.("sr2e-cast-force");
+    // In some V13 builds the hook passes the ApplicationV2 instance or a
+    // non-Element object as `html`. Fall back to document so querySelector
+    // always has a valid receiver.
+    const root = (html instanceof Element) ? html : document;
+    const forceInput = root.querySelector("#sr2e-cast-force");
     if (!forceInput) return;
-    const tnSpan   = (html.querySelector ?? html.getElementById.bind(html))("#sr2e-cast-drain-tn");
-    const typeSpan = (html.querySelector ?? html.getElementById.bind(html))("#sr2e-cast-drain-type");
+    const tnSpan   = root.querySelector("#sr2e-cast-drain-tn");
+    const typeSpan = root.querySelector("#sr2e-cast-drain-type");
     forceInput.addEventListener("input", () => {
       const f = Math.max(1, Math.min(parseInt(forceInput.value) || 1, magicAttr));
       const tn = Math.max(2, Math.floor(f / 2) + drainMod);
