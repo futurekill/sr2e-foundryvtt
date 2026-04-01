@@ -132,6 +132,32 @@ function parseCSVLine(line) {
   return cols;
 }
 
+// ── Category folders ───────────────────────────────────────────────────────
+
+// One folder per spell category. IDs are stable so re-running the script
+// always produces the same folder IDs (Foundry uses them as references).
+const FOLDERS = {
+  combat:       { id: "folder-combat",       name: "Combat",       color: "#660044" },
+  detection:    { id: "folder-detection",    name: "Detection",    color: "#006688" },
+  health:       { id: "folder-health",       name: "Health",       color: "#1a7a4a" },
+  illusion:     { id: "folder-illusion",     name: "Illusion",     color: "#5522aa" },
+  manipulation: { id: "folder-manipulation", name: "Manipulation", color: "#aa6600" },
+};
+
+function makeFolderEntry(f) {
+  return {
+    _id:         f.id,
+    name:        f.name,
+    type:        "Item",
+    description: "",
+    folder:      null,
+    sorting:     "a",
+    sort:        0,
+    color:       f.color,
+    flags:       {}
+  };
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -144,7 +170,7 @@ async function main() {
   // ── 1. Snapshot existing health spells ──────────────────────────────────
   const keepEntries = {};
   for await (const [key, val] of db.iterator()) {
-    if (val.system?.category === "health") {
+    if (val.system?.category === "health" && key.startsWith("!items!")) {
       keepEntries[key] = val;
     }
   }
@@ -156,12 +182,21 @@ async function main() {
   if (allKeys.length) await db.batch(allKeys.map(k => ({ type: "del", key: k })));
   console.log(`  Wiped ${allKeys.length} existing entries`);
 
-  // ── 3. Restore health spells ────────────────────────────────────────────
+  // ── 3. Write category folders ────────────────────────────────────────────
+  for (const f of Object.values(FOLDERS)) {
+    const folderKey = `!folders!${f.id}`;
+    await db.put(folderKey, makeFolderEntry(f));
+    console.log(`  📁 Folder: ${f.name}`);
+  }
+
+  // ── 4. Restore health spells (assign to health folder) ──────────────────
+  const healthFolderId = FOLDERS.health.id;
   for (const [key, val] of Object.entries(keepEntries)) {
+    val.folder = healthFolderId;
     await db.put(key, val);
   }
 
-  // ── 4. Insert CSV spells ─────────────────────────────────────────────────
+  // ── 5. Insert CSV spells ─────────────────────────────────────────────────
   let imported = 0;
   for (const row of rows) {
     const name           = row["Name"];
@@ -181,15 +216,17 @@ async function main() {
     const range       = mapRange(rangeRaw);
     const target      = buildTarget(tnRaw, resisted);
     const damageCode  = damageLevel === "N/A" ? "" : damageLevel;
-    // Store the drain formula exactly as it appears in the rulebook / CSV.
-    // The parsedDrainCode getter in SpellData knows how to extract modifier + level.
     const drainCode   = drainRaw;
     const isAreaEffect = detectAreaEffect(name, description);
     const isVoluntary  = detectVoluntary(description);
 
-    const key = `!items!${newId()}`;
+    // Assign to the matching folder (fall back to null if category unknown)
+    const folderId = FOLDERS[category]?.id ?? null;
+
+    const id  = newId();
+    const key = `!items!${id}`;
     const entry = {
-      _id:    key.replace("!items!", ""),
+      _id:    id,
       name,
       type:   "spell",
       system: {
@@ -208,7 +245,7 @@ async function main() {
       },
       img:    "icons/magic/symbols/rune-sigil-red-orange.webp",
       effects: [],
-      folder:  null,
+      folder:  folderId,
       sort:    0,
       ownership: { default: 0 },
       flags: {}
@@ -216,10 +253,10 @@ async function main() {
 
     await db.put(key, entry);
     imported++;
-    console.log(`  + ${name} (${category}${subcategory ? "/" + subcategory : ""}, ${range}, ${drainCode})`);
+    console.log(`  + ${name} (${category}${subcategory ? "/" + subcategory : ""}) → ${FOLDERS[category]?.name ?? "?"}`);
   }
 
-  // ── 5. Force flush to .ldb ───────────────────────────────────────────────
+  // ── 6. Force flush to .ldb ───────────────────────────────────────────────
   await db.compactRange("!", "~");
   await db.close();
 
