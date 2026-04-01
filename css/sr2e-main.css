@@ -2197,3 +2197,313 @@ body.sr2e-no-active-scene #background,
 body.game.sr2e-no-active-scene #background {
   background: transparent !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHADOWNET TERMINAL — Sidebar / Chat cyberpunk skin
+   Targets Foundry V13 sidebar DOM. All selectors scoped to avoid bleed.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar shell ────────────────────────────────────────────────────────── */
+#sidebar {
+  background: #020408 !important;
+  border-left: 1px solid var(--sr2e-gold-dim) !important;
+  border-radius: 0 !important;
+  font-family: var(--sr2e-font) !important;
+  color: var(--sr2e-text) !important;
+}
+
+/* Fake terminal title bar across the top of the sidebar */
+#sidebar::before {
+  content: "▓▒░  SHADOWNET COMM LINK  ░▒▓";
+  display: block;
+  background: linear-gradient(90deg, #060412 0%, #0d1a0d 50%, #060412 100%);
+  border-bottom: 1px solid var(--sr2e-gold-dim);
+  color: var(--sr2e-gold);
+  font-family: var(--sr2e-font);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 4px 0 3px;
+  text-transform: uppercase;
+}
+
+/* ── Tab strip ────────────────────────────────────────────────────────────── */
+#sidebar nav.tabs,
+#sidebar-tabs {
+  background: #020408 !important;
+  border-bottom: 1px solid var(--sr2e-gold-dim) !important;
+  border-radius: 0 !important;
+  gap: 0 !important;
+}
+
+#sidebar nav.tabs .item,
+#sidebar-tabs .item {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid #0a1a0a !important;
+  border-radius: 0 !important;
+  color: var(--sr2e-text-muted) !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 10px !important;
+  letter-spacing: 1px !important;
+  padding: 5px 8px !important;
+  text-transform: uppercase !important;
+  transition: color 0.15s, background 0.15s !important;
+}
+
+#sidebar nav.tabs .item:hover,
+#sidebar-tabs .item:hover {
+  background: #0a1a0a !important;
+  color: var(--sr2e-gold) !important;
+}
+
+#sidebar nav.tabs .item.active,
+#sidebar-tabs .item.active {
+  background: #061006 !important;
+  border-bottom: 2px solid var(--sr2e-highlight) !important;
+  color: var(--sr2e-highlight) !important;
+  text-shadow: 0 0 6px var(--sr2e-highlight) !important;
+}
+
+/* ── Chat log ─────────────────────────────────────────────────────────────── */
+#chat-log,
+ol#chat-log {
+  background: #020408 !important;
+  border: none !important;
+  padding: 4px 0 !important;
+  /* subtle CRT scanline overlay */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 80, 0.015) 2px,
+    rgba(0, 255, 80, 0.015) 4px
+  ) !important;
+}
+
+/* ── Individual chat messages ─────────────────────────────────────────────── */
+#chat-log .chat-message,
+ol#chat-log li.chat-message {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid #0a1a08 !important;
+  border-radius: 0 !important;
+  padding: 4px 8px !important;
+  margin: 0 !important;
+  transition: background 0.1s !important;
+}
+
+#chat-log .chat-message:hover,
+ol#chat-log li.chat-message:hover {
+  background: rgba(0, 80, 20, 0.12) !important;
+}
+
+/* Message header: sender + timestamp */
+.chat-message .message-header,
+.chat-message header {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid #0d1f0d !important;
+  padding: 2px 0 3px !important;
+  margin-bottom: 3px !important;
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 6px !important;
+}
+
+/* Sender name — neon green */
+.chat-message .message-sender,
+.chat-message .author {
+  color: var(--sr2e-gold) !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+}
+
+/* Fake ">" prompt before sender name */
+.chat-message .message-sender::before,
+.chat-message .author::before {
+  content: "> ";
+  color: var(--sr2e-highlight);
+}
+
+/* Timestamp */
+.chat-message .message-timestamp,
+.chat-message time {
+  color: #2a4a2a !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 9px !important;
+  margin-left: auto !important;
+}
+
+/* Message body */
+.chat-message .message-content,
+.chat-message .content {
+  color: #9abf9a !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  padding: 2px 0 !important;
+}
+
+/* ── SR2E roll cards in chat ──────────────────────────────────────────────── */
+.sr2e-roll-message {
+  background: #020b02 !important;
+  border: 1px solid #1a3a1a !important;
+  border-left: 3px solid var(--sr2e-highlight) !important;
+  border-radius: 0 !important;
+  padding: 6px 8px !important;
+  font-family: var(--sr2e-font) !important;
+}
+
+.sr2e-roll-header {
+  color: var(--sr2e-highlight) !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid #1a3a1a !important;
+  margin: 0 0 5px !important;
+  padding-bottom: 4px !important;
+}
+
+.sr2e-roll-header::before { content: "// "; color: #2a4a2a; }
+
+.sr2e-roll-info {
+  display: flex !important;
+  gap: 12px !important;
+  font-size: 10px !important;
+  color: #5a8a5a !important;
+  margin-bottom: 6px !important;
+}
+
+.sr2e-roll-info span::before { content: "# "; color: #2a4a2a; }
+
+/* Dice pips */
+.sr2e-die {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  border: 1px solid #1a3a1a !important;
+  border-radius: 0 !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  margin: 1px !important;
+  background: #020b02 !important;
+  color: #3a6a3a !important;
+}
+
+.sr2e-die.success {
+  border-color: var(--sr2e-gold) !important;
+  color: var(--sr2e-gold) !important;
+  text-shadow: 0 0 6px var(--sr2e-gold) !important;
+  background: #001a0a !important;
+}
+
+.sr2e-die.exploded {
+  border-color: var(--sr2e-highlight) !important;
+  color: var(--sr2e-highlight) !important;
+  text-shadow: 0 0 8px var(--sr2e-highlight) !important;
+  background: #1a0010 !important;
+}
+
+.sr2e-roll-result {
+  margin-top: 5px !important;
+  border-top: 1px solid #1a3a1a !important;
+  padding-top: 4px !important;
+  font-size: 11px !important;
+  color: var(--sr2e-gold) !important;
+}
+
+.sr2e-critical-glitch {
+  color: var(--sr2e-failure) !important;
+  font-weight: bold !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 0 8px var(--sr2e-failure) !important;
+}
+
+.sr2e-failure {
+  color: #884422 !important;
+}
+
+/* ── Chat input area ─────────────────────────────────────────────────────── */
+#chat-form,
+#chat .chat-form {
+  background: #010306 !important;
+  border-top: 1px solid var(--sr2e-gold-dim) !important;
+  padding: 6px 8px !important;
+  border-radius: 0 !important;
+  position: relative !important;
+}
+
+/* Prompt label above input */
+#chat-form::before,
+#chat .chat-form::before {
+  content: "SEND TRANSMISSION:";
+  display: block;
+  font-family: var(--sr2e-font);
+  font-size: 8px;
+  color: #2a4a2a;
+  letter-spacing: 2px;
+  margin-bottom: 3px;
+}
+
+#chat-message,
+#chat-form textarea,
+#chat .chat-form textarea {
+  background: #010306 !important;
+  border: 1px solid #1a3a1a !important;
+  border-left: 2px solid var(--sr2e-highlight) !important;
+  border-radius: 0 !important;
+  color: #9abf9a !important;
+  font-family: var(--sr2e-font) !important;
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+  resize: none !important;
+  caret-color: var(--sr2e-highlight) !important;
+}
+
+#chat-message:focus,
+#chat-form textarea:focus {
+  border-color: var(--sr2e-highlight) !important;
+  box-shadow: 0 0 6px rgba(233, 30, 140, 0.2) !important;
+  outline: none !important;
+}
+
+/* Send button */
+#chat-form button[type="submit"],
+#chat-form .chat-control-icon {
+  background: transparent !important;
+  border: 1px solid #1a3a1a !important;
+  border-radius: 0 !important;
+  color: var(--sr2e-gold-dim) !important;
+  font-size: 10px !important;
+  transition: color 0.15s, border-color 0.15s !important;
+}
+
+#chat-form button[type="submit"]:hover,
+#chat-form .chat-control-icon:hover {
+  border-color: var(--sr2e-highlight) !important;
+  color: var(--sr2e-highlight) !important;
+}
+
+/* ── Scrollbar in chat log ────────────────────────────────────────────────── */
+#chat-log::-webkit-scrollbar {
+  width: 4px;
+}
+#chat-log::-webkit-scrollbar-track {
+  background: #010306;
+}
+#chat-log::-webkit-scrollbar-thumb {
+  background: #1a3a1a;
+  border-radius: 0;
+}
+#chat-log::-webkit-scrollbar-thumb:hover {
+  background: var(--sr2e-gold-dim);
+}
