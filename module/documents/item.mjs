@@ -5,16 +5,6 @@ import { parseDrainCode } from "../data/item-data.mjs";
  */
 export class SR2EItem extends Item {
 
-  /** @override */
-  prepareData() {
-    super.prepareData();
-  }
-
-  /** @override */
-  prepareDerivedData() {
-    super.prepareDerivedData();
-  }
-
   /**
    * Roll the item (context-dependent based on type).
    * @param {object} [options] - Roll options

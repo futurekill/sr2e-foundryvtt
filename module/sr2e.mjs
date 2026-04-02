@@ -37,7 +37,6 @@ import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 /* -------------------------------------------- */
 
 Hooks.once("init", async () => {
-  console.log("SR2E | Initializing Shadowrun 2nd Edition Game System");
 
   // Store configuration on the global CONFIG object
   CONFIG.SR2E = SR2E;
@@ -136,7 +135,6 @@ Hooks.once("init", async () => {
   // Register system settings
   _registerSystemSettings();
 
-  console.log("SR2E | System initialization complete");
 });
 
 /* -------------------------------------------- */
@@ -144,7 +142,6 @@ Hooks.once("init", async () => {
 /* -------------------------------------------- */
 
 Hooks.once("ready", async () => {
-  console.log("SR2E | Shadowrun 2nd Edition system ready");
 
   // Display a welcome message on first load
   if (!game.user.getFlag("sr2e", "welcomeShown")) {
@@ -194,7 +191,6 @@ async function _ensureSystemMacros() {
         command,
         flags: { "sr2e": { systemMacro: true } }
       });
-      console.log(`SR2E | Created system macro: ${def.name}`);
     } catch(err) {
       console.warn(`SR2E | Could not create macro "${def.name}":`, err);
     }
@@ -360,7 +356,6 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
 function _applyNoSceneBackground() {
   const hasActive = !!game.scenes?.active;
   document.body.classList.toggle("sr2e-no-active-scene", !hasActive);
-  console.log(`SR2E | no-scene-bg: activeScene=${hasActive}, bodyHasClass=${document.body.classList.contains("sr2e-no-active-scene")}`);
 }
 
 // Apply terminal theme class on initial load

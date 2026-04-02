@@ -653,14 +653,9 @@ const SHARED_ACTIONS = {
   },
 
   /**
-   * Open a FilePicker to change the actor portrait.
-   * In V13 ApplicationV2, data-edit="img" is not automatically handled,
-   * so we wire it up via data-action="editImage".
-   * @this {ApplicationV2}
-   */
-  /**
    * Clear the character's magical tradition — resets magic.type and
    * magic.tradition to "none". Triggered by the × button on the magic tab.
+   * @this {ApplicationV2}
    */
   clearTradition: async function(event, target) {
     return this.document.update({
@@ -671,6 +666,12 @@ const SHARED_ACTIONS = {
     });
   },
 
+  /**
+   * Open a FilePicker to change the actor portrait.
+   * In V13 ApplicationV2, data-edit="img" is not automatically handled,
+   * so we wire it up via data-action="editImage".
+   * @this {ApplicationV2}
+   */
   editImage: async function(event, target) {
     event.preventDefault();
     const actor = this.document;

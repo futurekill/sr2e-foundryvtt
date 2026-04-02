@@ -6,6 +6,9 @@
  * any die showing 6 is rerolled and the new result added
  * to 6 (allowing TNs > 6 to be reached).
  */
+/** Number of faces on a Shadowrun die. */
+const DICE_SIDES = 6;
+
 export class SR2ESuccessRoll extends Roll {
 
   constructor(formula, data = {}, options = {}) {
@@ -36,10 +39,10 @@ export class SR2ESuccessRoll extends Roll {
       let rolls = [];
 
       do {
-        currentRoll = Math.ceil(Math.random() * 6);
+        currentRoll = Math.ceil(Math.random() * DICE_SIDES);
         total += currentRoll;
         rolls.push(currentRoll);
-      } while (ruleOfSix && currentRoll === 6);
+      } while (ruleOfSix && currentRoll === DICE_SIDES);
 
       dice.push({
         total,
