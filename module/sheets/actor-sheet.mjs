@@ -317,172 +317,230 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
   const fmt = n => n === 0 ? "+0" : (n > 0 ? `+${n}` : `${n}`);
 
   // ── Live TN update via renderDialogV2 hook ────────────────────────────────
+  // Identifies our dialog by #sr2e-attacker which is present in both ranged and melee.
   let hookId = null;
   hookId = Hooks.on("renderDialogV2", (app, html) => {
     const root = (html instanceof Element) ? html : document;
-    // Identify our dialog by the presence of #sr2e-attack-range
-    const rangeSelect = root.querySelector("#sr2e-attack-range");
-    if (!rangeSelect) return;
+    const attackerSelect = root.querySelector("#sr2e-attacker");
+    if (!attackerSelect) return;             // not our dialog
     Hooks.off("renderDialogV2", hookId);
 
-    const coverSelect    = root.querySelector("#sr2e-cover");
-    const attackerSelect = root.querySelector("#sr2e-attacker");
-    const targetSelect   = root.querySelector("#sr2e-target");
-    const meleeCheck     = root.querySelector("#sr2e-in-melee");
-    const otherInput     = root.querySelector("#sr2e-other-mod");
+    // Ranged-only inputs
+    const rangeSelect  = root.querySelector("#sr2e-attack-range");
+    const coverSelect  = root.querySelector("#sr2e-cover");
+    const meleeCheck   = root.querySelector("#sr2e-in-melee");
+    // Melee-only inputs
+    const quickInput   = root.querySelector("#sr2e-target-quick");
+    const reachInput   = root.querySelector("#sr2e-reach-mod");
+    // Common inputs
+    const targetSelect = root.querySelector("#sr2e-target");
+    const otherInput   = root.querySelector("#sr2e-other-mod");
 
-    // Breakdown display elements
-    const rangeLabel  = root.querySelector("#sr2e-range-label");
-    const rangeMod    = root.querySelector("#sr2e-range-mod");
-    const coverMod    = root.querySelector("#sr2e-cover-mod");
-    const attackMod   = root.querySelector("#sr2e-attacker-mod");
-    const targetMod   = root.querySelector("#sr2e-target-mod");
-    const meleeMod    = root.querySelector("#sr2e-melee-mod");
-    const otherMod    = root.querySelector("#sr2e-other-mod-val");
+    // Breakdown display spans
+    const rangeLabel    = root.querySelector("#sr2e-range-label");
+    const rangeModSpan  = root.querySelector("#sr2e-range-mod");
+    const coverModSpan  = root.querySelector("#sr2e-cover-mod");
+    const attackModSpan = root.querySelector("#sr2e-attacker-mod");
+    const targetModSpan = root.querySelector("#sr2e-target-mod");
+    const meleeModSpan  = root.querySelector("#sr2e-melee-mod");
+    const otherModSpan  = root.querySelector("#sr2e-other-mod-val");
+    const baseTnValSpan = root.querySelector("#sr2e-base-tn-val");
+    const reachModSpan  = root.querySelector("#sr2e-reach-mod-val");
+    // Row elements (show/hide)
     const coverRow    = root.querySelector("#sr2e-cover-row");
     const attackRow   = root.querySelector("#sr2e-attacker-row");
     const targetRow   = root.querySelector("#sr2e-target-row");
     const meleeRow    = root.querySelector("#sr2e-melee-row");
     const otherRow    = root.querySelector("#sr2e-other-row");
+    const reachRow    = root.querySelector("#sr2e-reach-row");
     const finalTnSpan = root.querySelector("#sr2e-final-tn");
 
     function updateTN() {
-      const rng  = rangeSelect.value;
-      const rMod = RANGE_TN_MODS[rng] ?? 0;
-      const cMod = parseInt(coverSelect?.value)    || 0;
       const aMod = parseInt(attackerSelect?.value) || 0;
       const tMod = parseInt(targetSelect?.value)   || 0;
-      const mMod = meleeCheck?.checked ? 3 : 0;
       const oMod = parseInt(otherInput?.value)     || 0;
 
-      if (rangeLabel) rangeLabel.textContent = `Range (${RANGE_LABELS[rng]}):`;
-      if (rangeMod)   rangeMod.textContent   = fmt(rMod);
-      if (coverMod)   coverMod.textContent   = fmt(cMod);
-      if (attackMod)  attackMod.textContent  = fmt(aMod);
-      if (targetMod)  targetMod.textContent  = fmt(tMod);
-      if (meleeMod)   meleeMod.textContent   = fmt(mMod);
-      if (otherMod)   otherMod.textContent   = fmt(oMod);
+      if (attackModSpan) attackModSpan.textContent = fmt(aMod);
+      if (targetModSpan) targetModSpan.textContent = fmt(tMod);
+      if (otherModSpan)  otherModSpan.textContent  = fmt(oMod);
+      if (attackRow)     attackRow.style.display    = aMod !== 0 ? "" : "none";
+      if (targetRow)     targetRow.style.display    = tMod !== 0 ? "" : "none";
+      if (otherRow)      otherRow.style.display     = oMod !== 0 ? "" : "none";
 
-      // Show/hide rows when modifier is zero
-      if (coverRow)  coverRow.style.display  = cMod !== 0 ? "" : "none";
-      if (attackRow) attackRow.style.display = aMod !== 0 ? "" : "none";
-      if (targetRow) targetRow.style.display = tMod !== 0 ? "" : "none";
-      if (meleeRow)  meleeRow.style.display  = mMod !== 0 ? "" : "none";
-      if (otherRow)  otherRow.style.display  = oMod !== 0 ? "" : "none";
-
-      const finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
-                                          + cyberwareMod + woundPenalty + recoilPenalty);
+      let finalTN;
+      if (isRanged) {
+        const rng  = rangeSelect?.value ?? "short";
+        const rMod = RANGE_TN_MODS[rng] ?? 0;
+        const cMod = parseInt(coverSelect?.value) || 0;
+        const mMod = meleeCheck?.checked ? 3 : 0;
+        if (rangeLabel)   rangeLabel.textContent  = `Range (${RANGE_LABELS[rng]}):`;
+        if (rangeModSpan) rangeModSpan.textContent = fmt(rMod);
+        if (coverModSpan) coverModSpan.textContent = fmt(cMod);
+        if (meleeModSpan) meleeModSpan.textContent = fmt(mMod);
+        if (coverRow)     coverRow.style.display   = cMod !== 0 ? "" : "none";
+        if (meleeRow)     meleeRow.style.display   = mMod !== 0 ? "" : "none";
+        finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
+                                      + cyberwareMod + woundPenalty + recoilPenalty);
+      } else {
+        const quick  = parseInt(quickInput?.value) || 4;
+        const rchMod = parseInt(reachInput?.value) || 0;
+        if (baseTnValSpan) baseTnValSpan.textContent = quick;
+        if (reachModSpan)  reachModSpan.textContent  = fmt(rchMod);
+        if (reachRow)      reachRow.style.display     = rchMod !== 0 ? "" : "none";
+        finalTN = Math.max(2, quick + rchMod + aMod + tMod + oMod + woundPenalty);
+      }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
     }
 
-    for (const el of [rangeSelect, coverSelect, attackerSelect, targetSelect, meleeCheck, otherInput]) {
-      if (el) el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
+    const allInputs = [rangeSelect, coverSelect, meleeCheck, attackerSelect,
+                       targetSelect, otherInput, quickInput, reachInput].filter(Boolean);
+    for (const el of allInputs) {
+      el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
     }
     updateTN(); // set initial state
   });
 
   // ── Build dialog HTML ─────────────────────────────────────────────────────
+  // Ranged: range bracket + firing mode + cover + in-melee penalty + recoil info
+  // Melee:  target Quickness (= base TN) + reach modifier; no range/firing/cover/recoil
+  const topInputsHTML = isRanged ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+      <div class="form-group" style="margin:2px 0;">
+        <label>Range:</label>
+        <select id="sr2e-attack-range" name="range">
+          <option value="short">Short</option>
+          <option value="medium">Medium</option>
+          <option value="long">Long</option>
+          <option value="extreme">Extreme</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Firing Mode:</label>
+        <select id="sr2e-firing-mode" name="firingMode">${
+          Object.entries(FIRING_MODE_DATA)
+            .filter(([key]) => weapon.system.firingModes?.[key])
+            .map(([key, d]) => `<option value="${key}">${d.label}</option>`)
+            .join("") || `<option value="sa">${FIRING_MODE_DATA.sa.label}</option>`
+        }</select>
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Cover:</label>
+        <select id="sr2e-cover" name="cover">
+          <option value="0">None</option>
+          <option value="2">Partial (+2)</option>
+          <option value="4">Good (+4)</option>
+          <option value="6">Near-Total (+6)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:2px 0;align-items:center;">
+        <label>In Melee (+3):</label>
+        <input type="checkbox" id="sr2e-in-melee" name="inMelee" style="width:auto;"
+               title="Firing a ranged weapon while engaged in melee adds +3 TN">
+      </div>
+    </div>` : `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+      <div class="form-group" style="margin:2px 0;">
+        <label>Target Quickness:</label>
+        <input type="number" id="sr2e-target-quick" name="targetQuickness"
+               value="4" min="1" max="12" style="width:52px;text-align:center;"
+               title="Target's Quickness attribute — this is the base TN for melee attacks (SR2E p.113)">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Reach Disadvantage:</label>
+        <input type="number" id="sr2e-reach-mod" name="reachMod"
+               value="0" style="width:52px;text-align:center;"
+               title="Positive = target has longer weapon (TN penalty for you). E.g. fighting a staff (Reach 2) with a knife (Reach 0) = +2.">
+      </div>
+    </div>`;
+
+  const commonInputsHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:4px;">
+      <div class="form-group" style="margin:2px 0;">
+        <label>Attacker:</label>
+        <select id="sr2e-attacker" name="attacker">
+          <option value="0">Stationary / Walking</option>
+          <option value="2">Running (+2)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Target:</label>
+        <select id="sr2e-target" name="target">
+          <option value="0">Stationary / Walking</option>
+          <option value="2">Running (+2)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Other Mod:</label>
+        <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
+               style="width:52px;text-align:center;"
+               title="Visibility, called shots, environmental conditions, etc.">
+      </div>
+    </div>`;
+
+  // TN breakdown rows — differ for ranged vs melee
+  const baseTnRow = isRanged
+    ? `<tr><td style="color:#888;padding:1px 0;">Base TN (Short range):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`
+    : `<tr><td style="color:#888;padding:1px 0;">Target Quickness:</td><td id="sr2e-base-tn-val" style="text-align:right;padding:1px 0;">4</td></tr>`;
+
+  const rangedOnlyRows = isRanged ? `
+    <tr>
+      <td id="sr2e-range-label" style="color:#888;padding:1px 0;">Range (Short):</td>
+      <td id="sr2e-range-mod" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-cover-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Cover:</td>
+      <td id="sr2e-cover-mod" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-melee-row" style="display:none;">
+      <td style="color:#c84;padding:1px 0;">Firing in Melee:</td>
+      <td id="sr2e-melee-mod" style="text-align:right;padding:1px 0;">+3</td>
+    </tr>` : `
+    <tr id="sr2e-reach-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Reach Disadvantage:</td>
+      <td id="sr2e-reach-mod-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>`;
+
+  const autoRows = `
+    <tr id="sr2e-attacker-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Attacker running:</td>
+      <td id="sr2e-attacker-mod" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-target-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Target running:</td>
+      <td id="sr2e-target-mod" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-other-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Other:</td>
+      <td id="sr2e-other-mod-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    ${cywareStyle !== "display:none;" ? `
+    <tr style="${cywareStyle}">
+      <td style="color:#6c9;padding:1px 0;">${cywareLabel}</td>
+      <td style="text-align:right;padding:1px 0;">${cywareModStr}</td>
+    </tr>` : ""}
+    ${woundStyle !== "display:none;" ? `
+    <tr style="${woundStyle}">
+      <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
+      <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
+    </tr>` : ""}
+    ${isRanged && recoilStyle !== "display:none;" ? `
+    <tr style="${recoilStyle}">
+      <td style="color:#ca4;padding:1px 0;">${recoilLabel}</td>
+      <td style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
+    </tr>` : ""}`;
+
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Attack: ${weapon.name}` },
     rejectClose: false,
     content: `<form>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
-        <div class="form-group" style="margin:2px 0;">
-          <label>Range:</label>
-          <select id="sr2e-attack-range" name="range">
-            <option value="short">Short</option>
-            <option value="medium">Medium</option>
-            <option value="long">Long</option>
-            <option value="extreme">Extreme</option>
-          </select>
-        </div>
-        ${isRanged ? `
-        <div class="form-group" style="margin:2px 0;">
-          <label>Firing Mode:</label>
-          <select id="sr2e-firing-mode" name="firingMode">${
-            Object.entries(FIRING_MODE_DATA)
-              .filter(([key]) => weapon.system.firingModes?.[key])
-              .map(([key, d]) => `<option value="${key}">${d.label}</option>`)
-              .join("") || `<option value="sa">${FIRING_MODE_DATA.sa.label}</option>`
-          }</select>
-        </div>` : "<div></div>"}
-        <div class="form-group" style="margin:2px 0;">
-          <label>Cover:</label>
-          <select id="sr2e-cover" name="cover">
-            <option value="0">None</option>
-            <option value="2">Partial (+2)</option>
-            <option value="4">Good (+4)</option>
-            <option value="6">Near-Total (+6)</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:2px 0;">
-          <label>Attacker:</label>
-          <select id="sr2e-attacker" name="attacker">
-            <option value="0">Stationary / Walking</option>
-            <option value="2">Running (+2)</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:2px 0;">
-          <label>Target:</label>
-          <select id="sr2e-target" name="target">
-            <option value="0">Stationary / Walking</option>
-            <option value="2">Running (+2)</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:2px 0;align-items:center;">
-          <label>In Melee (+3):</label>
-          <input type="checkbox" id="sr2e-in-melee" name="inMelee" style="width:auto;">
-        </div>
-        <div class="form-group" style="margin:2px 0;">
-          <label>Other Mod:</label>
-          <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
-                 style="width:52px;text-align:center;"
-                 title="Visibility, called shots, environmental modifiers, etc.">
-        </div>
-      </div>
+      ${topInputsHTML}
+      ${commonInputsHTML}
       <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
         <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="color:#888;padding:1px 0;">Base TN:</td>
-            <td style="text-align:right;padding:1px 0;">${BASE_TN}</td>
-          </tr>
-          <tr>
-            <td id="sr2e-range-label" style="color:#888;padding:1px 0;">Range (Short):</td>
-            <td id="sr2e-range-mod"   style="text-align:right;padding:1px 0;">+0</td>
-          </tr>
-          <tr id="sr2e-cover-row" style="display:none;">
-            <td style="color:#888;padding:1px 0;">Cover:</td>
-            <td id="sr2e-cover-mod" style="text-align:right;padding:1px 0;">+0</td>
-          </tr>
-          <tr id="sr2e-attacker-row" style="display:none;">
-            <td style="color:#888;padding:1px 0;">Attacker running:</td>
-            <td id="sr2e-attacker-mod" style="text-align:right;padding:1px 0;">+0</td>
-          </tr>
-          <tr id="sr2e-target-row" style="display:none;">
-            <td style="color:#888;padding:1px 0;">Target running:</td>
-            <td id="sr2e-target-mod" style="text-align:right;padding:1px 0;">+0</td>
-          </tr>
-          <tr id="sr2e-melee-row" style="display:none;">
-            <td style="color:#c84;padding:1px 0;">Attacker in Melee:</td>
-            <td id="sr2e-melee-mod" style="text-align:right;padding:1px 0;">+0</td>
-          </tr>
-          <tr id="sr2e-other-row" style="display:none;">
-            <td style="color:#888;padding:1px 0;">Other:</td>
-            <td id="sr2e-other-mod-val" style="text-align:right;padding:1px 0;">+0</td>
-          </tr>
-          <tr style="${cywareStyle}">
-            <td style="color:#6c9;padding:1px 0;">${cywareLabel}</td>
-            <td style="text-align:right;padding:1px 0;">${cywareModStr}</td>
-          </tr>
-          <tr style="${woundStyle}">
-            <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
-            <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
-          </tr>
-          <tr style="${recoilStyle}">
-            <td style="color:#ca4;padding:1px 0;">${recoilLabel}</td>
-            <td style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
-          </tr>
+          ${baseTnRow}
+          ${rangedOnlyRows}
+          ${autoRows}
           <tr style="border-top:1px solid rgba(255,255,255,0.15);">
             <td style="font-weight:bold;padding-top:3px;">Final TN:</td>
             <td id="sr2e-final-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initFinalTN}</td>
@@ -505,13 +563,15 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
             if (clamped > 0) poolDice[p.key] = clamped;
           }
           rollResult = {
-            range:       f.range?.value      ?? "short",
-            firingMode:  f.firingMode?.value ?? "sa",
-            coverMod:    parseInt(f.cover?.value)    || 0,
-            attackerMod: parseInt(f.attacker?.value) || 0,
-            targetMod:   parseInt(f.target?.value)   || 0,
-            meleeMod:    f.inMelee?.checked ? 3 : 0,
-            otherMod:    parseInt(f.otherMod?.value) || 0,
+            range:           f.range?.value        ?? "short",
+            firingMode:      f.firingMode?.value    ?? "sa",
+            coverMod:        parseInt(f.cover?.value)           || 0,
+            attackerMod:     parseInt(f.attacker?.value)        || 0,
+            targetMod:       parseInt(f.target?.value)          || 0,
+            meleeMod:        f.inMelee?.checked ? 3 : 0,
+            otherMod:        parseInt(f.otherMod?.value)        || 0,
+            targetQuickness: parseInt(f.targetQuickness?.value) || 4,
+            reachMod:        parseInt(f.reachMod?.value)        || 0,
             poolDice
           };
         }
@@ -554,7 +614,18 @@ async function onRollWeapon(event, target) {
 
   const opts = await promptWeaponAttackOptions(actor, item, skillCap);
   if (!opts) return;
-  return item.roll({ range: opts.range, poolDice: opts.poolDice });
+  return item.roll({
+    range:           opts.range,
+    firingMode:      opts.firingMode,
+    coverMod:        opts.coverMod,
+    attackerMod:     opts.attackerMod,
+    targetMod:       opts.targetMod,
+    meleeMod:        opts.meleeMod,
+    otherMod:        opts.otherMod,
+    targetQuickness: opts.targetQuickness,
+    reachMod:        opts.reachMod,
+    poolDice:        opts.poolDice
+  });
 }
 
 /**

@@ -343,6 +343,29 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   if (message.isRoll && html instanceof HTMLElement) {
     html.classList.add("sr2e-roll");
   }
+
+  // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
+  // The button carries data-power, data-level, data-armor-type, data-damage-type.
+  // We resolve the defending actor from the currently controlled token (or assigned character).
+  html.querySelectorAll?.(".sr2e-resist-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const power      = parseInt(btn.dataset.power)   || 0;
+      const level      = btn.dataset.level             || "M";
+      const armorType  = btn.dataset.armorType         || "ballistic";
+      const damageType = btn.dataset.damageType        || "physical";
+
+      // Find the defending actor: first controlled token, then the user's assigned character.
+      const actor = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      if (!actor) {
+        return ui.notifications.warn(
+          "Select a token (or assign a character) to roll damage resistance."
+        );
+      }
+
+      return actor.rollDamageResistance(power, level, armorType, damageType);
+    });
+  });
 });
 
 /* -------------------------------------------- */

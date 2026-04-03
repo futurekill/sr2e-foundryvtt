@@ -411,6 +411,136 @@ export class SR2EActor extends Actor {
   }
 
   /**
+   * Roll a Damage Resistance Test.
+   *
+   * Defender rolls Body dice (+ optional Combat Pool) vs.
+   *   TN = max(2, attackPower − armor)  (SR2E p.116)
+   *
+   * Every 2 successes stages the incoming damage level down by 1:
+   *   D → S → M → L → (no damage)
+   *
+   * Minimum boxes applied per level: L=1, M=4, S=7, D=10.
+   *
+   * @param {number} power      - The incoming damage Power value.
+   * @param {string} level      - The incoming damage Level: "L", "M", "S", or "D".
+   * @param {string} armorType  - Which armor applies: "ballistic" or "impact".
+   * @param {string} damageType - Which condition monitor takes the damage: "physical" or "stun".
+   */
+  async rollDamageResistance(power, level, armorType = "ballistic", damageType = "physical") {
+    const system     = this.system;
+    const armor      = system.armor?.[armorType] ?? 0;
+    const bodyDice   = system.body?.value ?? 1;
+    const tn         = Math.max(2, power - armor);
+    const armorLabel = armorType === "ballistic" ? "Ballistic" : "Impact";
+
+    const stages   = ["L", "M", "S", "D"];
+    const startIdx = stages.indexOf(level);
+    if (startIdx < 0) {
+      console.warn("SR2E | rollDamageResistance: invalid damage level", level);
+      return;
+    }
+
+    // ── Build dialog ──────────────────────────────────────────────────────────
+    const combatAvail = system.dicePools?.combat?.value ?? 0;
+    const poolHTML    = combatAvail > 0 ? `
+      <hr style="margin:8px 0 6px;">
+      <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional)</p>
+      <div class="form-group" style="margin:3px 0;">
+        <label style="font-size:12px;flex:1;">Combat Pool
+          <span style="color:#888;font-size:10px;">(${combatAvail} left)</span>
+        </label>
+        <input type="number" name="pool_combat" value="0" min="0" max="${combatAvail}"
+               style="width:52px;text-align:center;">
+      </div>
+    ` : "";
+
+    let rollResult = null;
+    const action   = await foundry.applications.api.DialogV2.wait({
+      window: { title: `Resist Damage: ${level} (Power ${power})` },
+      rejectClose: false,
+      content: `<form>
+        <div style="font-size:11px;background:rgba(0,0,0,0.15);border-radius:4px;
+                    padding:6px 8px;margin-bottom:6px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="color:#888;padding:1px 0;">Incoming Damage:</td>
+              <td style="text-align:right;padding:1px 0;font-weight:bold;">${power}${level}</td>
+            </tr>
+            <tr>
+              <td style="color:#888;padding:1px 0;">${armorLabel} Armor:</td>
+              <td style="text-align:right;padding:1px 0;">−${armor}</td>
+            </tr>
+            <tr>
+              <td style="color:#888;padding:1px 0;">Body Dice:</td>
+              <td style="text-align:right;padding:1px 0;">${bodyDice}</td>
+            </tr>
+            <tr style="border-top:1px solid rgba(255,255,255,0.15);">
+              <td style="font-weight:bold;padding-top:3px;">Resistance TN:</td>
+              <td style="text-align:right;font-weight:bold;padding-top:3px;">${tn}</td>
+            </tr>
+          </table>
+          <p style="margin:4px 0 0;font-size:10px;color:#888;">
+            Every 2 successes stages damage down 1 level (SR2E p.116).
+          </p>
+        </div>
+        ${poolHTML}
+      </form>`,
+      buttons: [
+        {
+          action: "roll",
+          label: "Resist",
+          default: true,
+          callback: (event, button) => {
+            const raw = parseInt(button.form.elements.pool_combat?.value) || 0;
+            rollResult = {
+              poolDice: { combat: Math.min(Math.max(0, raw), combatAvail) }
+            };
+          }
+        },
+        { action: "cancel", label: "Cancel" }
+      ]
+    });
+
+    if (action !== "roll" || !rollResult) return;
+
+    // ── Roll ──────────────────────────────────────────────────────────────────
+    const resistResult = await this.rollSuccessTest(bodyDice, tn, {
+      label: `Resist Damage: ${level} (Power ${power})`,
+      poolDice: rollResult.poolDice
+    });
+
+    // Stage damage down: 2 successes = 1 level reduction
+    const reductions = Math.floor((resistResult?.successes ?? 0) / 2);
+    const finalIdx   = startIdx - reductions;
+
+    if (finalIdx < 0) {
+      // All damage resisted
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result">
+          <strong>Damage fully resisted — no damage taken.</strong>
+        </div>`
+      });
+      return resistResult;
+    }
+
+    // Apply remaining damage
+    const finalLevel  = stages[finalIdx];
+    const damageBoxes = [1, 4, 7, 10][finalIdx];   // L=1, M=4, S=7, D=10
+    await this.applyDamage(damageType, damageBoxes);
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>Damage Taken: ${finalLevel} ${damageType}</strong>
+        <em>(${damageBoxes} box${damageBoxes !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>
+      </div>`
+    });
+
+    return resistResult;
+  }
+
+  /**
    * Apply damage to the condition monitor.
    * @param {string} type - "physical" or "stun"
    * @param {number} amount - Number of boxes to fill
