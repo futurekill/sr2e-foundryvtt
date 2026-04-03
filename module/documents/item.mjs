@@ -31,15 +31,13 @@ export class SR2EItem extends Item {
   /**
    * Roll a weapon attack.
    *
-   * TN calculation (SR2E p.102):
-   *   Base TN = 4 (Short range)
-   *   + range modifier  : Short +0 / Medium +2 / Long +4 / Extreme +6
-   *   + cyberware mod   : sum of combatTnMod on installed cyberware (if smartgunCompatible)
-   *   + wound penalty   : from actor.system.woundPenalty
-   *   + recoil penalty  : max(0, shotsFired − weapon.recoilComp)
+   * TN = Base(4) + range + cover + attackerRunning + targetRunning + inMelee
+   *              + other + cyberware + woundPenalty + recoilPenalty
+   * (SR2E p.100–110)
    *
-   * After a successful roll the actor's combatRecoil counter is incremented
-   * by 1 for firearms and heavy weapons (recoil accumulates over the turn).
+   * Firing mode determines:
+   *   - How many shots accumulate on the recoil counter (SS/SA: 1, BF: 3, FA: 10)
+   *   - Power bonus applied to the damage code (BF: +2, FA: +4) per SR2E p.108
    *
    * @private
    */
@@ -48,9 +46,15 @@ export class SR2EItem extends Item {
     if (!actor) return;
 
     const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
+    const FIRING_MODE_DATA = {
+      ss: { shots: 1,  powerBonus: 0 },
+      sa: { shots: 1,  powerBonus: 0 },
+      bf: { shots: 3,  powerBonus: 2 },
+      fa: { shots: 10, powerBonus: 4 }
+    };
     const BASE_TN = 4;
 
-    // Dice pool — skill rating linked to this weapon
+    // Dice pool — linked skill rating
     const skillName = this.system.skill;
     let skillRating = 0;
     for (const item of actor.items) {
@@ -61,12 +65,20 @@ export class SR2EItem extends Item {
     }
     const dicePool = skillRating || 1;
 
-    // TN components
-    const range        = options.range ?? "short";
+    // Situational modifiers from the dialog
+    const range        = options.range        ?? "short";
+    const firingMode   = options.firingMode   ?? "sa";
+    const coverMod     = options.coverMod     ?? 0;
+    const attackerMod  = options.attackerMod  ?? 0;
+    const targetMod    = options.targetMod    ?? 0;
+    const meleeMod     = options.meleeMod     ?? 0;
+    const otherMod     = options.otherMod     ?? 0;
+
     const rangeMod     = RANGE_TN_MODS[range] ?? 0;
     const rangeLabel   = range.charAt(0).toUpperCase() + range.slice(1);
+    const modeData     = FIRING_MODE_DATA[firingMode] ?? FIRING_MODE_DATA.sa;
 
-    // Cyberware mod — only when weapon is smartgun-compatible
+    // Auto-detected modifiers
     let cyberwareMod = 0;
     if (this.system.smartgunCompatible) {
       for (const item of actor.items) {
@@ -81,31 +93,50 @@ export class SR2EItem extends Item {
     const recoilComp    = this.system.recoilComp     ?? 0;
     const recoilPenalty = Math.max(0, shotsFired - recoilComp);
 
-    const targetNumber = Math.max(2, BASE_TN + rangeMod + cyberwareMod + woundPenalty + recoilPenalty);
+    const targetNumber = Math.max(2,
+      BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
+              + cyberwareMod + woundPenalty + recoilPenalty
+    );
+
+    // Build a readable label for the chat card
+    const modParts = [];
+    if (rangeMod)    modParts.push(`${rangeLabel} range`);
+    if (coverMod)    modParts.push(`cover +${coverMod}`);
+    if (attackerMod) modParts.push(`running +${attackerMod}`);
+    if (targetMod)   modParts.push(`target running +${targetMod}`);
+    if (meleeMod)    modParts.push(`in melee +${meleeMod}`);
+    if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
+    const modeLabel = firingMode.toUpperCase();
+    const label = `${this.name} [${modeLabel}]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
 
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
-      label: `${this.name} Attack (${rangeLabel}, TN ${targetNumber})`,
+      label,
       poolDice: options.poolDice
     });
 
-    // Increment recoil counter for weapons that generate recoil
+    // Accumulate recoil — BF adds 3 shots, FA adds 10
     const hasRecoil = ["firearm", "heavy"].includes(this.system.weaponType);
     if (hasRecoil) {
-      await actor.update({ "system.combatRecoil": shotsFired + 1 });
+      await actor.update({ "system.combatRecoil": shotsFired + modeData.shots });
     }
 
-    // Post damage staging if the attack landed at least one success
+    // Post damage result if the attack connected
     if (result.successes > 0) {
-      const dmg         = this.system.parsedDamageCode;
-      const stageUps    = Math.floor(result.successes / 2);
-      const stages      = ["L", "M", "S", "D"];
-      const baseIdx     = stages.indexOf(dmg.level);
-      const finalIdx    = Math.min(baseIdx + stageUps, 3);
+      const dmg        = this.system.parsedDamageCode;
+      // BF/FA increase effective power before staging (SR2E p.108)
+      const effectivePower = dmg.power + modeData.powerBonus;
+      const stageUps   = Math.floor(result.successes / 2);
+      const stages     = ["L", "M", "S", "D"];
+      const baseIdx    = stages.indexOf(dmg.level);
+      const finalIdx   = Math.min(baseIdx + stageUps, 3);
+      const powerNote  = modeData.powerBonus > 0
+        ? ` <em>(base ${dmg.power} +${modeData.powerBonus} ${modeLabel} bonus)</em>`
+        : "";
 
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
-          <strong>${this.name} Damage:</strong> ${dmg.power}${stages[finalIdx]}
+          <strong>${this.name} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
           <br><em>Base: ${this.system.damageCode} | Staged up ${stageUps} level(s)</em>
         </div>`
       });

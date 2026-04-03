@@ -219,27 +219,49 @@ const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
 const RANGE_LABELS   = { short: "Short", medium: "Medium", long: "Long", extreme: "Extreme" };
 
 /**
- * Prompt for weapon attack options: range bracket, TN breakdown, and pool dice.
+ * Firing mode metadata: shots added to recoil and power bonus to the damage code.
+ *   BF burst adds +2 to Damage Power (SR2E p.108).
+ *   FA full-auto adds +4 to Damage Power (SR2E p.108).
+ */
+const FIRING_MODE_DATA = {
+  ss: { label: "SS — Single Shot",          shots: 1,  powerBonus: 0 },
+  sa: { label: "SA — Semi-Auto",            shots: 1,  powerBonus: 0 },
+  bf: { label: "BF — Burst Fire (+2 Pwr)",  shots: 3,  powerBonus: 2 },
+  fa: { label: "FA — Full Auto (+4 Pwr)",   shots: 10, powerBonus: 4 }
+};
+
+/**
+ * Prompt for weapon attack options.
  *
- * TN breakdown (SR2E p.102):
- *   Base TN          = 4 (Short range)
- *   Range modifier   = +0 / +2 / +4 / +6 for Short / Medium / Long / Extreme
- *   Smartlink        = sum of combatTnMod on installed cyberware (if weapon is smartgunCompatible)
- *   Wound penalty    = from actor.system.woundPenalty
- *   Recoil penalty   = max(0, shotsFired − weapon.recoilComp)
+ * Situational modifiers (SR2E p.100–110):
+ *   Base TN (short range)  = 4
+ *   Range                  = +0 / +2 / +4 / +6 (Short/Medium/Long/Extreme)
+ *   Cover                  = +0 / +2 / +4 / +6 (None/Partial/Good/Near-Total)
+ *   Attacker running       = +2
+ *   Target running         = +2
+ *   Attacker in melee      = +3
+ *   Smartlink              = sum of combatTnMod on installed cyberware (if smartgunCompatible)
+ *   Wound penalty          = from actor.system.woundPenalty
+ *   Recoil penalty         = max(0, shotsFired − weapon.recoilComp)
+ *   Other                  = manual modifier for visibility, called shots, etc.
  *
- * The TN breakdown table updates live as the player changes the range dropdown.
+ * All inputs update the TN breakdown live via a renderDialogV2 hook.
  *
  * @param {Actor}  actor    - The attacking actor.
  * @param {Item}   weapon   - The weapon item being fired.
  * @param {number} skillCap - Max pool dice (= skill rating). Default: Infinity.
- * @returns {Promise<{range: string, poolDice: object}|null>}
+ * @returns {Promise<{range:string, firingMode:string, coverMod:number,
+ *                    attackerMod:number, targetMod:number, meleeMod:number,
+ *                    otherMod:number, poolDice:object}|null>}
  */
 async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
-  const BASE_TN = 4;
+  const BASE_TN    = 4;
+  const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
+  const isRanged   = !isMelee;
 
-  // Detect installed cyberware TN modifiers (smartgun link etc.)
-  // Only applied when the weapon is flagged as smartgunCompatible.
+  // ── Auto-detected modifiers ───────────────────────────────────────────────
+
+  // Cyberware combat TN mods (smartgun link etc.) — only for compatible weapons
   let cyberwareMod = 0;
   let cywareName = "";
   if (weapon.system.smartgunCompatible) {
@@ -252,15 +274,12 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
     }
   }
 
-  // Wound penalty
-  const woundPenalty = actor.system.woundPenalty ?? 0;
-
-  // Recoil: shots fired this turn vs the weapon's recoil compensation
-  const shotsFired   = actor.system.combatRecoil ?? 0;
-  const recoilComp   = weapon.system.recoilComp   ?? 0;
+  const woundPenalty  = actor.system.woundPenalty ?? 0;
+  const shotsFired    = actor.system.combatRecoil  ?? 0;
+  const recoilComp    = weapon.system.recoilComp   ?? 0;
   const recoilPenalty = Math.max(0, shotsFired - recoilComp);
 
-  // Pool inputs — same logic as promptRollOptions
+  // ── Pool inputs ───────────────────────────────────────────────────────────
   const availablePools = POOL_DEFS
     .map(p => {
       const available = getPoolAvailable(actor, p.key);
@@ -283,62 +302,174 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
     </div>`).join("")}
   ` : "";
 
-  // Smartlink / wound / recoil rows — hidden when not applicable
-  const cywareLabel    = cywareName ? `${cywareName}:` : "Smartlink:";
-  const cywareModStr   = cyberwareMod > 0 ? `+${cyberwareMod}` : `${cyberwareMod}`;
-  const cywareStyle    = cyberwareMod !== 0 ? "" : "display:none;";
-  const woundStyle     = woundPenalty > 0   ? "" : "display:none;";
-  const recoilLabel    = `Recoil (${shotsFired} fired, RC ${recoilComp}):`;
-  const recoilStyle    = recoilPenalty > 0  ? "" : "display:none;";
+  // ── Static breakdown rows (auto-detected, not interactive) ────────────────
+  const cywareLabel  = cywareName ? `${cywareName}:` : "Smartlink:";
+  const cywareModStr = cyberwareMod > 0 ? `+${cyberwareMod}` : `${cyberwareMod}`;
+  const cywareStyle  = cyberwareMod !== 0 ? "" : "display:none;";
+  const woundStyle   = woundPenalty  > 0  ? "" : "display:none;";
+  const recoilLabel  = `Recoil (${shotsFired} fired, RC ${recoilComp}):`;
+  const recoilStyle  = recoilPenalty > 0  ? "" : "display:none;";
 
-  // Initial TN at short range
-  const initFinalTN = Math.max(2, BASE_TN + RANGE_TN_MODS.short + cyberwareMod + woundPenalty + recoilPenalty);
+  // Initial TN with all situational mods at zero
+  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + woundPenalty + recoilPenalty);
 
-  // Live TN update via renderDialogV2 hook
+  // Helper: format a modifier number for display (always show sign)
+  const fmt = n => n === 0 ? "+0" : (n > 0 ? `+${n}` : `${n}`);
+
+  // ── Live TN update via renderDialogV2 hook ────────────────────────────────
   let hookId = null;
   hookId = Hooks.on("renderDialogV2", (app, html) => {
-    const root       = (html instanceof Element) ? html : document;
+    const root = (html instanceof Element) ? html : document;
+    // Identify our dialog by the presence of #sr2e-attack-range
     const rangeSelect = root.querySelector("#sr2e-attack-range");
-    if (!rangeSelect) return;                           // not our dialog
-    Hooks.off("renderDialogV2", hookId);                // found it — deregister
+    if (!rangeSelect) return;
+    Hooks.off("renderDialogV2", hookId);
 
-    const rangeRowLabel = root.querySelector("#sr2e-range-label");
-    const rangeRowMod   = root.querySelector("#sr2e-range-mod");
-    const finalTnSpan   = root.querySelector("#sr2e-final-tn");
+    const coverSelect    = root.querySelector("#sr2e-cover");
+    const attackerSelect = root.querySelector("#sr2e-attacker");
+    const targetSelect   = root.querySelector("#sr2e-target");
+    const meleeCheck     = root.querySelector("#sr2e-in-melee");
+    const otherInput     = root.querySelector("#sr2e-other-mod");
 
-    rangeSelect.addEventListener("change", () => {
-      const range    = rangeSelect.value;
-      const rangeMod = RANGE_TN_MODS[range] ?? 0;
-      if (rangeRowLabel) rangeRowLabel.textContent = `Range (${RANGE_LABELS[range]}):`;
-      if (rangeRowMod)   rangeRowMod.textContent   = rangeMod === 0 ? "+0" : (rangeMod > 0 ? `+${rangeMod}` : `${rangeMod}`);
-      const finalTN = Math.max(2, BASE_TN + rangeMod + cyberwareMod + woundPenalty + recoilPenalty);
-      if (finalTnSpan)   finalTnSpan.textContent   = finalTN;
-    });
+    // Breakdown display elements
+    const rangeLabel  = root.querySelector("#sr2e-range-label");
+    const rangeMod    = root.querySelector("#sr2e-range-mod");
+    const coverMod    = root.querySelector("#sr2e-cover-mod");
+    const attackMod   = root.querySelector("#sr2e-attacker-mod");
+    const targetMod   = root.querySelector("#sr2e-target-mod");
+    const meleeMod    = root.querySelector("#sr2e-melee-mod");
+    const otherMod    = root.querySelector("#sr2e-other-mod-val");
+    const coverRow    = root.querySelector("#sr2e-cover-row");
+    const attackRow   = root.querySelector("#sr2e-attacker-row");
+    const targetRow   = root.querySelector("#sr2e-target-row");
+    const meleeRow    = root.querySelector("#sr2e-melee-row");
+    const otherRow    = root.querySelector("#sr2e-other-row");
+    const finalTnSpan = root.querySelector("#sr2e-final-tn");
+
+    function updateTN() {
+      const rng  = rangeSelect.value;
+      const rMod = RANGE_TN_MODS[rng] ?? 0;
+      const cMod = parseInt(coverSelect?.value)    || 0;
+      const aMod = parseInt(attackerSelect?.value) || 0;
+      const tMod = parseInt(targetSelect?.value)   || 0;
+      const mMod = meleeCheck?.checked ? 3 : 0;
+      const oMod = parseInt(otherInput?.value)     || 0;
+
+      if (rangeLabel) rangeLabel.textContent = `Range (${RANGE_LABELS[rng]}):`;
+      if (rangeMod)   rangeMod.textContent   = fmt(rMod);
+      if (coverMod)   coverMod.textContent   = fmt(cMod);
+      if (attackMod)  attackMod.textContent  = fmt(aMod);
+      if (targetMod)  targetMod.textContent  = fmt(tMod);
+      if (meleeMod)   meleeMod.textContent   = fmt(mMod);
+      if (otherMod)   otherMod.textContent   = fmt(oMod);
+
+      // Show/hide rows when modifier is zero
+      if (coverRow)  coverRow.style.display  = cMod !== 0 ? "" : "none";
+      if (attackRow) attackRow.style.display = aMod !== 0 ? "" : "none";
+      if (targetRow) targetRow.style.display = tMod !== 0 ? "" : "none";
+      if (meleeRow)  meleeRow.style.display  = mMod !== 0 ? "" : "none";
+      if (otherRow)  otherRow.style.display  = oMod !== 0 ? "" : "none";
+
+      const finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
+                                          + cyberwareMod + woundPenalty + recoilPenalty);
+      if (finalTnSpan) finalTnSpan.textContent = finalTN;
+    }
+
+    for (const el of [rangeSelect, coverSelect, attackerSelect, targetSelect, meleeCheck, otherInput]) {
+      if (el) el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
+    }
+    updateTN(); // set initial state
   });
 
+  // ── Build dialog HTML ─────────────────────────────────────────────────────
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Attack: ${weapon.name}` },
     rejectClose: false,
     content: `<form>
-      <div class="form-group">
-        <label>Range:</label>
-        <select id="sr2e-attack-range" name="range">
-          <option value="short">Short</option>
-          <option value="medium">Medium</option>
-          <option value="long">Long</option>
-          <option value="extreme">Extreme</option>
-        </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+        <div class="form-group" style="margin:2px 0;">
+          <label>Range:</label>
+          <select id="sr2e-attack-range" name="range">
+            <option value="short">Short</option>
+            <option value="medium">Medium</option>
+            <option value="long">Long</option>
+            <option value="extreme">Extreme</option>
+          </select>
+        </div>
+        ${isRanged ? `
+        <div class="form-group" style="margin:2px 0;">
+          <label>Firing Mode:</label>
+          <select id="sr2e-firing-mode" name="firingMode">${
+            Object.entries(FIRING_MODE_DATA)
+              .filter(([key]) => weapon.system.firingModes?.[key])
+              .map(([key, d]) => `<option value="${key}">${d.label}</option>`)
+              .join("") || `<option value="sa">${FIRING_MODE_DATA.sa.label}</option>`
+          }</select>
+        </div>` : "<div></div>"}
+        <div class="form-group" style="margin:2px 0;">
+          <label>Cover:</label>
+          <select id="sr2e-cover" name="cover">
+            <option value="0">None</option>
+            <option value="2">Partial (+2)</option>
+            <option value="4">Good (+4)</option>
+            <option value="6">Near-Total (+6)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:2px 0;">
+          <label>Attacker:</label>
+          <select id="sr2e-attacker" name="attacker">
+            <option value="0">Stationary / Walking</option>
+            <option value="2">Running (+2)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:2px 0;">
+          <label>Target:</label>
+          <select id="sr2e-target" name="target">
+            <option value="0">Stationary / Walking</option>
+            <option value="2">Running (+2)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:2px 0;align-items:center;">
+          <label>In Melee (+3):</label>
+          <input type="checkbox" id="sr2e-in-melee" name="inMelee" style="width:auto;">
+        </div>
+        <div class="form-group" style="margin:2px 0;">
+          <label>Other Mod:</label>
+          <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
+                 style="width:52px;text-align:center;"
+                 title="Visibility, called shots, environmental modifiers, etc.">
+        </div>
       </div>
       <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="color:#888;padding:1px 0;">Base TN (Short):</td>
+            <td style="color:#888;padding:1px 0;">Base TN:</td>
             <td style="text-align:right;padding:1px 0;">${BASE_TN}</td>
           </tr>
-          <tr id="sr2e-range-row">
+          <tr>
             <td id="sr2e-range-label" style="color:#888;padding:1px 0;">Range (Short):</td>
             <td id="sr2e-range-mod"   style="text-align:right;padding:1px 0;">+0</td>
+          </tr>
+          <tr id="sr2e-cover-row" style="display:none;">
+            <td style="color:#888;padding:1px 0;">Cover:</td>
+            <td id="sr2e-cover-mod" style="text-align:right;padding:1px 0;">+0</td>
+          </tr>
+          <tr id="sr2e-attacker-row" style="display:none;">
+            <td style="color:#888;padding:1px 0;">Attacker running:</td>
+            <td id="sr2e-attacker-mod" style="text-align:right;padding:1px 0;">+0</td>
+          </tr>
+          <tr id="sr2e-target-row" style="display:none;">
+            <td style="color:#888;padding:1px 0;">Target running:</td>
+            <td id="sr2e-target-mod" style="text-align:right;padding:1px 0;">+0</td>
+          </tr>
+          <tr id="sr2e-melee-row" style="display:none;">
+            <td style="color:#c84;padding:1px 0;">Attacker in Melee:</td>
+            <td id="sr2e-melee-mod" style="text-align:right;padding:1px 0;">+0</td>
+          </tr>
+          <tr id="sr2e-other-row" style="display:none;">
+            <td style="color:#888;padding:1px 0;">Other:</td>
+            <td id="sr2e-other-mod-val" style="text-align:right;padding:1px 0;">+0</td>
           </tr>
           <tr style="${cywareStyle}">
             <td style="color:#6c9;padding:1px 0;">${cywareLabel}</td>
@@ -352,7 +483,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
             <td style="color:#ca4;padding:1px 0;">${recoilLabel}</td>
             <td style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
           </tr>
-          <tr style="border-top:1px solid rgba(255,255,255,0.15);padding-top:2px;">
+          <tr style="border-top:1px solid rgba(255,255,255,0.15);">
             <td style="font-weight:bold;padding-top:3px;">Final TN:</td>
             <td id="sr2e-final-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initFinalTN}</td>
           </tr>
@@ -366,14 +497,23 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
         label: "Attack",
         default: true,
         callback: (event, button) => {
-          const range = button.form.elements.range.value;
+          const f = button.form.elements;
           const poolDice = {};
           for (const p of availablePools) {
-            const raw = parseInt(button.form.elements[`pool_${p.key}`]?.value) || 0;
+            const raw = parseInt(f[`pool_${p.key}`]?.value) || 0;
             const clamped = Math.max(0, Math.min(raw, p.cap));
             if (clamped > 0) poolDice[p.key] = clamped;
           }
-          rollResult = { range, poolDice };
+          rollResult = {
+            range:       f.range?.value      ?? "short",
+            firingMode:  f.firingMode?.value ?? "sa",
+            coverMod:    parseInt(f.cover?.value)    || 0,
+            attackerMod: parseInt(f.attacker?.value) || 0,
+            targetMod:   parseInt(f.target?.value)   || 0,
+            meleeMod:    f.inMelee?.checked ? 3 : 0,
+            otherMod:    parseInt(f.otherMod?.value) || 0,
+            poolDice
+          };
         }
       },
       { action: "cancel", label: "Cancel" }
