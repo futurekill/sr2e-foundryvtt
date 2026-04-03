@@ -62,11 +62,15 @@ export class SR2EItem extends Item {
     const isMelee  = ["melee", "throwing"].includes(this.system.weaponType);
     const isRanged = !isMelee;
 
-    // Dice pool — linked skill rating
-    const skillName = this.system.skill;
-    let skillRating = 0;
+    // Dice pool — linked skill rating.
+    // Normalize both the weapon's skill field and each skill item's name by
+    // converting spaces / slashes / parens to underscores so that
+    // "Armed Combat" on the actor matches "armed_combat" on the weapon.
+    const normalize   = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    const skillKey    = normalize(this.system.skill ?? "");
+    let   skillRating = 0;
     for (const item of actor.items) {
-      if (item.type === "skill" && item.name.toLowerCase().includes(skillName)) {
+      if (item.type === "skill" && normalize(item.name) === skillKey) {
         skillRating = item.system.rating;
         break;
       }
