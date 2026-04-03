@@ -126,6 +126,7 @@ export class WeaponData extends SR2EDataModel {
         type: new fields.StringField({ initial: "regular" })
       }),
       recoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      smartgunCompatible: new fields.BooleanField({ initial: false }),
 
       // Range brackets (Short/Medium/Long/Extreme)
       ranges: new fields.SchemaField({
@@ -267,6 +268,9 @@ export class CyberwareData extends SR2EDataModel {
       streetIndex: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
       installed: new fields.BooleanField({ initial: true }),
+      // Combat TN modifier — negative values reduce the attack TN (e.g. −1 for Smartlink).
+      // Applied only when the target weapon has smartgunCompatible = true.
+      combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
       // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
       // are derived from the row matching the current rating (prepareDerivedData).
       // For non-tiered items, leave this empty and fill the flat fields directly.

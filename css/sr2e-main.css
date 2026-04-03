@@ -1058,9 +1058,11 @@
 
 .category-header {
   justify-content: space-between;
+  align-items: center;
   padding: 4px 0;
   border-bottom: 1px solid var(--sr2e-gold-dim);
   margin-bottom: 4px;
+  gap: 6px;
 }
 
 .category-header h3 {
@@ -1072,6 +1074,43 @@
   color: var(--sr2e-gold);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+/* Recoil tracker (inside weapons category-header) */
+.recoil-tracker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.recoil-label {
+  font-size: 10px;
+  color: var(--sr2e-text-muted);
+  font-family: var(--sr2e-font);
+  white-space: nowrap;
+}
+
+.btn-reset-recoil {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--sr2e-border-dim, rgba(255,255,255,0.15));
+  border-radius: 2px;
+  color: var(--sr2e-text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.btn-reset-recoil:hover {
+  color: var(--sr2e-cyan);
+  border-color: var(--sr2e-cyan);
 }
 
 /* Add / small action buttons */

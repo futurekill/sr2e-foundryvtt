@@ -30,13 +30,27 @@ export class SR2EItem extends Item {
 
   /**
    * Roll a weapon attack.
+   *
+   * TN calculation (SR2E p.102):
+   *   Base TN = 4 (Short range)
+   *   + range modifier  : Short +0 / Medium +2 / Long +4 / Extreme +6
+   *   + cyberware mod   : sum of combatTnMod on installed cyberware (if smartgunCompatible)
+   *   + wound penalty   : from actor.system.woundPenalty
+   *   + recoil penalty  : max(0, shotsFired − weapon.recoilComp)
+   *
+   * After a successful roll the actor's combatRecoil counter is incremented
+   * by 1 for firearms and heavy weapons (recoil accumulates over the turn).
+   *
    * @private
    */
   async _rollWeaponAttack(options = {}) {
     const actor = this.parent;
     if (!actor) return;
 
-    // Find the relevant combat skill
+    const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
+    const BASE_TN = 4;
+
+    // Dice pool — skill rating linked to this weapon
     const skillName = this.system.skill;
     let skillRating = 0;
     for (const item of actor.items) {
@@ -45,31 +59,53 @@ export class SR2EItem extends Item {
         break;
       }
     }
-
-    // Default target number for ranged = 4 (short range)
-    const targetNumber = options.targetNumber || 4;
     const dicePool = skillRating || 1;
 
-    // Parse damage code
-    const dmg = this.system.parsedDamageCode;
+    // TN components
+    const range        = options.range ?? "short";
+    const rangeMod     = RANGE_TN_MODS[range] ?? 0;
+    const rangeLabel   = range.charAt(0).toUpperCase() + range.slice(1);
+
+    // Cyberware mod — only when weapon is smartgun-compatible
+    let cyberwareMod = 0;
+    if (this.system.smartgunCompatible) {
+      for (const item of actor.items) {
+        if (item.type === "cyberware" && item.system.installed && item.system.combatTnMod !== 0) {
+          cyberwareMod += item.system.combatTnMod;
+        }
+      }
+    }
+
+    const woundPenalty  = actor.system.woundPenalty ?? 0;
+    const shotsFired    = actor.system.combatRecoil  ?? 0;
+    const recoilComp    = this.system.recoilComp     ?? 0;
+    const recoilPenalty = Math.max(0, shotsFired - recoilComp);
+
+    const targetNumber = Math.max(2, BASE_TN + rangeMod + cyberwareMod + woundPenalty + recoilPenalty);
 
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
-      label: `${this.name} Attack`,
+      label: `${this.name} Attack (${rangeLabel}, TN ${targetNumber})`,
       poolDice: options.poolDice
     });
 
-    // Post damage info
+    // Increment recoil counter for weapons that generate recoil
+    const hasRecoil = ["firearm", "heavy"].includes(this.system.weaponType);
+    if (hasRecoil) {
+      await actor.update({ "system.combatRecoil": shotsFired + 1 });
+    }
+
+    // Post damage staging if the attack landed at least one success
     if (result.successes > 0) {
-      // Stage up damage based on successes
-      const stageUps = Math.floor(result.successes / 2);
-      const stages = ["L", "M", "S", "D"];
-      let baseLevelIndex = stages.indexOf(dmg.level);
-      let finalLevelIndex = Math.min(baseLevelIndex + stageUps, 3);
+      const dmg         = this.system.parsedDamageCode;
+      const stageUps    = Math.floor(result.successes / 2);
+      const stages      = ["L", "M", "S", "D"];
+      const baseIdx     = stages.indexOf(dmg.level);
+      const finalIdx    = Math.min(baseIdx + stageUps, 3);
 
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
-          <strong>${this.name} Damage:</strong> ${dmg.power}${stages[finalLevelIndex]}
+          <strong>${this.name} Damage:</strong> ${dmg.power}${stages[finalIdx]}
           <br><em>Base: ${this.system.damageCode} | Staged up ${stageUps} level(s)</em>
         </div>`
       });

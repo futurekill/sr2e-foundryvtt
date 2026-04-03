@@ -157,6 +157,11 @@ export class CharacterData extends SR2EDataModel {
       // --- VEHICLE CONTROL RIG ---
       vehicleControlRig: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 3 }),
 
+      // --- COMBAT STATE ---
+      // Shots fired this combat turn — used for recoil tracking.
+      // Reset manually (or via a macro) at the start of each initiative pass.
+      combatRecoil: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+
       // --- LINKED VEHICLES ---
       linkedVehicles: new fields.ArrayField(
         new fields.StringField({ required: false, blank: true }),

@@ -214,9 +214,179 @@ async function onRollInitiative(event, target) {
   return this.document.rollInitiative();
 }
 
+/** Range TN modifiers over the base Short TN of 4 (SR2E p.102). */
+const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
+const RANGE_LABELS   = { short: "Short", medium: "Medium", long: "Long", extreme: "Extreme" };
+
+/**
+ * Prompt for weapon attack options: range bracket, TN breakdown, and pool dice.
+ *
+ * TN breakdown (SR2E p.102):
+ *   Base TN          = 4 (Short range)
+ *   Range modifier   = +0 / +2 / +4 / +6 for Short / Medium / Long / Extreme
+ *   Smartlink        = sum of combatTnMod on installed cyberware (if weapon is smartgunCompatible)
+ *   Wound penalty    = from actor.system.woundPenalty
+ *   Recoil penalty   = max(0, shotsFired − weapon.recoilComp)
+ *
+ * The TN breakdown table updates live as the player changes the range dropdown.
+ *
+ * @param {Actor}  actor    - The attacking actor.
+ * @param {Item}   weapon   - The weapon item being fired.
+ * @param {number} skillCap - Max pool dice (= skill rating). Default: Infinity.
+ * @returns {Promise<{range: string, poolDice: object}|null>}
+ */
+async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
+  const BASE_TN = 4;
+
+  // Detect installed cyberware TN modifiers (smartgun link etc.)
+  // Only applied when the weapon is flagged as smartgunCompatible.
+  let cyberwareMod = 0;
+  let cywareName = "";
+  if (weapon.system.smartgunCompatible) {
+    for (const item of actor.items) {
+      if (item.type === "cyberware" && item.system.installed && item.system.combatTnMod !== 0) {
+        cyberwareMod += item.system.combatTnMod;
+        if (cywareName) cywareName += ", ";
+        cywareName += item.name;
+      }
+    }
+  }
+
+  // Wound penalty
+  const woundPenalty = actor.system.woundPenalty ?? 0;
+
+  // Recoil: shots fired this turn vs the weapon's recoil compensation
+  const shotsFired   = actor.system.combatRecoil ?? 0;
+  const recoilComp   = weapon.system.recoilComp   ?? 0;
+  const recoilPenalty = Math.max(0, shotsFired - recoilComp);
+
+  // Pool inputs — same logic as promptRollOptions
+  const availablePools = POOL_DEFS
+    .map(p => {
+      const available = getPoolAvailable(actor, p.key);
+      const cap = skillCap === Infinity ? available : Math.min(available, skillCap);
+      return { ...p, available, cap };
+    })
+    .filter(p => p.cap > 0);
+
+  const poolHTML = availablePools.length ? `
+    <hr style="margin:8px 0 6px;">
+    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
+    ${availablePools.map(p => `
+    <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
+      <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
+        <span style="color:#888;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
+      </label>
+      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
+             data-pool-key="${p.key}" data-pool-cap="${p.cap}"
+             style="width:52px;text-align:center;">
+    </div>`).join("")}
+  ` : "";
+
+  // Smartlink / wound / recoil rows — hidden when not applicable
+  const cywareLabel    = cywareName ? `${cywareName}:` : "Smartlink:";
+  const cywareModStr   = cyberwareMod > 0 ? `+${cyberwareMod}` : `${cyberwareMod}`;
+  const cywareStyle    = cyberwareMod !== 0 ? "" : "display:none;";
+  const woundStyle     = woundPenalty > 0   ? "" : "display:none;";
+  const recoilLabel    = `Recoil (${shotsFired} fired, RC ${recoilComp}):`;
+  const recoilStyle    = recoilPenalty > 0  ? "" : "display:none;";
+
+  // Initial TN at short range
+  const initFinalTN = Math.max(2, BASE_TN + RANGE_TN_MODS.short + cyberwareMod + woundPenalty + recoilPenalty);
+
+  // Live TN update via renderDialogV2 hook
+  let hookId = null;
+  hookId = Hooks.on("renderDialogV2", (app, html) => {
+    const root       = (html instanceof Element) ? html : document;
+    const rangeSelect = root.querySelector("#sr2e-attack-range");
+    if (!rangeSelect) return;                           // not our dialog
+    Hooks.off("renderDialogV2", hookId);                // found it — deregister
+
+    const rangeRowLabel = root.querySelector("#sr2e-range-label");
+    const rangeRowMod   = root.querySelector("#sr2e-range-mod");
+    const finalTnSpan   = root.querySelector("#sr2e-final-tn");
+
+    rangeSelect.addEventListener("change", () => {
+      const range    = rangeSelect.value;
+      const rangeMod = RANGE_TN_MODS[range] ?? 0;
+      if (rangeRowLabel) rangeRowLabel.textContent = `Range (${RANGE_LABELS[range]}):`;
+      if (rangeRowMod)   rangeRowMod.textContent   = rangeMod === 0 ? "+0" : (rangeMod > 0 ? `+${rangeMod}` : `${rangeMod}`);
+      const finalTN = Math.max(2, BASE_TN + rangeMod + cyberwareMod + woundPenalty + recoilPenalty);
+      if (finalTnSpan)   finalTnSpan.textContent   = finalTN;
+    });
+  });
+
+  let rollResult = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Attack: ${weapon.name}` },
+    rejectClose: false,
+    content: `<form>
+      <div class="form-group">
+        <label>Range:</label>
+        <select id="sr2e-attack-range" name="range">
+          <option value="short">Short</option>
+          <option value="medium">Medium</option>
+          <option value="long">Long</option>
+          <option value="extreme">Extreme</option>
+        </select>
+      </div>
+      <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="color:#888;padding:1px 0;">Base TN (Short):</td>
+            <td style="text-align:right;padding:1px 0;">${BASE_TN}</td>
+          </tr>
+          <tr id="sr2e-range-row">
+            <td id="sr2e-range-label" style="color:#888;padding:1px 0;">Range (Short):</td>
+            <td id="sr2e-range-mod"   style="text-align:right;padding:1px 0;">+0</td>
+          </tr>
+          <tr style="${cywareStyle}">
+            <td style="color:#6c9;padding:1px 0;">${cywareLabel}</td>
+            <td style="text-align:right;padding:1px 0;">${cywareModStr}</td>
+          </tr>
+          <tr style="${woundStyle}">
+            <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
+            <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
+          </tr>
+          <tr style="${recoilStyle}">
+            <td style="color:#ca4;padding:1px 0;">${recoilLabel}</td>
+            <td style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,0.15);padding-top:2px;">
+            <td style="font-weight:bold;padding-top:3px;">Final TN:</td>
+            <td id="sr2e-final-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initFinalTN}</td>
+          </tr>
+        </table>
+      </div>
+      ${poolHTML}
+    </form>`,
+    buttons: [
+      {
+        action: "roll",
+        label: "Attack",
+        default: true,
+        callback: (event, button) => {
+          const range = button.form.elements.range.value;
+          const poolDice = {};
+          for (const p of availablePools) {
+            const raw = parseInt(button.form.elements[`pool_${p.key}`]?.value) || 0;
+            const clamped = Math.max(0, Math.min(raw, p.cap));
+            if (clamped > 0) poolDice[p.key] = clamped;
+          }
+          rollResult = { range, poolDice };
+        }
+      },
+      { action: "cancel", label: "Cancel" }
+    ]
+  });
+
+  if (hookId !== null) Hooks.off("renderDialogV2", hookId);
+  return (action === "roll" && rollResult) ? rollResult : null;
+}
+
 /**
  * Roll a weapon attack.
- * Pool dice are capped at the rating of the skill linked to this weapon.
+ * Opens the weapon attack dialog (range selector + TN breakdown + pool dice).
  * @this {ApplicationV2}
  */
 async function onRollWeapon(event, target) {
@@ -224,12 +394,12 @@ async function onRollWeapon(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  // Find the skill linked to this weapon (matched by skill key on the weapon vs. skill name slug)
+
   const weaponSkillKey = item.system?.skill ?? "";
   const actor = this.document;
   let skillCap = Infinity;
   if (weaponSkillKey) {
-    // Look for a skill item whose name (lowercased, spaces→underscores) matches the weapon's skill key
+    // Match skill item by name slug against the weapon's skill field
     const linkedSkill = actor.items.find(i =>
       i.type === "skill" &&
       (i.name.toLowerCase().replace(/\s+/g, "_") === weaponSkillKey.toLowerCase() ||
@@ -237,15 +407,14 @@ async function onRollWeapon(event, target) {
     );
     if (linkedSkill) {
       const rating = linkedSkill.system?.rating ?? 0;
-      // Only enforce the skill-rating cap when the character has training (rating > 0).
-      // An untrained character (rating 0) can still add pool dice to a combat test;
-      // capping at 0 would hide the pool inputs entirely.
+      // Only cap when trained (rating > 0); untrained characters can still add pool dice.
       skillCap = rating > 0 ? rating : Infinity;
     }
   }
-  const opts = await promptRollOptions(actor, skillCap);
+
+  const opts = await promptWeaponAttackOptions(actor, item, skillCap);
   if (!opts) return;
-  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
+  return item.roll({ range: opts.range, poolDice: opts.poolDice });
 }
 
 /**
@@ -493,6 +662,15 @@ async function onAddItem(event, target) {
 }
 
 /**
+ * Reset the combat recoil counter to zero (start of new initiative pass).
+ * @this {ApplicationV2}
+ */
+async function onResetRecoil(event, target) {
+  event.preventDefault();
+  return this.document.update({ "system.combatRecoil": 0 });
+}
+
+/**
  * Reset all dice pools to their maximum values.
  * @this {ApplicationV2}
  */
@@ -591,6 +769,7 @@ const SHARED_ACTIONS = {
   editItem: onEditItem,
   deleteItem: onDeleteItem,
   addItem: onAddItem,
+  resetRecoil: onResetRecoil,
   resetPools: onResetPools,
   resetPool:  onResetPool,
   incrementMonitor: onIncrementMonitor,

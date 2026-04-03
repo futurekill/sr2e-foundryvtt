@@ -95,6 +95,10 @@
     <label>Recoil Compensation:</label>
     <input type="number" name="system.recoilComp" value="{{system.recoilComp}}" min="0" />
   </div>
+  <div class="form-group">
+    <label>Smartgun Compatible:</label>
+    <input type="checkbox" name="system.smartgunCompatible" {{checked system.smartgunCompatible}} />
+  </div>
   <fieldset>
     <legend>Ranges</legend>
     <div class="flexrow">
@@ -266,6 +270,11 @@
   <div class="form-group">
     <label>Installed:</label>
     <input type="checkbox" name="system.installed" {{checked system.installed}} />
+  </div>
+  <div class="form-group">
+    <label>Combat TN Modifier:</label>
+    <input type="number" name="system.combatTnMod" value="{{system.combatTnMod}}" />
+    <span class="hint">(e.g. −1 for Smartlink; applies to compatible weapons only)</span>
   </div>
 
   {{!-- Per-rating stats table --}}

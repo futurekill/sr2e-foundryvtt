@@ -5,6 +5,12 @@
     <div class="combat-category">
       <div class="category-header flexrow">
         <h3>{{localize "SR2E.Weapons.Label"}}</h3>
+        <div class="recoil-tracker flexrow" title="Shots fired this initiative pass vs. weapon Recoil Compensation">
+          <span class="recoil-label">Recoil: {{system.combatRecoil}} shot(s)</span>
+          <button type="button" data-action="resetRecoil" class="btn-reset-recoil" title="Reset Recoil (new initiative pass)">
+            <i class="fas fa-sync"></i>
+          </button>
+        </div>
         <button type="button" data-action="addItem" data-type="weapon" class="btn-add">
           <i class="fas fa-plus"></i>
         </button>
