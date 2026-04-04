@@ -63,14 +63,46 @@ export class SR2EItem extends Item {
     const isRanged = !isMelee;
 
     // Dice pool — linked skill rating.
-    // Normalize both the weapon's skill field and each skill item's name by
-    // converting spaces / slashes / parens to underscores so that
-    // "Armed Combat" on the actor matches "armed_combat" on the weapon.
-    const normalize   = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-    const skillKey    = normalize(this.system.skill ?? "");
-    let   skillRating = 0;
+    //
+    // SR2E weapon-type → default skill mapping (core book p.88–92):
+    //   Firearms   → Firearms
+    //   Melee      → Armed Combat  (covers all hand-to-hand weapons)
+    //   Throwing   → Throwing Weapons
+    //   Heavy      → Heavy Weapons
+    //   Projectile → Projectile Weapons (bows, crossbows)
+    //   Grenade    → Throwing Weapons
+    //
+    // The weapon's explicit `skill` field overrides the type default when set.
+    // Both the field value and each skill item's name are normalized to slug
+    // form (spaces/slashes/parens → underscores) before comparing so that
+    // "Armed Combat" and "armed_combat" always resolve to the same skill.
+    const WEAPON_TYPE_DEFAULT_SKILLS = {
+      firearm:    "firearms",
+      melee:      "armed_combat",
+      throwing:   "throwing_weapons",
+      heavy:      "heavy_weapons",
+      projectile: "projectile_weapons",
+      grenade:    "throwing_weapons"
+    };
+
+    const normalize = s =>
+      s.toLowerCase()
+       .replace(/[\s/()]+/g, "_")
+       .replace(/_+/g, "_")
+       .replace(/^_|_$/g, "");
+
+    // Build a priority list of skill keys to search: explicit field first,
+    // then the weapon-type default.  Empty strings are filtered out.
+    const typeFallback = WEAPON_TYPE_DEFAULT_SKILLS[this.system.weaponType] ?? "";
+    const skillKeys = [
+      normalize(this.system.skill ?? ""),
+      normalize(typeFallback)
+    ].filter(k => k !== "");
+
+    let skillRating = 0;
     for (const item of actor.items) {
-      if (item.type === "skill" && normalize(item.name) === skillKey) {
+      if (item.type !== "skill") continue;
+      if (skillKeys.includes(normalize(item.name))) {
         skillRating = item.system.rating;
         break;
       }

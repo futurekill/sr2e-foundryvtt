@@ -595,21 +595,38 @@ async function onRollWeapon(event, target) {
   const item = this.document.items.get(itemId);
   if (!item) return;
 
-  const weaponSkillKey = item.system?.skill ?? "";
   const actor = this.document;
+
+  // SR2E weapon-type → default skill (mirrors the lookup in _rollWeaponAttack)
+  const WEAPON_TYPE_DEFAULT_SKILLS = {
+    firearm:    "firearms",
+    melee:      "armed_combat",
+    throwing:   "throwing_weapons",
+    heavy:      "heavy_weapons",
+    projectile: "projectile_weapons",
+    grenade:    "throwing_weapons"
+  };
+  const normalize = s =>
+    s.toLowerCase()
+     .replace(/[\s/()]+/g, "_")
+     .replace(/_+/g, "_")
+     .replace(/^_|_$/g, "");
+
+  // Build priority list: explicit skill field first, then weapon-type default
+  const typeFallback  = WEAPON_TYPE_DEFAULT_SKILLS[item.system?.weaponType] ?? "";
+  const skillKeys     = [
+    normalize(item.system?.skill ?? ""),
+    normalize(typeFallback)
+  ].filter(k => k !== "");
+
   let skillCap = Infinity;
-  if (weaponSkillKey) {
-    // Match skill item by name slug against the weapon's skill field
-    const linkedSkill = actor.items.find(i =>
-      i.type === "skill" &&
-      (i.name.toLowerCase().replace(/\s+/g, "_") === weaponSkillKey.toLowerCase() ||
-       i.name.toLowerCase().replace(/[\s/()]+/g, "_") === weaponSkillKey.toLowerCase())
-    );
-    if (linkedSkill) {
-      const rating = linkedSkill.system?.rating ?? 0;
-      // Only cap when trained (rating > 0); untrained characters can still add pool dice.
-      skillCap = rating > 0 ? rating : Infinity;
-    }
+  const linkedSkill = actor.items.find(
+    i => i.type === "skill" && skillKeys.includes(normalize(i.name))
+  );
+  if (linkedSkill) {
+    const rating = linkedSkill.system?.rating ?? 0;
+    // Only cap when trained (rating > 0); untrained can still commit pool dice
+    skillCap = rating > 0 ? rating : Infinity;
   }
 
   const opts = await promptWeaponAttackOptions(actor, item, skillCap);
