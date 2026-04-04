@@ -1,5 +1,81 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 
+// ---------------------------------------------------------------------------
+// DAMAGE CODE EVALUATION
+// ---------------------------------------------------------------------------
+
+/**
+ * Evaluate a SR2E damage code string, resolving attribute-based formulas
+ * using the supplied actor's derived stats.
+ *
+ * Supported formats
+ *   "9M"       — plain numeric  (power 9, level M)
+ *   "(Str+3)S" — formula        (power = actor.strength.value + 3, level S)
+ *   "(Body)L"  — formula        (power = actor.body.value, level L)
+ *
+ * Attribute keywords (case-insensitive):
+ *   Str / Strength, Bod / Body, Qui / Quickness,
+ *   Int / Intelligence, Wil / Willpower,
+ *   Cha / Charisma,   Rea / Reaction
+ *
+ * @param {string}     code  - Raw damage code from the weapon item.
+ * @param {Actor|null} actor - Attacking actor (required for formula codes).
+ * @returns {{ power: number, level: string }}
+ */
+function evaluateDamageCode(code, actor = null) {
+  if (!code) return { power: 0, level: "M" };
+
+  // 1. Plain numeric code — "9M", "6S", "4D"
+  const simpleMatch = code.match(/^(\d+)(L|M|S|D)$/i);
+  if (simpleMatch) {
+    return { power: parseInt(simpleMatch[1]), level: simpleMatch[2].toUpperCase() };
+  }
+
+  // 2. Formula code — "(Str+3)S", "(Body)L"
+  const formulaMatch = code.match(/^\(([^)]+)\)(L|M|S|D)$/i);
+  if (formulaMatch && actor?.system) {
+    const expr  = formulaMatch[1];
+    const level = formulaMatch[2].toUpperCase();
+    const sys   = actor.system;
+
+    // Longest keys first so "strength" isn't shadowed by "str"
+    const ATTR_MAP = {
+      strength:     sys.strength?.value     ?? 0,
+      intelligence: sys.intelligence?.value ?? 0,
+      quickness:    sys.quickness?.value    ?? 0,
+      willpower:    sys.willpower?.value    ?? 0,
+      charisma:     sys.charisma?.value     ?? 0,
+      reaction:     sys.reaction?.value     ?? 0,
+      body:         sys.body?.value         ?? 0,
+      str:          sys.strength?.value     ?? 0,
+      bod:          sys.body?.value         ?? 0,
+      qui:          sys.quickness?.value    ?? 0,
+      int:          sys.intelligence?.value ?? 0,
+      wil:          sys.willpower?.value    ?? 0,
+      cha:          sys.charisma?.value     ?? 0,
+      rea:          sys.reaction?.value     ?? 0,
+    };
+
+    // Substitute attribute names (sorted longest-first to prevent partial matches)
+    const keys = Object.keys(ATTR_MAP).sort((a, b) => b.length - a.length);
+    let resolved = expr.toLowerCase();
+    for (const key of keys) {
+      resolved = resolved.replace(new RegExp(`\\b${key}\\b`, "g"), String(ATTR_MAP[key]));
+    }
+
+    // After substitution only digits and arithmetic operators should remain
+    if (/^[\d\s+\-*/().]+$/.test(resolved)) {
+      try {
+        // eslint-disable-next-line no-new-func
+        const power = Math.max(0, Math.floor(Function(`"use strict"; return (${resolved})`)()));
+        return { power, level };
+      } catch { /* fall through to default */ }
+    }
+  }
+
+  return { power: 0, level: "M" };
+}
+
 /**
  * Extended Item document for the Shadowrun 2E system.
  */
@@ -192,7 +268,9 @@ export class SR2EItem extends Item {
 
     // Post staged damage + resist button if the attack connected
     if (result.successes > 0) {
-      const dmg          = this.system.parsedDamageCode;
+      // Evaluate damage code with actor context so formula codes like
+      // "(Str+3)S" resolve against the attacker's current attributes.
+      const dmg          = evaluateDamageCode(this.system.damageCode, actor);
       const armorType    = isMelee ? "impact" : "ballistic";
       const armorLabel   = isMelee ? "Impact" : "Ballistic";
       let effectivePower = dmg.power;

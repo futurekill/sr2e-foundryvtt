@@ -374,6 +374,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
     const reachRow    = root.querySelector("#sr2e-reach-row");
     const finalTnSpan = root.querySelector("#sr2e-final-tn");
 
+    // Live recoil penalty — can be zeroed by the in-dialog Reset button
+    let liveRecoil = recoilPenalty;
+
     function updateTN() {
       const aMod = parseInt(attackerSelect?.value) || 0;
       const tMod = parseInt(targetSelect?.value)   || 0;
@@ -392,14 +395,14 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
         const rMod = RANGE_TN_MODS[rng] ?? 0;
         const cMod = parseInt(coverSelect?.value) || 0;
         const mMod = meleeCheck?.checked ? 3 : 0;
-        if (rangeLabel)   rangeLabel.textContent  = `Range (${RANGE_LABELS[rng]}):`;
+        if (rangeLabel)   rangeLabel.textContent   = `Range (${RANGE_LABELS[rng]}):`;
         if (rangeModSpan) rangeModSpan.textContent = fmt(rMod);
         if (coverModSpan) coverModSpan.textContent = fmt(cMod);
         if (meleeModSpan) meleeModSpan.textContent = fmt(mMod);
         if (coverRow)     coverRow.style.display   = cMod !== 0 ? "" : "none";
         if (meleeRow)     meleeRow.style.display   = mMod !== 0 ? "" : "none";
         finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
-                                      + cyberwareMod + woundPenalty + recoilPenalty);
+                                      + cyberwareMod + woundPenalty + liveRecoil);
       } else {
         const quick  = parseInt(quickInput?.value) || 4;
         const rchMod = parseInt(reachInput?.value) || 0;
@@ -409,6 +412,20 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
         finalTN = Math.max(2, quick + rchMod + aMod + tMod + oMod + woundPenalty);
       }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
+    }
+
+    // Reset Recoil button — zeroes the live penalty and persists to the actor
+    const resetRecoilBtn = root.querySelector("#sr2e-reset-recoil-btn");
+    const recoilRow      = root.querySelector("#sr2e-recoil-row");
+    const recoilVal      = root.querySelector("#sr2e-recoil-val");
+    if (resetRecoilBtn) {
+      resetRecoilBtn.addEventListener("click", async () => {
+        liveRecoil = 0;
+        await actor.update({ "system.combatRecoil": 0 });
+        if (recoilRow) recoilRow.style.display = "none";
+        if (recoilVal) recoilVal.textContent    = "+0";
+        updateTN();
+      });
     }
 
     const allInputs = [rangeSelect, coverSelect, meleeCheck, attackerSelect,
@@ -546,9 +563,18 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
       <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
     </tr>` : ""}
     ${isRanged && recoilStyle !== "display:none;" ? `
-    <tr style="${recoilStyle}">
-      <td style="color:#ca4;padding:1px 0;">${recoilLabel}</td>
-      <td style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
+    <tr id="sr2e-recoil-row">
+      <td style="color:#ca4;padding:1px 0;">
+        ${recoilLabel}
+        <button type="button" id="sr2e-reset-recoil-btn"
+                style="font-size:9px;padding:1px 5px;margin-left:6px;
+                       background:rgba(200,160,50,0.15);border:1px solid #ca4;
+                       border-radius:3px;cursor:pointer;color:#ca4;line-height:1.4;"
+                title="Clear recoil counter (start of new initiative pass)">
+          Reset
+        </button>
+      </td>
+      <td id="sr2e-recoil-val" style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
     </tr>` : ""}`;
 
   let rollResult = null;
