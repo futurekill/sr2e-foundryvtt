@@ -37,6 +37,51 @@ function getPoolAvailable(actor, key) {
 }
 
 /**
+ * Attach pool-dice validation to a rendered dialog root element.
+ *
+ * Looks for all <input data-pool-cap="N" data-pool-key="K"> elements,
+ * validates their values on every `input` event, shows an inline error
+ * span (`.sr2e-pool-error[data-for="K"]`) when out of range, and
+ * disables the dialog's default button (data-action="roll" or the first
+ * button) until all values are valid.
+ *
+ * Call this once from inside a renderDialogV2 hook after you have
+ * confirmed the root belongs to your dialog.
+ *
+ * @param {Element} root - The dialog root HTMLElement.
+ */
+function attachPoolValidation(root) {
+  const inputs = root.querySelectorAll("input[data-pool-cap]");
+  if (!inputs.length) return;
+
+  // Try the labelled action button first, fall back to the first button.
+  const actionBtn = root.querySelector('[data-action="roll"]')
+                 ?? root.querySelector("button");
+
+  function validate() {
+    let allValid = true;
+    for (const input of inputs) {
+      const cap   = parseInt(input.dataset.poolCap) || 0;
+      const val   = parseInt(input.value)           || 0;
+      const err   = root.querySelector(`.sr2e-pool-error[data-for="${input.dataset.poolKey}"]`);
+      const bad   = val < 0 || val > cap;
+      input.style.outline = bad ? "2px solid #c44" : "";
+      if (err) {
+        err.textContent    = bad ? (val < 0 ? "Min: 0" : `Max: ${cap}`) : "";
+        err.style.display  = bad ? "block" : "none";
+      }
+      if (bad) allValid = false;
+    }
+    if (actionBtn) actionBtn.disabled = !allValid;
+  }
+
+  for (const input of inputs) {
+    input.addEventListener("input", validate);
+  }
+  validate(); // set initial state
+}
+
+/**
  * Prompt for a target number and optional pool dice via DialogV2.
  * Shows only pools that have available dice.
  *
@@ -85,44 +130,14 @@ async function promptRollOptions(actor, skillCap = Infinity) {
   ` : "";
 
   // ── Live validation via a one-shot renderDialogV2 hook ─────────────────────
-  // Foundry V13: ApplicationV2 fires "renderDialogV2" (html is an HTMLElement).
-  // We identify our dialog by the presence of data-pool-cap inputs.
+  // Identified by the presence of data-pool-cap inputs (unique to this dialog).
   let validationHookId = null;
   if (availablePools.length > 0) {
     validationHookId = Hooks.on("renderDialogV2", (app, html) => {
       const root = (html instanceof Element) ? html : document;
-      const inputs = root.querySelectorAll("input[data-pool-cap]");
-      if (!inputs.length) return;                    // not our dialog — stay registered
-      Hooks.off("renderDialogV2", validationHookId); // found it — deregister
-
-      const rollBtn = root.querySelector('[data-action="roll"]');
-
-      function validate() {
-        let allValid = true;
-        for (const input of inputs) {
-          const cap = parseInt(input.dataset.poolCap);
-          const val = parseInt(input.value) || 0;
-          const err = root.querySelector(`.sr2e-pool-error[data-for="${input.dataset.poolKey}"]`);
-          const over = val > cap;
-          const under = val < 0;
-          if (over || under) {
-            input.style.outline = "2px solid #c44";
-            if (err) {
-              err.textContent = under ? "Min: 0" : `Max: ${cap}`;
-              err.style.display = "block";
-            }
-            allValid = false;
-          } else {
-            input.style.outline = "";
-            if (err) err.style.display = "none";
-          }
-        }
-        if (rollBtn) rollBtn.disabled = !allValid;
-      }
-
-      for (const input of inputs) {
-        input.addEventListener("input", validate);
-      }
+      if (!root.querySelector("input[data-pool-cap]")) return; // not our dialog
+      Hooks.off("renderDialogV2", validationHookId);
+      attachPoolValidation(root);
     });
   }
 
@@ -296,9 +311,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
       <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
         <span style="color:#888;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
-      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
-             data-pool-key="${p.key}" data-pool-cap="${p.cap}"
-             style="width:52px;text-align:center;">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
+               data-pool-key="${p.key}" data-pool-cap="${p.cap}"
+               style="width:52px;text-align:center;">
+        <span class="sr2e-pool-error" data-for="${p.key}"
+              style="color:#e44;font-size:9px;display:none;line-height:1.2;text-align:right;"></span>
+      </div>
     </div>`).join("")}
   ` : "";
 
@@ -398,6 +417,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
       el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
     }
     updateTN(); // set initial state
+
+    // Pool-dice validation (shared helper — same behaviour as other roll dialogs)
+    attachPoolValidation(root);
   });
 
   // ── Build dialog HTML ─────────────────────────────────────────────────────
