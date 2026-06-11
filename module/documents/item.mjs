@@ -183,7 +183,24 @@ export class SR2EItem extends Item {
         break;
       }
     }
-    const dicePool = skillRating || 1;
+
+    // Untrained: default to the skill's linked Attribute via the Skill Web
+    // (SR2E p.69) — attribute dice at +CONFIG.SR2E.defaultingPenalty TN.
+    let dicePool = skillRating;
+    let defaultingPenalty = 0;
+    let defaultingNote = "";
+    if (skillRating <= 0) {
+      const defaultSkillKey = skillKeys.find(k => CONFIG.SR2E.activeSkills[k]) ?? "";
+      const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
+      // "reaction" lives outside system.<attr>; everything else is an attributeField
+      const attrValue = attrKey === "reaction"
+        ? (actor.system.reaction?.value ?? 1)
+        : (actor.system[attrKey]?.value ?? 1);
+      dicePool = Math.max(1, attrValue);
+      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+      const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
+      defaultingNote = `defaulting to ${attrLabel} +${defaultingPenalty}`;
+    }
 
     // Common modifiers
     const attackerMod  = options.attackerMod ?? 0;
@@ -209,8 +226,10 @@ export class SR2EItem extends Item {
 
       targetNumber = Math.max(2,
         targetQuickness + reachMod + attackerMod + targetMod + otherMod + woundPenalty
+                        + defaultingPenalty
       );
 
+      if (defaultingNote) modParts.push(defaultingNote);
       if (reachMod)    modParts.push(`reach +${reachMod}`);
       if (attackerMod) modParts.push(`attacker running +${attackerMod}`);
       if (targetMod)   modParts.push(`target running +${targetMod}`);
@@ -265,9 +284,10 @@ export class SR2EItem extends Item {
 
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
-                + cyberwareMod + woundPenalty + recoilPenalty
+                + cyberwareMod + woundPenalty + recoilPenalty + defaultingPenalty
       );
 
+      if (defaultingNote) modParts.push(defaultingNote);
       if (rangeMod)    modParts.push(`${rangeLabel} range`);
       if (coverMod)    modParts.push(`cover +${coverMod}`);
       if (attackerMod) modParts.push(`running +${attackerMod}`);
@@ -450,19 +470,14 @@ export class SR2EItem extends Item {
   }
 
   /**
-   * Roll a skill test.
+   * Roll a skill test. Delegates to the actor so untrained defaulting
+   * (Skill Web, SR2E p.69) is handled in one place.
    * @private
    */
   async _rollSkillTest(options = {}) {
     const actor = this.parent;
     if (!actor) return;
-
-    const targetNumber = options.targetNumber || 4;
-    return actor.rollSuccessTest(this.system.rating, targetNumber, {
-      label: `${this.name} Test`,
-      poolDice: options.poolDice,
-      karmaDice: options.karmaDice
-    });
+    return actor.rollSkillTest(this.id, options.targetNumber || 4, options);
   }
 
   /**

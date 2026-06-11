@@ -270,8 +270,16 @@ async function onRollSkill(event, target) {
   const actor = this.document;
   // SR2E p.86: Combat Pool is only for combat-related tests (Firearm, Melee, etc.)
   // and Damage Resistance Tests — pools are hidden for general skill checks.
-  // Karma dice (p.190) may still be bought, capped at the skill rating.
-  const baseDice = actor.items.get(skillId)?.system?.rating ?? 0;
+  // Karma dice (p.190) may still be bought, capped at the dice in use:
+  // the skill rating, or the linked attribute when defaulting untrained.
+  const skillItem = actor.items.get(skillId);
+  let baseDice = skillItem?.system?.rating ?? 0;
+  if (baseDice <= 0) {
+    const attrKey = skillItem?.system?.linkedAttribute || "quickness";
+    baseDice = attrKey === "reaction"
+      ? (actor.system.reaction?.value ?? 1)
+      : (actor.system[attrKey]?.value ?? 1);
+  }
   const opts = await promptRollOptions(actor, { showPools: false, baseDice });
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, {
@@ -328,11 +336,13 @@ const FIRING_MODE_DATA = {
  * @param {Item}   weapon   - The weapon item being fired.
  * @param {number} skillCap - Max pool dice (= skill rating). Default: Infinity.
  * @param {number} baseDice - Base dice in use (cap for bought karma dice). Default: 0.
+ * @param {number} defaultingPenalty - Skill Web TN penalty when untrained. Default: 0.
  * @returns {Promise<{range:string, firingMode:string, coverMod:number,
  *                    attackerMod:number, targetMod:number, meleeMod:number,
  *                    otherMod:number, poolDice:object, karmaDice:number}|null>}
  */
-async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, baseDice = 0) {
+async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, baseDice = 0,
+                                         defaultingPenalty = 0) {
   const BASE_TN    = 4;
   const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
   const isRanged   = !isMelee;
@@ -396,7 +406,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const recoilStyle  = recoilPenalty > 0  ? "" : "display:none;";
 
   // Initial TN with all situational mods at zero
-  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + woundPenalty + recoilPenalty);
+  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + woundPenalty + recoilPenalty
+                                          + defaultingPenalty);
 
   // Helper: format a modifier number for display (always show sign)
   const fmt = n => n === 0 ? "+0" : (n > 0 ? `+${n}` : `${n}`);
@@ -488,14 +499,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (recoilRow)    recoilRow.style.display  = recoil > 0 ? "" : "none";
         if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
         finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
-                                      + cyberwareMod + woundPenalty + recoil);
+                                      + cyberwareMod + woundPenalty + recoil
+                                      + defaultingPenalty);
       } else {
         const quick  = parseInt(quickInput?.value) || 4;
         const rchMod = parseInt(reachInput?.value) || 0;
         if (baseTnValSpan) baseTnValSpan.textContent = quick;
         if (reachModSpan)  reachModSpan.textContent  = fmt(rchMod);
         if (reachRow)      reachRow.style.display     = rchMod !== 0 ? "" : "none";
-        finalTN = Math.max(2, quick + rchMod + aMod + tMod + oMod + woundPenalty);
+        finalTN = Math.max(2, quick + rchMod + aMod + tMod + oMod + woundPenalty
+                                    + defaultingPenalty);
       }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
     }
@@ -650,6 +663,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
       <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
     </tr>` : ""}
+    ${defaultingPenalty > 0 ? `
+    <tr>
+      <td style="color:#c84;padding:1px 0;" title="Untrained — defaulting via the Skill Web (SR2E p.69)">Defaulting (untrained):</td>
+      <td style="text-align:right;padding:1px 0;">+${defaultingPenalty}</td>
+    </tr>` : ""}
     ${isRanged && hasRecoil ? `
     <tr id="sr2e-recoil-row" style="${recoilStyle}">
       <td style="color:#ca4;padding:1px 0;">
@@ -759,18 +777,28 @@ async function onRollWeapon(event, target) {
   ].filter(k => k !== "");
 
   let skillCap = Infinity;
-  let baseDice = 1;   // untrained fallback dice (matches _rollWeaponAttack)
+  let baseDice = 1;
+  let defaultingPenalty = 0;
   const linkedSkill = actor.items.find(
     i => i.type === "skill" && skillKeys.includes(normalize(i.name))
   );
-  if (linkedSkill) {
-    const rating = linkedSkill.system?.rating ?? 0;
-    // Only cap when trained (rating > 0); untrained can still commit pool dice
-    skillCap = rating > 0 ? rating : Infinity;
-    if (rating > 0) baseDice = rating;
+  const rating = linkedSkill?.system?.rating ?? 0;
+  if (rating > 0) {
+    skillCap = rating;
+    baseDice = rating;
+  } else {
+    // Untrained: defaulting to the linked Attribute via the Skill Web
+    // (mirrors the dice/TN computed in SR2EItem#_rollWeaponAttack)
+    const defaultSkillKey = skillKeys.find(k => CONFIG.SR2E.activeSkills[k]) ?? "";
+    const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
+    const attrValue = attrKey === "reaction"
+      ? (actor.system.reaction?.value ?? 1)
+      : (actor.system[attrKey]?.value ?? 1);
+    baseDice = Math.max(1, attrValue);
+    defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
   }
 
-  const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice);
+  const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice, defaultingPenalty);
   if (!opts) return;
   return item.roll({
     range:           opts.range,

@@ -106,6 +106,12 @@ SR2E.skillCategories = {
   special:      "SR2E.Skills.Special"
 };
 
+// Untrained skill defaulting (SR2E p.69, The Skill Web): each circle traced
+// on the web adds +2 TN. Defaulting from a skill to its linked Attribute is
+// typically two circles. The full web topology is not modelled — this flat
+// +4 is the standard simplification; GMs can adjust with the Other modifier.
+SR2E.defaultingPenalty = 4;
+
 // Active skill linked attributes
 SR2E.activeSkills = {
   armed_combat:     { label: "SR2E.Skills.ArmedCombat",     attribute: "strength",     category: "active" },

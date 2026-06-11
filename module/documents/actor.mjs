@@ -366,9 +366,24 @@ export class SR2EActor extends Actor {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
 
-    const dicePool = skill.system.rating;
+    let dicePool = skill.system.rating;
+    let label = `${skill.name} Test`;
+
+    // Untrained: default to the skill's linked Attribute via the Skill Web
+    // (SR2E p.69) — attribute dice at +CONFIG.SR2E.defaultingPenalty TN.
+    if (dicePool <= 0) {
+      const attrKey = skill.system.linkedAttribute || "quickness";
+      const attrValue = attrKey === "reaction"
+        ? (this.system.reaction?.value ?? 1)
+        : (this.system[attrKey]?.value ?? 1);
+      dicePool = Math.max(1, attrValue);
+      targetNumber += CONFIG.SR2E.defaultingPenalty;
+      const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
+      label = `${skill.name} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
+    }
+
     return this.rollSuccessTest(dicePool, targetNumber, {
-      label: `${skill.name} Test`,
+      label,
       poolDice: options.poolDice,
       karmaDice: options.karmaDice
     });

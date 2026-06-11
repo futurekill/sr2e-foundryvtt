@@ -36,6 +36,8 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Initiative** — Reaction-based initiative with variable dice from cyberware/magic
 - **Condition Monitors** — Physical and stun damage tracking with wound level penalties (Light/Moderate/Serious/Deadly)
 - **Damage Staging** — Automatic damage staging based on net successes
+- **Karma Pool** — Buy extra dice before a roll; reroll failures, avoid disasters, and buy successes from the chat card (SR2E p.190)
+- **Untrained Defaulting** — Missing or rating-0 skills default to the linked attribute at +4 TN (simplified Skill Web, SR2E p.69)
 - **Essence/Magic Link** — Cyberware automatically reduces Essence, which reduces Magic rating for magicians
 
 ### System Settings
