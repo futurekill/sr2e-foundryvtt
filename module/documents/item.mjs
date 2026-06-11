@@ -108,10 +108,11 @@ export class SR2EItem extends Item {
   /**
    * Reload this weapon from its selected reserve ammo item.
    *
-   * Rounds move between the reserve item's quantity and the weapon's clip.
-   * If a different ammo type is currently loaded, the remaining loaded
-   * rounds are returned to the reserve they came from (when it still
-   * exists) before the new type is loaded — i.e. a clip swap.
+   * Reloads are all-or-nothing: a clip only ever holds ONE ammo type.
+   * Reloading from the same reserve tops the clip up; reloading from a
+   * different reserve ejects ALL currently-loaded rounds first (returning
+   * them to the reserve they came from when it still exists — rounds with
+   * no known origin are discarded) and then loads fresh from the new one.
    */
   async reloadWeapon() {
     const actor = this.parent;
@@ -127,22 +128,33 @@ export class SR2EItem extends Item {
     }
 
     let current = ammo.current;
+    let ejectNote = "";
 
-    // Swapping types: return the old rounds to the reserve they came from
-    if (current > 0 && ammo.loadedSourceId && ammo.loadedSourceId !== source.id) {
-      const oldReserve = actor.items.get(ammo.loadedSourceId);
+    // Clip swap: any rounds not from the selected reserve are ejected so the
+    // clip never mixes types. This includes rounds with no recorded origin
+    // (loaded manually or before the loading feature existed).
+    if (current > 0 && ammo.loadedSourceId !== source.id) {
+      const oldReserve = ammo.loadedSourceId ? actor.items.get(ammo.loadedSourceId) : null;
+      const oldName = ammo.loadedName || "untracked";
       if (oldReserve?.type === "ammo") {
         await oldReserve.update({ "system.quantity": oldReserve.system.quantity + current });
+        ejectNote = `<br><em>Ejected ${current} ${foundry.utils.escapeHTML(oldName)} round${current === 1 ? "" : "s"} back to reserve.</em>`;
+      } else {
+        ejectNote = `<br><em>Ejected ${current} ${foundry.utils.escapeHTML(oldName)} round${current === 1 ? "" : "s"} (no reserve to return them to — discarded).</em>`;
       }
       current = 0;
     }
 
     const need = ammo.max - current;
     const take = Math.min(need, source.system.quantity);
-    if (take <= 0) {
+    if (take <= 0 && !ejectNote) {
       return ui.notifications.warn(need <= 0
         ? `${this.name} is already fully loaded with ${ammo.loadedName || "this ammo"}.`
         : `No ${source.name} remaining to load.`);
+    }
+    if (take <= 0 && ejectNote) {
+      // Swapped to an empty reserve: the clip ends up empty but typed.
+      ui.notifications.warn(`No ${source.name} remaining — ${this.name} is now empty.`);
     }
 
     const remaining = source.system.quantity - take;
@@ -165,6 +177,7 @@ export class SR2EItem extends Item {
         ${take} round${take === 1 ? "" : "s"} of
         <strong>${foundry.utils.escapeHTML(source.name)}</strong>
         <em>(${remaining} left in reserve)</em>
+        ${ejectNote}
       </div>`
     });
   }
