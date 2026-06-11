@@ -382,12 +382,13 @@ SR2E.lifestyles = {
 // ---------------------------------------------------------------------------
 // DICE POOL TYPES
 // ---------------------------------------------------------------------------
+// The Karma Pool (system.karma.pool) is intentionally not listed here —
+// it is spent through the karma actions on chat cards, not rolled as a pool.
 SR2E.dicePools = {
   combat: "SR2E.DicePools.Combat",
   hacking: "SR2E.DicePools.Hacking",
   magic: "SR2E.DicePools.Magic",
-  control: "SR2E.DicePools.Control",
-  karma: "SR2E.DicePools.Karma"
+  control: "SR2E.DicePools.Control"
 };
 
 // ---------------------------------------------------------------------------

@@ -82,7 +82,52 @@ function attachPoolValidation(root) {
 }
 
 /**
- * Prompt for a target number and optional pool dice via DialogV2.
+ * Build the "buy additional dice with Karma Pool" input section.
+ * SR2E p.190: 1 Karma Pool point per extra die, up to the number of base
+ * (skill/attribute/rating) dice in use — pool dice excluded.
+ *
+ * The input carries data-pool-cap so attachPoolValidation() covers it.
+ *
+ * @param {Actor|null} actor    - Actor whose Karma Pool is spent.
+ * @param {number}     baseDice - Base dice in use for the test (= karma cap).
+ * @returns {string} HTML ("" when no karma is available or applicable)
+ */
+function karmaDiceSection(actor, baseDice) {
+  const avail = actor?.system?.karma?.pool ?? 0;
+  const cap = Math.min(avail, Math.max(0, baseDice ?? 0));
+  if (cap <= 0) return "";
+  return `
+    <hr style="margin:8px 0 6px;">
+    <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
+      <label style="font-size:12px;flex:1;padding-top:3px;">Karma dice
+        <span style="color:#888;font-size:10px;">(1 Karma each, max ${cap} — pool: ${avail})</span>
+      </label>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <input type="number" name="karma_dice" value="0" min="0" max="${cap}"
+               data-pool-key="karma" data-pool-cap="${cap}"
+               style="width:52px;text-align:center;">
+        <span class="sr2e-pool-error" data-for="karma"
+              style="color:#e44;font-size:9px;display:none;line-height:1.2;text-align:right;"></span>
+      </div>
+    </div>`;
+}
+
+/**
+ * Read and clamp the karma-dice input from a dialog form.
+ * @param {HTMLFormElement} form
+ * @param {Actor|null} actor
+ * @param {number} baseDice
+ * @returns {number}
+ */
+function readKarmaDice(form, actor, baseDice) {
+  const avail = actor?.system?.karma?.pool ?? 0;
+  const cap = Math.min(avail, Math.max(0, baseDice ?? 0));
+  const raw = parseInt(form.elements.karma_dice?.value) || 0;
+  return Math.max(0, Math.min(raw, cap));
+}
+
+/**
+ * Prompt for a target number and optional pool / karma dice via DialogV2.
  * Shows only pools that have available dice.
  *
  * Validation rules enforced in the dialog UI:
@@ -91,13 +136,16 @@ function attachPoolValidation(root) {
  * Both constraints are merged into `cap` for each pool.
  * Live feedback: red outline + error label + Roll button disabled while any field is over cap.
  *
- * @param {Actor|null} actor     - Actor to read pools from.
- * @param {number}    [skillCap] - Max pool dice per pool (= skill rating). Default: Infinity.
- * @returns {Promise<{tn: number, poolDice: object}|null>}
+ * @param {Actor|null} actor - Actor to read pools and Karma Pool from.
+ * @param {object} [opts]
+ * @param {number}  [opts.skillCap=Infinity] - Max pool dice per pool (= skill rating).
+ * @param {number}  [opts.baseDice=0]        - Base dice in use (cap for karma dice).
+ * @param {boolean} [opts.showPools=true]    - Whether dice pools may be used on this test.
+ * @returns {Promise<{tn: number, poolDice: object, karmaDice: number}|null>}
  */
-async function promptRollOptions(actor, skillCap = Infinity) {
+async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true } = {}) {
   // Collect pools that have dice available, capping each by both available and skillCap.
-  const availablePools = POOL_DEFS
+  const availablePools = (showPools ? POOL_DEFS : [])
     .map(p => {
       const available = getPoolAvailable(actor, p.key);
       const cap = skillCap === Infinity ? available : Math.min(available, skillCap);
@@ -129,10 +177,12 @@ async function promptRollOptions(actor, skillCap = Infinity) {
     </div>`).join("")}
   ` : "";
 
+  const karmaHTML = karmaDiceSection(actor, baseDice);
+
   // ── Live validation via a one-shot renderDialogV2 hook ─────────────────────
   // Identified by the presence of data-pool-cap inputs (unique to this dialog).
   let validationHookId = null;
-  if (availablePools.length > 0) {
+  if (availablePools.length > 0 || karmaHTML) {
     validationHookId = Hooks.on("renderDialogV2", (app, html) => {
       const root = (html instanceof Element) ? html : document;
       if (!root.querySelector("input[data-pool-cap]")) return; // not our dialog
@@ -154,6 +204,7 @@ async function promptRollOptions(actor, skillCap = Infinity) {
           <input type="number" name="tn" value="4" min="2" max="30" autofocus>
         </div>
         ${poolHTML}
+        ${karmaHTML}
       </form>
     `,
     buttons: [
@@ -171,7 +222,8 @@ async function promptRollOptions(actor, skillCap = Infinity) {
             const clamped = Math.max(0, Math.min(raw, p.cap));
             if (clamped > 0) poolDice[p.key] = clamped;
           }
-          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice };
+          const karmaDice = readKarmaDice(button.form, actor, baseDice);
+          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice };
         }
       },
       {
@@ -196,11 +248,14 @@ async function onRollAttribute(event, target) {
   const attribute = target.dataset.attribute;
   const actor = this.document;
   // SR2E p.86: Combat Pool is only valid for combat-related tests and Damage
-  // Resistance Tests — not for general attribute tests. Pass null to suppress
-  // pool inputs in the dialog.
-  const opts = await promptRollOptions(null);
+  // Resistance Tests — not for general attribute tests, so pools are hidden.
+  // Karma dice (p.190) may still be bought, capped at the attribute rating.
+  const baseDice = actor.system[attribute]?.value ?? 0;
+  const opts = await promptRollOptions(actor, { showPools: false, baseDice });
   if (!opts) return;
-  return actor.rollAttributeTest(attribute, opts.tn, { poolDice: opts.poolDice });
+  return actor.rollAttributeTest(attribute, opts.tn, {
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice
+  });
 }
 
 /**
@@ -214,10 +269,14 @@ async function onRollSkill(event, target) {
   if (!skillId) return;
   const actor = this.document;
   // SR2E p.86: Combat Pool is only for combat-related tests (Firearm, Melee, etc.)
-  // and Damage Resistance Tests. Pool dice are NOT valid for general skill checks.
-  const opts = await promptRollOptions(null);
+  // and Damage Resistance Tests — pools are hidden for general skill checks.
+  // Karma dice (p.190) may still be bought, capped at the skill rating.
+  const baseDice = actor.items.get(skillId)?.system?.rating ?? 0;
+  const opts = await promptRollOptions(actor, { showPools: false, baseDice });
   if (!opts) return;
-  return actor.rollSkillTest(skillId, opts.tn, { poolDice: opts.poolDice });
+  return actor.rollSkillTest(skillId, opts.tn, {
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice
+  });
 }
 
 /**
@@ -268,11 +327,12 @@ const FIRING_MODE_DATA = {
  * @param {Actor}  actor    - The attacking actor.
  * @param {Item}   weapon   - The weapon item being fired.
  * @param {number} skillCap - Max pool dice (= skill rating). Default: Infinity.
+ * @param {number} baseDice - Base dice in use (cap for bought karma dice). Default: 0.
  * @returns {Promise<{range:string, firingMode:string, coverMod:number,
  *                    attackerMod:number, targetMod:number, meleeMod:number,
- *                    otherMod:number, poolDice:object}|null>}
+ *                    otherMod:number, poolDice:object, karmaDice:number}|null>}
  */
-async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
+async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, baseDice = 0) {
   const BASE_TN    = 4;
   const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
   const isRanged   = !isMelee;
@@ -624,6 +684,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
         </table>
       </div>
       ${poolHTML}
+      ${karmaDiceSection(actor, baseDice)}
     </form>`,
     buttons: [
       {
@@ -649,7 +710,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
             otherMod:        parseInt(f.otherMod?.value)        || 0,
             targetQuickness: parseInt(f.targetQuickness?.value) || 4,
             reachMod:        parseInt(f.reachMod?.value)        || 0,
-            poolDice
+            poolDice,
+            karmaDice:       readKarmaDice(button.form, actor, baseDice)
           };
         }
       },
@@ -697,6 +759,7 @@ async function onRollWeapon(event, target) {
   ].filter(k => k !== "");
 
   let skillCap = Infinity;
+  let baseDice = 1;   // untrained fallback dice (matches _rollWeaponAttack)
   const linkedSkill = actor.items.find(
     i => i.type === "skill" && skillKeys.includes(normalize(i.name))
   );
@@ -704,9 +767,10 @@ async function onRollWeapon(event, target) {
     const rating = linkedSkill.system?.rating ?? 0;
     // Only cap when trained (rating > 0); untrained can still commit pool dice
     skillCap = rating > 0 ? rating : Infinity;
+    if (rating > 0) baseDice = rating;
   }
 
-  const opts = await promptWeaponAttackOptions(actor, item, skillCap);
+  const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice);
   if (!opts) return;
   return item.roll({
     range:           opts.range,
@@ -719,7 +783,8 @@ async function onRollWeapon(event, target) {
     otherMod:        opts.otherMod,
     targetQuickness: opts.targetQuickness,
     reachMod:        opts.reachMod,
-    poolDice:        opts.poolDice
+    poolDice:        opts.poolDice,
+    karmaDice:       opts.karmaDice
   });
 }
 
@@ -844,6 +909,7 @@ async function promptSpellOptions(actor, spell) {
         <input type="number" name="tn" value="6" min="2" max="30">
       </div>
       ${poolSection}
+      ${karmaDiceSection(actor, magicAttr)}
     </form>`,
     buttons: [
       {
@@ -862,7 +928,10 @@ async function promptSpellOptions(actor, spell) {
             force,
             tn,
             poolDice:      spellAlloc > 0 ? { magic: spellAlloc } : {},
-            drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {}
+            drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {},
+            // Cap by the chosen Force here; rollSuccessTest re-clamps against
+            // the final spell dice (Force + totem) and the live Karma Pool.
+            karmaDice:     readKarmaDice(button.form, actor, force)
           };
         }
       },
@@ -885,7 +954,11 @@ async function onCastSpell(event, target) {
   // Spell-specific dialog: Magic Pool only, split between spell test & drain resist
   const opts = await promptSpellOptions(this.document, item);
   if (opts === null) return;
-  return item.roll({ force: opts.force, targetNumber: opts.tn, poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice });
+  return item.roll({
+    force: opts.force, targetNumber: opts.tn,
+    poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice,
+    karmaDice: opts.karmaDice
+  });
 }
 
 /**
@@ -897,9 +970,10 @@ async function onRollProgram(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const opts = await promptRollOptions(this.document);
+  // Karma dice are capped at the program rating (= base dice in use)
+  const opts = await promptRollOptions(this.document, { baseDice: item.system.rating ?? 0 });
   if (opts === null) return;
-  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice });
+  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice, karmaDice: opts.karmaDice });
 }
 
 /**

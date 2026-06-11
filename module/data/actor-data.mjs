@@ -67,12 +67,13 @@ export class CharacterData extends SR2EDataModel {
       }),
 
       // --- DICE POOLS ---
+      // Note: the Karma Pool is NOT a dice pool — it lives at system.karma.pool
+      // and is spent via the karma actions on success-test chat cards.
       dicePools: new fields.SchemaField({
         combat: SR2EDataModel.resourceField(0, 0),
         hacking: SR2EDataModel.resourceField(0, 0),
         magic: SR2EDataModel.resourceField(0, 0),
         control: SR2EDataModel.resourceField(0, 0),
-        karma: SR2EDataModel.resourceField(0, 0),
         spellDefense: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),
 

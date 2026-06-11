@@ -3,6 +3,92 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 
+/**
+ * Render a success-test chat card from its persisted state.
+ *
+ * The state lives in the message's flags ("sr2e.test") so the Karma Pool
+ * buttons can re-render the card after rerolls / bought successes:
+ *   { actorUuid, tn, label, tnNote, diceNote, dice, rerolls,
+ *     boughtSuccesses, glitchAvoided, criticalGlitch, hasKarma }
+ *
+ * Karma Pool actions (SR2E p.190–191):
+ *   - Reroll failures: rerolls ALL failed dice; costs 1 Karma the first time,
+ *     escalating +1 per repeat on the same test.
+ *   - Avoid an "Oops": on all-1s, 1 Karma turns the disaster into a simple
+ *     failure; no further Karma may be spent on the test.
+ *   - Buy successes: 1 Karma per success, requires at least 1 natural
+ *     success; these points are spent PERMANENTLY (they don't refresh).
+ *
+ * @param {object} state
+ * @returns {string} HTML
+ */
+export function renderSuccessTestCard(state) {
+  const natural   = state.dice.filter(d => d.success).length;
+  const successes = natural + (state.boughtSuccesses ?? 0);
+  const failures  = state.dice.length - natural;
+  const glitch    = state.criticalGlitch && !state.glitchAvoided;
+
+  let diceHtml = '<div class="sr2e-dice-results">';
+  for (const die of state.dice) {
+    const successClass  = die.success ? "success" : "failure";
+    const explodedClass = die.exploded ? "exploded" : "";
+    const rerolledClass = die.rerolled ? "rerolled" : "";
+    const title = die.exploded ? die.rolls.join(" + ") : String(die.total);
+    diceHtml += `<span class="sr2e-die ${successClass} ${explodedClass} ${rerolledClass}" title="${title}">${die.total}</span>`;
+  }
+  diceHtml += "</div>";
+
+  // Result banner
+  let banner = "";
+  if (glitch)                   banner = '<span class="sr2e-critical-glitch">CRITICAL GLITCH!</span>';
+  else if (state.glitchAvoided) banner = '<span class="sr2e-failure">Disaster averted — simple failure</span>';
+  else if (successes === 0)     banner = '<span class="sr2e-failure">FAILURE</span>';
+
+  const boughtNote = state.boughtSuccesses > 0
+    ? ` <em class="sr2e-karma-note">(${state.boughtSuccesses} bought with Karma)</em>` : "";
+  const rerollNote = state.rerolls > 0
+    ? ` <em class="sr2e-karma-note">(${state.rerolls} Karma reroll${state.rerolls === 1 ? "" : "s"})</em>` : "";
+
+  // Karma Pool action buttons. After an avoided glitch the test is closed.
+  const buttons = [];
+  if (state.hasKarma && !state.glitchAvoided) {
+    if (glitch) {
+      buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="avoidGlitch"
+        title="SR2E p.190: pay 1 Karma Pool to turn an all-1s disaster into a simple failure. No reroll allowed.">
+        ☘ Avoid Disaster (1 Karma)</button>`);
+    } else {
+      if (failures > 0) {
+        const cost = (state.rerolls ?? 0) + 1;
+        buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="reroll"
+          title="SR2E p.190: reroll all ${failures} failed dice. Cost escalates by 1 each reroll on the same test.">
+          ♻ Reroll Failures (${cost} Karma)</button>`);
+      }
+      if (natural >= 1) {
+        buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="buySuccess"
+          title="SR2E p.190: buy a raw success for 1 Karma. Requires a natural success. This Karma is spent PERMANENTLY.">
+          ★ Buy Success (1 Karma, permanent)</button>`);
+      }
+    }
+  }
+  const buttonHtml = buttons.length
+    ? `<div class="sr2e-karma-actions">${buttons.join(" ")}</div>` : "";
+
+  return `
+    <div class="sr2e-roll-message">
+      <h3 class="sr2e-roll-header">${state.label}</h3>
+      <div class="sr2e-roll-info">
+        <span class="sr2e-roll-pool">Dice: ${state.diceNote}</span>
+        <span class="sr2e-roll-tn">TN: ${state.tnNote}</span>
+      </div>
+      ${diceHtml}
+      <div class="sr2e-roll-result">
+        <strong>Successes: ${successes}</strong>${boughtNote}${rerollNote}
+        ${banner}
+      </div>
+      ${buttonHtml}
+    </div>`;
+}
+
 export class SR2EActor extends Actor {
 
   // All derived-data computation (cyberware/adept modifiers, essence, pools,
@@ -21,8 +107,10 @@ export class SR2EActor extends Actor {
    * @param {number} targetNumber - Target number to meet or exceed
    * @param {object} [options] - Additional options
    * @param {string} [options.label] - Label for the chat message
-   * @param {boolean} [options.useKarma] - Whether karma pool can be used
-   * @returns {Promise<Roll>}
+   * @param {object} [options.poolDice] - Dice drawn from dice pools ({combat: 2, ...})
+   * @param {number} [options.karmaDice] - Extra dice bought with Karma Pool
+   *   (SR2E p.190: 1 Karma each, max = base dice in use, pool dice excluded)
+   * @returns {Promise<object>} The test result
    */
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
     // Apply wound penalty to target number (SR2E Injury Modifier, cumulative
@@ -51,8 +139,14 @@ export class SR2EActor extends Actor {
       }
     }
 
-    // Roll base + pool dice together using SR2ESuccessRoll (respects Rule of Six)
-    const totalDice = dicePool + poolDiceTotal;
+    // --- Karma dice (Buy Additional Dice, SR2E p.190) ---
+    // 1 Karma Pool point per extra die; capped at the base dice in use
+    // (pool dice excluded) and at the available Karma Pool.
+    const karmaAvail = this.system.karma?.pool ?? 0;
+    const karmaDice  = Math.max(0, Math.min(options.karmaDice ?? 0, karmaAvail, dicePool));
+
+    // Roll base + pool + karma dice together (respects Rule of Six)
+    const totalDice = dicePool + poolDiceTotal + karmaDice;
     const testResult = await SR2ESuccessRoll.successTest(totalDice, effectiveTN);
     const successes = testResult.successes;
 
@@ -62,58 +156,114 @@ export class SR2EActor extends Actor {
       : `${effectiveTN}`;
 
     let diceNote = `${dicePool}`;
-    if (poolDiceTotal > 0) {
-      const poolParts = poolsUsed.map(p => `+${p.amount} ${p.label}`).join(", ");
-      diceNote = `${dicePool} ${poolParts} = ${totalDice} total`;
+    if (poolDiceTotal > 0 || karmaDice > 0) {
+      const parts = poolsUsed.map(p => `+${p.amount} ${p.label}`);
+      if (karmaDice > 0) parts.push(`+${karmaDice} Karma`);
+      diceNote = `${dicePool} ${parts.join(", ")} = ${totalDice} total`;
     }
 
-    // Build per-die display HTML
-    let diceHtml = '<div class="sr2e-dice-results">';
-    for (const die of testResult.dice) {
-      const successClass = die.success ? "success" : "failure";
-      const explodedClass = die.exploded ? "exploded" : "";
-      const title = die.exploded ? die.rolls.join(" + ") : String(die.total);
-      diceHtml += `<span class="sr2e-die ${successClass} ${explodedClass}" title="${title}">${die.total}</span>`;
-    }
-    diceHtml += "</div>";
+    // Card state — persisted in message flags so the Karma Pool buttons can
+    // reroll failures / buy successes and re-render the card in place.
+    const state = {
+      actorUuid: this.uuid,
+      tn: effectiveTN,
+      label,
+      tnNote,
+      diceNote,
+      dice: testResult.dice,
+      rerolls: 0,
+      boughtSuccesses: 0,
+      glitchAvoided: false,
+      criticalGlitch: testResult.isCriticalGlitch,
+      hasKarma: this.system.karma?.pool != null
+    };
 
-    const messageData = {
+    await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       // Attach the evaluated Roll objects so message.isRoll is true and
       // Dice So Nice can animate the dice.
       rolls: testResult.rolls,
       sound: CONFIG.sounds.dice,
-      content: `
-        <div class="sr2e-roll-message">
-          <h3 class="sr2e-roll-header">${label}</h3>
-          <div class="sr2e-roll-info">
-            <span class="sr2e-roll-pool">Dice: ${diceNote}</span>
-            <span class="sr2e-roll-tn">TN: ${tnNote}</span>
-          </div>
-          ${diceHtml}
-          <div class="sr2e-roll-result">
-            <strong>Successes: ${successes}</strong>
-            ${testResult.isCriticalGlitch ? '<span class="sr2e-critical-glitch">CRITICAL GLITCH!</span>' : ""}
-            ${!testResult.isSuccess && !testResult.isCriticalGlitch ? '<span class="sr2e-failure">FAILURE</span>' : ""}
-          </div>
-        </div>`
-    };
-    await ChatMessage.create(messageData);
+      content: renderSuccessTestCard(state),
+      flags: { sr2e: { test: state } }
+    });
 
-    // --- Reduce pools that were used ---
+    // --- Reduce pools / karma that were used ---
     // Persist both `value` (remaining) and `max` (computed ceiling) so that
     // _calculateDicePools() can recover the spent count on the next prepare.
-    if (poolsUsed.length > 0) {
-      const updates = {};
-      for (const { key, amount } of poolsUsed) {
-        const pool = this.system.dicePools?.[key] ?? { value: 0, max: 0 };
-        updates[`system.dicePools.${key}.value`] = Math.max(0, pool.value - amount);
-        updates[`system.dicePools.${key}.max`]   = pool.max;
-      }
-      await this.update(updates);
+    const updates = {};
+    for (const { key, amount } of poolsUsed) {
+      const pool = this.system.dicePools?.[key] ?? { value: 0, max: 0 };
+      updates[`system.dicePools.${key}.value`] = Math.max(0, pool.value - amount);
+      updates[`system.dicePools.${key}.max`]   = pool.max;
     }
+    if (karmaDice > 0) updates["system.karma.pool"] = karmaAvail - karmaDice;
+    if (Object.keys(updates).length > 0) await this.update(updates);
 
     return { ...testResult, successes, targetNumber: effectiveTN };
+  }
+
+  /**
+   * Apply a Karma Pool action to a previously-rolled success test card.
+   * Invoked from the chat-card buttons (see renderChatMessageHTML in sr2e.mjs).
+   *
+   * @param {ChatMessage} message - The chat message holding the test state.
+   * @param {string} action - "reroll", "avoidGlitch", or "buySuccess".
+   */
+  async applyKarmaToTest(message, action) {
+    const state = foundry.utils.deepClone(message.getFlag("sr2e", "test"));
+    if (!state) return;
+    const karmaAvail = this.system.karma?.pool ?? 0;
+    let newRolls = null;
+
+    if (action === "reroll") {
+      // Reroll ALL failed dice; cost escalates by 1 per repeat (SR2E p.190)
+      if (state.criticalGlitch && !state.glitchAvoided) return;
+      const failedIdx = state.dice.map((d, i) => d.success ? -1 : i).filter(i => i >= 0);
+      if (failedIdx.length === 0) return;
+      const cost = (state.rerolls ?? 0) + 1;
+      if (karmaAvail < cost) {
+        return ui.notifications.warn(`Rerolling failures costs ${cost} Karma Pool — only ${karmaAvail} available.`);
+      }
+      const reroll = await SR2ESuccessRoll.successTest(failedIdx.length, state.tn);
+      failedIdx.forEach((dieIdx, j) => {
+        state.dice[dieIdx] = { ...reroll.dice[j], rerolled: true };
+      });
+      state.rerolls = (state.rerolls ?? 0) + 1;
+      newRolls = reroll.rolls;
+      await this.update({ "system.karma.pool": karmaAvail - cost });
+
+    } else if (action === "avoidGlitch") {
+      // All-1s disaster → simple failure for 1 Karma; no further Karma allowed
+      if (!state.criticalGlitch || state.glitchAvoided) return;
+      if (karmaAvail < 1) return ui.notifications.warn("No Karma Pool available.");
+      state.glitchAvoided = true;
+      await this.update({ "system.karma.pool": karmaAvail - 1 });
+
+    } else if (action === "buySuccess") {
+      // 1 Karma per raw success; requires a natural success; PERMANENT spend.
+      // The pool value drops and does not come back on refresh — the GM/player
+      // should not restore these points when refreshing the pool per encounter.
+      const natural = state.dice.filter(d => d.success).length;
+      if (natural < 1) {
+        return ui.notifications.warn("Buying successes requires at least 1 natural success (SR2E p.190).");
+      }
+      if (karmaAvail < 1) return ui.notifications.warn("No Karma Pool available.");
+      state.boughtSuccesses = (state.boughtSuccesses ?? 0) + 1;
+      await this.update({ "system.karma.pool": karmaAvail - 1 });
+
+    } else {
+      return;
+    }
+
+    const updateData = {
+      content: renderSuccessTestCard(state),
+      "flags.sr2e.test": state
+    };
+    if (newRolls) {
+      updateData.rolls = [...message.rolls, ...newRolls].map(r => JSON.stringify(r));
+    }
+    await message.update(updateData);
   }
 
   /**
@@ -200,7 +350,8 @@ export class SR2EActor extends Actor {
     const label = game.i18n.localize(CONFIG.SR2E.attributes[attribute]) || attribute;
     return this.rollSuccessTest(attrValue, targetNumber, {
       label: `${label} Test`,
-      poolDice: options.poolDice
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
     });
   }
 
@@ -218,7 +369,8 @@ export class SR2EActor extends Actor {
     const dicePool = skill.system.rating;
     return this.rollSuccessTest(dicePool, targetNumber, {
       label: `${skill.name} Test`,
-      poolDice: options.poolDice
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
     });
   }
 

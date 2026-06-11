@@ -344,6 +344,23 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       return actor.rollDamageResistance(power, level, armorType, damageType);
     });
   });
+
+  // Wire up Karma Pool buttons on success-test cards (reroll failures,
+  // avoid disaster, buy success). The card state lives in flags.sr2e.test;
+  // only owners of the rolling actor may spend its Karma.
+  html.querySelectorAll?.(".sr2e-karma-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const state = message.getFlag("sr2e", "test");
+      if (!state?.actorUuid) return;
+      const actor = await fromUuid(state.actorUuid);
+      if (!actor) return ui.notifications.warn("The rolling actor no longer exists.");
+      if (!actor.isOwner) {
+        return ui.notifications.warn("Only this character's owner can spend their Karma Pool.");
+      }
+      return actor.applyKarmaToTest(message, btn.dataset.karmaAction);
+    });
+  });
 });
 
 /* -------------------------------------------- */

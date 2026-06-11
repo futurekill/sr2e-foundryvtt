@@ -282,7 +282,8 @@ export class SR2EItem extends Item {
 
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
-      poolDice: options.poolDice
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
     });
 
     // Accumulate rounds fired on the recoil counter and decrement ammunition.
@@ -396,7 +397,8 @@ export class SR2EItem extends Item {
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
       label: `Cast ${this.name} (Force ${force}${totemNote})`,
-      poolDice: options.poolDice   // magic pool dice pre-allocated by player
+      poolDice: options.poolDice,   // magic pool dice pre-allocated by player
+      karmaDice: options.karmaDice  // extra dice bought with Karma Pool
     });
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
@@ -458,7 +460,8 @@ export class SR2EItem extends Item {
     const targetNumber = options.targetNumber || 4;
     return actor.rollSuccessTest(this.system.rating, targetNumber, {
       label: `${this.name} Test`,
-      poolDice: options.poolDice
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
     });
   }
 
@@ -475,7 +478,8 @@ export class SR2EItem extends Item {
 
     return actor.rollSuccessTest(rating, targetNumber, {
       label: `${this.name} (Rating ${rating})`,
-      poolDice: options.poolDice
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
     });
   }
 

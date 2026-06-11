@@ -2158,10 +2158,46 @@
   box-shadow: 0 0 5px var(--sr2e-gold);
 }
 
+/* Die replaced by a Karma Pool reroll */
+.sr2e-die.rerolled {
+  outline: 1px dashed var(--sr2e-gold);
+  outline-offset: 1px;
+}
+
 .sr2e-roll-result {
   margin-top: 4px;
   font-size: 12px;
   font-family: var(--sr2e-font);
+}
+
+/* Karma Pool actions on success-test cards */
+.sr2e-karma-actions {
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sr2e-karma-btn {
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 8px;
+  width: auto;
+  background: rgba(193, 154, 73, 0.12);
+  border: 1px solid var(--sr2e-gold-dim, #8a6d3b);
+  border-radius: 3px;
+  color: var(--sr2e-gold, #c19a49);
+  cursor: pointer;
+}
+
+.sr2e-karma-btn:hover {
+  background: rgba(193, 154, 73, 0.25);
+  box-shadow: 0 0 4px rgba(193, 154, 73, 0.4);
+}
+
+.sr2e-karma-note {
+  color: var(--sr2e-gold, #c19a49);
+  font-size: 10px;
 }
 
 .sr2e-critical-glitch {
