@@ -1,4 +1,11 @@
 {
+  "name": "sr2e-foundryvtt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract-packs": "node tools/extract-packs.mjs",
+    "build-packs": "node tools/build-packs.mjs"
+  },
   "devDependencies": {
     "classic-level": "^3.0.0"
   }

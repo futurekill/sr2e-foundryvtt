@@ -71,6 +71,22 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
    ```
 2. Restart FoundryVTT
 
+## Compendium Pack Workflow
+
+The LevelDB packs in `packs/` are what Foundry loads; the JSON files in
+`packs-src/` are the version-controlled, human-reviewable source of truth.
+Keep them in sync with the npm scripts (requires `npm install` once, and
+Foundry must be **closed** — LevelDB allows only one process):
+
+```bash
+npm run extract-packs            # pull edits made inside Foundry → packs-src/
+npm run build-packs              # rebuild packs/ from packs-src/
+npm run build-packs cyberware    # rebuild a single pack
+```
+
+Edit compendium content either inside Foundry (then extract) or directly in
+the JSON sources (then build). Commit both `packs/` and `packs-src/`.
+
 ## Releasing a New Version
 
 This project uses GitHub Actions for automated releases:
