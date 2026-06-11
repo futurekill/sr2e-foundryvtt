@@ -5,7 +5,6 @@
   "version": "0.4.0",
   "url": "https://github.com/futurekill/sr2e-foundryvtt",
   "manifest": "https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json",
-  "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.3.8/sr2e.zip",
   "bugs": "https://github.com/futurekill/sr2e-foundryvtt/issues",
   "changelog": "https://github.com/futurekill/sr2e-foundryvtt/releases",
   "authors": [
@@ -142,7 +141,6 @@
       ]
     }
   ],
-  "socket": true,
   "background": "systems/sr2e/assets/sr2e-logo.webp",
   "media": [
     {

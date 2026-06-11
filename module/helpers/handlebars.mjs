@@ -100,13 +100,14 @@ export function registerHandlebarsHelpers() {
     let html = '<div class="condition-monitor">';
     for (let i = 1; i <= max; i++) {
       const filled = i <= current ? "filled" : "";
+      // SR2E wound levels are reached AT 1 (L), 3 (M), 6 (S) and 10 (D) boxes
       const levelClass =
-        i <= 3 ? "light" :
-        i <= 6 ? "moderate" :
-        i <= 9 ? "serious" : "deadly";
+        i < 3  ? "light" :
+        i < 6  ? "moderate" :
+        i < 10 ? "serious" : "deadly";
 
-      // Add separator every 3 boxes
-      if (i > 1 && (i - 1) % 3 === 0) {
+      // Separators at the level boundaries (before boxes 3, 6 and 10)
+      if (i === 3 || i === 6 || i === 10) {
         html += '<span class="condition-separator">|</span>';
       }
       html += `<span class="condition-box ${filled} ${levelClass}" data-index="${i}"></span>`;
@@ -171,11 +172,12 @@ export function registerHandlebarsHelpers() {
    * Named woundLevelLabel to avoid shadowing the woundLevel context property.
    */
   Handlebars.registerHelper("woundLevelLabel", function (damage) {
-    if (damage <= 0) return "Undamaged";
-    if (damage <= 3) return "Light";
-    if (damage <= 6) return "Moderate";
-    if (damage <= 9) return "Serious";
-    return "Deadly";
+    // SR2E: levels are reached AT 1 (L), 3 (M), 6 (S) and 10 (D) boxes
+    if (damage >= 10) return "Deadly";
+    if (damage >= 6)  return "Serious";
+    if (damage >= 3)  return "Moderate";
+    if (damage >= 1)  return "Light";
+    return "Undamaged";
   });
 
   /**

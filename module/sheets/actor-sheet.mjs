@@ -226,7 +226,9 @@ async function onRollSkill(event, target) {
  */
 async function onRollInitiative(event, target) {
   event.preventDefault();
-  return this.document.rollInitiative();
+  // rollSR2Initiative is the SR2E-specific sheet roll; core Actor#rollInitiative
+  // (combatant creation etc.) is intentionally left untouched.
+  return this.document.rollSR2Initiative();
 }
 
 /** Range TN modifiers over the base Short TN of 4 (SR2E p.102). */
@@ -234,15 +236,16 @@ const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
 const RANGE_LABELS   = { short: "Short", medium: "Medium", long: "Long", extreme: "Extreme" };
 
 /**
- * Firing mode metadata: shots added to recoil and power bonus to the damage code.
- *   BF burst adds +2 to Damage Power (SR2E p.108).
- *   FA full-auto adds +4 to Damage Power (SR2E p.108).
+ * Firing mode labels (SR2E p.92–93):
+ *   BF: fixed 3-round burst — Power +3, Damage Level +1, +3 recoil.
+ *   FA: declared 3–10 round burst — Power +1/round, Level +1 per 3 rounds,
+ *       +1 recoil per round.
  */
 const FIRING_MODE_DATA = {
-  ss: { label: "SS — Single Shot",          shots: 1,  powerBonus: 0 },
-  sa: { label: "SA — Semi-Auto",            shots: 1,  powerBonus: 0 },
-  bf: { label: "BF — Burst Fire (+2 Pwr)",  shots: 3,  powerBonus: 2 },
-  fa: { label: "FA — Full Auto (+4 Pwr)",   shots: 10, powerBonus: 4 }
+  ss: { label: "SS — Single Shot" },
+  sa: { label: "SA — Semi-Auto" },
+  bf: { label: "BF — Burst Fire (+3 Pwr, +1 Lvl)" },
+  fa: { label: "FA — Full Auto (+1 Pwr/round)" }
 };
 
 /**
@@ -292,7 +295,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
   const woundPenalty  = actor.system.woundPenalty ?? 0;
   const shotsFired    = actor.system.combatRecoil  ?? 0;
   const recoilComp    = weapon.system.recoilComp   ?? 0;
-  const recoilPenalty = Math.max(0, shotsFired - recoilComp);
+  const hasRecoil     = ["firearm", "heavy"].includes(weapon.system.weaponType);
+  // Initial penalty from rounds already fired; a BF/FA burst's own rounds are
+  // added live in the dialog once a firing mode is selected.
+  const recoilPenalty = hasRecoil ? Math.max(0, shotsFired - recoilComp) : 0;
 
   // ── Pool inputs ───────────────────────────────────────────────────────────
   const availablePools = POOL_DEFS
@@ -348,6 +354,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
     const rangeSelect  = root.querySelector("#sr2e-attack-range");
     const coverSelect  = root.querySelector("#sr2e-cover");
     const meleeCheck   = root.querySelector("#sr2e-in-melee");
+    const modeSelect   = root.querySelector("#sr2e-firing-mode");
+    const roundsInput  = root.querySelector("#sr2e-fa-rounds");
+    const roundsRow    = root.querySelector("#sr2e-fa-rounds-row");
     // Melee-only inputs
     const quickInput   = root.querySelector("#sr2e-target-quick");
     const reachInput   = root.querySelector("#sr2e-reach-mod");
@@ -374,8 +383,21 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
     const reachRow    = root.querySelector("#sr2e-reach-row");
     const finalTnSpan = root.querySelector("#sr2e-final-tn");
 
-    // Live recoil penalty — can be zeroed by the in-dialog Reset button
-    let liveRecoil = recoilPenalty;
+    // Live recoil state — rounds already fired this phase (zeroed by the
+    // in-dialog Reset button). The selected firing mode's own burst rounds
+    // are added on top (SR2E p.93: a burst's rounds count toward its recoil).
+    let liveShotsFired = shotsFired;
+    const recoilRow = root.querySelector("#sr2e-recoil-row");
+    const recoilVal = root.querySelector("#sr2e-recoil-val");
+
+    function currentRecoil() {
+      if (!isRanged || !hasRecoil) return 0;
+      const mode  = modeSelect?.value ?? "sa";
+      const burst = mode === "bf" ? 3
+                  : mode === "fa" ? Math.min(10, Math.max(3, parseInt(roundsInput?.value) || 3))
+                  : 0;
+      return Math.max(0, liveShotsFired + burst - recoilComp);
+    }
 
     function updateTN() {
       const aMod = parseInt(attackerSelect?.value) || 0;
@@ -395,14 +417,18 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
         const rMod = RANGE_TN_MODS[rng] ?? 0;
         const cMod = parseInt(coverSelect?.value) || 0;
         const mMod = meleeCheck?.checked ? 3 : 0;
+        const recoil = currentRecoil();
         if (rangeLabel)   rangeLabel.textContent   = `Range (${RANGE_LABELS[rng]}):`;
         if (rangeModSpan) rangeModSpan.textContent = fmt(rMod);
         if (coverModSpan) coverModSpan.textContent = fmt(cMod);
         if (meleeModSpan) meleeModSpan.textContent = fmt(mMod);
         if (coverRow)     coverRow.style.display   = cMod !== 0 ? "" : "none";
         if (meleeRow)     meleeRow.style.display   = mMod !== 0 ? "" : "none";
+        if (roundsRow)    roundsRow.style.display  = (modeSelect?.value === "fa") ? "" : "none";
+        if (recoilRow)    recoilRow.style.display  = recoil > 0 ? "" : "none";
+        if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
         finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
-                                      + cyberwareMod + woundPenalty + liveRecoil);
+                                      + cyberwareMod + woundPenalty + recoil);
       } else {
         const quick  = parseInt(quickInput?.value) || 4;
         const rchMod = parseInt(reachInput?.value) || 0;
@@ -414,22 +440,18 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
     }
 
-    // Reset Recoil button — zeroes the live penalty and persists to the actor
+    // Reset Recoil button — clears rounds already fired and persists to the actor
     const resetRecoilBtn = root.querySelector("#sr2e-reset-recoil-btn");
-    const recoilRow      = root.querySelector("#sr2e-recoil-row");
-    const recoilVal      = root.querySelector("#sr2e-recoil-val");
     if (resetRecoilBtn) {
       resetRecoilBtn.addEventListener("click", async () => {
-        liveRecoil = 0;
+        liveShotsFired = 0;
         await actor.update({ "system.combatRecoil": 0 });
-        if (recoilRow) recoilRow.style.display = "none";
-        if (recoilVal) recoilVal.textContent    = "+0";
         updateTN();
       });
     }
 
-    const allInputs = [rangeSelect, coverSelect, meleeCheck, attackerSelect,
-                       targetSelect, otherInput, quickInput, reachInput].filter(Boolean);
+    const allInputs = [rangeSelect, coverSelect, meleeCheck, modeSelect, roundsInput,
+                       attackerSelect, targetSelect, otherInput, quickInput, reachInput].filter(Boolean);
     for (const el of allInputs) {
       el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
     }
@@ -470,6 +492,12 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
           <option value="4">Good (+4)</option>
           <option value="6">Near-Total (+6)</option>
         </select>
+      </div>
+      <div class="form-group" id="sr2e-fa-rounds-row" style="margin:2px 0;display:none;">
+        <label>FA Rounds (3–10):</label>
+        <input type="number" id="sr2e-fa-rounds" name="rounds" value="3" min="3" max="10"
+               style="width:52px;text-align:center;"
+               title="Rounds in the full-auto burst: +1 Power and +1 recoil per round, +1 Damage Level per 3 rounds (SR2E p.93)">
       </div>
       <div class="form-group" style="margin:2px 0;align-items:center;">
         <label>In Melee (+3):</label>
@@ -562,15 +590,15 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
       <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
       <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
     </tr>` : ""}
-    ${isRanged && recoilStyle !== "display:none;" ? `
-    <tr id="sr2e-recoil-row">
+    ${isRanged && hasRecoil ? `
+    <tr id="sr2e-recoil-row" style="${recoilStyle}">
       <td style="color:#ca4;padding:1px 0;">
         ${recoilLabel}
         <button type="button" id="sr2e-reset-recoil-btn"
                 style="font-size:9px;padding:1px 5px;margin-left:6px;
                        background:rgba(200,160,50,0.15);border:1px solid #ca4;
                        border-radius:3px;cursor:pointer;color:#ca4;line-height:1.4;"
-                title="Clear recoil counter (start of new initiative pass)">
+                title="Clear rounds already fired (start of new combat phase)">
           Reset
         </button>
       </td>
@@ -613,6 +641,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity) {
           rollResult = {
             range:           f.range?.value        ?? "short",
             firingMode:      f.firingMode?.value    ?? "sa",
+            rounds:          Math.min(10, Math.max(3, parseInt(f.rounds?.value) || 3)),
             coverMod:        parseInt(f.cover?.value)           || 0,
             attackerMod:     parseInt(f.attacker?.value)        || 0,
             targetMod:       parseInt(f.target?.value)          || 0,
@@ -682,6 +711,7 @@ async function onRollWeapon(event, target) {
   return item.roll({
     range:           opts.range,
     firingMode:      opts.firingMode,
+    rounds:          opts.rounds,
     coverMod:        opts.coverMod,
     attackerMod:     opts.attackerMod,
     targetMod:       opts.targetMod,
@@ -1130,7 +1160,9 @@ const SHARED_ACTIONS = {
   editImage: async function(event, target) {
     event.preventDefault();
     const actor = this.document;
-    const fp = new FilePicker({
+    // V13: the global FilePicker is deprecated; use the namespaced implementation
+    const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
+    const fp = new FilePickerImpl({
       type: "image",
       current: actor.img,
       callback: async (path) => {
@@ -1142,20 +1174,21 @@ const SHARED_ACTIONS = {
 };
 
 // =========================================================================
-// CHARACTER SHEET
+// BASE ACTOR SHEET
 // =========================================================================
 
 /**
- * Character Sheet for Shadowrun 2E player characters.
- * Uses the V13 ApplicationV2 framework with HandlebarsApplicationMixin.
+ * Shared base class for all SR2E actor sheets.
+ *
+ * Centralizes the V13 ApplicationV2 boilerplate — part context, drag-drop,
+ * prose-mirror auto-save and the submitOnChange workarounds — so every sheet
+ * (not just the character sheet) gets the same data-loss protections.
  */
-export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   /** @override */
   static DEFAULT_OPTIONS = {
-    classes: ["sr2e", "sheet", "actor", "character"],
-    position: { width: 800, height: 700 },
-    actions: SHARED_ACTIONS,
+    classes: ["sr2e", "sheet", "actor"],
     form: {
       submitOnChange: true
     },
@@ -1166,6 +1199,178 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     // Without this, dragover never calls preventDefault(), letting the browser's
     // native drop behaviour fire on form <select> elements and corrupt their values.
     dragDrop: [{ dragSelector: "[data-item-id]", dropSelector: null }]
+  };
+
+  /** @override */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    context.actor    = this.document;
+    context.system   = this.document.system;
+    context.config   = CONFIG.SR2E;
+    context.editable = this.isEditable;
+    return context;
+  }
+
+  /**
+   * @override
+   * V13 signature: _preparePartContext(partId, context, options)
+   */
+  async _preparePartContext(partId, context, options) {
+    context.partId = `${this.id}-${partId}`;
+    context.tab = context.tabs?.[partId];
+    return context;
+  }
+
+  /* -----------------------------------------------------------------------
+   * Drag-and-Drop
+   * V13 ApplicationV2: dragover must preventDefault to allow drops;
+   * _onDrop parses the transfer payload and dispatches to _onDropItem.
+   * ----------------------------------------------------------------------- */
+
+  /** @override */
+  _onDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  /** @override */
+  _onDragStart(event) {
+    const li = event.currentTarget.closest("[data-item-id]");
+    if (!li) return;
+    const item = this.document.items.get(li.dataset.itemId);
+    if (!item) return;
+    event.dataTransfer.setData("text/plain", JSON.stringify({ type: "Item", uuid: item.uuid }));
+  }
+
+  /** @override */
+  async _onDrop(event) {
+    event.preventDefault();
+    let data;
+    try { data = JSON.parse(event.dataTransfer.getData("text/plain")); }
+    catch(e) { return; }
+    if (data?.type === "Item") return this._onDropItem(event, data);
+  }
+
+  /**
+   * Handle dropping an Item onto the actor sheet.
+   * Supports compendium browser, world sidebar, and inter-actor drops.
+   */
+  async _onDropItem(event, data) {
+    if (!this.document.isOwner) return false;
+    let itemData;
+    if (data.uuid) {
+      const item = await fromUuid(data.uuid);
+      if (!item) return false;
+      if (item.parent?.uuid === this.document.uuid) return false;
+      itemData = item.toObject();
+    } else if (data.data) {
+      itemData = data.data;
+    } else {
+      return false;
+    }
+    return this.document.createEmbeddedDocuments("Item", [itemData]);
+  }
+
+  /**
+   * @override
+   * After every render, wire up prose-mirror editors and hidden-tab inputs
+   * for reliable saves.
+   *
+   * Problem 1: HTMLProseMirrorElement only commits its content on an explicit
+   * save gesture (Ctrl+S / toolbar button). It does NOT auto-save on blur,
+   * so content typed without an explicit save is silently lost when the sheet
+   * closes or re-renders. Fix: save on focusout.
+   *
+   * Problem 2: submitOnChange cannot register named fields inside .tab-content
+   * sections that start as display:none. Fix: explicit change listeners.
+   */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    if (!this.isEditable) return;
+
+    // Prose-mirror blur → auto-save (biography, notes, etc.)
+    for (const pm of this.element.querySelectorAll("prose-mirror[name]")) {
+      pm.addEventListener("focusout", (event) => {
+        if (pm.contains(event.relatedTarget)) return;
+        const name = pm.getAttribute("name");
+        const value = pm.value ?? "";
+        if (name) this.document.update({ [name]: value });
+      });
+    }
+
+    // Named inputs/selects inside .tab-content sections — submitOnChange cannot
+    // register these at sheet-render time because all non-default tabs start as
+    // display:none. Wire them up explicitly so any change saves immediately.
+    // Propagation is stopped to prevent a double-save where submitOnChange also
+    // fires. Inputs inside [data-item-id] belong to embedded Items (below).
+    for (const input of this.element.querySelectorAll(
+      ".tab-content input[name], .tab-content select[name], .tab-content textarea[name]"
+    )) {
+      if (input.closest("[data-item-id]")) continue;
+      input.addEventListener("change", (event) => {
+        event.stopPropagation();
+        let value = input.value;
+        if (input.type === "number")   value = parseFloat(value) || 0;
+        if (input.type === "checkbox") value = input.checked;
+        this.document.update({ [input.name]: value });
+      });
+    }
+
+    // Inline embedded-item field changes (e.g. skill rating inputs). These use
+    // data-field instead of name because they belong to an embedded Item, not
+    // the Actor, so the actor form's submitOnChange never touches them.
+    for (const input of this.element.querySelectorAll("[data-item-id] [data-field]")) {
+      input.addEventListener("change", (event) => {
+        event.stopPropagation();
+        const itemId = input.closest("[data-item-id]")?.dataset.itemId;
+        const field  = input.dataset.field;
+        if (!itemId || !field) return;
+        const item = this.document.items.get(itemId);
+        if (!item) return;
+        let value = input.value;
+        if (input.type === "number")   value = parseFloat(value) || 0;
+        if (input.type === "checkbox") value = input.checked;
+        item.update({ [field]: value });
+      });
+    }
+  }
+
+  /**
+   * @override
+   * Safety-net: inject prose-mirror values into form data before any
+   * submitOnChange submission. FormDataExtended may not reliably extract
+   * values from form-associated custom elements in all V13 builds. Without
+   * this, saving ANY other field (e.g. nuyen) could overwrite biography with
+   * an empty string.
+   */
+  async _processFormData(event, form, formData) {
+    for (const pm of form.querySelectorAll("prose-mirror[name]")) {
+      const name = pm.getAttribute("name");
+      if (!name) continue;
+      // Only inject if FormDataExtended didn't already capture the value
+      if (!formData.has(name) && typeof pm.value === "string") {
+        formData.set(name, pm.value);
+      }
+    }
+    return super._processFormData(event, form, formData);
+  }
+}
+
+// =========================================================================
+// CHARACTER SHEET
+// =========================================================================
+
+/**
+ * Character Sheet for Shadowrun 2E player characters.
+ * Uses the V13 ApplicationV2 framework with HandlebarsApplicationMixin.
+ */
+export class SR2ECharacterSheet extends SR2EBaseActorSheet {
+
+  /** @override */
+  static DEFAULT_OPTIONS = {
+    classes: ["sr2e", "sheet", "actor", "character"],
+    position: { width: 800, height: 700 },
+    actions: SHARED_ACTIONS
   };
 
   /** @override */
@@ -1198,15 +1403,13 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   _isDragging = false;
 
   /* -----------------------------------------------------------------------
-   * Drag-and-Drop
-   * V13 ApplicationV2: dragover must preventDefault to allow drops;
-   * _onDrop parses the transfer payload and dispatches to _onDropItem.
+   * Drag-and-Drop — extends the base behaviour with race-drop-zone styling
+   * and protection of <select> elements during external drags.
    * ----------------------------------------------------------------------- */
 
   /** @override */
   _onDragOver(event) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
+    super._onDragOver(event);
     this._isDragging = true;
     // Disable pointer events on selects so browsers can't fire spurious
     // "change" events on them as the dragged item passes over the sheet.
@@ -1220,15 +1423,6 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
   _onDragLeave(event) {
     const zone = this.element?.querySelector(".race-drop-zone");
     if (zone) zone.classList.remove("drag-over");
-  }
-
-  /** @override */
-  _onDragStart(event) {
-    const li = event.currentTarget.closest("[data-item-id]");
-    if (!li) return;
-    const item = this.document.items.get(li.dataset.itemId);
-    if (!item) return;
-    event.dataTransfer.setData("text/plain", JSON.stringify({ type: "Item", uuid: item.uuid }));
   }
 
   /** @override */
@@ -1321,12 +1515,12 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
         const loc = game.i18n.localize(key);
         return (loc && loc !== key) ? loc : currentRace.charAt(0).toUpperCase() + currentRace.slice(1);
       })();
-      const confirmed = await Dialog.confirm({
-        title: "Change Metatype?",
-        content: `<p>This character is currently a <strong>${currentLabel}</strong>.
-          Replace with <strong>${itemData.name}</strong>?
+      const confirmed = await foundry.applications.api.DialogV2.confirm({
+        window: { title: "Change Metatype?" },
+        content: `<p>This character is currently a <strong>${foundry.utils.escapeHTML(currentLabel)}</strong>.
+          Replace with <strong>${foundry.utils.escapeHTML(itemData.name)}</strong>?
           Racial attribute modifiers and maximums will be updated.</p>`,
-        defaultYes: false
+        rejectClose: false
       });
       if (!confirmed) return false;
     }
@@ -1357,11 +1551,11 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const currentType = actor.system.magic?.type ?? "none";
     if (currentType !== "none") {
       const currentLabel = game.i18n.localize(CONFIG.SR2E.magicTypes[currentType] ?? currentType);
-      const confirmed = await Dialog.confirm({
-        title: "Change Tradition?",
-        content: `<p>This character already has the <strong>${currentLabel}</strong> tradition set.
-          Replace with <strong>${itemData.name}</strong>?</p>`,
-        defaultYes: false
+      const confirmed = await foundry.applications.api.DialogV2.confirm({
+        window: { title: "Change Tradition?" },
+        content: `<p>This character already has the <strong>${foundry.utils.escapeHTML(currentLabel)}</strong> tradition set.
+          Replace with <strong>${foundry.utils.escapeHTML(itemData.name)}</strong>?</p>`,
+        rejectClose: false
       });
       if (!confirmed) return false;
     }
@@ -1380,11 +1574,6 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
     const context = await super._prepareContext(options);
     const actor = this.document;
     const system = actor.system;
-
-    context.system = system;
-    context.actor = actor;
-    context.config = CONFIG.SR2E;
-    context.editable = this.isEditable;
 
     // Organize items by type
     context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name));
@@ -1492,31 +1681,10 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 
   /**
    * @override
-   * V13 signature: _preparePartContext(partId, context, options)
-   */
-  async _preparePartContext(partId, context, options) {
-    context.partId = `${this.id}-${partId}`;
-    context.tab = context.tabs?.[partId];
-    return context;
-  }
-
-  /**
-   * @override
-   * After every render, wire up prose-mirror editors for reliable saves.
-   *
-   * Problem: HTMLProseMirrorElement only commits its content on an explicit
-   * save gesture (Ctrl+S / toolbar button). It does NOT auto-save on blur,
-   * so content typed without an explicit save is silently lost when the sheet
-   * closes or re-renders.
-   *
-   * Fix: listen for `focusout` on each prose-mirror element. When focus leaves
-   * the editor entirely (not just moving to the toolbar), save immediately via
-   * document.update(). This is safe to call on every render because the old
-   * elements are replaced by the new ones each time.
+   * Adds the race-drop-zone dragleave handling on top of the base sheet's
+   * prose-mirror / hidden-tab input wiring.
    */
   _onRender(context, options) {
-    super._onRender?.(context, options);
-
     // Bind dragleave on the sheet element to clear race-drop-zone highlight
     // (dragleave fires when the drag leaves the entire sheet window)
     if (this.element) {
@@ -1531,78 +1699,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
       }, { passive: true });
     }
 
-    if (!this.isEditable) return;
-
-    // Prose-mirror blur → auto-save (biography, notes, etc.)
-    for (const pm of this.element.querySelectorAll("prose-mirror[name]")) {
-      pm.addEventListener("focusout", (event) => {
-        if (pm.contains(event.relatedTarget)) return;
-        const name = pm.getAttribute("name");
-        const value = pm.value ?? "";
-        if (name) this.document.update({ [name]: value });
-      });
-    }
-
-    // Named inputs/selects inside .tab-content sections — submitOnChange cannot
-    // register these at sheet-render time because all non-default tabs start as
-    // display:none. This affects every named field on the Magic, Skills, Combat,
-    // Matrix, Gear, Vehicles, Contacts, and Bio tabs.
-    // Wire them up explicitly here so any change saves immediately, bypassing
-    // the broken submitOnChange registration. Propagation is stopped to prevent
-    // a double-save in cases where submitOnChange also fires.
-    // Inputs inside [data-item-id] are excluded — those belong to embedded Items
-    // and are handled separately in the block below.
-    for (const input of this.element.querySelectorAll(
-      ".tab-content input[name], .tab-content select[name], .tab-content textarea[name]"
-    )) {
-      if (input.closest("[data-item-id]")) continue;
-      input.addEventListener("change", (event) => {
-        event.stopPropagation();
-        let value = input.value;
-        if (input.type === "number")   value = parseFloat(value) || 0;
-        if (input.type === "checkbox") value = input.checked;
-        this.document.update({ [input.name]: value });
-      });
-    }
-
-    // Inline embedded-item field changes (e.g. skill rating inputs on the Skills tab).
-    // These inputs use data-field instead of name because they belong to an embedded
-    // Item, not the Actor, so the actor form's submitOnChange never touches them.
-    // We listen for "change" and update the embedded item directly.
-    for (const input of this.element.querySelectorAll("[data-item-id] [data-field]")) {
-      input.addEventListener("change", (event) => {
-        event.stopPropagation(); // prevent the actor form from also firing
-        const itemId = input.closest("[data-item-id]")?.dataset.itemId;
-        const field  = input.dataset.field;
-        if (!itemId || !field) return;
-        const item = this.document.items.get(itemId);
-        if (!item) return;
-        let value = input.value;
-        if (input.type === "number")   value = parseFloat(value) || 0;
-        if (input.type === "checkbox") value = input.checked;
-        item.update({ [field]: value });
-      });
-    }
-  }
-
-  /**
-   * @override
-   * Safety-net: inject prose-mirror values into form data before any
-   * submitOnChange submission. FormDataExtended may not reliably extract
-   * values from form-associated custom elements in all V13 builds. Without
-   * this, saving ANY other field (e.g. nuyen) could overwrite biography with
-   * an empty string.
-   */
-  async _processFormData(event, form, formData) {
-    for (const pm of form.querySelectorAll("prose-mirror[name]")) {
-      const name = pm.getAttribute("name");
-      if (!name) continue;
-      // Only inject if FormDataExtended didn't already capture the value
-      if (!formData.has(name) && typeof pm.value === "string") {
-        formData.set(name, pm.value);
-      }
-    }
-    return super._processFormData(event, form, formData);
+    super._onRender(context, options);
   }
 
   /**
@@ -1637,7 +1734,7 @@ export class SR2ECharacterSheet extends HandlebarsApplicationMixin(ActorSheetV2)
 /**
  * NPC Sheet - simplified version of the character sheet.
  */
-export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class SR2ENPCSheet extends SR2EBaseActorSheet {
 
   /** @override */
   static DEFAULT_OPTIONS = {
@@ -1650,14 +1747,7 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
-    },
-    form: {
-      submitOnChange: true
-    },
-    window: {
-      resizable: true
-    },
-    dragDrop: [{ dragSelector: "[data-item-id]", dropSelector: null }]
+    }
   };
 
   /** @override */
@@ -1665,59 +1755,22 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     npc: { template: "systems/sr2e/templates/actor/npc-sheet.hbs" }
   };
 
-  _onDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }
-
-  _onDragStart(event) {
-    const li = event.currentTarget.closest("[data-item-id]");
-    if (!li) return;
-    const item = this.document.items.get(li.dataset.itemId);
-    if (!item) return;
-    event.dataTransfer.setData("text/plain", JSON.stringify({ type: "Item", uuid: item.uuid }));
-  }
-
-  async _onDrop(event) {
-    event.preventDefault();
-    let data;
-    try { data = JSON.parse(event.dataTransfer.getData("text/plain")); } catch(e) { return; }
-    if (data?.type === "Item") return this._onDropItem(event, data);
-  }
-
-  async _onDropItem(event, data) {
-    if (!this.document.isOwner) return false;
-    const item = data.uuid ? await fromUuid(data.uuid) : null;
-    if (!item) return false;
-    if (item.parent?.uuid === this.document.uuid) return false;
-    return this.document.createEmbeddedDocuments("Item", [item.toObject()]);
-  }
-
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const actor = this.document;
-    const system = actor.system;
-
-    context.system = system;
-    context.actor = actor;
-    context.config = CONFIG.SR2E;
-    context.editable = this.isEditable;
 
     context.skills = actor.items.filter(i => i.type === "skill");
     context.weapons = actor.items.filter(i => i.type === "weapon");
     context.gear = actor.items.filter(i => i.type === "gear");
     context.spells = actor.items.filter(i => i.type === "spell");
 
-    context.enrichedBiography = await TextEditor.enrichHTML(system.biography || "", {
+    context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography || "", {
       secrets: this.document.isOwner,
       async: true,
       relativeTo: this.document
     });
 
-    return context;
-  }
-
-  /** @override */
-  async _preparePartContext(partId, context, options) {
-    context.partId = `${this.id}-${partId}`;
     return context;
   }
 }
@@ -1729,7 +1782,7 @@ export class SR2ENPCSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 /**
  * Vehicle Sheet.
  */
-export class SR2EVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class SR2EVehicleSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "vehicle"],
@@ -1738,9 +1791,7 @@ export class SR2EVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
-    },
-    form: { submitOnChange: true },
-    window: { resizable: true }
+    }
   };
 
   static PARTS = {
@@ -1749,17 +1800,8 @@ export class SR2EVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    context.system = this.document.system;
-    context.actor = this.document;
-    context.config = CONFIG.SR2E;
-    context.editable = this.isEditable;
     context.weapons = this.document.items.filter(i => i.type === "weapon");
     context.mods = this.document.items.filter(i => i.type === "vehicle_mod");
-    return context;
-  }
-
-  async _preparePartContext(partId, context, options) {
-    context.partId = `${this.id}-${partId}`;
     return context;
   }
 }
@@ -1771,7 +1813,7 @@ export class SR2EVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 /**
  * Spirit Sheet.
  */
-export class SR2ESpiritSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class SR2ESpiritSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "spirit"],
@@ -1780,28 +1822,12 @@ export class SR2ESpiritSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
-    },
-    form: { submitOnChange: true },
-    window: { resizable: true }
+    }
   };
 
   static PARTS = {
     spirit: { template: "systems/sr2e/templates/actor/spirit-sheet.hbs" }
   };
-
-  async _prepareContext(options) {
-    const context = await super._prepareContext(options);
-    context.system = this.document.system;
-    context.actor = this.document;
-    context.config = CONFIG.SR2E;
-    context.editable = this.isEditable;
-    return context;
-  }
-
-  async _preparePartContext(partId, context, options) {
-    context.partId = `${this.id}-${partId}`;
-    return context;
-  }
 }
 
 // =========================================================================
@@ -1811,7 +1837,7 @@ export class SR2ESpiritSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 /**
  * IC (Intrusion Countermeasures) Sheet.
  */
-export class SR2EICSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class SR2EICSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "ic"],
@@ -1820,26 +1846,10 @@ export class SR2EICSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
-    },
-    form: { submitOnChange: true },
-    window: { resizable: true }
+    }
   };
 
   static PARTS = {
     ic: { template: "systems/sr2e/templates/actor/ic-sheet.hbs" }
   };
-
-  async _prepareContext(options) {
-    const context = await super._prepareContext(options);
-    context.system = this.document.system;
-    context.actor = this.document;
-    context.config = CONFIG.SR2E;
-    context.editable = this.isEditable;
-    return context;
-  }
-
-  async _preparePartContext(partId, context, options) {
-    context.partId = `${this.id}-${partId}`;
-    return context;
-  }
 }

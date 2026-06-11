@@ -29,9 +29,6 @@ import { SR2EItemSheet } from "./sheets/item-sheet.mjs";
 import { preloadTemplates } from "./helpers/templates.mjs";
 import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
-// Dice
-import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
-
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
 /* -------------------------------------------- */
@@ -75,9 +72,6 @@ Hooks.once("init", async () => {
     race:      dataModels.RaceData,
     tradition: dataModels.TraditionData
   };
-
-  // Register custom Roll class
-  CONFIG.Dice.rolls.push(SR2ESuccessRoll);
 
   // ---------------------------------------------------------------------------
   // Register Actor Sheets
@@ -222,10 +216,10 @@ async function _createItemMacro(data, slot) {
   const item = await fromUuid(data.uuid);
   if (!item) return;
 
+  // Resolve via UUID so the macro also works for items on unlinked token
+  // actors and survives the actor being renamed.
   const command = `
-    const actor = game.actors.get("${item.parent?.id}");
-    if (!actor) return ui.notifications.warn("Cannot find the actor for this macro.");
-    const item = actor.items.get("${item.id}");
+    const item = await fromUuid("${item.uuid}");
     if (!item) return ui.notifications.warn("Cannot find the item for this macro.");
     item.roll();
   `;
@@ -237,7 +231,7 @@ async function _createItemMacro(data, slot) {
       type: "script",
       img: item.img,
       command,
-      flags: { "sr2e.itemMacro": true }
+      flags: { sr2e: { itemMacro: true } }
     });
   }
 
@@ -263,31 +257,7 @@ function _registerSystemSettings() {
     default: true
   });
 
-  // Optional More Metahumans rule
-  game.settings.register("sr2e", "moreMetahumans", {
-    name: "SR2E.Settings.MoreMetahumans",
-    hint: "SR2E.Settings.MoreMetahumansHint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false
-  });
-
-  // Initiative style
-  game.settings.register("sr2e", "initiativeStyle", {
-    name: "SR2E.Settings.InitiativeStyle",
-    hint: "SR2E.Settings.InitiativeStyleHint",
-    scope: "world",
-    config: true,
-    type: String,
-    default: "standard",
-    choices: {
-      standard: "SR2E.Settings.InitStandard",
-      cinematic: "SR2E.Settings.InitCinematic"
-    }
-  });
-
-  // Automate Essence from Cyberware
+  // Automate Essence from Cyberware (read in CharacterData.prepareDerivedData)
   game.settings.register("sr2e", "autoEssence", {
     name: "SR2E.Settings.AutoEssence",
     hint: "SR2E.Settings.AutoEssenceHint",
@@ -295,21 +265,6 @@ function _registerSystemSettings() {
     config: true,
     type: Boolean,
     default: true
-  });
-
-  // Condition Monitor variant
-  game.settings.register("sr2e", "conditionMonitorBoxes", {
-    name: "SR2E.Settings.ConditionMonitorBoxes",
-    hint: "SR2E.Settings.ConditionMonitorBoxesHint",
-    scope: "world",
-    config: true,
-    type: Number,
-    default: 10,
-    range: {
-      min: 8,
-      max: 14,
-      step: 1
-    }
   });
 
   game.settings.register("sr2e", "confirmDelete", {
@@ -333,6 +288,29 @@ function _registerSystemSettings() {
     }
   });
 }
+
+/* -------------------------------------------- */
+/*  Combat Hooks                                */
+/* -------------------------------------------- */
+
+/**
+ * Recoil accumulates per combat phase (SR2E p.93). Clear every combatant's
+ * recoil counter whenever the tracker advances to a new turn or round, so
+ * shots fired in a previous phase no longer penalize the current one.
+ * GM-gated: players lack permission to update other combatants' actors.
+ */
+async function _resetCombatRecoil(combat) {
+  if (!game.user.isGM) return;
+  for (const combatant of combat.combatants) {
+    const actor = combatant.actor;
+    if (actor?.system?.combatRecoil > 0) {
+      await actor.update({ "system.combatRecoil": 0 });
+    }
+  }
+}
+
+Hooks.on("combatTurn",  (combat) => _resetCombatRecoil(combat));
+Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
 
 /* -------------------------------------------- */
 /*  Chat Message Hooks                          */

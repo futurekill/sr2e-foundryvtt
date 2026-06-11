@@ -178,17 +178,36 @@ export class CharacterData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Calculate final attribute values
-    this._calculateAttributeValues();
+    // Embedded items are fully prepared before this runs, so all item-driven
+    // modifiers (cyberware, adept powers, foci, skills) are collected here.
+    // This is the single source of truth for derived character stats —
+    // SR2EActor adds no further derivation.
+    const mods = this._collectItemModifiers();
 
-    // Calculate Reaction = (Quickness + Intelligence) / 2
+    // Calculate final attribute values (base + racial clamped to racial max,
+    // then cyberware/adept modifiers applied on top)
+    this._calculateAttributeValues(mods);
+
+    // Essence loss from installed cyberware (toggleable via the autoEssence setting).
+    // try/catch: settings are registered in the init hook, but data prep can be
+    // triggered in contexts where the setting isn't registered yet.
+    let autoEssence = true;
+    try { autoEssence = game.settings.get("sr2e", "autoEssence"); } catch (e) { /* default on */ }
+    if (autoEssence) {
+      this.essence.value = Math.max(0, this.essence.max - mods.essenceLoss);
+    }
+
+    // Calculate Reaction = (Quickness + Intelligence) / 2, plus cyberware mods
+    this.reaction.mod = mods.reaction;
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
-    this.reaction.value = this.reaction.base + this.reaction.mod;
+    this.reaction.value = Math.max(0, this.reaction.base + this.reaction.mod);
 
-    // Initiative base = Adjusted Reaction. Wound penalty reduces initiative dice at roll
-    // time (not the base score) per SR2E rules.
+    // Initiative base = Adjusted Reaction. The wound Initiative Modifier is applied
+    // to Reaction *before* Initiative dice are rolled (SR2E Damage Modifiers Table,
+    // p.112) — it reduces the base score at roll time, not the number of dice.
     this.initiative.base = this.reaction.value;
     this.initiative.value = this.reaction.value;
+    this.initiative.dice = 1 + mods.initiativeDice;
 
     // Calculate Essence-based Magic
     if (this.magic.type !== "none") {
@@ -198,7 +217,7 @@ export class CharacterData extends SR2EDataModel {
       }
     }
 
-    // Calculate Condition Monitor maximums (Body / 2, round up, * 3 + 1 base of 10)
+    // Condition monitors are fixed 10-box tracks in SR2E
     this.conditionMonitor.physical.max = 10;
     this.conditionMonitor.stun.max = 10;
 
@@ -219,6 +238,36 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
+   * Collect attribute/initiative/essence modifiers from installed cyberware
+   * and adept powers.
+   * @returns {{body:number, quickness:number, strength:number, charisma:number,
+   *            intelligence:number, willpower:number, reaction:number,
+   *            initiativeDice:number, essenceLoss:number}}
+   * @private
+   */
+  _collectItemModifiers() {
+    const mods = {
+      body: 0, quickness: 0, strength: 0,
+      charisma: 0, intelligence: 0, willpower: 0,
+      reaction: 0, initiativeDice: 0, essenceLoss: 0
+    };
+    for (const item of this.parent?.items ?? []) {
+      if (item.type === "cyberware" && item.system.installed) {
+        for (const [key, val] of Object.entries(item.system.attributeMods)) {
+          if (key in mods) mods[key] += val;
+        }
+        mods.essenceLoss += item.system.actualEssenceCost;
+      }
+      if (item.type === "adept_power") {
+        for (const [key, val] of Object.entries(item.system.attributeMods)) {
+          if (key in mods) mods[key] += val;
+        }
+      }
+    }
+    return mods;
+  }
+
+  /**
    * Apply racial attribute modifiers based on selected race using the CONFIG table.
    * @private
    */
@@ -232,30 +281,30 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
-   * Calculate final attribute values from base + racial + mod.
+   * Calculate final attribute values.
+   * The natural attribute (base + racial) is clamped to the racial maximum;
+   * cyberware/adept modifiers then apply on top of the clamped natural value.
+   * @param {object} mods - Modifier totals from _collectItemModifiers().
    * @private
    */
-  _calculateAttributeValues() {
+  _calculateAttributeValues(mods) {
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
-        this[attr].value = this[attr].base + this[attr].racial + this[attr].mod;
-        // Enforce minimum of 1
-        if (this[attr].value < 1) this[attr].value = 1;
-        // Enforce racial maximum
-        if (maxes[attr] != null && this[attr].value > maxes[attr]) {
-          this[attr].value = maxes[attr];
-        }
+        this[attr].mod = mods[attr];
+        let natural = this[attr].base + this[attr].racial;
+        if (maxes[attr] != null && natural > maxes[attr]) natural = maxes[attr];
+        this[attr].value = Math.max(1, natural + this[attr].mod);
       }
     }
   }
 
   /**
-   * Calculate dice pools.
-   * Combat Pool = (Quickness + Intelligence + Willpower) / 2, round down
-   * Hacking Pool = (Computer Skill + MPCP) / 3 (calculated when cyberdeck is present)
-   * Magic Pool = (combined from Magic rating + Initiate Grade) / 2
-   * Control Pool = (Vehicle Control Rig rating * 2) or (Reaction) / 2
+   * Calculate dice pools (SR2E p.84):
+   * Combat Pool  = (Quickness + Intelligence + Willpower) / 2, round down
+   * Magic Pool   = Sorcery Skill + active bonded power foci
+   * Control Pool = Reaction, modified only by a vehicle control rig
+   * Hacking Pool = Computer Skill + Reaction (requires a cyberdeck)
    * @private
    */
   _calculateDicePools() {
@@ -307,9 +356,8 @@ export class CharacterData extends SR2EDataModel {
       applyPool(this.dicePools.control, controlPool);
     }
 
-    // Hacking Pool = Computer Skill + Reaction (SR2E p.84)
-    // Note: actor.mjs _recalculateHackingPool() re-runs after cyberware is applied
-    // and will override this with the final post-cyberware values.
+    // Hacking Pool = Computer Skill + Reaction (SR2E p.84: "equal to his or her
+    // Computer Skill … plus the character's Reaction")
     if (this.cyberdeck.mpcp > 0) {
       let computerSkill = 0;
       if (this.parent?.items) {
@@ -320,9 +368,7 @@ export class CharacterData extends SR2EDataModel {
           }
         }
       }
-      const hackingPool = computerSkill + this.reaction.value;
-      this.dicePools.hacking.max   = hackingPool;
-      this.dicePools.hacking.value = hackingPool;
+      applyPool(this.dicePools.hacking, computerSkill + this.reaction.value);
     }
   }
 
@@ -341,43 +387,47 @@ export class CharacterData extends SR2EDataModel {
         }
       }
     }
-    // Add troll dermal armor
-    if (this.race === "troll") {
-      ballistic += 1;
-      impact += 1;
-    }
+    // Note: troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table),
+    // applied as an extra Body die on Damage Resistance Tests in
+    // SR2EActor#rollDamageResistance — it is not an armor rating bonus.
     this.armor.ballistic = ballistic;
     this.armor.impact = impact;
   }
 
   /**
-   * Get the wound penalty modifier based on current damage.
+   * Get the wound penalty (Injury Modifier) based on current damage.
+   *
+   * SR2E Damage Modifiers Table (p.112): a column reaches Light at 1 box,
+   * Moderate at 3, Serious at 6 (Deadly at 10 = unconscious; no modifier
+   * listed, capped at +3 here). Condition Levels are cumulative ACROSS the
+   * Physical and Stun columns — e.g. Moderate Stun + Light Physical = +3.
    * @returns {number}
    */
   get woundPenalty() {
-    const physical = this.conditionMonitor.physical.value;
-    const stun = this.conditionMonitor.stun.value;
-    const maxDamage = Math.max(physical, stun);
-    if (maxDamage <= 0) return 0;
-    if (maxDamage <= 3) return 1;  // Light
-    if (maxDamage <= 6) return 2;  // Moderate
-    if (maxDamage <= 9) return 3;  // Serious
-    return 4; // Deadly
+    const columnPenalty = boxes => {
+      if (boxes >= 6) return 3;  // Serious (Deadly = unconscious)
+      if (boxes >= 3) return 2;  // Moderate
+      if (boxes >= 1) return 1;  // Light
+      return 0;
+    };
+    return columnPenalty(this.conditionMonitor.physical.value)
+         + columnPenalty(this.conditionMonitor.stun.value);
   }
 
   /**
-   * Get the current wound level label.
+   * Get the current wound level label (worst of the two columns).
+   * Boxes per level: Light=1, Moderate=3, Serious=6, Deadly=10.
    */
   get woundLevel() {
     const maxDamage = Math.max(
       this.conditionMonitor.physical.value,
       this.conditionMonitor.stun.value
     );
-    if (maxDamage <= 0) return "Undamaged";
-    if (maxDamage <= 3) return "Light";
-    if (maxDamage <= 6) return "Moderate";
-    if (maxDamage <= 9) return "Serious";
-    return "Deadly";
+    if (maxDamage >= 10) return "Deadly";
+    if (maxDamage >= 6)  return "Serious";
+    if (maxDamage >= 3)  return "Moderate";
+    if (maxDamage >= 1)  return "Light";
+    return "Undamaged";
   }
 
   /**
@@ -492,8 +542,8 @@ export class NPCData extends SR2EDataModel {
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = this.reaction.base + this.reaction.mod;
 
-    // Initiative base = Adjusted Reaction. Wound penalty reduces initiative dice at roll
-    // time (not the base score) per SR2E rules.
+    // Initiative base = Adjusted Reaction. The wound Initiative Modifier reduces
+    // Reaction at roll time (SR2E Damage Modifiers Table, p.112).
     this.initiative.base = this.reaction.value;
     this.initiative.value = this.reaction.value;
 
@@ -517,33 +567,35 @@ export class NPCData extends SR2EDataModel {
   }
 
   /**
-   * Get the wound penalty modifier based on current damage.
+   * Get the wound penalty (Injury Modifier) based on current damage.
+   * Cumulative across the Physical and Stun columns — see CharacterData.
    * @returns {number}
    */
   get woundPenalty() {
-    const physical = this.conditionMonitor.physical.value;
-    const stun = this.conditionMonitor.stun.value;
-    const maxDamage = Math.max(physical, stun);
-    if (maxDamage <= 0) return 0;
-    if (maxDamage <= 3) return 1;  // Light
-    if (maxDamage <= 6) return 2;  // Moderate
-    if (maxDamage <= 9) return 3;  // Serious
-    return 4;                      // Deadly
+    const columnPenalty = boxes => {
+      if (boxes >= 6) return 3;  // Serious (Deadly = unconscious)
+      if (boxes >= 3) return 2;  // Moderate
+      if (boxes >= 1) return 1;  // Light
+      return 0;
+    };
+    return columnPenalty(this.conditionMonitor.physical.value)
+         + columnPenalty(this.conditionMonitor.stun.value);
   }
 
   /**
-   * Get the current wound level label.
+   * Get the current wound level label (worst of the two columns).
+   * Boxes per level: Light=1, Moderate=3, Serious=6, Deadly=10.
    */
   get woundLevel() {
     const maxDamage = Math.max(
       this.conditionMonitor.physical.value,
       this.conditionMonitor.stun.value
     );
-    if (maxDamage <= 0) return "Undamaged";
-    if (maxDamage <= 3) return "Light";
-    if (maxDamage <= 6) return "Moderate";
-    if (maxDamage <= 9) return "Serious";
-    return "Deadly";
+    if (maxDamage >= 10) return "Deadly";
+    if (maxDamage >= 6)  return "Serious";
+    if (maxDamage >= 3)  return "Moderate";
+    if (maxDamage >= 1)  return "Light";
+    return "Undamaged";
   }
 }
 

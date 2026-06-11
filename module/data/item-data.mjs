@@ -433,19 +433,13 @@ export class LifestyleData extends SR2EDataModel {
         low: "SR2E.Lifestyle.Low", middle: "SR2E.Lifestyle.Middle",
         high: "SR2E.Lifestyle.High", luxury: "SR2E.Lifestyle.Luxury"
       }}),
+      // User-editable: the book cost for the level is only a default. It is NOT
+      // overwritten in prepareDerivedData so custom lifestyles keep their cost.
       monthlyCost: new fields.NumberField({ initial: 1000, min: 0 }),
       monthsPaid: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       description: new fields.HTMLField({ initial: "" }),
       notes: new fields.StringField({ initial: "" })
     };
-  }
-
-  /** @override */
-  prepareDerivedData() {
-    const costTable = CONFIG.SR2E.lifestyles;
-    if (costTable[this.level]) {
-      this.monthlyCost = costTable[this.level].monthlyCost;
-    }
   }
 }
 

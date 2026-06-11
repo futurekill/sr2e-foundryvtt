@@ -40,10 +40,9 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 
 ### System Settings
 - Rule of Six toggle
-- Optional "More Metahumans" rule
-- Initiative style (standard/cinematic)
 - Auto-calculate Essence from cyberware
-- Configurable condition monitor size
+- Item-deletion confirmation (per player)
+- Shadownet terminal theme (per player)
 
 ## Installation
 
@@ -132,7 +131,7 @@ sr2e/
 │   └── chat/                # Chat message templates
 │       └── roll-result.hbs
 ├── css/
-│   └── sr2e.css             # System stylesheet
+│   └── sr2e-main.css        # System stylesheet
 ├── lang/
 │   └── en.json              # English localization
 ├── packs/                   # Compendium packs (future)

@@ -66,8 +66,9 @@ function evaluateDamageCode(code, actor = null) {
     // After substitution only digits and arithmetic operators should remain
     if (/^[\d\s+\-*/().]+$/.test(resolved)) {
       try {
-        // eslint-disable-next-line no-new-func
-        const power = Math.max(0, Math.floor(Function(`"use strict"; return (${resolved})`)()));
+        // Roll.safeEval is Foundry's sandboxed arithmetic evaluator — unlike
+        // Function()/eval it works under strict Content Security Policies.
+        const power = Math.max(0, Math.floor(Roll.safeEval(resolved)));
         return { power, level };
       } catch { /* fall through to default */ }
     }
@@ -113,9 +114,14 @@ export class SR2EItem extends Item {
    * Melee TN  = targetQuickness + reachDisadvantage + attackerRunning
    *           + targetRunning + other + woundPenalty  (SR2E p.113)
    *
-   * Firing mode (ranged only):
-   *   - Shots accumulate on the recoil counter (SS/SA: 1, BF: 3, FA: 10)
-   *   - Power bonus applied to the damage code (BF: +2, FA: +4) per SR2E p.108
+   * Firing mode (ranged only, SR2E p.92–93):
+   *   - SS/SA: 1 round. SA takes +1 recoil per shot already fired this phase.
+   *   - BF: 3-round burst — Power +3, Damage Level +1, +3 recoil
+   *     (the burst's own rounds count toward its recoil).
+   *   - FA: N-round burst (3–10 declared) — Power +N, Damage Level +1 per
+   *     3 full rounds, +N recoil including this burst.
+   *   Rounds fired accumulate on the recoil counter; recoil compensation
+   *   reduces the penalty. Ammunition is decremented when tracked.
    *
    * The chat card embeds a "Resist Damage" button so the defender can roll
    * their Body dice against the incoming damage code.
@@ -127,12 +133,6 @@ export class SR2EItem extends Item {
     if (!actor) return;
 
     const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
-    const FIRING_MODE_DATA = {
-      ss: { shots: 1,  powerBonus: 0 },
-      sa: { shots: 1,  powerBonus: 0 },
-      bf: { shots: 3,  powerBonus: 2 },
-      fa: { shots: 10, powerBonus: 4 }
-    };
     const BASE_TN = 4;
 
     const isMelee  = ["melee", "throwing"].includes(this.system.weaponType);
@@ -196,10 +196,11 @@ export class SR2EItem extends Item {
     let label;
 
     // Ranged-only state — resolved in the ranged branch, used later
-    let modeData   = null;
     let shotsFired = 0;
     let hasRecoil  = false;
     let firingMode = "sa";
+    let isBurst    = false;
+    let rounds     = 1;     // rounds fired by this attack
 
     if (isMelee) {
       // ── Melee TN (SR2E p.113) ──────────────────────────────────────────────
@@ -224,7 +225,25 @@ export class SR2EItem extends Item {
       const meleeMod = options.meleeMod   ?? 0;
       const rangeMod = RANGE_TN_MODS[range] ?? 0;
       const rangeLabel = range.charAt(0).toUpperCase() + range.slice(1);
-      modeData       = FIRING_MODE_DATA[firingMode] ?? FIRING_MODE_DATA.sa;
+
+      // Rounds fired: BF is a fixed 3-round burst; FA fires 3–10 declared rounds.
+      isBurst = firingMode === "bf" || firingMode === "fa";
+      if (firingMode === "bf") rounds = 3;
+      else if (firingMode === "fa") rounds = Math.min(10, Math.max(3, options.rounds ?? 3));
+
+      // Ammunition check (only when the weapon tracks ammo, i.e. max > 0)
+      const ammo = this.system.ammo;
+      if (ammo?.max > 0) {
+        if (ammo.current <= 0) {
+          return ui.notifications.warn(`${this.name} is out of ammunition.`);
+        }
+        if (isBurst && ammo.current < rounds) {
+          // SR2E short-burst rules (p.93) are not automated — require a full burst.
+          return ui.notifications.warn(
+            `${this.name} has only ${ammo.current} round${ammo.current === 1 ? "" : "s"} left — not enough for a ${rounds}-round burst.`
+          );
+        }
+      }
 
       // Cyberware TN mods (smartgun link, etc.) — only for smartgun-compatible weapons
       let cyberwareMod = 0;
@@ -236,10 +255,13 @@ export class SR2EItem extends Item {
         }
       }
 
+      // Recoil (SR2E p.93): +1 per round already fired this phase; a burst's
+      // own rounds also count toward its recoil (first BF burst = +3).
       shotsFired          = actor.system.combatRecoil ?? 0;
       const recoilComp    = this.system.recoilComp    ?? 0;
-      const recoilPenalty = Math.max(0, shotsFired - recoilComp);
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
+      const recoilRounds  = shotsFired + (isBurst && hasRecoil ? rounds : 0);
+      const recoilPenalty = Math.max(0, recoilRounds - recoilComp);
 
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
@@ -252,7 +274,9 @@ export class SR2EItem extends Item {
       if (targetMod)   modParts.push(`target running +${targetMod}`);
       if (meleeMod)    modParts.push(`in melee +${meleeMod}`);
       if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
-      const modeLabel = firingMode.toUpperCase();
+      const modeLabel = firingMode === "fa"
+        ? `FA ${rounds} rounds`
+        : firingMode.toUpperCase();
       label = `${this.name} [${modeLabel}]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
     }
 
@@ -261,9 +285,18 @@ export class SR2EItem extends Item {
       poolDice: options.poolDice
     });
 
-    // Accumulate recoil for ranged weapons that track it (SS/SA: +1, BF: +3, FA: +10)
-    if (isRanged && hasRecoil && modeData) {
-      await actor.update({ "system.combatRecoil": shotsFired + modeData.shots });
+    // Accumulate rounds fired on the recoil counter and decrement ammunition.
+    // The counter is reset automatically at the start of each combat turn/round
+    // (see hooks in sr2e.mjs) or manually via the Reset Recoil button.
+    if (isRanged) {
+      if (hasRecoil) {
+        await actor.update({ "system.combatRecoil": shotsFired + rounds });
+      }
+      if (this.system.ammo?.max > 0) {
+        await this.update({
+          "system.ammo.current": Math.max(0, this.system.ammo.current - rounds)
+        });
+      }
     }
 
     // Post staged damage + resist button if the attack connected
@@ -274,24 +307,28 @@ export class SR2EItem extends Item {
       const armorType    = isMelee ? "impact" : "ballistic";
       const armorLabel   = isMelee ? "Impact" : "Ballistic";
       let effectivePower = dmg.power;
+      let levelBonus     = 0;
       let powerNote      = "";
 
-      // BF/FA boost effective power before staging (SR2E p.108); ranged only
-      if (isRanged && modeData?.powerBonus > 0) {
-        effectivePower += modeData.powerBonus;
-        powerNote = ` <em>(base ${dmg.power} +${modeData.powerBonus} ${firingMode.toUpperCase()} bonus)</em>`;
+      // Burst damage (SR2E p.93): Power +1 per round in the burst, Damage
+      // Level +1 per 3 full rounds (BF's fixed 3-round burst = +3 Power, +1 Level).
+      if (isRanged && isBurst) {
+        effectivePower += rounds;
+        levelBonus = Math.floor(rounds / 3);
+        powerNote = ` <em>(base ${dmg.power} +${rounds} burst, level +${levelBonus})</em>`;
       }
 
       const stageUps = Math.floor(result.successes / 2);
       const stages   = ["L", "M", "S", "D"];
       const baseIdx  = stages.indexOf(dmg.level);
-      const finalIdx = Math.min(baseIdx + stageUps, 3);
+      const finalIdx = Math.min(baseIdx + levelBonus + stageUps, 3);
+      const safeName = foundry.utils.escapeHTML(this.name);
 
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
-          <strong>${this.name} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
-          <br><em>Base: ${this.system.damageCode} | Staged up ${stageUps} level(s)</em>
+          <strong>${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
+          <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | Staged up ${stageUps} level(s)</em>
           <br>
           <button class="sr2e-resist-btn"
                   data-power="${effectivePower}"
@@ -388,8 +425,8 @@ export class SR2EItem extends Item {
 
     if (finalIdx >= 0) {
       const finalLevel = stages[finalIdx];
-      // Minimum boxes per drain level: L=1, M=4, S=7, D=10
-      const drainBoxes = [1, 4, 7, 10][finalIdx];
+      // Boxes per drain level (SR2E p.113): L=1, M=3, S=6, D=10
+      const drainBoxes = [1, 3, 6, 10][finalIdx];
       await actor.applyDamage(drainType, drainBoxes);
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
@@ -449,9 +486,9 @@ export class SR2EItem extends Item {
   async _displayItemCard() {
     const content = `
       <div class="sr2e-item-card">
-        <h3>${this.name}</h3>
+        <h3>${foundry.utils.escapeHTML(this.name)}</h3>
         <p><strong>Type:</strong> ${this.type}</p>
-        ${this.system.notes ? `<p>${this.system.notes}</p>` : ""}
+        ${this.system.notes ? `<p>${foundry.utils.escapeHTML(this.system.notes)}</p>` : ""}
       </div>
     `;
 

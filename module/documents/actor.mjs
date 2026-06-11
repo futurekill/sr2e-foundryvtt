@@ -5,207 +5,10 @@ import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 
 export class SR2EActor extends Actor {
 
-  /** @override */
-  prepareDerivedData() {
-    super.prepareDerivedData();
-
-    // Apply cyberware attribute modifiers for characters
-    if (this.type === "character") {
-      this._applyCyberwareModifiers();
-      this._recalculateEssence();
-      this._recalculateInitiativeDice();
-      this._recalculateHackingPool();
-      this._recalculateMagicPool();
-    }
-  }
-
-  /**
-   * Apply attribute modifiers from installed cyberware.
-   * @private
-   */
-  _applyCyberwareModifiers() {
-    const system = this.system;
-    // Reset cyberware mods (they get recalculated)
-    let cyberMods = {
-      body: 0, quickness: 0, strength: 0,
-      charisma: 0, intelligence: 0, willpower: 0,
-      reaction: 0, initiativeDice: 0
-    };
-
-    for (const item of this.items) {
-      if (item.type === "cyberware" && item.system.installed) {
-        const mods = item.system.attributeMods;
-        for (const [key, val] of Object.entries(mods)) {
-          if (cyberMods[key] !== undefined) {
-            cyberMods[key] += val;
-          }
-        }
-      }
-    }
-
-    // Apply to attributes
-    for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
-      system[attr].mod = cyberMods[attr];
-      system[attr].value = system[attr].base + system[attr].racial + system[attr].mod;
-      if (system[attr].value < 1) system[attr].value = 1;
-    }
-
-    // Apply reaction mod
-    system.reaction.mod = cyberMods.reaction;
-    system.reaction.base = Math.floor((system.quickness.value + system.intelligence.value) / 2);
-    system.reaction.value = system.reaction.base + system.reaction.mod;
-
-    // Initiative base = Adjusted Reaction. Wound penalty reduces dice at roll time, not the base.
-    system.initiative.base = system.reaction.value;
-    system.initiative.value = system.reaction.value;
-    system.initiative.dice = 1 + cyberMods.initiativeDice;
-
-    // Recalculate combat pool max with cyberware-modified attributes.
-    // The data model already preserved spent dice in value; just recompute max
-    // and re-apply the same spent-preservation logic so cyberware boosts to
-    // Quickness/Intelligence/Willpower are reflected correctly.
-    const combatPool = Math.floor(
-      (system.quickness.value + system.intelligence.value + system.willpower.value) / 2
-    );
-    const spent = system.dicePools.combat.max > 0
-      ? Math.max(0, system.dicePools.combat.max - system.dicePools.combat.value)
-      : 0;
-    system.dicePools.combat.max   = combatPool;
-    system.dicePools.combat.value = Math.max(0, combatPool - spent);
-
-    // Movement
-    system.movement.walk = system.quickness.value;
-    system.movement.run = system.quickness.value * 3;
-
-    // Armor
-    this._recalculateArmor();
-  }
-
-  /**
-   * Recalculate Essence from installed cyberware.
-   * @private
-   */
-  _recalculateEssence() {
-    if (this.type !== "character") return;
-    const system = this.system;
-    let totalEssenceLoss = 0;
-
-    for (const item of this.items) {
-      if (item.type === "cyberware" && item.system.installed) {
-        totalEssenceLoss += item.system.actualEssenceCost;
-      }
-    }
-
-    system.essence.value = Math.max(0, system.essence.max - totalEssenceLoss);
-
-    // Magic is linked to Essence for magicians
-    if (system.magic.type !== "none") {
-      system.magic.max = Math.floor(system.essence.value);
-      if (system.magic.value > system.magic.max) {
-        system.magic.value = system.magic.max;
-      }
-    }
-  }
-
-  /**
-   * Recalculate initiative dice from cyberware.
-   * @private
-   */
-  _recalculateInitiativeDice() {
-    if (this.type !== "character") return;
-    const system = this.system;
-    let extraDice = 0;
-
-    for (const item of this.items) {
-      if (item.type === "cyberware" && item.system.installed) {
-        extraDice += item.system.attributeMods.initiativeDice || 0;
-      }
-    }
-
-    system.initiative.dice = 1 + extraDice;
-  }
-
-  /**
-   * Recalculate Hacking Pool from Computer skill and Reaction.
-   * SR2E p.84: "equal to his or her Computer Skill... plus the character's Reaction."
-   * Runs after _applyCyberwareModifiers so Reaction is the final post-cyberware value.
-   * @private
-   */
-  _recalculateHackingPool() {
-    if (this.type !== "character") return;
-    const system = this.system;
-    if (system.cyberdeck.mpcp <= 0) return;
-
-    let computerSkill = 0;
-    for (const item of this.items) {
-      if (item.type === "skill" && item.name.toLowerCase() === "computer") {
-        computerSkill = item.system.rating;
-        break;
-      }
-    }
-
-    const hackingPool = computerSkill + system.reaction.value;
-    system.dicePools.hacking.max   = hackingPool;
-    system.dicePools.hacking.value = hackingPool;
-  }
-
-  /**
-   * Recalculate Magic Pool from Sorcery skill and power foci.
-   * SR2E p.84: "equal to his or her Sorcery Skill Rating… plus the rating of
-   * any applicable power foci."
-   * Runs after _applyCyberwareModifiers to ensure cyberware-modified values are final.
-   * @private
-   */
-  _recalculateMagicPool() {
-    if (this.type !== "character") return;
-    const system = this.system;
-    if (system.magic.type === "none" || system.magic.type === "physical_adept") return;
-
-    let sorceryRating = 0;
-    let powerFociBonus = 0;
-    for (const item of this.items) {
-      if (item.type === "skill" && item.name.toLowerCase() === "sorcery") {
-        sorceryRating = item.system.rating;
-      }
-      if (item.type === "focus" && item.system.focusType === "power" &&
-          item.system.bonded && item.system.active) {
-        powerFociBonus += item.system.force;
-      }
-    }
-
-    const magicPool = sorceryRating + powerFociBonus;
-    const spent = system.dicePools.magic.max > 0
-      ? Math.max(0, system.dicePools.magic.max - system.dicePools.magic.value)
-      : 0;
-    system.dicePools.magic.max   = magicPool;
-    system.dicePools.magic.value = Math.max(0, magicPool - spent);
-  }
-
-  /**
-   * Recalculate total armor from equipped items.
-   * @private
-   */
-  _recalculateArmor() {
-    const system = this.system;
-    let ballistic = 0;
-    let impact = 0;
-
-    for (const item of this.items) {
-      if (item.type === "armor" && item.system.equipped) {
-        ballistic += item.system.ballistic || 0;
-        impact += item.system.impact || 0;
-      }
-    }
-
-    // Troll dermal armor
-    if (system.race === "troll") {
-      ballistic += 1;
-      impact += 1;
-    }
-
-    system.armor.ballistic = ballistic;
-    system.armor.impact = impact;
-  }
+  // All derived-data computation (cyberware/adept modifiers, essence, pools,
+  // armor, initiative dice) lives in the TypeDataModels in module/data/ —
+  // embedded items are fully prepared before the models' prepareDerivedData
+  // runs, so no Document-level post-processing is needed.
 
   // -------------------------------------------------------------------------
   // ROLLING METHODS
@@ -222,10 +25,11 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Roll>}
    */
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
-    // Apply wound penalty to target number (SR2E rules: +1 TN per wound level)
+    // Apply wound penalty to target number (SR2E Injury Modifier, cumulative
+    // across the physical and stun condition columns)
     const woundPenalty = this.system.woundPenalty ?? 0;
     const effectiveTN = targetNumber + woundPenalty;
-    const label = options.label || "Success Test";
+    const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
     const poolDice = options.poolDice || {};
@@ -275,6 +79,10 @@ export class SR2EActor extends Actor {
 
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
+      // Attach the evaluated Roll objects so message.isRoll is true and
+      // Dice So Nice can animate the dice.
+      rolls: testResult.rolls,
+      sound: CONFIG.sounds.dice,
       content: `
         <div class="sr2e-roll-message">
           <h3 class="sr2e-roll-header">${label}</h3>
@@ -318,7 +126,7 @@ export class SR2EActor extends Actor {
    */
   getInitiativeRoll(formula) {
     const system = this.system;
-    // SR2E p.114 Damage Modifiers table: the wound Initiative Modifier is applied
+    // SR2E Damage Modifiers Table (p.112): the wound Initiative Modifier is applied
     // to Reaction *before* Initiative dice are rolled — it reduces the base score,
     // not the number of dice.
     const reaction = system.reaction?.value ?? 0;
@@ -330,18 +138,22 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Initiative = Adjusted Reaction + Xd6 (where X = initiative dice minus wound penalty).
+   * Roll SR2E initiative from the sheet: Adjusted Reaction + Xd6.
    * Per SR2E p.56: "add his adjusted Reaction to the result of his Initiative roll."
    *
-   * Manually evaluates the roll and writes the result directly to the combatant record
-   * so the value always appears correctly in the tracker, regardless of which Foundry
-   * API path triggered the roll.
+   * NOTE: deliberately NOT named rollInitiative — that would shadow core
+   * Actor#rollInitiative(options), which the token HUD and combat tracker call
+   * with {createCombatants, ...} and whose behaviour must be preserved. Tracker
+   * rolls already use the SR2E formula via SR2ECombatant#getInitiativeRoll.
+   *
+   * Manually evaluates the roll and writes the result directly to the combatant
+   * record so the value always appears correctly in the tracker.
    * @returns {Promise<Roll>}
    */
-  async rollInitiative() {
+  async rollSR2Initiative() {
     const system = this.system;
-    // SR2E p.114: wound Initiative Modifier reduces Reaction (the base) before
-    // Initiative dice are rolled — NOT the dice count.
+    // SR2E Damage Modifiers Table (p.112): wound Initiative Modifier reduces
+    // Reaction (the base) before Initiative dice are rolled — NOT the dice count.
     const reaction = system.reaction?.value ?? 0;
     const woundPenalty = system.woundPenalty ?? 0;
     const base = Math.max(0, reaction - woundPenalty);
@@ -419,7 +231,7 @@ export class SR2EActor extends Actor {
    * Every 2 successes stages the incoming damage level down by 1:
    *   D → S → M → L → (no damage)
    *
-   * Minimum boxes applied per level: L=1, M=4, S=7, D=10.
+   * Boxes applied per level (SR2E p.113): L=1, M=3, S=6, D=10.
    *
    * @param {number} power      - The incoming damage Power value.
    * @param {string} level      - The incoming damage Level: "L", "M", "S", or "D".
@@ -429,7 +241,10 @@ export class SR2EActor extends Actor {
   async rollDamageResistance(power, level, armorType = "ballistic", damageType = "physical") {
     const system     = this.system;
     const armor      = system.armor?.[armorType] ?? 0;
-    const bodyDice   = system.body?.value ?? 1;
+    // Troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table) —
+    // an extra Body die for resisting damage, not an armor rating bonus.
+    const dermalBonus = system.race === "troll" ? 1 : 0;
+    const bodyDice   = (system.body?.value ?? 1) + dermalBonus;
     const tn         = Math.max(2, power - armor);
     const armorLabel = armorType === "ballistic" ? "Ballistic" : "Impact";
 
@@ -526,7 +341,7 @@ export class SR2EActor extends Actor {
 
     // Apply remaining damage
     const finalLevel  = stages[finalIdx];
-    const damageBoxes = [1, 4, 7, 10][finalIdx];   // L=1, M=4, S=7, D=10
+    const damageBoxes = [1, 3, 6, 10][finalIdx];   // L=1, M=3, S=6, D=10 (SR2E p.113)
     await this.applyDamage(damageType, damageBoxes);
 
     await ChatMessage.create({

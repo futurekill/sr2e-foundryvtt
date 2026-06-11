@@ -243,17 +243,8 @@
 
   "SR2E.Settings.RuleOfSix": "Rule of Six",
   "SR2E.Settings.RuleOfSixHint": "Enable the Rule of Six (exploding 6s on dice rolls). When a 6 is rolled, the die is rerolled and added, allowing target numbers above 6 to be achieved.",
-  "SR2E.Settings.MoreMetahumans": "More Metahumans (Optional)",
-  "SR2E.Settings.MoreMetahumansHint": "Reduce the metahuman Race priority requirement from A to C, per the optional rule on p.46.",
-  "SR2E.Settings.InitiativeStyle": "Initiative Style",
-  "SR2E.Settings.InitiativeStyleHint": "Choose how initiative is handled in combat.",
-  "SR2E.Settings.InitStandard": "Standard (multiple passes)",
-  "SR2E.Settings.InitCinematic": "Cinematic (single pass)",
   "SR2E.Settings.AutoEssence": "Auto-Calculate Essence",
   "SR2E.Settings.AutoEssenceHint": "Automatically reduce Essence when cyberware is added to a character.",
-  "SR2E.Settings.ConditionMonitorBoxes": "Condition Monitor Boxes",
-  "SR2E.Settings.ConditionMonitorBoxesHint": "Number of boxes in each condition monitor (default 10)."
-,
 
   "TYPES.Actor.character": "Character",
   "TYPES.Actor.npc": "NPC",
