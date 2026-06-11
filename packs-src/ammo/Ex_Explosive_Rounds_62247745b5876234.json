@@ -6,10 +6,12 @@
   "system": {
     "ammoType": "ex_explosive",
     "quantity": 10,
-    "damageModifier": 3,
-    "armorModifier": -2,
+    "damageModifier": 2,
+    "armorModifier": 0,
     "cost": 80,
-    "notes": "SR2E p.241. Extended-range explosive rounds. Greater blast radius, stricter legal restrictions."
+    "notes": "Improved explosive rounds: Power +2. Misfires on an all-1s Attack Test, as explosive rounds. SSC.",
+    "damageType": "",
+    "armorCalc": "standard"
   },
   "effects": [],
   "flags": {},

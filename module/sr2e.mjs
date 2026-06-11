@@ -332,6 +332,10 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const level      = btn.dataset.level             || "M";
       const armorType  = btn.dataset.armorType         || "ballistic";
       const damageType = btn.dataset.damageType        || "physical";
+      // Ammunition effects carried on the card (SR2E p.93–94)
+      const armorCalc  = btn.dataset.armorCalc         || "standard";
+      const armorMod   = parseInt(btn.dataset.armorMod) || 0;
+      const ammoName   = btn.dataset.ammoName          || "";
 
       // Find the defending actor: first controlled token, then the user's assigned character.
       const actor = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
@@ -341,7 +345,8 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         );
       }
 
-      return actor.rollDamageResistance(power, level, armorType, damageType);
+      return actor.rollDamageResistance(power, level, armorType, damageType,
+        { armorCalc, armorMod, ammoName });
     });
   });
 

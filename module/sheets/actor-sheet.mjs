@@ -1070,6 +1070,18 @@ async function onAddItem(event, target) {
 }
 
 /**
+ * Reload a weapon from its selected reserve ammo item.
+ * @this {ApplicationV2}
+ */
+async function onReloadWeapon(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+  return item.reloadWeapon();
+}
+
+/**
  * Reset the combat recoil counter to zero (start of new initiative pass).
  * @this {ApplicationV2}
  */
@@ -1177,6 +1189,7 @@ const SHARED_ACTIONS = {
   editItem: onEditItem,
   deleteItem: onDeleteItem,
   addItem: onAddItem,
+  reloadWeapon: onReloadWeapon,
   resetRecoil: onResetRecoil,
   resetPools: onResetPools,
   resetPool:  onResetPool,

@@ -6,10 +6,12 @@
   "system": {
     "ammoType": "slug",
     "quantity": 10,
-    "damageModifier": -2,
+    "damageModifier": 0,
     "armorModifier": 0,
     "cost": 15,
-    "notes": "SR2E p.241. Single solid slug for maximum penetration and range with a shotgun."
+    "notes": "Solid slug \u2014 the standard shotgun round. SR2E p.94.",
+    "damageType": "",
+    "armorCalc": "standard"
   },
   "effects": [],
   "flags": {},

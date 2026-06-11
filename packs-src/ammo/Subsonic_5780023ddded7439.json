@@ -9,7 +9,9 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 30,
-    "notes": "SR2E p.241. Reduced-velocity rounds designed for use with sound suppressers. Lower power than standard."
+    "notes": "No combat modifiers; reduces sound for silenced weapons. SSC.",
+    "damageType": "",
+    "armorCalc": "standard"
   },
   "effects": [],
   "flags": {},

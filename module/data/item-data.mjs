@@ -123,7 +123,18 @@ export class WeaponData extends SR2EDataModel {
       ammo: new fields.SchemaField({
         current: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         max: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-        type: new fields.StringField({ initial: "regular" })
+        type: new fields.StringField({ initial: "regular" }),
+        // The reserve ammo item (on the same actor) this weapon reloads from
+        sourceId: new fields.StringField({ initial: "", blank: true }),
+        // Snapshot of the rounds currently in the clip, captured at reload
+        // time so the gun keeps shooting what was loaded even if the reserve
+        // item is later edited, swapped or deleted.
+        loadedSourceId: new fields.StringField({ initial: "", blank: true }),
+        loadedName: new fields.StringField({ initial: "", blank: true }),
+        damageMod: new fields.NumberField({ integer: true, initial: 0 }),
+        armorMod: new fields.NumberField({ integer: true, initial: 0 }),
+        armorCalc: new fields.StringField({ initial: "standard" }),
+        damageType: new fields.StringField({ initial: "", blank: true })
       }),
       recoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       smartgunCompatible: new fields.BooleanField({ initial: false }),
@@ -445,6 +456,20 @@ export class LifestyleData extends SR2EDataModel {
 
 /**
  * Data model for Ammunition.
+ *
+ * Ammo behaviour (SR2E p.93–94):
+ *   damageModifier - added to the weapon's Damage Power on attack
+ *                    (explosive +1, gel −2, …)
+ *   damageType     - overrides the damage type when set (gel → stun)
+ *   armorCalc      - how the defender's armor is computed on the
+ *                    Damage Resistance Test:
+ *                      standard       weapon's normal armor type
+ *                      half_ballistic ⌊Ballistic ÷ 2⌋ (APDS)
+ *                      impact         Impact armor applies (gel)
+ *                      flechette      max(2 × Impact, Ballistic);
+ *                                     +1 Damage Level if unarmored
+ *   armorModifier  - flat adjustment to the computed armor rating
+ *                    (negative = armor-piercing; for homebrew rounds)
  */
 export class AmmoData extends SR2EDataModel {
   static defineSchema() {
@@ -454,6 +479,17 @@ export class AmmoData extends SR2EDataModel {
       quantity: new fields.NumberField({ integer: true, initial: 10, min: 0 }),
       damageModifier: new fields.NumberField({ integer: true, initial: 0 }),
       armorModifier: new fields.NumberField({ integer: true, initial: 0 }),
+      damageType: new fields.StringField({ initial: "", blank: true, choices: {
+        "":       "SR2E.Ammo.DamageTypeWeapon",
+        physical: "SR2E.Damage.Physical",
+        stun:     "SR2E.Damage.Stun"
+      }}),
+      armorCalc: new fields.StringField({ initial: "standard", choices: {
+        standard:       "SR2E.Ammo.ArmorStandard",
+        half_ballistic: "SR2E.Ammo.ArmorHalfBallistic",
+        impact:         "SR2E.Ammo.ArmorImpact",
+        flechette:      "SR2E.Ammo.ArmorFlechette"
+      }}),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };

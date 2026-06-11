@@ -240,6 +240,12 @@
   "SR2E.Sheets.IC": "SR2E IC Sheet",
   "SR2E.Sheets.Item": "SR2E Item Sheet",
 
+  "SR2E.Ammo.DamageTypeWeapon": "Weapon default",
+  "SR2E.Ammo.ArmorStandard": "Standard",
+  "SR2E.Ammo.ArmorHalfBallistic": "½ Ballistic (APDS)",
+  "SR2E.Ammo.ArmorImpact": "Impact applies (Gel)",
+  "SR2E.Ammo.ArmorFlechette": "max(2×Impact, Ballistic) (Flechette)",
+
   "SR2E.Dialog.RollOptions": "Roll Options",
   "SR2E.Dialog.TargetNumber": "Target Number",
   "SR2E.Dialog.Roll": "Roll",

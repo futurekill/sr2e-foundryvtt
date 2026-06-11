@@ -6,10 +6,12 @@
   "system": {
     "ammoType": "flechette",
     "quantity": 10,
-    "damageModifier": -1,
-    "armorModifier": 2,
+    "damageModifier": 0,
+    "armorModifier": 0,
     "cost": 40,
-    "notes": "SR2E p.241. Tiny slivers devastating against unprotected flesh. Easily stopped by impact armor."
+    "notes": "+1 Damage Level vs unarmored targets. Armor counts as double Impact or normal Ballistic, whichever is higher. SR2E p.93.",
+    "damageType": "",
+    "armorCalc": "flechette"
   },
   "effects": [],
   "flags": {},

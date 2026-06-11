@@ -9,7 +9,9 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 15,
-    "notes": "SR2E p.241. Standard shotgun spread load. Effective against multiple targets at close range."
+    "notes": "Shot rounds use the Flechette Rounds rules. SR2E p.94.",
+    "damageType": "",
+    "armorCalc": "flechette"
   },
   "effects": [],
   "flags": {},

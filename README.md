@@ -38,6 +38,7 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Damage Staging** — Automatic damage staging based on net successes
 - **Karma Pool** — Buy extra dice before a roll; reroll failures, avoid disasters, and buy successes from the chat card (SR2E p.190)
 - **Untrained Defaulting** — Missing or rating-0 skills default to the linked attribute at +4 TN (simplified Skill Web, SR2E p.69)
+- **Ammunition Loading** — Each weapon selects a reserve ammo item to reload from; loaded rounds carry their book effects (explosive +1 Power, gel −2/Stun/Impact armor, APDS halves Ballistic, flechette vs armor rules) through attack and damage resistance
 - **Essence/Magic Link** — Cyberware automatically reduces Essence, which reduces Magic rating for magicians
 
 ### System Settings

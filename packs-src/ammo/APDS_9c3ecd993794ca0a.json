@@ -7,9 +7,11 @@
     "ammoType": "apds",
     "quantity": 10,
     "damageModifier": 0,
-    "armorModifier": -4,
+    "armorModifier": 0,
     "cost": 120,
-    "notes": "SR2E p.241. Armor-Piercing Discarding-Sabot rounds. Penetrates hard armor at the cost of impact resistance."
+    "notes": "Armor-piercing discarding sabot: halves the target's Ballistic Armor Rating. SSC p.63.",
+    "damageType": "",
+    "armorCalc": "half_ballistic"
   },
   "effects": [],
   "flags": {},

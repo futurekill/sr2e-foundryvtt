@@ -2200,6 +2200,41 @@
   font-size: 10px;
 }
 
+/* Per-weapon ammo loading row (combat tab) */
+.weapon-ammo-row {
+  align-items: center;
+  gap: 8px;
+  padding: 1px 4px 3px 22px;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.weapon-ammo-row .ammo-loaded {
+  flex: 1;
+  color: var(--sr2e-text-muted, #999);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weapon-ammo-row .ammo-source {
+  flex: 2;
+  max-width: 220px;
+  font-size: 11px;
+  height: 22px;
+}
+
+.weapon-ammo-row .ammo-reload {
+  flex: 0 0 auto;
+  color: var(--sr2e-gold, #c19a49);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.weapon-ammo-row .ammo-reload:hover {
+  text-shadow: 0 0 4px rgba(193, 154, 73, 0.6);
+}
+
 .sr2e-critical-glitch {
   color: #ff0000;
   font-weight: bold;

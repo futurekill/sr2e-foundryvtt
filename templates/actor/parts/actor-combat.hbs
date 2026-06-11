@@ -24,11 +24,12 @@
           </span>
           <span class="weapon-type">{{weapon.system.weaponType}}</span>
           <span class="weapon-damage">{{weapon.system.damageCode}}</span>
-          {{#ifEquals weapon.system.weaponType "firearm"}}
-          <span class="weapon-ammo">
+          {{#ifGt weapon.system.ammo.max 0}}
+          <span class="weapon-ammo"
+                title="{{#if weapon.system.ammo.loadedName}}Loaded: {{weapon.system.ammo.loadedName}}{{else}}Empty — select a reserve and reload{{/if}}">
             {{weapon.system.ammo.current}}/{{weapon.system.ammo.max}}
           </span>
-          {{/ifEquals}}
+          {{/ifGt}}
           <span class="weapon-modes">
             {{#if weapon.system.firingModes.ss}}SS {{/if}}
             {{#if weapon.system.firingModes.sa}}SA {{/if}}
@@ -43,6 +44,27 @@
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
           </div>
         </div>
+        {{#ifGt weapon.system.ammo.max 0}}
+        <div class="item-row weapon-ammo-row flexrow" data-item-id="{{weapon.id}}">
+          <span class="ammo-loaded" title="Rounds currently in the clip">
+            <i class="fas fa-database"></i>
+            {{#if weapon.system.ammo.loadedName}}{{weapon.system.ammo.loadedName}}{{else}}<em>empty</em>{{/if}}
+          </span>
+          <select class="ammo-source" data-field="system.ammo.sourceId"
+                  title="Reserve ammunition this weapon reloads from">
+            <option value="">&mdash; reload from &mdash;</option>
+            {{#each ../ammo as |reserve|}}
+            <option value="{{reserve.id}}" {{selected weapon.system.ammo.sourceId reserve.id}}>
+              {{reserve.name}} ({{reserve.system.quantity}})
+            </option>
+            {{/each}}
+          </select>
+          <a class="ammo-reload" data-action="reloadWeapon"
+             title="Reload from the selected reserve (swaps the clip if a different type is loaded)">
+            <i class="fas fa-sync-alt"></i> Reload
+          </a>
+        </div>
+        {{/ifGt}}
         {{/each}}
       </div>
     </div>

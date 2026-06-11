@@ -6,10 +6,12 @@
   "system": {
     "ammoType": "explosive",
     "quantity": 10,
-    "damageModifier": 2,
-    "armorModifier": -1,
+    "damageModifier": 1,
+    "armorModifier": 0,
     "cost": 50,
-    "notes": "SR2E p.241. Tiny grenade-rounds—devastating but notoriously touchy. Banned in most jurisdictions. 50¥/10."
+    "notes": "Power +1. Misfires on an all-1s Attack Test: the shooter resists the weapon's normal Damage Code with no Combat Pool. SR2E p.93.",
+    "damageType": "",
+    "armorCalc": "standard"
   },
   "effects": [],
   "flags": {},

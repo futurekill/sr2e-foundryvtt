@@ -106,6 +106,70 @@ export class SR2EItem extends Item {
   }
 
   /**
+   * Reload this weapon from its selected reserve ammo item.
+   *
+   * Rounds move between the reserve item's quantity and the weapon's clip.
+   * If a different ammo type is currently loaded, the remaining loaded
+   * rounds are returned to the reserve they came from (when it still
+   * exists) before the new type is loaded — i.e. a clip swap.
+   */
+  async reloadWeapon() {
+    const actor = this.parent;
+    if (!actor || this.type !== "weapon") return;
+    const ammo = this.system.ammo;
+    if (!(ammo?.max > 0)) {
+      return ui.notifications.warn(`${this.name} does not track ammunition (set a clip size first).`);
+    }
+
+    const source = actor.items.get(ammo.sourceId);
+    if (!source || source.type !== "ammo") {
+      return ui.notifications.warn(`Select the ammo to reload ${this.name} from first.`);
+    }
+
+    let current = ammo.current;
+
+    // Swapping types: return the old rounds to the reserve they came from
+    if (current > 0 && ammo.loadedSourceId && ammo.loadedSourceId !== source.id) {
+      const oldReserve = actor.items.get(ammo.loadedSourceId);
+      if (oldReserve?.type === "ammo") {
+        await oldReserve.update({ "system.quantity": oldReserve.system.quantity + current });
+      }
+      current = 0;
+    }
+
+    const need = ammo.max - current;
+    const take = Math.min(need, source.system.quantity);
+    if (take <= 0) {
+      return ui.notifications.warn(need <= 0
+        ? `${this.name} is already fully loaded with ${ammo.loadedName || "this ammo"}.`
+        : `No ${source.name} remaining to load.`);
+    }
+
+    const remaining = source.system.quantity - take;
+    await source.update({ "system.quantity": remaining });
+    await this.update({
+      "system.ammo.current":        current + take,
+      "system.ammo.loadedSourceId": source.id,
+      "system.ammo.loadedName":     source.name,
+      "system.ammo.type":           source.system.ammoType,
+      "system.ammo.damageMod":      source.system.damageModifier ?? 0,
+      "system.ammo.armorMod":       source.system.armorModifier ?? 0,
+      "system.ammo.armorCalc":      source.system.armorCalc ?? "standard",
+      "system.ammo.damageType":     source.system.damageType ?? ""
+    });
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="sr2e-item-card">
+        <strong>${foundry.utils.escapeHTML(this.name)}</strong> reloaded with
+        ${take} round${take === 1 ? "" : "s"} of
+        <strong>${foundry.utils.escapeHTML(source.name)}</strong>
+        <em>(${remaining} left in reserve)</em>
+      </div>`
+    });
+  }
+
+  /**
    * Roll a weapon attack.
    *
    * Ranged TN = Base(4) + range + cover + attackerRunning + targetRunning + inMelee
@@ -326,37 +390,58 @@ export class SR2EItem extends Item {
       // "(Str+3)S" resolve against the attacker's current attributes.
       const dmg          = evaluateDamageCode(this.system.damageCode, actor);
       const armorType    = isMelee ? "impact" : "ballistic";
-      const armorLabel   = isMelee ? "Impact" : "Ballistic";
       let effectivePower = dmg.power;
       let levelBonus     = 0;
-      let powerNote      = "";
+      const powerNotes   = [];
+
+      // Loaded ammunition effects (SR2E p.93–94) — ranged, tracked weapons only
+      const ammo      = this.system.ammo;
+      const hasAmmo   = isRanged && ammo?.max > 0;
+      const ammoCalc  = hasAmmo ? (ammo.armorCalc || "standard") : "standard";
+      const ammoMod   = hasAmmo ? (ammo.armorMod ?? 0) : 0;
+      const ammoName  = hasAmmo ? (ammo.loadedName || "") : "";
+      if (hasAmmo && ammo.damageMod) {
+        effectivePower += ammo.damageMod;
+        powerNotes.push(`${ammo.damageMod > 0 ? "+" : ""}${ammo.damageMod} ${ammoName || "ammo"}`);
+      }
+      // Damage type: loaded ammo override (gel → stun), else the weapon's own type
+      const damageType = (hasAmmo && ammo.damageType) || this.system.damageType || "physical";
 
       // Burst damage (SR2E p.93): Power +1 per round in the burst, Damage
       // Level +1 per 3 full rounds (BF's fixed 3-round burst = +3 Power, +1 Level).
       if (isRanged && isBurst) {
         effectivePower += rounds;
         levelBonus = Math.floor(rounds / 3);
-        powerNote = ` <em>(base ${dmg.power} +${rounds} burst, level +${levelBonus})</em>`;
+        powerNotes.push(`+${rounds} burst, level +${levelBonus}`);
       }
+      effectivePower = Math.max(1, effectivePower);
+      const powerNote = powerNotes.length
+        ? ` <em>(base ${dmg.power}, ${foundry.utils.escapeHTML(powerNotes.join(", "))})</em>` : "";
 
       const stageUps = Math.floor(result.successes / 2);
       const stages   = ["L", "M", "S", "D"];
       const baseIdx  = stages.indexOf(dmg.level);
       const finalIdx = Math.min(baseIdx + levelBonus + stageUps, 3);
       const safeName = foundry.utils.escapeHTML(this.name);
+      const ammoLine = ammoName
+        ? `<br><em>Loaded: ${foundry.utils.escapeHTML(ammoName)}</em>` : "";
 
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
           <strong>${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
           <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | Staged up ${stageUps} level(s)</em>
+          ${ammoLine}
           <br>
           <button class="sr2e-resist-btn"
                   data-power="${effectivePower}"
                   data-level="${stages[finalIdx]}"
                   data-armor-type="${armorType}"
-                  data-damage-type="physical"
-                  title="Defender rolls Body vs. TN = Power − ${armorLabel} Armor (SR2E p.116)">
+                  data-damage-type="${damageType}"
+                  data-armor-calc="${ammoCalc}"
+                  data-armor-mod="${ammoMod}"
+                  data-ammo-name="${foundry.utils.escapeHTML(ammoName)}"
+                  title="Defender rolls Body vs. TN = Power − Armor (SR2E p.116)">
             ${game.i18n.localize("SR2E.Chat.ResistDamage")}
           </button>
         </div>`

@@ -406,23 +406,64 @@ export class SR2EActor extends Actor {
    * @param {string} level      - The incoming damage Level: "L", "M", "S", or "D".
    * @param {string} armorType  - Which armor applies: "ballistic" or "impact".
    * @param {string} damageType - Which condition monitor takes the damage: "physical" or "stun".
+   * @param {object} [options]  - Ammunition effects (SR2E p.93–94).
+   * @param {string} [options.armorCalc="standard"] - "standard", "half_ballistic"
+   *   (APDS), "impact" (gel), or "flechette" (max(2×Impact, Ballistic); +1 Damage
+   *   Level when unarmored).
+   * @param {number} [options.armorMod=0] - Flat adjustment to the armor rating.
+   * @param {string} [options.ammoName]   - Loaded ammo name, for display.
    */
-  async rollDamageResistance(power, level, armorType = "ballistic", damageType = "physical") {
-    const system     = this.system;
-    const armor      = system.armor?.[armorType] ?? 0;
+  async rollDamageResistance(power, level, armorType = "ballistic", damageType = "physical",
+                             options = {}) {
+    const system    = this.system;
+    const armorCalc = options.armorCalc || "standard";
+    const armorMod  = options.armorMod ?? 0;
+    const ballistic = system.armor?.ballistic ?? 0;
+    const impact    = system.armor?.impact ?? 0;
+
+    // Armor rating per the loaded ammunition's rules
+    let armor;
+    let armorLabel;
+    switch (armorCalc) {
+      case "half_ballistic":   // APDS (SSC p.63): halve Ballistic armor
+        armor = Math.floor(ballistic / 2);
+        armorLabel = "½ Ballistic";
+        break;
+      case "impact":           // Gel rounds: Impact, not Ballistic, applies
+        armor = impact;
+        armorLabel = "Impact";
+        break;
+      case "flechette":        // Flechette: max(2 × Impact, Ballistic)
+        armor = Math.max(2 * impact, ballistic);
+        armorLabel = "max(2×Impact, Ballistic)";
+        break;
+      default:
+        armor = system.armor?.[armorType] ?? 0;
+        armorLabel = armorType === "ballistic" ? "Ballistic" : "Impact";
+    }
+    armor = Math.max(0, armor + armorMod);
+
+    const stages   = ["L", "M", "S", "D"];
+    let startIdx = stages.indexOf(level);
+    if (startIdx < 0) {
+      console.warn("SR2E | rollDamageResistance: invalid damage level", level);
+      return;
+    }
+
+    // Flechette vs unarmored target: +1 Damage Level (SR2E p.93)
+    let flechetteNote = "";
+    if (armorCalc === "flechette" && armor === 0 && startIdx < 3) {
+      startIdx += 1;
+      level = stages[startIdx];
+      flechetteNote = `<p style="margin:4px 0 0;font-size:10px;color:#c84;">
+        Flechette vs unarmored: Damage Level raised to ${level} (SR2E p.93).</p>`;
+    }
+
     // Troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table) —
     // an extra Body die for resisting damage, not an armor rating bonus.
     const dermalBonus = system.race === "troll" ? 1 : 0;
     const bodyDice   = (system.body?.value ?? 1) + dermalBonus;
     const tn         = Math.max(2, power - armor);
-    const armorLabel = armorType === "ballistic" ? "Ballistic" : "Impact";
-
-    const stages   = ["L", "M", "S", "D"];
-    const startIdx = stages.indexOf(level);
-    if (startIdx < 0) {
-      console.warn("SR2E | rollDamageResistance: invalid damage level", level);
-      return;
-    }
 
     // ── Build dialog ──────────────────────────────────────────────────────────
     const combatAvail = system.dicePools?.combat?.value ?? 0;
@@ -450,6 +491,11 @@ export class SR2EActor extends Actor {
               <td style="color:#888;padding:1px 0;">Incoming Damage:</td>
               <td style="text-align:right;padding:1px 0;font-weight:bold;">${power}${level}</td>
             </tr>
+            ${options.ammoName ? `
+            <tr>
+              <td style="color:#888;padding:1px 0;">Ammunition:</td>
+              <td style="text-align:right;padding:1px 0;">${foundry.utils.escapeHTML(options.ammoName)}</td>
+            </tr>` : ""}
             <tr>
               <td style="color:#888;padding:1px 0;">${armorLabel} Armor:</td>
               <td style="text-align:right;padding:1px 0;">−${armor}</td>
@@ -466,6 +512,7 @@ export class SR2EActor extends Actor {
           <p style="margin:4px 0 0;font-size:10px;color:#888;">
             Every 2 successes stages damage down 1 level (SR2E p.116).
           </p>
+          ${flechetteNote}
         </div>
         ${poolHTML}
       </form>`,

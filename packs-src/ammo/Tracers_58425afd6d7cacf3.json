@@ -9,7 +9,9 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 25,
-    "notes": "SR2E p.241. Phosphorus-tipped rounds that leave a glowing trail. Useful for spotting and intimidation."
+    "notes": "Every third round visible in flight; treat as regular rounds. SSC.",
+    "damageType": "",
+    "armorCalc": "standard"
   },
   "effects": [],
   "flags": {},

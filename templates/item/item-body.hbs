@@ -508,12 +508,33 @@
     <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" />
   </div>
   <div class="form-group">
-    <label>Damage Modifier:</label>
-    <input type="number" name="system.damageModifier" value="{{system.damageModifier}}" />
+    <label>Power Modifier:</label>
+    <input type="number" name="system.damageModifier" value="{{system.damageModifier}}"
+           title="Added to the weapon's Damage Power on attack (explosive +1, gel −2)" />
+  </div>
+  <div class="form-group">
+    <label>Damage Type:</label>
+    <select name="system.damageType"
+            title="Overrides the weapon's damage type when set (gel rounds → Stun)">
+      <option value="" {{selected system.damageType ""}}>Weapon default</option>
+      <option value="physical" {{selected system.damageType "physical"}}>Physical</option>
+      <option value="stun" {{selected system.damageType "stun"}}>Stun</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Armor Calculation:</label>
+    <select name="system.armorCalc"
+            title="How the defender's armor is computed (SR2E p.93–94)">
+      <option value="standard" {{selected system.armorCalc "standard"}}>Standard</option>
+      <option value="half_ballistic" {{selected system.armorCalc "half_ballistic"}}>½ Ballistic (APDS)</option>
+      <option value="impact" {{selected system.armorCalc "impact"}}>Impact applies (Gel)</option>
+      <option value="flechette" {{selected system.armorCalc "flechette"}}>max(2×Impact, Ballistic) (Flechette)</option>
+    </select>
   </div>
   <div class="form-group">
     <label>Armor Modifier:</label>
-    <input type="number" name="system.armorModifier" value="{{system.armorModifier}}" />
+    <input type="number" name="system.armorModifier" value="{{system.armorModifier}}"
+           title="Flat adjustment to the computed armor rating (negative = armor-piercing)" />
   </div>
   <div class="form-group">
     <label>Cost:</label>

@@ -6,10 +6,12 @@
   "system": {
     "ammoType": "gel",
     "quantity": 10,
-    "damageModifier": 0,
-    "armorModifier": 4,
+    "damageModifier": -2,
+    "armorModifier": 0,
     "cost": 30,
-    "notes": "SR2E p.241. Hard-gel non-lethal rounds for riot control. Impact armor is very effective, ballistic armor is partially effective."
+    "notes": "Power \u22122; all damage is Stun and Impact Armor applies. Increased knockdown chance (TN = Power). SR2E p.93\u201394.",
+    "damageType": "stun",
+    "armorCalc": "impact"
   },
   "effects": [],
   "flags": {},

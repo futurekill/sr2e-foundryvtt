@@ -9,7 +9,9 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 15,
-    "notes": "SR2E p.241. Standard lead-core or caseless rounds. Available in pistol, rifle, shotgun, and heavy weapon calibers."
+    "notes": "Standard rounds. SR2E p.93.",
+    "damageType": "",
+    "armorCalc": "standard"
   },
   "effects": [],
   "flags": {},
