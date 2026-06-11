@@ -1,4 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+# LevelDB compendium packs store recent writes in *.log files — they MUST be
+# tracked or cloned/released packs lose data. Re-include them explicitly.
+!packs/**/*.log
 .env
