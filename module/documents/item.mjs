@@ -206,7 +206,9 @@ export class SR2EItem extends Item {
    * @private
    */
   async _rollWeaponAttack(options = {}) {
-    const actor = this.parent;
+    // For vehicle-mounted weapons, the gunner (a character) rolls — skills,
+    // wound penalties and recoil are theirs; the weapon stays on the vehicle.
+    const actor = options.gunner ?? this.parent;
     if (!actor) return;
 
     const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
@@ -245,9 +247,11 @@ export class SR2EItem extends Item {
        .replace(/^_|_$/g, "");
 
     // Build a priority list of skill keys to search: explicit field first,
-    // then the weapon-type default.  Empty strings are filtered out.
+    // then the weapon-type default. Vehicle-mounted weapons use Gunnery
+    // (SR2E p.105). Empty strings are filtered out.
     const typeFallback = WEAPON_TYPE_DEFAULT_SKILLS[this.system.weaponType] ?? "";
     const skillKeys = [
+      this.parent?.type === "vehicle" ? "gunnery" : "",
       normalize(this.system.skill ?? ""),
       normalize(typeFallback)
     ].filter(k => k !== "");
@@ -438,6 +442,9 @@ export class SR2EItem extends Item {
       const safeName = foundry.utils.escapeHTML(this.name);
       const ammoLine = ammoName
         ? `<br><em>Loaded: ${foundry.utils.escapeHTML(ammoName)}</em>` : "";
+      // Base Power unmodified by burst/full-auto — used for the vehicle-armor
+      // penetration check (SR2E p.108)
+      const basePower = effectivePower - (isRanged && isBurst ? rounds : 0);
 
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
@@ -448,6 +455,7 @@ export class SR2EItem extends Item {
           <br>
           <button class="sr2e-resist-btn"
                   data-power="${effectivePower}"
+                  data-base-power="${basePower}"
                   data-level="${stages[finalIdx]}"
                   data-armor-type="${armorType}"
                   data-damage-type="${damageType}"

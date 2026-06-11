@@ -158,6 +158,11 @@ export class CharacterData extends SR2EDataModel {
       // --- VEHICLE CONTROL RIG ---
       vehicleControlRig: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 3 }),
 
+      // Jacked in via VCR (SR2E p.85): while rigging, initiative uses ONLY the
+      // VCR's Reaction (+2/level) and Initiative (+1d6/level) bonuses — no
+      // other Reaction/Initiative enhancers apply, except injury modifiers.
+      rigging: new fields.BooleanField({ initial: false }),
+
       // --- COMBAT STATE ---
       // Shots fired this combat turn — used for recoil tracking.
       // Reset manually (or via a macro) at the start of each initiative pass.
@@ -608,6 +613,9 @@ export class VehicleData extends SR2EDataModel {
     const fields = foundry.data.fields;
     return {
       vehicleType: new fields.StringField({ initial: "ground" }),
+      // Driving skill override (e.g. "bike"); empty = type default from
+      // CONFIG.SR2E.vehicleSkillDefaults
+      skill: new fields.StringField({ initial: "", blank: true }),
       handling: new fields.NumberField({ integer: true, initial: 3, min: 0 }),
       speed: new fields.NumberField({ integer: true, initial: 60, min: 0 }),
       acceleration: new fields.NumberField({ integer: true, initial: 5, min: 0 }),
@@ -632,8 +640,43 @@ export class VehicleData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Vehicle condition monitor based on Body
-    this.conditionMonitor.max = this.body * 2 + 4;
+    // Standard 10-box damage track: Light at 1, Moderate at 3, Serious at 6,
+    // Destroyed at 10 — vehicle damage levels per SR2E p.109.
+    this.conditionMonitor.max = 10;
+  }
+
+  /**
+   * Current vehicle damage level (SR2E p.109).
+   * @returns {"Undamaged"|"Light"|"Moderate"|"Serious"|"Destroyed"}
+   */
+  get damageLevel() {
+    const v = this.conditionMonitor.value;
+    if (v >= 10) return "Destroyed";
+    if (v >= 6)  return "Serious";
+    if (v >= 3)  return "Moderate";
+    if (v >= 1)  return "Light";
+    return "Undamaged";
+  }
+
+  /** TN penalty to the driver's tests from vehicle damage (p.109). */
+  get damageTnMod() {
+    return CONFIG.SR2E.vehicleDamageMods[this.damageLevel]?.tn ?? 0;
+  }
+
+  /** Initiative penalty from vehicle damage (p.109). */
+  get damageInitMod() {
+    return CONFIG.SR2E.vehicleDamageMods[this.damageLevel]?.init ?? 0;
+  }
+
+  /** Cruising speed after the damage speed multiplier (p.109). */
+  get effectiveSpeed() {
+    const factor = CONFIG.SR2E.vehicleDamageMods[this.damageLevel]?.speed ?? 1;
+    return Math.floor(this.speed * factor);
+  }
+
+  /** The driving skill key for this vehicle (override or type default). */
+  get drivingSkill() {
+    return this.skill || CONFIG.SR2E.vehicleSkillDefaults[this.vehicleType] || "car";
   }
 }
 

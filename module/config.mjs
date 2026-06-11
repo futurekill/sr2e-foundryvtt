@@ -373,6 +373,61 @@ SR2E.vehicleTypes = {
   drone: "SR2E.Vehicles.Drone"
 };
 
+// Default driving skill per vehicle type (core skill list: Bike, Car, Pilot).
+// A vehicle's system.skill field overrides this (e.g. "bike").
+SR2E.vehicleSkillDefaults = {
+  ground: "car",
+  hovercraft: "car",
+  boat: "pilot",
+  aircraft: "pilot",
+  rotor: "pilot",
+  vectored_thrust: "pilot",
+  drone: "car"
+};
+
+// Vehicle test types and their terrain TN modifiers, exactly as printed
+// (SR2E p.105–107). Note the Crash Test Table really does list Tight +2
+// below Restricted +4 — encoded as printed.
+SR2E.vehicleTestTypes = {
+  handling: "SR2E.Vehicles.TestHandling",
+  position: "SR2E.Vehicles.TestPosition",
+  crash:    "SR2E.Vehicles.TestCrash"
+};
+
+SR2E.vehicleTerrainMods = {
+  // Position Test Modifiers (p.106) — also used for generic Handling Tests
+  handling: { open: 0,  normal: 1, restricted: 2, tight: 4 },
+  position: { open: 0,  normal: 1, restricted: 2, tight: 4 },
+  // Crash Test Table (p.107)
+  crash:    { open: -1, normal: 0, restricted: 4, tight: 2 }
+};
+
+SR2E.vehicleTerrains = {
+  open:       "SR2E.Vehicles.TerrainOpen",
+  normal:     "SR2E.Vehicles.TerrainNormal",
+  restricted: "SR2E.Vehicles.TerrainRestricted",
+  tight:      "SR2E.Vehicles.TerrainTight"
+};
+
+// Crash Impact Table (p.107): Power = cruising speed ÷ 10 (round down);
+// Damage Level by speed bracket.
+SR2E.crashDamageLevel = speed => {
+  if (speed >= 201) return "D";
+  if (speed >= 61)  return "S";
+  if (speed >= 21)  return "M";
+  return "L";
+};
+
+// Vehicle Damage Modifiers (p.109): per damage level, the TN penalty to the
+// driver's tests, the Initiative penalty, and the speed multiplier.
+SR2E.vehicleDamageMods = {
+  Undamaged: { tn: 0, init: 0,  speed: 1    },
+  Light:     { tn: 1, init: -1, speed: 1    },
+  Moderate:  { tn: 2, init: -2, speed: 0.75 },
+  Serious:   { tn: 3, init: -3, speed: 0.5  },
+  Destroyed: { tn: 0, init: 0,  speed: 0    }
+};
+
 // ---------------------------------------------------------------------------
 // LIFESTYLES
 // ---------------------------------------------------------------------------

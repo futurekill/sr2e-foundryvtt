@@ -240,6 +240,14 @@
   "SR2E.Sheets.IC": "SR2E IC Sheet",
   "SR2E.Sheets.Item": "SR2E Item Sheet",
 
+  "SR2E.Vehicles.TestHandling": "Handling Test",
+  "SR2E.Vehicles.TestPosition": "Position Test",
+  "SR2E.Vehicles.TestCrash": "Crash Test",
+  "SR2E.Vehicles.TerrainOpen": "Open",
+  "SR2E.Vehicles.TerrainNormal": "Normal",
+  "SR2E.Vehicles.TerrainRestricted": "Restricted",
+  "SR2E.Vehicles.TerrainTight": "Tight",
+
   "SR2E.Ammo.DamageTypeWeapon": "Weapon default",
   "SR2E.Ammo.ArmorStandard": "Standard",
   "SR2E.Ammo.ArmorHalfBallistic": "½ Ballistic (APDS)",

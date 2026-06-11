@@ -277,16 +277,52 @@ export class SR2EActor extends Actor {
    * @override
    */
   getInitiativeRoll(formula) {
+    const { base, dice } = this._getInitiativeParts();
+    return new Roll(`${base} + ${dice}d6`, this.getRollData());
+  }
+
+  /**
+   * Compute the SR2E initiative base and dice for this actor.
+   *
+   * Normal: Adjusted Reaction + Initiative dice; the wound Initiative
+   * Modifier reduces Reaction before rolling (Damage Modifiers Table, p.112).
+   *
+   * Rigging (p.85, p.106): while jacked in via VCR, ONLY the rig's bonuses
+   * apply — Reaction = natural Reaction + 2/level, dice = 1 + 1/level; other
+   * Reaction/Initiative enhancers (wired reflexes etc.) do not. Injury
+   * modifiers still apply, and the worst controlled vehicle's damage
+   * Initiative modifier reduces the total.
+   * @returns {{base: number, dice: number, rigged: boolean, notes: string[]}}
+   * @private
+   */
+  _getInitiativeParts() {
     const system = this.system;
-    // SR2E Damage Modifiers Table (p.112): the wound Initiative Modifier is applied
-    // to Reaction *before* Initiative dice are rolled — it reduces the base score,
-    // not the number of dice.
-    const reaction = system.reaction?.value ?? 0;
     const woundPenalty = system.woundPenalty ?? 0;
+    const notes = [];
+
+    const vcr = system.vehicleControlRig ?? 0;
+    if (system.rigging && vcr > 0) {
+      // Natural Reaction (reaction.base excludes reaction-enhancer mods)
+      const natural = system.reaction?.base ?? 0;
+      // Worst damage Initiative modifier among linked (controlled) vehicles
+      let vehicleMod = 0;
+      for (const uuid of system.linkedVehicles ?? []) {
+        const v = globalThis.fromUuidSync?.(uuid);
+        const mod = v?.system?.damageInitMod ?? 0;
+        if (mod < vehicleMod) vehicleMod = mod;
+      }
+      const base = Math.max(0, natural + 2 * vcr - woundPenalty + vehicleMod);
+      notes.push(`Rigged (VCR ${vcr}): Reaction ${natural} +${2 * vcr}`);
+      if (woundPenalty) notes.push(`−${woundPenalty} wound`);
+      if (vehicleMod)   notes.push(`${vehicleMod} vehicle damage`);
+      return { base, dice: 1 + vcr, rigged: true, notes };
+    }
+
+    const reaction = system.reaction?.value ?? 0;
     const base = Math.max(0, reaction - woundPenalty);
-    const dice = Math.max(1, system.initiative?.dice ?? 1);
-    const f = `${base} + ${dice}d6`;
-    return new Roll(f, this.getRollData());
+    if (woundPenalty) notes.push(`Reaction ${reaction} −${woundPenalty} wound`);
+    else notes.push(`Reaction ${reaction}`);
+    return { base, dice: Math.max(1, system.initiative?.dice ?? 1), rigged: false, notes };
   }
 
   /**
@@ -303,30 +339,15 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Roll>}
    */
   async rollSR2Initiative() {
-    const system = this.system;
-    // SR2E Damage Modifiers Table (p.112): wound Initiative Modifier reduces
-    // Reaction (the base) before Initiative dice are rolled — NOT the dice count.
-    const reaction = system.reaction?.value ?? 0;
-    const woundPenalty = system.woundPenalty ?? 0;
-    const base = Math.max(0, reaction - woundPenalty);
-    const dice = Math.max(1, system.initiative?.dice ?? 1);
+    const { base, dice, rigged, notes } = this._getInitiativeParts();
 
     const formula = `${base} + ${dice}d6`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
-    // Build readable notes for the chat message
-    let baseNote;
-    if (woundPenalty > 0) {
-      baseNote = `Reaction: ${reaction} −${woundPenalty} wound = ${base}`;
-    } else {
-      baseNote = `Reaction: ${base}`;
-    }
-    const diceNote = `${dice}d6`;
-
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>Initiative</h3><p>${baseNote} + ${diceNote}</p>`,
+      flavor: `<h3>Initiative${rigged ? " — Rigged" : ""}</h3><p>${notes.join(", ")} + ${dice}d6</p>`,
       rolls: [roll]
     });
 
@@ -392,6 +413,262 @@ export class SR2EActor extends Actor {
   }
 
   /**
+   * Roll a vehicle test for a vehicle this character is driving (SR2E p.105–107).
+   *
+   *   TN = vehicle Handling + terrain modifier (per test type) − 2 × VCR
+   *      + vehicle damage TN modifier + situational modifier
+   *   Dice = driver's driving skill (or Reaction at +4 TN when defaulting)
+   *
+   * On a FAILED Crash Test the vehicle crashes: Power = effective cruising
+   * speed ÷ 10 (round down), Damage Level from the Impact Table, resisted
+   * with Body + ½ armor vs Power − full armor, no Control Pool (p.107).
+   *
+   * @param {Actor}  vehicle - The vehicle actor being driven.
+   * @param {object} [options]
+   * @param {string} [options.testType="handling"] - "handling", "position", or "crash".
+   * @param {string} [options.terrain="normal"]    - open / normal / restricted / tight.
+   * @param {number} [options.otherMod=0]          - Situational TN modifier.
+   * @param {object} [options.poolDice]            - Control Pool allocation.
+   * @param {number} [options.karmaDice]           - Karma-bought dice.
+   */
+  async rollVehicleTest(vehicle, options = {}) {
+    const testType = options.testType ?? "handling";
+    const terrain  = options.terrain  ?? "normal";
+    const otherMod = options.otherMod ?? 0;
+
+    // Driver's driving skill — defaults to Reaction (+4 TN) when untrained
+    const skillKey  = vehicle.system.drivingSkill;
+    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    const skillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
+    const rating    = skillItem?.system?.rating ?? 0;
+
+    let dice = rating;
+    let defaultingPenalty = 0;
+    let defaultingNote = "";
+    if (rating <= 0) {
+      dice = Math.max(1, this.system.reaction?.value ?? 1);
+      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+      defaultingNote = `, defaulting to Reaction +${defaultingPenalty}`;
+    }
+
+    const terrainMod = CONFIG.SR2E.vehicleTerrainMods[testType]?.[terrain] ?? 0;
+    const vcrMod     = -2 * (this.system.vehicleControlRig ?? 0);   // p.183 example: −2 per rig level
+    const damageMod  = vehicle.system.damageTnMod ?? 0;
+
+    const tn = Math.max(2,
+      vehicle.system.handling + terrainMod + vcrMod + damageMod + otherMod + defaultingPenalty
+    );
+
+    const typeLabel = { handling: "Handling Test", position: "Position Test", crash: "Crash Test" }[testType] ?? "Vehicle Test";
+    const label = `${vehicle.name} — ${typeLabel} [${terrain}${defaultingNote}] TN ${tn}`;
+
+    const result = await this.rollSuccessTest(dice, tn, {
+      label,
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
+    });
+
+    // Failed Crash Test → the vehicle crashes (p.107)
+    if (testType === "crash" && (result?.successes ?? 0) === 0) {
+      await this._resolveVehicleCrash(vehicle);
+    }
+    return result;
+  }
+
+  /**
+   * Resolve a vehicle crash (SR2E p.107).
+   * Power = effective cruising speed ÷ 10 (round down); Damage Level from the
+   * Impact Table. The vehicle resists with Body + ½ armor (round down) dice
+   * against TN = Power − full armor. Control Pool dice may NOT assist.
+   * Passengers face the reduced Damage Code at the same Power, resisted as
+   * melee damage (Impact armor, no Combat Pool) — left to the GM/players.
+   * @param {Actor} vehicle
+   * @private
+   */
+  async _resolveVehicleCrash(vehicle) {
+    const speed = vehicle.system.effectiveSpeed ?? vehicle.system.speed ?? 0;
+    const power = Math.max(1, Math.floor(speed / 10));
+    const level = CONFIG.SR2E.crashDamageLevel(speed);
+    const armor = vehicle.system.armor ?? 0;
+    const body  = vehicle.system.body ?? 1;
+
+    const dice = body + Math.floor(armor / 2);
+    const tn   = Math.max(2, power - armor);
+
+    const resist = await vehicle.rollSuccessTest(dice, tn, {
+      label: `${vehicle.name} — Crash! Resist ${power}${level} (Body + ½ Armor, no Control Pool)`
+    });
+
+    const stages     = ["L", "M", "S", "D"];
+    const reductions = Math.floor((resist?.successes ?? 0) / 2);
+    const finalIdx   = stages.indexOf(level) - reductions;
+
+    if (finalIdx < 0) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: vehicle }),
+        content: `<div class="sr2e-damage-result">
+          <strong>Crash damage fully resisted.</strong>
+          <em>The vehicle stops for the rest of the Combat Turn (SR2E p.107).</em>
+        </div>`
+      });
+    }
+
+    const finalLevel = stages[finalIdx];
+    const boxes      = [1, 3, 6, 10][finalIdx];
+    await vehicle.applyDamage("physical", boxes);
+
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: vehicle }),
+      content: `<div class="sr2e-damage-result">
+        <strong>Crash: ${finalLevel} damage (${boxes} box${boxes === 1 ? "" : "es"})</strong> —
+        now ${vehicle.system.damageLevel}.
+        <br><em>Passengers face a ${power}${finalLevel} attack, resisted as melee damage
+        (Impact armor only, no Combat Pool — SR2E p.107). The vehicle stops for the
+        rest of the Combat Turn.</em>
+      </div>`
+    });
+  }
+
+  /**
+   * Damage Resistance Test for vehicles hit by weapons (SR2E p.108).
+   *
+   *   Unarmored: Body acts as composite armor (reduces Power); resist with
+   *     Body dice vs TN = Power − Body.
+   *   Armored: armor acts as a Barrier Rating — if the weapon's BASE Power
+   *     (unmodified by burst/full-auto) does not exceed it, no penetration.
+   *     Resist with Body + ½ armor dice vs TN = Power − (Body + Armor).
+   *
+   *   A weapon's Damage Level is reduced one step against vehicles (D→S→M→L;
+   *   Light cannot affect vehicles). Vehicles are immune to Stun damage.
+   *   The controlling rigger may allocate Control Pool dice.
+   *
+   * @param {number} power     - Effective attack Power (incl. burst/ammo bonuses).
+   * @param {string} level     - Damage Level of the attack.
+   * @param {object} [options]
+   * @param {number} [options.basePower] - Power unmodified by burst (penetration check).
+   * @param {string} [options.damageType="physical"]
+   */
+  async rollVehicleDamageResistance(power, level, options = {}) {
+    const system    = this.system;
+    const body      = system.body ?? 1;
+    const armor     = system.armor ?? 0;
+    const basePower = options.basePower ?? power;
+
+    if ((options.damageType ?? "physical") === "stun") {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
+          vehicles are unaffected by Stun damage.</div>`
+      });
+    }
+
+    // Damage Level reduced one step vs vehicles; Light cannot harm them (p.108)
+    const stages   = ["L", "M", "S", "D"];
+    const startIdx = stages.indexOf(level) - 1;
+    if (startIdx < 0) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
+          Light damage cannot affect vehicles (SR2E p.108).</div>`
+      });
+    }
+
+    // Armored vehicles: armor is a Barrier Rating vs the BASE Power (p.108)
+    if (armor > 0 && basePower <= armor) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>No penetration:</strong>
+          base Power ${basePower} does not exceed vehicle armor ${armor} (SR2E p.108).</div>`
+      });
+    }
+
+    const dice = armor > 0 ? body + Math.floor(armor / 2) : body;
+    const tn   = Math.max(2, power - (body + armor));
+    const startLevel = stages[startIdx];
+
+    // Controlling rigger may add Control Pool dice — drawn from the user's
+    // character when this vehicle is linked to them.
+    let rigger = null;
+    const candidate = game.user?.character;
+    if (candidate?.system?.linkedVehicles?.includes(this.uuid) &&
+        (candidate.system.dicePools?.control?.value ?? 0) > 0) {
+      rigger = candidate;
+    }
+    const controlAvail = rigger?.system.dicePools.control.value ?? 0;
+
+    const poolHTML = controlAvail > 0 ? `
+      <hr style="margin:8px 0 6px;">
+      <div class="form-group" style="margin:3px 0;">
+        <label style="font-size:12px;flex:1;">Control Pool (${rigger.name})
+          <span style="color:#888;font-size:10px;">(${controlAvail} left)</span>
+        </label>
+        <input type="number" name="pool_control" value="0" min="0" max="${controlAvail}"
+               style="width:52px;text-align:center;">
+      </div>` : "";
+
+    let allocated = 0;
+    const action = await foundry.applications.api.DialogV2.wait({
+      window: { title: game.i18n.format("SR2E.Dialog.ResistTitle", { level: startLevel, power }) },
+      rejectClose: false,
+      content: `<form>
+        <div style="font-size:11px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;margin-bottom:6px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="color:#888;">Incoming (vs vehicle):</td>
+                <td style="text-align:right;font-weight:bold;">${power}${startLevel}</td></tr>
+            <tr><td style="color:#888;">Body${armor > 0 ? " + ½ Armor" : ""} dice:</td>
+                <td style="text-align:right;">${dice}</td></tr>
+            <tr><td style="color:#888;">Power − (Body${armor > 0 ? " + Armor" : ""}):</td>
+                <td style="text-align:right;font-weight:bold;">TN ${tn}</td></tr>
+          </table>
+          <p style="margin:4px 0 0;font-size:10px;color:#888;">
+            Damage Level already reduced one step vs vehicles (SR2E p.108).</p>
+        </div>
+        ${poolHTML}
+      </form>`,
+      buttons: [
+        {
+          action: "roll", label: "SR2E.Dialog.Resist", default: true,
+          callback: (event, button) => {
+            const raw = parseInt(button.form.elements.pool_control?.value) || 0;
+            allocated = Math.min(Math.max(0, raw), controlAvail);
+          }
+        },
+        { action: "cancel", label: "SR2E.Dialog.Cancel" }
+      ]
+    });
+    if (action !== "roll") return;
+
+    if (allocated > 0 && rigger) {
+      await rigger.update({
+        "system.dicePools.control.value": controlAvail - allocated
+      });
+    }
+
+    const resist = await this.rollSuccessTest(dice + allocated, tn, {
+      label: `${this.name} — Resist ${power}${startLevel}${allocated ? ` (+${allocated} Control Pool)` : ""}`
+    });
+
+    const reductions = Math.floor((resist?.successes ?? 0) / 2);
+    const finalIdx   = startIdx - reductions;
+    if (finalIdx < 0) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>Damage fully resisted.</strong></div>`
+      });
+    }
+
+    const boxes = [1, 3, 6, 10][finalIdx];
+    await this.applyDamage("physical", boxes);
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>Vehicle takes ${stages[finalIdx]} damage (${boxes} box${boxes === 1 ? "" : "es"})</strong>
+        — now ${this.system.damageLevel}.
+      </div>`
+    });
+  }
+
+  /**
    * Roll a Damage Resistance Test.
    *
    * Defender rolls Body dice (+ optional Combat Pool) vs.
@@ -415,6 +692,12 @@ export class SR2EActor extends Actor {
    */
   async rollDamageResistance(power, level, armorType = "ballistic", damageType = "physical",
                              options = {}) {
+    // Vehicles resolve weapon damage with their own hard-target rules (p.108)
+    if (this.type === "vehicle") {
+      return this.rollVehicleDamageResistance(power, level, {
+        basePower: options.basePower, damageType
+      });
+    }
     const system    = this.system;
     const armorCalc = options.armorCalc || "standard";
     const armorMod  = options.armorMod ?? 0;
@@ -578,6 +861,13 @@ export class SR2EActor extends Actor {
    */
   async applyDamage(type = "physical", amount = 0) {
     if (amount <= 0) return;
+
+    // Vehicles and IC use a single flat condition monitor
+    if (this.type === "vehicle" || this.type === "ic") {
+      const cm = this.system.conditionMonitor;
+      const newValue = Math.min(cm.value + amount, cm.max);
+      return this.update({ "system.conditionMonitor.value": newValue });
+    }
 
     const monitor = this.system.conditionMonitor[type];
     const newValue = Math.min(monitor.value + amount, monitor.max);

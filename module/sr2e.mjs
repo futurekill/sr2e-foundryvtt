@@ -329,6 +329,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       const power      = parseInt(btn.dataset.power)   || 0;
+      const basePower  = parseInt(btn.dataset.basePower) || power;
       const level      = btn.dataset.level             || "M";
       const armorType  = btn.dataset.armorType         || "ballistic";
       const damageType = btn.dataset.damageType        || "physical";
@@ -346,7 +347,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       }
 
       return actor.rollDamageResistance(power, level, armorType, damageType,
-        { armorCalc, armorMod, ammoName });
+        { armorCalc, armorMod, ammoName, basePower });
     });
   });
 

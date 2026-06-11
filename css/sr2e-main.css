@@ -2235,6 +2235,28 @@
   text-shadow: 0 0 4px rgba(193, 154, 73, 0.6);
 }
 
+/* Rigging (jacked-in) toggle on the vehicles tab */
+.rigging-toggle {
+  cursor: pointer;
+}
+
+.rigging-toggle.active {
+  background: rgba(74, 153, 80, 0.25);
+  border-color: var(--sr2e-success, #4a9950);
+  color: var(--sr2e-success, #4a9950);
+  box-shadow: 0 0 5px rgba(74, 153, 80, 0.4);
+}
+
+/* Vehicle damage level badge next to the condition monitor */
+.vehicle-damage-level {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
 .sr2e-critical-glitch {
   color: #ff0000;
   font-weight: bold;

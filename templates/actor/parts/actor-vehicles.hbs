@@ -17,6 +17,13 @@
             <span class="pool-max">/ {{system.dicePools.control.max}}</span>
           </div>
         </div>
+        <div class="rigger-stat">
+          <label title="While jacked in, initiative uses ONLY the VCR's bonuses: Reaction +2 and +1d6 per level (SR2E p.85)">Jacked In</label>
+          <button type="button" data-action="toggleRigging"
+                  class="btn-small rigging-toggle {{#if system.rigging}}active{{/if}}">
+            <i class="fas fa-plug"></i> {{#if system.rigging}}Rigging{{else}}Off{{/if}}
+          </button>
+        </div>
         {{/if}}
       </div>
     </fieldset>
@@ -38,6 +45,10 @@
             <span class="vehicle-type">{{vehicle.system.vehicleType}}</span>
           </div>
           <div class="vehicle-card-controls">
+            <a class="vehicle-ctrl-btn" data-action="vehicleTest"
+               title="Handling / Position / Crash Test (SR2E p.105–107)">
+              <i class="fas fa-tachometer-alt"></i> Test
+            </a>
             <a class="vehicle-ctrl-btn" data-action="openVehicle" title="Open Sheet">
               <i class="fas fa-external-link-alt"></i> Sheet
             </a>
@@ -67,6 +78,10 @@
             <span class="monitor-value">{{vehicle.system.conditionMonitor.value}}</span>
             <span class="monitor-sep">/ {{vehicle.system.conditionMonitor.max}}</span>
             <button type="button" class="monitor-btn" data-action="incrementVehicleMonitor">+</button>
+            <span class="vehicle-damage-level {{woundLevelClass vehicle.system.damageLevel}}"
+                  title="Vehicle damage: TN +{{vehicle.system.damageTnMod}}, Initiative {{vehicle.system.damageInitMod}}, Speed {{vehicle.system.effectiveSpeed}} (SR2E p.109)">
+              {{vehicle.system.damageLevel}}
+            </span>
           </div>
           {{{conditionMonitor vehicle.system.conditionMonitor.value vehicle.system.conditionMonitor.max}}}
         </div>
@@ -77,8 +92,9 @@
           <h4>Weapons</h4>
           <div class="item-list">
             {{#each vehicle.weapons as |weapon|}}
-            <div class="item-row weapon-row flexrow">
-              <span class="item-name">
+            <div class="item-row weapon-row flexrow" data-weapon-id="{{weapon.id}}">
+              <span class="item-name" data-action="rollVehicleWeapon"
+                    title="Fire with your Gunnery skill (SR2E p.105)">
                 <i class="fas fa-crosshairs"></i>
                 {{weapon.name}}
               </span>

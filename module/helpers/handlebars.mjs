@@ -191,6 +191,7 @@ export function registerHandlebarsHelpers() {
       Moderate:  "condition-moderate",
       Serious:   "condition-serious",
       Deadly:    "condition-deadly",
+      Destroyed: "condition-deadly",
     };
     return map[level] ?? "condition-undamaged";
   });

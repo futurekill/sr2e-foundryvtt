@@ -1070,6 +1070,158 @@ async function onAddItem(event, target) {
 }
 
 /**
+ * Prompt for vehicle test options (SR2E p.105–107): test type, terrain,
+ * situational modifier, Control Pool and karma dice, with a live TN breakdown.
+ *
+ *   TN = Handling + terrain (per test type) − 2 × VCR + vehicle damage + other
+ *   Dice = driving skill (Reaction at +4 TN when defaulting)
+ *
+ * @param {Actor} actor   - The driving character.
+ * @param {Actor} vehicle - The vehicle actor.
+ * @returns {Promise<{testType, terrain, otherMod, poolDice, karmaDice}|null>}
+ */
+async function promptVehicleTestOptions(actor, vehicle) {
+  const handling  = vehicle.system.handling ?? 3;
+  const vcr       = actor.system.vehicleControlRig ?? 0;
+  const vcrMod    = -2 * vcr;
+  const damageMod = vehicle.system.damageTnMod ?? 0;
+
+  // Driver's skill: rating, or Reaction at +4 when defaulting
+  const skillKey  = vehicle.system.drivingSkill;
+  const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  const skillItem = actor.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
+  const rating    = skillItem?.system?.rating ?? 0;
+  const defaultingPenalty = rating > 0 ? 0 : CONFIG.SR2E.defaultingPenalty;
+  const baseDice  = rating > 0 ? rating : Math.max(1, actor.system.reaction?.value ?? 1);
+  const skillLabel = rating > 0
+    ? `${skillItem.name} ${rating}`
+    : `Reaction ${baseDice} (defaulting +${defaultingPenalty})`;
+
+  // Control Pool — max dice = skill rating in use (SR2E p.84)
+  const controlAvail = actor.system.dicePools?.control?.value ?? 0;
+  const controlCap   = Math.min(controlAvail, rating > 0 ? rating : baseDice);
+
+  const initTN = Math.max(2,
+    handling + (CONFIG.SR2E.vehicleTerrainMods.handling.normal ?? 0)
+             + vcrMod + damageMod + defaultingPenalty);
+
+  // Live TN updates
+  let hookId = Hooks.on("renderDialogV2", (app, html) => {
+    const root = (html instanceof Element) ? html : document;
+    const typeSel = root.querySelector("#sr2e-vt-type");
+    if (!typeSel) return;
+    Hooks.off("renderDialogV2", hookId);
+    const terrSel  = root.querySelector("#sr2e-vt-terrain");
+    const otherInp = root.querySelector("#sr2e-vt-other");
+    const tnSpan   = root.querySelector("#sr2e-vt-tn");
+    const terrSpan = root.querySelector("#sr2e-vt-terrain-mod");
+    const update = () => {
+      const t   = typeSel.value;
+      const ter = terrSel?.value ?? "normal";
+      const tMod = CONFIG.SR2E.vehicleTerrainMods[t]?.[ter] ?? 0;
+      const oMod = parseInt(otherInp?.value) || 0;
+      if (terrSpan) terrSpan.textContent = tMod >= 0 ? `+${tMod}` : `${tMod}`;
+      if (tnSpan) tnSpan.textContent = Math.max(2,
+        handling + tMod + vcrMod + damageMod + oMod + defaultingPenalty);
+    };
+    for (const el of [typeSel, terrSel, otherInp].filter(Boolean)) {
+      el.addEventListener(el.tagName === "INPUT" ? "input" : "change", update);
+    }
+    update();
+    attachPoolValidation(root);
+  });
+
+  const controlHTML = controlCap > 0 ? `
+    <hr style="margin:8px 0 6px;">
+    <div class="form-group" style="margin:3px 0;">
+      <label style="font-size:12px;flex:1;">Control Pool
+        <span style="color:#888;font-size:10px;">(${controlAvail} left, max ${controlCap})</span>
+      </label>
+      <input type="number" name="pool_control" value="0" min="0" max="${controlCap}"
+             data-pool-key="control" data-pool-cap="${controlCap}"
+             style="width:52px;text-align:center;">
+    </div>` : "";
+
+  let rollResult = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Vehicle Test: ${vehicle.name}` },
+    rejectClose: false,
+    content: `<form>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+        <div class="form-group" style="margin:2px 0;">
+          <label>Test:</label>
+          <select id="sr2e-vt-type" name="testType">
+            <option value="handling">Handling Test</option>
+            <option value="position">Position Test</option>
+            <option value="crash">Crash Test</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:2px 0;">
+          <label>Terrain:</label>
+          <select id="sr2e-vt-terrain" name="terrain">
+            <option value="open">Open</option>
+            <option value="normal" selected>Normal</option>
+            <option value="restricted">Restricted</option>
+            <option value="tight">Tight</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:2px 0;">
+          <label>Other Mod:</label>
+          <input type="number" id="sr2e-vt-other" name="otherMod" value="0"
+                 style="width:52px;text-align:center;"
+                 title="Weather, unfamiliar vehicle, vehicle size, under fire, etc.">
+        </div>
+      </div>
+      <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr><td style="color:#888;">Dice (${skillLabel}):</td>
+              <td style="text-align:right;">${baseDice}</td></tr>
+          <tr><td style="color:#888;">Handling:</td>
+              <td style="text-align:right;">${handling}</td></tr>
+          <tr><td style="color:#888;">Terrain:</td>
+              <td id="sr2e-vt-terrain-mod" style="text-align:right;">+1</td></tr>
+          ${vcrMod ? `<tr><td style="color:#6c9;">Vehicle Control Rig ${vcr}:</td>
+              <td style="text-align:right;">${vcrMod}</td></tr>` : ""}
+          ${damageMod ? `<tr><td style="color:#c84;">Vehicle damage (${vehicle.system.damageLevel}):</td>
+              <td style="text-align:right;">+${damageMod}</td></tr>` : ""}
+          ${defaultingPenalty ? `<tr><td style="color:#c84;">Defaulting (untrained):</td>
+              <td style="text-align:right;">+${defaultingPenalty}</td></tr>` : ""}
+          <tr style="border-top:1px solid rgba(255,255,255,0.15);">
+            <td style="font-weight:bold;padding-top:3px;">Final TN:</td>
+            <td id="sr2e-vt-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initTN}</td>
+          </tr>
+        </table>
+        <p style="margin:4px 0 0;font-size:10px;color:#888;">
+          A failed Crash Test crashes the vehicle (SR2E p.107).</p>
+      </div>
+      ${controlHTML}
+      ${karmaDiceSection(actor, baseDice)}
+    </form>`,
+    buttons: [
+      {
+        action: "roll", label: "SR2E.Dialog.Roll", default: true,
+        callback: (event, button) => {
+          const f = button.form.elements;
+          const rawCtrl = parseInt(f.pool_control?.value) || 0;
+          const control = Math.max(0, Math.min(rawCtrl, controlCap));
+          rollResult = {
+            testType:  f.testType?.value ?? "handling",
+            terrain:   f.terrain?.value  ?? "normal",
+            otherMod:  parseInt(f.otherMod?.value) || 0,
+            poolDice:  control > 0 ? { control } : {},
+            karmaDice: readKarmaDice(button.form, actor, baseDice)
+          };
+        }
+      },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+
+  if (hookId !== null) Hooks.off("renderDialogV2", hookId);
+  return (action === "roll" && rollResult) ? rollResult : null;
+}
+
+/**
  * Reload a weapon from its selected reserve ammo item.
  * @this {ApplicationV2}
  */
@@ -1225,6 +1377,63 @@ const SHARED_ACTIONS = {
     const cm = vehicle.system.conditionMonitor;
     if (!cm || cm.value <= 0) return;
     return vehicle.update({ "system.conditionMonitor.value": cm.value - 1 });
+  },
+
+  /**
+   * Roll a vehicle test (handling / position / crash) for a linked vehicle.
+   * @this {ApplicationV2}
+   */
+  vehicleTest: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const vehicle = await fromUuid(uuid);
+    if (!vehicle) return;
+    const actor = this.document;
+    const opts = await promptVehicleTestOptions(actor, vehicle);
+    if (!opts) return;
+    return actor.rollVehicleTest(vehicle, opts);
+  },
+
+  /**
+   * Fire a weapon mounted on a linked vehicle — the character is the gunner
+   * (Gunnery skill, SR2E p.105).
+   * @this {ApplicationV2}
+   */
+  rollVehicleWeapon: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    const weaponId = target.closest("[data-weapon-id]")?.dataset.weaponId;
+    if (!uuid || !weaponId) return;
+    const vehicle = await fromUuid(uuid);
+    const weapon = vehicle?.items.get(weaponId);
+    if (!weapon) return;
+    const actor = this.document;
+
+    // Gunner's skill: Gunnery, defaulting to Intelligence (+4 TN) untrained
+    const gunnery = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "gunnery");
+    const rating = gunnery?.system?.rating ?? 0;
+    let skillCap = Infinity, baseDice = 1, defaultingPenalty = 0;
+    if (rating > 0) {
+      skillCap = rating;
+      baseDice = rating;
+    } else {
+      baseDice = Math.max(1, actor.system.intelligence?.value ?? 1);
+      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+    }
+
+    const opts = await promptWeaponAttackOptions(actor, weapon, skillCap, baseDice, defaultingPenalty);
+    if (!opts) return;
+    return weapon.roll({ ...opts, gunner: actor });
+  },
+
+  /**
+   * Toggle jacked-in (rigging) state — switches initiative to VCR bonuses.
+   * @this {ApplicationV2}
+   */
+  toggleRigging: async function(event, target) {
+    event.preventDefault();
+    return this.document.update({ "system.rigging": !this.document.system.rigging });
   },
 
   /**
