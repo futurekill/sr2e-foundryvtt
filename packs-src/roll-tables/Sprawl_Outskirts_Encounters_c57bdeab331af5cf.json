@@ -1,0 +1,35 @@
+{
+  "_id": "c57bdeab331af5cf",
+  "name": "Sprawl Outskirts Encounters",
+  "img": "icons/svg/d20-black.svg",
+  "description": "SR2E sprawl outskirts / barrens encounter table.",
+  "formula": "1d6",
+  "displayRoll": true,
+  "replacement": true,
+  "results": [
+    "25650d4a8e780783",
+    "ff85edb7ac471c51",
+    "14f3eb58d066790f",
+    "7f95c03826cefafe",
+    "ee385ca61cba4ee1",
+    "d027e6c5f7b9bc2f"
+  ],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!tables!c57bdeab331af5cf"
+}

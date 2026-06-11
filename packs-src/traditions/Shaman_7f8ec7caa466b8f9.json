@@ -1,0 +1,31 @@
+{
+  "_id": "7f8ec7caa466b8f9",
+  "name": "Shaman",
+  "type": "tradition",
+  "img": "icons/magic/nature/leaf-oak-orange.webp",
+  "system": {
+    "magicType": "full_magician",
+    "tradition": "shamanic",
+    "skill": "both",
+    "description": "<p>Shamans follow an ancient, intuitive path guided by a Totem — a powerful archetypal spirit that shapes their strengths and weaknesses. They can cast spells <em>and</em> summon and banish Nature Spirits. Their magical tests are linked to Charisma. The Totem grants bonuses and imposes penalties on certain activities.</p><p>Shamans have full access to astral space.</p><p><em>SR2E p.162</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833267946,
+    "modifiedTime": 1774833267946,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!7f8ec7caa466b8f9"
+}

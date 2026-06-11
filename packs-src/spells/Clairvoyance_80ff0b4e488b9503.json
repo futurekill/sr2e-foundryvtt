@@ -1,0 +1,39 @@
+{
+  "_id": "80ff0b4e488b9503",
+  "name": "Clairvoyance",
+  "type": "spell",
+  "system": {
+    "category": "detection",
+    "subcategory": "",
+    "type": "mana",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "(F / 2)M",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": true,
+    "notes": "A hypersense spell requiring a voluntary subject. The magician can see distant scenes as if present, to the range of the new sense. The magician must concentrate to use this sense, and while using it, cannot use physical vision. A magician cannot cast spells at a target seen using the clairvoyance spell. This spell does not translate sound."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f998bf7f58ce1843",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!80ff0b4e488b9503"
+}

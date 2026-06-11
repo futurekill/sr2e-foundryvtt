@@ -1,0 +1,46 @@
+{
+  "_id": "b59ff8773d6c2f11",
+  "name": "Datajack",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "headware",
+    "grade": "standard",
+    "essenceCost": 0.2,
+    "rating": 0,
+    "cost": 1000,
+    "availability": "4/48hrs",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!b59ff8773d6c2f11"
+}

@@ -1,0 +1,37 @@
+{
+  "_id": "31cdf0521917d928",
+  "name": "Security Armor",
+  "type": "armor",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "ballistic": 6,
+    "impact": 5,
+    "concealability": 4,
+    "weight": 0,
+    "cost": 3000,
+    "availability": "8/7 days",
+    "legality": "Legal",
+    "equipped": false,
+    "isLayered": false,
+    "notes": "SR2E p.242. Purpose-built armor for corporate security and law enforcement. Partial or full suit options."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!31cdf0521917d928"
+}

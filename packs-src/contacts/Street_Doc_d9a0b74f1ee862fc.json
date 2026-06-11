@@ -1,0 +1,33 @@
+{
+  "_id": "d9a0b74f1ee862fc",
+  "name": "Street Doc",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Street Doc",
+    "loyalty": 1,
+    "influence": 2,
+    "description": "",
+    "notes": "SR2E p.41. Medical care, no questions asked."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d9a0b74f1ee862fc"
+}

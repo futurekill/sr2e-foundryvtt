@@ -1,0 +1,33 @@
+{
+  "_id": "5780023ddded7439",
+  "name": "Subsonic",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "subsonic",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "cost": 30,
+    "notes": "SR2E p.241. Reduced-velocity rounds designed for use with sound suppressers. Lower power than standard."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5780023ddded7439"
+}

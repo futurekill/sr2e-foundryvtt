@@ -1,0 +1,34 @@
+{
+  "_id": "d1fb558383bed413",
+  "name": "Magical Reagents (Talismonger)",
+  "img": "icons/svg/d20-black.svg",
+  "description": "SR2E talismonger stock table.",
+  "formula": "1d6",
+  "displayRoll": true,
+  "replacement": true,
+  "results": [
+    "1c2ab141e8d8a02c",
+    "7ece0c459b17c724",
+    "ddbd6cfe8856a28b",
+    "62608ecce9f7669d",
+    "82b012d9c6b02cf0"
+  ],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!tables!d1fb558383bed413"
+}

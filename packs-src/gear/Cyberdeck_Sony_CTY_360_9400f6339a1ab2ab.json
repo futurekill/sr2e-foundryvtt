@@ -1,0 +1,37 @@
+{
+  "_id": "9400f6339a1ab2ab",
+  "name": "Cyberdeck (Sony CTY-360)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "matrix",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 2000,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.262. Sony mid-range deck with MPCP 5, 50/100/20/10 config. Popular with corporate deckers."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!9400f6339a1ab2ab"
+}

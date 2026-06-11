@@ -1,0 +1,34 @@
+{
+  "_id": "c678960f23024eee",
+  "name": "Spell Focus (Force 5)",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "spell",
+    "force": 5,
+    "bondingCost": 10,
+    "bonded": false,
+    "active": false,
+    "cost": 50000,
+    "notes": "SR2E p.164. Spell Focus Force 5."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c678960f23024eee"
+}

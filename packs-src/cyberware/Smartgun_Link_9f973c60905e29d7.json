@@ -1,0 +1,47 @@
+{
+  "_id": "9f973c60905e29d7",
+  "name": "Smartgun Link",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "headware",
+    "grade": "standard",
+    "essenceCost": 0.5,
+    "rating": 0,
+    "cost": 3000,
+    "availability": "5/72hrs",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "notes": "SR2E p.90/p.301. Required for smartguns. −2 target number on attacks with a properly equipped smartweapon.",
+    "combatTnMod": -2
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!9f973c60905e29d7"
+}

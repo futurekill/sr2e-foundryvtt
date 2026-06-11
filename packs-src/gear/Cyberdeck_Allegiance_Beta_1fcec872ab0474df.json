@@ -1,0 +1,37 @@
+{
+  "_id": "1fcec872ab0474df",
+  "name": "Cyberdeck (Allegiance Beta)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "matrix",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 10000,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.262. Allegiance Alpha-class deck. MPCP 4, 50/20/10 memory/storage/load. Entry-level professional grade."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!1fcec872ab0474df"
+}

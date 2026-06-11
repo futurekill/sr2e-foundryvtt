@@ -1,0 +1,47 @@
+{
+  "_id": "rqi6nq367egwqwcc",
+  "name": "Chipjack",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "headware",
+    "grade": "standard",
+    "essenceCost": 0.1,
+    "rating": 0,
+    "cost": 1000,
+    "availability": "3/72hrs",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "ratingStats": [],
+    "notes": "SR2E p.246. A passive slot for skillsofts and datasofts. Chips must remain inserted during use. Essence 0.1."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!rqi6nq367egwqwcc"
+}

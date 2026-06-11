@@ -1,0 +1,31 @@
+{
+  "_id": "c329810e9814aa4e",
+  "name": "Hermetic Magician",
+  "type": "tradition",
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "system": {
+    "magicType": "full_magician",
+    "tradition": "hermetic",
+    "skill": "both",
+    "description": "<p>Hermetic Magicians follow the Western tradition of ceremonial magic, treating the Awakened world as a logical system to be understood through ritual and force of will. They can cast spells <em>and</em> summon and bind Elementals. Their magical tests are linked to Intelligence.</p><p>Hermetic Magicians have full access to astral space.</p><p><em>SR2E p.157</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833267913,
+    "modifiedTime": 1774833267913,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c329810e9814aa4e"
+}

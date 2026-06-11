@@ -1,0 +1,39 @@
+{
+  "_id": "eafe65e8746af5ee",
+  "name": "Flame Bomb",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "transformation",
+    "type": "physical",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)D",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "This area-effect spell creates a blast whose effects surround the target. Being of real flame, it causes easily flammable materials to ignite and burn. The Damage Code for this attack is (F)M. Every 2 successes increases the damage by one level. The spell is resisted by Body, and one-half the value of Impact Armor reduces the Power (Force) of the attack. Resolve using the ranged combat procedure."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!eafe65e8746af5ee"
+}

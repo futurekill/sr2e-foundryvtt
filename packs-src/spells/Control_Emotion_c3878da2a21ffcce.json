@@ -1,0 +1,39 @@
+{
+  "_id": "c3878da2a21ffcce",
+  "name": "Control Emotion",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "control",
+    "type": "mana",
+    "range": "los",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 2)M",
+    "target": "Willpower (R)",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "The subject feels some overwhelming emotion, which can be anything the magician chooses when the spell is cast. The spell can make the target love somebody, hate somebody, or any other single emotion desired. The effects of this spell require roleplaying more than they do calculating scores or numbers. The spell's victims believe the emotion wholeheartedly but not mindlessly. As a rule of thumb, no penalties apply if a character is doing something that is in keeping with the emotion (fighting while filled with anger or hate). If the character is doing something that is not relevant to the emotion (trying to drive while laughing wildly), distraction modifiers apply (+2 or more to target numbers). If the character tries to go directly against the emotion (trying to shoot a loved target), it calls for a Willpower Test with the spell's Force as the target number. Distraction penalties apply even if the test succeeds, but it must succeed for that action to be taken."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!c3878da2a21ffcce"
+}

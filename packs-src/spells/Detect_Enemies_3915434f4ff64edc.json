@@ -1,0 +1,39 @@
+{
+  "_id": "3915434f4ff64edc",
+  "name": "Detect Enemies",
+  "type": "spell",
+  "system": {
+    "category": "detection",
+    "subcategory": "",
+    "type": "mana",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)M",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": true,
+    "notes": "An area-effect, general hypersense spell requiring a voluntary subject. Within range, detects living beings who have hostile intentions toward the subject of the spell. This spell would not detect a trap (it is not alive) nor a terrorist about to shoot into a crowd at random (the intention is not personal)."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f998bf7f58ce1843",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!3915434f4ff64edc"
+}

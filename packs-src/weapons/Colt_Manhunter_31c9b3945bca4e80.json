@@ -1,0 +1,59 @@
+{
+  "_id": "31c9b3945bca4e80",
+  "name": "Colt Manhunter",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "9M",
+    "damageType": "physical",
+    "concealability": 5,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 16,
+      "max": 16,
+      "type": "pistol"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 20,
+      "long": 40,
+      "extreme": 60
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 425,
+    "availability": "4/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.231. A rugged, large-frame heavy pistol favored by bounty hunters and independents. Reliable under field conditions."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!31c9b3945bca4e80"
+}

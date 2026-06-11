@@ -1,0 +1,39 @@
+{
+  "_id": "9aba6f3f30401cd1",
+  "name": "Barrier",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "transformation",
+    "type": "physical",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 2)S",
+    "target": "6",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "Barrier is an area-effect spell in which the magician forms a force ﬁeld of crackling energy. The Spell Success Test has a Target Number 6. The magician may form the barrier as a normal area spell, which would create a dome of energy, or he may create a wall. The wall's height is the spell's Force in meters. The length of the wall or radius of the dome is equal to the magician's Magic Rating. This length may be adjusted in the same way as the radius of an area effect, by withholding dice from the Success Test. The magician may make the wall into any shape. Anything the size of a molecule (or less) can pass the barrier, including air or other gases. Anything bigger treats a physical barrier as having a Barrier Rating equal to the spell's Force (and is therefore cumulative with armor). Attacks directed through a barrier spell have a visibility modiﬁer of -1. Physical barriers do not impede spells, even manipulation spells."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!9aba6f3f30401cd1"
+}

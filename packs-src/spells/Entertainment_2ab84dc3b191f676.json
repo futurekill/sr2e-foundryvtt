@@ -1,0 +1,39 @@
+{
+  "_id": "2ab84dc3b191f676",
+  "name": "Entertainment",
+  "type": "spell",
+  "system": {
+    "category": "illusion",
+    "subcategory": "",
+    "type": "mana",
+    "range": "los",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)L",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": true,
+    "notes": "This area-effect spell requires voluntary subjects. It creates obvious, but entertaining, illusions for all who wish to watch. The number of successes measures how entertaining the audience ﬁnds the illusion."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f8017241a9f6dd76",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!2ab84dc3b191f676"
+}

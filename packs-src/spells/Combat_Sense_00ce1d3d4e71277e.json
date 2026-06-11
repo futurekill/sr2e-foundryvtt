@@ -1,0 +1,39 @@
+{
+  "_id": "00ce1d3d4e71277e",
+  "name": "Combat Sense",
+  "type": "spell",
+  "system": {
+    "category": "detection",
+    "subcategory": "",
+    "type": "physical",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)S",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": true,
+    "notes": "A hypersense spell requiring a voluntary subject. The subject becomes able to subconsciously analyze combat or other dangerous situations. The theory is that the spell allows precognition, with the subject sensing events a split second before they occur. Every 2 successes adds to the subject's Combat Pool for the duration of the spell."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f998bf7f58ce1843",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!00ce1d3d4e71277e"
+}

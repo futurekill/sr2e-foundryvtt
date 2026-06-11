@@ -1,0 +1,35 @@
+{
+  "_id": "1a43d7017a947066",
+  "name": "Contact Loyalty Reaction",
+  "img": "icons/svg/d20-black.svg",
+  "description": "SR2E contact loyalty and reaction table.",
+  "formula": "1d6",
+  "displayRoll": true,
+  "replacement": true,
+  "results": [
+    "d15cfba60d50eacf",
+    "df1b1372da684060",
+    "45c64dbb3a91163b",
+    "ca6b6350da7ad679",
+    "a518fd0c53e7cb10",
+    "51dd678c255ad5b1"
+  ],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!tables!1a43d7017a947066"
+}

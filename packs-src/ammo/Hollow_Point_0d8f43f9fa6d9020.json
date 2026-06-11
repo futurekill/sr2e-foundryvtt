@@ -1,0 +1,33 @@
+{
+  "_id": "0d8f43f9fa6d9020",
+  "name": "Hollow Point",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "hollow_point",
+    "quantity": 10,
+    "damageModifier": 2,
+    "armorModifier": -3,
+    "cost": 60,
+    "notes": "SR2E p.241. Designed for maximum tissue damage against unprotected targets. Ballistic armor stops them cold."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!0d8f43f9fa6d9020"
+}

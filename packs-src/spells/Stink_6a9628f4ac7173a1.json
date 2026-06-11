@@ -1,0 +1,39 @@
+{
+  "_id": "6a9628f4ac7173a1",
+  "name": "Stink",
+  "type": "spell",
+  "system": {
+    "category": "illusion",
+    "subcategory": "",
+    "type": "mana",
+    "range": "los",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)S",
+    "target": "Willpower (R)",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "This area spell stimulates the sense of smell. Subjects within the area of effect make normal Spell Resistance Tests to reduce the magician's successes. Each remaining success increases all of the victims' target numbers by + 1 because of the sickening effect of the smell's stench."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f8017241a9f6dd76",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!6a9628f4ac7173a1"
+}

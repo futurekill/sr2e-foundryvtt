@@ -1,0 +1,39 @@
+{
+  "_id": "997990a1d546d2b4",
+  "name": "Control Thoughts",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "control",
+    "type": "mana",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 2)D",
+    "target": "Willpower (R)",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "The magician controls the thoughts of the subject. The victim will carry out orders wholeheartedly as long as the magician sustains the spell. This is the magical equivalent of deep hypnotic suggestion. Actions that would be terribly destructive to the target or his loved ones allow the character to fight the spell. He must pass a Willpower Test with a target number of the spell's Force. If the casting magician is not present, a single success will do. If the casting magician is present, roll that character's Willpower against a target number equal to the target's Willpower. The magician's successes reduce the target's. One net success on the part of the target is still all that is required to resist the heinous command."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!997990a1d546d2b4"
+}

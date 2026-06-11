@@ -1,0 +1,36 @@
+{
+  "_id": "56f5962337903eec",
+  "name": "Astral Perception",
+  "type": "adeptPower",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "pointCost": 2,
+    "level": 1,
+    "maxLevel": 1,
+    "description": "",
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "reaction": 0
+    },
+    "notes": "SR2E p.124. Flat cost 2 pts. See astral plane; no projection. Can use Sorcery for astral combat but cannot cast spells."
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "sr2e",
+    "systemVersion": "0.3.79",
+    "coreVersion": "13.351",
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!56f5962337903eec"
+}

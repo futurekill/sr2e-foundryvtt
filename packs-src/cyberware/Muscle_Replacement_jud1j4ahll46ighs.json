@@ -1,0 +1,76 @@
+{
+  "_id": "jud1j4ahll46ighs",
+  "name": "Muscle Replacement",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "bodyware",
+    "grade": "standard",
+    "essenceCost": 1,
+    "rating": 1,
+    "cost": 20000,
+    "availability": "4/4days",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "ratingStats": [
+      {
+        "rating": 1,
+        "essenceCost": 1,
+        "cost": 20000,
+        "availability": "4/4days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 2,
+        "essenceCost": 2,
+        "cost": 40000,
+        "availability": "4/4days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 3,
+        "essenceCost": 3,
+        "cost": 60000,
+        "availability": "4/4days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 4,
+        "essenceCost": 4,
+        "cost": 80000,
+        "availability": "4/4days",
+        "streetIndex": ""
+      }
+    ],
+    "notes": "SR2E p.249. Myomer fiber muscle replacement. Each rating increases Strength and Body. Max Rating 4. Essence cost = rating."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!jud1j4ahll46ighs"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "a1398af165d79f0a",
+  "name": "Fixer",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Fixer",
+    "loyalty": 1,
+    "influence": 3,
+    "description": "",
+    "notes": "SR2E p.41. Provides jobs, equipment, and information for a cut."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a1398af165d79f0a"
+}

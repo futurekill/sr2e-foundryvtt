@@ -1,0 +1,35 @@
+{
+  "_id": "c895e07b5971d0c1",
+  "name": "Nuyen on the Street",
+  "img": "icons/svg/d20-black.svg",
+  "description": "SR2E random loot / credstick value table.",
+  "formula": "2d6",
+  "displayRoll": true,
+  "replacement": true,
+  "results": [
+    "b442ce9a8aa62c12",
+    "422602b781bb19f9",
+    "fa2a576098ef8387",
+    "af1e84819af64a9a",
+    "ccecff84a258a7c5",
+    "b28d2bbce47fffa3"
+  ],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!tables!c895e07b5971d0c1"
+}

@@ -1,0 +1,31 @@
+{
+  "_id": "846649c27ee04eac",
+  "name": "Shamanic Adept",
+  "type": "tradition",
+  "img": "icons/magic/nature/leaf-oak-orange.webp",
+  "system": {
+    "magicType": "shamanic_adept",
+    "tradition": "shamanic",
+    "skill": "both",
+    "description": "<p>The Shamanic Adept must follow the Shamanic tradition and choose a Totem. Unlike a full Shaman, they do <strong>not</strong> receive their Totem's modifiers for magical activities. Instead, the Totem defines the <em>limits</em> of what the adept can do: they may only cast spells or conjure spirits for which that Totem would normally offer modifiers.</p><p>For example, a Bear Shamanic Adept can cast Health spells and conjure Forest Spirits — but not Combat spells or City Spirits. Totems that grant no spell or spirit modifiers (e.g. Coyote) are incompatible with this path.</p><p>Shamanic Adepts have full use of Sorcery and Conjuring for defensive purposes and retain access to astral perception and projection.</p><p><em>SR2E p.163</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833268003,
+    "modifiedTime": 1774833268003,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!846649c27ee04eac"
+}

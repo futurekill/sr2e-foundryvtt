@@ -1,0 +1,39 @@
+{
+  "_id": "ceda7a6a9be9a9b2",
+  "name": "Shadow",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "transformation",
+    "type": "physical",
+    "range": "los",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 2)M",
+    "target": "Depends on light conditions.",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "An area-effect spell. This spell creates a pool of darkness equal to one-half the caster's Magic Rating times the spell's successes in meters. The target number depends on the local conditions: bright midday, 6; day, 5; day, overcast, 4; twilight, 3; street light or darker, 2. Every 2 successes imposes a + 1 target modiﬁer for Combat or Perception Tests against targets within the area of shadow."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!ceda7a6a9be9a9b2"
+}

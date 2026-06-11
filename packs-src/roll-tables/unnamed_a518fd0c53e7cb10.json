@@ -1,0 +1,26 @@
+{
+  "_id": "a518fd0c53e7cb10",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    5,
+    5
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Enthusiastic — provides extra information or a favor freely.",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!1a43d7017a947066.a518fd0c53e7cb10"
+}

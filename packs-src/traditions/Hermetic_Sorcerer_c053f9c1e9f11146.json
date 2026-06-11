@@ -1,0 +1,31 @@
+{
+  "_id": "c053f9c1e9f11146",
+  "name": "Hermetic Sorcerer",
+  "type": "tradition",
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "system": {
+    "magicType": "magical_adept",
+    "tradition": "hermetic",
+    "skill": "sorcery",
+    "description": "<p>A Hermetic Sorcerer is a Magical Adept who follows the Hermetic tradition and specialises entirely in Sorcery. They can cast spells but <strong>cannot</strong> summon or bind Elementals. They follow all normal Hermetic rules for spellcasting and spell learning.</p><p>Magical Adepts have <strong>no access to astral space</strong> whatsoever — neither astral perception nor astral projection.</p><p><em>SR2E p.163</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833267987,
+    "modifiedTime": 1774833267987,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c053f9c1e9f11146"
+}

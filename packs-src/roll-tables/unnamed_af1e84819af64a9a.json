@@ -1,0 +1,26 @@
+{
+  "_id": "af1e84819af64a9a",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    9,
+    10
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "1d6 × 250¥",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!c895e07b5971d0c1.af1e84819af64a9a"
+}

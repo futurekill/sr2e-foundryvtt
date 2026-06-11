@@ -1,0 +1,59 @@
+{
+  "_id": "e8390bfcab06bb91",
+  "name": "Throwing Knife",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "throwing",
+    "skill": "throwing_weapons",
+    "damageCode": "(Str+1)M",
+    "damageType": "physical",
+    "concealability": 8,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 0,
+      "max": 0,
+      "type": ""
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 10,
+      "long": 15,
+      "extreme": 20
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 50,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.228. A slim, balanced blade designed for aerodynamic flight. Various forms: spikes, leaf-blades, tantos."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e8390bfcab06bb91"
+}

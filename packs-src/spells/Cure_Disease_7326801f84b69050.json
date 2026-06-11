@@ -1,0 +1,38 @@
+{
+  "_id": "7326801f84b69050",
+  "name": "Cure Disease",
+  "type": "spell",
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "system": {
+    "category": "health",
+    "type": "mana",
+    "range": "touch",
+    "duration": "permanent",
+    "force": 1,
+    "drainCode": "+1(S)",
+    "target": "",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "SR2E p.184. Cures diseases. Drain is serious."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "351afa1b9f352545",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!7326801f84b69050"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "374449e401d26aed",
+  "name": "Explosive Rounds",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "explosive",
+    "quantity": 10,
+    "damageModifier": 2,
+    "armorModifier": -1,
+    "cost": 50,
+    "notes": "SR2E p.241. Tiny grenade-rounds—devastating but notoriously touchy. Banned in most jurisdictions. 50¥/10."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!374449e401d26aed"
+}

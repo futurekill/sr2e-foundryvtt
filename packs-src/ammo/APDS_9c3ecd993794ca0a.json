@@ -1,0 +1,33 @@
+{
+  "_id": "9c3ecd993794ca0a",
+  "name": "APDS",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "apds",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": -4,
+    "cost": 120,
+    "notes": "SR2E p.241. Armor-Piercing Discarding-Sabot rounds. Penetrates hard armor at the cost of impact resistance."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!9c3ecd993794ca0a"
+}

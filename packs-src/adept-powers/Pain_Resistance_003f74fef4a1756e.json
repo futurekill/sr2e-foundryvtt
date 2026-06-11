@@ -1,0 +1,36 @@
+{
+  "_id": "003f74fef4a1756e",
+  "name": "Pain Resistance",
+  "type": "adeptPower",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "pointCost": 0.25,
+    "level": 1,
+    "maxLevel": 6,
+    "description": "",
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "reaction": 0
+    },
+    "notes": "SR2E p.126. Each point ignores wound penalties from that many damage boxes. Adds pts to TN to inflict pain on adept; subtracts from TN to resist pain. Does not help Damage Resistance Tests. Cost: 0.25/pt."
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "sr2e",
+    "systemVersion": "0.3.79",
+    "coreVersion": "13.351",
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!003f74fef4a1756e"
+}

@@ -1,0 +1,34 @@
+{
+  "_id": "74c76ec7f8c312a6",
+  "name": "Evasion (Rating 6)",
+  "type": "program",
+  "img": "icons/magic/movement/trail-streak-zigzag-white.webp",
+  "system": {
+    "category": "defense",
+    "rating": 6,
+    "size": 6,
+    "multiplier": 1,
+    "cost": 28800,
+    "loaded": false,
+    "notes": "SR2E p.262. Persona program: Matrix evasion capability. Rating 6—elite deckers only."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!74c76ec7f8c312a6"
+}

@@ -1,0 +1,59 @@
+{
+  "_id": "015cebdcf70442c3",
+  "name": "Uzi III",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "7M",
+    "damageType": "physical",
+    "concealability": 4,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": true,
+      "fa": false
+    },
+    "ammo": {
+      "current": 16,
+      "max": 16,
+      "type": "smg"
+    },
+    "recoilComp": 1,
+    "ranges": {
+      "short": 10,
+      "medium": 40,
+      "long": 80,
+      "extreme": 150
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 550,
+    "availability": "5/72hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.232. The latest in the venerable Uzi lineage—compact, reliable, and effective in close quarters. BF capable."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!015cebdcf70442c3"
+}

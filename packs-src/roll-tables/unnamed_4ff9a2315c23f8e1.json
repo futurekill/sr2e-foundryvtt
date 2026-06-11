@@ -1,0 +1,26 @@
+{
+  "_id": "4ff9a2315c23f8e1",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    6,
+    6
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Nothing of Note — quiet streets, continue unimpeded",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!d8041e7bb8700204.4ff9a2315c23f8e1"
+}

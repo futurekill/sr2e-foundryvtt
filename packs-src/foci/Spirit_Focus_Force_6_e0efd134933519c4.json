@@ -1,0 +1,34 @@
+{
+  "_id": "e0efd134933519c4",
+  "name": "Spirit Focus (Force 6)",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "spirit",
+    "force": 6,
+    "bondingCost": 12,
+    "bonded": false,
+    "active": false,
+    "cost": 60000,
+    "notes": "SR2E p.164. Spirit Focus Force 6."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e0efd134933519c4"
+}

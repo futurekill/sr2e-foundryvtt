@@ -1,0 +1,39 @@
+{
+  "_id": "bd80ab3d02971c69",
+  "name": "Poltergeist",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "telekinetic",
+    "type": "physical",
+    "range": "los",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)S",
+    "target": "4 (R)",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "Within the area of this spell, all small objects and debris, up to a kilogram in mass, whirl around in random patterns. This reduces the visibility factor of the area (+2 to all target numbers). The spell does Stun damage as well, whacking targets with ﬂying debris. Targets within the area use their Quickness Rating, not Body, for their Resistance Tests against such damage, with the Spell Force Rating as the target number. The Damage Category is Light. Impact armor provides protection against this damage."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!bd80ab3d02971c69"
+}

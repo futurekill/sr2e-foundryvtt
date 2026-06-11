@@ -1,0 +1,47 @@
+{
+  "_id": "36pf3e9pl2gpu5m5",
+  "name": "Damper",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "headware",
+    "grade": "standard",
+    "essenceCost": 0.3,
+    "rating": 0,
+    "cost": 3500,
+    "availability": "4/48hrs",
+    "legality": "Legal",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "ratingStats": [],
+    "notes": "SR2E p.247. Cyberear modification. Protects against sudden loud sounds and damaging frequencies. SI 1.25."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!36pf3e9pl2gpu5m5"
+}

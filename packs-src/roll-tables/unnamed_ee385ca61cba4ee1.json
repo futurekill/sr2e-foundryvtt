@@ -1,0 +1,26 @@
+{
+  "_id": "ee385ca61cba4ee1",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    5,
+    5
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Hermit mage / wild shaman — unpredictable, may trade information for reagents",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!c57bdeab331af5cf.ee385ca61cba4ee1"
+}

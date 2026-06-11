@@ -1,0 +1,50 @@
+{
+  "_id": "d6514728cffe4f66",
+  "name": "Human",
+  "type": "race",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "raceKey": "human",
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0
+    },
+    "attributeMaximums": {
+      "body": 6,
+      "quickness": 6,
+      "strength": 6,
+      "charisma": 6,
+      "intelligence": 6,
+      "willpower": 6,
+      "essence": 6,
+      "magic": 6,
+      "reaction": 6
+    },
+    "specialAbilities": [],
+    "karmaCost": 0,
+    "description": "<p>Humans are the most numerous of the metahuman races, comprising the majority of the population in the Sixth World. They have no racial attribute modifiers and pay no Karma during character creation.</p><p><strong>Racial Abilities:</strong> None.</p><p><em>SR2E p.45</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.58",
+    "createdTime": 1774490378438,
+    "modifiedTime": 1774490378438,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d6514728cffe4f66"
+}

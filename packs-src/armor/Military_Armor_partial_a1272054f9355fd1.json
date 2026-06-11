@@ -1,0 +1,37 @@
+{
+  "_id": "a1272054f9355fd1",
+  "name": "Military Armor (partial)",
+  "type": "armor",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "ballistic": 8,
+    "impact": 6,
+    "concealability": 99,
+    "weight": 0,
+    "cost": 20000,
+    "availability": "20/21 days",
+    "legality": "Legal",
+    "equipped": false,
+    "isLayered": false,
+    "notes": "SR2E p.242. Military-grade partial plate suit. Rigidly protective, obviously military. Includes helmet."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a1272054f9355fd1"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "62247745b5876234",
+  "name": "Ex-Explosive Rounds",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "ex_explosive",
+    "quantity": 10,
+    "damageModifier": 3,
+    "armorModifier": -2,
+    "cost": 80,
+    "notes": "SR2E p.241. Extended-range explosive rounds. Greater blast radius, stricter legal restrictions."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!62247745b5876234"
+}

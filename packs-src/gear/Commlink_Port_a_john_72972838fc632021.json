@@ -1,0 +1,37 @@
+{
+  "_id": "72972838fc632021",
+  "name": "Commlink (Port-a-john)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "electronics",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 500,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.246. A portable commlink unit, essentially a ruggedized civilian phone with extended range."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!72972838fc632021"
+}

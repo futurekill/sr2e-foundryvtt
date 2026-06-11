@@ -1,0 +1,59 @@
+{
+  "_id": "762675c6cadf02d4",
+  "name": "Monofilament Whip",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "melee",
+    "skill": "armed_combat",
+    "damageCode": "(Str+3)D",
+    "damageType": "physical",
+    "concealability": 6,
+    "reach": 2,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 0,
+      "max": 0,
+      "type": ""
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 0,
+      "medium": 0,
+      "long": 0,
+      "extreme": 0
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 2500,
+    "availability": "8/14 days",
+    "legality": "Restricted",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.228. A nearly invisible monomolecular filament with a weighted end, guided by an inertial reel. Extremely dangerous—10S damage, Conceal 10."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!762675c6cadf02d4"
+}

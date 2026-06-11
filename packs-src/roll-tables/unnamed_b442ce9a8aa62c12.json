@@ -1,0 +1,26 @@
+{
+  "_id": "b442ce9a8aa62c12",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    2,
+    3
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "1d6 × 10¥ — pocket change / credstick remnants",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!c895e07b5971d0c1.b442ce9a8aa62c12"
+}

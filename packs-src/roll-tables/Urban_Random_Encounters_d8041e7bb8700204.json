@@ -1,0 +1,35 @@
+{
+  "_id": "d8041e7bb8700204",
+  "name": "Urban Random Encounters",
+  "img": "icons/svg/d20-black.svg",
+  "description": "SR2E urban random encounter table.",
+  "formula": "1d6",
+  "displayRoll": true,
+  "replacement": true,
+  "results": [
+    "564638140e12c7cd",
+    "997eef2342ba89b6",
+    "4c5d7e4aeb9e0ad8",
+    "dfc245c7ddd1fdb9",
+    "78a832e5cd12afa4",
+    "4ff9a2315c23f8e1"
+  ],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!tables!d8041e7bb8700204"
+}

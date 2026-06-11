@@ -1,0 +1,59 @@
+{
+  "_id": "2e60f53bd09aa664",
+  "name": "Fichetti Security 500",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "6L",
+    "damageType": "physical",
+    "concealability": 8,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 12,
+      "max": 12,
+      "type": "pistol"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 15,
+      "long": 30,
+      "extreme": 50
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 420,
+    "availability": "3/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.230. A Fichetti design aimed at light security. Accepts a full range of accessories and optional extended 22-round clip."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!2e60f53bd09aa664"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "88ceaca43f3e4ecb",
+  "name": "Regular Ammo",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "regular",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "cost": 15,
+    "notes": "SR2E p.241. Standard lead-core or caseless rounds. Available in pistol, rifle, shotgun, and heavy weapon calibers."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!88ceaca43f3e4ecb"
+}

@@ -1,0 +1,47 @@
+{
+  "_id": "7y3mpw4uraxjzxxm",
+  "name": "Cortex Bomb",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "headware",
+    "grade": "standard",
+    "essenceCost": 1,
+    "rating": 0,
+    "cost": 500000,
+    "availability": "20/14days",
+    "legality": "Illegal",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "ratingStats": [],
+    "notes": "SR2E p.248. Explosive device in the skull. Used for coercion or anti-interrogation. Illegal everywhere."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!7y3mpw4uraxjzxxm"
+}

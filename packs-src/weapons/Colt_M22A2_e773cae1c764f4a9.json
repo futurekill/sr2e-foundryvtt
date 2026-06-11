@@ -1,0 +1,59 @@
+{
+  "_id": "e773cae1c764f4a9",
+  "name": "Colt M22A2",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "8M",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": true,
+      "fa": false
+    },
+    "ammo": {
+      "current": 40,
+      "max": 40,
+      "type": "rifle"
+    },
+    "recoilComp": 2,
+    "ranges": {
+      "short": 25,
+      "medium": 100,
+      "long": 250,
+      "extreme": 500
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 900,
+    "availability": "7/72hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.233. Colt's high-velocity assault carbine. A standard-issue weapon for corporate strike teams and NAN border troops."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e773cae1c764f4a9"
+}

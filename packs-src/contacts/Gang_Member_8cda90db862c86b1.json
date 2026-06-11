@@ -1,0 +1,33 @@
+{
+  "_id": "8cda90db862c86b1",
+  "name": "Gang Member",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Gang Member",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.41. Street muscle and neighborhood intel."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!8cda90db862c86b1"
+}

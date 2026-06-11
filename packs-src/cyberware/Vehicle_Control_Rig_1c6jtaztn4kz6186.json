@@ -1,0 +1,69 @@
+{
+  "_id": "1c6jtaztn4kz6186",
+  "name": "Vehicle Control Rig",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "bodyware",
+    "grade": "standard",
+    "essenceCost": 1,
+    "rating": 1,
+    "cost": 12000,
+    "availability": "6/48hrs",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 1
+    },
+    "ratingStats": [
+      {
+        "rating": 1,
+        "essenceCost": 1,
+        "cost": 12000,
+        "availability": "6/48hrs",
+        "streetIndex": "1"
+      },
+      {
+        "rating": 2,
+        "essenceCost": 2,
+        "cost": 60000,
+        "availability": "8/48hrs",
+        "streetIndex": "1.25"
+      },
+      {
+        "rating": 3,
+        "essenceCost": 3,
+        "cost": 300000,
+        "availability": "8/48hrs",
+        "streetIndex": "1.5"
+      }
+    ],
+    "notes": "SR2E p.249. MST interfaces for vehicle rigging. Each level: +2 Reaction when rigging, +1D6 Initiative die. Requires vehicle control gear and datajack."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!1c6jtaztn4kz6186"
+}

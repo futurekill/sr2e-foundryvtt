@@ -1,0 +1,53 @@
+{
+  "_id": "4d617fc9268a42d2",
+  "name": "Dwarf",
+  "type": "race",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "raceKey": "dwarf",
+    "attributeMods": {
+      "body": 1,
+      "quickness": -1,
+      "strength": 2,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 1
+    },
+    "attributeMaximums": {
+      "body": 7,
+      "quickness": 5,
+      "strength": 8,
+      "charisma": 6,
+      "intelligence": 6,
+      "willpower": 7,
+      "essence": 6,
+      "magic": 6,
+      "reaction": 6
+    },
+    "specialAbilities": [
+      "thermographic_vision",
+      "disease_resistance"
+    ],
+    "karmaCost": 0,
+    "description": "<p>Dwarfs are shorter and stockier than humans, with greater natural strength and willpower. They see well in the dark using thermographic vision and are highly resistant to disease and pathogens.</p><p><strong>Racial Abilities:</strong> Thermographic Vision, Pathogen Resistance (doubled Willpower for disease/toxin resistance tests).</p><p><strong>Attribute Modifiers:</strong> Body +1, Quickness –1, Strength +2, Willpower +1.</p><p><em>SR2E p.45</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.58",
+    "createdTime": 1774490378438,
+    "modifiedTime": 1774490378438,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!4d617fc9268a42d2"
+}

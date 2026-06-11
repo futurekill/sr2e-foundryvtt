@@ -1,0 +1,32 @@
+{
+  "_id": "ced70d48d9026324",
+  "name": "Middle",
+  "type": "lifestyle",
+  "img": "icons/environment/settlement/house.webp",
+  "system": {
+    "level": "middle",
+    "monthlyCost": 5000,
+    "monthsPaid": 1,
+    "description": "",
+    "notes": "SR2E p.44. Apartment in a decent arcology or condo."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!ced70d48d9026324"
+}

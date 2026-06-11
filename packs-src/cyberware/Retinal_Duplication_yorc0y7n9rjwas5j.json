@@ -1,0 +1,47 @@
+{
+  "_id": "yorc0y7n9rjwas5j",
+  "name": "Retinal Duplication",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "headware",
+    "grade": "standard",
+    "essenceCost": 0.2,
+    "rating": 0,
+    "cost": 50000,
+    "availability": "12/7days",
+    "legality": "Illegal",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "ratingStats": [],
+    "notes": "SR2E p.247. Illegal. Stores a copied retinal pattern to fool retinal scanners. Health hazard with repeated changes. SI 2."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!yorc0y7n9rjwas5j"
+}

@@ -1,0 +1,26 @@
+{
+  "_id": "82b012d9c6b02cf0",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    6,
+    6
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Fire sale — recently deceased mage's gear, 60% market price, possible curse.",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!d1fb558383bed413.82b012d9c6b02cf0"
+}

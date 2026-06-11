@@ -1,0 +1,91 @@
+{
+  "_id": "bb7a20cd6a013655",
+  "name": "Skillwires",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "grade": "standard",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "location": "headware",
+    "essenceCost": 0.5,
+    "rating": 1,
+    "cost": 5000,
+    "availability": "5/72hrs",
+    "streetIndex": "",
+    "ratingStats": [
+      {
+        "rating": 1,
+        "essenceCost": 0.5,
+        "cost": 5000,
+        "availability": "5/72hrs",
+        "streetIndex": ""
+      },
+      {
+        "rating": 2,
+        "essenceCost": 1,
+        "cost": 15000,
+        "availability": "6/72hrs",
+        "streetIndex": ""
+      },
+      {
+        "rating": 3,
+        "essenceCost": 1.5,
+        "cost": 35000,
+        "availability": "8/7 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 4,
+        "essenceCost": 2,
+        "cost": 70000,
+        "availability": "10/7 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 5,
+        "essenceCost": 2.5,
+        "cost": 120000,
+        "availability": "14/7 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 6,
+        "essenceCost": 3,
+        "cost": 200000,
+        "availability": "18/14 days",
+        "streetIndex": ""
+      }
+    ],
+    "notes": "SR2E p.249. Invasive neuro-muscular controllers that allow ActiveSoft access. Rating limits total active skillsoft rating simultaneously usable."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1773947803898,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!bb7a20cd6a013655"
+}

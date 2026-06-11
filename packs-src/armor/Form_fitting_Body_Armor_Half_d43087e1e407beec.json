@@ -1,0 +1,37 @@
+{
+  "_id": "d43087e1e407beec",
+  "name": "Form-fitting Body Armor (Half)",
+  "type": "armor",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "ballistic": 1,
+    "impact": 1,
+    "concealability": 8,
+    "weight": 0,
+    "cost": 500,
+    "availability": "4/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "isLayered": false,
+    "notes": "SR2E p.242. Half-suit version covering the torso and upper limbs. Less protective but more flexible."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d43087e1e407beec"
+}

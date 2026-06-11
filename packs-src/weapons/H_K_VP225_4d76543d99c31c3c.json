@@ -1,0 +1,59 @@
+{
+  "_id": "4d76543d99c31c3c",
+  "name": "H&K VP225",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "6L",
+    "damageType": "physical",
+    "concealability": 8,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": true,
+      "fa": false
+    },
+    "ammo": {
+      "current": 20,
+      "max": 20,
+      "type": "pistol"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 15,
+      "long": 30,
+      "extreme": 50
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 500,
+    "availability": "4/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.232. A Heckler & Koch SMG-pistol hybrid. Compact and reliable, popular with bodyguard teams."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!4d76543d99c31c3c"
+}

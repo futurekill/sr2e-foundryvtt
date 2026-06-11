@@ -1,0 +1,40 @@
+{
+  "_id": "4b8066c1f1246155",
+  "name": "Underworld",
+  "type": "skill",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "category": "knowledge",
+    "linkedAttribute": "intelligence",
+    "rating": 0,
+    "concentration": {
+      "name": "",
+      "rating": 0
+    },
+    "specialization": {
+      "name": "",
+      "rating": 0
+    },
+    "isMagical": false,
+    "notes": "Knowledge of criminal organizations."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!4b8066c1f1246155"
+}

@@ -1,0 +1,39 @@
+{
+  "_id": "9c2a88acb4ea7fb0",
+  "name": "Detect Individual",
+  "type": "spell",
+  "system": {
+    "category": "detection",
+    "subcategory": "",
+    "type": "mana",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "(F / 2)L",
+    "target": "TBD at casting time",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": true,
+    "notes": "An area-effect, general hypersense spell requiring a voluntary subject. To detect the presence of a particular individual, the magician names the individual when the spell is cast. The target number is 10 minus the Essence of the target, if the target is mundane, or 10 minus the Magic Rating (or either force or Essence, as appropriate) of the target, if the target is magically active."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f998bf7f58ce1843",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!9c2a88acb4ea7fb0"
+}

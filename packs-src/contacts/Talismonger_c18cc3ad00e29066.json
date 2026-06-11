@@ -1,0 +1,33 @@
+{
+  "_id": "c18cc3ad00e29066",
+  "name": "Talismonger",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Talismonger",
+    "loyalty": 1,
+    "influence": 2,
+    "description": "",
+    "notes": "SR2E p.41. Magical supplies, fetishes, and lore."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c18cc3ad00e29066"
+}

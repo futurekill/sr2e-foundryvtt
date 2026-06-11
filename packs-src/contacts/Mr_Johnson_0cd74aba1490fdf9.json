@@ -1,0 +1,33 @@
+{
+  "_id": "0cd74aba1490fdf9",
+  "name": "Mr. Johnson",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Johnson (Employer)",
+    "loyalty": 1,
+    "influence": 3,
+    "description": "",
+    "notes": "SR2E p.41. Corporate fixer. Provides runs and credsticks."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!0cd74aba1490fdf9"
+}

@@ -1,0 +1,39 @@
+{
+  "_id": "e0537cbfa224e082",
+  "name": "Mana Missile",
+  "type": "spell",
+  "system": {
+    "category": "combat",
+    "subcategory": "",
+    "type": "mana",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "(F / 2)M",
+    "target": "Willpower (R)",
+    "damageCode": "M",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "A bolt of magical power that causes Physical damage."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "19d91418e8a36713",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!e0537cbfa224e082"
+}

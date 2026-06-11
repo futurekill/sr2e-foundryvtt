@@ -1,0 +1,37 @@
+{
+  "_id": "f46d1e281623ec8e",
+  "name": "Armor Vest (Heavy)",
+  "type": "armor",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "ballistic": 3,
+    "impact": 2,
+    "concealability": 6,
+    "weight": 0,
+    "cost": 750,
+    "availability": "4/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "isLayered": false,
+    "notes": "SR2E p.242. Heavy-duty tactical vest with front and back ballistic plates. Standard law enforcement gear."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!f46d1e281623ec8e"
+}

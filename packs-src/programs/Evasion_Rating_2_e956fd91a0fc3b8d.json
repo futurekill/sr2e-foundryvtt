@@ -1,0 +1,34 @@
+{
+  "_id": "e956fd91a0fc3b8d",
+  "name": "Evasion (Rating 2)",
+  "type": "program",
+  "img": "icons/magic/movement/trail-streak-zigzag-white.webp",
+  "system": {
+    "category": "defense",
+    "rating": 2,
+    "size": 2,
+    "multiplier": 1,
+    "cost": 3200,
+    "loaded": false,
+    "notes": "SR2E p.262. Persona program: Matrix evasion capability. Rating 2."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e956fd91a0fc3b8d"
+}

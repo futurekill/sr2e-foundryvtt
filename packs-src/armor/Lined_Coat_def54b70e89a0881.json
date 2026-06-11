@@ -1,0 +1,37 @@
+{
+  "_id": "def54b70e89a0881",
+  "name": "Lined Coat",
+  "type": "armor",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "ballistic": 4,
+    "impact": 2,
+    "concealability": 8,
+    "weight": 0,
+    "cost": 700,
+    "availability": "3/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "isLayered": false,
+    "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!def54b70e89a0881"
+}

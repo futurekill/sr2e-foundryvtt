@@ -1,0 +1,31 @@
+{
+  "_id": "5e9127b6e528792f",
+  "name": "Hermetic Conjurer",
+  "type": "tradition",
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "system": {
+    "magicType": "magical_adept",
+    "tradition": "hermetic",
+    "skill": "conjuring",
+    "description": "<p>A Hermetic Conjurer is a Magical Adept who follows the Hermetic tradition and specialises entirely in Conjuring. They can summon and bind Elementals but <strong>cannot</strong> cast spells. They follow all normal Hermetic rules for conjuring.</p><p>Magical Adepts have <strong>no access to astral space</strong> whatsoever — neither astral perception nor astral projection.</p><p><em>SR2E p.163</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833267989,
+    "modifiedTime": 1774833267989,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5e9127b6e528792f"
+}

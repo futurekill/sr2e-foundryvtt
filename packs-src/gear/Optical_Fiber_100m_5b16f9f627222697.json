@@ -1,0 +1,37 @@
+{
+  "_id": "5b16f9f627222697",
+  "name": "Optical Fiber (100m)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "electronics",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 50,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.246. 100m spool of fiber-optic cable for secure hardline data connections."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5b16f9f627222697"
+}

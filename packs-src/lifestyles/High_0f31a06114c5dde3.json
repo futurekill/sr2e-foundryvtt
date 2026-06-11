@@ -1,0 +1,32 @@
+{
+  "_id": "0f31a06114c5dde3",
+  "name": "High",
+  "type": "lifestyle",
+  "img": "icons/environment/settlement/castle.webp",
+  "system": {
+    "level": "high",
+    "monthlyCost": 10000,
+    "monthsPaid": 1,
+    "description": "",
+    "notes": "SR2E p.44. High-rise condo or luxury apartment."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!0f31a06114c5dde3"
+}

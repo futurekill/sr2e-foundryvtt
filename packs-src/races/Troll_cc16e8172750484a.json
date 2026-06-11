@@ -1,0 +1,54 @@
+{
+  "_id": "cc16e8172750484a",
+  "name": "Troll",
+  "type": "race",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "raceKey": "troll",
+    "attributeMods": {
+      "body": 5,
+      "quickness": -1,
+      "strength": 4,
+      "charisma": -2,
+      "intelligence": -2,
+      "willpower": -1
+    },
+    "attributeMaximums": {
+      "body": 11,
+      "quickness": 5,
+      "strength": 10,
+      "charisma": 4,
+      "intelligence": 4,
+      "willpower": 5,
+      "essence": 6,
+      "magic": 6,
+      "reaction": 5
+    },
+    "specialAbilities": [
+      "thermographic_vision",
+      "dermal_armor",
+      "reach_1"
+    ],
+    "karmaCost": 0,
+    "description": "<p>Trolls are the largest and physically strongest metahumans, towering over other races. Their thick, rocky skin provides natural armor and their thermographic vision allows them to see heat signatures. They have natural reach in melee combat.</p><p><strong>Racial Abilities:</strong> Thermographic Vision, Dermal Armor (Ballistic 1 / Impact 2), Reach +1 in melee.</p><p><strong>Attribute Modifiers:</strong> Body +5, Quickness –1, Strength +4, Charisma –2, Intelligence –2, Willpower –1.</p><p><em>SR2E p.45</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.58",
+    "createdTime": 1774490378438,
+    "modifiedTime": 1774490378438,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!cc16e8172750484a"
+}

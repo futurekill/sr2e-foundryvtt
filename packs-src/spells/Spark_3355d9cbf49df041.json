@@ -1,0 +1,39 @@
+{
+  "_id": "3355d9cbf49df041",
+  "name": "Spark",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "transformation",
+    "type": "physical",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)M",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "This spell creates a small spark of electricity that springs from the spellcaster to the target. The damage code for this attack is (F)M. Every 2 successes increase the Damage Code by one level. The spell is resisted by Body, and one-half the value of Impact Armor reduces the Power (Force) of the attack. Resolve using the ranged combat procedure."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!3355d9cbf49df041"
+}

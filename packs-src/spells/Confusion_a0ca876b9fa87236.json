@@ -1,0 +1,39 @@
+{
+  "_id": "a0ca876b9fa87236",
+  "name": "Confusion",
+  "type": "spell",
+  "system": {
+    "category": "illusion",
+    "subcategory": "",
+    "type": "mana",
+    "range": "los",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "(F / 2)S",
+    "target": "Willpower (R)",
+    "damageCode": "",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "This is an area-effect spell similar to the chaos spell, except that the confusion spell does not affect technological systems. Visual illusions ﬁll the affected area, making it a place of shifting forms, dazzling lights, and pools of shadow. Those who fail to resist suffer a distraction (+1 to all target numbers) for every two successes remaining after reductions from the Spell Resistance Test."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f8017241a9f6dd76",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!a0ca876b9fa87236"
+}

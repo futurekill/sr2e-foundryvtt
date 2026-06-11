@@ -1,0 +1,59 @@
+{
+  "_id": "0f1e8ce8f691ddc7",
+  "name": "Ares Antioch-2",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "heavy_weapons",
+    "damageCode": "10S",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": true,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 6,
+      "max": 6,
+      "type": "grenade"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 40,
+      "long": 100,
+      "extreme": 200
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 1200,
+    "availability": "10/7 days",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.234. Multi-shot rocket/missile launcher from Ares Arms. Collapsible design for urban deployment."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!0f1e8ce8f691ddc7"
+}

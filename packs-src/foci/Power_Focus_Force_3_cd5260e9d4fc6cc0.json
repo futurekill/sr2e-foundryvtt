@@ -1,0 +1,34 @@
+{
+  "_id": "cd5260e9d4fc6cc0",
+  "name": "Power Focus (Force 3)",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "power",
+    "force": 3,
+    "bondingCost": 9,
+    "bonded": false,
+    "active": false,
+    "cost": 60000,
+    "notes": "SR2E p.164. Power Focus Force 3. Adds +3 to all magical dice pools."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!cd5260e9d4fc6cc0"
+}

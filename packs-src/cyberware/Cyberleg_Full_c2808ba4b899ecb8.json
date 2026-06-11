@@ -1,0 +1,46 @@
+{
+  "_id": "c2808ba4b899ecb8",
+  "name": "Cyberleg (Full)",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "cyberlimb",
+    "grade": "standard",
+    "essenceCost": 1,
+    "rating": 0,
+    "cost": 20000,
+    "availability": "6/72hrs",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "notes": "SR2E p.250. Full cybernetic leg replacement. Includes options for enhanced speed, compartments, or weapons. Essence 1.0 base."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c2808ba4b899ecb8"
+}

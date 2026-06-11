@@ -1,0 +1,34 @@
+{
+  "_id": "d4d052d0f8be00f5",
+  "name": "Bod (Rating 4)",
+  "type": "program",
+  "img": "icons/magic/defensive/shield-barrier-glowing-triangle-teal.webp",
+  "system": {
+    "category": "defense",
+    "rating": 4,
+    "size": 4,
+    "multiplier": 1,
+    "cost": 12800,
+    "loaded": false,
+    "notes": "SR2E p.262. Persona program: your Matrix body's physical resistance. Rating 4."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d4d052d0f8be00f5"
+}

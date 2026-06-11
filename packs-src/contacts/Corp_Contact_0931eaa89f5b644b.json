@@ -1,0 +1,33 @@
+{
+  "_id": "0931eaa89f5b644b",
+  "name": "Corp Contact",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Corporate Employee",
+    "loyalty": 1,
+    "influence": 2,
+    "description": "",
+    "notes": "SR2E p.41. Corporate insider with information and resources."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!0931eaa89f5b644b"
+}

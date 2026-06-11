@@ -1,0 +1,39 @@
+{
+  "_id": "35196693267b9409",
+  "name": "Manaball",
+  "type": "spell",
+  "system": {
+    "category": "combat",
+    "subcategory": "",
+    "type": "mana",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "(F / 2)S",
+    "target": "Willpower (R)",
+    "damageCode": "M",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "19d91418e8a36713",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!35196693267b9409"
+}

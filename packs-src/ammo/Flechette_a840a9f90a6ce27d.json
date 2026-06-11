@@ -1,0 +1,33 @@
+{
+  "_id": "a840a9f90a6ce27d",
+  "name": "Flechette",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "flechette",
+    "quantity": 10,
+    "damageModifier": -1,
+    "armorModifier": 2,
+    "cost": 40,
+    "notes": "SR2E p.241. Tiny slivers devastating against unprotected flesh. Easily stopped by impact armor."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a840a9f90a6ce27d"
+}

@@ -1,0 +1,26 @@
+{
+  "_id": "df1b1372da684060",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    2,
+    2
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Hesitant — provides minimal help, charges 150% normal fee.",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!1a43d7017a947066.df1b1372da684060"
+}

@@ -1,0 +1,40 @@
+{
+  "_id": "f371744d08bfd1c6",
+  "name": "Conjuring",
+  "type": "skill",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "category": "active",
+    "linkedAttribute": "charisma",
+    "rating": 0,
+    "concentration": {
+      "name": "",
+      "rating": 0
+    },
+    "specialization": {
+      "name": "",
+      "rating": 0
+    },
+    "isMagical": true,
+    "notes": ""
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!f371744d08bfd1c6"
+}

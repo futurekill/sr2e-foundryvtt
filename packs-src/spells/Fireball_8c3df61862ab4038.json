@@ -1,0 +1,39 @@
+{
+  "_id": "8c3df61862ab4038",
+  "name": "Fireball",
+  "type": "spell",
+  "system": {
+    "category": "combat",
+    "subcategory": "",
+    "type": "physical",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "((F / 2) + 3)D",
+    "target": "Body (R)",
+    "damageCode": "S",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "An area-effect spell that causes Physical damage. The fireball spell can ignite combustible materials in its blast area. Gamemaster discretion."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "19d91418e8a36713",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!8c3df61862ab4038"
+}

@@ -1,0 +1,26 @@
+{
+  "_id": "dfc245c7ddd1fdb9",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    4,
+    4
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Desperate Civilian — begging, possible info or pickpocketing attempt",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!d8041e7bb8700204.dfc245c7ddd1fdb9"
+}

@@ -1,0 +1,39 @@
+{
+  "_id": "f9c3aa0f3925e6b3",
+  "name": "Ice Sheet",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "transformation",
+    "type": "physical",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)S",
+    "target": "4",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "This spell creates a ﬂat sheet of ice that covers a number of square meters equal to the caster's Magic Rating multiplied by the successes. Characters crossing the sheet must make a Quickness Test against a Target Number 3 to avoid falling prone. Vehicles must make a Handling Test to avoid having to make a Crash Test. The sheet melts at a rate of 1 square meters per minute."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!f9c3aa0f3925e6b3"
+}

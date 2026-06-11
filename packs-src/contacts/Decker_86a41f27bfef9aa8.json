@@ -1,0 +1,33 @@
+{
+  "_id": "86a41f27bfef9aa8",
+  "name": "Decker",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Decker",
+    "loyalty": 1,
+    "influence": 2,
+    "description": "",
+    "notes": "SR2E p.41. Matrix infiltration and data extraction."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!86a41f27bfef9aa8"
+}

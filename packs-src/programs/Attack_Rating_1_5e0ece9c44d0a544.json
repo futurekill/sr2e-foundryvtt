@@ -1,0 +1,34 @@
+{
+  "_id": "5e0ece9c44d0a544",
+  "name": "Attack (Rating 1)",
+  "type": "program",
+  "img": "icons/skills/offense/sword.webp",
+  "system": {
+    "category": "combat",
+    "rating": 1,
+    "size": 1.5,
+    "multiplier": 1.5,
+    "cost": 1500,
+    "loaded": false,
+    "notes": "SR2E p.262. Utility program: deals damage to IC and hostile programs in the Matrix."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5e0ece9c44d0a544"
+}

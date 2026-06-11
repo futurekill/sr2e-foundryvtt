@@ -1,0 +1,63 @@
+{
+  "_id": "501ec03f28acd6d8",
+  "name": "Encephalon",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "grade": "standard",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "location": "headware",
+    "essenceCost": 1,
+    "rating": 1,
+    "cost": 20000,
+    "availability": "8/7 days",
+    "streetIndex": "",
+    "ratingStats": [
+      {
+        "rating": 1,
+        "essenceCost": 1,
+        "cost": 20000,
+        "availability": "8/7 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 2,
+        "essenceCost": 1.5,
+        "cost": 50000,
+        "availability": "10/14 days",
+        "streetIndex": ""
+      }
+    ],
+    "notes": "SR2E p.248. Neural co-processor boosting Intelligence and providing bonus Initiative dice. Essence varies by level."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.44",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1773947803898,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!501ec03f28acd6d8"
+}

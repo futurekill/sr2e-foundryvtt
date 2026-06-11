@@ -1,0 +1,31 @@
+{
+  "_id": "0f40393ee8116dea",
+  "name": "Physical Adept",
+  "type": "tradition",
+  "img": "icons/skills/melee/unarmed-punch.webp",
+  "system": {
+    "magicType": "physical_adept",
+    "tradition": "none",
+    "skill": "none",
+    "description": "<p>Physical Adepts channel their magical energy entirely inward, enhancing their own body and reflexes to superhuman levels. They do not cast spells or summon spirits. Their full Magic Rating is converted to Power Points, which are spent on Adept Powers.</p><p>Physical Adepts have no access to astral space.</p><p><em>SR2E p.164</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833267986,
+    "modifiedTime": 1774833267986,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!0f40393ee8116dea"
+}

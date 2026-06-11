@@ -1,0 +1,32 @@
+{
+  "_id": "7aedca376ea6e28b",
+  "name": "Luxury",
+  "type": "lifestyle",
+  "img": "icons/environment/settlement/castle.webp",
+  "system": {
+    "level": "luxury",
+    "monthlyCost": 100000,
+    "monthsPaid": 1,
+    "description": "",
+    "notes": "SR2E p.44. Penthouse, secure estate, or arcology suite."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!7aedca376ea6e28b"
+}

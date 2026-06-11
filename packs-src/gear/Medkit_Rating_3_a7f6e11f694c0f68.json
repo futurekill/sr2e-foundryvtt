@@ -1,0 +1,37 @@
+{
+  "_id": "a7f6e11f694c0f68",
+  "name": "Medkit (Rating 3)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "medical",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 300,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.250. A 2053 medkit with expert system (Biotech 3). Drug supplies, bandages, and diagnostic AI."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a7f6e11f694c0f68"
+}

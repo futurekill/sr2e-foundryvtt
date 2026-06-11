@@ -1,0 +1,52 @@
+{
+  "_id": "3f090193cc234da2",
+  "name": "Ork",
+  "type": "race",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "raceKey": "ork",
+    "attributeMods": {
+      "body": 3,
+      "quickness": 0,
+      "strength": 2,
+      "charisma": -1,
+      "intelligence": -1,
+      "willpower": 0
+    },
+    "attributeMaximums": {
+      "body": 9,
+      "quickness": 6,
+      "strength": 8,
+      "charisma": 5,
+      "intelligence": 5,
+      "willpower": 6,
+      "essence": 6,
+      "magic": 6,
+      "reaction": 6
+    },
+    "specialAbilities": [
+      "low_light_vision"
+    ],
+    "karmaCost": 0,
+    "description": "<p>Orks are large, powerfully built metahumans with exceptional physical attributes. They see in low-light conditions and are the most numerous non-human metatype in most urban centres.</p><p><strong>Racial Abilities:</strong> Low-Light Vision.</p><p><strong>Attribute Modifiers:</strong> Body +3, Strength +2, Charisma –1, Intelligence –1.</p><p><em>SR2E p.45</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.58",
+    "createdTime": 1774490378438,
+    "modifiedTime": 1774490378438,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!3f090193cc234da2"
+}

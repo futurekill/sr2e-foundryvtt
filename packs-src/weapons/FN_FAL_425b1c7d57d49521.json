@@ -1,0 +1,59 @@
+{
+  "_id": "425b1c7d57d49521",
+  "name": "FN FAL",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "9M",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": true,
+      "fa": false
+    },
+    "ammo": {
+      "current": 20,
+      "max": 20,
+      "type": "rifle"
+    },
+    "recoilComp": 2,
+    "ranges": {
+      "short": 25,
+      "medium": 100,
+      "long": 250,
+      "extreme": 500
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 900,
+    "availability": "7/72hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.233. Note: this weapon is better classified as the FN HAR. A European assault rifle common with corporate response teams. Integral laser sight and gas-vent recoil system (Rating 2)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!425b1c7d57d49521"
+}

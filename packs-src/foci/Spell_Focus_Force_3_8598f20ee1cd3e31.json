@@ -1,0 +1,34 @@
+{
+  "_id": "8598f20ee1cd3e31",
+  "name": "Spell Focus (Force 3)",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "spell",
+    "force": 3,
+    "bondingCost": 6,
+    "bonded": false,
+    "active": false,
+    "cost": 30000,
+    "notes": "SR2E p.164. Spell Focus Force 3."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!8598f20ee1cd3e31"
+}

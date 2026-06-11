@@ -1,0 +1,39 @@
+{
+  "_id": "4771d8048d316e8a",
+  "name": "Sleep",
+  "type": "spell",
+  "system": {
+    "category": "combat",
+    "subcategory": "",
+    "type": "mana",
+    "range": "los",
+    "duration": "instant",
+    "force": 1,
+    "drainCode": "((F / 2) - 1)S",
+    "target": "Willpower (R)",
+    "damageCode": "M",
+    "isAreaEffect": true,
+    "isVoluntary": false,
+    "notes": "An area-effect spell that causes Stun damage to living targets only."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "19d91418e8a36713",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!4771d8048d316e8a"
+}

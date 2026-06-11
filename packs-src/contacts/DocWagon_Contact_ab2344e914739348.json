@@ -1,0 +1,33 @@
+{
+  "_id": "ab2344e914739348",
+  "name": "DocWagon Contact",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Medical (DocWagon)",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.41. Emergency medical extraction service."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!ab2344e914739348"
+}

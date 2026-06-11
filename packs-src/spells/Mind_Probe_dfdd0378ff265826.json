@@ -1,0 +1,39 @@
+{
+  "_id": "dfdd0378ff265826",
+  "name": "Mind Probe",
+  "type": "spell",
+  "system": {
+    "category": "detection",
+    "subcategory": "",
+    "type": "mana",
+    "range": "touch",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 2)D",
+    "target": "4 (R)",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "The magician can telepathically probe a subject's mind. The target makes a Resistance Test using his Willpower Rating against a target number equal to the Force of the spell. If the target fails to offset all the successes, the number remaining determines the extent to which the magician can probe the target's mind. One success means that the magician can read surface thoughts. The magician knows what the target is thinking about at that instant, but cannot inﬂuence the thoughts or draw other information from the target. Two successes allow the magician to probe for thoughts. The magician can find out anything the subject knows consciously. He can ask any one question, and the target must answer with the truth as he knows it. Three or more successes allow the magician to enter the target's subconscious, and he can obtain the answer to two questions. Additional castings of this spell against the same target within a number of hours equal to the target's Willpower are at a +2 per attempt."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "f998bf7f58ce1843",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!dfdd0378ff265826"
+}

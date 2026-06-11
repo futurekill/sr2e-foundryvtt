@@ -1,0 +1,31 @@
+{
+  "_id": "b92d336ad1444447",
+  "name": "Shamanic Sorcerer",
+  "type": "tradition",
+  "img": "icons/magic/nature/leaf-oak-orange.webp",
+  "system": {
+    "magicType": "magical_adept",
+    "tradition": "shamanic",
+    "skill": "sorcery",
+    "description": "<p>A Shamanic Sorcerer is a Magical Adept who follows the Shamanic tradition and specialises entirely in Sorcery. They can cast spells but <strong>cannot</strong> summon Nature Spirits. They must choose a Totem and receive their Totem's bonuses and penalties for spellcasting where applicable.</p><p>Magical Adepts have <strong>no access to astral space</strong> whatsoever — neither astral perception nor astral projection.</p><p><em>SR2E p.163</em></p>"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.75",
+    "createdTime": 1774833267991,
+    "modifiedTime": 1774833267991,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!b92d336ad1444447"
+}

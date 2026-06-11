@@ -1,0 +1,59 @@
+{
+  "_id": "f1e9b06afa79c233",
+  "name": "Ares Light Fire 75",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "6L",
+    "damageType": "physical",
+    "concealability": 8,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": true,
+      "fa": false
+    },
+    "ammo": {
+      "current": 16,
+      "max": 16,
+      "type": "pistol"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 15,
+      "long": 30,
+      "extreme": 50
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 450,
+    "availability": "4/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.230. A compact light pistol, popular with corporate security for its sleek profile and 12-round magazine."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!f1e9b06afa79c233"
+}

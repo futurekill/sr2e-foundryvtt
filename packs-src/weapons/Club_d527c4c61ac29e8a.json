@@ -1,0 +1,59 @@
+{
+  "_id": "d527c4c61ac29e8a",
+  "name": "Club",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "melee",
+    "skill": "armed_combat",
+    "damageCode": "(Str+1)M",
+    "damageType": "stun",
+    "concealability": 5,
+    "reach": 1,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 0,
+      "max": 0,
+      "type": ""
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 0,
+      "medium": 0,
+      "long": 0,
+      "extreme": 0
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 20,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.228. The street fighter's standby—a length of pipe, a table leg, or a mag-bat. Delivers stun damage."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d527c4c61ac29e8a"
+}

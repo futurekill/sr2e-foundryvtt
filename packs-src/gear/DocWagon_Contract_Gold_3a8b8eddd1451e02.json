@@ -1,0 +1,37 @@
+{
+  "_id": "3a8b8eddd1451e02",
+  "name": "DocWagon Contract (Gold)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "medical",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 25000,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.250. DocWagon™ Gold: one free resuscitation/year, 50% off HTR charges, 10% extended care discount. 25,000¥/year."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!3a8b8eddd1451e02"
+}

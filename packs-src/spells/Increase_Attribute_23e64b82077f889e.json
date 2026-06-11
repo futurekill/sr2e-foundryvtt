@@ -1,0 +1,38 @@
+{
+  "_id": "23e64b82077f889e",
+  "name": "Increase [Attribute]",
+  "type": "spell",
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "system": {
+    "category": "health",
+    "type": "mana",
+    "range": "touch",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "+0(L)",
+    "target": "",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "SR2E p.184. Temporarily increases one attribute by Force."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "351afa1b9f352545",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!23e64b82077f889e"
+}

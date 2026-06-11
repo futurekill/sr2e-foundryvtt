@@ -1,0 +1,34 @@
+{
+  "_id": "db0bc429c9888d5e",
+  "name": "Sleaze (Rating 4)",
+  "type": "program",
+  "img": "icons/skills/social/theft-pickpocket.webp",
+  "system": {
+    "category": "masking",
+    "rating": 4,
+    "size": 6,
+    "multiplier": 1.5,
+    "cost": 16000,
+    "loaded": false,
+    "notes": "SR2E p.262. Persona program: Matrix sleaze capability. Rating 4."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!db0bc429c9888d5e"
+}

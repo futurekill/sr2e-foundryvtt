@@ -1,0 +1,26 @@
+{
+  "_id": "7ece0c459b17c724",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    3,
+    3
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Common reagents (fetishes, power foci rating 1) — market price.",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!d1fb558383bed413.7ece0c459b17c724"
+}

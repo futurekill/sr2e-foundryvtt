@@ -1,0 +1,32 @@
+{
+  "_id": "11ffebf05299113c",
+  "name": "Squatter",
+  "type": "lifestyle",
+  "img": "icons/environment/settlement/tent.webp",
+  "system": {
+    "level": "squatter",
+    "monthlyCost": 100,
+    "monthsPaid": 1,
+    "description": "",
+    "notes": "SR2E p.44. Condemned building or crowded public shelter."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!11ffebf05299113c"
+}

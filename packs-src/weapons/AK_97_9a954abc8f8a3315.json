@@ -1,0 +1,59 @@
+{
+  "_id": "9a954abc8f8a3315",
+  "name": "AK-97",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "9M",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": true,
+      "fa": true
+    },
+    "ammo": {
+      "current": 30,
+      "max": 30,
+      "type": "rifle"
+    },
+    "recoilComp": 2,
+    "ranges": {
+      "short": 25,
+      "medium": 100,
+      "long": 250,
+      "extreme": 500
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 800,
+    "availability": "8/72hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.233. Originally a Soviet design, now found worldwide in both assault rifle and SMG carbine forms. SA/BF/FA capable."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!9a954abc8f8a3315"
+}

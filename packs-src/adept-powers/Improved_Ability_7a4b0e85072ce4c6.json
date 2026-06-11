@@ -1,0 +1,36 @@
+{
+  "_id": "7a4b0e85072ce4c6",
+  "name": "Improved Ability",
+  "type": "adeptPower",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "pointCost": 0.5,
+    "level": 1,
+    "maxLevel": 6,
+    "description": "",
+    "attributeMods": {
+      "body": 0,
+      "quickness": 0,
+      "strength": 0,
+      "reaction": 0
+    },
+    "notes": "SR2E p.125. Extra dice for a specific skill. Cost/die: Athletic/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1. Combat skills: max extra dice ≤ current skill rating."
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "sr2e",
+    "systemVersion": "0.3.79",
+    "coreVersion": "13.351",
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!7a4b0e85072ce4c6"
+}

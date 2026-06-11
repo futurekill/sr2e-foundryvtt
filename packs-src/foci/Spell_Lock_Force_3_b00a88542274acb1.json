@@ -1,0 +1,34 @@
+{
+  "_id": "b00a88542274acb1",
+  "name": "Spell Lock (Force 3)",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "spell_lock",
+    "force": 3,
+    "bondingCost": 3,
+    "bonded": false,
+    "active": false,
+    "cost": 15000,
+    "notes": "SR2E p.164. Spell Lock Force 3."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!b00a88542274acb1"
+}

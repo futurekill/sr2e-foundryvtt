@@ -1,0 +1,26 @@
+{
+  "_id": "62608ecce9f7669d",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    5,
+    5
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Exotic material — unique item, GM discretion; may require trade or quest.",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!d1fb558383bed413.62608ecce9f7669d"
+}

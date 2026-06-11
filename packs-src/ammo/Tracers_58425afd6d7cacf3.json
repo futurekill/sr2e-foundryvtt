@@ -1,0 +1,33 @@
+{
+  "_id": "58425afd6d7cacf3",
+  "name": "Tracers",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "tracer",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "cost": 25,
+    "notes": "SR2E p.241. Phosphorus-tipped rounds that leave a glowing trail. Useful for spotting and intimidation."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!58425afd6d7cacf3"
+}

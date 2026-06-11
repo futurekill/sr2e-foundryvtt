@@ -1,0 +1,37 @@
+{
+  "_id": "207553827d18c2e9",
+  "name": "Armor Jacket",
+  "type": "armor",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "ballistic": 5,
+    "impact": 3,
+    "concealability": 8,
+    "weight": 0,
+    "cost": 900,
+    "availability": "3/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "isLayered": false,
+    "notes": "SR2E p.242. Available from chic street styling to macho militarism. Substantial protection in a practical package."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!207553827d18c2e9"
+}

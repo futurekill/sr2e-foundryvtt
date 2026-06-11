@@ -1,0 +1,26 @@
+{
+  "_id": "14f3eb58d066790f",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    3,
+    3
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Squatter settlement — friendly if approached peacefully, info possible",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!c57bdeab331af5cf.14f3eb58d066790f"
+}

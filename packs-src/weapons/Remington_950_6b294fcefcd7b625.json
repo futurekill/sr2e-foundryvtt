@@ -1,0 +1,59 @@
+{
+  "_id": "6b294fcefcd7b625",
+  "name": "Remington 950",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "8S",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": true,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 5,
+      "max": 5,
+      "type": "rifle"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 50,
+      "medium": 250,
+      "long": 500,
+      "extreme": 1000
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 600,
+    "availability": "6/72hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!6b294fcefcd7b625"
+}

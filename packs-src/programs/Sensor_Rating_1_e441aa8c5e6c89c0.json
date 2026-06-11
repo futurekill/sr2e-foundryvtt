@@ -1,0 +1,34 @@
+{
+  "_id": "e441aa8c5e6c89c0",
+  "name": "Sensor (Rating 1)",
+  "type": "program",
+  "img": "icons/tools/scribal/magnifying-glass.webp",
+  "system": {
+    "category": "sensor",
+    "rating": 1,
+    "size": 1,
+    "multiplier": 1,
+    "cost": 800,
+    "loaded": false,
+    "notes": "SR2E p.262. Persona program: detection and scanning in the Matrix. Alerts you to IC and system features."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e441aa8c5e6c89c0"
+}

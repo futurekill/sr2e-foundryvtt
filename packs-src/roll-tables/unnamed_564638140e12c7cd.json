@@ -1,0 +1,26 @@
+{
+  "_id": "564638140e12c7cd",
+  "type": "text",
+  "img": null,
+  "weight": 1,
+  "range": [
+    1,
+    1
+  ],
+  "drawn": false,
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "description": "Lone Star Patrol (2d6 officers, routine) — TN 4 test to avoid questioning",
+  "name": "",
+  "flags": {},
+  "_key": "!tables.results!d8041e7bb8700204.564638140e12c7cd"
+}

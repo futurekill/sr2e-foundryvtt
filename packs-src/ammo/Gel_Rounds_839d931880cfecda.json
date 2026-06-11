@@ -1,0 +1,33 @@
+{
+  "_id": "839d931880cfecda",
+  "name": "Gel Rounds",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "gel",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": 4,
+    "cost": 30,
+    "notes": "SR2E p.241. Hard-gel non-lethal rounds for riot control. Impact armor is very effective, ballistic armor is partially effective."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!839d931880cfecda"
+}

@@ -1,0 +1,37 @@
+{
+  "_id": "5587a28d28518a48",
+  "name": "Smartgun System (Internal)",
+  "type": "gear",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "category": "accessories",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 300,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "SR2E p.241. Built-in smartgun feedback circuit. Works with palm induction links and smartlink implants for +2 dice."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5587a28d28518a48"
+}

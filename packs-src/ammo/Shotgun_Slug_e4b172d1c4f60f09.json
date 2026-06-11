@@ -1,0 +1,33 @@
+{
+  "_id": "e4b172d1c4f60f09",
+  "name": "Shotgun Slug",
+  "type": "ammo",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "ammoType": "slug",
+    "quantity": 10,
+    "damageModifier": -2,
+    "armorModifier": 0,
+    "cost": 15,
+    "notes": "SR2E p.241. Single solid slug for maximum penetration and range with a shotgun."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e4b172d1c4f60f09"
+}

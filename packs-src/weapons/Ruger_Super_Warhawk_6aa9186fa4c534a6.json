@@ -1,0 +1,59 @@
+{
+  "_id": "6aa9186fa4c534a6",
+  "name": "Ruger Super Warhawk",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "9S",
+    "damageType": "physical",
+    "concealability": 4,
+    "reach": 0,
+    "firingModes": {
+      "ss": true,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 6,
+      "max": 6,
+      "type": "pistol"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 20,
+      "long": 40,
+      "extreme": 60
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 300,
+    "availability": "3/48hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.231. A heavy revolver that accepts all standard accessories except silencers. Powerful and extremely reliable."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!6aa9186fa4c534a6"
+}

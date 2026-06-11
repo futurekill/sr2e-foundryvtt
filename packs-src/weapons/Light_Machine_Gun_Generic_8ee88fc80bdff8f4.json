@@ -1,0 +1,59 @@
+{
+  "_id": "8ee88fc80bdff8f4",
+  "name": "Light Machine Gun (Generic)",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "heavy_weapons",
+    "damageCode": "8S",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": true,
+      "fa": true
+    },
+    "ammo": {
+      "current": 100,
+      "max": 100,
+      "type": "belt"
+    },
+    "recoilComp": 4,
+    "ranges": {
+      "short": 15,
+      "medium": 80,
+      "long": 200,
+      "extreme": 400
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 3000,
+    "availability": "12/7 days",
+    "legality": "Restricted",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.234. Belt-fed light machine gun for squad support. BF/FA capable."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!8ee88fc80bdff8f4"
+}

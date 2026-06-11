@@ -1,0 +1,59 @@
+{
+  "_id": "8c0e1af0d5c3e6e3",
+  "name": "Ingram Smartgun",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "7M",
+    "damageType": "physical",
+    "concealability": 3,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": true,
+      "fa": true
+    },
+    "ammo": {
+      "current": 32,
+      "max": 32,
+      "type": "smg"
+    },
+    "recoilComp": 2,
+    "ranges": {
+      "short": 10,
+      "medium": 40,
+      "long": 80,
+      "extreme": 150
+    },
+    "strengthMin": 0,
+    "weight": 0,
+    "cost": 800,
+    "availability": "6/72hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "accessories": [],
+    "notes": "SR2E p.232. A compact smartgun-ready SMG. Integral smartgun system adds +2 dice when used with a smartlink."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!8c0e1af0d5c3e6e3"
+}

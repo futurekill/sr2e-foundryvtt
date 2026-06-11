@@ -1,0 +1,34 @@
+{
+  "_id": "dd14e1a03ea1f037",
+  "name": "Spell Lock (Force 5)",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "spell_lock",
+    "force": 5,
+    "bondingCost": 5,
+    "bonded": false,
+    "active": false,
+    "cost": 25000,
+    "notes": "SR2E p.164. Spell Lock Force 5."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!dd14e1a03ea1f037"
+}

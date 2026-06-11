@@ -1,0 +1,39 @@
+{
+  "_id": "4682c868826f897f",
+  "name": "Mana Barrier",
+  "type": "spell",
+  "system": {
+    "category": "manipulation",
+    "subcategory": "transformation",
+    "type": "mana",
+    "range": "limited",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)S",
+    "target": "6",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "Mana barriers do not stop physical weapons, but they do block movement by living beings. Unliving things (like bullets) pass right through. Passengers inside closed vehicles are not affected by a mana barrier spell, but it would knock the rider off a motorcycle. A mana barrier spell also acts as a defense against spells. Add one-half the spell's Force (the barrier's Rating) to the target numbers of all magicians casting spells across the barrier. It is also an astral barrier."
+  },
+  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "effects": [],
+  "folder": "26eccbc4cdef1e32",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": null,
+    "systemVersion": null,
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!items!4682c868826f897f"
+}
