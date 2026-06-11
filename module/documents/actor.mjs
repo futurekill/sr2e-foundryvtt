@@ -38,16 +38,18 @@ export function renderSuccessTestCard(state) {
   }
   diceHtml += "</div>";
 
+  const _l = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize(key);
+
   // Result banner
   let banner = "";
-  if (glitch)                   banner = '<span class="sr2e-critical-glitch">CRITICAL GLITCH!</span>';
-  else if (state.glitchAvoided) banner = '<span class="sr2e-failure">Disaster averted — simple failure</span>';
-  else if (successes === 0)     banner = '<span class="sr2e-failure">FAILURE</span>';
+  if (glitch)                   banner = `<span class="sr2e-critical-glitch">${_l("SR2E.Chat.CriticalGlitch")}</span>`;
+  else if (state.glitchAvoided) banner = `<span class="sr2e-failure">${_l("SR2E.Chat.DisasterAverted")}</span>`;
+  else if (successes === 0)     banner = `<span class="sr2e-failure">${_l("SR2E.Chat.Failure")}</span>`;
 
   const boughtNote = state.boughtSuccesses > 0
-    ? ` <em class="sr2e-karma-note">(${state.boughtSuccesses} bought with Karma)</em>` : "";
+    ? ` <em class="sr2e-karma-note">${_l("SR2E.Chat.BoughtSuccesses", { count: state.boughtSuccesses })}</em>` : "";
   const rerollNote = state.rerolls > 0
-    ? ` <em class="sr2e-karma-note">(${state.rerolls} Karma reroll${state.rerolls === 1 ? "" : "s"})</em>` : "";
+    ? ` <em class="sr2e-karma-note">${_l("SR2E.Chat.KarmaRerolls", { count: state.rerolls })}</em>` : "";
 
   // Karma Pool action buttons. After an avoided glitch the test is closed.
   const buttons = [];
@@ -55,18 +57,18 @@ export function renderSuccessTestCard(state) {
     if (glitch) {
       buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="avoidGlitch"
         title="SR2E p.190: pay 1 Karma Pool to turn an all-1s disaster into a simple failure. No reroll allowed.">
-        ☘ Avoid Disaster (1 Karma)</button>`);
+        ${_l("SR2E.Chat.AvoidDisaster")}</button>`);
     } else {
       if (failures > 0) {
         const cost = (state.rerolls ?? 0) + 1;
         buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="reroll"
           title="SR2E p.190: reroll all ${failures} failed dice. Cost escalates by 1 each reroll on the same test.">
-          ♻ Reroll Failures (${cost} Karma)</button>`);
+          ${_l("SR2E.Chat.RerollFailures", { cost })}</button>`);
       }
       if (natural >= 1) {
         buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="buySuccess"
           title="SR2E p.190: buy a raw success for 1 Karma. Requires a natural success. This Karma is spent PERMANENTLY.">
-          ★ Buy Success (1 Karma, permanent)</button>`);
+          ${_l("SR2E.Chat.BuySuccess")}</button>`);
       }
     }
   }
@@ -77,12 +79,12 @@ export function renderSuccessTestCard(state) {
     <div class="sr2e-roll-message">
       <h3 class="sr2e-roll-header">${state.label}</h3>
       <div class="sr2e-roll-info">
-        <span class="sr2e-roll-pool">Dice: ${state.diceNote}</span>
-        <span class="sr2e-roll-tn">TN: ${state.tnNote}</span>
+        <span class="sr2e-roll-pool">${_l("SR2E.Chat.Dice")}: ${state.diceNote}</span>
+        <span class="sr2e-roll-tn">${_l("SR2E.Chat.TN")}: ${state.tnNote}</span>
       </div>
       ${diceHtml}
       <div class="sr2e-roll-result">
-        <strong>Successes: ${successes}</strong>${boughtNote}${rerollNote}
+        <strong>${_l("SR2E.Chat.Successes")}: ${successes}</strong>${boughtNote}${rerollNote}
         ${banner}
       </div>
       ${buttonHtml}
@@ -438,7 +440,7 @@ export class SR2EActor extends Actor {
 
     let rollResult = null;
     const action   = await foundry.applications.api.DialogV2.wait({
-      window: { title: `Resist Damage: ${level} (Power ${power})` },
+      window: { title: game.i18n.format("SR2E.Dialog.ResistTitle", { level, power }) },
       rejectClose: false,
       content: `<form>
         <div style="font-size:11px;background:rgba(0,0,0,0.15);border-radius:4px;
@@ -470,7 +472,7 @@ export class SR2EActor extends Actor {
       buttons: [
         {
           action: "roll",
-          label: "Resist",
+          label: "SR2E.Dialog.Resist",
           default: true,
           callback: (event, button) => {
             const raw = parseInt(button.form.elements.pool_combat?.value) || 0;
@@ -479,7 +481,7 @@ export class SR2EActor extends Actor {
             };
           }
         },
-        { action: "cancel", label: "Cancel" }
+        { action: "cancel", label: "SR2E.Dialog.Cancel" }
       ]
     });
 

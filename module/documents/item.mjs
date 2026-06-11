@@ -357,7 +357,7 @@ export class SR2EItem extends Item {
                   data-armor-type="${armorType}"
                   data-damage-type="physical"
                   title="Defender rolls Body vs. TN = Power − ${armorLabel} Armor (SR2E p.116)">
-            🛡 Resist Damage
+            ${game.i18n.localize("SR2E.Chat.ResistDamage")}
           </button>
         </div>`
       });

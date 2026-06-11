@@ -99,8 +99,8 @@ function karmaDiceSection(actor, baseDice) {
   return `
     <hr style="margin:8px 0 6px;">
     <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
-      <label style="font-size:12px;flex:1;padding-top:3px;">Karma dice
-        <span style="color:#888;font-size:10px;">(1 Karma each, max ${cap} — pool: ${avail})</span>
+      <label style="font-size:12px;flex:1;padding-top:3px;">${game.i18n.localize("SR2E.Dialog.KarmaDice")}
+        <span style="color:#888;font-size:10px;">${game.i18n.format("SR2E.Dialog.KarmaDiceHint", { cap, avail })}</span>
       </label>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <input type="number" name="karma_dice" value="0" min="0" max="${cap}"
@@ -160,7 +160,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
   // Each pool input carries data-pool-key / data-pool-cap for the validation hook.
   const poolHTML = availablePools.length ? `
     <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
+    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
     ${capNote}
     ${availablePools.map(p => `
     <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
@@ -195,12 +195,12 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
   // NOT the callback's return value. Capture roll data as a side effect, then check action.
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: "Roll Options" },
+    window: { title: game.i18n.localize("SR2E.Dialog.RollOptions") },
     rejectClose: false,
     content: `
       <form>
         <div class="form-group">
-          <label>Target Number:</label>
+          <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
           <input type="number" name="tn" value="4" min="2" max="30" autofocus>
         </div>
         ${poolHTML}
@@ -210,7 +210,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
     buttons: [
       {
         action: "roll",
-        label: "Roll",
+        label: "SR2E.Dialog.Roll",
         default: true,
         callback: (event, button, dialog) => {
           const tn = parseInt(button.form.elements.tn.value);
@@ -228,7 +228,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
       },
       {
         action: "cancel",
-        label: "Cancel"
+        label: "SR2E.Dialog.Cancel"
       }
     ]
   });
@@ -381,7 +381,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   const poolHTML = availablePools.length ? `
     <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional — reduces pool after roll)</p>
+    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
     ${availablePools.map(p => `
     <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
       <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
@@ -685,7 +685,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: `Attack: ${weapon.name}` },
+    window: { title: game.i18n.format("SR2E.Dialog.AttackTitle", { name: weapon.name }) },
     rejectClose: false,
     content: `<form>
       ${topInputsHTML}
@@ -707,7 +707,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     buttons: [
       {
         action: "roll",
-        label: "Attack",
+        label: "SR2E.Dialog.Attack",
         default: true,
         callback: (event, button) => {
           const f = button.form.elements;
@@ -733,7 +733,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           };
         }
       },
-      { action: "cancel", label: "Cancel" }
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
     ]
   });
 
@@ -918,11 +918,11 @@ async function promptSpellOptions(actor, spell) {
 
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: `Cast: ${spell.name}` },
+    window: { title: game.i18n.format("SR2E.Dialog.CastTitle", { name: spell.name }) },
     rejectClose: false,
     content: `<form>
       <div class="form-group">
-        <label>Force <span style="color:#888;font-size:10px;">(1–${magicAttr})</span>:</label>
+        <label>${game.i18n.localize("SR2E.Dialog.Force")} <span style="color:#888;font-size:10px;">(1–${magicAttr})</span>:</label>
         <input type="number" name="force" id="sr2e-cast-force" value="1" min="1" max="${magicAttr}"
                autofocus>
       </div>
@@ -933,7 +933,7 @@ async function promptSpellOptions(actor, spell) {
         <span style="color:#666;font-size:10px;">${drainFormula}</span>
       </div>
       <div class="form-group">
-        <label>Target Number:</label>
+        <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
         <input type="number" name="tn" value="6" min="2" max="30">
       </div>
       ${poolSection}
@@ -942,7 +942,7 @@ async function promptSpellOptions(actor, spell) {
     buttons: [
       {
         action: "roll",
-        label: "Cast",
+        label: "SR2E.Dialog.Cast",
         default: true,
         callback: (event, button) => {
           const force = Math.max(1, Math.min(parseInt(button.form.elements.force.value) || 1, magicAttr));
@@ -963,7 +963,7 @@ async function promptSpellOptions(actor, spell) {
           };
         }
       },
-      { action: "cancel", label: "Cancel" }
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
     ]
   });
 
