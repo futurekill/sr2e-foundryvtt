@@ -210,18 +210,28 @@ export class CharacterData extends SR2EDataModel {
 
     // Calculate Reaction = (Quickness + Intelligence) / 2, plus cyberware mods.
     // reaction.mod already holds stored + Active Effect contributions.
-    this.reaction.mod = (this.reaction.mod ?? 0) + mods.reaction;
+    //
+    // While JACKED IN (p.85): only the Vehicle Control Rig's bonuses apply —
+    // Reaction = natural (Q+I)/2 plus 2 per rig level, Initiative dice =
+    // 1 + rig level. Other Reaction/Initiative enhancers (wired reflexes,
+    // spells) are suppressed; injury modifiers still apply at roll time.
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
+    if (this.rigging && this.vehicleControlRig > 0) {
+      this.reaction.mod = 2 * this.vehicleControlRig;
+      this.initiative.dice = 1 + this.vehicleControlRig;
+    } else {
+      this.reaction.mod = (this.reaction.mod ?? 0) + mods.reaction;
+      // initiative.mod is the Active-Effect hook for EXTRA INITIATIVE DICE
+      // (e.g. an Increase Reflexes spell effect adds to system.initiative.mod)
+      this.initiative.dice = Math.max(1, 1 + mods.initiativeDice + (this.initiative.mod ?? 0));
+    }
     this.reaction.value = Math.max(0, this.reaction.base + this.reaction.mod);
 
     // Initiative base = Adjusted Reaction. The wound Initiative Modifier is applied
     // to Reaction *before* Initiative dice are rolled (SR2E Damage Modifiers Table,
     // p.112) — it reduces the base score at roll time, not the number of dice.
-    // initiative.mod is the Active-Effect hook for EXTRA INITIATIVE DICE
-    // (e.g. an Increase Reflexes spell effect adds to system.initiative.mod).
     this.initiative.base = this.reaction.value;
     this.initiative.value = this.reaction.value;
-    this.initiative.dice = Math.max(1, 1 + mods.initiativeDice + (this.initiative.mod ?? 0));
 
     // Calculate Essence-based Magic
     if (this.magic.type !== "none") {
@@ -369,13 +379,13 @@ export class CharacterData extends SR2EDataModel {
       applyPool(this.dicePools.magic, magicPool);
     }
 
-    // Control Pool = Reaction (modified only by vehicle control rig)
-    // (SR2E p.84: "equal to the character's Reaction, modified only by a VCR")
+    // Control Pool = Reaction modified ONLY by the vehicle control rig
+    // (SR2E p.84: "Reaction bonuses from other sources are of no help") —
+    // natural (Q+I)/2 plus 2 per rig level, regardless of other enhancers
+    // or whether the rigger is currently jacked in.
     if (this.vehicleControlRig > 0) {
-      // Reaction already includes any VCR modifier from cyberware attributeMods.
-      // The control pool is the Reaction value (final, post-cyberware) for riggers.
-      const controlPool = this.reaction.value;
-      applyPool(this.dicePools.control, controlPool);
+      const naturalReaction = Math.floor((this.quickness.value + this.intelligence.value) / 2);
+      applyPool(this.dicePools.control, naturalReaction + 2 * this.vehicleControlRig);
     }
 
     // Hacking Pool = Computer Skill + Reaction (SR2E p.84: "equal to his or her

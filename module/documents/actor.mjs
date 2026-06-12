@@ -306,29 +306,27 @@ export class SR2EActor extends Actor {
     const woundPenalty = system.woundPenalty ?? 0;
     const notes = [];
 
+    // While rigging, the derived Reaction/initiative dice already reflect
+    // VCR-only bonuses (CharacterData.prepareDerivedData); the roll adds the
+    // worst controlled vehicle's damage Initiative modifier (p.106).
     const vcr = system.vehicleControlRig ?? 0;
-    if (system.rigging && vcr > 0) {
-      // Natural Reaction (reaction.base excludes reaction-enhancer mods)
-      const natural = system.reaction?.base ?? 0;
-      // Worst damage Initiative modifier among linked (controlled) vehicles
-      let vehicleMod = 0;
+    const rigged = !!(system.rigging && vcr > 0);
+    const reaction = system.reaction?.value ?? 0;
+
+    let vehicleMod = 0;
+    if (rigged) {
       for (const uuid of system.linkedVehicles ?? []) {
         const v = globalThis.fromUuidSync?.(uuid);
         const mod = v?.system?.damageInitMod ?? 0;
         if (mod < vehicleMod) vehicleMod = mod;
       }
-      const base = Math.max(0, natural + 2 * vcr - woundPenalty + vehicleMod);
-      notes.push(`Rigged (VCR ${vcr}): Reaction ${natural} +${2 * vcr}`);
-      if (woundPenalty) notes.push(`−${woundPenalty} wound`);
-      if (vehicleMod)   notes.push(`${vehicleMod} vehicle damage`);
-      return { base, dice: 1 + vcr, rigged: true, notes };
     }
 
-    const reaction = system.reaction?.value ?? 0;
-    const base = Math.max(0, reaction - woundPenalty);
-    if (woundPenalty) notes.push(`Reaction ${reaction} −${woundPenalty} wound`);
-    else notes.push(`Reaction ${reaction}`);
-    return { base, dice: Math.max(1, system.initiative?.dice ?? 1), rigged: false, notes };
+    const base = Math.max(0, reaction - woundPenalty + vehicleMod);
+    notes.push(rigged ? `Rigged (VCR ${vcr}): Reaction ${reaction}` : `Reaction ${reaction}`);
+    if (woundPenalty) notes.push(`−${woundPenalty} wound`);
+    if (vehicleMod)   notes.push(`${vehicleMod} vehicle damage`);
+    return { base, dice: Math.max(1, system.initiative?.dice ?? 1), rigged, notes };
   }
 
   /**
