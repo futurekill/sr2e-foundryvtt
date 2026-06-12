@@ -53,6 +53,14 @@ Hooks.once("init", async () => {
   // the actor directly (when transfer = true) without copying at creation.
   CONFIG.ActiveEffect.legacyTransferral = false;
 
+  // Wound-level token markers, auto-applied from the condition monitors
+  // (see the updateActor hook below)
+  CONFIG.statusEffects.push(
+    { id: "sr2e-wound-light",    name: "Light Wound",    img: "icons/svg/blood.svg" },
+    { id: "sr2e-wound-moderate", name: "Moderate Wound", img: "icons/svg/downgrade.svg" },
+    { id: "sr2e-wound-serious",  name: "Serious Wound",  img: "icons/svg/degen.svg" }
+  );
+
   // Register TypeDataModels for Actor types
   CONFIG.Actor.dataModels = {
     character: dataModels.CharacterData,
@@ -319,6 +327,64 @@ async function _resetCombatRecoil(combat) {
 
 Hooks.on("combatTurn",  (combat) => _resetCombatRecoil(combat));
 Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
+
+/* -------------------------------------------- */
+/*  Wound Status Markers                        */
+/* -------------------------------------------- */
+
+const WOUND_STATUS_IDS = {
+  Light:    "sr2e-wound-light",
+  Moderate: "sr2e-wound-moderate",
+  Serious:  "sr2e-wound-serious"
+};
+
+/**
+ * Mirror an actor's wound level onto token status markers.
+ * Characters/NPCs: Light/Moderate/Serious markers; "unconscious" when the
+ * Stun monitor fills; "dead" overlay when the Physical monitor fills
+ * (Deadly = unconscious and near death, SR2E p.112). Vehicles use the same
+ * markers for their damage level, with "dead" when Destroyed.
+ * Runs on the active GM's client only, so it works regardless of who
+ * applied the damage.
+ */
+async function _syncWoundStatuses(actor) {
+  let markerLevel = null;   // which of the three wound markers to show
+  let unconscious = false;
+  let dead = false;
+
+  if (actor.type === "character" || actor.type === "npc") {
+    const level = actor.system.woundLevel;
+    markerLevel = WOUND_STATUS_IDS[level] ?? null;
+    unconscious = (actor.system.conditionMonitor?.stun?.value ?? 0) >= 10;
+    dead        = (actor.system.conditionMonitor?.physical?.value ?? 0) >= 10;
+    if (dead) markerLevel = null;
+  } else if (actor.type === "vehicle") {
+    const level = actor.system.damageLevel;
+    markerLevel = WOUND_STATUS_IDS[level] ?? null;
+    dead = level === "Destroyed";
+  } else {
+    return;
+  }
+
+  for (const id of Object.values(WOUND_STATUS_IDS)) {
+    const active = id === markerLevel;
+    if (actor.statuses.has(id) !== active) {
+      await actor.toggleStatusEffect(id, { active });
+    }
+  }
+  if (actor.statuses.has("unconscious") !== unconscious) {
+    await actor.toggleStatusEffect("unconscious", { active: unconscious });
+  }
+  if (actor.statuses.has("dead") !== dead) {
+    await actor.toggleStatusEffect("dead", { active: dead, overlay: true });
+  }
+}
+
+Hooks.on("updateActor", (actor, changes) => {
+  if (!game.users.activeGM?.isSelf) return;
+  if (!changes.system?.conditionMonitor) return;
+  _syncWoundStatuses(actor);
+});
 
 /* -------------------------------------------- */
 /*  Chat Message Hooks                          */
