@@ -14,6 +14,7 @@ import * as dataModels from "./data/_index.mjs";
 // Document Classes
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
+import { SR2ECombat } from "./documents/combat.mjs";
 
 // Sheets
 import {
@@ -44,6 +45,9 @@ Hooks.once("init", async () => {
   // SR2ECombatant ensures getInitiativeRoll() on the Actor is always called
   // from the combat tracker, so GM-side initiative rolls produce Reaction + Nd6.
   CONFIG.Combatant.documentClass = SR2ECombatant;
+  // SR2ECombat implements multiple actions: each turn costs 10 Initiative,
+  // and a new Combat Turn re-rolls everyone (SR2E p.78-79).
+  CONFIG.Combat.documentClass = SR2ECombat;
 
   // Register TypeDataModels for Actor types
   CONFIG.Actor.dataModels = {

@@ -37,7 +37,11 @@ Tag `vX.Y.Z` after bumping `system.json` version; GitHub Actions packages
 the zip (dev files excluded in `release.yml`).
 
 ## Known deferred work
-Initiative passes (act again at −10), sustained spells / Active Effects,
-defender-side opposed melee tests, conjuring, Matrix subsystem, ramming and
-escape-test automation, karma advancement UI, full i18n of TN-breakdown
-strings, migration framework before schema renames.
+Sustained spells / Active Effects, defender-side opposed melee tests,
+conjuring, Matrix subsystem, ramming and escape-test automation, karma
+advancement UI, full i18n of TN-breakdown strings, migration framework
+before schema renames.
+
+Initiative passes are implemented in `module/documents/combat.mjs`
+(SR2ECombat): "next turn" costs the current actor 10 Initiative and jumps
+to the highest remaining total; new rounds re-roll everyone.
