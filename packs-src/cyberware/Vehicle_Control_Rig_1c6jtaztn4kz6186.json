@@ -20,7 +20,7 @@
       "intelligence": 0,
       "willpower": 0,
       "reaction": 0,
-      "initiativeDice": 1
+      "initiativeDice": 0
     },
     "ratingStats": [
       {
@@ -45,7 +45,8 @@
         "streetIndex": "1.5"
       }
     ],
-    "notes": "SR2E p.249. MST interfaces for vehicle rigging. Each level: +2 Reaction when rigging, +1D6 Initiative die. Requires vehicle control gear and datajack."
+    "notes": "SR2E p.249. MST interfaces for vehicle rigging. Each level: +2 Reaction and +1d6 Initiative, applied ONLY while jacked in (use the Jacked In toggle on the Vehicles tab). Rating sets the character VCR level automatically when installed.",
+    "isVcr": true
   },
   "effects": [],
   "flags": {},

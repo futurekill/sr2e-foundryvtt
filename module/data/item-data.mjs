@@ -282,6 +282,11 @@ export class CyberwareData extends SR2EDataModel {
       // Combat TN modifier — negative values reduce the attack TN (e.g. −1 for Smartlink).
       // Applied only when the target weapon has smartgunCompatible = true.
       combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
+      // Vehicle Control Rig: when true, this item's rating sets the character's
+      // VCR level (Control Pool, rigging bonuses). The VCR's Reaction/Initiative
+      // bonuses apply only while jacked in (SR2E p.85) — do NOT also give the
+      // item attributeMods for them.
+      isVcr: new fields.BooleanField({ initial: false }),
       // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
       // are derived from the row matching the current rating (prepareDerivedData).
       // For non-tiered items, leave this empty and fill the flat fields directly.

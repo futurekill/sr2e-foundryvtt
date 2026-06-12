@@ -276,6 +276,11 @@
     <input type="number" name="system.combatTnMod" value="{{system.combatTnMod}}" />
     <span class="hint">(e.g. −1 for Smartlink; applies to compatible weapons only)</span>
   </div>
+  <div class="form-group">
+    <label>Vehicle Control Rig:</label>
+    <input type="checkbox" name="system.isVcr" {{checked system.isVcr}} />
+    <span class="hint">(when installed, this item's Rating sets the character's VCR level)</span>
+  </div>
 
   {{!-- Per-rating stats table --}}
   {{#if hasRatingTable}}

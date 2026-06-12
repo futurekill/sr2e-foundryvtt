@@ -194,6 +194,11 @@ export class CharacterData extends SR2EDataModel {
     // then cyberware/adept modifiers applied on top)
     this._calculateAttributeValues(mods);
 
+    // Installed VCR cyberware sets the rig level automatically; the manual
+    // field on the vehicles tab acts as a floor for actors without the item.
+    // Must run before _calculateDicePools (Control Pool requires a VCR).
+    this.vehicleControlRig = Math.max(this.vehicleControlRig, mods.vcrLevel);
+
     // Essence loss from installed cyberware (toggleable via the autoEssence setting).
     // try/catch: settings are registered in the init hook, but data prep can be
     // triggered in contexts where the setting isn't registered yet.
@@ -255,7 +260,7 @@ export class CharacterData extends SR2EDataModel {
     const mods = {
       body: 0, quickness: 0, strength: 0,
       charisma: 0, intelligence: 0, willpower: 0,
-      reaction: 0, initiativeDice: 0, essenceLoss: 0
+      reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0
     };
     for (const item of this.parent?.items ?? []) {
       if (item.type === "cyberware" && item.system.installed) {
@@ -263,6 +268,10 @@ export class CharacterData extends SR2EDataModel {
           if (key in mods) mods[key] += val;
         }
         mods.essenceLoss += item.system.actualEssenceCost;
+        // Installed VCR cyberware sets the character's rig level (its rating)
+        if (item.system.isVcr) {
+          mods.vcrLevel = Math.max(mods.vcrLevel, item.system.rating || 1);
+        }
       }
       if (item.type === "adept_power") {
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
