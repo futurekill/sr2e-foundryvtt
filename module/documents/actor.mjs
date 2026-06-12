@@ -2,6 +2,7 @@
  * Extended Actor document for the Shadowrun 2E system.
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
+import { evaluateDamageCode, renderMeleeAttackCard } from "./item.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -415,6 +416,198 @@ export class SR2EActor extends Actor {
       poolDice: options.poolDice,
       karmaDice: options.karmaDice
     });
+  }
+
+  /**
+   * Defend against a melee attack card (SR2E p.100–101, the Defender's Test).
+   *
+   * Opens a dialog to choose the defending weapon (or Unarmed, (Str)M Stun),
+   * reach/situational modifiers, Combat Pool and karma dice, then rolls the
+   * defender's Combat Skill vs TN 4 + modifiers and resolves the outcome:
+   * most successes hits the other combatant (ties favour the attacker), and
+   * the winner stages their weapon's damage up one level per 2 net successes.
+   *
+   * @param {ChatMessage} message - The melee attack card.
+   */
+  async rollMeleeDefense(message) {
+    const state = message.getFlag("sr2e", "melee");
+    if (!state || state.resolved) return;
+    if (this.uuid === state.attackerUuid) {
+      return ui.notifications.warn("The attacker cannot defend against their own attack.");
+    }
+
+    // ── Defending weapon choices ──────────────────────────────────────────────
+    const meleeWeapons = this.items.filter(
+      i => i.type === "weapon" && ["melee", "throwing"].includes(i.system.weaponType)
+    );
+    const weaponOptions = [
+      `<option value="">Unarmed — (Str)M Stun</option>`,
+      ...meleeWeapons.map(w =>
+        `<option value="${w.id}">${foundry.utils.escapeHTML(w.name)} — ${foundry.utils.escapeHTML(w.system.damageCode)}</option>`)
+    ].join("");
+
+    const combatAvail = this.system.dicePools?.combat?.value ?? 0;
+    const karmaAvail  = this.system.karma?.pool ?? 0;
+
+    let choice = null;
+    const action = await foundry.applications.api.DialogV2.wait({
+      window: { title: `Defend: ${state.attackerName}'s ${state.weaponName} (${state.successes} successes)` },
+      rejectClose: false,
+      content: `<form>
+        <div class="form-group" style="margin:2px 0;">
+          <label>Defend with:</label>
+          <select name="weapon">${weaponOptions}</select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+          <div class="form-group" style="margin:2px 0;">
+            <label>Reach Mod:</label>
+            <input type="number" name="reachMod" value="0" style="width:52px;text-align:center;"
+                   title="Your weapon longer: −1/point. Shorter: +1/point. (SR2E p.101)">
+          </div>
+          <div class="form-group" style="margin:2px 0;">
+            <label>Other Mod:</label>
+            <input type="number" name="otherMod" value="0" style="width:52px;text-align:center;"
+                   title="Friends in melee −1 each (max −4), foe's friends +1 each, superior position −1, visibility, etc.">
+          </div>
+        </div>
+        ${combatAvail > 0 ? `
+        <div class="form-group" style="margin:3px 0;">
+          <label style="font-size:12px;">Combat Pool
+            <span style="color:#888;font-size:10px;">(${combatAvail} left)</span>
+          </label>
+          <input type="number" name="pool_combat" value="0" min="0" max="${combatAvail}"
+                 style="width:52px;text-align:center;">
+        </div>` : ""}
+        ${karmaAvail > 0 ? `
+        <div class="form-group" style="margin:3px 0;">
+          <label style="font-size:12px;">Karma dice
+            <span style="color:#888;font-size:10px;">(1 Karma each — pool: ${karmaAvail})</span>
+          </label>
+          <input type="number" name="karma_dice" value="0" min="0" max="${karmaAvail}"
+                 style="width:52px;text-align:center;">
+        </div>` : ""}
+        <p style="margin:4px 0 0;font-size:10px;color:#888;">
+          Base TN 4 + modifiers. Most successes hits — if you out-roll the
+          attacker, YOU strike THEM (SR2E p.100).</p>
+      </form>`,
+      buttons: [
+        {
+          action: "roll", label: "SR2E.Dialog.Roll", default: true,
+          callback: (event, button) => {
+            const f = button.form.elements;
+            choice = {
+              weaponId:  f.weapon?.value || null,
+              reachMod:  parseInt(f.reachMod?.value) || 0,
+              otherMod:  parseInt(f.otherMod?.value) || 0,
+              poolDice:  Math.max(0, Math.min(parseInt(f.pool_combat?.value) || 0, combatAvail)),
+              karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+            };
+          }
+        },
+        { action: "cancel", label: "SR2E.Dialog.Cancel" }
+      ]
+    });
+    if (action !== "roll" || !choice) return;
+
+    // ── Defender's skill and dice ─────────────────────────────────────────────
+    const weapon = choice.weaponId ? this.items.get(choice.weaponId) : null;
+    const skillKey = weapon
+      ? (weapon.system.weaponType === "throwing" ? "throwing_weapons" : "armed_combat")
+      : "unarmed_combat";
+    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    const skillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
+    const rating = skillItem?.system?.rating ?? 0;
+
+    let dice = rating;
+    let defaultingPenalty = 0;
+    let defaultingNote = "";
+    if (rating <= 0) {
+      const attrKey = CONFIG.SR2E.activeSkills[skillKey]?.attribute ?? "strength";
+      dice = Math.max(1, this.system[attrKey]?.value ?? 1);
+      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+      defaultingNote = `, defaulting +${defaultingPenalty}`;
+    }
+
+    const tn = Math.max(2, 4 + choice.reachMod + choice.otherMod + defaultingPenalty);
+    const defWeaponName = weapon ? weapon.name : "Unarmed";
+
+    const defense = await this.rollSuccessTest(dice, tn, {
+      label: `Defend vs ${state.attackerName} — ${defWeaponName}${defaultingNote} TN ${tn}`,
+      poolDice: choice.poolDice > 0 ? { combat: choice.poolDice } : {},
+      karmaDice: choice.karmaDice
+    });
+
+    // ── Compare and resolve (ties favour the attacker) ───────────────────────
+    const atk = state.successes;
+    const def = defense?.successes ?? 0;
+
+    if (def > atk) {
+      // Defender wins and strikes back with THEIR weapon
+      const code = weapon ? weapon.system.damageCode : "(Str)M";
+      const dmg = evaluateDamageCode(code, this);
+      const damageType = weapon ? (weapon.system.damageType || "physical") : "stun";
+      await this._resolveMeleeHit(message, state, {
+        winnerName: this.name, loserName: state.attackerName,
+        weaponName: defWeaponName, net: def - atk,
+        power: Math.max(1, dmg.power), level: dmg.level, damageType,
+        riposte: true
+      });
+    } else {
+      await this._resolveMeleeHit(message, state, {
+        winnerName: state.attackerName, loserName: this.name,
+        weaponName: state.weaponName, net: atk - def,
+        power: state.power, level: state.level, damageType: state.damageType,
+        riposte: false
+      });
+    }
+  }
+
+  /**
+   * Post the melee outcome: staged damage + Resist button for the loser,
+   * and mark the attack card resolved (when this client may update it).
+   * @private
+   */
+  async _resolveMeleeHit(message, state, o) {
+    const esc = foundry.utils.escapeHTML;
+    const stages = ["L", "M", "S", "D"];
+    const stageUps = Math.floor(o.net / 2);
+    const finalIdx = Math.min(stages.indexOf(o.level) + stageUps, 3);
+    const finalLevel = stages[finalIdx];
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>${esc(o.winnerName)} hits ${esc(o.loserName)}</strong>
+        ${o.riposte ? "<em>(counterstrike!)</em>" : ""}
+        with ${esc(o.weaponName)}: ${o.power}${finalLevel}${o.damageType === "stun" ? " Stun" : ""}
+        <br><em>${o.net} net success${o.net === 1 ? "" : "es"} — staged up ${stageUps} level${stageUps === 1 ? "" : "s"}</em>
+        <br>
+        <button class="sr2e-resist-btn"
+                data-power="${o.power}"
+                data-base-power="${o.power}"
+                data-level="${finalLevel}"
+                data-armor-type="impact"
+                data-damage-type="${o.damageType}"
+                data-armor-calc="standard"
+                data-armor-mod="0"
+                data-ammo-name=""
+                title="${esc(o.loserName)} rolls Body vs. TN = Power − Impact Armor (SR2E p.100)">
+          ${game.i18n.localize("SR2E.Chat.ResistDamage")}
+        </button>
+      </div>`
+    });
+
+    // Mark the attack card resolved where permissions allow (author or GM)
+    if (message.isAuthor || game.user.isGM) {
+      const newState = foundry.utils.mergeObject(foundry.utils.deepClone(state), {
+        resolved: true,
+        resolution: `<br><strong>Resolved:</strong> ${esc(o.winnerName)} hit ${esc(o.loserName)} (${o.power}${finalLevel}).`
+      });
+      await message.update({
+        content: renderMeleeAttackCard(newState),
+        "flags.sr2e.melee": newState
+      });
+    }
   }
 
   /**

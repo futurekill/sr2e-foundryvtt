@@ -325,7 +325,7 @@ const FIRING_MODE_DATA = {
  * @param {Actor} attacker - Actor whose token is the origin (character or vehicle).
  * @param {Item}  weapon   - The weapon, for its range brackets.
  * @returns {{targetName?: string, distance?: number, range?: string,
- *            outOfRange?: boolean, targetQuickness?: number}}
+ *            outOfRange?: boolean}}
  */
 function detectAttackTarget(attacker, weapon) {
   const presets = {};
@@ -333,8 +333,6 @@ function detectAttackTarget(attacker, weapon) {
   if (!targetToken || !canvas?.ready) return presets;
 
   presets.targetName = targetToken.name;
-  const tQuick = targetToken.actor?.system?.quickness?.value;
-  if (tQuick) presets.targetQuickness = tQuick;
 
   const originToken = attacker?.getActiveTokens?.()[0]
                    ?? canvas.tokens?.controlled?.[0];
@@ -407,7 +405,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     }
   }
 
-  const woundPenalty  = actor.system.woundPenalty ?? 0;
+  const woundPenalty   = actor.system.woundPenalty ?? 0;
+  const sustainPenalty = actor.system.sustainPenalty ?? 0;
   const shotsFired    = actor.system.combatRecoil  ?? 0;
   const recoilComp    = weapon.system.recoilComp   ?? 0;
   const hasRecoil     = ["firearm", "heavy"].includes(weapon.system.weaponType);
@@ -451,8 +450,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const recoilStyle  = recoilPenalty > 0  ? "" : "display:none;";
 
   // Initial TN with all situational mods at zero
-  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + woundPenalty + recoilPenalty
-                                          + defaultingPenalty);
+  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + woundPenalty + sustainPenalty
+                                          + recoilPenalty + defaultingPenalty);
 
   // Helper: format a modifier number for display (always show sign)
   const fmt = n => n === 0 ? "+0" : (n > 0 ? `+${n}` : `${n}`);
@@ -462,9 +461,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   let hookId = null;
   hookId = Hooks.on("renderDialogV2", (app, html) => {
     const root = (html instanceof Element) ? html : document;
-    const attackerSelect = root.querySelector("#sr2e-attacker");
-    if (!attackerSelect) return;             // not our dialog
+    if (!root.querySelector("#sr2e-other-mod")) return;   // not our dialog
     Hooks.off("renderDialogV2", hookId);
+    const attackerSelect = root.querySelector("#sr2e-attacker");
 
     // Ranged-only inputs
     const rangeSelect  = root.querySelector("#sr2e-attack-range");
@@ -473,9 +472,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     const modeSelect   = root.querySelector("#sr2e-firing-mode");
     const roundsInput  = root.querySelector("#sr2e-fa-rounds");
     const roundsRow    = root.querySelector("#sr2e-fa-rounds-row");
-    // Melee-only inputs
-    const quickInput   = root.querySelector("#sr2e-target-quick");
+    // Melee-only inputs (opposed test modifiers, SR2E p.101)
     const reachInput   = root.querySelector("#sr2e-reach-mod");
+    const alliesInput  = root.querySelector("#sr2e-allies");
+    const foesInput    = root.querySelector("#sr2e-foes");
+    const supPosCheck  = root.querySelector("#sr2e-sup-pos");
+    const proneCheck   = root.querySelector("#sr2e-prone");
+    const multiInput   = root.querySelector("#sr2e-multi");
     // Common inputs
     const targetSelect = root.querySelector("#sr2e-target");
     const otherInput   = root.querySelector("#sr2e-other-mod");
@@ -488,8 +491,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     const targetModSpan = root.querySelector("#sr2e-target-mod");
     const meleeModSpan  = root.querySelector("#sr2e-melee-mod");
     const otherModSpan  = root.querySelector("#sr2e-other-mod-val");
-    const baseTnValSpan = root.querySelector("#sr2e-base-tn-val");
-    const reachModSpan  = root.querySelector("#sr2e-reach-mod-val");
+    const reachModSpan    = root.querySelector("#sr2e-reach-mod-val");
+    const friendsModSpan  = root.querySelector("#sr2e-friends-mod-val");
+    const positionModSpan = root.querySelector("#sr2e-position-mod-val");
+    const multiModSpan    = root.querySelector("#sr2e-multi-mod-val");
     // Row elements (show/hide)
     const coverRow    = root.querySelector("#sr2e-cover-row");
     const attackRow   = root.querySelector("#sr2e-attacker-row");
@@ -497,6 +502,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     const meleeRow    = root.querySelector("#sr2e-melee-row");
     const otherRow    = root.querySelector("#sr2e-other-row");
     const reachRow    = root.querySelector("#sr2e-reach-row");
+    const friendsRow  = root.querySelector("#sr2e-friends-row");
+    const positionRow = root.querySelector("#sr2e-position-row");
+    const multiRow    = root.querySelector("#sr2e-multi-row");
     const finalTnSpan = root.querySelector("#sr2e-final-tn");
 
     // Live recoil state — rounds already fired this phase (zeroed by the
@@ -544,16 +552,26 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (recoilRow)    recoilRow.style.display  = recoil > 0 ? "" : "none";
         if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
         finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
-                                      + cyberwareMod + woundPenalty + recoil
-                                      + defaultingPenalty);
+                                      + cyberwareMod + woundPenalty + sustainPenalty
+                                      + recoil + defaultingPenalty);
       } else {
-        const quick  = parseInt(quickInput?.value) || 4;
+        // Opposed melee (SR2E p.100-101): base TN 4 + Melee Modifiers Table
         const rchMod = parseInt(reachInput?.value) || 0;
-        if (baseTnValSpan) baseTnValSpan.textContent = quick;
-        if (reachModSpan)  reachModSpan.textContent  = fmt(rchMod);
-        if (reachRow)      reachRow.style.display     = rchMod !== 0 ? "" : "none";
-        finalTN = Math.max(2, quick + rchMod + aMod + tMod + oMod + woundPenalty
-                                    + defaultingPenalty);
+        const allies = Math.min(4, Math.max(0, parseInt(alliesInput?.value) || 0));
+        const foes   = Math.min(4, Math.max(0, parseInt(foesInput?.value) || 0));
+        const frMod  = foes - allies;
+        const posMod = (supPosCheck?.checked ? -1 : 0) + (proneCheck?.checked ? -2 : 0);
+        const muMod  = 2 * Math.max(0, parseInt(multiInput?.value) || 0);
+        if (reachModSpan)    reachModSpan.textContent    = fmt(rchMod);
+        if (friendsModSpan)  friendsModSpan.textContent  = fmt(frMod);
+        if (positionModSpan) positionModSpan.textContent = fmt(posMod);
+        if (multiModSpan)    multiModSpan.textContent    = fmt(muMod);
+        if (reachRow)    reachRow.style.display    = rchMod !== 0 ? "" : "none";
+        if (friendsRow)  friendsRow.style.display  = frMod  !== 0 ? "" : "none";
+        if (positionRow) positionRow.style.display = posMod !== 0 ? "" : "none";
+        if (multiRow)    multiRow.style.display    = muMod  !== 0 ? "" : "none";
+        finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + oMod
+                                      + woundPenalty + sustainPenalty + defaultingPenalty);
       }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
     }
@@ -569,7 +587,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     }
 
     const allInputs = [rangeSelect, coverSelect, meleeCheck, modeSelect, roundsInput,
-                       attackerSelect, targetSelect, otherInput, quickInput, reachInput].filter(Boolean);
+                       attackerSelect, targetSelect, otherInput, reachInput,
+                       alliesInput, foesInput, supPosCheck, proneCheck, multiInput].filter(Boolean);
     for (const el of allInputs) {
       el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
     }
@@ -624,16 +643,44 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     </div>` : `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
       <div class="form-group" style="margin:2px 0;">
-        <label>Target Quickness:</label>
-        <input type="number" id="sr2e-target-quick" name="targetQuickness"
-               value="${presets.targetQuickness ?? 4}" min="1" max="12" style="width:52px;text-align:center;"
-               title="Target's Quickness attribute — this is the base TN for melee attacks (SR2E p.113)">
-      </div>
-      <div class="form-group" style="margin:2px 0;">
-        <label>Reach Disadvantage:</label>
+        <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
                value="0" style="width:52px;text-align:center;"
-               title="Positive = target has longer weapon (TN penalty for you). E.g. fighting a staff (Reach 2) with a knife (Reach 0) = +2.">
+               title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Other Mod:</label>
+        <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
+               style="width:52px;text-align:center;"
+               title="Visibility (half value), called shots, etc.">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Your allies in melee:</label>
+        <input type="number" id="sr2e-allies" name="allies" value="0" min="0" max="4"
+               style="width:52px;text-align:center;"
+               title="Friends actively in this brawl: −1 TN each (max −4). (SR2E p.101)">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Foe's allies in melee:</label>
+        <input type="number" id="sr2e-foes" name="foes" value="0" min="0" max="4"
+               style="width:52px;text-align:center;"
+               title="Opponent's friends in the brawl: +1 TN each (max +4). (SR2E p.101)">
+      </div>
+      <div class="form-group" style="margin:2px 0;align-items:center;">
+        <label>Superior position (−1):</label>
+        <input type="checkbox" id="sr2e-sup-pos" name="supPos" style="width:auto;"
+               title="Higher or steadier ground than your opponent (SR2E p.101)">
+      </div>
+      <div class="form-group" style="margin:2px 0;align-items:center;">
+        <label>Opponent prone (−2):</label>
+        <input type="checkbox" id="sr2e-prone" name="prone" style="width:auto;"
+               title="Opponent is lying on the ground (SR2E p.101)">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Additional targets (+2 ea):</label>
+        <input type="number" id="sr2e-multi" name="multiTargets" value="0" min="0"
+               style="width:52px;text-align:center;"
+               title="Attacking multiple targets this action: +2 TN per extra target (SR2E p.101)">
       </div>
     </div>`;
 
@@ -664,7 +711,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // TN breakdown rows — differ for ranged vs melee
   const baseTnRow = isRanged
     ? `<tr><td style="color:#888;padding:1px 0;">Base TN (Short range):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`
-    : `<tr><td style="color:#888;padding:1px 0;">Target Quickness:</td><td id="sr2e-base-tn-val" style="text-align:right;padding:1px 0;">4</td></tr>`;
+    : `<tr><td style="color:#888;padding:1px 0;">Base TN (opposed melee):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`;
 
   const rangedOnlyRows = isRanged ? `
     <tr>
@@ -680,8 +727,20 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <td id="sr2e-melee-mod" style="text-align:right;padding:1px 0;">+3</td>
     </tr>` : `
     <tr id="sr2e-reach-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Reach Disadvantage:</td>
+      <td style="color:#888;padding:1px 0;">Reach:</td>
       <td id="sr2e-reach-mod-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-friends-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Friends in melee:</td>
+      <td id="sr2e-friends-mod-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-position-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Position:</td>
+      <td id="sr2e-position-mod-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-multi-row" style="display:none;">
+      <td style="color:#888;padding:1px 0;">Multiple targets:</td>
+      <td id="sr2e-multi-mod-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>`;
 
   const autoRows = `
@@ -706,6 +765,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     <tr style="${woundStyle}">
       <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
       <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
+    </tr>` : ""}
+    ${sustainPenalty > 0 ? `
+    <tr>
+      <td style="color:#c84;padding:1px 0;">Sustaining spells:</td>
+      <td style="text-align:right;padding:1px 0;">+${sustainPenalty}</td>
     </tr>` : ""}
     ${defaultingPenalty > 0 ? `
     <tr>
@@ -743,7 +807,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     content: `<form>
       ${targetBanner}
       ${topInputsHTML}
-      ${commonInputsHTML}
+      ${isRanged ? commonInputsHTML : ""}
       <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
         <table style="width:100%;border-collapse:collapse;">
           ${baseTnRow}
@@ -780,8 +844,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             targetMod:       parseInt(f.target?.value)          || 0,
             meleeMod:        f.inMelee?.checked ? 3 : 0,
             otherMod:        parseInt(f.otherMod?.value)        || 0,
-            targetQuickness: parseInt(f.targetQuickness?.value) || 4,
             reachMod:        parseInt(f.reachMod?.value)        || 0,
+            friendsMod:      Math.min(4, Math.max(0, parseInt(f.foes?.value) || 0))
+                           - Math.min(4, Math.max(0, parseInt(f.allies?.value) || 0)),
+            positionMod:     (f.supPos?.checked ? -1 : 0) + (f.prone?.checked ? -2 : 0),
+            multiMod:        2 * Math.max(0, parseInt(f.multiTargets?.value) || 0),
             poolDice,
             karmaDice:       readKarmaDice(button.form, actor, baseDice)
           };
@@ -867,8 +934,10 @@ async function onRollWeapon(event, target) {
     targetMod:       opts.targetMod,
     meleeMod:        opts.meleeMod,
     otherMod:        opts.otherMod,
-    targetQuickness: opts.targetQuickness,
     reachMod:        opts.reachMod,
+    friendsMod:      opts.friendsMod,
+    positionMod:     opts.positionMod,
+    multiMod:        opts.multiMod,
     poolDice:        opts.poolDice,
     karmaDice:       opts.karmaDice
   });

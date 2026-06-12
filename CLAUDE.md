@@ -57,9 +57,13 @@ save) and return update objects. Never reorder entries. System compendia
 are rebuilt from packs-src instead of runtime-migrated.
 
 ## Known deferred work
-Defender-side opposed melee tests, conjuring, Matrix subsystem, ramming and
-escape-test automation, karma advancement UI, full i18n of TN-breakdown
-strings.
+Conjuring, Matrix subsystem, ramming and escape-test automation, karma
+advancement UI, full i18n of TN-breakdown strings.
+
+Opposed melee is implemented: the attack card (flags.sr2e.melee) carries
+Defend/Undefended buttons; SR2EActor#rollMeleeDefense resolves the
+exchange (ties favour the attacker, winner stages damage by net/2, a
+winning defender strikes back with their own weapon).
 
 Initiative passes are implemented in `module/documents/combat.mjs`
 (SR2ECombat): "next turn" costs the current actor 10 Initiative and jumps

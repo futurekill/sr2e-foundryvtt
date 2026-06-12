@@ -22,7 +22,7 @@ import { parseDrainCode } from "../data/item-data.mjs";
  * @param {Actor|null} actor - Attacking actor (required for formula codes).
  * @returns {{ power: number, level: string }}
  */
-function evaluateDamageCode(code, actor = null) {
+export function evaluateDamageCode(code, actor = null) {
   if (!code) return { power: 0, level: "M" };
 
   // 1. Plain numeric code — "9M", "6S", "4D"
@@ -75,6 +75,41 @@ function evaluateDamageCode(code, actor = null) {
   }
 
   return { power: 0, level: "M" };
+}
+
+/**
+ * Render the opposed melee attack card (SR2E p.100–101).
+ *
+ * State persisted in flags.sr2e.melee:
+ *   { attackerUuid, attackerName, weaponName, successes, power, level,
+ *     damageType, resolved, resolution? }
+ *
+ * The defender answers with the Defend button (their own Combat Skill test;
+ * most successes hits, ties favour the attacker, and a winning defender
+ * strikes back) or concedes via Undefended.
+ */
+export function renderMeleeAttackCard(state) {
+  const esc = foundry.utils.escapeHTML;
+  const buttons = state.resolved ? "" : `
+    <div class="sr2e-karma-actions">
+      <button type="button" class="sr2e-resist-btn sr2e-defend-btn"
+              title="Select the defending token, then roll your Combat Skill vs TN 4 + melee modifiers (SR2E p.100). Most successes hits — a winning defender strikes back!">
+        ⚔ Defend
+      </button>
+      <button type="button" class="sr2e-resist-btn sr2e-undefended-btn"
+              title="No defense (unaware, conceding, or no action available): the attack resolves against 0 defense successes.">
+        Undefended
+      </button>
+    </div>`;
+
+  return `<div class="sr2e-damage-result">
+    <strong>${esc(state.attackerName)} attacks with ${esc(state.weaponName)}</strong>
+    — ${state.successes} success${state.successes === 1 ? "" : "es"}
+    <br><em>Base damage ${state.power}${state.level}${state.damageType === "stun" ? " Stun" : ""}.
+    Opposed melee: the defender rolls their own Combat Skill (SR2E p.100).</em>
+    ${state.resolution ?? ""}
+    ${buttons}
+  </div>`;
 }
 
 /**
@@ -188,8 +223,10 @@ export class SR2EItem extends Item {
    * Ranged TN = Base(4) + range + cover + attackerRunning + targetRunning + inMelee
    *           + other + cyberware + woundPenalty + recoilPenalty  (SR2E p.100–110)
    *
-   * Melee TN  = targetQuickness + reachDisadvantage + attackerRunning
-   *           + targetRunning + other + woundPenalty  (SR2E p.113)
+   * Melee is an OPPOSED test (SR2E p.100–101): the attacker rolls Combat
+   * Skill vs TN 4 + Melee Modifiers Table (reach, friends in melee, position,
+   * multiple targets); the card's Defend button triggers the defender's test,
+   * and most successes hits — ties favour the attacker.
    *
    * Firing mode (ranged only, SR2E p.92–93):
    *   - SS/SA: 1 round. SA takes +1 recoil per shot already fired this phase.
@@ -283,11 +320,12 @@ export class SR2EItem extends Item {
       defaultingNote = `defaulting to ${attrLabel} +${defaultingPenalty}`;
     }
 
-    // Common modifiers
+    // Common modifiers.
+    // NOTE: wound and sustain penalties are NOT added here — rollSuccessTest
+    // applies them centrally (they used to be double-counted).
     const attackerMod  = options.attackerMod ?? 0;
     const targetMod    = options.targetMod   ?? 0;
     const otherMod     = options.otherMod    ?? 0;
-    const woundPenalty = actor.system.woundPenalty ?? 0;
 
     const modParts = [];
     let targetNumber;
@@ -301,21 +339,28 @@ export class SR2EItem extends Item {
     let rounds     = 1;     // rounds fired by this attack
 
     if (isMelee) {
-      // ── Melee TN (SR2E p.113) ──────────────────────────────────────────────
-      const targetQuickness = options.targetQuickness ?? 4;
-      const reachMod        = options.reachMod        ?? 0;
+      // ── Melee Attacker's Test (SR2E p.100–101) ─────────────────────────────
+      // Melee is an OPPOSED test: both sides roll Combat Skill vs base TN 4
+      // plus the Melee Modifiers Table. Most successes hits (ties favour the
+      // attacker); the comparison happens when the defender responds to the
+      // Defend button on the attack card.
+      const reachMod    = options.reachMod    ?? 0;
+      const friendsMod  = options.friendsMod  ?? 0;   // −1/ally, +1/enemy ally (±4)
+      const positionMod = options.positionMod ?? 0;   // superior position −1, prone foe −2
+      const multiMod    = options.multiMod    ?? 0;   // +2 per additional target
 
       targetNumber = Math.max(2,
-        targetQuickness + reachMod + attackerMod + targetMod + otherMod + woundPenalty
-                        + defaultingPenalty
+        BASE_TN + reachMod + friendsMod + positionMod + multiMod + otherMod
+                + defaultingPenalty
       );
 
-      if (defaultingNote) modParts.push(defaultingNote);
-      if (reachMod)    modParts.push(`reach +${reachMod}`);
-      if (attackerMod) modParts.push(`attacker running +${attackerMod}`);
-      if (targetMod)   modParts.push(`target running +${targetMod}`);
-      if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
-      label = `${this.name} [Melee]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
+      if (defaultingNote)  modParts.push(defaultingNote);
+      if (reachMod)        modParts.push(`reach ${reachMod > 0 ? "+" : ""}${reachMod}`);
+      if (friendsMod)      modParts.push(`friends ${friendsMod > 0 ? "+" : ""}${friendsMod}`);
+      if (positionMod)     modParts.push(`position ${positionMod}`);
+      if (multiMod)        modParts.push(`multiple targets +${multiMod}`);
+      if (otherMod)        modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
+      label = `${this.name} [Melee Attack]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
 
     } else {
       // ── Ranged TN (SR2E p.100–110) ─────────────────────────────────────────
@@ -365,7 +410,7 @@ export class SR2EItem extends Item {
 
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
-                + cyberwareMod + woundPenalty + recoilPenalty + defaultingPenalty
+                + cyberwareMod + recoilPenalty + defaultingPenalty
       );
 
       if (defaultingNote) modParts.push(defaultingNote);
@@ -401,12 +446,35 @@ export class SR2EItem extends Item {
       }
     }
 
+    // ── Melee: post the opposed-test card and stop ─────────────────────────
+    // The defender's test (or an Undefended concession) resolves the hit,
+    // staging, and damage — see the .sr2e-defend-btn handler in sr2e.mjs.
+    if (isMelee) {
+      const dmg = evaluateDamageCode(this.system.damageCode, actor);
+      const meleeState = {
+        attackerUuid: actor.uuid,
+        attackerName: actor.name,
+        weaponName: this.name,
+        successes: result.successes,
+        power: Math.max(1, dmg.power),
+        level: dmg.level,
+        damageType: this.system.damageType || "physical",
+        resolved: false
+      };
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: renderMeleeAttackCard(meleeState),
+        flags: { sr2e: { melee: meleeState } }
+      });
+      return result;
+    }
+
     // Post staged damage + resist button if the attack connected
     if (result.successes > 0) {
       // Evaluate damage code with actor context so formula codes like
       // "(Str+3)S" resolve against the attacker's current attributes.
       const dmg          = evaluateDamageCode(this.system.damageCode, actor);
-      const armorType    = isMelee ? "impact" : "ballistic";
+      const armorType    = "ballistic";
       let effectivePower = dmg.power;
       let levelBonus     = 0;
       const powerNotes   = [];

@@ -36,6 +36,7 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Initiative** — Reaction-based initiative with variable dice from cyberware/magic; full SR2E multiple actions: each action costs 10 Initiative, the spotlight always moves to the highest remaining total, and every new Combat Turn re-rolls automatically
 - **Condition Monitors** — Physical and stun damage tracking with wound level penalties (Light/Moderate/Serious/Deadly); wound levels show automatically as token status markers, with unconscious/dead overlays when a monitor fills
 - **Damage Staging** — Automatic damage staging based on net successes
+- **Opposed Melee** — Both combatants roll their Combat Skill vs TN 4 + the Melee Modifiers Table (reach, friends, position, multiple targets); ties favour the attacker, net successes stage damage, and a winning defender strikes back with their own weapon
 - **Karma Pool** — Buy extra dice before a roll; reroll failures, avoid disasters, and buy successes from the chat card (SR2E p.190)
 - **Untrained Defaulting** — Missing or rating-0 skills default to the linked attribute at +4 TN (simplified Skill Web, SR2E p.69)
 - **Ammunition Loading** — Each weapon selects a reserve ammo item to reload from; loaded rounds carry their book effects (explosive +1 Power, gel −2/Stun/Impact armor, APDS halves Ballistic, flechette vs armor rules) through attack and damage resistance

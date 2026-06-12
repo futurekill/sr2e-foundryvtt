@@ -444,6 +444,36 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Opposed melee: Defend rolls the defender's Combat Skill test and
+  // resolves the exchange; Undefended concedes (0 defense successes).
+  // The defender comes from the controlled token or assigned character.
+  html.querySelectorAll?.(".sr2e-defend-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      if (!defender) {
+        return ui.notifications.warn("Select the defending token (or assign a character) first.");
+      }
+      return defender.rollMeleeDefense(message);
+    });
+  });
+
+  html.querySelectorAll?.(".sr2e-undefended-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const state = message.getFlag("sr2e", "melee");
+      if (!state || state.resolved) return;
+      const attacker = await fromUuid(state.attackerUuid);
+      if (!attacker) return;
+      return attacker._resolveMeleeHit(message, state, {
+        winnerName: state.attackerName, loserName: "the undefended target",
+        weaponName: state.weaponName, net: state.successes,
+        power: state.power, level: state.level, damageType: state.damageType,
+        riposte: false
+      });
+    });
+  });
+
   // Wire up Karma Pool buttons on success-test cards (reroll failures,
   // avoid disaster, buy success). The card state lives in flags.sr2e.test;
   // only owners of the rolling actor may spend its Karma.
