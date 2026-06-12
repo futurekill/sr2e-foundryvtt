@@ -316,6 +316,50 @@ const FIRING_MODE_DATA = {
 };
 
 /**
+ * Detect the attack target and measured distance from canvas targeting.
+ *
+ * Uses the user's current target (T key) and the attacker's token (the
+ * shooter's own token, or the vehicle's for mounted weapons). Returns
+ * presets for the attack dialog — everything remains overridable there.
+ *
+ * @param {Actor} attacker - Actor whose token is the origin (character or vehicle).
+ * @param {Item}  weapon   - The weapon, for its range brackets.
+ * @returns {{targetName?: string, distance?: number, range?: string,
+ *            outOfRange?: boolean, targetQuickness?: number}}
+ */
+function detectAttackTarget(attacker, weapon) {
+  const presets = {};
+  const targetToken = game.user?.targets?.first?.();
+  if (!targetToken || !canvas?.ready) return presets;
+
+  presets.targetName = targetToken.name;
+  const tQuick = targetToken.actor?.system?.quickness?.value;
+  if (tQuick) presets.targetQuickness = tQuick;
+
+  const originToken = attacker?.getActiveTokens?.()[0]
+                   ?? canvas.tokens?.controlled?.[0];
+  if (!originToken || originToken === targetToken) return presets;
+
+  // Measured distance in scene units (the system grid is metres)
+  let distance;
+  try {
+    distance = canvas.grid.measurePath([originToken.center, targetToken.center]).distance;
+  } catch (e) { return presets; }
+  presets.distance = Math.round(distance);
+
+  // Pick the range bracket from the weapon's range data (0 = undefined)
+  const r = weapon?.system?.ranges ?? {};
+  if (r.short > 0) {
+    if      (distance <= r.short)  presets.range = "short";
+    else if (distance <= r.medium) presets.range = "medium";
+    else if (distance <= r.long)   presets.range = "long";
+    else if (distance <= r.extreme) presets.range = "extreme";
+    else { presets.range = "extreme"; presets.outOfRange = true; }
+  }
+  return presets;
+}
+
+/**
  * Prompt for weapon attack options.
  *
  * Situational modifiers (SR2E p.100–110):
@@ -337,12 +381,13 @@ const FIRING_MODE_DATA = {
  * @param {number} skillCap - Max pool dice (= skill rating). Default: Infinity.
  * @param {number} baseDice - Base dice in use (cap for bought karma dice). Default: 0.
  * @param {number} defaultingPenalty - Skill Web TN penalty when untrained. Default: 0.
+ * @param {object} [presets] - Auto-detected target data from detectAttackTarget().
  * @returns {Promise<{range:string, firingMode:string, coverMod:number,
  *                    attackerMod:number, targetMod:number, meleeMod:number,
  *                    otherMod:number, poolDice:object, karmaDice:number}|null>}
  */
 async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, baseDice = 0,
-                                         defaultingPenalty = 0) {
+                                         defaultingPenalty = 0, presets = {}) {
   const BASE_TN    = 4;
   const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
   const isRanged   = !isMelee;
@@ -542,10 +587,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <div class="form-group" style="margin:2px 0;">
         <label>Range:</label>
         <select id="sr2e-attack-range" name="range">
-          <option value="short">Short</option>
-          <option value="medium">Medium</option>
-          <option value="long">Long</option>
-          <option value="extreme">Extreme</option>
+          ${["short", "medium", "long", "extreme"].map(k =>
+            `<option value="${k}" ${presets.range === k ? "selected" : ""}>${RANGE_LABELS[k]}</option>`
+          ).join("")}
         </select>
       </div>
       <div class="form-group" style="margin:2px 0;">
@@ -582,7 +626,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <div class="form-group" style="margin:2px 0;">
         <label>Target Quickness:</label>
         <input type="number" id="sr2e-target-quick" name="targetQuickness"
-               value="4" min="1" max="12" style="width:52px;text-align:center;"
+               value="${presets.targetQuickness ?? 4}" min="1" max="12" style="width:52px;text-align:center;"
                title="Target's Quickness attribute — this is the base TN for melee attacks (SR2E p.113)">
       </div>
       <div class="form-group" style="margin:2px 0;">
@@ -683,11 +727,21 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <td id="sr2e-recoil-val" style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
     </tr>` : ""}`;
 
+  // Auto-detected target banner (from canvas targeting)
+  const targetBanner = presets.targetName ? `
+    <div style="margin:0 0 6px;padding:4px 8px;background:rgba(80,140,200,0.12);
+                border:1px solid rgba(80,140,200,0.4);border-radius:4px;font-size:11px;">
+      🎯 Target: <strong>${foundry.utils.escapeHTML(presets.targetName)}</strong>${
+        presets.distance != null ? ` — ${presets.distance} m` : ""}${
+        presets.outOfRange ? ` <span style="color:#e44;font-weight:bold;">beyond Extreme range!</span>` : ""}
+    </div>` : "";
+
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: game.i18n.format("SR2E.Dialog.AttackTitle", { name: weapon.name }) },
     rejectClose: false,
     content: `<form>
+      ${targetBanner}
       ${topInputsHTML}
       ${commonInputsHTML}
       <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
@@ -798,7 +852,11 @@ async function onRollWeapon(event, target) {
     defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
   }
 
-  const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice, defaultingPenalty);
+  // Pre-fill range / target Quickness from canvas targeting (T key)
+  const presets = detectAttackTarget(actor, item);
+
+  const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
+                                               defaultingPenalty, presets);
   if (!opts) return;
   return item.roll({
     range:           opts.range,
@@ -1422,7 +1480,11 @@ const SHARED_ACTIONS = {
       defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
     }
 
-    const opts = await promptWeaponAttackOptions(actor, weapon, skillCap, baseDice, defaultingPenalty);
+    // Distance measured from the vehicle's token (the weapon mount)
+    const presets = detectAttackTarget(vehicle, weapon);
+
+    const opts = await promptWeaponAttackOptions(actor, weapon, skillCap, baseDice,
+                                                 defaultingPenalty, presets);
     if (!opts) return;
     return weapon.roll({ ...opts, gunner: actor });
   },
