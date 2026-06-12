@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A great intelligent serpent, often found warding places of power.</p><p><strong>Powers:</strong> Guard, Magical Guard, Venom</p><p><em>Perception rating 3 (best sense); running multiplier \u00d73; dual-natured (astally active); natural armor 1. Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A great intelligent serpent, often found warding places of power.</p><p><strong>Powers:</strong> Guard, Magical Guard, Venom</p><p><em>Perception rating 3 (best sense); running multiplier ×3; dual-natured (astally active); natural armor 1. Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

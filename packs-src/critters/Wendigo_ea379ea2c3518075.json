@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>An HMHVV-infected ork: a white-furred cannibal giant of the deep forests.</p><p><strong>Powers:</strong> Influence, Enhanced Physical Attributes, Enhanced Senses, Essence Drain, Fear, Immunity (Age, Pathogens), Infection, Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Severe), Essence Loss, Vulnerability (Ferrous Metals)</p><p><em>Perception rating 3 (best sense); running multiplier \u00d75; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An HMHVV-infected ork: a white-furred cannibal giant of the deep forests.</p><p><strong>Powers:</strong> Influence, Enhanced Physical Attributes, Enhanced Senses, Essence Drain, Fear, Immunity (Age, Pathogens), Infection, Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Severe), Essence Loss, Vulnerability (Ferrous Metals)</p><p><em>Perception rating 3 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

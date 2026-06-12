@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A lingering psychic imprint of the dead; physical attributes are meaningless against it. Attacks: special (see powers).</p><p><strong>Powers:</strong> Fear, Manifestation, Psychokinesis; some show Compulsion, Noxious Breath, Paralyzing Touch</p><p><em>running multiplier \u00d71; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A lingering psychic imprint of the dead; physical attributes are meaningless against it. Attacks: special (see powers).</p><p><strong>Powers:</strong> Fear, Manifestation, Psychokinesis; some show Compulsion, Noxious Breath, Paralyzing Touch</p><p><em>running multiplier ×1; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

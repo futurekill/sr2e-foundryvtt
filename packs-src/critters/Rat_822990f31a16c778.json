@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>The sprawl's most successful resident.</p><p><em>Perception rating 4 (best sense); running multiplier \u00d73. Stats: SR2E p.233.</em></p>",
+    "biography": "<p>The sprawl's most successful resident.</p><p><em>Perception rating 4 (best sense); running multiplier ×3. Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

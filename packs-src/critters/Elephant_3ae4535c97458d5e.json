@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>An immense herbivore whose bulk alone is lethal.</p><p><em>Perception rating 3 (best sense); running multiplier \u00d74; natural armor 3. Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An immense herbivore whose bulk alone is lethal.</p><p><em>Perception rating 3 (best sense); running multiplier ×4; natural armor 3. Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

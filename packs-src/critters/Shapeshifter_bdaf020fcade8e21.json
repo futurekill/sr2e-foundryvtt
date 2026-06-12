@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>An animal that takes metahuman form (human-form statistics; in animal form use the animal's attributes +2 Body/+1 Quickness/+2 Strength).</p><p><strong>Powers:</strong> Enhanced Physical Attributes (in animal form), Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Silver, Severe), Vulnerability (Silver)</p><p><em>Perception rating 3 (best sense); running multiplier \u00d75; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An animal that takes metahuman form (human-form statistics; in animal form use the animal's attributes +2 Body/+1 Quickness/+2 Strength).</p><p><strong>Powers:</strong> Enhanced Physical Attributes (in animal form), Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Silver, Severe), Vulnerability (Silver)</p><p><em>Perception rating 3 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
