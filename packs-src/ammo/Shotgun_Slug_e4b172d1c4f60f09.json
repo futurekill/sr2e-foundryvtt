@@ -9,7 +9,7 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 15,
-    "notes": "Solid slug \u2014 the standard shotgun round. SR2E p.94.",
+    "notes": "Solid slug — the standard shotgun round. SR2E p.94.",
     "damageType": "",
     "armorCalc": "standard"
   },

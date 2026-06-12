@@ -25,6 +25,8 @@
       "_id": "6bac6b2477c2ea15",
       "name": "Increase Reflexes",
       "img": "icons/svg/lightning.svg",
+      "type": "base",
+      "system": {},
       "transfer": false,
       "disabled": false,
       "changes": [
@@ -47,12 +49,18 @@
   "sort": 0,
   "flags": {},
   "_stats": {
-    "coreVersion": "13",
+    "coreVersion": "13.351",
     "systemId": "sr2e",
     "systemVersion": "0.4.0",
     "createdTime": 1780000000000,
     "modifiedTime": 1780000000000,
-    "lastModifiedBy": "sr2e"
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "ownership": {
+    "default": 0
   },
   "_key": "!items!f929067d0e536db0"
 }

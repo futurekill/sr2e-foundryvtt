@@ -36,7 +36,9 @@
       "flags": {},
       "statuses": [],
       "tint": "#ffffff",
-      "origin": null
+      "origin": null,
+      "type": "base",
+      "system": {}
     }
   ],
   "flags": {},
