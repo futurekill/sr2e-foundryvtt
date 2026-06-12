@@ -100,7 +100,7 @@ function karmaDiceSection(actor, baseDice) {
     <hr style="margin:8px 0 6px;">
     <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
       <label style="font-size:12px;flex:1;padding-top:3px;">${game.i18n.localize("SR2E.Dialog.KarmaDice")}
-        <span style="color:#888;font-size:10px;">${game.i18n.format("SR2E.Dialog.KarmaDiceHint", { cap, avail })}</span>
+        <span style="color:#aaa1c0;font-size:10px;">${game.i18n.format("SR2E.Dialog.KarmaDiceHint", { cap, avail })}</span>
       </label>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <input type="number" name="karma_dice" value="0" min="0" max="${cap}"
@@ -154,18 +154,18 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
     .filter(p => p.cap > 0);
 
   const capNote = skillCap !== Infinity
-    ? `<p style="margin:0 0 4px;font-size:10px;color:#888;">Max pool dice per pool: ${skillCap} (= skill rating)</p>`
+    ? `<p style="margin:0 0 4px;font-size:10px;color:#aaa1c0;">Max pool dice per pool: ${skillCap} (= skill rating)</p>`
     : "";
 
   // Each pool input carries data-pool-key / data-pool-cap for the validation hook.
   const poolHTML = availablePools.length ? `
     <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
+    <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
     ${capNote}
     ${availablePools.map(p => `
     <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
       <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
-        <span style="color:#888;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
+        <span style="color:#aaa1c0;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
@@ -425,11 +425,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   const poolHTML = availablePools.length ? `
     <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
+    <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
     ${availablePools.map(p => `
     <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
       <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
-        <span style="color:#888;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
+        <span style="color:#aaa1c0;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
@@ -710,16 +710,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   // TN breakdown rows — differ for ranged vs melee
   const baseTnRow = isRanged
-    ? `<tr><td style="color:#888;padding:1px 0;">Base TN (Short range):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`
-    : `<tr><td style="color:#888;padding:1px 0;">Base TN (opposed melee):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`;
+    ? `<tr><td style="color:#aaa1c0;padding:1px 0;">Base TN (Short range):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`
+    : `<tr><td style="color:#aaa1c0;padding:1px 0;">Base TN (opposed melee):</td><td style="text-align:right;padding:1px 0;">${BASE_TN}</td></tr>`;
 
   const rangedOnlyRows = isRanged ? `
     <tr>
-      <td id="sr2e-range-label" style="color:#888;padding:1px 0;">Range (Short):</td>
+      <td id="sr2e-range-label" style="color:#aaa1c0;padding:1px 0;">Range (Short):</td>
       <td id="sr2e-range-mod" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-cover-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Cover:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Cover:</td>
       <td id="sr2e-cover-mod" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-melee-row" style="display:none;">
@@ -727,33 +727,33 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <td id="sr2e-melee-mod" style="text-align:right;padding:1px 0;">+3</td>
     </tr>` : `
     <tr id="sr2e-reach-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Reach:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Reach:</td>
       <td id="sr2e-reach-mod-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-friends-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Friends in melee:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Friends in melee:</td>
       <td id="sr2e-friends-mod-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-position-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Position:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Position:</td>
       <td id="sr2e-position-mod-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-multi-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Multiple targets:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Multiple targets:</td>
       <td id="sr2e-multi-mod-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>`;
 
   const autoRows = `
     <tr id="sr2e-attacker-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Attacker running:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Attacker running:</td>
       <td id="sr2e-attacker-mod" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-target-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Target running:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Target running:</td>
       <td id="sr2e-target-mod" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-other-row" style="display:none;">
-      <td style="color:#888;padding:1px 0;">Other:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Other:</td>
       <td id="sr2e-other-mod-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     ${cywareStyle !== "display:none;" ? `
@@ -995,14 +995,14 @@ async function promptSpellOptions(actor, spell) {
 
   const poolSection = available > 0 ? `
     <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">
+    <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">
       Magic Pool: ${available} available
     </p>
     ${totemNote}
     <div class="form-group" style="margin:4px 0;">
       <label style="font-size:12px;flex:1;">
         Spell test
-        <span style="color:#888;font-size:10px;">(max ${spellCap})</span>
+        <span style="color:#aaa1c0;font-size:10px;">(max ${spellCap})</span>
       </label>
       <input type="number" name="spell_pool" value="0" min="0" max="${spellCap}"
              style="width:52px;text-align:center;">
@@ -1010,12 +1010,12 @@ async function promptSpellOptions(actor, spell) {
     <div class="form-group" style="margin:4px 0;">
       <label style="font-size:12px;flex:1;">
         Drain resist
-        <span style="color:#888;font-size:10px;">(no limit)</span>
+        <span style="color:#aaa1c0;font-size:10px;">(no limit)</span>
       </label>
       <input type="number" name="drain_pool" value="0" min="0" max="${drainCap}"
              style="width:52px;text-align:center;">
     </div>
-    <p style="margin:2px 0;font-size:10px;color:#888;">
+    <p style="margin:2px 0;font-size:10px;color:#aaa1c0;">
       Total allocated cannot exceed ${available} available dice.
     </p>
   ` : totemNote;
@@ -1049,15 +1049,15 @@ async function promptSpellOptions(actor, spell) {
     rejectClose: false,
     content: `<form>
       <div class="form-group">
-        <label>${game.i18n.localize("SR2E.Dialog.Force")} <span style="color:#888;font-size:10px;">(1–${magicAttr})</span>:</label>
+        <label>${game.i18n.localize("SR2E.Dialog.Force")} <span style="color:#aaa1c0;font-size:10px;">(1–${magicAttr})</span>:</label>
         <input type="number" name="force" id="sr2e-cast-force" value="1" min="1" max="${magicAttr}"
                autofocus>
       </div>
-      <div style="margin:2px 0 6px;font-size:11px;color:#888;padding-left:4px;">
+      <div style="margin:2px 0 6px;font-size:11px;color:#aaa1c0;padding-left:4px;">
         Drain: TN <span id="sr2e-cast-drain-tn">${initDrainTN}</span>
         · ${drainLevel}
         <span id="sr2e-cast-drain-type" style="color:${initTypeColor};">${initDrainType}</span>
-        <span style="color:#666;font-size:10px;">${drainFormula}</span>
+        <span style="color:#958ba8;font-size:10px;">${drainFormula}</span>
       </div>
       <div class="form-group">
         <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
@@ -1262,7 +1262,7 @@ async function promptVehicleTestOptions(actor, vehicle) {
     <hr style="margin:8px 0 6px;">
     <div class="form-group" style="margin:3px 0;">
       <label style="font-size:12px;flex:1;">Control Pool
-        <span style="color:#888;font-size:10px;">(${controlAvail} left, max ${controlCap})</span>
+        <span style="color:#aaa1c0;font-size:10px;">(${controlAvail} left, max ${controlCap})</span>
       </label>
       <input type="number" name="pool_control" value="0" min="0" max="${controlCap}"
              data-pool-key="control" data-pool-cap="${controlCap}"
@@ -1301,11 +1301,11 @@ async function promptVehicleTestOptions(actor, vehicle) {
       </div>
       <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
         <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="color:#888;">Dice (${skillLabel}):</td>
+          <tr><td style="color:#aaa1c0;">Dice (${skillLabel}):</td>
               <td style="text-align:right;">${baseDice}</td></tr>
-          <tr><td style="color:#888;">Handling:</td>
+          <tr><td style="color:#aaa1c0;">Handling:</td>
               <td style="text-align:right;">${handling}</td></tr>
-          <tr><td style="color:#888;">Terrain:</td>
+          <tr><td style="color:#aaa1c0;">Terrain:</td>
               <td id="sr2e-vt-terrain-mod" style="text-align:right;">+1</td></tr>
           ${vcrMod ? `<tr><td style="color:#6c9;">Vehicle Control Rig ${vcr}:</td>
               <td style="text-align:right;">${vcrMod}</td></tr>` : ""}
@@ -1318,7 +1318,7 @@ async function promptVehicleTestOptions(actor, vehicle) {
             <td id="sr2e-vt-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initTN}</td>
           </tr>
         </table>
-        <p style="margin:4px 0 0;font-size:10px;color:#888;">
+        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           A failed Crash Test crashes the vehicle (SR2E p.107).</p>
       </div>
       ${controlHTML}
@@ -1675,7 +1675,7 @@ const SHARED_ACTIONS = {
             </optgroup>` : ""}
           </select>
         </div>
-        <p style="margin:4px 0 0;font-size:10px;color:#888;">
+        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           Costs per SR2E p.190. Reaction, Essence and Magic can never be raised
           directly. Raises above the racial maximum need GM approval.</p>
       </form>`,

@@ -302,6 +302,18 @@ function _registerSystemSettings() {
     default: true
   });
 
+  // Play-area background shown when no scene is active
+  game.settings.register("sr2e", "sceneBackground", {
+    name: "Play Area Background",
+    hint: "Image shown behind the interface when no scene is active. Scaled to cover the window — 1920×1080 or larger recommended (webp/jpg/png).",
+    scope: "world",
+    config: true,
+    type: String,
+    filePicker: "image",
+    default: "systems/sr2e/assets/seattle_map.webp",
+    onChange: () => _applyNoSceneBackground()
+  });
+
   game.settings.register("sr2e", "confirmDelete", {
     name: "Confirm Item Deletion",
     hint: "Show a confirmation dialog before deleting items from character sheets. Disable to delete instantly.",
@@ -497,12 +509,26 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
 /* -------------------------------------------- */
 
 /**
- * Toggle the CSS class that shows the Seattle map when no scene is active.
+ * Toggle the CSS class that shows the play-area background when no scene is
+ * active, applying the image chosen in the sceneBackground world setting.
+ * Inline styles with the "important" priority override the stylesheet's
+ * default (the Seattle map), so the setting wins without CSS edits.
  * Called on initial load and whenever a scene's active state changes.
  */
 function _applyNoSceneBackground() {
   const hasActive = !!game.scenes?.active;
   document.body.classList.toggle("sr2e-no-active-scene", !hasActive);
+
+  let img = "";
+  try { img = game.settings.get("sr2e", "sceneBackground"); } catch (e) { /* pre-init */ }
+  for (const el of [document.body, document.getElementById("board")]) {
+    if (!el) continue;
+    if (!hasActive && img) {
+      el.style.setProperty("background-image", `url("${img}")`, "important");
+    } else {
+      el.style.removeProperty("background-image");
+    }
+  }
 }
 
 // Apply terminal theme class on initial load

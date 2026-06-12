@@ -471,7 +471,7 @@ export class SR2EActor extends Actor {
         ${combatAvail > 0 ? `
         <div class="form-group" style="margin:3px 0;">
           <label style="font-size:12px;">Combat Pool
-            <span style="color:#888;font-size:10px;">(${combatAvail} left)</span>
+            <span style="color:#aaa1c0;font-size:10px;">(${combatAvail} left)</span>
           </label>
           <input type="number" name="pool_combat" value="0" min="0" max="${combatAvail}"
                  style="width:52px;text-align:center;">
@@ -479,12 +479,12 @@ export class SR2EActor extends Actor {
         ${karmaAvail > 0 ? `
         <div class="form-group" style="margin:3px 0;">
           <label style="font-size:12px;">Karma dice
-            <span style="color:#888;font-size:10px;">(1 Karma each — pool: ${karmaAvail})</span>
+            <span style="color:#aaa1c0;font-size:10px;">(1 Karma each — pool: ${karmaAvail})</span>
           </label>
           <input type="number" name="karma_dice" value="0" min="0" max="${karmaAvail}"
                  style="width:52px;text-align:center;">
         </div>` : ""}
-        <p style="margin:4px 0 0;font-size:10px;color:#888;">
+        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           Base TN 4 + modifiers. Most successes hits — if you out-roll the
           attacker, YOU strike THEM (SR2E p.100).</p>
       </form>`,
@@ -796,7 +796,7 @@ export class SR2EActor extends Actor {
       <hr style="margin:8px 0 6px;">
       <div class="form-group" style="margin:3px 0;">
         <label style="font-size:12px;flex:1;">Control Pool (${rigger.name})
-          <span style="color:#888;font-size:10px;">(${controlAvail} left)</span>
+          <span style="color:#aaa1c0;font-size:10px;">(${controlAvail} left)</span>
         </label>
         <input type="number" name="pool_control" value="0" min="0" max="${controlAvail}"
                style="width:52px;text-align:center;">
@@ -809,14 +809,14 @@ export class SR2EActor extends Actor {
       content: `<form>
         <div style="font-size:11px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;margin-bottom:6px;">
           <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="color:#888;">Incoming (vs vehicle):</td>
+            <tr><td style="color:#aaa1c0;">Incoming (vs vehicle):</td>
                 <td style="text-align:right;font-weight:bold;">${power}${startLevel}</td></tr>
-            <tr><td style="color:#888;">Body${armor > 0 ? " + ½ Armor" : ""} dice:</td>
+            <tr><td style="color:#aaa1c0;">Body${armor > 0 ? " + ½ Armor" : ""} dice:</td>
                 <td style="text-align:right;">${dice}</td></tr>
-            <tr><td style="color:#888;">Power − (Body${armor > 0 ? " + Armor" : ""}):</td>
+            <tr><td style="color:#aaa1c0;">Power − (Body${armor > 0 ? " + Armor" : ""}):</td>
                 <td style="text-align:right;font-weight:bold;">TN ${tn}</td></tr>
           </table>
-          <p style="margin:4px 0 0;font-size:10px;color:#888;">
+          <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
             Damage Level already reduced one step vs vehicles (SR2E p.108).</p>
         </div>
         ${poolHTML}
@@ -948,10 +948,10 @@ export class SR2EActor extends Actor {
     const combatAvail = system.dicePools?.combat?.value ?? 0;
     const poolHTML    = combatAvail > 0 ? `
       <hr style="margin:8px 0 6px;">
-      <p style="margin:0 0 2px;font-size:11px;color:#a0a0a0;">Pool Dice (optional)</p>
+      <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">Pool Dice (optional)</p>
       <div class="form-group" style="margin:3px 0;">
         <label style="font-size:12px;flex:1;">Combat Pool
-          <span style="color:#888;font-size:10px;">(${combatAvail} left)</span>
+          <span style="color:#aaa1c0;font-size:10px;">(${combatAvail} left)</span>
         </label>
         <input type="number" name="pool_combat" value="0" min="0" max="${combatAvail}"
                style="width:52px;text-align:center;">
@@ -967,20 +967,20 @@ export class SR2EActor extends Actor {
                     padding:6px 8px;margin-bottom:6px;">
           <table style="width:100%;border-collapse:collapse;">
             <tr>
-              <td style="color:#888;padding:1px 0;">Incoming Damage:</td>
+              <td style="color:#aaa1c0;padding:1px 0;">Incoming Damage:</td>
               <td style="text-align:right;padding:1px 0;font-weight:bold;">${power}${level}</td>
             </tr>
             ${options.ammoName ? `
             <tr>
-              <td style="color:#888;padding:1px 0;">Ammunition:</td>
+              <td style="color:#aaa1c0;padding:1px 0;">Ammunition:</td>
               <td style="text-align:right;padding:1px 0;">${foundry.utils.escapeHTML(options.ammoName)}</td>
             </tr>` : ""}
             <tr>
-              <td style="color:#888;padding:1px 0;">${armorLabel} Armor:</td>
+              <td style="color:#aaa1c0;padding:1px 0;">${armorLabel} Armor:</td>
               <td style="text-align:right;padding:1px 0;">−${armor}</td>
             </tr>
             <tr>
-              <td style="color:#888;padding:1px 0;">Body Dice:</td>
+              <td style="color:#aaa1c0;padding:1px 0;">Body Dice:</td>
               <td style="text-align:right;padding:1px 0;">${bodyDice}</td>
             </tr>
             <tr style="border-top:1px solid rgba(255,255,255,0.15);">
@@ -988,7 +988,7 @@ export class SR2EActor extends Actor {
               <td style="text-align:right;font-weight:bold;padding-top:3px;">${tn}</td>
             </tr>
           </table>
-          <p style="margin:4px 0 0;font-size:10px;color:#888;">
+          <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
             Every 2 successes stages damage down 1 level (SR2E p.116).
           </p>
           ${flechetteNote}

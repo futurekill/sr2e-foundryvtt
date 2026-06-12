@@ -13,7 +13,7 @@
   --sr2e-gold:        #00e5ff;    /* electric cyan — header/value accent */
   --sr2e-gold-dim:    #006688;    /* dimmer cyan for borders */
   --sr2e-text:        #e0d4f0;    /* pale lavender-white */
-  --sr2e-text-muted:  #6a5a8a;    /* muted purple-grey */
+  --sr2e-text-muted:  #9d8fc2;    /* muted purple-grey (readable on dark) */
   --sr2e-bg:          #060412;    /* sheet background */
   --sr2e-bg-light:    #100820;    /* panel / fieldset background */
   --sr2e-bg-input:    #0a0618;    /* input fields */
