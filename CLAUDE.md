@@ -36,11 +36,20 @@ write-ahead logs MUST stay tracked or releases lose data.
 Tag `vX.Y.Z` after bumping `system.json` version; GitHub Actions packages
 the zip (dev files excluded in `release.yml`).
 
+## Active Effects
+`CONFIG.ActiveEffect.legacyTransferral = false`. The derived-data pipeline
+preserves AE contributions on these keys (anything else derived gets
+overwritten): `system.<attr>.mod`, `system.reaction.mod`,
+`system.initiative.mod` (= EXTRA initiative dice), `system.armor.ballistic`,
+`system.armor.impact`. Spell items hold their effects with transfer=false;
+`SR2EItem#setSustaining` copies them to the caster (origin = spell uuid)
+and removes them on drop. Sustain penalty (+2 TN/spell, spell locks exempt)
+is applied centrally in `rollSuccessTest`.
+
 ## Known deferred work
-Sustained spells / Active Effects, defender-side opposed melee tests,
-conjuring, Matrix subsystem, ramming and escape-test automation, karma
-advancement UI, full i18n of TN-breakdown strings, migration framework
-before schema renames.
+Defender-side opposed melee tests, conjuring, Matrix subsystem, ramming and
+escape-test automation, karma advancement UI, full i18n of TN-breakdown
+strings, migration framework before schema renames.
 
 Initiative passes are implemented in `module/documents/combat.mjs`
 (SR2ECombat): "next turn" costs the current actor 10 Initiative and jumps

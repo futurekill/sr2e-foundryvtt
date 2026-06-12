@@ -115,10 +115,12 @@ export class SR2EActor extends Actor {
    * @returns {Promise<object>} The test result
    */
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
-    // Apply wound penalty to target number (SR2E Injury Modifier, cumulative
-    // across the physical and stun condition columns)
+    // Apply wound penalty (SR2E Injury Modifier, cumulative across the
+    // physical and stun columns) and the sustained-spell penalty
+    // (+2 per spell sustained by concentration, SR2E p.130).
     const woundPenalty = this.system.woundPenalty ?? 0;
-    const effectiveTN = targetNumber + woundPenalty;
+    const sustainPenalty = this.system.sustainPenalty ?? 0;
+    const effectiveTN = targetNumber + woundPenalty + sustainPenalty;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
@@ -153,8 +155,11 @@ export class SR2EActor extends Actor {
     const successes = testResult.successes;
 
     // Build chat notes
-    const tnNote = woundPenalty > 0
-      ? `${effectiveTN} (base ${targetNumber} +${woundPenalty} wound)`
+    const tnParts = [];
+    if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} wound`);
+    if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} sustaining`);
+    const tnNote = tnParts.length
+      ? `${effectiveTN} (base ${targetNumber} ${tnParts.join(", ")})`
       : `${effectiveTN}`;
 
     let diceNote = `${dicePool}`;

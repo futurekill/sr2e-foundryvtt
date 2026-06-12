@@ -235,6 +235,11 @@ export class SpellData extends SR2EDataModel {
       damageCode: new fields.StringField({ initial: "" }),
       isAreaEffect: new fields.BooleanField({ initial: false }),
       isVoluntary: new fields.BooleanField({ initial: false }),
+      // Sustained-spell state (SR2E p.130): while sustaining, the caster takes
+      // +2 TN on all other tests per spell — unless a spell lock holds it.
+      sustaining: new fields.BooleanField({ initial: false }),
+      sustainedForce: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      spellLocked: new fields.BooleanField({ initial: false }),
       notes: new fields.StringField({ initial: "" })
     };
   }

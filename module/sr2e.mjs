@@ -49,6 +49,10 @@ Hooks.once("init", async () => {
   // and a new Combat Turn re-rolls everyone (SR2E p.78-79).
   CONFIG.Combat.documentClass = SR2ECombat;
 
+  // Modern ActiveEffect behaviour: effects defined on owned items apply to
+  // the actor directly (when transfer = true) without copying at creation.
+  CONFIG.ActiveEffect.legacyTransferral = false;
+
   // Register TypeDataModels for Actor types
   CONFIG.Actor.dataModels = {
     character: dataModels.CharacterData,

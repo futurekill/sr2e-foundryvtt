@@ -2247,6 +2247,37 @@
   box-shadow: 0 0 5px rgba(74, 153, 80, 0.4);
 }
 
+/* Sustained spell indicators (magic tab) */
+.spell-row.sustaining .name {
+  color: var(--sr2e-gold, #c19a49);
+}
+
+.sustain-badge {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 0 4px;
+  margin-left: 4px;
+  border: 1px solid var(--sr2e-gold-dim, #8a6d3b);
+  border-radius: 3px;
+  color: var(--sr2e-gold, #c19a49);
+}
+
+.sustain-toggle.active i,
+.spell-lock-toggle.active i {
+  color: var(--sr2e-gold, #c19a49);
+  text-shadow: 0 0 4px rgba(193, 154, 73, 0.6);
+}
+
+.sustain-summary {
+  margin-top: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--sr2e-gold, #c19a49);
+  background: rgba(193, 154, 73, 0.1);
+  border: 1px solid var(--sr2e-gold-dim, #8a6d3b);
+  border-radius: 4px;
+}
+
 /* Vehicle damage level badge next to the condition monitor */
 .vehicle-damage-level {
   margin-left: 8px;

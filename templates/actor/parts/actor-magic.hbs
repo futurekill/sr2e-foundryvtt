@@ -71,20 +71,41 @@
       </div>
       <div class="item-list">
         {{#each spells as |spell|}}
-        <div class="item-row spell-row flexrow" data-item-id="{{spell.id}}">
+        <div class="item-row spell-row flexrow {{#if spell.system.sustaining}}sustaining{{/if}}" data-item-id="{{spell.id}}">
           <span class="spell-col name" data-action="castSpell">
             <i class="fas fa-magic"></i>
             {{spell.name}}
+            {{#if spell.system.sustaining}}
+            <span class="sustain-badge" title="Sustained at Force {{spell.system.sustainedForce}}">F{{spell.system.sustainedForce}}</span>
+            {{/if}}
           </span>
           <span class="spell-col category">{{spell.system.category}}</span>
           <span class="spell-col type">{{spell.system.type}}</span>
           <span class="spell-col drain">{{spell.system.drainCode}}</span>
           <div class="spell-col controls item-controls">
+            {{#ifEquals spell.system.duration "sustained"}}
+            <a data-action="toggleSustain" class="sustain-toggle {{#if spell.system.sustaining}}active{{/if}}"
+               title="{{#if spell.system.sustaining}}Drop spell (Free Action){{else}}Sustain (+2 TN on all other tests, SR2E p.130){{/if}}">
+              <i class="fas fa-hourglass-half"></i>
+            </a>
+            {{#if spell.system.sustaining}}
+            <a data-action="toggleSpellLock" class="spell-lock-toggle {{#if spell.system.spellLocked}}active{{/if}}"
+               title="{{#if spell.system.spellLocked}}Held by spell lock (no sustain penalty){{else}}Hold with a spell lock (removes the +2 TN penalty){{/if}}">
+              <i class="fas fa-lock"></i>
+            </a>
+            {{/if}}
+            {{/ifEquals}}
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
           </div>
         </div>
         {{/each}}
+        {{#ifGt sustainPenalty 0}}
+        <div class="sustain-summary" title="+2 TN per spell sustained by concentration (SR2E p.130)">
+          <i class="fas fa-hourglass-half"></i>
+          Sustaining &mdash; <strong>+{{sustainPenalty}} TN</strong> on all other tests
+        </div>
+        {{/ifGt}}
       </div>
     </div>
 

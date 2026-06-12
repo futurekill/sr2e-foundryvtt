@@ -209,6 +209,24 @@
     <label>Description:</label>
     <textarea name="system.notes">{{system.notes}}</textarea>
   </div>
+
+  {{!-- Active Effects applied to the caster while the spell is sustained.
+        Useful keys: system.<attr>.mod, system.reaction.mod,
+        system.initiative.mod (extra init dice), system.armor.ballistic/impact --}}
+  <div class="form-group">
+    <label>Sustained Effects:</label>
+    <a data-action="addEffect" title="Add an Active Effect applied to the caster while this spell is sustained">
+      <i class="fas fa-plus"></i> Add
+    </a>
+  </div>
+  {{#each effects as |effect|}}
+  <div class="form-group item-effect-row" data-effect-id="{{effect.id}}">
+    <img src="{{effect.img}}" width="18" height="18" style="border:none;" />
+    <span style="flex:1;">{{effect.name}}</span>
+    <a data-action="editEffect" title="Edit"><i class="fas fa-edit"></i></a>
+    <a data-action="deleteEffect" title="Delete"><i class="fas fa-trash"></i></a>
+  </div>
+  {{/each}}
   {{/ifEquals}}
 
   {{!-- CYBERWARE --}}

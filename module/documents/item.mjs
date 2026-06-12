@@ -473,6 +473,68 @@ export class SR2EItem extends Item {
   }
 
   /**
+   * Start or stop sustaining this spell (SR2E p.130).
+   *
+   * While sustaining, the caster suffers +2 TN on all other tests per spell
+   * (applied in rollSuccessTest) unless a spell lock holds it. Any Active
+   * Effects defined on the spell item are copied to the caster while the
+   * spell is sustained (origin = this spell) and removed when it drops.
+   *
+   * @param {boolean} active - Sustain (true) or drop (false).
+   * @param {number} [force] - The Force the spell was cast at.
+   */
+  async setSustaining(active, force = 0) {
+    const actor = this.parent;
+    if (!actor || this.type !== "spell") return;
+
+    if (active) {
+      // Max simultaneous sustains = Sorcery rating (p.130) — warn, don't block
+      const sorcery = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "sorcery");
+      const maxSustains = sorcery?.system?.rating ?? 0;
+      const current = actor.items.filter(i => i.type === "spell" && i.system.sustaining).length;
+      if (current + 1 > maxSustains) {
+        ui.notifications.warn(
+          `${actor.name} is sustaining ${current + 1} spells — the maximum is their Sorcery rating (${maxSustains}). (SR2E p.130)`
+        );
+      }
+
+      await this.update({
+        "system.sustaining": true,
+        "system.sustainedForce": force || this.system.force
+      });
+
+      // Apply the spell's Active Effects to the caster for the duration
+      const effects = this.effects.map(e => {
+        const data = e.toObject();
+        data.origin = this.uuid;
+        data.disabled = false;
+        data.transfer = false;
+        return data;
+      });
+      if (effects.length) {
+        await actor.createEmbeddedDocuments("ActiveEffect", effects);
+      }
+
+    } else {
+      await this.update({
+        "system.sustaining": false,
+        "system.sustainedForce": 0,
+        "system.spellLocked": false
+      });
+      // Remove the effects this spell placed on the caster
+      const ids = actor.effects.filter(e => e.origin === this.uuid).map(e => e.id);
+      if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
+
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-item-card">
+          <strong>${foundry.utils.escapeHTML(this.name)}</strong> dropped (Free Action).
+        </div>`
+      });
+    }
+  }
+
+  /**
    * Roll a spellcasting test.
    *
    * Spell Success Test (SR2E p.140):
@@ -568,6 +630,21 @@ export class SR2EItem extends Item {
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-drain-result">
           <strong>Drain fully resisted — no damage taken.</strong>
+        </div>`
+      });
+    }
+
+    // ── Sustained spells (SR2E p.130) ─────────────────────────────────────────
+    // A successful sustained-duration cast begins sustaining automatically
+    // (after drain, so the new spell doesn't penalize its own Drain Test).
+    // +2 TN on all other tests until dropped or held by a spell lock.
+    if (this.system.duration === "sustained" && (spellResult?.successes ?? 0) > 0) {
+      await this.setSustaining(true, force);
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-item-card">
+          <strong>${foundry.utils.escapeHTML(this.name)}</strong> is now being sustained
+          at Force ${force} <em>(+2 TN on all other tests until dropped — SR2E p.130)</em>.
         </div>`
       });
     }

@@ -208,17 +208,20 @@ export class CharacterData extends SR2EDataModel {
       this.essence.value = Math.max(0, this.essence.max - mods.essenceLoss);
     }
 
-    // Calculate Reaction = (Quickness + Intelligence) / 2, plus cyberware mods
-    this.reaction.mod = mods.reaction;
+    // Calculate Reaction = (Quickness + Intelligence) / 2, plus cyberware mods.
+    // reaction.mod already holds stored + Active Effect contributions.
+    this.reaction.mod = (this.reaction.mod ?? 0) + mods.reaction;
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = Math.max(0, this.reaction.base + this.reaction.mod);
 
     // Initiative base = Adjusted Reaction. The wound Initiative Modifier is applied
     // to Reaction *before* Initiative dice are rolled (SR2E Damage Modifiers Table,
     // p.112) — it reduces the base score at roll time, not the number of dice.
+    // initiative.mod is the Active-Effect hook for EXTRA INITIATIVE DICE
+    // (e.g. an Increase Reflexes spell effect adds to system.initiative.mod).
     this.initiative.base = this.reaction.value;
     this.initiative.value = this.reaction.value;
-    this.initiative.dice = 1 + mods.initiativeDice;
+    this.initiative.dice = Math.max(1, 1 + mods.initiativeDice + (this.initiative.mod ?? 0));
 
     // Calculate Essence-based Magic
     if (this.magic.type !== "none") {
@@ -306,7 +309,9 @@ export class CharacterData extends SR2EDataModel {
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
-        this[attr].mod = mods[attr];
+        // .mod at this point = stored value + Active Effect contributions
+        // (effects are applied before prepareDerivedData); item mods stack on top.
+        this[attr].mod = (this[attr].mod ?? 0) + mods[attr];
         let natural = this[attr].base + this[attr].racial;
         if (maxes[attr] != null && natural > maxes[attr]) natural = maxes[attr];
         this[attr].value = Math.max(1, natural + this[attr].mod);
@@ -392,8 +397,10 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _calculateArmor() {
-    let ballistic = 0;
-    let impact = 0;
+    // Preserve Active Effect contributions (e.g. an Armor spell adding to
+    // system.armor.ballistic) — at this point the fields hold source (0) + AEs.
+    let ballistic = this.armor.ballistic ?? 0;
+    let impact = this.armor.impact ?? 0;
     if (this.parent?.items) {
       for (const item of this.parent.items) {
         if (item.type === "armor" && item.system.equipped) {
@@ -443,6 +450,19 @@ export class CharacterData extends SR2EDataModel {
     if (maxDamage >= 3)  return "Moderate";
     if (maxDamage >= 1)  return "Light";
     return "Undamaged";
+  }
+
+  /**
+   * Universal TN penalty from sustained spells: +2 per spell being
+   * sustained by concentration (spell locks exempt). SR2E p.130.
+   * @returns {number}
+   */
+  get sustainPenalty() {
+    let count = 0;
+    for (const item of this.parent?.items ?? []) {
+      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked) count++;
+    }
+    return 2 * count;
   }
 
   /**
@@ -595,6 +615,18 @@ export class NPCData extends SR2EDataModel {
     };
     return columnPenalty(this.conditionMonitor.physical.value)
          + columnPenalty(this.conditionMonitor.stun.value);
+  }
+
+  /**
+   * Universal TN penalty from sustained spells (+2 each, spell locks exempt).
+   * @returns {number}
+   */
+  get sustainPenalty() {
+    let count = 0;
+    for (const item of this.parent?.items ?? []) {
+      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked) count++;
+    }
+    return 2 * count;
   }
 
   /**

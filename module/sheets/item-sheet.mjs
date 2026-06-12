@@ -17,7 +17,10 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     actions: {
       rollItem:        SR2EItemSheet._onRollItem,
       addRatingRow:    SR2EItemSheet._addRatingRow,
-      removeRatingRow: SR2EItemSheet._removeRatingRow
+      removeRatingRow: SR2EItemSheet._removeRatingRow,
+      addEffect:       SR2EItemSheet._addEffect,
+      editEffect:      SR2EItemSheet._editEffect,
+      deleteEffect:    SR2EItemSheet._deleteEffect
     },
     form: {
       submitOnChange: true
@@ -40,6 +43,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     context.item = item;
     context.system = item.system;
+    context.effects = item.effects.contents;
     context.config = CONFIG.SR2E;
     context.isOwned = !!item.parent;
     context.type = item.type;
@@ -138,6 +142,37 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const nextRating = rows.length > 0 ? (rows[rows.length - 1].rating + 1) : 1;
     rows.push({ rating: nextRating, essenceCost: 0, cost: 0, availability: "", streetIndex: "" });
     await item.update({ "system.ratingStats": rows });
+  }
+
+  /**
+   * Create an Active Effect on this item and open its config sheet.
+   * For spells these are applied to the caster while the spell is sustained
+   * (transfer = false; SR2EItem#setSustaining copies them on/off the actor).
+   */
+  static async _addEffect(event, target) {
+    event.preventDefault();
+    const item = this.document;
+    const [effect] = await item.createEmbeddedDocuments("ActiveEffect", [{
+      name: item.name,
+      img: item.img,
+      transfer: false,
+      disabled: false
+    }]);
+    effect?.sheet.render(true);
+  }
+
+  /** Open an Active Effect's config sheet. */
+  static async _editEffect(event, target) {
+    event.preventDefault();
+    const effectId = target.closest("[data-effect-id]")?.dataset.effectId;
+    this.document.effects.get(effectId)?.sheet.render(true);
+  }
+
+  /** Delete an Active Effect from this item. */
+  static async _deleteEffect(event, target) {
+    event.preventDefault();
+    const effectId = target.closest("[data-effect-id]")?.dataset.effectId;
+    if (effectId) await this.document.deleteEmbeddedDocuments("ActiveEffect", [effectId]);
   }
 
   /**

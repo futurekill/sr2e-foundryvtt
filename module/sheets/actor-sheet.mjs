@@ -1524,6 +1524,32 @@ const SHARED_ACTIONS = {
   },
 
   /**
+   * Toggle sustaining a spell (drop is a Free Action). Applies/removes the
+   * spell's Active Effects and the +2 TN sustain penalty (SR2E p.130).
+   * @this {ApplicationV2}
+   */
+  toggleSustain: async function(event, target) {
+    event.preventDefault();
+    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+    const item = this.document.items.get(itemId);
+    if (!item || item.type !== "spell") return;
+    return item.setSustaining(!item.system.sustaining);
+  },
+
+  /**
+   * Toggle whether a sustained spell is held by a spell lock — locked spells
+   * impose no sustain penalty (SR2E p.137).
+   * @this {ApplicationV2}
+   */
+  toggleSpellLock: async function(event, target) {
+    event.preventDefault();
+    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+    const item = this.document.items.get(itemId);
+    if (!item || !item.system.sustaining) return;
+    return item.update({ "system.spellLocked": !item.system.spellLocked });
+  },
+
+  /**
    * Clear the character's magical tradition — resets magic.type and
    * magic.tradition to "none". Triggered by the × button on the magic tab.
    * @this {ApplicationV2}
@@ -2013,6 +2039,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Derived display values
     context.woundPenalty = system.woundPenalty;
     context.woundLevel = system.woundLevel;
+    context.sustainPenalty = system.sustainPenalty;
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
     context.isRigger = system.isRigger;
