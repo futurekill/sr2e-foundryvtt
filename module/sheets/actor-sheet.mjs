@@ -2217,6 +2217,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.woundPenalty = system.woundPenalty;
     context.woundLevel = system.woundLevel;
     context.sustainPenalty = system.sustainPenalty;
+    // When an installed VCR cyberware item governs the rig level, the
+    // vehicles-tab field becomes a read-only display of it
+    context.vcrFromCyberware = actor.items.some(
+      i => i.type === "cyberware" && i.system.installed && i.system.isVcr
+    );
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
     context.isRigger = system.isRigger;

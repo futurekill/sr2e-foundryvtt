@@ -7,7 +7,14 @@
       <div class="rigger-stats-row flexrow">
         <div class="rigger-stat">
           <label>Vehicle Control Rig</label>
-          <input type="number" name="system.vehicleControlRig" value="{{system.vehicleControlRig}}" min="0" max="3" class="vcr-input" />
+          {{#if vcrFromCyberware}}
+          <span class="vcr-display" title="Set by the installed Vehicle Control Rig cyberware (Gear tab) — edit or remove the item to change it">
+            {{system.vehicleControlRig}} <i class="fas fa-microchip" style="font-size:10px;opacity:0.7;"></i>
+          </span>
+          {{else}}
+          <input type="number" name="system.vehicleControlRig" value="{{system.vehicleControlRig}}" min="0" max="3" class="vcr-input"
+                 title="Manual rig level — installing Vehicle Control Rig cyberware will override this" />
+          {{/if}}
         </div>
         {{#if isRigger}}
         <div class="rigger-stat">

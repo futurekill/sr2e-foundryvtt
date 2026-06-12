@@ -194,10 +194,11 @@ export class CharacterData extends SR2EDataModel {
     // then cyberware/adept modifiers applied on top)
     this._calculateAttributeValues(mods);
 
-    // Installed VCR cyberware sets the rig level automatically; the manual
-    // field on the vehicles tab acts as a floor for actors without the item.
-    // Must run before _calculateDicePools (Control Pool requires a VCR).
-    this.vehicleControlRig = Math.max(this.vehicleControlRig, mods.vcrLevel);
+    // Installed VCR cyberware is AUTHORITATIVE for the rig level — the manual
+    // field on the vehicles tab only applies when no rig item is installed
+    // (quick NPC-style setups). Must run before _calculateDicePools
+    // (Control Pool requires a VCR).
+    if (mods.vcrLevel > 0) this.vehicleControlRig = mods.vcrLevel;
 
     // Essence loss from installed cyberware (toggleable via the autoEssence setting).
     // try/catch: settings are registered in the init hook, but data prep can be
