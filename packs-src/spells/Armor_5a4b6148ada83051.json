@@ -17,7 +17,29 @@
     "notes": "A voluntary subject is required. The magician gives the subject built-in armor, knitting his tissues into tougher compounds. Treat one-half the successes made in the Spell Success Test as the Dermal Armor Rating (add to Body) for as long as the spell is maintained."
   },
   "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
-  "effects": [],
+  "effects": [
+    {
+      "_id": "027246c7fa762324",
+      "name": "Armor (Dermal)",
+      "img": "icons/svg/shield.svg",
+      "transfer": false,
+      "disabled": false,
+      "changes": [
+        {
+          "key": "system.body.mod",
+          "mode": 2,
+          "value": "1",
+          "priority": null
+        }
+      ],
+      "description": "<p>Adds dermal armor to Body equal to HALF the Spell Success Test successes (SR2E p.158). Edit the value after each casting.</p>",
+      "duration": {},
+      "flags": {},
+      "statuses": [],
+      "tint": "#ffffff",
+      "origin": null
+    }
+  ],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,
   "ownership": {

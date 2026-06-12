@@ -17,7 +17,29 @@
     "notes": "A hypersense spell requiring a voluntary subject. The subject becomes able to subconsciously analyze combat or other dangerous situations. The theory is that the spell allows precognition, with the subject sensing events a split second before they occur. Every 2 successes adds to the subject's Combat Pool for the duration of the spell."
   },
   "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
-  "effects": [],
+  "effects": [
+    {
+      "_id": "b26a2d1b65b7dba8",
+      "name": "Combat Sense",
+      "img": "icons/svg/eye.svg",
+      "transfer": false,
+      "disabled": false,
+      "changes": [
+        {
+          "key": "system.dicePools.combat.bonus",
+          "mode": 2,
+          "value": "1",
+          "priority": null
+        }
+      ],
+      "description": "<p>Adds dice to the Combat Pool while sustained (SR2E p.84). Edit the value to match the casting result.</p>",
+      "duration": {},
+      "flags": {},
+      "statuses": [],
+      "tint": "#ffffff",
+      "origin": null
+    }
+  ],
   "folder": "f998bf7f58ce1843",
   "sort": 0,
   "ownership": {

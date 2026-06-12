@@ -7,12 +7,16 @@ export class SR2EDataModel extends foundry.abstract.TypeDataModel {
 
   /**
    * Helper to create a standard resource field (value/max).
+   * `bonus` is the Active-Effect hook: effects targeting e.g.
+   * system.dicePools.combat.bonus add dice on top of the computed maximum
+   * (used by the Combat Sense spells).
    */
   static resourceField(initial = 0, max = 10) {
     const fields = foundry.data.fields;
     return new fields.SchemaField({
       value: new fields.NumberField({ required: true, integer: true, initial, min: 0 }),
-      max: new fields.NumberField({ required: true, integer: true, initial: max, min: 0 })
+      max: new fields.NumberField({ required: true, integer: true, initial: max, min: 0 }),
+      bonus: new fields.NumberField({ required: true, integer: true, initial: 0 })
     });
   }
 

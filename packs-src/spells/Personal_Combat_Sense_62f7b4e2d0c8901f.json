@@ -17,7 +17,29 @@
     "notes": "This personal form of the combat sense spell affects only the caster."
   },
   "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
-  "effects": [],
+  "effects": [
+    {
+      "_id": "b4b1db56cc4bd253",
+      "name": "Personal Combat Sense",
+      "img": "icons/svg/eye.svg",
+      "transfer": false,
+      "disabled": false,
+      "changes": [
+        {
+          "key": "system.dicePools.combat.bonus",
+          "mode": 2,
+          "value": "1",
+          "priority": null
+        }
+      ],
+      "description": "<p>Adds dice to the Combat Pool while sustained (SR2E p.84). Edit the value to match the casting result.</p>",
+      "duration": {},
+      "flags": {},
+      "statuses": [],
+      "tint": "#ffffff",
+      "origin": null
+    }
+  ],
   "folder": "f998bf7f58ce1843",
   "sort": 0,
   "ownership": {

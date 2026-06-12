@@ -16,7 +16,29 @@
     "isVoluntary": false,
     "notes": "SR2E p.184. Temporarily increases one attribute by Force."
   },
-  "effects": [],
+  "effects": [
+    {
+      "_id": "0c61b28559e07611",
+      "name": "Increase [Attribute]",
+      "img": "icons/svg/upgrade.svg",
+      "transfer": false,
+      "disabled": false,
+      "changes": [
+        {
+          "key": "system.quickness.mod",
+          "mode": 2,
+          "value": "1",
+          "priority": null
+        }
+      ],
+      "description": "<p>Increases the chosen Attribute while sustained. Change the key to the attribute cast on (system.body.mod, system.strength.mod, ...) and set the value per the casting result.</p>",
+      "duration": {},
+      "flags": {},
+      "statuses": [],
+      "tint": "#ffffff",
+      "origin": null
+    }
+  ],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",

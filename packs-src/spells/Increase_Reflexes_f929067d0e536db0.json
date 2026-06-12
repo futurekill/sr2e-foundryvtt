@@ -1,0 +1,58 @@
+{
+  "_id": "f929067d0e536db0",
+  "name": "Increase Reflexes",
+  "type": "spell",
+  "img": "icons/svg/lightning.svg",
+  "system": {
+    "category": "health",
+    "subcategory": "",
+    "type": "mana",
+    "range": "touch",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 1)S",
+    "target": "Voluntary subject",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": true,
+    "sustaining": false,
+    "sustainedForce": 0,
+    "spellLocked": false,
+    "notes": "Increases the Initiative dice of a voluntary subject by one die while sustained. Characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted by this spell. SR2E p.157 and Table of Spells."
+  },
+  "effects": [
+    {
+      "_id": "6bac6b2477c2ea15",
+      "name": "Increase Reflexes",
+      "img": "icons/svg/lightning.svg",
+      "transfer": false,
+      "disabled": false,
+      "changes": [
+        {
+          "key": "system.initiative.mod",
+          "mode": 2,
+          "value": "1",
+          "priority": null
+        }
+      ],
+      "description": "<p>+1 Initiative die while sustained. Not compatible with cybernetic initiative enhancement (SR2E p.157).</p>",
+      "duration": {},
+      "flags": {},
+      "statuses": [],
+      "tint": "#ffffff",
+      "origin": null
+    }
+  ],
+  "folder": null,
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.4.0",
+    "createdTime": 1780000000000,
+    "modifiedTime": 1780000000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!items!f929067d0e536db0"
+}

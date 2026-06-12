@@ -333,11 +333,13 @@ export class CharacterData extends SR2EDataModel {
     // "full" (no dice spent yet).  Once we have persisted a non-zero max we
     // can derive spent = savedMax - savedValue and carry it forward.
     const applyPool = (pool, newMax) => {
+      // pool.bonus = Active Effect contributions (e.g. Combat Sense spell)
+      const total = Math.max(0, newMax + (pool.bonus ?? 0));
       const savedMax   = pool.max;
       const savedValue = pool.value;
       const spent = savedMax > 0 ? Math.max(0, savedMax - savedValue) : 0;
-      pool.max   = newMax;
-      pool.value = Math.max(0, newMax - spent);
+      pool.max   = total;
+      pool.value = Math.max(0, total - spent);
     };
 
     // Combat Pool = floor((Quickness + Intelligence + Willpower) / 2)
