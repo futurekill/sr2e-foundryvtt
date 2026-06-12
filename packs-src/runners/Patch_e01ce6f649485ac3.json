@@ -1,0 +1,478 @@
+{
+  "_id": "e01ce6f649485ac3",
+  "name": "Patch (Rigger)",
+  "type": "character",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "biography": "<p>A dwarven wheelman who loves machines more than people and trusts them further. Jacked into a rig, Patch IS the vehicle \u2014 link a vehicle actor on the Vehicles tab and toggle Jacked In.</p><p><em>Sample character.</em></p>",
+    "notes": "",
+    "race": "dwarf",
+    "body": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "quickness": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "strength": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "charisma": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "intelligence": {
+      "base": 5,
+      "mod": 0,
+      "value": 5,
+      "racial": 0
+    },
+    "willpower": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "essence": {
+      "value": 6,
+      "max": 6
+    },
+    "magic": {
+      "value": 0,
+      "max": 0,
+      "tradition": "none",
+      "type": "none",
+      "skill": "none",
+      "totem": "",
+      "initiateGrade": 0
+    },
+    "reaction": {
+      "base": 0,
+      "mod": 0,
+      "value": 0
+    },
+    "conditionMonitor": {
+      "physical": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "stun": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "overflow": 0
+    },
+    "dicePools": {
+      "combat": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "hacking": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "magic": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "control": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "spellDefense": 0
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 1,
+      "mod": 0,
+      "value": 0,
+      "passes": 1
+    },
+    "movement": {
+      "walk": 0,
+      "run": 0
+    },
+    "armor": {
+      "ballistic": 0,
+      "impact": 0
+    },
+    "karma": {
+      "current": 0,
+      "total": 0,
+      "pool": 1
+    },
+    "nuyen": 3000,
+    "lifestyle": "low",
+    "chargen": {
+      "priorities": {
+        "race": "E",
+        "magic": "E",
+        "attributes": "A",
+        "skills": "B",
+        "resources": "C"
+      },
+      "attributePointsTotal": 30,
+      "attributePointsSpent": 0,
+      "skillPointsTotal": 30,
+      "skillPointsSpent": 0,
+      "resourcesTotal": 90000,
+      "resourcesSpent": 0,
+      "forcePointsTotal": 25,
+      "forcePointsSpent": 0
+    },
+    "adeptPowerPoints": {
+      "value": 0,
+      "max": 0
+    },
+    "matrixPersona": {
+      "bod": 0,
+      "evasion": 0,
+      "masking": 0,
+      "sensor": 0
+    },
+    "cyberdeck": {
+      "mpcp": 0,
+      "hardening": 0,
+      "activeMemory": 0,
+      "storageMemory": 0,
+      "loadSpeed": 0,
+      "ioSpeed": 0,
+      "response": 0
+    },
+    "vehicleControlRig": 2,
+    "rigging": false,
+    "combatRecoil": 0,
+    "linkedVehicles": []
+  },
+  "items": [
+    {
+      "_id": "11dee16cb4971f05",
+      "name": "Car",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 6,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "814d323c36a2497d",
+      "name": "Bike",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 4,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "fc7d17b97288941d",
+      "name": "Gunnery",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "intelligence",
+        "rating": 4,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "cc384da59f45576c",
+      "name": "Electronics",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "intelligence",
+        "rating": 4,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "79a9a2ab5eeeba08",
+      "name": "Firearms",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 3,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "e8ebc5e2534b992e",
+      "name": "Etiquette",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 2,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "5428ee8d690c2cca",
+      "name": "Vehicle Control Rig",
+      "type": "cyberware",
+      "img": "icons/svg/upgrade.svg",
+      "system": {
+        "location": "bodyware",
+        "grade": "standard",
+        "essenceCost": 1,
+        "rating": 2,
+        "cost": 12000,
+        "availability": "6/48hrs",
+        "legality": "Restricted",
+        "installed": true,
+        "attributeMods": {
+          "body": 0,
+          "quickness": 0,
+          "strength": 0,
+          "charisma": 0,
+          "intelligence": 0,
+          "willpower": 0,
+          "reaction": 0,
+          "initiativeDice": 0
+        },
+        "ratingStats": [
+          {
+            "rating": 1,
+            "essenceCost": 1,
+            "cost": 12000,
+            "availability": "6/48hrs",
+            "streetIndex": "1"
+          },
+          {
+            "rating": 2,
+            "essenceCost": 2,
+            "cost": 60000,
+            "availability": "8/48hrs",
+            "streetIndex": "1.25"
+          },
+          {
+            "rating": 3,
+            "essenceCost": 3,
+            "cost": 300000,
+            "availability": "8/48hrs",
+            "streetIndex": "1.5"
+          }
+        ],
+        "notes": "SR2E p.249. MST interfaces for vehicle rigging. Each level: +2 Reaction and +1d6 Initiative, applied ONLY while jacked in (use the Jacked In toggle on the Vehicles tab). Rating sets the character VCR level automatically when installed.",
+        "isVcr": true
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "2c22d2c7ee2b71a3",
+      "name": "Datajack",
+      "type": "cyberware",
+      "img": "icons/svg/upgrade.svg",
+      "system": {
+        "location": "headware",
+        "grade": "standard",
+        "essenceCost": 0.2,
+        "rating": 0,
+        "cost": 1000,
+        "availability": "4/48hrs",
+        "legality": "Restricted",
+        "installed": true,
+        "attributeMods": {
+          "body": 0,
+          "quickness": 0,
+          "strength": 0,
+          "charisma": 0,
+          "intelligence": 0,
+          "willpower": 0,
+          "reaction": 0,
+          "initiativeDice": 0
+        },
+        "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "f5c2b37eeabbc020",
+      "name": "Ares Predator",
+      "type": "weapon",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "weaponType": "firearm",
+        "skill": "firearms",
+        "damageCode": "9M",
+        "damageType": "physical",
+        "concealability": 5,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": true,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 15,
+          "max": 15,
+          "type": "pistol"
+        },
+        "recoilComp": 0,
+        "ranges": {
+          "short": 5,
+          "medium": 20,
+          "long": 40,
+          "extreme": 60
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 550,
+        "availability": "5/48hrs",
+        "legality": "Legal",
+        "equipped": true,
+        "accessories": [],
+        "notes": "SR2E p.231. Considered by many the premier heavy pistol. Menacing and popular among mercenaries and security services."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "3b133cee317d11c4",
+      "name": "Armor Jacket",
+      "type": "armor",
+      "img": "icons/svg/shield.svg",
+      "system": {
+        "ballistic": 5,
+        "impact": 3,
+        "concealability": 8,
+        "weight": 0,
+        "cost": 900,
+        "availability": "3/48hrs",
+        "legality": "Legal",
+        "equipped": true,
+        "isLayered": false,
+        "notes": "SR2E p.242. Available from chic street styling to macho militarism. Substantial protection in a practical package."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "5fabaa62fe3052ae",
+      "name": "Regular Ammo",
+      "type": "ammo",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "ammoType": "regular",
+        "quantity": 10,
+        "damageModifier": 0,
+        "armorModifier": 0,
+        "cost": 15,
+        "notes": "Standard rounds. SR2E p.93.",
+        "damageType": "",
+        "armorCalc": "standard"
+      },
+      "effects": [],
+      "flags": {}
+    }
+  ],
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.5.0",
+    "createdTime": 1781000000000,
+    "modifiedTime": 1781000000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!e01ce6f649485ac3"
+}

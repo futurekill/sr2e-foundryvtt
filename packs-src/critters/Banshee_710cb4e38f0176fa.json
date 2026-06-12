@@ -1,0 +1,168 @@
+{
+  "_id": "710cb4e38f0176fa",
+  "name": "Banshee",
+  "type": "npc",
+  "img": "icons/svg/pawprint.svg",
+  "system": {
+    "biography": "<p>An HMHVV-infected elf that feeds on the essence of the living. Buoyant in water (+3 TN to swimming-related tests).</p><p><strong>Powers:</strong> Enhanced Senses (Low-Light Vision, Hearing, Smell), Essence Drain, Fear, Immunity (Age, Pathogens, Toxins), Mist Form, Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Severe), Essence Loss, Vulnerability (Wood, Silver)</p><p><em>Perception rating 3 (best sense); running multiplier \u00d75; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "race": "critter",
+    "professionalRating": 0,
+    "body": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "quickness": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "strength": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "charisma": {
+      "base": 5,
+      "mod": 0,
+      "value": 5,
+      "racial": 0
+    },
+    "intelligence": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "willpower": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "essence": {
+      "value": 6,
+      "max": 6
+    },
+    "magic": {
+      "value": 0,
+      "max": 0,
+      "tradition": "none",
+      "type": "none",
+      "totem": ""
+    },
+    "reaction": {
+      "base": 0,
+      "mod": 0,
+      "value": 3
+    },
+    "conditionMonitor": {
+      "physical": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "stun": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "overflow": 0
+    },
+    "armor": {
+      "ballistic": 0,
+      "impact": 0
+    },
+    "dicePools": {
+      "combat": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "magic": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      }
+    },
+    "initiative": {
+      "base": 3,
+      "dice": 1,
+      "mod": 0,
+      "value": 3
+    },
+    "threatRating": 4,
+    "nuyen": 0,
+    "movement": {
+      "walk": 4,
+      "run": 20
+    }
+  },
+  "items": [
+    {
+      "_id": "4734a2f100e681a2",
+      "name": "Unarmed Strike",
+      "type": "weapon",
+      "img": "icons/svg/bones.svg",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "(Str)M",
+        "damageType": "stun",
+        "concealability": 0,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": ""
+      },
+      "effects": []
+    }
+  ],
+  "effects": [],
+  "folder": "d3d3be20a991d8cb",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.5.0",
+    "createdTime": 1781000000000,
+    "modifiedTime": 1781000000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!710cb4e38f0176fa"
+}

@@ -96,7 +96,9 @@
     { "name": "gear",         "label": "SR2E Equipment",      "path": "packs/gear",         "type": "Item",      "system": "sr2e", "folder": "Equipment" },
     { "name": "roll-tables",  "label": "SR2E Roll Tables",    "path": "packs/roll-tables",  "type": "RollTable", "system": "sr2e", "folder": "Reference" },
     { "name": "races",        "label": "SR2E Metatypes",        "path": "packs/races",        "type": "Item",      "system": "sr2e", "folder": "Characters" },
-    { "name": "traditions",   "label": "SR2E Traditions",       "path": "packs/traditions",   "type": "Item",      "system": "sr2e", "folder": "Magic" }
+    { "name": "traditions",   "label": "SR2E Traditions",       "path": "packs/traditions",   "type": "Item",      "system": "sr2e", "folder": "Magic" },
+    { "name": "critters",     "label": "SR2E Critters",         "path": "packs/critters",     "type": "Actor",     "system": "sr2e", "folder": "Actors" },
+    { "name": "runners",      "label": "SR2E Sample Runners",   "path": "packs/runners",      "type": "Actor",     "system": "sr2e", "folder": "Actors" }
   ],
   "packFolders": [
     {
@@ -137,6 +139,11 @@
           "name": "Reference",
           "sorting": "a",
           "packs": ["roll-tables"]
+        },
+        {
+          "name": "Actors",
+          "sorting": "a",
+          "packs": ["critters", "runners"]
         }
       ]
     }

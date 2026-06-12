@@ -1,0 +1,526 @@
+{
+  "_id": "839a67840ff48d74",
+  "name": "Whisper (Dog Shaman)",
+  "type": "character",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "biography": "<p>A street medic turned shaman after Dog found her patching gangers in a condemned clinic. Loyal to her neighbourhood to a fault; her healing magic is the only clinic some of them will ever see.</p><p><em>Sample character \u2014 Dog totem: +2 dice on detection spells, +2 on field/hearth spirits (SR2E p.122).</em></p>",
+    "notes": "",
+    "race": "human",
+    "body": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "quickness": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "strength": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "charisma": {
+      "base": 5,
+      "mod": 0,
+      "value": 5,
+      "racial": 0
+    },
+    "intelligence": {
+      "base": 5,
+      "mod": 0,
+      "value": 5,
+      "racial": 0
+    },
+    "willpower": {
+      "base": 6,
+      "mod": 0,
+      "value": 6,
+      "racial": 0
+    },
+    "essence": {
+      "value": 6,
+      "max": 6
+    },
+    "magic": {
+      "value": 6,
+      "max": 6,
+      "tradition": "shamanic",
+      "type": "full_magician",
+      "skill": "both",
+      "totem": "dog",
+      "initiateGrade": 0
+    },
+    "reaction": {
+      "base": 0,
+      "mod": 0,
+      "value": 0
+    },
+    "conditionMonitor": {
+      "physical": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "stun": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "overflow": 0
+    },
+    "dicePools": {
+      "combat": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "hacking": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "magic": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "control": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "spellDefense": 0
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 1,
+      "mod": 0,
+      "value": 0,
+      "passes": 1
+    },
+    "movement": {
+      "walk": 0,
+      "run": 0
+    },
+    "armor": {
+      "ballistic": 0,
+      "impact": 0
+    },
+    "karma": {
+      "current": 0,
+      "total": 0,
+      "pool": 1
+    },
+    "nuyen": 900,
+    "lifestyle": "low",
+    "chargen": {
+      "priorities": {
+        "race": "E",
+        "magic": "E",
+        "attributes": "A",
+        "skills": "B",
+        "resources": "C"
+      },
+      "attributePointsTotal": 30,
+      "attributePointsSpent": 0,
+      "skillPointsTotal": 30,
+      "skillPointsSpent": 0,
+      "resourcesTotal": 90000,
+      "resourcesSpent": 0,
+      "forcePointsTotal": 25,
+      "forcePointsSpent": 0
+    },
+    "adeptPowerPoints": {
+      "value": 0,
+      "max": 0
+    },
+    "matrixPersona": {
+      "bod": 0,
+      "evasion": 0,
+      "masking": 0,
+      "sensor": 0
+    },
+    "cyberdeck": {
+      "mpcp": 0,
+      "hardening": 0,
+      "activeMemory": 0,
+      "storageMemory": 0,
+      "loadSpeed": 0,
+      "ioSpeed": 0,
+      "response": 0
+    },
+    "vehicleControlRig": 0,
+    "rigging": false,
+    "combatRecoil": 0,
+    "linkedVehicles": []
+  },
+  "items": [
+    {
+      "_id": "d9364c0594261cae",
+      "name": "Sorcery",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "intelligence",
+        "rating": 5,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": true,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "40d508fa51484307",
+      "name": "Conjuring",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 5,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": true,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "3a5286ef52a25cd2",
+      "name": "Biotech",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "intelligence",
+        "rating": 4,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "ffbe1a7608bd6039",
+      "name": "Etiquette",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 3,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "8110bfce50daf468",
+      "name": "Stealth",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 2,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "e1b3a170bac62617",
+      "name": "Negotiation",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 3,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "802601615a275da4",
+      "name": "Heal",
+      "type": "spell",
+      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "system": {
+        "category": "health",
+        "type": "mana",
+        "range": "touch",
+        "duration": "permanent",
+        "force": 4,
+        "drainCode": "-1(S)",
+        "target": "",
+        "damageCode": "",
+        "isAreaEffect": false,
+        "isVoluntary": false,
+        "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "47e16a39018aa834",
+      "name": "Detect Enemies",
+      "type": "spell",
+      "system": {
+        "category": "detection",
+        "subcategory": "",
+        "type": "mana",
+        "range": "limited",
+        "duration": "sustained",
+        "force": 3,
+        "drainCode": "((F / 2) + 1)M",
+        "target": "4",
+        "damageCode": "",
+        "isAreaEffect": true,
+        "isVoluntary": true,
+        "notes": "An area-effect, general hypersense spell requiring a voluntary subject. Within range, detects living beings who have hostile intentions toward the subject of the spell. This spell would not detect a trap (it is not alive) nor a terrorist about to shoot into a crowd at random (the intention is not personal)."
+      },
+      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "c682ff4dbcea7637",
+      "name": "Manaball",
+      "type": "spell",
+      "system": {
+        "category": "combat",
+        "subcategory": "",
+        "type": "mana",
+        "range": "los",
+        "duration": "instant",
+        "force": 4,
+        "drainCode": "(F / 2)S",
+        "target": "Willpower (R)",
+        "damageCode": "M",
+        "isAreaEffect": true,
+        "isVoluntary": false,
+        "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets."
+      },
+      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "8e125d04f46aba6e",
+      "name": "Armor",
+      "type": "spell",
+      "system": {
+        "category": "manipulation",
+        "subcategory": "transformation",
+        "type": "physical",
+        "range": "limited",
+        "duration": "sustained",
+        "force": 3,
+        "drainCode": "((F / 2) + 2)M",
+        "target": "4",
+        "damageCode": "",
+        "isAreaEffect": false,
+        "isVoluntary": true,
+        "notes": "A voluntary subject is required. The magician gives the subject built-in armor, knitting his tissues into tougher compounds. Treat one-half the successes made in the Spell Success Test as the Dermal Armor Rating (add to Body) for as long as the spell is maintained."
+      },
+      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "effects": [
+        {
+          "_id": "027246c7fa762324",
+          "name": "Armor (Dermal)",
+          "img": "icons/svg/shield.svg",
+          "transfer": false,
+          "disabled": false,
+          "changes": [
+            {
+              "key": "system.body.mod",
+              "mode": 2,
+              "value": "1",
+              "priority": null
+            }
+          ],
+          "description": "<p>Adds dermal armor to Body equal to HALF the Spell Success Test successes (SR2E p.158). Edit the value after each casting.</p>",
+          "duration": {},
+          "flags": {},
+          "statuses": [],
+          "tint": "#ffffff",
+          "origin": null,
+          "type": "base",
+          "system": {}
+        }
+      ],
+      "flags": {}
+    },
+    {
+      "_id": "232b3afa5136feb2",
+      "name": "Stabilize",
+      "type": "spell",
+      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "system": {
+        "category": "health",
+        "type": "mana",
+        "range": "touch",
+        "duration": "permanent",
+        "force": 3,
+        "drainCode": "-1(S)",
+        "target": "",
+        "damageCode": "",
+        "isAreaEffect": false,
+        "isVoluntary": false,
+        "notes": "SR2E p.185. Stabilizes a dying character."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "d4e3a77195919632",
+      "name": "Shaman",
+      "type": "contact",
+      "img": "icons/svg/mystery-man.svg",
+      "system": {
+        "contactType": "contact",
+        "archetype": "Shaman/Mage",
+        "loyalty": 1,
+        "influence": 2,
+        "description": "",
+        "notes": "SR2E p.41. Magical assistance and hermetic/shamanic services."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "6eae78ba4712fd5d",
+      "name": "Walther Palm Pistol",
+      "type": "weapon",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "weaponType": "firearm",
+        "skill": "firearms",
+        "damageCode": "4L",
+        "damageType": "physical",
+        "concealability": 12,
+        "reach": 0,
+        "firingModes": {
+          "ss": true,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 2,
+          "max": 2,
+          "type": "pistol"
+        },
+        "recoilComp": 0,
+        "ranges": {
+          "short": 5,
+          "medium": 10,
+          "long": 20,
+          "extreme": 35
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 200,
+        "availability": "2/48hrs",
+        "legality": "Legal",
+        "equipped": true,
+        "accessories": [],
+        "notes": "SR2E p.230. A tiny hold-out pistol small enough to palm. Fires two rounds, SS mode only. Extremely concealable."
+      },
+      "effects": [],
+      "flags": {}
+    },
+    {
+      "_id": "986e44712d5563e7",
+      "name": "Armor Clothing",
+      "type": "armor",
+      "img": "icons/svg/shield.svg",
+      "system": {
+        "ballistic": 1,
+        "impact": 0,
+        "concealability": 10,
+        "weight": 0,
+        "cost": 500,
+        "availability": "Always",
+        "legality": "Legal",
+        "equipped": true,
+        "isLayered": false,
+        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives\u2014stylish and protective."
+      },
+      "effects": [],
+      "flags": {}
+    }
+  ],
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.5.0",
+    "createdTime": 1781000000000,
+    "modifiedTime": 1781000000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!839a67840ff48d74"
+}

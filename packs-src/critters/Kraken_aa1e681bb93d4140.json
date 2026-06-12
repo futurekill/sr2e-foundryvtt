@@ -1,0 +1,168 @@
+{
+  "_id": "aa1e681bb93d4140",
+  "name": "Kraken",
+  "type": "npc",
+  "img": "icons/svg/pawprint.svg",
+  "system": {
+    "biography": "<p>A deep-ocean cephalopod of enormous size and surprising patience.</p><p><strong>Powers:</strong> Pestilence</p><p><em>Perception rating 3 (best sense); running multiplier \u00d73; dual-natured (astally active); natural armor 3. Stats: SR2E p.233.</em></p>",
+    "race": "critter",
+    "professionalRating": 0,
+    "body": {
+      "base": 12,
+      "mod": 0,
+      "value": 12,
+      "racial": 0
+    },
+    "quickness": {
+      "base": 5,
+      "mod": 0,
+      "value": 5,
+      "racial": 0
+    },
+    "strength": {
+      "base": 20,
+      "mod": 0,
+      "value": 20,
+      "racial": 0
+    },
+    "charisma": {
+      "base": 1,
+      "mod": 0,
+      "value": 1,
+      "racial": 0
+    },
+    "intelligence": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "willpower": {
+      "base": 6,
+      "mod": 0,
+      "value": 6,
+      "racial": 0
+    },
+    "essence": {
+      "value": 6,
+      "max": 6
+    },
+    "magic": {
+      "value": 0,
+      "max": 0,
+      "tradition": "none",
+      "type": "none",
+      "totem": ""
+    },
+    "reaction": {
+      "base": 0,
+      "mod": 3,
+      "value": 7
+    },
+    "conditionMonitor": {
+      "physical": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "stun": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "overflow": 0
+    },
+    "armor": {
+      "ballistic": 3,
+      "impact": 3
+    },
+    "dicePools": {
+      "combat": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "magic": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      }
+    },
+    "initiative": {
+      "base": 7,
+      "dice": 1,
+      "mod": 0,
+      "value": 7
+    },
+    "threatRating": 5,
+    "nuyen": 0,
+    "movement": {
+      "walk": 5,
+      "run": 15
+    }
+  },
+  "items": [
+    {
+      "_id": "d80c4af460c2432e",
+      "name": "Natural Attack",
+      "type": "weapon",
+      "img": "icons/svg/bones.svg",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "12D",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 2,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": ""
+      },
+      "effects": []
+    }
+  ],
+  "effects": [],
+  "folder": "d3d3be20a991d8cb",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.5.0",
+    "createdTime": 1781000000000,
+    "modifiedTime": 1781000000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!aa1e681bb93d4140"
+}

@@ -14,6 +14,8 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Vehicles** — Complete vehicle stat blocks with handling, speed, body, armor, and condition monitors
 - **Spirits/Elementals** — Force-based spirit sheets for nature spirits and elementals
 - **IC (Intrusion Countermeasures)** — Matrix IC stat blocks for decking encounters
+- **Critters** — Stat blocks for the core book's normal animals and paranormal beings (powers and weaknesses noted; descriptions are original)
+- **Sample Runners** — Five original ready-to-play characters: street samurai, combat mage, decker, rigger, and dog shaman
 
 ### Item Types
 - **Skills** — Active, knowledge, language, and special skills with concentrations and specializations
@@ -164,11 +166,8 @@ sr2e/
 ## Roadmap
 
 ### Planned Compendium Modules
-- **Core Equipment Pack** — All weapons, armor, cyberware, and gear from the core rulebook
-- **Core Spells Pack** — Complete spell directory from the core rulebook
-- **Archetypes Pack** — All 16 pre-built archetypes
-- **Critters Pack** — Awakened beings and paracritters
-- **Contacts Pack** — NPC contact archetypes
+- **Archetypes Pack** — Additional pre-built characters (a starter set of five
+  original sample runners ships in the Sample Runners pack)
 
 ### Planned Sourcebook Modules
 - **The Grimoire (FASA 7903)** — Additional spells and magical rules
