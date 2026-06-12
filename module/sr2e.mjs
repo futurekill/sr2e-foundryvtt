@@ -30,6 +30,9 @@ import { SR2EItemSheet } from "./sheets/item-sheet.mjs";
 import { preloadTemplates } from "./helpers/templates.mjs";
 import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
+// Migrations
+import { migrateWorld } from "./migrations.mjs";
+
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
 /* -------------------------------------------- */
@@ -153,6 +156,13 @@ Hooks.once("init", async () => {
 
 Hooks.once("ready", async () => {
 
+  // Run any pending world migrations before anything else can re-save
+  // documents (which would discard removed-field source data). GM only.
+  if (game.user.isGM) {
+    try { await migrateWorld(); }
+    catch (err) { console.error("SR2E | World migration failed:", err); }
+  }
+
   // Display a welcome message on first load
   if (!game.user.getFlag("sr2e", "welcomeShown")) {
     ChatMessage.create({
@@ -263,6 +273,15 @@ async function _createItemMacro(data, slot) {
  * @private
  */
 function _registerSystemSettings() {
+  // Last system version this world's data was migrated to (hidden; used by
+  // module/migrations.mjs to decide which migrations still need to run)
+  game.settings.register("sr2e", "systemMigrationVersion", {
+    scope: "world",
+    config: false,
+    type: String,
+    default: ""
+  });
+
   // Rule of Six toggle
   game.settings.register("sr2e", "ruleOfSix", {
     name: "SR2E.Settings.RuleOfSix",

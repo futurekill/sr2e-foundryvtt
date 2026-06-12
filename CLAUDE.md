@@ -46,10 +46,20 @@ overwritten): `system.<attr>.mod`, `system.reaction.mod`,
 and removes them on drop. Sustain penalty (+2 TN/spell, spell locks exempt)
 is applied centrally in `rollSuccessTest`.
 
+## Migrations
+`module/migrations.mjs` runs pending entries from its MIGRATIONS registry
+on world load (GM client, before anything re-saves documents) over world
+actors, world items, and unlinked token actors, then stamps the
+`systemMigrationVersion` world setting. When making a BREAKING schema
+change, append a `{version, migrateActor?, migrateItem?}` entry — they
+receive document SOURCE data (removed fields survive there until next
+save) and return update objects. Never reorder entries. System compendia
+are rebuilt from packs-src instead of runtime-migrated.
+
 ## Known deferred work
 Defender-side opposed melee tests, conjuring, Matrix subsystem, ramming and
 escape-test automation, karma advancement UI, full i18n of TN-breakdown
-strings, migration framework before schema renames.
+strings.
 
 Initiative passes are implemented in `module/documents/combat.mjs`
 (SR2ECombat): "next turn" costs the current actor 10 Initiative and jumps
