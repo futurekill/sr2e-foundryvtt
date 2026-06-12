@@ -57,8 +57,8 @@ save) and return update objects. Never reorder entries. System compendia
 are rebuilt from packs-src instead of runtime-migrated.
 
 ## Known deferred work
-Conjuring, Matrix subsystem, ramming and escape-test automation, karma
-advancement UI, full i18n of TN-breakdown strings.
+Conjuring, Matrix subsystem, ramming and escape-test automation, full
+i18n of TN-breakdown strings.
 
 Opposed melee is implemented: the attack card (flags.sr2e.melee) carries
 Defend/Undefended buttons; SR2EActor#rollMeleeDefense resolves the
