@@ -172,6 +172,12 @@ export class CharacterData extends SR2EDataModel {
       linkedVehicles: new fields.ArrayField(
         new fields.StringField({ required: false, blank: true }),
         { initial: [] }
+      ),
+
+      // --- BOUND/SUMMONED SPIRITS (UUIDs of Spirit actors) ---
+      boundSpirits: new fields.ArrayField(
+        new fields.StringField({ required: false, blank: true }),
+        { initial: [] }
       )
     };
   }
@@ -745,6 +751,9 @@ export class SpiritData extends SR2EDataModel {
       force: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       domain: new fields.StringField({ initial: "" }),
       services: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      maxServices: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // UUID of the conjuring character (set when summoned via rollConjuring)
+      conjurerUuid: new fields.StringField({ initial: "", blank: true }),
 
       // Derived from Force
       body: SR2EDataModel.attributeField(1),

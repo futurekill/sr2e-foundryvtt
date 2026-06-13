@@ -417,6 +417,138 @@ export class SR2EActor extends Actor {
   }
 
   /**
+   * Summon a spirit (SR2E p.138–140).
+   *
+   * Conjuring Test: Conjuring Skill + totem conjuring bonus + spirit foci dice
+   *   vs TN = the spirit's Force. The Magic Pool does NOT assist conjuring
+   *   tests. Net successes = the number of Services the spirit will perform.
+   *
+   * Drain Resistance Test: CHARISMA dice (not Willpower) vs TN = Force, drain
+   *   level from the Conjuring Drain Table (Stun until Force exceeds Charisma,
+   *   then Physical). Every 2 successes reduces the drain one level.
+   *
+   * On a successful summon a Spirit actor is created (Force-derived stats) and
+   * linked to the conjurer via system.boundSpirits.
+   *
+   * @param {object} opts
+   * @param {number} opts.force        - Force of the spirit (= test TN).
+   * @param {string} opts.kind         - "nature" or "elemental".
+   * @param {string} opts.domain       - Nature domain or elemental element key.
+   * @param {number} [opts.fociDice=0] - Extra dice from a bonded spirit focus.
+   * @param {number} [opts.karmaDice=0]
+   */
+  async rollConjuring(opts) {
+    const force    = Math.max(1, opts.force ?? 1);
+    const kind     = opts.kind ?? "nature";
+    const domain   = opts.domain ?? "";
+    const fociDice = Math.max(0, opts.fociDice ?? 0);
+    const charisma = this.system.charisma?.value ?? 1;
+
+    // Conjuring skill rating (defaults to 0 — no test possible untrained here)
+    let conjuring = 0;
+    for (const item of this.items) {
+      if (item.type === "skill" && item.name.toLowerCase() === "conjuring") {
+        conjuring = item.system.rating; break;
+      }
+    }
+
+    // Totem conjuring bonus (shamans) for the chosen domain
+    let totemBonus = 0;
+    if (this.system.magic?.tradition === "shamanic" && this.system.magic?.totem) {
+      const totem = CONFIG.SR2E.totems[this.system.magic.totem];
+      totemBonus = totem?.conjuringBonus?.[domain] ?? 0;
+    }
+
+    const conjuringDice = conjuring + totemBonus + fociDice;
+    if (conjuringDice <= 0) {
+      return ui.notifications.warn("No Conjuring skill — a magician needs the Conjuring skill to summon spirits.");
+    }
+
+    const totemNote = totemBonus > 0 ? ` +${totemBonus} totem` : "";
+    const fociNote  = fociDice   > 0 ? ` +${fociDice} focus`   : "";
+
+    // ── Conjuring Test (no Magic Pool) ────────────────────────────────────────
+    const conjureResult = await this.rollSuccessTest(conjuringDice, force, {
+      label: `Conjure ${kind === "elemental" ? "Elemental" : "Nature Spirit"} ` +
+             `(Force ${force}, ${domain}${totemNote}${fociNote})`,
+      karmaDice: opts.karmaDice
+    });
+    const services = conjureResult?.successes ?? 0;
+
+    // ── Conjuring Drain (Charisma, p.139) ─────────────────────────────────────
+    const drain = CONFIG.SR2E.conjuringDrain(force, charisma);
+    const drainResult = await this.rollSuccessTest(charisma + fociDice, force, {
+      label: `Conjuring Drain — ${drain.level} ${drain.type} (TN ${force})`
+    });
+    const stages     = ["L", "M", "S", "D"];
+    const reductions = Math.floor((drainResult?.successes ?? 0) / 2);
+    const finalIdx   = stages.indexOf(drain.level) - reductions;
+    if (finalIdx >= 0) {
+      const boxes = [1, 3, 6, 10][finalIdx];
+      await this.applyDamage(drain.type, boxes);
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-drain-result"><strong>Conjuring Drain:</strong>
+          ${stages[finalIdx]} ${drain.type} <em>(${boxes} box${boxes === 1 ? "" : "es"})</em></div>`
+      });
+    } else {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-drain-result"><strong>Conjuring Drain fully resisted.</strong></div>`
+      });
+    }
+
+    // ── Result: no successes = no spirit ──────────────────────────────────────
+    if (services <= 0) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>No spirit answers the call</strong>
+          <em>(no successes on the Conjuring Test).</em></div>`
+      });
+      return conjureResult;
+    }
+
+    // ── Create and link the Spirit actor ──────────────────────────────────────
+    const domainLabel = kind === "elemental"
+      ? game.i18n.localize(CONFIG.SR2E.elementalTypes[domain]?.label ?? domain)
+      : game.i18n.localize(CONFIG.SR2E.spiritDomains[domain] ?? domain);
+    const name = kind === "elemental"
+      ? `${domainLabel} Elemental (F${force})`
+      : `${domainLabel} Spirit (F${force})`;
+
+    let spirit = null;
+    try {
+      [spirit] = await Actor.createDocuments([{
+        name, type: "spirit",
+        img: kind === "elemental" ? "icons/svg/fire.svg" : "icons/svg/oak.svg",
+        system: {
+          spiritType: kind, force, domain, services, maxServices: services,
+          conjurerUuid: this.uuid
+        }
+      }]);
+    } catch (err) {
+      console.error("SR2E | Could not create spirit actor:", err);
+    }
+
+    if (spirit) {
+      const bound = this.system.boundSpirits ?? [];
+      await this.update({ "system.boundSpirits": [...bound, spirit.uuid] });
+    }
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>${foundry.utils.escapeHTML(name)} summoned</strong> —
+        <strong>${services} service${services === 1 ? "" : "s"}</strong>.
+        <br><em>Conjuring successes: ${services} (TN ${force}).${
+          kind === "nature" ? " Nature spirits vanish at the next sunrise or sunset." : ""}</em>
+      </div>`
+    });
+
+    return conjureResult;
+  }
+
+  /**
    * Defend against a melee attack card (SR2E p.100–101, the Defender's Test).
    *
    * Opens a dialog to choose the defending weapon (or Unarmed, (Str)M Stun),
