@@ -292,6 +292,70 @@ SR2E.drainCodes = {
 };
 
 // ---------------------------------------------------------------------------
+// CONJURING (SR2E p.138–140)
+// ---------------------------------------------------------------------------
+
+// Nature spirit domains — a shaman may only summon a spirit in its domain.
+SR2E.spiritDomains = {
+  city:    "SR2E.Spirits.City",
+  field:   "SR2E.Spirits.Field",
+  forest:  "SR2E.Spirits.Forest",
+  hearth:  "SR2E.Spirits.Hearth",
+  lake:    "SR2E.Spirits.Lake",
+  mountain:"SR2E.Spirits.Mountain",
+  prairie: "SR2E.Spirits.Prairie",
+  river:   "SR2E.Spirits.River",
+  sea:     "SR2E.Spirits.Sea",
+  desert:  "SR2E.Spirits.Desert",
+  swamp:   "SR2E.Spirits.Swamp",
+  wind:    "SR2E.Spirits.Wind"
+};
+
+// Elemental types — a mage summons elementals of the four classical elements.
+// Each aids one spell category for Aid Sorcery (SR2E p.140).
+SR2E.elementalTypes = {
+  fire:  { label: "SR2E.Spirits.Fire",  aids: "combat" },
+  water: { label: "SR2E.Spirits.Water", aids: "illusion" },
+  air:   { label: "SR2E.Spirits.Air",   aids: "detection" },
+  earth: { label: "SR2E.Spirits.Earth", aids: "manipulation" }
+};
+
+/**
+ * Conjuring Drain (SR2E p.139): drain level scales with the spirit's Force
+ * relative to the conjurer's Charisma. Stun until Force exceeds Charisma,
+ * then Physical.
+ * @param {number} force    Spirit Force Rating (also the test TN).
+ * @param {number} charisma Conjurer's Charisma.
+ * @returns {{ level: "L"|"M"|"S"|"D", type: "stun"|"physical" }}
+ */
+SR2E.conjuringDrain = (force, charisma) => {
+  if (force > 2 * charisma) return { level: "D", type: "physical" };
+  if (force > charisma)     return { level: "S", type: "physical" };
+  if (force > charisma / 2) return { level: "M", type: "stun" };
+  return { level: "L", type: "stun" };
+};
+
+// Standard spirit powers offered on the spirit sheet. Most resolve narratively;
+// the system tracks service expenditure and posts a descriptive card.
+// (Full descriptions: Critters / Powers of the Awakened, SR2E p.214+.)
+SR2E.spiritPowers = {
+  accident:      "SR2E.Powers.Accident",
+  concealment:   "SR2E.Powers.Concealment",
+  confusion:     "SR2E.Powers.Confusion",
+  engulf:        "SR2E.Powers.Engulf",
+  fear:          "SR2E.Powers.Fear",
+  guard:         "SR2E.Powers.Guard",
+  manifestation: "SR2E.Powers.Manifestation",
+  movement:      "SR2E.Powers.Movement",
+  noxiousBreath: "SR2E.Powers.NoxiousBreath",
+  psychokinesis: "SR2E.Powers.Psychokinesis",
+  search:        "SR2E.Powers.Search",
+  aidSorcery:    "SR2E.Powers.AidSorcery",
+  aidStudy:      "SR2E.Powers.AidStudy",
+  spellSustaining:"SR2E.Powers.SpellSustaining"
+};
+
+// ---------------------------------------------------------------------------
 // WEAPON CATEGORIES
 // ---------------------------------------------------------------------------
 SR2E.weaponTypes = {
