@@ -1117,6 +1117,110 @@ async function onCastSpell(event, target) {
 }
 
 /**
+ * Prompt for conjuring options (SR2E p.138–140).
+ * Shamans summon nature spirits by domain; hermetics summon elementals.
+ * The Magic Pool does NOT apply, so no pool inputs are shown — only the
+ * Force, spirit type/domain, optional spirit-focus dice, and karma dice.
+ *
+ * @param {Actor}   actor
+ * @param {boolean} elementals - True for hermetic mages (elementals), else nature spirits.
+ * @returns {Promise<{force:number, kind:string, domain:string, fociDice:number, karmaDice:number}|null>}
+ */
+async function promptConjureOptions(actor, elementals) {
+  const magic = actor.system.magic?.value ?? 6;
+  const charisma = actor.system.charisma?.value ?? 1;
+  const kind = elementals ? "elemental" : "nature";
+
+  const domainOptions = elementals
+    ? Object.entries(CONFIG.SR2E.elementalTypes).map(([k, d]) =>
+        `<option value="${k}">${game.i18n.localize(d.label)} (aids ${d.aids})</option>`).join("")
+    : Object.entries(CONFIG.SR2E.spiritDomains).map(([k, label]) =>
+        `<option value="${k}">${game.i18n.localize(label)}</option>`).join("");
+
+  // Live drain preview as Force changes (Conjuring Drain Table vs Charisma)
+  let hookId = Hooks.on("renderDialogV2", (app, html) => {
+    const root = (html instanceof Element) ? html : document;
+    const forceInput = root.querySelector("#sr2e-conjure-force");
+    if (!forceInput) return;
+    Hooks.off("renderDialogV2", hookId);
+    const drainSpan = root.querySelector("#sr2e-conjure-drain");
+    const update = () => {
+      const f = Math.max(1, parseInt(forceInput.value) || 1);
+      const d = CONFIG.SR2E.conjuringDrain(f, charisma);
+      if (drainSpan) {
+        drainSpan.textContent = `${d.level} ${d.type}`;
+        drainSpan.style.color = d.type === "physical" ? "#c44" : "#aaa1c0";
+      }
+    };
+    forceInput.addEventListener("input", update);
+    update();
+  });
+
+  const initDrain = CONFIG.SR2E.conjuringDrain(1, charisma);
+
+  let result = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: elementals ? "Summon Elemental" : "Summon Nature Spirit" },
+    rejectClose: false,
+    content: `<form>
+      <div class="form-group">
+        <label>Force <span style="color:#aaa1c0;font-size:10px;">(drain TN = Force)</span>:</label>
+        <input type="number" id="sr2e-conjure-force" name="force" value="1" min="1" max="${Math.max(1, magic * 2)}" autofocus>
+      </div>
+      <div class="form-group">
+        <label>${elementals ? "Element" : "Domain"}:</label>
+        <select name="domain">${domainOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>Spirit Focus dice:</label>
+        <input type="number" name="fociDice" value="0" min="0" style="width:52px;text-align:center;"
+               title="Extra dice from a bonded spirit focus (applies to both the Conjuring and Drain tests)">
+      </div>
+      <div style="margin:2px 0 6px;font-size:11px;color:#aaa1c0;padding-left:4px;">
+        Drain: <span id="sr2e-conjure-drain" style="color:${initDrain.type === 'physical' ? '#c44' : '#aaa1c0'};">${initDrain.level} ${initDrain.type}</span>
+        (Charisma ${charisma}) · Conjuring Test TN = Force · Magic Pool does not apply.
+      </div>
+      ${actor.system.karma?.pool > 0 ? `
+      <div class="form-group">
+        <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
+        <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
+      </div>` : ""}
+    </form>`,
+    buttons: [
+      {
+        action: "conjure", label: "Summon", default: true,
+        callback: (event, button) => {
+          const f = button.form.elements;
+          result = {
+            force:     Math.max(1, parseInt(f.force?.value) || 1),
+            kind,
+            domain:    f.domain?.value ?? "",
+            fociDice:  Math.max(0, parseInt(f.fociDice?.value) || 0),
+            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+          };
+        }
+      },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (hookId !== null) Hooks.off("renderDialogV2", hookId);
+  return (action === "conjure" && result) ? result : null;
+}
+
+/**
+ * Summon a spirit (conjuring). Opens the conjure dialog then rolls.
+ * @this {ApplicationV2}
+ */
+async function onConjure(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const elementals = target.dataset.kind === "elemental";
+  const opts = await promptConjureOptions(actor, elementals);
+  if (!opts) return;
+  return actor.rollConjuring(opts);
+}
+
+/**
  * Roll a program action.
  * @this {ApplicationV2}
  */
@@ -1463,6 +1567,7 @@ const SHARED_ACTIONS = {
   rollInitiative: onRollInitiative,
   rollWeapon: onRollWeapon,
   castSpell: onCastSpell,
+  conjure: onConjure,
   rollProgram: onRollProgram,
   toggleEquip: onToggleEquip,
   editItem: onEditItem,
@@ -1590,6 +1695,39 @@ const SHARED_ACTIONS = {
     const current = this.document.system.linkedVehicles ?? [];
     const updated = current.filter(v => v !== uuid);
     return this.document.update({ "system.linkedVehicles": updated });
+  },
+
+  /**
+   * Open a bound spirit's sheet.
+   * @this {ApplicationV2}
+   */
+  openSpirit: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-spirit-uuid]")?.dataset.spiritUuid;
+    if (!uuid) return;
+    const spirit = await fromUuid(uuid);
+    if (spirit) spirit.sheet.render(true);
+  },
+
+  /**
+   * Banish a bound spirit — unlinks it from the conjurer and deletes the
+   * temporary Spirit actor (it returns to its domain / dissipates).
+   * @this {ApplicationV2}
+   */
+  banishSpirit: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-spirit-uuid]")?.dataset.spiritUuid;
+    if (!uuid) return;
+    const current = this.document.system.boundSpirits ?? [];
+    await this.document.update({ "system.boundSpirits": current.filter(s => s !== uuid) });
+    const spirit = await fromUuid(uuid);
+    if (spirit) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.document }),
+        content: `<div class="sr2e-item-card"><strong>${foundry.utils.escapeHTML(spirit.name)}</strong> banished — it returns to its domain.</div>`
+      });
+      if (spirit.isOwner) await spirit.delete();
+    }
   },
 
   /**
@@ -2196,6 +2334,16 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     }
     context.linkedVehicles = vehicleActors;
 
+    // Resolve bound/summoned spirits (Actor UUIDs → spirit actors)
+    const spiritActors = [];
+    for (const uuid of system.boundSpirits ?? []) {
+      const sActor = await fromUuid(uuid);
+      if (sActor) {
+        spiritActors.push({ uuid, id: sActor.id, name: sActor.name, img: sActor.img, system: sActor.system });
+      }
+    }
+    context.boundSpirits = spiritActors;
+
     // Tab state
     context.tabs = this._getTabs();
 
@@ -2259,6 +2407,13 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Sorcery access: can cast spells
     context.hasSorcery = magicType === "full_magician" || magicType === "shamanic_adept"
       || (magicType === "magical_adept" && magicSkill === "sorcery");
+
+    // Conjuring access: can summon spirits (full magicians, or magical adepts
+    // with the conjuring skill). Shamanic adepts conjure nature spirits too.
+    context.hasConjuring = magicType === "full_magician" || magicType === "shamanic_adept"
+      || (magicType === "magical_adept" && magicSkill === "conjuring");
+    // Shamans summon nature spirits; hermetics summon elementals
+    context.conjuresElementals = magicTrad === "hermetic";
 
     // Adept powers: physical adepts and shamanic adepts
     context.hasAdeptPowers = magicType === "physical_adept" || magicType === "shamanic_adept";

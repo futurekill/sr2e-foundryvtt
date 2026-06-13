@@ -109,6 +109,37 @@
       </div>
     </div>
 
+    {{!-- Conjuring --}}
+    {{#if hasConjuring}}
+    <div class="conjuring-category">
+      <div class="category-header flexrow">
+        <h3>Spirits</h3>
+        <button type="button" data-action="conjure" data-kind="{{#if conjuresElementals}}elemental{{else}}nature{{/if}}" class="btn-add"
+                title="{{#if conjuresElementals}}Summon an elemental (SR2E p.140){{else}}Summon a nature spirit in its domain (SR2E p.138){{/if}}">
+          <i class="fas fa-hand-sparkles"></i> {{#if conjuresElementals}}Summon Elemental{{else}}Summon Spirit{{/if}}
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each boundSpirits as |spirit|}}
+        <div class="item-row spirit-row flexrow" data-spirit-uuid="{{spirit.uuid}}">
+          <span class="item-name" data-action="openSpirit">
+            <i class="fas fa-ghost"></i> {{spirit.name}}
+          </span>
+          <span class="spirit-services" title="Services remaining">
+            {{spirit.system.services}}/{{spirit.system.maxServices}} svc
+          </span>
+          <div class="item-controls">
+            <a data-action="openSpirit" title="Open spirit sheet"><i class="fas fa-external-link-alt"></i></a>
+            <a data-action="banishSpirit" title="Banish spirit"><i class="fas fa-times"></i></a>
+          </div>
+        </div>
+        {{else}}
+        <p class="hint" style="padding:2px 6px;">No spirits in service.</p>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
     {{!-- Foci --}}
     <div class="foci-category">
       <div class="category-header flexrow">
