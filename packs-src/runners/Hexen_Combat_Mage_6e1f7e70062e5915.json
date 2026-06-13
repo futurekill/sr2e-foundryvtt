@@ -182,7 +182,23 @@
         "notes": ""
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "0342c8c804f71f90",
@@ -205,7 +221,23 @@
         "notes": ""
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "5996141a20101b87",
@@ -228,7 +260,23 @@
         "notes": "Academic knowledge of magic and hermetic theory."
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "82ac4a044dfbb9da",
@@ -251,7 +299,23 @@
         "notes": ""
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "e2f06f1c73a5e72a",
@@ -274,7 +338,23 @@
         "notes": ""
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "68dd8924bfcd1d99",
@@ -297,7 +377,23 @@
         "notes": ""
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "6d7978c4cd0dd6a7",
@@ -319,7 +415,23 @@
       },
       "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "4356b1ad95945f06",
@@ -341,7 +453,23 @@
       },
       "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "f412321b226eb54f",
@@ -378,16 +506,47 @@
             }
           ],
           "description": "<p>Adds dermal armor to Body equal to HALF the Spell Success Test successes (SR2E p.158). Edit the value after each casting.</p>",
-          "duration": {},
+          "duration": {
+            "startTime": null,
+            "combat": null
+          },
           "flags": {},
           "statuses": [],
           "tint": "#ffffff",
           "origin": null,
           "type": "base",
-          "system": {}
+          "system": {},
+          "_stats": {
+            "coreVersion": "13.351",
+            "systemId": null,
+            "systemVersion": null,
+            "createdTime": null,
+            "modifiedTime": null,
+            "lastModifiedBy": null,
+            "compendiumSource": null,
+            "duplicateSource": null,
+            "exportSource": null
+          },
+          "sort": 0
         }
       ],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "3c23a6f159627ee8",
@@ -429,14 +588,45 @@
             }
           ],
           "description": "<p>+1 Initiative die while sustained. Not compatible with cybernetic initiative enhancement (SR2E p.157).</p>",
-          "duration": {},
+          "duration": {
+            "startTime": null,
+            "combat": null
+          },
           "flags": {},
           "statuses": [],
           "tint": "#ffffff",
-          "origin": null
+          "origin": null,
+          "_stats": {
+            "coreVersion": "13.351",
+            "systemId": null,
+            "systemVersion": null,
+            "createdTime": null,
+            "modifiedTime": null,
+            "lastModifiedBy": null,
+            "compendiumSource": null,
+            "duplicateSource": null,
+            "exportSource": null
+          },
+          "sort": 0
         }
       ],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "9c48efd49a8dca0f",
@@ -457,7 +647,23 @@
         "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits."
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "34658c4eb0353b4b",
@@ -479,7 +685,23 @@
       },
       "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "e775376557357d80",
@@ -493,7 +715,23 @@
         "description": "<p>Hermetic Magicians follow the Western tradition of ceremonial magic, treating the Awakened world as a logical system to be understood through ritual and force of will. They can cast spells <em>and</em> summon and bind Elementals. Their magical tests are linked to Intelligence.</p><p>Hermetic Magicians have full access to astral space.</p><p><em>SR2E p.157</em></p>"
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "4eb842462a63c49f",
@@ -535,7 +773,23 @@
         "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting—the samurai's sidearm of choice."
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     },
     {
       "_id": "bcf500d9f856851e",
@@ -555,7 +809,23 @@
         "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners."
       },
       "effects": [],
-      "flags": {}
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
     }
   ],
   "effects": [],
@@ -563,12 +833,112 @@
   "sort": 0,
   "flags": {},
   "_stats": {
-    "coreVersion": "13",
+    "coreVersion": "13.351",
     "systemId": "sr2e",
     "systemVersion": "0.5.0",
     "createdTime": 1781000000000,
     "modifiedTime": 1781000000000,
-    "lastModifiedBy": "sr2e"
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "prototypeToken": {
+    "name": "Hexen (Combat Mage)",
+    "displayName": 0,
+    "actorLink": false,
+    "width": 1,
+    "height": 1,
+    "texture": {
+      "src": "icons/svg/mystery-man.svg",
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "offsetX": 0,
+      "offsetY": 0,
+      "fit": "contain",
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "tint": "#ffffff",
+      "alphaThreshold": 0.75
+    },
+    "lockRotation": false,
+    "rotation": 0,
+    "alpha": 1,
+    "disposition": -1,
+    "displayBars": 0,
+    "bar1": {
+      "attribute": "conditionMonitor.physical"
+    },
+    "bar2": {
+      "attribute": "conditionMonitor.stun"
+    },
+    "light": {
+      "negative": false,
+      "priority": 0,
+      "alpha": 0.5,
+      "angle": 360,
+      "bright": 0,
+      "color": null,
+      "coloration": 1,
+      "dim": 0,
+      "attenuation": 0.5,
+      "luminosity": 0.5,
+      "saturation": 0,
+      "contrast": 0,
+      "shadows": 0,
+      "animation": {
+        "type": null,
+        "speed": 5,
+        "intensity": 5,
+        "reverse": false
+      },
+      "darkness": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    "sight": {
+      "enabled": false,
+      "range": 0,
+      "angle": 360,
+      "visionMode": "basic",
+      "color": null,
+      "attenuation": 0.1,
+      "brightness": 0,
+      "saturation": 0,
+      "contrast": 0
+    },
+    "detectionModes": [],
+    "occludable": {
+      "radius": 0
+    },
+    "ring": {
+      "enabled": false,
+      "colors": {
+        "ring": null,
+        "background": null
+      },
+      "effects": 1,
+      "subject": {
+        "scale": 1,
+        "texture": null
+      }
+    },
+    "turnMarker": {
+      "mode": 1,
+      "animation": null,
+      "src": null,
+      "disposition": false
+    },
+    "movementAction": null,
+    "flags": {},
+    "randomImg": false,
+    "appendNumber": false,
+    "prependAdjective": false
+  },
+  "ownership": {
+    "default": 0
   },
   "_key": "!actors!6e1f7e70062e5915"
 }

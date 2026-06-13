@@ -33,13 +33,28 @@
         }
       ],
       "description": "<p>Adds dermal armor to Body equal to HALF the Spell Success Test successes (SR2E p.158). Edit the value after each casting.</p>",
-      "duration": {},
+      "duration": {
+        "startTime": null,
+        "combat": null
+      },
       "flags": {},
       "statuses": [],
       "tint": "#ffffff",
       "origin": null,
       "type": "base",
-      "system": {}
+      "system": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "sort": 0
     }
   ],
   "folder": "26eccbc4cdef1e32",

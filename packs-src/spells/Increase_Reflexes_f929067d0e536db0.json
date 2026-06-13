@@ -38,11 +38,26 @@
         }
       ],
       "description": "<p>+1 Initiative die while sustained. Not compatible with cybernetic initiative enhancement (SR2E p.157).</p>",
-      "duration": {},
+      "duration": {
+        "startTime": null,
+        "combat": null
+      },
       "flags": {},
       "statuses": [],
       "tint": "#ffffff",
-      "origin": null
+      "origin": null,
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "sort": 0
     }
   ],
   "folder": "351afa1b9f352545",

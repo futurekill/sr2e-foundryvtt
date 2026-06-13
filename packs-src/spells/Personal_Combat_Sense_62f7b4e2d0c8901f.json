@@ -33,13 +33,28 @@
         }
       ],
       "description": "<p>Adds dice to the Combat Pool while sustained (SR2E p.84). Edit the value to match the casting result.</p>",
-      "duration": {},
+      "duration": {
+        "startTime": null,
+        "combat": null
+      },
       "flags": {},
       "statuses": [],
       "tint": "#ffffff",
       "origin": null,
       "type": "base",
-      "system": {}
+      "system": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "sort": 0
     }
   ],
   "folder": "f998bf7f58ce1843",

@@ -310,7 +310,7 @@ function _registerSystemSettings() {
     config: true,
     type: String,
     filePicker: "image",
-    default: "systems/sr2e/assets/seattle_map.webp",
+    default: "systems/sr2e/assets/background.webp",
     onChange: () => _applyNoSceneBackground()
   });
 

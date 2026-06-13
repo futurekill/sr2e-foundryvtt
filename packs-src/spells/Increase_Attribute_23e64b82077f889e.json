@@ -32,13 +32,28 @@
         }
       ],
       "description": "<p>Increases the chosen Attribute while sustained. Change the key to the attribute cast on (system.body.mod, system.strength.mod, ...) and set the value per the casting result.</p>",
-      "duration": {},
+      "duration": {
+        "startTime": null,
+        "combat": null
+      },
       "flags": {},
       "statuses": [],
       "tint": "#ffffff",
       "origin": null,
       "type": "base",
-      "system": {}
+      "system": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "sort": 0
     }
   ],
   "flags": {},

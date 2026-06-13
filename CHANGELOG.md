@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.6.0
+
+### New content & mechanics
+- **Critters compendium** — 40 NPC stat blocks from the core book's Critter
+  Statistics Table (p.233): 20 normal animals and 20 paranormal beings, each
+  with attributes, natural armor, matching initiative dice, a natural-attack
+  weapon, threat ratings, and power/weakness keywords (original descriptions)
+- **Sample Runners compendium** — five ready-to-play characters (street
+  samurai, combat mage, decker, rigger, dog shaman) assembled from the item
+  compendia, so derived stats compute on import
+- **Opposed melee combat** (p.100–101) — both combatants roll Combat Skill vs
+  TN 4 + the Melee Modifiers Table; ties favour the attacker, net successes
+  stage damage, and a winning defender strikes back. Defend / Undefended
+  buttons on the attack card
+- **Karma advancement dialog** (p.190) — spend Good Karma to raise attributes
+  (new rating, doubled above racial max) and skills (2×/1× new rating)
+- **Configurable play-area background** — world setting with a file picker;
+  ships with a new default cityscape
+
+### Fixes
+- **Critical:** compendium pack tooling now uses Foundry's split
+  embedded-document format — actor items and spell Active Effects were being
+  silently dropped when Foundry migrated a pack (empty critter weapons,
+  bare sample runners). Rebuilt all packs in the correct format
+- VCR rigging bonuses now show on the sheet (Reaction + initiative dice)
+  while jacked in, not just in the roll formula
+- Installed Vehicle Control Rig cyberware is authoritative over the
+  vehicles-tab rig field
+- Control Pool uses the book formula (natural Reaction + 2/rig level),
+  excluding other Reaction bonuses (p.84)
+- Wound penalty was double-counted on weapon attacks; corrected
+- Improved text contrast (muted text colour and dialog hint greys)
+
 ## 0.5.0
 
 Major release. Game rules below were verified against the SR2E core

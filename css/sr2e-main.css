@@ -2356,7 +2356,7 @@
  */
 body.sr2e-no-active-scene,
 body.game.sr2e-no-active-scene {
-  background-image: url('../assets/seattle_map.webp') !important;
+  background-image: url('../assets/background.webp') !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
@@ -2365,7 +2365,7 @@ body.game.sr2e-no-active-scene {
 
 body.sr2e-no-active-scene #board,
 body.game.sr2e-no-active-scene #board {
-  background-image: url('../assets/seattle_map.webp') !important;
+  background-image: url('../assets/background.webp') !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
