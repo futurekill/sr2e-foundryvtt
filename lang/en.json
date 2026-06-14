@@ -346,6 +346,7 @@
   "TYPES.Actor.vehicle": "Vehicle",
   "TYPES.Actor.spirit": "Spirit",
   "TYPES.Actor.ic": "IC",
+  "TYPES.Actor.host": "Host",
 
   "TYPES.Item.skill": "Skill",
   "TYPES.Item.weapon": "Weapon",

@@ -3130,6 +3130,30 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
 /**
  * IC (Intrusion Countermeasures) Sheet.
  */
+/**
+ * Wire change → save for top-level named fields on a single-part sheet.
+ *
+ * The base sheet only wires fields inside `.tab-content` (the tabbed character
+ * sheet); simple single-part sheets (IC, Host) keep their inputs at the top
+ * level, where ApplicationV2's submitOnChange does not reliably persist them.
+ * Propagation is stopped so the form's submit handler doesn't double-save.
+ * @param {ApplicationV2} sheet
+ */
+function wireTopLevelFields(sheet) {
+  if (!sheet.isEditable || !sheet.element) return;
+  for (const input of sheet.element.querySelectorAll("input[name], select[name], textarea[name]")) {
+    if (input.closest("[data-item-id]")) continue;
+    if (input.name === "name") continue; // handled by ActorSheetV2 itself
+    input.addEventListener("change", (event) => {
+      event.stopPropagation();
+      let value = input.value;
+      if (input.type === "number")   value = parseFloat(value) || 0;
+      if (input.type === "checkbox") value = input.checked;
+      sheet.document.update({ [input.name]: value });
+    });
+  }
+}
+
 export class SR2EICSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
@@ -3146,6 +3170,12 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
   static PARTS = {
     ic: { template: "systems/sr2e/templates/actor/ic-sheet.hbs" }
   };
+
+  /** @override */
+  _onRender(context, options) {
+    super._onRender(context, options);
+    wireTopLevelFields(this);
+  }
 }
 
 /**
@@ -3170,5 +3200,11 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
     const context = await super._prepareContext(options);
     context.successesNeeded = this.document.system.successesNeeded;
     return context;
+  }
+
+  /** @override */
+  _onRender(context, options) {
+    super._onRender(context, options);
+    wireTopLevelFields(this);
   }
 }
