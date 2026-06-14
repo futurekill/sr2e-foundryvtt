@@ -1644,6 +1644,65 @@ async function onDecrementMonitor(event, target) {
   return this.document.update({ [`system.conditionMonitor.${monitor}.value`]: cm.value - 1 });
 }
 
+/** Recover Stun by resting (SR2E p.112). @this {ApplicationV2} */
+async function onRecoverStun(event) {
+  event.preventDefault();
+  return this.document.recoverStun();
+}
+
+/** Natural Physical healing (SR2E p.113). @this {ApplicationV2} */
+async function onHealPhysical(event) {
+  event.preventDefault();
+  return this.document.healPhysical();
+}
+
+/**
+ * First Aid (SR2E p.115): treat self or a targeted token's actor. Prompts for
+ * the patient and the situational modifiers (conditions, no medkit).
+ * @this {ApplicationV2}
+ */
+async function onFirstAid(event) {
+  event.preventDefault();
+  const medic = this.document;
+  const targetActor = game.user?.targets?.first?.()?.actor;
+  const patient = (targetActor && targetActor !== medic) ? targetActor : medic;
+
+  let opts = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `First Aid — ${patient.name}` },
+    rejectClose: false,
+    content: `<form>
+      <p class="hint" style="margin:0 0 6px;">
+        Patient: <strong>${foundry.utils.escapeHTML(patient.name)}</strong>${patient === medic ? " (self)" : ""}.
+        Treats Physical damage only; one attempt per injury (SR2E p.115).
+      </p>
+      <div class="form-group">
+        <label>Conditions:</label>
+        <select name="cond">
+          <option value="0">Normal (+0)</option>
+          <option value="1">Bad (+1)</option>
+          <option value="3">Terrible (+3)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>No medkit (+4):</label>
+        <input type="checkbox" name="noMedkit" style="width:auto;">
+      </div>
+    </form>`,
+    buttons: [
+      { action: "go", label: "Treat", default: true, callback: (event, button) => {
+        opts = {
+          conditionMod: parseInt(button.form.elements.cond?.value) || 0,
+          noMedkit: !!button.form.elements.noMedkit?.checked
+        };
+      }},
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "go" || !opts) return;
+  return medic.firstAid(patient, opts);
+}
+
 // ---------------------------------------------------------------------------
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
@@ -1697,6 +1756,9 @@ const SHARED_ACTIONS = {
   resetPool:  onResetPool,
   incrementMonitor: onIncrementMonitor,
   decrementMonitor: onDecrementMonitor,
+  recoverStun: onRecoverStun,
+  healPhysical: onHealPhysical,
+  firstAid: onFirstAid,
 
   /**
    * Increment the condition monitor of a linked vehicle actor.

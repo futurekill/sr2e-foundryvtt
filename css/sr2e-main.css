@@ -2247,6 +2247,20 @@
   box-shadow: 0 0 5px rgba(74, 153, 80, 0.4);
 }
 
+/* Healing action buttons under the condition monitors */
+.heal-actions {
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.heal-actions .btn-small {
+  flex: 1;
+  min-width: 88px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 /* Sustained spell indicators (magic tab) */
 .spell-row.sustaining .name {
   color: var(--sr2e-gold, #c19a49);

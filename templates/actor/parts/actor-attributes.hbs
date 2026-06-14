@@ -37,6 +37,22 @@
       </div>
       {{/if}}
 
+      {{!-- Healing actions (SR2E p.112–115) --}}
+      <div class="heal-actions flexrow">
+        <button type="button" class="btn-small" data-action="recoverStun"
+                title="Rest to recover Stun: higher of Body/Willpower vs TN 2 (SR2E p.112)">
+          <i class="fas fa-bed"></i> Recover Stun
+        </button>
+        <button type="button" class="btn-small" data-action="healPhysical"
+                title="Natural healing: Body Test vs wound TN; heals one level (SR2E p.113)">
+          <i class="fas fa-heart-pulse"></i> Heal
+        </button>
+        <button type="button" class="btn-small" data-action="firstAid"
+                title="First Aid (Biotech): treat self or a targeted token; heals one Physical level once per injury (SR2E p.115)">
+          <i class="fas fa-kit-medical"></i> First Aid
+        </button>
+      </div>
+
     </fieldset>
 
     {{!-- Dice Pools --}}

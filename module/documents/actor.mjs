@@ -1448,12 +1448,11 @@ export class SR2EActor extends Actor {
     const body = this.system.body?.value ?? 1;
     const will = this.system.willpower?.value ?? 1;
     const dice = Math.max(body, will);
-    const injury = this.system.woundPenalty ?? 0;
-    const tn = Math.max(2, 2 + injury);
 
-    const result = await this.rollSuccessTest(dice, tn, {
-      label: `Recover Stun — ${dice > 0 ? "Body/Willpower" : ""} (TN ${tn})`,
-      isResistance: true   // recovery, not an action — no injury modifier on the roll itself
+    // Base TN 2; the book modifies this by current injury modifiers (Stun +
+    // Physical), which rollSuccessTest adds automatically — so no isResistance.
+    const result = await this.rollSuccessTest(dice, 2, {
+      label: `Recover Stun — best of Body/Willpower (${dice} dice)`
     });
     const succ = result?.successes ?? 0;
     if (succ <= 0) {
@@ -1546,9 +1545,10 @@ export class SR2EActor extends Actor {
     if (defaultMod) { tn += defaultMod; parts.push(`defaulting +${defaultMod}`); }
     tn = Math.max(2, tn);
 
+    // First Aid is an action by the medic, so the medic's own injury modifier
+    // applies (rollSuccessTest adds it) — do NOT pass isResistance here.
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `First Aid: ${patient.name} (${level})${parts.length ? " — " + parts.join(", ") : ""} TN ${tn}`,
-      isResistance: true
+      label: `First Aid: ${patient.name} (${level})${parts.length ? " — " + parts.join(", ") : ""} TN ${tn}`
     });
     const succ = result?.successes ?? 0;
     if (succ <= 0) {
