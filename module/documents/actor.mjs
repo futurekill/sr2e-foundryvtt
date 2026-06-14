@@ -1748,6 +1748,92 @@ export class SR2EActor extends Actor {
   }
 
   // -------------------------------------------------------------------------
+  // MATRIX SYSTEM OPERATIONS (SR2E p.165–168)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Run a system operation against a host/node (SR2E p.166–168).
+   *
+   * The decker makes a Computer Skill Test (Hacking Pool / Karma addable)
+   * against a TN equal to the node's System Rating, and must roll more
+   * successes than the node's Security Code requires (Blue 1 … Red 4, p.165).
+   * Each attempt after the first adds +2 to the TN. After the first attempt,
+   * the GM rolls 1D6 against the running tally; a result ≤ the number of
+   * attempts triggers a passive alert (a second passive escalates to active).
+   *
+   * @param {Actor} host        - The target host actor (type "host").
+   * @param {string} operation  - A key from CONFIG.SR2E.systemOperations.
+   * @param {object} [opts]
+   * @param {number} [opts.hacking]   - Hacking Pool dice to add.
+   * @param {number} [opts.karmaDice] - Karma Pool dice to add.
+   */
+  async rollSystemOperation(host, operation, opts = {}) {
+    if (!host || host.type !== "host") {
+      return ui.notifications.warn("Choose a target host/node for the system operation.");
+    }
+    // Computer Skill Test (defaults to Intelligence at +4 TN if untrained).
+    const computer = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
+    let dice, defaultPenalty = 0;
+    if (computer?.system?.rating > 0) {
+      dice = computer.system.rating;
+    } else {
+      dice = this.system.intelligence?.value ?? 1;
+      defaultPenalty = 4; // untrained Skill Web default (p.84)
+    }
+
+    const priorAttempts = host.system.attempts ?? 0;          // attempts before this one
+    const tn = host.system.systemRating + (priorAttempts * 2) + defaultPenalty;
+    const needed = host.system.successesNeeded;
+    const opLabel = game.i18n.localize(CONFIG.SR2E.systemOperations[operation]?.label ?? operation);
+
+    const result = await this.rollSuccessTest(Math.max(1, dice), Math.max(2, tn), {
+      label: `${opLabel} — Computer (TN ${tn})`,
+      poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
+      karmaDice: opts.karmaDice ?? 0
+    });
+    const successes = result?.successes ?? 0;
+    const beat = successes >= needed;
+
+    // --- Bookkeeping: advance the tally and roll for an alert (GM/owner only) ---
+    const totalAttempts = priorAttempts + 1;
+    let alertNote = "";
+    let newAlert = host.system.alert;
+    if (totalAttempts > 1) {
+      const alertRoll = await new Roll("1d6").evaluate();
+      if (alertRoll.total <= totalAttempts) {
+        newAlert = host.system.alert === "none" ? "passive" : "active";
+        alertNote = host.system.alert === "none"
+          ? `<br><span style="color:#d9a441;"><i class="fas fa-triangle-exclamation"></i> Passive alert triggered (1d6 = ${alertRoll.total} ≤ ${totalAttempts} attempts).</span>`
+          : `<br><span style="color:#c44;"><i class="fas fa-bell"></i> Alert escalated to ACTIVE (1d6 = ${alertRoll.total} ≤ ${totalAttempts} attempts).</span>`;
+      } else {
+        alertNote = `<br><span style="color:#7a8;">No alert (1d6 = ${alertRoll.total} > ${totalAttempts} attempts).</span>`;
+      }
+    }
+
+    if (host.isOwner) {
+      await host.update({ "system.attempts": totalAttempts, "system.alert": newAlert });
+    } else {
+      alertNote += `<br><em style="color:#aaa1c0;">GM: advance ${host.name}'s tally to ${totalAttempts}${newAlert !== host.system.alert ? ` and set alert to ${newAlert}` : ""}.</em>`;
+    }
+
+    const codeLabel = game.i18n.localize(CONFIG.SR2E.securityCodes[host.system.securityCode]?.label ?? host.system.securityCode);
+    const verdict = beat
+      ? `<strong style="color:#7a8;">Operation succeeds</strong> (${successes} ≥ ${needed} needed).`
+      : `<strong style="color:#c44;">Fails to breach</strong> (${successes} / ${needed} needed — retry at +2 TN).`;
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-item-card">
+        <strong>${foundry.utils.escapeHTML(this.name)} — ${opLabel}</strong>
+        <br>vs ${foundry.utils.escapeHTML(host.name)} (${codeLabel}-${host.system.systemRating}), attempt ${totalAttempts}.
+        <br>${verdict}
+        ${alertNote}
+      </div>`
+    });
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
   // SPELL DEFENSE & SPELL RESISTANCE (SR2E p.130–132)
   // -------------------------------------------------------------------------
 

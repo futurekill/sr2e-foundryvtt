@@ -907,3 +907,39 @@ export class ICData extends SR2EDataModel {
     this.initiative.value = this.rating;
   }
 }
+
+/**
+ * Data model for a Matrix host / node (SR2E p.164–168). One host actor
+ * represents one node: a Security Code (color) and a numeric System Rating.
+ * The System Rating is the target number for any system operation; the
+ * Security Code's color sets how many successes the decker must beat.
+ */
+export class HostData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    return {
+      // Security Rating = Security Code (color) + System Rating (TN). p.165.
+      securityCode: new fields.StringField({ initial: "blue", choices: {
+        blue: "blue", green: "green", orange: "orange", red: "red"
+      }}),
+      systemRating: new fields.NumberField({ integer: true, initial: 2, min: 1 }),
+
+      // Intrusion tracking (p.167–168): attempts so far this run drive the
+      // alert roll and the escalating +2 TN; alert escalates none→passive→active.
+      attempts: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      alert: new fields.StringField({ initial: "none", choices: {
+        none: "none", passive: "passive", active: "active"
+      }}),
+
+      notes: new fields.HTMLField({ initial: "" })
+    };
+  }
+
+  /**
+   * Successes a decker must beat to make this node execute an operation
+   * (Security Code color, SR2E p.165).
+   */
+  get successesNeeded() {
+    return CONFIG.SR2E.securityCodes[this.securityCode]?.successes ?? 1;
+  }
+}

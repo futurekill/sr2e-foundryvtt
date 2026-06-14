@@ -18,10 +18,22 @@
 - Persona attributes (Bod/Evasion/Masking/Sensor) now derive from the
   highest-rated loaded persona program, capped at MPCP.
 
+- **System operations & hosts** (p.165–168) — a new **Host** actor type
+  represents a node (Security Code color + numeric System Rating). A jacked-in
+  decker runs a system operation (Locate, Read, Transfer, Edit, Erase, Control,
+  Cancel Alert, Lockout, …) as a Computer Test (Hacking Pool / Karma addable)
+  against the node's System Rating, needing to beat the Security Code in
+  successes (Blue 1 · Green 2 · Orange 3 · Red 4); each retry adds +2 TN. The
+  intrusion tally advances automatically and an alert roll (1D6 ≤ attempts)
+  escalates the node none → passive → active, with the result posted to chat.
+
 ### UI
 - Decker Matrix tab: jack in/out toggle, persona condition monitor, a
-  Matrix Attack control, and a dump-shock indicator with a Shake Off button
+  Matrix Attack control, a System Operation control, and a dump-shock
+  indicator with a Shake Off button
 - IC sheet: a Matrix Attack button
+- New Host sheet: Security Code, System Rating, successes-to-breach readout,
+  alert state, intrusion-tally counter with a Reset button
 
 ## 0.8.0
 

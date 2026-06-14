@@ -1,5 +1,5 @@
 // Actor Data Models
-export { CharacterData, NPCData, VehicleData, SpiritData, ICData } from "./actor-data.mjs";
+export { CharacterData, NPCData, VehicleData, SpiritData, ICData, HostData } from "./actor-data.mjs";
 
 // Item Data Models
 export {

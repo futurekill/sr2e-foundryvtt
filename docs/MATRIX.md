@@ -71,9 +71,11 @@ Being dumped (forced out) causes disorientation: **+2 to all target numbers** fo
 30 seconds. The character may make a **Willpower Test vs TN 4**; divide successes into
 30 seconds for the actual duration (every 3 seconds, or part, = 1 Combat Turn).
 
-### Security Code → successes-to-breach (p.180) **[VERIFY exact table values]**
-Blue / Green / Orange / Red escalate the successes a persona's attack must beat.
-Top-secret code = 4 successes. Pull the exact per-color table when coding.
+### Security Code → successes-to-breach (p.165) **[VERIFIED]**
+The Security Code color sets the successes a Computer Test must beat to make the
+node execute an operation: **Blue 1, Green 2, Orange 3, Red (top secret) 4**.
+The numeric System Rating is the target number. Each failed attempt adds +2 TN.
+(Implemented in `CONFIG.SR2E.securityCodes` + `rollSystemOperation`.)
 
 ### IC types (p.169–170) **[VERIFY specific IC effects]**
 - **White IC** (p.169) — defensive; Jam IC, etc.
@@ -129,9 +131,13 @@ the attack/resist/effect resolution above; IC attacks from the IC sheet; persona
 dump shock; Matrix initiative branch. Testable end-to-end with the Glitch sample decker
 vs an IC actor. Self-contained; ships clean even if Phases 2–3 never happen.
 
-**Phase 2 — System operations & security.**
-Node/host representation (a lightweight actor or journal-backed construct), the system
-operations list with their tests, the security tally and alert escalation that triggers IC.
+**Phase 2 — System operations & security.** *(core done)*
+✅ `host` actor type (Security Code + System Rating + alert + tally) with a sheet;
+✅ system-operations list + `rollSystemOperation` (Computer Test vs System Rating,
+beat the Security Code, +2 TN per retry); ✅ alert escalation (1D6 ≤ attempts →
+passive → active). **Remaining:** node-connection map / multi-node hosts, the
++50% passive-alert IC modifier auto-applied to IC actors, and auto-spawning IC
+on active alert. Detection Factor (Masking + Sensor gating) still **[VERIFY]**.
 
 **Phase 3 — Content & polish.**
 Full utility-program compendium (Analyze, Browse, Deception, Decrypt, Evaluate, etc.),

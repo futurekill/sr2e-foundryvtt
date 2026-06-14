@@ -1339,6 +1339,101 @@ async function onRecoverDumpShock(event, target) {
 }
 
 /**
+ * Reset a host's intrusion tally and alert state (e.g. between runs).
+ * @this {ApplicationV2}
+ */
+async function onResetHostTally(event, target) {
+  event.preventDefault();
+  return this.document.update({ "system.attempts": 0, "system.alert": "none" });
+}
+
+/**
+ * Prompt for a system operation against a host/node (SR2E p.166–168).
+ * @param {Actor} actor
+ * @returns {Promise<object|null>}
+ */
+async function promptSystemOperationOptions(actor) {
+  // Candidate hosts: a targeted host token first, then all host actors.
+  const targeted = Array.from(game.user?.targets ?? []).map(t => t.actor).filter(a => a?.type === "host");
+  const hosts = [...new Set([...targeted, ...game.actors.filter(a => a.type === "host")])];
+  if (!hosts.length) {
+    ui.notifications.warn("No host/node actors exist. Create a Host actor (the GM maps the system).");
+    return null;
+  }
+
+  const hostOptions = hosts.map(h => {
+    const code = game.i18n.localize(CONFIG.SR2E.securityCodes[h.system.securityCode]?.label ?? h.system.securityCode);
+    return `<option value="${h.id}">${foundry.utils.escapeHTML(h.name)} (${code}-${h.system.systemRating})</option>`;
+  }).join("");
+
+  const opOptions = Object.entries(CONFIG.SR2E.systemOperations).map(([k, op]) =>
+    `<option value="${k}">${game.i18n.localize(op.label)}</option>`).join("");
+
+  const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
+
+  let result = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "System Operation" },
+    rejectClose: false,
+    content: `<form>
+      <div class="form-group">
+        <label>Target Node:</label>
+        <select name="host">${hostOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>Operation:</label>
+        <select name="operation">${opOptions}</select>
+      </div>
+      <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
+        Computer Test vs the node's System Rating; beat the Security Code in successes
+        (Blue 1 · Green 2 · Orange 3 · Red 4). Each retry adds +2 TN.
+      </div>
+      <div class="form-group">
+        <label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(max ${hackingMax})</span>:</label>
+        <input type="number" name="hacking" value="0" min="0" max="${hackingMax}" style="width:52px;text-align:center;" autofocus>
+      </div>
+      ${actor.system.karma?.pool > 0 ? `
+      <div class="form-group">
+        <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
+        <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
+      </div>` : ""}
+    </form>`,
+    buttons: [
+      {
+        action: "run", label: "Run", default: true,
+        callback: (event, button) => {
+          const f = button.form.elements;
+          result = {
+            hostId:    f.host?.value ?? null,
+            operation: f.operation?.value ?? null,
+            hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
+            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+          };
+        }
+      },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "run" || !result) return null;
+  result.host = hosts.find(h => h.id === result.hostId) ?? null;
+  return result;
+}
+
+/**
+ * Run a system operation from the decker sheet.
+ * @this {ApplicationV2}
+ */
+async function onSystemOperation(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const opts = await promptSystemOperationOptions(actor);
+  if (!opts || !opts.host) return;
+  return actor.rollSystemOperation(opts.host, opts.operation, {
+    hacking: opts.hacking, karmaDice: opts.karmaDice
+  });
+}
+
+/**
  * Roll a program action.
  * @this {ApplicationV2}
  */
@@ -1905,6 +2000,7 @@ const SHARED_ACTIONS = {
   clearSpellDefense: onClearSpellDefense,
   conjure: onConjure,
   matrixAttack: onMatrixAttack,
+  systemOperation: onSystemOperation,
   toggleMatrixMode: onToggleMatrixMode,
   recoverDumpShock: onRecoverDumpShock,
   rollProgram: onRollProgram,
@@ -3050,4 +3146,29 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
   static PARTS = {
     ic: { template: "systems/sr2e/templates/actor/ic-sheet.hbs" }
   };
+}
+
+/**
+ * Sheet for a Matrix host / node (SR2E p.164–168).
+ */
+export class SR2EHostSheet extends SR2EBaseActorSheet {
+
+  static DEFAULT_OPTIONS = {
+    classes: ["sr2e", "sheet", "actor", "host"],
+    position: { width: 420, height: 420 },
+    actions: {
+      resetHostTally: onResetHostTally
+    }
+  };
+
+  static PARTS = {
+    host: { template: "systems/sr2e/templates/actor/host-sheet.hbs" }
+  };
+
+  /** @override */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    context.successesNeeded = this.document.system.successesNeeded;
+    return context;
+  }
 }

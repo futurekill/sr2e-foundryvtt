@@ -22,6 +22,7 @@ export async function preloadTemplates() {
     "systems/sr2e/templates/actor/vehicle-sheet.hbs",
     "systems/sr2e/templates/actor/spirit-sheet.hbs",
     "systems/sr2e/templates/actor/ic-sheet.hbs",
+    "systems/sr2e/templates/actor/host-sheet.hbs",
 
     // Item partials
     "systems/sr2e/templates/item/parts/item-header.hbs",

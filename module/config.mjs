@@ -450,6 +450,39 @@ SR2E.programCategories = {
   other: "SR2E.Matrix.OtherUtility"
 };
 
+// Security Codes (SR2E p.165): the node's color sets how many successes a
+// decker's Computer Skill Test must beat; the numeric System Rating is the TN.
+SR2E.securityCodes = {
+  blue:   { label: "SR2E.Matrix.SecBlue",   successes: 1 },
+  green:  { label: "SR2E.Matrix.SecGreen",  successes: 2 },
+  orange: { label: "SR2E.Matrix.SecOrange", successes: 3 },
+  red:    { label: "SR2E.Matrix.SecRed",    successes: 4 }
+};
+
+// System operations (SR2E p.166–168), keyed by the node type that offers them.
+// All resolve with the same Computer Skill Test vs the node's System Rating;
+// the label/node is informational for the player.
+SR2E.systemOperations = {
+  locate:       { label: "SR2E.Matrix.OpLocate",       node: "SAN/SPU" },
+  read:         { label: "SR2E.Matrix.OpRead",         node: "Datastore" },
+  transfer:     { label: "SR2E.Matrix.OpTransfer",     node: "Datastore" },
+  edit:         { label: "SR2E.Matrix.OpEdit",         node: "Datastore" },
+  erase:        { label: "SR2E.Matrix.OpErase",        node: "Datastore" },
+  control:      { label: "SR2E.Matrix.OpControl",      node: "Slave" },
+  sensorReadout:{ label: "SR2E.Matrix.OpSensorReadout",node: "Slave" },
+  cancelAlert:  { label: "SR2E.Matrix.OpCancelAlert",  node: "CPU" },
+  displayMap:   { label: "SR2E.Matrix.OpDisplayMap",   node: "CPU" },
+  lockout:      { label: "SR2E.Matrix.OpLockout",      node: "SAN" }
+};
+
+// Alert states (SR2E p.168). Passive adds +50% to IC ratings (applied by the
+// GM); a second passive alert escalates to active.
+SR2E.alertStates = {
+  none:    "SR2E.Matrix.AlertNone",
+  passive: "SR2E.Matrix.AlertPassive",
+  active:  "SR2E.Matrix.AlertActive"
+};
+
 // ---------------------------------------------------------------------------
 // VEHICLE STATS
 // ---------------------------------------------------------------------------

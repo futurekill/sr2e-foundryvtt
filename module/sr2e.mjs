@@ -22,7 +22,8 @@ import {
   SR2ENPCSheet,
   SR2EVehicleSheet,
   SR2ESpiritSheet,
-  SR2EICSheet
+  SR2EICSheet,
+  SR2EHostSheet
 } from "./sheets/actor-sheet.mjs";
 import { SR2EItemSheet } from "./sheets/item-sheet.mjs";
 
@@ -70,7 +71,8 @@ Hooks.once("init", async () => {
     npc: dataModels.NPCData,
     vehicle: dataModels.VehicleData,
     spirit: dataModels.SpiritData,
-    ic: dataModels.ICData
+    ic: dataModels.ICData,
+    host: dataModels.HostData
   };
 
   // Register TypeDataModels for Item types
@@ -128,6 +130,12 @@ Hooks.once("init", async () => {
     types: ["ic"],
     makeDefault: true,
     label: "SR2E.Sheets.IC"
+  });
+
+  SheetConfig.registerSheet(Actor, "sr2e", SR2EHostSheet, {
+    types: ["host"],
+    makeDefault: true,
+    label: "SR2E.Sheets.Host"
   });
 
   // ---------------------------------------------------------------------------

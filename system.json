@@ -43,6 +43,9 @@
       },
       "ic": {
         "htmlFields": ["notes"]
+      },
+      "host": {
+        "htmlFields": ["notes"]
       }
     },
     "Item": {
