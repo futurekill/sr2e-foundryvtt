@@ -126,7 +126,9 @@ export class SR2EActor extends Actor {
     // The sustain penalty is not granted that exemption, so it still applies.
     const woundPenalty = options.isResistance ? 0 : (this.system.woundPenalty ?? 0);
     const sustainPenalty = this.system.sustainPenalty ?? 0;
-    const effectiveTN = targetNumber + woundPenalty + sustainPenalty;
+    // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
+    const dumpShock = this.system.dumpShock ? 2 : 0;
+    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
@@ -164,6 +166,7 @@ export class SR2EActor extends Actor {
     const tnParts = [];
     if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} wound`);
     if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} sustaining`);
+    if (dumpShock > 0)      tnParts.push(`+${dumpShock} dump shock`);
     const tnNote = tnParts.length
       ? `${effectiveTN} (base ${targetNumber} ${tnParts.join(", ")})`
       : `${effectiveTN}`;
@@ -311,6 +314,18 @@ export class SR2EActor extends Actor {
     const woundPenalty = system.woundPenalty ?? 0;
     const notes = [];
 
+    // Jacked into the Matrix (SR2E p.178): initiative = natural Reaction
+    // (no wired/magic/VCR) + 2 per response-increase level, rolling
+    // 1 + response-level d6.
+    if (system.matrixMode && (system.cyberdeck?.mpcp ?? 0) > 0) {
+      const response = system.cyberdeck?.response ?? 0;
+      const naturalReaction = system.reaction?.base ?? 0;
+      const base = Math.max(0, naturalReaction + 2 * response - woundPenalty);
+      notes.push(`Matrix: Reaction ${naturalReaction}${response ? ` +${2 * response} response` : ""}`);
+      if (woundPenalty) notes.push(`−${woundPenalty} wound`);
+      return { base, dice: 1 + response, rigged: false, matrix: true, notes };
+    }
+
     // Astrally projecting (SR2E p.147): initiative = Astral Reaction + 15,
     // rolling a single 1D6. Other Reaction/Initiative enhancers do not apply.
     if (system.astralState === "projecting" && system.astralReaction != null) {
@@ -357,13 +372,13 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Roll>}
    */
   async rollSR2Initiative() {
-    const { base, dice, rigged, astral, notes } = this._getInitiativeParts();
+    const { base, dice, rigged, astral, matrix, notes } = this._getInitiativeParts();
 
     const formula = `${base} + ${dice}d6`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
-    const tag = astral ? " — Astral" : rigged ? " — Rigged" : "";
+    const tag = matrix ? " — Matrix" : astral ? " — Astral" : rigged ? " — Rigged" : "";
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor: `<h3>Initiative${tag}</h3><p>${notes.join(", ")} + ${dice}d6</p>`,

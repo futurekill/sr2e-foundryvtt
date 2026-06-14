@@ -179,6 +179,12 @@ export class CharacterData extends SR2EDataModel {
         none: "SR2E.Astral.None", perceiving: "SR2E.Astral.Perceiving", projecting: "SR2E.Astral.Projecting"
       }}),
 
+      // Matrix state (SR2E p.178): jacked in → Matrix initiative (1d6 + Reaction,
+      // +2 Reaction & +1d6 per response level; wired/magic/VCR do not apply).
+      matrixMode: new fields.BooleanField({ initial: false }),
+      // Dump shock (p.180): +2 to all TNs after being dumped, until shaken off.
+      dumpShock: new fields.BooleanField({ initial: false }),
+
       // --- COMBAT STATE ---
       // Shots fired this combat turn — used for recoil tracking.
       // Reset manually (or via a macro) at the start of each initiative pass.
@@ -281,6 +287,35 @@ export class CharacterData extends SR2EDataModel {
     // Calculate Adept Power Points (Magic Rating for Physical Adepts)
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
+    }
+
+    // Derive Matrix persona attributes from loaded persona programs
+    this._derivePersona();
+  }
+
+  /**
+   * Derive the Matrix persona attributes (Bod/Evasion/Masking/Sensor) from the
+   * highest-rated loaded persona program of each type, capped at the MPCP
+   * (SR2E p.172). When no program of a type is loaded, the manual value on the
+   * sheet is kept (for quick NPC-decker setups). Persona condition max is the
+   * single 10-box Matrix track.
+   * @private
+   */
+  _derivePersona() {
+    this.matrixPersona.condition.max = 10;
+    const mpcp = this.cyberdeck?.mpcp ?? 0;
+    if (mpcp <= 0 || !this.parent?.items) return;
+
+    const best = { bod: 0, evasion: 0, masking: 0, sensor: 0 };
+    for (const item of this.parent.items) {
+      if (item.type !== "program" || !item.system.loaded) continue;
+      const name = item.name.toLowerCase();
+      for (const attr of ["bod", "evasion", "masking", "sensor"]) {
+        if (name.startsWith(attr)) best[attr] = Math.max(best[attr], item.system.rating ?? 0);
+      }
+    }
+    for (const attr of ["bod", "evasion", "masking", "sensor"]) {
+      if (best[attr] > 0) this.matrixPersona[attr] = Math.min(best[attr], mpcp);
     }
   }
 
