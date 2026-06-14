@@ -23,6 +23,10 @@
   Red 9) + the IC's Rating, then 1D6. An IC carries its node's Security Code and
   alert state; a passive/active alert raises all its ratings +50% (used in its
   attack, resistance, and Reaction). Shown on the IC sheet.
+- **IC ↔ Host linking** — an IC can be set to defend a Host node; the host's
+  Security Code and alert then sync to it automatically, so when a decker's
+  system operation escalates the host to a passive/active alert, every IC
+  guarding it is boosted in the same instant (set it once on the host).
 - **System operations & hosts** (p.165–168) — a new **Host** actor type
   represents a node (Security Code color + numeric System Rating). A jacked-in
   decker runs a system operation (Locate, Read, Transfer, Edit, Erase, Control,

@@ -873,6 +873,9 @@ export class ICData extends SR2EDataModel {
 
       // The Security Code of the node this IC defends drives its Reaction Time
       // (SR2E p.169). The alert state applies the +50% IC-rating boost (p.168).
+      // When hostUuid links a Host actor, its Security Code + alert are pushed
+      // here automatically (set once on the host; see the updateActor sync hook).
+      hostUuid: new fields.StringField({ initial: "" }),
       securityCode: new fields.StringField({ initial: "green", choices: {
         blue: "blue", green: "green", orange: "orange", red: "red"
       }}),

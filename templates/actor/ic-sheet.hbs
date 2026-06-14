@@ -17,10 +17,19 @@
           <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
         </div>
       </div>
+      <div class="form-group">
+        <label>Defends Host:</label>
+        <select name="system.hostUuid" title="Link a Host node; its Security Code and alert sync to this IC automatically.">
+          <option value="" {{#unless system.hostUuid}}selected{{/unless}}>— none (set manually) —</option>
+          {{#each hosts as |host|}}
+          <option value="{{host.uuid}}" {{selected ../system.hostUuid host.uuid}}>{{host.name}}</option>
+          {{/each}}
+        </select>
+      </div>
       <div class="ic-details flexrow">
         <div class="form-group">
           <label>Node Code:</label>
-          <select name="system.securityCode">
+          <select name="system.securityCode" {{#if system.hostUuid}}disabled{{/if}}>
             {{#each config.securityCodes as |sec key|}}
             <option value="{{key}}" {{selected ../system.securityCode key}}>{{localize sec.label}}</option>
             {{/each}}
@@ -28,13 +37,18 @@
         </div>
         <div class="form-group">
           <label>Alert:</label>
-          <select name="system.alert">
+          <select name="system.alert" {{#if system.hostUuid}}disabled{{/if}}>
             {{#each config.alertStates as |label key|}}
             <option value="{{key}}" {{selected ../system.alert key}}>{{localize label}}</option>
             {{/each}}
           </select>
         </div>
       </div>
+      {{#if linkedHost}}
+      <p style="margin:2px 0;font-size:11px;color:#aaa1c0;">
+        <i class="fas fa-link"></i> Code &amp; alert synced from <strong>{{linkedHost.name}}</strong>.
+      </p>
+      {{/if}}
     </div>
   </div>
 

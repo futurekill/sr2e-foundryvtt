@@ -3172,6 +3172,16 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
   };
 
   /** @override */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    context.hosts = game.actors.filter(a => a.type === "host");
+    context.linkedHost = this.document.system.hostUuid
+      ? fromUuidSync(this.document.system.hostUuid)
+      : null;
+    return context;
+  }
+
+  /** @override */
   _onRender(context, options) {
     super._onRender(context, options);
     wireTopLevelFields(this);

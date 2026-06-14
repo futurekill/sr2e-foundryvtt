@@ -137,9 +137,10 @@ vs an IC actor. Self-contained; ships clean even if Phases 2–3 never happen.
 beat the Security Code, +2 TN per retry); ✅ alert escalation (1D6 ≤ attempts →
 passive → active); ✅ IC Reaction Time (Security-Code base + Rating + 1D6,
 p.169) and the +50% passive/active alert IC-rating boost (p.168), applied to IC
-attack/resist/initiative. **Remaining:** node-connection map / multi-node hosts,
-auto-syncing a host's alert to the IC defending it, and auto-spawning IC on
-active alert. Detection Factor (Masking + Sensor gating) still **[VERIFY]**.
+attack/resist/initiative; ✅ IC↔Host link (set Code/alert once on the host and
+all defending IC follow, including system-op alert escalation). **Remaining:**
+node-connection map / multi-node hosts and auto-spawning IC on active alert.
+Detection Factor (Masking + Sensor gating) still **[VERIFY]**.
 
 **Phase 3 — Content & polish.**
 Full utility-program compendium (Analyze, Browse, Deception, Decrypt, Evaluate, etc.),
