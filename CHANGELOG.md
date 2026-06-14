@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### New mechanics
+- **Matrix cybercombat** (p.178–180) — the first slice of the decking
+  subsystem. A jacked-in decker attacks with a loaded Attack program
+  (Program Rating + Hacking Pool) and IC attacks with its Rating; the defender
+  resists (a persona rolls MPCP vs the decker's Computer skill, IC rolls its
+  Rating vs the node's System Rating). Net successes fill the single 10-box
+  Matrix condition track, and 10 boxes crash it — a crashed persona dumps its
+  decker and suffers **dump shock** (+2 to all TNs until a Willpower(4) test
+  shakes it off). Resolved with the opposed-card pattern: a Matrix Attack card
+  with a Resist button.
+- **Matrix initiative** — a jacked-in decker rolls 1d6 + natural Reaction,
+  +2 Reaction and +1d6 per response level (wired reflexes, magic, and VCR
+  bonuses do not apply).
+- Persona attributes (Bod/Evasion/Masking/Sensor) now derive from the
+  highest-rated loaded persona program, capped at MPCP.
+
+### UI
+- Decker Matrix tab: jack in/out toggle, persona condition monitor, a
+  Matrix Attack control, and a dump-shock indicator with a Shake Off button
+- IC sheet: a Matrix Attack button
+
 ## 0.8.0
 
 ### New mechanics

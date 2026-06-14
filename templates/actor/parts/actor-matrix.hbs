@@ -38,6 +38,30 @@
 
     {{!-- Matrix Persona --}}
     {{#if isDecker}}
+
+    {{!-- Jack in / out + dump shock --}}
+    <div class="matrix-status flexrow" style="align-items:center;gap:10px;margin-bottom:6px;">
+      <button type="button" data-action="toggleMatrixMode"
+              class="{{#if system.matrixMode}}active{{/if}}"
+              title="Jack in / jack out of the Matrix (controls Matrix initiative).">
+        <i class="fas fa-plug"></i>
+        {{#if system.matrixMode}}Jacked In{{else}}Jacked Out{{/if}}
+      </button>
+      {{#if system.matrixMode}}
+      <button type="button" data-action="matrixAttack" title="Make a Matrix attack with a loaded Attack program (SR2E p.178).">
+        <i class="fas fa-bolt"></i> Matrix Attack
+      </button>
+      {{/if}}
+      {{#if system.dumpShock}}
+      <span class="dump-shock" style="color:#c44;font-weight:bold;" title="+2 to all TNs until shaken off.">
+        <i class="fas fa-skull"></i> Dump Shock
+      </span>
+      <button type="button" data-action="recoverDumpShock" title="Willpower Test vs TN 4 to shake off dump shock (SR2E p.180).">
+        Shake Off
+      </button>
+      {{/if}}
+    </div>
+
     <fieldset class="persona-config">
       <legend>Persona</legend>
       <div class="persona-grid">
@@ -56,6 +80,15 @@
         <div class="form-group">
           <label>Sensor:</label>
           <input type="number" name="system.matrixPersona.sensor" value="{{system.matrixPersona.sensor}}" min="0" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:6px;">
+        <label>Persona Condition <span style="font-size:10px;color:#aaa1c0;">(10 = crash)</span>:</label>
+        <div class="flexrow" style="align-items:center;gap:6px;">
+          <input type="number" name="system.matrixPersona.condition.value"
+                 value="{{system.matrixPersona.condition.value}}" min="0" max="{{system.matrixPersona.condition.max}}"
+                 style="width:52px;text-align:center;" />
+          <span>/ {{system.matrixPersona.condition.max}}</span>
         </div>
       </div>
     </fieldset>

@@ -1585,6 +1585,165 @@ export class SR2EActor extends Actor {
   }
 
   // -------------------------------------------------------------------------
+  // MATRIX CYBERCOMBAT (SR2E p.178–180)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Make a Matrix attack (SR2E p.178–179). Works for a decker persona attacking
+   * IC/another persona and for IC attacking a persona.
+   *
+   *   Attack dice: Attack-program rating + Hacking Pool (persona) or IC Rating.
+   *   TN: the node's System Rating (vs IC) or the target persona's Bod (vs persona).
+   *
+   * Posts a Resist card; the defender resolves the Resistance Test. Net
+   * successes (attacker − defender) fill in boxes on the target's single Matrix
+   * condition track; 10 boxes crash it (a crashed persona dumps its decker).
+   *
+   * @param {object} opts
+   * @param {number} opts.attackDice - Pre-computed attack dice (skill+pool / IC rating).
+   * @param {number} opts.tn         - Target number (target Bod or node System Rating).
+   * @param {number} opts.nodeRating - The node's System Rating (for the defender's resist TN).
+   * @param {string} [opts.label]
+   */
+  async rollMatrixAttack(opts) {
+    const result = await this.rollSuccessTest(Math.max(1, opts.attackDice), Math.max(2, opts.tn), {
+      label: opts.label ?? `Matrix Attack (TN ${opts.tn})`
+    });
+    if ((result?.successes ?? 0) <= 0) return result;
+
+    const state = {
+      attackerUuid: this.uuid, attackerName: this.name,
+      successes: result.successes, nodeRating: opts.nodeRating ?? 0, resolved: false
+    };
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: this._renderMatrixCard(state),
+      flags: { sr2e: { matrix: state } }
+    });
+    return result;
+  }
+
+  /** @private Render the Matrix attack/resist card. */
+  _renderMatrixCard(state) {
+    const esc = foundry.utils.escapeHTML;
+    const button = state.resolved ? "" : `
+      <div class="sr2e-karma-actions">
+        <button type="button" class="sr2e-matrixresist-btn"
+                title="Select the defending token (IC or decker), then resist: IC rolls its Rating vs the node System Rating; a persona rolls MPCP vs the decker's Computer skill (SR2E p.179).">
+          🖧 Resist (Matrix)
+        </button>
+      </div>`;
+    return `<div class="sr2e-damage-result">
+      <strong>${esc(state.attackerName)} attacks in the Matrix</strong>
+      — ${state.successes} success${state.successes === 1 ? "" : "es"}.
+      <br><em>The defender resists; net successes fill Matrix condition boxes,
+      10 = crash (a crashed persona dumps its decker). SR2E p.179.</em>
+      ${state.resolution ?? ""}
+      ${button}
+    </div>`;
+  }
+
+  /**
+   * Resist a Matrix attack (SR2E p.179). The defending actor (IC or a decker
+   * persona) rolls its resistance and takes net damage on the single Matrix
+   * condition track.
+   *   IC:      Rating dice vs TN = node System Rating.
+   *   Persona: MPCP dice  vs TN = the decker's Computer skill.
+   * @param {ChatMessage} message - The Matrix attack card.
+   */
+  async rollMatrixResistance(message) {
+    const state = message.getFlag("sr2e", "matrix");
+    if (!state || state.resolved) return;
+
+    let dice, tn, applyDamage, monitorLabel;
+    if (this.type === "ic") {
+      dice = this.system.rating ?? 1;
+      tn = Math.max(2, state.nodeRating || this.system.rating || 4);
+      monitorLabel = "IC";
+      applyDamage = async (boxes) => {
+        const cm = this.system.conditionMonitor;
+        await this.update({ "system.conditionMonitor.value": Math.min(cm.value + boxes, cm.max) });
+        return Math.min(cm.value + boxes, cm.max) >= cm.max;
+      };
+    } else if (this.type === "character") {
+      dice = this.system.cyberdeck?.mpcp ?? 0;
+      if (dice <= 0) return ui.notifications.warn(`${this.name} has no cyberdeck to resist in the Matrix.`);
+      const computer = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
+      tn = Math.max(2, computer?.system?.rating ?? 4);
+      monitorLabel = "persona";
+      applyDamage = async (boxes) => {
+        const cm = this.system.matrixPersona.condition;
+        await this.update({ "system.matrixPersona.condition.value": Math.min(cm.value + boxes, cm.max) });
+        return Math.min(cm.value + boxes, cm.max) >= cm.max;
+      };
+    } else {
+      return ui.notifications.warn("Only IC or a decker can resist a Matrix attack.");
+    }
+
+    const resist = await this.rollSuccessTest(Math.max(1, dice), tn, {
+      label: `Resist Matrix Attack — ${monitorLabel} (TN ${tn})`,
+      isResistance: true
+    });
+    const net = state.successes - (resist?.successes ?? 0);
+
+    if (net <= 0) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>${this.name} resists the Matrix attack</strong>
+          <em>— no net successes.</em></div>`
+      });
+    } else {
+      const crashed = await applyDamage(net);
+      let msg = `<div class="sr2e-damage-result">
+        <strong>${this.name} takes ${net} Matrix box${net === 1 ? "" : "es"}</strong>`;
+      if (crashed) {
+        msg += ` — <strong>CRASHED!</strong>`;
+        if (this.type === "character") {
+          // Dumped: leave the Matrix and suffer dump shock (p.180)
+          await this.update({ "system.matrixMode": false, "system.dumpShock": true });
+          msg += ` <em>${this.name} is dumped from the Matrix (dump shock: +2 to all TNs until shaken — Willpower(4) to recover, SR2E p.180).</em>`;
+        } else {
+          msg += ` <em>The IC is crashed and out of the fight.</em>`;
+        }
+      }
+      msg += `</div>`;
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this }), content: msg });
+    }
+
+    if (message.isAuthor || game.user.isGM) {
+      const ns = foundry.utils.mergeObject(foundry.utils.deepClone(state), { resolved: true,
+        resolution: `<br><strong>Resolved against ${foundry.utils.escapeHTML(this.name)}.</strong>` });
+      await message.update({ content: this._renderMatrixCard(ns), "flags.sr2e.matrix": ns });
+    }
+    return resist;
+  }
+
+  /**
+   * Attempt to shake off dump shock (SR2E p.180): Willpower vs TN 4. Any
+   * success clears the +2 TN penalty (the duration is narrative).
+   */
+  async recoverDumpShock() {
+    if (!this.system.dumpShock) return;
+    const will = this.system.willpower?.value ?? 1;
+    const result = await this.rollSuccessTest(will, 4, {
+      label: "Shake off Dump Shock — Willpower (TN 4)", isResistance: true
+    });
+    if ((result?.successes ?? 0) > 0) {
+      await this.update({ "system.dumpShock": false });
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-item-card"><strong>${this.name}</strong> shakes off the dump shock.</div>`
+      });
+    } else {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>${this.name}</strong> is still disoriented (dump shock +2 TN).</div>`
+      });
+    }
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
   // SPELL DEFENSE & SPELL RESISTANCE (SR2E p.130–132)
   // -------------------------------------------------------------------------
 

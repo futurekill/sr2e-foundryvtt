@@ -492,6 +492,17 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Resist Matrix attack: the defending token's actor (IC or decker persona)
+  // rolls its resistance and takes net damage on the Matrix condition track.
+  html.querySelectorAll?.(".sr2e-matrixresist-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      if (!defender) return ui.notifications.warn("Select the defending token (IC or decker) first.");
+      return defender.rollMatrixResistance(message);
+    });
+  });
+
   html.querySelectorAll?.(".sr2e-undefended-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();

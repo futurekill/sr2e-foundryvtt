@@ -1221,6 +1221,123 @@ async function onConjure(event, target) {
 }
 
 /**
+ * Prompt for a Matrix attack (SR2E p.178–179).
+ *
+ * A decker chooses a loaded Attack program (dice = program rating + Hacking
+ * Pool); IC attacks with its Rating. The GM supplies the target number (the
+ * node's System Rating when attacking IC, or the target persona's Bod) and the
+ * node's System Rating (used as the defending IC's resistance TN).
+ *
+ * @param {Actor} actor
+ * @returns {Promise<object|null>}
+ */
+async function promptMatrixAttackOptions(actor) {
+  const isIC = actor.type === "ic";
+  const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
+
+  let programOptions = "";
+  if (!isIC) {
+    const attackPrograms = actor.items.filter(i =>
+      i.type === "program" && i.system.loaded &&
+      /attack|blaster/i.test(i.name)).sort((a, b) => (b.system.rating ?? 0) - (a.system.rating ?? 0));
+    if (!attackPrograms.length) {
+      ui.notifications.warn("Load an Attack program (e.g. Attack, Blaster) to attack in the Matrix.");
+      return null;
+    }
+    programOptions = attackPrograms.map(p =>
+      `<option value="${p.id}">${p.name} (Rating ${p.system.rating})</option>`).join("");
+  }
+
+  let result = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Matrix Attack" },
+    rejectClose: false,
+    content: `<form>
+      ${isIC ? `
+      <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
+        Attack dice = IC Rating (${actor.system.rating}). TN = the target persona's Bod.
+      </div>` : `
+      <div class="form-group">
+        <label>Attack Program:</label>
+        <select name="program">${programOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(max ${hackingMax})</span>:</label>
+        <input type="number" name="hacking" value="0" min="0" max="${hackingMax}" style="width:52px;text-align:center;">
+      </div>`}
+      <div class="form-group">
+        <label>Target Number <span style="color:#aaa1c0;font-size:10px;">(node System Rating, or target persona Bod)</span>:</label>
+        <input type="number" name="tn" value="4" min="2" style="width:52px;text-align:center;" autofocus>
+      </div>
+      <div class="form-group">
+        <label>Node System Rating <span style="color:#aaa1c0;font-size:10px;">(defending IC's resist TN)</span>:</label>
+        <input type="number" name="node" value="4" min="0" style="width:52px;text-align:center;">
+      </div>
+      ${actor.system.karma?.pool > 0 ? `
+      <div class="form-group">
+        <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
+        <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
+      </div>` : ""}
+    </form>`,
+    buttons: [
+      {
+        action: "attack", label: "Attack", default: true,
+        callback: (event, button) => {
+          const f = button.form.elements;
+          result = {
+            programId: f.program?.value ?? null,
+            hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
+            tn:        Math.max(2, parseInt(f.tn?.value) || 4),
+            node:      Math.max(0, parseInt(f.node?.value) || 0),
+            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+          };
+        }
+      },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  return (action === "attack" && result) ? result : null;
+}
+
+/**
+ * Launch a Matrix attack from the decker or IC sheet.
+ * @this {ApplicationV2}
+ */
+async function onMatrixAttack(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const opts = await promptMatrixAttackOptions(actor);
+  if (!opts) return;
+
+  let attackDice;
+  if (actor.type === "ic") {
+    attackDice = (actor.system.rating ?? 1) + (opts.karmaDice ?? 0);
+  } else {
+    const program = actor.items.get(opts.programId);
+    attackDice = (program?.system?.rating ?? 0) + opts.hacking + opts.karmaDice;
+  }
+  return actor.rollMatrixAttack({ attackDice, tn: opts.tn, nodeRating: opts.node });
+}
+
+/**
+ * Toggle the decker's jacked-in (Matrix) state.
+ * @this {ApplicationV2}
+ */
+async function onToggleMatrixMode(event, target) {
+  event.preventDefault();
+  return this.document.update({ "system.matrixMode": !this.document.system.matrixMode });
+}
+
+/**
+ * Roll to shake off dump shock (Willpower vs TN 4, SR2E p.180).
+ * @this {ApplicationV2}
+ */
+async function onRecoverDumpShock(event, target) {
+  event.preventDefault();
+  return this.document.recoverDumpShock();
+}
+
+/**
  * Roll a program action.
  * @this {ApplicationV2}
  */
@@ -1786,6 +1903,9 @@ const SHARED_ACTIONS = {
   allocateSpellDefense: onAllocateSpellDefense,
   clearSpellDefense: onClearSpellDefense,
   conjure: onConjure,
+  matrixAttack: onMatrixAttack,
+  toggleMatrixMode: onToggleMatrixMode,
+  recoverDumpShock: onRecoverDumpShock,
   rollProgram: onRollProgram,
   toggleEquip: onToggleEquip,
   editItem: onEditItem,
@@ -2921,7 +3041,8 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
     actions: {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
-      addItem: onAddItem
+      addItem: onAddItem,
+      matrixAttack: onMatrixAttack
     }
   };
 
