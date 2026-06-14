@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A deep-ocean cephalopod of enormous size and surprising patience.</p><p><strong>Powers:</strong> Pestilence</p><p><em>Perception rating 3 (best sense); running multiplier \u00d73; dual-natured (astally active); natural armor 3. Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A deep-ocean cephalopod of enormous size and surprising patience.</p><p><strong>Powers:</strong> Pestilence</p><p><em>Perception rating 3 (best sense); running multiplier ×3; dual-natured (astally active); natural armor 3. Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

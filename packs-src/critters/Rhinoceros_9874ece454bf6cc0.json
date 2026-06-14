@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>Thick-hided and short-tempered; its charge flattens vehicles.</p><p><em>Perception rating 2 (best sense); running multiplier \u00d74; natural armor 2. Stats: SR2E p.233.</em></p>",
+    "biography": "<p>Thick-hided and short-tempered; its charge flattens vehicles.</p><p><em>Perception rating 2 (best sense); running multiplier ×4; natural armor 2. Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

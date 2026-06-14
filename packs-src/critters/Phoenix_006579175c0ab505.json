@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A radiant bird wreathed in flame.</p><p><strong>Powers:</strong> Flame Aura</p><p><em>Perception rating 4 (best sense); running multiplier \u00d74; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A radiant bird wreathed in flame.</p><p><strong>Powers:</strong> Flame Aura</p><p><em>Perception rating 4 (best sense); running multiplier ×4; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

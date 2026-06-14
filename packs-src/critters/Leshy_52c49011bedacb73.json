@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A forest trickster that turns travellers around until they are hopelessly lost.</p><p><strong>Powers:</strong> Confusion</p><p><em>Perception rating 3 (best sense); running multiplier \u00d74; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A forest trickster that turns travellers around until they are hopelessly lost.</p><p><strong>Powers:</strong> Confusion</p><p><em>Perception rating 3 (best sense); running multiplier ×4; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {

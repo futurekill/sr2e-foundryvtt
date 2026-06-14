@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>An HMHVV-infected human retaining its living intellect; statistics shown are a typical example \u2014 a vampire keeps its original Attributes, with Strength one higher. Buoyant (+3 TN swimming).</p><p><strong>Powers:</strong> Enhanced Physical Attributes, Enhanced Senses (Hearing, Smell), Essence Drain, Immunity (Age, Pathogens, Poison), Infection, Mist Form, Regeneration, Thermographic Vision</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Severe), Induced Dormancy (Lack of Air), Essence Loss, Vulnerability (Wood)</p><p><em>Perception rating 4 (best sense); running multiplier \u00d75; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An HMHVV-infected human retaining its living intellect; statistics shown are a typical example — a vampire keeps its original Attributes, with Strength one higher. Buoyant (+3 TN swimming).</p><p><strong>Powers:</strong> Enhanced Physical Attributes, Enhanced Senses (Hearing, Smell), Essence Drain, Immunity (Age, Pathogens, Poison), Infection, Mist Form, Regeneration, Thermographic Vision</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Severe), Induced Dormancy (Lack of Air), Essence Loss, Vulnerability (Wood)</p><p><em>Perception rating 4 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
