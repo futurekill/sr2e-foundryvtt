@@ -57,7 +57,8 @@ save) and return update objects. Never reorder entries. System compendia
 are rebuilt from packs-src instead of runtime-migrated.
 
 ## Known deferred work
-Matrix subsystem, full i18n of TN-breakdown strings.
+Matrix subsystem (planning + rules reference in docs/MATRIX.md;
+build Phase 1 cybercombat first), full i18n of TN-breakdown strings.
 
 Conjuring is implemented: SR2EActor#rollConjuring (Conjuring skill +
 totem bonus vs TN=Force, no Magic Pool; Charisma drain per the Conjuring

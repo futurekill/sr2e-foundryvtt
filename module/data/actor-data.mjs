@@ -137,11 +137,20 @@ export class CharacterData extends SR2EDataModel {
       }),
 
       // --- MATRIX PERSONA (for Deckers) ---
+      // Scaffolding for the Matrix subsystem — see docs/MATRIX.md. The persona
+      // takes Matrix damage on its own single 10-box condition track (no
+      // physical/stun split in the Matrix; SR2E p.179). bod/evasion/masking/
+      // sensor will derive from loaded persona programs (capped by MPCP) once
+      // cybercombat is implemented; today they are manual NPC-decker fields.
       matrixPersona: new fields.SchemaField({
         bod: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         evasion: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         masking: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-        sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+        sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        condition: new fields.SchemaField({
+          value: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+          max: new fields.NumberField({ required: true, integer: true, initial: 10, min: 0 })
+        })
       }),
 
       // --- CYBERDECK ---
