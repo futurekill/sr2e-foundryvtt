@@ -172,6 +172,13 @@ export class CharacterData extends SR2EDataModel {
       // other Reaction/Initiative enhancers apply, except injury modifiers.
       rigging: new fields.BooleanField({ initial: false }),
 
+      // Astral state (SR2E p.145–147): "none", "perceiving" (dual-natured,
+      // still in the body) or "projecting" (astral form acts separately, body
+      // is inert). Astral Reaction = (Int+Will)/2; +15 while projecting.
+      astralState: new fields.StringField({ initial: "none", choices: {
+        none: "SR2E.Astral.None", perceiving: "SR2E.Astral.Perceiving", projecting: "SR2E.Astral.Projecting"
+      }}),
+
       // --- COMBAT STATE ---
       // Shots fired this combat turn — used for recoil tracking.
       // Reset manually (or via a macro) at the start of each initiative pass.
@@ -491,6 +498,11 @@ export class CharacterData extends SR2EDataModel {
       if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked) count++;
     }
     return 2 * count;
+  }
+
+  /** Astral Reaction = (Intelligence + Willpower) ÷ 2 (SR2E p.147). */
+  get astralReaction() {
+    return Math.floor((this.intelligence.value + this.willpower.value) / 2);
   }
 
   /**

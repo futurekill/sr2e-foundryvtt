@@ -470,6 +470,16 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Resist Astral: the defending token's actor rolls Astral Body (Willpower).
+  html.querySelectorAll?.(".sr2e-astralresist-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      if (!defender) return ui.notifications.warn("Select the defending token first.");
+      return defender.rollAstralResistance(message);
+    });
+  });
+
   // Resist Spell: the defending token's actor rolls Willpower/Body + Spell Defense.
   html.querySelectorAll?.(".sr2e-spellresist-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {

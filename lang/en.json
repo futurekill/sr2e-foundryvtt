@@ -206,6 +206,10 @@
   "SR2E.Powers.AidStudy": "Aid Study",
   "SR2E.Powers.SpellSustaining": "Spell Sustaining",
 
+  "SR2E.Astral.None": "Physical",
+  "SR2E.Astral.Perceiving": "Astrally Perceiving",
+  "SR2E.Astral.Projecting": "Astrally Projecting",
+
   "SR2E.Weapons.Melee": "Melee",
   "SR2E.Weapons.Projectile": "Projectile",
   "SR2E.Weapons.Throwing": "Throwing",

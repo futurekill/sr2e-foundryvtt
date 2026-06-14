@@ -53,6 +53,19 @@
       {{/if}}
     </fieldset>
 
+    {{!-- Astral (SR2E p.145–147) --}}
+    {{#if hasAstral}}
+    <div class="astral-box flexrow" title="Astrally perceive (dual-natured) or project (astral form acts separately). Projecting initiative = Astral Reaction +15, 1d6 (SR2E p.147)">
+      <span class="astral-label"><i class="fas fa-eye"></i> Astral:</span>
+      <span class="astral-state {{system.astralState}}">
+        {{#ifEquals system.astralState "projecting"}}Projecting{{else}}{{#ifEquals system.astralState "perceiving"}}Perceiving{{else}}Physical{{/ifEquals}}{{/ifEquals}}
+      </span>
+      <span class="hint" style="flex:1;">Astral Reaction {{system.astralReaction}}</span>
+      <button type="button" class="btn-small" data-action="toggleAstral"><i class="fas fa-arrows-rotate"></i> Change</button>
+      <button type="button" class="btn-small" data-action="astralAttack" title="Astral attack (SR2E p.147)"><i class="fas fa-hand-fist"></i> Astral Attack</button>
+    </div>
+    {{/if}}
+
     {{!-- Spell Defense (SR2E p.132) --}}
     {{#if hasSorcery}}
     <div class="spell-defense-box flexrow" title="Allocate Magic Pool dice as Spell Defense — protects you and allies in line of sight against spells until the Magic Pool refreshes (SR2E p.132)">

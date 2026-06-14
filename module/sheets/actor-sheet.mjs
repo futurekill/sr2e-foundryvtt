@@ -2113,6 +2113,55 @@ const SHARED_ACTIONS = {
   },
 
   /**
+   * Cycle astral state: Physical → Perceiving → Projecting → Physical (p.145).
+   * @this {ApplicationV2}
+   */
+  toggleAstral: async function(event, target) {
+    event.preventDefault();
+    const order = ["none", "perceiving", "projecting"];
+    const cur = this.document.system.astralState ?? "none";
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    await this.document.update({ "system.astralState": next });
+    if (next !== "none") {
+      ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.document }),
+        content: `<div class="sr2e-item-card"><strong>${foundry.utils.escapeHTML(this.document.name)}</strong> is now ${game.i18n.localize("SR2E.Astral." + next.charAt(0).toUpperCase() + next.slice(1))}.</div>`
+      });
+    }
+  },
+
+  /**
+   * Make an astral attack (SR2E p.147). Prompts for damage type.
+   * @this {ApplicationV2}
+   */
+  astralAttack: async function(event, target) {
+    event.preventDefault();
+    const actor = this.document;
+    let opts = null;
+    const action = await foundry.applications.api.DialogV2.wait({
+      window: { title: "Astral Attack" },
+      rejectClose: false,
+      content: `<form>
+        <div class="form-group"><label>Damage:</label>
+          <select name="dt"><option value="stun">Stun</option><option value="physical">Physical</option></select></div>
+        <div class="form-group"><label>Other Mod:</label>
+          <input type="number" name="other" value="0" style="width:52px;text-align:center;"></div>
+        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
+          Sorcery vs TN 4; damage (Charisma)L (+weapon focus). Echoes to the physical body (SR2E p.147).</p>
+      </form>`,
+      buttons: [
+        { action: "go", label: "Attack", default: true, callback: (event, button) => {
+          opts = { damageType: button.form.elements.dt?.value ?? "stun",
+                   otherMod: parseInt(button.form.elements.other?.value) || 0 };
+        }},
+        { action: "cancel", label: "SR2E.Dialog.Cancel" }
+      ]
+    });
+    if (action !== "go" || !opts) return;
+    return actor.rollAstralAttack(opts);
+  },
+
+  /**
    * Clear the character's magical tradition — resets magic.type and
    * magic.tradition to "none". Triggered by the × button on the magic tab.
    * @this {ApplicationV2}

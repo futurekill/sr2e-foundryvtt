@@ -2247,6 +2247,23 @@
   box-shadow: 0 0 5px rgba(74, 153, 80, 0.4);
 }
 
+/* Astral state box (magic tab) */
+.astral-box {
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--sr2e-magic, #bb66ff);
+  border-radius: 4px;
+  background: rgba(187, 102, 255, 0.06);
+  font-size: 12px;
+}
+
+.astral-box .astral-label { color: var(--sr2e-magic, #bb66ff); white-space: nowrap; }
+.astral-box .astral-state { font-weight: bold; }
+.astral-box .astral-state.projecting { color: var(--sr2e-magic, #bb66ff); text-shadow: 0 0 4px rgba(187,102,255,0.6); }
+.astral-box .astral-state.perceiving { color: var(--sr2e-gold, #c19a49); }
+
 /* Spell Defense allocation box (magic tab) */
 .spell-defense-box {
   align-items: center;

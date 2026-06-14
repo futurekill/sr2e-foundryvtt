@@ -311,6 +311,15 @@ export class SR2EActor extends Actor {
     const woundPenalty = system.woundPenalty ?? 0;
     const notes = [];
 
+    // Astrally projecting (SR2E p.147): initiative = Astral Reaction + 15,
+    // rolling a single 1D6. Other Reaction/Initiative enhancers do not apply.
+    if (system.astralState === "projecting" && system.astralReaction != null) {
+      const base = Math.max(0, system.astralReaction + 15 - woundPenalty);
+      notes.push(`Astral Reaction ${system.astralReaction} +15`);
+      if (woundPenalty) notes.push(`−${woundPenalty} wound`);
+      return { base, dice: 1, rigged: false, astral: true, notes };
+    }
+
     // While rigging, the derived Reaction/initiative dice already reflect
     // VCR-only bonuses (CharacterData.prepareDerivedData); the roll adds the
     // worst controlled vehicle's damage Initiative modifier (p.106).
@@ -348,15 +357,16 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Roll>}
    */
   async rollSR2Initiative() {
-    const { base, dice, rigged, notes } = this._getInitiativeParts();
+    const { base, dice, rigged, astral, notes } = this._getInitiativeParts();
 
     const formula = `${base} + ${dice}d6`;
     const roll = new Roll(formula);
     await roll.evaluate();
 
+    const tag = astral ? " — Astral" : rigged ? " — Rigged" : "";
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `<h3>Initiative${rigged ? " — Rigged" : ""}</h3><p>${notes.join(", ")} + ${dice}d6</p>`,
+      flavor: `<h3>Initiative${tag}</h3><p>${notes.join(", ")} + ${dice}d6</p>`,
       rolls: [roll]
     });
 
@@ -1420,6 +1430,143 @@ export class SR2EActor extends Actor {
         await this.update({ [`system.conditionMonitor.stun.value`]: monitor.max });
       }
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // ASTRAL COMBAT (SR2E p.147)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Make an astral attack (SR2E p.147). Astral combat is melee-like and uses
+   * the Sorcery Skill. Damage codes:
+   *   Unarmed magician      (Astral Strength = Charisma)L
+   *   With active weapon focus  (Charisma + ⌊Focus Rating ÷ 2⌋)M
+   * Net successes stage the damage up one level per 2. The defender resists
+   * with Astral Body (Willpower) dice — no armor unless dual-natured. Astral
+   * damage echoes onto the physical body (repercussion), so it is applied to
+   * the physical/stun condition monitor; the attacker chooses Physical or Stun.
+   *
+   * Posts a Resist Astral card; the defender resolves it.
+   * @param {object} [options]
+   * @param {string} [options.damageType="stun"] - "physical" or "stun".
+   * @param {number} [options.otherMod=0]
+   */
+  async rollAstralAttack(options = {}) {
+    if (this.type !== "character" && this.type !== "spirit") return;
+
+    // Sorcery dice (spirits use Force as their astral skill)
+    let dice, charisma;
+    if (this.type === "spirit") {
+      dice = this.system.force ?? 1;
+      charisma = this.system.force ?? 1;   // spirit astral attack = (Force)M
+    } else {
+      const sorcery = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "sorcery");
+      dice = sorcery?.system?.rating ?? Math.max(1, this.system.willpower?.value ?? 1);
+      charisma = this.system.charisma?.value ?? 1;
+    }
+
+    // Active bonded weapon focus boosts astral damage (Charisma + Focus/2, level M)
+    let power = charisma, level = this.type === "spirit" ? "M" : "L";
+    let focusNote = "";
+    for (const item of this.items ?? []) {
+      if (item.type === "focus" && item.system.focusType === "weapon" &&
+          item.system.bonded && item.system.active) {
+        power = charisma + Math.floor(item.system.force / 2);
+        level = "M";
+        focusNote = ` (+weapon focus)`;
+        break;
+      }
+    }
+
+    const otherMod = options.otherMod ?? 0;
+    const tn = Math.max(2, 4 + otherMod);
+    const result = await this.rollSuccessTest(dice, tn, {
+      label: `Astral Attack — Sorcery${focusNote} (TN ${tn})`
+    });
+    if ((result?.successes ?? 0) <= 0) return result;
+
+    const damageType = options.damageType === "physical" ? "physical" : "stun";
+    const state = {
+      attackerUuid: this.uuid, attackerName: this.name,
+      successes: result.successes, power: Math.max(1, power), level, damageType,
+      resolved: false
+    };
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: this._renderAstralCard(state),
+      flags: { sr2e: { astral: state } }
+    });
+    return result;
+  }
+
+  /** @private Render the astral attack/resist card. */
+  _renderAstralCard(state) {
+    const esc = foundry.utils.escapeHTML;
+    const button = state.resolved ? "" : `
+      <div class="sr2e-karma-actions">
+        <button type="button" class="sr2e-resist-btn sr2e-astralresist-btn"
+                title="Select the defending astral token, then resist with Astral Body (Willpower) — no armor unless dual-natured (SR2E p.147).">
+          👁 Resist (Astral)
+        </button>
+      </div>`;
+    return `<div class="sr2e-damage-result">
+      <strong>${esc(state.attackerName)} strikes in astral space</strong>
+      — ${state.successes} success${state.successes === 1 ? "" : "es"}.
+      <br><em>Astral damage ${state.power}${state.level}${state.damageType === "stun" ? " Stun" : " Physical"}.
+      Resist with Astral Body (Willpower). Damage echoes onto the physical body — repercussion (SR2E p.147).</em>
+      ${state.resolution ?? ""}
+      ${button}
+    </div>`;
+  }
+
+  /**
+   * Resist an astral attack (SR2E p.147). The defender must be astrally active
+   * (perceiving/projecting) or dual-natured. Rolls Astral Body (Willpower) dice
+   * — dual-natured beings add physical armor — vs TN = the attack Power. Net
+   * (attacker − defender) successes stage the damage; it is applied to the
+   * physical/stun monitor (repercussion).
+   * @param {ChatMessage} message
+   */
+  async rollAstralResistance(message) {
+    const state = message.getFlag("sr2e", "astral");
+    if (!state || state.resolved) return;
+
+    // Astral Body = Willpower; spirits/critters use Willpower too
+    const dice = this.system.willpower?.value ?? 1;
+    const tn = Math.max(2, state.power);
+    const resist = await this.rollSuccessTest(dice, tn, {
+      label: `Resist Astral — Astral Body/Willpower (TN ${tn})`,
+      isResistance: true
+    });
+
+    const net = state.successes - (resist?.successes ?? 0);
+    const stages = ["L", "M", "S", "D"];
+    const baseIdx = stages.indexOf(state.level);
+    if (net <= 0) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>${this.name} resists the astral attack</strong>
+          <em>— no net successes.</em></div>`
+      });
+    } else {
+      const finalIdx = Math.min(baseIdx + Math.floor(net / 2), 3);
+      const boxes = [1, 3, 6, 10][finalIdx];
+      await this.applyDamage(state.damageType, boxes);
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${this.name} takes ${state.power}${stages[finalIdx]}${state.damageType === "stun" ? " Stun" : " Physical"}</strong>
+          <em>(${net} net — ${boxes} box${boxes === 1 ? "" : "es"}; repercussion to the physical body).</em>
+        </div>`
+      });
+    }
+
+    if (message.isAuthor || game.user.isGM) {
+      const ns = foundry.utils.mergeObject(foundry.utils.deepClone(state), { resolved: true,
+        resolution: `<br><strong>Resolved against ${foundry.utils.escapeHTML(this.name)}.</strong>` });
+      await message.update({ content: this._renderAstralCard(ns), "flags.sr2e.astral": ns });
+    }
+    return resist;
   }
 
   // -------------------------------------------------------------------------

@@ -60,6 +60,12 @@ are rebuilt from packs-src instead of runtime-migrated.
 Matrix subsystem (planning + rules reference in docs/MATRIX.md;
 build Phase 1 cybercombat first), full i18n of TN-breakdown strings.
 
+Astral is implemented: astralState (none/perceiving/projecting) with
+Astral Reaction +15 initiative when projecting; rollAstralAttack /
+rollAstralResistance (Sorcery attack, Charisma damage, Willpower resist,
+repercussion onto the physical monitor). Spell Defense + combat-spell
+Resist Spell cards also landed.
+
 Conjuring is implemented: SR2EActor#rollConjuring (Conjuring skill +
 totem bonus vs TN=Force, no Magic Pool; Charisma drain per the Conjuring
 Drain Table) creates and links a Spirit actor via CharacterData
