@@ -2,7 +2,7 @@
   "_id": "f904e4d2fabf90f9",
   "name": "GMC Beachcraft Patroller",
   "type": "vehicle",
-  "img": "icons/svg/boat.svg",
+  "img": "icons/svg/anchor.svg",
   "system": {
     "vehicleType": "boat",
     "skill": "",

@@ -2,7 +2,7 @@
   "_id": "8bb9cfefbc1c87ec",
   "name": "Sendanko Marlin",
   "type": "vehicle",
-  "img": "icons/svg/boat.svg",
+  "img": "icons/svg/anchor.svg",
   "system": {
     "vehicleType": "boat",
     "skill": "",

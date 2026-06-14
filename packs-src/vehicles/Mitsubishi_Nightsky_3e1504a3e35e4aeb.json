@@ -2,7 +2,7 @@
   "_id": "3e1504a3e35e4aeb",
   "name": "Mitsubishi Nightsky",
   "type": "vehicle",
-  "img": "icons/svg/town.svg",
+  "img": "icons/svg/direction.svg",
   "system": {
     "vehicleType": "ground",
     "skill": "",

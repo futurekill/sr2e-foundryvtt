@@ -2,7 +2,7 @@
   "_id": "c9330e180d1d7e0e",
   "name": "Harley Scorpion",
   "type": "vehicle",
-  "img": "icons/svg/town.svg",
+  "img": "icons/svg/direction.svg",
   "system": {
     "vehicleType": "ground",
     "skill": "bike",

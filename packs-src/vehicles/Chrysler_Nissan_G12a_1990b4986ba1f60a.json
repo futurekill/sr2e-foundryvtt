@@ -2,7 +2,7 @@
   "_id": "1990b4986ba1f60a",
   "name": "Chrysler-Nissan G12a",
   "type": "vehicle",
-  "img": "icons/svg/waterfall.svg",
+  "img": "icons/svg/thrust.svg",
   "system": {
     "vehicleType": "hovercraft",
     "skill": "",

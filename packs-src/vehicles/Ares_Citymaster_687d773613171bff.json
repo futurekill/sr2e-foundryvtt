@@ -2,7 +2,7 @@
   "_id": "687d773613171bff",
   "name": "Ares Citymaster",
   "type": "vehicle",
-  "img": "icons/svg/town.svg",
+  "img": "icons/svg/direction.svg",
   "system": {
     "vehicleType": "ground",
     "skill": "",

@@ -2,7 +2,7 @@
   "_id": "3bb96b417ee5e828",
   "name": "FRC-44B Yellowjacket",
   "type": "vehicle",
-  "img": "icons/svg/wing.svg",
+  "img": "icons/svg/windmill.svg",
   "system": {
     "vehicleType": "rotor",
     "skill": "",

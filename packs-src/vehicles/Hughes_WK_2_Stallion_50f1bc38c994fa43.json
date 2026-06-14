@@ -2,7 +2,7 @@
   "_id": "50f1bc38c994fa43",
   "name": "Hughes WK-2 Stallion",
   "type": "vehicle",
-  "img": "icons/svg/wing.svg",
+  "img": "icons/svg/windmill.svg",
   "system": {
     "vehicleType": "rotor",
     "skill": "",

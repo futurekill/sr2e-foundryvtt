@@ -2,7 +2,7 @@
   "_id": "913f2b70879869b5",
   "name": "GMC Banshee",
   "type": "vehicle",
-  "img": "icons/svg/wing.svg",
+  "img": "icons/svg/thrust.svg",
   "system": {
     "vehicleType": "vectored_thrust",
     "skill": "",
@@ -24,7 +24,7 @@
       "max": 10
     },
     "autonav": 2,
-    "notes": "<p>A heavily armored T-bird (Thunderbird) VTOL gunship. Restricted military issue.</p><p><em>Cruising speed 650 m/CT (used for vehicle tests). Max speed 1000 m/CT. Restricted military hardware — cost by GM. Stats: SR2E p.264-265.</em></p>"
+    "notes": "<p>A heavily armored T-bird (Thunderbird) VTOL gunship. Restricted military issue.</p><p><em>Cruising speed 650 m/CT (used for vehicle tests). Max speed 1000 m/CT. Restricted military hardware \u2014 cost by GM. Stats: SR2E p.264-265.</em></p>"
   },
   "items": [],
   "effects": [],

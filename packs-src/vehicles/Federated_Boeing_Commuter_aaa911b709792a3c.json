@@ -2,7 +2,7 @@
   "_id": "aaa911b709792a3c",
   "name": "Federated-Boeing Commuter",
   "type": "vehicle",
-  "img": "icons/svg/wing.svg",
+  "img": "icons/svg/windmill.svg",
   "system": {
     "vehicleType": "rotor",
     "skill": "",

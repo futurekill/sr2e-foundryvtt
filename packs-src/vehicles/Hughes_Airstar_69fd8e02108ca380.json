@@ -2,7 +2,7 @@
   "_id": "69fd8e02108ca380",
   "name": "Hughes Airstar",
   "type": "vehicle",
-  "img": "icons/svg/wing.svg",
+  "img": "icons/svg/windmill.svg",
   "system": {
     "vehicleType": "rotor",
     "skill": "",

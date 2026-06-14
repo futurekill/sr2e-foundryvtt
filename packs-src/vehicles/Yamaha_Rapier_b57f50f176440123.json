@@ -2,7 +2,7 @@
   "_id": "b57f50f176440123",
   "name": "Yamaha Rapier",
   "type": "vehicle",
-  "img": "icons/svg/town.svg",
+  "img": "icons/svg/direction.svg",
   "system": {
     "vehicleType": "ground",
     "skill": "bike",

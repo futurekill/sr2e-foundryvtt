@@ -2,7 +2,7 @@
   "_id": "bfd27cd108f62619",
   "name": "Chrysler-Nissan Jackrabbit",
   "type": "vehicle",
-  "img": "icons/svg/town.svg",
+  "img": "icons/svg/direction.svg",
   "system": {
     "vehicleType": "ground",
     "skill": "",

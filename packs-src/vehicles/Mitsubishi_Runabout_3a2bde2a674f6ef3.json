@@ -2,7 +2,7 @@
   "_id": "3a2bde2a674f6ef3",
   "name": "Mitsubishi Runabout",
   "type": "vehicle",
-  "img": "icons/svg/town.svg",
+  "img": "icons/svg/direction.svg",
   "system": {
     "vehicleType": "ground",
     "skill": "",
