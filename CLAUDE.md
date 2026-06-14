@@ -57,8 +57,20 @@ save) and return update objects. Never reorder entries. System compendia
 are rebuilt from packs-src instead of runtime-migrated.
 
 ## Known deferred work
-Conjuring, Matrix subsystem, ramming and escape-test automation, full
-i18n of TN-breakdown strings.
+Matrix subsystem, ramming and escape-test automation, full i18n of
+TN-breakdown strings.
+
+Conjuring is implemented: SR2EActor#rollConjuring (Conjuring skill +
+totem bonus vs TN=Force, no Magic Pool; Charisma drain per the Conjuring
+Drain Table) creates and links a Spirit actor via CharacterData
+boundSpirits. The spirit sheet has services/power-use/manifest-attack.
+
+Known bug (pre-existing, NOT conjuring-specific): rollSuccessTest adds
+the wound/injury penalty to ALL tests including damage- and drain-
+resistance tests, but the book exempts resistance tests from the injury
+modifier (p.112). Affects rollDamageResistance, spell drain, and
+conjuring drain identically. Fix would add an option to skip the injury
+(not sustain) penalty for resistance rolls.
 
 Opposed melee is implemented: the attack card (flags.sr2e.melee) carries
 Defend/Undefended buttons; SR2EActor#rollMeleeDefense resolves the
