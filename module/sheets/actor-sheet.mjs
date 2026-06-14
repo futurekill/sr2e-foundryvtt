@@ -1604,7 +1604,46 @@ async function onResetPools(event, target) {
       updates[`system.dicePools.${pool}.value`] = system.dicePools[pool].max;
     }
   }
+  // Spell Defense allocations are released when the Magic Pool refreshes (p.132)
+  updates["system.dicePools.spellDefense"] = 0;
   return this.document.update(updates);
+}
+
+/**
+ * Allocate Magic Pool dice as Spell Defense (SR2E p.132). Prompts for the
+ * number of dice to commit.
+ * @this {ApplicationV2}
+ */
+async function onAllocateSpellDefense(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const avail = actor.system.dicePools?.magic?.value ?? 0;
+  if (avail <= 0) return ui.notifications.warn("No Magic Pool dice available to allocate.");
+  let n = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Allocate Spell Defense" },
+    rejectClose: false,
+    content: `<form>
+      <div class="form-group"><label>Dice from Magic Pool (${avail} available):</label>
+        <input type="number" name="n" value="0" min="0" max="${avail}" autofocus style="width:60px;text-align:center;"></div>
+      <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
+        Protects you and chosen allies in line of sight; added to spell-resistance
+        tests until the Magic Pool refreshes (SR2E p.132).</p>
+    </form>`,
+    buttons: [
+      { action: "go", label: "Allocate", default: true,
+        callback: (event, button) => { n = Math.max(0, Math.min(parseInt(button.form.elements.n?.value) || 0, avail)); } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "go" || !n) return;
+  return actor.allocateSpellDefense(n);
+}
+
+/** Return allocated Spell Defense dice to the Magic Pool. @this {ApplicationV2} */
+async function onClearSpellDefense(event, target) {
+  event.preventDefault();
+  return this.document.clearSpellDefense();
 }
 
 /**
@@ -1744,6 +1783,8 @@ const SHARED_ACTIONS = {
   rollInitiative: onRollInitiative,
   rollWeapon: onRollWeapon,
   castSpell: onCastSpell,
+  allocateSpellDefense: onAllocateSpellDefense,
+  clearSpellDefense: onClearSpellDefense,
   conjure: onConjure,
   rollProgram: onRollProgram,
   toggleEquip: onToggleEquip,

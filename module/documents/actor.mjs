@@ -2,7 +2,7 @@
  * Extended Actor document for the Shadowrun 2E system.
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
-import { evaluateDamageCode, renderMeleeAttackCard } from "./item.mjs";
+import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1420,6 +1420,99 @@ export class SR2EActor extends Actor {
         await this.update({ [`system.conditionMonitor.stun.value`]: monitor.max });
       }
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // SPELL DEFENSE & SPELL RESISTANCE (SR2E p.130–132)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Allocate dice from the Magic Pool as Spell Defense (SR2E p.132). These
+   * become a standing defensive pool protecting the magician and chosen
+   * allies in line of sight; they are added to spell-resistance tests until
+   * the Magic Pool refreshes. Deducts from the available Magic Pool now.
+   * @param {number} amount - Dice to commit (clamped to the available pool).
+   */
+  async allocateSpellDefense(amount) {
+    const pool = this.system.dicePools?.magic;
+    if (!pool) return;
+    const give = Math.max(0, Math.min(amount, pool.value));
+    if (give <= 0) return;
+    await this.update({
+      "system.dicePools.magic.value": pool.value - give,
+      "system.dicePools.spellDefense": (this.system.dicePools.spellDefense ?? 0) + give
+    });
+  }
+
+  /** Return all allocated Spell Defense dice to the Magic Pool. */
+  async clearSpellDefense() {
+    const sd = this.system.dicePools?.spellDefense ?? 0;
+    if (sd <= 0) return;
+    const pool = this.system.dicePools.magic;
+    await this.update({
+      "system.dicePools.magic.value": Math.min(pool.max, pool.value + sd),
+      "system.dicePools.spellDefense": 0
+    });
+  }
+
+  /**
+   * Resist a combat spell from a Resist Spell card (SR2E p.130–131).
+   * The defender rolls Willpower (mana) or Body (physical) dice plus any Spell
+   * Defense dice protecting them, vs TN = the spell's Force. Armor does not
+   * help. Net successes (caster − resister) stage the spell's damage up one
+   * level per 2 net; the result is applied to the defender's monitor.
+   * @param {ChatMessage} message - The Resist Spell card.
+   */
+  async rollSpellResistance(message) {
+    const state = message.getFlag("sr2e", "spell");
+    if (!state || state.resolved) return;
+
+    const attr = state.resistAttr === "willpower" ? "willpower" : "body";
+    let dice = this.system[attr]?.value ?? 1;
+    const spellDef = this.system.dicePools?.spellDefense ?? 0;
+    const useDef = Math.min(spellDef, 99);
+    dice += useDef;
+
+    const resist = await this.rollSuccessTest(dice, state.force, {
+      label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${useDef ? ` +${useDef} Spell Defense` : ""} (TN ${state.force})`,
+      isResistance: true
+    });
+    if (useDef > 0) {
+      await this.update({ "system.dicePools.spellDefense": Math.max(0, spellDef - useDef) });
+    }
+
+    const net = state.successes - (resist?.successes ?? 0);
+    const stages = ["L", "M", "S", "D"];
+    const baseIdx = stages.indexOf(state.baseLevel);
+
+    if (net <= 0) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>${this.name} resists ${foundry.utils.escapeHTML(state.spellName)}</strong>
+          <em>— no net successes; no effect.</em></div>`
+      });
+    } else {
+      const finalIdx = Math.min(baseIdx + Math.floor(net / 2), 3);
+      const boxes = [1, 3, 6, 10][finalIdx];
+      await this.applyDamage(state.dmgType, boxes);
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${this.name} takes ${state.force}${stages[finalIdx]}${state.dmgType === "stun" ? " Stun" : ""}</strong>
+          <em>(${net} net success${net === 1 ? "" : "es"} — staged up ${Math.floor(net / 2)} level(s), ${boxes} box${boxes === 1 ? "" : "es"}).</em>
+        </div>`
+      });
+    }
+
+    // Mark the card resolved (author or GM)
+    if (message.isAuthor || game.user.isGM) {
+      const newState = foundry.utils.mergeObject(foundry.utils.deepClone(state), {
+        resolved: true,
+        resolution: `<br><strong>Resolved against ${foundry.utils.escapeHTML(this.name)}.</strong>`
+      });
+      await message.update({ content: renderSpellResistCard(newState), "flags.sr2e.spell": newState });
+    }
+    return resist;
   }
 
   // -------------------------------------------------------------------------

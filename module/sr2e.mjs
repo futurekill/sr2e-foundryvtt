@@ -470,6 +470,18 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Resist Spell: the defending token's actor rolls Willpower/Body + Spell Defense.
+  html.querySelectorAll?.(".sr2e-spellresist-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      if (!defender) {
+        return ui.notifications.warn("Select the defending token (or assign a character) first.");
+      }
+      return defender.rollSpellResistance(message);
+    });
+  });
+
   html.querySelectorAll?.(".sr2e-undefended-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();

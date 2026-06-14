@@ -113,6 +113,31 @@ export function renderMeleeAttackCard(state) {
 }
 
 /**
+ * Render the combat-spell Resist Spell card (SR2E p.130–131).
+ * State in flags.sr2e.spell: { casterUuid, casterName, spellName, force,
+ * successes, resistAttr ("willpower"|"body"), baseLevel, dmgType, resolved }.
+ */
+export function renderSpellResistCard(state) {
+  const esc = foundry.utils.escapeHTML;
+  const attrLabel = state.resistAttr === "willpower" ? "Willpower" : "Body";
+  const button = state.resolved ? "" : `
+    <div class="sr2e-karma-actions">
+      <button type="button" class="sr2e-resist-btn sr2e-spellresist-btn"
+              title="Select the defending token, then resist with ${attrLabel} (+ Spell Defense) vs Force ${state.force}. Armor does not help (SR2E p.131).">
+        ✨ Resist Spell
+      </button>
+    </div>`;
+  return `<div class="sr2e-damage-result">
+    <strong>${esc(state.casterName)} casts ${esc(state.spellName)}</strong>
+    — ${state.successes} success${state.successes === 1 ? "" : "es"} (Force ${state.force}).
+    <br><em>Base ${state.force}${state.baseLevel}${state.dmgType === "stun" ? " Stun" : ""}.
+    Resist with ${attrLabel} + Spell Defense, no armor (SR2E p.131).</em>
+    ${state.resolution ?? ""}
+    ${button}
+  </div>`;
+}
+
+/**
  * Extended Item document for the Shadowrun 2E system.
  */
 export class SR2EItem extends Item {
@@ -700,6 +725,30 @@ export class SR2EItem extends Item {
         content: `<div class="sr2e-drain-result">
           <strong>Drain fully resisted — no damage taken.</strong>
         </div>`
+      });
+    }
+
+    // ── Combat spells: post a Resist Spell card (SR2E p.130–131) ──────────────
+    // The target resists with Willpower (mana spell) or Body (physical spell)
+    // — armor does not help — plus any Spell Defense dice protecting them.
+    // Net (caster − resister) successes stage the spell's damage up one level
+    // per 2 net. Resolved by the defender via the card's Resist Spell button.
+    if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
+      const isMana   = this.system.type === "mana";
+      const baseLevel = (this.system.damageCode || "M").match(/[LMSD]/)?.[0] ?? "M";
+      // Stun-type combat spells carry "stun" in the name (Stunbolt, Stunball);
+      // others deal Physical damage.
+      const dmgType  = /stun/i.test(this.name) ? "stun" : "physical";
+      const state = {
+        casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
+        force, successes: spellResult.successes,
+        resistAttr: isMana ? "willpower" : "body",
+        baseLevel, dmgType, resolved: false
+      };
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: renderSpellResistCard(state),
+        flags: { sr2e: { spell: state } }
       });
     }
 

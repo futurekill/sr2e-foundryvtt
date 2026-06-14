@@ -53,6 +53,17 @@
       {{/if}}
     </fieldset>
 
+    {{!-- Spell Defense (SR2E p.132) --}}
+    {{#if hasSorcery}}
+    <div class="spell-defense-box flexrow" title="Allocate Magic Pool dice as Spell Defense — protects you and allies in line of sight against spells until the Magic Pool refreshes (SR2E p.132)">
+      <span class="spell-defense-label"><i class="fas fa-shield-halved"></i> Spell Defense:</span>
+      <span class="spell-defense-value">{{system.dicePools.spellDefense}} dice</span>
+      <span class="hint" style="flex:1;">(Magic Pool: {{system.dicePools.magic.value}}/{{system.dicePools.magic.max}})</span>
+      <button type="button" class="btn-small" data-action="allocateSpellDefense"><i class="fas fa-plus"></i> Allocate</button>
+      <button type="button" class="btn-small" data-action="clearSpellDefense"><i class="fas fa-rotate-left"></i> Clear</button>
+    </div>
+    {{/if}}
+
     {{!-- Spells --}}
     {{#if hasSorcery}}
     <div class="spells-category">

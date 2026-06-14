@@ -2247,6 +2247,21 @@
   box-shadow: 0 0 5px rgba(74, 153, 80, 0.4);
 }
 
+/* Spell Defense allocation box (magic tab) */
+.spell-defense-box {
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--sr2e-magic, #bb66ff);
+  border-radius: 4px;
+  background: rgba(187, 102, 255, 0.08);
+  font-size: 12px;
+}
+
+.spell-defense-box .spell-defense-label { color: var(--sr2e-magic, #bb66ff); white-space: nowrap; }
+.spell-defense-box .spell-defense-value { font-weight: bold; }
+
 /* Healing action buttons under the condition monitors */
 .heal-actions {
   gap: 4px;
