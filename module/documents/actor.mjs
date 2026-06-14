@@ -1421,4 +1421,166 @@ export class SR2EActor extends Actor {
       }
     }
   }
+
+  // -------------------------------------------------------------------------
+  // HEALING (SR2E p.112–115)
+  // -------------------------------------------------------------------------
+
+  /** Wound level label for a raw box count (Light 1 / Moderate 3 / Serious 6 / Deadly 10). */
+  static levelForBoxes(boxes) {
+    if (boxes >= 10) return "Deadly";
+    if (boxes >= 6)  return "Serious";
+    if (boxes >= 3)  return "Moderate";
+    if (boxes >= 1)  return "Light";
+    return "Undamaged";
+  }
+
+  /**
+   * Recover one box of Stun damage by resting (SR2E p.112).
+   * Roll the higher of Body or Willpower vs TN 2, modified by current injury
+   * modifiers (Stun + Physical). One box recovers in 60 min ÷ successes.
+   */
+  async recoverStun() {
+    const cm = this.system.conditionMonitor?.stun;
+    if (!cm || cm.value <= 0) {
+      return ui.notifications.info(`${this.name} has no Stun damage to recover.`);
+    }
+    const body = this.system.body?.value ?? 1;
+    const will = this.system.willpower?.value ?? 1;
+    const dice = Math.max(body, will);
+    const injury = this.system.woundPenalty ?? 0;
+    const tn = Math.max(2, 2 + injury);
+
+    const result = await this.rollSuccessTest(dice, tn, {
+      label: `Recover Stun — ${dice > 0 ? "Body/Willpower" : ""} (TN ${tn})`,
+      isResistance: true   // recovery, not an action — no injury modifier on the roll itself
+    });
+    const succ = result?.successes ?? 0;
+    if (succ <= 0) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>No Stun recovered</strong>
+          <em>— rest and try again (SR2E p.112).</em></div>`
+      });
+    }
+    await this.update({ "system.conditionMonitor.stun.value": Math.max(0, cm.value - 1) });
+    const minutes = Math.max(1, Math.round(60 / succ));
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>Recovered 1 box of Stun</strong>
+        <em>(${succ} success${succ === 1 ? "" : "es"} → ${minutes} min of rest per box).</em>
+      </div>`
+    });
+  }
+
+  /**
+   * Natural healing of Physical damage (SR2E p.112–113). A Body Test using
+   * NATURAL Body (cyberware does not help) vs the wound-level TN. Any success
+   * heals one Damage Level; the monitor drops to the lower level's floor.
+   * Deadly wounds require medical attention (handled by First Aid / a doctor).
+   */
+  async healPhysical() {
+    const cm = this.system.conditionMonitor?.physical;
+    if (!cm || cm.value <= 0) {
+      return ui.notifications.info(`${this.name} has no Physical damage to heal.`);
+    }
+    const level = SR2EActor.levelForBoxes(cm.value);
+    if (level === "Deadly") {
+      return ui.notifications.warn(`${this.name} has a Deadly wound — it requires medical attention (First Aid or a doctor).`);
+    }
+    // Natural Body only: base + racial, ignoring cyberware mod
+    const naturalBody = Math.max(1, (this.system.body?.base ?? 1) + (this.system.body?.racial ?? 0));
+    const tn = CONFIG.SR2E.naturalHealTN[level] ?? 4;
+
+    const result = await this.rollSuccessTest(naturalBody, tn, {
+      label: `Heal ${level} (natural Body ${naturalBody} vs TN ${tn})`,
+      isResistance: true
+    });
+    const succ = result?.successes ?? 0;
+    if (succ <= 0) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>No natural healing</strong>
+          <em>— medical attention is required for this wound (SR2E p.113).</em></div>`
+      });
+    }
+    return this._healOneLevel("physical", `Natural healing (${CONFIG.SR2E.healTime[level] ?? ""})`);
+  }
+
+  /**
+   * Apply First Aid to a patient (SR2E p.115). The acting character is the
+   * medic, rolling Biotech vs the First Aid Table TN for the patient's current
+   * Physical wound, with the given modifiers. 1+ success heals one level.
+   * Physical damage only; must be used before magical healing (the "golden hour").
+   *
+   * @param {Actor}  patient        - Wounded actor (defaults to self).
+   * @param {object} [opts]
+   * @param {number} [opts.conditionMod=0] - Bad +1 / Terrible +3 conditions.
+   * @param {boolean}[opts.noMedkit=false] - +4 with no medkit.
+   */
+  async firstAid(patient, opts = {}) {
+    patient = patient ?? this;
+    const cm = patient.system.conditionMonitor?.physical;
+    if (!cm || cm.value <= 0) {
+      return ui.notifications.info(`${patient.name} has no Physical damage for First Aid.`);
+    }
+    const level = SR2EActor.levelForBoxes(cm.value);
+
+    // Medic's Biotech (defaults to Intelligence at +4 when untrained)
+    const biotech = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "biotech");
+    let dice = biotech?.system?.rating ?? 0;
+    let defaultMod = 0;
+    if (dice <= 0) { dice = Math.max(1, this.system.intelligence?.value ?? 1); defaultMod = CONFIG.SR2E.defaultingPenalty; }
+
+    // First Aid Table TN + modifiers
+    let tn = CONFIG.SR2E.firstAidTN[level] ?? 6;
+    const parts = [];
+    if (patient.system.magic?.type && patient.system.magic.type !== "none") { tn += 2; parts.push("magician +2"); }
+    // Patient Body attribute modifier
+    const pBody = patient.system.body?.value ?? 1;
+    const bodyMod = pBody >= 10 ? -3 : pBody >= 7 ? -2 : pBody >= 4 ? -1 : 0;
+    if (bodyMod) { tn += bodyMod; parts.push(`Body ${bodyMod}`); }
+    if (opts.conditionMod) { tn += opts.conditionMod; parts.push(`conditions +${opts.conditionMod}`); }
+    if (opts.noMedkit) { tn += 4; parts.push("no medkit +4"); }
+    if (defaultMod) { tn += defaultMod; parts.push(`defaulting +${defaultMod}`); }
+    tn = Math.max(2, tn);
+
+    const result = await this.rollSuccessTest(dice, tn, {
+      label: `First Aid: ${patient.name} (${level})${parts.length ? " — " + parts.join(", ") : ""} TN ${tn}`,
+      isResistance: true
+    });
+    const succ = result?.successes ?? 0;
+    if (succ <= 0) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>First Aid fails</strong>
+          <em>— no successes. First aid can only be tried once per injury (SR2E p.115).</em></div>`
+      });
+    }
+    return patient._healOneLevel("physical",
+      `First Aid by ${foundry.utils.escapeHTML(this.name)} (one attempt per injury — use before magical healing)`);
+  }
+
+  /**
+   * Reduce a condition column by one wound level, dropping to the lower level's
+   * box floor (SR2E p.113), and post a chat note.
+   * @private
+   */
+  async _healOneLevel(type, note) {
+    const cm = this.system.conditionMonitor?.[type];
+    const before = cm.value;
+    const level = SR2EActor.levelForBoxes(before);
+    const floor = CONFIG.SR2E.healLevelFloor[level] ?? 0;
+    await this.update({ [`system.conditionMonitor.${type}.value`]: floor });
+    const newLevel = SR2EActor.levelForBoxes(floor);
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>${this.name}: ${level} → ${newLevel === "Undamaged" ? "healed" : newLevel}</strong>
+        ${type === "stun" ? " Stun" : ""} <em>(${before} → ${floor} boxes)</em>
+        ${note ? `<br><em>${note}</em>` : ""}
+      </div>`
+    });
+  }
 }
