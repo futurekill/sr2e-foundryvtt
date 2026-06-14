@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.7.0
+
+### New mechanics
+- **Conjuring** (p.138–140) — shamans summon nature spirits by domain, mages
+  summon elementals: Conjuring Skill + totem bonus vs the spirit's Force (no
+  Magic Pool), Charisma-based drain per the Conjuring Drain Table, and an
+  auto-created, linked Spirit actor whose services, powers, and manifest
+  attack are tracked on its sheet
+- **Vehicle ramming & escape test** (p.107) — completes the chase loop: both
+  vehicles roll the ram test (loser crashes), and a pursuer's Escape Test
+  resolves whether a fleeing vehicle gets away, with the correct ram/escape
+  terrain tables
+
+### New content
+- **Vehicles & Drones compendium** — all 32 vehicles and drones from the core
+  rulebook table (cars, bikes, boats, aircraft, rotorcraft, military, drones)
+
+### Fixes
+- **Injury Modifier** no longer applies to damage- and drain-resistance tests
+  (p.112) — a wounded character was resisting damage and drain at an inflated
+  TN. The sustain penalty still applies, per the book
+- Conjuring drain table boundary corrected (Force = half Charisma is Moderate)
+- Fixed broken vehicle compendium icons (invalid core icon paths)
+
 ## 0.6.0
 
 ### New content & mechanics
