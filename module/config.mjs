@@ -329,9 +329,11 @@ SR2E.elementalTypes = {
  * @returns {{ level: "L"|"M"|"S"|"D", type: "stun"|"physical" }}
  */
 SR2E.conjuringDrain = (force, charisma) => {
-  if (force > 2 * charisma) return { level: "D", type: "physical" };
-  if (force > charisma)     return { level: "S", type: "physical" };
-  if (force > charisma / 2) return { level: "M", type: "stun" };
+  if (force > 2 * charisma)  return { level: "D", type: "physical" };
+  if (force > charisma)      return { level: "S", type: "physical" };
+  // "Less than half Charisma" is Light; at or above half (up to Charisma) is
+  // Moderate. Half is strict, so Force == half Charisma is Moderate.
+  if (force >= charisma / 2) return { level: "M", type: "stun" };
   return { level: "L", type: "stun" };
 };
 
