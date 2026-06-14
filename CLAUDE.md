@@ -65,12 +65,11 @@ totem bonus vs TN=Force, no Magic Pool; Charisma drain per the Conjuring
 Drain Table) creates and links a Spirit actor via CharacterData
 boundSpirits. The spirit sheet has services/power-use/manifest-attack.
 
-Known bug (pre-existing, NOT conjuring-specific): rollSuccessTest adds
-the wound/injury penalty to ALL tests including damage- and drain-
-resistance tests, but the book exempts resistance tests from the injury
-modifier (p.112). Affects rollDamageResistance, spell drain, and
-conjuring drain identically. Fix would add an option to skip the injury
-(not sustain) penalty for resistance rolls.
+Injury Modifier exemption: rollSuccessTest takes options.isResistance to
+suppress the wound penalty (NOT the sustain penalty) on damage- and
+drain-resistance tests, which the book exempts from the Injury Modifier
+(p.112). Passed by rollDamageResistance, vehicle/crash resist, spell
+drain, and conjuring drain. Active tests still take the wound penalty.
 
 Opposed melee is implemented: the attack card (flags.sr2e.melee) carries
 Defend/Undefended buttons; SR2EActor#rollMeleeDefense resolves the

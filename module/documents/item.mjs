@@ -671,7 +671,8 @@ export class SR2EItem extends Item {
 
     const drainResult = await actor.rollSuccessTest(willpowerDice, drainTN, {
       label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})`,
-      poolDice: options.drainPoolDice   // separately allocated magic pool dice
+      poolDice: options.drainPoolDice,  // separately allocated magic pool dice
+      isResistance: true                // Injury Modifier does not apply (p.112)
     });
 
     // ── Apply Drain Damage ────────────────────────────────────────────────────

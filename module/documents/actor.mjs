@@ -119,7 +119,12 @@ export class SR2EActor extends Actor {
     // Apply wound penalty (SR2E Injury Modifier, cumulative across the
     // physical and stun columns) and the sustained-spell penalty
     // (+2 per spell sustained by concentration, SR2E p.130).
-    const woundPenalty = this.system.woundPenalty ?? 0;
+    //
+    // The Injury Modifier does NOT apply to damage- or drain-resistance tests
+    // (SR2E p.112: "except those involving attempts to resist damage or avoid
+    // damage"). Resistance callers pass options.isResistance to suppress it.
+    // The sustain penalty is not granted that exemption, so it still applies.
+    const woundPenalty = options.isResistance ? 0 : (this.system.woundPenalty ?? 0);
     const sustainPenalty = this.system.sustainPenalty ?? 0;
     const effectiveTN = targetNumber + woundPenalty + sustainPenalty;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
@@ -478,7 +483,8 @@ export class SR2EActor extends Actor {
     // ── Conjuring Drain (Charisma, p.139) ─────────────────────────────────────
     const drain = CONFIG.SR2E.conjuringDrain(force, charisma);
     const drainResult = await this.rollSuccessTest(charisma + fociDice, force, {
-      label: `Conjuring Drain — ${drain.level} ${drain.type} (TN ${force})`
+      label: `Conjuring Drain — ${drain.level} ${drain.type} (TN ${force})`,
+      isResistance: true
     });
     const stages     = ["L", "M", "S", "D"];
     const reductions = Math.floor((drainResult?.successes ?? 0) / 2);
@@ -824,7 +830,8 @@ export class SR2EActor extends Actor {
     const tn   = Math.max(2, power - armor);
 
     const resist = await vehicle.rollSuccessTest(dice, tn, {
-      label: `${vehicle.name} — Crash! Resist ${power}${level} (Body + ½ Armor, no Control Pool)`
+      label: `${vehicle.name} — Crash! Resist ${power}${level} (Body + ½ Armor, no Control Pool)`,
+      isResistance: true
     });
 
     const stages     = ["L", "M", "S", "D"];
@@ -973,7 +980,8 @@ export class SR2EActor extends Actor {
     }
 
     const resist = await this.rollSuccessTest(dice + allocated, tn, {
-      label: `${this.name} — Resist ${power}${startLevel}${allocated ? ` (+${allocated} Control Pool)` : ""}`
+      label: `${this.name} — Resist ${power}${startLevel}${allocated ? ` (+${allocated} Control Pool)` : ""}`,
+      isResistance: true
     });
 
     const reductions = Math.floor((resist?.successes ?? 0) / 2);
@@ -1148,7 +1156,8 @@ export class SR2EActor extends Actor {
     // ── Roll ──────────────────────────────────────────────────────────────────
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
       label: `Resist Damage: ${level} (Power ${power})`,
-      poolDice: rollResult.poolDice
+      poolDice: rollResult.poolDice,
+      isResistance: true   // Injury Modifier does not apply to resistance (p.112)
     });
 
     // Stage damage down: 2 successes = 1 level reduction
