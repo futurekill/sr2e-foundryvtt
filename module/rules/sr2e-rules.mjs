@@ -85,3 +85,29 @@ export function systemOperationTN(systemRating, priorAttempts, defaultPenalty = 
 export function personaAttribute(programRating, mpcp) {
   return Math.min(programRating, mpcp);
 }
+
+/** Base Reaction speed an IC's node Security Code grants (SR2E p.169). */
+export const IC_REACTION_BASE = { blue: 0, green: 5, orange: 7, red: 9 };
+
+/**
+ * Base of an IC's Reaction Time (SR2E p.169): the node's Security Code gives a
+ * base speed to which the IC's Rating is added; then roll 1D6. Blue nodes carry
+ * no IC, so they contribute 0.
+ * @param {"blue"|"green"|"orange"|"red"} securityCode
+ * @returns {number}
+ */
+export function icReactionBase(securityCode) {
+  return IC_REACTION_BASE[securityCode] ?? 0;
+}
+
+/**
+ * Apply an alert's modifier to an IC rating (SR2E p.168): a passive alert adds
+ * +50% to all IC ratings (rounded down); an active alert inherits that boost.
+ * @param {number} rating
+ * @param {"none"|"passive"|"active"} alert
+ * @returns {number}
+ */
+export function alertAdjustedRating(rating, alert) {
+  if (alert === "passive" || alert === "active") return Math.floor(rating * 1.5);
+  return rating;
+}

@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -870,6 +870,16 @@ export class ICData extends SR2EDataModel {
     return {
       icType: new fields.StringField({ initial: "white" }),
       rating: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+
+      // The Security Code of the node this IC defends drives its Reaction Time
+      // (SR2E p.169). The alert state applies the +50% IC-rating boost (p.168).
+      securityCode: new fields.StringField({ initial: "green", choices: {
+        blue: "blue", green: "green", orange: "orange", red: "red"
+      }}),
+      alert: new fields.StringField({ initial: "none", choices: {
+        none: "none", passive: "passive", active: "active"
+      }}),
+
       // IC Persona attributes
       bod: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       evasion: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
@@ -895,9 +905,13 @@ export class ICData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
+    // Active/passive alerts boost all IC ratings by +50% (SR2E p.168).
+    this.effectiveRating = alertAdjustedRating(this.rating, this.alert);
     this.conditionMonitor.max = this.rating * 2;
-    this.initiative.base = this.rating;
-    this.initiative.value = this.rating;
+    // Reaction Time = Security-Code base + (effective) Rating, then 1D6 (p.169).
+    this.initiative.base = icReactionBase(this.securityCode) + this.effectiveRating;
+    this.initiative.dice = 1;
+    this.initiative.value = this.initiative.base;
   }
 }
 

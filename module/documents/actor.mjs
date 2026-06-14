@@ -1662,7 +1662,8 @@ export class SR2EActor extends Actor {
 
     let dice, tn, applyDamage, monitorLabel;
     if (this.type === "ic") {
-      dice = this.system.rating ?? 1;
+      // Alert-boosted rating (SR2E p.168) when defending.
+      dice = this.system.effectiveRating ?? this.system.rating ?? 1;
       tn = Math.max(2, state.nodeRating || this.system.rating || 4);
       monitorLabel = "IC";
       applyDamage = async (boxes) => {

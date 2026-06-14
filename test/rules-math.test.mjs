@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   DAMAGE_LEVELS, damageBoxes, stageLevel,
   columnWoundPenalty, totalWoundPenalty,
-  systemOperationTN, personaAttribute
+  systemOperationTN, personaAttribute,
+  icReactionBase, alertAdjustedRating
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
@@ -75,5 +76,34 @@ describe("Persona attribute cap (SR2E p.172–174)", () => {
   it("caps a program's rating at the deck's MPCP", () => {
     expect(personaAttribute(6, 4)).toBe(4); // program higher than MPCP
     expect(personaAttribute(3, 6)).toBe(3); // program lower than MPCP
+  });
+});
+
+describe("IC Reaction Time base (SR2E p.169)", () => {
+  it("is 5/7/9 for Green/Orange/Red and 0 for Blue (no IC)", () => {
+    expect(icReactionBase("blue")).toBe(0);
+    expect(icReactionBase("green")).toBe(5);
+    expect(icReactionBase("orange")).toBe(7);
+    expect(icReactionBase("red")).toBe(9);
+  });
+
+  it("combined with rating gives the Reaction (before the 1D6)", () => {
+    // Orange node, IC rating 4 → 7 + 4 = 11
+    expect(icReactionBase("orange") + 4).toBe(11);
+  });
+});
+
+describe("Alert IC-rating modifier (SR2E p.168)", () => {
+  it("leaves ratings unchanged with no alert", () => {
+    expect(alertAdjustedRating(4, "none")).toBe(4);
+  });
+
+  it("adds +50% (rounded down) on a passive alert", () => {
+    expect(alertAdjustedRating(4, "passive")).toBe(6);
+    expect(alertAdjustedRating(5, "passive")).toBe(7); // 7.5 → 7
+  });
+
+  it("keeps the +50% boost on an active alert", () => {
+    expect(alertAdjustedRating(4, "active")).toBe(6);
   });
 });

@@ -1255,7 +1255,7 @@ async function promptMatrixAttackOptions(actor) {
     content: `<form>
       ${isIC ? `
       <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
-        Attack dice = IC Rating (${actor.system.rating}). TN = the target persona's Bod.
+        Attack dice = IC Rating (${actor.system.effectiveRating ?? actor.system.rating}${actor.system.alert !== "none" ? `, ${actor.system.alert} alert +50%` : ""}). TN = the target persona's Bod.
       </div>` : `
       <div class="form-group">
         <label>Attack Program:</label>
@@ -1310,7 +1310,7 @@ async function onMatrixAttack(event, target) {
   if (!opts) return;
 
   const attackDice = actor.type === "ic"
-    ? (actor.system.rating ?? 1)
+    ? (actor.system.effectiveRating ?? actor.system.rating ?? 1)
     : (actor.items.get(opts.programId)?.system?.rating ?? 0);
 
   return actor.rollMatrixAttack({

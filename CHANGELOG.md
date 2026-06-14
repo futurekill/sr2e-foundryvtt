@@ -18,6 +18,11 @@
 - Persona attributes (Bod/Evasion/Masking/Sensor) now derive from the
   highest-rated loaded persona program, capped at MPCP.
 
+- **IC Reaction Time & alert boost** (p.168–169) — IC initiative now follows
+  the book: Reaction = the node's Security Code base (Green 5 / Orange 7 /
+  Red 9) + the IC's Rating, then 1D6. An IC carries its node's Security Code and
+  alert state; a passive/active alert raises all its ratings +50% (used in its
+  attack, resistance, and Reaction). Shown on the IC sheet.
 - **System operations & hosts** (p.165–168) — a new **Host** actor type
   represents a node (Security Code color + numeric System Rating). A jacked-in
   decker runs a system operation (Locate, Read, Transfer, Edit, Erase, Control,

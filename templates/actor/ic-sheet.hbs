@@ -17,8 +17,33 @@
           <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
         </div>
       </div>
+      <div class="ic-details flexrow">
+        <div class="form-group">
+          <label>Node Code:</label>
+          <select name="system.securityCode">
+            {{#each config.securityCodes as |sec key|}}
+            <option value="{{key}}" {{selected ../system.securityCode key}}>{{localize sec.label}}</option>
+            {{/each}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Alert:</label>
+          <select name="system.alert">
+            {{#each config.alertStates as |label key|}}
+            <option value="{{key}}" {{selected ../system.alert key}}>{{localize label}}</option>
+            {{/each}}
+          </select>
+        </div>
+      </div>
     </div>
   </div>
+
+  {{#ifEquals system.alert "none"}}{{else}}
+  <p style="margin:2px 0;color:#d9a441;font-size:11px;">
+    <i class="fas fa-triangle-exclamation"></i> Alert active — IC ratings boosted +50%
+    (effective Rating <strong>{{system.effectiveRating}}</strong>, SR2E p.168).
+  </p>
+  {{/ifEquals}}
 
   <fieldset>
     <legend>Persona Attributes</legend>
