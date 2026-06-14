@@ -420,41 +420,20 @@ async function _syncWoundStatuses(actor) {
 }
 
 Hooks.on("updateActor", (actor, changes) => {
-  if (!game.users.activeGM?.isSelf) return;
-  if (changes.system?.conditionMonitor) _syncWoundStatuses(actor);
-  _syncHostAlertToIC(actor, changes);
-});
+  if (game.users.activeGM?.isSelf && changes.system?.conditionMonitor) _syncWoundStatuses(actor);
 
-/**
- * Keep IC in sync with the host they defend (SR2E: set the node's Security Code
- * and alert once on the Host; every linked IC follows).
- *
- * - A Host's Security Code / alert change → push to all IC whose hostUuid
- *   points at it (so a system-operation alert escalation flips its IC too).
- * - An IC's hostUuid change → pull the linked host's current Code / alert.
- *
- * Runs on the active GM only; updates are skipped when values already match, so
- * the resulting actor updates don't loop. @private
- */
-function _syncHostAlertToIC(actor, changes) {
-  if (actor.type === "host") {
-    if (changes.system?.securityCode === undefined && changes.system?.alert === undefined) return;
-    const linked = game.actors.filter(a => a.type === "ic" && a.system.hostUuid === actor.uuid);
-    for (const ic of linked) {
-      const patch = {};
-      if (ic.system.securityCode !== actor.system.securityCode) patch["system.securityCode"] = actor.system.securityCode;
-      if (ic.system.alert !== actor.system.alert)               patch["system.alert"]        = actor.system.alert;
-      if (Object.keys(patch).length) ic.update(patch);
+  // IC defending this host derive their Security Code + alert live from it
+  // (ICData.prepareDerivedData). When the host's code/alert changes, re-prepare
+  // and re-render any linked IC so open sheets/tokens reflect it immediately.
+  if (actor.type === "host" &&
+      (changes.system?.alert !== undefined || changes.system?.securityCode !== undefined)) {
+    for (const ic of game.actors) {
+      if (ic.type !== "ic" || ic.system.hostUuid !== actor.uuid) continue;
+      ic.prepareData();
+      ic.sheet?.rendered && ic.sheet.render(false);
     }
-  } else if (actor.type === "ic" && changes.system?.hostUuid !== undefined) {
-    const host = changes.system.hostUuid ? fromUuidSync(changes.system.hostUuid) : null;
-    if (host?.type !== "host") return;
-    const patch = {};
-    if (actor.system.securityCode !== host.system.securityCode) patch["system.securityCode"] = host.system.securityCode;
-    if (actor.system.alert !== host.system.alert)               patch["system.alert"]        = host.system.alert;
-    if (Object.keys(patch).length) actor.update(patch);
   }
-}
+});
 
 /* -------------------------------------------- */
 /*  Chat Message Hooks                          */

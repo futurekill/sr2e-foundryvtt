@@ -908,6 +908,18 @@ export class ICData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
+    // When this IC defends a Host, the host is the single source of truth for
+    // the Security Code and alert — derive them live so the two can never drift
+    // (set them once on the host; see the IC-refresh hook in sr2e.mjs).
+    if (this.hostUuid) {
+      let host = null;
+      try { host = fromUuidSync(this.hostUuid); } catch { /* unresolved link */ }
+      if (host?.type === "host") {
+        this.securityCode = host.system.securityCode;
+        this.alert = host.system.alert;
+      }
+    }
+
     // Active/passive alerts boost all IC ratings by +50% (SR2E p.168).
     this.effectiveRating = alertAdjustedRating(this.rating, this.alert);
     this.conditionMonitor.max = this.rating * 2;
