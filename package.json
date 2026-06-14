@@ -4,9 +4,12 @@
   "type": "module",
   "scripts": {
     "extract-packs": "node tools/extract-packs.mjs",
-    "build-packs": "node tools/build-packs.mjs"
+    "build-packs": "node tools/build-packs.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "classic-level": "^3.0.0"
+    "classic-level": "^3.0.0",
+    "vitest": "^2.1.0"
   }
 }

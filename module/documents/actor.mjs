@@ -3,6 +3,7 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
+import { damageBoxes as boxesForLevel, systemOperationTN } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1328,7 +1329,7 @@ export class SR2EActor extends Actor {
 
     // Apply remaining damage
     const finalLevel  = stages[finalIdx];
-    const damageBoxes = [1, 3, 6, 10][finalIdx];   // L=1, M=3, S=6, D=10 (SR2E p.113)
+    const damageBoxes = boxesForLevel(finalLevel);   // L=1, M=3, S=6, D=10 (SR2E p.113)
     await this.applyDamage(damageType, damageBoxes);
 
     await ChatMessage.create({
@@ -1782,7 +1783,7 @@ export class SR2EActor extends Actor {
     }
 
     const priorAttempts = host.system.attempts ?? 0;          // attempts before this one
-    const tn = host.system.systemRating + (priorAttempts * 2) + defaultPenalty;
+    const tn = systemOperationTN(host.system.systemRating, priorAttempts, defaultPenalty);
     const needed = host.system.successesNeeded;
     const opLabel = game.i18n.localize(CONFIG.SR2E.systemOperations[operation]?.label ?? operation);
 

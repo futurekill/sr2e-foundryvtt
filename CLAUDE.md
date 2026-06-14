@@ -32,6 +32,17 @@ LevelDB build. Keep both committed and in sync:
 (JSON → LevelDB). `.gitignore` re-includes `packs/**/*.log` — LevelDB
 write-ahead logs MUST stay tracked or releases lose data.
 
+## Tests
+`npm test` (Vitest, plain Node — no Foundry). Tests live in `test/`; pure
+rules math lives in `module/rules/sr2e-rules.mjs` (no Foundry deps) and is the
+preferred home for any new mechanic's arithmetic so it can be unit-tested.
+`test/foundry-shim.mjs` provides the few globals the dice engine needs (a
+deterministic `Roll` via `queueDice([...])`, `game.settings`). This tier covers
+rules logic ONLY — sheet rendering, ApplicationV2 persistence, DialogV2 flows,
+and chat-card buttons are NOT covered here and still need manual/Foundry checks.
+When adding a rule, extract its math into `module/rules/` and add a test
+asserting the book values (cite the page).
+
 ## Releases
 Tag `vX.Y.Z` after bumping `system.json` version; GitHub Actions packages
 the zip (dev files excluded in `release.yml`).

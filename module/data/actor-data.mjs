@@ -1,4 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { totalWoundPenalty, personaAttribute } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -315,7 +316,7 @@ export class CharacterData extends SR2EDataModel {
       }
     }
     for (const attr of ["bod", "evasion", "masking", "sensor"]) {
-      if (best[attr] > 0) this.matrixPersona[attr] = Math.min(best[attr], mpcp);
+      if (best[attr] > 0) this.matrixPersona[attr] = personaAttribute(best[attr], mpcp);
     }
   }
 
@@ -496,14 +497,10 @@ export class CharacterData extends SR2EDataModel {
    * @returns {number}
    */
   get woundPenalty() {
-    const columnPenalty = boxes => {
-      if (boxes >= 6) return 3;  // Serious (Deadly = unconscious)
-      if (boxes >= 3) return 2;  // Moderate
-      if (boxes >= 1) return 1;  // Light
-      return 0;
-    };
-    return columnPenalty(this.conditionMonitor.physical.value)
-         + columnPenalty(this.conditionMonitor.stun.value);
+    return totalWoundPenalty(
+      this.conditionMonitor.physical.value,
+      this.conditionMonitor.stun.value
+    );
   }
 
   /**
@@ -682,14 +679,10 @@ export class NPCData extends SR2EDataModel {
    * @returns {number}
    */
   get woundPenalty() {
-    const columnPenalty = boxes => {
-      if (boxes >= 6) return 3;  // Serious (Deadly = unconscious)
-      if (boxes >= 3) return 2;  // Moderate
-      if (boxes >= 1) return 1;  // Light
-      return 0;
-    };
-    return columnPenalty(this.conditionMonitor.physical.value)
-         + columnPenalty(this.conditionMonitor.stun.value);
+    return totalWoundPenalty(
+      this.conditionMonitor.physical.value,
+      this.conditionMonitor.stun.value
+    );
   }
 
   /**
