@@ -2567,17 +2567,46 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "spirit"],
-    position: { width: 500, height: 450 },
+    position: { width: 520, height: 560 },
     actions: {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
-      addItem: onAddItem
+      addItem: onAddItem,
+      rollInitiative: onRollInitiative,
+      spiritAttack: function(event) { event.preventDefault(); return this.document.rollSpiritAttack(); },
+      useSpiritPower: function(event, target) {
+        event.preventDefault();
+        const key = target.closest("form, section")?.querySelector("[name='spiritPower']")?.value
+                 ?? target.dataset.power;
+        if (key) return this.document.useSpiritPower(key);
+      },
+      adjustServices: function(event, target) {
+        event.preventDefault();
+        const delta = parseInt(target.dataset.delta) || 0;
+        const cur = this.document.system.services ?? 0;
+        return this.document.update({ "system.services": Math.max(0, cur + delta) });
+      }
     }
   };
 
   static PARTS = {
     spirit: { template: "systems/sr2e/templates/actor/spirit-sheet.hbs" }
   };
+
+  /** @override */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    context.spiritPowers = CONFIG.SR2E.spiritPowers;
+    context.spiritDomains = CONFIG.SR2E.spiritDomains;
+    context.isElemental = this.document.system.spiritType === "elemental";
+    // Resolve the conjurer for a back-link
+    const cuid = this.document.system.conjurerUuid;
+    if (cuid) {
+      const conjurer = await fromUuid(cuid);
+      if (conjurer) context.conjurerName = conjurer.name;
+    }
+    return context;
+  }
 }
 
 // =========================================================================

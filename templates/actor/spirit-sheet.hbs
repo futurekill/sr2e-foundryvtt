@@ -6,19 +6,47 @@
       <div class="spirit-details flexrow">
         <div class="form-group">
           <label>Type:</label>
-          <input type="text" name="system.spiritType" value="{{system.spiritType}}" />
+          <select name="system.spiritType">
+            <option value="nature" {{selected system.spiritType "nature"}}>Nature Spirit</option>
+            <option value="elemental" {{selected system.spiritType "elemental"}}>Elemental</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Force:</label>
           <input type="number" name="system.force" value="{{system.force}}" min="1" />
         </div>
         <div class="form-group">
-          <label>Services:</label>
-          <input type="number" name="system.services" value="{{system.services}}" min="0" />
+          <label>{{#if isElemental}}Element{{else}}Domain{{/if}}:</label>
+          <input type="text" name="system.domain" value="{{system.domain}}" />
         </div>
       </div>
+      {{#if conjurerName}}
+      <div class="spirit-conjurer hint">Bound to {{conjurerName}}</div>
+      {{/if}}
     </div>
   </div>
+
+  {{!-- Services --}}
+  <fieldset class="spirit-services-box">
+    <legend>Services</legend>
+    <div class="flexrow" style="align-items:center;gap:6px;">
+      <button type="button" class="monitor-btn" data-action="adjustServices" data-delta="-1">−</button>
+      <span class="services-value" style="font-size:18px;font-weight:bold;">{{system.services}}</span>
+      <span class="hint">/ {{system.maxServices}}</span>
+      <button type="button" class="monitor-btn" data-action="adjustServices" data-delta="1">+</button>
+      <span class="hint" style="flex:1;text-align:right;">Each power use costs 1 service</span>
+    </div>
+    <div class="flexrow" style="align-items:center;gap:6px;margin-top:6px;">
+      <select name="spiritPower" style="flex:1;">
+        {{#each spiritPowers as |label key|}}
+        <option value="{{key}}">{{localize label}}</option>
+        {{/each}}
+      </select>
+      <button type="button" class="btn-small" data-action="useSpiritPower">
+        <i class="fas fa-bolt"></i> Use Power
+      </button>
+    </div>
+  </fieldset>
 
   <fieldset class="spirit-attributes">
     <legend>Attributes (derived from Force {{system.force}})</legend>
@@ -31,6 +59,15 @@
       <div class="attr-item"><label>W</label><span>{{system.willpower.value}}</span></div>
       <div class="attr-item"><label>E</label><span>{{system.essence.value}}</span></div>
       <div class="attr-item"><label>R</label><span>{{system.reaction.value}}</span></div>
+    </div>
+    <div class="flexrow" style="gap:8px;margin-top:6px;">
+      <button type="button" class="btn-small" data-action="rollInitiative">
+        <i class="fas fa-dice-d6"></i> Initiative
+      </button>
+      <button type="button" class="btn-small" data-action="spiritAttack"
+              title="Manifest attack: Force dice, ({{system.force}}){{#if isElemental}}S{{else}}M{{/if}}">
+        <i class="fas fa-khanda"></i> Attack
+      </button>
     </div>
   </fieldset>
 
@@ -45,15 +82,6 @@
       <label>Stun:</label>
       <input type="number" name="system.conditionMonitor.stun.value" value="{{system.conditionMonitor.stun.value}}" min="0" max="{{system.conditionMonitor.stun.max}}" />
       <span>/ {{system.conditionMonitor.stun.max}}</span>
-    </div>
-  </fieldset>
-
-  <fieldset>
-    <legend>Powers</legend>
-    <div class="powers-list">
-      {{#each system.powers as |power|}}
-      <span class="power-tag">{{power}}</span>
-      {{/each}}
     </div>
   </fieldset>
 

@@ -1182,6 +1182,72 @@ export class SR2EActor extends Actor {
     return resistResult;
   }
 
+  // -------------------------------------------------------------------------
+  // SPIRIT METHODS (SR2E p.138–140, 228)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Spend one of this spirit's services to use a power. Decrements the
+   * service counter and posts a descriptive card. Most spirit powers resolve
+   * narratively; the system tracks the expenditure.
+   * @param {string} powerKey - Key into CONFIG.SR2E.spiritPowers.
+   */
+  async useSpiritPower(powerKey) {
+    if (this.type !== "spirit") return;
+    const services = this.system.services ?? 0;
+    if (services <= 0) {
+      return ui.notifications.warn(`${this.name} has no services remaining.`);
+    }
+    const label = game.i18n.localize(CONFIG.SR2E.spiritPowers[powerKey] ?? powerKey);
+    await this.update({ "system.services": services - 1 });
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-item-card">
+        <strong>${foundry.utils.escapeHTML(this.name)}</strong> uses
+        <strong>${foundry.utils.escapeHTML(label)}</strong>
+        <em>(1 service spent — ${services - 1} remaining)</em>
+      </div>`
+    });
+  }
+
+  /**
+   * Roll a spirit's manifest attack (Unarmed, Force dice; SR2E Critters p.228).
+   * Nature spirits deal (Force)M, elementals (Force)S. Posts a Resist Damage
+   * button (Impact armor) for the defender.
+   */
+  async rollSpiritAttack() {
+    if (this.type !== "spirit") return;
+    const force = this.system.force ?? 1;
+    const level = this.system.spiritType === "elemental" ? "S" : "M";
+
+    const result = await this.rollSuccessTest(force, 4, {
+      label: `${this.name} — Manifest Attack (Force ${force})`
+    });
+    if ((result?.successes ?? 0) <= 0) return result;
+
+    const stages   = ["L", "M", "S", "D"];
+    const stageUps = Math.floor(result.successes / 2);
+    const finalIdx = Math.min(stages.indexOf(level) + stageUps, 3);
+    const safeName = foundry.utils.escapeHTML(this.name);
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>${safeName} Attack:</strong> ${force}${stages[finalIdx]}
+        <br><em>Base ${force}${level} | staged up ${stageUps} level(s)</em>
+        <br>
+        <button class="sr2e-resist-btn"
+                data-power="${force}" data-base-power="${force}"
+                data-level="${stages[finalIdx]}" data-armor-type="impact"
+                data-damage-type="physical" data-armor-calc="standard"
+                data-armor-mod="0" data-ammo-name="">
+          ${game.i18n.localize("SR2E.Chat.ResistDamage")}
+        </button>
+      </div>`
+    });
+    return result;
+  }
+
   /**
    * Apply damage to the condition monitor.
    * @param {string} type - "physical" or "stun"
