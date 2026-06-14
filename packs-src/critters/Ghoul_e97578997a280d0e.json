@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>An HMHVV-infected metahuman driven to feed on the dead; blind but keen-nosed.</p><p><strong>Powers:</strong> Enhanced Senses (Smell, Hearing)</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Moderate), Reduced Senses (Blind)</p><p><em>Perception rating 4 (best sense); running multiplier ×4; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An HMHVV-infected metahuman driven to feed on the dead; blind but keen-nosed.</p><p><strong>Powers:</strong> Enhanced Senses (Smell, Hearing)</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Moderate), Reduced Senses (Blind)</p><p><em>Perception rating 4 (best sense); running multiplier \u00d74; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "icons/svg/pawprint.svg",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

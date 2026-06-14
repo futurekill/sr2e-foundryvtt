@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A massive ursine apex predator; slow to anger, devastating when roused.</p><p><em>Perception rating 4 (best sense); running multiplier ×3; natural armor 2. Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A massive ursine apex predator; slow to anger, devastating when roused.</p><p><em>Perception rating 4 (best sense); running multiplier \u00d73; natural armor 2. Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "icons/svg/pawprint.svg",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

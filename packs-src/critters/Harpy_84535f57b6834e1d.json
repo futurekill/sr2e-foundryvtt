@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/pawprint.svg",
   "system": {
-    "biography": "<p>A gaunt winged humanoid scavenger (running multiplier 5 while flying).</p><p><em>Perception rating 3 (best sense); running multiplier ×2; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>A gaunt winged humanoid scavenger (running multiplier 5 while flying).</p><p><em>Perception rating 3 (best sense); running multiplier \u00d72; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "icons/svg/pawprint.svg",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
