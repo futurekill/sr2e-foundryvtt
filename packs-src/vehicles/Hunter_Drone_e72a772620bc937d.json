@@ -1,0 +1,43 @@
+{
+  "_id": "e72a772620bc937d",
+  "name": "Hunter Drone",
+  "type": "vehicle",
+  "img": "icons/svg/eye.svg",
+  "system": {
+    "vehicleType": "drone",
+    "skill": "",
+    "handling": 4,
+    "speed": 0,
+    "acceleration": 0,
+    "body": 4,
+    "armor": 0,
+    "signature": 3,
+    "pilot": 2,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 20000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 2,
+    "notes": "<p>An armed version of a surveillance/spotter drone (two firmpoints). The core book lists Handling — and Speed −10% of the host drone; set Speed from the host drone (SR2E p.253, 265).</p><p><em>Cruising speed 0 m/CT (used for vehicle tests). Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "561434a3664b4e94",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!e72a772620bc937d"
+}

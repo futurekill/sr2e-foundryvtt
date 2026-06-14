@@ -1,0 +1,43 @@
+{
+  "_id": "4a3cebff8313eca1",
+  "name": "Federated-Boeing Eagle",
+  "type": "vehicle",
+  "img": "icons/svg/wing.svg",
+  "system": {
+    "vehicleType": "vectored_thrust",
+    "skill": "",
+    "handling": 3,
+    "speed": 900,
+    "acceleration": 0,
+    "body": 5,
+    "armor": 12,
+    "signature": 5,
+    "pilot": 3,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 0,
+    "availability": "Restricted",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 3,
+    "notes": "<p>A vectored-thrust military transport. Restricted military issue.</p><p><em>Cruising speed 900 m/CT (used for vehicle tests). Max speed 1800 m/CT. Restricted military hardware — cost by GM. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "f99f9180fb16bcd4",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!4a3cebff8313eca1"
+}

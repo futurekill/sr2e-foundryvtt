@@ -16,6 +16,7 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **IC (Intrusion Countermeasures)** — Matrix IC stat blocks for decking encounters
 - **Critters** — Stat blocks for the core book's normal animals and paranormal beings (powers and weaknesses noted; descriptions are original)
 - **Sample Runners** — Five original ready-to-play characters: street samurai, combat mage, decker, rigger, and dog shaman
+- **Vehicles & Drones** — All 32 vehicles and drones from the core rulebook table (cars, bikes, boats, aircraft, rotorcraft, military, and drones) with handling, speed, body, armor, signature, and pilot stats
 
 ### Item Types
 - **Skills** — Active, knowledge, language, and special skills with concentrations and specializations

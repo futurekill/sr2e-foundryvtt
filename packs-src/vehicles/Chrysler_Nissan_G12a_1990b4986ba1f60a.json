@@ -1,0 +1,43 @@
+{
+  "_id": "1990b4986ba1f60a",
+  "name": "Chrysler-Nissan G12a",
+  "type": "vehicle",
+  "img": "icons/svg/waterfall.svg",
+  "system": {
+    "vehicleType": "hovercraft",
+    "skill": "",
+    "handling": 4,
+    "speed": 40,
+    "acceleration": 0,
+    "body": 4,
+    "armor": 0,
+    "signature": 5,
+    "pilot": 2,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 50000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 2,
+    "notes": "<p>A general-purpose hovercraft in passenger and freight versions.</p><p><em>Cruising speed 40 m/CT (used for vehicle tests). Max speed 120 m/CT. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "f3416b3be019d3ed",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!1990b4986ba1f60a"
+}

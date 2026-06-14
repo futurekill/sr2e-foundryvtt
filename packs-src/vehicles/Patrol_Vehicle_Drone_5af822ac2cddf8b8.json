@@ -1,0 +1,43 @@
+{
+  "_id": "5af822ac2cddf8b8",
+  "name": "Patrol Vehicle Drone",
+  "type": "vehicle",
+  "img": "icons/svg/eye.svg",
+  "system": {
+    "vehicleType": "drone",
+    "skill": "",
+    "handling": 3,
+    "speed": 35,
+    "acceleration": 0,
+    "body": 3,
+    "armor": 6,
+    "signature": 3,
+    "pilot": 2,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 10000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 2,
+    "notes": "<p>A small armored patrol/security drone.</p><p><em>Cruising speed 35 m/CT (used for vehicle tests). Max speed 70 m/CT. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "561434a3664b4e94",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!5af822ac2cddf8b8"
+}

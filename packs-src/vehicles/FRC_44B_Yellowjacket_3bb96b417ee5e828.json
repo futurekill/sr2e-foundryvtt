@@ -1,0 +1,43 @@
+{
+  "_id": "3bb96b417ee5e828",
+  "name": "FRC-44B Yellowjacket",
+  "type": "vehicle",
+  "img": "icons/svg/wing.svg",
+  "system": {
+    "vehicleType": "rotor",
+    "skill": "",
+    "handling": 4,
+    "speed": 65,
+    "acceleration": 0,
+    "body": 2,
+    "armor": 0,
+    "signature": 5,
+    "pilot": 3,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 280000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 3,
+    "notes": "<p>An armed version of the Wasp light rotorcraft.</p><p><em>Cruising speed 65 m/CT (used for vehicle tests). Max speed 130 m/CT. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "f99f9180fb16bcd4",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!3bb96b417ee5e828"
+}

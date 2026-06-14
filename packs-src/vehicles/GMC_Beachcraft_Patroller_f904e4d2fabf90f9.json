@@ -1,0 +1,43 @@
+{
+  "_id": "f904e4d2fabf90f9",
+  "name": "GMC Beachcraft Patroller",
+  "type": "vehicle",
+  "img": "icons/svg/boat.svg",
+  "system": {
+    "vehicleType": "boat",
+    "skill": "",
+    "handling": 4,
+    "speed": 55,
+    "acceleration": 0,
+    "body": 4,
+    "armor": 6,
+    "signature": 5,
+    "pilot": 2,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 750000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 2,
+    "notes": "<p>A popular commercial/security patrol boat.</p><p><em>Cruising speed 55 m/CT (used for vehicle tests). Max speed 165 m/CT. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "30ab7c4076740c0b",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!f904e4d2fabf90f9"
+}

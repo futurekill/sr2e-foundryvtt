@@ -1,0 +1,43 @@
+{
+  "_id": "687d773613171bff",
+  "name": "Ares Citymaster",
+  "type": "vehicle",
+  "img": "icons/svg/town.svg",
+  "system": {
+    "vehicleType": "ground",
+    "skill": "",
+    "handling": 4,
+    "speed": 30,
+    "acceleration": 0,
+    "body": 4,
+    "armor": 12,
+    "signature": 5,
+    "pilot": 3,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 500000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 3,
+    "notes": "<p>An armored urban riot-control vehicle with a roof-mounted weapon mount.</p><p><em>Cruising speed 30 m/CT (used for vehicle tests). Max speed 120 m/CT. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "f3416b3be019d3ed",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!687d773613171bff"
+}

@@ -1,0 +1,43 @@
+{
+  "_id": "aaa911b709792a3c",
+  "name": "Federated-Boeing Commuter",
+  "type": "vehicle",
+  "img": "icons/svg/wing.svg",
+  "system": {
+    "vehicleType": "rotor",
+    "skill": "",
+    "handling": 5,
+    "speed": 140,
+    "acceleration": 0,
+    "body": 3,
+    "armor": 0,
+    "signature": 3,
+    "pilot": 3,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
+    "seating": "",
+    "cost": 625000,
+    "availability": "",
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "autonav": 3,
+    "notes": "<p>A passenger commuter helicopter.</p><p><em>Cruising speed 140 m/CT (used for vehicle tests). Max speed 320 m/CT. Stats: SR2E p.264-265.</em></p>"
+  },
+  "items": [],
+  "effects": [],
+  "folder": "f99f9180fb16bcd4",
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "systemId": "sr2e",
+    "systemVersion": "0.6.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": "sr2e"
+  },
+  "_key": "!actors!aaa911b709792a3c"
+}
