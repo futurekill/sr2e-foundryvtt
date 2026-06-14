@@ -1600,14 +1600,18 @@ export class SR2EActor extends Actor {
    * condition track; 10 boxes crash it (a crashed persona dumps its decker).
    *
    * @param {object} opts
-   * @param {number} opts.attackDice - Pre-computed attack dice (skill+pool / IC rating).
-   * @param {number} opts.tn         - Target number (target Bod or node System Rating).
-   * @param {number} opts.nodeRating - The node's System Rating (for the defender's resist TN).
+   * @param {number} opts.attackDice  - Base attack dice (program rating or IC rating).
+   * @param {number} opts.tn          - Target number (target Bod or node System Rating).
+   * @param {number} opts.nodeRating  - The node's System Rating (for the defender's resist TN).
+   * @param {number} [opts.hacking]   - Hacking Pool dice to add (deducted from the pool).
+   * @param {number} [opts.karmaDice] - Karma Pool dice to add (deducted from the pool).
    * @param {string} [opts.label]
    */
   async rollMatrixAttack(opts) {
     const result = await this.rollSuccessTest(Math.max(1, opts.attackDice), Math.max(2, opts.tn), {
-      label: opts.label ?? `Matrix Attack (TN ${opts.tn})`
+      label: opts.label ?? `Matrix Attack (TN ${opts.tn})`,
+      poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
+      karmaDice: opts.karmaDice ?? 0
     });
     if ((result?.successes ?? 0) <= 0) return result;
 

@@ -1309,14 +1309,15 @@ async function onMatrixAttack(event, target) {
   const opts = await promptMatrixAttackOptions(actor);
   if (!opts) return;
 
-  let attackDice;
-  if (actor.type === "ic") {
-    attackDice = (actor.system.rating ?? 1) + (opts.karmaDice ?? 0);
-  } else {
-    const program = actor.items.get(opts.programId);
-    attackDice = (program?.system?.rating ?? 0) + opts.hacking + opts.karmaDice;
-  }
-  return actor.rollMatrixAttack({ attackDice, tn: opts.tn, nodeRating: opts.node });
+  const attackDice = actor.type === "ic"
+    ? (actor.system.rating ?? 1)
+    : (actor.items.get(opts.programId)?.system?.rating ?? 0);
+
+  return actor.rollMatrixAttack({
+    attackDice, tn: opts.tn, nodeRating: opts.node,
+    hacking: actor.type === "ic" ? 0 : opts.hacking,
+    karmaDice: opts.karmaDice
+  });
 }
 
 /**
