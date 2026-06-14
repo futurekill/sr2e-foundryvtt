@@ -865,6 +865,132 @@ export class SR2EActor extends Actor {
   }
 
   /**
+   * Resolve a ram between this driver's vehicle and an opposing vehicle
+   * (SR2E p.107). When two vehicles are within one metre, a driver may spend
+   * a Complex Action to ram, forcing the loser to make a Crash Test.
+   *
+   * Each side rolls (Vehicle Skill + Body + ½ armor − Handling) dice against
+   * TN = (opposing Body + ½ opposing armor − ram terrain modifier). The
+   * vehicle generating the FEWER successes must make a Crash Test; a tie means
+   * no crash. Control Pool may assist (passed via options.poolDice).
+   *
+   * @param {Actor}  myVehicle  - The vehicle this character is driving.
+   * @param {object} opp        - Opposing vehicle stats and driver.
+   * @param {number} opp.body, opp.armor, opp.handling, opp.skill
+   * @param {string} [opp.name="the other vehicle"]
+   * @param {Actor}  [opp.actor]  - Opposing vehicle actor (for its crash).
+   * @param {string} [terrain="normal"]
+   * @param {object} [options]   - { poolDice, karmaDice }
+   */
+  async rollVehicleRam(myVehicle, opp, terrain = "normal", options = {}) {
+    const terrainMod = CONFIG.SR2E.vehicleTerrainMods.ram[terrain] ?? 0;
+    const myHalfArmor  = Math.floor((myVehicle.system.armor ?? 0) / 2);
+    const oppHalfArmor = Math.floor((opp.armor ?? 0) / 2);
+
+    // My driving skill (Reaction default when untrained)
+    const skillKey  = myVehicle.system.drivingSkill;
+    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    const mySkillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
+    const mySkill = mySkillItem?.system?.rating ?? Math.max(1, this.system.reaction?.value ?? 1);
+
+    const myDice = Math.max(1, mySkill + (myVehicle.system.body ?? 1) + myHalfArmor - (myVehicle.system.handling ?? 0));
+    const myTN   = Math.max(2, (opp.body ?? 1) + oppHalfArmor - terrainMod);
+
+    const oppDice = Math.max(1, (opp.skill ?? 0) + (opp.body ?? 1) + oppHalfArmor - (opp.handling ?? 0));
+    const oppTN   = Math.max(2, (myVehicle.system.body ?? 1) + myHalfArmor - terrainMod);
+
+    const oppName = opp.name || "the other vehicle";
+
+    // My ram test (Control Pool / karma may assist)
+    const myResult = await this.rollSuccessTest(myDice, myTN, {
+      label: `Ram: ${myVehicle.name} → ${oppName} (TN ${myTN})`,
+      poolDice: options.poolDice, karmaDice: options.karmaDice
+    });
+    // Opposing ram test (rolled by the system; no pool)
+    const oppResult = await SR2ESuccessRoll.successTest(oppDice, oppTN);
+
+    const mine = myResult?.successes ?? 0;
+    const theirs = oppResult?.successes ?? 0;
+
+    let verdict, crasher = null;
+    if (mine === theirs) {
+      verdict = "Tie — no crash (SR2E p.107).";
+    } else if (mine < theirs) {
+      verdict = `${myVehicle.name} loses and must make a Crash Test.`;
+      crasher = myVehicle;
+    } else {
+      verdict = `${foundry.utils.escapeHTML(oppName)} loses and must make a Crash Test.`;
+      crasher = opp.actor ?? null;
+    }
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>Ramming!</strong> ${myVehicle.name} (${mine} success${mine === 1 ? "" : "es"})
+        vs ${foundry.utils.escapeHTML(oppName)} (${theirs}).
+        <br><strong>${verdict}</strong>
+        ${(crasher === null && mine !== theirs) ? "<br><em>The losing vehicle is not linked — run its Crash Test manually.</em>" : ""}
+      </div>`
+    });
+
+    if (crasher) await this._resolveVehicleCrash(crasher);
+    return myResult;
+  }
+
+  /**
+   * Resolve an Escape Test (SR2E p.107). After the Position Test, a fleeing
+   * vehicle that generated MORE successes than the pursuer may try to escape.
+   *
+   * If the pursuer's Position successes ≥ the fleeing vehicle's, the escape
+   * fails automatically. Otherwise the pursuer rolls Intelligence dice (the
+   * highest among characters who could see the fleeing vehicle) against
+   * TN = (fleeing net successes + escape terrain modifier). No Control Pool.
+   * If the pursuer rolls NO successes, the fleeing vehicle escapes.
+   *
+   * Called on the pursuing character. The fleeing/pursuer Position successes
+   * are supplied from the Position Tests already made.
+   *
+   * @param {object} opts
+   * @param {number} opts.fleeingSuccesses  - Fleeing vehicle's Position successes.
+   * @param {number} opts.pursuerSuccesses  - This pursuer's Position successes.
+   * @param {number} [opts.intelligence]    - Spotter Intelligence (default this actor's).
+   * @param {string} [opts.terrain="normal"]
+   */
+  async rollEscapeTest(opts) {
+    const fleeing = opts.fleeingSuccesses ?? 0;
+    const pursuer = opts.pursuerSuccesses ?? 0;
+
+    if (pursuer >= fleeing) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>Escape fails automatically</strong>
+          <em>— the pursuer matched or beat the fleeing vehicle's Position successes
+          (${pursuer} ≥ ${fleeing}, SR2E p.107).</em></div>`
+      });
+    }
+
+    const net = fleeing - pursuer;
+    const terrainMod = CONFIG.SR2E.vehicleTerrainMods.escape[opts.terrain ?? "normal"] ?? 0;
+    const tn = Math.max(2, net + terrainMod);
+    const dice = Math.max(1, opts.intelligence ?? this.system.intelligence?.value ?? 1);
+
+    const result = await this.rollSuccessTest(dice, tn, {
+      label: `Escape Test — pursue (Intelligence ${dice} vs TN ${tn})`
+    });
+
+    const escaped = (result?.successes ?? 0) === 0;
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>${escaped ? "The fleeing vehicle ESCAPES!" : "Pursuit holds — no escape."}</strong>
+        <br><em>Pursuer rolled ${result?.successes ?? 0} success(es) vs TN ${tn}
+        (net ${net} + ${opts.terrain ?? "normal"} terrain). No success = escape (SR2E p.107).</em>
+      </div>`
+    });
+    return result;
+  }
+
+  /**
    * Damage Resistance Test for vehicles hit by weapons (SR2E p.108).
    *
    *   Unarmored: Body acts as composite armor (reduces Power); resist with

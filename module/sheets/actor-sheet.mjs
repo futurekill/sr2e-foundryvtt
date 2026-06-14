@@ -1311,6 +1311,124 @@ async function onAddItem(event, target) {
  * @param {Actor} vehicle - The vehicle actor.
  * @returns {Promise<{testType, terrain, otherMod, poolDice, karmaDice}|null>}
  */
+/** Terrain <option> list for vehicle dialogs (default normal). */
+function terrainOptions(selected = "normal") {
+  return Object.entries(CONFIG.SR2E.vehicleTerrains)
+    .map(([k, label]) => `<option value="${k}" ${k === selected ? "selected" : ""}>${game.i18n.localize(label)}</option>`)
+    .join("");
+}
+
+/**
+ * Prompt for ramming options (SR2E p.107). Opposing vehicle stats are
+ * pre-filled from a targeted vehicle token when one is selected.
+ * @returns {Promise<{opp:object, terrain:string, poolDice:object, karmaDice:number}|null>}
+ */
+async function promptRamOptions(actor, myVehicle) {
+  // Pre-fill from a targeted token whose actor is a vehicle
+  const targetActor = game.user?.targets?.first?.()?.actor;
+  const tv = targetActor?.type === "vehicle" ? targetActor : null;
+  const oppName = tv?.name ?? "";
+  const oBody = tv?.system?.body ?? 2;
+  const oArmor = tv?.system?.armor ?? 0;
+  const oHand = tv?.system?.handling ?? 3;
+
+  const controlAvail = actor.system.dicePools?.control?.value ?? 0;
+
+  let result = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Ram with ${myVehicle.name}` },
+    rejectClose: false,
+    content: `<form>
+      ${tv ? `<p class="hint" style="margin:0 0 4px;">🎯 Target: <strong>${foundry.utils.escapeHTML(oppName)}</strong></p>` : ""}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+        <div class="form-group" style="margin:2px 0;"><label>Opp. Name:</label>
+          <input type="text" name="oppName" value="${foundry.utils.escapeHTML(oppName)}" placeholder="other vehicle"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Opp. Body:</label>
+          <input type="number" name="oBody" value="${oBody}" min="1" style="width:52px;text-align:center;"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Opp. Armor:</label>
+          <input type="number" name="oArmor" value="${oArmor}" min="0" style="width:52px;text-align:center;"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Opp. Handling:</label>
+          <input type="number" name="oHand" value="${oHand}" min="0" style="width:52px;text-align:center;"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Opp. Driver Skill:</label>
+          <input type="number" name="oSkill" value="0" min="0" style="width:52px;text-align:center;"
+                 title="Opposing driver's Vehicle Skill rating (0 if unknown/uncrewed)"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Terrain:</label>
+          <select name="terrain">${terrainOptions()}</select></div>
+      </div>
+      ${controlAvail > 0 ? `
+      <div class="form-group" style="margin:3px 0;"><label style="font-size:12px;">Control Pool
+        <span style="color:#958ba8;font-size:10px;">(${controlAvail} left)</span></label>
+        <input type="number" name="pool_control" value="0" min="0" max="${controlAvail}" style="width:52px;text-align:center;"></div>` : ""}
+      <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
+        Both vehicles roll (Skill + Body + ½ Armor − Handling) vs (opp Body + ½ Armor − terrain).
+        Fewer successes crashes (SR2E p.107).</p>
+    </form>`,
+    buttons: [
+      { action: "ram", label: "Ram", default: true, callback: (event, button) => {
+        const f = button.form.elements;
+        const control = Math.max(0, Math.min(parseInt(f.pool_control?.value) || 0, controlAvail));
+        result = {
+          opp: {
+            name: f.oppName?.value || (tv?.name ?? ""),
+            body: parseInt(f.oBody?.value) || 1,
+            armor: parseInt(f.oArmor?.value) || 0,
+            handling: parseInt(f.oHand?.value) || 0,
+            skill: parseInt(f.oSkill?.value) || 0,
+            actor: tv
+          },
+          terrain: f.terrain?.value ?? "normal",
+          poolDice: control > 0 ? { control } : {}
+        };
+      }},
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  return (action === "ram" && result) ? result : null;
+}
+
+/**
+ * Prompt for escape-test options (SR2E p.107).
+ * @returns {Promise<{fleeingSuccesses, pursuerSuccesses, intelligence, terrain}|null>}
+ */
+async function promptEscapeOptions(actor) {
+  let result = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Escape Test (pursuer)" },
+    rejectClose: false,
+    content: `<form>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+        <div class="form-group" style="margin:2px 0;"><label>Fleeing Position succ.:</label>
+          <input type="number" name="flee" value="0" min="0" style="width:52px;text-align:center;"
+                 title="Position Test successes the FLEEING vehicle generated"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Pursuer Position succ.:</label>
+          <input type="number" name="pursue" value="0" min="0" style="width:52px;text-align:center;"
+                 title="Position Test successes the PURSUING vehicle (you) generated"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Spotter Intelligence:</label>
+          <input type="number" name="int" value="${actor.system.intelligence?.value ?? 1}" min="1" style="width:52px;text-align:center;"
+                 title="Highest Intelligence among characters who could see the fleeing vehicle"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Terrain:</label>
+          <select name="terrain">${terrainOptions()}</select></div>
+      </div>
+      <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
+        If the pursuer matched/beat the fleeing successes, escape auto-fails. Otherwise roll
+        Intelligence vs (net + terrain); no success = escape (SR2E p.107).</p>
+    </form>`,
+    buttons: [
+      { action: "go", label: "Resolve", default: true, callback: (event, button) => {
+        const f = button.form.elements;
+        result = {
+          fleeingSuccesses: parseInt(f.flee?.value) || 0,
+          pursuerSuccesses: parseInt(f.pursue?.value) || 0,
+          intelligence: parseInt(f.int?.value) || 1,
+          terrain: f.terrain?.value ?? "normal"
+        };
+      }},
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  return (action === "go" && result) ? result : null;
+}
+
 async function promptVehicleTestOptions(actor, vehicle) {
   const handling  = vehicle.system.handling ?? 3;
   const vcr       = actor.system.vehicleControlRig ?? 0;
@@ -1625,6 +1743,33 @@ const SHARED_ACTIONS = {
     const opts = await promptVehicleTestOptions(actor, vehicle);
     if (!opts) return;
     return actor.rollVehicleTest(vehicle, opts);
+  },
+
+  /**
+   * Ram another vehicle with a linked vehicle (SR2E p.107).
+   * @this {ApplicationV2}
+   */
+  ramVehicle: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const vehicle = await fromUuid(uuid);
+    if (!vehicle) return;
+    const actor = this.document;
+    const opts = await promptRamOptions(actor, vehicle);
+    if (!opts) return;
+    return actor.rollVehicleRam(vehicle, opts.opp, opts.terrain, { poolDice: opts.poolDice });
+  },
+
+  /**
+   * Resolve an Escape Test as the pursuer (SR2E p.107).
+   * @this {ApplicationV2}
+   */
+  escapeTest: async function(event, target) {
+    event.preventDefault();
+    const opts = await promptEscapeOptions(this.document);
+    if (!opts) return;
+    return this.document.rollEscapeTest(opts);
   },
 
   /**

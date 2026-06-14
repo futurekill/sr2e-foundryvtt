@@ -465,7 +465,11 @@ SR2E.vehicleTerrainMods = {
   handling: { open: 0,  normal: 1, restricted: 2, tight: 4 },
   position: { open: 0,  normal: 1, restricted: 2, tight: 4 },
   // Crash Test Table (p.107)
-  crash:    { open: -1, normal: 0, restricted: 4, tight: 2 }
+  crash:    { open: -1, normal: 0, restricted: 4, tight: 2 },
+  // Ramming Table (p.107): subtracted from the ram TN
+  ram:      { open: 0,  normal: -2, restricted: -3, tight: -4 },
+  // Escape Test Modifiers (p.107): added to the escape TN
+  escape:   { open: -4, normal: -2, restricted: 0, tight: 2 }
 };
 
 SR2E.vehicleTerrains = {
