@@ -171,6 +171,17 @@ Hooks.once("ready", async () => {
     catch (err) { console.error("SR2E | World migration failed:", err); }
   }
 
+  // IC that defend a Host derive their Security Code + alert live from it, but
+  // at world load the IC may be prepared before its host exists in the
+  // collection (so the live lookup returned nothing). Re-prepare linked IC now
+  // that every actor is constructed and resolvable.
+  for (const ic of game.actors) {
+    if (ic.type === "ic" && ic.system.hostUuid) {
+      ic.prepareData();
+      ic.sheet?.rendered && ic.sheet.render(false);
+    }
+  }
+
   // Display a welcome message on first load
   if (!game.user.getFlag("sr2e", "welcomeShown")) {
     ChatMessage.create({
