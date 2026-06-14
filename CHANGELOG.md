@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.8.0
+
+### New mechanics
+- **Healing & Recovery** (p.112–115) — rest to recover Stun (Body/Willpower),
+  natural Physical healing (Body Test vs wound TN), and First Aid (Biotech,
+  treat self or a targeted ally); each heals a wound level, with buttons under
+  the condition monitors
+- **Astral projection & combat** (p.145–147) — perceive or project astrally
+  (projecting initiative = Astral Reaction +15); astral combat uses Sorcery
+  with Charisma-based damage, resisted by Astral Body (Willpower), echoing
+  onto the physical body (repercussion)
+- **Spell Defense** (p.132) — allocate Magic Pool dice as a standing defensive
+  pool that boosts spell-resistance rolls; released on pool refresh
+- **Combat-spell resistance** (p.130–131) — combat spells now post a Resist
+  Spell card; the target resists with Willpower (mana) or Body (physical) plus
+  Spell Defense, net successes staging the damage
+
+### Polish
+- Compendium actors (vehicles, critters, runners) now carry proper token art
+  instead of the mystery-man placeholder
+
+### Groundwork
+- `docs/MATRIX.md` — verified rules reference and implementation plan for the
+  Matrix subsystem (the one remaining major gap), plus persona scaffolding
+
 ## 0.7.0
 
 ### New mechanics
