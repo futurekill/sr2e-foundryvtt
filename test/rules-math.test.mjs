@@ -3,7 +3,7 @@ import {
   DAMAGE_LEVELS, damageBoxes, stageLevel,
   columnWoundPenalty, totalWoundPenalty,
   systemOperationTN, personaAttribute,
-  icReactionBase, alertAdjustedRating, programSize,
+  icReactionBase, alertAdjustedRating, escalateAlert, programSize,
   burstRounds, recoilPenalty, burstDamageBonus,
   programCost, focusCost
 } from "../module/rules/sr2e-rules.mjs";
@@ -178,5 +178,13 @@ describe("Alert IC-rating modifier (SR2E p.168)", () => {
 
   it("keeps the +50% boost on an active alert", () => {
     expect(alertAdjustedRating(4, "active")).toBe(6);
+  });
+});
+
+describe("Alert escalation (SR2E p.168)", () => {
+  it("steps none → passive → active", () => {
+    expect(escalateAlert("none")).toBe("passive");
+    expect(escalateAlert("passive")).toBe("active");
+    expect(escalateAlert("active")).toBe("active");
   });
 });

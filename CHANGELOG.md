@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.3
 
 ### New mechanics
 - **IC perception / "Detect Intruder"** (p.169) — the SR2 equivalent of later
