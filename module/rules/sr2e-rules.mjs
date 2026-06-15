@@ -140,6 +140,27 @@ export function programSize(rating, multiplier) {
   return Math.ceil(rating * rating * multiplier);
 }
 
+/**
+ * Nuyen cost of a Matrix program (SR2E p.174): Size × 100¥ (Street Index 1).
+ * @param {number} rating
+ * @param {number} multiplier
+ * @returns {number}
+ */
+export function programCost(rating, multiplier) {
+  return programSize(rating, multiplier) * 100;
+}
+
+/**
+ * Nuyen cost of a magical focus: Force × the focus type's per-Force unit cost
+ * (Power 20,000 / Spell·Spirit·Weapon 10,000 / Spell Lock 5,000 ¥, SR2E p.249).
+ * @param {number} force
+ * @param {number} costPerForce
+ * @returns {number}
+ */
+export function focusCost(force, costPerForce) {
+  return force * costPerForce;
+}
+
 /** Base Reaction speed an IC's node Security Code grants (SR2E p.169). */
 export const IC_REACTION_BASE = { blue: 0, green: 5, orange: 7, red: 9 };
 

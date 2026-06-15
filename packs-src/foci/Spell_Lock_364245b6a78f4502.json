@@ -10,7 +10,8 @@
     "bonded": false,
     "active": false,
     "cost": 5000,
-    "notes": "SR2E p.164. Sustains a spell at no drain cost for the caster. Single-use; destroyed when spell ends."
+    "notes": "SR2E p.164. Sustains a spell at no drain cost for the caster. Single-use; destroyed when spell ends.",
+    "costPerForce": 5000
   },
   "effects": [],
   "flags": {},

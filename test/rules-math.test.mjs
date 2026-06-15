@@ -4,7 +4,8 @@ import {
   columnWoundPenalty, totalWoundPenalty,
   systemOperationTN, personaAttribute,
   icReactionBase, alertAdjustedRating, programSize,
-  burstRounds, recoilPenalty, burstDamageBonus
+  burstRounds, recoilPenalty, burstDamageBonus,
+  programCost, focusCost
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
@@ -129,6 +130,18 @@ describe("Program memory size (SR2E p.174–177)", () => {
     expect(programSize(2, 4)).toBe(16);
     // Analyze ×3: R6 → 108 Mp
     expect(programSize(6, 3)).toBe(108);
+  });
+});
+
+describe("Derived costs (SR2E p.174, p.249)", () => {
+  it("program cost is Size × 100", () => {
+    expect(programCost(3, 1)).toBe(900);    // Browse R3: size 9
+    expect(programCost(4, 2)).toBe(3200);   // Attack R4: size 32
+  });
+
+  it("focus cost is Force × per-Force unit", () => {
+    expect(focusCost(6, 20000)).toBe(120000); // Power Focus Force 6
+    expect(focusCost(1, 5000)).toBe(5000);    // Spell Lock Force 1
   });
 });
 

@@ -383,7 +383,7 @@
   </div>
   <div class="form-group">
     <label>Cost:</label>
-    <input type="number" name="system.cost" value="{{system.cost}}" />
+    <span>{{system.cost}}¥ <em style="opacity:.6;">(Size × 100)</em></span>
   </div>
   <div class="form-group">
     <label>Loaded:</label>
@@ -538,7 +538,11 @@
   </div>
   <div class="form-group">
     <label>Cost:</label>
+    {{#if system.costPerForce}}
+    <span>{{system.cost}}¥ <em style="opacity:.6;">(Force × {{system.costPerForce}})</em></span>
+    {{else}}
     <input type="number" name="system.cost" value="{{system.cost}}" />
+    {{/if}}
   </div>
   {{/ifEquals}}
 

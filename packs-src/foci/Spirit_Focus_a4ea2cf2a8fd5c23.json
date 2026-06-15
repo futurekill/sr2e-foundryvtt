@@ -10,7 +10,8 @@
     "bonded": false,
     "active": false,
     "cost": 10000,
-    "notes": "SR2E p.164. Adds Force to Conjuring and spirit control tests. Force 1."
+    "notes": "SR2E p.164. Adds Force to Conjuring and spirit control tests. Force 1.",
+    "costPerForce": 10000
   },
   "effects": [],
   "flags": {},

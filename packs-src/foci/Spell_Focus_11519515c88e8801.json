@@ -10,7 +10,8 @@
     "bonded": false,
     "active": false,
     "cost": 10000,
-    "notes": "SR2E p.164. A specific spell focus (or spell-type focus). Adds Force to spell casting dice pool for designated spell or school."
+    "notes": "SR2E p.164. A specific spell focus (or spell-type focus). Adds Force to spell casting dice pool for designated spell or school.",
+    "costPerForce": 10000
   },
   "effects": [],
   "flags": {},
