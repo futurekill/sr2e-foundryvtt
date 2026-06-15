@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0
 
 ### New mechanics
 - **Matrix cybercombat** (p.178–180) — the first slice of the decking
