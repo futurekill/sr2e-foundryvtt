@@ -430,6 +430,16 @@ async function _syncWoundStatuses(actor) {
   }
 }
 
+// IC and Host are singleton-style Matrix entities — a token IS the actor, not a
+// divergent copy. Default their prototype tokens to linked so edits on a placed
+// token and on the sidebar actor stay the same document (avoids the classic
+// "edited the token copy, sidebar actor unchanged" confusion).
+Hooks.on("preCreateActor", (actor, data) => {
+  if (["ic", "host"].includes(actor.type) && data.prototypeToken?.actorLink === undefined) {
+    actor.updateSource({ "prototypeToken.actorLink": true });
+  }
+});
+
 Hooks.on("updateActor", (actor, changes) => {
   if (game.users.activeGM?.isSelf && changes.system?.conditionMonitor) _syncWoundStatuses(actor);
 
