@@ -13,7 +13,9 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.241. Barrel- or top-mounted laser sight providing targeting assistance. -1 to target numbers."
+    "notes": "SR2E p.241. Barrel- or top-mounted laser sight providing targeting assistance. -1 to target numbers.",
+    "weaponAccessory": true,
+    "combatTnMod": -1
   },
   "effects": [],
   "flags": {},

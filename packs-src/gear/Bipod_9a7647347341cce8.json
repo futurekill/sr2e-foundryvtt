@@ -13,7 +13,9 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.241. Foldable under-barrel mount for stable prone fire. Reduces recoil when deployed."
+    "notes": "SR2E p.241. Foldable under-barrel mount for stable prone fire. Reduces recoil when deployed.",
+    "weaponAccessory": true,
+    "accessoryRecoilComp": 2
   },
   "effects": [],
   "flags": {},

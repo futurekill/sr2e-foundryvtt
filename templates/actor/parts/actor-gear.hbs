@@ -48,7 +48,19 @@
           {{#ifGt g.system.rating 0}}
           <span>Rating: {{g.system.rating}}</span>
           {{/ifGt}}
+          {{#if g.system.weaponAccessory}}
+          <span class="weapon-mount" title="Attach this accessory to one weapon; its modifiers then apply to that weapon's attacks.">
+            <i class="fas fa-link"></i>
+            <select data-field="system.linkedWeaponId">
+              <option value="" {{#unless g.system.linkedWeaponId}}selected{{/unless}}>— unattached —</option>
+              {{#each @root.weapons as |w|}}
+              <option value="{{w.id}}" {{selected g.system.linkedWeaponId w.id}}>{{w.name}}</option>
+              {{/each}}
+            </select>
+          </span>
+          {{else}}
           <span>Qty: {{g.system.quantity}}</span>
+          {{/if}}
           <span>{{g.system.cost}}¥</span>
           <div class="item-controls">
             <a data-action="toggleEquip" title="Equip/Unequip">

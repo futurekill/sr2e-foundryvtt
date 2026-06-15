@@ -413,6 +413,28 @@
     <label>Equipped:</label>
     <input type="checkbox" name="system.equipped" {{checked system.equipped}} />
   </div>
+  <div class="form-group">
+    <label>Weapon Accessory:</label>
+    <input type="checkbox" name="system.weaponAccessory" {{checked system.weaponAccessory}}
+           title="Mark this as a weapon mod (Laser Sight, Smartgun System, Gas-vent, Gyro Mount, etc.) that attaches to one weapon." />
+  </div>
+  {{#if system.weaponAccessory}}
+  <div class="form-group">
+    <label>Attack TN Mod:</label>
+    <input type="number" name="system.combatTnMod" value="{{system.combatTnMod}}"
+           title="Modifier to the attached weapon's attack TN (e.g. Laser Sight −1, Smartgun System −2)." />
+  </div>
+  <div class="form-group">
+    <label>Recoil Comp:</label>
+    <input type="number" name="system.accessoryRecoilComp" value="{{system.accessoryRecoilComp}}" min="0"
+           title="Recoil compensation the accessory grants the attached weapon (Gas-vent, Gyro Mount, Bipod)." />
+  </div>
+  <div class="form-group">
+    <label>Requires Smartgun:</label>
+    <input type="checkbox" name="system.requiresSmartgun" {{checked system.requiresSmartgun}}
+           title="Only applies on a smartgun-compatible weapon (Smartgun System)." />
+  </div>
+  {{/if}}
   {{/ifEquals}}
 
   {{!-- ADEPT POWER --}}

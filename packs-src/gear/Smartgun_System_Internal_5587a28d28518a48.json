@@ -13,7 +13,9 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.241. Built-in smartgun feedback circuit. Works with palm induction links and smartlink implants for +2 dice."
+    "notes": "SR2E p.241. Built-in smartgun feedback circuit. Works with palm induction links and smartlink implants for +2 dice.",
+    "weaponAccessory": true,
+    "requiresSmartgun": true
   },
   "effects": [],
   "flags": {},

@@ -425,16 +425,28 @@ export class SR2EItem extends Item {
         }
       }
 
+      // Weapon accessories attached to THIS weapon (Laser Sight, Smartgun System,
+      // Gas-vent, etc.): apply their TN modifier and recoil compensation. A
+      // smartgun-requiring accessory only counts on a smartgun-compatible weapon.
+      let accessoryMod = 0, accessoryRecoilComp = 0;
+      for (const item of actor.items) {
+        const s = item.system;
+        if (item.type !== "gear" || !s.weaponAccessory || s.linkedWeaponId !== this.id) continue;
+        if (s.requiresSmartgun && !this.system.smartgunCompatible) continue;
+        accessoryMod += s.combatTnMod ?? 0;
+        accessoryRecoilComp += s.accessoryRecoilComp ?? 0;
+      }
+
       // Recoil (SR2E p.93): +1 per round already fired this phase; a burst's
       // own rounds also count toward its recoil (first BF burst = +3).
       shotsFired          = actor.system.combatRecoil ?? 0;
-      const recoilComp    = this.system.recoilComp    ?? 0;
+      const recoilComp    = (this.system.recoilComp ?? 0) + accessoryRecoilComp;
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
       const recoilMod     = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp });
 
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
-                + cyberwareMod + recoilMod + defaultingPenalty
+                + cyberwareMod + accessoryMod + recoilMod + defaultingPenalty
       );
 
       if (defaultingNote) modParts.push(defaultingNote);

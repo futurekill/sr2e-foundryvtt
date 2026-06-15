@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.241. Suppresses muzzle blast and flash. -4 Concealability on weapon, requires SA/SS fire."
+    "notes": "SR2E p.241. Suppresses muzzle blast and flash. -4 Concealability on weapon, requires SA/SS fire.",
+    "weaponAccessory": true
   },
   "effects": [],
   "flags": {},

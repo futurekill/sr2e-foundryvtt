@@ -13,7 +13,9 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.241. Upper-body harness with articulated gyro-stabilized arm. Eliminates recoil and movement modifiers. Not concealable."
+    "notes": "SR2E p.241. Upper-body harness with articulated gyro-stabilized arm. Eliminates recoil and movement modifiers. Not concealable.",
+    "weaponAccessory": true,
+    "accessoryRecoilComp": 5
   },
   "effects": [],
   "flags": {},

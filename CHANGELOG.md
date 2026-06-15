@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### New mechanics
+- **Weapon accessories** (p.241, Street Samurai Catalog) — gear marked as a
+  weapon accessory (Laser Sight, Gyro Mount, Bipod, Silencer, Smartgun System,
+  …) can be **attached to one weapon at a time** from the gear list. While
+  attached, its Attack-TN modifier and recoil compensation apply to that
+  weapon's attacks. Compendium gear pre-set: Laser Sight −1 TN, Gyro Mount
+  +5 recoil comp, Bipod +2. Configure custom accessories on the gear item sheet.
+
 ### Changes
 - **Rated compendium items collapsed to one editable template each** instead of
   a separate copy per rating. Matrix Programs (108 → 18), Magical Foci (30 → 5:

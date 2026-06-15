@@ -361,6 +361,17 @@ export class GearData extends SR2EDataModel {
       legality: new fields.StringField({ initial: "Legal" }),
       equipped: new fields.BooleanField({ initial: false }),
       concealability: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+
+      // Weapon accessory (Laser Sight, Smartgun System, Gas-vent, Gyro Mount,
+      // Bipod, Silencer, etc.): a mod that attaches to ONE weapon at a time
+      // rather than being merely equipped. While linked, its modifiers apply to
+      // that weapon's attacks (SR2E p.110, Street Samurai Catalog).
+      weaponAccessory: new fields.BooleanField({ initial: false }),
+      linkedWeaponId: new fields.StringField({ initial: "" }),
+      combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
+      accessoryRecoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      requiresSmartgun: new fields.BooleanField({ initial: false }),
+
       notes: new fields.StringField({ initial: "" })
     };
   }
