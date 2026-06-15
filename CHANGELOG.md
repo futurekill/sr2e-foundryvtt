@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.1
 
 ### New content
 - **Intrusion Countermeasures compendium** (p.169–170) — 11 ready-to-drop IC
