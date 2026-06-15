@@ -3158,7 +3158,7 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "ic"],
-    position: { width: 450, height: 400 },
+    position: { width: 400, height: "auto" },
     actions: {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
@@ -3198,7 +3198,7 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "host"],
-    position: { width: 420, height: 420 },
+    position: { width: 400, height: "auto" },
     actions: {
       resetHostTally: onResetHostTally
     }

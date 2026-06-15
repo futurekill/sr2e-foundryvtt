@@ -1,63 +1,61 @@
-<section class="sr2e-host-sheet">
-  <div class="host-header flexrow">
-    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" class="profile-img" />
-    <div class="header-info flexcol">
-      <input type="text" name="name" value="{{actor.name}}" placeholder="Node Name" />
-      <div class="host-details flexrow">
-        <div class="form-group">
-          <label>Security Code:</label>
-          <select name="system.securityCode">
-            {{#each config.securityCodes as |sec key|}}
-            <option value="{{key}}" {{selected ../system.securityCode key}}>{{localize sec.label}}</option>
-            {{/each}}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>System Rating <span style="font-size:10px;color:#aaa1c0;">(TN)</span>:</label>
-          <input type="number" name="system.systemRating" value="{{system.systemRating}}" min="1" />
-        </div>
-      </div>
+<section class="sr2e-matrix-sheet sr2e-host-sheet">
+  <header class="sr2e-matrix-header">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" />
+    <div class="title-block">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="Node Name" class="actor-name" />
+      <span class="subtitle">Matrix Host / Node</span>
     </div>
+    <div class="rating-badge">
+      <span class="code code-{{system.securityCode}}">{{localize (lookup (lookup config.securityCodes system.securityCode) "label")}}</span>
+      <span class="num">{{system.systemRating}}</span>
+    </div>
+  </header>
+
+  <div class="field-grid">
+    <label class="field">
+      <span>Security Code</span>
+      <select name="system.securityCode">
+        {{#each config.securityCodes as |sec key|}}
+        <option value="{{key}}" {{selected ../system.securityCode key}}>{{localize sec.label}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <label class="field">
+      <span>System Rating <em>(TN)</em></span>
+      <input type="number" name="system.systemRating" value="{{system.systemRating}}" min="1" />
+    </label>
   </div>
 
-  <fieldset>
-    <legend>Security Rating</legend>
-    <p style="margin:2px 0;">
-      <strong>{{localize (lookup (lookup config.securityCodes system.securityCode) "label")}}-{{system.systemRating}}</strong>
-      — a decker must beat <strong>{{successesNeeded}}</strong>
-      successes on a Computer Test (TN {{system.systemRating}})
-      to make this node execute an operation (SR2E p.165).
-    </p>
-  </fieldset>
+  <p class="rule-note">
+    A decker must beat <strong>{{successesNeeded}}</strong>
+    success{{#ifEquals successesNeeded 1}}{{else}}es{{/ifEquals}} on a Computer Test
+    (TN {{system.systemRating}}) to make this node execute an operation (SR2E p.165).
+  </p>
 
-  <fieldset>
+  <fieldset class="intrusion">
     <legend>Intrusion</legend>
-    <div class="flexrow" style="align-items:center;gap:12px;">
-      <div class="form-group">
-        <label>Alert:</label>
+    <div class="field-grid">
+      <label class="field">
+        <span>Alert</span>
         <select name="system.alert">
           {{#each config.alertStates as |label key|}}
           <option value="{{key}}" {{selected ../system.alert key}}>{{localize label}}</option>
           {{/each}}
         </select>
-      </div>
-      <div class="form-group">
-        <label>Attempts:</label>
-        <input type="number" name="system.attempts" value="{{system.attempts}}" min="0" style="width:52px;text-align:center;" />
-      </div>
-      <button type="button" data-action="resetHostTally" title="Reset the intrusion tally and clear the alert.">
-        <i class="fas fa-rotate-left"></i> Reset
-      </button>
+      </label>
+      <label class="field">
+        <span>Attempts</span>
+        <input type="number" name="system.attempts" value="{{system.attempts}}" min="0" />
+      </label>
     </div>
+    <button type="button" class="reset-btn" data-action="resetHostTally" title="Reset the intrusion tally and clear the alert.">
+      <i class="fas fa-rotate-left"></i> Reset Tally
+    </button>
     {{#ifEquals system.alert "passive"}}
-    <p style="margin:4px 0;color:#d9a441;font-size:11px;">
-      <i class="fas fa-triangle-exclamation"></i> Passive alert — apply +50% to all IC ratings (SR2E p.168).
-    </p>
+    <p class="alert-note passive"><i class="fas fa-triangle-exclamation"></i> Passive alert — all IC ratings +50% (SR2E p.168).</p>
     {{/ifEquals}}
     {{#ifEquals system.alert "active"}}
-    <p style="margin:4px 0;color:#c44;font-size:11px;">
-      <i class="fas fa-bell"></i> Active alert — operators respond; the system may shut down (2D6 turns).
-    </p>
+    <p class="alert-note active"><i class="fas fa-bell"></i> Active alert — operators respond; the system may shut down.</p>
     {{/ifEquals}}
   </fieldset>
 

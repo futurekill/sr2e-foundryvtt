@@ -1,91 +1,96 @@
-<section class="sr2e-ic-sheet">
-  <div class="ic-header flexrow">
-    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" class="profile-img" />
-    <div class="header-info flexcol">
-      <input type="text" name="name" value="{{actor.name}}" placeholder="IC Name" />
-      <div class="ic-details flexrow">
-        <div class="form-group">
-          <label>Type:</label>
-          <select name="system.icType">
-            {{#each config.icTypes as |label key|}}
-            <option value="{{key}}" {{selected ../system.icType key}}>{{localize label}}</option>
-            {{/each}}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Rating:</label>
-          <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Defends Host:</label>
-        <select name="system.hostUuid" title="Link a Host node; its Security Code and alert sync to this IC automatically.">
-          <option value="" {{#unless system.hostUuid}}selected{{/unless}}>— none (set manually) —</option>
-          {{#each hosts as |host|}}
-          <option value="{{host.uuid}}" {{selected ../system.hostUuid host.uuid}}>{{host.name}}</option>
-          {{/each}}
-        </select>
-      </div>
-      <div class="ic-details flexrow">
-        <div class="form-group">
-          <label>Node Code:</label>
-          <select name="system.securityCode" {{#if system.hostUuid}}disabled{{/if}}>
-            {{#each config.securityCodes as |sec key|}}
-            <option value="{{key}}" {{selected ../system.securityCode key}}>{{localize sec.label}}</option>
-            {{/each}}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Alert:</label>
-          <select name="system.alert" {{#if system.hostUuid}}disabled{{/if}}>
-            {{#each config.alertStates as |label key|}}
-            <option value="{{key}}" {{selected ../system.alert key}}>{{localize label}}</option>
-            {{/each}}
-          </select>
-        </div>
-      </div>
-      {{#if linkedHost}}
-      <p style="margin:2px 0;font-size:11px;color:#aaa1c0;">
-        <i class="fas fa-link"></i> Code &amp; alert synced from <strong>{{linkedHost.name}}</strong>.
-      </p>
-      {{/if}}
+<section class="sr2e-matrix-sheet sr2e-ic-sheet">
+  <header class="sr2e-matrix-header">
+    <img src="{{actor.img}}" alt="{{actor.name}}" data-edit="img" />
+    <div class="title-block">
+      <input type="text" name="name" value="{{actor.name}}" placeholder="IC Name" class="actor-name" />
+      <span class="subtitle">{{localize (lookup config.icTypes system.icType)}}</span>
     </div>
+    <div class="rating-badge">
+      <span class="code">RATING</span>
+      <span class="num">{{system.effectiveRating}}</span>
+    </div>
+  </header>
+
+  <div class="field-grid">
+    <label class="field">
+      <span>Type</span>
+      <select name="system.icType">
+        {{#each config.icTypes as |label key|}}
+        <option value="{{key}}" {{selected ../system.icType key}}>{{localize label}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <label class="field">
+      <span>Rating</span>
+      <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
+    </label>
   </div>
 
-  {{#ifEquals system.alert "none"}}{{else}}
-  <p style="margin:2px 0;color:#d9a441;font-size:11px;">
-    <i class="fas fa-triangle-exclamation"></i> Alert active — IC ratings boosted +50%
-    (effective Rating <strong>{{system.effectiveRating}}</strong>, SR2E p.168).
-  </p>
-  {{/ifEquals}}
+  <fieldset class="node-link">
+    <legend>Node</legend>
+    <label class="field">
+      <span>Defends Host</span>
+      <select name="system.hostUuid" title="Link a Host node; its Security Code and alert sync to this IC automatically.">
+        <option value="" {{#unless system.hostUuid}}selected{{/unless}}>— none (set manually) —</option>
+        {{#each hosts as |host|}}
+        <option value="{{host.uuid}}" {{selected ../system.hostUuid host.uuid}}>{{host.name}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <div class="field-grid">
+      <label class="field">
+        <span>Node Code</span>
+        <select name="system.securityCode" {{#if system.hostUuid}}disabled{{/if}}>
+          {{#each config.securityCodes as |sec key|}}
+          <option value="{{key}}" {{selected ../system.securityCode key}}>{{localize sec.label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      <label class="field">
+        <span>Alert</span>
+        <select name="system.alert" {{#if system.hostUuid}}disabled{{/if}}>
+          {{#each config.alertStates as |label key|}}
+          <option value="{{key}}" {{selected ../system.alert key}}>{{localize label}}</option>
+          {{/each}}
+        </select>
+      </label>
+    </div>
+    {{#if linkedHost}}
+    <p class="rule-note"><i class="fas fa-link"></i> Code &amp; alert synced from <strong>{{linkedHost.name}}</strong>.</p>
+    {{/if}}
+    {{#ifEquals system.alert "none"}}{{else}}
+    <p class="alert-note passive"><i class="fas fa-triangle-exclamation"></i> Alert — ratings boosted +50% (effective Rating {{system.effectiveRating}}, p.168).</p>
+    {{/ifEquals}}
+  </fieldset>
 
   <fieldset>
     <legend>Persona Attributes</legend>
     <div class="attr-grid">
-      <div class="attr-item"><label>Bod</label><input type="number" name="system.bod" value="{{system.bod}}" min="0" /></div>
-      <div class="attr-item"><label>Evasion</label><input type="number" name="system.evasion" value="{{system.evasion}}" min="0" /></div>
-      <div class="attr-item"><label>Masking</label><input type="number" name="system.masking" value="{{system.masking}}" min="0" /></div>
-      <div class="attr-item"><label>Sensor</label><input type="number" name="system.sensor" value="{{system.sensor}}" min="0" /></div>
-      <div class="attr-item"><label>Attack</label><input type="number" name="system.attack" value="{{system.attack}}" min="0" /></div>
+      <label class="attr"><span>Bod</span><input type="number" name="system.bod" value="{{system.bod}}" min="0" /></label>
+      <label class="attr"><span>Evasion</span><input type="number" name="system.evasion" value="{{system.evasion}}" min="0" /></label>
+      <label class="attr"><span>Masking</span><input type="number" name="system.masking" value="{{system.masking}}" min="0" /></label>
+      <label class="attr"><span>Sensor</span><input type="number" name="system.sensor" value="{{system.sensor}}" min="0" /></label>
+      <label class="attr"><span>Attack</span><input type="number" name="system.attack" value="{{system.attack}}" min="0" /></label>
     </div>
   </fieldset>
 
-  <fieldset>
-    <legend>Condition</legend>
-    <input type="number" name="system.conditionMonitor.value" value="{{system.conditionMonitor.value}}" min="0" max="{{system.conditionMonitor.max}}" />
-    <span>/ {{system.conditionMonitor.max}}</span>
-  </fieldset>
-
-  <div class="ic-actions" style="margin:6px 0;">
-    <button type="button" data-action="matrixAttack" title="Attack a persona in the Matrix (IC Rating dice vs the target's Bod, SR2E p.178).">
-      <i class="fas fa-bolt"></i> Matrix Attack
-    </button>
+  <div class="stat-row">
+    <div class="stat">
+      <span class="stat-label">Condition</span>
+      <span class="stat-value">
+        <input type="number" name="system.conditionMonitor.value" value="{{system.conditionMonitor.value}}" min="0" max="{{system.conditionMonitor.max}}" />
+        <span>/ {{system.conditionMonitor.max}}</span>
+      </span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Initiative</span>
+      <span class="stat-value">{{system.initiative.value}} + {{system.initiative.dice}}d6</span>
+    </div>
   </div>
 
-  <fieldset>
-    <legend>Initiative</legend>
-    <span>{{system.initiative.value}} + {{system.initiative.dice}}d6</span>
-  </fieldset>
+  <button type="button" class="matrix-attack-btn" data-action="matrixAttack" title="Attack a persona in the Matrix (IC Rating dice vs the target's Bod, SR2E p.178).">
+    <i class="fas fa-bolt"></i> Matrix Attack
+  </button>
 
   <fieldset>
     <legend>Notes</legend>

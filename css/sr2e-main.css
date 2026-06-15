@@ -1872,14 +1872,240 @@
 }
 
 /* ============================================================================
-   IC SHEET
+   MATRIX SHEETS (Host + IC)
    ============================================================================ */
 
-.sr2e-ic-sheet .ic-header {
-  background: linear-gradient(160deg, #04101a 0%, #020a0e 100%);
-  padding: 8px;
-  border-bottom: 2px solid var(--sr2e-matrix);
+.sr2e-matrix-sheet {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  padding: 8px;
+}
+
+/* Compact header: small icon, name/subtitle, rating badge */
+.sr2e-matrix-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: linear-gradient(160deg, #04101a 0%, #020a0e 100%);
+  border: 1px solid var(--sr2e-gold-dim);
+  border-radius: 4px;
+}
+
+.sr2e-matrix-header img {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border: 1px solid var(--sr2e-gold-dim);
+  border-radius: 4px;
+  background: #02080c;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.sr2e-matrix-header .title-block {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sr2e-matrix-header .actor-name {
+  font-size: 16px;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--sr2e-text);
+  padding: 0;
+}
+
+.sr2e-matrix-header .actor-name:hover,
+.sr2e-matrix-header .actor-name:focus {
+  border-bottom-color: var(--sr2e-gold-dim);
+}
+
+.sr2e-matrix-header .subtitle {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+}
+
+/* Rating / Security badge on the right */
+.sr2e-matrix-header .rating-badge {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  padding: 4px 8px;
+  border: 1px solid var(--sr2e-gold-dim);
+  border-radius: 4px;
+  background: #02080c;
+}
+
+.sr2e-matrix-header .rating-badge .code {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+}
+
+.sr2e-matrix-header .rating-badge .num {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sr2e-matrix);
+}
+
+.sr2e-matrix-header .rating-badge .code-blue   { color: #5b9bd5; }
+.sr2e-matrix-header .rating-badge .code-green  { color: #66bb6a; }
+.sr2e-matrix-header .rating-badge .code-orange { color: #e8a33d; }
+.sr2e-matrix-header .rating-badge .code-red    { color: #e0556b; }
+
+/* Two-column field grid */
+.sr2e-matrix-sheet .field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sr2e-matrix-sheet .field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sr2e-matrix-sheet .field > span {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+}
+
+.sr2e-matrix-sheet .field > span em {
+  font-style: normal;
+  opacity: 0.7;
+}
+
+.sr2e-matrix-sheet .field input,
+.sr2e-matrix-sheet .field select {
+  width: 100%;
+}
+
+.sr2e-matrix-sheet fieldset {
+  border: 1px solid var(--sr2e-border);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sr2e-matrix-sheet legend {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sr2e-matrix);
+  padding: 0 4px;
+}
+
+.sr2e-matrix-sheet .rule-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--sr2e-text-muted);
+}
+
+.sr2e-matrix-sheet .alert-note {
+  margin: 0;
+  font-size: 11px;
+}
+.sr2e-matrix-sheet .alert-note.passive { color: #e8a33d; }
+.sr2e-matrix-sheet .alert-note.active  { color: #e0556b; }
+
+.sr2e-matrix-sheet .reset-btn,
+.sr2e-matrix-sheet .matrix-attack-btn {
+  align-self: flex-start;
+  padding: 4px 10px;
+}
+
+.sr2e-matrix-sheet .matrix-attack-btn {
+  align-self: stretch;
+  text-align: center;
+  font-weight: 700;
+  color: var(--sr2e-matrix);
+  border-color: var(--sr2e-gold-dim);
+}
+
+/* Persona attribute grid (5 across, wraps) */
+.sr2e-matrix-sheet .attr-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.sr2e-matrix-sheet .attr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.sr2e-matrix-sheet .attr > span {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+}
+
+.sr2e-matrix-sheet .attr input {
+  width: 100%;
+  text-align: center;
+}
+
+/* Condition / Initiative stat row */
+.sr2e-matrix-sheet .stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sr2e-matrix-sheet .stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--sr2e-border);
+  border-radius: 4px;
+  background: var(--sr2e-bg-light);
+}
+
+.sr2e-matrix-sheet .stat-label {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+}
+
+.sr2e-matrix-sheet .stat-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--sr2e-matrix);
+}
+
+.sr2e-matrix-sheet .stat-value input {
+  width: 48px;
+  text-align: center;
 }
 
 /* ============================================================================
