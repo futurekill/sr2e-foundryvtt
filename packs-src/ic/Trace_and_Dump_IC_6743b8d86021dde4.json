@@ -1,0 +1,80 @@
+{
+  "_id": "6743b8d86021dde4",
+  "name": "Trace and Dump IC",
+  "type": "ic",
+  "img": "systems/sr2e/assets/icons/ic-chip.svg",
+  "system": {
+    "icType": "gray",
+    "rating": 5,
+    "securityCode": "red",
+    "alert": "none",
+    "hostUuid": "",
+    "bod": 5,
+    "evasion": 5,
+    "masking": 5,
+    "sensor": 5,
+    "attack": 5,
+    "conditionMonitor": {
+      "value": 0,
+      "max": 10
+    },
+    "initiative": {
+      "base": 5,
+      "dice": 1,
+      "value": 5
+    },
+    "specialAbilities": [],
+    "notes": "Traces the intruder's entry point; on a successful trace the decker is dumped and their location reported. Mobile. SR2E p.170."
+  },
+  "items": [],
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.9.0",
+    "createdTime": 1781600000000,
+    "modifiedTime": 1781600000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "prototypeToken": {
+    "name": "Trace and Dump IC",
+    "displayName": 20,
+    "actorLink": true,
+    "width": 1,
+    "height": 1,
+    "texture": {
+      "src": "systems/sr2e/assets/icons/ic-chip.svg",
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "offsetX": 0,
+      "offsetY": 0,
+      "fit": "contain",
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "tint": "#ffffff",
+      "alphaThreshold": 0.75
+    },
+    "lockRotation": false,
+    "rotation": 0,
+    "alpha": 1,
+    "disposition": -1,
+    "displayBars": 20,
+    "bar1": {
+      "attribute": "conditionMonitor"
+    },
+    "bar2": {
+      "attribute": null
+    }
+  },
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!actors!6743b8d86021dde4"
+}

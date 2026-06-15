@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New content
+- **Intrusion Countermeasures compendium** (p.169–170) — 11 ready-to-drop IC
+  actors: white (Access, Barrier, Scramble), gray (Killer, Blaster, Tar Baby,
+  Trace and Dump, Trace and Burn), and black (Tar Pit, Trace & Report, Killer),
+  each with its rating, node Security Code, and a note describing its effect.
+  Link one to a Host and its Code/alert sync automatically.
+
 ## 0.9.0
 
 ### New mechanics

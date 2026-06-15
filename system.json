@@ -102,7 +102,8 @@
     { "name": "traditions",   "label": "SR2E Traditions",       "path": "packs/traditions",   "type": "Item",      "system": "sr2e", "folder": "Magic" },
     { "name": "critters",     "label": "SR2E Critters",         "path": "packs/critters",     "type": "Actor",     "system": "sr2e", "folder": "Actors" },
     { "name": "runners",      "label": "SR2E Sample Runners",   "path": "packs/runners",      "type": "Actor",     "system": "sr2e", "folder": "Actors" },
-    { "name": "vehicles",     "label": "SR2E Vehicles & Drones","path": "packs/vehicles",     "type": "Actor",     "system": "sr2e", "folder": "Actors" }
+    { "name": "vehicles",     "label": "SR2E Vehicles & Drones","path": "packs/vehicles",     "type": "Actor",     "system": "sr2e", "folder": "Actors" },
+    { "name": "ic",           "label": "SR2E Intrusion Countermeasures","path": "packs/ic","type": "Actor","system": "sr2e", "folder": "Actors" }
   ],
   "packFolders": [
     {
@@ -147,7 +148,7 @@
         {
           "name": "Actors",
           "sorting": "a",
-          "packs": ["critters", "runners", "vehicles"]
+          "packs": ["critters", "runners", "vehicles", "ic"]
         }
       ]
     }

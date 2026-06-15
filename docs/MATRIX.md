@@ -145,8 +145,9 @@ Detection Factor (Masking + Sensor gating) still **[VERIFY]**.
 **Phase 3 — Content & polish.** *(utilities done)*
 ✅ Full utility-program compendium (Slow, Mirrors, Shield, Smoke, Medic, Analyze,
 Evaluate, Browse, Decrypt, Scramble, Deception, Relocate at R1–6) + corrected
-program size (Rating² × multiplier, p.174–177). **Remaining:** a specific IC
-roster as `ic` actors in a compendium, and detection-factor automation.
+program size (Rating² × multiplier, p.174–177); ✅ IC roster compendium (11
+named IC as `ic` actors, p.169–170). **Remaining:** detection-factor automation
+and multi-node host maps.
 
 ---
 
