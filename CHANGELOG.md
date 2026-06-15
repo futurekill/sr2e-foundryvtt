@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.2
 
 ### New mechanics
 - **Weapon accessories** (p.241, Street Samurai Catalog) — gear marked as a
