@@ -54,3 +54,14 @@ globalThis.game = {
     get: (_scope, key) => (key === "ruleOfSix" ? true : undefined)
   }
 };
+
+// Minimal stand-ins so the document/data-model modules import in Node. These
+// are only base classes / namespaces referenced at module load — the pure
+// functions exported alongside them (evaluateDamageCode, parseDrainCode) don't
+// touch them.
+globalThis.Item = class {};
+globalThis.Actor = class {};
+globalThis.foundry = {
+  abstract: { TypeDataModel: class {} },
+  utils: { escapeHTML: (s) => String(s ?? "") }
+};
