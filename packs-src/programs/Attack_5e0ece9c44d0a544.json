@@ -2,7 +2,7 @@
   "_id": "5e0ece9c44d0a544",
   "name": "Attack",
   "type": "program",
-  "img": "icons/skills/offense/sword.webp",
+  "img": "icons/svg/combat.svg",
   "system": {
     "category": "combat",
     "rating": 1,

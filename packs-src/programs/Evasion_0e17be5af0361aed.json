@@ -2,7 +2,7 @@
   "_id": "0e17be5af0361aed",
   "name": "Evasion",
   "type": "program",
-  "img": "icons/magic/movement/trail-streak-zigzag-white.webp",
+  "img": "icons/svg/wing.svg",
   "system": {
     "category": "defense",
     "rating": 1,
