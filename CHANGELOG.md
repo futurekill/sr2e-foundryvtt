@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+- **Matrix Programs compendium** is now one editable template per program type
+  (18 entries) instead of a fixed copy at every rating (108). Drop a program and
+  set its Rating on the item sheet — memory Size recomputes automatically.
+
 ## 0.9.1
 
 ### New content
