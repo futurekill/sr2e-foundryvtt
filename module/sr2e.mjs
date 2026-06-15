@@ -430,14 +430,30 @@ async function _syncWoundStatuses(actor) {
   }
 }
 
-// IC and Host are singleton-style Matrix entities — a token IS the actor, not a
-// divergent copy. Default their prototype tokens to linked so edits on a placed
-// token and on the sidebar actor stay the same document (avoids the classic
-// "edited the token copy, sidebar actor unchanged" confusion).
+// Defaults for the singleton-style Matrix entities (IC, Host):
+//  - Linked prototype tokens, so a token IS the sidebar actor (not a divergent
+//    copy — avoids the "edited the token, sidebar actor unchanged" confusion).
+//  - A themed default icon (server for a Host, chip for IC) in place of the
+//    generic mystery-man, used for both the sheet image and the token.
+const MATRIX_DEFAULT_ICONS = {
+  host: "systems/sr2e/assets/icons/host-server.svg",
+  ic:   "systems/sr2e/assets/icons/ic-chip.svg"
+};
+
 Hooks.on("preCreateActor", (actor, data) => {
-  if (["ic", "host"].includes(actor.type) && data.prototypeToken?.actorLink === undefined) {
-    actor.updateSource({ "prototypeToken.actorLink": true });
+  if (!(actor.type in MATRIX_DEFAULT_ICONS)) return;
+  const updates = {};
+  if (data.prototypeToken?.actorLink === undefined) updates["prototypeToken.actorLink"] = true;
+
+  const defaultImg = "icons/svg/mystery-man.svg";
+  if (!data.img || data.img === defaultImg) {
+    const icon = MATRIX_DEFAULT_ICONS[actor.type];
+    updates["img"] = icon;
+    if (!data.prototypeToken?.texture?.src || data.prototypeToken.texture.src === defaultImg) {
+      updates["prototypeToken.texture.src"] = icon;
+    }
   }
+  if (Object.keys(updates).length) actor.updateSource(updates);
 });
 
 Hooks.on("updateActor", (actor, changes) => {
