@@ -434,14 +434,14 @@ Hooks.on("updateActor", (actor, changes) => {
   if (game.users.activeGM?.isSelf && changes.system?.conditionMonitor) _syncWoundStatuses(actor);
 
   // IC defending this host derive their Security Code + alert live from it
-  // (ICData.prepareDerivedData). When the host's code/alert changes, re-prepare
-  // and re-render any linked IC so open sheets/tokens reflect it immediately.
-  if (actor.type === "host" &&
-      (changes.system?.alert !== undefined || changes.system?.securityCode !== undefined)) {
+  // (ICData.prepareDerivedData). On any host change, re-prepare and re-render
+  // linked IC so open sheets/tokens reflect it immediately. (Re-preparing a few
+  // IC is cheap, and avoids depending on the change diff's key format.)
+  if (actor.type === "host") {
     for (const ic of game.actors) {
       if (ic.type !== "ic" || ic.system.hostUuid !== actor.uuid) continue;
       ic.prepareData();
-      ic.sheet?.rendered && ic.sheet.render(false);
+      if (ic.sheet?.rendered) ic.sheet.render(false);
     }
   }
 });
