@@ -6,8 +6,8 @@
   "system": {
     "category": "combat",
     "rating": 3,
-    "size": 4.5,
-    "multiplier": 1.5,
+    "size": 18,
+    "multiplier": 2,
     "cost": 13500,
     "loaded": false,
     "notes": "SR2E p.262. Utility program: Matrix attack capability. Rating 3."

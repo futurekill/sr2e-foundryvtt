@@ -142,9 +142,11 @@ all defending IC follow, including system-op alert escalation). **Remaining:**
 node-connection map / multi-node hosts and auto-spawning IC on active alert.
 Detection Factor (Masking + Sensor gating) still **[VERIFY]**.
 
-**Phase 3 — Content & polish.**
-Full utility-program compendium (Analyze, Browse, Deception, Decrypt, Evaluate, etc.),
-the specific IC roster as `ic` actors in a compendium, and detection-factor automation.
+**Phase 3 — Content & polish.** *(utilities done)*
+✅ Full utility-program compendium (Slow, Mirrors, Shield, Smoke, Medic, Analyze,
+Evaluate, Browse, Decrypt, Scramble, Deception, Relocate at R1–6) + corrected
+program size (Rating² × multiplier, p.174–177). **Remaining:** a specific IC
+roster as `ic` actors in a compendium, and detection-factor automation.
 
 ---
 

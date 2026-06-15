@@ -3,7 +3,7 @@ import {
   DAMAGE_LEVELS, damageBoxes, stageLevel,
   columnWoundPenalty, totalWoundPenalty,
   systemOperationTN, personaAttribute,
-  icReactionBase, alertAdjustedRating
+  icReactionBase, alertAdjustedRating, programSize
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
@@ -69,6 +69,19 @@ describe("Matrix system-operation TN (SR2E p.166–167)", () => {
   it("adds an untrained Skill-Web default penalty", () => {
     expect(systemOperationTN(4, 0, 4)).toBe(8);
     expect(systemOperationTN(4, 2, 4)).toBe(12);
+  });
+});
+
+describe("Program memory size (SR2E p.174–177)", () => {
+  it("is Rating² × multiplier", () => {
+    // Browse ×1: R3 → 9 Mp
+    expect(programSize(3, 1)).toBe(9);
+    // Attack ×2: R4 → 32 Mp
+    expect(programSize(4, 2)).toBe(32);
+    // Shield ×4: R2 → 16 Mp
+    expect(programSize(2, 4)).toBe(16);
+    // Analyze ×3: R6 → 108 Mp
+    expect(programSize(6, 3)).toBe(108);
   });
 });
 

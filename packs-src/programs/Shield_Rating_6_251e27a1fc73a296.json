@@ -1,0 +1,34 @@
+{
+  "_id": "251e27a1fc73a296",
+  "name": "Shield (Rating 6)",
+  "type": "program",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "category": "defense",
+    "rating": 6,
+    "size": 144,
+    "multiplier": 4,
+    "cost": 14400,
+    "loaded": false,
+    "notes": "SR2E p.175. Defense utility: automatically stops a number of Matrix wounds equal to its rating; loses 1 rating point each time it absorbs damage."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.8.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!251e27a1fc73a296"
+}

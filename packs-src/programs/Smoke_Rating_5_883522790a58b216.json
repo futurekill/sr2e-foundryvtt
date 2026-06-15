@@ -1,0 +1,34 @@
+{
+  "_id": "883522790a58b216",
+  "name": "Smoke (Rating 5)",
+  "type": "program",
+  "img": "icons/svg/daze.svg",
+  "system": {
+    "category": "defense",
+    "rating": 5,
+    "size": 100,
+    "multiplier": 4,
+    "cost": 10000,
+    "loaded": false,
+    "notes": "SR2E p.175. Defense utility: adds its rating to every target number in the node (including the deck's own tests); degrades by 1 each Combat Turn."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.8.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!883522790a58b216"
+}

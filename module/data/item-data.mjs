@@ -1,4 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { programSize } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -388,8 +389,8 @@ export class ProgramData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Program memory size = Rating * Multiplier
-    this.size = Math.ceil(this.rating * this.multiplier);
+    // Program memory size = Rating² × Multiplier (SR2E p.174–177)
+    this.size = programSize(this.rating, this.multiplier);
   }
 }
 

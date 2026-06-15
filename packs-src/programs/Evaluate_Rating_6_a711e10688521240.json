@@ -1,0 +1,34 @@
+{
+  "_id": "a711e10688521240",
+  "name": "Evaluate (Rating 6)",
+  "type": "program",
+  "img": "icons/svg/coins.svg",
+  "system": {
+    "category": "sensor",
+    "rating": 6,
+    "size": 72,
+    "multiplier": 2,
+    "cost": 7200,
+    "loaded": false,
+    "notes": "SR2E p.176. Sensor utility: appraises datastore files for market value; degrades over time as data markets shift."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.8.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a711e10688521240"
+}

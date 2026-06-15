@@ -1,0 +1,34 @@
+{
+  "_id": "637029db7b8f3316",
+  "name": "Analyze (Rating 6)",
+  "type": "program",
+  "img": "icons/svg/eye.svg",
+  "system": {
+    "category": "sensor",
+    "rating": 6,
+    "size": 108,
+    "multiplier": 3,
+    "cost": 10800,
+    "loaded": false,
+    "notes": "SR2E p.175. Sensor utility: identifies a construct or node (name, function, Security Rating) or analyzes an IC program."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.8.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!637029db7b8f3316"
+}

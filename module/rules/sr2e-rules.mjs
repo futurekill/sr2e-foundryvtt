@@ -86,6 +86,19 @@ export function personaAttribute(programRating, mpcp) {
   return Math.min(programRating, mpcp);
 }
 
+/**
+ * Memory size (Mp) of a Matrix program (SR2E p.174–177): Rating² × multiplier,
+ * rounded up. The multiplier is the program's per-type factor (Browse ×1,
+ * Attack/Evaluate/Decrypt/Scramble/Deception/Relocate/Slow ×2, Analyze/Mirrors/
+ * Medic ×3, Shield/Smoke ×4).
+ * @param {number} rating
+ * @param {number} multiplier
+ * @returns {number}
+ */
+export function programSize(rating, multiplier) {
+  return Math.ceil(rating * rating * multiplier);
+}
+
 /** Base Reaction speed an IC's node Security Code grants (SR2E p.169). */
 export const IC_REACTION_BASE = { blue: 0, green: 5, orange: 7, red: 9 };
 

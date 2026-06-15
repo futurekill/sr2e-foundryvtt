@@ -6,8 +6,8 @@
   "system": {
     "category": "combat",
     "rating": 6,
-    "size": 9,
-    "multiplier": 1.5,
+    "size": 72,
+    "multiplier": 2,
     "cost": 54000,
     "loaded": false,
     "notes": "SR2E p.262. Utility program: Matrix attack capability. Rating 6—elite offensive decking."

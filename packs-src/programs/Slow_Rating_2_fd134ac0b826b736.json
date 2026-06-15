@@ -1,0 +1,34 @@
+{
+  "_id": "fd134ac0b826b736",
+  "name": "Slow (Rating 2)",
+  "type": "program",
+  "img": "icons/svg/net.svg",
+  "system": {
+    "category": "combat",
+    "rating": 2,
+    "size": 8,
+    "multiplier": 2,
+    "cost": 800,
+    "loaded": false,
+    "notes": "SR2E p.175. Combat utility: successes subtract from the target IC's Initiative next turn; reduce it to 0 or less and the IC freezes."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.8.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!fd134ac0b826b736"
+}

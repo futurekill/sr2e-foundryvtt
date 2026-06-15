@@ -1,0 +1,34 @@
+{
+  "_id": "fbee6074a51f9816",
+  "name": "Mirrors (Rating 4)",
+  "type": "program",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "category": "defense",
+    "rating": 4,
+    "size": 48,
+    "multiplier": 3,
+    "cost": 4800,
+    "loaded": false,
+    "notes": "SR2E p.174. Defense utility: adds its rating to the persona's Evasion in Matrix combat; degrades by 1 each Combat Turn after it triggers."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.8.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!fbee6074a51f9816"
+}

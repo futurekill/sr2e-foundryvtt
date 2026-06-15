@@ -36,6 +36,13 @@
   intrusion tally advances automatically and an alert roll (1D6 ≤ attempts)
   escalates the node none → passive → active, with the result posted to chat.
 
+- **Matrix utility programs** (p.174–177) — the operational decking software is
+  now in the Programs compendium at Ratings 1–6: Slow, Mirrors, Shield, Smoke,
+  Medic, Analyze, Evaluate, Browse, Decrypt, Scramble, Deception, and Relocate,
+  each categorised and annotated with its function. Program memory size is now
+  the correct **Rating² × multiplier** (was Rating × multiplier), and the Attack
+  program's multiplier is corrected to ×2.
+
 ### UI
 - Decker Matrix tab: jack in/out toggle, persona condition monitor, a
   Matrix Attack control, a System Operation control, and a dump-shock
