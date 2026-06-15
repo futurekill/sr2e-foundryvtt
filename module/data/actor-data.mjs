@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -534,7 +534,7 @@ export class CharacterData extends SR2EDataModel {
 
   /** Astral Reaction = (Intelligence + Willpower) ÷ 2 (SR2E p.147). */
   get astralReaction() {
-    return Math.floor((this.intelligence.value + this.willpower.value) / 2);
+    return astralReaction(this.intelligence.value, this.willpower.value);
   }
 
   /**

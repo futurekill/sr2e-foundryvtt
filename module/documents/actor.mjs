@@ -3,7 +3,7 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
-import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert } from "../rules/sr2e-rules.mjs";
+import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -513,7 +513,7 @@ export class SR2EActor extends Actor {
       isResistance: true
     });
     const stages     = ["L", "M", "S", "D"];
-    const reductions = Math.floor((drainResult?.successes ?? 0) / 2);
+    const reductions = netToSteps(drainResult?.successes ?? 0);
     const finalIdx   = stages.indexOf(drain.level) - reductions;
     if (finalIdx >= 0) {
       const boxes = [1, 3, 6, 10][finalIdx];
@@ -732,7 +732,7 @@ export class SR2EActor extends Actor {
   async _resolveMeleeHit(message, state, o) {
     const esc = foundry.utils.escapeHTML;
     const stages = ["L", "M", "S", "D"];
-    const stageUps = Math.floor(o.net / 2);
+    const stageUps = netToSteps(o.net);
     const finalIdx = Math.min(stages.indexOf(o.level) + stageUps, 3);
     const finalLevel = stages[finalIdx];
 
@@ -861,7 +861,7 @@ export class SR2EActor extends Actor {
     });
 
     const stages     = ["L", "M", "S", "D"];
-    const reductions = Math.floor((resist?.successes ?? 0) / 2);
+    const reductions = netToSteps(resist?.successes ?? 0);
     const finalIdx   = stages.indexOf(level) - reductions;
 
     if (finalIdx < 0) {
@@ -1136,7 +1136,7 @@ export class SR2EActor extends Actor {
       isResistance: true
     });
 
-    const reductions = Math.floor((resist?.successes ?? 0) / 2);
+    const reductions = netToSteps(resist?.successes ?? 0);
     const finalIdx   = startIdx - reductions;
     if (finalIdx < 0) {
       return ChatMessage.create({

@@ -5,7 +5,8 @@ import {
   systemOperationTN, personaAttribute,
   icReactionBase, alertAdjustedRating, escalateAlert, programSize,
   burstRounds, recoilPenalty, burstDamageBonus,
-  programCost, focusCost
+  programCost, focusCost,
+  netToSteps, astralReaction, drainTargetNumber
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
@@ -130,6 +131,33 @@ describe("Program memory size (SR2E p.174–177)", () => {
     expect(programSize(2, 4)).toBe(16);
     // Analyze ×3: R6 → 108 Mp
     expect(programSize(6, 3)).toBe(108);
+  });
+});
+
+describe("Net successes → staging steps (SR2E p.110)", () => {
+  it("is 1 step per 2 net successes (round down)", () => {
+    expect(netToSteps(0)).toBe(0);
+    expect(netToSteps(1)).toBe(0);
+    expect(netToSteps(2)).toBe(1);
+    expect(netToSteps(3)).toBe(1);
+    expect(netToSteps(4)).toBe(2);
+    expect(netToSteps(7)).toBe(3);
+  });
+});
+
+describe("Astral Reaction (SR2E p.146)", () => {
+  it("is (Intelligence + Willpower) / 2, rounded down", () => {
+    expect(astralReaction(6, 6)).toBe(6);
+    expect(astralReaction(5, 4)).toBe(4); // 4.5 → 4
+    expect(astralReaction(3, 2)).toBe(2);
+  });
+});
+
+describe("Spell Drain TN (SR2E p.131, p.140)", () => {
+  it("is floor(Force / 2) + drain modifier, min 2", () => {
+    expect(drainTargetNumber(4, 3)).toBe(5);   // Fireball at Force 4: 2 + 3
+    expect(drainTargetNumber(6, 0)).toBe(3);   // 3 + 0
+    expect(drainTargetNumber(2, -1)).toBe(2);  // 1 − 1 = 0 → clamped to 2
   });
 });
 

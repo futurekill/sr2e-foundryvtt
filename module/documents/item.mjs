@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -540,7 +540,7 @@ export class SR2EItem extends Item {
       const powerNote = powerNotes.length
         ? ` <em>(base ${dmg.power}, ${foundry.utils.escapeHTML(powerNotes.join(", "))})</em>` : "";
 
-      const stageUps = Math.floor(result.successes / 2);
+      const stageUps = netToSteps(result.successes);
       const stages   = ["L", "M", "S", "D"];
       const baseIdx  = stages.indexOf(dmg.level);
       const finalIdx = Math.min(baseIdx + levelBonus + stageUps, 3);
@@ -700,7 +700,7 @@ export class SR2EItem extends Item {
     const drain = parseDrainCode(this.system.drainCode);
     // TN = ⌊Force÷2⌋ + drain modifier  (SR2E p.140)
     // e.g. Fireball "((F / 2) + 3)D" at Force 4 → TN = ⌊4÷2⌋+3 = 5, level D
-    const drainTN        = Math.max(2, Math.floor(force / 2) + drain.modifier);
+    const drainTN        = drainTargetNumber(force, drain.modifier);
     // Physical drain if Force > Magic Rating (SR2E p.138)
     const drainType      = force > magicRating ? "physical" : "stun";
     const startLevel     = drain.level;   // L, M, S, or D

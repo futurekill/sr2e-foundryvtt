@@ -10,6 +10,38 @@
 /** Damage levels in ascending order (SR2E p.113). */
 export const DAMAGE_LEVELS = ["L", "M", "S", "D"];
 
+/**
+ * Net successes convert to damage-staging steps at 2 successes per step
+ * (SR2E p.110): the attacker stages damage up by net/2, and a resistance test
+ * stages it down by its successes/2. Also the drain-reduction rate.
+ * @param {number} successes
+ * @returns {number}
+ */
+export function netToSteps(successes) {
+  return Math.floor((successes ?? 0) / 2);
+}
+
+/**
+ * Astral Reaction (SR2E p.146): (Intelligence + Willpower) / 2, rounded down.
+ * @param {number} intelligence
+ * @param {number} willpower
+ * @returns {number}
+ */
+export function astralReaction(intelligence, willpower) {
+  return Math.floor((intelligence + willpower) / 2);
+}
+
+/**
+ * Spell Drain target number (SR2E p.131, p.140): ⌊Force ÷ 2⌋ + the spell's
+ * drain modifier, minimum 2.
+ * @param {number} force
+ * @param {number} modifier
+ * @returns {number}
+ */
+export function drainTargetNumber(force, modifier) {
+  return Math.max(2, Math.floor(force / 2) + modifier);
+}
+
 /** Condition-monitor boxes filled by each damage level (SR2E p.113). */
 export const DAMAGE_BOXES = { L: 1, M: 3, S: 6, D: 10 };
 
