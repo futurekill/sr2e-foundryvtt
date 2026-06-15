@@ -1,0 +1,34 @@
+{
+  "_id": "a4ea2cf2a8fd5c23",
+  "name": "Spirit Focus",
+  "type": "focus",
+  "img": "icons/svg/aura.svg",
+  "system": {
+    "focusType": "spirit",
+    "force": 1,
+    "bondingCost": 2,
+    "bonded": false,
+    "active": false,
+    "cost": 10000,
+    "notes": "SR2E p.164. Adds Force to Conjuring and spirit control tests. Force 1."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a4ea2cf2a8fd5c23"
+}

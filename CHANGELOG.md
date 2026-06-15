@@ -3,9 +3,11 @@
 ## Unreleased
 
 ### Changes
-- **Matrix Programs compendium** is now one editable template per program type
-  (18 entries) instead of a fixed copy at every rating (108). Drop a program and
-  set its Rating on the item sheet — memory Size recomputes automatically.
+- **Rated compendium items collapsed to one editable template each** instead of
+  a separate copy per rating. Matrix Programs (108 → 18), Magical Foci (30 → 5:
+  Power/Spell/Weapon/Spirit Focus, Spell Lock), the Increased Reflexes and
+  Combat Sense adept powers, the Commlink cyberware, and rated gear (Medkit,
+  Fake SIN, etc.). Drop the item and set its rating/force on the item sheet.
 
 ## 0.9.1
 
