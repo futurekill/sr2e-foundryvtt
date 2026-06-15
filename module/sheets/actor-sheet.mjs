@@ -3174,10 +3174,13 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    context.hosts = game.actors.filter(a => a.type === "host");
-    context.linkedHost = this.document.system.hostUuid
-      ? fromUuidSync(this.document.system.hostUuid)
-      : null;
+    // Plain {uuid, name} objects — `uuid` is a prototype getter that does not
+    // render reliably in Handlebars option values, so expose it as own data.
+    context.hosts = game.actors
+      .filter(a => a.type === "host")
+      .map(h => ({ uuid: h.uuid, name: h.name }));
+    const host = this.document.system.hostUuid ? fromUuidSync(this.document.system.hostUuid) : null;
+    context.linkedHost = host ? { uuid: host.uuid, name: host.name } : null;
     return context;
   }
 
