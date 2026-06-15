@@ -140,7 +140,12 @@ p.169) and the +50% passive/active alert IC-rating boost (p.168), applied to IC
 attack/resist/initiative; ✅ IC↔Host link (set Code/alert once on the host and
 all defending IC follow, including system-op alert escalation). **Remaining:**
 node-connection map / multi-node hosts and auto-spawning IC on active alert.
-Detection Factor (Masking + Sensor gating) still **[VERIFY]**.
+
+**Note on "Detection Factor":** that is an SR3 term — SR2 has no Detection
+Factor. SR2's equivalent is the IC *perception* test: white IC rolls its Rating
+against the persona's **Masking** as the target number (p.169, p.176); any
+success means the IC notices the intruder and raises the alert. ✅ Implemented
+as `SR2EActor#rollMatrixPerception` + the IC sheet's "Detect Intruder" action.
 
 **Phase 3 — Content & polish.** *(utilities done)*
 ✅ Full utility-program compendium (Slow, Mirrors, Shield, Smoke, Medic, Analyze,

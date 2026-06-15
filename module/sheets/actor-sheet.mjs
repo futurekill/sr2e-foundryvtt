@@ -1321,6 +1321,42 @@ async function onMatrixAttack(event, target) {
 }
 
 /**
+ * IC scans for an intruder (SR2E p.169): roll the IC's Rating vs the target
+ * persona's Masking. Pre-fills Masking from a targeted decker token.
+ * @this {ApplicationV2}
+ */
+async function onMatrixPerception(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const targeted = Array.from(game.user?.targets ?? [])
+    .map(t => t.actor).find(a => a?.type === "character" && (a.system.cyberdeck?.mpcp ?? 0) > 0);
+  const prefill = targeted?.system.matrixPersona?.masking ?? 4;
+
+  let masking = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Detect Intruder" },
+    rejectClose: false,
+    content: `<form>
+      <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
+        The IC rolls its Rating (${actor.system.effectiveRating ?? actor.system.rating}) against the
+        intruder's <strong>Masking</strong>. Any success raises the alert.
+      </div>
+      <div class="form-group">
+        <label>Target Masking:</label>
+        <input type="number" name="masking" value="${prefill}" min="0" style="width:52px;text-align:center;" autofocus>
+      </div>
+    </form>`,
+    buttons: [
+      { action: "scan", label: "Scan", default: true,
+        callback: (e, b) => { masking = Math.max(0, parseInt(b.form.elements.masking?.value) || 0); } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "scan" || masking === null) return;
+  return actor.rollMatrixPerception(masking);
+}
+
+/**
  * Toggle the decker's jacked-in (Matrix) state.
  * @this {ApplicationV2}
  */
@@ -3163,7 +3199,8 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem,
-      matrixAttack: onMatrixAttack
+      matrixAttack: onMatrixAttack,
+      matrixPerception: onMatrixPerception
     }
   };
 

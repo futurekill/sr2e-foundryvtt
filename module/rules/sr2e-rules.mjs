@@ -186,3 +186,13 @@ export function alertAdjustedRating(rating, alert) {
   if (alert === "passive" || alert === "active") return Math.floor(rating * 1.5);
   return rating;
 }
+
+/**
+ * Escalate a node/IC alert one step (SR2E p.168): no alert → passive; a second
+ * trigger (already passive, or active) → active.
+ * @param {"none"|"passive"|"active"} current
+ * @returns {"passive"|"active"}
+ */
+export function escalateAlert(current) {
+  return current === "none" ? "passive" : "active";
+}

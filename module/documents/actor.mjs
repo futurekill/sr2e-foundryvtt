@@ -3,7 +3,7 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
-import { damageBoxes as boxesForLevel, systemOperationTN } from "../rules/sr2e-rules.mjs";
+import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1803,7 +1803,7 @@ export class SR2EActor extends Actor {
     if (totalAttempts > 1) {
       const alertRoll = await new Roll("1d6").evaluate();
       if (alertRoll.total <= totalAttempts) {
-        newAlert = host.system.alert === "none" ? "passive" : "active";
+        newAlert = escalateAlert(host.system.alert);
         alertNote = host.system.alert === "none"
           ? `<br><span style="color:#d9a441;"><i class="fas fa-triangle-exclamation"></i> Passive alert triggered (1d6 = ${alertRoll.total} ≤ ${totalAttempts} attempts).</span>`
           : `<br><span style="color:#c44;"><i class="fas fa-bell"></i> Alert escalated to ACTIVE (1d6 = ${alertRoll.total} ≤ ${totalAttempts} attempts).</span>`;
@@ -1830,6 +1830,52 @@ export class SR2EActor extends Actor {
         <br>vs ${foundry.utils.escapeHTML(host.name)} (${codeLabel}-${host.system.systemRating}), attempt ${totalAttempts}.
         <br>${verdict}
         ${alertNote}
+      </div>`
+    });
+    return result;
+  }
+
+  /**
+   * IC attempts to perceive / verify an intruding persona (SR2E p.169, p.176).
+   * The "Detection Factor" of later editions; in SR2 the IC rolls its (alert-
+   * boosted) Rating against the persona's Masking as the target number. Any
+   * success means the IC notices the intruder and raises the alert — escalated
+   * on the IC's linked Host (which propagates to every IC guarding it) or on the
+   * IC itself when unlinked. A higher Masking (or a running masking utility)
+   * keeps the decker hidden.
+   *
+   * @param {number} masking - the target persona's Masking rating (the TN).
+   */
+  async rollMatrixPerception(masking) {
+    if (this.type !== "ic") return;
+    const dice = this.system.effectiveRating ?? this.system.rating ?? 1;
+    const tn = Math.max(2, masking || 1);
+    const result = await this.rollSuccessTest(dice, tn, {
+      label: `IC Perception — Rating vs Masking ${tn} (SR2E p.169)`
+    });
+    const detected = (result?.successes ?? 0) > 0;
+
+    let note = "";
+    if (detected) {
+      const host = this.system.hostUuid ? await fromUuid(this.system.hostUuid) : null;
+      const target = (host?.type === "host" && host.isOwner) ? host : (this.isOwner ? this : null);
+      if (target) {
+        const newAlert = escalateAlert(target.system.alert);
+        if (newAlert !== target.system.alert) await target.update({ "system.alert": newAlert });
+        note = `<br><span style="color:#c44;"><i class="fas fa-bell"></i> Intruder detected — alert raised to <strong>${newAlert}</strong> on ${foundry.utils.escapeHTML(target.name)}.</span>`;
+      } else {
+        note = `<br><span style="color:#c44;"><i class="fas fa-bell"></i> Intruder detected — GM: raise the alert.</span>`;
+      }
+    } else {
+      note = `<br><span style="color:#7a8;">The intruder stays masked (no successes).</span>`;
+    }
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-item-card">
+        <strong>${foundry.utils.escapeHTML(this.name)} scans for intruders</strong>
+        — ${result?.successes ?? 0} success${(result?.successes ?? 0) === 1 ? "" : "es"} vs Masking ${tn}.
+        ${note}
       </div>`
     });
     return result;

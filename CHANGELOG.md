@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### New mechanics
+- **IC perception / "Detect Intruder"** (p.169) — the SR2 equivalent of later
+  editions' Detection Factor. An IC scans for an intruder by rolling its
+  (alert-boosted) Rating against the persona's Masking; any success means it
+  notices the decker and raises the alert on its linked Host (propagating to
+  every IC there). A "Detect Intruder" button on the IC sheet, pre-filling the
+  target's Masking from a targeted decker token.
+
+### Changes
+- **Derived costs** — program cost (Size × 100) and magical-focus cost
+  (Force × per-Force unit) now recompute from the rating/force, so the collapsed
+  one-template-per-type items price themselves correctly when you change rating.
+
 ## 0.9.2
 
 ### New mechanics

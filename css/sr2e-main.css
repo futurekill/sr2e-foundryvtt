@@ -2044,6 +2044,15 @@
   border-color: var(--sr2e-gold-dim);
 }
 
+.sr2e-matrix-sheet .ic-action-row {
+  display: flex;
+  gap: 8px;
+}
+
+.sr2e-matrix-sheet .ic-action-row .matrix-attack-btn {
+  flex: 1;
+}
+
 /* Persona attribute grid (5 across, wraps) */
 .sr2e-matrix-sheet .attr-grid {
   display: grid;
