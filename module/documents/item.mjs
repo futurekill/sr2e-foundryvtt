@@ -274,7 +274,7 @@ export class SR2EItem extends Item {
     const actor = options.gunner ?? this.parent;
     if (!actor) return;
 
-    const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
+    const RANGE_TN_MODS = CONFIG.SR2E.rangeTnMods;
     const BASE_TN = 4;
 
     const isMelee  = ["melee", "throwing"].includes(this.system.weaponType);

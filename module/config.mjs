@@ -84,6 +84,9 @@ SR2E.conditionLevels = {
 // Damage staging: L -> M -> S -> D -> Overflow/Dead
 SR2E.damageStages = ["L", "M", "S", "D"];
 
+// Ranged-attack target-number modifiers by range bracket (SR2E p.91).
+SR2E.rangeTnMods = { short: 0, medium: 2, long: 4, extreme: 6 };
+
 // Each condition level = 3 boxes by default (10 boxes total for standard monitor)
 SR2E.conditionBoxesPerLevel = 3;
 
