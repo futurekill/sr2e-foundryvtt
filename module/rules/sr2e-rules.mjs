@@ -87,6 +87,47 @@ export function personaAttribute(programRating, mpcp) {
 }
 
 /**
+ * Rounds fired by a weapon's firing mode (SR2E p.92–93): a burst-fire weapon
+ * fires a fixed 3-round burst; full auto fires a declared 3–10 rounds; single
+ * shot / semi-auto fire 1.
+ * @param {"ss"|"sa"|"bf"|"fa"} firingMode
+ * @param {number} [declared] - declared rounds for full auto
+ * @returns {number}
+ */
+export function burstRounds(firingMode, declared) {
+  if (firingMode === "bf") return 3;
+  if (firingMode === "fa") return Math.min(10, Math.max(3, declared ?? 3));
+  return 1;
+}
+
+/**
+ * Recoil penalty (SR2E p.93): +1 TN per uncompensated round fired this Action
+ * Phase. A burst's own rounds count toward its recoil (firearms/heavy only);
+ * recoil compensation cancels rounds one-for-one.
+ * @param {number} shotsFired - rounds already fired this phase (recoil counter)
+ * @param {number} rounds     - rounds in this attack
+ * @param {object} opts
+ * @param {boolean} opts.isBurst
+ * @param {boolean} opts.hasRecoil  - weapon type is subject to recoil
+ * @param {number}  opts.recoilComp - recoil compensation
+ * @returns {number}
+ */
+export function recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp }) {
+  const recoilRounds = shotsFired + (isBurst && hasRecoil ? rounds : 0);
+  return Math.max(0, recoilRounds - (recoilComp ?? 0));
+}
+
+/**
+ * Burst / full-auto damage bonus (SR2E p.93): +1 Power per round in the burst,
+ * +1 Damage Level per 3 full rounds.
+ * @param {number} rounds
+ * @returns {{ powerBonus: number, levelSteps: number }}
+ */
+export function burstDamageBonus(rounds) {
+  return { powerBonus: rounds, levelSteps: Math.floor(rounds / 3) };
+}
+
+/**
  * Memory size (Mp) of a Matrix program (SR2E p.174–177): Rating² × multiplier,
  * rounded up. The multiplier is the program's per-type factor (Browse ×1,
  * Attack/Evaluate/Decrypt/Scramble/Deception/Relocate/Slow ×2, Analyze/Mirrors/

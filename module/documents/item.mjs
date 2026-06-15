@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -398,8 +399,7 @@ export class SR2EItem extends Item {
 
       // Rounds fired: BF is a fixed 3-round burst; FA fires 3–10 declared rounds.
       isBurst = firingMode === "bf" || firingMode === "fa";
-      if (firingMode === "bf") rounds = 3;
-      else if (firingMode === "fa") rounds = Math.min(10, Math.max(3, options.rounds ?? 3));
+      rounds = burstRounds(firingMode, options.rounds);
 
       // Ammunition check (only when the weapon tracks ammo, i.e. max > 0)
       const ammo = this.system.ammo;
@@ -430,12 +430,11 @@ export class SR2EItem extends Item {
       shotsFired          = actor.system.combatRecoil ?? 0;
       const recoilComp    = this.system.recoilComp    ?? 0;
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
-      const recoilRounds  = shotsFired + (isBurst && hasRecoil ? rounds : 0);
-      const recoilPenalty = Math.max(0, recoilRounds - recoilComp);
+      const recoilMod     = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp });
 
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
-                + cyberwareMod + recoilPenalty + defaultingPenalty
+                + cyberwareMod + recoilMod + defaultingPenalty
       );
 
       if (defaultingNote) modParts.push(defaultingNote);
@@ -520,9 +519,10 @@ export class SR2EItem extends Item {
       // Burst damage (SR2E p.93): Power +1 per round in the burst, Damage
       // Level +1 per 3 full rounds (BF's fixed 3-round burst = +3 Power, +1 Level).
       if (isRanged && isBurst) {
-        effectivePower += rounds;
-        levelBonus = Math.floor(rounds / 3);
-        powerNotes.push(`+${rounds} burst, level +${levelBonus}`);
+        const burst = burstDamageBonus(rounds);
+        effectivePower += burst.powerBonus;
+        levelBonus = burst.levelSteps;
+        powerNotes.push(`+${burst.powerBonus} burst, level +${levelBonus}`);
       }
       effectivePower = Math.max(1, effectivePower);
       const powerNote = powerNotes.length

@@ -3,7 +3,8 @@ import {
   DAMAGE_LEVELS, damageBoxes, stageLevel,
   columnWoundPenalty, totalWoundPenalty,
   systemOperationTN, personaAttribute,
-  icReactionBase, alertAdjustedRating, programSize
+  icReactionBase, alertAdjustedRating, programSize,
+  burstRounds, recoilPenalty, burstDamageBonus
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
@@ -69,6 +70,52 @@ describe("Matrix system-operation TN (SR2E p.166–167)", () => {
   it("adds an untrained Skill-Web default penalty", () => {
     expect(systemOperationTN(4, 0, 4)).toBe(8);
     expect(systemOperationTN(4, 2, 4)).toBe(12);
+  });
+});
+
+describe("Firing modes & rounds (SR2E p.92–93)", () => {
+  it("fires 1 round for single shot / semi-auto", () => {
+    expect(burstRounds("ss")).toBe(1);
+    expect(burstRounds("sa")).toBe(1);
+  });
+
+  it("fires a fixed 3-round burst for BF", () => {
+    expect(burstRounds("bf", 10)).toBe(3); // declared ignored for BF
+  });
+
+  it("fires a declared 3–10 rounds for FA, clamped", () => {
+    expect(burstRounds("fa", 5)).toBe(5);
+    expect(burstRounds("fa", 1)).toBe(3);  // min 3
+    expect(burstRounds("fa", 20)).toBe(10); // max 10
+    expect(burstRounds("fa")).toBe(3);      // default
+  });
+});
+
+describe("Recoil penalty (SR2E p.93)", () => {
+  it("adds the burst's own rounds for a recoil-prone weapon", () => {
+    // First BF burst, no prior shots, no comp → +3
+    expect(recoilPenalty(0, 3, { isBurst: true, hasRecoil: true, recoilComp: 0 })).toBe(3);
+  });
+
+  it("recoil compensation cancels rounds one-for-one (min 0)", () => {
+    expect(recoilPenalty(0, 3, { isBurst: true, hasRecoil: true, recoilComp: 2 })).toBe(1);
+    expect(recoilPenalty(0, 3, { isBurst: true, hasRecoil: true, recoilComp: 5 })).toBe(0);
+  });
+
+  it("counts rounds already fired this phase", () => {
+    expect(recoilPenalty(2, 1, { isBurst: false, hasRecoil: true, recoilComp: 0 })).toBe(2);
+  });
+
+  it("ignores the burst rounds for weapons not subject to recoil", () => {
+    expect(recoilPenalty(0, 3, { isBurst: true, hasRecoil: false, recoilComp: 0 })).toBe(0);
+  });
+});
+
+describe("Burst/full-auto damage bonus (SR2E p.93)", () => {
+  it("adds +1 Power per round and +1 level per 3 rounds", () => {
+    expect(burstDamageBonus(3)).toEqual({ powerBonus: 3, levelSteps: 1 });
+    expect(burstDamageBonus(6)).toEqual({ powerBonus: 6, levelSteps: 2 });
+    expect(burstDamageBonus(10)).toEqual({ powerBonus: 10, levelSteps: 3 });
   });
 });
 
