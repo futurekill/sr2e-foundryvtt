@@ -95,6 +95,48 @@ export function totalWoundPenalty(physicalBoxes, stunBoxes) {
 }
 
 /**
+ * Wound level for a number of filled condition boxes (SR2E p.113): the same
+ * 1/3/6/10 thresholds as the Injury Modifier.
+ * @param {number} boxes
+ * @returns {"Undamaged"|"Light"|"Moderate"|"Serious"|"Deadly"}
+ */
+export function woundLevel(boxes) {
+  if (boxes >= 10) return "Deadly";
+  if (boxes >= 6)  return "Serious";
+  if (boxes >= 3)  return "Moderate";
+  if (boxes >= 1)  return "Light";
+  return "Undamaged";
+}
+
+/**
+ * First Aid target-number modifier from the patient's Body (SR2E p.115):
+ * a tougher patient is easier to stabilise. −1 at Body 4+, −2 at 7+, −3 at 10+.
+ * @param {number} body
+ * @returns {0|-1|-2|-3}
+ */
+export function firstAidBodyMod(body) {
+  if (body >= 10) return -3;
+  if (body >= 7)  return -2;
+  if (body >= 4)  return -1;
+  return 0;
+}
+
+/**
+ * Resolve an opposed melee exchange (SR2E p.100–101): whoever rolls more
+ * successes hits; ties favour the attacker. Net = the winner's margin (drives
+ * the damage staging via netToSteps).
+ * @param {number} attackerSuccesses
+ * @param {number} defenderSuccesses
+ * @returns {{ winner: "attacker"|"defender", net: number }}
+ */
+export function meleeOutcome(attackerSuccesses, defenderSuccesses) {
+  if (defenderSuccesses > attackerSuccesses) {
+    return { winner: "defender", net: defenderSuccesses - attackerSuccesses };
+  }
+  return { winner: "attacker", net: attackerSuccesses - defenderSuccesses };
+}
+
+/**
  * Target number for a Matrix system operation (SR2E p.166–167): the node's
  * System Rating, +2 for every prior attempt this run, plus any untrained
  * Skill-Web default penalty.

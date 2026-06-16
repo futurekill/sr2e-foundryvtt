@@ -6,7 +6,8 @@ import {
   icReactionBase, alertAdjustedRating, escalateAlert, programSize,
   burstRounds, recoilPenalty, burstDamageBonus,
   programCost, focusCost,
-  netToSteps, astralReaction, drainTargetNumber
+  netToSteps, astralReaction, drainTargetNumber,
+  woundLevel, firstAidBodyMod, meleeOutcome
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
@@ -131,6 +132,40 @@ describe("Program memory size (SR2E p.174–177)", () => {
     expect(programSize(2, 4)).toBe(16);
     // Analyze ×3: R6 → 108 Mp
     expect(programSize(6, 3)).toBe(108);
+  });
+});
+
+describe("Wound level by boxes (SR2E p.113)", () => {
+  it("maps 0/1/3/6/10 thresholds to the wound levels", () => {
+    expect(woundLevel(0)).toBe("Undamaged");
+    expect(woundLevel(1)).toBe("Light");
+    expect(woundLevel(2)).toBe("Light");
+    expect(woundLevel(3)).toBe("Moderate");
+    expect(woundLevel(5)).toBe("Moderate");
+    expect(woundLevel(6)).toBe("Serious");
+    expect(woundLevel(9)).toBe("Serious");
+    expect(woundLevel(10)).toBe("Deadly");
+  });
+});
+
+describe("First Aid Body modifier (SR2E p.115)", () => {
+  it("eases the TN for a tougher patient at Body 4/7/10", () => {
+    expect(firstAidBodyMod(3)).toBe(0);
+    expect(firstAidBodyMod(4)).toBe(-1);
+    expect(firstAidBodyMod(7)).toBe(-2);
+    expect(firstAidBodyMod(10)).toBe(-3);
+  });
+});
+
+describe("Opposed melee outcome (SR2E p.100–101)", () => {
+  it("attacker wins on more successes, with the net margin", () => {
+    expect(meleeOutcome(4, 1)).toEqual({ winner: "attacker", net: 3 });
+  });
+  it("ties favour the attacker (net 0)", () => {
+    expect(meleeOutcome(2, 2)).toEqual({ winner: "attacker", net: 0 });
+  });
+  it("defender wins only on strictly more successes", () => {
+    expect(meleeOutcome(1, 3)).toEqual({ winner: "defender", net: 2 });
   });
 });
 

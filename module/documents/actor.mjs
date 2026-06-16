@@ -3,7 +3,8 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
-import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps } from "../rules/sr2e-rules.mjs";
+import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
+         woundLevel, firstAidBodyMod, meleeOutcome } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -700,17 +701,16 @@ export class SR2EActor extends Actor {
     });
 
     // ── Compare and resolve (ties favour the attacker) ───────────────────────
-    const atk = state.successes;
-    const def = defense?.successes ?? 0;
+    const { winner, net } = meleeOutcome(state.successes, defense?.successes ?? 0);
 
-    if (def > atk) {
+    if (winner === "defender") {
       // Defender wins and strikes back with THEIR weapon
       const code = weapon ? weapon.system.damageCode : "(Str)M";
       const dmg = evaluateDamageCode(code, this);
       const damageType = weapon ? (weapon.system.damageType || "physical") : "stun";
       await this._resolveMeleeHit(message, state, {
         winnerName: this.name, loserName: state.attackerName,
-        weaponName: defWeaponName, net: def - atk,
+        weaponName: defWeaponName, net,
         power: Math.max(1, dmg.power), level: dmg.level, damageType,
         riposte: true
       });
@@ -1980,11 +1980,7 @@ export class SR2EActor extends Actor {
 
   /** Wound level label for a raw box count (Light 1 / Moderate 3 / Serious 6 / Deadly 10). */
   static levelForBoxes(boxes) {
-    if (boxes >= 10) return "Deadly";
-    if (boxes >= 6)  return "Serious";
-    if (boxes >= 3)  return "Moderate";
-    if (boxes >= 1)  return "Light";
-    return "Undamaged";
+    return woundLevel(boxes);
   }
 
   /**
@@ -2090,7 +2086,7 @@ export class SR2EActor extends Actor {
     if (patient.system.magic?.type && patient.system.magic.type !== "none") { tn += 2; parts.push("magician +2"); }
     // Patient Body attribute modifier
     const pBody = patient.system.body?.value ?? 1;
-    const bodyMod = pBody >= 10 ? -3 : pBody >= 7 ? -2 : pBody >= 4 ? -1 : 0;
+    const bodyMod = firstAidBodyMod(pBody);
     if (bodyMod) { tn += bodyMod; parts.push(`Body ${bodyMod}`); }
     if (opts.conditionMod) { tn += opts.conditionMod; parts.push(`conditions +${opts.conditionMod}`); }
     if (opts.noMedkit) { tn += 4; parts.push("no medkit +4"); }
