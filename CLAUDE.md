@@ -41,7 +41,10 @@ deterministic `Roll` via `queueDice([...])`, `game.settings`). This tier covers
 rules logic ONLY — sheet rendering, ApplicationV2 persistence, DialogV2 flows,
 and chat-card buttons are NOT covered here and still need manual/Foundry checks.
 When adding a rule, extract its math into `module/rules/` and add a test
-asserting the book values (cite the page).
+asserting the book values (cite the page). CI (`.github/workflows/test.yml`)
+runs `npm test` on every push/PR to main. Covering the UI/persistence layer
+(sheets, ApplicationV2 saves, DialogV2, chat-card buttons) would need an
+in-Foundry runner such as Quench — not yet set up.
 
 ## Releases
 Tag `vX.Y.Z` after bumping `system.json` version; GitHub Actions packages
