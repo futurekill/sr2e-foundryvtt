@@ -469,8 +469,45 @@ Hooks.on("updateActor", (actor, changes) => {
       ic.prepareData();
       if (ic.sheet?.rendered) ic.sheet.render(false);
     }
+    // When the host escalates to an ACTIVE alert, deploy its IC (SR2E p.168):
+    // notify the GM and drop any of the IC's scene tokens into the live combat.
+    const flat = foundry.utils.flattenObject(changes);
+    if (game.users.activeGM?.isSelf && flat["system.alert"] === "active") {
+      _deployICOnActiveAlert(actor);
+    }
   }
 });
+
+/**
+ * On a host's active alert, alert the GM with the list of defending IC and add
+ * any IC tokens on the active scene to the current combat (SR2E p.168). @private
+ */
+async function _deployICOnActiveAlert(host) {
+  const ic = game.actors.filter(a => a.type === "ic" && a.system.hostUuid === host.uuid);
+  if (!ic.length) return;
+
+  // Add linked IC tokens on the viewed scene to the active combat, if any.
+  let added = 0;
+  const combat = game.combat;
+  if (combat && canvas?.scene) {
+    const toAdd = canvas.tokens.placeables
+      .filter(t => t.actor && ic.includes(t.actor) && !combat.getCombatantByToken(t.id))
+      .map(t => ({ tokenId: t.id, sceneId: canvas.scene.id, actorId: t.actor.id }));
+    if (toAdd.length) { await combat.createEmbeddedDocuments("Combatant", toAdd); added = toAdd.length; }
+  }
+
+  const names = ic.map(a => foundry.utils.escapeHTML(a.name)).join(", ");
+  await ChatMessage.create({
+    speaker: { alias: foundry.utils.escapeHTML(host.name) },
+    whisper: ChatMessage.getWhisperRecipients("GM"),
+    content: `<div class="sr2e-damage-result">
+      <strong><i class="fas fa-bell"></i> ACTIVE ALERT — ${foundry.utils.escapeHTML(host.name)}</strong>
+      <br>Deploy the defending IC: ${names}.
+      ${added ? `<br><em>${added} IC token${added === 1 ? "" : "s"} added to combat.</em>`
+              : `<br><em>Drop the IC tokens onto the scene and add them to the tracker.</em>`}
+    </div>`
+  });
+}
 
 /* -------------------------------------------- */
 /*  Chat Message Hooks                          */

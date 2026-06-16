@@ -138,8 +138,9 @@ beat the Security Code, +2 TN per retry); ✅ alert escalation (1D6 ≤ attempts
 passive → active); ✅ IC Reaction Time (Security-Code base + Rating + 1D6,
 p.169) and the +50% passive/active alert IC-rating boost (p.168), applied to IC
 attack/resist/initiative; ✅ IC↔Host link (set Code/alert once on the host and
-all defending IC follow, including system-op alert escalation). **Remaining:**
-node-connection map / multi-node hosts and auto-spawning IC on active alert.
+all defending IC follow, including system-op alert escalation); ✅ IC deploy on
+active alert (GM whisper + linked IC tokens added to the live combat).
+**Remaining:** node-connection map / multi-node hosts.
 
 **Note on "Detection Factor":** that is an SR3 term — SR2 has no Detection
 Factor. SR2's equivalent is the IC *perception* test: white IC rolls its Rating

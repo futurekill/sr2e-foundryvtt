@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### New mechanics
+- **IC deploy on active alert** (p.168) — when a host escalates to an active
+  alert, the GM is whispered the list of defending IC, and any of those IC's
+  tokens on the active scene are automatically added to the combat tracker.
+
 ## 0.9.4
 
 ### Internal
