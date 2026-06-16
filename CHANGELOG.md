@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.4
+
+### Internal
+- Expanded the Node test suite to 63 tests, backfilling coverage for the
+  damage- and drain-code parsers, the healing / metatype / vehicle tables, the
+  firearm burst/full-auto/recoil math, astral reaction, spell-drain TN, and the
+  net-successes damage-staging steps. Extracted the ranged-attack TN modifier
+  table into `CONFIG.SR2E.rangeTnMods`. No gameplay changes.
+
 ## 0.9.3
 
 ### New mechanics
