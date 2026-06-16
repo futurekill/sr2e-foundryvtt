@@ -652,7 +652,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
                style="width:52px;text-align:center;"
-               title="Visibility (half value), called shots, etc.">
+               title="Aimed shot −1/Simple Action · called shot +4 (bypass armour / location) · visibility (half value) · environment. Enter the net here.">
       </div>
       <div class="form-group" style="margin:2px 0;">
         <label>Your allies in melee:</label>
@@ -704,7 +704,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
                style="width:52px;text-align:center;"
-               title="Visibility, called shots, environmental conditions, etc.">
+               title="Aimed shot −1/Simple Action · called shot +4 (bypass armour / location) · visibility · environment. Enter the net here.">
       </div>
     </div>`;
 
