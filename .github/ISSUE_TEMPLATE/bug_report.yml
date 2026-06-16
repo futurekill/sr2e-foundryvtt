@@ -1,0 +1,103 @@
+name: "🐞 Bug report (QA)"
+description: Report something broken or wrong while play-testing the SR2E system.
+title: "[Bug] "
+labels: ["bug", "qa"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Before filing, two quick sanity checks that cause most false alarms:
+        - **Number fields save on blur** — did you click away / press Enter after typing?
+        - **Are you editing the sidebar actor**, not an unlinked token's copy?
+
+        If it's still broken, fill this in. A screenshot + the browser console (F12) helps a lot.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which QA section / subsystem?
+      options:
+        - Character sheet & derived data
+        - Dice & success tests
+        - Karma Pool
+        - Ranged combat
+        - Melee combat
+        - Damage resistance & staging
+        - Magic / spellcasting
+        - Conjuring
+        - Astral
+        - Matrix / decking
+        - Vehicles & rigging
+        - Healing
+        - Cyberware / foci / adept powers
+        - Compendia & item drops
+        - Sheets (NPC/Spirit/IC/Host/Vehicle)
+        - Settings / migrations / misc
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, step by step?
+      placeholder: |
+        1. Opened the street sam sheet
+        2. Fired the AK-97 in burst mode at a targeted token
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      placeholder: Burst fire should add +3 Power and +1 Damage Level.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      placeholder: The damage code didn't change at all.
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors (F12 → Console)
+      description: Paste any red errors. Leave blank if none.
+      render: shell
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Foundry version · SR2E system version (Game Settings → about, or system.json)
+      placeholder: "Foundry 13.x · SR2E 0.9.4"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser / app
+      placeholder: "Chrome 1xx / Foundry desktop app"
+
+  - type: checkboxes
+    id: sanity
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I edited the **sidebar actor** (or a linked token), not an unlinked token copy.
+        - label: I clicked away / pressed Enter after typing into number fields.
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Screenshots / extra notes
+      description: Drag images straight into this box.

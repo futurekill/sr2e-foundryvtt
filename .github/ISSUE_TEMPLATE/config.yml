@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📋 QA Test Plan
+    url: https://github.com/futurekill/sr2e-foundryvtt/blob/main/docs/QA.md
+    about: The checklist to test against before filing a bug.
