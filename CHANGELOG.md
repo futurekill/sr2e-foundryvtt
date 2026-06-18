@@ -1,11 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.9.5
+
+### Fixes
+- **IC and Host icons now ship in releases.** `assets/icons/` was silently
+  excluded from git (a global macOS `Icon?` ignore rule matched the `icons`
+  directory case-insensitively), so the IC chip and Host server SVGs were
+  missing from every release — on a fresh install the Intrusion Countermeasures
+  compendium showed generic placeholders. Force-tracked the icons and added a
+  repo `.gitignore` negation so it can't recur.
 
 ### New mechanics
 - **IC deploy on active alert** (p.168) — when a host escalates to an active
   alert, the GM is whispered the list of defending IC, and any of those IC's
   tokens on the active scene are automatically added to the combat tracker.
+
+### Internal
+- Backfilled tests for wound level, the First Aid Body modifier, and the
+  opposed-melee outcome; documented aimed/called-shot modifiers in the attack
+  dialog; added a CI workflow that runs the test suite on push.
 
 ## 0.9.4
 
