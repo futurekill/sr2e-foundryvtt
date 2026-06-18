@@ -6,19 +6,19 @@
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "7M",
+    "damageCode": "6M",
     "damageType": "physical",
-    "concealability": 4,
+    "concealability": 5,
     "reach": 0,
     "firingModes": {
       "ss": false,
-      "sa": true,
+      "sa": false,
       "bf": true,
       "fa": false
     },
     "ammo": {
-      "current": 16,
-      "max": 16,
+      "current": 24,
+      "max": 24,
       "type": "smg"
     },
     "recoilComp": 1,
@@ -29,13 +29,13 @@
       "extreme": 150
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 550,
+    "weight": 4,
+    "cost": 600,
     "availability": "5/72hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.232. The latest in the venerable Uzi lineage—compact, reliable, and effective in close quarters. BF capable."
+    "notes": "SR2E p.232. The latest in the venerable Uzi lineage\u2014compact, reliable, and effective in close quarters. BF capable."
   },
   "effects": [],
   "flags": {},

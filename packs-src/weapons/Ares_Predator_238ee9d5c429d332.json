@@ -29,8 +29,8 @@
       "extreme": 60
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 550,
+    "weight": 2.25,
+    "cost": 450,
     "availability": "5/48hrs",
     "legality": "Legal",
     "equipped": false,

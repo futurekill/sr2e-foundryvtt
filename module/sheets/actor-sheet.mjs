@@ -2976,6 +2976,42 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.physicalAttributes = ["body", "quickness", "strength"];
     context.mentalAttributes = ["charisma", "intelligence", "willpower"];
 
+    // --- Character-creation priority dropdowns (SR2E p.54) ---
+    // Build labelled A–E options per category so the player can see what each
+    // grade grants, and flag duplicate grades (each letter is used exactly once).
+    const prio = CONFIG.SR2E.priorities;
+    const chosen = system.chargen?.priorities ?? {};
+    const nuyen = (n) => "" + n.toLocaleString("en-US") + "¥";
+    const magicLabels = {
+      full_magician: "Full Magician", adept_or_meta_magician: "Aspected / Adept",
+      meta_adept: "Adept", none: "Mundane"
+    };
+    const desc = {
+      race:       (g) => prio[g].race === "metahuman" ? "Any metatype" : "Human only",
+      magic:      (g) => magicLabels[prio[g].magic] ?? "Mundane",
+      attributes: (g) => `${prio[g].attributes} points`,
+      skills:     (g) => `${prio[g].skills} points`,
+      resources:  (g) => nuyen(prio[g].resources)
+    };
+    // Count how many categories picked each grade, to mark collisions.
+    const counts = {};
+    for (const cat of Object.keys(desc)) {
+      const g = chosen[cat];
+      if (g) counts[g] = (counts[g] ?? 0) + 1;
+    }
+    context.priorityOptions = {};
+    for (const cat of Object.keys(desc)) {
+      context.priorityOptions[cat] = ["A", "B", "C", "D", "E"].map((g) => ({
+        grade: g,
+        label: `${g} — ${desc[cat](g)}`,
+        selected: chosen[cat] === g
+      }));
+    }
+    // Grades that appear more than once (duplicates) and grades never used.
+    context.priorityDuplicates = Object.keys(counts).filter((g) => counts[g] > 1).sort();
+    context.priorityUnused = ["A", "B", "C", "D", "E"].filter((g) => !counts[g]);
+    context.priorityValid = context.priorityDuplicates.length === 0;
+
     return context;
   }
 

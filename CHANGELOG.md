@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.6
+
+Playtest feedback from the group.
+
+### Fixes
+- **Metatype attribute penalties now show on the sheet.** The Mental attribute
+  block (Charisma/Intelligence/Willpower) only rendered *positive* racial and
+  cyber modifiers, so an ork's −1 Charisma/Intelligence or a troll's −2/−2/−1
+  were invisible — the penalty was applied to the total but looked like it
+  wasn't. The block now renders negative modifiers like the Physical block.
+- **Character-creation priority dropdowns** now show what each grade grants
+  (e.g. "A — 30 points", "C — 90,000¥", "A — Any metatype") instead of bare
+  A–E, and the sheet warns when a grade is used more than once or left unused
+  (each of A–E must be assigned exactly once, SR2E p.54).
+- **Weapon stat corrections against the core rulebook (p.94).** Audited the
+  Weapons compendium; fixed the Uzi III (clip 16→24, mode SA/BF→BF, damage
+  7M→6M, conceal 4→5, cost), HK227 (mode→SA/BF/FA, cost), Ruger Super Warhawk
+  (damage 9S→10M), Remington 950, Ranger Arms SM-3, Defiance T-250 (damage/
+  cost), Panther Assault Cannon (mode SA→SS, ammo, cost), and conceal/cost on
+  the Walther Palm Pistol, Colt America L36, Fichetti Security 500, Ares
+  Predator, and Browning Max-Power. Filled in weapon weights for those items.
+
 ## 0.9.5
 
 ### Fixes

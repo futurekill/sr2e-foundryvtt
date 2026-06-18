@@ -11,14 +11,14 @@
     "concealability": 99,
     "reach": 0,
     "firingModes": {
-      "ss": false,
-      "sa": true,
+      "ss": true,
+      "sa": false,
       "bf": false,
       "fa": false
     },
     "ammo": {
-      "current": 4,
-      "max": 4,
+      "current": 20,
+      "max": 20,
       "type": "ac"
     },
     "recoilComp": 2,
@@ -29,13 +29,13 @@
       "extreme": 600
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 8000,
+    "weight": 20,
+    "cost": 6500,
     "availability": "20/21 days",
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.234. The Ares Panther is the definitive assault cannon—fires explosive-equivalent shells with limited armor-piercing capability."
+    "notes": "SR2E p.234. The Ares Panther is the definitive assault cannon\u2014fires explosive-equivalent shells with limited armor-piercing capability."
   },
   "effects": [],
   "flags": {},

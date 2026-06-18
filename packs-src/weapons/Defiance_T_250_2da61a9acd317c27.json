@@ -6,7 +6,7 @@
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "8S",
+    "damageCode": "10S",
     "damageType": "physical",
     "concealability": 4,
     "reach": 0,
@@ -29,8 +29,8 @@
       "extreme": 60
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 350,
+    "weight": 4,
+    "cost": 1000,
     "availability": "4/72hrs",
     "legality": "Legal",
     "equipped": false,

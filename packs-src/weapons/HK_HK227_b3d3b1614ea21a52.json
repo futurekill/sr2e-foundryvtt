@@ -14,7 +14,7 @@
       "ss": false,
       "sa": true,
       "bf": true,
-      "fa": false
+      "fa": true
     },
     "ammo": {
       "current": 28,
@@ -29,8 +29,8 @@
       "extreme": 150
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 600,
+    "weight": 4,
+    "cost": 1500,
     "availability": "5/72hrs",
     "legality": "Legal",
     "equipped": false,

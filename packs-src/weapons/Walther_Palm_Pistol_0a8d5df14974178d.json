@@ -8,7 +8,7 @@
     "skill": "firearms",
     "damageCode": "4L",
     "damageType": "physical",
-    "concealability": 12,
+    "concealability": 9,
     "reach": 0,
     "firingModes": {
       "ss": true,
@@ -29,7 +29,7 @@
       "extreme": 35
     },
     "strengthMin": 0,
-    "weight": 0,
+    "weight": 0.25,
     "cost": 200,
     "availability": "2/48hrs",
     "legality": "Legal",

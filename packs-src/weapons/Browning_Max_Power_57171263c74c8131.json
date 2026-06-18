@@ -8,7 +8,7 @@
     "skill": "firearms",
     "damageCode": "9M",
     "damageType": "physical",
-    "concealability": 5,
+    "concealability": 6,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -29,13 +29,13 @@
       "extreme": 60
     },
     "strengthMin": 0,
-    "weight": 0,
+    "weight": 2.0,
     "cost": 450,
     "availability": "4/48hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting—the samurai's sidearm of choice."
+    "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting\u2014the samurai's sidearm of choice."
   },
   "effects": [],
   "flags": {},

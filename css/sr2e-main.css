@@ -1658,11 +1658,15 @@
 }
 
 .priority-row {
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-family: var(--sr2e-font);
 }
 
 .priority-row label {
+  flex: 0 0 96px;
   font-size: 9px;
   font-family: var(--sr2e-font-header);
   font-weight: 700;
@@ -1672,7 +1676,19 @@
 }
 
 .priority-row select {
-  width: 50px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.priority-warning {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  font-size: 10px;
+  color: var(--sr2e-danger, #b00);
+  border: 1px solid var(--sr2e-danger, #b00);
+  border-radius: 3px;
+  background: rgba(176, 0, 0, 0.08);
 }
 
 /* ============================================================================

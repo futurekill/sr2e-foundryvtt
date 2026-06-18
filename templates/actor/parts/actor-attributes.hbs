@@ -177,12 +177,20 @@
         {{#ifGt (deepLookup ../system attr 'racial') 0}}
         <span class="racial-mod positive">+{{deepLookup ../system attr 'racial'}}</span>
         {{else}}
+        {{#ifGt 0 (deepLookup ../system attr 'racial')}}
+        <span class="racial-mod negative">{{deepLookup ../system attr 'racial'}}</span>
+        {{else}}
         <span class="racial-mod">&mdash;</span>
+        {{/ifGt}}
         {{/ifGt}}
         {{#ifGt (deepLookup ../system attr 'mod') 0}}
         <span class="cyber-mod positive">+{{deepLookup ../system attr 'mod'}}</span>
         {{else}}
+        {{#ifGt 0 (deepLookup ../system attr 'mod')}}
+        <span class="cyber-mod negative">{{deepLookup ../system attr 'mod'}}</span>
+        {{else}}
         <span class="cyber-mod">&mdash;</span>
+        {{/ifGt}}
         {{/ifGt}}
         <span class="attr-total">{{deepLookup ../system attr 'value'}}</span>
       </div>
