@@ -12,8 +12,9 @@ Playtest feedback from the group.
   wasn't. The block now renders negative modifiers like the Physical block.
 - **Character-creation priority dropdowns** now show what each grade grants
   (e.g. "A — 30 points", "C — 90,000¥", "A — Any metatype") instead of bare
-  A–E, and the sheet warns when a grade is used more than once or left unused
-  (each of A–E must be assigned exactly once, SR2E p.54).
+  A–E. Picking a grade another category already holds now **auto-swaps** the
+  two so the five priorities always stay a valid A–E permutation (SR2E p.54),
+  with a warning banner as a fallback if the data is ever otherwise invalid.
 - **Weapon stat corrections against the core rulebook (p.94).** Audited the
   Weapons compendium; fixed the Uzi III (clip 16→24, mode SA/BF→BF, damage
   7M→6M, conceal 4→5, cost), HK227 (mode→SA/BF/FA, cost), Ruger Super Warhawk

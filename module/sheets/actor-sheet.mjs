@@ -3033,6 +3033,38 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
           if (zone) zone.classList.remove("drag-over");
         }
       }, { passive: true });
+
+      // Character-creation priority grades must form a permutation of A–E
+      // (SR2E p.54). When one dropdown changes to a grade already used by
+      // another category, swap them so every grade stays assigned exactly once.
+      const prioSelects = this.element.querySelectorAll(
+        'select[name^="system.chargen.priorities."]'
+      );
+      for (const sel of prioSelects) {
+        sel.addEventListener("change", (event) => {
+          const changed = event.currentTarget;
+          const newGrade = changed.value;
+          const prev = this.actor.system.chargen?.priorities ?? {};
+          const changedKey = changed.name.split(".").pop();
+          const oldGrade = prev[changedKey];
+          // Find the sibling category that currently holds the new grade.
+          let other = null;
+          for (const s of prioSelects) {
+            if (s === changed) continue;
+            if ((prev[s.name.split(".").pop()] ?? s.value) === newGrade) { other = s; break; }
+          }
+          if (!other || oldGrade == null || oldGrade === newGrade) return;
+          // Give the displaced category the grade we just vacated. Update its
+          // DOM value first so the form's submit-on-change reads the swapped
+          // permutation rather than re-introducing the duplicate, then persist.
+          const otherKey = other.name.split(".").pop();
+          other.value = oldGrade;
+          this.actor.update({
+            [`system.chargen.priorities.${changedKey}`]: newGrade,
+            [`system.chargen.priorities.${otherKey}`]: oldGrade
+          });
+        });
+      }
     }
 
     super._onRender(context, options);
