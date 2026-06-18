@@ -6,46 +6,67 @@
   "url": "https://github.com/futurekill/sr2e-foundryvtt",
   "manifest": "https://github.com/futurekill/sr2e-foundryvtt/releases/latest/download/system.json",
   "bugs": "https://github.com/futurekill/sr2e-foundryvtt/issues",
-  "changelog": "https://github.com/futurekill/sr2e-foundryvtt/releases",
+  "changelog": "https://github.com/futurekill/sr2e-foundryvtt/releases/tag/v0.9.4",
   "authors": [
     {
       "name": "James Candalino",
       "email": "jcandali@gmail.com",
-      "url": "https://github.com/futurekill"
+      "url": "https://github.com/futurekill",
+      "flags": {}
     }
   ],
   "compatibility": {
-    "minimum": 13,
-    "verified": 13
+    "minimum": "13",
+    "verified": "13"
   },
-  "esmodules": ["module/sr2e.mjs"],
-  "styles": ["css/sr2e-main.css"],
+  "esmodules": [
+    "module/sr2e.mjs"
+  ],
+  "styles": [
+    {
+      "src": "css/sr2e-main.css"
+    }
+  ],
   "languages": [
     {
       "lang": "en",
       "name": "English",
-      "path": "lang/en.json"
+      "path": "lang/en.json",
+      "flags": {}
     }
   ],
   "documentTypes": {
     "Actor": {
       "character": {
-        "htmlFields": ["biography", "notes"]
+        "htmlFields": [
+          "biography",
+          "notes"
+        ]
       },
       "npc": {
-        "htmlFields": ["biography"]
+        "htmlFields": [
+          "biography"
+        ]
       },
       "vehicle": {
-        "htmlFields": ["notes"]
+        "htmlFields": [
+          "notes"
+        ]
       },
       "spirit": {
-        "htmlFields": ["notes"]
+        "htmlFields": [
+          "notes"
+        ]
       },
       "ic": {
-        "htmlFields": ["notes"]
+        "htmlFields": [
+          "notes"
+        ]
       },
       "host": {
-        "htmlFields": ["notes"]
+        "htmlFields": [
+          "notes"
+        ]
       }
     },
     "Item": {
@@ -57,53 +78,270 @@
       "gear": {},
       "program": {},
       "adept_power": {
-        "htmlFields": ["description"]
+        "htmlFields": [
+          "description"
+        ]
       },
       "contact": {
-        "htmlFields": ["description"]
+        "htmlFields": [
+          "description"
+        ]
       },
       "lifestyle": {
-        "htmlFields": ["description"]
+        "htmlFields": [
+          "description"
+        ]
       },
       "ammo": {},
       "focus": {},
       "vehicle_mod": {},
       "race": {
-        "htmlFields": ["description"]
+        "htmlFields": [
+          "description"
+        ]
       },
       "tradition": {
-        "htmlFields": ["description"]
+        "htmlFields": [
+          "description"
+        ]
       }
     }
   },
   "grid": {
-    "type": 1,
-    "distance": 1,
     "units": "m"
   },
   "primaryTokenAttribute": "conditionMonitor.physical",
   "secondaryTokenAttribute": "conditionMonitor.stun",
   "initiative": "1d6",
   "packs": [
-    { "name": "skills",       "label": "SR2E Skills",         "path": "packs/skills",       "type": "Item",      "system": "sr2e", "folder": "Characters" },
-    { "name": "contacts",     "label": "SR2E Contacts",       "path": "packs/contacts",     "type": "Item",      "system": "sr2e", "folder": "Characters" },
-    { "name": "lifestyles",   "label": "SR2E Lifestyles",     "path": "packs/lifestyles",   "type": "Item",      "system": "sr2e", "folder": "Characters" },
-    { "name": "weapons",      "label": "SR2E Weapons",        "path": "packs/weapons",      "type": "Item",      "system": "sr2e", "folder": "Combat" },
-    { "name": "armor",        "label": "SR2E Armor",          "path": "packs/armor",        "type": "Item",      "system": "sr2e", "folder": "Combat" },
-    { "name": "ammo",         "label": "SR2E Ammunition",     "path": "packs/ammo",         "type": "Item",      "system": "sr2e", "folder": "Combat" },
-    { "name": "cyberware",    "label": "SR2E Cyberware",      "path": "packs/cyberware",    "type": "Item",      "system": "sr2e", "folder": "Augmentations" },
-    { "name": "spells",       "label": "SR2E Spells",         "path": "packs/spells",       "type": "Item",      "system": "sr2e", "folder": "Magic" },
-    { "name": "foci",         "label": "SR2E Magical Foci",   "path": "packs/foci",         "type": "Item",      "system": "sr2e", "folder": "Magic" },
-    { "name": "adept-powers", "label": "SR2E Adept Powers",   "path": "packs/adept-powers", "type": "Item",      "system": "sr2e", "folder": "Magic" },
-    { "name": "programs",     "label": "SR2E Matrix Programs","path": "packs/programs",     "type": "Item",      "system": "sr2e", "folder": "Matrix" },
-    { "name": "gear",         "label": "SR2E Equipment",      "path": "packs/gear",         "type": "Item",      "system": "sr2e", "folder": "Equipment" },
-    { "name": "roll-tables",  "label": "SR2E Roll Tables",    "path": "packs/roll-tables",  "type": "RollTable", "system": "sr2e", "folder": "Reference" },
-    { "name": "races",        "label": "SR2E Metatypes",        "path": "packs/races",        "type": "Item",      "system": "sr2e", "folder": "Characters" },
-    { "name": "traditions",   "label": "SR2E Traditions",       "path": "packs/traditions",   "type": "Item",      "system": "sr2e", "folder": "Magic" },
-    { "name": "critters",     "label": "SR2E Critters",         "path": "packs/critters",     "type": "Actor",     "system": "sr2e", "folder": "Actors" },
-    { "name": "runners",      "label": "SR2E Sample Runners",   "path": "packs/runners",      "type": "Actor",     "system": "sr2e", "folder": "Actors" },
-    { "name": "vehicles",     "label": "SR2E Vehicles & Drones","path": "packs/vehicles",     "type": "Actor",     "system": "sr2e", "folder": "Actors" },
-    { "name": "ic",           "label": "SR2E Intrusion Countermeasures","path": "packs/ic","type": "Actor","system": "sr2e", "folder": "Actors" }
+    {
+      "name": "skills",
+      "label": "SR2E Skills",
+      "path": "packs/skills",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "contacts",
+      "label": "SR2E Contacts",
+      "path": "packs/contacts",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "lifestyles",
+      "label": "SR2E Lifestyles",
+      "path": "packs/lifestyles",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "weapons",
+      "label": "SR2E Weapons",
+      "path": "packs/weapons",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "armor",
+      "label": "SR2E Armor",
+      "path": "packs/armor",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "ammo",
+      "label": "SR2E Ammunition",
+      "path": "packs/ammo",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "cyberware",
+      "label": "SR2E Cyberware",
+      "path": "packs/cyberware",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "spells",
+      "label": "SR2E Spells",
+      "path": "packs/spells",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "foci",
+      "label": "SR2E Magical Foci",
+      "path": "packs/foci",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "adept-powers",
+      "label": "SR2E Adept Powers",
+      "path": "packs/adept-powers",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "programs",
+      "label": "SR2E Matrix Programs",
+      "path": "packs/programs",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "gear",
+      "label": "SR2E Equipment",
+      "path": "packs/gear",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "roll-tables",
+      "label": "SR2E Roll Tables",
+      "path": "packs/roll-tables",
+      "type": "RollTable",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "races",
+      "label": "SR2E Metatypes",
+      "path": "packs/races",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "traditions",
+      "label": "SR2E Traditions",
+      "path": "packs/traditions",
+      "type": "Item",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "critters",
+      "label": "SR2E Critters",
+      "path": "packs/critters",
+      "type": "Actor",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "runners",
+      "label": "SR2E Sample Runners",
+      "path": "packs/runners",
+      "type": "Actor",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "vehicles",
+      "label": "SR2E Vehicles & Drones",
+      "path": "packs/vehicles",
+      "type": "Actor",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
+      "name": "ic",
+      "label": "SR2E Intrusion Countermeasures",
+      "path": "packs/ic",
+      "type": "Actor",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    }
   ],
   "packFolders": [
     {
@@ -113,52 +351,100 @@
         {
           "name": "Characters",
           "sorting": "a",
-          "packs": ["races", "skills", "contacts", "lifestyles"]
+          "packs": [
+            "races",
+            "skills",
+            "contacts",
+            "lifestyles"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Combat",
           "sorting": "a",
-          "packs": ["weapons", "armor", "ammo"]
+          "packs": [
+            "weapons",
+            "armor",
+            "ammo"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Magic",
           "sorting": "a",
-          "packs": ["traditions", "spells", "foci", "adept-powers"]
+          "packs": [
+            "traditions",
+            "spells",
+            "foci",
+            "adept-powers"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Augmentations",
           "sorting": "a",
-          "packs": ["cyberware"]
+          "packs": [
+            "cyberware"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Matrix",
           "sorting": "a",
-          "packs": ["programs"]
+          "packs": [
+            "programs"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Equipment",
           "sorting": "a",
-          "packs": ["gear"]
+          "packs": [
+            "gear"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Reference",
           "sorting": "a",
-          "packs": ["roll-tables"]
+          "packs": [
+            "roll-tables"
+          ],
+          "color": null,
+          "folders": []
         },
         {
           "name": "Actors",
           "sorting": "a",
-          "packs": ["critters", "runners", "vehicles", "ic"]
+          "packs": [
+            "critters",
+            "runners",
+            "vehicles",
+            "ic"
+          ],
+          "color": null,
+          "folders": []
         }
-      ]
+      ],
+      "color": null,
+      "packs": []
     }
   ],
   "background": "systems/sr2e/assets/sr2e-logo.webp",
   "media": [
     {
       "type": "icon",
-      "url": "systems/sr2e/assets/sr2e-logo.webp"
+      "url": "systems/sr2e/assets/sr2e-logo.webp",
+      "loop": false,
+      "flags": {}
     }
   ],
+  "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.9.4/sr2e.zip",
   "flags": {}
 }
