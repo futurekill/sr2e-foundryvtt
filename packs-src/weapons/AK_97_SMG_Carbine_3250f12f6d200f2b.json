@@ -1,14 +1,14 @@
 {
-  "_id": "9a954abc8f8a3315",
-  "name": "AK-97",
+  "_id": "3250f12f6d200f2b",
+  "name": "AK-97 SMG/Carbine",
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "8M",
+    "damageCode": "6M",
     "damageType": "physical",
-    "concealability": 3,
+    "concealability": 4,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -17,32 +17,32 @@
       "fa": true
     },
     "ammo": {
-      "current": 38,
-      "max": 38,
-      "type": "rifle"
+      "current": 30,
+      "max": 30,
+      "type": "smg"
     },
-    "recoilComp": 2,
+    "recoilComp": 0,
     "ranges": {
-      "short": 25,
-      "medium": 100,
-      "long": 250,
-      "extreme": 500
+      "short": 10,
+      "medium": 40,
+      "long": 80,
+      "extreme": 150
     },
     "strengthMin": 0,
-    "weight": 4.5,
-    "cost": 700,
+    "weight": 4,
+    "cost": 800,
     "availability": "8/72hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "Assault rifle (SR2E p.94). The ubiquitous Soviet-derived assault rifle; a separate SMG/carbine variant also exists. SA/BF/FA."
+    "notes": "SMG/carbine variant of the AK-97 (SR2E p.94). Shorter-ranged than the assault rifle; SA/BF/FA."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.9.6",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -55,5 +55,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!9a954abc8f8a3315"
+  "_key": "!items!3250f12f6d200f2b"
 }

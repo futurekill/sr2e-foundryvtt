@@ -21,6 +21,8 @@ Playtest feedback from the group.
   cost), Panther Assault Cannon (mode SA→SS, ammo, cost), and conceal/cost on
   the Walther Palm Pistol, Colt America L36, Fichetti Security 500, Ares
   Predator, and Browning Max-Power. Filled in weapon weights for those items.
+  Split the single ambiguous "AK-97" into the two book entries: **AK-97**
+  (assault rifle, 38(c)/8M) and **AK-97 SMG/Carbine** (30(c)/6M).
 
 ## 0.9.5
 
