@@ -62,6 +62,23 @@
           <input type="number" name="system.karma.pool" value="{{system.karma.pool}}" min="0" class="karma-ledger-input karma-pool" />
         </div>
 
+        <div class="karma-ledger-divider"></div>
+
+        {{!-- Shared Team Karma Pool (SR2E p.246): contribute from / draw into this
+              character's Karma Pool. Visible to all players; total stays in sync. --}}
+        <div class="karma-ledger-row">
+          <span class="karma-ledger-label" title="Shared Team Karma Pool — the team contributes Karma Pool points and draws from it by agreement (SR2E p.246)">Team Karma Pool</span>
+          <span class="karma-ledger-value karma-team">{{teamKarma}}</span>
+        </div>
+        <div class="karma-team-buttons">
+          <button type="button" class="karma-team-btn" data-action="contributeTeamKarma" title="Move Karma Pool points from this character into the Team Karma Pool">
+            <i class="fas fa-arrow-up"></i> Contribute
+          </button>
+          <button type="button" class="karma-team-btn" data-action="drawTeamKarma" title="Draw Karma Pool points from the Team Karma Pool into this character">
+            <i class="fas fa-arrow-down"></i> Draw
+          </button>
+        </div>
+
       </div>
     </fieldset>
 

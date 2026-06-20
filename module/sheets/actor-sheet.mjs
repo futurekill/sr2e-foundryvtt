@@ -1991,6 +1991,83 @@ async function onFirstAid(event) {
   return medic.firstAid(patient, opts);
 }
 
+/**
+ * Prompt for a positive Team Karma amount (1..max). Returns the integer or null.
+ * @private
+ */
+async function _promptTeamKarmaAmount(title, hintHtml, max) {
+  let amount = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title },
+    rejectClose: false,
+    content: `<form>
+      <p class="hint" style="margin:0 0 8px;">${hintHtml}</p>
+      <div class="form-group">
+        <label>Amount:</label>
+        <input type="number" name="amt" value="1" min="1" max="${max}" step="1" autofocus style="width:80px;">
+      </div>
+    </form>`,
+    buttons: [
+      { action: "go", label: "Confirm", default: true, callback: (event, button) => {
+        amount = Math.floor(Number(button.form.elements.amt?.value) || 0);
+      }},
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "go" || !amount || amount < 1) return null;
+  return Math.min(amount, max);
+}
+
+/**
+ * Contribute Karma Pool points from this character into the shared Team Karma
+ * Pool (SR2E p.246): reduces the character's Karma Pool and raises the team total.
+ * @private
+ */
+async function onContributeTeamKarma(event) {
+  event.preventDefault();
+  const actor = this.document;
+  const pool = actor.system.karma?.pool ?? 0;
+  if (pool < 1) return ui.notifications.warn("This character has no Karma Pool points to contribute.");
+  const amount = await _promptTeamKarmaAmount(
+    `Contribute to Team Karma — ${actor.name}`,
+    `Move Karma Pool points into the shared Team Karma Pool. Available: <strong>${pool}</strong>.`,
+    pool
+  );
+  if (!amount) return;
+  // Dispatch the team-total change first; abort (without spending) if no GM is connected.
+  if (!CONFIG.SR2E.changeTeamKarma(amount)) return;
+  await actor.update({ "system.karma.pool": pool - amount });
+  ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> contributes <strong>${amount}</strong> Karma Pool to the Team Karma Pool.`
+  });
+}
+
+/**
+ * Draw points from the shared Team Karma Pool into this character's Karma Pool
+ * (SR2E p.246 — requires the team's agreement, adjudicated at the table).
+ * @private
+ */
+async function onDrawTeamKarma(event) {
+  event.preventDefault();
+  const actor = this.document;
+  const team = game.settings.get("sr2e", "teamKarma") ?? 0;
+  if (team < 1) return ui.notifications.warn("The Team Karma Pool is empty.");
+  const amount = await _promptTeamKarmaAmount(
+    `Draw from Team Karma — ${actor.name}`,
+    `Draw shared points into this character's Karma Pool. The Team Karma Pool holds <strong>${team}</strong>. Drawing requires the team's agreement (SR2E p.246).`,
+    team
+  );
+  if (!amount) return;
+  if (!CONFIG.SR2E.changeTeamKarma(-amount)) return;
+  const pool = actor.system.karma?.pool ?? 0;
+  await actor.update({ "system.karma.pool": pool + amount });
+  ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> draws <strong>${amount}</strong> from the Team Karma Pool.`
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
@@ -2053,6 +2130,8 @@ const SHARED_ACTIONS = {
   recoverStun: onRecoverStun,
   healPhysical: onHealPhysical,
   firstAid: onFirstAid,
+  contributeTeamKarma: onContributeTeamKarma,
+  drawTeamKarma: onDrawTeamKarma,
 
   /**
    * Increment the condition monitor of a linked vehicle actor.
@@ -3011,6 +3090,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.priorityDuplicates = Object.keys(counts).filter((g) => counts[g] > 1).sort();
     context.priorityUnused = ["A", "B", "C", "D", "E"].filter((g) => !counts[g]);
     context.priorityValid = context.priorityDuplicates.length === 0;
+
+    // Shared Team Karma Pool total (SR2E p.246) — shown on every character sheet.
+    context.teamKarma = game.settings.get("sr2e", "teamKarma") ?? 0;
 
     return context;
   }

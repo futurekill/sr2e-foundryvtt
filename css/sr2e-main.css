@@ -1775,6 +1775,27 @@
   font-weight: normal;
 }
 
+/* Shared Team Karma Pool */
+.karma-ledger-value.karma-team {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--sr2e-highlight);
+}
+
+.karma-team-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.karma-team-btn {
+  flex: 1 1 0;
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .karma-ledger-divider {
   height: 1px;
   background: var(--sr2e-border);

@@ -164,6 +164,10 @@ Hooks.once("init", async () => {
 
 Hooks.once("ready", async () => {
 
+  // Team Karma Pool: players can't write world settings, so they emit a socket
+  // request and the active GM applies the change to the shared total. (p.246)
+  game.socket.on("system.sr2e", _onSocketMessage);
+
   // Run any pending world migrations before anything else can re-save
   // documents (which would discard removed-field source data). GM only.
   if (game.user.isGM) {
@@ -205,6 +209,48 @@ Hooks.once("ready", async () => {
 });
 
 /**
+ * Apply a change to the shared Team Karma Pool world setting, clamped at 0.
+ * Only the active GM may write a world setting, so non-GM callers route through
+ * the socket (see SR2E.changeTeamKarma).
+ * @param {number} delta - points to add (negative to draw)
+ * @private
+ */
+async function _applyTeamKarmaDelta(delta) {
+  const current = game.settings.get("sr2e", "teamKarma") ?? 0;
+  await game.settings.set("sr2e", "teamKarma", Math.max(0, current + delta));
+}
+
+/**
+ * Socket listener. The active GM applies Team Karma changes requested by players.
+ * @private
+ */
+function _onSocketMessage(data) {
+  if (data?.type !== "teamKarmaDelta") return;
+  // Exactly one client (the designated active GM) performs the write.
+  if (game.user !== game.users.activeGM) return;
+  _applyTeamKarmaDelta(data.delta);
+}
+
+/**
+ * Request a Team Karma Pool change. GMs apply it directly; players emit a socket
+ * request for the active GM to apply. Returns false if no GM is available.
+ * @param {number} delta
+ * @returns {boolean} whether the request was applied/dispatched
+ */
+SR2E.changeTeamKarma = function changeTeamKarma(delta) {
+  if (game.user.isGM) {
+    _applyTeamKarmaDelta(delta);
+    return true;
+  }
+  if (!game.users.activeGM) {
+    ui.notifications.warn("No GM is connected to update the Team Karma Pool.");
+    return false;
+  }
+  game.socket.emit("system.sr2e", { type: "teamKarmaDelta", delta, userId: game.user.id });
+  return true;
+};
+
+/**
  * Create SR2E system macros for the GM if they don't already exist.
  * @private
  */
@@ -214,6 +260,16 @@ async function _ensureSystemMacros() {
       name: "Award Karma",
       img: "icons/svg/aura.svg",
       src: "systems/sr2e/macros/award-karma.js"
+    },
+    {
+      name: "Refresh Karma Pool",
+      img: "icons/svg/regen.svg",
+      src: "systems/sr2e/macros/refresh-karma-pool.js"
+    },
+    {
+      name: "Reset Condition Monitors",
+      img: "icons/svg/heal.svg",
+      src: "systems/sr2e/macros/reset-condition.js"
     }
   ];
 
@@ -299,6 +355,23 @@ function _registerSystemSettings() {
     config: false,
     type: String,
     default: ""
+  });
+
+  // Team Karma Pool (SR2E p.246): a shared pool of Karma Pool points the team
+  // contributes to and draws from. World-scoped so it's shared; players change
+  // it via socket (see _onSocketMessage). onChange re-renders open character
+  // sheets so everyone sees the current total live.
+  game.settings.register("sr2e", "teamKarma", {
+    scope: "world",
+    config: false,
+    type: Number,
+    default: 0,
+    onChange: () => {
+      // Re-render any open character sheets so everyone sees the new total.
+      for (const actor of game.actors) {
+        if (actor.type === "character" && actor.sheet?.rendered) actor.sheet.render(false);
+      }
+    }
   });
 
   // Rule of Six toggle

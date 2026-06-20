@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.7
+
+### New
+- **Team Karma Pool** (SR2E p.246) — a shared pool of Karma Pool points, shown
+  on every character's Bio tab. Players can **Contribute** points from their own
+  Karma Pool into the team pool and **Draw** from it (the team total stays in
+  sync across all clients; players' changes are applied via the GM). Drawing is
+  meant to follow the book's "majority agreement" — adjudicated at the table.
+- **Two new GM macros** (auto-created on world load):
+  - **Refresh Karma Pool** — restores every character's Karma Pool to its full
+    value (Career Karma ÷ 10, min 1) at the start of a session/encounter.
+  - **Reset Condition Monitors** — clears Stun, Physical, and overflow on the
+    selected tokens.
+
+### Notes
+- This is a first pass at Team Karma as a simple shared bank. It does not yet
+  model the book's automatic per-scene refresh or enforce the agreement vote.
+
 ## 0.9.6
 
 Playtest feedback from the group.
