@@ -2304,6 +2304,29 @@
   background: rgba(0, 229, 255, 0.06);
 }
 
+/* Modules table (cybereyes/ears): a fixed layout keeps columns stable — auto
+   layout with width:100% inputs drifts the checkbox column out of alignment. */
+.modules-table {
+  table-layout: fixed;
+}
+.modules-table th:first-child,
+.modules-table td:first-child {
+  width: 38px;
+}
+.modules-table th:last-child,
+.modules-table td:last-child {
+  width: 28px;
+}
+.modules-table td:first-child input[type="checkbox"] {
+  display: block;
+  margin: 0 auto;
+  width: 14px;
+  height: 14px;
+}
+.modules-table tr.inactive-row td {
+  opacity: 0.55;
+}
+
 .rating-stats-table tr.active-rating-row input {
   color: var(--sr2e-gold);
 }
