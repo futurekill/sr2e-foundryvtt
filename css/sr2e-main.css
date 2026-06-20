@@ -85,12 +85,18 @@
 
 .sr2e.sheet input[type="checkbox"] {
   /* Never grow/shrink in flex containers (a form-group's flex:1 would otherwise
-     stretch the box and shove it off-center), and normalize spacing/alignment. */
+     stretch the box and shove it off-center), and strip the generic input box
+     (border/background/padding from `.sr2e.sheet input`) that was wrapping and
+     offsetting the native checkbox. */
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
   min-width: 14px;
   margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 0;
   vertical-align: middle;
   accent-color: var(--sr2e-highlight);
   cursor: pointer;
