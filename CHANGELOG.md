@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.8
+
+### Fixes
+- **Player characters now use linked prototype tokens.** Dragging a PC to the
+  canvas previously created an *unlinked* token, so spending karma (or taking
+  damage) on that token edited a private copy and never updated the sidebar
+  actor. Characters (and IC/Host) now default to linked tokens, and a migration
+  links existing characters on world load. NPCs/critters/spirits stay unlinked.
+  - Tokens already placed on a scene stay unlinked — delete and re-drag them
+    (or tick "Link Actor Data" in the token's config) to pick up the fix.
+
 ## 0.9.7
 
 ### New

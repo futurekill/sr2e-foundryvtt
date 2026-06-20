@@ -31,7 +31,18 @@
 
 /** Ordered list of migrations. Append new entries; never reorder. */
 const MIGRATIONS = [
-  // (none yet — the framework predates the first breaking schema change)
+  // 0.9.8 — PCs must use LINKED prototype tokens. Characters created before the
+  // link default was added drop unlinked tokens on the canvas, so karma/damage
+  // spent on a dragged-out token never reaches the sidebar actor. Link them.
+  // (Does not relink tokens already placed on scenes — re-drag those.)
+  {
+    version: "0.9.8",
+    migrateActor(source) {
+      if (source.type !== "character") return null;
+      if (source.prototypeToken?.actorLink) return null;
+      return { "prototypeToken.actorLink": true };
+    }
+  }
 ];
 
 /* -------------------------------------------- */

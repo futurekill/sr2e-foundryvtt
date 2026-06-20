@@ -513,19 +513,32 @@ const MATRIX_DEFAULT_ICONS = {
   ic:   "systems/sr2e/assets/icons/ic-chip.svg"
 };
 
-Hooks.on("preCreateActor", (actor, data) => {
-  if (!(actor.type in MATRIX_DEFAULT_ICONS)) return;
-  const updates = {};
-  if (data.prototypeToken?.actorLink === undefined) updates["prototypeToken.actorLink"] = true;
+// Actor types that should use a LINKED prototype token by default, so a token
+// dragged to the canvas IS the sidebar actor — editing it (spending karma,
+// taking damage) updates the directory actor instead of a divergent copy.
+// PCs are unique; IC/Host are singletons. NPCs/critters/spirits stay unlinked
+// (you often want several independent copies).
+const LINKED_PROTOTYPE_TYPES = new Set(["character", "ic", "host"]);
 
-  const defaultImg = "icons/svg/mystery-man.svg";
-  if (!data.img || data.img === defaultImg) {
-    const icon = MATRIX_DEFAULT_ICONS[actor.type];
-    updates["img"] = icon;
-    if (!data.prototypeToken?.texture?.src || data.prototypeToken.texture.src === defaultImg) {
-      updates["prototypeToken.texture.src"] = icon;
+Hooks.on("preCreateActor", (actor, data) => {
+  const updates = {};
+
+  if (LINKED_PROTOTYPE_TYPES.has(actor.type) && data.prototypeToken?.actorLink === undefined) {
+    updates["prototypeToken.actorLink"] = true;
+  }
+
+  // Themed default icon for the Matrix singletons (Host server / IC chip).
+  if (actor.type in MATRIX_DEFAULT_ICONS) {
+    const defaultImg = "icons/svg/mystery-man.svg";
+    if (!data.img || data.img === defaultImg) {
+      const icon = MATRIX_DEFAULT_ICONS[actor.type];
+      updates["img"] = icon;
+      if (!data.prototypeToken?.texture?.src || data.prototypeToken.texture.src === defaultImg) {
+        updates["prototypeToken.texture.src"] = icon;
+      }
     }
   }
+
   if (Object.keys(updates).length) actor.updateSource(updates);
 });
 
