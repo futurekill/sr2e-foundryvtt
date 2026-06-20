@@ -1,9 +1,11 @@
 node_modules/
 .DS_Store
 *.log
-# LevelDB compendium packs store recent writes in *.log files — they MUST be
-# tracked or cloned/released packs lose data. Re-include them explicitly.
-!packs/**/*.log
+# LevelDB compendium packs are a BUILD ARTIFACT regenerated from packs-src/ by
+# `npm run build-packs`. Not tracked: Foundry compacts these every session
+# (churning the working tree with no content change). The release workflow
+# rebuilds them from packs-src before packaging, so releases still ship packs.
+/packs/
 .env
 
 # Re-include the system's SVG icons: the user's global ~/.gitignore_global

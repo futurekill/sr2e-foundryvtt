@@ -26,11 +26,14 @@ Virtual Realities) are also in the parent folder.
 - Dialog buttons use bare i18n keys (DialogV2 localizes them itself).
 
 ## Compendium packs
-`packs-src/` (per-document JSON) is the source of truth; `packs/` is the
-LevelDB build. Keep both committed and in sync:
-`npm run extract-packs` (Foundry edits → JSON), `npm run build-packs [name]`
-(JSON → LevelDB). `.gitignore` re-includes `packs/**/*.log` — LevelDB
-write-ahead logs MUST stay tracked or releases lose data.
+`packs-src/` (per-document JSON) is the **source of truth and the only tracked
+copy**. `packs/` is the LevelDB build — **gitignored** (Foundry compacts it
+every session, churning the tree with no content change). Workflow:
+`npm run build-packs [name]` (JSON → LevelDB) after editing sources;
+`npm run extract-packs` (Foundry edits → JSON) to pull in-Foundry edits, then
+commit the resulting `packs-src/` changes. The release workflow runs
+`npm run build-packs` before packaging, so releases still ship the LevelDB.
+Never re-track `packs/`.
 
 ## Tests
 `npm test` (Vitest, plain Node — no Foundry). Tests live in `test/`; pure

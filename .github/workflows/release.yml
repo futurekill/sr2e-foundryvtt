@@ -49,6 +49,22 @@ jobs:
           echo "📦 Building release for version ${VERSION}"
 
       # ---------------------------------------------------------------
+      # 2b. Build the LevelDB compendium packs from packs-src/
+      #     (packs/ is gitignored — a build artifact, not committed)
+      # ---------------------------------------------------------------
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies & build packs
+        run: |
+          npm install --no-audit --no-fund
+          npm run build-packs
+          echo "✅ Built packs:"
+          ls -1 packs/
+
+      # ---------------------------------------------------------------
       # 3. Update system.json with correct version, manifest & download
       # ---------------------------------------------------------------
       - name: Update system.json
