@@ -2317,9 +2317,14 @@
 .modules-table td:last-child {
   width: 28px;
 }
+.modules-table td:first-child {
+  text-align: center;
+  vertical-align: middle;
+}
 .modules-table td:first-child input[type="checkbox"] {
-  display: block;
-  margin: 0 auto;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0;
   width: 14px;
   height: 14px;
 }
