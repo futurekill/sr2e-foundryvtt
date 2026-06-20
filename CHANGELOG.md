@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.11
+
+### Fixes
+- **Global checkbox styling.** Checkboxes across the system rendered
+  inconsistently — item-sheet `.form-group` rows applied `flex: 1`, stretching
+  the box off-center, and the generic input rule wrapped every checkbox in a
+  bordered, padded box. Checkboxes now render as clean, consistently-placed
+  native controls everywhere (Installed/Equipped/VCR toggles, chargen, the
+  cybereyes modules table, etc.).
+
 ## 0.9.10
 
 ### Fixes
