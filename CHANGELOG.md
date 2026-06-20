@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.10
+
+### Fixes
+- **Cybereyes modules table — checkbox alignment.** The "On" column checkboxes
+  drifted within their cells (auto table layout + inline-flow centering). The
+  table now uses a fixed layout and the checkbox is centered with a flex wrapper
+  (the whole cell is clickable too).
+
 ## 0.9.9
 
 ### New
