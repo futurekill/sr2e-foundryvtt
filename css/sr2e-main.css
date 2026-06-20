@@ -84,9 +84,16 @@
 }
 
 .sr2e.sheet input[type="checkbox"] {
+  /* Never grow/shrink in flex containers (a form-group's flex:1 would otherwise
+     stretch the box and shove it off-center), and normalize spacing/alignment. */
+  flex: 0 0 auto;
   width: 14px;
   height: 14px;
+  min-width: 14px;
+  margin: 0;
+  vertical-align: middle;
   accent-color: var(--sr2e-highlight);
+  cursor: pointer;
 }
 
 /* Flex utilities */
@@ -2213,7 +2220,7 @@
   color: var(--sr2e-text-muted);
 }
 
-.sr2e.sheet.item .form-group input,
+.sr2e.sheet.item .form-group input:not([type="checkbox"]),
 .sr2e.sheet.item .form-group select {
   flex: 1;
 }
