@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.9
+
+### New
+- **Cybereyes are now a container you augment with modules** (fixes #1). The base
+  cybereyes cost **0.2 Essence** and accept vision modules up to a free **0.5
+  Essence** capacity — only module essence beyond that adds to the total (SR2E
+  p.247). On the cybereyes item sheet, toggle which modules the eyes carry; the
+  sheet shows capacity used / over and the resulting Essence. Modules can also
+  carry a TN modifier (e.g. a Smartlink), which flows through to the smartgun
+  bonus. The mechanism is generic, so cyberears can use it too.
+- The **Cybereyes** compendium item ships pre-loaded with the book's eye modules
+  (Low-Light, Thermographic, Flare Compensation, Camera, Cosmetic Modification,
+  Retinal Duplication), each toggleable.
+
+### Fixes
+- The base cybereyes were charging a flat **0.4** Essence (should be 0.2) with no
+  capacity rule — corrected.
+- Removed **Smartgun Link** from the Cyberware compendium: it was a redundant,
+  mis-cited duplicate of the **Smartlink** (the real implant, p.249). Also folded
+  the standalone Eye Camera / Flare Compensation / Eye Cosmetic items into the
+  cybereyes modules.
+
 ## 0.9.8
 
 ### Fixes

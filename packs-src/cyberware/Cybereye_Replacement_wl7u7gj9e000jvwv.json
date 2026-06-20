@@ -1,17 +1,26 @@
 {
   "_id": "wl7u7gj9e000jvwv",
-  "name": "Cybereye Replacement",
+  "name": "Cybereyes",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "icons/svg/eye.svg",
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.4,
+    "essenceCost": 0.2,
     "rating": 0,
     "cost": 5000,
     "availability": "2/24hrs",
     "legality": "Legal",
     "installed": false,
+    "capacity": 0.5,
+    "modules": [
+      { "name": "Low-Light", "essenceCost": 0.2, "cost": 3000, "rating": 0, "combatTnMod": 0, "active": false, "notes": "See clearly in near-darkness. SR2E p.247." },
+      { "name": "Thermographic", "essenceCost": 0.2, "cost": 3000, "rating": 0, "combatTnMod": 0, "active": false, "notes": "See heat signatures through smoke and darkness. SR2E p.247." },
+      { "name": "Flare Compensation", "essenceCost": 0.1, "cost": 2000, "rating": 0, "combatTnMod": 0, "active": false, "notes": "Protects against blinding flashes and glare. SR2E p.247." },
+      { "name": "Camera", "essenceCost": 0.4, "cost": 5000, "rating": 0, "combatTnMod": 0, "active": false, "notes": "Records what the eye sees. SR2E p.247." },
+      { "name": "Cosmetic Modification", "essenceCost": 0, "cost": 1000, "rating": 0, "combatTnMod": 0, "active": false, "notes": "Custom appearance — natural or outlandish. No essence cost. SR2E p.247." },
+      { "name": "Retinal Duplication", "essenceCost": 0.1, "cost": 50000, "rating": 0, "combatTnMod": 0, "active": false, "notes": "Forges a retinal print to fool scanners — illegal. SR2E p.247." }
+    ],
     "attributeMods": {
       "body": 0,
       "quickness": 0,
@@ -23,14 +32,14 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. Full prosthetic cybereye. Can accept visual modifications. SI 0.75."
+    "notes": "SR2E p.247. Prosthetic cybereyes (base 0.2 Essence). They accept vision-enhancement modules up to 0.5 Essence at no further cost; only module essence beyond that adds to the total. Toggle the modules your eyes carry below."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.44",
+    "systemVersion": "0.9.9",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,

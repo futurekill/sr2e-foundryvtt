@@ -18,6 +18,8 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       rollItem:        SR2EItemSheet._onRollItem,
       addRatingRow:    SR2EItemSheet._addRatingRow,
       removeRatingRow: SR2EItemSheet._removeRatingRow,
+      addModuleRow:    SR2EItemSheet._addModuleRow,
+      removeModuleRow: SR2EItemSheet._removeModuleRow,
       addEffect:       SR2EItemSheet._addEffect,
       editEffect:      SR2EItemSheet._editEffect,
       deleteEffect:    SR2EItemSheet._deleteEffect
@@ -96,6 +98,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         context.cyberwareGrades = CONFIG.SR2E.cyberwareGrades;
         context.cyberwareLocations = CONFIG.SR2E.cyberwareLocations;
         context.hasRatingTable = (item.system.ratingStats?.length ?? 0) > 0;
+        context.isContainer = (item.system.capacity ?? 0) > 0 || (item.system.modules?.length ?? 0) > 0;
         break;
       case "program":
         context.programCategories = CONFIG.SR2E.programCategories;
@@ -188,5 +191,31 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const rows = foundry.utils.deepClone(item.system.ratingStats ?? []);
     rows.splice(index, 1);
     await item.update({ "system.ratingStats": rows });
+  }
+
+  /**
+   * Add a module slot to container cyberware (cybereyes/cyberears). The first
+   * add also seeds the free capacity at 0.5 if none was set, turning an ordinary
+   * cyberware item into a container.
+   */
+  static async _addModuleRow(event, target) {
+    event.preventDefault();
+    const item = this.document;
+    const mods = foundry.utils.deepClone(item.system.modules ?? []);
+    mods.push({ name: "", essenceCost: 0, cost: 0, rating: 0, combatTnMod: 0, active: true, notes: "" });
+    const update = { "system.modules": mods };
+    if ((item.system.capacity ?? 0) <= 0) update["system.capacity"] = 0.5;
+    await item.update(update);
+  }
+
+  /** Remove a module slot from container cyberware. */
+  static async _removeModuleRow(event, target) {
+    event.preventDefault();
+    const item = this.document;
+    const index = parseInt(target.dataset.index);
+    if (isNaN(index)) return;
+    const mods = foundry.utils.deepClone(item.system.modules ?? []);
+    mods.splice(index, 1);
+    await item.update({ "system.modules": mods });
   }
 }

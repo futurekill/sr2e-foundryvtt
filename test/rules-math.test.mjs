@@ -7,8 +7,22 @@ import {
   burstRounds, recoilPenalty, burstDamageBonus,
   programCost, focusCost,
   netToSteps, astralReaction, drainTargetNumber,
-  woundLevel, firstAidBodyMod, meleeOutcome
+  woundLevel, firstAidBodyMod, meleeOutcome, containerEssence
 } from "../module/rules/sr2e-rules.mjs";
+
+describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
+  it("absorbs modules up to the 0.5 free capacity (base only)", () => {
+    // base 0.2 eyes + thermo 0.2 + low-light 0.2 (modules sum 0.4 < 0.5)
+    expect(containerEssence(0.2, 0.4, 0.5)).toBe(0.2);
+  });
+  it("charges only essence beyond the capacity", () => {
+    // + camera 0.4 → modules sum 0.8; 0.2 + (0.8 - 0.5) = 0.5
+    expect(containerEssence(0.2, 0.8, 0.5)).toBe(0.5);
+  });
+  it("an empty container is just the base", () => {
+    expect(containerEssence(0.2, 0, 0.5)).toBe(0.2);
+  });
+});
 
 describe("Damage levels & boxes (SR2E p.113)", () => {
   it("fills 1/3/6/10 boxes for L/M/S/D", () => {

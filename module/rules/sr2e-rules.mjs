@@ -270,3 +270,18 @@ export function alertAdjustedRating(rating, alert) {
 export function escalateAlert(current) {
   return current === "none" ? "passive" : "active";
 }
+
+/**
+ * Essence cost of a "container" cyberware (cybereyes/cyberears) that absorbs
+ * add-on modules up to a free capacity (SR2E p.247: cybereyes accept vision
+ * enhancements up to 0.5 Essence without further loss). Only module essence
+ * beyond `capacity` adds to the base.
+ * @param {number} baseEssence - the container's own essence (e.g. 0.2 for eyes)
+ * @param {number} moduleEssenceSum - summed essence of the ACTIVE modules
+ * @param {number} capacity - free essence allowance (e.g. 0.5)
+ * @returns {number} total essence, rounded to 2 decimals
+ */
+export function containerEssence(baseEssence, moduleEssenceSum, capacity) {
+  const over = Math.max(0, (moduleEssenceSum || 0) - (capacity || 0));
+  return Math.round(((baseEssence || 0) + over) * 100) / 100;
+}

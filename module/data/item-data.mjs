@@ -317,6 +317,25 @@ export class CyberwareData extends SR2EDataModel {
         reaction: new fields.NumberField({ integer: true, initial: 0 }),
         initiativeDice: new fields.NumberField({ integer: true, initial: 0 })
       }),
+      // Container cyberware (cybereyes / cyberears): a free Essence allowance that
+      // absorbs add-on modules. capacity 0 = ordinary cyberware (no module slots).
+      // SR2E p.247 — cybereyes accept enhancements up to 0.5 Essence at no further
+      // cost; only module essence beyond `capacity` adds to the base.
+      capacity: new fields.NumberField({ initial: 0, min: 0 }),
+      modules: new fields.ArrayField(
+        new fields.SchemaField({
+          name:        new fields.StringField({ initial: "" }),
+          essenceCost: new fields.NumberField({ initial: 0, min: 0 }),
+          cost:        new fields.NumberField({ initial: 0, min: 0 }),
+          rating:      new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          // TN modifier the module grants while installed (e.g. −2 for a Smartlink),
+          // surfaced on the parent's combatTnMod so the smartgun logic still sees it.
+          combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
+          active:      new fields.BooleanField({ initial: true }),
+          notes:       new fields.StringField({ initial: "" })
+        }),
+        { initial: [] }
+      ),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -334,14 +353,33 @@ export class CyberwareData extends SR2EDataModel {
         this.streetIndex  = row.streetIndex;
       }
     }
+
+    // Container cyberware: total the ACTIVE modules and surface derived readouts.
+    // capacityUsed feeds the sheet meter; capacityOver is the essence charged
+    // beyond the free allowance; combatTnMod gains any module TN bonuses.
+    let modEssence = 0, modCost = 0, modTn = 0;
+    for (const m of this.modules ?? []) {
+      if (!m.active) continue;
+      modEssence += m.essenceCost ?? 0;
+      modCost    += m.cost ?? 0;
+      modTn      += m.combatTnMod ?? 0;
+    }
+    this.capacityUsed = Math.round(modEssence * 100) / 100;
+    this.capacityOver = Math.max(0, Math.round((modEssence - (this.capacity ?? 0)) * 100) / 100);
+    this.moduleCost   = modCost;
+    this.combatTnMod  = (this.combatTnMod ?? 0) + modTn;
   }
 
   /**
-   * Get the actual essence cost after grade modifier.
+   * Get the actual essence cost after grade modifier. For container cyberware
+   * (cybereyes/cyberears) this is base + the module essence beyond the free
+   * capacity; ordinary cyberware (capacity 0, no modules) is just the base.
    */
   get actualEssenceCost() {
     const gradeData = CONFIG.SR2E.cyberwareGrades[this.grade];
-    return this.essenceCost * (gradeData?.essenceMultiplier || 1.0);
+    const mult = gradeData?.essenceMultiplier || 1.0;
+    const total = (this.essenceCost + (this.capacityOver ?? 0)) * mult;
+    return Math.round(total * 100) / 100;
   }
 }
 

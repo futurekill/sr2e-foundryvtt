@@ -347,6 +347,50 @@
     </button>
   </div>
 
+  {{!-- Container cyberware (cybereyes / cyberears): add-on modules + free capacity --}}
+  {{#if isContainer}}
+  <div class="form-group">
+    <label>Module Capacity (Essence):</label>
+    <input type="number" name="system.capacity" value="{{system.capacity}}" min="0" step="0.1" />
+    <span class="hint">free Essence for add-on modules (0.5 for cybereyes)</span>
+  </div>
+  <div class="rating-stats-section">
+    <div class="rating-stats-header">
+      <span>Modules</span>
+      <span class="hint">— capacity used {{system.capacityUsed}} / {{system.capacity}}{{#ifGt system.capacityOver 0}} · <strong>+{{system.capacityOver}}</strong> Essence over (total {{system.actualEssenceCost}}){{/ifGt}}</span>
+    </div>
+    <table class="rating-stats-table">
+      <thead>
+        <tr><th title="Installed / active">On</th><th>Module</th><th>Ess</th><th>Cost ¥</th><th>Rtg</th><th title="Combat TN modifier (e.g. −2 Smartlink)">TN</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{#each system.modules}}
+        <tr class="{{#unless this.active}}inactive-row{{/unless}}">
+          <td><input type="checkbox" name="system.modules.{{@index}}.active" {{checked this.active}} /></td>
+          <td><input type="text"   name="system.modules.{{@index}}.name"        value="{{this.name}}" /></td>
+          <td><input type="number" name="system.modules.{{@index}}.essenceCost" value="{{this.essenceCost}}" min="0" step="0.1" /></td>
+          <td><input type="number" name="system.modules.{{@index}}.cost"        value="{{this.cost}}" min="0" /></td>
+          <td><input type="number" name="system.modules.{{@index}}.rating"      value="{{this.rating}}" min="0" /></td>
+          <td><input type="number" name="system.modules.{{@index}}.combatTnMod" value="{{this.combatTnMod}}" /></td>
+          <td>
+            <button type="button" class="remove-row-btn" data-action="removeModuleRow" data-index="{{@index}}" title="Remove module">
+              <i class="fas fa-times"></i>
+            </button>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  <div class="rating-stats-add">
+    <button type="button" class="add-rating-row-btn" data-action="addModuleRow">
+      <i class="fas fa-plus"></i>
+      {{#if isContainer}}Add Module{{else}}Enable Modules (Cybereyes/ears){{/if}}
+    </button>
+  </div>
+
   <fieldset>
     <legend>Attribute Modifiers</legend>
     <div class="attr-mods-grid">
