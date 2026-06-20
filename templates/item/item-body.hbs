@@ -366,7 +366,7 @@
       <tbody>
         {{#each system.modules}}
         <tr class="{{#unless this.active}}inactive-row{{/unless}}">
-          <td><input type="checkbox" name="system.modules.{{@index}}.active" {{checked this.active}} /></td>
+          <td class="cb-cell"><label class="modules-cb"><input type="checkbox" name="system.modules.{{@index}}.active" {{checked this.active}} /></label></td>
           <td><input type="text"   name="system.modules.{{@index}}.name"        value="{{this.name}}" /></td>
           <td><input type="number" name="system.modules.{{@index}}.essenceCost" value="{{this.essenceCost}}" min="0" step="0.1" /></td>
           <td><input type="number" name="system.modules.{{@index}}.cost"        value="{{this.cost}}" min="0" /></td>
