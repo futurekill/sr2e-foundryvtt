@@ -589,3 +589,20 @@ SR2E.movementRates = {
   walking: { multiplier: 1 },   // Quickness x 1 meters
   running: { multiplier: 3 }    // Quickness x 3 meters
 };
+
+// ---------------------------------------------------------------------------
+// QUALITIES (Edges & Flaws) — character traits with a build-point value.
+// Edges cost points (positive value); Flaws grant points (negative value).
+// The SR2E core has no edge/flaw rules; Rigger 2 (and the SR Companion) add
+// them as an optional subsystem. Effects are descriptive (not auto-applied).
+// ---------------------------------------------------------------------------
+SR2E.qualityKinds = {
+  edge: "SR2E.Quality.Edge",
+  flaw: "SR2E.Quality.Flaw"
+};
+SR2E.qualityCategories = {
+  skill:    "SR2E.Quality.Skill",
+  mental:   "SR2E.Quality.Mental",
+  physical: "SR2E.Quality.Physical",
+  other:    "SR2E.Quality.Other"
+};

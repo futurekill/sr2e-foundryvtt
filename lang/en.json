@@ -280,6 +280,13 @@
   "SR2E.Contact.Contact": "Contact",
   "SR2E.Contact.Buddy": "Buddy",
   "SR2E.Contact.Follower": "Follower",
+  "SR2E.Quality.Edge": "Edge",
+  "SR2E.Quality.Flaw": "Flaw",
+  "SR2E.Quality.Skill": "Skill",
+  "SR2E.Quality.Mental": "Mental",
+  "SR2E.Quality.Physical": "Physical",
+  "SR2E.Quality.Other": "Other",
+  "SR2E.Quality.Label": "Edges & Flaws",
 
   "SR2E.Focus.Spell": "Spell Focus",
   "SR2E.Focus.Spirit": "Spirit Focus",
@@ -361,6 +368,7 @@
   "TYPES.Item.ammo": "Ammunition",
   "TYPES.Item.focus": "Magical Focus",
   "TYPES.Item.vehicle_mod": "Vehicle Modification",
-  "TYPES.Item.race": "Metatype"
+  "TYPES.Item.race": "Metatype",
+  "TYPES.Item.quality": "Edge / Flaw"
 
 }

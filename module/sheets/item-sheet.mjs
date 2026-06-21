@@ -78,7 +78,8 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       adept_power: "fas fa-bolt",
       contact:     "fas fa-address-card",
       lifestyle:   "fas fa-home",
-      vehicle_mod: "fas fa-wrench"
+      vehicle_mod: "fas fa-wrench",
+      quality:     "fas fa-star-half-alt"
     };
     context.itemIcon = ITEM_ICONS[item.type] ?? "fas fa-box";
 
@@ -109,6 +110,10 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         break;
       case "lifestyle":
         context.lifestyles = CONFIG.SR2E.lifestyles;
+        break;
+      case "quality":
+        context.qualityKinds = CONFIG.SR2E.qualityKinds;
+        context.qualityCategories = CONFIG.SR2E.qualityCategories;
         break;
     }
 

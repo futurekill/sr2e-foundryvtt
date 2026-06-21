@@ -680,8 +680,33 @@
   </div>
   {{/ifEquals}}
 
+  {{#ifEquals type "quality"}}
+  <div class="form-group">
+    <label>Kind:</label>
+    <select name="system.kind">
+      {{#each qualityKinds as |label key|}}<option value="{{key}}" {{selected ../system.kind key}}>{{localize label}}</option>{{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Category:</label>
+    <select name="system.category">
+      {{#each qualityCategories as |label key|}}<option value="{{key}}" {{selected ../system.category key}}>{{localize label}}</option>{{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Point Value:</label>
+    <input type="number" name="system.pointValue" value="{{system.pointValue}}" step="1" />
+    <span class="hint">Edges positive, Flaws negative (tiers noted below).</span>
+  </div>
+  <div class="form-group">
+    <label>Source:</label>
+    <input type="text" name="system.source" value="{{system.source}}" placeholder="e.g. Rigger 2 p.15" />
+  </div>
+  {{/ifEquals}}
+
   {{!-- Notes (common to all non-race items) --}}
   {{#ifEquals type "skill"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "quality"}}  <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "weapon"}}   <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "armor"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "cyberware"}}<div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}

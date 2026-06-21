@@ -2944,6 +2944,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.lifestyles = actor.items.filter(i => i.type === "lifestyle");
     context.ammo = actor.items.filter(i => i.type === "ammo");
     context.foci = actor.items.filter(i => i.type === "focus");
+    // Edges & Flaws (qualities), split for display; total point value for the bio tab.
+    context.qualities = actor.items.filter(i => i.type === "quality")
+      .sort((a, b) => a.name.localeCompare(b.name));
+    context.qualityPointTotal = context.qualities.reduce((sum, q) => sum + (q.system.pointValue || 0), 0);
 
     // Resolve linked vehicles (Actor UUIDs → actor objects with their weapons)
     const linkedUuids = system.linkedVehicles ?? [];

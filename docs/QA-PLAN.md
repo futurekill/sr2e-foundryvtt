@@ -50,6 +50,16 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Negative **metatype attribute modifiers** display on the sheet (e.g. an
       attribute reduced by race shows the minus, not just the positive mods).
 
+## 1b. Edges & Flaws (quality item type)
+- [ ] Create a **quality** item (Add Edge / Flaw on the bio tab, or from a
+      compendium): the item sheet shows Kind (edge/flaw), Category, Point Value,
+      Source, Notes; values save on blur.
+- [ ] The bio tab's **Edges & Flaws** list shows the character's qualities with
+      kind badge + signed value, and a **Net value** that sums the point values
+      (Edges positive, Flaws negative).
+- [ ] Drag a quality from a content module (e.g. Rigger 2 "Edges & Flaws") onto
+      a character → it lands in the list; edit/delete from the row work.
+
 ## 2. Success tests & dice
 - [ ] Roll an attribute or skill — real dice roll posts to chat; successes counted vs TN.
 - [ ] **Rule of Six:** a 6 explodes and compounds (visible in the roll); reachable TNs above 6.

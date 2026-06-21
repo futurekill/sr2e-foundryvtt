@@ -701,3 +701,35 @@ export class TraditionData extends SR2EDataModel {
     };
   }
 }
+
+/**
+ * Quality (Edge or Flaw) — an optional character trait with a build-point
+ * value (SR Companion p.21; Rigger 2 p.14-15). Edges have a positive value
+ * (they cost points), Flaws a negative value (they grant points). Some are
+ * tiered (e.g. Sensitive Neural Structure -2 / -4); store the chosen value and
+ * describe the tiers in notes. Effects are descriptive — not auto-applied.
+ */
+export class QualityData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    return {
+      kind: new fields.StringField({ initial: "flaw", choices: {
+        edge: "SR2E.Quality.Edge", flaw: "SR2E.Quality.Flaw"
+      }}),
+      category: new fields.StringField({ initial: "other", choices: {
+        skill: "SR2E.Quality.Skill", mental: "SR2E.Quality.Mental",
+        physical: "SR2E.Quality.Physical", other: "SR2E.Quality.Other"
+      }}),
+      // Build-point value: positive for Edges, negative for Flaws.
+      pointValue: new fields.NumberField({ integer: true, initial: 0 }),
+      source: new fields.StringField({ initial: "" }),
+      notes: new fields.HTMLField({ initial: "" })
+    };
+  }
+
+  /** Signed value as a display string, e.g. "+2" / "-3". */
+  get signedValue() {
+    const v = this.pointValue;
+    return v > 0 ? `+${v}` : `${v}`;
+  }
+}

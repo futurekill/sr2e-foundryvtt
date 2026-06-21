@@ -104,6 +104,11 @@
         "htmlFields": [
           "description"
         ]
+      },
+      "quality": {
+        "htmlFields": [
+          "notes"
+        ]
       }
     }
   },

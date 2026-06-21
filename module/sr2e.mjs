@@ -91,7 +91,8 @@ Hooks.once("init", async () => {
     focus: dataModels.FocusData,
     vehicle_mod: dataModels.VehicleModData,
     race:      dataModels.RaceData,
-    tradition: dataModels.TraditionData
+    tradition: dataModels.TraditionData,
+    quality:   dataModels.QualityData
   };
 
   // ---------------------------------------------------------------------------

@@ -31,6 +31,36 @@
       </div>
     </fieldset>
 
+    {{!-- Edges & Flaws (qualities) --}}
+    <fieldset class="bio-group edges-flaws">
+      <legend>Edges &amp; Flaws</legend>
+      <div class="edges-flaws-toolbar flexrow">
+        <span class="ef-total" title="Net build-point value of all Edges &amp; Flaws (Edges cost points, Flaws grant them)">
+          Net value: <strong>{{#ifGt qualityPointTotal 0}}+{{/ifGt}}{{qualityPointTotal}}</strong>
+        </span>
+        <button type="button" data-action="addItem" data-type="quality" class="btn-add">
+          <i class="fas fa-plus"></i> Add Edge / Flaw
+        </button>
+      </div>
+      {{#if qualities.length}}
+      <div class="edges-flaws-list">
+        {{#each qualities as |q|}}
+        <div class="ef-row flexrow" data-item-id="{{q.id}}">
+          <span class="ef-kind ef-{{q.system.kind}}">{{q.system.kind}}</span>
+          <span class="ef-name">{{q.name}}</span>
+          <span class="ef-value" title="Build-point value">{{q.system.signedValue}}</span>
+          <span class="ef-controls item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </span>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <p class="hint ef-empty">No Edges or Flaws. Drag them from the compendium or click <strong>+ Add Edge / Flaw</strong>.</p>
+      {{/if}}
+    </fieldset>
+
     {{!-- Karma Ledger --}}
     <fieldset class="bio-group karma-ledger">
       <legend>Karma</legend>
