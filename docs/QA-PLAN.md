@@ -24,6 +24,15 @@ and any **red console errors**. File them wherever the group tracks issues
 
 ---
 
+## 0. Automated tests (no Foundry) — run first
+- [ ] `npm test` (Vitest) is **green**. This covers the pure rules math in
+      `module/rules/` (dice engine, Rule of Six, glitch, staging, derived-data
+      helpers, config tables). CI runs it on every push/PR to main.
+- [ ] When a manual case below uncovers a rules-math bug, add/extend a test
+      asserting the book value (cite the page) before fixing — keep the
+      regression covered. Sheet/Dialog/persistence layers are **not** covered by
+      Vitest and still need the manual passes below.
+
 ## 1. Character sheet & derived data
 - [ ] Create a Character; set the six attributes — **Reaction** = ⌊(Quickness+Intelligence)/2⌋ updates automatically.
 - [ ] Condition monitors show **10 boxes** each (Physical & Stun); wound thresholds at 1/3/6/10.
@@ -31,6 +40,15 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Add skills from the **Skills** compendium; ratings editable, save on blur.
 - [ ] Dice pools (Combat / Magic / Hacking / Control / Karma) display and compute.
 - [ ] Edit name/bio/notes — prose-mirror notes save on blur, no data loss on re-open.
+
+## 1a. Character creation — priority table
+- [ ] Each **priority dropdown** (A–E) shows the priority **and its value** (e.g.
+      "A — 30 attribute points", not a bare "A"), per the SR2E priority table.
+- [ ] The five categories (attributes / skills / magic / resources / race) **auto-swap**:
+      assigning a priority already used elsewhere swaps the two categories so no
+      letter is ever used twice.
+- [ ] Negative **metatype attribute modifiers** display on the sheet (e.g. an
+      attribute reduced by race shows the minus, not just the positive mods).
 
 ## 2. Success tests & dice
 - [ ] Roll an attribute or skill — real dice roll posts to chat; successes counted vs TN.
@@ -43,6 +61,13 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] From a success-test chat card, **buy dice / reroll failures / avoid disaster / buy success**.
 - [ ] Karma Pool decrements; **buy-success** spends are permanent.
 - [ ] A player cannot spend another character's Karma (ownership enforced).
+
+## 3a. Team Karma Pool (SR2E p.246)
+- [ ] The shared **Team Karma Pool** is visible to players (UI/macro readout reflects the world setting).
+- [ ] A player can **donate** Karma to the pool; their personal pool decrements and the team total rises.
+- [ ] A player can **spend/draw** from the team pool; it decrements for everyone.
+- [ ] As a **player** (not GM), donate/spend routes through the socket to the active GM and updates for all clients (no "only a GM can modify settings" error).
+- [ ] With no GM connected, the player action fails gracefully (clear message, no corruption).
 
 ## 4. Ranged combat
 - [ ] Fire a weapon — dialog shows TN breakdown (base 4 + range + cover + recoil + …).
@@ -110,6 +135,14 @@ and any **red console errors**. File them wherever the group tracks issues
 ## 13. Cyberware, foci, adept powers
 - [ ] Install cyberware → **Essence** decreases automatically (auto-essence setting); Magic loss follows.
 - [ ] VCR / Wired Reflexes / Smartlink apply their bonuses on the sheet.
+- [ ] **Cybereyes (container cyberware, SR2 p.247):** add/remove module rows
+      (Low-Light, Thermographic, Flare Comp, Camera, etc.) on the Cybereyes item
+      sheet; capacity used/over updates; the first **0.5 Essence** of modules is
+      free (no extra Essence) and only capacity **over** 0.5 adds to the eyes'
+      effective Essence cost; module cost sums into the item cost.
+- [ ] Toggle a module **active/inactive** — its combat TN modifier (if any) and
+      capacity contribution update; `actualEssenceCost` rounds to 2 decimals and
+      respects the grade multiplier.
 - [ ] **Foci:** change Force → cost re-derives (Force × per-Force unit); bonding/active toggles.
 - [ ] **Programs:** change Rating → Size and cost re-derive (Rating² × multiplier; cost = Size×100).
 - [ ] **Adept powers:** Increased Reflexes / Combat Sense / Killing Hands etc. present and editable.
@@ -129,8 +162,20 @@ and any **red console errors**. File them wherever the group tracks issues
 ## 16. Settings, migrations, misc
 - [ ] World settings: **Rule of Six**, **auto-Essence**, **confirm-delete**, **scene background**, **terminal theme** behave.
 - [ ] Configurable **play-area background** applies.
-- [ ] First-load welcome message + GM utility macros (Award Karma) appear.
+- [ ] First-load welcome message + GM utility macros appear: **Award Karma**,
+      **Refresh Karma Pool**, **Reset Condition Monitors** — each runs and does
+      what it says on a selected/owned actor.
 - [ ] Re-open the world after edits — no data loss; migrations run cleanly (GM console shows no migration errors).
+- [ ] **Token-link migration:** an existing Character with an unlinked prototype
+      token gets relinked by the 0.9.8 migration (spending Karma on a dragged
+      token now updates the sidebar actor — see the recurring gotcha above).
+
+## 17. Sheet styling / layout
+- [ ] **Checkboxes align** with their labels across sheets (no staircase): the
+      modules table, attribute/skill toggles, equipped flags, and any
+      `.form-group` checkbox sit flush, normal-sized, not stretched.
+- [ ] Inputs in `.form-group` still stretch to fill (the checkbox fix didn't
+      collapse text/number fields).
 
 ---
 
