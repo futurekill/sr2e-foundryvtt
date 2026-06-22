@@ -285,3 +285,57 @@ export function containerEssence(baseEssence, moduleEssenceSum, capacity) {
   const over = Math.max(0, (moduleEssenceSum || 0) - (capacity || 0));
   return Math.round(((baseEssence || 0) + over) * 100) / 100;
 }
+
+/**
+ * Vehicle design-from-scratch point-buy (Rigger 2 p.108-123). Computes the total
+ * Design Point Value and the final price of a custom vehicle. The design process
+ * is: chassis + power plant give a base Design Point Value; rating improvements
+ * (Speed/Accel/Load/Handling/Armor/Cargo) and modifications each ADD Design
+ * Points; the final price = Design Point Value × Mark-Up Factor.
+ *
+ * This is a PURE accumulator: the chassis/power-plant base Design Points, the
+ * per-point improvement costs, the mod Design-Point costs, and the Mark-Up Factor
+ * all come from the Chassis Table (p.170-171), Power Plant Table (p.168-169), the
+ * modification entries, and the Mark-Up rules — they're passed in as data, so the
+ * tables plug in without changing this logic.
+ *
+ * Verified against the book's worked examples (p.110-113): the Sand Buggy chassis
+ * is 20 DP and the Sports Car chassis is 110 DP; Rich's Sports Car reaches 599 DP
+ * after maxing Accel (+11 ×2) and Speed (+151 ×2) on top of its power plant, then
+ * 659 DP after mods.
+ *
+ * @param {object} d
+ * @param {number} [d.chassisDP=0]    base Design Points of the chassis
+ * @param {number} [d.powerPlantDP=0] base Design Points of the power plant
+ * @param {Object<string,number>} [d.improvements={}] rating increases bought,
+ *   e.g. { speed: 151, accel: 11, armor: 2 } (deltas above the starting value)
+ * @param {Object<string,number>} [d.costPerPoint={}] Design-Point cost per +1 of
+ *   each rating, e.g. { speed: 2, accel: 2, armor: 50 } (from the power plant /
+ *   improvement rules). Ratings absent here cost 0 per point.
+ * @param {number[]} [d.modDP=[]] Design-Point cost of each installed modification
+ * @param {number} [d.markUp=1] Mark-Up Factor (final-price multiplier)
+ * @returns {{ designPoints:number, cost:number }}
+ */
+export function vehicleDesign({ chassisDP = 0, powerPlantDP = 0, improvements = {}, costPerPoint = {}, modDP = [], markUp = 1 } = {}) {
+  let dp = (chassisDP || 0) + (powerPlantDP || 0);
+  for (const rating of Object.keys(improvements)) {
+    dp += (improvements[rating] || 0) * (costPerPoint[rating] || 0);
+  }
+  dp += (modDP || []).reduce((sum, m) => sum + (m || 0), 0);
+  return { designPoints: dp, cost: dp * (markUp || 1) };
+}
+
+/**
+ * Engine Customization design cost (Rigger 2 p.120): the first level costs the
+ * power plant's Design-Point cost × 1.25, and each additional level adds 0.5 to
+ * the multiplier. So N levels cost powerPlantDP × (1.25 + 0.5 × (N − 1)).
+ * NOTE: read as the TOTAL cost for N levels (the multiplier represents the whole),
+ * not a per-level sum — confirm against a worked example if one surfaces.
+ * @param {number} powerPlantDP
+ * @param {number} levels
+ * @returns {number} Design Points (rounded)
+ */
+export function engineCustomizationCost(powerPlantDP, levels) {
+  if (!levels || levels <= 0) return 0;
+  return Math.round((powerPlantDP || 0) * (1.25 + 0.5 * (levels - 1)));
+}

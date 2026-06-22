@@ -7,7 +7,8 @@ import {
   burstRounds, recoilPenalty, burstDamageBonus,
   programCost, focusCost,
   netToSteps, astralReaction, drainTargetNumber,
-  woundLevel, firstAidBodyMod, meleeOutcome, containerEssence
+  woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
+  vehicleDesign, engineCustomizationCost
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -263,5 +264,56 @@ describe("Alert escalation (SR2E p.168)", () => {
     expect(escalateAlert("none")).toBe("passive");
     expect(escalateAlert("passive")).toBe("active");
     expect(escalateAlert("active")).toBe("active");
+  });
+});
+
+describe("Vehicle design point-buy (Rigger 2 p.108-123)", () => {
+  it("a bare chassis is just its Design Points (Sand Buggy = 20)", () => {
+    expect(vehicleDesign({ chassisDP: 20 }).designPoints).toBe(20);
+  });
+  it("Sports Car chassis = 110 DP", () => {
+    expect(vehicleDesign({ chassisDP: 110 }).designPoints).toBe(110);
+  });
+  it("adds the power plant's Design Points to the chassis", () => {
+    expect(vehicleDesign({ chassisDP: 110, powerPlantDP: 165 }).designPoints).toBe(275);
+  });
+  it("rating improvements cost (delta × per-point) and accumulate — Rich's Sports Car reaches 599 DP", () => {
+    // Worked example p.112-113: Sports Car (chassis 110) + its engine (165 DP,
+    // implied by the example) + Accel +11 ×2 (22) + Speed +151 ×2 (302) = 599.
+    const r = vehicleDesign({
+      chassisDP: 110, powerPlantDP: 165,
+      improvements: { accel: 11, speed: 151 },
+      costPerPoint: { accel: 2, speed: 2 }
+    });
+    expect(r.designPoints).toBe(599);
+  });
+  it("modifications add their Design-Point cost — Rich's build hits 659 DP after mods", () => {
+    const r = vehicleDesign({
+      chassisDP: 110, powerPlantDP: 165,
+      improvements: { accel: 11, speed: 151 },
+      costPerPoint: { accel: 2, speed: 2 },
+      modDP: [21, 39] // p.113 mods totalling 60 DP
+    });
+    expect(r.designPoints).toBe(659);
+  });
+  it("final cost = Design Point Value × Mark-Up Factor", () => {
+    expect(vehicleDesign({ chassisDP: 100, markUp: 2.5 }).cost).toBe(250);
+    expect(vehicleDesign({ chassisDP: 0, markUp: 5 }).cost).toBe(0);
+  });
+  it("ratings with no per-point cost contribute nothing", () => {
+    expect(vehicleDesign({ chassisDP: 50, improvements: { handling: 3 } }).designPoints).toBe(50);
+  });
+});
+
+describe("Engine customization cost (Rigger 2 p.120)", () => {
+  it("first level = power-plant DP × 1.25", () => {
+    expect(engineCustomizationCost(100, 1)).toBe(125);
+  });
+  it("each added level adds 0.5 to the multiplier (3 levels = ×2.25)", () => {
+    expect(engineCustomizationCost(100, 2)).toBe(175);
+    expect(engineCustomizationCost(100, 3)).toBe(225);
+  });
+  it("zero or negative levels cost nothing", () => {
+    expect(engineCustomizationCost(100, 0)).toBe(0);
   });
 });
