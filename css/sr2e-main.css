@@ -3131,3 +3131,17 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 
 .vehicle-design .design-warning { font-size: 0.85em; opacity: 0.85; text-align: center; }
 .vehicle-design .design-apply { width: 100%; padding: 6px; }
+
+/* Vehicle mods / weapons lists (overview tab) */
+.sr2e-vehicle-sheet .vehicle-mods legend,
+.sr2e-vehicle-sheet .vehicle-weapons legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.sr2e-vehicle-sheet .item-row { align-items: center; gap: 6px; padding: 2px 4px; }
+.sr2e-vehicle-sheet .item-row .item-name { flex: 1; }
+.sr2e-vehicle-sheet .item-meta { opacity: 0.7; font-size: 0.85em; white-space: nowrap; }
+.sr2e-vehicle-sheet .item-controls { display: flex; gap: 6px; }
+.sr2e-vehicle-sheet .empty-hint { opacity: 0.6; font-style: italic; font-size: 0.85em; margin: 2px 0; }

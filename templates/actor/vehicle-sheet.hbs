@@ -81,6 +81,56 @@
     </fieldset>
   </div>
 
+  <fieldset class="vehicle-mods">
+    <legend class="flexrow">
+      <span>Modifications</span>
+      {{#if editable}}
+      <button type="button" data-action="addItem" data-type="vehicle_mod" class="btn-add" title="Add a modification">
+        <i class="fas fa-plus"></i>
+      </button>
+      {{/if}}
+    </legend>
+    <div class="item-list">
+      {{#each mods as |mod|}}
+      <div class="item-row flexrow" data-item-id="{{mod.id}}" draggable="true">
+        <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}</span>
+        {{#ifGt mod.system.rating 0}}<span class="item-meta">Rating {{mod.system.rating}}</span>{{/ifGt}}
+        <div class="item-controls">
+          <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+          <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+        </div>
+      </div>
+      {{else}}
+      <p class="empty-hint">No modifications. Drag a vehicle mod from a compendium onto this sheet, or use +.</p>
+      {{/each}}
+    </div>
+  </fieldset>
+
+  <fieldset class="vehicle-weapons">
+    <legend class="flexrow">
+      <span>Weapons</span>
+      {{#if editable}}
+      <button type="button" data-action="addItem" data-type="weapon" class="btn-add" title="Add a weapon">
+        <i class="fas fa-plus"></i>
+      </button>
+      {{/if}}
+    </legend>
+    <div class="item-list">
+      {{#each weapons as |wpn|}}
+      <div class="item-row flexrow" data-item-id="{{wpn.id}}" draggable="true">
+        <span class="item-name"><i class="fas fa-crosshairs"></i> {{wpn.name}}</span>
+        {{#if wpn.system.damageCode}}<span class="item-meta">{{wpn.system.damageCode}}</span>{{/if}}
+        <div class="item-controls">
+          <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+          <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+        </div>
+      </div>
+      {{else}}
+      <p class="empty-hint">No weapons mounted.</p>
+      {{/each}}
+    </div>
+  </fieldset>
+
   <fieldset>
     <legend>Notes</legend>
     <div class="editor-content">{{{system.notes}}}</div>
