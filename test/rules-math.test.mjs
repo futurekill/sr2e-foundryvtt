@@ -8,7 +8,8 @@ import {
   programCost, focusCost,
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
-  vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS
+  vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
+  resolveVehicleDesign, designNum
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -310,6 +311,104 @@ describe("Vehicle design point-buy (Rigger 2 p.108-123)", () => {
     // Steff's 154-DP Light Strike at Mark-Up 2 → 30,800¥ (before the GM's rounding)
     expect(vehicleDesign({ chassisDP: 154, markUp: 2 }).cost).toBe(30800);
     expect(vehicleDesign({ chassisDP: 0, markUp: 5 }).cost).toBe(0);
+  });
+});
+
+describe("designNum — parsing design-table cells", () => {
+  it("passes finite numbers", () => {
+    expect(designNum(110)).toBe(110);
+    expect(designNum(0)).toBe(0);
+  });
+  it("parses purely-numeric strings (handling stored as \"4\")", () => {
+    expect(designNum("4")).toBe(4);
+    expect(designNum("0.1")).toBe(0.1);
+  });
+  it("rejects drone-formula / range / null cells", () => {
+    expect(designNum("5x8")).toBe(null);   // load = ×Body
+    expect(designNum("0-8")).toBe(null);   // signature range
+    expect(designNum("35 + (10x8)")).toBe(null);
+    expect(designNum(null)).toBe(null);
+    expect(designNum(undefined)).toBe(null);
+    expect(designNum(NaN)).toBe(null);
+  });
+});
+
+describe("resolveVehicleDesign — design tables → DP, cost, base stats", () => {
+  // A minimal normalized registry, shaped like CONFIG.SR2E.vehicleDesign.
+  const tables = {
+    chassis: {
+      sportsCar: { name: "Sports Car", dp: 110, handling: "3", body: 2, armor: 0,
+                   pilot: 0, sensor: 1, autonav: 0, cargoStart: 0, cargoMax: 20, seating: "2" },
+      tracked:   { name: "Tracked Drone", dp: "5x8", handling: "4", body: 1 } // unbuildable DP
+    },
+    powerPlants: {
+      scGas: { name: "Sports Car (gasoline)", engine: "gasoline", dp: 65,
+               speedStart: 90, speedMax: 260, accelStart: 5, accelMax: 16,
+               loadStart: 40, loadMax: 160, sig: 4 }
+    }
+  };
+
+  it("sums chassis + power-plant DP and applies the cost formula", () => {
+    const r = resolveVehicleDesign(
+      { chassisKey: "sportsCar", powerPlantKey: "scGas", markUp: 2 }, tables
+    );
+    expect(r.valid).toBe(true);
+    expect(r.designPoints).toBe(175);      // 110 + 65
+    expect(r.cost).toBe(35000);            // 175 × 2 × 100
+  });
+
+  it("improvement deltas raise DP and the applied stats (clamped to maxes)", () => {
+    const r = resolveVehicleDesign({
+      chassisKey: "sportsCar", powerPlantKey: "scGas",
+      improvements: { speed: 100, acceleration: 11, armor: 2, handling: 1 },
+      markUp: 1
+    }, tables);
+    // DP: 175 + 100×2 + 11×2 + 2×50 + 1×25 = 175+200+22+100+25 = 522
+    expect(r.designPoints).toBe(522);
+    expect(r.baseStats.speed).toBe(190);          // 90 + 100
+    expect(r.baseStats.acceleration).toBe(16);    // 5 + 11 = 16 (= max, clamped)
+    expect(r.baseStats.armor).toBe(2);            // 0 + 2
+    expect(r.baseStats.handling).toBe(2);         // 3 − 1 (lower = better)
+    expect(r.baseStats.body).toBe(2);
+    expect(r.baseStats.signature).toBe(4);
+  });
+
+  it("applies the on-road value when handling is a \"4/8\" road/off-road pair", () => {
+    const t = {
+      chassis: { car: { name: "Car", dp: 100, handling: "4/8", body: 3 } },
+      powerPlants: { gas: { name: "Gas", engine: "gasoline", dp: 50, speedStart: 90, speedMax: 200, accelStart: 5, accelMax: 16, sig: 3 } }
+    };
+    const r = resolveVehicleDesign({ chassisKey: "car", powerPlantKey: "gas", improvements: { handling: 1 } }, t);
+    expect(r.baseStats.handling).toBe(3);  // on-road 4 − 1 improvement
+  });
+
+  it("speed clamps to the power plant maximum", () => {
+    const r = resolveVehicleDesign({
+      chassisKey: "sportsCar", powerPlantKey: "scGas",
+      improvements: { speed: 9999 }
+    }, tables);
+    expect(r.baseStats.speed).toBe(260);          // speedMax
+  });
+
+  it("modDP adds installed-modification Design Points", () => {
+    const r = resolveVehicleDesign(
+      { chassisKey: "sportsCar", powerPlantKey: "scGas", modDP: 60 }, tables
+    );
+    expect(r.designPoints).toBe(235);             // 175 + 60
+  });
+
+  it("flags missing selections and unknown keys", () => {
+    expect(resolveVehicleDesign({}, tables).missing).toContain("chassis");
+    expect(resolveVehicleDesign({ chassisKey: "nope", powerPlantKey: "scGas" }, tables).missing)
+      .toContain("unknownChassis");
+  });
+
+  it("flags a chassis whose DP is an unbuildable drone formula", () => {
+    const r = resolveVehicleDesign(
+      { chassisKey: "tracked", powerPlantKey: "scGas" }, tables
+    );
+    expect(r.valid).toBe(false);
+    expect(r.missing).toContain("chassisDP");
   });
 });
 

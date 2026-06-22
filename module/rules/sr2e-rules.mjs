@@ -348,3 +348,111 @@ export function engineCustomizationCost(powerPlantDP, levels) {
   if (!levels || levels <= 0) return 0;
   return Math.round((powerPlantDP || 0) * (1.25 + 0.5 * (levels - 1)));
 }
+
+/**
+ * Parse a design-table cell to a finite number, or null. The Chassis / Power
+ * Plant tables store some cells as drone formulas ("5x8" = ×Body) or as null
+ * (camera-shadowed captures); those aren't directly usable by the point-buy.
+ * @param {*} v
+ * @returns {number|null}
+ */
+export function designNum(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  // Only accept strings that are PURELY a number — reject formula/range cells
+  // like "5x8" (= ×Body) or "0-8", which parseFloat would silently truncate.
+  if (typeof v === "string" && /^\s*-?\d*\.?\d+\s*$/.test(v)) {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+const _clampMax = (val, max) => {
+  const m = designNum(max);
+  return m === null ? val : Math.min(val, m);
+};
+
+/**
+ * Resolve a stored vehicle design against the registered design tables into its
+ * Design Points, cost, and the concrete base stats to write onto the vehicle.
+ *
+ * The DP/cost math is the verified part (see {@link vehicleDesign}). Stat
+ * application uses each table's STARTING value plus the bought improvement
+ * delta, clamped to the power plant's / chassis' maximum:
+ *   speed = speedStart + Δspeed (≤ speedMax);  accel likewise;
+ *   handling = chassisHandling − Δhandling (lower = better, ≥ 1);
+ *   armor = chassisArmor + Δarmor;  cargo/load = start + Δ (≤ max);
+ *   body/signature/pilot/sensor/autonav/seating come straight from the tables.
+ *
+ * @param {object} design  stored on the vehicle (system.design)
+ * @param {string} design.chassisKey
+ * @param {string} design.powerPlantKey
+ * @param {Object<string,number>} [design.improvements]
+ * @param {number} [design.modDP]   total Design Points of installed mods
+ * @param {number} [design.markUp]
+ * @param {{chassis:Object<string,object>, powerPlants:Object<string,object>}} tables
+ *   the registered, normalized design tables (CONFIG.SR2E.vehicleDesign)
+ * @returns {{valid:boolean, missing:string[], designPoints:number, cost:number,
+ *   chassis:object|null, powerPlant:object|null, baseStats:object}}
+ */
+export function resolveVehicleDesign(design = {}, tables = {}) {
+  const chassis = tables.chassis?.[design.chassisKey] ?? null;
+  const pp      = tables.powerPlants?.[design.powerPlantKey] ?? null;
+  const imp     = design.improvements ?? {};
+  const markUp  = design.markUp || 1;
+  const modDP   = designNum(design.modDP) ?? 0;
+
+  const missing = [];
+  if (!design.chassisKey) missing.push("chassis");
+  else if (!chassis) missing.push("unknownChassis");
+  if (!design.powerPlantKey) missing.push("powerPlant");
+  else if (!pp) missing.push("unknownPowerPlant");
+
+  const chassisDP = chassis ? designNum(chassis.dp) : null;
+  const ppDP      = pp ? designNum(pp.dp) : null;
+  if (chassis && chassisDP === null) missing.push("chassisDP");
+  if (pp && ppDP === null) missing.push("powerPlantDP");
+
+  const { designPoints, cost } = vehicleDesign({
+    chassisDP: chassisDP ?? 0,
+    powerPlantDP: ppDP ?? 0,
+    improvements: imp,
+    modDP: [modDP],
+    markUp
+  });
+
+  // Base stats to apply (only meaningful when both rows are present).
+  const baseStats = {};
+  if (chassis && pp) {
+    const ch = (k) => designNum(chassis[k]);
+    const pk = (k) => designNum(pp[k]);
+    const d  = (k) => designNum(imp[k]) ?? 0;
+
+    // Handling may be an on-road/off-road pair like "4/8" (Rigger 2 cars) — take
+    // the on-road (first) value; reject true formula cells ("5x8").
+    const handlingBase = ch("handling") ?? designNum(String(chassis.handling ?? "").split("/")[0]);
+    if (handlingBase !== null) baseStats.handling = Math.max(1, handlingBase - d("handling"));
+    if (pk("speedStart") !== null) baseStats.speed = _clampMax(pk("speedStart") + d("speed"), pp.speedMax);
+    if (pk("accelStart") !== null) baseStats.acceleration = _clampMax(pk("accelStart") + d("acceleration"), pp.accelMax);
+    if (ch("body") !== null) baseStats.body = ch("body");
+    baseStats.armor = (ch("armor") ?? 0) + d("armor");
+    if (pk("sig") !== null) baseStats.signature = pk("sig");
+    if (ch("pilot") !== null) baseStats.pilot = ch("pilot");
+    if (ch("sensor") !== null) baseStats.sensor = ch("sensor");
+    if (ch("autonav") !== null) baseStats.autonav = ch("autonav");
+    if (ch("cargoStart") !== null) baseStats.cargo = _clampMax(ch("cargoStart") + d("cargo"), chassis.cargoMax);
+    if (pk("loadStart") !== null) baseStats.load = _clampMax(pk("loadStart") + d("load"), pp.loadMax);
+    if (chassis.seating != null) baseStats.seating = String(chassis.seating);
+    baseStats.cost = cost;
+  }
+
+  return {
+    valid: missing.length === 0,
+    missing,
+    designPoints,
+    cost,
+    chassis,
+    powerPlant: pp,
+    baseStats
+  };
+}

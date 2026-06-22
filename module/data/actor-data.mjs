@@ -743,7 +743,25 @@ export class VehicleData extends SR2EDataModel {
         max: new fields.NumberField({ integer: true, initial: 10, min: 0 })
       }),
       autonav: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-      notes: new fields.HTMLField({ initial: "" })
+      notes: new fields.HTMLField({ initial: "" }),
+      // Rigger 2 design-from-scratch state (book p.108-123). Populated on the
+      // vehicle sheet's Design tab; "Apply to Vehicle" writes the resolved base
+      // stats onto the fields above. Keys reference CONFIG.SR2E.vehicleDesign,
+      // which a content module (sr2e-rigger-2) registers at runtime.
+      design: new fields.SchemaField({
+        chassisKey:    new fields.StringField({ initial: "", blank: true }),
+        powerPlantKey: new fields.StringField({ initial: "", blank: true }),
+        improvements: new fields.SchemaField({
+          handling:     new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          speed:        new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          acceleration: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          armor:        new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          cargo:        new fields.NumberField({ initial: 0, min: 0 }),
+          load:         new fields.NumberField({ initial: 0, min: 0 })
+        }),
+        modDP:  new fields.NumberField({ initial: 0, min: 0 }),
+        markUp: new fields.NumberField({ initial: 1, min: 0 })
+      })
     };
   }
 

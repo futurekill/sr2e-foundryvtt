@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { resolveVehicleDesign } from "../rules/sr2e-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -3234,14 +3235,37 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
 // =========================================================================
 
 /**
+ * "Apply to Vehicle" — resolve the stored design against the registered tables
+ * and write the computed base stats onto the vehicle's actual fields (Rigger 2
+ * p.108-123). Refuses if the design is incomplete or its DP can't be computed
+ * (e.g. a drone-formula chassis). @this {SR2EVehicleSheet}
+ */
+async function onApplyVehicleDesign(event, target) {
+  const actor = this.document;
+  const result = resolveVehicleDesign(actor.system.design ?? {}, CONFIG.SR2E.vehicleDesign);
+  if (!result.valid) {
+    ui.notifications?.warn(game.i18n.localize("SR2E.Design.CannotApply"));
+    return;
+  }
+  const update = {};
+  for (const [key, value] of Object.entries(result.baseStats)) {
+    update[`system.${key}`] = value;
+  }
+  await actor.update(update);
+  ui.notifications?.info(game.i18n.format("SR2E.Design.Applied", { name: actor.name }));
+}
+
+/**
  * Vehicle Sheet.
  */
 export class SR2EVehicleSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "vehicle"],
-    position: { width: 550, height: 450 },
+    position: { width: 600, height: 600 },
     actions: {
+      switchTab: SHARED_ACTIONS.switchTab,
+      applyDesign: onApplyVehicleDesign,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
@@ -3249,14 +3273,75 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
   };
 
   static PARTS = {
-    vehicle: { template: "systems/sr2e/templates/actor/vehicle-sheet.hbs" }
+    tabs:     { template: "systems/sr2e/templates/actor/parts/actor-tabs.hbs" },
+    overview: { template: "systems/sr2e/templates/actor/vehicle-sheet.hbs" },
+    design:   { template: "systems/sr2e/templates/actor/parts/vehicle-design.hbs" }
   };
+
+  /** @override */
+  tabGroups = { primary: "overview" };
+
+  /** @returns {object} tab config for the nav + content active states. */
+  _getTabs() {
+    const tabs = {
+      overview: { id: "overview", label: "SR2E.Tabs.Overview", icon: "fas fa-car",               group: "primary", active: false },
+      design:   { id: "design",   label: "SR2E.Tabs.Design",   icon: "fas fa-drafting-compass", group: "primary", active: false }
+    };
+    const active = this.tabGroups.primary || "overview";
+    if (tabs[active]) tabs[active].active = true;
+    return tabs;
+  }
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     context.weapons = this.document.items.filter(i => i.type === "weapon");
     context.mods = this.document.items.filter(i => i.type === "vehicle_mod");
+    context.tabs = this._getTabs();
+    context.design = this._prepareDesign();
     return context;
+  }
+
+  /**
+   * Build the Design-tab view model: the live resolve result plus grouped
+   * dropdown options drawn from CONFIG.SR2E.vehicleDesign (empty until a
+   * content module like Rigger 2 registers its tables).
+   * @private
+   */
+  _prepareDesign() {
+    const tables = CONFIG.SR2E.vehicleDesign ?? { chassis: {}, powerPlants: {} };
+    const stored = this.document.system.design ?? {};
+    const result = resolveVehicleDesign(stored, tables);
+
+    const groupBy = (map, keyFn, selectedKey) => {
+      const groups = {};
+      for (const [key, entry] of Object.entries(map ?? {})) {
+        const g = keyFn(entry) || "Other";
+        (groups[g] ??= []).push({ key, name: entry.name ?? key, dp: entry.dp, selected: key === selectedKey });
+      }
+      return Object.entries(groups)
+        .map(([label, options]) => ({ label, options: options.sort((a, b) => String(a.name).localeCompare(String(b.name))) }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    };
+
+    const chassisGroups    = groupBy(tables.chassis,     e => e.group,  stored.chassisKey);
+    const powerPlantGroups = groupBy(tables.powerPlants, e => e.engine, stored.powerPlantKey);
+
+    const ratings = Object.entries(CONFIG.SR2E.vehicleDesignRatings).map(([key, def]) => ({
+      key, label: def.label, dp: def.dp, value: stored.improvements?.[key] ?? 0
+    }));
+
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    return {
+      ...result,
+      hasData: chassisGroups.length > 0 || powerPlantGroups.length > 0,
+      chassisGroups,
+      powerPlantGroups,
+      ratings,
+      modDP: stored.modDP ?? 0,
+      markUp: stored.markUp ?? 1,
+      designPointsLabel: fmt(result.designPoints),
+      costLabel: fmt(result.cost)
+    };
   }
 }
 

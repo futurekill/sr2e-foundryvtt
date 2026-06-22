@@ -606,3 +606,41 @@ SR2E.qualityCategories = {
   physical: "SR2E.Quality.Physical",
   other:    "SR2E.Quality.Other"
 };
+
+// ---------------------------------------------------------------------------
+// VEHICLE DESIGN (Rigger 2 "design from scratch", book p.108-123)
+// The core system ships the Design-tab UI and the point-buy math
+// (module/rules/sr2e-rules.mjs), but NOT the Rigger 2 Chassis / Power Plant
+// tables — those are sourcebook content. A content module (sr2e-rigger-2)
+// populates this registry at runtime via registerVehicleDesignData(), so the
+// Design tab is empty (with a hint) until such a module is enabled.
+//
+// Normalized entry shapes the Design tab + resolveVehicleDesign() expect:
+//   chassis[slug]     = { name, group, dp, handling, body, armor, pilot,
+//                         sensor, autonav, cargoStart, cargoMax, seating }
+//   powerPlants[slug] = { name, engine, dp, speedStart, speedMax, accelStart,
+//                         accelMax, loadStart, loadMax, sig }
+// (dp may be a non-numeric "drone formula" string; the resolver flags those.)
+// ---------------------------------------------------------------------------
+SR2E.vehicleDesign = { chassis: {}, powerPlants: {} };
+
+/**
+ * Merge design-table data into the registry. Idempotent per-key (later wins).
+ * @param {{chassis?:object, powerPlants?:object}} data
+ */
+SR2E.registerVehicleDesignData = function registerVehicleDesignData({ chassis = {}, powerPlants = {} } = {}) {
+  Object.assign(SR2E.vehicleDesign.chassis, chassis);
+  Object.assign(SR2E.vehicleDesign.powerPlants, powerPlants);
+  return SR2E.vehicleDesign;
+};
+
+// Buyable ratings on the Design tab, with their per-point Design-Point cost
+// (mirrors DESIGN_OPTION_COSTS in module/rules; p.115).
+SR2E.vehicleDesignRatings = {
+  handling:     { label: "SR2E.Design.Handling",     dp: 25 },
+  speed:        { label: "SR2E.Design.Speed",        dp: 2 },
+  acceleration: { label: "SR2E.Design.Acceleration", dp: 2 },
+  armor:        { label: "SR2E.Design.Armor",        dp: 50 },
+  cargo:        { label: "SR2E.Design.Cargo",        dp: 1 },
+  load:         { label: "SR2E.Design.Load",         dp: 0.1 }
+};

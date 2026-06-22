@@ -3078,3 +3078,56 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar        { width: 4px; }
 body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-track  { background: #000a00; }
 body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb  { background: #003a00; border-radius: 0; }
 body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: #1a7a1a; }
+
+/* ============================================================================
+ * VEHICLE DESIGN TAB (Rigger 2 design-from-scratch)
+ * ========================================================================= */
+.vehicle-design .design-empty {
+  padding: 16px;
+  text-align: center;
+  opacity: 0.8;
+  font-style: italic;
+}
+.vehicle-design fieldset { margin-bottom: 8px; }
+.vehicle-design .design-pickers .form-group { margin-bottom: 6px; }
+.vehicle-design .design-pickers select { width: 100%; }
+
+.vehicle-design .improvement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 10px;
+}
+.vehicle-design .improvement-item { display: flex; flex-direction: column; }
+.vehicle-design .improvement-item label {
+  font-size: 0.82em;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.vehicle-design .improvement-item .dp-cost { opacity: 0.6; font-size: 0.85em; }
+.vehicle-design .improvement-item input { width: 100%; text-align: right; }
+
+.vehicle-design .design-extras { display: flex; gap: 12px; }
+.vehicle-design .design-extras .form-group { flex: 1; }
+.vehicle-design .design-extras input { width: 100%; }
+
+.vehicle-design .design-readout {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+.vehicle-design .readout-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--color-border-light-tertiary, #888);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.04);
+}
+.vehicle-design .readout-label { font-size: 0.78em; text-transform: uppercase; opacity: 0.7; }
+.vehicle-design .readout-value { font-size: 1.5em; font-weight: bold; }
+
+.vehicle-design .design-warning { font-size: 0.85em; opacity: 0.85; text-align: center; }
+.vehicle-design .design-apply { width: 100%; padding: 6px; }

@@ -1,0 +1,86 @@
+<section class="tab-content vehicle-design {{#if tab.active}}active{{/if}}" data-tab="design" data-group="primary">
+
+  {{#unless design.hasData}}
+  <div class="design-empty">
+    <p><i class="fas fa-circle-info"></i> {{localize "SR2E.Design.NoData"}}</p>
+  </div>
+  {{else}}
+
+  <fieldset class="design-pickers">
+    <legend>{{localize "SR2E.Design.BuildTitle"}}</legend>
+
+    <div class="form-group">
+      <label>{{localize "SR2E.Design.Chassis"}}</label>
+      <select name="system.design.chassisKey">
+        <option value="">—</option>
+        {{#each design.chassisGroups as |grp|}}
+        <optgroup label="{{grp.label}}">
+          {{#each grp.options as |o|}}
+          <option value="{{o.key}}" {{#if o.selected}}selected{{/if}}>{{o.name}} ({{o.dp}} DP)</option>
+          {{/each}}
+        </optgroup>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "SR2E.Design.PowerPlant"}}</label>
+      <select name="system.design.powerPlantKey">
+        <option value="">—</option>
+        {{#each design.powerPlantGroups as |grp|}}
+        <optgroup label="{{grp.label}}">
+          {{#each grp.options as |o|}}
+          <option value="{{o.key}}" {{#if o.selected}}selected{{/if}}>{{o.name}} ({{o.dp}} DP)</option>
+          {{/each}}
+        </optgroup>
+        {{/each}}
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset class="design-improvements">
+    <legend title="{{localize 'SR2E.Design.ImprovementsHint'}}">{{localize "SR2E.Design.Improvements"}}</legend>
+    <div class="improvement-grid">
+      {{#each design.ratings as |r|}}
+      <div class="improvement-item">
+        <label>{{localize r.label}} <span class="dp-cost" title="Design Points per point bought">{{r.dp}} DP</span></label>
+        <input type="number" name="system.design.improvements.{{r.key}}" value="{{r.value}}" min="0" />
+      </div>
+      {{/each}}
+    </div>
+  </fieldset>
+
+  <fieldset class="design-extras">
+    <div class="form-group">
+      <label title="Total Design Points of installed modifications">{{localize "SR2E.Design.ModDP"}}</label>
+      <input type="number" name="system.design.modDP" value="{{design.modDP}}" min="0" />
+    </div>
+    <div class="form-group">
+      <label title="GM-set Mark-Up Factor: base + class/performance modifiers (Rigger 2 p.115)">{{localize "SR2E.Design.MarkUp"}}</label>
+      <input type="number" step="0.1" name="system.design.markUp" value="{{design.markUp}}" min="0" />
+    </div>
+  </fieldset>
+
+  <div class="design-readout">
+    <div class="readout-item">
+      <span class="readout-label">{{localize "SR2E.Design.DesignPoints"}}</span>
+      <span class="readout-value">{{design.designPointsLabel}}</span>
+    </div>
+    <div class="readout-item">
+      <span class="readout-label">{{localize "SR2E.Design.Cost"}}</span>
+      <span class="readout-value">{{design.costLabel}}¥</span>
+    </div>
+  </div>
+
+  {{#unless design.valid}}
+  <p class="design-warning"><i class="fas fa-triangle-exclamation"></i> {{localize "SR2E.Design.Incomplete"}}</p>
+  {{/unless}}
+
+  {{#if editable}}
+  <button type="button" class="design-apply" data-action="applyDesign" {{#unless design.valid}}disabled{{/unless}}>
+    <i class="fas fa-wand-magic-sparkles"></i> {{localize "SR2E.Design.Apply"}}
+  </button>
+  {{/if}}
+
+  {{/unless}}
+</section>
