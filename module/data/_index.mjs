@@ -17,5 +17,6 @@ export {
   FocusData,
   VehicleModData,
   RaceData,
-  TraditionData
+  TraditionData,
+  QualityData
 } from "./item-data.mjs";
