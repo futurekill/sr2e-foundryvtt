@@ -287,42 +287,51 @@ export function containerEssence(baseEssence, moduleEssenceSum, capacity) {
 }
 
 /**
+ * Design-Point cost to improve each vehicle rating by one unit (Rigger 2 design
+ * options, book p.115-117). These are FLAT rules (not power-plant-specific):
+ * lowering Handling by 1 (an improvement) is 25 DP; Speed and Acceleration are
+ * 2 DP per point; Armor is 50 DP per point; Cargo is 1 DP per CF; Load is 1 DP
+ * per 10 kg (= 0.1 DP/kg). Speed/Accel/Load can't exceed the power plant's max
+ * (without Engine Customization); Cargo/Handling/Armor are capped by the chassis.
+ */
+export const DESIGN_OPTION_COSTS = Object.freeze({
+  handling: 25, speed: 2, acceleration: 2, armor: 50, cargo: 1, load: 0.1
+});
+
+/**
  * Vehicle design-from-scratch point-buy (Rigger 2 p.108-123). Computes the total
- * Design Point Value and the final price of a custom vehicle. The design process
- * is: chassis + power plant give a base Design Point Value; rating improvements
- * (Speed/Accel/Load/Handling/Armor/Cargo) and modifications each ADD Design
- * Points; the final price = Design Point Value × Mark-Up Factor.
+ * Design Point Value and the final ¥ price of a custom vehicle:
+ *   DesignPoints = chassisDP + powerPlantDP + Σ(improvement × per-point cost) + Σ(modDP)
+ *   cost = DesignPoints × Mark-Up Factor × 100   (book p.115)
  *
- * This is a PURE accumulator: the chassis/power-plant base Design Points, the
- * per-point improvement costs, the mod Design-Point costs, and the Mark-Up Factor
- * all come from the Chassis Table (p.170-171), Power Plant Table (p.168-169), the
- * modification entries, and the Mark-Up rules — they're passed in as data, so the
- * tables plug in without changing this logic.
+ * A PURE accumulator: chassis/power-plant base DP, the mod DP, and the Mark-Up
+ * Factor come from the Chassis Table (p.170-171), Power Plant Table (p.168-169),
+ * the modification entries, and the GM-set Mark-Up — passed in as data. The
+ * per-point improvement costs default to DESIGN_OPTION_COSTS but can be overridden.
  *
- * Verified against the book's worked examples (p.110-113): the Sand Buggy chassis
- * is 20 DP and the Sports Car chassis is 110 DP; Rich's Sports Car reaches 599 DP
- * after maxing Accel (+11 ×2) and Speed (+151 ×2) on top of its power plant, then
- * 659 DP after mods.
+ * Verified against the worked examples: Sand Buggy chassis 20 DP, Sports Car 110
+ * DP; Rich's Sports Car 599 DP after maxing Accel (+11 ×2) and Speed (+151 ×2),
+ * 659 after the first mods; the final 1,239-DP car at Mark-Up 2.5 costs 309,750¥;
+ * Steff's 154-DP Light Strike at Mark-Up 2 costs 30,800¥ (p.115).
  *
  * @param {object} d
  * @param {number} [d.chassisDP=0]    base Design Points of the chassis
  * @param {number} [d.powerPlantDP=0] base Design Points of the power plant
  * @param {Object<string,number>} [d.improvements={}] rating increases bought,
- *   e.g. { speed: 151, accel: 11, armor: 2 } (deltas above the starting value)
- * @param {Object<string,number>} [d.costPerPoint={}] Design-Point cost per +1 of
- *   each rating, e.g. { speed: 2, accel: 2, armor: 50 } (from the power plant /
- *   improvement rules). Ratings absent here cost 0 per point.
+ *   e.g. { speed: 151, acceleration: 11, armor: 2 } (deltas)
+ * @param {Object<string,number>} [d.costPerPoint=DESIGN_OPTION_COSTS] DP cost per
+ *   +1 of each rating; ratings absent here cost 0 per point.
  * @param {number[]} [d.modDP=[]] Design-Point cost of each installed modification
- * @param {number} [d.markUp=1] Mark-Up Factor (final-price multiplier)
+ * @param {number} [d.markUp=1] Mark-Up Factor (GM-set; base + class/performance mods)
  * @returns {{ designPoints:number, cost:number }}
  */
-export function vehicleDesign({ chassisDP = 0, powerPlantDP = 0, improvements = {}, costPerPoint = {}, modDP = [], markUp = 1 } = {}) {
+export function vehicleDesign({ chassisDP = 0, powerPlantDP = 0, improvements = {}, costPerPoint = DESIGN_OPTION_COSTS, modDP = [], markUp = 1 } = {}) {
   let dp = (chassisDP || 0) + (powerPlantDP || 0);
   for (const rating of Object.keys(improvements)) {
     dp += (improvements[rating] || 0) * (costPerPoint[rating] || 0);
   }
   dp += (modDP || []).reduce((sum, m) => sum + (m || 0), 0);
-  return { designPoints: dp, cost: dp * (markUp || 1) };
+  return { designPoints: dp, cost: dp * (markUp || 1) * 100 };
 }
 
 /**

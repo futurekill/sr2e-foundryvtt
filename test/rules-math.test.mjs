@@ -8,7 +8,7 @@ import {
   programCost, focusCost,
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
-  vehicleDesign, engineCustomizationCost
+  vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -277,31 +277,39 @@ describe("Vehicle design point-buy (Rigger 2 p.108-123)", () => {
   it("adds the power plant's Design Points to the chassis", () => {
     expect(vehicleDesign({ chassisDP: 110, powerPlantDP: 165 }).designPoints).toBe(275);
   });
-  it("rating improvements cost (delta × per-point) and accumulate — Rich's Sports Car reaches 599 DP", () => {
+  it("rating improvements use the flat per-point costs and accumulate — Rich's Sports Car reaches 599 DP", () => {
     // Worked example p.112-113: Sports Car (chassis 110) + its engine (165 DP,
-    // implied by the example) + Accel +11 ×2 (22) + Speed +151 ×2 (302) = 599.
+    // implied) + Accel +11 ×2 (22) + Speed +151 ×2 (302) = 599. Uses the default
+    // DESIGN_OPTION_COSTS (acceleration 2, speed 2).
     const r = vehicleDesign({
       chassisDP: 110, powerPlantDP: 165,
-      improvements: { accel: 11, speed: 151 },
-      costPerPoint: { accel: 2, speed: 2 }
+      improvements: { acceleration: 11, speed: 151 }
     });
     expect(r.designPoints).toBe(599);
   });
   it("modifications add their Design-Point cost — Rich's build hits 659 DP after mods", () => {
     const r = vehicleDesign({
       chassisDP: 110, powerPlantDP: 165,
-      improvements: { accel: 11, speed: 151 },
-      costPerPoint: { accel: 2, speed: 2 },
+      improvements: { acceleration: 11, speed: 151 },
       modDP: [21, 39] // p.113 mods totalling 60 DP
     });
     expect(r.designPoints).toBe(659);
   });
-  it("final cost = Design Point Value × Mark-Up Factor", () => {
-    expect(vehicleDesign({ chassisDP: 100, markUp: 2.5 }).cost).toBe(250);
-    expect(vehicleDesign({ chassisDP: 0, markUp: 5 }).cost).toBe(0);
+  it("default per-point costs match the book (Handling 25, Speed/Accel 2, Cargo 1, Armor 50, Load 0.1/kg)", () => {
+    expect(DESIGN_OPTION_COSTS.handling).toBe(25);
+    expect(DESIGN_OPTION_COSTS.speed).toBe(2);
+    expect(DESIGN_OPTION_COSTS.acceleration).toBe(2);
+    expect(DESIGN_OPTION_COSTS.cargo).toBe(1);
+    expect(DESIGN_OPTION_COSTS.armor).toBe(50);
+    // Load: 1 DP per 10 kg → 0.1/kg, so +50 kg = 5 DP
+    expect(vehicleDesign({ chassisDP: 0, improvements: { load: 50 } }).designPoints).toBe(5);
   });
-  it("ratings with no per-point cost contribute nothing", () => {
-    expect(vehicleDesign({ chassisDP: 50, improvements: { handling: 3 } }).designPoints).toBe(50);
+  it("final cost = Design Points × Mark-Up Factor × 100 (book p.115 worked examples)", () => {
+    // Rich's final 1,239-DP car at Mark-Up 2.5 → 309,750¥
+    expect(vehicleDesign({ chassisDP: 1239, markUp: 2.5 }).cost).toBe(309750);
+    // Steff's 154-DP Light Strike at Mark-Up 2 → 30,800¥ (before the GM's rounding)
+    expect(vehicleDesign({ chassisDP: 154, markUp: 2 }).cost).toBe(30800);
+    expect(vehicleDesign({ chassisDP: 0, markUp: 5 }).cost).toBe(0);
   });
 });
 
