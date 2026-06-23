@@ -3235,6 +3235,17 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
 // =========================================================================
 
 /**
+ * Whether a vehicle_mod takes a player-chosen Rating (so the sheet shows a Rating
+ * editor): it has a rating-based Design-Point rule, or a non-zero current rating.
+ * @param {object} s  vehicle_mod system data
+ */
+function isModRated(s = {}) {
+  return (Array.isArray(s.dpTable) && s.dpTable.length > 0)
+    || (Number(s.dpPerLevel) || 0) > 0
+    || (Number(s.rating) || 0) > 0;
+}
+
+/**
  * "Apply to Vehicle" — resolve the stored design against the registered tables
  * and write the computed base stats onto the vehicle's actual fields (Rigger 2
  * p.108-123). Refuses if the design is incomplete or its DP can't be computed
@@ -3302,7 +3313,9 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     context.weapons = this.document.items.filter(i => i.type === "weapon");
-    context.mods = this.document.items.filter(i => i.type === "vehicle_mod");
+    context.mods = this.document.items
+      .filter(i => i.type === "vehicle_mod")
+      .map(i => ({ id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) }));
     context.tabs = this._getTabs();
     context.design = this._prepareDesign();
     return context;
@@ -3350,7 +3363,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     const installedMods = modItems.map(i => ({
       id: i.id, name: i.name,
       rating: Number(i.system.rating) || 0,
-      rated: (Array.isArray(i.system.dpTable) && i.system.dpTable.length > 0) || (Number(i.system.dpPerLevel) || 0) > 0,
+      rated: isModRated(i.system),
       designPoints: modDesignPoints(i.system),
       cost: Number(i.system.cost) || 0
     }));
