@@ -9,7 +9,7 @@ import {
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
-  resolveVehicleDesign, designNum
+  resolveVehicleDesign, designNum, aggregateModDesign
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -409,6 +409,34 @@ describe("resolveVehicleDesign — design tables → DP, cost, base stats", () =
     );
     expect(r.valid).toBe(false);
     expect(r.missing).toContain("chassisDP");
+  });
+});
+
+describe("aggregateModDesign — installed-mod contributions to a build", () => {
+  it("sums Design Points and ¥ cost across mods", () => {
+    const r = aggregateModDesign([
+      { designPoints: 21, cost: 0 },
+      { designPoints: 39, cost: 0 },
+      { designPoints: 0, cost: 5000 }   // ¥-priced customization
+    ]);
+    expect(r.designPoints).toBe(60);
+    expect(r.cost).toBe(5000);
+  });
+  it("treats missing/non-numeric fields as 0", () => {
+    const r = aggregateModDesign([{ cost: 1500 }, {}, { designPoints: "x" }]);
+    expect(r.designPoints).toBe(0);
+    expect(r.cost).toBe(1500);
+  });
+  it("empty list is zero", () => {
+    expect(aggregateModDesign()).toEqual({ designPoints: 0, cost: 0 });
+  });
+  it("folds into resolveVehicleDesign via modDP (DP and then cost added on top)", () => {
+    const tables = { chassis: { c: { name: "C", dp: 100, handling: "3", body: 2 } },
+      powerPlants: { p: { name: "P", engine: "gas", dp: 50, speedStart: 90, speedMax: 200, accelStart: 5, accelMax: 16, sig: 3 } } };
+    const agg = aggregateModDesign([{ designPoints: 10, cost: 5000 }]);
+    const result = resolveVehicleDesign({ chassisKey: "c", powerPlantKey: "p", modDP: agg.designPoints, markUp: 1 }, tables);
+    expect(result.designPoints).toBe(160);        // 100 + 50 + 10 mod DP
+    expect(result.cost + agg.cost).toBe(21000);   // 160×100 + 5,000 mod ¥
   });
 });
 

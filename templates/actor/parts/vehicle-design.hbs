@@ -52,7 +52,7 @@
 
   <fieldset class="design-extras">
     <div class="form-group">
-      <label title="Total Design Points of installed modifications">{{localize "SR2E.Design.ModDP"}}</label>
+      <label title="Extra Design Points not covered by an installed mod item — added on top of the mods below">{{localize "SR2E.Design.ModDP"}}</label>
       <input type="number" name="system.design.modDP" value="{{design.modDP}}" min="0" />
     </div>
     <div class="form-group">
@@ -60,6 +60,23 @@
       <input type="number" step="0.1" name="system.design.markUp" value="{{design.markUp}}" min="0" />
     </div>
   </fieldset>
+
+  {{#if design.hasMods}}
+  <fieldset class="design-mods">
+    <legend title="Modifications on this vehicle fold into the build: design-option mods add Design Points; ¥-priced mods add cost">{{localize "SR2E.Design.InstalledMods"}}</legend>
+    <div class="item-list">
+      {{#each design.installedMods as |mod|}}
+      <div class="item-row flexrow">
+        <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}</span>
+        <span class="item-meta">{{#if mod.designPoints}}{{mod.designPoints}} DP{{/if}}{{#if mod.cost}}{{#if mod.designPoints}} · {{/if}}{{mod.cost}}¥{{/if}}</span>
+      </div>
+      {{/each}}
+    </div>
+    <div class="design-mods-total">
+      {{localize "SR2E.Design.ModTotal"}}: {{design.modDPFromItems}} DP + {{design.modCostLabel}}¥
+    </div>
+  </fieldset>
+  {{/if}}
 
   <div class="design-readout">
     <div class="readout-item">

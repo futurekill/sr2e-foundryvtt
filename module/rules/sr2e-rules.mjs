@@ -456,3 +456,21 @@ export function resolveVehicleDesign(design = {}, tables = {}) {
     baseStats
   };
 }
+
+/**
+ * Sum the contributions of a vehicle's installed modifications to a design.
+ * Design-option mods carry a Design-Point value (`designPoints`, folded into the
+ * build's DP via {@link resolveVehicleDesign}'s modDP); ¥-priced customization
+ * mods carry a `cost` that's added on top of the design's computed price. So
+ * dragging a mod onto a vehicle moves DP and/or the total cost.
+ * @param {Array<{designPoints?:number, cost?:number}>} mods  vehicle_mod system data
+ * @returns {{designPoints:number, cost:number}}
+ */
+export function aggregateModDesign(mods = []) {
+  let designPoints = 0, cost = 0;
+  for (const m of mods) {
+    designPoints += designNum(m?.designPoints) ?? 0;
+    cost += designNum(m?.cost) ?? 0;
+  }
+  return { designPoints, cost };
+}

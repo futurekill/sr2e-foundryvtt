@@ -596,6 +596,10 @@ export class VehicleModData extends SR2EDataModel {
       modType: new fields.StringField({ initial: "general" }),
       rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
+      // Design-Point cost of this mod as a vehicle-design option (Rigger 2
+      // design-from-scratch). 0 for ¥-priced customizations, which instead add
+      // their `cost` to the design total. Summed into the Design tab.
+      designPoints: new fields.NumberField({ initial: 0, min: 0 }),
       installed: new fields.BooleanField({ initial: false }),
       notes: new fields.StringField({ initial: "" })
     };

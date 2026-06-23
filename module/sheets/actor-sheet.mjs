@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { resolveVehicleDesign } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign } from "../rules/sr2e-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -3242,7 +3242,12 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
  */
 async function onApplyVehicleDesign(event, target) {
   const actor = this.document;
-  const result = resolveVehicleDesign(actor.system.design ?? {}, CONFIG.SR2E.vehicleDesign);
+  const stored = actor.system.design ?? {};
+  // Fold installed mods into the build (same as the live readout).
+  const modItems = actor.items.filter(i => i.type === "vehicle_mod");
+  const modAgg = aggregateModDesign(modItems.map(i => i.system));
+  const effectiveDesign = { ...stored, modDP: (Number(stored.modDP) || 0) + modAgg.designPoints };
+  const result = resolveVehicleDesign(effectiveDesign, CONFIG.SR2E.vehicleDesign);
   if (!result.valid) {
     ui.notifications?.warn(game.i18n.localize("SR2E.Design.CannotApply"));
     return;
@@ -3251,6 +3256,8 @@ async function onApplyVehicleDesign(event, target) {
   for (const [key, value] of Object.entries(result.baseStats)) {
     update[`system.${key}`] = value;
   }
+  // Total cost = design cost + ¥-priced customization mods on top.
+  update["system.cost"] = (result.cost || 0) + modAgg.cost;
   await actor.update(update);
   ui.notifications?.info(game.i18n.format("SR2E.Design.Applied", { name: actor.name }));
 }
@@ -3310,7 +3317,16 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
   _prepareDesign() {
     const tables = CONFIG.SR2E.vehicleDesign ?? { chassis: {}, powerPlants: {} };
     const stored = this.document.system.design ?? {};
-    const result = resolveVehicleDesign(stored, tables);
+
+    // Installed modifications fold into the build: design-option mods add their
+    // Design Points; ¥-priced customization mods add their cost on top. So
+    // dragging a mod onto the vehicle moves the DP and/or the total cost.
+    const modItems = this.document.items.filter(i => i.type === "vehicle_mod");
+    const modAgg = aggregateModDesign(modItems.map(i => i.system));
+    const manualModDP = Number(stored.modDP) || 0;
+    const effectiveDesign = { ...stored, modDP: manualModDP + modAgg.designPoints };
+    const result = resolveVehicleDesign(effectiveDesign, tables);
+    const totalCost = (result.cost || 0) + modAgg.cost;
 
     const groupBy = (map, keyFn, selectedKey) => {
       const groups = {};
@@ -3331,16 +3347,28 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     }));
 
     const fmt = (n) => Number(n || 0).toLocaleString();
+    const installedMods = modItems.map(i => ({
+      id: i.id, name: i.name,
+      designPoints: Number(i.system.designPoints) || 0,
+      cost: Number(i.system.cost) || 0
+    }));
     return {
       ...result,
+      designPoints: result.designPoints,
+      cost: totalCost,
       hasData: chassisGroups.length > 0 || powerPlantGroups.length > 0,
       chassisGroups,
       powerPlantGroups,
       ratings,
       modDP: stored.modDP ?? 0,
       markUp: stored.markUp ?? 1,
+      installedMods,
+      hasMods: installedMods.length > 0,
+      modDPFromItems: modAgg.designPoints,
+      modCost: modAgg.cost,
+      modCostLabel: fmt(modAgg.cost),
       designPointsLabel: fmt(result.designPoints),
-      costLabel: fmt(result.cost)
+      costLabel: fmt(totalCost)
     };
   }
 }
