@@ -41,10 +41,12 @@
       <div class="stat-item">
         <label>Armor</label>
         <input type="number" name="system.armor" value="{{system.armor}}" />
+        {{#if system.modArmor}}<span class="stat-effective" title="Base {{system.armor}} + {{system.modArmor}} from armor mods">→ {{system.effectiveArmor}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Signature</label>
         <input type="number" name="system.signature" value="{{system.signature}}" />
+        {{#if system.modSignature}}<span class="stat-effective" title="Base {{system.signature}} + {{system.modSignature}} from signature mods">→ {{system.effectiveSignature}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Pilot</label>

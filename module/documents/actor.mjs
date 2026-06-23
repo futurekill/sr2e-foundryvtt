@@ -849,7 +849,7 @@ export class SR2EActor extends Actor {
     const speed = vehicle.system.effectiveSpeed ?? vehicle.system.speed ?? 0;
     const power = Math.max(1, Math.floor(speed / 10));
     const level = CONFIG.SR2E.crashDamageLevel(speed);
-    const armor = vehicle.system.armor ?? 0;
+    const armor = vehicle.system.effectiveArmor ?? vehicle.system.armor ?? 0;
     const body  = vehicle.system.body ?? 1;
 
     const dice = body + Math.floor(armor / 2);
@@ -910,7 +910,7 @@ export class SR2EActor extends Actor {
    */
   async rollVehicleRam(myVehicle, opp, terrain = "normal", options = {}) {
     const terrainMod = CONFIG.SR2E.vehicleTerrainMods.ram[terrain] ?? 0;
-    const myHalfArmor  = Math.floor((myVehicle.system.armor ?? 0) / 2);
+    const myHalfArmor  = Math.floor((myVehicle.system.effectiveArmor ?? myVehicle.system.armor ?? 0) / 2);
     const oppHalfArmor = Math.floor((opp.armor ?? 0) / 2);
 
     // My driving skill (Reaction default when untrained)

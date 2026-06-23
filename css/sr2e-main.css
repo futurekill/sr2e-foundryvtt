@@ -3161,3 +3161,8 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 }
 .sr2e-vehicle-sheet .item-rating input,
 .vehicle-design .item-rating input { width: 42px; text-align: right; }
+
+/* Vehicle stat effective-value badge (base + mod contribution) */
+.sr2e-vehicle-sheet .stat-item .stat-effective {
+  display: block; font-size: 0.8em; opacity: 0.8; margin-top: 2px; text-align: center;
+}

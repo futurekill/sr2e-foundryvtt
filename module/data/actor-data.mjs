@@ -770,7 +770,28 @@ export class VehicleData extends SR2EDataModel {
     // Standard 10-box damage track: Light at 1, Moderate at 3, Serious at 6,
     // Destroyed at 10 — vehicle damage levels per SR2E p.109.
     this.conditionMonitor.max = 10;
+
+    // Installed modifications that adjust vehicle stats (Rigger 2). Armor mods
+    // (Standard/Concealed/Ablative Vehicle Armor) add their Rating in Armor
+    // Points; signature mods (Thermal Baffles, RAM, Active Thermal Masking) add
+    // to Signature. Kept as a derived bonus so the base stat stays editable
+    // (effective = base + mod bonus); see effectiveArmor / effectiveSignature.
+    let modArmor = 0, modSignature = 0;
+    for (const item of (this.parent?.items ?? [])) {
+      if (item.type !== "vehicle_mod") continue;
+      const rating = Number(item.system.rating) || 0;
+      if (item.system.modType === "armor") modArmor += rating;
+      else if (item.system.modType === "signature") modSignature += rating;
+    }
+    this.modArmor = modArmor;
+    this.modSignature = modSignature;
   }
+
+  /** Effective Armor = base + armor-mod Armor Points. */
+  get effectiveArmor() { return (this.armor || 0) + (this.modArmor || 0); }
+
+  /** Effective Signature = base + signature-mod bonuses. */
+  get effectiveSignature() { return (this.signature || 0) + (this.modSignature || 0); }
 
   /**
    * Current vehicle damage level (SR2E p.109).
