@@ -9,7 +9,8 @@ import {
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
-  resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints
+  resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
+  modCfConsumed, modLoadReduction
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -437,6 +438,27 @@ describe("modDesignPoints — a mod's Design Cost by rating (Rigger 2 p.118-146)
   });
 });
 
+describe("modCfConsumed / modLoadReduction — CF + Load budgets (Rigger 2 p.115)", () => {
+  it("CF: flat, per-Armor-Point, and EW table by rating", () => {
+    expect(modCfConsumed({ cfConsumed: 1 })).toBe(1);                       // Ring Mount
+    expect(modCfConsumed({ cfPerLevel: 2, rating: 4 })).toBe(8);            // Concealed armor, 4 pts
+    expect(modCfConsumed({ cfTable: [0, 1, 2, 3, 2, 4, 6, 10, 12, 16], rating: 8 })).toBe(10); // ECM L8
+  });
+  it("Load: flat + per-level (Gunnery Recoil Adjuster 24 + 1/level)", () => {
+    expect(modLoadReduction({ loadReduction: 25 })).toBe(25);              // Ring Mount
+    expect(modLoadReduction({ loadReduction: 24, loadPerLevel: 1, rating: 6 })).toBe(30);
+  });
+  it("aggregateModDesign sums cf and load too", () => {
+    const r = aggregateModDesign([
+      { cfConsumed: 1, loadReduction: 25 },              // Ring Mount
+      { cfPerLevel: 2, rating: 3 },                      // Concealed armor 3 pts -> 6 CF
+      { cfConsumed: 0.5 }                                // Electronics Port
+    ]);
+    expect(r.cf).toBe(7.5);
+    expect(r.load).toBe(25);
+  });
+});
+
 describe("aggregateModDesign — installed-mod contributions to a build", () => {
   it("sums Design Points and ¥ cost across mods", () => {
     const r = aggregateModDesign([
@@ -453,7 +475,7 @@ describe("aggregateModDesign — installed-mod contributions to a build", () => 
     expect(r.cost).toBe(1500);
   });
   it("empty list is zero", () => {
-    expect(aggregateModDesign()).toEqual({ designPoints: 0, cost: 0 });
+    expect(aggregateModDesign()).toEqual({ designPoints: 0, cost: 0, cf: 0, load: 0 });
   });
   it("folds into resolveVehicleDesign via modDP (DP and then cost added on top)", () => {
     const tables = { chassis: { c: { name: "C", dp: 100, handling: "3", body: 2 } },

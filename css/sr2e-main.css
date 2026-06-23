@@ -3175,3 +3175,14 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .vehicle-design .markup-cols { display: flex; gap: 16px; }
 .vehicle-design .markup-cols ul { margin: 2px 0 0; padding-left: 16px; }
 .vehicle-design .markup-cols em { opacity: 0.7; }
+
+/* Design tab — CF / Load budgets */
+.vehicle-design .design-budgets { display: flex; gap: 10px; margin: 8px 0; }
+.vehicle-design .budget-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; padding: 5px;
+  border: 1px solid var(--color-border-light-tertiary, #888); border-radius: 4px;
+  background: rgba(0,0,0,0.04);
+}
+.vehicle-design .budget-item.over { border-color: #c0392b; background: rgba(192,57,43,0.12); }
+.vehicle-design .budget-label { font-size: 0.72em; text-transform: uppercase; opacity: 0.7; }
+.vehicle-design .budget-value { font-weight: bold; }

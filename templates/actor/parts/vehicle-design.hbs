@@ -97,6 +97,21 @@
   </fieldset>
   {{/if}}
 
+  {{#if design.showBudgets}}
+  <div class="design-budgets">
+    <div class="budget-item {{#if design.cfOver}}over{{/if}}" title="Cargo Factor consumed by mods vs the chassis' Cargo Rating (book p.115)">
+      <span class="budget-label">{{localize "SR2E.Design.CargoFactor"}}</span>
+      <span class="budget-value">{{design.cfUsed}}{{#if design.cfCap}} / {{design.cfCap}}{{/if}} CF</span>
+    </div>
+    <div class="budget-item {{#if design.loadOver}}over{{/if}}" title="Load (kg) consumed by mods vs the power plant's Load Rating (book p.115)">
+      <span class="budget-label">{{localize "SR2E.Design.LoadRating"}}</span>
+      <span class="budget-value">{{design.loadUsed}}{{#if design.loadCap}} / {{design.loadCap}}{{/if}} kg</span>
+    </div>
+  </div>
+  {{#if design.cfOver}}<p class="design-warning"><i class="fas fa-triangle-exclamation"></i> {{localize "SR2E.Design.OverCargo"}}</p>{{/if}}
+  {{#if design.loadOver}}<p class="design-warning"><i class="fas fa-triangle-exclamation"></i> {{localize "SR2E.Design.OverLoad"}}</p>{{/if}}
+  {{/if}}
+
   <div class="design-readout">
     <div class="readout-item">
       <span class="readout-label">{{localize "SR2E.Design.DesignPoints"}}</span>

@@ -473,16 +473,33 @@ export function resolveVehicleDesign(design = {}, tables = {}) {
  * @returns {number}
  */
 export function modDesignPoints(m = {}) {
-  const rating = designNum(m.rating) ?? 0;
-  const table = Array.isArray(m.dpTable) ? m.dpTable : null;
-  if (table && table.length) {
-    if (rating < 1) return 0;
-    return designNum(table[Math.min(rating, table.length) - 1]) ?? 0;
+  return ratedModValue(m.rating, m.designPoints, m.dpPerLevel, m.dpTable);
+}
+
+/**
+ * Evaluate a per-mod value (Design Points, CF Consumed, or Load Reduction)
+ * against a Rating, with the same precedence used throughout the design system:
+ * a `table` (absolute value by rating) overrides; otherwise `flat` base + `perLevel`
+ * × rating (additive, e.g. Life Support DP = 5 + 1/level, armor CF = 2/Armor Point).
+ * @returns {number}
+ */
+export function ratedModValue(rating, flat, perLevel, table) {
+  const r = designNum(rating) ?? 0;
+  if (Array.isArray(table) && table.length) {
+    if (r < 1) return 0;
+    return designNum(table[Math.min(r, table.length) - 1]) ?? 0;
   }
-  // Additive: a flat base plus a per-rating term (e.g. Life Support = 5 + 1/level).
-  const base = designNum(m.designPoints) ?? 0;
-  const perLevel = designNum(m.dpPerLevel) ?? 0;
-  return base + perLevel * Math.max(rating, 0);
+  return (designNum(flat) ?? 0) + (designNum(perLevel) ?? 0) * Math.max(r, 0);
+}
+
+/** Cargo Factor a mod consumes from the chassis' Cargo Rating (book p.115). */
+export function modCfConsumed(m = {}) {
+  return ratedModValue(m.rating, m.cfConsumed, m.cfPerLevel, m.cfTable);
+}
+
+/** Kilograms a mod takes from the power plant's Load Rating (book p.115). */
+export function modLoadReduction(m = {}) {
+  return ratedModValue(m.rating, m.loadReduction, m.loadPerLevel, m.loadTable);
 }
 
 /**
@@ -495,10 +512,12 @@ export function modDesignPoints(m = {}) {
  * @returns {{designPoints:number, cost:number}}
  */
 export function aggregateModDesign(mods = []) {
-  let designPoints = 0, cost = 0;
+  let designPoints = 0, cost = 0, cf = 0, load = 0;
   for (const m of mods) {
     designPoints += modDesignPoints(m);
     cost += designNum(m?.cost) ?? 0;
+    cf += modCfConsumed(m);
+    load += modLoadReduction(m);
   }
-  return { designPoints, cost };
+  return { designPoints, cost, cf, load };
 }

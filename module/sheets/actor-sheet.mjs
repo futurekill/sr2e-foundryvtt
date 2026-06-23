@@ -3341,6 +3341,15 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     const result = resolveVehicleDesign(effectiveDesign, tables);
     const totalCost = (result.cost || 0) + modAgg.cost;
 
+    // CF / Load budgets (book p.115): mods consume Cargo Factor from the chassis'
+    // Cargo Rating and kilograms from the power plant's Load Rating; neither may
+    // be exceeded. Capacities come from the selected chassis / power plant.
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+    const cfCap = num(result.chassis?.cargoMax);
+    const loadCap = num(result.powerPlant?.loadMax);
+    const cfUsed = Math.round(modAgg.cf * 100) / 100;
+    const loadUsed = Math.round(modAgg.load * 100) / 100;
+
     const groupBy = (map, keyFn, selectedKey) => {
       const groups = {};
       for (const [key, entry] of Object.entries(map ?? {})) {
@@ -3388,6 +3397,11 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       markupBase,
       markupEquipment: markupCfg.equipment ?? [],
       markupSpecial: markupCfg.specialDesign ?? [],
+      cfUsed, cfCap,
+      cfOver: cfCap != null && cfUsed > cfCap,
+      loadUsed, loadCap,
+      loadOver: loadCap != null && loadUsed > loadCap,
+      showBudgets: cfCap != null || loadCap != null || cfUsed > 0 || loadUsed > 0,
       installedMods,
       hasMods: installedMods.length > 0,
       modDPFromItems: modAgg.designPoints,

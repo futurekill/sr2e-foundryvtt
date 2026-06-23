@@ -603,6 +603,15 @@ export class VehicleModData extends SR2EDataModel {
       designPoints: new fields.NumberField({ initial: 0, min: 0 }),
       dpPerLevel:   new fields.NumberField({ initial: 0, min: 0 }),
       dpTable: new fields.ArrayField(new fields.NumberField({ min: 0 }), { initial: [] }),
+      // Cargo Factor consumed from the chassis' Cargo Rating, and kilograms taken
+      // from the power plant's Load Rating (Rigger 2 p.115). Same flat/perLevel/
+      // table model as the Design-Point fields, evaluated against `rating`.
+      cfConsumed:   new fields.NumberField({ initial: 0, min: 0 }),
+      cfPerLevel:   new fields.NumberField({ initial: 0, min: 0 }),
+      cfTable: new fields.ArrayField(new fields.NumberField({ min: 0 }), { initial: [] }),
+      loadReduction: new fields.NumberField({ initial: 0, min: 0 }),
+      loadPerLevel:  new fields.NumberField({ initial: 0, min: 0 }),
+      loadTable: new fields.ArrayField(new fields.NumberField({ min: 0 }), { initial: [] }),
       installed: new fields.BooleanField({ initial: false }),
       notes: new fields.StringField({ initial: "" })
     };
