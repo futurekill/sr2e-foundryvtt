@@ -9,7 +9,7 @@ import {
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
-  resolveVehicleDesign, designNum, aggregateModDesign
+  resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -409,6 +409,30 @@ describe("resolveVehicleDesign — design tables → DP, cost, base stats", () =
     );
     expect(r.valid).toBe(false);
     expect(r.missing).toContain("chassisDP");
+  });
+});
+
+describe("modDesignPoints — a mod's Design Cost by rating (Rigger 2 p.118-146)", () => {
+  it("flat designPoints ignores rating (Ring Mount 10, Pintle 1)", () => {
+    expect(modDesignPoints({ designPoints: 10 })).toBe(10);
+    expect(modDesignPoints({ designPoints: 1, rating: 3 })).toBe(1);
+  });
+  it("dpPerLevel scales linearly with rating (Nitrous Oxide 55/level)", () => {
+    expect(modDesignPoints({ dpPerLevel: 55, rating: 1 })).toBe(55);
+    expect(modDesignPoints({ dpPerLevel: 55, rating: 3 })).toBe(165);
+    expect(modDesignPoints({ dpPerLevel: 55, rating: 0 })).toBe(0);
+  });
+  it("dpTable looks up non-linear DP by rating (Autonav 5/10/50/150)", () => {
+    const auto = { dpTable: [5, 10, 50, 150] };
+    expect(modDesignPoints({ ...auto, rating: 1 })).toBe(5);
+    expect(modDesignPoints({ ...auto, rating: 3 })).toBe(50);
+    expect(modDesignPoints({ ...auto, rating: 4 })).toBe(150);
+    expect(modDesignPoints({ ...auto, rating: 0 })).toBe(0);   // not installed
+    expect(modDesignPoints({ ...auto, rating: 9 })).toBe(150); // clamp to last
+  });
+  it("dpTable wins over dpPerLevel wins over flat", () => {
+    expect(modDesignPoints({ dpTable: [7], dpPerLevel: 55, designPoints: 3, rating: 1 })).toBe(7);
+    expect(modDesignPoints({ dpPerLevel: 4, designPoints: 3, rating: 2 })).toBe(8);
   });
 });
 

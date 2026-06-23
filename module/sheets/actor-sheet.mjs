@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { resolveVehicleDesign, aggregateModDesign } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints } from "../rules/sr2e-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -3349,7 +3349,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     const fmt = (n) => Number(n || 0).toLocaleString();
     const installedMods = modItems.map(i => ({
       id: i.id, name: i.name,
-      designPoints: Number(i.system.designPoints) || 0,
+      designPoints: modDesignPoints(i.system),
       cost: Number(i.system.cost) || 0
     }));
     return {

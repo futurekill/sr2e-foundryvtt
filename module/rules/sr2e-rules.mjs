@@ -458,18 +458,45 @@ export function resolveVehicleDesign(design = {}, tables = {}) {
 }
 
 /**
+ * The Design-Point cost of a single vehicle modification as a design option
+ * (Rigger 2 "Design Cost", book p.118-146). A mod expresses its DP rule on its
+ * system data, evaluated against its Rating:
+ *   - `dpTable` (array): non-linear DP by rating, e.g. Autonavigation [5,10,50,150]
+ *     → dpTable[rating-1] (clamped). Rating 0 = not installed = 0.
+ *   - `dpPerLevel` (number): linear per rating level, e.g. Nitrous Oxide 55/level
+ *     → dpPerLevel × rating.
+ *   - else `designPoints` (number): a flat value (Ring Mount 10, Pintle 1, …).
+ * NOTE: power-plant-relative mods (Engine Customization / Turbocharging =
+ * power-plant DP × 1.25 …) depend on the build, not the mod alone — those use
+ * {@link engineCustomizationCost} (entered via the design's manual "Extra DP").
+ * @param {object} m  vehicle_mod system data
+ * @returns {number}
+ */
+export function modDesignPoints(m = {}) {
+  const rating = designNum(m.rating) ?? 0;
+  const table = Array.isArray(m.dpTable) ? m.dpTable : null;
+  if (table && table.length) {
+    if (rating < 1) return 0;
+    return designNum(table[Math.min(rating, table.length) - 1]) ?? 0;
+  }
+  const perLevel = designNum(m.dpPerLevel) ?? 0;
+  if (perLevel) return perLevel * Math.max(rating, 0);
+  return designNum(m.designPoints) ?? 0;
+}
+
+/**
  * Sum the contributions of a vehicle's installed modifications to a design.
- * Design-option mods carry a Design-Point value (`designPoints`, folded into the
- * build's DP via {@link resolveVehicleDesign}'s modDP); ¥-priced customization
- * mods carry a `cost` that's added on top of the design's computed price. So
- * dragging a mod onto a vehicle moves DP and/or the total cost.
- * @param {Array<{designPoints?:number, cost?:number}>} mods  vehicle_mod system data
+ * Each mod's Design Points (see {@link modDesignPoints}) fold into the build's DP
+ * via {@link resolveVehicleDesign}'s modDP; ¥-priced customization mods add their
+ * `cost` on top of the design's computed price. So dragging a mod onto a vehicle
+ * moves DP and/or the total cost.
+ * @param {Array<object>} mods  vehicle_mod system data
  * @returns {{designPoints:number, cost:number}}
  */
 export function aggregateModDesign(mods = []) {
   let designPoints = 0, cost = 0;
   for (const m of mods) {
-    designPoints += designNum(m?.designPoints) ?? 0;
+    designPoints += modDesignPoints(m);
     cost += designNum(m?.cost) ?? 0;
   }
   return { designPoints, cost };
