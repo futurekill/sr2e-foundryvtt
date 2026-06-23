@@ -288,14 +288,18 @@ export function containerEssence(baseEssence, moduleEssenceSum, capacity) {
 
 /**
  * Design-Point cost to improve each vehicle rating by one unit (Rigger 2 design
- * options, book p.115-117). These are FLAT rules (not power-plant-specific):
- * lowering Handling by 1 (an improvement) is 25 DP; Speed and Acceleration are
- * 2 DP per point; Armor is 50 DP per point; Cargo is 1 DP per CF; Load is 1 DP
- * per 10 kg (= 0.1 DP/kg). Speed/Accel/Load can't exceed the power plant's max
- * (without Engine Customization); Cargo/Handling/Armor are capped by the chassis.
+ * options, book p.115-117), VERIFIED against the worked walkthrough (Steffi's
+ * Light Strike reconstructs exactly to its published 154 DP total, p.111-115):
+ * lowering Handling by 1 = 25 DP; Acceleration = 25 DP/point ("Improving the
+ * Acceleration costs 25 Design Points per point", p.113 — the option stat block's
+ * "2 points" is a book typo the worked total contradicts); Speed = 2 DP/point;
+ * Cargo = 5 DP/CF (Increased Cargo Space, p.116: "5 Design Points for every 1
+ * point"); Load = 0.1 DP/kg (1 DP / 10 kg). Armor isn't a design option — it's
+ * added via armor mods (50 DP/Armor Point), kept here for a quick equivalent buy.
+ * Speed/Accel/Load are capped by the power plant; Cargo/Handling by the chassis.
  */
 export const DESIGN_OPTION_COSTS = Object.freeze({
-  handling: 25, speed: 2, acceleration: 2, armor: 50, cargo: 1, load: 0.1
+  handling: 25, speed: 2, acceleration: 25, armor: 50, cargo: 5, load: 0.1
 });
 
 /**

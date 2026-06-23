@@ -279,29 +279,23 @@ describe("Vehicle design point-buy (Rigger 2 p.108-123)", () => {
   it("adds the power plant's Design Points to the chassis", () => {
     expect(vehicleDesign({ chassisDP: 110, powerPlantDP: 165 }).designPoints).toBe(275);
   });
-  it("rating improvements use the flat per-point costs and accumulate — Rich's Sports Car reaches 599 DP", () => {
-    // Worked example p.112-113: Sports Car (chassis 110) + its engine (165 DP,
-    // implied) + Accel +11 ×2 (22) + Speed +151 ×2 (302) = 599. Uses the default
-    // DESIGN_OPTION_COSTS (acceleration 2, speed 2).
+  it("Steffi's Light Strike Vehicle reconstructs to its published 154 DP (full walkthrough, book p.111-115)", () => {
+    // Sand Buggy chassis 20 + sand-buggy gasoline engine 25 = 45; off-road
+    // Handling −1 (×25 = 25) → 70; Acceleration +2 (×25 = 50) → 120; Cargo +2 CF
+    // (×5 = 10) → 130; Load +30 kg (×0.1 = 3) → 133; mods 21 → 154.
     const r = vehicleDesign({
-      chassisDP: 110, powerPlantDP: 165,
-      improvements: { acceleration: 11, speed: 151 }
+      chassisDP: 20, powerPlantDP: 25,
+      improvements: { handling: 1, acceleration: 2, cargo: 2, load: 30 },
+      modDP: [21], markUp: 2
     });
-    expect(r.designPoints).toBe(599);
+    expect(r.designPoints).toBe(154);
+    expect(r.cost).toBe(30800); // 154 × Mark-Up 2 × 100
   });
-  it("modifications add their Design-Point cost — Rich's build hits 659 DP after mods", () => {
-    const r = vehicleDesign({
-      chassisDP: 110, powerPlantDP: 165,
-      improvements: { acceleration: 11, speed: 151 },
-      modDP: [21, 39] // p.113 mods totalling 60 DP
-    });
-    expect(r.designPoints).toBe(659);
-  });
-  it("default per-point costs match the book (Handling 25, Speed/Accel 2, Cargo 1, Armor 50, Load 0.1/kg)", () => {
+  it("default per-point costs match the book/walkthrough (Handling 25, Accel 25, Speed 2, Cargo 5, Load 0.1/kg)", () => {
     expect(DESIGN_OPTION_COSTS.handling).toBe(25);
+    expect(DESIGN_OPTION_COSTS.acceleration).toBe(25);
     expect(DESIGN_OPTION_COSTS.speed).toBe(2);
-    expect(DESIGN_OPTION_COSTS.acceleration).toBe(2);
-    expect(DESIGN_OPTION_COSTS.cargo).toBe(1);
+    expect(DESIGN_OPTION_COSTS.cargo).toBe(5);
     expect(DESIGN_OPTION_COSTS.armor).toBe(50);
     // Load: 1 DP per 10 kg → 0.1/kg, so +50 kg = 5 DP
     expect(vehicleDesign({ chassisDP: 0, improvements: { load: 50 } }).designPoints).toBe(5);
@@ -364,8 +358,9 @@ describe("resolveVehicleDesign — design tables → DP, cost, base stats", () =
       improvements: { speed: 100, acceleration: 11, armor: 2, handling: 1 },
       markUp: 1
     }, tables);
-    // DP: 175 + 100×2 + 11×2 + 2×50 + 1×25 = 175+200+22+100+25 = 522
-    expect(r.designPoints).toBe(522);
+    // DP: 175 + speed 100×2 + accel 11×25 + armor 2×50 + handling 1×25
+    //   = 175 + 200 + 275 + 100 + 25 = 775
+    expect(r.designPoints).toBe(775);
     expect(r.baseStats.speed).toBe(190);          // 90 + 100
     expect(r.baseStats.acceleration).toBe(16);    // 5 + 11 = 16 (= max, clamped)
     expect(r.baseStats.armor).toBe(2);            // 0 + 2

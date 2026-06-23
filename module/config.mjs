@@ -639,9 +639,9 @@ SR2E.registerVehicleDesignData = function registerVehicleDesignData({ chassis = 
 SR2E.vehicleDesignRatings = {
   handling:     { label: "SR2E.Design.Handling",     dp: 25 },
   speed:        { label: "SR2E.Design.Speed",        dp: 2 },
-  acceleration: { label: "SR2E.Design.Acceleration", dp: 2 },
+  acceleration: { label: "SR2E.Design.Acceleration", dp: 25 },
   armor:        { label: "SR2E.Design.Armor",        dp: 50 },
-  cargo:        { label: "SR2E.Design.Cargo",        dp: 1 },
+  cargo:        { label: "SR2E.Design.Cargo",        dp: 5 },
   load:         { label: "SR2E.Design.Load",         dp: 0.1 }
 };
 
