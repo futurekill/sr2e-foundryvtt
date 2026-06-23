@@ -3349,6 +3349,8 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     const fmt = (n) => Number(n || 0).toLocaleString();
     const installedMods = modItems.map(i => ({
       id: i.id, name: i.name,
+      rating: Number(i.system.rating) || 0,
+      rated: (Array.isArray(i.system.dpTable) && i.system.dpTable.length > 0) || (Number(i.system.dpPerLevel) || 0) > 0,
       designPoints: modDesignPoints(i.system),
       cost: Number(i.system.cost) || 0
     }));

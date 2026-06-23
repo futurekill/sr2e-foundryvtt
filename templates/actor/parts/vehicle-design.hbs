@@ -66,8 +66,11 @@
     <legend title="Modifications on this vehicle fold into the build: design-option mods add Design Points; ¥-priced mods add cost">{{localize "SR2E.Design.InstalledMods"}}</legend>
     <div class="item-list">
       {{#each design.installedMods as |mod|}}
-      <div class="item-row flexrow">
+      <div class="item-row flexrow" data-item-id="{{mod.id}}">
         <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}</span>
+        {{#if mod.rated}}{{#if ../editable}}
+        <label class="item-rating" title="Rating">R <input type="number" data-field="system.rating" value="{{mod.rating}}" min="0" /></label>
+        {{/if}}{{/if}}
         <span class="item-meta">{{#if mod.designPoints}}{{mod.designPoints}} DP{{/if}}{{#if mod.cost}}{{#if mod.designPoints}} · {{/if}}{{mod.cost}}¥{{/if}}</span>
       </div>
       {{/each}}

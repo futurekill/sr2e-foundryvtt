@@ -3152,3 +3152,12 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .vehicle-design .design-mods .item-name { flex: 1; }
 .vehicle-design .design-mods .item-meta { opacity: 0.7; font-size: 0.85em; white-space: nowrap; }
 .vehicle-design .design-mods-total { text-align: right; font-size: 0.82em; opacity: 0.8; margin-top: 3px; }
+
+/* Editable mod rating (vehicle sheet + design tab) */
+.sr2e-vehicle-sheet .item-rating,
+.vehicle-design .item-rating {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.8em; opacity: 0.85; white-space: nowrap;
+}
+.sr2e-vehicle-sheet .item-rating input,
+.vehicle-design .item-rating input { width: 42px; text-align: right; }

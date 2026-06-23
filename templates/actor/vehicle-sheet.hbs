@@ -94,7 +94,9 @@
       {{#each mods as |mod|}}
       <div class="item-row flexrow" data-item-id="{{mod.id}}" draggable="true">
         <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}</span>
-        {{#ifGt mod.system.rating 0}}<span class="item-meta">Rating {{mod.system.rating}}</span>{{/ifGt}}
+        {{#if editable}}
+        <label class="item-rating" title="Rating">R <input type="number" data-field="system.rating" value="{{mod.system.rating}}" min="0" /></label>
+        {{else}}{{#ifGt mod.system.rating 0}}<span class="item-meta">R{{mod.system.rating}}</span>{{/ifGt}}{{/if}}
         <div class="item-controls">
           <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
           <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
