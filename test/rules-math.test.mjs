@@ -430,9 +430,10 @@ describe("modDesignPoints — a mod's Design Cost by rating (Rigger 2 p.118-146)
     expect(modDesignPoints({ ...auto, rating: 0 })).toBe(0);   // not installed
     expect(modDesignPoints({ ...auto, rating: 9 })).toBe(150); // clamp to last
   });
-  it("dpTable wins over dpPerLevel wins over flat", () => {
+  it("dpTable overrides; otherwise base + per-level are additive (Life Support 5 + 1/level)", () => {
     expect(modDesignPoints({ dpTable: [7], dpPerLevel: 55, designPoints: 3, rating: 1 })).toBe(7);
-    expect(modDesignPoints({ dpPerLevel: 4, designPoints: 3, rating: 2 })).toBe(8);
+    expect(modDesignPoints({ designPoints: 5, dpPerLevel: 1, rating: 4 })).toBe(9);
+    expect(modDesignPoints({ dpPerLevel: 4, designPoints: 3, rating: 2 })).toBe(11);
   });
 });
 

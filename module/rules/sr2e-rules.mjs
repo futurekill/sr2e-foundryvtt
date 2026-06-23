@@ -479,9 +479,10 @@ export function modDesignPoints(m = {}) {
     if (rating < 1) return 0;
     return designNum(table[Math.min(rating, table.length) - 1]) ?? 0;
   }
+  // Additive: a flat base plus a per-rating term (e.g. Life Support = 5 + 1/level).
+  const base = designNum(m.designPoints) ?? 0;
   const perLevel = designNum(m.dpPerLevel) ?? 0;
-  if (perLevel) return perLevel * Math.max(rating, 0);
-  return designNum(m.designPoints) ?? 0;
+  return base + perLevel * Math.max(rating, 0);
 }
 
 /**
