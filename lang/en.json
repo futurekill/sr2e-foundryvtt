@@ -316,9 +316,12 @@
   "SR2E.Contact.Follower": "Follower",
   "SR2E.Quality.Edge": "Edge",
   "SR2E.Quality.Flaw": "Flaw",
+  "SR2E.Quality.Attribute": "Attribute",
   "SR2E.Quality.Skill": "Skill",
   "SR2E.Quality.Mental": "Mental",
   "SR2E.Quality.Physical": "Physical",
+  "SR2E.Quality.Social": "Social",
+  "SR2E.Quality.Magical": "Magical",
   "SR2E.Quality.Other": "Other",
   "SR2E.Quality.Label": "Edges & Flaws",
 

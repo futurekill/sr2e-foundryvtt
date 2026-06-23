@@ -601,10 +601,13 @@ SR2E.qualityKinds = {
   flaw: "SR2E.Quality.Flaw"
 };
 SR2E.qualityCategories = {
-  skill:    "SR2E.Quality.Skill",
-  mental:   "SR2E.Quality.Mental",
-  physical: "SR2E.Quality.Physical",
-  other:    "SR2E.Quality.Other"
+  attribute: "SR2E.Quality.Attribute",
+  skill:     "SR2E.Quality.Skill",
+  physical:  "SR2E.Quality.Physical",
+  mental:    "SR2E.Quality.Mental",
+  social:    "SR2E.Quality.Social",
+  magical:   "SR2E.Quality.Magical",
+  other:     "SR2E.Quality.Other"
 };
 
 // ---------------------------------------------------------------------------

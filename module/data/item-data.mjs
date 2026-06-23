@@ -733,8 +733,10 @@ export class QualityData extends SR2EDataModel {
         edge: "SR2E.Quality.Edge", flaw: "SR2E.Quality.Flaw"
       }}),
       category: new fields.StringField({ initial: "other", choices: {
-        skill: "SR2E.Quality.Skill", mental: "SR2E.Quality.Mental",
-        physical: "SR2E.Quality.Physical", other: "SR2E.Quality.Other"
+        attribute: "SR2E.Quality.Attribute", skill: "SR2E.Quality.Skill",
+        physical: "SR2E.Quality.Physical", mental: "SR2E.Quality.Mental",
+        social: "SR2E.Quality.Social", magical: "SR2E.Quality.Magical",
+        other: "SR2E.Quality.Other"
       }}),
       // Build-point value: positive for Edges, negative for Flaws.
       pointValue: new fields.NumberField({ integer: true, initial: 0 }),
