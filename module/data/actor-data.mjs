@@ -757,7 +757,10 @@ export class VehicleData extends SR2EDataModel {
           acceleration: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
           armor:        new fields.NumberField({ integer: true, initial: 0, min: 0 }),
           cargo:        new fields.NumberField({ initial: 0, min: 0 }),
-          load:         new fields.NumberField({ initial: 0, min: 0 })
+          load:         new fields.NumberField({ initial: 0, min: 0 }),
+          economy:      new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          signature:    new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          fuel:         new fields.NumberField({ integer: true, initial: 0, min: 0 })
         }),
         modDP:  new fields.NumberField({ initial: 0, min: 0 }),
         markUp: new fields.NumberField({ initial: 1, min: 0 })

@@ -3186,3 +3186,9 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .vehicle-design .budget-item.over { border-color: #c0392b; background: rgba(192,57,43,0.12); }
 .vehicle-design .budget-label { font-size: 0.72em; text-transform: uppercase; opacity: 0.7; }
 .vehicle-design .budget-value { font-weight: bold; }
+
+/* Design tab — flat design-options reference */
+.vehicle-design .flat-options-reference { margin: 6px 0; font-size: 0.85em; }
+.vehicle-design .flat-options-reference summary { cursor: pointer; opacity: 0.85; }
+.vehicle-design .flat-options-reference ul { margin: 4px 0 0; padding-left: 16px; }
+.vehicle-design .flat-options-reference em { opacity: 0.7; }

@@ -50,6 +50,13 @@
     </div>
   </fieldset>
 
+  {{#if design.flatOptions.length}}
+  <details class="flat-options-reference">
+    <summary>{{localize "SR2E.Design.FlatOptions"}}</summary>
+    <ul>{{#each design.flatOptions as |o|}}<li>{{o.label}} <em>{{o.dp}} DP</em></li>{{/each}}</ul>
+  </details>
+  {{/if}}
+
   <fieldset class="design-extras">
     <div class="form-group">
       <label title="Extra Design Points not covered by an installed mod item — added on top of the mods below">{{localize "SR2E.Design.ModDP"}}</label>

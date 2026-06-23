@@ -3397,6 +3397,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       markupBase,
       markupEquipment: markupCfg.equipment ?? [],
       markupSpecial: markupCfg.specialDesign ?? [],
+      flatOptions: CONFIG.SR2E.vehicleDesignFlatOptions ?? [],
       cfUsed, cfCap,
       cfOver: cfCap != null && cfUsed > cfCap,
       loadUsed, loadCap,

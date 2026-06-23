@@ -300,6 +300,13 @@ describe("Vehicle design point-buy (Rigger 2 p.108-123)", () => {
     // Load: 1 DP per 10 kg → 0.1/kg, so +50 kg = 5 DP
     expect(vehicleDesign({ chassisDP: 0, improvements: { load: 50 } }).designPoints).toBe(5);
   });
+  it("minor design options: economy 5/pt, signature 200/pt, fuel 25/unit (p.116-117)", () => {
+    expect(DESIGN_OPTION_COSTS.economy).toBe(5);
+    expect(DESIGN_OPTION_COSTS.signature).toBe(200);
+    expect(DESIGN_OPTION_COSTS.fuel).toBe(25);
+    // 2 economy + 1 signature + 3 fuel = 10 + 200 + 75 = 285 DP
+    expect(vehicleDesign({ improvements: { economy: 2, signature: 1, fuel: 3 } }).designPoints).toBe(285);
+  });
   it("final cost = Design Points × Mark-Up Factor × 100 (book p.115 worked examples)", () => {
     // Rich's final 1,239-DP car at Mark-Up 2.5 → 309,750¥
     expect(vehicleDesign({ chassisDP: 1239, markUp: 2.5 }).cost).toBe(309750);

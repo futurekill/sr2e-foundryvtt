@@ -299,7 +299,10 @@ export function containerEssence(baseEssence, moduleEssenceSum, capacity) {
  * Speed/Accel/Load are capped by the power plant; Cargo/Handling by the chassis.
  */
 export const DESIGN_OPTION_COSTS = Object.freeze({
-  handling: 25, speed: 2, acceleration: 25, armor: 50, cargo: 5, load: 0.1
+  handling: 25, speed: 2, acceleration: 25, armor: 50, cargo: 5, load: 0.1,
+  // Improved Economy 5/pt (p.116); Signature Improvement 200/pt, military for 3+
+  // (p.117); Increase Fuel Tank Capacity 25 per capacity unit (p.116).
+  economy: 5, signature: 200, fuel: 25
 });
 
 /**
@@ -440,7 +443,7 @@ export function resolveVehicleDesign(design = {}, tables = {}) {
     if (pk("accelStart") !== null) baseStats.acceleration = _clampMax(pk("accelStart") + d("acceleration"), pp.accelMax);
     if (ch("body") !== null) baseStats.body = ch("body");
     baseStats.armor = (ch("armor") ?? 0) + d("armor");
-    if (pk("sig") !== null) baseStats.signature = pk("sig");
+    if (pk("sig") !== null) baseStats.signature = pk("sig") + d("signature");
     if (ch("pilot") !== null) baseStats.pilot = ch("pilot");
     if (ch("sensor") !== null) baseStats.sensor = ch("sensor");
     if (ch("autonav") !== null) baseStats.autonav = ch("autonav");

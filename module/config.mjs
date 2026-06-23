@@ -642,8 +642,24 @@ SR2E.vehicleDesignRatings = {
   acceleration: { label: "SR2E.Design.Acceleration", dp: 25 },
   armor:        { label: "SR2E.Design.Armor",        dp: 50 },
   cargo:        { label: "SR2E.Design.Cargo",        dp: 5 },
-  load:         { label: "SR2E.Design.Load",         dp: 0.1 }
+  load:         { label: "SR2E.Design.Load",         dp: 0.1 },
+  economy:      { label: "SR2E.Design.Economy",      dp: 5 },
+  signature:    { label: "SR2E.Design.Signature",    dp: 200 },
+  fuel:         { label: "SR2E.Design.Fuel",         dp: 25 }
 };
+
+// Flat / special design options that aren't per-point rating buys (book p.116-117).
+// Shown on the Design tab as a reference; add the listed Design Points to the
+// build via the manual "Extra DP" field.
+SR2E.vehicleDesignFlatOptions = [
+  { label: "Smart Materials (also +0.5 Mark-Up; raises Speed/Accel/Load maxes, −1 Handling)", dp: "100" },
+  { label: "Add STOL profile (fixed-wing)", dp: "250" },
+  { label: "Add VSTOL profile (fixed-wing)", dp: "400" },
+  { label: "Medical-Treatment Gear (225 CF, 50 kg/patient)", dp: "400 + 80/patient" },
+  { label: "Living Amenities — Basic / Improved / High (needs 200 CF)", dp: "40 / 50+40 / 100+40 per passenger" },
+  { label: "Hydrofoil Capability (motorboats)", dp: "see p.116" },
+  { label: "Improve Robot's Learning Pool", dp: "GM's discretion" }
+];
 
 // Mark-Up Factors Table (Rigger 2 p.114). Final cost = Design Points × Mark-Up
 // × 100, where Mark-Up = (chassis-category base + Σ equipment modifiers) ×
