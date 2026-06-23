@@ -3367,6 +3367,13 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       designPoints: modDesignPoints(i.system),
       cost: Number(i.system.cost) || 0
     }));
+
+    // Mark-Up Factor table (book p.114): suggest the base from the chosen
+    // chassis category; the GM applies equipment/special-design factors.
+    const markupCfg = CONFIG.SR2E.vehicleMarkup ?? {};
+    const markupCategory = result.chassis?.group ?? null;
+    const markupBase = markupCategory ? markupCfg.chassisBase?.[markupCategory] : null;
+
     return {
       ...result,
       designPoints: result.designPoints,
@@ -3377,6 +3384,10 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       ratings,
       modDP: stored.modDP ?? 0,
       markUp: stored.markUp ?? 1,
+      markupCategory,
+      markupBase,
+      markupEquipment: markupCfg.equipment ?? [],
+      markupSpecial: markupCfg.specialDesign ?? [],
       installedMods,
       hasMods: installedMods.length > 0,
       modDPFromItems: modAgg.designPoints,

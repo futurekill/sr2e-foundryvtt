@@ -3166,3 +3166,12 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-vehicle-sheet .stat-item .stat-effective {
   display: block; font-size: 0.8em; opacity: 0.8; margin-top: 2px; text-align: center;
 }
+
+/* Design tab — Mark-Up reference */
+.vehicle-design .markup-suggest { display: block; font-size: 0.78em; opacity: 0.7; margin-top: 2px; }
+.vehicle-design .markup-reference { margin: 6px 0; font-size: 0.85em; }
+.vehicle-design .markup-reference summary { cursor: pointer; opacity: 0.85; }
+.vehicle-design .markup-formula { opacity: 0.75; font-size: 0.92em; margin: 4px 0; }
+.vehicle-design .markup-cols { display: flex; gap: 16px; }
+.vehicle-design .markup-cols ul { margin: 2px 0 0; padding-left: 16px; }
+.vehicle-design .markup-cols em { opacity: 0.7; }

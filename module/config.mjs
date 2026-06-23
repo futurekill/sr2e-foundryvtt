@@ -644,3 +644,31 @@ SR2E.vehicleDesignRatings = {
   cargo:        { label: "SR2E.Design.Cargo",        dp: 1 },
   load:         { label: "SR2E.Design.Load",         dp: 0.1 }
 };
+
+// Mark-Up Factors Table (Rigger 2 p.114). Final cost = Design Points × Mark-Up
+// × 100, where Mark-Up = (chassis-category base + Σ equipment modifiers) ×
+// Π special-design multipliers. The modifier/multiplier values are GM-set within
+// ranges, so the Design tab auto-fills the base from the chosen chassis category
+// and shows this table for reference; the GM sets the final Mark-Up.
+SR2E.vehicleMarkup = {
+  // Base Mark-Up Factor by chassis category, keyed by the chassis group label
+  // the content module registers (CONFIG.SR2E.vehicleDesign.chassis[*].group).
+  chassisBase: {
+    "Bikes": 0.5, "Cars": 1, "Boats": 1, "Hovercraft": 2.5, "Rotorcraft": 2.5,
+    "Fixed Wing": 2.5, "Vector Thrust": 2.5, "Special": 2.5
+  },
+  // Added to the base Mark-Up (GM-set within the listed range).
+  equipment: [
+    { label: "Smart materials used in design", value: "+0.5" },
+    { label: "Ambulance / medical-treatment vehicle", value: "+1" },
+    { label: "Specialized non-combat vehicle (e.g. fire truck)", value: "+0.25 to +2.5" },
+    { label: "Unusual / uncommon accessories & features", value: "+0.2 to +1.2" }
+  ],
+  // Multiply the total Mark-Up (these stack multiplicatively, never add).
+  specialDesign: [
+    { label: "Luxury vehicle", value: "×1.5 to ×2.5" },
+    { label: "Security grade", value: "×2.0 to ×3.0" },
+    { label: "Military grade", value: "×3.0 to ×5.0" },
+    { label: "Drone", value: "×0.1" }
+  ]
+};

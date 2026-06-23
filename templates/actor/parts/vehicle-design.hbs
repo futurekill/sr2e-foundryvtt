@@ -56,10 +56,26 @@
       <input type="number" name="system.design.modDP" value="{{design.modDP}}" min="0" />
     </div>
     <div class="form-group">
-      <label title="GM-set Mark-Up Factor: base + class/performance modifiers (Rigger 2 p.115)">{{localize "SR2E.Design.MarkUp"}}</label>
+      <label title="GM-set Mark-Up Factor: (chassis-category base + equipment modifiers) × special-design multipliers (Rigger 2 p.114)">{{localize "SR2E.Design.MarkUp"}}</label>
       <input type="number" step="0.1" name="system.design.markUp" value="{{design.markUp}}" min="0" />
+      {{#if design.markupBase}}<span class="markup-suggest" title="Base Mark-Up for the {{design.markupCategory}} chassis category">{{design.markupCategory}} base: {{design.markupBase}}</span>{{/if}}
     </div>
   </fieldset>
+
+  <details class="markup-reference">
+    <summary>{{localize "SR2E.Design.MarkupReference"}}</summary>
+    <p class="markup-formula">Mark-Up = (chassis base + equipment modifiers) × special-design multipliers. Cost = Design Points × Mark-Up × 100¥.</p>
+    <div class="markup-cols">
+      <div>
+        <strong>+ Equipment</strong>
+        <ul>{{#each design.markupEquipment as |e|}}<li>{{e.label}} <em>{{e.value}}</em></li>{{/each}}</ul>
+      </div>
+      <div>
+        <strong>× Special design</strong>
+        <ul>{{#each design.markupSpecial as |s|}}<li>{{s.label}} <em>{{s.value}}</em></li>{{/each}}</ul>
+      </div>
+    </div>
+  </details>
 
   {{#if design.hasMods}}
   <fieldset class="design-mods">
