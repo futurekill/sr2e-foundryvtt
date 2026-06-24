@@ -52,7 +52,10 @@ export class CharacterData extends SR2EDataModel {
           both:      "SR2E.Magic.SkillBoth"
         }}),
         totem: new fields.StringField({ initial: "" }),
-        initiateGrade: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
+        initiateGrade: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        // Metamagic techniques learned (one per initiate Grade); keys from
+        // CONFIG.SR2E.metamagic. Recorded on the magic tab.
+        metamagic: new fields.ArrayField(new fields.StringField())
       }),
       reaction: new fields.SchemaField({
         base: new fields.NumberField({ required: true, integer: true, initial: 3, min: 0 }),

@@ -146,6 +146,13 @@ export function registerHandlebarsHelpers() {
   });
 
   /**
+   * "selected" when an array contains the option (multi-selects).
+   */
+  Handlebars.registerHelper("selectedIn", function (arr, option) {
+    return Array.isArray(arr) && arr.includes(option) ? "selected" : "";
+  });
+
+  /**
    * Checked helper for checkboxes.
    */
   Handlebars.registerHelper("checked", function (value) {

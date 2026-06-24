@@ -50,6 +50,17 @@
         <label>Initiate Grade:</label>
         <input type="number" name="system.magic.initiateGrade" value="{{system.magic.initiateGrade}}" min="0" />
       </div>
+      {{#if system.magic.initiateGrade}}
+      <div class="form-group metamagic-group">
+        <label title="Metamagic techniques learned — one per initiate Grade (Grimoire). Ctrl/Cmd-click to multi-select.">Metamagic:</label>
+        <select name="system.magic.metamagic" multiple size="4" class="metamagic-select">
+          {{#each config.metamagic as |label key|}}
+          <option value="{{key}}" {{selectedIn ../system.magic.metamagic key}}>{{label}}</option>
+          {{/each}}
+        </select>
+        <span class="metamagic-hint">{{system.magic.metamagic.length}} / {{system.magic.initiateGrade}} learned</span>
+      </div>
+      {{/if}}
       {{/if}}
     </fieldset>
 

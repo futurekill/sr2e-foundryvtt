@@ -610,6 +610,18 @@ SR2E.qualityCategories = {
   other:     "SR2E.Quality.Other"
 };
 
+// Metamagic techniques an initiate learns (one per Grade). The Grimoire 2nd ed
+// set (book p.43-50). The sheet records which an initiate knows; the techniques
+// themselves are largely GM-adjudicated at the table.
+SR2E.metamagic = {
+  centering:  "Centering",
+  masking:    "Masking",
+  quickening: "Quickening",
+  shielding:  "Shielding",
+  anchoring:  "Anchoring",
+  dispelling: "Dispelling"
+};
+
 // ---------------------------------------------------------------------------
 // VEHICLE DESIGN (Rigger 2 "design from scratch", book p.108-123)
 // The core system ships the Design-tab UI and the point-buy math
