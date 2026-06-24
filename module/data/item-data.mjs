@@ -572,6 +572,9 @@ export class FocusData extends SR2EDataModel {
       bondingCost: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       bonded: new fields.BooleanField({ initial: false }),
       active: new fields.BooleanField({ initial: false }),
+      // Single-use foci (Grimoire fetish foci): a "Spend" button on the magic tab
+      // expends the item after enhancing one casting.
+      expendable: new fields.BooleanField({ initial: false }),
       // Per-Force nuyen unit cost (SR2E p.249). When > 0, the cost is derived as
       // Force × this; 0 leaves the cost field manually editable (custom foci).
       costPerForce: new fields.NumberField({ integer: true, initial: 0, min: 0 }),

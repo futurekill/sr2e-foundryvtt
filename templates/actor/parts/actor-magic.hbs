@@ -191,6 +191,7 @@
           <span>Force: {{focus.system.force}}</span>
           <span>{{#if focus.system.bonded}}Bonded{{else}}Unbonded{{/if}}</span>
           <div class="item-controls">
+            {{#if focus.system.expendable}}<a data-action="spendFocus" title="Spend (single-use)"><i class="fas fa-bolt"></i></a>{{/if}}
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
           </div>

@@ -1535,6 +1535,23 @@ async function onDeleteItem(event, target) {
 }
 
 /**
+ * Spend a single-use focus (Grimoire fetish focus): post a chat note and remove
+ * the item. Re-add/buy another to use it again.
+ * @this {ApplicationV2}
+ */
+async function onSpendFocus(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item) return;
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: this.document }),
+    content: `<div class="sr2e-focus-spent"><strong>${this.document.name}</strong> spends a single-use focus: <em>${item.name}</em> (Force ${item.system.force ?? 1}).</div>`
+  });
+  return item.delete();
+}
+
+/**
  * Add a new item of a given type.
  * Respects data-category on the button for categorised item types (e.g. skills).
  * @this {ApplicationV2}
@@ -2121,6 +2138,7 @@ const SHARED_ACTIONS = {
   toggleEquip: onToggleEquip,
   editItem: onEditItem,
   deleteItem: onDeleteItem,
+  spendFocus: onSpendFocus,
   addItem: onAddItem,
   reloadWeapon: onReloadWeapon,
   resetRecoil: onResetRecoil,
