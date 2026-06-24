@@ -551,6 +551,11 @@ export class SR2EItem extends Item {
       // penetration check (SR2E p.108)
       const basePower = effectivePower - (isRanged && isBurst ? rounds : 0);
 
+      // The defender = the attacker's current target (T key), if any, so the
+      // Resist button rolls for the target rather than whoever has a token
+      // selected. Captured here (attacker's client, target still set).
+      const targetUuid = game.user?.targets?.first?.()?.actor?.uuid ?? "";
+
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
@@ -567,6 +572,7 @@ export class SR2EItem extends Item {
                   data-armor-calc="${ammoCalc}"
                   data-armor-mod="${ammoMod}"
                   data-ammo-name="${foundry.utils.escapeHTML(ammoName)}"
+                  data-target-uuid="${targetUuid}"
                   title="Defender rolls Body vs. TN = Power − Armor (SR2E p.116)">
             ${game.i18n.localize("SR2E.Chat.ResistDamage")}
           </button>

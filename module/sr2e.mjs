@@ -635,8 +635,13 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const armorMod   = parseInt(btn.dataset.armorMod) || 0;
       const ammoName   = btn.dataset.ammoName          || "";
 
-      // Find the defending actor: first controlled token, then the user's assigned character.
-      const actor = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      // The defender is whoever the attacker targeted (baked into the card), so
+      // the target resists even though the attacker has a token selected. Fall
+      // back to the controlled token / assigned character for un-targeted attacks.
+      const targetUuid = btn.dataset.targetUuid || "";
+      const targeted   = targetUuid ? await fromUuid(targetUuid) : null;
+      const actor = (targeted?.documentName === "Actor" ? targeted : targeted?.actor)
+                 ?? canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
       if (!actor) {
         return ui.notifications.warn(
           "Select a token (or assign a character) to roll damage resistance."
