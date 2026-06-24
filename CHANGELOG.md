@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.10.0
+
+### Features
+- **Vehicle design-from-scratch engine.** A new Design tab on the vehicle sheet
+  builds vehicles by the Rigger 2 rules (p.108-123): a point-buy calculator
+  (Design Points = chassis + power plant + improvements + mods; cost = DP ×
+  Mark-Up × 100), the Mark-Up Factors Table (p.114), Cargo-Factor and Load budget
+  tracking (p.115), and the minor design options (p.116-117). Content modules
+  register the chassis/power-plant tables; Rigger 2 supplies them.
+- **Edges & Flaws.** New `quality` (Edge/Flaw) item type with attribute / skill /
+  physical / mental / social / magical / miscellaneous categories and a signed
+  build-point value. The Shadowrun Companion module supplies the full catalog.
+- **Fire vehicle weapons from the vehicle sheet.** Clicking a mounted weapon opens
+  the standard attack dialog; a gunner (a controlled character/NPC token, else the
+  user's assigned character) fires it with Gunnery (p.105). A vehicle can't fire
+  its own weapons — with no gunner the shot is refused.
+- **Vehicle mods modify stats.** Installed mods fold into the build's Design
+  Points/cost and add to the vehicle's armor and signature; rated mods expose an
+  editable Rating that drives their Design Points / CF / Load.
+
+### Fixes
+- Fixed a black screen on world load caused by the new `quality` data model not
+  being re-exported from the data index.
+
 ## 0.9.11
 
 ### Fixes
