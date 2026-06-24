@@ -122,9 +122,10 @@
     <div class="item-list">
       {{#each weapons as |wpn|}}
       <div class="item-row flexrow" data-item-id="{{wpn.id}}" draggable="true">
-        <span class="item-name"><i class="fas fa-crosshairs"></i> {{wpn.name}}</span>
+        <a class="item-name rollable" data-action="fireWeapon" title="Fire (Gunnery attack)"><i class="fas fa-crosshairs"></i> {{wpn.name}}</a>
         {{#if wpn.system.damageCode}}<span class="item-meta">{{wpn.system.damageCode}}</span>{{/if}}
         <div class="item-controls">
+          <a data-action="fireWeapon" title="Fire (Gunnery attack)"><i class="fas fa-bullseye"></i></a>
           <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
           <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
         </div>
