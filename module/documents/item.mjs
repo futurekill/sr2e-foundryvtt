@@ -677,15 +677,29 @@ export class SR2EItem extends Item {
       }
     }
 
-    // Base dice for the spell test = Force + totem net modifier.
+    // ── Spell focus ───────────────────────────────────────────────────────────
+    // A bonded, active Spell Focus adds its Force in dice to spellcasting (Spell
+    // Focus, p.137 SRII). FocusData doesn't bind a focus to a category, so the
+    // player activates the one matching the spell; all active bonded spell foci
+    // count. Free dice, like the totem bonus.
+    let focusDice = 0;
+    for (const item of actor.items) {
+      if (item.type === "focus" && item.system.focusType === "spell" &&
+          item.system.bonded && item.system.active) {
+        focusDice += Number(item.system.force) || 0;
+      }
+    }
+
+    // Base dice for the spell test = Force + totem net modifier + active foci.
     // Totem bonus/penalty dice are treated as part of the Magic Pool at the
     // moment of casting (SR2E p.119) and are free — not drawn from the pool.
     const totemNet  = totemBonus - totemPenalty;
-    const spellDice = Math.max(1, force + totemNet);
+    const spellDice = Math.max(1, force + totemNet + focusDice);
 
     let totemNote = "";
     if (totemBonus   > 0) totemNote += ` +${totemBonus} totem`;
     if (totemPenalty > 0) totemNote += ` −${totemPenalty} totem`;
+    if (focusDice    > 0) totemNote += ` +${focusDice} focus`;
 
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {

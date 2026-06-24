@@ -448,17 +448,32 @@
 }
 
 .sr2e-sheet-header .condition-damage {
-  font-size: 9px;
+  font-size: 15px;
+  font-weight: 700;
   font-family: var(--sr2e-font-header);
-  color: var(--sr2e-text-muted);
+  color: var(--sr2e-text);
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
 
 .sr2e-sheet-header .condition-damage .dmg-type {
   text-transform: uppercase;
-  font-size: 8px;
-  margin-right: 1px;
+  font-size: 13px;
+  color: var(--sr2e-gold);
+  margin-right: 2px;
+}
+
+/* Sustained-spell penalty badge — only shown while sustaining (+2 TN/spell). */
+.sr2e-sheet-header .condition-sustain {
+  margin-left: 10px;
+  padding: 1px 7px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--sr2e-font-header);
+  color: #ffce54;
+  border: 1px solid #ffce54;
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 /* Row 3: stats band */

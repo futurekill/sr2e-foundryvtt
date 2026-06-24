@@ -57,6 +57,11 @@
         &nbsp;
         <span class="dmg-type">S</span>{{system.conditionMonitor.stun.value}}/{{system.conditionMonitor.stun.max}}
       </span>
+      {{#if system.sustainPenalty}}
+      <span class="condition-sustain" title="Sustained-spell penalty: +2 TN per sustained spell (spell locks exempt)">
+        <i class="fas fa-hand-sparkles"></i> +{{system.sustainPenalty}} TN
+      </span>
+      {{/if}}
     </div>
 
     {{!-- Row 3: Stats grid — Essence | Nuyen | Good Karma | Karma Pool --}}
