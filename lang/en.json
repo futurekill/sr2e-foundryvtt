@@ -81,6 +81,7 @@
   "SR2E.Design.CannotApply": "This design is incomplete or its Design Points can't be computed (e.g. a drone chassis with a ×Body formula). Nothing was applied.",
   "SR2E.Design.Applied": "Applied the design build to {name}.",
   "SR2E.Design.NoData": "No vehicle-design tables are loaded. Enable a content module that provides them (e.g. Shadowrun 2E: Rigger 2) to design vehicles from scratch.",
+  "SR2E.Vehicle.NoGunner": "A vehicle weapon needs a gunner. Select your gunner's token (or assign a character to your user) and fire again.",
 
   "SR2E.Skills.Active": "Active Skills",
   "SR2E.Skills.BuildRepair": "Build/Repair Skills",

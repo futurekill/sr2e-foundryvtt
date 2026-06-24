@@ -3276,13 +3276,14 @@ async function onApplyVehicleDesign(event, target) {
 /**
  * Fire a weapon mounted on this vehicle from the vehicle sheet.
  *
- * Vehicle weapons are fired by a gunner (a character) using Gunnery (SR2E p.105).
- * The gunner is resolved from the user's context: a controlled character/NPC
- * token first (explicit choice — lets a GM pick the gunner), then the user's
- * assigned character. With a gunner we roll their Gunnery (defaulting to
- * Intelligence +4 TN untrained); with none we still open the dialog and let the
- * weapon default off the vehicle so the shot can be fired and adjusted by hand.
- * Opens the same attack dialog as the character sheet.
+ * Vehicle weapons are fired by a gunner (a character) using Gunnery (SR2E p.105) —
+ * a vehicle has no skills of its own, so a gunner is REQUIRED. The gunner is
+ * resolved from the user's context: a controlled character/NPC token first
+ * (explicit choice — lets a GM pick the gunner), then the user's assigned
+ * character. With none resolved the shot is refused (a vehicle can't fire itself).
+ * We roll the gunner's Gunnery (defaulting to Intelligence +4 TN untrained);
+ * range is measured from the vehicle's token. Opens the same attack dialog as the
+ * character sheet.
  * @this {ApplicationV2}
  */
 async function onFireVehicleWeapon(event, target) {
@@ -3297,29 +3298,32 @@ async function onFireVehicleWeapon(event, target) {
     ?.map(t => t.actor)
     .find(a => a && (a.type === "character" || a.type === "npc"));
   const gunner = controlled ?? game.user?.character ?? null;
+  if (!gunner) {
+    ui.notifications?.warn(game.i18n.localize("SR2E.Vehicle.NoGunner"));
+    return;
+  }
 
+  // Gunner's skill: Gunnery, defaulting to Intelligence (+4 TN) untrained.
+  const gunnery = gunner.items.find(
+    i => i.type === "skill" && i.name.toLowerCase() === "gunnery"
+  );
+  const rating = gunnery?.system?.rating ?? 0;
   let skillCap = Infinity, baseDice = 1, defaultingPenalty = 0;
-  if (gunner) {
-    const gunnery = gunner.items.find(
-      i => i.type === "skill" && i.name.toLowerCase() === "gunnery"
-    );
-    const rating = gunnery?.system?.rating ?? 0;
-    if (rating > 0) {
-      skillCap = rating;
-      baseDice = rating;
-    } else {
-      baseDice = Math.max(1, gunner.system.intelligence?.value ?? 1);
-      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-    }
+  if (rating > 0) {
+    skillCap = rating;
+    baseDice = rating;
+  } else {
+    baseDice = Math.max(1, gunner.system.intelligence?.value ?? 1);
+    defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
   }
 
   // Distance is measured from the vehicle's token (the weapon mount).
   const presets = detectAttackTarget(vehicle, weapon);
 
-  const opts = await promptWeaponAttackOptions(gunner ?? vehicle, weapon, skillCap,
+  const opts = await promptWeaponAttackOptions(gunner, weapon, skillCap,
                                                baseDice, defaultingPenalty, presets);
   if (!opts) return;
-  return weapon.roll({ ...opts, gunner: gunner ?? undefined });
+  return weapon.roll({ ...opts, gunner });
 }
 
 /**
