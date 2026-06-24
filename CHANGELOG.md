@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.11.0
+
+### Features
+- **Token condition bars**: the bar-attribute dropdown is curated to the
+  Physical/Stun monitors; tokens already default their bars to them, fill toward
+  incapacitation (matching the SR sheet), and drag to apply damage.
+- **Spell casting** now adds a bonded+active Spell Focus's Force as bonus dice
+  (p.137), with a "+N focus" note.
+- **Sustained-spell penalty badge** in the sheet header (+N TN while sustaining).
+- **Initiate metamagic**: a learned-technique list on the magic tab (Centering,
+  Masking, Quickening, Shielding, Anchoring, Dispelling — Grimoire).
+- **Single-use foci**: `FocusData.expendable`; such foci (Grimoire fetish foci)
+  get a one-click **Spend** button.
+- **Sum-to-10 character creation** (Companion p.20): a priority-method toggle that
+  validates the grade values total 10 instead of each A–E used once.
+- Header condition readout is bigger/brighter.
+
 ## 0.10.0
 
 ### Features

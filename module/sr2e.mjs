@@ -75,10 +75,12 @@ Hooks.once("init", async () => {
     host: dataModels.HostData
   };
 
-  // Token resource bars: expose the condition monitors so a token's bars can
-  // show Physical/Stun damage on the canvas. The monitor stores damage taken
-  // (value rises 0→max as the SR "boxes" fill in), so a token bar fills toward
-  // incapacitation — matching the paper sheet — and is draggable to apply damage.
+  // Token resource bars: curate the bar-attribute dropdown to the condition
+  // monitors so a GM can pick Physical/Stun cleanly in token config. (The
+  // DEFAULT bars are already set by system.json primaryTokenAttribute/
+  // secondaryTokenAttribute.) The monitor stores damage taken (value rises 0→max
+  // as the SR "boxes" fill in), so a bar fills toward incapacitation — matching
+  // the paper sheet — and is draggable to apply damage.
   const monitorBars = { bar: ["conditionMonitor.physical", "conditionMonitor.stun"], value: [] };
   CONFIG.Actor.trackableAttributes = {
     character: monitorBars,
@@ -532,21 +534,11 @@ const MATRIX_DEFAULT_ICONS = {
 // (you often want several independent copies).
 const LINKED_PROTOTYPE_TYPES = new Set(["character", "ic", "host"]);
 
-// Actor types with Physical/Stun condition monitors — get damage token bars.
-const MONITOR_TYPES = new Set(["character", "npc", "spirit"]);
-
 Hooks.on("preCreateActor", (actor, data) => {
   const updates = {};
 
   if (LINKED_PROTOTYPE_TYPES.has(actor.type) && data.prototypeToken?.actorLink === undefined) {
     updates["prototypeToken.actorLink"] = true;
-  }
-
-  // Default the token resource bars to the condition monitors so a freshly
-  // dragged token shows Physical (bar1) + Stun (bar2) damage without manual setup.
-  if (MONITOR_TYPES.has(actor.type) && data.prototypeToken?.bar1 === undefined) {
-    updates["prototypeToken.bar1.attribute"] = "conditionMonitor.physical";
-    updates["prototypeToken.bar2.attribute"] = "conditionMonitor.stun";
   }
 
   // Themed default icon for the Matrix singletons (Host server / IC chip).
