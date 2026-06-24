@@ -104,7 +104,7 @@
         <legend>Skills</legend>
         {{#each skills as |skill|}}
         <div class="npc-skill-row flexrow" data-item-id="{{skill.id}}">
-          <span>{{skill.name}}</span>
+          <span class="rollable" data-action="rollSkill" title="Roll {{skill.name}}">{{skill.name}}</span>
           <span>{{skill.system.rating}}</span>
           <a data-action="editItem"><i class="fas fa-edit"></i></a>
         </div>

@@ -3225,6 +3225,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     position: { width: 650, height: 550 },
     actions: {
       rollAttribute: onRollAttribute,
+      rollSkill: onRollSkill,
       rollInitiative: onRollInitiative,
       rollWeapon: onRollWeapon,
       editItem: onEditItem,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.2
+
+### Fixes
+- **NPC sheet skills are clickable to roll** — the skill name now rolls the skill
+  test (matching the weapon rows), instead of only being editable.
+
 ## 0.11.1
 
 ### Fixes
