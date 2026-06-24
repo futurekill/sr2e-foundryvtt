@@ -3112,7 +3112,17 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Grades that appear more than once (duplicates) and grades never used.
     context.priorityDuplicates = Object.keys(counts).filter((g) => counts[g] > 1).sort();
     context.priorityUnused = ["A", "B", "C", "D", "E"].filter((g) => !counts[g]);
-    context.priorityValid = context.priorityDuplicates.length === 0;
+
+    // Validity depends on the method (Companion p.20). Standard: each A–E once
+    // (no duplicates). Sum-to-10: the grade point values (A=4…E=0) total 10 —
+    // duplicates allowed.
+    const method = system.chargen?.priorityMethod ?? "standard";
+    const GRADE_PTS = { A: 4, B: 3, C: 2, D: 1, E: 0 };
+    context.prioritySum = Object.keys(desc).reduce((s, cat) => s + (GRADE_PTS[chosen[cat]] ?? 0), 0);
+    context.priorityMethod = method;
+    context.priorityValid = method === "sumto10"
+      ? context.prioritySum === 10
+      : context.priorityDuplicates.length === 0;
 
     // Shared Team Karma Pool total (SR2E p.246) — shown on every character sheet.
     context.teamKarma = game.settings.get("sr2e", "teamKarma") ?? 0;

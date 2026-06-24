@@ -117,6 +117,13 @@
       <legend>Character Creation</legend>
       <div class="chargen-grid">
         <div class="priority-row flexrow">
+          <label>Method:</label>
+          <select name="system.chargen.priorityMethod">
+            <option value="standard" {{#ifEquals priorityMethod "standard"}}selected{{/ifEquals}}>Standard (A–E once each)</option>
+            <option value="sumto10" {{#ifEquals priorityMethod "sumto10"}}selected{{/ifEquals}}>Sum-to-10 (Companion)</option>
+          </select>
+        </div>
+        <div class="priority-row flexrow">
           <label>Race Priority:</label>
           <select name="system.chargen.priorities.race">
             {{#each priorityOptions.race as |opt|}}
@@ -156,6 +163,13 @@
             {{/each}}
           </select>
         </div>
+        {{#ifEquals priorityMethod "sumto10"}}
+        <p class="priority-{{#if priorityValid}}ok{{else}}warning{{/if}}">
+          {{#if priorityValid}}<i class="fas fa-check"></i>{{else}}<i class="fas fa-triangle-exclamation"></i>{{/if}}
+          Sum-to-10: grade values (A=4, B=3, C=2, D=1, E=0) total <strong>{{prioritySum}}</strong> / 10.
+          {{#unless priorityValid}}Adjust until the total is exactly 10.{{/unless}}
+        </p>
+        {{else}}
         {{#unless priorityValid}}
         <p class="priority-warning">
           <i class="fas fa-triangle-exclamation"></i>
@@ -164,6 +178,7 @@
           unused: <strong>{{#each priorityUnused}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</strong>{{/if}}.
         </p>
         {{/unless}}
+        {{/ifEquals}}
       </div>
     </fieldset>
 

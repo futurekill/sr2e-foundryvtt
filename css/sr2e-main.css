@@ -1719,6 +1719,17 @@
   background: rgba(176, 0, 0, 0.08);
 }
 
+.priority-ok {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  font-size: 10px;
+  color: #3fae5a;
+  border: 1px solid #3fae5a;
+  border-radius: 3px;
+  background: rgba(63, 174, 90, 0.08);
+}
+
 /* ============================================================================
    KARMA LEDGER (Bio Tab)
    ============================================================================ */

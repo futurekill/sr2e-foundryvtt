@@ -117,6 +117,11 @@ export class CharacterData extends SR2EDataModel {
 
       // --- CHARACTER CREATION ---
       chargen: new fields.SchemaField({
+        // Priority assignment method: "standard" (each A–E used once) or "sumto10"
+        // (Companion p.20 — any grades whose point values A=4…E=0 sum to 10).
+        priorityMethod: new fields.StringField({ initial: "standard", choices: {
+          standard: "Standard (A–E once each)", sumto10: "Sum-to-10"
+        }}),
         priorities: new fields.SchemaField({
           race: new fields.StringField({ initial: "E" }),
           magic: new fields.StringField({ initial: "E" }),
