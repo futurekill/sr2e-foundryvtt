@@ -1504,6 +1504,8 @@ export class SR2EActor extends Actor {
     const damageType = options.damageType === "physical" ? "physical" : "stun";
     const state = {
       attackerUuid: this.uuid, attackerName: this.name,
+      // The attacker's target (T key) resists, regardless of token selection.
+      targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
       successes: result.successes, power: Math.max(1, power), level, damageType,
       resolved: false
     };
@@ -1618,6 +1620,8 @@ export class SR2EActor extends Actor {
 
     const state = {
       attackerUuid: this.uuid, attackerName: this.name,
+      // The attacker's target (T key) resists, regardless of token selection.
+      targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
       successes: result.successes, nodeRating: opts.nodeRating ?? 0, resolved: false
     };
     await ChatMessage.create({

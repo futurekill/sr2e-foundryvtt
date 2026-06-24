@@ -773,6 +773,8 @@ export class SR2EItem extends Item {
       const dmgType  = /stun/i.test(this.name) ? "stun" : "physical";
       const state = {
         casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
+        // The caster's target (T key) resists, regardless of token selection.
+        targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
         force, successes: spellResult.successes,
         resistAttr: isMana ? "willpower" : "body",
         baseLevel, dmgType, resolved: false

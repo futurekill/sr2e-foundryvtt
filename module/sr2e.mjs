@@ -613,6 +613,21 @@ async function _deployICOnActiveAlert(host) {
 /*  Chat Message Hooks                          */
 /* -------------------------------------------- */
 
+/**
+ * Resolve who resists/defends on an attacker-driven card: the attacker's stored
+ * target first (so the *target* resists even though the attacker has a token
+ * selected), then the clicker's controlled token / assigned character.
+ * @param {string} [targetUuid] - The defending actor's UUID baked into the card.
+ */
+async function resolveCardDefender(targetUuid) {
+  if (targetUuid) {
+    const t = await fromUuid(targetUuid);
+    const actor = t?.documentName === "Actor" ? t : t?.actor;
+    if (actor) return actor;
+  }
+  return canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null;
+}
+
 Hooks.on("renderChatMessageHTML", (message, html, data) => {
   // V13: html is an HTMLElement (renderChatMessageHTML is the V13 hook)
   if (message.isRoll && html instanceof HTMLElement) {
@@ -636,12 +651,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const ammoName   = btn.dataset.ammoName          || "";
 
       // The defender is whoever the attacker targeted (baked into the card), so
-      // the target resists even though the attacker has a token selected. Fall
+      // the target resists even though the attacker has a token selected. Falls
       // back to the controlled token / assigned character for un-targeted attacks.
-      const targetUuid = btn.dataset.targetUuid || "";
-      const targeted   = targetUuid ? await fromUuid(targetUuid) : null;
-      const actor = (targeted?.documentName === "Actor" ? targeted : targeted?.actor)
-                 ?? canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      const actor = await resolveCardDefender(btn.dataset.targetUuid);
       if (!actor) {
         return ui.notifications.warn(
           "Select a token (or assign a character) to roll damage resistance."
@@ -671,7 +683,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   html.querySelectorAll?.(".sr2e-astralresist-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
-      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      const defender = await resolveCardDefender(message.getFlag("sr2e", "astral")?.targetUuid);
       if (!defender) return ui.notifications.warn("Select the defending token first.");
       return defender.rollAstralResistance(message);
     });
@@ -681,7 +693,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   html.querySelectorAll?.(".sr2e-spellresist-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
-      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      const defender = await resolveCardDefender(message.getFlag("sr2e", "spell")?.targetUuid);
       if (!defender) {
         return ui.notifications.warn("Select the defending token (or assign a character) first.");
       }
@@ -694,7 +706,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   html.querySelectorAll?.(".sr2e-matrixresist-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
-      const defender = canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character;
+      const defender = await resolveCardDefender(message.getFlag("sr2e", "matrix")?.targetUuid);
       if (!defender) return ui.notifications.warn("Select the defending token (IC or decker) first.");
       return defender.rollMatrixResistance(message);
     });

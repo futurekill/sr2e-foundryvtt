@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.1
+
+### Fixes
+- **Resist/defend cards target the right actor.** The attacker's target (T key) is
+  now baked into ranged-damage, spell, astral, and Matrix attack cards, so the
+  *target* resists even when the attacker has their own token selected (previously
+  whoever was selected resisted). Un-targeted attacks fall back to the controlled
+  token / assigned character. Melee Defend is unchanged — the defender clicks it
+  with their own token, which is the correct opposed-melee flow.
+
 ## 0.11.0
 
 ### Features
