@@ -1,0 +1,33 @@
+{
+  "_id": "5053ab3c32d86818",
+  "name": "Jilted Fixer",
+  "type": "contact",
+  "img": "icons/svg/terror.svg",
+  "system": {
+    "contactType": "enemy",
+    "archetype": "Fixer",
+    "loyalty": 3,
+    "influence": 5,
+    "description": "",
+    "notes": "A fixer you stiffed or embarrassed \u2014 won't dirty their own hands, but the contact network just went cold and the next job smells like a setup. SR Companion (Enemies)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.12.1",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5053ab3c32d86818"
+}

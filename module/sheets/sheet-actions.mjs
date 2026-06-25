@@ -1554,6 +1554,9 @@ async function onAddItem(event, target) {
   const itemData = { name, type };
   // Pass the initial category into system data so the item lands in the right section.
   if (category) itemData.system = { category };
+  // Let an "Add Enemy" button seed contactType=enemy so it lands in the Enemies list.
+  const contactType = target.dataset.contactType;
+  if (contactType) itemData.system = { ...(itemData.system ?? {}), contactType };
   return this.document.createEmbeddedDocuments("Item", [itemData]);
 }
 

@@ -1,0 +1,33 @@
+{
+  "_id": "6a63229e3d6bf7ef",
+  "name": "Vengeful Ex-Employer",
+  "type": "contact",
+  "img": "icons/svg/terror.svg",
+  "system": {
+    "contactType": "enemy",
+    "archetype": "Corp Manager",
+    "loyalty": 4,
+    "influence": 4,
+    "description": "",
+    "notes": "A Johnson whose deniable asset you became \u2014 burned by the run, now spending real budget to make it personal. SR Companion (Enemies)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.12.1",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!6a63229e3d6bf7ef"
+}

@@ -418,7 +418,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.gear = actor.items.filter(i => i.type === "gear");
     context.programs = actor.items.filter(i => i.type === "program");
     context.adeptPowers = actor.items.filter(i => i.type === "adept_power");
-    context.contacts = actor.items.filter(i => i.type === "contact");
+    const allContacts = actor.items.filter(i => i.type === "contact");
+    context.contacts = allContacts.filter(i => i.system.contactType !== "enemy");
+    context.enemies  = allContacts.filter(i => i.system.contactType === "enemy");
     context.lifestyles = actor.items.filter(i => i.type === "lifestyle");
     context.ammo = actor.items.filter(i => i.type === "ammo");
     context.foci = actor.items.filter(i => i.type === "focus");

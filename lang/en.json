@@ -314,7 +314,9 @@
 
   "SR2E.Contact.Contact": "Contact",
   "SR2E.Contact.Buddy": "Buddy",
+  "SR2E.Contact.Friend": "Friend For Life",
   "SR2E.Contact.Follower": "Follower",
+  "SR2E.Contact.Enemy": "Enemy",
   "SR2E.Quality.Edge": "Edge",
   "SR2E.Quality.Flaw": "Flaw",
   "SR2E.Quality.Attribute": "Attribute",

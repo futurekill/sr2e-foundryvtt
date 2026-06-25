@@ -1588,7 +1588,15 @@
 
 .contact-type-badge.type-contact  { color: var(--sr2e-text-muted);  border-color: var(--sr2e-border); }
 .contact-type-badge.type-buddy    { color: var(--sr2e-success);      border-color: var(--sr2e-success); }
+.contact-type-badge.type-friend   { color: var(--sr2e-gold);         border-color: var(--sr2e-gold); font-weight: 800; }
 .contact-type-badge.type-follower { color: var(--sr2e-gold);         border-color: var(--sr2e-gold-dim); }
+.contact-type-badge.type-enemy    { color: var(--sr2e-danger);       border-color: var(--sr2e-danger); }
+
+/* Enemies sub-section: separate it from the allies list, danger-tinted. */
+.contacts-toolbar.enemies-toolbar { margin-top: 14px; border-top: 1px solid var(--sr2e-border); padding-top: 10px; }
+.btn-add.btn-add-enemy            { color: var(--sr2e-danger); }
+.enemy-row .contact-name          { color: var(--sr2e-danger); }
+.rating-pip.danger.filled         { background: var(--sr2e-danger); }
 
 /* Rating pips */
 .rating-bar {

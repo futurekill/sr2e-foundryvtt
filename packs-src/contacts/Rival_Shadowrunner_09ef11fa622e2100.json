@@ -1,0 +1,33 @@
+{
+  "_id": "09ef11fa622e2100",
+  "name": "Rival Shadowrunner",
+  "type": "contact",
+  "img": "icons/svg/terror.svg",
+  "system": {
+    "contactType": "enemy",
+    "archetype": "Shadowrunner",
+    "loyalty": 5,
+    "influence": 2,
+    "description": "",
+    "notes": "A runner you crossed, outbid, or left holding the bag. Same skill set, opposite payroll. SR Companion (Enemies)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.12.1",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!09ef11fa622e2100"
+}

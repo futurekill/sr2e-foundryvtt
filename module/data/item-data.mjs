@@ -481,11 +481,18 @@ export class ContactData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      // Relationship tiers follow the SR Companion: Contact / Buddy / Friend For
+      // Life (rising Loyalty), Follower (a hireling/dependent), and Enemy.
       contactType: new fields.StringField({ initial: "contact", choices: {
-        contact: "SR2E.Contact.Contact", buddy: "SR2E.Contact.Buddy", follower: "SR2E.Contact.Follower"
+        contact: "SR2E.Contact.Contact", buddy: "SR2E.Contact.Buddy",
+        friend: "SR2E.Contact.Friend", follower: "SR2E.Contact.Follower",
+        enemy: "SR2E.Contact.Enemy"
       }}),
       archetype: new fields.StringField({ initial: "" }),
+      // For allies, Loyalty (how reliably they come through for you).
+      // For enemies, the same column reads as the foe's animosity / grudge.
       loyalty: new fields.NumberField({ integer: true, initial: 1, min: 1, max: 6 }),
+      // Connection / Influence: the contact's reach and resources (1-6).
       influence: new fields.NumberField({ integer: true, initial: 1, min: 1, max: 6 }),
       description: new fields.HTMLField({ initial: "" }),
       notes: new fields.StringField({ initial: "" })

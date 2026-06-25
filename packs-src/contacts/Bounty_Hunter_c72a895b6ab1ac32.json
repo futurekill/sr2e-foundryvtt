@@ -1,0 +1,33 @@
+{
+  "_id": "c72a895b6ab1ac32",
+  "name": "Bounty Hunter",
+  "type": "contact",
+  "img": "icons/svg/terror.svg",
+  "system": {
+    "contactType": "enemy",
+    "archetype": "Bounty Hunter",
+    "loyalty": 4,
+    "influence": 3,
+    "description": "",
+    "notes": "A licensed (or not) tracker carrying paper with your face on it. Persistent, professional, paid by results. SR Companion (Enemies)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.12.1",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c72a895b6ab1ac32"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "2b4da687bd28d9c8",
+  "name": "Gang Lieutenant",
+  "type": "contact",
+  "img": "icons/svg/terror.svg",
+  "system": {
+    "contactType": "enemy",
+    "archetype": "Go-Ganger",
+    "loyalty": 5,
+    "influence": 3,
+    "description": "",
+    "notes": "A street-gang officer who took the loss of face hard. Knows your turf and never travels alone. SR Companion (Enemies)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.12.1",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!2b4da687bd28d9c8"
+}
