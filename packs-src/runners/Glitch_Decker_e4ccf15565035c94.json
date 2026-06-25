@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>An elven data-thief who grew up jacked in and never quite came back out. Glitch is charming in meatspace and untouchable in the Matrix — or so they keep saying.</p><p><em>Sample character — cyberdeck statistics are on the Matrix tab.</em></p>",
+    "biography": "<p>An elven data-thief who grew up jacked in and never quite came back out. Glitch is charming in meatspace and untouchable in the Matrix \u2014 or so they keep saying.</p><p><em>Sample character \u2014 cyberdeck statistics are on the Matrix tab.</em></p>",
     "notes": "",
     "race": "elf",
     "body": {
@@ -464,7 +464,7 @@
           "reaction": 0,
           "initiativeDice": 0
         },
-        "notes": "SR2E p.248. 100 megapulse of headware memory—enough for multiple high-rating skillsofts. Essence 1.0."
+        "notes": "SR2E p.248. 100 megapulse of headware memory\u2014enough for multiple high-rating skillsofts. Essence 1.0."
       },
       "effects": [],
       "flags": {},
@@ -796,7 +796,7 @@
   "prototypeToken": {
     "name": "Glitch (Decker)",
     "displayName": 0,
-    "actorLink": false,
+    "actorLink": true,
     "width": 1,
     "height": 1,
     "texture": {

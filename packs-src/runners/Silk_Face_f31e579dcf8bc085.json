@@ -679,7 +679,7 @@
   "prototypeToken": {
     "name": "Silk (Face)",
     "displayName": 0,
-    "actorLink": false,
+    "actorLink": true,
     "width": 1,
     "height": 1,
     "texture": {

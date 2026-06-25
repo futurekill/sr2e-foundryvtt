@@ -33,7 +33,7 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
 // Migrations
 import { migrateWorld } from "./migrations.mjs";
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance } from "./rules/sr2e-rules.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
@@ -646,18 +646,32 @@ async function resolveCardDefender(targetUuid) {
  * @param {number} o.attackerSuccesses - Successes from the attack Success Test.
  * @param {string} o.blastName        - Display name.
  */
-async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType, blastType, attackerSuccesses, blastName }) {
+async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName }) {
   if (!canvas?.ready) return ui.notifications.warn("No active scene for the blast.");
   const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid) : null;
   const centerTok = centerDoc?.object ?? game.user?.targets?.first?.();
   if (!centerTok) {
     return ui.notifications.warn("Target a token (the blast's ground zero) before resolving the blast.");
   }
-  const center = centerTok.center;
   const falloff = blastFalloffRate(blastType);
   const radiusM = blastRadius(basePower, falloff);
 
-  // Drop a template so the area is visible on the map.
+  // Scatter (core p.96): all grenades drift; the attack's successes pull it back
+  // toward the target (2 m/success for thrown, 4 m for launchers). A miss (0
+  // successes) drifts the full roll in a random direction.
+  const prof = scatterProfile(delivery || "standard");
+  const rolledScatter = (await new Roll(`${prof.dice}d6`).evaluate()).total;
+  const scatterM = scatterDistance(rolledScatter, attackerSuccesses || 0, prof.perSuccess);
+  let center = centerTok.center;
+  let scatterNote = "lands on target";
+  if (scatterM > 0) {
+    const angle = Math.random() * 2 * Math.PI;
+    const ppm = canvas.grid.size / canvas.grid.distance; // canvas pixels per metre
+    center = { x: center.x + Math.cos(angle) * scatterM * ppm, y: center.y + Math.sin(angle) * scatterM * ppm };
+    scatterNote = `scatters <strong>${scatterM} m</strong> off-target`;
+  }
+
+  // Drop a template at the (possibly scattered) blast point.
   try {
     await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
       t: "circle", x: center.x, y: center.y, distance: radiusM,
@@ -700,6 +714,7 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
     content: `<div class="sr2e-damage-result sr2e-blast-card">
       <strong>💥 ${foundry.utils.escapeHTML(blastName || "Blast")}</strong> — ${basePower}${stagedLevel}${stun ? " Stun" : ""} at ground zero,
       −${falloff}/m falloff (radius ${radiusM} m).
+      <br><em>Scatter:</em> ${scatterNote}.
       <br><em>Each target resists with Body vs. (Power − Impact armour):</em>
       ${body}
     </div>`
@@ -755,6 +770,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         damageType:        btn.dataset.damageType || "physical",
         blastType:         btn.dataset.blastType || "offensive",
         attackerSuccesses: parseInt(btn.dataset.attackerSuccesses) || 0,
+        delivery:          btn.dataset.delivery || "standard",
         blastName:         btn.dataset.blastName || "Blast"
       });
     });

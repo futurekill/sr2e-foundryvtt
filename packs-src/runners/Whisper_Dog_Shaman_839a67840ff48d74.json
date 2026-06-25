@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>A street medic turned shaman after Dog found her patching gangers in a condemned clinic. Loyal to her neighbourhood to a fault; her healing magic is the only clinic some of them will ever see.</p><p><em>Sample character — Dog totem: +2 dice on detection spells, +2 on field/hearth spirits (SR2E p.122).</em></p>",
+    "biography": "<p>A street medic turned shaman after Dog found her patching gangers in a condemned clinic. Loyal to her neighbourhood to a fault; her healing magic is the only clinic some of them will ever see.</p><p><em>Sample character \u2014 Dog totem: +2 dice on detection spells, +2 on field/hearth spirits (SR2E p.122).</em></p>",
     "notes": "",
     "race": "human",
     "body": {
@@ -727,7 +727,7 @@
         "legality": "Legal",
         "equipped": true,
         "isLayered": false,
-        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives—stylish and protective."
+        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives\u2014stylish and protective."
       },
       "effects": [],
       "flags": {},
@@ -767,7 +767,7 @@
   "prototypeToken": {
     "name": "Whisper (Dog Shaman)",
     "displayName": 0,
-    "actorLink": false,
+    "actorLink": true,
     "width": 1,
     "height": 1,
     "texture": {

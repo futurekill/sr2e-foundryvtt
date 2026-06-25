@@ -505,6 +505,36 @@ export class SR2EItem extends Item {
       return result;
     }
 
+    // Area weapons (grenades, rockets, missiles) ALWAYS detonate — even a miss
+    // just scatters further from the target (core p.96). Resolve as a blast.
+    if (this.system.blastType) {
+      const dmg = evaluateDamageCode(this.system.damageCode, actor);
+      const targetTok = game.user?.targets?.first?.();
+      const safeName = foundry.utils.escapeHTML(this.name);
+      const delivery = this.system.weaponType === "grenade" ? "standard" : "launcher";
+      const hits = result.successes;
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${safeName}</strong> — ${dmg.power}${dmg.level} blast, ${hits > 0 ? `${hits} net hit${hits === 1 ? "" : "s"}` : "<em>off-target — it scatters</em>"}.
+          <br>
+          <button class="sr2e-blast-btn"
+                  data-base-power="${dmg.power}"
+                  data-base-level="${dmg.level}"
+                  data-damage-type="${this.system.damageType || "physical"}"
+                  data-blast-type="${this.system.blastType}"
+                  data-attacker-successes="${hits}"
+                  data-delivery="${delivery}"
+                  data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
+                  data-blast-name="${safeName}"
+                  title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
+            💥 Resolve Blast
+          </button>
+        </div>`
+      });
+      return result;
+    }
+
     // Post staged damage + resist button if the attack connected
     if (result.successes > 0) {
       // Evaluate damage code with actor context so formula codes like
@@ -557,23 +587,7 @@ export class SR2EItem extends Item {
       const targetTok = game.user?.targets?.first?.();
       const targetUuid = targetTok?.actor?.uuid ?? "";
 
-      // Area weapons (grenades, rockets, missiles) resolve as a blast rather than
-      // a single target: the card offers a "Resolve Blast" button that gathers
-      // every token in the radius and gives each its own Impact resist (core p.96).
-      // The blast carries the BASE level — per-target staging happens in the blast.
-      const buttonHtml = this.system.blastType
-        ? `<button class="sr2e-blast-btn"
-                  data-base-power="${effectivePower}"
-                  data-base-level="${dmg.level}"
-                  data-damage-type="${damageType}"
-                  data-blast-type="${this.system.blastType}"
-                  data-attacker-successes="${result.successes}"
-                  data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
-                  data-blast-name="${safeName}"
-                  title="Place a blast template and resolve every token in the area (core p.96)">
-            💥 Resolve Blast
-          </button>`
-        : `<button class="sr2e-resist-btn"
+      const buttonHtml = `<button class="sr2e-resist-btn"
                   data-power="${effectivePower}"
                   data-base-power="${basePower}"
                   data-level="${stages[finalIdx]}"

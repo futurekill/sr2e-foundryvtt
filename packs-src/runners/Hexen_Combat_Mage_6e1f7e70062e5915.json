@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>A corporate thaumaturgy-program washout with a grudge and a grimoire. Hexen solves problems with overwhelming sorcery and reads the astral like a newsfeed.</p><p><em>Sample character — spells are known at the Force listed on each item.</em></p>",
+    "biography": "<p>A corporate thaumaturgy-program washout with a grudge and a grimoire. Hexen solves problems with overwhelming sorcery and reads the astral like a newsfeed.</p><p><em>Sample character \u2014 spells are known at the Force listed on each item.</em></p>",
     "notes": "",
     "race": "human",
     "body": {
@@ -770,7 +770,7 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting—the samurai's sidearm of choice."
+        "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting\u2014the samurai's sidearm of choice."
       },
       "effects": [],
       "flags": {},
@@ -846,7 +846,7 @@
   "prototypeToken": {
     "name": "Hexen (Combat Mage)",
     "displayName": 0,
-    "actorLink": false,
+    "actorLink": true,
     "width": 1,
     "height": 1,
     "texture": {
