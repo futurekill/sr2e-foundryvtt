@@ -1,0 +1,59 @@
+{
+  "_id": "cd409a2f6a8e4684",
+  "name": "Defensive Grenade",
+  "type": "weapon",
+  "img": "icons/svg/explosion.svg",
+  "system": {
+    "weaponType": "grenade",
+    "skill": "throwing_weapons",
+    "damageCode": "10S",
+    "damageType": "physical",
+    "concealability": 6,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 1,
+      "max": 1,
+      "type": "grenade"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 5,
+      "medium": 10,
+      "long": 15,
+      "extreme": 20
+    },
+    "strengthMin": 0,
+    "weight": 0.25,
+    "cost": 30,
+    "availability": "4/4 days",
+    "legality": "Restricted",
+    "equipped": false,
+    "accessories": [],
+    "notes": "Defensive grenade \u2014 tighter blast (\u22122 Power per metre) for use from cover. SR2E p.256."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.13.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!cd409a2f6a8e4684"
+}

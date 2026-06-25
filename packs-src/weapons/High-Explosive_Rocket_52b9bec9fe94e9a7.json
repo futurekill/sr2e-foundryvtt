@@ -1,0 +1,59 @@
+{
+  "_id": "52b9bec9fe94e9a7",
+  "name": "High-Explosive Rocket",
+  "type": "weapon",
+  "img": "icons/svg/explosion.svg",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "heavy_weapons",
+    "damageCode": "16D",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": true,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 1,
+      "max": 1,
+      "type": "rocket"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 70,
+      "medium": 150,
+      "long": 450,
+      "extreme": 1500
+    },
+    "strengthMin": 0,
+    "weight": 1.0,
+    "cost": 1500,
+    "availability": "8/14 days",
+    "legality": "Forbidden",
+    "equipped": false,
+    "accessories": [],
+    "notes": "Unguided high-explosive rocket \u2014 large blast warhead. SR2E p.255."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.13.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!52b9bec9fe94e9a7"
+}

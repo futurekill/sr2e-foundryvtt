@@ -1,0 +1,35 @@
+{
+  "_id": "b778bdadb307e603",
+  "name": "Machine Gun Belt (Regular)",
+  "type": "ammo",
+  "img": "icons/svg/target.svg",
+  "system": {
+    "ammoType": "belt",
+    "quantity": 50,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "cost": 100,
+    "notes": "Belt-fed regular rounds (~2\u00a5/round) for light/medium/heavy machine guns and vehicle-mounted MGs. SR2E p.256.",
+    "damageType": "",
+    "armorCalc": "standard"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.13.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!b778bdadb307e603"
+}

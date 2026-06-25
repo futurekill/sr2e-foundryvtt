@@ -1,0 +1,35 @@
+{
+  "_id": "b88c1882ebf2746c",
+  "name": "Mini-Grenade (Launcher Round)",
+  "type": "ammo",
+  "img": "icons/svg/target.svg",
+  "system": {
+    "ammoType": "grenade",
+    "quantity": 6,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "cost": 50,
+    "notes": "Launcher-fed mini-grenades \u2014 the launcher's own damage code applies. For thrown grenades with type-specific damage (offensive/defensive/concussion), use the grenade weapon items. SR2E p.256.",
+    "damageType": "",
+    "armorCalc": "standard"
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.13.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!b88c1882ebf2746c"
+}

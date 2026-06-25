@@ -1,0 +1,59 @@
+{
+  "_id": "78ae7600f07b2a2b",
+  "name": "High-Explosive Missile",
+  "type": "weapon",
+  "img": "icons/svg/explosion.svg",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "heavy_weapons",
+    "damageCode": "16D",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": true,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 1,
+      "max": 1,
+      "type": "missile"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 70,
+      "medium": 150,
+      "long": 450,
+      "extreme": 1500
+    },
+    "strengthMin": 0,
+    "weight": 2.25,
+    "cost": 3750,
+    "availability": "12/14 days",
+    "legality": "Forbidden",
+    "equipped": false,
+    "accessories": [],
+    "notes": "Guided high-explosive missile with on-board sensors (Intelligence rating). SR2E p.255."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.13.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!78ae7600f07b2a2b"
+}
