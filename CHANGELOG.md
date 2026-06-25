@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.3
+
+### Fixes
+- **NPC armor now includes equipped armor items.** NPC armor was a flat field only;
+  equipped `armor` items are now added on top of it (backward-compatible — NPCs
+  without armor items are unchanged), so a GM can swap an NPC's armor on the fly.
+
 ## 0.11.2
 
 ### Fixes

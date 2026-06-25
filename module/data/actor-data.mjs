@@ -679,6 +679,15 @@ export class NPCData extends SR2EDataModel {
     // Condition monitors
     this.conditionMonitor.physical.max = 10;
     this.conditionMonitor.stun.max = 10;
+
+    // Armor = the stat-block base + any equipped armor items, so a GM can swap
+    // armor on the fly (Foundry re-derives from source each pass, so no compound).
+    for (const item of (this.parent?.items ?? [])) {
+      if (item.type === "armor" && item.system.equipped) {
+        this.armor.ballistic += item.system.ballistic || 0;
+        this.armor.impact    += item.system.impact || 0;
+      }
+    }
   }
 
   /**
