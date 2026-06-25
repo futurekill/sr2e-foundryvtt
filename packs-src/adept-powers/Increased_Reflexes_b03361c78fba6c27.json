@@ -1,7 +1,7 @@
 {
   "_id": "b03361c78fba6c27",
   "name": "Increased Reflexes",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 1,

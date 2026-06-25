@@ -1,7 +1,7 @@
 {
   "_id": "9bf2a593eaad85f4",
   "name": "Improved Physical Senses",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 0.25,

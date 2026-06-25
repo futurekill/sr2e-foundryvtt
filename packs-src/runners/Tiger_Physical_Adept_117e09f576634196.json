@@ -398,7 +398,7 @@
     {
       "_id": "c604efa773aa28d9",
       "name": "Increased Reflexes",
-      "type": "adeptPower",
+      "type": "adept_power",
       "img": "icons/svg/aura.svg",
       "system": {
         "pointCost": 1,
@@ -435,7 +435,7 @@
     {
       "_id": "530a5999e555c96e",
       "name": "Killing Hands (M)",
-      "type": "adeptPower",
+      "type": "adept_power",
       "img": "icons/svg/aura.svg",
       "system": {
         "pointCost": 1,
@@ -472,7 +472,7 @@
     {
       "_id": "2d268ac6574a8c80",
       "name": "Combat Sense",
-      "type": "adeptPower",
+      "type": "adept_power",
       "img": "icons/svg/aura.svg",
       "system": {
         "pointCost": 1,
@@ -509,7 +509,7 @@
     {
       "_id": "7c37be885a4da7c8",
       "name": "Improved Ability",
-      "type": "adeptPower",
+      "type": "adept_power",
       "img": "icons/svg/aura.svg",
       "system": {
         "pointCost": 0.5,

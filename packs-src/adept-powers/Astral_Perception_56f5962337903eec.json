@@ -1,7 +1,7 @@
 {
   "_id": "56f5962337903eec",
   "name": "Astral Perception",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 2,

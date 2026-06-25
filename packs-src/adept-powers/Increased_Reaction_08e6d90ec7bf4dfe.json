@@ -1,7 +1,7 @@
 {
   "_id": "08e6d90ec7bf4dfe",
   "name": "Increased Reaction",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 1,
@@ -14,7 +14,7 @@
       "strength": 0,
       "reaction": 1
     },
-    "notes": "SR2E p.126. +level Reaction (no extra Initiative dice). Cost/pt: ≤½ racial max 0.5, ≤racial max 1, ≤1.5× racial max 2. Level = total bonus pts purchased."
+    "notes": "SR2E p.126. +level Reaction (no extra Initiative dice). Cost/pt: \u2264\u00bd racial max 0.5, \u2264racial max 1, \u22641.5\u00d7 racial max 2. Level = total bonus pts purchased."
   },
   "effects": [],
   "folder": null,

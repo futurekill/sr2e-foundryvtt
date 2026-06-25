@@ -1,7 +1,7 @@
 {
   "_id": "05d498aa7cbd198c",
   "name": "Killing Hands (M)",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 1,

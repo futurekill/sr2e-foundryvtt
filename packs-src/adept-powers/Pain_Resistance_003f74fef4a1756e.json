@@ -1,7 +1,7 @@
 {
   "_id": "003f74fef4a1756e",
   "name": "Pain Resistance",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 0.25,

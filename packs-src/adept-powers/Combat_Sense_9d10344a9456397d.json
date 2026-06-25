@@ -1,7 +1,7 @@
 {
   "_id": "9d10344a9456397d",
   "name": "Combat Sense",
-  "type": "adeptPower",
+  "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
     "pointCost": 1,
