@@ -282,7 +282,10 @@ export class SR2EItem extends Item {
 
     // Thrown weapons (grenades, knives, shuriken) are consumed on use: they stack
     // by quantity instead of reloading. Block an empty stack; spend one otherwise.
-    if (["throwing", "grenade"].includes(this.system.weaponType)) {
+    // They never touch the ammo/reload path (a legacy grenade may still carry a
+    // 1/1 ammo block from before they became consumables).
+    const isThrown = ["throwing", "grenade"].includes(this.system.weaponType);
+    if (isThrown) {
       const qty = this.system.quantity ?? 0;
       if (qty <= 0) {
         ui.notifications.warn(`${actor.name} has no ${this.name} left to throw.`);
@@ -412,9 +415,10 @@ export class SR2EItem extends Item {
       isBurst = firingMode === "bf" || firingMode === "fa";
       rounds = burstRounds(firingMode, options.rounds);
 
-      // Ammunition check (only when the weapon tracks ammo, i.e. max > 0)
+      // Ammunition check (only when the weapon tracks ammo, i.e. max > 0).
+      // Thrown weapons are consumables (quantity), never ammo-tracked.
       const ammo = this.system.ammo;
-      if (ammo?.max > 0) {
+      if (ammo?.max > 0 && !isThrown) {
         if (ammo.current <= 0) {
           return ui.notifications.warn(`${this.name} is out of ammunition.`);
         }
@@ -486,7 +490,7 @@ export class SR2EItem extends Item {
       if (hasRecoil) {
         await actor.update({ "system.combatRecoil": shotsFired + rounds });
       }
-      if (this.system.ammo?.max > 0) {
+      if (this.system.ammo?.max > 0 && !isThrown) {
         await this.update({
           "system.ammo.current": Math.max(0, this.system.ammo.current - rounds)
         });
