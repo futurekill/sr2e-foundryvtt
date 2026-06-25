@@ -676,7 +676,9 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
     const actor = tok.actor;
     if (!actor) continue;
     let dist;
-    try { dist = canvas.grid.measurePath([center, tok.center]).distance; }
+    // Round to whole metres — SR2 distances are integers, and a fractional grid
+    // measurement would otherwise leak into the blast Power (10 − 2.99 = 7.0023D).
+    try { dist = Math.round(canvas.grid.measurePath([center, tok.center]).distance); }
     catch (e) { continue; }
     const power = blastPowerAtRange(basePower, dist, falloff);
     if (power <= 0) continue; // outside the blast
@@ -686,7 +688,7 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
               data-level="${stagedLevel}" data-armor-type="impact"
               data-damage-type="${damageType}" data-target-uuid="${actor.uuid}"
               title="Body vs. TN = ${power} − Impact armour (core p.96)">
-        ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${Math.round(dist)} m)</em>
+        ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${dist} m)</em>
       </button>
     </div>`);
   }
