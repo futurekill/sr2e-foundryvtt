@@ -30,7 +30,8 @@ const SRC_DIR    = path.join(__dirname, "..", "packs-src");
 /** Embedded collections per top-level document collection. */
 const EMBEDDED = {
   actors: ["items", "effects"],
-  items:  ["effects"]
+  items:  ["effects"],
+  tables: ["results"]
 };
 
 /**
