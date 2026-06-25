@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "Unguided anti-personnel rocket \u2014 fragmentation warhead. Fired from a rocket launcher (Heavy Weapons; vehicle mounts use Gunnery). SR2E p.255."
+    "notes": "Unguided anti-personnel rocket \u2014 fragmentation warhead. Fired from a rocket launcher (Heavy Weapons; vehicle mounts use Gunnery). SR2E p.255.",
+    "blastType": "offensive"
   },
   "effects": [],
   "flags": {},

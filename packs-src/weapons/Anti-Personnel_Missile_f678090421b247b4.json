@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Guided anti-personnel missile \u2014 carries its own sensor/targeting (Intelligence rating) for lock-on. SR2E p.255."
+    "notes": "Guided anti-personnel missile \u2014 carries its own sensor/targeting (Intelligence rating) for lock-on. SR2E p.255.",
+    "blastType": "offensive"
   },
   "effects": [],
   "flags": {},

@@ -593,3 +593,62 @@ export function initiationKarmaCost(targetGrade, { group = false, ordeal = false
   const mult = group ? (ordeal ? 1.5 : 2) : (ordeal ? 2.5 : 3);
   return base * mult;
 }
+
+// ---------------------------------------------------------------------------
+// BLAST / AREA EFFECT (SR2 core p.96–97, Grenade Damage Table)
+// A blast's Power falls off with distance from ground zero; each target in the
+// area resists individually using Body vs (adjusted Power − Impact armor).
+// ---------------------------------------------------------------------------
+
+/**
+ * Power lost per metre from ground zero by blast type (core p.96): offensive and
+ * concussion grenades lose 1 Power/m, defensive loses 2/m ("−1 per half-metre").
+ * Unknown types default to the standard 1/m.
+ */
+export const BLAST_FALLOFF = Object.freeze({ offensive: 1, concussion: 1, defensive: 2 });
+export function blastFalloffRate(type) {
+  return BLAST_FALLOFF[type] ?? 1;
+}
+
+/**
+ * Adjusted blast Power at a distance from ground zero (core p.96): base Power
+ * minus falloff × distance, floored at 0. A result of 0 means the target is
+ * outside the blast. (Offensive Power 10 → 7 at 3 m, 4 at 6 m.)
+ */
+export function blastPowerAtRange(basePower, distanceMeters, falloffRate = 1) {
+  return Math.max(0, basePower - falloffRate * Math.max(0, distanceMeters));
+}
+
+/**
+ * Farthest distance (metres) at which the blast still has Power ≥ 1 — used to
+ * gather affected tokens. (Offensive Power 10, falloff 1 → 9 m; defensive
+ * Power 10, falloff 2 → 4 m.)
+ */
+export function blastRadius(basePower, falloffRate = 1) {
+  if (falloffRate <= 0) return Math.max(0, basePower);
+  return Math.max(0, Math.floor((basePower - 1) / falloffRate));
+}
+
+/**
+ * Scatter distance dice and per-success reduction by delivery method (core p.96
+ * Grenade Range Table): a standard grenade scatters 1D6 m and the thrower
+ * reduces it 2 m per success; aerodynamic grenades and grenade launchers scatter
+ * 2D6 / 3D6 m and reduce 4 m per success.
+ */
+export const SCATTER = Object.freeze({
+  standard:    { dice: 1, perSuccess: 2 },
+  aerodynamic: { dice: 2, perSuccess: 4 },
+  launcher:    { dice: 3, perSuccess: 4 }
+});
+export function scatterProfile(deliveryType) {
+  return SCATTER[deliveryType] ?? SCATTER.standard;
+}
+
+/**
+ * Final scatter distance after the attack's successes reduce the rolled scatter
+ * (core p.96): rolled metres minus successes × per-success reduction, floored at
+ * 0 (0 = the grenade lands on the target).
+ */
+export function scatterDistance(rolledMeters, successes, perSuccess) {
+  return Math.max(0, rolledMeters - Math.max(0, successes) * perSuccess);
+}

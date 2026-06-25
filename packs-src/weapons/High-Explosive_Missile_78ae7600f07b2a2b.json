@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Guided high-explosive missile with on-board sensors (Intelligence rating). SR2E p.255."
+    "notes": "Guided high-explosive missile with on-board sensors (Intelligence rating). SR2E p.255.",
+    "blastType": "offensive"
   },
   "effects": [],
   "flags": {},

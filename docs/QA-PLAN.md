@@ -214,6 +214,20 @@ and any **red console errors**. File them wherever the group tracks issues
       with insufficient Good Karma is refused with a warning.
 - [ ] Dropping a quickened spell clears the quickened state (Karma is not refunded).
 
+## 17d. Blast / area-effect combat (v0.15.0)
+- [ ] Fire an **Offensive Grenade** (or rocket/missile) at a targeted token: the
+      damage card shows a **💥 Resolve Blast** button instead of the normal resist.
+- [ ] Clicking it (as GM) drops a circular **MeasuredTemplate** at the target and
+      posts a card with **one Impact-resist button per token in the radius**, each
+      showing reduced Power for its distance (e.g. offensive 10S → 7S at 3 m, 4S
+      at 6 m; nothing past 9 m).
+- [ ] Each per-target button rolls **Body vs (Power − Impact armour)** and applies
+      staged damage (attacker successes already baked into the level).
+- [ ] **Defensive** grenades fall off twice as fast (−2/m); **Concussion** deals
+      **Stun**.
+- [ ] A custom weapon set to a Blast type on its item sheet behaves the same;
+      blank = ordinary single-target weapon.
+
 ## 17. Sheet styling / layout
 - [ ] **Checkboxes align** with their labels across sheets (no staircase): the
       modules table, attribute/skill toggles, equipped flags, and any

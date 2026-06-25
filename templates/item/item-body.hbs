@@ -68,6 +68,15 @@
     </select>
   </div>
   <div class="form-group">
+    <label title="Area weapons (grenades, rockets, missiles) resolve as a blast: Power falls off with distance and every token in the radius resists.">Blast (area):</label>
+    <select name="system.blastType">
+      <option value="" {{selected system.blastType ""}}>— None (single target)</option>
+      <option value="offensive" {{selected system.blastType "offensive"}}>Offensive (−1/m)</option>
+      <option value="defensive" {{selected system.blastType "defensive"}}>Defensive (−2/m)</option>
+      <option value="concussion" {{selected system.blastType "concussion"}}>Concussion (−1/m, stun)</option>
+    </select>
+  </div>
+  <div class="form-group">
     <label>Concealability:</label>
     <input type="number" name="system.concealability" value="{{system.concealability}}" />
   </div>

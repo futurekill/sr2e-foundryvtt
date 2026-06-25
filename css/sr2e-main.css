@@ -3232,3 +3232,11 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .vehicle-design .flat-options-reference summary { cursor: pointer; opacity: 0.85; }
 .vehicle-design .flat-options-reference ul { margin: 4px 0 0; padding-left: 16px; }
 .vehicle-design .flat-options-reference em { opacity: 0.7; }
+
+/* Blast / area-effect resolution cards */
+.sr2e-blast-btn {
+  background: linear-gradient(180deg, #c8410f, #8a2a08);
+  color: #fff; border: 1px solid #5e1c04; font-weight: 700;
+}
+.sr2e-blast-card .sr2e-blast-row { margin: 2px 0; }
+.sr2e-blast-card .sr2e-resist-btn { width: 100%; text-align: left; }

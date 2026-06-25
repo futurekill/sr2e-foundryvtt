@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "Concussion grenade \u2014 minimal fragmentation, \u22121 Power per metre, Stun damage. SR2E p.256."
+    "notes": "Concussion grenade \u2014 minimal fragmentation, \u22121 Power per metre, Stun damage. SR2E p.256.",
+    "blastType": "concussion"
   },
   "effects": [],
   "flags": {},

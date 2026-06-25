@@ -554,16 +554,26 @@ export class SR2EItem extends Item {
       // The defender = the attacker's current target (T key), if any, so the
       // Resist button rolls for the target rather than whoever has a token
       // selected. Captured here (attacker's client, target still set).
-      const targetUuid = game.user?.targets?.first?.()?.actor?.uuid ?? "";
+      const targetTok = game.user?.targets?.first?.();
+      const targetUuid = targetTok?.actor?.uuid ?? "";
 
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor }),
-        content: `<div class="sr2e-damage-result">
-          <strong>${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
-          <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | Staged up ${stageUps} level(s)</em>
-          ${ammoLine}
-          <br>
-          <button class="sr2e-resist-btn"
+      // Area weapons (grenades, rockets, missiles) resolve as a blast rather than
+      // a single target: the card offers a "Resolve Blast" button that gathers
+      // every token in the radius and gives each its own Impact resist (core p.96).
+      // The blast carries the BASE level — per-target staging happens in the blast.
+      const buttonHtml = this.system.blastType
+        ? `<button class="sr2e-blast-btn"
+                  data-base-power="${effectivePower}"
+                  data-base-level="${dmg.level}"
+                  data-damage-type="${damageType}"
+                  data-blast-type="${this.system.blastType}"
+                  data-attacker-successes="${result.successes}"
+                  data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
+                  data-blast-name="${safeName}"
+                  title="Place a blast template and resolve every token in the area (core p.96)">
+            💥 Resolve Blast
+          </button>`
+        : `<button class="sr2e-resist-btn"
                   data-power="${effectivePower}"
                   data-base-power="${basePower}"
                   data-level="${stages[finalIdx]}"
@@ -575,7 +585,16 @@ export class SR2EItem extends Item {
                   data-target-uuid="${targetUuid}"
                   title="Defender rolls Body vs. TN = Power − Armor (SR2E p.116)">
             ${game.i18n.localize("SR2E.Chat.ResistDamage")}
-          </button>
+          </button>`;
+
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
+          <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | Staged up ${stageUps} level(s)</em>
+          ${ammoLine}
+          <br>
+          ${buttonHtml}
         </div>`
       });
     }

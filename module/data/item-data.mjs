@@ -158,6 +158,12 @@ export class WeaponData extends SR2EDataModel {
       legality: new fields.StringField({ initial: "Legal" }),
       equipped: new fields.BooleanField({ initial: false }),
       accessories: new fields.ArrayField(new fields.StringField()),
+      // Area weapons (grenades, rockets, missiles). When set, the weapon resolves
+      // as a blast: Power falls off with distance and every token in the radius
+      // resists individually (core p.96). "" = a normal single-target weapon.
+      blastType: new fields.StringField({ initial: "", blank: true, choices: {
+        "": "—", offensive: "Offensive", defensive: "Defensive", concussion: "Concussion"
+      }}),
       notes: new fields.StringField({ initial: "" })
     };
   }

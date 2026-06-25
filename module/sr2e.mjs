@@ -33,6 +33,7 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
 // Migrations
 import { migrateWorld } from "./migrations.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps } from "./rules/sr2e-rules.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
@@ -628,6 +629,81 @@ async function resolveCardDefender(targetUuid) {
   return canvas.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null;
 }
 
+/**
+ * Resolve a blast (grenade / rocket / missile / area spell) on the battle map
+ * (core p.96). Places a circular MeasuredTemplate at the blast point, gathers
+ * every token whose centre falls inside it, and posts a card giving each token
+ * its own Impact resist with the blast's Power reduced for distance from ground
+ * zero. Per-target staging from the attacker's successes is baked into the
+ * resist button's level, so the existing resist handler finishes the job.
+ *
+ * @param {object} o
+ * @param {string} o.centerTokenUuid - TokenDocument UUID at ground zero.
+ * @param {number} o.basePower       - Blast Power at ground zero.
+ * @param {string} o.baseLevel       - Damage Level (L/M/S/D) before staging.
+ * @param {string} o.damageType      - "physical" | "stun".
+ * @param {string} o.blastType       - offensive | defensive | concussion.
+ * @param {number} o.attackerSuccesses - Successes from the attack Success Test.
+ * @param {string} o.blastName        - Display name.
+ */
+async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType, blastType, attackerSuccesses, blastName }) {
+  if (!canvas?.ready) return ui.notifications.warn("No active scene for the blast.");
+  const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid) : null;
+  const centerTok = centerDoc?.object ?? game.user?.targets?.first?.();
+  if (!centerTok) {
+    return ui.notifications.warn("Target a token (the blast's ground zero) before resolving the blast.");
+  }
+  const center = centerTok.center;
+  const falloff = blastFalloffRate(blastType);
+  const radiusM = blastRadius(basePower, falloff);
+
+  // Drop a template so the area is visible on the map.
+  try {
+    await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
+      t: "circle", x: center.x, y: center.y, distance: radiusM,
+      fillColor: "#ff6a00", borderColor: "#aa2200",
+      flags: { sr2e: { blast: true } }
+    }]);
+  } catch (e) { /* template optional; resolution still proceeds */ }
+
+  const stages = ["L", "M", "S", "D"];
+  const baseIdx = Math.max(0, stages.indexOf(baseLevel || "M"));
+  const stagedLevel = stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
+  const stun = damageType === "stun";
+
+  const rows = [];
+  for (const tok of canvas.tokens.placeables) {
+    const actor = tok.actor;
+    if (!actor) continue;
+    let dist;
+    try { dist = canvas.grid.measurePath([center, tok.center]).distance; }
+    catch (e) { continue; }
+    const power = blastPowerAtRange(basePower, dist, falloff);
+    if (power <= 0) continue; // outside the blast
+    rows.push(`<div class="sr2e-blast-row">
+      <button class="sr2e-resist-btn"
+              data-power="${power}" data-base-power="${basePower}"
+              data-level="${stagedLevel}" data-armor-type="impact"
+              data-damage-type="${damageType}" data-target-uuid="${actor.uuid}"
+              title="Body vs. TN = ${power} − Impact armour (core p.96)">
+        ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${Math.round(dist)} m)</em>
+      </button>
+    </div>`);
+  }
+
+  const body = rows.length
+    ? rows.join("")
+    : `<em>No tokens caught in the ${radiusM} m radius.</em>`;
+  await ChatMessage.create({
+    content: `<div class="sr2e-damage-result sr2e-blast-card">
+      <strong>💥 ${foundry.utils.escapeHTML(blastName || "Blast")}</strong> — ${basePower}${stagedLevel}${stun ? " Stun" : ""} at ground zero,
+      −${falloff}/m falloff (radius ${radiusM} m).
+      <br><em>Each target resists with Body vs. (Power − Impact armour):</em>
+      ${body}
+    </div>`
+  });
+}
+
 Hooks.on("renderChatMessageHTML", (message, html, data) => {
   // V13: html is an HTMLElement (renderChatMessageHTML is the V13 hook)
   if (message.isRoll && html instanceof HTMLElement) {
@@ -662,6 +738,23 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
 
       return actor.rollDamageResistance(power, level, armorType, damageType,
         { armorCalc, armorMod, ammoName, basePower });
+    });
+  });
+
+  // Wire up "Resolve Blast" buttons on area-weapon (grenade/rocket/missile) cards.
+  // Places the template, gathers tokens, and posts a per-target Impact resist.
+  html.querySelectorAll?.(".sr2e-blast-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      await resolveBlast({
+        centerTokenUuid:   btn.dataset.centerTokenUuid || "",
+        basePower:         parseInt(btn.dataset.basePower) || 0,
+        baseLevel:         btn.dataset.baseLevel || "M",
+        damageType:        btn.dataset.damageType || "physical",
+        blastType:         btn.dataset.blastType || "offensive",
+        attackerSuccesses: parseInt(btn.dataset.attackerSuccesses) || 0,
+        blastName:         btn.dataset.blastName || "Blast"
+      });
     });
   });
 

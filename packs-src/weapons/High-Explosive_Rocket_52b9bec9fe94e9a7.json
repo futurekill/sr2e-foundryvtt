@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Unguided high-explosive rocket \u2014 large blast warhead. SR2E p.255."
+    "notes": "Unguided high-explosive rocket \u2014 large blast warhead. SR2E p.255.",
+    "blastType": "offensive"
   },
   "effects": [],
   "flags": {},
