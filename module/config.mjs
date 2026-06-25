@@ -133,7 +133,7 @@ SR2E.activeSkills = {
   leadership:       { label: "SR2E.Skills.Leadership",      attribute: "charisma",     category: "active" },
   negotiation:      { label: "SR2E.Skills.Negotiation",     attribute: "charisma",     category: "active" },
   pilot:            { label: "SR2E.Skills.Pilot",           attribute: "reaction",     category: "active" },
-  projectile_weapons: { label: "SR2E.Skills.ProjectileWeapons", attribute: "quickness", category: "active" },
+  projectile_weapons: { label: "SR2E.Skills.ProjectileWeapons", attribute: "strength" , category: "active" },
   sorcery:          { label: "SR2E.Skills.Sorcery",         attribute: "willpower",    category: "active", magical: true },
   stealth:          { label: "SR2E.Skills.Stealth",         attribute: "quickness",    category: "active" },
   throwing_weapons: { label: "SR2E.Skills.ThrowingWeapons", attribute: "strength",     category: "active" },
