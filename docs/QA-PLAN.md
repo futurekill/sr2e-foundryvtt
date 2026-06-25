@@ -13,7 +13,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - A world running the **Shadowrun 2nd Edition** system.
 - At least one **GM** and one **player** account (some tests need both).
 - Import the **SR2E Sample Runners** compendium (street sam, mage, decker,
-  rigger, shaman) — handy ready-made test subjects.
+  rigger, shaman, face, physical adept) — handy ready-made test subjects.
 - A scene with a grid and a couple of tokens.
 
 > **Two recurring gotchas to keep in mind while testing:**
@@ -179,6 +179,30 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Token-link migration:** an existing Character with an unlinked prototype
       token gets relinked by the 0.9.8 migration (spending Karma on a dragged
       token now updates the sidebar actor — see the recurring gotcha above).
+
+## 17a. Contacts & Enemies (v0.13.0)
+- [ ] Character sheet → **Contacts** tab shows two sections: **Contacts** (allies)
+      and **Enemies**, each with its own count + add button.
+- [ ] **Add Contact** creates an ally; **Add Enemy** (skull button) creates a
+      contact that lands in the **Enemies** section (contactType=enemy).
+- [ ] Type badges colour correctly: contact (muted), buddy (green), **Friend For
+      Life** (gold/bold), follower (gold), **enemy** (red).
+- [ ] Enemy rows: name is red, columns read **Animosity / Reach**, animosity pips
+      are red (`.rating-pip.danger`).
+- [ ] Open a contact item sheet → Type dropdown lists Contact / Buddy / **Friend
+      For Life** / Follower / **Enemy**; changing to Enemy moves it to the Enemies
+      section on the actor sheet.
+- [ ] Import the **Contacts** compendium — the 6 enemy archetypes (Vengeful
+      Ex-Employer, Rival Shadowrunner, Corp Security Chief, Gang Lieutenant,
+      Bounty Hunter, Jilted Fixer) drop in as enemies.
+
+## 17b. Pregens (v0.12.0)
+- [ ] Sample Runners compendium now has **7**: import **Silk (Face)** and
+      **Tiger (Physical Adept)** — sheets open, items intact, Tiger's adept
+      powers + power points show on the magic tab.
+- [ ] After the actor-sheet/sheet-actions split, every sheet action still fires
+      (roll skill/weapon/spell, add/edit/delete item, tab switch, healing,
+      team-karma) — the handlers moved files but behaviour is unchanged.
 
 ## 17. Sheet styling / layout
 - [ ] **Checkboxes align** with their labels across sheets (no staircase): the
