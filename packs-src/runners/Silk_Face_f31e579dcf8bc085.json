@@ -1,0 +1,777 @@
+{
+  "_id": "f31e579dcf8bc085",
+  "name": "Silk (Face)",
+  "type": "character",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "biography": "<p>A silver-tongued fixer's fixer \u2014 the face the team sends when a job needs a handshake, not a firefight. Tailored charm, an enhanced voice, and a Lined Coat that says \"I belong in this boardroom.\"</p>",
+    "notes": "",
+    "race": "human",
+    "body": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "quickness": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "strength": {
+      "base": 3,
+      "mod": 0,
+      "value": 3,
+      "racial": 0
+    },
+    "charisma": {
+      "base": 6,
+      "mod": 0,
+      "value": 6,
+      "racial": 0
+    },
+    "intelligence": {
+      "base": 5,
+      "mod": 0,
+      "value": 5,
+      "racial": 0
+    },
+    "willpower": {
+      "base": 4,
+      "mod": 0,
+      "value": 4,
+      "racial": 0
+    },
+    "essence": {
+      "value": 6,
+      "max": 6
+    },
+    "magic": {
+      "value": 0,
+      "max": 0,
+      "tradition": "none",
+      "type": "none",
+      "skill": "none",
+      "totem": "",
+      "initiateGrade": 0
+    },
+    "reaction": {
+      "base": 0,
+      "mod": 0,
+      "value": 0
+    },
+    "conditionMonitor": {
+      "physical": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "stun": {
+        "value": 0,
+        "max": 10,
+        "overflow": 0
+      },
+      "overflow": 0
+    },
+    "dicePools": {
+      "combat": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "hacking": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "magic": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "control": {
+        "value": 0,
+        "max": 0,
+        "bonus": 0
+      },
+      "spellDefense": 0
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 1,
+      "mod": 0,
+      "value": 0,
+      "passes": 1
+    },
+    "movement": {
+      "walk": 0,
+      "run": 0
+    },
+    "armor": {
+      "ballistic": 0,
+      "impact": 0
+    },
+    "karma": {
+      "current": 0,
+      "total": 0,
+      "pool": 1
+    },
+    "nuyen": 3000,
+    "lifestyle": "middle",
+    "chargen": {
+      "priorities": {
+        "race": "E",
+        "magic": "E",
+        "attributes": "A",
+        "skills": "B",
+        "resources": "C"
+      },
+      "attributePointsTotal": 30,
+      "attributePointsSpent": 0,
+      "skillPointsTotal": 30,
+      "skillPointsSpent": 0,
+      "resourcesTotal": 90000,
+      "resourcesSpent": 0,
+      "forcePointsTotal": 25,
+      "forcePointsSpent": 0
+    },
+    "adeptPowerPoints": {
+      "value": 0,
+      "max": 0
+    },
+    "matrixPersona": {
+      "bod": 0,
+      "evasion": 0,
+      "masking": 0,
+      "sensor": 0
+    },
+    "cyberdeck": {
+      "mpcp": 0,
+      "hardening": 0,
+      "activeMemory": 0,
+      "storageMemory": 0,
+      "loadSpeed": 0,
+      "ioSpeed": 0,
+      "response": 0
+    },
+    "vehicleControlRig": 0,
+    "rigging": false,
+    "combatRecoil": 0,
+    "linkedVehicles": []
+  },
+  "items": [
+    {
+      "_id": "9851b0b2ffba0546",
+      "name": "Etiquette",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 6,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "0e89c97e89ac831a",
+      "name": "Negotiation",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 6,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "305e43e57a09effb",
+      "name": "Leadership",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "charisma",
+        "rating": 4,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "db29bb8fa02dcef8",
+      "name": "Stealth",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 3,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "591c01c9c70b4d1e",
+      "name": "Firearms",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 4,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "34392b75a91295c6",
+      "name": "Car",
+      "type": "skill",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "category": "active",
+        "linkedAttribute": "quickness",
+        "rating": 3,
+        "concentration": {
+          "name": "",
+          "rating": 0
+        },
+        "specialization": {
+          "name": "",
+          "rating": 0
+        },
+        "isMagical": false,
+        "notes": ""
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "b7e819ebcc04e6f4",
+      "name": "Voice Modulator",
+      "type": "cyberware",
+      "img": "icons/svg/upgrade.svg",
+      "system": {
+        "location": "bodyware",
+        "grade": "standard",
+        "essenceCost": 0.5,
+        "rating": 0,
+        "cost": 45000,
+        "availability": "2/24hrs",
+        "legality": "Legal",
+        "installed": false,
+        "attributeMods": {
+          "body": 0,
+          "quickness": 0,
+          "strength": 0,
+          "charisma": 0,
+          "intelligence": 0,
+          "willpower": 0,
+          "reaction": 0,
+          "initiativeDice": 0
+        },
+        "ratingStats": [],
+        "notes": "SR2E p.249. Implanted voice-alteration hardware. Base cost includes increased volume and tonal shift. Secondary pattern (illegal): 50,000\u00a5. Playback: 40,000\u00a5."
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "084704624c40ca55",
+      "name": "Datajack",
+      "type": "cyberware",
+      "img": "icons/svg/upgrade.svg",
+      "system": {
+        "location": "headware",
+        "grade": "standard",
+        "essenceCost": 0.2,
+        "rating": 0,
+        "cost": 1000,
+        "availability": "4/48hrs",
+        "legality": "Restricted",
+        "installed": false,
+        "attributeMods": {
+          "body": 0,
+          "quickness": 0,
+          "strength": 0,
+          "charisma": 0,
+          "intelligence": 0,
+          "willpower": 0,
+          "reaction": 0,
+          "initiativeDice": 0
+        },
+        "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2."
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "de7bf52c8ef0ac73",
+      "name": "Chipjack",
+      "type": "cyberware",
+      "img": "icons/svg/upgrade.svg",
+      "system": {
+        "location": "headware",
+        "grade": "standard",
+        "essenceCost": 0.1,
+        "rating": 0,
+        "cost": 1000,
+        "availability": "3/72hrs",
+        "legality": "Restricted",
+        "installed": false,
+        "attributeMods": {
+          "body": 0,
+          "quickness": 0,
+          "strength": 0,
+          "charisma": 0,
+          "intelligence": 0,
+          "willpower": 0,
+          "reaction": 0,
+          "initiativeDice": 0
+        },
+        "ratingStats": [],
+        "notes": "SR2E p.246. A passive slot for skillsofts and datasofts. Chips must remain inserted during use. Essence 0.1."
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "76f87eea38b9f6e7",
+      "name": "Ares Predator",
+      "type": "weapon",
+      "img": "icons/svg/sword.svg",
+      "system": {
+        "weaponType": "firearm",
+        "skill": "firearms",
+        "damageCode": "9M",
+        "damageType": "physical",
+        "concealability": 5,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": true,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 15,
+          "max": 15,
+          "type": "pistol"
+        },
+        "recoilComp": 0,
+        "ranges": {
+          "short": 5,
+          "medium": 20,
+          "long": 40,
+          "extreme": 60
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 550,
+        "availability": "5/48hrs",
+        "legality": "Legal",
+        "equipped": true,
+        "accessories": [],
+        "notes": "SR2E p.231. Considered by many the premier heavy pistol. Menacing and popular among mercenaries and security services."
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "d6b6491181442eff",
+      "name": "Regular Ammo",
+      "type": "ammo",
+      "img": "icons/svg/book.svg",
+      "system": {
+        "ammoType": "regular",
+        "quantity": 10,
+        "damageModifier": 0,
+        "armorModifier": 0,
+        "cost": 15,
+        "notes": "Standard rounds. SR2E p.93.",
+        "damageType": "",
+        "armorCalc": "standard"
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "2f273d2495be19ce",
+      "name": "Lined Coat",
+      "type": "armor",
+      "img": "icons/svg/shield.svg",
+      "system": {
+        "ballistic": 4,
+        "impact": 2,
+        "concealability": 8,
+        "weight": 0,
+        "cost": 700,
+        "availability": "3/48hrs",
+        "legality": "Legal",
+        "equipped": false,
+        "isLayered": false,
+        "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners."
+      },
+      "effects": [],
+      "flags": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      }
+    }
+  ],
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.5.0",
+    "createdTime": 1781000000000,
+    "modifiedTime": 1781000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "prototypeToken": {
+    "name": "Silk (Face)",
+    "displayName": 0,
+    "actorLink": false,
+    "width": 1,
+    "height": 1,
+    "texture": {
+      "src": "icons/svg/mystery-man.svg",
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "offsetX": 0,
+      "offsetY": 0,
+      "fit": "contain",
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "tint": "#ffffff",
+      "alphaThreshold": 0.75
+    },
+    "lockRotation": false,
+    "rotation": 0,
+    "alpha": 1,
+    "disposition": -1,
+    "displayBars": 0,
+    "bar1": {
+      "attribute": "conditionMonitor.physical"
+    },
+    "bar2": {
+      "attribute": "conditionMonitor.stun"
+    },
+    "light": {
+      "negative": false,
+      "priority": 0,
+      "alpha": 0.5,
+      "angle": 360,
+      "bright": 0,
+      "color": null,
+      "coloration": 1,
+      "dim": 0,
+      "attenuation": 0.5,
+      "luminosity": 0.5,
+      "saturation": 0,
+      "contrast": 0,
+      "shadows": 0,
+      "animation": {
+        "type": null,
+        "speed": 5,
+        "intensity": 5,
+        "reverse": false
+      },
+      "darkness": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    "sight": {
+      "enabled": false,
+      "range": 0,
+      "angle": 360,
+      "visionMode": "basic",
+      "color": null,
+      "attenuation": 0.1,
+      "brightness": 0,
+      "saturation": 0,
+      "contrast": 0
+    },
+    "detectionModes": [],
+    "occludable": {
+      "radius": 0
+    },
+    "ring": {
+      "enabled": false,
+      "colors": {
+        "ring": null,
+        "background": null
+      },
+      "effects": 1,
+      "subject": {
+        "scale": 1,
+        "texture": null
+      }
+    },
+    "turnMarker": {
+      "mode": 1,
+      "animation": null,
+      "src": null,
+      "disposition": false
+    },
+    "movementAction": null,
+    "flags": {},
+    "randomImg": false,
+    "appendNumber": false,
+    "prependAdjective": false
+  },
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!actors!f31e579dcf8bc085"
+}
