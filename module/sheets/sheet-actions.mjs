@@ -609,7 +609,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ).join("")}
         </select>
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      ${hasRecoil ? `<div class="form-group" style="margin:2px 0;">
         <label>Firing Mode:</label>
         <select id="sr2e-firing-mode" name="firingMode">${
           Object.entries(FIRING_MODE_DATA)
@@ -617,7 +617,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             .map(([key, d]) => `<option value="${key}">${d.label}</option>`)
             .join("") || `<option value="sa">${FIRING_MODE_DATA.sa.label}</option>`
         }</select>
-      </div>
+      </div>` : ""}
       <div class="form-group" style="margin:2px 0;">
         <label>Cover:</label>
         <select id="sr2e-cover" name="cover">

@@ -164,6 +164,9 @@ export class WeaponData extends SR2EDataModel {
       blastType: new fields.StringField({ initial: "", blank: true, choices: {
         "": "—", offensive: "Offensive", defensive: "Defensive", concussion: "Concussion"
       }}),
+      // Consumable count for thrown weapons (grenades, knives, shuriken): they
+      // stack instead of reloading, and throwing one decrements this.
+      quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };
   }

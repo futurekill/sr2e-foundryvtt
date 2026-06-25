@@ -280,6 +280,17 @@ export class SR2EItem extends Item {
     const isMelee  = ["melee", "throwing"].includes(this.system.weaponType);
     const isRanged = !isMelee;
 
+    // Thrown weapons (grenades, knives, shuriken) are consumed on use: they stack
+    // by quantity instead of reloading. Block an empty stack; spend one otherwise.
+    if (["throwing", "grenade"].includes(this.system.weaponType)) {
+      const qty = this.system.quantity ?? 0;
+      if (qty <= 0) {
+        ui.notifications.warn(`${actor.name} has no ${this.name} left to throw.`);
+        return;
+      }
+      await this.update({ "system.quantity": qty - 1 });
+    }
+
     // Dice pool — linked skill rating.
     //
     // SR2E weapon-type → default skill mapping (core book p.88–92):

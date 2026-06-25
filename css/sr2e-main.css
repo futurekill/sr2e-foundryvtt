@@ -3240,3 +3240,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 }
 .sr2e-blast-card .sr2e-blast-row { margin: 2px 0; }
 .sr2e-blast-card .sr2e-resist-btn { width: 100%; text-align: left; }
+
+/* Thrown-weapon carried-quantity input (combat tab) */
+.weapon-qty { display: inline-flex; align-items: center; gap: 2px; color: var(--sr2e-text-muted); font-size: 11px; }
+.weapon-qty .qty-input { width: 34px; text-align: center; padding: 0 2px; }

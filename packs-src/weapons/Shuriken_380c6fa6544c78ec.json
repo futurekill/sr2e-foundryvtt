@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. Multi-edged or spiked airfoil throwing blade. Easy to conceal, fast to deploy."
+    "notes": "SR2E p.228. Multi-edged or spiked airfoil throwing blade. Easy to conceal, fast to deploy.",
+    "quantity": 1
   },
   "effects": [],
   "flags": {},

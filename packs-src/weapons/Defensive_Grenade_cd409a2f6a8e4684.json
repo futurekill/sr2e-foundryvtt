@@ -17,9 +17,9 @@
       "fa": false
     },
     "ammo": {
-      "current": 1,
-      "max": 1,
-      "type": "grenade"
+      "current": 0,
+      "max": 0,
+      "type": ""
     },
     "recoilComp": 0,
     "ranges": {
@@ -36,7 +36,8 @@
     "equipped": false,
     "accessories": [],
     "notes": "Defensive grenade \u2014 tighter blast (\u22122 Power per metre) for use from cover. SR2E p.256.",
-    "blastType": "defensive"
+    "blastType": "defensive",
+    "quantity": 1
   },
   "effects": [],
   "flags": {},

@@ -30,6 +30,18 @@
             {{weapon.system.ammo.current}}/{{weapon.system.ammo.max}}
           </span>
           {{/ifGt}}
+          {{#ifEquals weapon.system.weaponType "grenade"}}
+          <span class="weapon-qty" title="Carried — thrown weapons stack; throwing one decrements this">
+            <i class="fas fa-layer-group"></i>
+            ×<input type="number" class="qty-input" data-field="system.quantity" value="{{weapon.system.quantity}}" min="0" />
+          </span>
+          {{/ifEquals}}
+          {{#ifEquals weapon.system.weaponType "throwing"}}
+          <span class="weapon-qty" title="Carried — thrown weapons stack; throwing one decrements this">
+            <i class="fas fa-layer-group"></i>
+            ×<input type="number" class="qty-input" data-field="system.quantity" value="{{weapon.system.quantity}}" min="0" />
+          </span>
+          {{/ifEquals}}
           <span class="weapon-modes">
             {{#if weapon.system.firingModes.ss}}SS {{/if}}
             {{#if weapon.system.firingModes.sa}}SA {{/if}}

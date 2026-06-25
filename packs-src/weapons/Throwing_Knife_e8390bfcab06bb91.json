@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. A slim, balanced blade designed for aerodynamic flight. Various forms: spikes, leaf-blades, tantos."
+    "notes": "SR2E p.228. A slim, balanced blade designed for aerodynamic flight. Various forms: spikes, leaf-blades, tantos.",
+    "quantity": 1
   },
   "effects": [],
   "flags": {},
