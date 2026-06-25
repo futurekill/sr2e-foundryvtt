@@ -528,3 +528,68 @@ export function aggregateModDesign(mods = []) {
   }
   return { designPoints, cost, cf, load };
 }
+
+// ---------------------------------------------------------------------------
+// METAMAGIC — initiate techniques (Grimoire 2nd ed., p.42–46)
+// Pure rules math; the sheet/roll flows call these so the numbers are testable.
+// ---------------------------------------------------------------------------
+
+/**
+ * Centering vs. Drain (Grimoire p.43): every 2 successes on the Centering Test
+ * count as 1 extra success on the actual Drain Resistance Test — but only if
+ * that Drain test scored at least 1 success on its own.
+ * @returns {number} bonus successes to add to the drain resistance
+ */
+export function centeringDrainBonus(centeringSuccesses, drainSuccesses) {
+  if (centeringSuccesses < 2 || drainSuccesses < 1) return 0;
+  return Math.floor(centeringSuccesses / 2);
+}
+
+/**
+ * Centering vs. Penalties (Grimoire p.44): every 2 Centering successes remove 1
+ * point of negative TN modifier (never more than the penalty present, and it
+ * can only reduce modifiers — never the base target number).
+ * @returns {number} points of penalty removed
+ */
+export function centeringPenaltyReduction(centeringSuccesses, penalty = Infinity) {
+  return Math.min(Math.floor(centeringSuccesses / 2), Math.max(0, penalty));
+}
+
+/**
+ * The Centering Test's own target number when used against penalties
+ * (Grimoire p.44): the modified magic TN reduced by the initiate grade,
+ * floored at the minimum target number of 2.
+ */
+export function centeringTestTN(modifiedTN, grade) {
+  return Math.max(2, modifiedTN - grade);
+}
+
+/**
+ * Shielding (Grimoire p.45): an initiate gains bonus spell-defense dice equal
+ * to their initiate grade, over and above any Magic Pool dice committed.
+ */
+export function shieldingBonusDice(grade) {
+  return Math.max(0, grade);
+}
+
+/**
+ * Quickening (Grimoire p.44): the Karma to lock a sustained spell permanently
+ * runs from the spell's actual Force (minimum) to twice its Force (the extra
+ * making it harder to dispel).
+ * @returns {{min:number, max:number}}
+ */
+export function quickeningKarmaRange(force) {
+  const f = Math.max(0, force);
+  return { min: f, max: 2 * f };
+}
+
+/**
+ * Initiation Karma cost (Grimoire p.42): base = 6 + the target grade, times a
+ * multiplier — self ×3, group ×2; undertaking an ordeal lowers it to ×2.5 (self)
+ * or ×1.5 (group).
+ */
+export function initiationKarmaCost(targetGrade, { group = false, ordeal = false } = {}) {
+  const base = 6 + Math.max(0, targetGrade);
+  const mult = group ? (ordeal ? 1.5 : 2) : (ordeal ? 2.5 : 3);
+  return base * mult;
+}

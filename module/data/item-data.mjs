@@ -241,6 +241,10 @@ export class SpellData extends SR2EDataModel {
       sustaining: new fields.BooleanField({ initial: false }),
       sustainedForce: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       spellLocked: new fields.BooleanField({ initial: false }),
+      // Quickened (Grimoire p.44): an initiate has paid Karma to make this
+      // sustained spell permanent — it keeps running with no sustaining penalty.
+      quickened: new fields.BooleanField({ initial: false }),
+      quickeningKarma: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };
   }

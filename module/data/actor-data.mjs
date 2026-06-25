@@ -535,7 +535,7 @@ export class CharacterData extends SR2EDataModel {
   get sustainPenalty() {
     let count = 0;
     for (const item of this.parent?.items ?? []) {
-      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked) count++;
+      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked && !item.system.quickened) count++;
     }
     return 2 * count;
   }
@@ -709,7 +709,7 @@ export class NPCData extends SR2EDataModel {
   get sustainPenalty() {
     let count = 0;
     for (const item of this.parent?.items ?? []) {
-      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked) count++;
+      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked && !item.system.quickened) count++;
     }
     return 2 * count;
   }

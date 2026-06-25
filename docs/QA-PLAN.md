@@ -204,6 +204,16 @@ and any **red console errors**. File them wherever the group tracks issues
       (roll skill/weapon/spell, add/edit/delete item, tab switch, healing,
       team-karma) — the handlers moved files but behaviour is unchanged.
 
+## 17c. Metamagic — Quickening (v0.14.0)
+- [ ] An initiate (magic.initiateGrade ≥ 1) sustaining a spell sees an **∞**
+      button on the spell row; clicking it spends Karma = the spell's Force from
+      Good Karma and marks the spell **quickened** (∞ glows purple).
+- [ ] A quickened spell **stops adding +2 to the sustain penalty** (the "Sustaining
+      — +N TN" summary drops by 2), like a spell lock.
+- [ ] A non-initiate clicking quicken gets the "not learned" warning; quickening
+      with insufficient Good Karma is refused with a warning.
+- [ ] Dropping a quickened spell clears the quickened state (Karma is not refunded).
+
 ## 17. Sheet styling / layout
 - [ ] **Checkboxes align** with their labels across sheets (no staircase): the
       modules table, attribute/skill toggles, equipped flags, and any

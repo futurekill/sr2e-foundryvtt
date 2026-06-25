@@ -2349,6 +2349,19 @@ const SHARED_ACTIONS = {
   },
 
   /**
+   * Quicken a sustained spell — an initiate pays Karma (= the spell's Force) to
+   * make it permanent with no sustaining penalty (Grimoire p.44).
+   * @this {ApplicationV2}
+   */
+  quickenSpell: async function(event, target) {
+    event.preventDefault();
+    const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+    const item = this.document.items.get(itemId);
+    if (!item || item.type !== "spell") return;
+    return item.quickenSpell();
+  },
+
+  /**
    * Spend Good Karma on advancement (SR2E p.190).
    *   Attributes: cost = the NEW rating (×2 above racial maximum, GM call;
    *     Reaction/Essence/Magic can never be raised directly).

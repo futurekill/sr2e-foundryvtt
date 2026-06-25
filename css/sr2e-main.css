@@ -2664,9 +2664,15 @@
 }
 
 .sustain-toggle.active i,
-.spell-lock-toggle.active i {
+.spell-lock-toggle.active i,
+.quicken-toggle.active i {
   color: var(--sr2e-gold, #c19a49);
   text-shadow: 0 0 4px rgba(193, 154, 73, 0.6);
+}
+/* Quickened spells glow brighter — they're permanent. */
+.quicken-toggle.active i {
+  color: var(--sr2e-magic, #9b6dff);
+  text-shadow: 0 0 5px rgba(155, 109, 255, 0.7);
 }
 
 .sustain-summary {

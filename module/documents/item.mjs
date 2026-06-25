@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -630,7 +630,9 @@ export class SR2EItem extends Item {
       await this.update({
         "system.sustaining": false,
         "system.sustainedForce": 0,
-        "system.spellLocked": false
+        "system.spellLocked": false,
+        "system.quickened": false,
+        "system.quickeningKarma": 0
       });
       // Remove the effects this spell placed on the caster
       const ids = actor.effects.filter(e => e.origin === this.uuid).map(e => e.id);
@@ -643,6 +645,44 @@ export class SR2EItem extends Item {
         </div>`
       });
     }
+  }
+
+  /**
+   * Quicken a sustained spell (Grimoire p.44): an initiate pays Karma to make
+   * the spell permanent — it keeps running with no spell lock and no sustaining
+   * penalty. Karma runs from the spell's Force (minimum) to twice Force (the
+   * extra making it harder to dispel). Spends the caster's Good Karma
+   * (system.karma.current).
+   * @param {number} [karma] - Karma to commit; clamped to [Force, 2×Force].
+   */
+  async quickenSpell(karma) {
+    const actor = this.parent;
+    if (!actor || this.type !== "spell") return;
+    if ((actor.system.magic?.initiateGrade ?? 0) < 1 && !actor.system.magic?.metamagic?.includes?.("quickening")) {
+      ui.notifications.warn(`Quickening is an initiate metamagic — ${actor.name} has not learned it. (Grimoire p.44)`);
+      return;
+    }
+    if (!this.system.sustaining) {
+      ui.notifications.warn(`${this.name} must be sustained before it can be quickened. (Grimoire p.44)`);
+      return;
+    }
+    if (this.system.quickened) return;
+    const force = this.system.sustainedForce || this.system.force;
+    const { min, max } = quickeningKarmaRange(force);
+    const spend = Math.max(min, Math.min(Number.isFinite(karma) ? karma : min, max));
+    const available = actor.system.karma?.current ?? 0;
+    if (available < spend) {
+      ui.notifications.warn(`${actor.name} needs ${spend} Good Karma to quicken ${this.name} (has ${available}). (Grimoire p.44)`);
+      return;
+    }
+    await actor.update({ "system.karma.current": available - spend });
+    await this.update({ "system.quickened": true, "system.quickeningKarma": spend });
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="sr2e-item-card">
+        <strong>${foundry.utils.escapeHTML(this.name)}</strong> quickened — now permanent for ${spend} Karma (Force ${force}); no sustaining penalty. <em>Grimoire p.44.</em>
+      </div>`
+    });
   }
 
   /**
