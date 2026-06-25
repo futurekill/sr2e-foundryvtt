@@ -2554,4 +2554,11 @@ const SHARED_ACTIONS = {
   }
 };
 
-export { SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions };
+export {
+  SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
+  // Individual handlers the per-subclass action maps in actor-sheet.mjs reference
+  // directly (NPC / vehicle / spirit / IC / host sheets).
+  onAddItem, onDeleteItem, onEditItem,
+  onRollAttribute, onRollSkill, onRollInitiative, onRollWeapon,
+  onMatrixAttack, onMatrixPerception, onResetHostTally
+};

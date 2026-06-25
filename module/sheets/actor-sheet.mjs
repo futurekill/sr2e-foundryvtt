@@ -1,5 +1,10 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints } from "../rules/sr2e-rules.mjs";
-import { SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions } from "./sheet-actions.mjs";
+import {
+  SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
+  onAddItem, onDeleteItem, onEditItem,
+  onRollAttribute, onRollSkill, onRollInitiative, onRollWeapon,
+  onMatrixAttack, onMatrixPerception, onResetHostTally
+} from "./sheet-actions.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
