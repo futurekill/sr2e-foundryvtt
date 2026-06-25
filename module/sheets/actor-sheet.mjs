@@ -142,8 +142,13 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // display:none. Wire them up explicitly so any change saves immediately.
     // Propagation is stopped to prevent a double-save where submitOnChange also
     // fires. Inputs inside [data-item-id] belong to embedded Items (below).
+    // Also the header stat inputs (Good Karma, Nuyen, Karma Pool): these live
+    // outside .tab-content but submitOnChange does not reliably persist them
+    // (e.g. Enter or a button-click reading the field before the form commits),
+    // which silently dropped Good Karma edits used by Quickening.
     for (const input of this.element.querySelectorAll(
-      ".tab-content input[name], .tab-content select[name], .tab-content textarea[name]"
+      ".tab-content input[name], .tab-content select[name], .tab-content textarea[name], " +
+      ".sr2e-sheet-header input[name], .sr2e-sheet-header select[name]"
     )) {
       if (input.closest("[data-item-id]")) continue;
       input.addEventListener("change", (event) => {
