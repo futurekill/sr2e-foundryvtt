@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   blastFalloffRate, blastPowerAtRange, blastRadius,
-  scatterProfile, scatterDistance
+  scatterProfile, scatterDistance, thrownRange
 } from "../module/rules/sr2e-rules.mjs";
 
 // Values verified against Shadowrun, Second Edition core (FASA7901) p.96–97.
@@ -50,5 +50,16 @@ describe("Scatter (core p.96 Grenade Range Table)", () => {
     expect(scatterDistance(5, 2, 2)).toBe(1);
     // launcher: rolled 9 m, 3 successes × 4 m = 12 → lands on target
     expect(scatterDistance(9, 3, 4)).toBe(0);
+  });
+});
+
+describe("Thrown-weapon ranges (core p.96–97, Strength-scaled)", () => {
+  it("non-aerodynamic: Str×3/5/10/20 (Str 6 → short ≤18 m)", () => {
+    expect(thrownRange(6)).toEqual({ short: 18, medium: 30, long: 60, extreme: 120 });
+    // 14 m with Str 6 is short range, not long
+    expect(14 <= thrownRange(6).short).toBe(true);
+  });
+  it("aerodynamic reaches further at long/extreme (Str×20/×30)", () => {
+    expect(thrownRange(4, true)).toEqual({ short: 12, medium: 20, long: 80, extreme: 120 });
   });
 });

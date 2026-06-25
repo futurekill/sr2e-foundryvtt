@@ -652,3 +652,19 @@ export function scatterProfile(deliveryType) {
 export function scatterDistance(rolledMeters, successes, perSuccess) {
   return Math.max(0, rolledMeters - Math.max(0, successes) * perSuccess);
 }
+
+/**
+ * Thrown-weapon range brackets (core p.96–97 Grenade Range Table — all throwing
+ * weapons use it): the brackets scale with the thrower's Strength. Non-aerodynamic
+ * (grenades, throwing knives) reach Str×3 / ×5 / ×10 / ×20 metres; aerodynamic
+ * (shuriken, aero grenades) reach Str×3 / ×5 / ×20 / ×30.
+ */
+export const THROWN_RANGE_MULT = Object.freeze({
+  standard:    { short: 3, medium: 5, long: 10, extreme: 20 },
+  aerodynamic: { short: 3, medium: 5, long: 20, extreme: 30 }
+});
+export function thrownRange(strength, aerodynamic = false) {
+  const m = aerodynamic ? THROWN_RANGE_MULT.aerodynamic : THROWN_RANGE_MULT.standard;
+  const s = Math.max(0, strength);
+  return { short: s * m.short, medium: s * m.medium, long: s * m.long, extreme: s * m.extreme };
+}

@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { thrownRange } from "../rules/sr2e-rules.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -337,7 +338,13 @@ function detectAttackTarget(attacker, weapon) {
   presets.distance = Math.round(distance);
 
   // Pick the range bracket from the weapon's range data (0 = undefined)
-  const r = weapon?.system?.ranges ?? {};
+  // Thrown weapons (grenades, knives, shuriken) ignore their static range field —
+  // SR2 scales their brackets with the thrower's Strength (Grenade Range Table,
+  // core p.96-97). A Str-6 throw reaches 18 m short / 30 medium / 60 long.
+  const wt = weapon?.system?.weaponType;
+  const r = (wt === "throwing" || wt === "grenade")
+    ? thrownRange(attacker?.system?.strength?.value ?? 1)
+    : (weapon?.system?.ranges ?? {});
   if (r.short > 0) {
     if      (distance <= r.short)  presets.range = "short";
     else if (distance <= r.medium) presets.range = "medium";
