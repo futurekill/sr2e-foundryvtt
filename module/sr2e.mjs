@@ -717,6 +717,7 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
       <br><em>Scatter:</em> ${scatterNote}.
       <br><em>Each target resists with Body vs. (Power − Impact armour):</em>
       ${body}
+      <br><button class="sr2e-clear-blast-btn" title="Remove all blast templates from the scene">🧹 Clear blast areas</button>
     </div>`
   });
 }
@@ -773,6 +774,17 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         delivery:          btn.dataset.delivery || "standard",
         blastName:         btn.dataset.blastName || "Blast"
       });
+    });
+  });
+
+  // "Clear blast areas": delete every MeasuredTemplate this system dropped.
+  html.querySelectorAll?.(".sr2e-clear-blast-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      if (!canvas?.scene) return;
+      const ids = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")).map(t => t.id);
+      if (!ids.length) return ui.notifications.info("No blast templates to clear.");
+      await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", ids);
     });
   });
 

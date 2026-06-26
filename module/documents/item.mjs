@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -820,11 +820,37 @@ export class SR2EItem extends Item {
       isResistance: true                // Injury Modifier does not apply (p.112)
     });
 
+    // ── Centering vs. Drain (Grimoire p.43) ───────────────────────────────────
+    // An initiate who has learned Centering and designated a Centering skill rolls
+    // it vs the drain TN; every 2 successes count as 1 extra drain-resist success
+    // (only if the drain test scored at least one of its own).
+    let drainSuccesses = drainResult?.successes ?? 0;
+    const mg = actor.system.magic;
+    if ((mg?.initiateGrade ?? 0) >= 1 && mg?.metamagic?.includes?.("centering")
+        && mg?.centeringSkill && drainSuccesses >= 1) {
+      const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+      const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mg.centeringSkill));
+      const cDice = cSkill?.system?.rating ?? 0;
+      if (cDice > 0) {
+        const cResult = await actor.rollSuccessTest(cDice, drainTN, {
+          label: `Centering — ${cSkill.name} (TN ${drainTN})`, isResistance: true
+        });
+        const bonus = centeringDrainBonus(cResult?.successes ?? 0, drainSuccesses);
+        if (bonus > 0) {
+          drainSuccesses += bonus;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor }),
+            content: `<div class="sr2e-drain-result"><em>Centering (${foundry.utils.escapeHTML(cSkill.name)}) adds +${bonus} to drain resistance. (Grimoire p.43)</em></div>`
+          });
+        }
+      }
+    }
+
     // ── Apply Drain Damage ────────────────────────────────────────────────────
     // Each 2 successes in the drain resist test reduces the damage level by 1.
     const stages      = ["L", "M", "S", "D"];
     const startIdx    = stages.indexOf(startLevel);
-    const reductions  = Math.floor((drainResult?.successes ?? 0) / 2);
+    const reductions  = Math.floor(drainSuccesses / 2);
     const finalIdx    = startIdx - reductions;
 
     if (finalIdx >= 0) {

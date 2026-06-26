@@ -60,6 +60,10 @@
         </select>
         <span class="metamagic-hint">{{system.magic.metamagic.length}} / {{system.magic.initiateGrade}} learned</span>
       </div>
+      <div class="form-group">
+        <label title="The non-magical skill you Center with (Grimoire p.43). When Centering is learned, it is rolled vs the drain TN on every cast; each 2 successes adds 1 to your drain resistance. Must match one of your skills by name.">Centering Skill:</label>
+        <input type="text" name="system.magic.centeringSkill" value="{{system.magic.centeringSkill}}" placeholder="e.g. Athletics, Music" />
+      </div>
       {{/if}}
       {{/if}}
     </fieldset>
@@ -81,7 +85,7 @@
     {{#if hasSorcery}}
     <div class="spell-defense-box flexrow" title="Allocate Magic Pool dice as Spell Defense — protects you and allies in line of sight against spells until the Magic Pool refreshes (SR2E p.132)">
       <span class="spell-defense-label"><i class="fas fa-shield-halved"></i> Spell Defense:</span>
-      <span class="spell-defense-value">{{system.dicePools.spellDefense}} dice</span>
+      <span class="spell-defense-value">{{system.dicePools.spellDefense}} dice{{#ifGt system.dicePools.shieldingBonus 0}} <span class="shielding-bonus" title="Free Shielding dice from your initiate grade (Grimoire p.45)">+{{system.dicePools.shieldingBonus}} shielding</span>{{/ifGt}}</span>
       <span class="hint" style="flex:1;">(Magic Pool: {{system.dicePools.magic.value}}/{{system.dicePools.magic.max}})</span>
       <button type="button" class="btn-small" data-action="allocateSpellDefense"><i class="fas fa-plus"></i> Allocate</button>
       <button type="button" class="btn-small" data-action="clearSpellDefense"><i class="fas fa-rotate-left"></i> Clear</button>

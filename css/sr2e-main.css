@@ -3244,3 +3244,6 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 /* Thrown-weapon carried-quantity input (combat tab) */
 .weapon-qty { display: inline-flex; align-items: center; gap: 2px; color: var(--sr2e-text-muted); font-size: 11px; }
 .weapon-qty .qty-input { width: 34px; text-align: center; padding: 0 2px; }
+.sr2e-clear-blast-btn { margin-top: 4px; font-size: 11px; opacity: 0.85; }
+.sr2e-clear-blast-btn:hover { opacity: 1; }
+.shielding-bonus { color: var(--sr2e-magic, #9b6dff); font-size: 10px; font-weight: 700; }

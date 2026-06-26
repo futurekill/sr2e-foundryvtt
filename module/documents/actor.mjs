@@ -4,7 +4,7 @@
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
-         woundLevel, firstAidBodyMod, meleeOutcome } from "../rules/sr2e-rules.mjs";
+         woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1896,6 +1896,17 @@ export class SR2EActor extends Actor {
    * the Magic Pool refreshes. Deducts from the available Magic Pool now.
    * @param {number} amount - Dice to commit (clamped to the available pool).
    */
+  /**
+   * Free Shielding dice (Grimoire p.45): an initiate who has learned Shielding
+   * adds bonus spell-defense dice equal to their grade, over and above the Magic
+   * Pool dice — these don't come from or return to the pool.
+   */
+  get shieldingDice() {
+    const m = this.system.magic;
+    if ((m?.initiateGrade ?? 0) < 1 || !m?.metamagic?.includes?.("shielding")) return 0;
+    return shieldingBonusDice(m.initiateGrade);
+  }
+
   async allocateSpellDefense(amount) {
     const pool = this.system.dicePools?.magic;
     if (!pool) return;
@@ -1903,18 +1914,22 @@ export class SR2EActor extends Actor {
     if (give <= 0) return;
     await this.update({
       "system.dicePools.magic.value": pool.value - give,
-      "system.dicePools.spellDefense": (this.system.dicePools.spellDefense ?? 0) + give
+      "system.dicePools.spellDefense": (this.system.dicePools.spellDefense ?? 0) + give,
+      // Grant the free Shielding dice alongside the pool allocation (set, not add).
+      "system.dicePools.shieldingBonus": this.shieldingDice
     });
   }
 
-  /** Return all allocated Spell Defense dice to the Magic Pool. */
+  /** Return allocated Spell Defense dice to the Magic Pool (Shielding dice were free — just drop them). */
   async clearSpellDefense() {
     const sd = this.system.dicePools?.spellDefense ?? 0;
-    if (sd <= 0) return;
+    const shield = this.system.dicePools?.shieldingBonus ?? 0;
+    if (sd <= 0 && shield <= 0) return;
     const pool = this.system.dicePools.magic;
     await this.update({
       "system.dicePools.magic.value": Math.min(pool.max, pool.value + sd),
-      "system.dicePools.spellDefense": 0
+      "system.dicePools.spellDefense": 0,
+      "system.dicePools.shieldingBonus": 0
     });
   }
 
@@ -1933,15 +1948,22 @@ export class SR2EActor extends Actor {
     const attr = state.resistAttr === "willpower" ? "willpower" : "body";
     let dice = this.system[attr]?.value ?? 1;
     const spellDef = this.system.dicePools?.spellDefense ?? 0;
-    const useDef = Math.min(spellDef, 99);
+    const shield   = this.system.dicePools?.shieldingBonus ?? 0;
+    const useDef = Math.min(spellDef + shield, 99);
     dice += useDef;
 
+    const defNote = useDef
+      ? ` +${useDef} ${shield ? "Shielding" : "Spell Defense"}` : "";
     const resist = await this.rollSuccessTest(dice, state.force, {
-      label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${useDef ? ` +${useDef} Spell Defense` : ""} (TN ${state.force})`,
+      label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${defNote} (TN ${state.force})`,
       isResistance: true
     });
     if (useDef > 0) {
-      await this.update({ "system.dicePools.spellDefense": Math.max(0, spellDef - useDef) });
+      // Spell defense + free shielding dice are spent for the exchange.
+      await this.update({
+        "system.dicePools.spellDefense": 0,
+        "system.dicePools.shieldingBonus": 0
+      });
     }
 
     const net = state.successes - (resist?.successes ?? 0);

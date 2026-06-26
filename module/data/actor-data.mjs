@@ -55,7 +55,10 @@ export class CharacterData extends SR2EDataModel {
         initiateGrade: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
         // Metamagic techniques learned (one per initiate Grade); keys from
         // CONFIG.SR2E.metamagic. Recorded on the magic tab.
-        metamagic: new fields.ArrayField(new fields.StringField())
+        metamagic: new fields.ArrayField(new fields.StringField()),
+        // The non-magical skill an initiate uses to Center (Grimoire p.43) — the
+        // skill rolled to reduce drain. Matched by name against the actor's skills.
+        centeringSkill: new fields.StringField({ initial: "" })
       }),
       reaction: new fields.SchemaField({
         base: new fields.NumberField({ required: true, integer: true, initial: 3, min: 0 }),
@@ -78,7 +81,10 @@ export class CharacterData extends SR2EDataModel {
         hacking: SR2EDataModel.resourceField(0, 0),
         magic: SR2EDataModel.resourceField(0, 0),
         control: SR2EDataModel.resourceField(0, 0),
-        spellDefense: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
+        spellDefense: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        // Shielding (Grimoire p.45): free bonus spell-defense dice = initiate grade,
+        // granted alongside any Magic Pool dice and returned to neither on clear.
+        shieldingBonus: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),
 
       // --- INITIATIVE ---
