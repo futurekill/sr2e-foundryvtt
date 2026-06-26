@@ -1,0 +1,42 @@
+{
+  "_id": "d9ee8496d82d2fb7",
+  "name": "Micro-Recorder",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "electronics",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 1000,
+    "availability": "6/48 hrs",
+    "legality": "Restricted",
+    "equipped": false,
+    "concealability": 9,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "A concealable audio recorder. SR2E p.258."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.19.5",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0034429019c1b6f1",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d9ee8496d82d2fb7"
+}

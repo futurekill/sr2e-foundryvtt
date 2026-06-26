@@ -1,0 +1,42 @@
+{
+  "_id": "36d0fe1c893924d0",
+  "name": "Survival Kit",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "survival",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 100,
+    "availability": "2/48 hrs",
+    "legality": "Restricted",
+    "equipped": false,
+    "concealability": 0,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "Basic wilderness/urban survival kit. SR2E p.258."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.19.5",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "525f7cd19b0c0ac6",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!36d0fe1c893924d0"
+}

@@ -1,0 +1,42 @@
+{
+  "_id": "8590595e8a255acd",
+  "name": "Laser Microphone",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "security",
+    "rating": 1,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 1500,
+    "availability": "Rating/48 hrs",
+    "legality": "Restricted",
+    "equipped": false,
+    "concealability": 5,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "Reads audio off a vibrating surface at range. Rated item \u2014 cost shown is per Rating point (\u00d7Rating). SR2E p.258."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.19.5",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "62cceca98a9fec8e",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!8590595e8a255acd"
+}
