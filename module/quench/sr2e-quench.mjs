@@ -31,9 +31,15 @@ export function registerSR2EQuenchTests() {
             await new Promise(r => setTimeout(r, 200));
             const el = actor.sheet.element;
             assert.ok(el, `${type}: no sheet element`);
-            // The split-regression rendered the header but no tabs/parts.
-            const body = el.querySelector(".tab-content, [data-tab], .sr2e-tabs, nav.tabs");
-            assert.ok(body, `${type}: sheet has no tab/body content (blank-sheet regression)`);
+            // The blank-sheet regression rendered the header part but none of the
+            // body parts. Both sheet layouts must be recognised:
+            //   tabbed (character, vehicle) → .tab-content / .sr2e-tabs
+            //   single-part (npc, spirit, ic, host) → their own .sr2e-*-sheet root
+            const body = el.querySelector(
+              ".tab-content, .sr2e-tabs, [data-tab], " +
+              ".sr2e-npc-sheet, .sr2e-spirit-sheet, .sr2e-ic-sheet, .sr2e-host-sheet"
+            );
+            assert.ok(body, `${type}: sheet rendered no body content (blank-sheet regression)`);
           });
         }
       });
