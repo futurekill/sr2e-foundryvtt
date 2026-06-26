@@ -23,6 +23,7 @@
   /* Semantic colours */
   --sr2e-success:     #4a9950;
   --sr2e-failure:     #cc2200;
+  --sr2e-danger:      #ff3b5c;    /* neon red — enemies, hostile accents */
   --sr2e-warning:     #e91e8c;    /* magenta doubles as warning */
   --sr2e-magic:       #bb66ff;    /* bright purple for magic */
   --sr2e-matrix:      #00e5ff;    /* electric cyan for matrix */
