@@ -135,5 +135,52 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Compendium" });
+
+    // ── Header inputs save on change (the Good-Karma-not-saving regression) ─────
+    quench.registerBatch("sr2e.sheet-save", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      describe("Header field edits persist", () => {
+        it("a change on the Good Karma input writes through to the document", async () => {
+          actor = await Actor.create({ name: "Quench Save", type: "character" });
+          await actor.sheet.render(true);
+          await new Promise(r => setTimeout(r, 200));
+          const input = actor.sheet.element.querySelector('input[name="system.karma.current"]');
+          assert.ok(input, "Good Karma input not found on the header");
+          input.value = "7";
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          await new Promise(r => setTimeout(r, 250));
+          assert.equal(actor.system.karma.current, 7, "Good Karma did not persist on change (header-save regression)");
+        });
+      });
+    }, { displayName: "SR2E: Sheet Saves" });
+
+    // ── Contacts vs Enemies split renders into the right section ────────────────
+    quench.registerBatch("sr2e.contacts", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      describe("Contacts / Enemies tab", () => {
+        it("an enemy contact lands in the Enemies list, an ally in Contacts", async () => {
+          actor = await Actor.create({ name: "Quench Contacts", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "MyAlly", type: "contact", system: { contactType: "contact" } },
+            { name: "MyFoe",  type: "contact", system: { contactType: "enemy" } }
+          ]);
+          await actor.sheet.render(true);
+          await new Promise(r => setTimeout(r, 200));
+          const el = actor.sheet.element;
+          const enemies  = el.querySelector(".enemies-table");
+          const contacts = el.querySelector(".contacts-table:not(.enemies-table)");
+          assert.ok(enemies, "no Enemies table rendered");
+          assert.ok(enemies.textContent.includes("MyFoe"), "enemy not in the Enemies section");
+          assert.ok(!enemies.textContent.includes("MyAlly"), "ally leaked into the Enemies section");
+          assert.ok(contacts && contacts.textContent.includes("MyAlly"), "ally not in the Contacts section");
+        });
+      });
+    }, { displayName: "SR2E: Contacts" });
   });
 }
