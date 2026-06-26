@@ -228,6 +228,47 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] A custom weapon set to a Blast type on its item sheet behaves the same;
       blank = ordinary single-target weapon.
 
+## 17e. Compendium completeness & foldering (v0.20.x)
+- [ ] **Weapons** compendium opens with category folders: **Firearms** (9
+      sub-folders: Hold-Out → Shotguns), **Melee**, **Thrown**, **Projectile**
+      (Bow + Light/Medium/Heavy Crossbow), **Heavy Weapons** (sub-folders Machine
+      Guns / Assault Cannons / Launchers / Rockets & Missiles), **Grenades**.
+- [ ] **Armor** values are correct — spot-check **Armor Clothing 3/0** (not 1/0),
+      **Armor Vest 2/1 @ 200¥**; Vest with Plates, Partial/Full Heavy Armor,
+      Helmet, leather, and the clothing tiers are present.
+- [ ] **Gear** has the **Survival** folder and the runner gear (surveillance,
+      countermeasures, security scanners) under **security**; rated items note
+      the per-Rating cost.
+- [ ] **Cyberware** folders: **Headware** (Communications / Eyes / Ears /
+      Internals), **Bodyware** (Implant Weapons / Body Modification /
+      Enhancements), **Cyberlimbs** (Arms / Legs / Torso). Eye Camera, Flare
+      Compensation, Ingested-Toxin Filtration present.
+- [ ] Drag any newly-added weapon/armor/gear/cyberware onto a character → stats
+      intact, icon renders.
+
+## 17f. Skillsofts (v0.21.x)
+- [ ] **Configure:** add a skillsoft (Gear → Skillsofts **+**, or drag the
+      compendium ActiveSoft/KnowSoft/LinguaSoft). On its item sheet set **Skill
+      Type**, then **Quick Pick** a standard skill → Granted Skill + Linked
+      Attribute fill in and the chip auto-names ("Firearms ActiveSoft"). Custom
+      Knowledge/Language skills can still be typed.
+- [ ] **Memory/cost auto-calc:** the item sheet and gear row show **Mp + ¥** from
+      the Skill Memory Table — e.g. an **ActiveSoft Firearms rating 8 = 800 Mp,
+      80,000¥**; rating 1 = 10 Mp, 1,000¥; a LinguaSoft uses the Language row.
+- [ ] **Slot it** (⚡ on the gear row). The **Skillsofts header** tracks
+      `ActiveSoft used/budget · Chips used/jacks · Mem used/capacity`.
+- [ ] **New skill:** slotting a soft for a skill the character lacks adds a
+      ⚡-badged, **rollable** entry on the Skills tab at the soft's rating.
+- [ ] **Override:** slotting a soft for a skill they have **replaces** the native
+      rating (RAW: natural ability lost while slotted); badge tooltip shows the
+      suppressed native rating. Un-slotting restores it.
+- [ ] **Skillwire budget (SR2E p.243):** ActiveSofts run at **full rating**, but
+      the **sum** of running ActiveSoft ratings can't exceed the **Skillwire
+      Rating**. A Rating-8 ActiveSoft on a Rating-1 Skillwire is **refused** when
+      slotting; if already slotted it shows **red ⚠ / inert** and does NOT apply.
+- [ ] **ActiveSoft with no Skillwires** is refused; **Know/LinguaSofts** are
+      gated one-per-chipjack.
+
 ## 17. Sheet styling / layout
 - [ ] **Checkboxes align** with their labels across sheets (no staircase): the
       modules table, attribute/skill toggles, equipped flags, and any
