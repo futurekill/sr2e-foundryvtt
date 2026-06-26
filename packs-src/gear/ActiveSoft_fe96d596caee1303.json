@@ -1,0 +1,42 @@
+{
+  "_id": "fe96d596caee1303",
+  "name": "ActiveSoft",
+  "type": "gear",
+  "img": "icons/svg/circle.svg",
+  "system": {
+    "category": "skillsoft",
+    "rating": 1,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 0,
+    "availability": "6/4 days",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 0,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "An active-skill chip run through Skillwires; the user acts at the soft's Rating. Cost = Mp \u00d7 100\u00a5. Cost varies with the chip's Memory (Mp), which scales with Rating \u2014 see Skillsofts, SR2E p.243."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.20.1",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "9ab940a549736e94",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!fe96d596caee1303"
+}
