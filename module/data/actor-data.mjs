@@ -329,34 +329,37 @@ export class CharacterData extends SR2EDataModel {
     // Capacity from installed cyberware: Skillwires rating is the TOTAL-rating
     // budget for all running ActiveSofts (SR2E p.243); each chipjack accesses one
     // Know/LinguaSoft at a time; headware memory (parsed from its name) stores Mp.
-    let chipjacks = 0, skillwires = 0, memCapacity = 0;
+    let chipjacks = 0, datajacks = 0, skillwires = 0, memCapacity = 0;
     if (items) {
       for (const i of items) {
         if (i.type !== "cyberware" || !i.system.installed) continue;
         const n = i.name.toLowerCase();
         if (n.includes("chipjack")) chipjacks++;
+        if (n.includes("datajack")) datajacks++;
         if (n.includes("skillwire")) skillwires = Math.max(skillwires, i.system.rating || 0);
         const m = /(\d[\d,]*)\s*mp/i.exec(i.name);
         if (m) memCapacity += parseInt(m[1].replace(/,/g, ""), 10);
       }
     }
+    // Know/LinguaSofts need an access port: a chipjack, a datajack, or headware
+    // memory + datasoft link (SR2E p.243). ActiveSofts need a Skillwire system.
+    const knowAccess = chipjacks > 0 || datajacks > 0 || memCapacity > 0;
     const slotted = items
       ? items.filter(i => i.type === "gear" && i.system.category === "skillsoft" && i.system.slotted)
       : [];
 
-    let activeUsed = 0, chipUsed = 0, memUsed = 0;
+    let activeUsed = 0, memUsed = 0;
     for (const soft of slotted) {
       soft.system._overBudget = false;
       const name = (soft.system.grantedSkill || "").trim();
       const cat = soft.system.grantedSkillCategory || "active";
       const rating = Math.max(0, soft.system.rating || 0);
-      // Does it fit its constraint? Active → running-rating sum ≤ Skillwires;
-      // Know/Lingua → one chipjack each.
+      // Active → running-rating sum ≤ Skillwire Rating; Know/Lingua → any access port.
       const fits = cat === "active"
         ? (skillwires > 0 && activeUsed + rating <= skillwires)
-        : (chipUsed < chipjacks);
+        : knowAccess;
       if (!fits) { soft.system._overBudget = true; continue; }
-      if (cat === "active") activeUsed += rating; else chipUsed += 1;
+      if (cat === "active") activeUsed += rating;
       memUsed += skillsoftMemory(cat, rating);
       if (!name || rating <= 0) continue;
 
@@ -378,7 +381,8 @@ export class CharacterData extends SR2EDataModel {
       }
     }
     this.skillsoft = {
-      skillwiresRating: skillwires, activeUsed, chipjacks, chipUsed,
+      skillwiresRating: skillwires, activeUsed,
+      accessPorts: chipjacks + datajacks, knowAccess,
       memCapacity, memUsed
     };
   }

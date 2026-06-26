@@ -1,0 +1,40 @@
+{
+  "_id": "757f33cf0962cb06",
+  "name": "Japanese",
+  "type": "skill",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "category": "language",
+    "linkedAttribute": "intelligence",
+    "rating": 0,
+    "concentration": {
+      "name": "",
+      "rating": 0
+    },
+    "specialization": {
+      "name": "",
+      "rating": 0
+    },
+    "isMagical": false,
+    "notes": "Sixth World language (SR2E p.69)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.21.4",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "6091424e8154735e",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!757f33cf0962cb06"
+}

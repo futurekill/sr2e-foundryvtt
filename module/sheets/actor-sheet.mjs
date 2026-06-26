@@ -428,7 +428,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
     context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");
     context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
-    context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, chipjacks: 0, chipUsed: 0, memCapacity: 0, memUsed: 0 };
+    context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, accessPorts: 0, knowAccess: false, memCapacity: 0, memUsed: 0 };
     context.programs = actor.items.filter(i => i.type === "program");
     context.adeptPowers = actor.items.filter(i => i.type === "adept_power");
     const allContacts = actor.items.filter(i => i.type === "contact");

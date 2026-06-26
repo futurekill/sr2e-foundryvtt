@@ -37,8 +37,8 @@
     <div class="gear-category">
       <div class="category-header flexrow">
         <h3>Skillsofts</h3>
-        <span class="essence-display" title="ActiveSofts share the Skillwire Rating as a total-rating budget; each chipjack runs one Know/LinguaSoft; headware memory stores the chips (Mp).">
-          ActiveSoft {{skillsoftCapacity.activeUsed}}/{{skillsoftCapacity.skillwiresRating}} · Chips {{skillsoftCapacity.chipUsed}}/{{skillsoftCapacity.chipjacks}} · Mem {{skillsoftCapacity.memUsed}}{{#ifGt skillsoftCapacity.memCapacity 0}}/{{skillsoftCapacity.memCapacity}}{{/ifGt}} Mp
+        <span class="essence-display" title="ActiveSofts share the Skillwire Rating as a total-rating budget; Know/LinguaSofts need an access port (chipjack/datajack/headware memory); headware memory stores the chips (Mp).">
+          ActiveSoft {{skillsoftCapacity.activeUsed}}/{{skillsoftCapacity.skillwiresRating}} · Mem {{skillsoftCapacity.memUsed}}{{#ifGt skillsoftCapacity.memCapacity 0}}/{{skillsoftCapacity.memCapacity}}{{/ifGt}} Mp{{#unless skillsoftCapacity.knowAccess}} · ⚠ no chip access{{/unless}}
         </span>
         <button type="button" data-action="addItem" data-type="gear" data-category="skillsoft" class="btn-add">
           <i class="fas fa-plus"></i>

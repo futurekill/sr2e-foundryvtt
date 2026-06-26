@@ -1532,8 +1532,8 @@ async function onToggleSlot(event, target) {
         ui.notifications.warn(`Exceeds Skillwire Rating budget: ${(cap.activeUsed ?? 0) + rating} of ${wires} total ActiveSoft rating in use.`);
         return;
       }
-    } else if ((cap.chipUsed ?? 0) >= (cap.chipjacks ?? 0)) {
-      ui.notifications.warn("No free chipjack for another Know/LinguaSoft — install another chipjack.");
+    } else if (!cap.knowAccess) {
+      ui.notifications.warn("Know/LinguaSofts need an access port — install a chipjack, datajack, or headware memory.");
       return;
     }
   }

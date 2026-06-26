@@ -226,6 +226,22 @@ export function registerSR2EQuenchTests() {
           assert.equal(native2.system.rating, 3, "freed-budget soft did not replace native (3)");
           assert.ok(native2.system._chipped, "chipped native skill not flagged");
         });
+
+        it("a LinguaSoft adds a language skill when an access port exists (no Skillwires needed)", async () => {
+          actor = await Actor.create({ name: "Quench Lingua", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Datajack", type: "cyberware", system: { location: "headware", installed: true } }
+          ]);
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Sperethiel LinguaSoft", type: "gear",
+            system: { category: "skillsoft", rating: 4, slotted: true,
+                      grantedSkill: "Sperethiel", grantedSkillCategory: "language" }
+          }]);
+          const lang = (actor.system.chippedSkills ?? []).find(s => s.name === "Sperethiel");
+          assert.ok(lang, "LinguaSoft did not inject a language skill");
+          assert.equal(lang.system.category, "language", "injected skill is not a language");
+          assert.equal(lang.system.rating, 4, "LinguaSoft should run at full rating off a datajack");
+        });
       });
     }, { displayName: "SR2E: Skillsofts" });
   });
