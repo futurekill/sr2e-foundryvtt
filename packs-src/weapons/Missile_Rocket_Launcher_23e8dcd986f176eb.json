@@ -1,8 +1,8 @@
 {
-  "_id": "d33fe747d94e22eb",
-  "name": "Anti-Personnel Rocket",
+  "_id": "23e8dcd986f176eb",
+  "name": "Missile/Rocket Launcher",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "icons/svg/sword.svg",
   "system": {
     "weaponType": "heavy",
     "skill": "heavy_weapons",
@@ -17,9 +17,9 @@
       "fa": false
     },
     "ammo": {
-      "current": 1,
-      "max": 1,
-      "type": "rocket"
+      "current": 4,
+      "max": 4,
+      "type": "missile"
     },
     "recoilComp": 0,
     "ranges": {
@@ -29,21 +29,20 @@
       "extreme": 1500
     },
     "strengthMin": 0,
-    "weight": 1.0,
-    "cost": 1000,
-    "availability": "8/14 days",
-    "legality": "Restricted",
+    "weight": 8,
+    "cost": 8000,
+    "availability": "12/14 days",
+    "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Unguided anti-personnel rocket \u2014 fragmentation warhead. Fired from a rocket launcher (Heavy Weapons; vehicle mounts use Gunnery). SR2E p.255.",
-    "blastType": "offensive"
+    "notes": "Multi-launcher firing rockets or guided missiles (Gunnery / Heavy Weapons). SR2E p.255."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.13.0",
+    "systemVersion": "0.19.4",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -51,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "257cf25a7227a0f0",
+  "folder": "987834caf0814add",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!d33fe747d94e22eb"
+  "_key": "!items!23e8dcd986f176eb"
 }

@@ -1,17 +1,17 @@
 {
-  "_id": "52b9bec9fe94e9a7",
-  "name": "High-Explosive Rocket",
+  "_id": "2668e5889f9904a4",
+  "name": "Bow",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "icons/svg/sword.svg",
   "system": {
-    "weaponType": "heavy",
-    "skill": "heavy_weapons",
-    "damageCode": "16D",
+    "weaponType": "projectile",
+    "skill": "projectile_weapons",
+    "damageCode": "(Str+2)M",
     "damageType": "physical",
-    "concealability": 99,
+    "concealability": 6,
     "reach": 0,
     "firingModes": {
-      "ss": true,
+      "ss": false,
       "sa": false,
       "bf": false,
       "fa": false
@@ -19,31 +19,30 @@
     "ammo": {
       "current": 1,
       "max": 1,
-      "type": "rocket"
+      "type": "arrow"
     },
     "recoilComp": 0,
     "ranges": {
-      "short": 70,
-      "medium": 150,
-      "long": 450,
-      "extreme": 1500
+      "short": 5,
+      "medium": 50,
+      "long": 150,
+      "extreme": 300
     },
     "strengthMin": 0,
-    "weight": 1.0,
-    "cost": 1500,
-    "availability": "8/14 days",
-    "legality": "Forbidden",
+    "weight": 1,
+    "cost": 400,
+    "availability": "4/48 hrs",
+    "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "Unguided high-explosive rocket \u2014 large blast warhead. SR2E p.255.",
-    "blastType": "offensive"
+    "notes": "Bought at a Strength Minimum; range & damage scale with it. SR2E p.254."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.13.0",
+    "systemVersion": "0.19.4",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -51,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "257cf25a7227a0f0",
+  "folder": "d1f22c9f34a7391a",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!52b9bec9fe94e9a7"
+  "_key": "!items!2668e5889f9904a4"
 }

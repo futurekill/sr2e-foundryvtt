@@ -1,0 +1,12 @@
+{
+  "_id": "d1f22c9f34a7391a",
+  "name": "Projectile",
+  "type": "Item",
+  "folder": null,
+  "sorting": "a",
+  "color": "#3a5a4a",
+  "description": "",
+  "sort": 350,
+  "flags": {},
+  "_key": "!folders!d1f22c9f34a7391a"
+}

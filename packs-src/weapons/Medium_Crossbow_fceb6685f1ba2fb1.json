@@ -1,48 +1,48 @@
 {
-  "_id": "0f1e8ce8f691ddc7",
-  "name": "Ares Antioch-2",
+  "_id": "fceb6685f1ba2fb1",
+  "name": "Medium Crossbow",
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
-    "weaponType": "heavy",
-    "skill": "heavy_weapons",
-    "damageCode": "10S",
+    "weaponType": "projectile",
+    "skill": "projectile_weapons",
+    "damageCode": "6M",
     "damageType": "physical",
-    "concealability": 99,
+    "concealability": 8,
     "reach": 0,
     "firingModes": {
-      "ss": true,
+      "ss": false,
       "sa": false,
       "bf": false,
       "fa": false
     },
     "ammo": {
-      "current": 6,
-      "max": 6,
-      "type": "grenade"
+      "current": 1,
+      "max": 1,
+      "type": "bolt"
     },
     "recoilComp": 0,
     "ranges": {
-      "short": 5,
-      "medium": 40,
-      "long": 100,
-      "extreme": 200
+      "short": 15,
+      "medium": 60,
+      "long": 150,
+      "extreme": 250
     },
-    "strengthMin": 0,
-    "weight": 0,
-    "cost": 1200,
-    "availability": "10/7 days",
+    "strengthMin": 3,
+    "weight": 2,
+    "cost": 500,
+    "availability": "4/48 hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.234. Multi-shot rocket/missile launcher from Ares Arms. Collapsible design for urban deployment."
+    "notes": "Range scales with Strength (\u00d73/\u00d712/\u00d730/\u00d750). SR2E p.254."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.4",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -50,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "987834caf0814add",
+  "folder": "d1f22c9f34a7391a",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!0f1e8ce8f691ddc7"
+  "_key": "!items!fceb6685f1ba2fb1"
 }

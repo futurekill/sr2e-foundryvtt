@@ -1,48 +1,48 @@
 {
-  "_id": "8ee88fc80bdff8f4",
-  "name": "Light Machine Gun (Generic)",
+  "_id": "0e94ec2768648cc6",
+  "name": "Sword",
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
-    "weaponType": "heavy",
-    "skill": "heavy_weapons",
-    "damageCode": "8S",
+    "weaponType": "melee",
+    "skill": "armed_combat",
+    "damageCode": "(Str+2)M",
     "damageType": "physical",
-    "concealability": 99,
-    "reach": 0,
+    "concealability": 6,
+    "reach": 1,
     "firingModes": {
       "ss": false,
       "sa": false,
-      "bf": true,
-      "fa": true
+      "bf": false,
+      "fa": false
     },
     "ammo": {
-      "current": 100,
-      "max": 100,
-      "type": "belt"
+      "current": 0,
+      "max": 0,
+      "type": ""
     },
-    "recoilComp": 4,
+    "recoilComp": 0,
     "ranges": {
-      "short": 15,
-      "medium": 80,
-      "long": 200,
-      "extreme": 400
+      "short": 0,
+      "medium": 0,
+      "long": 0,
+      "extreme": 0
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 3000,
-    "availability": "12/7 days",
+    "weight": 1,
+    "cost": 500,
+    "availability": "4/48 hrs",
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.234. Belt-fed light machine gun for squad support. BF/FA capable."
+    "notes": "A blade with reach 1. SR2E p.253."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.4",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -50,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "c52e1b604829db40",
+  "folder": "f052cb5eb3b5a2e2",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!8ee88fc80bdff8f4"
+  "_key": "!items!0e94ec2768648cc6"
 }

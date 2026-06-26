@@ -1,12 +1,12 @@
 {
-  "_id": "d33fe747d94e22eb",
-  "name": "Anti-Personnel Rocket",
+  "_id": "92a4f1ecb7c5ab6b",
+  "name": "Generic Under-Barrel Grenade Launcher",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "icons/svg/sword.svg",
   "system": {
     "weaponType": "heavy",
     "skill": "heavy_weapons",
-    "damageCode": "16D",
+    "damageCode": "10S",
     "damageType": "physical",
     "concealability": 99,
     "reach": 0,
@@ -17,33 +17,32 @@
       "fa": false
     },
     "ammo": {
-      "current": 1,
-      "max": 1,
-      "type": "rocket"
+      "current": 6,
+      "max": 6,
+      "type": "grenade"
     },
     "recoilComp": 0,
     "ranges": {
-      "short": 70,
-      "medium": 150,
-      "long": 450,
-      "extreme": 1500
+      "short": 5,
+      "medium": 50,
+      "long": 100,
+      "extreme": 200
     },
     "strengthMin": 0,
-    "weight": 1.0,
-    "cost": 1000,
-    "availability": "8/14 days",
-    "legality": "Restricted",
+    "weight": 2,
+    "cost": 1700,
+    "availability": "8/4 days",
+    "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Unguided anti-personnel rocket \u2014 fragmentation warhead. Fired from a rocket launcher (Heavy Weapons; vehicle mounts use Gunnery). SR2E p.255.",
-    "blastType": "offensive"
+    "notes": "Under-barrel grenade launcher; the loaded grenade's damage applies. SR2E p.255."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.13.0",
+    "systemVersion": "0.19.4",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -51,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "257cf25a7227a0f0",
+  "folder": "987834caf0814add",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!d33fe747d94e22eb"
+  "_key": "!items!92a4f1ecb7c5ab6b"
 }
