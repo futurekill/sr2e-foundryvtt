@@ -7,12 +7,90 @@
   "displayRoll": true,
   "replacement": true,
   "results": [
-    "25650d4a8e780783",
-    "ff85edb7ac471c51",
-    "14f3eb58d066790f",
-    "7f95c03826cefafe",
-    "ee385ca61cba4ee1",
-    "d027e6c5f7b9bc2f"
+    {
+      "_id": "cc831426d3ca8d0f",
+      "type": "text",
+      "text": "Go-gang patrol \u2014 1d6 gangers on bikes, looking for trouble or a toll.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        1,
+        1
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "439a76ead50c4d11",
+      "type": "text",
+      "text": "Scavengers and squatters \u2014 wary, non-hostile unless cornered; maybe info for nuyen.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        2,
+        2
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "ef003a0f9fb421e3",
+      "type": "text",
+      "text": "A lone fixer or runner cutting through \u2014 wary professional, open to a deal.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        3,
+        3
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "7791e69dd99d2e89",
+      "type": "text",
+      "text": "Corp security sweep \u2014 a patrol vehicle and 1d6 guards where they shouldn't be.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        4,
+        4
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "f70ec37512e709f7",
+      "type": "text",
+      "text": "Paranormal critter \u2014 a devil-rat pack or worse, drawn by the desolation.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        5,
+        5
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "bf28e011ca78839c",
+      "type": "text",
+      "text": "Nothing but wind and rust \u2014 eerie quiet (roll again in 1d6 minutes).",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        6,
+        6
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    }
   ],
   "flags": {},
   "_stats": {

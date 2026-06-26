@@ -7,12 +7,90 @@
   "displayRoll": true,
   "replacement": true,
   "results": [
-    "b442ce9a8aa62c12",
-    "422602b781bb19f9",
-    "fa2a576098ef8387",
-    "af1e84819af64a9a",
-    "ccecff84a258a7c5",
-    "b28d2bbce47fffa3"
+    {
+      "_id": "b75315dc961d9377",
+      "type": "text",
+      "text": "Pocket change \u2014 5\u00a5.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        2,
+        2
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "cd2081b2be0ee666",
+      "type": "text",
+      "text": "A few creds \u2014 50\u00a5.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        3,
+        4
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "301ba7a30250a04b",
+      "type": "text",
+      "text": "Decent score \u2014 150\u00a5.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        5,
+        6
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "3960ec1ce228d564",
+      "type": "text",
+      "text": "Worth the trouble \u2014 350\u00a5.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        7,
+        8
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "64d60bdf22b22f78",
+      "type": "text",
+      "text": "Fat credstick \u2014 750\u00a5.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        9,
+        10
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "3e7a2ec427acf423",
+      "type": "text",
+      "text": "Jackpot \u2014 2,000\u00a5 (and maybe someone wondering where it went).",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        11,
+        12
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    }
   ],
   "flags": {},
   "_stats": {

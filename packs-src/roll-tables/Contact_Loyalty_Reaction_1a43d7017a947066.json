@@ -7,12 +7,90 @@
   "displayRoll": true,
   "replacement": true,
   "results": [
-    "d15cfba60d50eacf",
-    "df1b1372da684060",
-    "45c64dbb3a91163b",
-    "ca6b6350da7ad679",
-    "a518fd0c53e7cb10",
-    "51dd678c255ad5b1"
+    {
+      "_id": "99d88e66ff303eeb",
+      "type": "text",
+      "text": "Cold \u2014 the contact is unavailable, stalls, or quietly tips someone else off. No help this time.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        1,
+        1
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "10c0d79ecfe3348c",
+      "type": "text",
+      "text": "Reluctant \u2014 helps only grudgingly and wants extra nuyen or a future favour up front.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        2,
+        2
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "1ec980e49bd87a76",
+      "type": "text",
+      "text": "Businesslike \u2014 standard service at standard rates, nothing more, nothing less.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        3,
+        3
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "4ceabdd405c59558",
+      "type": "text",
+      "text": "Friendly \u2014 comes through promptly and throws in a small favour or a useful rumour.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        4,
+        4
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "6495dde4b19c47ec",
+      "type": "text",
+      "text": "Solid \u2014 goes out of their way, offers a discount, and warns you of obvious trouble.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        5,
+        5
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "004460852978bd5a",
+      "type": "text",
+      "text": "Devoted \u2014 drops everything to help, asks no payment, and watches your back.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        6,
+        6
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    }
   ],
   "flags": {},
   "_stats": {

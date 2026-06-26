@@ -7,11 +7,76 @@
   "displayRoll": true,
   "replacement": true,
   "results": [
-    "1c2ab141e8d8a02c",
-    "7ece0c459b17c724",
-    "ddbd6cfe8856a28b",
-    "62608ecce9f7669d",
-    "82b012d9c6b02cf0"
+    {
+      "_id": "224103d1bd194b18",
+      "type": "text",
+      "text": "Out of stock on anything useful \u2014 come back next week, or try another talismonger.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        1,
+        1
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "085ea8808722f4fa",
+      "type": "text",
+      "text": "Common reagents and ritual supplies, fully stocked at list price.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        2,
+        3
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "322c5bfe2120f908",
+      "type": "text",
+      "text": "Quality materials \u2014 a small edge on enchanting/ritual where the GM allows, at a premium.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        4,
+        4
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "9155a747c146d062",
+      "type": "text",
+      "text": "A rare fetish or focus material the runner's been hunting \u2014 pricey but available.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        5,
+        5
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "d92eae83b2d1f464",
+      "type": "text",
+      "text": "Exotic or restricted component (telesma from an awakened creature, etc.) \u2014 Availability and Legality apply.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        6,
+        6
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    }
   ],
   "flags": {},
   "_stats": {
