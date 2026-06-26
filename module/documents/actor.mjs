@@ -130,7 +130,10 @@ export class SR2EActor extends Actor {
     const sustainPenalty = this.system.sustainPenalty ?? 0;
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
     const dumpShock = this.system.dumpShock ? 2 : 0;
-    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock;
+    // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
+    // negative TN modifiers, but never below the base target number.
+    const centeringReduction = Math.min(options.centeringReduction ?? 0, woundPenalty + sustainPenalty + dumpShock);
+    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock - centeringReduction;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
@@ -169,6 +172,7 @@ export class SR2EActor extends Actor {
     if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} wound`);
     if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} sustaining`);
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} dump shock`);
+    if (centeringReduction > 0) tnParts.push(`−${centeringReduction} centering`);
     const tnNote = tnParts.length
       ? `${effectiveTN} (base ${targetNumber} ${tnParts.join(", ")})`
       : `${effectiveTN}`;

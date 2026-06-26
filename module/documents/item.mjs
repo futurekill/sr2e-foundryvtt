@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -795,11 +795,34 @@ export class SR2EItem extends Item {
     if (totemPenalty > 0) totemNote += ` −${totemPenalty} totem`;
     if (focusDice    > 0) totemNote += ` +${focusDice} focus`;
 
+    // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
+    // An initiate with Centering may roll their Centering skill (vs the modified
+    // magic TN minus grade) to buy down the wound/sustain penalties on this cast;
+    // every 2 successes removes 1 point (never below the base TN).
+    let centeringReduction = 0;
+    const mgC = actor.system.magic;
+    const woundP = actor.system.woundPenalty ?? 0;
+    const sustainP = actor.system.sustainPenalty ?? 0;
+    if ((mgC?.initiateGrade ?? 0) >= 1 && mgC?.metamagic?.includes?.("centering")
+        && mgC?.centeringSkill && (woundP + sustainP) > 0) {
+      const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+      const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mgC.centeringSkill));
+      const cDice = cSkill?.system?.rating ?? 0;
+      if (cDice > 0) {
+        const cTN = centeringTestTN(targetNumber + woundP + sustainP, mgC.initiateGrade);
+        const cResult = await actor.rollSuccessTest(cDice, cTN, {
+          label: `Centering — ${cSkill.name} vs penalties (TN ${cTN})`, isResistance: true
+        });
+        centeringReduction = centeringPenaltyReduction(cResult?.successes ?? 0, woundP + sustainP);
+      }
+    }
+
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
       label: `Cast ${this.name} (Force ${force}${totemNote})`,
       poolDice: options.poolDice,   // magic pool dice pre-allocated by player
-      karmaDice: options.karmaDice  // extra dice bought with Karma Pool
+      karmaDice: options.karmaDice, // extra dice bought with Karma Pool
+      centeringReduction            // Centering vs Penalties (Grimoire p.44)
     });
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
