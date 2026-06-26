@@ -4,7 +4,7 @@
   "type": "armor",
   "img": "icons/svg/shield.svg",
   "system": {
-    "ballistic": 1,
+    "ballistic": 3,
     "impact": 0,
     "concealability": 10,
     "weight": 0,
@@ -13,7 +13,7 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives—stylish and protective."
+    "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives\u2014stylish and protective."
   },
   "effects": [],
   "flags": {},

@@ -1,26 +1,26 @@
 {
-  "_id": "e60470cf68f666ea",
-  "name": "Armor Vest",
+  "_id": "b848aa22d16a4286",
+  "name": "Vest with Plates",
   "type": "armor",
   "img": "icons/svg/shield.svg",
   "system": {
-    "ballistic": 2,
-    "impact": 1,
-    "concealability": 8,
-    "weight": 0,
-    "cost": 200,
-    "availability": "3/48hrs",
-    "legality": "Legal",
+    "ballistic": 4,
+    "impact": 3,
+    "concealability": 4,
+    "weight": 3,
+    "cost": 600,
+    "availability": "3/36 hrs",
+    "legality": "Restricted",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. Slim-line protection worn under normal clothing. Rigid plates available for improved coverage."
+    "notes": "Armor vest with ceramic trauma plates. SR2E p.257."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.5",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -33,5 +33,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!e60470cf68f666ea"
+  "_key": "!items!b848aa22d16a4286"
 }

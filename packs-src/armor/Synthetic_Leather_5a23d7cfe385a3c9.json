@@ -1,26 +1,26 @@
 {
-  "_id": "e60470cf68f666ea",
-  "name": "Armor Vest",
+  "_id": "5a23d7cfe385a3c9",
+  "name": "Synthetic Leather",
   "type": "armor",
   "img": "icons/svg/shield.svg",
   "system": {
-    "ballistic": 2,
+    "ballistic": 0,
     "impact": 1,
-    "concealability": 8,
+    "concealability": 0,
     "weight": 0,
-    "cost": 200,
-    "availability": "3/48hrs",
+    "cost": 250,
+    "availability": "Always",
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. Slim-line protection worn under normal clothing. Rigid plates available for improved coverage."
+    "notes": "Synth-leather clothing \u2014 light impact protection. SR2E p.257."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.5",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -33,5 +33,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!e60470cf68f666ea"
+  "_key": "!items!5a23d7cfe385a3c9"
 }
