@@ -885,19 +885,43 @@ export class SR2EItem extends Item {
       // Stun-type combat spells carry "stun" in the name (Stunbolt, Stunball);
       // others deal Physical damage.
       const dmgType  = /stun/i.test(this.name) ? "stun" : "physical";
-      const state = {
+      const mkState = (targetUuid) => ({
         casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
-        // The caster's target (T key) resists, regardless of token selection.
-        targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
-        force, successes: spellResult.successes,
-        resistAttr: isMana ? "willpower" : "body",
-        baseLevel, dmgType, resolved: false
-      };
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor }),
-        content: renderSpellResistCard(state),
-        flags: { sr2e: { spell: state } }
+        targetUuid, force, successes: spellResult.successes,
+        resistAttr: isMana ? "willpower" : "body", baseLevel, dmgType, resolved: false
       });
+      const postCard = (state) => ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: renderSpellResistCard(state), flags: { sr2e: { spell: state } }
+      });
+
+      const targetTok = game.user?.targets?.first?.();
+      if (this.system.isAreaEffect && targetTok && canvas?.ready) {
+        // Area spell (SR2E p.123): everyone within Force metres of the target
+        // point resists at full Force — no per-metre falloff, armour doesn't help.
+        const center = targetTok.center;
+        const radiusM = Math.max(1, force);
+        try {
+          await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
+            t: "circle", x: center.x, y: center.y, distance: radiusM,
+            fillColor: "#9b6dff", borderColor: "#6a2dd0", flags: { sr2e: { blast: true } }
+          }]);
+        } catch (e) { /* template optional */ }
+        const caught = canvas.tokens.placeables.filter(t => {
+          if (!t.actor) return false;
+          try { return Math.round(canvas.grid.measurePath([center, t.center]).distance) <= radiusM; }
+          catch (e) { return false; }
+        });
+        const targets = caught.length ? caught : [targetTok];
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor }),
+          content: `<div class="sr2e-damage-result"><strong>✨ ${foundry.utils.escapeHTML(this.name)}</strong> — area spell (Force ${force}); caught <strong>${targets.length}</strong> target${targets.length === 1 ? "" : "s"} within ${radiusM} m. Each resists below:</div>`
+        });
+        for (const t of targets) await postCard(mkState(t.actor.uuid));
+      } else {
+        // The caster's target (T key) resists, regardless of token selection.
+        await postCard(mkState(targetTok?.actor?.uuid ?? ""));
+      }
     }
 
     // ── Sustained spells (SR2E p.130) ─────────────────────────────────────────
