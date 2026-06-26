@@ -1,48 +1,48 @@
 {
-  "_id": "6b294fcefcd7b625",
-  "name": "Remington 950",
+  "_id": "3f2cd650d2055421",
+  "name": "FN HAR",
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "9S",
+    "damageCode": "8M",
     "damageType": "physical",
-    "concealability": 2,
+    "concealability": 4,
     "reach": 0,
     "firingModes": {
       "ss": false,
       "sa": true,
-      "bf": false,
-      "fa": false
+      "bf": true,
+      "fa": true
     },
     "ammo": {
-      "current": 5,
-      "max": 5,
+      "current": 35,
+      "max": 35,
       "type": "rifle"
     },
-    "recoilComp": 0,
+    "recoilComp": 2,
     "ranges": {
-      "short": 50,
-      "medium": 250,
-      "long": 500,
-      "extreme": 1000
+      "short": 25,
+      "medium": 100,
+      "long": 250,
+      "extreme": 500
     },
     "strengthMin": 0,
-    "weight": 4,
-    "cost": 1300,
-    "availability": "6/72hrs",
-    "legality": "Legal",
+    "weight": 6,
+    "cost": 1200,
+    "availability": "8/4 days",
+    "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable."
+    "notes": "The FN Heavy Assault Rifle. SR2E p.254-255."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.3",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -50,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "c07931b8ddd4ff16",
+  "folder": "f3dfac8b61f358e2",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!6b294fcefcd7b625"
+  "_key": "!items!3f2cd650d2055421"
 }

@@ -1,6 +1,6 @@
 {
-  "_id": "6b294fcefcd7b625",
-  "name": "Remington 950",
+  "_id": "0b40db9127cb7ae8",
+  "name": "Remington Roomsweeper",
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
@@ -8,7 +8,7 @@
     "skill": "firearms",
     "damageCode": "9S",
     "damageType": "physical",
-    "concealability": 2,
+    "concealability": 5,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -17,32 +17,32 @@
       "fa": false
     },
     "ammo": {
-      "current": 5,
-      "max": 5,
-      "type": "rifle"
+      "current": 8,
+      "max": 8,
+      "type": "pistol"
     },
     "recoilComp": 0,
     "ranges": {
-      "short": 50,
-      "medium": 250,
-      "long": 500,
-      "extreme": 1000
+      "short": 5,
+      "medium": 20,
+      "long": 40,
+      "extreme": 60
     },
     "strengthMin": 0,
-    "weight": 4,
-    "cost": 1300,
-    "availability": "6/72hrs",
-    "legality": "Legal",
+    "weight": 2.5,
+    "cost": 300,
+    "availability": "3/24 hrs",
+    "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable."
+    "notes": "Heavy flechette pistol \u2014 target resists with Impact Armour. SR2E p.254-255."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.3",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -50,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "c07931b8ddd4ff16",
+  "folder": "3dbc556f1edc8bf0",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!6b294fcefcd7b625"
+  "_key": "!items!0b40db9127cb7ae8"
 }

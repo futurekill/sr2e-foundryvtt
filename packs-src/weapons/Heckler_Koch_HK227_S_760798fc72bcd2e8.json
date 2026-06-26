@@ -1,48 +1,48 @@
 {
-  "_id": "6b294fcefcd7b625",
-  "name": "Remington 950",
+  "_id": "760798fc72bcd2e8",
+  "name": "Heckler & Koch HK227-S",
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "9S",
+    "damageCode": "7M",
     "damageType": "physical",
-    "concealability": 2,
+    "concealability": 4,
     "reach": 0,
     "firingModes": {
       "ss": false,
       "sa": true,
-      "bf": false,
+      "bf": true,
       "fa": false
     },
     "ammo": {
-      "current": 5,
-      "max": 5,
-      "type": "rifle"
+      "current": 28,
+      "max": 28,
+      "type": "pistol"
     },
-    "recoilComp": 0,
+    "recoilComp": 1,
     "ranges": {
-      "short": 50,
-      "medium": 250,
-      "long": 500,
-      "extreme": 1000
+      "short": 10,
+      "medium": 40,
+      "long": 80,
+      "extreme": 150
     },
     "strengthMin": 0,
-    "weight": 4,
-    "cost": 1300,
-    "availability": "6/72hrs",
-    "legality": "Legal",
+    "weight": 3,
+    "cost": 1200,
+    "availability": "10/7 days",
+    "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable."
+    "notes": "Stocked/suppressed variant of the HK227. SR2E p.254-255."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.19.3",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -50,10 +50,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "c07931b8ddd4ff16",
+  "folder": "d83df688b71f0fc6",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!6b294fcefcd7b625"
+  "_key": "!items!760798fc72bcd2e8"
 }
