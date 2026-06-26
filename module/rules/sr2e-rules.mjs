@@ -705,3 +705,21 @@ export function skillsoftCost(category, rating) {
   const rate = SKILLSOFT_MP_COST[category];
   return rate ? skillsoftMemory(category, rating) * rate : 0;
 }
+
+/**
+ * Shotgun shot-round spread (SR2E p.95, per the Shotgun Spread diagram). The
+ * choke (2–10) sets how fast the shot cone widens: every `choke` metres the
+ * shot travels, it spreads one more metre to each side AND loses 1 Power while
+ * the attacker's TN drops 1 (wider = easier to hit, but weaker). So at distance
+ * d with choke C: steps = ⌊d/C⌋ → −steps Power, −steps TN, reaching steps+1
+ * metres to each side of the centre line. (Choke 3: 0–3 m no penalty/1 m spread;
+ * 3–6 m −1/−1, 2 m; 6–9 m −2/−2, 3 m.)
+ * @param {number} choke           - 2–10
+ * @param {number} distanceMeters
+ * @returns {{steps:number, powerPenalty:number, tnModifier:number, halfWidthM:number}}
+ */
+export function shotgunSpread(choke, distanceMeters) {
+  const c = Math.min(10, Math.max(2, Math.round(choke || 2)));
+  const steps = Math.max(0, Math.floor(Math.max(0, distanceMeters) / c));
+  return { steps, powerPenalty: steps, tnModifier: -steps || 0, halfWidthM: steps + 1 };
+}

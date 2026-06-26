@@ -105,6 +105,11 @@
     <input type="number" name="system.recoilComp" value="{{system.recoilComp}}" min="0" />
   </div>
   <div class="form-group">
+    <label>Shotgun Choke:</label>
+    <input type="number" name="system.choke" value="{{system.choke}}" min="0" max="10"
+           title="0 = not a shotgun. 2–10 enables firing shot rounds, which spread into a cone (SR2E p.95). The higher the choke, the slower the spread." />
+  </div>
+  <div class="form-group">
     <label>Smartgun Compatible:</label>
     <input type="checkbox" name="system.smartgunCompatible" {{checked system.smartgunCompatible}} />
   </div>

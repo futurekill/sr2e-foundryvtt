@@ -33,7 +33,7 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
 // Migrations
 import { migrateWorld } from "./migrations.mjs";
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /* -------------------------------------------- */
@@ -726,6 +726,97 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
   });
 }
 
+/**
+ * Resolve a shotgun shot-round spread (SR2E p.95). Places a cone MeasuredTemplate
+ * from the shooter toward the target, gathers every token inside the cone, and
+ * posts a per-target Impact (flechette) resist whose Power is reduced by the
+ * spread steps at that token's distance, with +1 resistance die for every other
+ * target standing in front of it (closer to the muzzle). The attacker's single
+ * Success Test (already rolled, with its own −steps TN benefit) is the bar each
+ * target resists against; per-target staging from those successes is baked into
+ * the level. Power 0 = out of effective range.
+ *
+ * @param {object} o
+ * @param {string} o.shooterTokenUuid
+ * @param {string} o.targetTokenUuid
+ * @param {number} o.basePower   - shot Power at the muzzle (weapon damage, flechette).
+ * @param {string} o.baseLevel   - L/M/S/D before staging.
+ * @param {string} o.damageType  - physical | stun.
+ * @param {number} o.choke       - 2–10.
+ * @param {number} o.attackerSuccesses
+ * @param {string} o.weaponName
+ */
+async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName }) {
+  if (!canvas?.ready) return ui.notifications.warn("No active scene for the shot spread.");
+  const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : canvas.tokens.controlled[0];
+  const targetTok  = (targetTokenUuid ? (await fromUuid(targetTokenUuid))?.object : null) ?? game.user?.targets?.first?.();
+  if (!shooterTok || !targetTok) {
+    return ui.notifications.warn("Need both the shooter's token and a target token to resolve the spread.");
+  }
+  const c = Math.min(10, Math.max(2, choke || 3));
+  const origin = shooterTok.center;
+  const aim    = targetTok.center;
+  const direction = Math.toDegrees(Math.atan2(aim.y - origin.y, aim.x - origin.x));
+  // Cone half-angle ≈ atan(1/choke): the shot widens ~1 m per choke metres, the
+  // same rate as the spread steps. Effective length = where Power reaches 0
+  // (steps = basePower → distance = choke × basePower).
+  const coneAngle = 2 * Math.toDegrees(Math.atan(1 / c));
+  const maxRangeM = c * Math.max(1, basePower);
+  const measure = (a, b) => { try { return Math.round(canvas.grid.measurePath([a, b]).distance); } catch (e) { return Infinity; } };
+
+  try {
+    await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
+      t: "cone", x: origin.x, y: origin.y, direction, angle: coneAngle, distance: maxRangeM,
+      fillColor: "#b08020", borderColor: "#6a4a10", flags: { sr2e: { blast: true, shotgun: true } }
+    }]);
+  } catch (e) { /* template optional */ }
+
+  const stages = ["L", "M", "S", "D"];
+  const baseIdx = Math.max(0, stages.indexOf(baseLevel || "M"));
+  const stagedLevel = stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
+  const stun = damageType === "stun";
+  const norm = (deg) => ((deg % 360) + 540) % 360 - 180; // → [-180,180]
+
+  // Everyone in the cone, nearest first (so "intervening targets" = those before).
+  const inCone = [];
+  for (const tok of canvas.tokens.placeables) {
+    if (tok === shooterTok || !tok.actor) continue;
+    const dist = measure(origin, tok.center);
+    if (dist > maxRangeM) continue;
+    const bearing = Math.toDegrees(Math.atan2(tok.center.y - origin.y, tok.center.x - origin.x));
+    if (Math.abs(norm(bearing - direction)) > coneAngle / 2) continue;
+    inCone.push({ tok, dist });
+  }
+  inCone.sort((a, b) => a.dist - b.dist);
+
+  const rows = [];
+  inCone.forEach(({ tok, dist }, idx) => {
+    const steps = shotgunSpread(c, dist).steps;
+    const power = basePower - steps;
+    if (power <= 0) return; // out of effective range
+    const intervening = idx; // targets nearer the muzzle take the brunt: +1 die each
+    rows.push(`<div class="sr2e-blast-row">
+      <button class="sr2e-resist-btn"
+              data-power="${power}" data-base-power="${basePower}"
+              data-level="${stagedLevel}" data-armor-type="impact" data-armor-calc="flechette"
+              data-bonus-dice="${intervening}" data-damage-type="${damageType}" data-target-uuid="${tok.actor.uuid}"
+              title="Body vs. TN = ${power} − flechette armour${intervening ? `, +${intervening} resistance die(s) from intervening targets` : ""}">
+        ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${dist} m${intervening ? `, +${intervening}d` : ""})</em>
+      </button>
+    </div>`);
+  });
+
+  const body = rows.length ? rows.join("") : `<em>No targets in the spread cone.</em>`;
+  await ChatMessage.create({
+    content: `<div class="sr2e-damage-result sr2e-blast-card">
+      <strong>🔫 ${foundry.utils.escapeHTML(weaponName || "Shotgun")} — shot spread</strong> (choke ${c}), muzzle ${basePower}${stagedLevel}${stun ? " Stun" : ""}.
+      <br><em>Each target resists Body vs. (Power − flechette armour); +1 die per target in front of them:</em>
+      ${body}
+      <br><button class="sr2e-clear-blast-btn" title="Remove all templates this system dropped">🧹 Clear spread cones</button>
+    </div>`
+  });
+}
+
 Hooks.on("renderChatMessageHTML", (message, html, data) => {
   // V13: html is an HTMLElement (renderChatMessageHTML is the V13 hook)
   if (message.isRoll && html instanceof HTMLElement) {
@@ -758,8 +849,26 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         );
       }
 
+      const bonusDice  = parseInt(btn.dataset.bonusDice) || 0;
       return actor.rollDamageResistance(power, level, armorType, damageType,
-        { armorCalc, armorMod, ammoName, basePower });
+        { armorCalc, armorMod, ammoName, basePower, bonusDice });
+    });
+  });
+
+  // Wire up "Resolve Spread" buttons on shotgun shot-round cards (SR2E p.95).
+  html.querySelectorAll?.(".sr2e-spread-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      await resolveShotgunSpread({
+        shooterTokenUuid:  btn.dataset.shooterTokenUuid || "",
+        targetTokenUuid:   btn.dataset.targetTokenUuid || "",
+        basePower:         parseInt(btn.dataset.basePower) || 0,
+        baseLevel:         btn.dataset.baseLevel || "M",
+        damageType:        btn.dataset.damageType || "physical",
+        choke:             parseInt(btn.dataset.choke) || 3,
+        attackerSuccesses: parseInt(btn.dataset.attackerSuccesses) || 0,
+        weaponName:        btn.dataset.weaponName || "Shotgun"
+      });
     });
   });
 

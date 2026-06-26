@@ -269,6 +269,21 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **ActiveSoft with no Skillwires** is refused; **Know/LinguaSofts** are
       gated one-per-chipjack.
 
+## 17g. Shotgun shot-round spread (v0.22.0)
+- [ ] A shotgun (choke ≥ 2 on its item sheet — the three core shotguns ship with
+      choke 3) shows a **Shot (spread)** checkbox in the attack dialog; other guns
+      don't.
+- [ ] Firing **without** the checkbox = a normal single-target hit (slug rounds).
+- [ ] With **Shot (spread)** ticked and a token targeted: the attack TN drops by
+      the spread steps at the target's range (⌊distance/choke⌋), shown in the roll
+      breakdown, and a **🔫 Resolve Spread** card is posted instead of a resist.
+- [ ] Clicking Resolve Spread (as GM) drops a **cone** template from the shooter
+      toward the target and posts **one Impact (flechette) resist per token in the
+      cone**, each with Power reduced by its distance steps and **+1 resistance die
+      per target standing in front of it**; tokens past the effective range (Power 0)
+      are omitted. **🧹 Clear spread cones** removes the templates.
+- [ ] Smartlink gives shot rounds only **−1** TN (not −2).
+
 ## 17. Sheet styling / layout
 - [ ] **Checkboxes align** with their labels across sheets (no staircase): the
       modules table, attribute/skill toggles, equipped flags, and any

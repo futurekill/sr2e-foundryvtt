@@ -1256,7 +1256,10 @@ export class SR2EActor extends Actor {
     // Troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table) —
     // an extra Body die for resisting damage, not an armor rating bonus.
     const dermalBonus = system.race === "troll" ? 1 : 0;
-    const bodyDice   = (system.body?.value ?? 1) + dermalBonus;
+    // Extra resistance dice (e.g. +1 per intervening target in a shotgun spread,
+    // SR2E p.95): they take the bullet's brunt for the target behind them.
+    const bonusDice  = Math.max(0, options.bonusDice ?? 0);
+    const bodyDice   = (system.body?.value ?? 1) + dermalBonus + bonusDice;
     const tn         = Math.max(2, power - armor);
 
     // ── Build dialog ──────────────────────────────────────────────────────────

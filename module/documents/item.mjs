@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -378,6 +378,19 @@ export class SR2EItem extends Item {
     let isBurst    = false;
     let rounds     = 1;     // rounds fired by this attack
 
+    // Shotgun shot-round spread state (SR2E p.95) — measure shooter→target now,
+    // while the attacker still has the target set, for the spread TN + cone.
+    const isShotSpread = !!options.shotSpread && (this.system.choke ?? 0) >= 2;
+    let spreadMod = 0, spreadDist = 0, spreadShooterTok = null, spreadTargetTok = null;
+    if (isShotSpread && canvas?.ready) {
+      spreadShooterTok = actor.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0] ?? null;
+      spreadTargetTok  = game.user?.targets?.first?.() ?? null;
+      if (spreadShooterTok && spreadTargetTok) {
+        try { spreadDist = Math.round(canvas.grid.measurePath([spreadShooterTok.center, spreadTargetTok.center]).distance); }
+        catch (e) { /* off-canvas */ }
+      }
+    }
+
     if (isMelee) {
       // ── Melee Attacker's Test (SR2E p.100–101) ─────────────────────────────
       // Melee is an OPPOSED test: both sides roll Combat Skill vs base TN 4
@@ -459,12 +472,21 @@ export class SR2EItem extends Item {
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
       const recoilMod     = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp });
 
+      // Shotgun shot-round spread (SR2E p.95): wider spread lowers the attacker's
+      // TN by the spread steps at the target's distance (and the cone resolution
+      // reduces each target's Power). Shot rounds get only −1 from a smartlink.
+      if (isShotSpread) {
+        if (this.system.smartgunCompatible && cyberwareMod < -1) cyberwareMod = -1;
+        spreadMod = shotgunSpread(this.system.choke, spreadDist).tnModifier;
+      }
+
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
-                + cyberwareMod + accessoryMod + recoilMod + defaultingPenalty
+                + cyberwareMod + accessoryMod + recoilMod + spreadMod + defaultingPenalty
       );
 
       if (defaultingNote) modParts.push(defaultingNote);
+      if (spreadMod)   modParts.push(`shot spread ${spreadMod} (${spreadDist} m, choke ${this.system.choke})`);
       if (rangeMod)    modParts.push(`${rangeLabel} range`);
       if (coverMod)    modParts.push(`cover +${coverMod}`);
       if (attackerMod) modParts.push(`running +${attackerMod}`);
@@ -544,6 +566,34 @@ export class SR2EItem extends Item {
                   data-blast-name="${safeName}"
                   title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
             💥 Resolve Blast
+          </button>
+        </div>`
+      });
+      return result;
+    }
+
+    // Shotgun shot rounds (SR2E p.95): resolve as a spread cone rather than a
+    // single hit — the GM drops the cone and every target in it resists with
+    // distance-reduced Power, flechette armour, and intervening-target dice.
+    if (isShotSpread) {
+      const dmg = evaluateDamageCode(this.system.damageCode, actor);
+      const safeName = foundry.utils.escapeHTML(this.name);
+      const hits = result.successes;
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${safeName}</strong> — shot rounds (choke ${this.system.choke}), ${hits > 0 ? `${hits} success${hits === 1 ? "" : "es"}` : "<em>miss</em>"} at ${spreadDist} m.
+          <br>
+          <button class="sr2e-spread-btn"
+                  data-base-power="${dmg.power}" data-base-level="${dmg.level}"
+                  data-damage-type="${this.system.damageType || "physical"}"
+                  data-choke="${this.system.choke}"
+                  data-attacker-successes="${hits}"
+                  data-shooter-token-uuid="${spreadShooterTok?.document?.uuid ?? ""}"
+                  data-target-token-uuid="${spreadTargetTok?.document?.uuid ?? ""}"
+                  data-weapon-name="${safeName}"
+                  title="Drop the spread cone and resolve every target in it (SR2E p.95)">
+            🔫 Resolve Spread
           </button>
         </div>`
       });

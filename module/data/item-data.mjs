@@ -114,6 +114,11 @@ export class WeaponData extends SR2EDataModel {
       concealability: new fields.NumberField({ integer: true, initial: 6, min: 0 }),
       reach: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
+      // Shotgun choke (SR2E p.95): 0 = not a shotgun; 2–10 enables firing shot
+      // rounds, which spread into a cone (the higher the choke, the slower the
+      // spread). Drives the "fire shot (spread)" option in the attack dialog.
+      choke: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 10 }),
+
       // Firearm-specific
       firingModes: new fields.SchemaField({
         ss: new fields.BooleanField({ initial: false }),

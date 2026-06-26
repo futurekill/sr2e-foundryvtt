@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -515,5 +515,18 @@ describe("skillsoft memory + cost (Skill Memory Table p.248, costs p.243)", () =
     expect(skillsoftCost("active", 8)).toBe(80000);     // 800 × 100
     expect(skillsoftCost("knowledge", 1)).toBe(1500);   // 10 × 150
     expect(skillsoftCost("language", 8)).toBe(4000);    // 80 × 50
+  });
+});
+
+describe("shotgun shot-round spread (SR2E p.95 diagram)", () => {
+  it("choke 3 matches the diagram steps/power/TN/width", () => {
+    expect(shotgunSpread(3, 2)).toEqual({ steps: 0, powerPenalty: 0, tnModifier: 0, halfWidthM: 1 });
+    expect(shotgunSpread(3, 3)).toEqual({ steps: 1, powerPenalty: 1, tnModifier: -1, halfWidthM: 2 });
+    expect(shotgunSpread(3, 6)).toEqual({ steps: 2, powerPenalty: 2, tnModifier: -2, halfWidthM: 3 });
+    expect(shotgunSpread(3, 9)).toEqual({ steps: 3, powerPenalty: 3, tnModifier: -3, halfWidthM: 4 });
+  });
+  it("choke clamps to 2-10 and a tight choke spreads slower", () => {
+    expect(shotgunSpread(10, 9).steps).toBe(0);   // choke 10: no spread until 10 m
+    expect(shotgunSpread(1, 4).steps).toBe(2);    // clamped to 2 → floor(4/2)
   });
 });

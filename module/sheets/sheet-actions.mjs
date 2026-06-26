@@ -635,6 +635,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="6">Near-Total (+6)</option>
         </select>
       </div>
+      ${(weapon.system.choke ?? 0) >= 2 ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+        <label title="Fire shot rounds in a spreading cone (SR2E p.95): a wider spread lowers your TN but reduces Power, and hits everyone in the cone.">Shot (spread):</label>
+        <input type="checkbox" id="sr2e-shot-spread" name="shotSpread" style="width:auto;">
+        <span style="margin-left:6px;font-size:11px;color:#9d8fc2;">choke ${weapon.system.choke}</span>
+      </div>` : ""}
       <div class="form-group" id="sr2e-fa-rounds-row" style="margin:2px 0;display:none;">
         <label>FA Rounds (3–10):</label>
         <input type="number" id="sr2e-fa-rounds" name="rounds" value="3" min="3" max="10"
@@ -855,6 +860,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                            - Math.min(4, Math.max(0, parseInt(f.allies?.value) || 0)),
             positionMod:     (f.supPos?.checked ? -1 : 0) + (f.prone?.checked ? -2 : 0),
             multiMod:        2 * Math.max(0, parseInt(f.multiTargets?.value) || 0),
+            shotSpread:      !!f.shotSpread?.checked,
+            choke:           weapon.system.choke ?? 0,
             poolDice,
             karmaDice:       readKarmaDice(button.form, actor, baseDice)
           };
@@ -944,6 +951,8 @@ async function onRollWeapon(event, target) {
     friendsMod:      opts.friendsMod,
     positionMod:     opts.positionMod,
     multiMod:        opts.multiMod,
+    shotSpread:      opts.shotSpread,
+    choke:           opts.choke,
     poolDice:        opts.poolDice,
     karmaDice:       opts.karmaDice
   });
