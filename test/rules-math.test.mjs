@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftEffectiveRating
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -502,14 +502,18 @@ describe("Engine customization cost (Rigger 2 p.120)", () => {
   });
 });
 
-describe("skillsoft effective rating (SR2E p.243)", () => {
-  it("ActiveSofts need Skillwires and are capped at its rating", () => {
-    expect(skillsoftEffectiveRating("active", 5, 0)).toBe(0);   // no skillwires → inert
-    expect(skillsoftEffectiveRating("active", 5, 3)).toBe(3);   // capped at skillwires 3
-    expect(skillsoftEffectiveRating("active", 2, 3)).toBe(2);   // soft below cap → soft rating
+
+describe("skillsoft memory + cost (Skill Memory Table p.248, costs p.243)", () => {
+  it("General row Mp by rating; Language row for LinguaSofts", () => {
+    expect(skillsoftMemory("active", 8)).toBe(800);     // General rating 8
+    expect(skillsoftMemory("knowledge", 1)).toBe(10);
+    expect(skillsoftMemory("language", 8)).toBe(80);    // Language row
+    expect(skillsoftMemory("active", 0)).toBe(0);
+    expect(skillsoftMemory("active", 11)).toBe(0);
   });
-  it("Know/LinguaSofts run off a chipjack at full rating, no skillwires needed", () => {
-    expect(skillsoftEffectiveRating("knowledge", 4, 0)).toBe(4);
-    expect(skillsoftEffectiveRating("language", 6, 0)).toBe(6);
+  it("cost = Mp × per-type rate", () => {
+    expect(skillsoftCost("active", 8)).toBe(80000);     // 800 × 100
+    expect(skillsoftCost("knowledge", 1)).toBe(1500);   // 10 × 150
+    expect(skillsoftCost("language", 8)).toBe(4000);    // 80 × 50
   });
 });

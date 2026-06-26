@@ -190,39 +190,41 @@ export function registerSR2EQuenchTests() {
       after(async () => { await actor?.delete(); });
 
       describe("Skillsoft slotting", () => {
-        it("a slotted ActiveSoft grants a new skill, and replaces a duplicated native one", async () => {
+        it("ActiveSofts run at full rating within the Skillwire-Rating budget", async () => {
           actor = await Actor.create({ name: "Quench Soft", type: "character" });
-          // Capacity: one chipjack (a slot) + Skillwires 4 (caps ActiveSofts).
+          // Skillwires 6 = total ActiveSoft-rating budget; one native Firearms 6.
           await actor.createEmbeddedDocuments("Item", [
-            { name: "Chipjack",   type: "cyberware", system: { location: "headware", installed: true } },
-            { name: "Skillwires", type: "cyberware", system: { location: "bodyware", installed: true, rating: 4 } },
-            { name: "Native Firearms", type: "skill", system: { category: "active", rating: 6 } }
+            { name: "Skillwires", type: "cyberware", system: { location: "bodyware", installed: true, rating: 6 } },
+            { name: "Firearms", type: "skill", system: { category: "active", rating: 6 } }
           ]);
-          // ActiveSoft granting a skill the character LACKS → synthetic chipped skill at 4.
-          const [newSoft] = await actor.createEmbeddedDocuments("Item", [{
+          // A skill the character LACKS → synthetic chipped skill at FULL rating 5 (not capped).
+          await actor.createEmbeddedDocuments("Item", [{
             name: "Stealth ActiveSoft", type: "gear",
             system: { category: "skillsoft", rating: 5, slotted: true,
                       grantedSkill: "Stealth", grantedSkillCategory: "active", grantedSkillAttribute: "quickness" }
           }]);
-          let chipped = actor.system.chippedSkills ?? [];
-          const stealth = chipped.find(s => s.name === "Stealth");
+          const stealth = (actor.system.chippedSkills ?? []).find(s => s.name === "Stealth");
           assert.ok(stealth, "slotted ActiveSoft did not inject its skill");
-          assert.equal(stealth.system.rating, 4, "ActiveSoft rating 5 was not capped at Skillwires 4");
+          assert.equal(stealth.system.rating, 5, "ActiveSoft should run at full rating, not be capped");
+          assert.equal(actor.system.skillsoft.memUsed, 250, "memory used should be General-row Mp for rating 5");
 
-          // ActiveSoft duplicating a NATIVE skill → soft rating replaces native while slotted.
-          await actor.createEmbeddedDocuments("Item", [{
+          // A second ActiveSoft (rating 3) would push the running total to 8 > 6 budget → over budget,
+          // so it does NOT replace the native Firearms.
+          const [over] = await actor.createEmbeddedDocuments("Item", [{
             name: "Firearms ActiveSoft", type: "gear",
             system: { category: "skillsoft", rating: 3, slotted: true,
-                      grantedSkill: "Native Firearms", grantedSkillCategory: "active" }
+                      grantedSkill: "Firearms", grantedSkillCategory: "active" }
           }]);
-          const nativeSkill = actor.items.find(i => i.type === "skill" && i.name === "Native Firearms");
-          assert.equal(nativeSkill.system.rating, 3, "soft did not replace the native skill's rating");
-          assert.ok(nativeSkill.system._chipped, "overridden native skill was not flagged chipped");
+          const native = actor.items.find(i => i.type === "skill" && i.name === "Firearms");
+          assert.equal(native.system.rating, 6, "over-budget soft should not replace the native skill");
+          assert.ok(over.system._overBudget, "second soft over the Skillwire budget was not flagged");
 
-          // Un-slotting restores the native rating and drops the synthetic skill.
-          await newSoft.update({ "system.slotted": false });
-          chipped = actor.system.chippedSkills ?? [];
-          assert.ok(!chipped.find(s => s.name === "Stealth"), "un-slotting did not remove the synthetic skill");
+          // Free the budget (un-slot Stealth) → the Firearms soft now fits and replaces native at 3.
+          const stealthItem = actor.items.find(i => i.name === "Stealth ActiveSoft");
+          await stealthItem.update({ "system.slotted": false });
+          const native2 = actor.items.find(i => i.type === "skill" && i.name === "Firearms");
+          assert.equal(native2.system.rating, 3, "freed-budget soft did not replace native (3)");
+          assert.ok(native2.system._chipped, "chipped native skill not flagged");
         });
       });
     }, { displayName: "SR2E: Skillsofts" });

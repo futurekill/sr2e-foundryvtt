@@ -3267,3 +3267,6 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e .item-row.soft-slotted .fa-bolt { color: var(--sr2e-gold, #00e5ff); }
 .sr2e .soft-grant { flex: 1; opacity: 0.85; }
 .sr2e .soft-type { opacity: 0.6; font-size: 0.85em; text-transform: capitalize; }
+
+.sr2e .item-row.soft-overbudget { box-shadow: inset 3px 0 0 var(--sr2e-danger, #ff3b5c); opacity: 0.8; }
+.sr2e .soft-warn { color: var(--sr2e-danger, #ff3b5c); margin: 0 4px; }

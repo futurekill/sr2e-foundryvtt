@@ -1520,13 +1520,20 @@ async function onToggleSlot(event, target) {
   if (!soft) return;
   const slotting = !soft.system.slotted;
   if (slotting) {
-    const cap = actor.system.skillsoft ?? { slots: 0, used: 0, skillwiresRating: 0 };
-    if (cap.used >= cap.slots) {
-      ui.notifications.warn(`No free skillsoft slots (${cap.used}/${cap.slots}) — install another chipjack.`);
-      return;
-    }
-    if (soft.system.grantedSkillCategory === "active" && cap.skillwiresRating <= 0) {
-      ui.notifications.warn("ActiveSofts require an installed Skillwires system.");
+    const cap = actor.system.skillsoft ?? {};
+    const rating = Math.max(0, soft.system.rating || 0);
+    if (soft.system.grantedSkillCategory === "active") {
+      const wires = cap.skillwiresRating ?? 0;
+      if (wires <= 0) {
+        ui.notifications.warn("ActiveSofts require an installed Skillwires system.");
+        return;
+      }
+      if ((cap.activeUsed ?? 0) + rating > wires) {
+        ui.notifications.warn(`Exceeds Skillwire Rating budget: ${(cap.activeUsed ?? 0) + rating} of ${wires} total ActiveSoft rating in use.`);
+        return;
+      }
+    } else if ((cap.chipUsed ?? 0) >= (cap.chipjacks ?? 0)) {
+      ui.notifications.warn("No free chipjack for another Know/LinguaSoft — install another chipjack.");
       return;
     }
   }

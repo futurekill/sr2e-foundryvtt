@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftEffectiveRating } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -326,26 +326,40 @@ export class CharacterData extends SR2EDataModel {
   _applySkillsofts() {
     this.chippedSkills = [];
     const items = this.parent?.items;
-    let chipjacks = 0, skillwires = 0;
+    // Capacity from installed cyberware: Skillwires rating is the TOTAL-rating
+    // budget for all running ActiveSofts (SR2E p.243); each chipjack accesses one
+    // Know/LinguaSoft at a time; headware memory (parsed from its name) stores Mp.
+    let chipjacks = 0, skillwires = 0, memCapacity = 0;
     if (items) {
       for (const i of items) {
         if (i.type !== "cyberware" || !i.system.installed) continue;
         const n = i.name.toLowerCase();
         if (n.includes("chipjack")) chipjacks++;
         if (n.includes("skillwire")) skillwires = Math.max(skillwires, i.system.rating || 0);
+        const m = /(\d[\d,]*)\s*mp/i.exec(i.name);
+        if (m) memCapacity += parseInt(m[1].replace(/,/g, ""), 10);
       }
     }
     const slotted = items
       ? items.filter(i => i.type === "gear" && i.system.category === "skillsoft" && i.system.slotted)
       : [];
-    this.skillsoft = { slots: chipjacks, used: slotted.length, skillwiresRating: skillwires };
 
+    let activeUsed = 0, chipUsed = 0, memUsed = 0;
     for (const soft of slotted) {
+      soft.system._overBudget = false;
       const name = (soft.system.grantedSkill || "").trim();
-      if (!name) continue;
       const cat = soft.system.grantedSkillCategory || "active";
-      const rating = skillsoftEffectiveRating(cat, soft.system.rating, skillwires);
-      if (rating <= 0) continue; // e.g. an ActiveSoft with no Skillwires system
+      const rating = Math.max(0, soft.system.rating || 0);
+      // Does it fit its constraint? Active → running-rating sum ≤ Skillwires;
+      // Know/Lingua → one chipjack each.
+      const fits = cat === "active"
+        ? (skillwires > 0 && activeUsed + rating <= skillwires)
+        : (chipUsed < chipjacks);
+      if (!fits) { soft.system._overBudget = true; continue; }
+      if (cat === "active") activeUsed += rating; else chipUsed += 1;
+      memUsed += skillsoftMemory(cat, rating);
+      if (!name || rating <= 0) continue;
+
       const existing = items.find(i => i.type === "skill" && i.name.toLowerCase() === name.toLowerCase());
       if (existing) {
         existing.system._chipped = true;
@@ -363,6 +377,10 @@ export class CharacterData extends SR2EDataModel {
         });
       }
     }
+    this.skillsoft = {
+      skillwiresRating: skillwires, activeUsed, chipjacks, chipUsed,
+      memCapacity, memUsed
+    };
   }
 
   /**

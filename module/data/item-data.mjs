@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, focusCost } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, focusCost, skillsoftMemory, skillsoftCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -437,6 +437,16 @@ export class GearData extends SR2EDataModel {
 
       notes: new fields.StringField({ initial: "" })
     };
+  }
+
+  /** @override */
+  prepareDerivedData() {
+    // Skillsoft Memory (Mp) and nuyen cost come straight off the Skill Memory
+    // Table by type + rating (SR2E p.243, p.248), overriding any manual cost.
+    if (this.category === "skillsoft") {
+      this.mp = skillsoftMemory(this.grantedSkillCategory, this.rating);
+      this.cost = skillsoftCost(this.grantedSkillCategory, this.rating);
+    }
   }
 }
 

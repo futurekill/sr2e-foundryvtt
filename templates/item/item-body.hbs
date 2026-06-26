@@ -518,6 +518,10 @@
     <label>Linked Attribute:</label>
     <input type="text" name="system.grantedSkillAttribute" value="{{system.grantedSkillAttribute}}" placeholder="intelligence" />
   </div>
+  <div class="form-group">
+    <label>Memory / Cost:</label>
+    <span class="hint">{{system.mp}} Mp · {{system.cost}}¥ — auto-calculated from type + Rating (Skill Memory Table, p.248).</span>
+  </div>
   <p class="hint">Set <em>Skill Type</em> first, then use <em>Quick Pick</em> for standard skills — or type a custom Knowledge/Language skill. Set the Rating above.</p>
   {{/ifEquals}}
   {{/ifEquals}}

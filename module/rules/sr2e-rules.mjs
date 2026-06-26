@@ -670,20 +670,38 @@ export function thrownRange(strength, aerodynamic = false) {
 }
 
 /**
- * Effective rating of a slotted skillsoft (SR2E p.243). ActiveSofts require a
- * Skillwires system and are capped at its rating; Know/LinguaSofts run off a
- * chipjack at their full rating. Returns 0 when an ActiveSoft has no skillwire
- * support — it simply cannot function.
- * @param {string} category    - "active" | "knowledge" | "language"
- * @param {number} softRating
- * @param {number} skillwiresRating
- * @returns {number}
+ * Skill Memory Table (SR2E p.248) — a skillsoft's Memory cost (Mp) by skill
+ * rating 1–10. General covers Active and Knowledge skills; Language covers
+ * LinguaSofts. (Concentration/Specialization soft variants aren't modelled.)
  */
-export function skillsoftEffectiveRating(category, softRating, skillwiresRating) {
-  const r = Math.max(0, softRating || 0);
-  if (category === "active") {
-    if (!skillwiresRating || skillwiresRating <= 0) return 0;
-    return Math.min(r, skillwiresRating);
-  }
-  return r;
+export const SKILL_MEMORY = Object.freeze({
+  general:  [10, 20, 30, 200, 250, 300, 700, 800, 900, 2000],
+  language: [3, 6, 9, 24, 30, 36, 70, 80, 90, 300]
+});
+
+/** Per-Mp nuyen rate by skillsoft type (Skillsoft Costs, SR2E p.243). */
+export const SKILLSOFT_MP_COST = Object.freeze({ active: 100, knowledge: 150, language: 50 });
+
+/**
+ * Memory (Mp) a skillsoft of the given type + rating consumes (SR2E p.248).
+ * LinguaSofts use the Language row; Active/Know skills use General. 0 outside 1–10.
+ * @param {string} category - "active" | "knowledge" | "language"
+ * @param {number} rating
+ */
+export function skillsoftMemory(category, rating) {
+  const r = Math.round(rating || 0);
+  if (r < 1 || r > 10) return 0;
+  const row = category === "language" ? SKILL_MEMORY.language : SKILL_MEMORY.general;
+  return row[r - 1];
+}
+
+/**
+ * Nuyen cost of a skillsoft = its Memory (Mp) × the per-type rate (SR2E p.243).
+ * 0 for DataSofts / unknown types (cost "varies with the value of the data").
+ * @param {string} category - "active" | "knowledge" | "language"
+ * @param {number} rating
+ */
+export function skillsoftCost(category, rating) {
+  const rate = SKILLSOFT_MP_COST[category];
+  return rate ? skillsoftMemory(category, rating) * rate : 0;
 }
