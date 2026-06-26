@@ -12,17 +12,23 @@
       <div class="skill-list">
         {{#each skills as |skill|}}
         {{#ifEquals skill.system.category "active"}}
-        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}" {{#if skill.system._synthetic}}data-soft-id="{{skill.softId}}"{{/if}}>
           <span class="skill-name" data-action="rollSkill">
             <i class="fas fa-dice"></i>
-            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}
+            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}{{#if skill.system._chipped}}<span class="chip-badge" title="Chipped from slotted {{skill.system._chipSource}}{{#if skill.system._nativeRating}} — natural rating {{skill.system._nativeRating}} suppressed{{/if}}"><i class="fas fa-bolt"></i></span>{{/if}}
           </span>
           <span class="skill-attr">({{skill.system.linkedAttribute}})</span>
+          {{#if skill.system._chipped}}
+          <span class="skill-rating chipped" title="From a slotted skillsoft">{{skill.system.rating}}</span>
+          {{else}}
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
                  class="skill-rating" min="0" max="12" />
+          {{/if}}
           <div class="item-controls">
+            {{#unless skill.system._synthetic}}
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+            {{/unless}}
           </div>
         </div>
         {{/ifEquals}}
@@ -70,16 +76,22 @@
       <div class="skill-list">
         {{#each skills as |skill|}}
         {{#ifEquals skill.system.category "knowledge"}}
-        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}" {{#if skill.system._synthetic}}data-soft-id="{{skill.softId}}"{{/if}}>
           <span class="skill-name" data-action="rollSkill">
             <i class="fas fa-dice"></i>
-            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}
+            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline"> ({{skill.system.concentration.name}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" title="+2 dice"> [{{skill.system.specialization.name}}]</span>{{/if}}{{#if skill.system._chipped}}<span class="chip-badge" title="Chipped from slotted {{skill.system._chipSource}}{{#if skill.system._nativeRating}} — natural rating {{skill.system._nativeRating}} suppressed{{/if}}"><i class="fas fa-bolt"></i></span>{{/if}}
           </span>
+          {{#if skill.system._chipped}}
+          <span class="skill-rating chipped" title="From a slotted skillsoft">{{skill.system.rating}}</span>
+          {{else}}
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
                  class="skill-rating" min="0" max="12" />
+          {{/if}}
           <div class="item-controls">
+            {{#unless skill.system._synthetic}}
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+            {{/unless}}
           </div>
         </div>
         {{/ifEquals}}
@@ -99,12 +111,18 @@
         {{#each skills as |skill|}}
         {{#ifEquals skill.system.category "language"}}
         <div class="skill-row flexrow" data-item-id="{{skill.id}}">
-          <span class="skill-name">{{skill.name}}</span>
+          <span class="skill-name">{{skill.name}}{{#if skill.system._chipped}}<span class="chip-badge" title="Chipped from slotted {{skill.system._chipSource}}{{#if skill.system._nativeRating}} — natural rating {{skill.system._nativeRating}} suppressed{{/if}}"><i class="fas fa-bolt"></i></span>{{/if}}</span>
+          {{#if skill.system._chipped}}
+          <span class="skill-rating chipped" title="From a slotted skillsoft">{{skill.system.rating}}</span>
+          {{else}}
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
                  class="skill-rating" min="0" max="12" />
+          {{/if}}
           <div class="item-controls">
+            {{#unless skill.system._synthetic}}
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+            {{/unless}}
           </div>
         </div>
         {{/ifEquals}}

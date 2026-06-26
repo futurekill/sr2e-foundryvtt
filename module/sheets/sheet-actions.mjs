@@ -257,9 +257,17 @@ async function onRollAttribute(event, target) {
  */
 async function onRollSkill(event, target) {
   event.preventDefault();
+  const actor = this.document;
+  // A skillsoft-granted skill the character has no natural item for: roll the soft.
+  const softId = target.closest("[data-soft-id]")?.dataset.softId;
+  if (softId) {
+    const chip = actor.system.chippedSkills?.find(s => s.softId === softId);
+    const opts = await promptRollOptions(actor, { showPools: false, baseDice: chip?.system.rating ?? 1 });
+    if (!opts) return;
+    return actor.rollChippedSkill(softId, opts.tn, { poolDice: opts.poolDice, karmaDice: opts.karmaDice });
+  }
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
-  const actor = this.document;
   // SR2E p.86: Combat Pool is only for combat-related tests (Firearm, Melee, etc.)
   // and Damage Resistance Tests — pools are hidden for general skill checks.
   // Karma dice (p.190) may still be bought, capped at the dice in use:
@@ -1499,6 +1507,33 @@ async function onToggleEquip(event, target) {
 }
 
 /**
+ * Slot / un-slot a skillsoft (SR2E p.243). Slotting is gated by skillsoft
+ * capacity: one slot per installed chipjack, and ActiveSofts additionally need
+ * an installed Skillwires system. Un-slotting is always allowed.
+ * @this {ApplicationV2}
+ */
+async function onToggleSlot(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const actor = this.document;
+  const soft = actor.items.get(itemId);
+  if (!soft) return;
+  const slotting = !soft.system.slotted;
+  if (slotting) {
+    const cap = actor.system.skillsoft ?? { slots: 0, used: 0, skillwiresRating: 0 };
+    if (cap.used >= cap.slots) {
+      ui.notifications.warn(`No free skillsoft slots (${cap.used}/${cap.slots}) — install another chipjack.`);
+      return;
+    }
+    if (soft.system.grantedSkillCategory === "active" && cap.skillwiresRating <= 0) {
+      ui.notifications.warn("ActiveSofts require an installed Skillwires system.");
+      return;
+    }
+  }
+  return soft.update({ "system.slotted": slotting });
+}
+
+/**
  * Edit an item (open its sheet).
  * @this {ApplicationV2}
  */
@@ -2136,6 +2171,7 @@ const SHARED_ACTIONS = {
   recoverDumpShock: onRecoverDumpShock,
   rollProgram: onRollProgram,
   toggleEquip: onToggleEquip,
+  toggleSlot: onToggleSlot,
   editItem: onEditItem,
   deleteItem: onDeleteItem,
   spendFocus: onSpendFocus,

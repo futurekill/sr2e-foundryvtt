@@ -488,6 +488,28 @@
            title="Only applies on a smartgun-compatible weapon (Smartgun System)." />
   </div>
   {{/if}}
+  {{#ifEquals system.category "skillsoft"}}
+  <hr/>
+  <p class="hint">Skillsoft — slot it on the Gear tab to grant the skill below at this Rating (SR2E p.243).</p>
+  <div class="form-group">
+    <label>Granted Skill:</label>
+    <input type="text" name="system.grantedSkill" value="{{system.grantedSkill}}"
+           placeholder="e.g. Firearms" title="The skill name this soft provides. If the character already has it, the soft's rating replaces it while slotted." />
+  </div>
+  <div class="form-group">
+    <label>Skill Type:</label>
+    <select name="system.grantedSkillCategory">
+      <option value="active"    {{selected system.grantedSkillCategory "active"}}>Active (ActiveSoft — needs Skillwires)</option>
+      <option value="knowledge" {{selected system.grantedSkillCategory "knowledge"}}>Knowledge (KnowSoft)</option>
+      <option value="language"  {{selected system.grantedSkillCategory "language"}}>Language (LinguaSoft)</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Linked Attribute:</label>
+    <input type="text" name="system.grantedSkillAttribute" value="{{system.grantedSkillAttribute}}"
+           placeholder="intelligence" title="Linked attribute for the granted active skill (display + defaulting)." />
+  </div>
+  {{/ifEquals}}
   {{/ifEquals}}
 
   {{!-- ADEPT POWER --}}

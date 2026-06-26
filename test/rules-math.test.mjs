@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction
+  modCfConsumed, modLoadReduction, skillsoftEffectiveRating
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -499,5 +499,17 @@ describe("Engine customization cost (Rigger 2 p.120)", () => {
   });
   it("zero or negative levels cost nothing", () => {
     expect(engineCustomizationCost(100, 0)).toBe(0);
+  });
+});
+
+describe("skillsoft effective rating (SR2E p.243)", () => {
+  it("ActiveSofts need Skillwires and are capped at its rating", () => {
+    expect(skillsoftEffectiveRating("active", 5, 0)).toBe(0);   // no skillwires → inert
+    expect(skillsoftEffectiveRating("active", 5, 3)).toBe(3);   // capped at skillwires 3
+    expect(skillsoftEffectiveRating("active", 2, 3)).toBe(2);   // soft below cap → soft rating
+  });
+  it("Know/LinguaSofts run off a chipjack at full rating, no skillwires needed", () => {
+    expect(skillsoftEffectiveRating("knowledge", 4, 0)).toBe(4);
+    expect(skillsoftEffectiveRating("language", 6, 0)).toBe(6);
   });
 });

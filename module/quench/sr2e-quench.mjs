@@ -182,5 +182,49 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Contacts" });
+
+    // ── Slotted skillsofts inject / override skills (SR2E p.243) ────────────────
+    quench.registerBatch("sr2e.skillsofts", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { await actor?.delete(); });
+
+      describe("Skillsoft slotting", () => {
+        it("a slotted ActiveSoft grants a new skill, and replaces a duplicated native one", async () => {
+          actor = await Actor.create({ name: "Quench Soft", type: "character" });
+          // Capacity: one chipjack (a slot) + Skillwires 4 (caps ActiveSofts).
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Chipjack",   type: "cyberware", system: { location: "headware", installed: true } },
+            { name: "Skillwires", type: "cyberware", system: { location: "bodyware", installed: true, rating: 4 } },
+            { name: "Native Firearms", type: "skill", system: { category: "active", rating: 6 } }
+          ]);
+          // ActiveSoft granting a skill the character LACKS → synthetic chipped skill at 4.
+          const [newSoft] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Stealth ActiveSoft", type: "gear",
+            system: { category: "skillsoft", rating: 5, slotted: true,
+                      grantedSkill: "Stealth", grantedSkillCategory: "active", grantedSkillAttribute: "quickness" }
+          }]);
+          let chipped = actor.system.chippedSkills ?? [];
+          const stealth = chipped.find(s => s.name === "Stealth");
+          assert.ok(stealth, "slotted ActiveSoft did not inject its skill");
+          assert.equal(stealth.system.rating, 4, "ActiveSoft rating 5 was not capped at Skillwires 4");
+
+          // ActiveSoft duplicating a NATIVE skill → soft rating replaces native while slotted.
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Firearms ActiveSoft", type: "gear",
+            system: { category: "skillsoft", rating: 3, slotted: true,
+                      grantedSkill: "Native Firearms", grantedSkillCategory: "active" }
+          }]);
+          const nativeSkill = actor.items.find(i => i.type === "skill" && i.name === "Native Firearms");
+          assert.equal(nativeSkill.system.rating, 3, "soft did not replace the native skill's rating");
+          assert.ok(nativeSkill.system._chipped, "overridden native skill was not flagged chipped");
+
+          // Un-slotting restores the native rating and drops the synthetic skill.
+          await newSoft.update({ "system.slotted": false });
+          chipped = actor.system.chippedSkills ?? [];
+          assert.ok(!chipped.find(s => s.name === "Stealth"), "un-slotting did not remove the synthetic skill");
+        });
+      });
+    }, { displayName: "SR2E: Skillsofts" });
   });
 }

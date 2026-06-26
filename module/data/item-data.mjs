@@ -423,6 +423,18 @@ export class GearData extends SR2EDataModel {
       accessoryRecoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       requiresSmartgun: new fields.BooleanField({ initial: false }),
 
+      // Skillsoft (category === "skillsoft"): a chip run through a chipjack +
+      // Skillwires that grants a skill at its Rating while slotted (SR2E p.243).
+      // The granted skill shows on the Skills tab; if it duplicates a natural
+      // skill, the soft's rating REPLACES it while slotted ("the character's
+      // natural ability is lost for the duration of the skillsoft access").
+      slotted: new fields.BooleanField({ initial: false }),
+      grantedSkill: new fields.StringField({ initial: "" }),
+      grantedSkillCategory: new fields.StringField({ initial: "active", choices: {
+        active: "active", knowledge: "knowledge", language: "language"
+      }}),
+      grantedSkillAttribute: new fields.StringField({ initial: "intelligence" }),
+
       notes: new fields.StringField({ initial: "" })
     };
   }

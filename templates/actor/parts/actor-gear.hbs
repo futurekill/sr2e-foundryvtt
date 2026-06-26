@@ -33,6 +33,35 @@
       </div>
     </div>
 
+    {{!-- Skillsofts --}}
+    <div class="gear-category">
+      <div class="category-header flexrow">
+        <h3>Skillsofts</h3>
+        <span class="essence-display" title="One slot per installed chipjack; ActiveSofts need Skillwires">
+          Slots: {{skillsoftCapacity.used}} / {{skillsoftCapacity.slots}}{{#ifGt skillsoftCapacity.skillwiresRating 0}} · Skillwires {{skillsoftCapacity.skillwiresRating}}{{/ifGt}}
+        </span>
+        <button type="button" data-action="addItem" data-type="gear" data-category="skillsoft" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="item-list">
+        {{#each skillsofts as |soft|}}
+        <div class="item-row flexrow {{#if soft.system.slotted}}soft-slotted{{/if}}" data-item-id="{{soft.id}}">
+          <span class="item-name">{{soft.name}}</span>
+          <span class="soft-grant">{{#if soft.system.grantedSkill}}{{soft.system.grantedSkill}} {{soft.system.rating}}{{else}}<em>(set granted skill)</em>{{/if}}</span>
+          <span class="soft-type">{{soft.system.grantedSkillCategory}}</span>
+          <div class="item-controls">
+            <a data-action="toggleSlot" title="{{#if soft.system.slotted}}Un-slot{{else}}Slot{{/if}}">
+              <i class="fas {{#if soft.system.slotted}}fa-bolt{{else}}fa-power-off{{/if}}"></i>
+            </a>
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
     {{!-- General Gear --}}
     <div class="gear-category">
       <div class="category-header flexrow">

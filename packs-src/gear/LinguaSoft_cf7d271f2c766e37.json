@@ -18,7 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A language chip granting comprehension and use at its Rating. Cost = Mp \u00d7 50\u00a5. Cost varies with the chip's Memory (Mp), which scales with Rating \u2014 see Skillsofts, SR2E p.243."
+    "notes": "A language chip granting comprehension and use at its Rating. Cost = Mp \u00d7 50\u00a5. Cost varies with the chip's Memory (Mp), which scales with Rating \u2014 see Skillsofts, SR2E p.243.",
+    "grantedSkillCategory": "language",
+    "slotted": false
   },
   "effects": [],
   "flags": {},

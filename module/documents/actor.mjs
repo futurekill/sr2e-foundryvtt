@@ -453,6 +453,25 @@ export class SR2EActor extends Actor {
   }
 
   /**
+   * Roll a skill granted by a slotted skillsoft (SR2E p.243) — used only for
+   * synthetic skills the character has no natural item for. Rolls the soft's
+   * effective rating (already capped by Skillwires in derived data). No
+   * untrained defaulting: a soft always supplies its rating.
+   * @param {string} softId  - id of the slotted skillsoft gear item.
+   */
+  async rollChippedSkill(softId, targetNumber = 4, options = {}) {
+    const soft = this.items.get(softId);
+    if (!soft) return;
+    const chip = this.system.chippedSkills?.find(s => s.softId === softId);
+    const dicePool = chip?.system.rating ?? soft.system.rating ?? 0;
+    return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
+      label: `${soft.system.grantedSkill || soft.name} Test (chipped)`,
+      poolDice: options.poolDice,
+      karmaDice: options.karmaDice
+    });
+  }
+
+  /**
    * Summon a spirit (SR2E p.138–140).
    *
    * Conjuring Test: Conjuring Skill + totem conjuring bonus + spirit foci dice

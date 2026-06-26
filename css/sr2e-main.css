@@ -3248,3 +3248,22 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-clear-blast-btn { margin-top: 4px; font-size: 11px; opacity: 0.85; }
 .sr2e-clear-blast-btn:hover { opacity: 1; }
 .shielding-bonus { color: var(--sr2e-magic, #9b6dff); font-size: 10px; font-weight: 700; }
+
+/* ── Skillsofts: chipped-skill badge + slotted-soft row ─────────────────── */
+.sr2e .chip-badge {
+  margin-left: 4px;
+  color: var(--sr2e-gold, #00e5ff);
+  font-size: 0.75em;
+  vertical-align: super;
+}
+.sr2e .skill-rating.chipped {
+  display: inline-block;
+  min-width: 2.2em;
+  text-align: center;
+  color: var(--sr2e-gold, #00e5ff);
+  font-weight: bold;
+}
+.sr2e .item-row.soft-slotted { box-shadow: inset 3px 0 0 var(--sr2e-gold, #00e5ff); }
+.sr2e .item-row.soft-slotted .fa-bolt { color: var(--sr2e-gold, #00e5ff); }
+.sr2e .soft-grant { flex: 1; opacity: 0.85; }
+.sr2e .soft-type { opacity: 0.6; font-size: 0.85em; text-transform: capitalize; }

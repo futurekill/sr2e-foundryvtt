@@ -420,12 +420,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const system = actor.system;
 
     // Organize items by type
-    context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name));
+    context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name))
+      .concat(actor.system.chippedSkills ?? []); // synthetic skills from slotted skillsofts
     context.weapons = actor.items.filter(i => i.type === "weapon");
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
-    context.gear = actor.items.filter(i => i.type === "gear");
+    context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");
+    context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
+    context.skillsoftCapacity = actor.system.skillsoft ?? { slots: 0, used: 0, skillwiresRating: 0 };
     context.programs = actor.items.filter(i => i.type === "program");
     context.adeptPowers = actor.items.filter(i => i.type === "adept_power");
     const allContacts = actor.items.filter(i => i.type === "contact");

@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftEffectiveRating } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -306,6 +306,63 @@ export class CharacterData extends SR2EDataModel {
 
     // Derive Matrix persona attributes from loaded persona programs
     this._derivePersona();
+
+    // Inject skills from slotted skillsofts (must run after skill items are
+    // prepared, so an override reads the real native rating first).
+    this._applySkillsofts();
+  }
+
+  /**
+   * Apply slotted skillsofts (SR2E p.243). Computes skillsoft capacity from
+   * installed cyberware (chipjacks = simultaneous slots; Skillwires rating caps
+   * ActiveSofts) and injects each slotted soft's skill onto the actor:
+   *   - duplicates a natural skill → the soft's rating REPLACES it while slotted
+   *     (the natural ability is lost for the duration), flagged _chipped.
+   *   - a skill the character lacks → a synthetic entry on `chippedSkills` that
+   *     the Skills tab renders read-only and rolls via the soft.
+   * Nothing here is persisted; un-slotting the soft removes the effect.
+   * @private
+   */
+  _applySkillsofts() {
+    this.chippedSkills = [];
+    const items = this.parent?.items;
+    let chipjacks = 0, skillwires = 0;
+    if (items) {
+      for (const i of items) {
+        if (i.type !== "cyberware" || !i.system.installed) continue;
+        const n = i.name.toLowerCase();
+        if (n.includes("chipjack")) chipjacks++;
+        if (n.includes("skillwire")) skillwires = Math.max(skillwires, i.system.rating || 0);
+      }
+    }
+    const slotted = items
+      ? items.filter(i => i.type === "gear" && i.system.category === "skillsoft" && i.system.slotted)
+      : [];
+    this.skillsoft = { slots: chipjacks, used: slotted.length, skillwiresRating: skillwires };
+
+    for (const soft of slotted) {
+      const name = (soft.system.grantedSkill || "").trim();
+      if (!name) continue;
+      const cat = soft.system.grantedSkillCategory || "active";
+      const rating = skillsoftEffectiveRating(cat, soft.system.rating, skillwires);
+      if (rating <= 0) continue; // e.g. an ActiveSoft with no Skillwires system
+      const existing = items.find(i => i.type === "skill" && i.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        existing.system._chipped = true;
+        existing.system._chipSource = soft.name;
+        existing.system._nativeRating = existing.system.rating;
+        existing.system.rating = rating;
+      } else {
+        this.chippedSkills.push({
+          id: "", softId: soft.id, name,
+          system: {
+            category: cat, rating, linkedAttribute: soft.system.grantedSkillAttribute || "intelligence",
+            _chipped: true, _synthetic: true, _chipSource: soft.name,
+            concentration: { name: "" }, specialization: { name: "" }
+          }
+        });
+      }
+    }
   }
 
   /**

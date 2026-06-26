@@ -668,3 +668,22 @@ export function thrownRange(strength, aerodynamic = false) {
   const s = Math.max(0, strength);
   return { short: s * m.short, medium: s * m.medium, long: s * m.long, extreme: s * m.extreme };
 }
+
+/**
+ * Effective rating of a slotted skillsoft (SR2E p.243). ActiveSofts require a
+ * Skillwires system and are capped at its rating; Know/LinguaSofts run off a
+ * chipjack at their full rating. Returns 0 when an ActiveSoft has no skillwire
+ * support — it simply cannot function.
+ * @param {string} category    - "active" | "knowledge" | "language"
+ * @param {number} softRating
+ * @param {number} skillwiresRating
+ * @returns {number}
+ */
+export function skillsoftEffectiveRating(category, softRating, skillwiresRating) {
+  const r = Math.max(0, softRating || 0);
+  if (category === "active") {
+    if (!skillwiresRating || skillwiresRating <= 0) return 0;
+    return Math.min(r, skillwiresRating);
+  }
+  return r;
+}

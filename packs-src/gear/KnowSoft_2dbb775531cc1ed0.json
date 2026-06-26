@@ -18,7 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A knowledge-skill chip (facts/procedures, no active use). Cost = Mp \u00d7 150\u00a5. Cost varies with the chip's Memory (Mp), which scales with Rating \u2014 see Skillsofts, SR2E p.243."
+    "notes": "A knowledge-skill chip (facts/procedures, no active use). Cost = Mp \u00d7 150\u00a5. Cost varies with the chip's Memory (Mp), which scales with Rating \u2014 see Skillsofts, SR2E p.243.",
+    "grantedSkillCategory": "knowledge",
+    "slotted": false
   },
   "effects": [],
   "flags": {},
