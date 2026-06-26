@@ -108,6 +108,18 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         context.skillCategories = CONFIG.SR2E.skillCategories;
         context.attributes = CONFIG.SR2E.attributes;
         break;
+      case "gear":
+        // Skillsoft: offer a dropdown of standard skills (from the skills
+        // compendium) matching the soft's type, so the granted skill is picked
+        // rather than typed. ActiveSofts cover Active + Build/Repair (technical)
+        // skills; Know/LinguaSofts cover their own categories (SR2E p.243).
+        if (item.system.category === "skillsoft") {
+          const cats = item.system.grantedSkillCategory === "active"
+            ? ["active", "build_repair"]
+            : [item.system.grantedSkillCategory];
+          context.skillCatalog = await SR2EItemSheet._skillCatalog(cats);
+        }
+        break;
       case "lifestyle":
         context.lifestyles = CONFIG.SR2E.lifestyles;
         break;
@@ -127,6 +139,44 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   async _preparePartContext(partId, context, options) {
     context.partId = `${this.id}-${partId}`;
     return context;
+  }
+
+  /**
+   * Standard skills (name + linked attribute) from the skills compendium,
+   * filtered to the given categories and sorted. Used to populate the skillsoft
+   * granted-skill dropdown. Returns [] if the pack is unavailable.
+   * @param {string[]} categories
+   * @private
+   */
+  static async _skillCatalog(categories) {
+    const pack = game.packs?.get("sr2e.skills");
+    if (!pack) return [];
+    const index = await pack.getIndex({ fields: ["system.category", "system.linkedAttribute"] });
+    return index
+      .filter(e => categories.includes(e.system?.category))
+      .map(e => ({ name: e.name, attribute: e.system?.linkedAttribute || "intelligence" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** @override */
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    // Skillsoft quick-pick: choosing a standard skill fills the granted-skill
+    // and linked-attribute fields and names the chip — one click configures it.
+    const picker = this.element.querySelector("select.skill-picker");
+    if (!picker) return;
+    picker.addEventListener("change", async () => {
+      const skill = picker.value;
+      if (!skill) return;
+      const attr = picker.selectedOptions[0]?.dataset.attr;
+      const update = { "system.grantedSkill": skill };
+      if (attr) update["system.grantedSkillAttribute"] = attr;
+      const typeLabel = { active: "ActiveSoft", knowledge: "KnowSoft", language: "LinguaSoft" }[this.document.system.grantedSkillCategory] ?? "Skillsoft";
+      if (/^(New Gear|New Item|ActiveSoft|KnowSoft|LinguaSoft|DataSoft)\b/.test(this.document.name)) {
+        update.name = `${skill} ${typeLabel}`;
+      }
+      await this.document.update(update);
+    });
   }
 
   /**

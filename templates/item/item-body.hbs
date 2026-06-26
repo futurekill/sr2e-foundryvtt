@@ -492,11 +492,6 @@
   <hr/>
   <p class="hint">Skillsoft — slot it on the Gear tab to grant the skill below at this Rating (SR2E p.243).</p>
   <div class="form-group">
-    <label>Granted Skill:</label>
-    <input type="text" name="system.grantedSkill" value="{{system.grantedSkill}}"
-           placeholder="e.g. Firearms" title="The skill name this soft provides. If the character already has it, the soft's rating replaces it while slotted." />
-  </div>
-  <div class="form-group">
     <label>Skill Type:</label>
     <select name="system.grantedSkillCategory">
       <option value="active"    {{selected system.grantedSkillCategory "active"}}>Active (ActiveSoft — needs Skillwires)</option>
@@ -505,10 +500,25 @@
     </select>
   </div>
   <div class="form-group">
-    <label>Linked Attribute:</label>
-    <input type="text" name="system.grantedSkillAttribute" value="{{system.grantedSkillAttribute}}"
-           placeholder="intelligence" title="Linked attribute for the granted active skill (display + defaulting)." />
+    <label>Quick Pick:</label>
+    <select class="skill-picker" title="Pick a standard skill to fill in the fields below; auto-sets the linked attribute and names the chip.">
+      <option value="">— standard skills —</option>
+      {{#each skillCatalog as |s|}}
+      <option value="{{s.name}}" data-attr="{{s.attribute}}">{{s.name}}</option>
+      {{/each}}
+    </select>
   </div>
+  <div class="form-group">
+    <label>Granted Skill:</label>
+    <input type="text" name="system.grantedSkill" value="{{system.grantedSkill}}"
+           placeholder="e.g. Firearms (or a custom Knowledge/Language)"
+           title="The skill this soft provides. If the character already has it, the soft's rating replaces it while slotted." />
+  </div>
+  <div class="form-group">
+    <label>Linked Attribute:</label>
+    <input type="text" name="system.grantedSkillAttribute" value="{{system.grantedSkillAttribute}}" placeholder="intelligence" />
+  </div>
+  <p class="hint">Set <em>Skill Type</em> first, then use <em>Quick Pick</em> for standard skills — or type a custom Knowledge/Language skill. Set the Rating above.</p>
   {{/ifEquals}}
   {{/ifEquals}}
 
