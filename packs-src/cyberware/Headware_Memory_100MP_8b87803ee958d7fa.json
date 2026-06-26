@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.248. 100 megapulse of headware memory—enough for multiple high-rating skillsofts. Essence 1.0."
+    "notes": "SR2E p.248. 100 megapulse of headware memory\u2014enough for multiple high-rating skillsofts. Essence 1.0."
   },
   "effects": [],
   "flags": {},
@@ -37,7 +37,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "f351232ecd0c9cd3",
   "sort": 0,
   "ownership": {
     "default": 0

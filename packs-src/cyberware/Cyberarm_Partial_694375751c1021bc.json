@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.250. Partial cyber arm—elbow or wrist to hand replacement. Less intrusive, more concealable. Essence 0.6 base."
+    "notes": "SR2E p.250. Partial cyber arm\u2014elbow or wrist to hand replacement. Less intrusive, more concealable. Essence 0.6 base."
   },
   "effects": [],
   "flags": {},
@@ -37,7 +37,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "4a3dcb1f5040f98b",
   "sort": 0,
   "ownership": {
     "default": 0

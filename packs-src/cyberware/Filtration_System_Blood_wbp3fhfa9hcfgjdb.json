@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.261. Blood filtration against injected and ingested toxins. Slap patches become ineffective. Cost: Rating×10,000¥."
+    "notes": "SR2E p.261. Blood filtration against injected and ingested toxins. Slap patches become ineffective. Cost: Rating\u00d710,000\u00a5."
   },
   "effects": [],
   "flags": {},
@@ -38,7 +38,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "611240099dfb8485",
   "sort": 0,
   "ownership": {
     "default": 0

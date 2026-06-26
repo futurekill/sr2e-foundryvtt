@@ -1,16 +1,16 @@
 {
-  "_id": "b59ff8773d6c2f11",
-  "name": "Datajack",
+  "_id": "531bf8beaa7f74d9",
+  "name": "Filtration System (Ingested Toxin)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "icons/svg/biohazard.svg",
   "system": {
-    "location": "headware",
+    "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.2,
-    "rating": 0,
-    "cost": 1000,
-    "availability": "4/48hrs",
-    "legality": "Restricted",
+    "essenceCost": 0.5,
+    "rating": 1,
+    "cost": 15000,
+    "availability": "6+10/4 days",
+    "legality": "Legal",
     "installed": false,
     "attributeMods": {
       "body": 0,
@@ -22,14 +22,15 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2."
+    "ratingStats": [],
+    "notes": "Digestive-tract filtration against ingested toxins. Cost: Rating\u00d715,000\u00a5. Max Rating 6. SR2E p.261."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.20.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -37,10 +38,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "f351232ecd0c9cd3",
+  "folder": "611240099dfb8485",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!b59ff8773d6c2f11"
+  "_key": "!items!531bf8beaa7f74d9"
 }
