@@ -2790,6 +2790,54 @@ body.game.sr2e-no-active-scene #background {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   FLAVOUR PALETTE THEMES  (Settings → Interface Theme)
+   Each overrides the --sr2e-* palette variables at the body level, so every
+   sheet/chat rule that reads them re-skins automatically. The default theme is
+   the :root palette (no class); these are opt-in per player. The "terminal"
+   option additionally gets the full green sidebar skin further below.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Street Samurai — gunmetal, chrome, and blood */
+body.sr2e-theme-chrome {
+  --sr2e-primary:#08090c; --sr2e-secondary:#12151c; --sr2e-accent:#1c222c;
+  --sr2e-highlight:#d11a2a; --sr2e-gold:#c2cad4; --sr2e-gold-dim:#5a6470;
+  --sr2e-text:#dbe1e8; --sr2e-text-muted:#8a929c;
+  --sr2e-bg:#08090c; --sr2e-bg-light:#12151c; --sr2e-bg-input:#0a0c10;
+  --sr2e-border:#2a323c; --sr2e-border-red:#5a1a1a;
+  --sr2e-warning:#d11a2a; --sr2e-nuyen:#c2cad4; --sr2e-neon:#e0e6ec; --sr2e-neon-dim:#3a4048;
+}
+
+/* Decker — Matrix teal grid on near-black */
+body.sr2e-theme-matrix {
+  --sr2e-primary:#00080c; --sr2e-secondary:#001820; --sr2e-accent:#002a36;
+  --sr2e-highlight:#00ffcc; --sr2e-gold:#00d0ff; --sr2e-gold-dim:#006680;
+  --sr2e-text:#bff0ff; --sr2e-text-muted:#5a9aac;
+  --sr2e-bg:#00080c; --sr2e-bg-light:#001820; --sr2e-bg-input:#000a10;
+  --sr2e-border:#003844; --sr2e-border-red:#005a4a;
+  --sr2e-warning:#00ffcc; --sr2e-matrix:#00ffcc; --sr2e-nuyen:#00d0ff; --sr2e-neon:#00ffcc; --sr2e-neon-dim:#00484a;
+}
+
+/* Mage — arcane violet and gold */
+body.sr2e-theme-arcane {
+  --sr2e-primary:#0a0612; --sr2e-secondary:#160a26; --sr2e-accent:#22103a;
+  --sr2e-highlight:#9b4dff; --sr2e-gold:#ffcc44; --sr2e-gold-dim:#8a6a18;
+  --sr2e-text:#e8dcff; --sr2e-text-muted:#a48fce;
+  --sr2e-bg:#0a0612; --sr2e-bg-light:#160a26; --sr2e-bg-input:#0c0718;
+  --sr2e-border:#38205a; --sr2e-border-red:#4a1a5a;
+  --sr2e-warning:#9b4dff; --sr2e-magic:#c890ff; --sr2e-nuyen:#ffcc44; --sr2e-neon:#ffcc44; --sr2e-neon-dim:#4a3a10;
+}
+
+/* Rigger — industrial amber and steel */
+body.sr2e-theme-rigger {
+  --sr2e-primary:#0c0a06; --sr2e-secondary:#1a1408; --sr2e-accent:#241a0a;
+  --sr2e-highlight:#ff8c1a; --sr2e-gold:#ffb84d; --sr2e-gold-dim:#8a5a18;
+  --sr2e-text:#efe4d0; --sr2e-text-muted:#b0a07a;
+  --sr2e-bg:#0c0a06; --sr2e-bg-light:#1a1408; --sr2e-bg-input:#100c06;
+  --sr2e-border:#3a2c10; --sr2e-border-red:#5a3a12;
+  --sr2e-warning:#ff8c1a; --sr2e-nuyen:#ffb84d; --sr2e-neon:#ffd24d; --sr2e-neon-dim:#4a3810;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    SHADOWNET TERMINAL THEME  (toggled via Settings → Shadownet Terminal Theme)
    All rules scoped under body.sr2e-terminal-theme so they only apply when
    the setting is ON. OFF = full default Foundry appearance.

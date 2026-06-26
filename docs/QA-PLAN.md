@@ -170,7 +170,12 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Vehicle sheet:** linked-actor controls, vehicle weapons.
 
 ## 16. Settings, migrations, misc
-- [ ] World settings: **Rule of Six**, **auto-Essence**, **confirm-delete**, **scene background**, **terminal theme** behave.
+- [ ] World settings: **Rule of Six**, **auto-Essence**, **confirm-delete**, **scene background** behave.
+- [ ] **Interface Theme** (client setting): switching among Default / Terminal /
+      Street Samurai / Decker / Mage / Rigger re-skins the sheets immediately
+      (Default = unchanged); the choice is per-player and persists on reload. A
+      client that previously had the old "Terminal Theme" toggle on comes up on
+      the Terminal option.
 - [ ] Configurable **play-area background** applies.
 - [ ] First-load welcome message + GM utility macros appear: **Award Karma**,
       **Refresh Karma Pool**, **Reset Condition Monitors** — each runs and does

@@ -434,17 +434,49 @@ function _registerSystemSettings() {
     default: true,
   });
 
-  game.settings.register("sr2e", "terminalTheme", {
-    name: "Shadownet Terminal Theme",
-    hint: "Apply a retro green-phosphor terminal skin to the sidebar and chat. Each player can set this independently.",
+  game.settings.register("sr2e", "theme", {
+    name: "Interface Theme",
+    hint: "Re-skin the SR2E sheets and chat. Default is the standard purple/cyan look; the others are flavour palettes. Each player sets this independently.",
     scope: "client",
     config: true,
-    type: Boolean,
-    default: false,
-    onChange: value => {
-      document.body.classList.toggle("sr2e-terminal-theme", value);
-    }
+    type: String,
+    choices: {
+      default:  "Default (Neon Noir)",
+      terminal: "Shadownet Terminal (green phosphor)",
+      chrome:   "Street Samurai (chrome & blood)",
+      matrix:   "Decker (Matrix teal)",
+      arcane:   "Mage (arcane violet)",
+      rigger:   "Rigger (industrial amber)"
+    },
+    default: "default",
+    onChange: value => applyTheme(value)
   });
+
+  // Migrate the old boolean terminal-theme toggle: a client that had it on keeps
+  // the green skin under the new dropdown. Registered hidden so the read works.
+  game.settings.register("sr2e", "terminalTheme", {
+    scope: "client", config: false, type: Boolean, default: false
+  });
+}
+
+/** Theme body classes this system may apply (cleared before each switch). */
+const SR2E_THEME_CLASSES = [
+  "sr2e-theme-terminal", "sr2e-theme-chrome", "sr2e-theme-matrix",
+  "sr2e-theme-arcane", "sr2e-theme-rigger", "sr2e-terminal-theme"
+];
+
+/**
+ * Apply an interface theme by swapping a body class. Each theme (except the
+ * default) is a CSS block that overrides the --sr2e-* palette variables; the
+ * "terminal" theme also re-uses the existing full-UI green skin class.
+ * @param {string} name
+ */
+function applyTheme(name) {
+  const body = document.body;
+  body.classList.remove(...SR2E_THEME_CLASSES);
+  if (!name || name === "default") return;
+  body.classList.add(`sr2e-theme-${name}`);
+  if (name === "terminal") body.classList.add("sr2e-terminal-theme");
 }
 
 /* -------------------------------------------- */
@@ -1009,10 +1041,15 @@ function _applyNoSceneBackground() {
   }
 }
 
-// Apply terminal theme class on initial load
+// Apply the chosen interface theme on initial load (migrating the old
+// boolean terminal-theme toggle to the "terminal" option for clients who had it).
 Hooks.on("ready", () => {
-  const enabled = game.settings.get("sr2e", "terminalTheme");
-  document.body.classList.toggle("sr2e-terminal-theme", enabled);
+  let theme = game.settings.get("sr2e", "theme");
+  if (theme === "default" && game.settings.get("sr2e", "terminalTheme")) {
+    theme = "terminal";
+    game.settings.set("sr2e", "theme", "terminal").catch(() => {});
+  }
+  applyTheme(theme);
 });
 
 // Apply on initial load

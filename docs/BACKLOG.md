@@ -4,10 +4,10 @@ Deferred ideas, captured so they aren't lost. Not prioritized; pull from here
 when there's appetite. Nothing here blocks a release.
 
 ## UI / polish
-- **Per-"class" UI themes (switchable).** Keep the current default theme as the
-  default, but offer alternate themes a user can switch between (e.g. a
-  street-sam / decker / mage flavour). Make it a user/client setting so it's
-  per-player, not per-world. Default must stay the default. *(Low priority.)*
+- ~~Per-"class" UI themes (switchable).~~ **Done (v0.23.0)** — Settings →
+  Interface Theme: Default / Terminal / Street Samurai / Decker / Mage / Rigger,
+  per-player. Possible follow-up: deeper per-theme skinning beyond the palette
+  (fonts, sidebar, chat cards) like the Terminal theme has.
 - **Flavor gear** — pocket phones, personal-computer tiers, entertainment
   electronics, working-gear kits from the core Gear chapter. Rarely used
   mechanically; only if we want a literal 1:1 of the chapter.
