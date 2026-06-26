@@ -34,12 +34,16 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 // Migrations
 import { migrateWorld } from "./migrations.mjs";
 import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance } from "./rules/sr2e-rules.mjs";
+import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
 /* -------------------------------------------- */
 
 Hooks.once("init", async () => {
+
+  // Register in-Foundry integration tests (no-op unless the Quench module is on).
+  registerSR2EQuenchTests();
 
   // Store configuration on the global CONFIG object
   CONFIG.SR2E = SR2E;
