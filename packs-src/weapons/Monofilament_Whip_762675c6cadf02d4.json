@@ -35,7 +35,7 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. A nearly invisible monomolecular filament with a weighted end, guided by an inertial reel. Extremely dangerous—10S damage, Conceal 10."
+    "notes": "SR2E p.228. A nearly invisible monomolecular filament with a weighted end, guided by an inertial reel. Extremely dangerous\u201410S damage, Conceal 10."
   },
   "effects": [],
   "flags": {},
@@ -50,7 +50,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "f052cb5eb3b5a2e2",
   "sort": 0,
   "ownership": {
     "default": 0

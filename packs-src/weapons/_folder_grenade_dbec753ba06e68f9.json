@@ -1,0 +1,12 @@
+{
+  "_id": "dbec753ba06e68f9",
+  "name": "Grenades",
+  "type": "Item",
+  "folder": null,
+  "sorting": "a",
+  "color": "#6a5a3a",
+  "description": "",
+  "sort": 400,
+  "flags": {},
+  "_key": "!folders!dbec753ba06e68f9"
+}

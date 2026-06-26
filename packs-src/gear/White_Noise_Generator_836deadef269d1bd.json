@@ -13,7 +13,7 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.243. Creates a field of random noise masking sounds within its area. Defeats eavesdroppers and shotgun/laser mics. Base 1,500¥."
+    "notes": "SR2E p.243. Creates a field of random noise masking sounds within its area. Defeats eavesdroppers and shotgun/laser mics. Base 1,500\u00a5."
   },
   "effects": [],
   "flags": {},
@@ -28,7 +28,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "0034429019c1b6f1",
   "sort": 0,
   "ownership": {
     "default": 0

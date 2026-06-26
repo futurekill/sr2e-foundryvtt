@@ -13,7 +13,7 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.249. Spool of monomolecular wire. Razor-edged, nearly invisible—useful as tripwire, snare, or improvised weapon."
+    "notes": "SR2E p.249. Spool of monomolecular wire. Razor-edged, nearly invisible\u2014useful as tripwire, snare, or improvised weapon."
   },
   "effects": [],
   "flags": {},
@@ -28,7 +28,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "2fe64ec78fbaa63b",
   "sort": 0,
   "ownership": {
     "default": 0

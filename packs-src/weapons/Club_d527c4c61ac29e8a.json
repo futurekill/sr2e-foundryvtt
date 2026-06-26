@@ -35,7 +35,7 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. The street fighter's standby—a length of pipe, a table leg, or a mag-bat. Delivers stun damage."
+    "notes": "SR2E p.228. The street fighter's standby\u2014a length of pipe, a table leg, or a mag-bat. Delivers stun damage."
   },
   "effects": [],
   "flags": {},
@@ -50,7 +50,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": null,
+  "folder": "f052cb5eb3b5a2e2",
   "sort": 0,
   "ownership": {
     "default": 0
