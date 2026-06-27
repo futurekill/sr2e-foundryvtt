@@ -1,0 +1,42 @@
+{
+  "_id": "31300061c5505cac",
+  "name": "Quad Speakers",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "entertainment",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 50,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 0,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "Four-channel speaker set. SR2E p.259."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.24.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "9586bb2e5eca6fe6",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!31300061c5505cac"
+}

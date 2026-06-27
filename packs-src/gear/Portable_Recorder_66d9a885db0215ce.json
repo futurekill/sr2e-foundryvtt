@@ -1,0 +1,42 @@
+{
+  "_id": "66d9a885db0215ce",
+  "name": "Portable Recorder",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "entertainment",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 50000,
+    "availability": "7/7 days",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 8,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "Professional portable studio recorder. SR2E p.259."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.24.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "9586bb2e5eca6fe6",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!66d9a885db0215ce"
+}

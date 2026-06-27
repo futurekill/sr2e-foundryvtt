@@ -8,9 +8,10 @@ when there's appetite. Nothing here blocks a release.
   Interface Theme: Default / Terminal / Street Samurai / Decker / Mage / Rigger,
   per-player. Possible follow-up: deeper per-theme skinning beyond the palette
   (fonts, sidebar, chat cards) like the Terminal theme has.
-- **Flavor gear** — pocket phones, personal-computer tiers, entertainment
-  electronics, working-gear kits from the core Gear chapter. Rarely used
-  mechanically; only if we want a literal 1:1 of the chapter.
+- ~~Flavor gear~~ **Done (v0.24.0)** — added the core Gear chapter's working
+  gear (Kit/Shop/Facility), entertainment (music/video), and comms/computing
+  electronics (pocket phones, PC tiers, displays); memory-priced items note the
+  formula. New Working Gear + Entertainment folders.
 - **Bodyware / Cyberlimb cyberware sub-folders** — Headware is split
   (Communications/Eyes/Ears/Internals); Bodyware (13) and Cyberlimbs (5) are
   flat. Split only if we want visual symmetry.

@@ -1,0 +1,42 @@
+{
+  "_id": "35b7582acc56883b",
+  "name": "Kit",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "working",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 500,
+    "availability": "5/48 hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 3,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "Portable tool kit. \u00d72 cost for vehicle work, \u00d73 for electronics/computer/cyberware. SR2E p.259."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.24.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "1fe8a980b3c4ad75",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!35b7582acc56883b"
+}

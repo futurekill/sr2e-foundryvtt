@@ -1,0 +1,42 @@
+{
+  "_id": "e516b711c1ef134b",
+  "name": "Facility",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "working",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 100000,
+    "availability": "14/7 days",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 0,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "A full fabrication facility. \u00d72 cost for vehicle work, \u00d73 for electronics/computer/cyberware. SR2E p.259."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.24.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "1fe8a980b3c4ad75",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e516b711c1ef134b"
+}

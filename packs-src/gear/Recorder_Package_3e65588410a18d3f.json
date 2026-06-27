@@ -1,0 +1,42 @@
+{
+  "_id": "3e65588410a18d3f",
+  "name": "Recorder Package",
+  "type": "gear",
+  "img": "icons/svg/chest.svg",
+  "system": {
+    "category": "entertainment",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 1000,
+    "availability": "6/48 hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 2,
+    "weaponAccessory": false,
+    "linkedWeaponId": "",
+    "combatTnMod": 0,
+    "accessoryRecoilComp": 0,
+    "requiresSmartgun": false,
+    "notes": "Audio/video recorder package. SR2E p.259."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.24.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "9586bb2e5eca6fe6",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!3e65588410a18d3f"
+}
