@@ -990,10 +990,31 @@ async function promptSpellOptions(actor, spell) {
   // Full formula string for display — matches the rulebook exactly
   const drainFormula = drainCodeStr;
 
-  // Initial values at Force 1
-  const initDrainTN   = Math.max(2, Math.floor(1 / 2) + drainMod);
-  const initDrainType = 1 > magicAttr ? "Physical" : "Stun";
-  const initTypeColor = 1 > magicAttr ? "#c44" : "#888";
+  // Force defaults to the spell's learned Force (set when the spell is added) —
+  // the caster doesn't re-enter it every cast, just adjusts if they want to.
+  const defaultForce = Math.max(1, Math.min(spell?.system?.force ?? 1, Math.max(1, magicAttr)));
+
+  // Spell Success Test target number (SR2E p.130): for a living target it is the
+  // target's Willpower (mana spell) or Body (physical spell). Auto-pull it from
+  // the currently-targeted token for combat spells; otherwise fall back to 4.
+  const isMana   = spell?.system?.type === "mana";
+  const isCombat = spell?.system?.category === "combat";
+  const tgtTok   = game.user?.targets?.first?.();
+  const tgtActor = tgtTok?.actor;
+  let suggestedTN = 4;
+  let tnNote = "";
+  if (isCombat && tgtActor) {
+    const attrKey = isMana ? "willpower" : "body";
+    suggestedTN = tgtActor.system?.[attrKey]?.value ?? 4;
+    tnNote = `<span style="color:#6a8;">Target ${foundry.utils.escapeHTML(tgtTok.name)}: ${isMana ? "Willpower" : "Body"} ${suggestedTN}</span>`;
+  } else if (isCombat) {
+    tnNote = `<span style="color:#a86;">No target — TN is the victim's ${isMana ? "Willpower (mana)" : "Body (physical)"}.</span>`;
+  }
+
+  // Initial drain readout at the default Force
+  const initDrainTN   = Math.max(2, Math.floor(defaultForce / 2) + drainMod);
+  const initDrainType = defaultForce > magicAttr ? "Physical" : "Stun";
+  const initTypeColor = defaultForce > magicAttr ? "#c44" : "#888";
 
   // Totem note for shaman feedback
   let totemNote = "";
@@ -1065,7 +1086,7 @@ async function promptSpellOptions(actor, spell) {
     content: `<form>
       <div class="form-group">
         <label>${game.i18n.localize("SR2E.Dialog.Force")} <span style="color:#aaa1c0;font-size:10px;">(1–${magicAttr})</span>:</label>
-        <input type="number" name="force" id="sr2e-cast-force" value="1" min="1" max="${magicAttr}"
+        <input type="number" name="force" id="sr2e-cast-force" value="${defaultForce}" min="1" max="${magicAttr}"
                autofocus>
       </div>
       <div style="margin:2px 0 6px;font-size:11px;color:#aaa1c0;padding-left:4px;">
@@ -1076,8 +1097,9 @@ async function promptSpellOptions(actor, spell) {
       </div>
       <div class="form-group">
         <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
-        <input type="number" name="tn" value="6" min="2" max="30">
+        <input type="number" name="tn" value="${suggestedTN}" min="2" max="30">
       </div>
+      ${tnNote ? `<div style="margin:-2px 0 6px;font-size:10px;padding-left:4px;">${tnNote}</div>` : ""}
       ${poolSection}
       ${karmaDiceSection(actor, magicAttr)}
     </form>`,
@@ -1088,7 +1110,7 @@ async function promptSpellOptions(actor, spell) {
         default: true,
         callback: (event, button) => {
           const force = Math.max(1, Math.min(parseInt(button.form.elements.force.value) || 1, magicAttr));
-          const tn = parseInt(button.form.elements.tn.value) || 6;
+          const tn = parseInt(button.form.elements.tn.value) || suggestedTN;
           const rawSpell = parseInt(button.form.elements.spell_pool?.value) || 0;
           const rawDrain = parseInt(button.form.elements.drain_pool?.value) || 0;
           // Clamp each allocation; drain is capped by whatever is left

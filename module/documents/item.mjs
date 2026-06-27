@@ -955,9 +955,9 @@ export class SR2EItem extends Item {
     if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
       const isMana   = this.system.type === "mana";
       const baseLevel = (this.system.damageCode || "M").match(/[LMSD]/)?.[0] ?? "M";
-      // Stun-type combat spells carry "stun" in the name (Stunbolt, Stunball);
-      // others deal Physical damage.
-      const dmgType  = /stun/i.test(this.name) ? "stun" : "physical";
+      // Stun-type combat spells (Stunbolt, Stunball, Sleep) deal Stun; others
+      // deal Physical damage.
+      const dmgType  = /stun|sleep/i.test(this.name) ? "stun" : "physical";
       const mkState = (targetUuid) => ({
         casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
         targetUuid, force, successes: spellResult.successes,
@@ -970,10 +970,11 @@ export class SR2EItem extends Item {
 
       const targetTok = game.user?.targets?.first?.();
       if (this.system.isAreaEffect && targetTok && canvas?.ready) {
-        // Area spell (SR2E p.123): everyone within Force metres of the target
-        // point resists at full Force — no per-metre falloff, armour doesn't help.
+        // Area spell (SR2E p.130): the base radius of an area-effect spell is the
+        // magician's Magic Rating in metres (not Force); everyone inside resists
+        // at full Force — no per-metre falloff, and armour doesn't help.
         const center = targetTok.center;
-        const radiusM = Math.max(1, force);
+        const radiusM = Math.max(1, magicRating);
         try {
           await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
             t: "circle", x: center.x, y: center.y, distance: radiusM,

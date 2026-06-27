@@ -103,7 +103,10 @@ and any **red console errors**. File them wherever the group tracks issues
 
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).
-- [ ] **Combat spells** post a **Resist Spell** card; target resists with Willpower/Body + Spell Defense.
+- [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.
+- [ ] **Combat-spell TN auto-pulls from the target** (SR2E p.130): with a token targeted, the cast dialog shows TN = the victim's **Willpower** (mana spell) or **Body** (physical spell), not a flat 4/6.
+- [ ] **Combat spells** post a **Resist Spell** card; target resists with Willpower/Body + Spell Defense, and **damage is applied** (Power = Force, staged by net successes).
+- [ ] **Area spells** (Manaball, Powerball, Fireball, Sleep…): radius = the **caster's Magic Rating** in metres; everyone inside gets a resist card.
 - [ ] **Sustained spells:** +2 TN per sustained spell; **spell locks** exempt; Active Effects apply real stat changes while sustained and drop when released.
 - [ ] **Spell Defense:** allocate Magic Pool dice; they boost spell-resistance and release on pool refresh.
 
