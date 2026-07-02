@@ -125,6 +125,10 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Damage boxes apply L=1 / M=3 / S=6 / D=10; filling Physical → unconscious/dead overlays; Stun → unconscious.
 - [ ] Stun weapons deal Stun only; armor types (ballistic vs impact) apply correctly.
 - [ ] Wound **status markers** appear on the token at each level.
+- [ ] **Knockdown (p.91):** after damage applies, the card shows a "Knockdown Test"
+      button → Body Test vs ½ Power (full Power for gel rounds); beating half the
+      wound level keeps you up, 0 successes / a Deadly wound sets the token **prone**,
+      in between reports a 1 m stagger.
 
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).

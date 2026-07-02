@@ -4,7 +4,8 @@
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
-         woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice } from "../rules/sr2e-rules.mjs";
+         woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
+         knockdownTN, knockdownOutcome } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1367,15 +1368,59 @@ export class SR2EActor extends Actor {
     const damageBoxes = boxesForLevel(finalLevel);   // L=1, M=3, S=6, D=10 (SR2E p.113)
     await this.applyDamage(damageType, damageBoxes);
 
+    // Knockdown offer (SR2E p.91) — only for physical/ranged-style hits, not
+    // stray "damage" bookkeeping. Gel rounds (armorCalc "impact") use full Power.
+    const isGel = armorCalc === "impact";
+    const knockBtn = `<br><button class="sr2e-knockdown-btn"
+        data-actor-uuid="${this.uuid}" data-power="${power}"
+        data-level="${finalLevel}" data-gel="${isGel ? 1 : 0}"
+        title="Body Test vs ½ Power (gel: full Power); fall prone if you can't beat half the damage dealt (SR2E p.91)">
+        🤸 Knockdown Test</button>`;
+
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
         <strong>Damage Taken: ${finalLevel} ${damageType}</strong>
         <em>(${damageBoxes} box${damageBoxes !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>
+        ${knockBtn}
       </div>`
     });
 
     return resistResult;
+  }
+
+  /**
+   * Knockdown / stopping-power Body Test (SR2E p.91). TN = ½ Power (full Power
+   * for gel rounds); beating half the damage dealt keeps you up, 0 successes
+   * drops you prone, in between staggers you 1 m. A Deadly wound always drops.
+   * Applies the "prone" token status on a knockdown.
+   * @param {number} power
+   * @param {"L"|"M"|"S"|"D"} level
+   * @param {boolean} [gel=false]
+   */
+  async rollKnockdown(power, level, gel = false) {
+    const tn = knockdownTN(power, gel);
+    const roll = await this.rollSuccessTest(this.system.body?.value ?? 1, tn, {
+      label: `Knockdown Test (TN ${tn}${gel ? ", gel" : ""})`,
+      isResistance: true   // stopping power is not subject to the Injury Modifier
+    });
+    const outcome = knockdownOutcome(level, roll?.successes ?? 0);
+    const msg = outcome === "prone"
+      ? "<strong>Knocked down!</strong> Falls prone."
+      : outcome === "stagger"
+      ? "Stays up but <strong>staggers 1 metre</strong> from the impact."
+      : "<strong>Keeps their feet.</strong>";
+
+    if (outcome === "prone") {
+      const token = this.getActiveTokens?.()[0];
+      try { await token?.actor?.toggleStatusEffect?.("prone", { active: true }); }
+      catch (e) { /* status optional */ }
+    }
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">🤸 ${msg} <em>(${roll?.successes ?? 0} vs TN ${tn}, ${level} wound)</em></div>`
+    });
+    return roll;
   }
 
   // -------------------------------------------------------------------------

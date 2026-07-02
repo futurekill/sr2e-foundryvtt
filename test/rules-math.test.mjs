@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -552,5 +552,28 @@ describe("streetPrice (Street Index, SR2E p.238)", () => {
     expect(streetPrice(500, 0)).toBe(500);
     expect(streetPrice(500, "")).toBe(500);
     expect(streetPrice(500, undefined)).toBe(500);
+  });
+});
+
+describe("knockdown (SR2E p.91)", () => {
+  it("TN is half Power (round down), full Power for gel, min 2", () => {
+    expect(knockdownTN(9)).toBe(4);      // 9 → 4
+    expect(knockdownTN(6)).toBe(3);
+    expect(knockdownTN(9, true)).toBe(9); // gel: full power
+    expect(knockdownTN(2)).toBe(2);       // floor(1) clamped to 2
+  });
+  it("threshold = half the damage done: L1/M2/S3, Deadly always drops", () => {
+    expect(knockdownThreshold("L")).toBe(1);
+    expect(knockdownThreshold("M")).toBe(2);
+    expect(knockdownThreshold("S")).toBe(3);
+    expect(knockdownThreshold("D")).toBe(Infinity);
+  });
+  it("outcome: meet threshold = none, 0 = prone, between = stagger, Deadly = prone", () => {
+    expect(knockdownOutcome("M", 2)).toBe("none");
+    expect(knockdownOutcome("M", 1)).toBe("stagger");
+    expect(knockdownOutcome("M", 0)).toBe("prone");
+    expect(knockdownOutcome("S", 2)).toBe("stagger");
+    expect(knockdownOutcome("D", 5)).toBe("prone");
+    expect(knockdownOutcome("L", 1)).toBe("none");
   });
 });

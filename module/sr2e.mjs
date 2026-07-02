@@ -962,6 +962,20 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Wire up "Knockdown Test" buttons on damage-taken cards (SR2E p.91).
+  html.querySelectorAll?.(".sr2e-knockdown-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const actor = await resolveCardDefender(btn.dataset.actorUuid);
+      if (!actor) return ui.notifications.warn("Can't find the actor for this knockdown test.");
+      return actor.rollKnockdown(
+        parseInt(btn.dataset.power) || 0,
+        btn.dataset.level || "M",
+        btn.dataset.gel === "1"
+      );
+    });
+  });
+
   // Wire up "Resolve Spread" buttons on shotgun shot-round cards (SR2E p.95).
   html.querySelectorAll?.(".sr2e-spread-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {

@@ -889,3 +889,47 @@ export function streetPrice(cost, streetIndex) {
   const c = Math.max(0, cost || 0);
   return (si > 0) ? Math.round(c * si) : c;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Knockdown / stopping power (SR2E p.91)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Knockdown Body-Test target number (SR2E p.91): one-half the attack's Power,
+ * rounded down. Gel rounds instead use the FULL Power (they knock down more
+ * readily). Minimum 2.
+ * @param {number} power
+ * @param {boolean} [gel=false]
+ * @returns {number}
+ */
+export function knockdownTN(power, gel = false) {
+  const p = Math.max(0, power || 0);
+  return Math.max(2, gel ? p : Math.floor(p / 2));
+}
+
+/**
+ * Successes needed to stay firmly on your feet (SR2E p.91): half the damage
+ * done, i.e. Light 1 / Moderate 2 / Serious 3. Deadly always knocks down
+ * (Infinity — unreachable).
+ * @param {"L"|"M"|"S"|"D"} level
+ * @returns {number}
+ */
+export function knockdownThreshold(level) {
+  return { L: 1, M: 2, S: 3, D: Infinity }[level] ?? 1;
+}
+
+/**
+ * Resolve a knockdown Body Test (SR2E p.91). A Deadly wound always drops the
+ * target; otherwise: successes ≥ threshold = no effect, 0 successes = prone,
+ * anything between = a 1-metre stagger (still standing).
+ * @param {"L"|"M"|"S"|"D"} level - the damage level actually dealt
+ * @param {number} successes - Body Test successes
+ * @returns {"none"|"stagger"|"prone"}
+ */
+export function knockdownOutcome(level, successes) {
+  if (level === "D") return "prone";
+  const s = Math.max(0, successes || 0);
+  if (s === 0) return "prone";
+  if (s >= knockdownThreshold(level)) return "none";
+  return "stagger";
+}
