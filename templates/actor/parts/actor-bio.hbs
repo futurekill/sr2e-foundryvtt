@@ -117,6 +117,10 @@
       <legend>Character Creation</legend>
       <div class="chargen-grid">
         <div class="priority-row flexrow">
+          <label title="While ticked, auto-charged purchases use the LIST price (no Street Index markup) — chargen gear buys at book prices. Untick when play begins.">Creation in progress:</label>
+          <input type="checkbox" name="system.chargen.inProgress" {{checked system.chargen.inProgress}} style="width:auto;" />
+        </div>
+        <div class="priority-row flexrow">
           <label>Method:</label>
           <select name="system.chargen.priorityMethod">
             <option value="standard" {{#ifEquals priorityMethod "standard"}}selected{{/ifEquals}}>Standard (A–E once each)</option>

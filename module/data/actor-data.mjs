@@ -123,6 +123,11 @@ export class CharacterData extends SR2EDataModel {
 
       // --- CHARACTER CREATION ---
       chargen: new fields.SchemaField({
+        // While character creation is in progress, auto-charged purchases use
+        // the LIST price (no Street Index markup) — chargen resources buy at
+        // book prices; the street markup is an in-play thing. Untick when
+        // play begins.
+        inProgress: new fields.BooleanField({ initial: true }),
         // Priority assignment method: "standard" (each A–E used once) or "sumto10"
         // (Companion p.20 — any grades whose point values A=4…E=0 sum to 10).
         priorityMethod: new fields.StringField({ initial: "standard", choices: {

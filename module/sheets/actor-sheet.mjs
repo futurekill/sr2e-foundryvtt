@@ -339,12 +339,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         game.settings.get("sr2e", "autoChargePurchases")) {
       const cost = Number(created.system?.cost) || 0;
       if (cost > 0) {
-        const price = streetPrice(cost, created.system.streetIndex);
+        // During character creation, gear is bought at LIST price — the
+        // Street Index markup only applies to in-play purchases.
+        const inChargen = !!this.document.system.chargen?.inProgress;
+        const price = inChargen ? cost : streetPrice(cost, created.system.streetIndex);
         const nuyen = this.document.system.nuyen ?? 0;
         if (nuyen >= price) {
           await this.document.update({ "system.nuyen": nuyen - price });
           await created.setFlag("sr2e", "paid", price);
-          ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${price !== cost ? ` (${cost}¥ list)` : ""} — ${nuyen - price}¥ left.`);
+          ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${inChargen ? " (list — character creation)" : (price !== cost ? ` (${cost}¥ list)` : "")} — ${nuyen - price}¥ left.`);
         } else {
           ui.notifications.warn(`${this.document.name} can't afford ${created.name} (${price}¥ > ${nuyen}¥) — added UNPAID.`);
         }
