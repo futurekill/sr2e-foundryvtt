@@ -186,9 +186,12 @@ export function burstRounds(firingMode, declared) {
  * @param {number}  opts.recoilComp - recoil compensation
  * @returns {number}
  */
-export function recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp }) {
+export function recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp, heavyRecoil }) {
   const recoilRounds = shotsFired + (isBurst && hasRecoil ? rounds : 0);
-  return Math.max(0, recoilRounds - (recoilComp ?? 0));
+  const net = Math.max(0, recoilRounds - (recoilComp ?? 0));
+  // Heavy weapons (medium/heavy MGs and shotguns) DOUBLE the uncompensated
+  // recoil (p.89-90: 9 rounds - 6 comp = 3, doubled to +6).
+  return heavyRecoil ? net * 2 : net;
 }
 
 /**

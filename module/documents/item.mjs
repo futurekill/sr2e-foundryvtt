@@ -430,6 +430,7 @@ export class SR2EItem extends Item {
       const range    = options.range      ?? "short";
       firingMode     = options.firingMode ?? "sa";
       const coverMod = options.coverMod   ?? 0;
+      const visMod   = options.visMod     ?? 0;   // Visibility Table (p.89)
       const meleeMod = options.meleeMod   ?? 0;
       const rangeMod = RANGE_TN_MODS[range] ?? 0;
       const rangeLabel = range.charAt(0).toUpperCase() + range.slice(1);
@@ -492,7 +493,9 @@ export class SR2EItem extends Item {
       shotsFired          = actor.system.combatRecoil ?? 0;
       const recoilComp    = (this.system.recoilComp ?? 0) + acc.recoilComp;
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
-      let recoilMod       = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp });
+      // Heavy weapons (M/HMGs, shotguns) double uncompensated recoil (p.89-90)
+      const heavyRecoil   = this.system.weaponType === "heavy" || (this.system.choke ?? 0) >= 2;
+      let recoilMod       = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp, heavyRecoil });
 
       // Gyro mount (p.90): rating eats recoil + attacker movement modifiers,
       // cumulative with recoil comp. Applied to recoil first, remainder to
@@ -516,7 +519,7 @@ export class SR2EItem extends Item {
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
-                + spreadMod + defaultingPenalty
+                + visMod + spreadMod + defaultingPenalty
       );
 
       if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
@@ -524,6 +527,7 @@ export class SR2EItem extends Item {
       if (spreadMod)   modParts.push(`shot spread ${spreadMod} (${spreadDist} m, choke ${this.system.choke})`);
       if (rangeMod)    modParts.push(`${rangeLabel} range`);
       if (coverMod)    modParts.push(`cover +${coverMod}`);
+      if (visMod)      modParts.push(`visibility +${visMod}`);
       if (attackerMod) modParts.push(`moving +${attackerMod}`);
       if (targetMod)   modParts.push(`target ${targetMod > 0 ? "+" : ""}${targetMod}`);
       if (meleeMod)    modParts.push(`in melee +${meleeMod}`);
@@ -548,6 +552,23 @@ export class SR2EItem extends Item {
     // Optional Token Magic FX + sound on the targets (no-op without the module)
     if (isRanged && ["firearm", "heavy"].includes(this.system.weaponType)) {
       playCombatFx("gunshot", Array.from(game.user?.targets ?? []));
+    }
+
+    // Explosive-round misfire (p.93): when EVERY attack die comes up 1 with
+    // explosive rounds loaded, the weapon explodes — the shooter resists the
+    // weapon's NORMAL damage code (no explosive bonus, no Combat Pool, the
+    // "attack" gets 1D6 successes) and the attack in progress misses.
+    if (isRanged && result?.glitch && /explosive/i.test(this.system.ammo?.loadedName ?? "")) {
+      ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-damage-result" style="border-left:3px solid #e44;">
+          <strong>💥 MISFIRE!</strong> All attack dice came up 1 with explosive rounds
+          loaded (SR2E p.93): the round detonates in the weapon. The attack misses and
+          <strong>${foundry.utils.escapeHTML(actor.name)}</strong> is attacked by their own weapon —
+          resist <strong>${foundry.utils.escapeHTML(this.system.damageCode)}</strong> (normal code,
+          no explosive bonus) with <em>no Combat Pool</em>; roll 1D6 for the attack's successes.
+        </div>`
+      });
     }
 
     // Accumulate rounds fired on the recoil counter and decrement ammunition.

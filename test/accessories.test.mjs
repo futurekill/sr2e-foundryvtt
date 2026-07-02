@@ -115,3 +115,10 @@ describe("heavyArmorPoolPenalty (p.84)", () => {
     expect(heavyArmorPoolPenalty(4, [{ name: "Partial Heavy Armor", system: { ballistic: 6 } }])).toBe(2);
   });
 });
+
+describe("heavy-weapon recoil doubling (p.89-90)", () => {
+  it("doubles UNCOMPENSATED recoil — the book's MMG example: 9 fired, RC 6 → +6", () => {
+    expect(recoilPenalty(9, 0, { isBurst: false, hasRecoil: true, recoilComp: 6, heavyRecoil: true })).toBe(6);
+    expect(recoilPenalty(9, 0, { isBurst: false, hasRecoil: true, recoilComp: 6 })).toBe(3);
+  });
+});

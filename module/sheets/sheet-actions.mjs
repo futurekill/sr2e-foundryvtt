@@ -441,12 +441,15 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const sustainPenalty = actor.system.sustainPenalty ?? 0;
   const shotsFired    = actor.system.combatRecoil  ?? 0;
   const hasRecoil     = ["firearm", "heavy"].includes(weapon.system.weaponType);
+  // Heavy weapons (M/HMGs, shotguns) double uncompensated recoil (p.89-90)
+  const heavyRecoil   = weapon.system.weaponType === "heavy" || (weapon.system.choke ?? 0) >= 2;
   // Weapon + accessory compensation (p.90); deployment-gated mounts (bipod/
   // tripod) are added live via the dialog checkbox.
   const recoilComp    = (weapon.system.recoilComp ?? 0) + accBase.recoilComp;
   // Initial penalty from rounds already fired; a BF/FA burst's own rounds are
   // added live in the dialog once a firing mode is selected.
-  const recoilPenalty = hasRecoil ? Math.max(0, shotsFired - recoilComp) : 0;
+  const recoilPenalty = hasRecoil
+    ? Math.max(0, shotsFired - recoilComp) * (heavyRecoil ? 2 : 1) : 0;
 
   // ── Pool inputs ───────────────────────────────────────────────────────────
   const availablePools = POOL_DEFS
@@ -565,7 +568,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       const burst = mode === "bf" ? 3
                   : mode === "fa" ? Math.min(10, Math.max(3, parseInt(roundsInput?.value) || 3))
                   : 0;
-      return Math.max(0, liveShotsFired + burst - currentRecoilComp());
+      const net = Math.max(0, liveShotsFired + burst - currentRecoilComp());
+      // Heavy weapons/shotguns double uncompensated recoil (p.89-90)
+      return heavyRecoil ? net * 2 : net;
     }
 
     function updateTN() {
@@ -587,6 +592,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         const rng  = shiftRangeBracket(selected, accBase.rangeShift);
         const rMod = RANGE_TN_MODS[rng] ?? 0;
         const cMod = parseInt(coverSelect?.value) || 0;
+        const vMod = parseInt(root.querySelector("#sr2e-visibility")?.value) || 0;
         // Firing while in melee: +2 per opponent engaging the attacker (p.90)
         const mMod = 2 * Math.max(0, parseInt(meleeCheck?.value) || 0);
         const recoil = currentRecoil();
@@ -605,7 +611,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
         if (gyroRow)      gyroRow.style.display    = gyroCut > 0 ? "" : "none";
         if (gyroVal)      gyroVal.textContent      = `−${gyroCut}`;
-        finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
+        finalTN = Math.max(2, BASE_TN + rMod + cMod + vMod + aMod + tMod + mMod + oMod
                                       + cyberwareMod + accessoryTnMod
                                       + woundPenalty + sustainPenalty
                                       + recoil - gyroCut + defaultingPenalty);
@@ -644,7 +650,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     const allInputs = [rangeSelect, coverSelect, meleeCheck, modeSelect, roundsInput,
                        attackerSelect, targetSelect, otherInput, reachInput,
                        alliesInput, foesInput, supPosCheck, proneCheck, multiInput,
-                       deployedCheck].filter(Boolean);
+                       deployedCheck, root.querySelector("#sr2e-visibility")].filter(Boolean);
     for (const el of allInputs) {
       el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
     }
@@ -695,6 +701,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="2">Partial (+2)</option>
           <option value="4">Good (+4)</option>
           <option value="6">Near-Total (+6)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label title="Visibility Table (SR2E p.89), NORMAL vision values. Low-light/thermographic vision reduces these — Full Darkness: LL +8, Thermo +4(cyber)/+2; Minimal: LL +4/+2, Thermo +4/+2; Partial: LL +1/0, Thermo +2/+1; Glare: LL/Thermo +4/+2; Mist: LL +2/0, Thermo 0; Light smoke: LL +4/+2, Thermo 0; Heavy smoke: LL +6/+4, Thermo +1/0; blind fire +8. Adjust for the shooter's vision.">Visibility:</label>
+        <select id="sr2e-visibility" name="visibility">
+          <option value="0">Clear</option>
+          <option value="2">Partial Light / Glare / Mist (+2)</option>
+          <option value="4">Light Smoke/Fog/Rain (+4)</option>
+          <option value="6">Minimal Light / Heavy Smoke (+6)</option>
+          <option value="8">Full Darkness / Blind Fire (+8)</option>
         </select>
       </div>
       ${(weapon.system.choke ?? 0) >= 2 ? `<div class="form-group" style="margin:2px 0;align-items:center;">
@@ -942,6 +958,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             firingMode:      f.firingMode?.value    ?? "sa",
             rounds:          Math.min(10, Math.max(3, parseInt(f.rounds?.value) || 3)),
             coverMod:        parseInt(f.cover?.value)           || 0,
+            visMod:          parseInt(f.visibility?.value)      || 0,
             attackerMod:     parseInt(f.attacker?.value)        || 0,
             targetMod:       parseInt(f.target?.value)          || 0,
             // Firing while engaged in melee: +2 per opponent (SR2E p.90)
@@ -1054,6 +1071,7 @@ async function onRollWeapon(event, target) {
   if (!opts) return;
   return item.roll({
     skillVariant:    opts.skillVariant,
+    visMod:          opts.visMod,
     range:           opts.range,
     firingMode:      opts.firingMode,
     rounds:          opts.rounds,
