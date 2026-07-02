@@ -284,6 +284,15 @@ export function registerSR2EQuenchTests() {
           assert.equal(v.system.linkedWeaponId, hk.id, "gas vent did not attach");
         });
 
+        it("new characters get the default Unarmed Strike — (Str)M Stun (p.255, #3)", async () => {
+          actor = await Actor.create({ name: "Quench Fists", type: "character" });
+          const fist = actor.items.find(i => i.name === "Unarmed Strike");
+          assert.ok(fist, "Unarmed Strike was not embedded at character creation");
+          assert.equal(fist.system.damageCode, "(Str)M", "wrong unarmed damage code");
+          assert.equal(fist.system.damageType, "stun", "unarmed damage should be Stun");
+          assert.equal(fist.system.skill, "unarmed_combat", "wrong unarmed skill");
+        });
+
         it("smartgun accessory makes a dumb weapon smart-capable", async () => {
           actor = await Actor.create({ name: "Quench Smart", type: "character" });
           const [gun, sg] = await actor.createEmbeddedDocuments("Item", [

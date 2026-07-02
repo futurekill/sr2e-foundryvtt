@@ -32,7 +32,7 @@ import { preloadTemplates } from "./helpers/templates.mjs";
 import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
 // Migrations
-import { migrateWorld } from "./migrations.mjs";
+import { migrateWorld, UNARMED_STRIKE_DATA } from "./migrations.mjs";
 import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -576,6 +576,12 @@ Hooks.on("preCreateActor", (actor, data) => {
 
   if (LINKED_PROTOTYPE_TYPES.has(actor.type) && data.prototypeToken?.actorLink === undefined) {
     updates["prototypeToken.actorLink"] = true;
+  }
+
+  // Default unarmed attack for characters (skip imports that already carry one)
+  if (actor.type === "character" &&
+      !(data.items ?? []).some(i => i.name === UNARMED_STRIKE_DATA.name)) {
+    updates["items"] = [...(data.items ?? []), UNARMED_STRIKE_DATA];
   }
 
   // Themed default icon for the Matrix singletons (Host server / IC chip).

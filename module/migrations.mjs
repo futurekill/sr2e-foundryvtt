@@ -29,6 +29,24 @@
  *   }
  */
 
+/**
+ * Every character can always punch: (Str)M Stun with the Unarmed Combat
+ * skill (SR2E Melee Weapons table p.255, p.100–101). Embedded at character
+ * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
+ * characters by the 0.26.0 migration (GitHub #3).
+ */
+export const UNARMED_STRIKE_DATA = {
+  name: "Unarmed Strike",
+  type: "weapon",
+  img: "icons/skills/melee/unarmed-punch-fist.webp",
+  system: {
+    weaponType: "melee", skill: "unarmed_combat",
+    damageCode: "(Str)M", damageType: "stun",
+    concealability: 0, reach: 0, cost: 0,
+    notes: "SR2E Melee Weapons table (p.255), p.100–101: unarmed attacks do (Str)M Stun, resolved as opposed melee with the Unarmed Combat skill. Adepts with Killing Hands replace the damage per their power."
+  }
+};
+
 /** Ordered list of migrations. Append new entries; never reorder. */
 const MIGRATIONS = [
   // 0.9.8 — PCs must use LINKED prototype tokens. Characters created before the
@@ -51,6 +69,14 @@ const MIGRATIONS = [
   //    rating also eats attacker movement modifiers, p.90).
   {
     version: "0.26.0",
+    // Every character gets the default Unarmed Strike — (Str)M Stun with the
+    // Unarmed Combat skill (Melee Weapons table p.255; GitHub #3). New
+    // characters get it via the preCreateActor hook in sr2e.mjs.
+    addItems(source) {
+      if (source.type !== "character") return null;
+      if ((source.items ?? []).some(i => i.name === "Unarmed Strike")) return null;
+      return [UNARMED_STRIKE_DATA];
+    },
     migrateItem(source) {
       if (source.type === "gear" && source.system?.weaponAccessory) {
         const update = {};
@@ -155,6 +181,18 @@ async function migrateActor(migrations, actor) {
   }
   if (itemUpdates.length) {
     await actor.updateEmbeddedDocuments("Item", itemUpdates, { diff: false });
+    changed = true;
+  }
+
+  // Optional per-migration item ADDITIONS (e.g. backfilling the default
+  // Unarmed Strike): addItems(source) returns an array of item data to embed.
+  const newItems = [];
+  const source = actor.toObject();
+  for (const m of migrations) {
+    if (m.addItems) newItems.push(...(m.addItems(source) ?? []));
+  }
+  if (newItems.length) {
+    await actor.createEmbeddedDocuments("Item", newItems);
     changed = true;
   }
   return changed;

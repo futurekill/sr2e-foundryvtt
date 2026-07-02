@@ -1,0 +1,35 @@
+{
+  "_id": "f5a6b7c8d9e00b53",
+  "name": "Unarmed Strike",
+  "type": "weapon",
+  "img": "icons/skills/melee/unarmed-punch-fist.webp",
+  "system": {
+    "weaponType": "melee",
+    "skill": "unarmed_combat",
+    "damageCode": "(Str)M",
+    "damageType": "stun",
+    "concealability": 0,
+    "reach": 0,
+    "cost": 0,
+    "notes": "SR2E Melee Weapons table (p.255) and p.100–101: unarmed attacks do (Str)M Stun and use the Unarmed Combat skill. Resolved as opposed melee. Every character gets this attack automatically; adepts with Killing Hands replace the damage per their power."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.26.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "f052cb5eb3b5a2e2",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!f5a6b7c8d9e00b53"
+}
