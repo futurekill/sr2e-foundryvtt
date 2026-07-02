@@ -43,6 +43,19 @@ export function registerHandlebarsHelpers() {
   });
 
   /**
+   * Price display with Street Index: "450¥" or "563¥ (450¥ list)" when the
+   * street price differs from the base cost.
+   */
+  Handlebars.registerHelper("priceTag", function (cost, streetIndex) {
+    const base = Math.max(0, Number(cost) || 0);
+    const si = parseFloat(streetIndex);
+    const street = (si > 0) ? Math.round(base * si) : base;
+    if (street === base) return `${base}¥`;
+    return new Handlebars.SafeString(
+      `${street}¥ <span class="price-base" title="List price before Street Index ×${si}">(${base}¥ list)</span>`);
+  });
+
+  /**
    * Math operations.
    */
   Handlebars.registerHelper("add", function (a, b) {

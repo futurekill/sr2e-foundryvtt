@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice } from "../rules/sr2e-rules.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -1720,6 +1720,35 @@ async function onDeleteItem(event, target) {
 }
 
 /**
+ * Sell an item back: refund what was paid for it (flags.sr2e.paid, recorded by
+ * the auto-charge on drop) — or the current street price when it was never
+ * auto-purchased — then delete the item.
+ * @this {ApplicationV2}
+ */
+async function onSellItem(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = actor.items.get(itemId);
+  if (!item) return;
+
+  const paid = item.getFlag("sr2e", "paid");
+  const price = paid ?? streetPrice(Number(item.system.cost) || 0, item.system.streetIndex);
+  const confirmed = await foundry.applications.api.DialogV2.confirm({
+    window: { title: `Sell ${item.name}?` },
+    content: `<p>Sell <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>${paid != null ? " (refund of the price paid)" : " (street price)"}? The item will be removed.</p>`
+  });
+  if (!confirmed) return;
+
+  await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + price });
+  await item.delete();
+  ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> sells <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>.`
+  });
+}
+
+/**
  * Spend a single-use focus (Grimoire fetish focus): post a chat note and remove
  * the item. Re-add/buy another to use it again.
  * @this {ApplicationV2}
@@ -2327,6 +2356,7 @@ const SHARED_ACTIONS = {
   toggleSlot: onToggleSlot,
   editItem: onEditItem,
   deleteItem: onDeleteItem,
+  sellItem: onSellItem,
   spendFocus: onSpendFocus,
   addItem: onAddItem,
   reloadWeapon: onReloadWeapon,

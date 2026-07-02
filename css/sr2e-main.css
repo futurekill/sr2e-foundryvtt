@@ -3318,3 +3318,13 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 
 .sr2e .item-row.soft-overbudget { box-shadow: inset 3px 0 0 var(--sr2e-danger, #ff3b5c); opacity: 0.8; }
 .sr2e .soft-warn { color: var(--sr2e-danger, #ff3b5c); margin: 0 4px; }
+
+/* ── Installed-cyberware visibility + street pricing (user /btw 2026-07-02) ── */
+.cyber-row.cyber-on {
+  border-left: 3px solid #4caf7d;
+  background: rgba(76, 175, 125, 0.08);
+}
+.cyber-row.cyber-on .cyber-installed { color: #4caf7d; font-weight: 600; }
+.cyber-row.cyber-off { opacity: 0.55; border-left: 3px solid transparent; }
+.cyber-row.cyber-off .cyber-installed { color: #c66; font-style: italic; }
+.price-base { color: #9d8fc2; font-size: 0.85em; }

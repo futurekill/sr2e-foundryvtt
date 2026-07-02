@@ -159,6 +159,8 @@ export class WeaponData extends SR2EDataModel {
 
       // General
       weight: new fields.NumberField({ initial: 0, min: 0 }),
+      // Street Index: black-market price multiplier (street price = cost × SI)
+      streetIndex: new fields.NumberField({ initial: 1, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       availability: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
@@ -206,6 +208,8 @@ export class ArmorData extends SR2EDataModel {
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       availability: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
+      // Street Index: black-market price multiplier (street price = cost × SI)
+      streetIndex: new fields.NumberField({ initial: 1, min: 0 }),
       equipped: new fields.BooleanField({ initial: false }),
       // Layered armor ADDS to the highest worn rating instead of competing
       // with it: helmets (p.242) and form-fitting body armor (SSC).
@@ -417,6 +421,8 @@ export class GearData extends SR2EDataModel {
       category: new fields.StringField({ initial: "general" }),
       rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+      // Street Index: black-market price multiplier (street price = cost × SI)
+      streetIndex: new fields.NumberField({ initial: 1, min: 0 }),
       weight: new fields.NumberField({ initial: 0, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       availability: new fields.StringField({ initial: "" }),
@@ -613,6 +619,8 @@ export class AmmoData extends SR2EDataModel {
     return {
       ammoType: new fields.StringField({ initial: "regular" }),
       quantity: new fields.NumberField({ integer: true, initial: 10, min: 0 }),
+      // Street Index: black-market price multiplier (street price = cost × SI)
+      streetIndex: new fields.NumberField({ initial: 1, min: 0 }),
       damageModifier: new fields.NumberField({ integer: true, initial: 0 }),
       armorModifier: new fields.NumberField({ integer: true, initial: 0 }),
       damageType: new fields.StringField({ initial: "", blank: true, choices: {

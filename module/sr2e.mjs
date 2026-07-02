@@ -404,6 +404,15 @@ function _registerSystemSettings() {
   });
 
   // Automate Essence from Cyberware (read in CharacterData.prepareDerivedData)
+  game.settings.register("sr2e", "autoChargePurchases", {
+    name: "Auto-charge purchases",
+    hint: "When an item with a cost is dragged onto a character sheet, deduct its street price (cost × Street Index) from the character's nuyen. The gear tab's sell button refunds what was paid.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   game.settings.register("sr2e", "autoEssence", {
     name: "SR2E.Settings.AutoEssence",
     hint: "SR2E.Settings.AutoEssenceHint",

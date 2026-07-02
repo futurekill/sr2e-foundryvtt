@@ -870,3 +870,19 @@ export function skillSubRatings(general) {
   const g = Math.max(0, general || 0);
   return { concentration: g + 2, specialization: g + 4 };
 }
+
+/**
+ * Street price of an item: base cost × Street Index, rounded to the nearest
+ * nuyen (SR2E p.238: legal-channel prices are list; the street marks gear up
+ * or down by its Street Index). SI ≤ 0 / missing means "no street market
+ * data" and is treated as list price.
+ *
+ * @param {number} cost - Base (list) cost in nuyen.
+ * @param {number|string} streetIndex - Street Index multiplier.
+ * @returns {number}
+ */
+export function streetPrice(cost, streetIndex) {
+  const si = parseFloat(streetIndex);
+  const c = Math.max(0, cost || 0);
+  return (si > 0) ? Math.round(c * si) : c;
+}

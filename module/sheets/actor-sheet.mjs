@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice } from "../rules/sr2e-rules.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
   onAddItem, onDeleteItem, onEditItem,
@@ -330,7 +330,27 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // --- Tradition drop handling ---
     if (itemData.type === "tradition") return this._onDropTradition(itemData);
 
-    return this.document.createEmbeddedDocuments("Item", [itemData]);
+    const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
+
+    // Auto-charge purchases (user request): characters pay the street price
+    // (cost × Street Index) for dropped items; the paid amount is remembered
+    // on the item so the sell button can refund it.
+    if (created && this.document.type === "character" &&
+        game.settings.get("sr2e", "autoChargePurchases")) {
+      const cost = Number(created.system?.cost) || 0;
+      if (cost > 0) {
+        const price = streetPrice(cost, created.system.streetIndex);
+        const nuyen = this.document.system.nuyen ?? 0;
+        if (nuyen >= price) {
+          await this.document.update({ "system.nuyen": nuyen - price });
+          await created.setFlag("sr2e", "paid", price);
+          ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${price !== cost ? ` (${cost}¥ list)` : ""} — ${nuyen - price}¥ left.`);
+        } else {
+          ui.notifications.warn(`${this.document.name} can't afford ${created.name} (${price}¥ > ${nuyen}¥) — added UNPAID.`);
+        }
+      }
+    }
+    return created;
   }
 
   /**

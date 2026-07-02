@@ -129,6 +129,11 @@
     <input type="number" name="system.cost" value="{{system.cost}}" />
   </div>
   <div class="form-group">
+    <label title="Black-market price multiplier: street price = cost × SI. 1 = list price.">Street Index:</label>
+    <input type="number" name="system.streetIndex" value="{{system.streetIndex}}" step="0.05" min="0" />
+    <span class="price-base">street: {{priceTag system.cost system.streetIndex}}</span>
+  </div>
+  <div class="form-group">
     <label>Weight:</label>
     <input type="number" name="system.weight" value="{{system.weight}}" step="0.1" />
   </div>
@@ -159,6 +164,11 @@
   <div class="form-group">
     <label>Cost:</label>
     <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label title="Black-market price multiplier: street price = cost × SI. 1 = list price.">Street Index:</label>
+    <input type="number" name="system.streetIndex" value="{{system.streetIndex}}" step="0.05" min="0" />
+    <span class="price-base">street: {{priceTag system.cost system.streetIndex}}</span>
   </div>
   <div class="form-group">
     <label>Equipped:</label>
@@ -478,6 +488,11 @@
     <input type="number" name="system.cost" value="{{system.cost}}" />
   </div>
   <div class="form-group">
+    <label title="Black-market price multiplier: street price = cost × SI. 1 = list price.">Street Index:</label>
+    <input type="number" name="system.streetIndex" value="{{system.streetIndex}}" step="0.05" min="0" />
+    <span class="price-base">street: {{priceTag system.cost system.streetIndex}}</span>
+  </div>
+  <div class="form-group">
     <label>Equipped:</label>
     <input type="checkbox" name="system.equipped" {{checked system.equipped}} />
   </div>
@@ -726,6 +741,11 @@
   <div class="form-group">
     <label>Cost:</label>
     <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label title="Black-market price multiplier: street price = cost × SI. 1 = list price.">Street Index:</label>
+    <input type="number" name="system.streetIndex" value="{{system.streetIndex}}" step="0.05" min="0" />
+    <span class="price-base">street: {{priceTag system.cost system.streetIndex}}</span>
   </div>
   {{/ifEquals}}
 

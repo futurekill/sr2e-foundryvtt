@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -538,5 +538,19 @@ describe("skillSubRatings — Concentrations & Specializations (SR2E p.55, p.70)
   });
   it("concentration alone: allocate 5 → general 4 / concentration 6", () => {
     expect(skillSubRatings(4).concentration).toBe(6);
+  });
+});
+
+describe("streetPrice (Street Index, SR2E p.238)", () => {
+  it("marks prices up/down by the Street Index, rounded", () => {
+    expect(streetPrice(500, 1)).toBe(500);
+    expect(streetPrice(500, 1.25)).toBe(625);
+    expect(streetPrice(20, 0.75)).toBe(15);
+    expect(streetPrice(333, 1.5)).toBe(500);   // 499.5 rounds to 500
+  });
+  it("treats missing/zero SI as list price", () => {
+    expect(streetPrice(500, 0)).toBe(500);
+    expect(streetPrice(500, "")).toBe(500);
+    expect(streetPrice(500, undefined)).toBe(500);
   });
 });
