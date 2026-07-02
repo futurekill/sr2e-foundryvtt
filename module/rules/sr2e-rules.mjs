@@ -591,7 +591,7 @@ export function quickeningKarmaRange(force) {
 export function initiationKarmaCost(targetGrade, { group = false, ordeal = false } = {}) {
   const base = 6 + Math.max(0, targetGrade);
   const mult = group ? (ordeal ? 1.5 : 2) : (ordeal ? 2.5 : 3);
-  return base * mult;
+  return Math.floor(base * mult);   // "Always round down" (Grimoire p.41)
 }
 
 // ---------------------------------------------------------------------------

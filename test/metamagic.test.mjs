@@ -57,7 +57,13 @@ describe("Initiation Karma cost (Grimoire p.42)", () => {
     expect(initiationKarmaCost(1, { group: true })).toBe(14);
   });
   it("an ordeal lowers the multiplier (self x2.5, group x1.5)", () => {
-    expect(initiationKarmaCost(1, { ordeal: true })).toBe(17.5);
-    expect(initiationKarmaCost(1, { group: true, ordeal: true })).toBe(10.5);
+    expect(initiationKarmaCost(1, { ordeal: true })).toBe(17);  // 7 × 2.5 rounded down (p.41)
+    expect(initiationKarmaCost(1, { group: true, ordeal: true })).toBe(10);  // 7 × 1.5 rounded down (p.41)
+  });
+});
+
+describe("initiationKarmaCost rounding (Grimoire p.41: always round down)", () => {
+  it("grade 1 self-initiation with ordeal: 7 × 2.5 = 17.5 → 17", () => {
+    expect(initiationKarmaCost(1, { ordeal: true })).toBe(17);
   });
 });
