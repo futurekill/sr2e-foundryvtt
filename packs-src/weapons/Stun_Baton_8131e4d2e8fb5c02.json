@@ -6,9 +6,9 @@
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",
-    "damageCode": "(Str+2)M",
+    "damageCode": "6S",
     "damageType": "stun",
-    "concealability": 5,
+    "concealability": 4,
     "reach": 1,
     "firingModes": {
       "ss": false,
@@ -30,12 +30,12 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 700,
+    "cost": 750,
     "availability": "3/48hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. Capacitor-charged shock baton. Delivers powerful stun on contact; popular with corporate security."
+    "notes": "SR2E Melee Weapons Table p.101: 6S Stun, Reach 1, Concealability 4, 750¥."
   },
   "effects": [],
   "flags": {},

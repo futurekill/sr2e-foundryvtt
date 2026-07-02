@@ -268,12 +268,16 @@ async function onRollSkill(event, target) {
   }
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
+  // Clicking the inline "(Concentration N)" / "[Specialization N]" tag rolls
+  // that variant's rating instead of the general skill (SR2E p.70).
+  const variant = event.target.closest?.("[data-variant]")?.dataset.variant ?? "";
   // SR2E p.86: Combat Pool is only for combat-related tests (Firearm, Melee, etc.)
   // and Damage Resistance Tests — pools are hidden for general skill checks.
   // Karma dice (p.190) may still be bought, capped at the dice in use:
   // the skill rating, or the linked attribute when defaulting untrained.
   const skillItem = actor.items.get(skillId);
-  let baseDice = skillItem?.system?.rating ?? 0;
+  let baseDice = (variant && skillItem?.system?.[variant]?.rating)
+    || skillItem?.system?.rating || 0;
   if (baseDice <= 0) {
     const attrKey = skillItem?.system?.linkedAttribute || "quickness";
     baseDice = attrKey === "reaction"
@@ -283,7 +287,7 @@ async function onRollSkill(event, target) {
   const opts = await promptRollOptions(actor, { showPools: false, baseDice });
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, {
-    poolDice: opts.poolDice, karmaDice: opts.karmaDice
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant
   });
 }
 
@@ -653,7 +657,19 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // ── Build dialog HTML ─────────────────────────────────────────────────────
   // Ranged: range bracket + firing mode + cover + in-melee penalty + recoil info
   // Melee:  target Quickness (= base TN) + reach modifier; no range/firing/cover/recoil
+  // Concentration/Specialization selector (SR2E p.70) — only when choices exist
+  const skillSelectHTML = presets.skillChoices?.length > 1 ? `
+    <div class="form-group" style="margin:2px 0 6px;">
+      <label title="Roll the general skill, or a Concentration/Specialization rating (SR2E p.70)">Skill used:</label>
+      <select name="skillVariant">
+        ${presets.skillChoices.map(c =>
+          `<option value="${c.key}" ${c.selected ? "selected" : ""}>${foundry.utils.escapeHTML(c.label)}</option>`
+        ).join("")}
+      </select>
+    </div>` : "";
+
   const topInputsHTML = isRanged ? `
+    ${skillSelectHTML}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
       <div class="form-group" style="margin:2px 0;">
         <label>Range:</label>
@@ -704,6 +720,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                title="Recoil compensation from a bipod/tripod only counts when the mount is set up — fired from a braced sitting or lying position (SR2E p.240–241)">
       </div>` : ""}
     </div>` : `
+    ${skillSelectHTML}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
       <div class="form-group" style="margin:2px 0;">
         <label>Reach Mod:</label>
@@ -918,6 +935,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             if (clamped > 0) poolDice[p.key] = clamped;
           }
           rollResult = {
+            // Concentration/Specialization pick (SR2E p.70); "" = general
+            skillVariant:    f.skillVariant?.value ?? "",
             // Effective bracket after any imaging-scope shift (SR2E p.88)
             range:           shiftRangeBracket(f.range?.value ?? "short", accBase.rangeShift),
             firingMode:      f.firingMode?.value    ?? "sa",
@@ -991,9 +1010,28 @@ async function onRollWeapon(event, target) {
   const linkedSkill = actor.items.find(
     i => i.type === "skill" && skillKeys.includes(normalize(i.name))
   );
+
+  // Concentration/Specialization choices (SR2E p.70): offer them in the
+  // dialog; a specialization whose name matches the weapon is preselected.
+  const skillChoices = [];
+  if (linkedSkill && (linkedSkill.system.rating ?? 0) > 0) {
+    skillChoices.push({ key: "", label: `${linkedSkill.name} ${linkedSkill.system.rating}`,
+                        rating: linkedSkill.system.rating, selected: true });
+    for (const v of ["concentration", "specialization"]) {
+      const sub = linkedSkill.system[v];
+      if (sub?.name && sub.rating > 0) {
+        const selected = v === "specialization" &&
+          normalize(item.name).includes(normalize(sub.name));
+        if (selected) skillChoices[0].selected = false;
+        skillChoices.push({ key: v, label: `${sub.name} ${sub.rating}`, rating: sub.rating, selected });
+      }
+    }
+  }
+
   const rating = linkedSkill?.system?.rating ?? 0;
   if (rating > 0) {
-    skillCap = rating;
+    // Cap pools at the highest offered rating; the roll uses the chosen one.
+    skillCap = Math.max(...skillChoices.map(c => c.rating));
     baseDice = rating;
   } else {
     // Untrained: defaulting to the linked Attribute via the Skill Web
@@ -1009,11 +1047,13 @@ async function onRollWeapon(event, target) {
 
   // Pre-fill range / target Quickness from canvas targeting (T key)
   const presets = detectAttackTarget(actor, item);
+  if (skillChoices.length > 1) presets.skillChoices = skillChoices;
 
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
                                                defaultingPenalty, presets);
   if (!opts) return;
   return item.roll({
+    skillVariant:    opts.skillVariant,
     range:           opts.range,
     firingMode:      opts.firingMode,
     rounds:          opts.rounds,

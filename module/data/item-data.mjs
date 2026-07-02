@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, focusCost, skillsoftMemory, skillsoftCost } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -70,13 +70,14 @@ export class SkillData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Calculate concentration and specialization ratings
-    if (this.concentration.name) {
-      this.concentration.rating = this.rating + 1;
-    }
-    if (this.specialization.name) {
-      this.specialization.rating = this.rating + 2;
-    }
+    // Concentration/Specialization ratings (SR2E p.55, p.70). The entered
+    // `rating` is the FINAL general rating (already reduced): allocating 5
+    // points with a Specialization yields general 3 / concentration 5 /
+    // specialization 7 — so conc = general + 2 and spec = general + 4.
+    // (A concentration alone: allocated 5 → general 4 / concentration 6.)
+    const sub = skillSubRatings(this.rating);
+    if (this.concentration.name) this.concentration.rating = sub.concentration;
+    if (this.specialization.name) this.specialization.rating = sub.specialization;
   }
 
   /**
@@ -85,10 +86,10 @@ export class SkillData extends SR2EDataModel {
    */
   getEffectiveRating(use = "general") {
     if (use === "specialization" && this.specialization.name) {
-      return this.rating + 2;
+      return this.specialization.rating;
     }
     if (use === "concentration" && this.concentration.name) {
-      return this.rating + 1;
+      return this.concentration.rating;
     }
     return this.rating;
   }

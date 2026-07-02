@@ -334,10 +334,18 @@ export class SR2EItem extends Item {
     ].filter(k => k !== "");
 
     let skillRating = 0;
+    let skillVariantNote = "";
     for (const item of actor.items) {
       if (item.type !== "skill") continue;
       if (skillKeys.includes(normalize(item.name))) {
         skillRating = item.system.rating;
+        // Concentration/Specialization pick from the dialog (SR2E p.70)
+        const v = options.skillVariant;
+        if ((v === "concentration" || v === "specialization") &&
+            item.system[v]?.name && item.system[v].rating > 0) {
+          skillRating = item.system[v].rating;
+          skillVariantNote = item.system[v].name;
+        }
         break;
       }
     }
@@ -407,6 +415,7 @@ export class SR2EItem extends Item {
                 + defaultingPenalty
       );
 
+      if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
       if (defaultingNote)  modParts.push(defaultingNote);
       if (reachMod)        modParts.push(`reach ${reachMod > 0 ? "+" : ""}${reachMod}`);
       if (friendsMod)      modParts.push(`friends ${friendsMod > 0 ? "+" : ""}${friendsMod}`);
@@ -509,6 +518,7 @@ export class SR2EItem extends Item {
                 + spreadMod + defaultingPenalty
       );
 
+      if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
       if (defaultingNote) modParts.push(defaultingNote);
       if (spreadMod)   modParts.push(`shot spread ${spreadMod} (${spreadDist} m, choke ${this.system.choke})`);
       if (rangeMod)    modParts.push(`${rangeLabel} range`);

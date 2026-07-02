@@ -6,9 +6,9 @@
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",
-    "damageCode": "(Str+3)S",
+    "damageCode": "(Str+3)M",
     "damageType": "physical",
-    "concealability": 99,
+    "concealability": 3,
     "reach": 1,
     "firingModes": {
       "ss": false,
@@ -35,7 +35,7 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. The traditional Japanese sword, crafted from a composite of alloys and polymers. Favored by street samurai for its reach and elegant lethality."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+3)M, Reach 1, Concealability 3, 1,000¥."
   },
   "effects": [],
   "flags": {},

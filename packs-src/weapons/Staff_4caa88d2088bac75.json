@@ -6,9 +6,9 @@
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",
-    "damageCode": "(Str+2)S",
+    "damageCode": "(Str+2)M",
     "damageType": "stun",
-    "concealability": 99,
+    "concealability": 2,
     "reach": 2,
     "firingModes": {
       "ss": false,
@@ -30,12 +30,12 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 40,
+    "cost": 50,
     "availability": "Always",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. A length of hardwood, metal, or composite. Delivers stun damage. Reach 2."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+2)M Stun, Reach 2, Concealability 2, 50¥."
   },
   "effects": [],
   "flags": {},

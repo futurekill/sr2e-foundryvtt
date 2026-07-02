@@ -6,9 +6,9 @@
   "system": {
     "weaponType": "melee",
     "skill": "unarmed_combat",
-    "damageCode": "(Str+2)L",
+    "damageCode": "(Str+2)M",
     "damageType": "stun",
-    "concealability": 9,
+    "concealability": 8,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -30,12 +30,12 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 20,
+    "cost": 10,
     "availability": "Always",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. A weighted leather or composite blackjack, ideal for subduing targets without lethal force."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+2)M Stun, Reach 0, Concealability 8, 10¥."
   },
   "effects": [],
   "flags": {},

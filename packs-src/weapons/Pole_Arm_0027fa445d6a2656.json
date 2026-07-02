@@ -8,7 +8,7 @@
     "skill": "armed_combat",
     "damageCode": "(Str+3)S",
     "damageType": "physical",
-    "concealability": 99,
+    "concealability": 2,
     "reach": 2,
     "firingModes": {
       "ss": false,
@@ -30,12 +30,12 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 40,
+    "cost": 500,
     "availability": "Always",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. Long hafted bladed weapon\u2014spear, naginata, or similar. Reach 2. Conceal NA."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+3)S, Reach 2, Concealability 2, 500¥."
   },
   "effects": [],
   "flags": {},

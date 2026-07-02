@@ -432,6 +432,15 @@ export class SR2EActor extends Actor {
     let dicePool = skill.system.rating;
     let label = `${skill.name} Test`;
 
+    // Concentration/Specialization variant (SR2E p.70): roll that rating
+    // instead of the general skill's.
+    const v = options.variant;
+    if ((v === "concentration" || v === "specialization") &&
+        skill.system[v]?.name && skill.system[v].rating > 0) {
+      dicePool = skill.system[v].rating;
+      label = `${skill.name} (${skill.system[v].name}) Test`;
+    }
+
     // Untrained: default to the skill's linked Attribute via the Skill Web
     // (SR2E p.69) — attribute dice at +CONFIG.SR2E.defaultingPenalty TN.
     if (dicePool <= 0) {

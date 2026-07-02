@@ -30,12 +30,12 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 20,
+    "cost": 10,
     "availability": "Always",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. The street fighter's standby\u2014a length of pipe, a table leg, or a mag-bat. Delivers stun damage."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+1)M Stun, Reach 1, Concealability 5, 10¥."
   },
   "effects": [],
   "flags": {},

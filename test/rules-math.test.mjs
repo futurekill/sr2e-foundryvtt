@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -528,5 +528,15 @@ describe("shotgun shot-round spread (SR2E p.95 diagram)", () => {
   it("choke clamps to 2-10 and a tight choke spreads slower", () => {
     expect(shotgunSpread(10, 9).steps).toBe(0);   // choke 10: no spread until 10 m
     expect(shotgunSpread(1, 4).steps).toBe(2);    // clamped to 2 → floor(4/2)
+  });
+});
+
+describe("skillSubRatings — Concentrations & Specializations (SR2E p.55, p.70)", () => {
+  it("matches the book's chargen example: allocate 5 with a Specialization → general 3 / conc 5 / spec 7", () => {
+    // The stored rating is the FINAL general rating (3)
+    expect(skillSubRatings(3)).toEqual({ concentration: 5, specialization: 7 });
+  });
+  it("concentration alone: allocate 5 → general 4 / concentration 6", () => {
+    expect(skillSubRatings(4).concentration).toBe(6);
   });
 });

@@ -23,17 +23,17 @@
     <input type="number" name="system.rating" value="{{system.rating}}" min="0" max="12" />
   </div>
   <div class="form-group">
-    <label>Concentration:</label>
+    <label title="SR2E p.55/70. Enter the FINAL general rating above (already reduced by −1 for a concentration / −2 for a specialization); the concentration rolls general +2.">Concentration:</label>
     <input type="text" name="system.concentration.name" value="{{system.concentration.name}}" placeholder="e.g., Pistols" />
     {{#if system.concentration.name}}
-    <span>Rating: {{system.concentration.rating}}</span>
+    <span title="general + 2 (SR2E p.70)">Rating: {{system.concentration.rating}}</span>
     {{/if}}
   </div>
   <div class="form-group">
-    <label>Specialization:</label>
+    <label title="SR2E p.55/70. Enter the FINAL general rating above (already reduced by −2); the specialization rolls general +4, and its concentration general +2. Name the concentration too — a specialization is a narrowing of one.">Specialization:</label>
     <input type="text" name="system.specialization.name" value="{{system.specialization.name}}" placeholder="e.g., Ares Predator" />
     {{#if system.specialization.name}}
-    <span>Rating: {{system.specialization.rating}}</span>
+    <span title="general + 4 (SR2E p.70)">Rating: {{system.specialization.rating}}</span>
     {{/if}}
   </div>
   <div class="form-group">

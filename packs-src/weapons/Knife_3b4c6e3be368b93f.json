@@ -6,9 +6,9 @@
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",
-    "damageCode": "(Str+1)L",
+    "damageCode": "(Str)L",
     "damageType": "physical",
-    "concealability": 9,
+    "concealability": 8,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -35,7 +35,7 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. A general-purpose short blade, available in countless styles from survival knives to combat-balanced throwing models."
+    "notes": "SR2E Melee Weapons Table p.101: (Str)L, Reach 0, Concealability 8, 30¥."
   },
   "effects": [],
   "flags": {},

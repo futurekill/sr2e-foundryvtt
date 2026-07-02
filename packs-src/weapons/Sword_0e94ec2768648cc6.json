@@ -8,7 +8,7 @@
     "skill": "armed_combat",
     "damageCode": "(Str+2)M",
     "damageType": "physical",
-    "concealability": 6,
+    "concealability": 4,
     "reach": 1,
     "firingModes": {
       "ss": false,
@@ -35,7 +35,7 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "A blade with reach 1. SR2E p.253."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+2)M, Reach 1, Concealability 4, 500¥."
   },
   "effects": [],
   "flags": {},

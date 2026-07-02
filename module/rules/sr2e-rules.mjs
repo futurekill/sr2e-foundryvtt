@@ -856,3 +856,17 @@ export function heavyArmorPoolPenalty(quickness, items) {
   }
   return penalty;
 }
+
+/**
+ * Concentration/Specialization ratings from the FINAL general skill rating
+ * (SR2E p.55, p.70). Allocating 5 points with a Specialization yields
+ * general 3 / concentration 5 / specialization 7 — so concentration rolls
+ * general + 2 and specialization general + 4.
+ *
+ * @param {number} general - The skill's final (already reduced) general rating.
+ * @returns {{concentration:number, specialization:number}}
+ */
+export function skillSubRatings(general) {
+  const g = Math.max(0, general || 0);
+  return { concentration: g + 2, specialization: g + 4 };
+}
