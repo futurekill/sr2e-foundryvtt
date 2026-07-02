@@ -6,9 +6,9 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.2,
+    "essenceCost": 1,
     "rating": 0,
-    "cost": 3000,
+    "cost": 10000,
     "availability": "4/48hrs",
     "legality": "Restricted",
     "installed": false,
@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.248. 100 megapulse of headware memory\u2014enough for multiple high-rating skillsofts. Essence 1.0."
+    "notes": "SR2E p.244 (table p.260). Essence = Mp ÷ 100 (1.0), cost = Mp × 100¥ (10,000¥)."
   },
   "effects": [],
   "flags": {},

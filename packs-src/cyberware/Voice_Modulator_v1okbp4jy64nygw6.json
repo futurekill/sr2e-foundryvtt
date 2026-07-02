@@ -6,7 +6,7 @@
   "system": {
     "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.5,
+    "essenceCost": 0.2,
     "rating": 0,
     "cost": 45000,
     "availability": "2/24hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.249. Implanted voice-alteration hardware. Base cost includes increased volume and tonal shift. Secondary pattern (illegal): 50,000\u00a5. Playback: 40,000\u00a5."
+    "notes": "SR2E p.246 (table p.261). Voice control implant (volume/tonal-shift/pattern options extra). Essence .2, 45,000¥."
   },
   "effects": [],
   "flags": {},

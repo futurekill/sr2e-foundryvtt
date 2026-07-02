@@ -8,7 +8,7 @@
     "grade": "standard",
     "essenceCost": 0.1,
     "rating": 0,
-    "cost": 500,
+    "cost": 1000,
     "availability": "3/48hrs",
     "legality": "Restricted",
     "installed": false,
@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.248. 10 megapulse of headware memory for storing skillsofts and data. Essence 0.1 per 10 Mp."
+    "notes": "SR2E p.244 (table p.260). Essence = Mp ÷ 100 (.1), cost = Mp × 100¥ (1,000¥)."
   },
   "effects": [],
   "flags": {},

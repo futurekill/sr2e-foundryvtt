@@ -6,10 +6,10 @@
   "system": {
     "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.5,
+    "essenceCost": 0.2,
     "rating": 1,
-    "cost": 15000,
-    "availability": "6+10/4 days",
+    "cost": 10000,
+    "availability": "6/4 days",
     "legality": "Legal",
     "installed": false,
     "attributeMods": {
@@ -22,8 +22,51 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "ratingStats": [],
-    "notes": "Digestive-tract filtration against ingested toxins. Cost: Rating\u00d715,000\u00a5. Max Rating 6. SR2E p.261."
+    "ratingStats": [
+      {
+        "rating": 1,
+        "essenceCost": 0.2,
+        "cost": 10000,
+        "availability": "6/4 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 2,
+        "essenceCost": 0.4,
+        "cost": 20000,
+        "availability": "6/4 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 3,
+        "essenceCost": 0.6,
+        "cost": 30000,
+        "availability": "6/4 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 4,
+        "essenceCost": 0.8,
+        "cost": 40000,
+        "availability": "6/4 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 5,
+        "essenceCost": 1.0,
+        "cost": 50000,
+        "availability": "6/4 days",
+        "streetIndex": ""
+      },
+      {
+        "rating": 6,
+        "essenceCost": 1.2,
+        "cost": 60000,
+        "availability": "6/4 days",
+        "streetIndex": ""
+      }
+    ],
+    "notes": "SR2E p.246 (table p.261). Ingested-toxin filtration. Essence = Rating÷5, cost = Rating×10,000¥."
   },
   "effects": [],
   "flags": {},

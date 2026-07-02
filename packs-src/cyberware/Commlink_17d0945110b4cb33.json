@@ -1,14 +1,14 @@
 {
   "_id": "17d0945110b4cb33",
-  "name": "Commlink",
+  "name": "Commlink II",
   "type": "cyberware",
   "img": "icons/svg/upgrade.svg",
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.1,
+    "essenceCost": 0.3,
     "rating": 1,
-    "cost": 2000,
+    "cost": 8000,
     "availability": "4/48hrs",
     "legality": "Restricted",
     "installed": false,
@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.247. Basic headware communications unit. Range 5km in urban environments. Essence 0.3."
+    "notes": "SR2E table p.281 (Cybertech update). Implanted commlink, model II. Essence .3, 8,000¥. (Models IV/VIII/X: 18,000/40,000/60,000¥, Essence .3.)"
   },
   "effects": [],
   "flags": {},

@@ -6,9 +6,9 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.3,
+    "essenceCost": 0.75,
     "rating": 0,
-    "cost": 3500,
+    "cost": 4000,
     "availability": "4/48hrs",
     "legality": "Restricted",
     "installed": false,
@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.247. A subdermal headware transceiver. 5km range in cities. Sub-vocal operation possible. Essence 0.75."
+    "notes": "SR2E p.245 (table p.260). Implanted two-way radio. Essence .75, 4,000¥."
   },
   "effects": [],
   "flags": {},

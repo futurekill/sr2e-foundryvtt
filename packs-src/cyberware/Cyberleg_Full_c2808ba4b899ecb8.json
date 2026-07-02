@@ -8,7 +8,7 @@
     "grade": "standard",
     "essenceCost": 1,
     "rating": 0,
-    "cost": 20000,
+    "cost": 100000,
     "availability": "6/72hrs",
     "legality": "Restricted",
     "installed": false,
@@ -22,7 +22,7 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.250. Full cybernetic leg replacement. Includes options for enhanced speed, compartments, or weapons. Essence 1.0 base."
+    "notes": "SR2E p.247 (table p.261, 'Cyber Limb'). Full cyberleg. Essence 1, 100,000¥. Increased Strength +Rating×150,000¥; built-in smartlink +.25 Essence/+2,500¥."
   },
   "effects": [],
   "flags": {},

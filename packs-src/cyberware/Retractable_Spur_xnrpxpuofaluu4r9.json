@@ -6,7 +6,7 @@
   "system": {
     "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.5,
+    "essenceCost": 0.3,
     "rating": 0,
     "cost": 11500,
     "availability": "5/72hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.249. Bone-anchored blade with full retraction. Three smaller blades or one long spur, retractable. (STR+2)M damage."
+    "notes": "SR2E p.246 (table p.261). Retractable forearm blade — (Str+2)L damage. Essence .3, 11,500¥."
   },
   "effects": [],
   "flags": {},

@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 1,
+    "essenceCost": 0,
     "rating": 0,
     "cost": 500000,
     "availability": "20/14days",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.248. Explosive device in the skull. Used for coercion or anti-interrogation. Illegal everywhere."
+    "notes": "SR2E p.244 (table p.260). Illegal implanted explosive — no essence cost (nobody asks the victim). 500,000¥."
   },
   "effects": [],
   "flags": {},

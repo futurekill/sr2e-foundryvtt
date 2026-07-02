@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.1,
+    "essenceCost": 0,
     "rating": 0,
     "cost": 1000,
     "availability": "2/24hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. Cosmetic reshaping only\u2014pointed tips, metahuman styles. No functional changes."
+    "notes": "SR2E p.245 (table p.260). Cosmetic ear work — no essence cost. 1,000¥."
   },
   "effects": [],
   "flags": {},

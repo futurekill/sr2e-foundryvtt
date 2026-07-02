@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>A silver-tongued fixer's fixer \u2014 the face the team sends when a job needs a handshake, not a firefight. Tailored charm, an enhanced voice, and a Lined Coat that says \"I belong in this boardroom.\"</p>",
+    "biography": "<p>A silver-tongued fixer's fixer — the face the team sends when a job needs a handshake, not a firefight. Tailored charm, an enhanced voice, and a Lined Coat that says \"I belong in this boardroom.\"</p>",
     "notes": "",
     "race": "human",
     "body": {
@@ -420,7 +420,7 @@
           "initiativeDice": 0
         },
         "ratingStats": [],
-        "notes": "SR2E p.249. Implanted voice-alteration hardware. Base cost includes increased volume and tonal shift. Secondary pattern (illegal): 50,000\u00a5. Playback: 40,000\u00a5."
+        "notes": "SR2E p.249. Implanted voice-alteration hardware. Base cost includes increased volume and tonal shift. Secondary pattern (illegal): 50,000¥. Playback: 40,000¥."
       },
       "effects": [],
       "flags": {},
@@ -494,7 +494,7 @@
       "system": {
         "location": "headware",
         "grade": "standard",
-        "essenceCost": 0.1,
+        "essenceCost": 0.2,
         "rating": 0,
         "cost": 1000,
         "availability": "3/72hrs",

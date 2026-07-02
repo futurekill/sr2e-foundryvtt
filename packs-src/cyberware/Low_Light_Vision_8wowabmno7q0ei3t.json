@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.3,
+    "essenceCost": 0.2,
     "rating": 0,
     "cost": 3000,
     "availability": "4/36hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. See normally down to starlight levels. Total darkness still blinds. SI 1.25."
+    "notes": "SR2E p.245 (table p.260). Cybereye low-light option. Essence .2, 3,000¥."
   },
   "effects": [],
   "flags": {},

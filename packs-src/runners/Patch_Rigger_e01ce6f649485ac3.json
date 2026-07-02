@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>A dwarven wheelman who loves machines more than people and trusts them further. Jacked into a rig, Patch IS the vehicle \u2014 link a vehicle actor on the Vehicles tab and toggle Jacked In.</p><p><em>Sample character.</em></p>",
+    "biography": "<p>A dwarven wheelman who loves machines more than people and trusts them further. Jacked into a rig, Patch IS the vehicle — link a vehicle actor on the Vehicles tab and toggle Jacked In.</p><p><em>Sample character.</em></p>",
     "notes": "",
     "race": "dwarf",
     "body": {
@@ -403,9 +403,9 @@
       "system": {
         "location": "bodyware",
         "grade": "standard",
-        "essenceCost": 1,
+        "essenceCost": 3,
         "rating": 2,
-        "cost": 12000,
+        "cost": 60000,
         "availability": "6/48hrs",
         "legality": "Restricted",
         "installed": true,
@@ -422,24 +422,24 @@
         "ratingStats": [
           {
             "rating": 1,
-            "essenceCost": 1,
+            "essenceCost": 2,
             "cost": 12000,
-            "availability": "6/48hrs",
-            "streetIndex": "1"
+            "availability": "6/48 hrs",
+            "streetIndex": ""
           },
           {
             "rating": 2,
-            "essenceCost": 2,
+            "essenceCost": 3,
             "cost": 60000,
-            "availability": "8/48hrs",
-            "streetIndex": "1.25"
+            "availability": "8/48 hrs",
+            "streetIndex": ""
           },
           {
             "rating": 3,
-            "essenceCost": 3,
+            "essenceCost": 5,
             "cost": 300000,
-            "availability": "8/48hrs",
-            "streetIndex": "1.5"
+            "availability": "8/48 hrs",
+            "streetIndex": ""
           }
         ],
         "notes": "SR2E p.249. MST interfaces for vehicle rigging. Each level: +2 Reaction and +1d6 Initiative, applied ONLY while jacked in (use the Jacked In toggle on the Vehicles tab). Rating sets the character VCR level automatically when installed.",

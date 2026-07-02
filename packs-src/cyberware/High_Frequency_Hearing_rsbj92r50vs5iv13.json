@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.3,
+    "essenceCost": 0.2,
     "rating": 0,
     "cost": 3000,
     "availability": "4/48hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. Cyberear modification. Hear ultrasonic frequencies above normal human range. SI 1.25."
+    "notes": "SR2E p.245 (table p.260). Hear above-normal frequencies. Essence .2, 3,000¥."
   },
   "effects": [],
   "flags": {},

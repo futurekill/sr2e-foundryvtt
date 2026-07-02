@@ -6,7 +6,7 @@
   "system": {
     "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.3,
+    "essenceCost": 0.1,
     "rating": 0,
     "cost": 4500,
     "availability": "3/72hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.249. 2.5cm chromed blades replacing fingernails, anchored to bone. (STR+1)M damage, Reach 0."
+    "notes": "SR2E p.246 (table p.261). Fixed finger blades — (Str)L damage. Essence .1, 4,500¥."
   },
   "effects": [],
   "flags": {},

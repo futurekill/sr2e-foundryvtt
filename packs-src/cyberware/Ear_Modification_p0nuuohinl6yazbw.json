@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.3,
+    "essenceCost": 0.1,
     "rating": 0,
     "cost": 2000,
     "availability": "2/24hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. Add-on for cyberear replacement. Any hearing-enhancing feature."
+    "notes": "SR2E p.245 (table p.260). Ear modification mount for hearing options. Essence .1, 2,000¥."
   },
   "effects": [],
   "flags": {},

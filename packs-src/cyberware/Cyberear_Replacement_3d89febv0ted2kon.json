@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.6,
+    "essenceCost": 0.3,
     "rating": 0,
     "cost": 4000,
     "availability": "2/24hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. Full prosthetic ear. Perfect hearing within normal ranges. Can accept one modification of 0.2 Essence or less free. SI 0.75."
+    "notes": "SR2E p.245 (table p.260). Full cyberear replacement. Essence .3, 4,000¥."
   },
   "effects": [],
   "flags": {},

@@ -18,56 +18,56 @@
       "initiativeDice": 0
     },
     "location": "headware",
-    "essenceCost": 0.5,
+    "essenceCost": 0.1,
     "rating": 1,
-    "cost": 5000,
-    "availability": "5/72hrs",
+    "cost": 10000,
+    "availability": "4/10 days",
     "streetIndex": "",
     "ratingStats": [
       {
         "rating": 1,
-        "essenceCost": 0.5,
-        "cost": 5000,
-        "availability": "5/72hrs",
+        "essenceCost": 0.1,
+        "cost": 10000,
+        "availability": "4/10 days",
         "streetIndex": ""
       },
       {
         "rating": 2,
-        "essenceCost": 1,
-        "cost": 15000,
-        "availability": "6/72hrs",
+        "essenceCost": 0.2,
+        "cost": 20000,
+        "availability": "4/10 days",
         "streetIndex": ""
       },
       {
         "rating": 3,
-        "essenceCost": 1.5,
-        "cost": 35000,
-        "availability": "8/7 days",
+        "essenceCost": 0.3,
+        "cost": 30000,
+        "availability": "4/10 days",
         "streetIndex": ""
       },
       {
         "rating": 4,
-        "essenceCost": 2,
-        "cost": 70000,
-        "availability": "10/7 days",
+        "essenceCost": 0.8,
+        "cost": 400000,
+        "availability": "5/10 days",
         "streetIndex": ""
       },
       {
         "rating": 5,
-        "essenceCost": 2.5,
-        "cost": 120000,
-        "availability": "14/7 days",
+        "essenceCost": 1.0,
+        "cost": 500000,
+        "availability": "5/10 days",
         "streetIndex": ""
       },
       {
         "rating": 6,
-        "essenceCost": 3,
-        "cost": 200000,
-        "availability": "18/14 days",
+        "essenceCost": 1.2,
+        "cost": 600000,
+        "availability": "5/10 days",
         "streetIndex": ""
       }
     ],
-    "notes": "SR2E p.249. Invasive neuro-muscular controllers that allow ActiveSoft access. Rating limits total active skillsoft rating simultaneously usable."
+    "notes": "SR2E p.243 (table p.261). Rating = total ActiveSoft-rating budget. Essence .1×Rating (1–3) / .2×Rating (4–6); cost Rating×10,000¥ (1–3) / Rating×100,000¥ (4–6)."
   },
   "effects": [],
   "flags": {},

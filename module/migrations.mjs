@@ -64,9 +64,9 @@ const MIGRATIONS = [
         return Object.keys(update).length ? update : null;
       }
 
-      // Cyberware audit fixes (core p.90/247/261): older compendium copies of
-      // Smartlink carried no TN mod, and Wired Reflexes lacked its +2 Reaction
-      // per level.
+      // Cyberware audit fixes (core p.90/247/260/261): older compendium copies
+      // of Smartlink carried no TN mod, Wired Reflexes lacked its +2 Reaction
+      // per level, and several items had wrong essence costs (GitHub #4).
       if (source.type === "cyberware") {
         if (/^smartlink$/i.test(source.name) && !(source.system?.combatTnMod < 0)) {
           return { "system.combatTnMod": -2 };
@@ -78,6 +78,22 @@ const MIGRATIONS = [
             "system.attributeMods.reaction": 2 * lvl,
             "system.attributeMods.initiativeDice": lvl
           };
+        }
+        // Flat essence corrections (headware table p.260, bodyware p.261).
+        // Rating-table items (VCR, Skillwires, Filtration) self-correct from
+        // their ratingStats rows and are not listed here.
+        const ESSENCE_FIX = {
+          "chipjack": 0.2, "radio (headware)": 0.75, "radio receiver (headware)": 0.4,
+          "cyberear replacement": 0.3, "ear modification": 0.1,
+          "ear cosmetic modification": 0, "damper": 0.1,
+          "high frequency hearing": 0.2, "low frequency hearing": 0.2,
+          "low-light vision": 0.2, "retinal duplication": 0.1, "cortex bomb": 0,
+          "data lock": 0.2, "fingertip compartment": 0.1, "hand razors": 0.1,
+          "retractable razors": 0.2, "retractable spur": 0.3, "voice modulator": 0.2
+        };
+        const fix = ESSENCE_FIX[source.name?.toLowerCase()];
+        if (fix !== undefined && source.system?.essenceCost !== fix) {
+          return { "system.essenceCost": fix };
         }
       }
       return null;

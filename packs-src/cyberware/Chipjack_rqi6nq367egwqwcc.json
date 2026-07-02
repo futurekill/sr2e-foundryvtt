@@ -6,7 +6,7 @@
   "system": {
     "location": "headware",
     "grade": "standard",
-    "essenceCost": 0.1,
+    "essenceCost": 0.2,
     "rating": 0,
     "cost": 1000,
     "availability": "3/72hrs",
@@ -23,7 +23,7 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.246. A passive slot for skillsofts and datasofts. Chips must remain inserted during use. Essence 0.1."
+    "notes": "SR2E p.244 (table p.260). Skillsoft chip socket. Essence .2, 1,000¥."
   },
   "effects": [],
   "flags": {},
