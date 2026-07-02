@@ -35,9 +35,10 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "Fragmentation/offensive mini-grenade \u2014 wide blast, \u22121 Power per metre from ground zero. Thrown (Throwing Weapons) or launched (Heavy Weapons). Street Index 2. SR2E p.256.",
+    "notes": "Fragmentation/offensive mini-grenade — wide blast, −1 Power per metre from ground zero. Thrown (Throwing Weapons) or launched (Heavy Weapons). Street Index 2. SR2E p.256.",
     "blastType": "offensive",
-    "quantity": 1
+    "quantity": 1,
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

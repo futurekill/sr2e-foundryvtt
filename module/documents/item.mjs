@@ -590,14 +590,26 @@ export class SR2EItem extends Item {
     // staging, and damage — see the .sr2e-defend-btn handler in sr2e.mjs.
     if (isMelee) {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
+      let level = dmg.level;
+      let damageType = this.system.damageType || "physical";
+      let weaponName = this.name;
+      // Killing Hands (SR2E p.125–126): an adept may declare their unarmed
+      // strike as PHYSICAL damage at the purchased level instead of (Str)M
+      // Stun. Applied when the dialog checkbox was ticked (options.killingHands
+      // carries the level letter).
+      if (options.killingHands && /unarmed/i.test(this.name)) {
+        level = options.killingHands;
+        damageType = "physical";
+        weaponName = `${this.name} (Killing Hands)`;
+      }
       const meleeState = {
         attackerUuid: actor.uuid,
         attackerName: actor.name,
-        weaponName: this.name,
+        weaponName,
         successes: result.successes,
         power: Math.max(1, dmg.power),
-        level: dmg.level,
-        damageType: this.system.damageType || "physical",
+        level,
+        damageType,
         resolved: false
       };
       await ChatMessage.create({

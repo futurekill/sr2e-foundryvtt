@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "Heavy flechette pistol \u2014 target resists with Impact Armour. SR2E p.254-255."
+    "notes": "Heavy flechette pistol — target resists with Impact Armour. SR2E p.254-255.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

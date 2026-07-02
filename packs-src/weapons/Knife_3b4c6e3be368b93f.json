@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E Melee Weapons Table p.101: (Str)L, Reach 0, Concealability 8, 30¥."
+    "notes": "SR2E Melee Weapons Table p.101: (Str)L, Reach 0, Concealability 8, 30¥.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

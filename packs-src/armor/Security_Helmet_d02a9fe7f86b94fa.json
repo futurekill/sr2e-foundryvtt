@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": true,
-    "notes": "SR2E p.242. Corporate security headgear. Adds its Ballistic rating when worn with other armor."
+    "notes": "SR2E p.242. Corporate security headgear. Adds its Ballistic rating when worn with other armor.",
+    "streetIndex": 1.5
   },
   "effects": [],
   "flags": {},

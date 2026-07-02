@@ -35,9 +35,10 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "Defensive grenade \u2014 tighter blast (\u22122 Power per metre) for use from cover. SR2E p.256.",
+    "notes": "Defensive grenade — tighter blast (−2 Power per metre) for use from cover. SR2E p.256.",
     "blastType": "defensive",
-    "quantity": 1
+    "quantity": 1,
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

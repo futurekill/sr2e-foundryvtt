@@ -9,9 +9,10 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 450,
-    "notes": "Heavy assault-cannon shells \u2014 explosive-equivalent with limited armour-piercing. ~1.25 wt/unit. Feeds the Panther and vehicle-mounted assault cannons. SR2E p.256.",
+    "notes": "Heavy assault-cannon shells — explosive-equivalent with limited armour-piercing. ~1.25 wt/unit. Feeds the Panther and vehicle-mounted assault cannons. SR2E p.256.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

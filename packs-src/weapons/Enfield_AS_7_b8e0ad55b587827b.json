@@ -35,8 +35,9 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "An assault shotgun \u2014 massive close-range firepower. SR2E p.254-255. Can fire shot rounds (spread cone, choke 3; SR2E p.95).",
-    "choke": 3
+    "notes": "An assault shotgun — massive close-range firepower. SR2E p.254-255. Can fire shot rounds (spread cone, choke 3; SR2E p.95).",
+    "choke": 3,
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

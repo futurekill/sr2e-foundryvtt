@@ -35,8 +35,9 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Unguided anti-vehicle rocket \u2014 HEAT/armour-piercing warhead vs vehicles and barriers. Street Index 2. SR2E p.255.",
-    "blastType": "offensive"
+    "notes": "Unguided anti-vehicle rocket — HEAT/armour-piercing warhead vs vehicles and barriers. Street Index 2. SR2E p.255.",
+    "blastType": "offensive",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

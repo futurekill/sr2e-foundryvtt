@@ -1,5 +1,66 @@
 # Changelog
 
+Keep this current: add to **Unreleased** as work lands, retitle at release.
+
+## Unreleased
+
+### Features
+- **Sell button on weapon/armor/ammo rows** (combat tab) — anything paid for
+  can be sold back, not just gear/cyberware.
+
+### Fixes
+- **Street Indexes transcribed from the book tables** (p.254–257) for weapons,
+  armor, ammunition and grenades — everything previously defaulted to SI 1
+  (street price = list price). Catalog guns absent from the core tables keep
+  SI 1 pending Street Samurai Catalog capture.
+
+## 0.26.0 — 2026-07-02
+
+### Features
+- **Weapon accessories** (p.240–241): attach/detach/transfer between weapons;
+  bipod/tripod deployment; gyro mounts (recoil + movement); imaging scopes
+  (range-bracket shift); smartgun systems grant smart capability; laser sight
+  gated to 50 m / no smartlink stacking; gas vents & internal smartguns lock
+  once mounted. 12 new accessory items.
+- **Shopping & economy**: Street Index pricing (list vs street shown);
+  auto-charge on drop — list price during character creation, world setting to
+  disable; sell-back refunds the price paid; **Award Nuyen** macro with a
+  communal pot.
+- **Combat**: Visibility dropdown (p.89) with context-aware auto-detect (smoke
+  clouds + scene darkness); **knockdown test** on damage cards (p.91);
+  explosive-round **misfire** on all-ones (p.93); **smoke grenades** drop cloud
+  templates (optional darkness light); **concentrations/specializations** now
+  roll (skills-tab tags + attack-dialog select).
+- **Integrations**: Dice So Nice colorsets; Token Magic FX visuals + optional
+  sounds on attacks and spells.
+- Default **Unarmed Strike** on every character (#3).
+
+### Fixes
+- Adept powers were invisible on the sheet (#2); cyberware essence/cost sweep
+  vs the book tables — VCR, Skillwires, headware radio + 16 more (#4).
+- Wired Reflexes/Smartlink/Dermal Plating were mechanically inert.
+- Worn armor stacked additively — now highest + layered (p.242); heavy armor
+  reduces the Combat Pool (p.84); heavy weapons double uncompensated recoil.
+- Movement modifiers (+1 walk/+4 run), target stationary −1, firing-in-melee
+  +2 per opponent (p.90); Melee Weapons Table corrections (9 items).
+- Grenade launchers fired as direct hits instead of blasts; initiation Karma
+  now rounds down (Grimoire p.41).
+- A 0.26.0 world migration repairs existing cyberware and backfills the
+  Unarmed Strike.
+
+## 0.25.0 — 2026-07-01
+- Combat spells: fixed Force (set when learned), target-derived TN
+  (Willpower/Body), area spells use the blast engine with Magic-rating radius.
+
+## 0.12.0 – 0.24.0 (summary)
+- Matrix play (persona, cybercombat, system operations, IC/Host actors),
+  vehicle/rigger play + design engine, conjuring + spirit sheets, astral
+  projection/combat, opposed melee, initiative passes, Karma Pool flows,
+  healing, blast engine + scatter, metamagic (Centering/Shielding/Quickening),
+  contacts & enemies, skillsofts, shotgun spread, priority chargen + Sum-to-10,
+  compendium build-out and audits. Full notes per release:
+  https://github.com/futurekill/sr2e-foundryvtt/releases
+
 ## 0.11.3
 
 ### Fixes

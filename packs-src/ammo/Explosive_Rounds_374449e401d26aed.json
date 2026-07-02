@@ -11,7 +11,8 @@
     "cost": 50,
     "notes": "Power +1. Misfires on an all-1s Attack Test: the shooter resists the weapon's normal Damage Code with no Combat Pool. SR2E p.93.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "streetIndex": 0.8
   },
   "effects": [],
   "flags": {},

@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Fires flechette slivers only \u2014 target resists with Impact Armour. SR2E p.254-255."
+    "notes": "Fires flechette slivers only — target resists with Impact Armour. SR2E p.254-255.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

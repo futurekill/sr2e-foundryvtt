@@ -7,14 +7,14 @@
     "pointCost": 0.5,
     "level": 1,
     "maxLevel": 6,
-    "description": "",
+    "description": "<p>Improves one Active Skill by +1 die per level (max +6); .5 Power Points per level for combat skills. SR2E p.125.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.125. Extra dice for a specific skill. Cost/die: Athletic/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1. Combat skills: max extra dice \u2264 current skill rating."
+    "notes": "SR2E p.125. Extra dice for a specific skill. Cost/die: Athletic/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1. Combat skills: max extra dice ≤ current skill rating."
   },
   "effects": [],
   "folder": null,

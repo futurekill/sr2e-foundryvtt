@@ -35,8 +35,9 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "A taser \u2014 delivers Stun; target resists with Body. SR2E p.254-255. Can fire shot rounds (spread cone, choke 3; SR2E p.95).",
-    "choke": 3
+    "notes": "A taser — delivers Stun; target resists with Body. SR2E p.254-255. Can fire shot rounds (spread cone, choke 3; SR2E p.95).",
+    "choke": 3,
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

@@ -11,7 +11,8 @@
     "cost": 30,
     "notes": "Power −2; all damage is Stun and Impact Armor applies. Increased knockdown chance (TN = Power). SR2E p.93–94.",
     "damageType": "stun",
-    "armorCalc": "impact"
+    "armorCalc": "impact",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

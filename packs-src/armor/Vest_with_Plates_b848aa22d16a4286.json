@@ -13,7 +13,8 @@
     "legality": "Restricted",
     "equipped": false,
     "isLayered": false,
-    "notes": "Armor vest with ceramic trauma plates. SR2E p.257."
+    "notes": "Armor vest with ceramic trauma plates. SR2E p.257.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

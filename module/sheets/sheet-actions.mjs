@@ -419,6 +419,20 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
   const isRanged   = !isMelee;
 
+  // Killing Hands (SR2E p.125-126): offer the physical-damage declaration on
+  // unarmed attacks when the adept has the power. Best (highest) level wins.
+  let killingHands = "";
+  if (isMelee && /unarmed/i.test(weapon.name)) {
+    const order = { L: 1, M: 2, S: 3, D: 4 };
+    for (const p of actor.items) {
+      if (p.type !== "adept_power") continue;
+      const m = p.name.match(/killing hands\s*\((L|M|S|D)\)/i);
+      if (m && (order[m[1].toUpperCase()] ?? 0) > (order[killingHands] ?? 0)) {
+        killingHands = m[1].toUpperCase();
+      }
+    }
+  }
+
   // ── Auto-detected modifiers ───────────────────────────────────────────────
 
   // Accessories attached to this weapon (SR2E p.240–241): recoil comp, TN
@@ -757,6 +771,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     </div>` : `
     ${skillSelectHTML}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+      ${killingHands ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+        <label title="Declare the strike as PHYSICAL damage at your Killing Hands level instead of (Str)M Stun (SR2E p.125-126)">Killing Hands (${killingHands} Physical):</label>
+        <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked style="width:auto;">
+      </div>` : ""}
       <div class="form-group" style="margin:2px 0;">
         <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
@@ -990,6 +1008,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                            - Math.min(4, Math.max(0, parseInt(f.allies?.value) || 0)),
             positionMod:     (f.supPos?.checked ? -1 : 0) + (f.prone?.checked ? -2 : 0),
             multiMod:        2 * Math.max(0, parseInt(f.multiTargets?.value) || 0),
+            killingHands:    f.killingHands?.checked ? killingHands : "",
             shotSpread:      !!f.shotSpread?.checked,
             choke:           weapon.system.choke ?? 0,
             poolDice,
@@ -1091,6 +1110,7 @@ async function onRollWeapon(event, target) {
   return item.roll({
     skillVariant:    opts.skillVariant,
     visMod:          opts.visMod,
+    killingHands:    opts.killingHands,
     range:           opts.range,
     firingMode:      opts.firingMode,
     rounds:          opts.rounds,
@@ -1762,6 +1782,31 @@ async function onDeleteItem(event, target) {
  * auto-purchased — then delete the item.
  * @this {ApplicationV2}
  */
+/**
+ * Use / show an adept power. Passive powers (attribute/dice bonuses) apply
+ * automatically through derived data; clicking posts the power's rules to chat
+ * so the player knows what it does and how to invoke it (e.g. Killing Hands is
+ * a checkbox on the unarmed-attack dialog).
+ * @this {ApplicationV2}
+ */
+async function onUsePower(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const power = this.document.items.get(itemId);
+  if (!power) return;
+  const s = power.system;
+  const invoke = /killing hands/i.test(power.name)
+    ? `<br><em>Invoke via the "Killing Hands" checkbox on an Unarmed Strike attack.</em>`
+    : `<br><em>Passive — its bonus is already applied to the character's stats.</em>`;
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: this.document }),
+    content: `<div class="sr2e-power-card">
+      <strong>✋ ${foundry.utils.escapeHTML(power.name)}</strong> (Level ${s.level}, ${s.totalCost} PP)
+      ${s.description || ""}${invoke}
+    </div>`
+  });
+}
+
 async function onSellItem(event, target) {
   event.preventDefault();
   const actor = this.document;
@@ -2394,6 +2439,7 @@ const SHARED_ACTIONS = {
   editItem: onEditItem,
   deleteItem: onDeleteItem,
   sellItem: onSellItem,
+  usePower: onUsePower,
   spendFocus: onSpendFocus,
   addItem: onAddItem,
   reloadWeapon: onReloadWeapon,

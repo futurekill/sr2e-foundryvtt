@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "Quality clothing; aids social impressions. SR2E p.257."
+    "notes": "Quality clothing; aids social impressions. SR2E p.257.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

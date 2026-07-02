@@ -7,7 +7,7 @@
     "pointCost": 0.25,
     "level": 1,
     "maxLevel": 6,
-    "description": "",
+    "description": "<p>Ignore the injury and Initiative modifiers of one box of damage per point; also shifts torture/pain target numbers. Does not heal actual damage. SR2E p.126.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,

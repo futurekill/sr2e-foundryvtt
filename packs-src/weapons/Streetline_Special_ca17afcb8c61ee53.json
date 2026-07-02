@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "A cheap, easily-hidden hold-out pistol. SR2E p.254-255."
+    "notes": "A cheap, easily-hidden hold-out pistol. SR2E p.254-255.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

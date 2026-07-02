@@ -37,7 +37,8 @@
     "accessories": [],
     "notes": "Thermal smoke grenade — blocks thermographic vision too. No damage — drops a visibility-impairing cloud (Visibility Table +4, defeats thermographic vision, SR2E p.89). Radius scales like a grenade blast. SR2E gear.",
     "blastType": "smoke",
-    "quantity": 1
+    "quantity": 1,
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

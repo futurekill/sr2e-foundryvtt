@@ -7,7 +7,7 @@
     "pointCost": 1,
     "level": 1,
     "maxLevel": 1,
-    "description": "",
+    "description": "<p>Unarmed attacks may deal (Str)M PHYSICAL instead of (Str)M Stun — declare with the attack. Bare-handed only. SR2E p.125-126.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,

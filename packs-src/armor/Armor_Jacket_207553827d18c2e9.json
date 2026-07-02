@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. Available from chic street styling to macho militarism. Substantial protection in a practical package."
+    "notes": "SR2E p.242. Available from chic street styling to macho militarism. Substantial protection in a practical package.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

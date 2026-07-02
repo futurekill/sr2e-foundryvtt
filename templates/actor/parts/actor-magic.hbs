@@ -238,9 +238,11 @@
       <div class="item-list">
         {{#each adeptPowers as |power|}}
         <div class="item-row flexrow" data-item-id="{{power.id}}">
-          <span class="item-name">{{power.name}}</span>
+          <span class="item-name" data-action="usePower" title="Post this power's rules to chat (passive powers apply automatically via their stat bonuses)">
+            <i class="fas fa-hand-sparkles"></i> {{power.name}}
+          </span>
           <span>Level: {{power.system.level}}</span>
-          <span>Cost: {{power.system.totalCost}}</span>
+          <span title="Power Points spent = cost-per-level × level (Magic Points at chargen / initiation)">Cost: {{power.system.totalCost}} PP</span>
           <div class="item-controls">
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem"><i class="fas fa-trash"></i></a>

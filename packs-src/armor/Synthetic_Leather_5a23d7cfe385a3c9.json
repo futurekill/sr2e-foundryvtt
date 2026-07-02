@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "Synth-leather clothing \u2014 light impact protection. SR2E p.257."
+    "notes": "Synth-leather clothing — light impact protection. SR2E p.257.",
+    "streetIndex": 0.6
   },
   "effects": [],
   "flags": {},

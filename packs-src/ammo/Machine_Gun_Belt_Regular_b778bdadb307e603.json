@@ -9,9 +9,10 @@
     "damageModifier": 0,
     "armorModifier": 0,
     "cost": 100,
-    "notes": "Belt-fed regular rounds (~2\u00a5/round) for light/medium/heavy machine guns and vehicle-mounted MGs. SR2E p.256.",
+    "notes": "Belt-fed regular rounds (~2¥/round) for light/medium/heavy machine guns and vehicle-mounted MGs. SR2E p.256.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

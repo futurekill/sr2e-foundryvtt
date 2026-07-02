@@ -36,7 +36,8 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.233. A popular autoloading shotgun, available in full-size and short-barrel versions. No under-barrel mount. Can fire shot rounds (spread cone, choke 3; SR2E p.95).",
-    "choke": 3
+    "choke": 3,
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

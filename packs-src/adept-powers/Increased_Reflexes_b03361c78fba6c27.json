@@ -7,7 +7,7 @@
     "pointCost": 1,
     "level": 1,
     "maxLevel": 1,
-    "description": "",
+    "description": "<p>Additional Initiative dice (1/2/3 dice for 2/3/5 Power Points). SR2E p.126.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,

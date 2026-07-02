@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Assault rifle with an integral grenade launcher. SR2E p.254-255."
+    "notes": "Assault rifle with an integral grenade launcher. SR2E p.254-255.",
+    "streetIndex": 4
   },
   "effects": [],
   "flags": {},

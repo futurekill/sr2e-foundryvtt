@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.234. The Ares Panther is the definitive assault cannon\u2014fires explosive-equivalent shells with limited armor-piercing capability."
+    "notes": "SR2E p.234. The Ares Panther is the definitive assault cannon—fires explosive-equivalent shells with limited armor-piercing capability.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

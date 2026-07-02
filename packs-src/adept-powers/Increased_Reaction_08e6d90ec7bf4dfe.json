@@ -7,14 +7,14 @@
     "pointCost": 1,
     "level": 1,
     "maxLevel": 6,
-    "description": "",
+    "description": "<p>Additional Reaction points (no extra Initiative dice); cost per point scales by bracket (.5 / 1 / 2). SR2E p.125.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,
       "strength": 0,
       "reaction": 1
     },
-    "notes": "SR2E p.126. +level Reaction (no extra Initiative dice). Cost/pt: \u2264\u00bd racial max 0.5, \u2264racial max 1, \u22641.5\u00d7 racial max 2. Level = total bonus pts purchased."
+    "notes": "SR2E p.126. +level Reaction (no extra Initiative dice). Cost/pt: ≤½ racial max 0.5, ≤racial max 1, ≤1.5× racial max 2. Level = total bonus pts purchased."
   },
   "effects": [],
   "folder": null,

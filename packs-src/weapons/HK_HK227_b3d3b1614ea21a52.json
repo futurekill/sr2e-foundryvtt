@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.232. A precise, well-balanced SMG from Heckler & Koch. Favored by corporate security and runners who value accuracy."
+    "notes": "SR2E p.232. A precise, well-balanced SMG from Heckler & Koch. Favored by corporate security and runners who value accuracy.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

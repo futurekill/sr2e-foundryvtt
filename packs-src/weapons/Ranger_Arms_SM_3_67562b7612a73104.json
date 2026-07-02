@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.233. A premier sniper rifle. Integral barrel-mount gas-vent comp and top-mount scope (Rating 3). Disassembles to briefcase size. Fragile in sustained combat use."
+    "notes": "SR2E p.233. A premier sniper rifle. Integral barrel-mount gas-vent comp and top-mount scope (Rating 3). Disassembles to briefcase size. Fragile in sustained combat use.",
+    "streetIndex": 4
   },
   "effects": [],
   "flags": {},

@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable."
+    "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

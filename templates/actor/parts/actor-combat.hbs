@@ -49,6 +49,7 @@
             {{#if weapon.system.firingModes.fa}}FA {{/if}}
           </span>
           <div class="item-controls">
+            <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="{{#if weapon.system.equipped}}Unequip{{else}}Equip{{/if}}">
               <i class="fas {{#if weapon.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
             </a>
@@ -100,6 +101,7 @@
           <span>B: {{armor.system.ballistic}}</span>
           <span>I: {{armor.system.impact}}</span>
           <div class="item-controls">
+            <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="{{#if armor.system.equipped}}Unequip{{else}}Equip{{/if}}">
               <i class="fas {{#if armor.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
             </a>
@@ -126,6 +128,7 @@
           <span>{{a.system.ammoType}}</span>
           <span>Qty: {{a.system.quantity}}</span>
           <div class="item-controls">
+            <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
           </div>

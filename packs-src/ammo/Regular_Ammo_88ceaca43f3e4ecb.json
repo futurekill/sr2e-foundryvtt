@@ -11,7 +11,8 @@
     "cost": 15,
     "notes": "Standard rounds. SR2E p.93.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

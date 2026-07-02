@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "The FN Heavy Assault Rifle. SR2E p.254-255."
+    "notes": "The FN Heavy Assault Rifle. SR2E p.254-255.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

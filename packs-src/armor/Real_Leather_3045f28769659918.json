@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "Real-leather clothing \u2014 modest impact protection, social cachet. SR2E p.257."
+    "notes": "Real-leather clothing — modest impact protection, social cachet. SR2E p.257.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.232. The latest in the venerable Uzi lineage\u2014compact, reliable, and effective in close quarters. BF capable."
+    "notes": "SR2E p.232. The latest in the venerable Uzi lineage—compact, reliable, and effective in close quarters. BF capable.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

@@ -35,8 +35,9 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Guided anti-vehicle missile \u2014 HEAT warhead with on-board sensors (Intelligence rating). SR2E p.255.",
-    "blastType": "offensive"
+    "notes": "Guided anti-vehicle missile — HEAT warhead with on-board sensors (Intelligence rating). SR2E p.255.",
+    "blastType": "offensive",
+    "streetIndex": 3
   },
   "effects": [],
   "flags": {},

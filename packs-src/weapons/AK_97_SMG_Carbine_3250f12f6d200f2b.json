@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SMG/carbine variant of the AK-97 (SR2E p.94). Shorter-ranged than the assault rifle; SA/BF/FA."
+    "notes": "SMG/carbine variant of the AK-97 (SR2E p.94). Shorter-ranged than the assault rifle; SA/BF/FA.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

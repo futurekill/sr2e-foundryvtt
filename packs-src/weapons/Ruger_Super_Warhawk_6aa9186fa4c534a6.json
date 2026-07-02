@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.231. A heavy revolver that accepts all standard accessories except silencers. Powerful and extremely reliable."
+    "notes": "SR2E p.231. A heavy revolver that accepts all standard accessories except silencers. Powerful and extremely reliable.",
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Stocked/suppressed variant of the HK227. SR2E p.254-255."
+    "notes": "Stocked/suppressed variant of the HK227. SR2E p.254-255.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

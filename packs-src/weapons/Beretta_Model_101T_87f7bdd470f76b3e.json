@@ -35,7 +35,8 @@
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "A reliable light pistol. SR2E p.254-255."
+    "notes": "A reliable light pistol. SR2E p.254-255.",
+    "streetIndex": 0.8
   },
   "effects": [],
   "flags": {},

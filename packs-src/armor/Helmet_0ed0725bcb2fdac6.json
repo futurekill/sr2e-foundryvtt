@@ -13,7 +13,8 @@
     "legality": "Restricted",
     "equipped": false,
     "isLayered": true,
-    "notes": "Combat helmet; stacks with worn armor. SR2E p.257."
+    "notes": "Combat helmet; stacks with worn armor. SR2E p.257.",
+    "streetIndex": 1.5
   },
   "effects": [],
   "flags": {},

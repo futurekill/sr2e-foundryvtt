@@ -13,7 +13,8 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. Heavy-duty tactical vest with front and back ballistic plates. Standard law enforcement gear."
+    "notes": "SR2E p.242. Heavy-duty tactical vest with front and back ballistic plates. Standard law enforcement gear.",
+    "streetIndex": 0.8
   },
   "effects": [],
   "flags": {},
