@@ -739,10 +739,17 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
 
   // Drop a template at the (possibly scattered) blast point.
   try {
+    // Smoke rounds leave a visibility-impairing cloud: the attack dialog
+    // auto-detects targets inside it (Visibility Table p.89). Heavy smoke +6,
+    // regular/thermal smoke +4 (thermal also defeats thermographic vision).
+    const smokeVis = /thermal\s*smoke/i.test(blastName ?? "") ? 4
+                   : /heavy\s*smoke/i.test(blastName ?? "") ? 6
+                   : /smoke/i.test(blastName ?? "") ? 4 : 0;
     await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
       t: "circle", x: center.x, y: center.y, distance: radiusM,
-      fillColor: "#ff6a00", borderColor: "#aa2200",
-      flags: { sr2e: { blast: true } }
+      fillColor: smokeVis ? "#9a9a9a" : "#ff6a00",
+      borderColor: smokeVis ? "#555555" : "#aa2200",
+      flags: { sr2e: { blast: true, ...(smokeVis ? { visibility: smokeVis } : {}) } }
     }]);
   } catch (e) { /* template optional; resolution still proceeds */ }
 

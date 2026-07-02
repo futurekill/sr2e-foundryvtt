@@ -349,6 +349,25 @@ function detectAttackTarget(attacker, weapon) {
   } catch (e) { return presets; }
   presets.distance = Math.round(distance);
 
+  // Auto-suggest a Visibility Table modifier (p.89) — manually overridable
+  // in the dialog. Sources: any template flagged with a visibility value
+  // (smoke-grenade blasts stamp theirs) containing the TARGET's centre, and
+  // the scene's darkness level.
+  let visMod = 0;
+  for (const t of canvas.templates?.placeables ?? []) {
+    const v = t.document.flags?.sr2e?.visibility;
+    if (!v) continue;
+    const dx = targetToken.center.x - t.document.x;
+    const dy = targetToken.center.y - t.document.y;
+    const rPx = (t.document.distance ?? 0) * (canvas.grid.size / canvas.grid.distance);
+    if (Math.hypot(dx, dy) <= rPx) visMod = Math.max(visMod, Number(v) || 0);
+  }
+  const darkness = canvas.scene?.environment?.darknessLevel ?? canvas.scene?.darkness ?? 0;
+  if (darkness >= 0.75)      visMod = Math.max(visMod, 8);  // Full Darkness
+  else if (darkness >= 0.4)  visMod = Math.max(visMod, 6);  // Minimal Light
+  else if (darkness >= 0.15) visMod = Math.max(visMod, 2);  // Partial Light
+  if (visMod) presets.visMod = visMod;
+
   // Pick the range bracket from the weapon's range data (0 = undefined)
   // Thrown weapons (grenades, knives, shuriken) ignore their static range field —
   // SR2 scales their brackets with the thrower's Strength (Grenade Range Table,
@@ -706,11 +725,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <div class="form-group" style="margin:2px 0;">
         <label title="Visibility Table (SR2E p.89), NORMAL vision values. Low-light/thermographic vision reduces these — Full Darkness: LL +8, Thermo +4(cyber)/+2; Minimal: LL +4/+2, Thermo +4/+2; Partial: LL +1/0, Thermo +2/+1; Glare: LL/Thermo +4/+2; Mist: LL +2/0, Thermo 0; Light smoke: LL +4/+2, Thermo 0; Heavy smoke: LL +6/+4, Thermo +1/0; blind fire +8. Adjust for the shooter's vision.">Visibility:</label>
         <select id="sr2e-visibility" name="visibility">
-          <option value="0">Clear</option>
-          <option value="2">Partial Light / Glare / Mist (+2)</option>
-          <option value="4">Light Smoke/Fog/Rain (+4)</option>
-          <option value="6">Minimal Light / Heavy Smoke (+6)</option>
-          <option value="8">Full Darkness / Blind Fire (+8)</option>
+          ${[[0, "Clear"], [2, "Partial Light / Glare / Mist (+2)"],
+             [4, "Light Smoke/Fog/Rain (+4)"], [6, "Minimal Light / Heavy Smoke (+6)"],
+             [8, "Full Darkness / Blind Fire (+8)"]].map(([v, l]) =>
+            `<option value="${v}" ${presets.visMod === v ? "selected" : ""}>${l}${presets.visMod === v && v ? " — auto" : ""}</option>`
+          ).join("")}
         </select>
       </div>
       ${(weapon.system.choke ?? 0) >= 2 ? `<div class="form-group" style="margin:2px 0;align-items:center;">
