@@ -244,5 +244,61 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Skillsofts" });
+
+    quench.registerBatch("sr2e.accessories", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { await actor?.delete(); });
+
+      describe("Weapon accessories (SR2E p.240–241)", () => {
+        it("attach → benefit → detach → re-attach to another weapon", async () => {
+          actor = await Actor.create({ name: "Quench Accessories", type: "character" });
+          const [hk, pred, bipod, vent] = await actor.createEmbeddedDocuments("Item", [
+            { name: "HK227", type: "weapon",
+              system: { weaponType: "firearm", firingModes: { sa: true, bf: true }, recoilComp: 0 } },
+            { name: "Ares Predator", type: "weapon",
+              system: { weaponType: "firearm", firingModes: { sa: true } } },
+            { name: "Bipod", type: "gear",
+              system: { weaponAccessory: true, accessoryRecoilComp: 2, requiresDeployment: true } },
+            { name: "Gas Vent III", type: "gear",
+              system: { weaponAccessory: true, accessoryRecoilComp: 3, permanentAccessory: true } }
+          ]);
+
+          // Attach the bipod to the HK227 (what the gear-tab dropdown writes)
+          await bipod.update({ "system.linkedWeaponId": hk.id });
+          assert.equal(actor.items.get(bipod.id).system.linkedWeaponId, hk.id,
+            "bipod did not persist its weapon link");
+
+          // Detach and move it to the Predator — aftermarket accessories transfer
+          await bipod.update({ "system.linkedWeaponId": "" });
+          assert.equal(actor.items.get(bipod.id).system.linkedWeaponId, "",
+            "bipod did not detach");
+          await bipod.update({ "system.linkedWeaponId": pred.id });
+          assert.equal(actor.items.get(bipod.id).system.linkedWeaponId, pred.id,
+            "bipod did not re-attach to a second weapon");
+
+          // Gas vent: attachable, flagged permanent (dropdown locks in the UI)
+          await vent.update({ "system.linkedWeaponId": hk.id });
+          const v = actor.items.get(vent.id);
+          assert.ok(v.system.permanentAccessory, "gas vent lost its permanent flag");
+          assert.equal(v.system.linkedWeaponId, hk.id, "gas vent did not attach");
+        });
+
+        it("smartgun accessory makes a dumb weapon smart-capable", async () => {
+          actor = await Actor.create({ name: "Quench Smart", type: "character" });
+          const [gun, sg] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Dumb Gun", type: "weapon",
+              system: { weaponType: "firearm", smartgunCompatible: false, firingModes: { sa: true } } },
+            { name: "Smartgun System (External)", type: "gear",
+              system: { weaponAccessory: true, grantsSmartgun: true } }
+          ]);
+          await sg.update({ "system.linkedWeaponId": gun.id });
+          const attached = actor.items.filter(i =>
+            i.type === "gear" && i.system.weaponAccessory && i.system.linkedWeaponId === gun.id);
+          assert.ok(attached.some(i => i.system.grantsSmartgun),
+            "attached smartgun system not detectable on the weapon");
+        });
+      });
+    }, { displayName: "SR2E: Weapon accessories" });
   });
 }

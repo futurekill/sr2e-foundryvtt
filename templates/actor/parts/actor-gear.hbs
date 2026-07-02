@@ -79,7 +79,17 @@
           <span>Rating: {{g.system.rating}}</span>
           {{/ifGt}}
           {{#if g.system.weaponAccessory}}
-          <span class="weapon-mount" title="Attach this accessory to one weapon; its modifiers then apply to that weapon's attacks.">
+          {{#if (and g.system.permanentAccessory g.system.linkedWeaponId)}}
+          <span class="weapon-mount" title="Once installed, this accessory cannot be removed (SR2E p.240). Edit the item to override.">
+            <i class="fas fa-lock"></i>
+            <select data-field="system.linkedWeaponId" disabled>
+              {{#each @root.weapons as |w|}}
+              <option value="{{w.id}}" {{selected g.system.linkedWeaponId w.id}}>{{w.name}}</option>
+              {{/each}}
+            </select>
+          </span>
+          {{else}}
+          <span class="weapon-mount" title="Attach this accessory to one weapon; its modifiers then apply to that weapon's attacks. Aftermarket accessories can be detached and moved to another weapon (SR2E p.240–241).">
             <i class="fas fa-link"></i>
             <select data-field="system.linkedWeaponId">
               <option value="" {{#unless g.system.linkedWeaponId}}selected{{/unless}}>— unattached —</option>
@@ -88,6 +98,7 @@
               {{/each}}
             </select>
           </span>
+          {{/if}}
           {{else}}
           <span>Qty: {{g.system.quantity}}</span>
           {{/if}}

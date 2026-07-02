@@ -1,29 +1,28 @@
 {
-  "_id": "9f5e4c2ac0bebfdb",
-  "name": "Gyro Mount, Standard",
+  "_id": "a5f60748af91b2c4",
+  "name": "Gyro Mount, Deluxe",
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
     "category": "accessories",
     "rating": 0,
     "quantity": 1,
-    "weight": 6,
-    "cost": 2500,
+    "weight": 8,
+    "cost": 6000,
     "availability": "4/48 hrs",
     "legality": "Legal",
     "equipped": false,
-    "concealability": 10,
-    "notes": "SR2E p.240, p.90. Upper-body harness with a gyro-stabilized arm (Rating 5): reduces recoil and attacker movement modifiers by up to 5 points, cumulative with recoil compensation. +1 ballistic/+1 impact armor while worn (apply manually); in no way concealable. 5 minutes to don, 1 Complex Action to quick-release, 2 Complex Actions to attach/remove the weapon.",
+    "concealability": 0,
+    "notes": "SR2E p.240, p.90. Rating 6 gyro-stabilization harness: reduces recoil and attacker movement modifiers by up to 6 points, cumulative with recoil compensation. +1 ballistic/+1 impact armor while worn (apply manually); in no way concealable. 5 minutes to don, 1 Complex Action to quick-release, 2 Complex Actions to attach/remove the weapon.",
     "weaponAccessory": true,
-    "accessoryRecoilComp": 0,
-    "gyroRating": 5
+    "gyroRating": 6
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -36,5 +35,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!9f5e4c2ac0bebfdb"
+  "_key": "!items!a5f60748af91b2c4"
 }

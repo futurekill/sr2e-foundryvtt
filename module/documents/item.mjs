@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -443,55 +443,84 @@ export class SR2EItem extends Item {
         }
       }
 
-      // Cyberware TN mods (smartgun link, etc.) — only for smartgun-compatible weapons
+      // Weapon accessories attached to THIS weapon (SR2E p.240–241): recoil
+      // comp, TN mods, smartgun grant, gyro rating. Bipod/tripod compensation
+      // only counts when the mount is set up (options.deployed, from dialog).
+      // Accessories live on the weapon's owner (the vehicle, for mounted
+      // weapons); smartlink cyberware and goggles are the gunner's.
+      const attached = (this.parent?.items ?? []).filter(i =>
+        i.type === "gear" && i.system.weaponAccessory && i.system.linkedWeaponId === this.id);
+      const acc = accessorySummary(attached, { deployed: !!options.deployed });
+
+      // A weapon is a smartweapon via its factory flag or an attached smartgun
+      // system (p.241). Receptor benefit (p.90): smartlink cyberware −2 (the
+      // cyberware's combatTnMod), else equipped smart goggles −1.
+      const smartCapable = this.system.smartgunCompatible || acc.grantsSmartgun;
       let cyberwareMod = 0;
-      if (this.system.smartgunCompatible) {
+      if (smartCapable) {
         for (const item of actor.items) {
           if (item.type === "cyberware" && item.system.installed && item.system.combatTnMod !== 0) {
             cyberwareMod += item.system.combatTnMod;
           }
         }
+        if (cyberwareMod === 0 && actor.items.some(i =>
+          i.type === "gear" && i.system.smartGoggles && i.system.equipped)) {
+          cyberwareMod = -1;
+        }
       }
 
-      // Weapon accessories attached to THIS weapon (Laser Sight, Smartgun System,
-      // Gas-vent, etc.): apply their TN modifier and recoil compensation. A
-      // smartgun-requiring accessory only counts on a smartgun-compatible weapon.
-      let accessoryMod = 0, accessoryRecoilComp = 0;
-      for (const item of actor.items) {
-        const s = item.system;
-        if (item.type !== "gear" || !s.weaponAccessory || s.linkedWeaponId !== this.id) continue;
-        if (s.requiresSmartgun && !this.system.smartgunCompatible) continue;
-        accessoryMod += s.combatTnMod ?? 0;
-        accessoryRecoilComp += s.accessoryRecoilComp ?? 0;
-      }
+      // Laser sight (p.90, p.240): −1 only out to 50 m, never on top of a
+      // smartlink/goggles bonus. Unknown distance is left to the shooter.
+      const laserMod = (acc.laserMod && cyberwareMod === 0 &&
+                        (options.distance == null || options.distance <= 50))
+        ? acc.laserMod : 0;
+      const accessoryMod = acc.tnMod + laserMod;
 
       // Recoil (SR2E p.93): +1 per round already fired this phase; a burst's
       // own rounds also count toward its recoil (first BF burst = +3).
+      // Accessory compensation stacks with the weapon's own (p.90, p.92–93).
       shotsFired          = actor.system.combatRecoil ?? 0;
-      const recoilComp    = (this.system.recoilComp ?? 0) + accessoryRecoilComp;
+      const recoilComp    = (this.system.recoilComp ?? 0) + acc.recoilComp;
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
-      const recoilMod     = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp });
+      let recoilMod       = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp });
+
+      // Gyro mount (p.90): rating eats recoil + attacker movement modifiers,
+      // cumulative with recoil comp. Applied to recoil first, remainder to
+      // the movement modifier via gyroMoveCut below.
+      let gyroMoveCut = 0;
+      if (acc.gyroRating > 0) {
+        const cut = gyroReduction(acc.gyroRating, recoilMod, attackerMod);
+        const recoilCut = Math.min(recoilMod, cut);
+        recoilMod  -= recoilCut;
+        gyroMoveCut = Math.min(attackerMod, cut - recoilCut);
+      }
 
       // Shotgun shot-round spread (SR2E p.95): wider spread lowers the attacker's
       // TN by the spread steps at the target's distance (and the cone resolution
       // reduces each target's Power). Shot rounds get only −1 from a smartlink.
       if (isShotSpread) {
-        if (this.system.smartgunCompatible && cyberwareMod < -1) cyberwareMod = -1;
+        if (smartCapable && cyberwareMod < -1) cyberwareMod = -1;
         spreadMod = shotgunSpread(this.system.choke, spreadDist).tnModifier;
       }
 
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
-                + cyberwareMod + accessoryMod + recoilMod + spreadMod + defaultingPenalty
+                + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
+                + spreadMod + defaultingPenalty
       );
 
       if (defaultingNote) modParts.push(defaultingNote);
       if (spreadMod)   modParts.push(`shot spread ${spreadMod} (${spreadDist} m, choke ${this.system.choke})`);
       if (rangeMod)    modParts.push(`${rangeLabel} range`);
       if (coverMod)    modParts.push(`cover +${coverMod}`);
-      if (attackerMod) modParts.push(`running +${attackerMod}`);
-      if (targetMod)   modParts.push(`target running +${targetMod}`);
+      if (attackerMod) modParts.push(`moving +${attackerMod}`);
+      if (targetMod)   modParts.push(`target ${targetMod > 0 ? "+" : ""}${targetMod}`);
       if (meleeMod)    modParts.push(`in melee +${meleeMod}`);
+      if (laserMod)    modParts.push(`laser sight ${laserMod}`);
+      if (acc.tnMod)   modParts.push(`accessories ${acc.tnMod > 0 ? "+" : ""}${acc.tnMod}`);
+      if (gyroMoveCut) modParts.push(`gyro −${gyroMoveCut}`);
+      if (options.deployed && acc.needsDeployment.length)
+        modParts.push(`${acc.needsDeployment.join("/")} deployed`);
       if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
       const modeLabel = firingMode === "fa"
         ? `FA ${rounds} rounds`

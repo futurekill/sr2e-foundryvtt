@@ -421,12 +421,34 @@ export class GearData extends SR2EDataModel {
       // Weapon accessory (Laser Sight, Smartgun System, Gas-vent, Gyro Mount,
       // Bipod, Silencer, etc.): a mod that attaches to ONE weapon at a time
       // rather than being merely equipped. While linked, its modifiers apply to
-      // that weapon's attacks (SR2E p.110, Street Samurai Catalog).
+      // that weapon's attacks. Aftermarket accessories are freely removable and
+      // transferable between weapons; gas-vent systems, under-barrel grenade
+      // launchers and "integral" factory accessories are not (SR2E p.240–241).
       weaponAccessory: new fields.BooleanField({ initial: false }),
       linkedWeaponId: new fields.StringField({ initial: "" }),
       combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
       accessoryRecoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-      requiresSmartgun: new fields.BooleanField({ initial: false }),
+      // "Once installed, gas-vent systems cannot be removed" (p.240) — locks
+      // the attach dropdown once linked (edit the item directly to override).
+      permanentAccessory: new fields.BooleanField({ initial: false }),
+      // Bipod/tripod: recoil comp counts only when set up — fired from a braced
+      // sitting/lying position (p.240–241). The attack dialog gets a checkbox.
+      requiresDeployment: new fields.BooleanField({ initial: false }),
+      // Smartgun system (internal/external): makes the weapon a smartweapon
+      // (p.241). The −2/−1 TN comes from the shooter's smartlink cyberware or
+      // equipped smart goggles (p.90) — without a receptor it is dead weight.
+      grantsSmartgun: new fields.BooleanField({ initial: false }),
+      // Worn receptor: smart goggles give −1 TN with a smartweapon (p.90).
+      smartGoggles: new fields.BooleanField({ initial: false }),
+      // Laser sight: −1 TN (combatTnMod), but only ≤ 50 m and never combined
+      // with a smartlink/goggles bonus (p.90, p.240). Flag lets the roll gate it.
+      laserSight: new fields.BooleanField({ initial: false }),
+      // Gyro stabilization: rating eats recoil + attacker movement modifiers,
+      // cumulative with recoil comp (p.90, p.240).
+      gyroRating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Imaging scope magnification: shifts the range bracket left by rating,
+      // short range is the floor (Image Modification Systems, p.88).
+      rangeShift: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
       // Skillsoft (category === "skillsoft"): a chip run through a chipjack +
       // Skillwires that grants a skill at its Rating while slotted (SR2E p.243).

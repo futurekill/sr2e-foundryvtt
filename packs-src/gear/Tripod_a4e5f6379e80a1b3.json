@@ -1,29 +1,29 @@
 {
-  "_id": "2b806832cd16e374",
-  "name": "Laser Sight",
+  "_id": "a4e5f6379e80a1b3",
+  "name": "Tripod",
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
     "category": "accessories",
     "rating": 0,
     "quantity": 1,
-    "weight": 0.25,
-    "cost": 500,
-    "availability": "6/36 hrs",
+    "weight": 8,
+    "cost": 600,
+    "availability": "10/12 hrs",
     "legality": "Legal",
     "equipped": false,
-    "concealability": 10,
-    "notes": "SR2E p.240, p.90. Under-barrel or top mount, −1 TN — but only out to 50 m, and countered by mist, smoke, fog or rain. May NOT be used with any smartlink system (the roll applies whichever benefit is better). −1 Concealability; 1 Complex Action to install/remove.",
+    "concealability": 0,
+    "notes": "SR2E p.241. Heavy stable mounting for heavy weapons: 6 points of recoil compensation when set up (tick 'deployed' in the attack dialog). Not concealable.",
     "weaponAccessory": true,
-    "combatTnMod": -1,
-    "laserSight": true
+    "accessoryRecoilComp": 6,
+    "requiresDeployment": true
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -36,5 +36,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!2b806832cd16e374"
+  "_key": "!items!a4e5f6379e80a1b3"
 }

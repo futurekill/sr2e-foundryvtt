@@ -42,6 +42,27 @@ const MIGRATIONS = [
       if (source.prototypeToken?.actorLink) return null;
       return { "prototypeToken.actorLink": true };
     }
+  },
+
+  // 0.26.0 — Firearm accessory rework (SR2E p.240–241 verified):
+  //  * Smartgun System items used the dead `requiresSmartgun` flag; they now
+  //    GRANT smartgun capability to the attached weapon (`grantsSmartgun`).
+  //  * Gyro mounts modelled as flat recoil comp become `gyroRating` (the
+  //    rating also eats attacker movement modifiers, p.90).
+  {
+    version: "0.26.0",
+    migrateItem(source) {
+      if (source.type !== "gear" || !source.system?.weaponAccessory) return null;
+      const update = {};
+      if (source.system.requiresSmartgun && /smartgun/i.test(source.name)) {
+        update["system.grantsSmartgun"] = true;
+      }
+      if (/^gyro mount/i.test(source.name) && (source.system.accessoryRecoilComp ?? 0) >= 5) {
+        update["system.gyroRating"] = source.system.accessoryRecoilComp;
+        update["system.accessoryRecoilComp"] = 0;
+      }
+      return Object.keys(update).length ? update : null;
+    }
   }
 ];
 

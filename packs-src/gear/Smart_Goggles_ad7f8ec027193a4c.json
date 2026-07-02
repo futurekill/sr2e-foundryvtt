@@ -1,26 +1,27 @@
 {
-  "_id": "1a1a03054714400e",
-  "name": "Concealable Holster",
+  "_id": "ad7f8ec027193a4c",
+  "name": "Smart Goggles",
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
     "category": "accessories",
     "rating": 0,
     "quantity": 1,
-    "weight": 0,
-    "cost": 100,
-    "availability": "2/24 hrs",
+    "weight": 0.5,
+    "cost": 3000,
+    "availability": "3/36 hrs",
     "legality": "Legal",
     "equipped": false,
-    "concealability": 10,
-    "notes": "SR2E p.240. Custom-fitted for hip, small of the back, underarm, forearm or ankle carry. Adds +2 to the Concealability of a pistol (spotting a concealed weapon is a Perception Test against its Concealability)."
+    "concealability": 6,
+    "notes": "SR2E p.241, p.90. Oversized goggles cabled to a smartgun-equipped weapon: crosshairs + ammo status in the field of vision. −1 TN when firing a smartweapon while equipped (a smartlink's −2 supersedes it). +1,000¥ for low-light or infrared reception; helmet or mirrored-sunglasses builds available.",
+    "smartGoggles": true
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -33,5 +34,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!1a1a03054714400e"
+  "_key": "!items!ad7f8ec027193a4c"
 }

@@ -86,8 +86,33 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Recoil** accumulates across the Action Phase; the in-dialog **Reset** zeroes it; recoil comp reduces it.
 - [ ] **Ammunition:** load a clip, fire decrements rounds; out-of-ammo blocked; ammo types (explosive/gel/APDS/flechette) carry through to damage.
 - [ ] **Smartgun:** a smartgun-compatible weapon + Smartgun Link cyberware applies −2 TN.
-- [ ] **Weapon accessory:** attach a Laser Sight to a weapon (gear list dropdown) → −1 TN on that weapon; Gyro Mount/Bipod add recoil comp.
 - [ ] **Aimed/called shots** via the Other Mod field (tooltip lists the values).
+- [ ] **Movement modifiers (p.90):** attacker Walking +1 / Running +4 (+2/+6 on
+      difficult ground); target Stationary −1 / Running +2; firing while engaged
+      in melee +2 **per opponent**.
+
+## 4a. Weapon accessories (v0.26.0, SR2E p.240–241)
+- [ ] **Attach/detach/transfer:** buy a Bipod, attach it to an HK227 via the gear-tab
+      dropdown, then detach it and attach it to a different weapon — both directions
+      persist after re-opening the sheet (aftermarket accessories are transferable).
+- [ ] **Bipod/Tripod deployment:** attached bipod adds a "deployed" checkbox to the
+      attack dialog; RC 2 (tripod 6) only counts when it's ticked.
+- [ ] **Gas Vent II/III:** attach → +2/+3 recoil comp always on; once attached the
+      dropdown **locks** (🔒 — "cannot be removed", p.240); editing the item directly
+      still allows a GM override.
+- [ ] **Recoil comp stacks:** weapon's own comp + gas vent + shock pad all add
+      (p.92–93 example: vent 3 + pad 1 = 4).
+- [ ] **Laser Sight:** −1 TN at ≤ 50 m; no effect beyond 50 m (measured target) and
+      suppressed entirely when a smartlink/goggles bonus applies.
+- [ ] **Smartgun System (External/Internal):** attaching to a NON-smart weapon makes
+      it a smartweapon — smartlink cyberware then gives −2; **Smart Goggles**
+      (equipped, no smartlink) give −1.
+- [ ] **Imaging Scope (Mag 1–3):** shifts the range bracket down (dialog shows
+      "Long → Short, scope"); short is the floor.
+- [ ] **Gyro Mount (Std 5/Deluxe 6):** reduces recoil + attacker movement penalties
+      by up to its rating (dialog shows the −N gyro row); other modifiers untouched.
+- [ ] **Vehicle-mounted weapon:** accessories on the vehicle's copy of the weapon
+      still apply when a gunner fires it.
 
 ## 5. Melee combat (opposed)
 - [ ] Attack in melee — posts a card with **Defend / Undefended** buttons.

@@ -480,19 +480,51 @@
   <div class="form-group">
     <label>Attack TN Mod:</label>
     <input type="number" name="system.combatTnMod" value="{{system.combatTnMod}}"
-           title="Modifier to the attached weapon's attack TN (e.g. Laser Sight −1, Smartgun System −2)." />
+           title="Modifier to the attached weapon's attack TN (e.g. Laser Sight −1)." />
   </div>
   <div class="form-group">
     <label>Recoil Comp:</label>
     <input type="number" name="system.accessoryRecoilComp" value="{{system.accessoryRecoilComp}}" min="0"
-           title="Recoil compensation the accessory grants the attached weapon (Gas-vent, Gyro Mount, Bipod)." />
+           title="Recoil compensation granted to the attached weapon (Gas-vent, Shock Pads, Bipod, Tripod). SR2E p.240–241." />
   </div>
   <div class="form-group">
-    <label>Requires Smartgun:</label>
-    <input type="checkbox" name="system.requiresSmartgun" {{checked system.requiresSmartgun}}
-           title="Only applies on a smartgun-compatible weapon (Smartgun System)." />
+    <label>Laser Sight:</label>
+    <input type="checkbox" name="system.laserSight" {{checked system.laserSight}}
+           title="TN mod only applies out to 50 m and never combines with a smartlink/goggles bonus (SR2E p.90)." />
+  </div>
+  <div class="form-group">
+    <label>Grants Smartgun:</label>
+    <input type="checkbox" name="system.grantsSmartgun" {{checked system.grantsSmartgun}}
+           title="Makes the attached weapon a smartweapon (Smartgun System, SR2E p.241). The −2/−1 TN comes from the shooter's smartlink or smart goggles." />
+  </div>
+  <div class="form-group">
+    <label>Permanent Once Installed:</label>
+    <input type="checkbox" name="system.permanentAccessory" {{checked system.permanentAccessory}}
+           title="Cannot be removed after installation (gas-vent systems, under-barrel grenade launchers, internal smartgun — SR2E p.240–241)." />
+  </div>
+  <div class="form-group">
+    <label>Needs Deployment:</label>
+    <input type="checkbox" name="system.requiresDeployment" {{checked system.requiresDeployment}}
+           title="Recoil comp only counts when set up — bipod/tripod braced in a sitting or lying position (SR2E p.240–241)." />
+  </div>
+  <div class="form-group">
+    <label>Gyro Rating:</label>
+    <input type="number" name="system.gyroRating" value="{{system.gyroRating}}" min="0"
+           title="Gyro mount rating: reduces recoil + attacker movement modifiers by up to this many points (SR2E p.90). Standard 5, Deluxe 6." />
+  </div>
+  <div class="form-group">
+    <label>Scope Range Shift:</label>
+    <input type="number" name="system.rangeShift" value="{{system.rangeShift}}" min="0"
+           title="Imaging scope magnification: shifts the range bracket left by this many levels, short is the floor (SR2E p.88)." />
   </div>
   {{/if}}
+  {{#unless system.weaponAccessory}}
+  <div class="form-group">
+    <label>Smart Goggles:</label>
+    <input type="checkbox" name="system.smartGoggles" {{checked system.smartGoggles}}
+           title="Worn receptor: −1 TN when firing a smartweapon while equipped (SR2E p.90, p.241)." />
+  </div>
+  {{/unless}}
   {{#ifEquals system.category "skillsoft"}}
   <hr/>
   <p class="hint">Skillsoft — slot it on the Gear tab to grant the skill below at this Rating (SR2E p.243).</p>

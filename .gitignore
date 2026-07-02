@@ -13,3 +13,4 @@ node_modules/
 # case-insensitively and was silently dropping these from releases.
 !assets/icons/
 !assets/icons/*
+_work/

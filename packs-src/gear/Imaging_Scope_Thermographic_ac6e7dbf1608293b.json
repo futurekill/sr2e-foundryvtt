@@ -1,6 +1,6 @@
 {
-  "_id": "2b806832cd16e374",
-  "name": "Laser Sight",
+  "_id": "ac6e7dbf1608293b",
+  "name": "Imaging Scope (Thermographic)",
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
@@ -8,22 +8,20 @@
     "rating": 0,
     "quantity": 1,
     "weight": 0.25,
-    "cost": 500,
-    "availability": "6/36 hrs",
+    "cost": 1500,
+    "availability": "3/36 hrs",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.240, p.90. Under-barrel or top mount, −1 TN — but only out to 50 m, and countered by mist, smoke, fog or rain. May NOT be used with any smartlink system (the roll applies whichever benefit is better). −1 Concealability; 1 Complex Action to install/remove.",
-    "weaponAccessory": true,
-    "combatTnMod": -1,
-    "laserSight": true
+    "notes": "SR2E p.240. Top-mounted thermographic imaging: counters darkness/smoke visibility modifiers at the GM's discretion. May NOT be used with smartlink systems. −2 Concealability; 1 Complex Action to install/remove.",
+    "weaponAccessory": true
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -36,5 +34,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!2b806832cd16e374"
+  "_key": "!items!ac6e7dbf1608293b"
 }

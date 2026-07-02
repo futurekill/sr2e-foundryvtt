@@ -37,6 +37,11 @@ export function registerHandlebarsHelpers() {
     return Number(a) <= Number(b) ? options.fn(this) : options.inverse(this);
   });
 
+  /** Logical AND for subexpressions: {{#if (and a b)}} */
+  Handlebars.registerHelper("and", function (...args) {
+    return args.slice(0, -1).every(Boolean);
+  });
+
   /**
    * Math operations.
    */

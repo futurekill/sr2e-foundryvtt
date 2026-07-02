@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket } from "../rules/sr2e-rules.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -398,10 +398,20 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   // ── Auto-detected modifiers ───────────────────────────────────────────────
 
-  // Cyberware combat TN mods (smartgun link etc.) — only for compatible weapons
+  // Accessories attached to this weapon (SR2E p.240–241): recoil comp, TN
+  // mods, smartgun grant, gyro rating, scope range shift. Same aggregation as
+  // the roll itself (accessorySummary), so dialog and chat card always agree.
+  const attached = actor.items.filter(i =>
+    i.type === "gear" && i.system.weaponAccessory && i.system.linkedWeaponId === weapon.id);
+  const accBase     = accessorySummary(attached, { deployed: false });
+  const accDeployed = accessorySummary(attached, { deployed: true });
+
+  // Smartweapon via factory flag or attached smartgun system (p.241);
+  // receptor benefit: smartlink cyberware −2, else smart goggles −1 (p.90).
+  const smartCapable = weapon.system.smartgunCompatible || accBase.grantsSmartgun;
   let cyberwareMod = 0;
   let cywareName = "";
-  if (weapon.system.smartgunCompatible) {
+  if (smartCapable) {
     for (const item of actor.items) {
       if (item.type === "cyberware" && item.system.installed && item.system.combatTnMod !== 0) {
         cyberwareMod += item.system.combatTnMod;
@@ -409,13 +419,27 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         cywareName += item.name;
       }
     }
+    if (cyberwareMod === 0) {
+      const goggles = actor.items.find(i =>
+        i.type === "gear" && i.system.smartGoggles && i.system.equipped);
+      if (goggles) { cyberwareMod = -1; cywareName = goggles.name; }
+    }
   }
+
+  // Laser sight (p.90): −1 out to 50 m, never on top of a smartlink/goggles
+  // bonus. With no measured distance the shooter is trusted.
+  const laserMod = (accBase.laserMod && cyberwareMod === 0 &&
+                    (presets.distance == null || presets.distance <= 50))
+    ? accBase.laserMod : 0;
+  const accessoryTnMod = accBase.tnMod + laserMod;
 
   const woundPenalty   = actor.system.woundPenalty ?? 0;
   const sustainPenalty = actor.system.sustainPenalty ?? 0;
   const shotsFired    = actor.system.combatRecoil  ?? 0;
-  const recoilComp    = weapon.system.recoilComp   ?? 0;
   const hasRecoil     = ["firearm", "heavy"].includes(weapon.system.weaponType);
+  // Weapon + accessory compensation (p.90); deployment-gated mounts (bipod/
+  // tripod) are added live via the dialog checkbox.
+  const recoilComp    = (weapon.system.recoilComp ?? 0) + accBase.recoilComp;
   // Initial penalty from rounds already fired; a BF/FA burst's own rounds are
   // added live in the dialog once a firing mode is selected.
   const recoilPenalty = hasRecoil ? Math.max(0, shotsFired - recoilComp) : 0;
@@ -456,7 +480,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const recoilStyle  = recoilPenalty > 0  ? "" : "display:none;";
 
   // Initial TN with all situational mods at zero
-  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + woundPenalty + sustainPenalty
+  const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + accessoryTnMod
+                                          + woundPenalty + sustainPenalty
                                           + recoilPenalty + defaultingPenalty);
 
   // Helper: format a modifier number for display (always show sign)
@@ -519,6 +544,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     let liveShotsFired = shotsFired;
     const recoilRow = root.querySelector("#sr2e-recoil-row");
     const recoilVal = root.querySelector("#sr2e-recoil-val");
+    const deployedCheck = root.querySelector("#sr2e-deployed");
+    const gyroRow  = root.querySelector("#sr2e-gyro-row");
+    const gyroVal  = root.querySelector("#sr2e-gyro-val");
+
+    function currentRecoilComp() {
+      // Bipod/tripod compensation only when set up (p.240–241)
+      return deployedCheck?.checked
+        ? recoilComp + (accDeployed.recoilComp - accBase.recoilComp)
+        : recoilComp;
+    }
 
     function currentRecoil() {
       if (!isRanged || !hasRecoil) return 0;
@@ -526,7 +561,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       const burst = mode === "bf" ? 3
                   : mode === "fa" ? Math.min(10, Math.max(3, parseInt(roundsInput?.value) || 3))
                   : 0;
-      return Math.max(0, liveShotsFired + burst - recoilComp);
+      return Math.max(0, liveShotsFired + burst - currentRecoilComp());
     }
 
     function updateTN() {
@@ -543,12 +578,19 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
       let finalTN;
       if (isRanged) {
-        const rng  = rangeSelect?.value ?? "short";
+        // Imaging scope shifts the effective bracket left by its rating (p.88)
+        const selected = rangeSelect?.value ?? "short";
+        const rng  = shiftRangeBracket(selected, accBase.rangeShift);
         const rMod = RANGE_TN_MODS[rng] ?? 0;
         const cMod = parseInt(coverSelect?.value) || 0;
-        const mMod = meleeCheck?.checked ? 3 : 0;
+        // Firing while in melee: +2 per opponent engaging the attacker (p.90)
+        const mMod = 2 * Math.max(0, parseInt(meleeCheck?.value) || 0);
         const recoil = currentRecoil();
-        if (rangeLabel)   rangeLabel.textContent   = `Range (${RANGE_LABELS[rng]}):`;
+        // Gyro mount eats recoil + attacker movement modifiers (p.90)
+        const gyroCut = gyroReduction(accBase.gyroRating, recoil, aMod);
+        if (rangeLabel)   rangeLabel.textContent   = rng !== selected
+          ? `Range (${RANGE_LABELS[selected]} → ${RANGE_LABELS[rng]}, scope):`
+          : `Range (${RANGE_LABELS[rng]}):`;
         if (rangeModSpan) rangeModSpan.textContent = fmt(rMod);
         if (coverModSpan) coverModSpan.textContent = fmt(cMod);
         if (meleeModSpan) meleeModSpan.textContent = fmt(mMod);
@@ -557,9 +599,12 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (roundsRow)    roundsRow.style.display  = (modeSelect?.value === "fa") ? "" : "none";
         if (recoilRow)    recoilRow.style.display  = recoil > 0 ? "" : "none";
         if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
+        if (gyroRow)      gyroRow.style.display    = gyroCut > 0 ? "" : "none";
+        if (gyroVal)      gyroVal.textContent      = `−${gyroCut}`;
         finalTN = Math.max(2, BASE_TN + rMod + cMod + aMod + tMod + mMod + oMod
-                                      + cyberwareMod + woundPenalty + sustainPenalty
-                                      + recoil + defaultingPenalty);
+                                      + cyberwareMod + accessoryTnMod
+                                      + woundPenalty + sustainPenalty
+                                      + recoil - gyroCut + defaultingPenalty);
       } else {
         // Opposed melee (SR2E p.100-101): base TN 4 + Melee Modifiers Table
         const rchMod = parseInt(reachInput?.value) || 0;
@@ -594,7 +639,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
     const allInputs = [rangeSelect, coverSelect, meleeCheck, modeSelect, roundsInput,
                        attackerSelect, targetSelect, otherInput, reachInput,
-                       alliesInput, foesInput, supPosCheck, proneCheck, multiInput].filter(Boolean);
+                       alliesInput, foesInput, supPosCheck, proneCheck, multiInput,
+                       deployedCheck].filter(Boolean);
     for (const el of allInputs) {
       el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
     }
@@ -647,10 +693,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                title="Rounds in the full-auto burst: +1 Power and +1 recoil per round, +1 Damage Level per 3 rounds (SR2E p.93)">
       </div>
       <div class="form-group" style="margin:2px 0;align-items:center;">
-        <label>In Melee (+3):</label>
-        <input type="checkbox" id="sr2e-in-melee" name="inMelee" style="width:auto;"
-               title="Firing a ranged weapon while engaged in melee adds +3 TN">
+        <label>Foes engaging you (+2 ea):</label>
+        <input type="number" id="sr2e-in-melee" name="inMelee" value="0" min="0"
+               style="width:52px;text-align:center;"
+               title="Firing a ranged weapon while engaged in melee: +2 TN per opponent present (SR2E p.90)">
       </div>
+      ${accBase.needsDeployment.length ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+        <label>${foundry.utils.escapeHTML(accBase.needsDeployment.join("/"))} deployed:</label>
+        <input type="checkbox" id="sr2e-deployed" name="deployed" style="width:auto;"
+               title="Recoil compensation from a bipod/tripod only counts when the mount is set up — fired from a braced sitting or lying position (SR2E p.240–241)">
+      </div>` : ""}
     </div>` : `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
       <div class="form-group" style="margin:2px 0;">
@@ -698,16 +750,20 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const commonInputsHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:4px;">
       <div class="form-group" style="margin:2px 0;">
-        <label>Attacker:</label>
+        <label title="Attacker movement (SR2E p.90). A gyro mount reduces these.">Attacker:</label>
         <select id="sr2e-attacker" name="attacker">
-          <option value="0">Stationary / Walking</option>
-          <option value="2">Running (+2)</option>
+          <option value="0">Stationary</option>
+          <option value="1">Walking (+1)</option>
+          <option value="2">Walking, difficult ground (+2)</option>
+          <option value="4">Running (+4)</option>
+          <option value="6">Running, difficult ground (+6)</option>
         </select>
       </div>
       <div class="form-group" style="margin:2px 0;">
-        <label>Target:</label>
+        <label title="Target movement (SR2E p.90): an unmoving target is −1.">Target:</label>
         <select id="sr2e-target" name="target">
-          <option value="0">Stationary / Walking</option>
+          <option value="-1">Stationary (−1)</option>
+          <option value="0" selected>Walking</option>
           <option value="2">Running (+2)</option>
         </select>
       </div>
@@ -756,11 +812,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   const autoRows = `
     <tr id="sr2e-attacker-row" style="display:none;">
-      <td style="color:#aaa1c0;padding:1px 0;">Attacker running:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Attacker moving:</td>
       <td id="sr2e-attacker-mod" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-target-row" style="display:none;">
-      <td style="color:#aaa1c0;padding:1px 0;">Target running:</td>
+      <td style="color:#aaa1c0;padding:1px 0;">Target movement:</td>
       <td id="sr2e-target-mod" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-other-row" style="display:none;">
@@ -771,6 +827,21 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     <tr style="${cywareStyle}">
       <td style="color:#6c9;padding:1px 0;">${cywareLabel}</td>
       <td style="text-align:right;padding:1px 0;">${cywareModStr}</td>
+    </tr>` : ""}
+    ${laserMod !== 0 ? `
+    <tr>
+      <td style="color:#6c9;padding:1px 0;" title="−1 out to 50 m; does not combine with a smartlink (SR2E p.90)">Laser sight:</td>
+      <td style="text-align:right;padding:1px 0;">${laserMod}</td>
+    </tr>` : ""}
+    ${accBase.tnMod !== 0 ? `
+    <tr>
+      <td style="color:#6c9;padding:1px 0;">Accessories:</td>
+      <td style="text-align:right;padding:1px 0;">${accBase.tnMod > 0 ? "+" : ""}${accBase.tnMod}</td>
+    </tr>` : ""}
+    ${isRanged && accBase.gyroRating > 0 ? `
+    <tr id="sr2e-gyro-row" style="display:none;">
+      <td style="color:#6c9;padding:1px 0;" title="Gyro mount: reduces recoil and attacker movement modifiers by up to its rating (SR2E p.90)">Gyro mount (${accBase.gyroRating}):</td>
+      <td id="sr2e-gyro-val" style="text-align:right;padding:1px 0;">−0</td>
     </tr>` : ""}
     ${woundStyle !== "display:none;" ? `
     <tr style="${woundStyle}">
@@ -847,13 +918,17 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             if (clamped > 0) poolDice[p.key] = clamped;
           }
           rollResult = {
-            range:           f.range?.value        ?? "short",
+            // Effective bracket after any imaging-scope shift (SR2E p.88)
+            range:           shiftRangeBracket(f.range?.value ?? "short", accBase.rangeShift),
             firingMode:      f.firingMode?.value    ?? "sa",
             rounds:          Math.min(10, Math.max(3, parseInt(f.rounds?.value) || 3)),
             coverMod:        parseInt(f.cover?.value)           || 0,
             attackerMod:     parseInt(f.attacker?.value)        || 0,
             targetMod:       parseInt(f.target?.value)          || 0,
-            meleeMod:        f.inMelee?.checked ? 3 : 0,
+            // Firing while engaged in melee: +2 per opponent (SR2E p.90)
+            meleeMod:        2 * Math.max(0, parseInt(f.inMelee?.value) || 0),
+            deployed:        !!f.deployed?.checked,
+            distance:        presets.distance ?? null,
             otherMod:        parseInt(f.otherMod?.value)        || 0,
             reachMod:        parseInt(f.reachMod?.value)        || 0,
             friendsMod:      Math.min(4, Math.max(0, parseInt(f.foes?.value) || 0))

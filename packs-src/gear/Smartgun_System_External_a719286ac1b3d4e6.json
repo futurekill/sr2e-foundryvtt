@@ -1,29 +1,28 @@
 {
-  "_id": "2b806832cd16e374",
-  "name": "Laser Sight",
+  "_id": "a719286ac1b3d4e6",
+  "name": "Smartgun System (External)",
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
     "category": "accessories",
     "rating": 0,
     "quantity": 1,
-    "weight": 0.25,
-    "cost": 500,
-    "availability": "6/36 hrs",
+    "weight": 1,
+    "cost": 600,
+    "availability": "4/48 hrs",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.240, p.90. Under-barrel or top mount, −1 TN — but only out to 50 m, and countered by mist, smoke, fog or rain. May NOT be used with any smartlink system (the roll applies whichever benefit is better). −1 Concealability; 1 Complex Action to install/remove.",
+    "notes": "SR2E p.241, p.90. Top- or under-barrel mount; makes the weapon a smartweapon: −2 TN with a smartlink, −1 with smart goggles; dead weight without a receptor. −2 Concealability. Transferable between weapons with one hour of maintenance and alignment.",
     "weaponAccessory": true,
-    "combatTnMod": -1,
-    "laserSight": true
+    "grantsSmartgun": true
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -36,5 +35,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!2b806832cd16e374"
+  "_key": "!items!a719286ac1b3d4e6"
 }

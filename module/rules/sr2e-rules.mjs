@@ -723,3 +723,78 @@ export function shotgunSpread(choke, distanceMeters) {
   const steps = Math.max(0, Math.floor(Math.max(0, distanceMeters) / c));
   return { steps, powerPenalty: steps, tnModifier: -steps || 0, halfWidthM: steps + 1 };
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Firearm accessories (SR2E p.240–241) and their combat effects (p.88–90)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Range brackets in order, for scope shifting (Weapon Range Table, p.88). */
+export const RANGE_BRACKETS = ["short", "medium", "long", "extreme"];
+
+/**
+ * Image Modification Systems (SR2E p.88): a magnifying scope shortens the
+ * weapon's range category by its rating — "Long range would change to short
+ * range" for a Rating 2 scope. Short range is the floor.
+ *
+ * @param {string} bracket - Actual range bracket ("short".."extreme").
+ * @param {number} shift   - Scope magnification rating (levels to shift left).
+ * @returns {string} The effective range bracket.
+ */
+export function shiftRangeBracket(bracket, shift) {
+  const i = RANGE_BRACKETS.indexOf(bracket);
+  if (i < 0 || !(shift > 0)) return bracket;
+  return RANGE_BRACKETS[Math.max(0, i - Math.floor(shift))];
+}
+
+/**
+ * Aggregate the mechanical effects of the accessories attached to one weapon.
+ *
+ * Recoil compensation is cumulative across accessories and with the weapon's
+ * own compensation (p.90; the p.92–93 example stacks a Rating 3 gas vent with
+ * a shock pad for 4 points). Bipods/tripods only brace the weapon when set up
+ * (p.240–241), so their compensation is gated on `deployed`.
+ *
+ * The laser sight's −1 is returned separately (`laserMod`): it only works out
+ * to 50 metres and never combines with a smartlink bonus (p.90, p.240) — the
+ * caller applies those gates.
+ *
+ * @param {Array<{system: object}>} accessories - Gear items linked to the weapon.
+ * @param {{deployed?: boolean}} [opts]
+ * @returns {{recoilComp:number, tnMod:number, laserMod:number, gyroRating:number,
+ *            rangeShift:number, grantsSmartgun:boolean, needsDeployment:string[]}}
+ */
+export function accessorySummary(accessories, { deployed = false } = {}) {
+  const out = { recoilComp: 0, tnMod: 0, laserMod: 0, gyroRating: 0,
+                rangeShift: 0, grantsSmartgun: false, needsDeployment: [] };
+  for (const a of accessories) {
+    const s = a.system ?? a;
+    if (s.requiresDeployment) {
+      out.needsDeployment.push(a.name ?? "accessory");
+      if (deployed) out.recoilComp += s.accessoryRecoilComp ?? 0;
+    } else {
+      out.recoilComp += s.accessoryRecoilComp ?? 0;
+    }
+    if (s.laserSight) out.laserMod += s.combatTnMod ?? 0;
+    else              out.tnMod    += s.combatTnMod ?? 0;
+    out.gyroRating = Math.max(out.gyroRating, s.gyroRating ?? 0);
+    out.rangeShift = Math.max(out.rangeShift, s.rangeShift ?? 0);
+    if (s.grantsSmartgun) out.grantsSmartgun = true;
+  }
+  return out;
+}
+
+/**
+ * Gyro-stabilization (SR2E p.90): "The total recoil and movement modifiers
+ * are reduced by −1 for every point of gyro-stabilization the system
+ * provides." Cumulative with recoil compensation (which is applied first via
+ * recoilPenalty); it never reduces non-recoil, non-movement modifiers.
+ *
+ * @param {number} rating        - Gyro mount rating (5 standard / 6 deluxe).
+ * @param {number} recoilPenalty - Net recoil TN penalty after recoil comp.
+ * @param {number} movementMod   - Attacker movement TN modifier (walk/run).
+ * @returns {number} Points of penalty removed (subtract from the TN).
+ */
+export function gyroReduction(rating, recoilPenalty, movementMod) {
+  if (!(rating > 0)) return 0;
+  return Math.min(rating, Math.max(0, recoilPenalty) + Math.max(0, movementMod));
+}
