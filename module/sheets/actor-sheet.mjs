@@ -541,8 +541,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Shamans summon nature spirits; hermetics summon elementals
     context.conjuresElementals = magicTrad === "hermetic";
 
-    // Adept powers: physical adepts and shamanic adepts
-    context.hasAdeptPowers = magicType === "physical_adept" || magicType === "shamanic_adept";
+    // Adept powers: physical adepts and shamanic adepts. The section also
+    // renders whenever the character holds adept_power items so a dragged-on
+    // power is never invisible (GitHub #2) — with a warning if the magic
+    // type doesn't actually grant powers.
+    context.isAdept = magicType === "physical_adept" || magicType === "shamanic_adept";
+    context.hasAdeptPowers = context.isAdept || context.adeptPowers.length > 0;
 
     // Keep legacy labels for any other templates still using them
     context.magicTypeLabel      = context.magicLabel;

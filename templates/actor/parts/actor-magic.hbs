@@ -215,7 +215,11 @@
       </div>
     </div>
 
-    {{!-- Adept Powers (Physical Adepts and Shamanic Adepts) --}}
+    {{/if}}
+
+    {{!-- Adept Powers (Physical Adepts and Shamanic Adepts). Rendered outside
+         the isMagical block so dragged-on powers are never invisible — a
+         warning shows when the character's magic type doesn't grant them. --}}
     {{#if hasAdeptPowers}}
     <div class="adept-powers-category">
       <div class="category-header flexrow">
@@ -225,6 +229,12 @@
           <i class="fas fa-plus"></i>
         </button>
       </div>
+      {{#unless isAdept}}
+      <p class="hint" style="color:#c84;margin:2px 0 4px;">
+        This character's magic type does not grant adept powers — set the
+        tradition to Physical Adept (or Shamanic Adept) for them to apply.
+      </p>
+      {{/unless}}
       <div class="item-list">
         {{#each adeptPowers as |power|}}
         <div class="item-row flexrow" data-item-id="{{power.id}}">
@@ -239,7 +249,6 @@
         {{/each}}
       </div>
     </div>
-    {{/if}}
     {{/if}}
 
   </div>
