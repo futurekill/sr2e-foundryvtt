@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { playCombatFx } from "../integrations.mjs";
 import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
@@ -544,6 +545,11 @@ export class SR2EItem extends Item {
       karmaDice: options.karmaDice
     });
 
+    // Optional Token Magic FX + sound on the targets (no-op without the module)
+    if (isRanged && ["firearm", "heavy"].includes(this.system.weaponType)) {
+      playCombatFx("gunshot", Array.from(game.user?.targets ?? []));
+    }
+
     // Accumulate rounds fired on the recoil counter and decrement ammunition.
     // The counter is reset automatically at the start of each combat turn/round
     // (see hooks in sr2e.mjs) or manually via the Reset Recoil button.
@@ -913,6 +919,9 @@ export class SR2EItem extends Item {
       karmaDice: options.karmaDice, // extra dice bought with Karma Pool
       centeringReduction            // Centering vs Penalties (Grimoire p.44)
     });
+
+    // Optional Token Magic FX + sound on the targets (no-op without the module)
+    playCombatFx("spell", Array.from(game.user?.targets ?? []));
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
     // Parse directly from the raw string field — avoids any DataModel prototype

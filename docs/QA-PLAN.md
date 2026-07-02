@@ -334,3 +334,26 @@ and any **red console errors**. File them wherever the group tracks issues
 5. Re-open the world; confirm everything's still there.
 
 If those five all work, the core loop is healthy.
+
+## 18. Shopping, payouts & integrations (v0.26.0)
+- [ ] **Street pricing:** set a Street Index ≠ 1 on a gear item → the item sheet
+      and gear tab show the street price with the list price alongside.
+- [ ] **Auto-charge:** drop a costed item on a character → nuyen drops by the
+      street price and a notification reports the purchase; with insufficient
+      funds the item is added UNPAID with a warning. Toggle via the
+      "Auto-charge purchases" world setting.
+- [ ] **Sell-back:** the coins button on gear/cyberware rows refunds what was
+      paid (or the current street price) after a confirm, and posts to chat.
+- [ ] **Installed cyberware** rows are green/labelled "Installed"; uninstalled
+      rows are dimmed.
+- [ ] **Award Nuyen macro:** splits a total evenly across selected characters;
+      remainder lands in the communal pot (world setting); "include communal
+      pot" pays it back out; chat message summarises.
+- [ ] **Dice So Nice:** with DSN enabled, "SR2E — Matrix Neon" and "SR2E —
+      Street Chrome" appear under Dice Configuration.
+- [ ] **Token Magic FX:** with TMFX enabled and a token targeted, ranged
+      attacks/spells flash the configured preset on the target (defaults
+      shockwave/electric); sound plays when a path is set in settings.
+- [ ] **Conc/Spec rolls:** clicking a skill's (Concentration) or [Specialization]
+      tag rolls that rating; the attack dialog's "Skill used" select works and
+      the chat card notes the variant.

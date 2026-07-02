@@ -33,6 +33,7 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
 // Migrations
 import { migrateWorld, UNARMED_STRIKE_DATA } from "./migrations.mjs";
+import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -281,6 +282,11 @@ async function _ensureSystemMacros() {
       src: "systems/sr2e/macros/award-karma.js"
     },
     {
+      name: "Award Nuyen",
+      img: "icons/svg/coins.svg",
+      src: "systems/sr2e/macros/award-nuyen.js"
+    },
+    {
       name: "Refresh Karma Pool",
       img: "icons/svg/regen.svg",
       src: "systems/sr2e/macros/refresh-karma-pool.js"
@@ -404,6 +410,15 @@ function _registerSystemSettings() {
   });
 
   // Automate Essence from Cyberware (read in CharacterData.prepareDerivedData)
+  game.settings.register("sr2e", "communalNuyen", {
+    name: "Communal nuyen pot",
+    hint: "Undivided remainder from Award Nuyen payouts. Paid back out by ticking 'include communal pot' on a future award.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 0
+  });
+
   game.settings.register("sr2e", "autoChargePurchases", {
     name: "Auto-charge purchases",
     hint: "When an item with a cost is dragged onto a character sheet, deduct its street price (cost × Street Index) from the character's nuyen. The gear tab's sell button refunds what was paid.",
