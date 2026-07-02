@@ -35,7 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Under-barrel grenade launcher; the loaded grenade's damage applies. SR2E p.255."
+    "notes": "Under-barrel grenade launcher — a weapon in its own right (SR2E p.240): fires mini-grenades from its own 6-round magazine (SS), Heavy Weapons skill, and detonates as an area blast with launcher scatter (p.96). Set the damage code / blast type to match the chambered round (default: offensive HE 10S). Book: −3 Concealability, cannot be removed once mounted (p.240).",
+    "blastType": "offensive"
   },
   "effects": [],
   "flags": {},

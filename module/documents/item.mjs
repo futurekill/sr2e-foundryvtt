@@ -616,10 +616,14 @@ export class SR2EItem extends Item {
       const safeName = foundry.utils.escapeHTML(this.name);
       const delivery = this.system.weaponType === "grenade" ? "standard" : "launcher";
       const hits = result.successes;
+      const isSmoke = this.system.blastType === "smoke";
+      const blurb = isSmoke
+        ? `smoke, ${hits > 0 ? "on target" : "<em>off-target — it drifts</em>"}`
+        : `${dmg.power}${dmg.level} blast, ${hits > 0 ? `${hits} net hit${hits === 1 ? "" : "s"}` : "<em>off-target — it scatters</em>"}`;
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
-          <strong>${safeName}</strong> — ${dmg.power}${dmg.level} blast, ${hits > 0 ? `${hits} net hit${hits === 1 ? "" : "s"}` : "<em>off-target — it scatters</em>"}.
+          <strong>${safeName}</strong> — ${blurb}.
           <br>
           <button class="sr2e-blast-btn"
                   data-base-power="${dmg.power}"
@@ -631,7 +635,7 @@ export class SR2EItem extends Item {
                   data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
                   data-blast-name="${safeName}"
                   title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
-            💥 Resolve Blast
+            ${isSmoke ? "💨 Deploy Smoke" : "💥 Resolve Blast"}
           </button>
         </div>`
       });

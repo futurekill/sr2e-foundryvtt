@@ -170,7 +170,9 @@ export class WeaponData extends SR2EDataModel {
       // as a blast: Power falls off with distance and every token in the radius
       // resists individually (core p.96). "" = a normal single-target weapon.
       blastType: new fields.StringField({ initial: "", blank: true, choices: {
-        "": "—", offensive: "Offensive", defensive: "Defensive", concussion: "Concussion"
+        "": "—", offensive: "Offensive", defensive: "Defensive", concussion: "Concussion",
+        // Smoke: no damage — drops a visibility-impairing cloud template
+        smoke: "Smoke (no damage)"
       }}),
       // Consumable count for thrown weapons (grenades, knives, shuriken): they
       // stack instead of reloading, and throwing one decrements this.

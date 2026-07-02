@@ -410,6 +410,12 @@ function _registerSystemSettings() {
   });
 
   // Automate Essence from Cyberware (read in CharacterData.prepareDerivedData)
+  game.settings.register("sr2e", "smokeDarkness", {
+    name: "Smoke drops a darkness light",
+    hint: "When a smoke grenade/round resolves, also place a Foundry negative-light (darkness) source over the cloud so it dims vision in the lighting engine. The Visibility Table TN modifier is applied regardless. Off by default — verify it looks right on your scenes first. Cleared by 'Clear Blast Areas'.",
+    scope: "world", config: true, type: Boolean, default: false
+  });
+
   game.settings.register("sr2e", "communalNuyen", {
     name: "Communal nuyen pot",
     hint: "Undivided remainder from Award Nuyen payouts. Paid back out by ticking 'include communal pot' on a future award.",
@@ -742,16 +748,48 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
     // Smoke rounds leave a visibility-impairing cloud: the attack dialog
     // auto-detects targets inside it (Visibility Table p.89). Heavy smoke +6,
     // regular/thermal smoke +4 (thermal also defeats thermographic vision).
-    const smokeVis = /thermal\s*smoke/i.test(blastName ?? "") ? 4
-                   : /heavy\s*smoke/i.test(blastName ?? "") ? 6
-                   : /smoke/i.test(blastName ?? "") ? 4 : 0;
+    const isSmoke  = blastType === "smoke" || /smoke/i.test(blastName ?? "");
+    const smokeVis = !isSmoke ? 0
+                   : /heavy\s*smoke/i.test(blastName ?? "") ? 6 : 4;
     await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
       t: "circle", x: center.x, y: center.y, distance: radiusM,
       fillColor: smokeVis ? "#9a9a9a" : "#ff6a00",
       borderColor: smokeVis ? "#555555" : "#aa2200",
+      texture: smokeVis ? "icons/magic/air/fog-gas-smoke-swirling-gray.webp" : "",
       flags: { sr2e: { blast: true, ...(smokeVis ? { visibility: smokeVis } : {}) } }
     }]);
+
+    // Optional built-in Foundry effect: a negative (darkness) light source over
+    // a smoke cloud actually dims vision in the lighting engine. Opt-in — vision
+    // effects vary by scene setup, so it's off by default (Clear Blast removes
+    // it). Heavier smoke → dimmer.
+    if (smokeVis && game.settings.get("sr2e", "smokeDarkness")) {
+      try {
+        const rPx = radiusM * (canvas.grid.size / canvas.grid.distance);
+        await canvas.scene.createEmbeddedDocuments("AmbientLight", [{
+          x: center.x, y: center.y, rotation: 0,
+          config: {
+            negative: true, dim: radiusM, bright: 0,
+            luminosity: smokeVis >= 6 ? -0.75 : -0.5,
+            color: "#1a1a1a", alpha: 0.35, angle: 360
+          },
+          flags: { sr2e: { smoke: true } }
+        }]);
+      } catch (e) { /* lighting optional; TN modifier still applies */ }
+    }
   } catch (e) { /* template optional; resolution still proceeds */ }
+
+  // Smoke does no damage — the cloud (template + auto-applied visibility TN, and
+  // the optional darkness light) is the whole effect. Post a note and stop.
+  if (blastType === "smoke") {
+    return ChatMessage.create({
+      content: `<div class="sr2e-damage-result">
+        <strong>${foundry.utils.escapeHTML(blastName)}</strong> — smoke cloud deployed
+        (radius ${radiusM} m). Attacks to/through it take the Visibility Table
+        modifier automatically (SR2E p.89). "Clear Blast Areas" removes it.
+      </div>`
+    });
+  }
 
   const stages = ["L", "M", "S", "D"];
   const baseIdx = Math.max(0, stages.indexOf(baseLevel || "M"));
@@ -959,14 +997,17 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
-  // "Clear blast areas": delete every MeasuredTemplate this system dropped.
+  // "Clear blast areas": delete every MeasuredTemplate this system dropped,
+  // plus any smoke darkness-light sources tied to them.
   html.querySelectorAll?.(".sr2e-clear-blast-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       if (!canvas?.scene) return;
       const ids = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")).map(t => t.id);
-      if (!ids.length) return ui.notifications.info("No blast templates to clear.");
-      await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", ids);
+      const lightIds = canvas.scene.lights.filter(l => l.getFlag("sr2e", "smoke")).map(l => l.id);
+      if (!ids.length && !lightIds.length) return ui.notifications.info("No blast areas to clear.");
+      if (ids.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", ids);
+      if (lightIds.length) await canvas.scene.deleteEmbeddedDocuments("AmbientLight", lightIds);
     });
   });
 
