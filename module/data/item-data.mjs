@@ -206,7 +206,12 @@ export class ArmorData extends SR2EDataModel {
       availability: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
       equipped: new fields.BooleanField({ initial: false }),
+      // Layered armor ADDS to the highest worn rating instead of competing
+      // with it: helmets (p.242) and form-fitting body armor (SSC).
       isLayered: new fields.BooleanField({ initial: false }),
+      // Partial/full heavy armor: Combat Pool −1 per point of Ballistic over
+      // the wearer's Quickness (SR2E p.84).
+      heavyArmor: new fields.BooleanField({ initial: false }),
       notes: new fields.StringField({ initial: "" })
     };
   }

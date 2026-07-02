@@ -164,6 +164,16 @@
     <label>Equipped:</label>
     <input type="checkbox" name="system.equipped" {{checked system.equipped}} />
   </div>
+  <div class="form-group">
+    <label>Layered:</label>
+    <input type="checkbox" name="system.isLayered" {{checked system.isLayered}}
+           title="Adds its rating to other worn armor instead of competing for highest — helmets (SR2E p.242) and form-fitting body armor." />
+  </div>
+  <div class="form-group">
+    <label>Heavy Armor:</label>
+    <input type="checkbox" name="system.heavyArmor" {{checked system.heavyArmor}}
+           title="Partial/full heavy armor: reduces the Combat Pool by 1 die per point of Ballistic over the wearer's Quickness (SR2E p.84)." />
+  </div>
   {{/ifEquals}}
 
   {{!-- SPELL --}}

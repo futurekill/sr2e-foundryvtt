@@ -75,3 +75,43 @@ describe("shiftRangeBracket (p.88)", () => {
     expect(shiftRangeBracket("extreme", 0)).toBe("extreme");
   });
 });
+
+import { wornArmorTotals, heavyArmorPoolPenalty } from "../module/rules/sr2e-rules.mjs";
+
+describe("wornArmorTotals (p.242)", () => {
+  const armor = (name, ballistic, impact, isLayered = false) =>
+    ({ name, system: { ballistic, impact, isLayered } });
+
+  it("only the highest worn rating counts — no stacking", () => {
+    const t = wornArmorTotals([armor("Armor Jacket", 5, 3), armor("Armor Vest", 2, 1)]);
+    expect(t).toEqual({ ballistic: 5, impact: 3 });
+  });
+
+  it("helmets ADD to the highest rating (p.242 exception)", () => {
+    const t = wornArmorTotals([armor("Armor Jacket", 5, 3), armor("Helmet", 1, 1, true)]);
+    expect(t).toEqual({ ballistic: 6, impact: 4 });
+  });
+
+  it("form-fitting body armor layers too (name fallback, no flag)", () => {
+    const t = wornArmorTotals([armor("Partial Heavy Armor", 6, 4),
+                               armor("Form-Fitting Body Armor (Level 2)", 3, 1)]);
+    expect(t).toEqual({ ballistic: 9, impact: 5 });
+  });
+
+  it("ballistic and impact pick their highest independently", () => {
+    const t = wornArmorTotals([armor("Armor Clothing", 3, 0), armor("Real Leather", 0, 2)]);
+    expect(t).toEqual({ ballistic: 3, impact: 2 });
+  });
+});
+
+describe("heavyArmorPoolPenalty (p.84)", () => {
+  it("−1 Combat Pool per point of heavy-armor Ballistic over Quickness", () => {
+    const full = [{ name: "Full Heavy Armor", system: { ballistic: 8, heavyArmor: true } }];
+    expect(heavyArmorPoolPenalty(4, full)).toBe(4);
+    expect(heavyArmorPoolPenalty(8, full)).toBe(0);
+  });
+  it("ordinary armor never penalizes; name fallback covers old copies", () => {
+    expect(heavyArmorPoolPenalty(3, [{ name: "Armor Jacket", system: { ballistic: 5 } }])).toBe(0);
+    expect(heavyArmorPoolPenalty(4, [{ name: "Partial Heavy Armor", system: { ballistic: 6 } }])).toBe(2);
+  });
+});

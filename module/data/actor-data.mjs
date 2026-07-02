@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -504,10 +504,13 @@ export class CharacterData extends SR2EDataModel {
       pool.value = Math.max(0, total - spent);
     };
 
-    // Combat Pool = floor((Quickness + Intelligence + Willpower) / 2)
-    const combatPool = Math.floor(
+    // Combat Pool = floor((Quickness + Intelligence + Willpower) / 2), less
+    // 1 die per point of heavy-armor Ballistic over Quickness (SR2E p.84).
+    const equippedArmor = (this.parent?.items ?? [])
+      .filter(i => i.type === "armor" && i.system.equipped);
+    const combatPool = Math.max(0, Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
-    );
+    ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor));
     applyPool(this.dicePools.combat, combatPool);
 
     // Magic Pool = Sorcery Skill Rating + rating of active bonded power foci
@@ -563,21 +566,19 @@ export class CharacterData extends SR2EDataModel {
   _calculateArmor() {
     // Preserve Active Effect contributions (e.g. an Armor spell adding to
     // system.armor.ballistic) — at this point the fields hold source (0) + AEs.
-    let ballistic = this.armor.ballistic ?? 0;
-    let impact = this.armor.impact ?? 0;
-    if (this.parent?.items) {
-      for (const item of this.parent.items) {
-        if (item.type === "armor" && item.system.equipped) {
-          ballistic += item.system.ballistic || 0;
-          impact += item.system.impact || 0;
-        }
-      }
-    }
+    const aeBallistic = this.armor.ballistic ?? 0;
+    const aeImpact = this.armor.impact ?? 0;
+    // Worn armor does NOT stack — only the highest rating counts; layered
+    // pieces (helmets, form-fitting body armor) add to it (SR2E p.242).
+    const worn = wornArmorTotals(
+      (this.parent?.items ?? []).filter(i => i.type === "armor" && i.system.equipped)
+    );
     // Note: troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table),
     // applied as an extra Body die on Damage Resistance Tests in
     // SR2EActor#rollDamageResistance — it is not an armor rating bonus.
-    this.armor.ballistic = ballistic;
-    this.armor.impact = impact;
+    // Cyber Dermal Plating raises the Body Attribute itself (p.242).
+    this.armor.ballistic = worn.ballistic + aeBallistic;
+    this.armor.impact = worn.impact + aeImpact;
   }
 
   /**
@@ -765,14 +766,13 @@ export class NPCData extends SR2EDataModel {
     this.conditionMonitor.physical.max = 10;
     this.conditionMonitor.stun.max = 10;
 
-    // Armor = the stat-block base + any equipped armor items, so a GM can swap
-    // armor on the fly (Foundry re-derives from source each pass, so no compound).
-    for (const item of (this.parent?.items ?? [])) {
-      if (item.type === "armor" && item.system.equipped) {
-        this.armor.ballistic += item.system.ballistic || 0;
-        this.armor.impact    += item.system.impact || 0;
-      }
-    }
+    // Armor = the stat-block base + equipped armor items (highest worn rating
+    // + layered pieces, SR2E p.242), so a GM can swap armor on the fly.
+    const npcWorn = wornArmorTotals(
+      (this.parent?.items ?? []).filter(i => i.type === "armor" && i.system.equipped)
+    );
+    this.armor.ballistic += npcWorn.ballistic;
+    this.armor.impact    += npcWorn.impact;
   }
 
   /**

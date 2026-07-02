@@ -12,8 +12,8 @@
     "availability": "4/48hrs",
     "legality": "Legal",
     "equipped": false,
-    "isLayered": false,
-    "notes": "SR2E p.242. Half-suit version covering the torso and upper limbs. Less protective but more flexible."
+    "isLayered": true,
+    "notes": "SR2E p.242 gear list. A torso undersuit of flexible armor material worn under clothing; LAYERS with other worn armor (adds its rating instead of competing for highest)."
   },
   "effects": [],
   "flags": {},

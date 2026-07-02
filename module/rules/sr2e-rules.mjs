@@ -798,3 +798,61 @@ export function gyroReduction(rating, recoilPenalty, movementMod) {
   if (!(rating > 0)) return 0;
   return Math.min(rating, Math.max(0, recoilPenalty) + Math.max(0, movementMod));
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Worn armor (SR2E p.242) and heavy-armor Combat Pool reduction (p.84)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Layered armor detection: explicit flag, or the two book exceptions —
+ * helmets "add [their] rating to other exterior armor" (p.242) and
+ * form-fitting body armor layers under other armor (SSC). */
+function isLayeredArmor(item) {
+  return !!item.system?.isLayered || /helmet|form.?fit/i.test(item.name ?? "");
+}
+
+/**
+ * Total worn armor (SR2E p.242): "No matter how many pieces of armor are
+ * worn, only the highest rating counts for Damage Resistance Tests."
+ * Layered pieces (helmets, form-fitting body armor) ADD to that highest
+ * rating instead. Ballistic and impact are evaluated independently.
+ *
+ * @param {Array<{name?:string, system:{ballistic?:number, impact?:number,
+ *                isLayered?:boolean, equipped?:boolean}}>} items
+ *        Equipped armor items (pre-filtered by the caller).
+ * @returns {{ballistic:number, impact:number}}
+ */
+export function wornArmorTotals(items) {
+  let bBest = 0, iBest = 0, bAdd = 0, iAdd = 0;
+  for (const a of items) {
+    const s = a.system ?? a;
+    if (isLayeredArmor(a)) {
+      bAdd += s.ballistic || 0;
+      iAdd += s.impact || 0;
+    } else {
+      bBest = Math.max(bBest, s.ballistic || 0);
+      iBest = Math.max(iBest, s.impact || 0);
+    }
+  }
+  return { ballistic: bBest + bAdd, impact: iBest + iAdd };
+}
+
+/**
+ * Heavy-armor Combat Pool reduction (SR2E p.84): partial or full heavy armor
+ * reduces the Combat Pool by 1 die for every point of Ballistic Armor Rating
+ * over the wearer's Quickness.
+ *
+ * @param {number} quickness - Wearer's Quickness rating.
+ * @param {Array<{system:{ballistic?:number, heavyArmor?:boolean}}>} items
+ *        Equipped armor items (pre-filtered by the caller).
+ * @returns {number} Dice removed from the Combat Pool (≥ 0).
+ */
+export function heavyArmorPoolPenalty(quickness, items) {
+  let penalty = 0;
+  for (const a of items) {
+    const s = a.system ?? a;
+    // Flag, with a name fallback so pre-0.26 world copies still count
+    if (!s.heavyArmor && !/heavy armor|military armor/i.test(a.name ?? "")) continue;
+    penalty += Math.max(0, (s.ballistic || 0) - Math.max(0, quickness));
+  }
+  return penalty;
+}

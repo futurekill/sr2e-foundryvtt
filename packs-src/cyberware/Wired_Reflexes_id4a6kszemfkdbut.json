@@ -1,6 +1,6 @@
 {
   "_id": "id4a6kszemfkdbut",
-  "name": "Wired Reflexes",
+  "name": "Wired Reflexes (Level 1)",
   "type": "cyberware",
   "img": "icons/svg/upgrade.svg",
   "system": {
@@ -9,7 +9,7 @@
     "essenceCost": 2,
     "rating": 1,
     "cost": 55000,
-    "availability": "4/8days",
+    "availability": "4/8 days",
     "legality": "Restricted",
     "installed": false,
     "attributeMods": {
@@ -19,40 +19,18 @@
       "charisma": 0,
       "intelligence": 0,
       "willpower": 0,
-      "reaction": 0,
+      "reaction": 2,
       "initiativeDice": 1
     },
-    "ratingStats": [
-      {
-        "rating": 1,
-        "essenceCost": 2,
-        "cost": 55000,
-        "availability": "4/8days",
-        "streetIndex": ""
-      },
-      {
-        "rating": 2,
-        "essenceCost": 3,
-        "cost": 165000,
-        "availability": "4/8days",
-        "streetIndex": ""
-      },
-      {
-        "rating": 3,
-        "essenceCost": 4.5,
-        "cost": 500000,
-        "availability": "8/14days",
-        "streetIndex": ""
-      }
-    ],
-    "notes": "SR2E p.249. Neural signal accelerators. L1: +1 Reaction +1D6 Init. L2: +2 Reaction +2D6 Init. L3: +3 Reaction +3D6 Init."
+    "ratingStats": [],
+    "notes": "SR2E p.247 (table p.261). Implanted neural boosters and adrenaline stimulators: each level adds +2 Reaction and +1D6 Initiative. Level 1: Essence 2, 55,000¥."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.44",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,

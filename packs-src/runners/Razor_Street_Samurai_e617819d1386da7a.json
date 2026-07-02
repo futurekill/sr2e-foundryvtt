@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>An ork muscle-for-hire who treats violence as a trade skill and contracts as sacred. Wired reflexes and a smartlinked SMG do the talking; the katana is for when talking fails.</p><p><em>Sample character \u2014 adjust gear and contacts to taste.</em></p>",
+    "biography": "<p>An ork muscle-for-hire who treats violence as a trade skill and contracts as sacred. Wired reflexes and a smartlinked SMG do the talking; the katana is for when talking fails.</p><p><em>Sample character — adjust gear and contacts to taste.</em></p>",
     "notes": "",
     "race": "ork",
     "body": {
@@ -397,7 +397,7 @@
     },
     {
       "_id": "dec3ba4f26418ac2",
-      "name": "Wired Reflexes",
+      "name": "Wired Reflexes (Level 1)",
       "type": "cyberware",
       "img": "icons/svg/upgrade.svg",
       "system": {
@@ -416,7 +416,7 @@
           "charisma": 0,
           "intelligence": 0,
           "willpower": 0,
-          "reaction": 0,
+          "reaction": 2,
           "initiativeDice": 1
         },
         "ratingStats": [
@@ -487,7 +487,7 @@
           "reaction": 0,
           "initiativeDice": 0
         },
-        "notes": "SR2E p.90/p.301. Required for smartguns. \u22122 target number on attacks with a properly equipped smartweapon.",
+        "notes": "SR2E p.90/p.301. Required for smartguns. −2 target number on attacks with a properly equipped smartweapon.",
         "combatTnMod": -2
       },
       "effects": [],
@@ -511,7 +511,7 @@
     },
     {
       "_id": "a0316da2884ab802",
-      "name": "Dermal Plating",
+      "name": "Dermal Plating (Level 1)",
       "type": "cyberware",
       "img": "icons/svg/upgrade.svg",
       "system": {
@@ -524,7 +524,7 @@
         "legality": "Restricted",
         "installed": true,
         "attributeMods": {
-          "body": 0,
+          "body": 1,
           "quickness": 0,
           "strength": 0,
           "charisma": 0,

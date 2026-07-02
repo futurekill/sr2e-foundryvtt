@@ -52,16 +52,35 @@ const MIGRATIONS = [
   {
     version: "0.26.0",
     migrateItem(source) {
-      if (source.type !== "gear" || !source.system?.weaponAccessory) return null;
-      const update = {};
-      if (source.system.requiresSmartgun && /smartgun/i.test(source.name)) {
-        update["system.grantsSmartgun"] = true;
+      if (source.type === "gear" && source.system?.weaponAccessory) {
+        const update = {};
+        if (source.system.requiresSmartgun && /smartgun/i.test(source.name)) {
+          update["system.grantsSmartgun"] = true;
+        }
+        if (/^gyro mount/i.test(source.name) && (source.system.accessoryRecoilComp ?? 0) >= 5) {
+          update["system.gyroRating"] = source.system.accessoryRecoilComp;
+          update["system.accessoryRecoilComp"] = 0;
+        }
+        return Object.keys(update).length ? update : null;
       }
-      if (/^gyro mount/i.test(source.name) && (source.system.accessoryRecoilComp ?? 0) >= 5) {
-        update["system.gyroRating"] = source.system.accessoryRecoilComp;
-        update["system.accessoryRecoilComp"] = 0;
+
+      // Cyberware audit fixes (core p.90/247/261): older compendium copies of
+      // Smartlink carried no TN mod, and Wired Reflexes lacked its +2 Reaction
+      // per level.
+      if (source.type === "cyberware") {
+        if (/^smartlink$/i.test(source.name) && !(source.system?.combatTnMod < 0)) {
+          return { "system.combatTnMod": -2 };
+        }
+        if (/^wired reflexes/i.test(source.name) &&
+            (source.system?.attributeMods?.reaction ?? 0) === 0) {
+          const lvl = Math.max(1, source.system?.rating ?? 1);
+          return {
+            "system.attributeMods.reaction": 2 * lvl,
+            "system.attributeMods.initiativeDice": lvl
+          };
+        }
       }
-      return Object.keys(update).length ? update : null;
+      return null;
     }
   }
 ];

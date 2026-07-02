@@ -1,19 +1,19 @@
 {
-  "_id": "7tuo7vbiqlcdsia6",
-  "name": "Dermal Plating (Level 1)",
+  "_id": "e4b5c6d7f8a90a42",
+  "name": "Dermal Plating (Level 3)",
   "type": "cyberware",
   "img": "icons/svg/upgrade.svg",
   "system": {
     "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.5,
-    "rating": 1,
-    "cost": 6000,
+    "essenceCost": 1.5,
+    "rating": 3,
+    "cost": 45000,
     "availability": "4/12 days",
     "legality": "Restricted",
     "installed": false,
     "attributeMods": {
-      "body": 1,
+      "body": 3,
       "quickness": 0,
       "strength": 0,
       "charisma": 0,
@@ -45,14 +45,14 @@
         "streetIndex": ""
       }
     ],
-    "notes": "SR2E p.242 (table p.261). Subdermal armor plating: dermal armor works against anything by increasing the character's Body Attribute (+1 per level). Does not aid in healing. Level 1: Essence .5, 6,000¥."
+    "notes": "SR2E p.242 (table p.261). Subdermal armor plating: dermal armor works against anything by increasing the character's Body Attribute (+1 per level). Does not aid in healing. Level 3: Essence 1.5, 45,000¥."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.44",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -65,5 +65,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!7tuo7vbiqlcdsia6"
+  "_key": "!items!e4b5c6d7f8a90a42"
 }

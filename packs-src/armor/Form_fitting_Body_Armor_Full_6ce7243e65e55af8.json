@@ -12,8 +12,8 @@
     "availability": "5/48hrs",
     "legality": "Legal",
     "equipped": false,
-    "isLayered": false,
-    "notes": "SR2E p.242. A full-body undersuit of flexible armor material. Worn under clothing for concealed protection."
+    "isLayered": true,
+    "notes": "SR2E p.242 gear list. A full-body undersuit of flexible armor material worn under clothing; LAYERS with other worn armor (adds its rating instead of competing for highest)."
   },
   "effects": [],
   "flags": {},

@@ -12,7 +12,7 @@
     "availability": "4/48hrs",
     "legality": "Legal",
     "equipped": false,
-    "isLayered": false,
+    "isLayered": true,
     "notes": "SR2E p.242. Corporate security headgear. Adds its Ballistic rating when worn with other armor."
   },
   "effects": [],

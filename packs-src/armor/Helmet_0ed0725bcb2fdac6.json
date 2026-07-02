@@ -12,7 +12,7 @@
     "availability": "12/14 days",
     "legality": "Restricted",
     "equipped": false,
-    "isLayered": false,
+    "isLayered": true,
     "notes": "Combat helmet; stacks with worn armor. SR2E p.257."
   },
   "effects": [],

@@ -1,15 +1,15 @@
 {
-  "_id": "59da9jhz3wuyikau",
-  "name": "Smartlink",
+  "_id": "c2f3e4d5a6b70829",
+  "name": "Wired Reflexes (Level 3)",
   "type": "cyberware",
   "img": "icons/svg/upgrade.svg",
   "system": {
     "location": "bodyware",
     "grade": "standard",
-    "essenceCost": 0.5,
-    "rating": 0,
-    "cost": 2500,
-    "availability": "3/36hrs",
+    "essenceCost": 5,
+    "rating": 3,
+    "cost": 500000,
+    "availability": "8/14 days",
     "legality": "Restricted",
     "installed": false,
     "attributeMods": {
@@ -19,19 +19,18 @@
       "charisma": 0,
       "intelligence": 0,
       "willpower": 0,
-      "reaction": 0,
-      "initiativeDice": 0
+      "reaction": 6,
+      "initiativeDice": 3
     },
     "ratingStats": [],
-    "combatTnMod": -2,
-    "notes": "SR2E p.249, p.90 (table p.261). Subdermal palm induction pad plus retinal targeting overlay: −2 to ranged attack target numbers when firing a smartgun-equipped weapon. Does not stack with smart goggles or a laser sight."
+    "notes": "SR2E p.247 (table p.261). Implanted neural boosters and adrenaline stimulators: each level adds +2 Reaction and +1D6 Initiative. Level 3: +6 Reaction, +3D6; Essence 5, 500,000¥."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.44",
+    "systemVersion": "0.26.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -44,5 +43,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!59da9jhz3wuyikau"
+  "_key": "!items!c2f3e4d5a6b70829"
 }

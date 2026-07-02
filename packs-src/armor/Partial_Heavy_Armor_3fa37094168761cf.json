@@ -13,7 +13,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "isLayered": false,
-    "notes": "Heavy partial suit \u2014 Body+10 to encumbrance; military-grade. SR2E p.257."
+    "notes": "Heavy partial suit — Body+10 to encumbrance; military-grade. SR2E p.257. Heavy armor: reduces the Combat Pool by 1 die per point of Ballistic over the wearer's Quickness (SR2E p.84).",
+    "heavyArmor": true
   },
   "effects": [],
   "flags": {},
