@@ -4,6 +4,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.27.0 — 2026-07-02
+
 ### Features
 - **Sell button on weapon/armor/ammo rows** (combat tab) — anything paid for
   can be sold back, not just gear/cyberware.
