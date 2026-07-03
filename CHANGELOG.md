@@ -4,7 +4,12 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-_Nothing yet._
+### Features
+- **Setting a character's prototype-token image now also sets the sheet
+  portrait** (world setting "Token image sets the portrait", default on) — art
+  only has to be picked once. Turn it off to keep token/portrait independent,
+  or set the portrait in the same edit to override.
+
 
 ## 0.29.0 — 2026-07-02
 

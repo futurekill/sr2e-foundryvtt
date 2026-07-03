@@ -416,6 +416,12 @@ function _registerSystemSettings() {
     scope: "world", config: true, type: Boolean, default: false
   });
 
+  game.settings.register("sr2e", "syncPortraitToToken", {
+    name: "Token image sets the portrait",
+    hint: "When you set a character's prototype-token image, copy it to the sheet portrait too (unless you change the portrait in the same edit). Turn off to keep token and portrait art independent.",
+    scope: "world", config: true, type: Boolean, default: true
+  });
+
   game.settings.register("sr2e", "communalNuyen", {
     name: "Communal nuyen pot",
     hint: "Undivided remainder from Award Nuyen payouts. Paid back out by ticking 'include communal pot' on a future award.",
@@ -627,6 +633,15 @@ Hooks.on("preCreateActor", (actor, data) => {
   }
 
   if (Object.keys(updates).length) actor.updateSource(updates);
+});
+
+// Setting a character's prototype-token image also sets the sheet portrait,
+// so art only has to be picked once (unless the same update sets img itself).
+Hooks.on("preUpdateActor", (actor, changes) => {
+  if (actor.type !== "character") return;
+  if (!game.settings.get("sr2e", "syncPortraitToToken")) return;
+  const tokenSrc = changes.prototypeToken?.texture?.src;
+  if (tokenSrc && changes.img === undefined) changes.img = tokenSrc;
 });
 
 Hooks.on("updateActor", (actor, changes) => {
