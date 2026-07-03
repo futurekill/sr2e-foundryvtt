@@ -4,6 +4,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.29.0 — 2026-07-02
+
 ### Fixes
 - **Adept powers now update Reaction and Initiative dice.** Power effects
   scale by level (Increased Reaction +1 Reaction/level, Improved Physical
