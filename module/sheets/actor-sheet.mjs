@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend } from "../rules/sr2e-rules.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
   onAddItem, onDeleteItem, onEditItem,
@@ -630,6 +630,31 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.priorityValid = method === "sumto10"
       ? context.prioritySum === 10
       : context.priorityDuplicates.length === 0;
+
+    // --- Chargen budget: points/nuyen spent vs the chosen priority allotment
+    // (SR2E p.44–45). Purely informational; nothing is enforced. ---
+    const allot = {
+      attributes:  prio[chosen.attributes]?.attributes ?? 0,
+      skills:      prio[chosen.skills]?.skills ?? 0,
+      resources:   prio[chosen.resources]?.resources ?? 0,
+      forcePoints: prio[chosen.resources]?.forcePoints ?? 0
+    };
+    const attrData = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]
+      .map((k) => ({ base: system[k]?.base ?? 0 }));
+    const skillData = actor.items
+      .filter((i) => i.type === "skill")
+      .map((i) => ({ category: i.system.category, rating: i.system.rating }));
+    const itemData = actor.items.map((i) => ({
+      type: i.type,
+      cost: i.system.cost ?? 0,
+      quantity: i.system.quantity ?? 1,
+      force: i.system.force ?? 0,
+      bondingCost: i.system.bondingCost ?? 0
+    }));
+    context.chargenBudget = chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+    // Force Points go to spellcasters only (SR2E p.45) — not physical adepts.
+    const mt = system.magic?.type ?? "none";
+    context.chargenShowForce = mt !== "none" && mt !== "physical_adept";
 
     // Shared Team Karma Pool total (SR2E p.246) — shown on every character sheet.
     context.teamKarma = game.settings.get("sr2e", "teamKarma") ?? 0;

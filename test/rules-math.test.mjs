@@ -10,7 +10,8 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase,
+  chargenSpend
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -588,5 +589,43 @@ describe("reactionBase (SR2E p.60, p.249)", () => {
     expect(reactionBase(6, 4, 2)).toBe(4);
     // without the exemption it would be (6+4)/2 = 5
     expect(reactionBase(6, 4, 0)).toBe(5);
+  });
+});
+
+describe("chargenSpend — priority budget tracking (SR2E p.44–45)", () => {
+  it("sums the six attribute BASE ratings only (Reaction/Essence/Magic excluded)", () => {
+    const attrs = [{ base: 6 }, { base: 5 }, { base: 5 }, { base: 4 }, { base: 4 }, { base: 3 }]; // = 27
+    const r = chargenSpend({ attributes: attrs }, { attributes: 30 });
+    expect(r.attributes).toEqual({ spent: 27, total: 30, remaining: 3, over: false });
+  });
+  it("counts active + build/repair skills, not knowledge/language/special", () => {
+    const skills = [
+      { category: "active", rating: 6 }, { category: "build_repair", rating: 4 },
+      { category: "knowledge", rating: 5 }, { category: "language", rating: 3 },
+      { category: "special", rating: 2 }
+    ];
+    const r = chargenSpend({ skills }, { skills: 8 });
+    expect(r.skills.spent).toBe(10);   // 6 + 4 only
+    expect(r.skills.over).toBe(true);  // 10 > 8
+  });
+  it("sums gear list cost × quantity; ignores non-purchasable types", () => {
+    const items = [
+      { type: "weapon", cost: 700, quantity: 1 },
+      { type: "ammo", cost: 20, quantity: 3 },      // 60
+      { type: "skill", cost: 999 },                  // not a resource type
+      { type: "cyberware", cost: 5000 }
+    ];
+    const r = chargenSpend({ items }, { resources: 90000 });
+    expect(r.resources.spent).toBe(700 + 60 + 5000);
+    expect(r.resources.remaining).toBe(90000 - 5760);
+  });
+  it("Force Points = spell Force + focus bonding cost", () => {
+    const items = [
+      { type: "spell", force: 4 }, { type: "spell", force: 5 },
+      { type: "focus", bondingCost: 8 }
+    ];
+    const r = chargenSpend({ items }, { forcePoints: 15 });
+    expect(r.forcePoints.spent).toBe(17); // 4 + 5 + 8
+    expect(r.forcePoints.over).toBe(true); // 17 > 15
   });
 });

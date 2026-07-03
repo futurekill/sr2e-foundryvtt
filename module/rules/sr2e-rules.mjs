@@ -947,3 +947,50 @@ export function knockdownOutcome(level, successes) {
 export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
   return Math.floor((Math.max(0, quickness - exemptQuickness) + intelligence) / 2);
 }
+
+/** Item types whose nuyen cost counts against the chargen Resources budget. */
+export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "focus", "lifestyle"];
+
+/**
+ * Character-creation point spend per category, versus the allotment granted by
+ * the chosen priorities (SR2E p.44–45). Pure counting — the caller pulls plain
+ * data off the actor so this stays testable.
+ *
+ * - Attributes: sum of the six Physical/Mental **base** ratings. Reaction,
+ *   Essence and Magic are Special Attributes (not bought), so they're excluded.
+ * - Skills: sum of **Active + Build/Repair** skill ratings. Knowledge, Language
+ *   and Special skills follow the p.74 special rules (native language is free,
+ *   others need GM approval), so they are NOT charged against the skill budget.
+ * - Resources: sum of the **list** nuyen cost of owned gear (chargen pays list
+ *   price with no Street Index), cost × quantity.
+ * - Force Points (magicians only): sum of spell Force + focus Bonding cost.
+ *
+ * @param {object} data
+ * @param {{base:number}[]} [data.attributes] - the six physical/mental attributes
+ * @param {{category:string, rating:number}[]} [data.skills]
+ * @param {{type:string, cost:number, quantity?:number, force?:number, bondingCost?:number}[]} [data.items]
+ * @param {{attributes?:number, skills?:number, resources?:number, forcePoints?:number}} [allot]
+ * @returns {{attributes:object, skills:object, resources:object, forcePoints:object}}
+ *          each row is {spent, total, remaining, over}
+ */
+export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, allot = {}) {
+  const attrSpent = attributes.reduce((s, a) => s + (a.base ?? 0), 0);
+  const skillSpent = skills
+    .filter((k) => k.category === "active" || k.category === "build_repair")
+    .reduce((s, k) => s + (k.rating ?? 0), 0);
+  const resSpent = items
+    .filter((i) => CHARGEN_RESOURCE_TYPES.includes(i.type))
+    .reduce((s, i) => s + (i.cost ?? 0) * (i.quantity ?? 1), 0);
+  const forceSpent = items.reduce((s, i) => {
+    if (i.type === "spell") return s + (i.force ?? 0);
+    if (i.type === "focus") return s + (i.bondingCost ?? 0);
+    return s;
+  }, 0);
+  const row = (spent, total) => ({ spent, total, remaining: total - spent, over: spent > total });
+  return {
+    attributes:  row(attrSpent, allot.attributes ?? 0),
+    skills:      row(skillSpent, allot.skills ?? 0),
+    resources:   row(resSpent, allot.resources ?? 0),
+    forcePoints: row(forceSpent, allot.forcePoints ?? 0)
+  };
+}

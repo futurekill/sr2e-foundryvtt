@@ -339,5 +339,31 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Special skills" });
+
+    // ── Chargen budget panel reads attributes + item costs (SR2E p.44–45) ──────
+    quench.registerBatch("sr2e.chargen-budget", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      describe("Chargen budget panel", () => {
+        it("shows resource spend from owned gear against the Resources priority", async () => {
+          actor = await Actor.create({
+            name: "Quench Budget", type: "character",
+            system: { chargen: { priorities: { resources: "C" } } } // C = 90,000¥
+          });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Ares Predator", type: "weapon", system: { cost: 450, quantity: 1 } }
+          ]);
+          await actor.sheet.render(true);
+          await new Promise(r => setTimeout(r, 250));
+          const row = actor.sheet.element?.querySelector(".chargen-budget");
+          assert.ok(row, "chargen budget panel did not render");
+          const text = row.textContent.replace(/\s+/g, " ");
+          assert.ok(text.includes("450 / 90000"),
+            `resources row wrong; got: ${text}`);
+        });
+      });
+    }, { displayName: "SR2E: Chargen budget" });
   });
 }

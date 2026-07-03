@@ -6,6 +6,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.4 — 2026-07-03
+
+### Features
+- **Character-creation budget panel** (bio tab): live "spent / allotted" readouts
+  for Attribute Points, Skill Points, Resources (¥) and — for spellcasters —
+  Force Points, driven by the chosen priorities (SR2E p.44–45). Over-budget rows
+  turn red with a warning icon. Purely informational; nothing is enforced.
+  Attribute points count the six Physical/Mental base ratings (Reaction/Essence/
+  Magic excluded); skill points count Active + Build/Repair skills (Knowledge/
+  Language/Special follow the p.74 rules); resources use list price (no Street
+  Index); Force Points sum spell Force + focus bonding.
+
 ## 0.29.3 — 2026-07-03
 
 ### Fixes

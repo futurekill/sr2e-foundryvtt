@@ -183,6 +183,32 @@
         </p>
         {{/unless}}
         {{/ifEquals}}
+
+        {{!-- Live point/nuyen spend vs the chosen priority allotment (p.44–45) --}}
+        <div class="chargen-budget">
+          <div class="budget-row flexrow {{#if chargenBudget.attributes.over}}over{{/if}}">
+            <span class="budget-label">Attribute Points</span>
+            <span class="budget-value">{{chargenBudget.attributes.spent}} / {{chargenBudget.attributes.total}}</span>
+            <span class="budget-remaining">{{#if chargenBudget.attributes.over}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{chargenBudget.attributes.remaining}} left</span>
+          </div>
+          <div class="budget-row flexrow {{#if chargenBudget.skills.over}}over{{/if}}">
+            <span class="budget-label" title="Active + Build/Repair skills. Knowledge, Language and Special skills use the p.74 rules and aren't counted here.">Skill Points</span>
+            <span class="budget-value">{{chargenBudget.skills.spent}} / {{chargenBudget.skills.total}}</span>
+            <span class="budget-remaining">{{#if chargenBudget.skills.over}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{chargenBudget.skills.remaining}} left</span>
+          </div>
+          <div class="budget-row flexrow {{#if chargenBudget.resources.over}}over{{/if}}">
+            <span class="budget-label" title="List cost of owned gear, cyberware, foci and lifestyle (no Street Index markup during chargen).">Resources (¥)</span>
+            <span class="budget-value">{{chargenBudget.resources.spent}} / {{chargenBudget.resources.total}}</span>
+            <span class="budget-remaining">{{#if chargenBudget.resources.over}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{chargenBudget.resources.remaining}} left</span>
+          </div>
+          {{#if chargenShowForce}}
+          <div class="budget-row flexrow {{#if chargenBudget.forcePoints.over}}over{{/if}}">
+            <span class="budget-label" title="Spell Force totals + focus Bonding costs.">Force Points</span>
+            <span class="budget-value">{{chargenBudget.forcePoints.spent}} / {{chargenBudget.forcePoints.total}}</span>
+            <span class="budget-remaining">{{#if chargenBudget.forcePoints.over}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{chargenBudget.forcePoints.remaining}} left</span>
+          </div>
+          {{/if}}
+        </div>
       </div>
     </fieldset>
 
