@@ -269,8 +269,11 @@ async function onRollSkill(event, target) {
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
   // Clicking the inline "(Concentration N)" / "[Specialization N]" tag rolls
-  // that variant's rating instead of the general skill (SR2E p.70).
-  const variant = event.target.closest?.("[data-variant]")?.dataset.variant ?? "";
+  // that variant's rating instead of the general skill (SR2E p.70). The tag is
+  // its own data-action element, so `target` IS the tag when clicked; fall
+  // back to the event path for safety.
+  const variant = target?.dataset?.variant
+    ?? event.target?.closest?.("[data-variant]")?.dataset?.variant ?? "";
   // SR2E p.86: Combat Pool is only for combat-related tests (Firearm, Melee, etc.)
   // and Damage Resistance Tests — pools are hidden for general skill checks.
   // Karma dice (p.190) may still be bought, capped at the dice in use:
@@ -1042,7 +1045,7 @@ async function onRollWeapon(event, target) {
     firearm:    "firearms",
     melee:      "armed_combat",
     throwing:   "throwing_weapons",
-    heavy:      "heavy_weapons",
+    heavy:      "gunnery",
     projectile: "projectile_weapons",
     grenade:    "throwing_weapons"
   };
@@ -1083,7 +1086,25 @@ async function onRollWeapon(event, target) {
     }
   }
 
-  const rating = linkedSkill?.system?.rating ?? 0;
+  // Fallback (mirrors _rollWeaponAttack): if no base skill matched, match a
+  // concentration/specialization by the weapon's name so the pool cap reflects
+  // the rating the roll will actually use.
+  if (!skillChoices.length) {
+    const wname = normalize(item.name);
+    outer: for (const sk of actor.items) {
+      if (sk.type !== "skill") continue;
+      for (const v of ["specialization", "concentration"]) {
+        const sub = sk.system[v];
+        if (sub?.name && sub.rating > 0 &&
+            (wname.includes(normalize(sub.name)) || normalize(sub.name).includes(wname))) {
+          skillChoices.push({ key: "", label: `${sub.name} ${sub.rating}`, rating: sub.rating, selected: true });
+          break outer;
+        }
+      }
+    }
+  }
+
+  const rating = linkedSkill?.system?.rating ?? (skillChoices[0]?.rating ?? 0);
   if (rating > 0) {
     // Cap pools at the highest offered rating; the roll uses the chosen one.
     skillCap = Math.max(...skillChoices.map(c => c.rating));

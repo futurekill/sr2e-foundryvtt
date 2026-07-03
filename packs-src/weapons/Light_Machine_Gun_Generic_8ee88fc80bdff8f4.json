@@ -4,8 +4,8 @@
   "type": "weapon",
   "img": "icons/svg/sword.svg",
   "system": {
-    "weaponType": "heavy",
-    "skill": "heavy_weapons",
+    "weaponType": "firearm",
+    "skill": "firearms",
     "damageCode": "8S",
     "damageType": "physical",
     "concealability": 99,

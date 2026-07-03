@@ -313,7 +313,7 @@ export class SR2EItem extends Item {
       firearm:    "firearms",
       melee:      "armed_combat",
       throwing:   "throwing_weapons",
-      heavy:      "heavy_weapons",
+      heavy:      "gunnery",
       projectile: "projectile_weapons",
       grenade:    "throwing_weapons"
     };
@@ -348,6 +348,26 @@ export class SR2EItem extends Item {
           skillVariantNote = item.system[v].name;
         }
         break;
+      }
+    }
+    // Fallback: a character who set their skill up AS a concentration/spec (e.g.
+    // an "Edged Weapons" skill, or "Armed Combat" with a matching spec) — match
+    // by the weapon's name against concentration/specialization names and roll
+    // that rating so the attack isn't stuck defaulting to an attribute.
+    if (skillRating <= 0) {
+      const wname = normalize(this.name);
+      for (const item of actor.items) {
+        if (item.type !== "skill") continue;
+        for (const v of ["specialization", "concentration"]) {
+          const sub = item.system[v];
+          if (sub?.name && sub.rating > 0 &&
+              (wname.includes(normalize(sub.name)) || normalize(sub.name).includes(wname))) {
+            skillRating = sub.rating;
+            skillVariantNote = sub.name;
+            break;
+          }
+        }
+        if (skillRating > 0) break;
       }
     }
 

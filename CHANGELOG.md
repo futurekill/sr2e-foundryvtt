@@ -4,7 +4,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- **Weapon skills corrected to real SR2 skills (p.66):** LMGs and grenade
+  launchers now use **Firearms**; MMGs, HMGs, assault cannons and rocket/missile
+  launchers use **Gunnery**. The bogus "Heavy Weapons" skill (not in the book)
+  was removed; LMGs are no longer treated as heavy weapons (no double recoil).
+- **Concentrations now roll from the skills tab** — the (Concentration)/[Special-
+  ization] tags are their own click targets, so clicking one rolls that rating
+  instead of always rolling the general skill.
+- **Attacks find a concentration/specialization skill by weapon name** when
+  there's no matching base skill, so a katana or bow rolls the right pool
+  instead of defaulting to an attribute.
 
 ## 0.29.1 — 2026-07-03
 

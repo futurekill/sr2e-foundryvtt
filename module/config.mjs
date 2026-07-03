@@ -128,7 +128,6 @@ SR2E.activeSkills = {
   etiquette:        { label: "SR2E.Skills.Etiquette",       attribute: "charisma",     category: "active" },
   firearms:         { label: "SR2E.Skills.Firearms",        attribute: "quickness",    category: "active" },
   gunnery:          { label: "SR2E.Skills.Gunnery",         attribute: "intelligence", category: "active" },
-  heavy_weapons:    { label: "SR2E.Skills.HeavyWeapons",    attribute: "strength",     category: "active" },
   launch_weapons:   { label: "SR2E.Skills.LaunchWeapons",   attribute: "quickness",    category: "active" },
   leadership:       { label: "SR2E.Skills.Leadership",      attribute: "charisma",     category: "active" },
   negotiation:      { label: "SR2E.Skills.Negotiation",     attribute: "charisma",     category: "active" },
