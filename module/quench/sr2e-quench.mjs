@@ -360,7 +360,7 @@ export function registerSR2EQuenchTests() {
           const row = actor.sheet.element?.querySelector(".chargen-budget");
           assert.ok(row, "chargen budget panel did not render");
           const text = row.textContent.replace(/\s+/g, " ");
-          assert.ok(text.includes("450 / 90000"),
+          assert.ok(text.includes("450 / 90,000"),
             `resources row wrong; got: ${text}`);
         });
       });

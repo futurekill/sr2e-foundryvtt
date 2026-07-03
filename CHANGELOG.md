@@ -6,6 +6,11 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.5 — 2026-07-03
+
+### Fixes
+- Chargen Resources figures now show thousands separators (e.g. `69,520 / 90,000`).
+
 ## 0.29.4 — 2026-07-03
 
 ### Features

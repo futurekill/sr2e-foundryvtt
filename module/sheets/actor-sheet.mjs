@@ -652,6 +652,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       bondingCost: i.system.bondingCost ?? 0
     }));
     context.chargenBudget = chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+    // Thousands separators for the ¥ figures (they climb toward 1,000,000).
+    for (const k of ["spent", "total", "remaining"]) {
+      context.chargenBudget.resources[`${k}Fmt`] = context.chargenBudget.resources[k].toLocaleString("en-US");
+    }
     // Force Points go to spellcasters only (SR2E p.45) — not physical adepts.
     const mt = system.magic?.type ?? "none";
     context.chargenShowForce = mt !== "none" && mt !== "physical_adept";
