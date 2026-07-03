@@ -223,7 +223,7 @@
     <div class="adept-powers-category">
       <div class="category-header flexrow">
         <h3>Adept Powers</h3>
-        <span class="power-points">Points: {{system.adeptPowerPoints.value}} / {{system.adeptPowerPoints.max}}</span>
+        <span class="power-points{{#ifGt system.adeptPowerPoints.value system.adeptPowerPoints.max}} over{{/ifGt}}" title="Power points used / available (= Magic rating). SR2E p.124.">Used: {{system.adeptPowerPoints.value}} / {{system.adeptPowerPoints.max}}</span>
         <button type="button" data-action="addItem" data-type="adept_power" class="btn-add">
           <i class="fas fa-plus"></i>
         </button>

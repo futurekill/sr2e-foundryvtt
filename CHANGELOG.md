@@ -4,6 +4,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.29.8 — 2026-07-03
+
 ### Features
 - **Player-facing "Character Creation — Quick Start" journal** in a new
   **SR2E Player Guides** compendium: a three-page walkthrough (step-by-step,
@@ -11,6 +15,11 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   sheet) so new players can build a character without page-flipping.
 
 ### Fixes
+- **Adept power points now show what you've spent** (SR2E p.124). The magic tab
+  read "Points: 0 / Magic" no matter how many powers you took — the used total
+  was never computed. It now sums pointCost × level and turns red if you exceed
+  your Magic rating. (Found in a physical-adept chargen dry-run,
+  `docs/CHARGEN-DRYRUN.md`.)
 - Corrected metahuman **Reaction racial maxima** to match the book table (p.43);
   they were each +1 high. This data isn't enforced anywhere (cosmetic), and the
   six enforced attribute maxima were already correct.

@@ -393,5 +393,28 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Astral initiative" });
+
+    // ── Adept power points: used = Σ(pointCost × level), max = Magic (p.124) ────
+    quench.registerBatch("sr2e.adept-points", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      describe("Adept power points (SR2E p.124)", () => {
+        it("sums pointCost×level of adept powers against Magic", async () => {
+          actor = await Actor.create({
+            name: "Quench Adept", type: "character",
+            system: { magic: { type: "physical_adept" } }
+          });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Increased Reaction", type: "adept_power", system: { pointCost: 1, level: 2 } }, // 2
+            { name: "Killing Hands", type: "adept_power", system: { pointCost: 2, level: 1 } }       // 2
+          ]);
+          assert.equal(actor.system.adeptPowerPoints.max, actor.system.magic.value,
+            "power-point max should equal the Magic rating");
+          assert.equal(actor.system.adeptPowerPoints.value, 4, "used should be 1×2 + 2×1 = 4");
+        });
+      });
+    }, { displayName: "SR2E: Adept power points" });
   });
 }

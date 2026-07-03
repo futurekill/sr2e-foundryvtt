@@ -316,9 +316,20 @@ export class CharacterData extends SR2EDataModel {
     // Calculate Armor from equipped items
     this._calculateArmor();
 
-    // Calculate Adept Power Points (Magic Rating for Physical Adepts)
+    // Calculate Adept Power Points (Magic Rating for Physical Adepts, SR2E
+    // p.124). Points USED = Σ(pointCost × level) over the adept's powers.
+    // ponytail: assumes linear per-level cost — correct for every core power
+    // except Increased Reflexes (2/3/5 for 1/2/3 dice), whose own description
+    // notes the exact figure; adjust that power's pointCost by hand if taken >L1.
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
+      let used = 0;
+      for (const item of this.parent?.items ?? []) {
+        if (item.type === "adept_power") {
+          used += (item.system.pointCost ?? 0) * (item.system.level ?? 1);
+        }
+      }
+      this.adeptPowerPoints.value = used;
     }
 
     // Derive Matrix persona attributes from loaded persona programs

@@ -1739,6 +1739,9 @@
   background: rgba(63, 174, 90, 0.08);
 }
 
+/* Adept power-points readout: red when spend exceeds the Magic rating */
+.power-points.over { color: var(--sr2e-danger, #b00); font-weight: bold; }
+
 /* Chargen budget: points/nuyen spent vs the priority allotment (p.44–45) */
 .chargen-budget {
   grid-column: 1 / -1;
