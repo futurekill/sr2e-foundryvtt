@@ -14,3 +14,4 @@ node_modules/
 !assets/icons/
 !assets/icons/*
 _work/
+graphify-out/

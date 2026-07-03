@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -264,7 +264,9 @@ export class CharacterData extends SR2EDataModel {
     // Reaction = natural (Q+I)/2 plus 2 per rig level, Initiative dice =
     // 1 + rig level. Other Reaction/Initiative enhancers (wired reflexes,
     // spells) are suppressed; injury modifiers still apply at roll time.
-    this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
+    // Muscle Replacement/Augmentation Quickness is excluded here (SR2E p.249).
+    this.reaction.base = reactionBase(
+      this.quickness.value, this.intelligence.value, mods.reactionExemptQuickness ?? 0);
     if (this.rigging && this.vehicleControlRig > 0) {
       this.reaction.mod = 2 * this.vehicleControlRig;
       this.initiative.dice = 1 + this.vehicleControlRig;
@@ -430,12 +432,20 @@ export class CharacterData extends SR2EDataModel {
     const mods = {
       body: 0, quickness: 0, strength: 0,
       charisma: 0, intelligence: 0, willpower: 0,
-      reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0
+      reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0,
+      // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
+      // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
+      reactionExemptQuickness: 0
     };
     for (const item of this.parent?.items ?? []) {
       if (item.type === "cyberware" && item.system.installed) {
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
           if (key in mods) mods[key] += val;
+        }
+        // Muscle Replacement/Augmentation Quickness doesn't raise Reaction
+        // (flag, with a name fallback for pre-0.28 world copies).
+        if (item.system.noReactionBonus || /muscle (replacement|augmentation)/i.test(item.name)) {
+          mods.reactionExemptQuickness += item.system.attributeMods?.quickness || 0;
         }
         mods.essenceLoss += item.system.actualEssenceCost;
         // Installed VCR cyberware sets the character's rig level (its rating)

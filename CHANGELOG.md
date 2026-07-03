@@ -4,7 +4,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- **Muscle Replacement/Augmentation no longer raises Reaction** (SR2E p.249) —
+  its Quickness bonus still counts for Combat Pool and tests but is excluded
+  from Reaction. The core item was also inert (empty mods); rebuilt as Rating
+  1–4 items granting +Rating Strength AND Quickness. World migration flags
+  existing copies.
+- **Adept power descriptions now show** on the item sheet — the adept_power
+  sheet block had no description editor, so the book text (already in the
+  compendium) was never visible.
 
 ## 0.27.0 — 2026-07-02
 

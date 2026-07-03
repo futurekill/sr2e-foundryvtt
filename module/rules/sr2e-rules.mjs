@@ -933,3 +933,17 @@ export function knockdownOutcome(level, successes) {
   if (s >= knockdownThreshold(level)) return "none";
   return "stagger";
 }
+
+/**
+ * Reaction base (SR2E p.60): ⌊(Quickness + Intelligence) / 2⌋. Quickness gained
+ * from Muscle Replacement / Muscle Augmentation is EXCLUDED — "this change does
+ * not affect Reaction" (p.249) — though it still counts for Combat Pool and
+ * skill tests.
+ * @param {number} quickness - augmented Quickness value
+ * @param {number} intelligence - augmented Intelligence value
+ * @param {number} [exemptQuickness=0] - Quickness from muscle aug that must not feed Reaction
+ * @returns {number}
+ */
+export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
+  return Math.floor((Math.max(0, quickness - exemptQuickness) + intelligence) / 2);
+}

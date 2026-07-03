@@ -94,6 +94,12 @@ const MIGRATIONS = [
       // of Smartlink carried no TN mod, Wired Reflexes lacked its +2 Reaction
       // per level, and several items had wrong essence costs (GitHub #4).
       if (source.type === "cyberware") {
+        // Muscle Replacement/Augmentation: Quickness bonus must not feed
+        // Reaction (SR2E p.249). Flag existing world copies.
+        if (/muscle (replacement|augmentation)/i.test(source.name) &&
+            !source.system?.noReactionBonus) {
+          return { "system.noReactionBonus": true };
+        }
         if (/^smartlink$/i.test(source.name) && !(source.system?.combatTnMod < 0)) {
           return { "system.combatTnMod": -2 };
         }

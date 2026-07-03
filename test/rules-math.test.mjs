@@ -10,7 +10,7 @@ import {
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
-  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome
+  modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -575,5 +575,18 @@ describe("knockdown (SR2E p.91)", () => {
     expect(knockdownOutcome("S", 2)).toBe("stagger");
     expect(knockdownOutcome("D", 5)).toBe("prone");
     expect(knockdownOutcome("L", 1)).toBe("none");
+  });
+});
+
+describe("reactionBase (SR2E p.60, p.249)", () => {
+  it("floor((Q+I)/2) normally", () => {
+    expect(reactionBase(6, 5)).toBe(5);   // (6+5)/2 = 5.5 → 5
+    expect(reactionBase(4, 4)).toBe(4);
+  });
+  it("Muscle Replacement Quickness does NOT feed Reaction (p.249)", () => {
+    // Q6 including +2 from Muscle Replacement, Int 4: Reaction uses Q4 → 4
+    expect(reactionBase(6, 4, 2)).toBe(4);
+    // without the exemption it would be (6+4)/2 = 5
+    expect(reactionBase(6, 4, 0)).toBe(5);
   });
 });

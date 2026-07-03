@@ -1,0 +1,48 @@
+{
+  "_id": "c2b3c4e5f6a70890",
+  "name": "Muscle Replacement (Rating 2)",
+  "type": "cyberware",
+  "img": "icons/svg/upgrade.svg",
+  "system": {
+    "location": "bodyware",
+    "grade": "standard",
+    "essenceCost": 2,
+    "rating": 2,
+    "cost": 40000,
+    "availability": "4/4 days",
+    "legality": "Restricted",
+    "installed": false,
+    "attributeMods": {
+      "body": 0,
+      "quickness": 2,
+      "strength": 2,
+      "charisma": 0,
+      "intelligence": 0,
+      "willpower": 0,
+      "reaction": 0,
+      "initiativeDice": 0
+    },
+    "ratingStats": [],
+    "notes": "SR2E p.249 (table p.261). Vat-grown synthetic muscle: +2 Strength AND +2 Quickness (max rating 4). The Quickness increase does NOT affect Reaction. Essence 2, 40,000¥.",
+    "noReactionBonus": true
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.28.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "7d40a1986afd7f8a",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c2b3c4e5f6a70890"
+}

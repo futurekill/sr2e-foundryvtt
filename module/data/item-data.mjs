@@ -323,6 +323,11 @@ export class CyberwareData extends SR2EDataModel {
       // bonuses apply only while jacked in (SR2E p.85) — do NOT also give the
       // item attributeMods for them.
       isVcr: new fields.BooleanField({ initial: false }),
+      // Muscle Replacement (SR2E p.249) and Muscle Augmentation (Shadowtech)
+      // raise Strength AND Quickness, but "this change does not affect
+      // Reaction". When set, the item's Quickness bonus is excluded from the
+      // Reaction calculation (but still counts for Combat Pool and tests).
+      noReactionBonus: new fields.BooleanField({ initial: false }),
       // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
       // are derived from the row matching the current rating (prepareDerivedData).
       // For non-tiered items, leave this empty and fill the flat fields directly.
