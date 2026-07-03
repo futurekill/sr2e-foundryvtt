@@ -46,10 +46,10 @@ SR2E.racialModifiers = {
 
 SR2E.racialMaximums = {
   human:  { body: 6, quickness: 6, strength: 6, charisma: 6, intelligence: 6, willpower: 6, essence: 6, magic: 6, reaction: 6 },
-  dwarf:  { body: 7, quickness: 5, strength: 8, charisma: 6, intelligence: 6, willpower: 7, essence: 6, magic: 6, reaction: 6 },
-  elf:    { body: 6, quickness: 7, strength: 6, charisma: 8, intelligence: 6, willpower: 6, essence: 6, magic: 6, reaction: 7 },
-  ork:    { body: 9, quickness: 6, strength: 8, charisma: 5, intelligence: 5, willpower: 6, essence: 6, magic: 6, reaction: 6 },
-  troll:  { body: 11, quickness: 5, strength: 10, charisma: 4, intelligence: 4, willpower: 5, essence: 6, magic: 6, reaction: 5 }
+  dwarf:  { body: 7, quickness: 5, strength: 8, charisma: 6, intelligence: 6, willpower: 7, essence: 6, magic: 6, reaction: 5 },
+  elf:    { body: 6, quickness: 7, strength: 6, charisma: 8, intelligence: 6, willpower: 6, essence: 6, magic: 6, reaction: 6 },
+  ork:    { body: 9, quickness: 6, strength: 8, charisma: 5, intelligence: 5, willpower: 6, essence: 6, magic: 6, reaction: 5 },
+  troll:  { body: 11, quickness: 5, strength: 10, charisma: 4, intelligence: 4, willpower: 5, essence: 6, magic: 6, reaction: 4 }
 };
 
 SR2E.racialAbilities = {
