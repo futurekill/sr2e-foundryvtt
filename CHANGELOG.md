@@ -4,6 +4,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.28.0 — 2026-07-02
+
 ### Fixes
 - **Muscle Replacement/Augmentation no longer raises Reaction** (SR2E p.249) —
   its Quickness bonus still counts for Combat Pool and tests but is excluded
