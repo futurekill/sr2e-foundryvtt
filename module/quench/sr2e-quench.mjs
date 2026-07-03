@@ -365,5 +365,33 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Chargen budget" });
+
+    // ── Astral projection swaps the Initiative panel to astral values (p.147) ──
+    quench.registerBatch("sr2e.astral-init", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      describe("Astral Initiative (SR2E p.147)", () => {
+        it("projecting shows Astral Reaction (2×Int) +15 with a single die", async () => {
+          actor = await Actor.create({
+            name: "Quench Astral", type: "character",
+            system: {
+              intelligence: { base: 4 }, willpower: { base: 5 },
+              magic: { type: "full_magician" }, astralState: "projecting"
+            }
+          });
+          const s = actor.system;
+          assert.equal(s.astralReaction, 8, "Astral Reaction should be 2×Int (8)");
+          assert.equal(s.initiative.base, 23, "projecting Initiative base should be 8+15");
+          assert.equal(s.initiative.dice, 1, "astral Initiative rolls a single die");
+        });
+        it("perceiving keeps normal meat Initiative", async () => {
+          await actor.update({ "system.astralState": "perceiving" });
+          assert.equal(actor.system.initiative.base, actor.system.reaction.value,
+            "perceiving should use meat Reaction for Initiative");
+        });
+      });
+    }, { displayName: "SR2E: Astral initiative" });
   });
 }

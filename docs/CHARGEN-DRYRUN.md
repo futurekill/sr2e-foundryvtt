@@ -45,7 +45,7 @@ Cyberware essence/cost values are the shipped compendium numbers.
 
 **Attributes (20):** Body 3, Quickness 3, Strength 2, Charisma 3, Intelligence 4, Willpower 5 → Σ = 20 ✓
 **No cyber** → Essence 6.0. **Skills (30):** Sorcery 6, Conjuring 5, Firearms 4, Etiquette 3, Stealth 4, Negotiation 3, Car 2, Computer 3 → Σ = 30 ✓
-**Force Points (15):** Manabolt F4, Stunball F4, Heal F4, Armor F3 → Σ = 15 ✓
+**Force Points (15):** Mana Bolt F4, Manaball F4, Heal F4, Armor F3 → Σ = 15 ✓
 
 | Stat | Code result | Book check |
 |---|---|---|

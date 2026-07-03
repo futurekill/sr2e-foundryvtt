@@ -6,6 +6,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.7 — 2026-07-03
+
+### Fixes
+- **Initiative panel now switches to astral values while projecting** (SR2E
+  p.147). The roll already used Astral Reaction + 15 with one die, but the
+  displayed Initiative box still showed meat Reaction, so it looked like nothing
+  changed on projecting. The panel now matches the roll (e.g. Int 4 → base 23,
+  1D6).
+
 ## 0.29.6 — 2026-07-03
 
 ### Fixes

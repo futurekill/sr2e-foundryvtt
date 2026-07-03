@@ -284,6 +284,16 @@ export class CharacterData extends SR2EDataModel {
     this.initiative.base = this.reaction.value;
     this.initiative.value = this.reaction.value;
 
+    // While astrally projecting the body is inert and the astral form acts on
+    // Astral Initiative = (Astral Reaction + 15) with a single die (SR2E p.147).
+    // Mirror that on the sheet so the Initiative panel matches what the roll
+    // does (SR2EActor#_computeInitiative also branches on astralState).
+    if (this.astralState === "projecting") {
+      this.initiative.base = this.astralReaction + 15;
+      this.initiative.value = this.initiative.base;
+      this.initiative.dice = 1;
+    }
+
     // Calculate Essence-based Magic
     if (this.magic.type !== "none") {
       this.magic.max = Math.floor(this.essence.value);
