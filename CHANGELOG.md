@@ -6,6 +6,14 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.10 — 2026-07-03
+
+### Features
+- **Alt-drop to add an item for free.** Hold **Alt** while dragging an item onto
+  a character sheet and the auto-charge is skipped (found loot / GM gift). No
+  "paid" flag is set, so selling it later still credits full value. Dropping
+  normally charges as before.
+
 ## 0.29.9 — 2026-07-03
 
 ### Fixes

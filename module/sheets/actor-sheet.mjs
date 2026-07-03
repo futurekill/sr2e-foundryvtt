@@ -341,10 +341,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Auto-charge purchases (user request): characters pay the street price
     // (cost × Street Index) for dropped items; the paid amount is remembered
     // on the item so the sell button can refund it.
+    // Hold ALT while dropping to add the item for FREE (found loot / GM gift) —
+    // the charge is skipped and no "paid" flag is set, so selling it later
+    // credits full value as expected.
     if (created && this.document.type === "character" &&
         game.settings.get("sr2e", "autoChargePurchases")) {
       const cost = Number(created.system?.cost) || 0;
-      if (cost > 0) {
+      if (event?.altKey) {
+        if (cost > 0) ui.notifications.info(`${created.name} added to ${this.document.name} for free (Alt-drop — no charge).`);
+      } else if (cost > 0) {
         // During character creation, gear is bought at LIST price — the
         // Street Index markup only applies to in-play purchases.
         const inChargen = !!this.document.system.chargen?.inProgress;
