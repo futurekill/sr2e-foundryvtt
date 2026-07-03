@@ -4,7 +4,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- **Adept powers now update Reaction and Initiative dice.** Power effects
+  scale by level (Increased Reaction +1 Reaction/level, Improved Physical
+  Attributes +1/level); AdeptPowerData gained an initiativeDice mod and
+  Increased Reflexes now grants +1 Initiative die per level (was inert).
+- **Foci now show for physical/shamanic adepts** — the Foci section (and
+  Conjuring) were wrongly nested inside the Sorcery gate, so non-sorcerers
+  never saw them.
+- **Weapon Focus now works**: a bonded weapon focus adds its Force in dice to
+  melee attacks. A melee weapon item can itself be a Weapon Focus
+  (Force + bonded fields, ✦ badge on the combat tab), or a bonded active
+  weapon-type focus item supplies the dice.
 
 ## 0.28.0 — 2026-07-02
 

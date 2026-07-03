@@ -4,15 +4,16 @@
   "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
-    "pointCost": 1,
+    "pointCost": 2,
     "level": 1,
-    "maxLevel": 1,
-    "description": "<p>Additional Initiative dice (1/2/3 dice for 2/3/5 Power Points). SR2E p.126.</p>",
+    "maxLevel": 3,
+    "description": "<p>Additional Initiative dice: +1 die per level (max 3). Power-Point cost is 2/3/5 for 1/2/3 dice — set the level, and note the exact PP in the description at higher levels (SR2E p.126).</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,
       "strength": 0,
-      "reaction": 0
+      "reaction": 0,
+      "initiativeDice": 1
     },
     "notes": "SR2E p.126. +1d6 Initiative. Cost: 1 pt."
   },

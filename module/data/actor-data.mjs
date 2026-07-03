@@ -454,8 +454,10 @@ export class CharacterData extends SR2EDataModel {
         }
       }
       if (item.type === "adept_power") {
+        // Power effects are per-level (SR2E p.124–126): scale by the level.
+        const lvl = Math.max(1, item.system.level ?? 1);
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
-          if (key in mods) mods[key] += val;
+          if (key in mods) mods[key] += val * lvl;
         }
       }
     }

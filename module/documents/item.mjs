@@ -356,6 +356,25 @@ export class SR2EItem extends Item {
     let dicePool = skillRating;
     let defaultingPenalty = 0;
     let defaultingNote = "";
+
+    // Weapon Focus (SR2E p.126, Grimoire): a bonded, active weapon focus adds
+    // its Force in dice to Armed/Unarmed Combat attacks. The weapon itself can
+    // carry the focus (weaponFocusForce), or a bonded weapon-type focus item on
+    // the actor supplies it. Applies to melee only.
+    let focusDice = 0, focusNote = "";
+    if (isMelee) {
+      if ((this.system.weaponFocusForce ?? 0) > 0 && this.system.focusBonded) {
+        focusDice = this.system.weaponFocusForce;
+      } else {
+        for (const it of actor.items) {
+          if (it.type === "focus" && it.system.focusType === "weapon" &&
+              it.system.bonded && it.system.active) {
+            focusDice += Number(it.system.force) || 0;
+          }
+        }
+      }
+      if (focusDice > 0) focusNote = `+${focusDice} weapon focus`;
+    }
     if (skillRating <= 0) {
       const defaultSkillKey = skillKeys.find(k => CONFIG.SR2E.activeSkills[k]) ?? "";
       const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
@@ -368,6 +387,8 @@ export class SR2EItem extends Item {
       const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
       defaultingNote = `defaulting to ${attrLabel} +${defaultingPenalty}`;
     }
+    // Weapon focus adds its Force in dice on top of the skill (SR2E p.126).
+    dicePool += focusDice;
 
     // Common modifiers.
     // NOTE: wound and sustain penalties are NOT added here — rollSuccessTest
@@ -417,6 +438,7 @@ export class SR2EItem extends Item {
       );
 
       if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
+      if (focusNote)       modParts.push(focusNote);
       if (defaultingNote)  modParts.push(defaultingNote);
       if (reachMod)        modParts.push(`reach ${reachMod > 0 ? "+" : ""}${reachMod}`);
       if (friendsMod)      modParts.push(`friends ${friendsMod > 0 ? "+" : ""}${friendsMod}`);

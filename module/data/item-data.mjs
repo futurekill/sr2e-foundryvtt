@@ -146,6 +146,11 @@ export class WeaponData extends SR2EDataModel {
       recoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       smartgunCompatible: new fields.BooleanField({ initial: false }),
 
+      // Weapon Focus (SR2E p.126): a melee weapon may itself be a magical focus.
+      // When bonded, its Force is added in dice to the wielder's melee attacks.
+      weaponFocusForce: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      focusBonded: new fields.BooleanField({ initial: false }),
+
       // Range brackets (Short/Medium/Long/Extreme)
       ranges: new fields.SchemaField({
         short: new fields.NumberField({ integer: true, initial: 0 }),
@@ -536,13 +541,19 @@ export class AdeptPowerData extends SR2EDataModel {
       level: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       maxLevel: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       description: new fields.HTMLField({ initial: "" }),
-      // Effects provided by this power
+      // Effects provided by this power. Values are PER LEVEL — the derived-data
+      // pipeline multiplies by system.level (Increased Reaction +1/level,
+      // Improved Physical Attributes +1/level, Increased Reflexes +1 die/level).
       attributeMods: new fields.SchemaField({
         body: new fields.NumberField({ integer: true, initial: 0 }),
         quickness: new fields.NumberField({ integer: true, initial: 0 }),
         strength: new fields.NumberField({ integer: true, initial: 0 }),
-        reaction: new fields.NumberField({ integer: true, initial: 0 })
+        reaction: new fields.NumberField({ integer: true, initial: 0 }),
+        initiativeDice: new fields.NumberField({ integer: true, initial: 0 })
       }),
+      // Improved Ability boosts one named Active Skill by +1 die per level
+      // (SR2E p.125). The skill name is matched on the Skills tab.
+      improvedSkill: new fields.StringField({ initial: "" }),
       notes: new fields.StringField({ initial: "" })
     };
   }

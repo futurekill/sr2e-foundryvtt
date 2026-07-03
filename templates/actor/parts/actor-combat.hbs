@@ -48,6 +48,11 @@
             {{#if weapon.system.firingModes.bf}}BF {{/if}}
             {{#if weapon.system.firingModes.fa}}FA {{/if}}
           </span>
+          {{#ifGt weapon.system.weaponFocusForce 0}}
+          <span class="weapon-focus-badge" title="Weapon Focus Force {{weapon.system.weaponFocusForce}}{{#unless weapon.system.focusBonded}} — NOT bonded (no dice until bonded){{/unless}}">
+            ✦{{weapon.system.weaponFocusForce}}{{#if weapon.system.focusBonded}} bonded{{else}} unbonded{{/if}}
+          </span>
+          {{/ifGt}}
           <div class="item-controls">
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="{{#if weapon.system.equipped}}Unequip{{else}}Equip{{/if}}">
