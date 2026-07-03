@@ -6,6 +6,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.9 — 2026-07-03
+
+### Fixes
+- **Chargen budget panel now only shows while "Creation in progress" is ticked.**
+  Ported and karma-advanced characters have legitimately grown past their
+  starting priority allotment, so the panel's red "over-budget" flags were false
+  alarms. Untick "Creation in progress" (as you would for any character entering
+  play) and the panel — and its red — disappears.
+
 ## 0.29.8 — 2026-07-03
 
 ### Features

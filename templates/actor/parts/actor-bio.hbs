@@ -117,7 +117,7 @@
       <legend>Character Creation</legend>
       <div class="chargen-grid">
         <div class="priority-row flexrow">
-          <label title="While ticked, auto-charged purchases use the LIST price (no Street Index markup) — chargen gear buys at book prices. Untick when play begins.">Creation in progress:</label>
+          <label title="While ticked: gear buys at LIST price (no Street Index markup) and the point/nuyen budget panel is shown. Untick for ported or karma-advanced characters and when play begins — the budget panel hides so grown-past-creation totals don't flag as over-budget.">Creation in progress:</label>
           <input type="checkbox" name="system.chargen.inProgress" {{checked system.chargen.inProgress}} style="width:auto;" />
         </div>
         <div class="priority-row flexrow">
@@ -184,7 +184,11 @@
         {{/unless}}
         {{/ifEquals}}
 
-        {{!-- Live point/nuyen spend vs the chosen priority allotment (p.44–45) --}}
+        {{!-- Live point/nuyen spend vs the chosen priority allotment (p.44–45).
+             Only shown while creation is in progress — a karma-advanced or
+             ported character has legitimately grown past its starting budget,
+             so the "over" flags would be false alarms once play begins. --}}
+        {{#if system.chargen.inProgress}}
         <div class="chargen-budget">
           <div class="budget-row flexrow {{#if chargenBudget.attributes.over}}over{{/if}}">
             <span class="budget-label">Attribute Points</span>
@@ -209,6 +213,7 @@
           </div>
           {{/if}}
         </div>
+        {{/if}}
       </div>
     </fieldset>
 
