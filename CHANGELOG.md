@@ -4,6 +4,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.29.1 — 2026-07-03
+
 ### Features
 - **Setting a character's prototype-token image now also sets the sheet
   portrait** (world setting "Token image sets the portrait", default on) — art
