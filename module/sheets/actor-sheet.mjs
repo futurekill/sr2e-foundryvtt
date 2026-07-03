@@ -298,9 +298,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     if (!dropped || dropped.type !== "vehicle") return false;
     // Don't link an actor to itself
     if (dropped.uuid === this.document.uuid) return false;
+    // A compendium vehicle has no world presence, so it can't be placed on a
+    // map. Import it into the Actors directory first, then link that copy.
+    let vehicle = dropped;
+    if (dropped.pack) {
+      vehicle = await game.actors.importFromCompendium(game.packs.get(dropped.pack), dropped.id);
+    }
     const current = this.document.system.linkedVehicles ?? [];
-    if (current.includes(dropped.uuid)) return false; // already linked
-    return this.document.update({ "system.linkedVehicles": [...current, dropped.uuid] });
+    if (current.includes(vehicle.uuid)) return false; // already linked
+    return this.document.update({ "system.linkedVehicles": [...current, vehicle.uuid] });
   }
 
   /**

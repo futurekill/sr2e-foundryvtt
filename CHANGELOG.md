@@ -6,6 +6,20 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.3 — 2026-07-03
+
+### Fixes
+- **Special skills no longer disappear** (issue #5): the skills tab was missing a
+  render section for the `special` category (SR2E p.45, p.74), so special skills
+  added correctly but were invisible. They now show in their own section with an
+  Add button.
+
+### Changes
+- **Dropping a vehicle onto a character sheet now imports it into the Actors
+  directory** when it comes from a compendium, so the drone/vehicle also appears
+  in the Actors tab and can be placed on a map (the linked copy is what the sheet
+  references).
+
 ## 0.29.2 — 2026-07-03
 
 ### Fixes

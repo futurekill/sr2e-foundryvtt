@@ -318,5 +318,26 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Weapon accessories" });
+
+    // ── Special skills render on the sheet (issue #5) ──────────────────────────
+    quench.registerBatch("sr2e.special-skills", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      describe("Special skills (SR2E p.45, p.74)", () => {
+        it("a special-category skill shows on the skills tab (was invisible)", async () => {
+          actor = await Actor.create({ name: "Quench Special Skill", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "QuenchAuraReading", type: "skill", system: { category: "special", rating: 4 } }
+          ]);
+          await actor.sheet.render(true);
+          await new Promise(r => setTimeout(r, 250));
+          const text = actor.sheet.element?.querySelector('[data-tab="skills"]')?.textContent ?? "";
+          assert.ok(text.includes("QuenchAuraReading"),
+            "special skill did not render in the skills tab");
+        });
+      });
+    }, { displayName: "SR2E: Special skills" });
   });
 }

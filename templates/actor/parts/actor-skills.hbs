@@ -130,5 +130,34 @@
       </div>
     </div>
 
+    {{!-- Special Skills (SR2E p.45, p.74) --}}
+    <div class="skill-category">
+      <div class="skill-header flexrow">
+        <h3>{{localize "SR2E.Skills.Special"}}</h3>
+        <button type="button" data-action="addItem" data-type="skill" class="btn-add" data-category="special">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div class="skill-list">
+        {{#each skills as |skill|}}
+        {{#ifEquals skill.system.category "special"}}
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
+          <span class="skill-name" data-action="rollSkill">
+            <i class="fas fa-dice"></i>
+            {{skill.name}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline" data-action="rollSkill" data-variant="concentration" title="Concentration — roll {{skill.system.concentration.rating}} dice (SR2E p.70)"> ({{skill.system.concentration.name}} {{skill.system.concentration.rating}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" data-action="rollSkill" data-variant="specialization" title="Specialization — roll {{skill.system.specialization.rating}} dice (SR2E p.70)"> [{{skill.system.specialization.name}} {{skill.system.specialization.rating}}]</span>{{/if}}{{#if skill.system._chipped}}<span class="chip-badge" title="Chipped from slotted {{skill.system._chipSource}}{{#if skill.system._nativeRating}} — natural rating {{skill.system._nativeRating}} suppressed{{/if}}"><i class="fas fa-bolt"></i></span>{{/if}}
+          </span>
+          <span class="skill-attr">({{skill.system.linkedAttribute}})</span>
+          <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
+                 class="skill-rating" min="0" max="12" />
+          <div class="item-controls">
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/ifEquals}}
+        {{/each}}
+      </div>
+    </div>
+
   </div>
 </section>
