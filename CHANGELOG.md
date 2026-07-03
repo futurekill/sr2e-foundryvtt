@@ -4,7 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-_Nothing yet._
+### Features
+- **Player-facing "Character Creation — Quick Start" journal** in a new
+  **SR2E Player Guides** compendium: a three-page walkthrough (step-by-step,
+  the priority table, and a "where it lives on the sheet + how to roll" cheat
+  sheet) so new players can build a character without page-flipping.
+
+### Fixes
+- Corrected metahuman **Reaction racial maxima** to match the book table (p.43);
+  they were each +1 high. This data isn't enforced anywhere (cosmetic), and the
+  six enforced attribute maxima were already correct.
 
 ## 0.29.7 — 2026-07-03
 

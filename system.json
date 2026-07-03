@@ -346,6 +346,18 @@
         "ASSISTANT": "OWNER"
       },
       "flags": {}
+    },
+    {
+      "name": "guides",
+      "label": "SR2E Player Guides",
+      "path": "packs/guides",
+      "type": "JournalEntry",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
     }
   ],
   "packFolders": [
@@ -419,7 +431,8 @@
           "name": "Reference",
           "sorting": "a",
           "packs": [
-            "roll-tables"
+            "roll-tables",
+            "guides"
           ],
           "color": null,
           "folders": []

@@ -1,0 +1,63 @@
+{
+  "_id": "a1b2c3d4e5f60718",
+  "name": "Character Creation — Quick Start",
+  "folder": null,
+  "sort": 0,
+  "ownership": { "default": 2 },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "0f1e2d3c4b5a6978",
+      "name": "Step by Step",
+      "type": "text",
+      "title": { "show": true, "level": 1 },
+      "image": {},
+      "video": { "controls": true, "volume": 0.5 },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": { "default": -1 },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Shadowrun 2nd Edition uses the Priority system. Work top to bottom — the sheet checks your math as you go.</em></p><h2>1 · Concept</h2><p>Decide who your runner is: a street samurai, mage, decker, rigger, adept, face… This drives every choice below.</p><h2>2 · Priorities (Bio tab)</h2><p>On the <strong>Bio</strong> tab, assign a grade <strong>A–E</strong> to each of the five categories — <strong>Attributes, Skills, Resources, Magic, Race</strong>. In Standard mode each letter is used <em>exactly once</em>; the sheet warns you if you duplicate or skip one. See the <strong>Priority Table</strong> page for what each grade grants.</p><h2>3 · Race (Bio tab)</h2><p>Drag your metatype from the <strong>SR2E Metatypes</strong> compendium onto the sheet. Racial attribute modifiers and maximums apply automatically. (Only Race priority <strong>A</strong> allows a metahuman; B–E are human.)</p><h2>4 · Attributes (Attributes tab)</h2><p>Spend your <strong>Attribute Points</strong> across the six attributes (Body, Quickness, Strength, Charisma, Intelligence, Willpower). Each starts at 1; no attribute may exceed your racial maximum. <strong>Reaction, Essence and Magic are calculated for you</strong> — don't buy them. Watch the <strong>Attribute Points</strong> row in the budget panel (bottom of the Bio tab).</p><h2>5 · Skills (Skills tab)</h2><p>Spend <strong>Skill Points</strong> on Active skills (max rating 6 at creation). Add Knowledge and Language skills lower down — your <strong>native language is free</strong> at Intelligence + 2. Special skills need GM approval.</p><h2>6 · Magic (Magic tab)</h2><p>If your Magic priority is A–C, set your magician type. <strong>Spellcasters</strong> buy spells by spending <strong>Force Points</strong> (no spell over Force 6). <strong>Physical adepts</strong> spend Power Points equal to their Magic rating on adept powers. Mundane? Skip this tab.</p><h2>7 · Resources (Gear tab)</h2><p>Tick <strong>“Creation in progress”</strong> on the Bio tab first — that makes purchases charge <em>list</em> price (no street markup). Then drag gear, cyberware, weapons and a lifestyle onto the sheet; the <strong>Resources (¥)</strong> budget row tracks your spend. Starting gear can't have a rating over 6, and Essence can't drop below 0.</p><h2>8 · Finishing touches</h2><p>You start with <strong>two free contacts</strong>, a <strong>Karma Pool of 1</strong>, and must buy a <strong>lifestyle</strong> (no lifestyle = living on the street). Fill in a name and a few lines of background on the Bio tab.</p><h2>9 · Lock it in</h2><p>When every budget row is at or under its allotment, <strong>untick “Creation in progress.”</strong> From now on purchases pay street price. You're ready to run.</p>"
+      }
+    },
+    {
+      "_id": "1122334455667788",
+      "name": "The Priority Table",
+      "type": "text",
+      "title": { "show": true, "level": 1 },
+      "image": {},
+      "video": { "controls": true, "volume": 0.5 },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": { "default": -1 },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Assign one grade A–E to each column. (SR2E p.44–45.)</em></p><table><thead><tr><th>Grade</th><th>Attributes</th><th>Skills</th><th>Resources</th><th>Magic</th><th>Race</th></tr></thead><tbody><tr><td><strong>A</strong></td><td>30</td><td>40</td><td>1,000,000¥ / 50 Force</td><td>Full Magician</td><td>Any metahuman</td></tr><tr><td><strong>B</strong></td><td>24</td><td>30</td><td>400,000¥ / 35 Force</td><td>Aspected / Adept</td><td>Human</td></tr><tr><td><strong>C</strong></td><td>20</td><td>24</td><td>90,000¥ / 25 Force</td><td>Adept</td><td>Human</td></tr><tr><td><strong>D</strong></td><td>17</td><td>20</td><td>5,000¥ / 15 Force</td><td>—</td><td>Human</td></tr><tr><td><strong>E</strong></td><td>15</td><td>17</td><td>500¥ / 5 Force</td><td>—</td><td>Human</td></tr></tbody></table><p><strong>Force Points</strong> (the second number under Resources) go to spellcasters only, for buying spells and bonding foci.</p><p><strong>Sum-to-10 variant (optional):</strong> if the GM enables it on the Bio tab, grades score A=4, B=3, C=2, D=1, E=0 and must total 10 — duplicates allowed.</p>"
+      }
+    },
+    {
+      "_id": "99aabbccddeeff00",
+      "name": "Where It Lives + Rolling",
+      "type": "text",
+      "title": { "show": true, "level": 1 },
+      "image": {},
+      "video": { "controls": true, "volume": 0.5 },
+      "src": null,
+      "system": {},
+      "sort": 300000,
+      "ownership": { "default": -1 },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<h2>Where things live on the sheet</h2><ul><li><strong>Bio tab</strong> — priorities, budget panel, “Creation in progress,” Karma ledger, background.</li><li><strong>Attributes tab</strong> — the six attributes, plus auto-calculated Reaction, Initiative, Combat/Magic pools, Condition Monitors and Movement.</li><li><strong>Skills tab</strong> — Active, Build/Repair, Knowledge, Language and Special skills. Click a skill name to roll it; click a (Concentration) or [Specialization] tag to roll that instead.</li><li><strong>Combat tab</strong> — weapons and armour. Every character has a default Unarmed Strike.</li><li><strong>Magic tab</strong> — tradition, spells, foci, spirits, astral state.</li><li><strong>Matrix tab</strong> — cyberdeck and decking.</li><li><strong>Gear / Vehicles / Contacts</strong> — everything you own and everyone you know.</li></ul><h2>Rolling the dice</h2><p>SR2 is a <strong>Success Test</strong> system: roll a pool of d6s against a <strong>Target Number</strong>, and every die that meets or beats the TN is one <strong>success</strong>. A <strong>6 explodes</strong> (roll again and add — the Rule of Six). Click any skill, attribute or weapon on the sheet to open the roll dialog, where you can add <strong>Combat Pool</strong> or <strong>Karma Pool</strong> dice before rolling.</p><p><strong>Karma Pool</strong> (starts at 1) can be spent to buy an extra success or re-roll failures — use it when a roll really matters.</p>"
+      }
+    }
+  ],
+  "_stats": {},
+  "_key": "!journal!a1b2c3d4e5f60718"
+}
