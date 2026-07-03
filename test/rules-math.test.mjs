@@ -198,11 +198,11 @@ describe("Net successes → staging steps (SR2E p.110)", () => {
   });
 });
 
-describe("Astral Reaction (SR2E p.146)", () => {
-  it("is (Intelligence + Willpower) / 2, rounded down", () => {
-    expect(astralReaction(6, 6)).toBe(6);
-    expect(astralReaction(5, 4)).toBe(4); // 4.5 → 4
-    expect(astralReaction(3, 2)).toBe(2);
+describe("Astral Reaction (SR2E p.147)", () => {
+  it("is twice Intelligence", () => {
+    expect(astralReaction(6)).toBe(12);
+    expect(astralReaction(4)).toBe(8);
+    expect(astralReaction(3)).toBe(6);
   });
 });
 

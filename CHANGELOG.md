@@ -6,6 +6,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.6 — 2026-07-03
+
+### Fixes
+- **Astral Reaction corrected to 2 × Intelligence** (SR2E p.147). It was being
+  calculated as ⌊(Intelligence + Willpower) / 2⌋, which understated a projecting
+  magician's astral initiative (e.g. Int 4 gave 4 instead of 8 → astral init 19
+  instead of 23). Found during a four-archetype chargen dry-run
+  (`docs/CHARGEN-DRYRUN.md`); every other derived stat checked out.
+
 ## 0.29.5 — 2026-07-03
 
 ### Fixes

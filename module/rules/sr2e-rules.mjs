@@ -22,13 +22,13 @@ export function netToSteps(successes) {
 }
 
 /**
- * Astral Reaction (SR2E p.146): (Intelligence + Willpower) / 2, rounded down.
+ * Astral Reaction (SR2E p.147): twice Intelligence. Astral Initiative is this
+ * value +15 with 1 Initiative die (applied at roll time).
  * @param {number} intelligence
- * @param {number} willpower
  * @returns {number}
  */
-export function astralReaction(intelligence, willpower) {
-  return Math.floor((intelligence + willpower) / 2);
+export function astralReaction(intelligence) {
+  return 2 * intelligence;
 }
 
 /**

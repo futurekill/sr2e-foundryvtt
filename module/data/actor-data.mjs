@@ -645,7 +645,7 @@ export class CharacterData extends SR2EDataModel {
 
   /** Astral Reaction = (Intelligence + Willpower) ÷ 2 (SR2E p.147). */
   get astralReaction() {
-    return astralReaction(this.intelligence.value, this.willpower.value);
+    return astralReaction(this.intelligence.value);
   }
 
   /**
