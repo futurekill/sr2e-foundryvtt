@@ -4,6 +4,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.29.2 — 2026-07-03
+
 ### Fixes
 - **Weapon skills corrected to real SR2 skills (p.66):** LMGs and grenade
   launchers now use **Firearms**; MMGs, HMGs, assault cannons and rocket/missile
