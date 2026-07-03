@@ -8,7 +8,7 @@
     "skill": "firearms",
     "damageCode": "8S",
     "damageType": "physical",
-    "concealability": 4,
+    "concealability": 3,
     "reach": 0,
     "firingModes": {
       "ss": false,

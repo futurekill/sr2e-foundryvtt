@@ -8,7 +8,7 @@
     "skill": "projectile_weapons",
     "damageCode": "(Str+2)M",
     "damageType": "physical",
-    "concealability": 6,
+    "concealability": 2,
     "reach": 0,
     "firingModes": {
       "ss": false,

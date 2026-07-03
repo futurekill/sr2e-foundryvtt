@@ -8,7 +8,7 @@
     "skill": "projectile_weapons",
     "damageCode": "6L",
     "damageType": "physical",
-    "concealability": 6,
+    "concealability": 2,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -35,7 +35,7 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "Range scales with Strength (\u00d72/\u00d78/\u00d720/\u00d740). SR2E p.254."
+    "notes": "Range scales with Strength (×2/×8/×20/×40). SR2E p.254."
   },
   "effects": [],
   "flags": {},

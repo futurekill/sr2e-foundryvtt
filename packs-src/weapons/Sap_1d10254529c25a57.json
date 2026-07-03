@@ -5,7 +5,7 @@
   "img": "icons/svg/sword.svg",
   "system": {
     "weaponType": "melee",
-    "skill": "unarmed_combat",
+    "skill": "armed_combat",
     "damageCode": "(Str+2)M",
     "damageType": "stun",
     "concealability": 8,

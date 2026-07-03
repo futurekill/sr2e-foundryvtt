@@ -12,6 +12,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 - **Foci now show for physical/shamanic adepts** — the Foci section (and
   Conjuring) were wrongly nested inside the Sorcery gate, so non-sorcerers
   never saw them.
+- **Weapon data corrections (Equipment Table p.254-255):** 14 concealability
+  values fixed (Ares Viper 6, Remington Roomsweeper 8, HK227-S 5, FN HAR 2,
+  bows/crossbows 2, etc.); Sap now uses Armed Combat (it's a club), not Unarmed;
+  Colt M22A2 / Mossberg CMDT concealability sourced from the SSC.
 - **Weapon Focus now works**: a bonded weapon focus adds its Force in dice to
   melee attacks. A melee weapon item can itself be a Weapon Focus
   (Force + bonded fields, ✦ badge on the combat tab), or a bonded active

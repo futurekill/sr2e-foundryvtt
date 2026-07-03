@@ -8,7 +8,7 @@
     "skill": "throwing_weapons",
     "damageCode": "(Str+1)M",
     "damageType": "physical",
-    "concealability": 8,
+    "concealability": 9,
     "reach": 0,
     "firingModes": {
       "ss": false,
