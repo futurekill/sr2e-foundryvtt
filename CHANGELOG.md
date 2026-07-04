@@ -6,6 +6,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.12 — 2026-07-03
+
+### Fixes
+- **Unarmed Strike can no longer be sold or deleted.** It's innate to every
+  character (SR2E p.100–101), so its sell/delete controls are hidden (replaced
+  by a small badge) and both handlers refuse it as a safety net.
+- **Unaffordable purchases are now refused instead of added unpaid.** Dropping
+  an item a character can't afford used to leave it on the sheet with a warning
+  — and it could then be sold for money it never cost. The drop is now rejected
+  ("not added"); use Alt-drop to add it for free on purpose.
+
 ## 0.29.11 — 2026-07-03
 
 ### Fixes

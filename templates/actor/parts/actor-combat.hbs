@@ -54,12 +54,18 @@
           </span>
           {{/ifGt}}
           <div class="item-controls">
+            {{#ifEquals weapon.name "Unarmed Strike"}}
+            <span class="innate-badge" title="Innate — every character has Unarmed Strike; it can't be sold or deleted."><i class="fas fa-hand-fist"></i></span>
+            {{else}}
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
+            {{/ifEquals}}
             <a data-action="toggleEquip" title="{{#if weapon.system.equipped}}Unequip{{else}}Equip{{/if}}">
               <i class="fas {{#if weapon.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
             </a>
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            {{#ifEquals weapon.name "Unarmed Strike"}}{{else}}
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+            {{/ifEquals}}
           </div>
         </div>
         {{#ifGt weapon.system.ammo.max 0}}

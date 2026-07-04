@@ -1788,6 +1788,13 @@ async function onDeleteItem(event, target) {
   const item = this.document.items.get(itemId);
   if (!item) return;
 
+  // The innate Unarmed Strike is part of every character (SR2E p.100–101) and
+  // must not be removed — the sheet hides its delete control, this guards
+  // other paths.
+  if (item.name === "Unarmed Strike") {
+    return ui.notifications.info("Unarmed Strike is innate and can't be deleted.");
+  }
+
   const needsConfirm = game.settings.get("sr2e", "confirmDelete");
   if (needsConfirm) {
     const confirmed = await foundry.applications.api.DialogV2.confirm({
@@ -1837,6 +1844,11 @@ async function onSellItem(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = actor.items.get(itemId);
   if (!item) return;
+
+  // The innate Unarmed Strike isn't property — it can't be sold.
+  if (item.name === "Unarmed Strike") {
+    return ui.notifications.info("Unarmed Strike is innate and can't be sold.");
+  }
 
   const paid = item.getFlag("sr2e", "paid");
   const price = paid ?? streetPrice(Number(item.system.cost) || 0, item.system.streetIndex);

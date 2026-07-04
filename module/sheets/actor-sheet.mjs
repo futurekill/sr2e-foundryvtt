@@ -360,7 +360,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
           await created.setFlag("sr2e", "paid", price);
           ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${inChargen ? " (list — character creation)" : (price !== cost ? ` (${cost}¥ list)` : "")} — ${nuyen - price}¥ left.`);
         } else {
-          ui.notifications.warn(`${this.document.name} can't afford ${created.name} (${price}¥ > ${nuyen}¥) — added UNPAID.`);
+          // Can't afford it — refuse the purchase rather than leave an unpaid
+          // item on the sheet (which could then be sold for profit it never
+          // cost). Alt-drop still adds it for free intentionally.
+          await created.delete();
+          ui.notifications.warn(`${this.document.name} can't afford ${created.name} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);
+          return null;
         }
       }
     }
