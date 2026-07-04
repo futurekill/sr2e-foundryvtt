@@ -6,6 +6,14 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.15 — 2026-07-03
+
+### Fixes
+- **Migrate a legacy `magic.type` of "adept" to "physical_adept".** Actors
+  imported from older builds could carry the invalid value, which showed up as a
+  Document Issue ("adept is not a valid choice") and quietly disabled the
+  adept-power-point tally for that actor. World load now normalizes it.
+
 ## 0.29.14 — 2026-07-03
 
 ### Features

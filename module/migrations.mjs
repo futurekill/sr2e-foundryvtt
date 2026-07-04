@@ -130,6 +130,20 @@ const MIGRATIONS = [
       }
       return null;
     }
+  },
+
+  // 0.29.15 — normalize a legacy magic.type. Older imported/pregen data used
+  // "adept" for what the schema now calls "physical_adept"; the invalid value
+  // fails validation (Support → Document Issues) and stops the adept-power-point
+  // logic from firing for that actor.
+  {
+    version: "0.29.15",
+    migrateActor(source) {
+      if (source.system?.magic?.type === "adept") {
+        return { "system.magic.type": "physical_adept" };
+      }
+      return null;
+    }
   }
 ];
 
