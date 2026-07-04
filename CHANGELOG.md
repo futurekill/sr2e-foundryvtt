@@ -6,6 +6,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.13 — 2026-07-03
+
+### Features
+- **Groundwork for an optional Virtual Realities 2.0 Matrix ruleset.** A new
+  **Matrix ruleset** world setting (Core Rulebook / Virtual Realities 2.0,
+  default Core) will let a table swap the core-book Matrix for VR2.0's Matrix 2.0.
+  This release lands the switch plus the page-verified VR2.0 rules primitives
+  (Cybercombat TN table, IC Damage table, staged dump-shock with cool-deck/ICCM/
+  tortoise mitigation, Detection Factor, tiered program prices) with unit tests.
+  Nothing branches on the setting yet — the core Matrix is unchanged; see
+  `docs/AUDIT-VR2.md` for the build roadmap.
+
 ## 0.29.12 — 2026-07-03
 
 ### Fixes

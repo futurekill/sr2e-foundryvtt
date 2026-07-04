@@ -11,7 +11,9 @@ import {
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
   modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase,
-  chargenSpend, adeptPowerCost
+  chargenSpend, adeptPowerCost,
+  cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor,
+  matrixProgramMultiplierVR2, programCostVR2, programStreetIndexVR2
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -647,5 +649,55 @@ describe("chargenSpend — priority budget tracking (SR2E p.44–45)", () => {
     const r = chargenSpend({ items }, { forcePoints: 15 });
     expect(r.forcePoints.spent).toBe(17); // 4 + 5 + 8
     expect(r.forcePoints.over).toBe(true); // 17 > 15
+  });
+});
+
+describe("VR2.0 Matrix primitives (FASA7904)", () => {
+  it("Cybercombat TN by Security Code × icon status (p.123)", () => {
+    expect(cybercombatTN("blue", "intruding")).toBe(6);
+    expect(cybercombatTN("blue", "legitimate")).toBe(3);
+    expect(cybercombatTN("red", "intruding")).toBe(3);
+    expect(cybercombatTN("orange", "legitimate")).toBe(5);
+  });
+  it("IC Damage Level by Security Code (p.124)", () => {
+    expect(icDamageLevel("blue")).toBe("M");
+    expect(icDamageLevel("green")).toBe("M");
+    expect(icDamageLevel("orange")).toBe("S");
+    expect(icDamageLevel("red")).toBe("S");
+  });
+  it("Dump shock damage: level by code, Power = Security Value (p.124)", () => {
+    expect(dumpShockDamage("blue", 4)).toEqual({ power: 4, level: "L", type: "stun" });
+    expect(dumpShockDamage("red", 8)).toEqual({ power: 8, level: "D", type: "stun" });
+  });
+  it("Dump shock: cool deck −2 Power/−1 Level, ICCM stacks, tortoise immune", () => {
+    // Orange (S) value 6, cool deck: power 4, level M
+    expect(dumpShockDamage("orange", 6, { coolDeck: true })).toEqual({ power: 4, level: "M", type: "stun" });
+    // Red (D) value 6, cool deck + ICCM: power 2, level −2 steps → M
+    expect(dumpShockDamage("red", 6, { coolDeck: true, iccm: true })).toEqual({ power: 2, level: "M", type: "stun" });
+    // Tortoise user is immune
+    expect(dumpShockDamage("red", 8, { tortoise: true })).toBeNull();
+    // Blue (L) fully mitigated by a cool deck (level below Light)
+    expect(dumpShockDamage("blue", 4, { coolDeck: true })).toBeNull();
+  });
+  it("Detection Factor = ceil(avg(Masking, Sleaze)) (p.17–18)", () => {
+    expect(detectionFactor(5, 0)).toBe(3);   // ceil(2.5)
+    expect(detectionFactor(4, 6)).toBe(5);   // ceil(5)
+    expect(detectionFactor(3)).toBe(2);      // ceil(1.5)
+  });
+  it("Program price is tiered by rating (p.107)", () => {
+    expect(matrixProgramMultiplierVR2(3)).toBe(100);
+    expect(matrixProgramMultiplierVR2(5)).toBe(200);
+    expect(matrixProgramMultiplierVR2(8)).toBe(500);
+    expect(matrixProgramMultiplierVR2(10)).toBe(1000);
+    // Rating 5 Attack (size = 25 × 2 = 50) → 50 × 200 = 10,000¥
+    expect(programCostVR2(5, 2)).toBe(10000);
+    // Rating 1 (size 2) → 200 (matches core at low rating)
+    expect(programCostVR2(1, 2)).toBe(200);
+  });
+  it("Program Street Index by rating band (p.107)", () => {
+    expect(programStreetIndexVR2(3)).toBe(1);
+    expect(programStreetIndexVR2(4)).toBe(1.5);
+    expect(programStreetIndexVR2(7)).toBe(2);
+    expect(programStreetIndexVR2(12)).toBe(3);
   });
 });

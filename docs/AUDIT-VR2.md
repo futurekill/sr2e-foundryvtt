@@ -485,3 +485,37 @@ choice) has a concrete list to work from.
 
 **Totals this pass:** ✅ 4  ❌ 18  ⬜ 7 (see inline call-outs above; some
 items combine several sub-checks in one bullet).
+
+---
+
+## VR2.0 Implementation Progress
+
+The VR2.0 Matrix is being built **incrementally behind a world setting** so the
+core-book Matrix (the default) is never at risk. Flip **Settings → Matrix
+ruleset → Virtual Realities 2.0** to opt in.
+
+### Done
+- **`matrixRuleset` world setting** (`core` | `vr2`, default `core`) — registered
+  in `module/sr2e.mjs`. Nothing branches on it yet; it's the switch the rest
+  hangs off.
+- **Pure VR2.0 rules primitives** in `module/rules/sr2e-rules.mjs` (unit-tested,
+  page-verified against the VR2.0 PDF):
+  - `cybercombatTN(securityCode, iconStatus)` — Cybercombat TN Table (p.123)
+  - `icDamageLevel(securityCode)` — IC Damage Table (p.124)
+  - `dumpShockDamage(securityCode, securityValue, {coolDeck, iccm, tortoise})` —
+    Dump Shock Damage Levels + mitigation (p.124)
+  - `detectionFactor(masking, sleazeRating)` — p.17–18
+  - `programCostVR2` / `matrixProgramMultiplierVR2` / `programStreetIndexVR2` —
+    tiered Program Prices Table (p.107, spot-checked against the physical page)
+
+### Next (roughly in order)
+1. `matrixRuleset()` accessor + wire `programCost` to the tiered VR2.0 formula
+   when the setting is `vr2` (self-contained, low-risk).
+2. `HostData` ACIFS subsystem fields (Access/Control/Index/Files/Slave) +
+   Detection Factor, shown on the host sheet only in `vr2` mode.
+3. Branch `rollMatrixAttack` / `rollMatrixResistance` on the setting: VR2.0 uses
+   `cybercombatTN` + Bod/Security-Value resistance + staged Damage Codes.
+4. Branch dump shock to `dumpShockDamage` (staged Stun) with a Graceful Logoff
+   exemption.
+5. Per-subsystem System Tests opposed vs. Detection Factor.
+6. IC condition monitor flat 10 boxes in `vr2` mode; IC Damage Table.

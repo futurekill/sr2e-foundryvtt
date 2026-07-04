@@ -1025,3 +1025,113 @@ export function adeptPowerCost(power, racialReactionMax = 6) {
   }
   return (power.pointCost ?? 0) * level;
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// VIRTUAL REALITIES 2.0 — Matrix 2.0 primitives (FASA7904)
+//
+// Pure rules for the optional VR2.0 Matrix ruleset. These are inert until the
+// `matrixRuleset` world setting is "vr2"; the core-book Matrix is unchanged.
+// All values verified against the VR2.0 PDF / docs/AUDIT-VR2.md (page cites).
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Cybercombat Target Numbers Table (VR2.0 p.123): TN by host Security Code
+ *  and the target icon's status. */
+export const CYBERCOMBAT_TN = {
+  blue:   { intruding: 6, legitimate: 3 },
+  green:  { intruding: 5, legitimate: 4 },
+  orange: { intruding: 4, legitimate: 5 },
+  red:    { intruding: 3, legitimate: 6 }
+};
+
+/**
+ * Cybercombat attack target number (VR2.0 p.123). Depends only on the host's
+ * Security Code and whether the target icon is intruding or legitimate — not on
+ * the target's Bod or the node's numeric rating.
+ * @param {"blue"|"green"|"orange"|"red"} securityCode
+ * @param {"intruding"|"legitimate"} [iconStatus="intruding"]
+ * @returns {number}
+ */
+export function cybercombatTN(securityCode, iconStatus = "intruding") {
+  return CYBERCOMBAT_TN[securityCode]?.[iconStatus] ?? 4;
+}
+
+/**
+ * IC attack Damage Level, fixed by the host's Security Code before staging
+ * (VR2.0 IC Damage Table, p.124): Blue/Green = Moderate, Orange/Red = Serious.
+ * @param {"blue"|"green"|"orange"|"red"} securityCode
+ * @returns {"M"|"S"}
+ */
+export function icDamageLevel(securityCode) {
+  return (securityCode === "orange" || securityCode === "red") ? "S" : "M";
+}
+
+/**
+ * Dump-shock Stun Damage Code (VR2.0 p.124). Power = the host's Security Value,
+ * Damage Level from the Dump Shock Damage Levels table (Blue L / Green M /
+ * Orange S / Red D). A cool deck and ICCM each cut Power by 2 and the Level by
+ * one step (they stack); tortoise users are immune. Returns null when there is
+ * no effective damage (immune or fully mitigated).
+ * @param {"blue"|"green"|"orange"|"red"} securityCode
+ * @param {number} securityValue - host Security Value (the damage Power)
+ * @param {{coolDeck?:boolean, iccm?:boolean, tortoise?:boolean}} [opts]
+ * @returns {{power:number, level:"L"|"M"|"S"|"D", type:"stun"}|null}
+ */
+export function dumpShockDamage(securityCode, securityValue, opts = {}) {
+  if (opts.tortoise) return null;                       // immune (p.124)
+  const baseIdx = { blue: 0, green: 1, orange: 2, red: 3 }[securityCode];
+  if (baseIdx == null) return null;
+  let power = securityValue;
+  let levelIdx = baseIdx;
+  if (opts.coolDeck) { power -= 2; levelIdx -= 1; }
+  if (opts.iccm)     { power -= 2; levelIdx -= 1; }
+  if (power <= 0 || levelIdx < 0) return null;          // fully mitigated
+  return { power, level: DAMAGE_LEVELS[Math.min(levelIdx, 3)], type: "stun" };
+}
+
+/**
+ * Detection Factor (VR2.0 p.17–18): the average (round up) of the decker's
+ * Masking rating and the rating of a running Sleaze-type utility. Gates
+ * proactive System Tests against the decker.
+ * @param {number} masking
+ * @param {number} [sleazeRating=0] - rating of a running Sleaze utility (0 if none)
+ * @returns {number}
+ */
+export function detectionFactor(masking, sleazeRating = 0) {
+  return Math.ceil((masking + sleazeRating) / 2);
+}
+
+/**
+ * Program price multiplier tier (VR2.0 Program Prices Table, p.107): the flat
+ * ×100 of the core book becomes a rating-banded multiplier.
+ * @param {number} rating
+ * @returns {100|200|500|1000}
+ */
+export function matrixProgramMultiplierVR2(rating) {
+  if (rating >= 10) return 1000;
+  if (rating >= 7)  return 500;
+  if (rating >= 4)  return 200;
+  return 100;
+}
+
+/**
+ * VR2.0 program price (p.107): size (Rating² × sizeMultiplier) × the banded
+ * price multiplier for the rating.
+ * @param {number} rating
+ * @param {number} sizeMultiplier - the program's per-type size factor
+ * @returns {number}
+ */
+export function programCostVR2(rating, sizeMultiplier) {
+  return programSize(rating, sizeMultiplier) * matrixProgramMultiplierVR2(rating);
+}
+
+/**
+ * VR2.0 program Street Index (p.107): 1 / 1.5 / 2 / 3 by rating band.
+ * @param {number} rating
+ * @returns {1|1.5|2|3}
+ */
+export function programStreetIndexVR2(rating) {
+  if (rating >= 10) return 3;
+  if (rating >= 7)  return 2;
+  if (rating >= 4)  return 1.5;
+  return 1;
+}

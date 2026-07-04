@@ -449,6 +449,22 @@ function _registerSystemSettings() {
     default: true
   });
 
+  // Which Matrix ruleset the world uses. "core" = the SR2 core rulebook Matrix
+  // (default, unchanged). "vr2" = Virtual Realities 2.0 Matrix 2.0 (ACIFS
+  // subsystems, Detection Factor, Cybercombat TN table, staged dump shock,
+  // tiered program prices). The VR2.0 path is built incrementally behind this
+  // flag; see docs/AUDIT-VR2.md. Consumers read it with a try/catch, since data
+  // prep can run before settings are registered (cf. autoEssence above).
+  game.settings.register("sr2e", "matrixRuleset", {
+    name: "Matrix ruleset",
+    hint: "Which Matrix rules the table uses. Core Rulebook is the default. Virtual Realities 2.0 swaps in the VR2.0 Matrix 2.0 ruleset (in progress — see the changelog for what's wired up).",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: { core: "Core Rulebook", vr2: "Virtual Realities 2.0" },
+    default: "core"
+  });
+
   // Play-area background shown when no scene is active
   game.settings.register("sr2e", "sceneBackground", {
     name: "Play Area Background",
