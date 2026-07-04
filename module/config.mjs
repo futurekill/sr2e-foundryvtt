@@ -477,6 +477,40 @@ SR2E.systemOperations = {
   lockout:      { label: "SR2E.Matrix.OpLockout",      node: "SAN" }
 };
 
+// ── Virtual Realities 2.0 Matrix (used only when matrixRuleset === "vr2") ──────
+// The five host subsystems (ACIFS, VR2.0 p.16). Every VR2.0 System Test targets
+// one of these ratings rather than the core book's single System Rating.
+SR2E.vr2Subsystems = {
+  access:  "Access",
+  control: "Control",
+  index:   "Index",
+  files:   "Files",
+  slave:   "Slave"
+};
+
+// VR2.0 System Operations (pp.114–116). Each operation's `subsystem` is its
+// "Test" — the ACIFS rating the decker rolls against — and `utility` is the
+// program it uses. A representative core set; a GM can extend it. Transcribed
+// from the System Operations descriptions (verified against the VR2.0 PDF).
+SR2E.vr2SystemOperations = {
+  logonHost:          { label: "Logon to Host",       subsystem: "access",  utility: "Deception" },
+  logonLTG:           { label: "Logon to LTG",        subsystem: "access",  utility: "Deception" },
+  logonRTG:           { label: "Logon to RTG",        subsystem: "access",  utility: "Deception" },
+  gracefulLogoff:     { label: "Graceful Logoff",     subsystem: "access",  utility: "Deception" },
+  invalidatePasscode: { label: "Invalidate Passcode", subsystem: "control", utility: "Validate" },
+  locateAccessNode:   { label: "Locate Access Node",  subsystem: "index",   utility: "Browse" },
+  locateDecker:       { label: "Locate Decker",       subsystem: "index",   utility: "Scanner" },
+  locateFrame:        { label: "Locate Frame",        subsystem: "index",   utility: "Scanner" },
+  locateFile:         { label: "Locate File",         subsystem: "index",   utility: "Browse" },
+  locateIC:           { label: "Locate IC",           subsystem: "index",   utility: "Analyze" },
+  locatePaydata:      { label: "Locate Paydata",      subsystem: "index",   utility: "Evaluate" },
+  locateSlave:        { label: "Locate Slave",        subsystem: "index",   utility: "Analyze" },
+  editFile:           { label: "Edit File",           subsystem: "files",   utility: "Read/Write" },
+  makeComcall:        { label: "Make Comcall",        subsystem: "files",   utility: "Commlink" },
+  editSlave:          { label: "Edit Slave",          subsystem: "slave",   utility: "Spoof" },
+  monitorSlave:       { label: "Monitor Slave",       subsystem: "slave",   utility: "Spoof" }
+};
+
 // Alert states (SR2E p.168). Passive adds +50% to IC ratings (applied by the
 // GM); a second passive alert escalates to active.
 SR2E.alertStates = {

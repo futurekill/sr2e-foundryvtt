@@ -13,7 +13,8 @@ import {
   modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase,
   chargenSpend, adeptPowerCost,
   cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor,
-  matrixProgramMultiplierVR2, programCostVR2, programStreetIndexVR2
+  matrixProgramMultiplierVR2, programCostVR2, programStreetIndexVR2,
+  matrixConditionBoxes, matrixCombatOutcome, simsenseOverloadTN
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -699,5 +700,26 @@ describe("VR2.0 Matrix primitives (FASA7904)", () => {
     expect(programStreetIndexVR2(4)).toBe(1.5);
     expect(programStreetIndexVR2(7)).toBe(2);
     expect(programStreetIndexVR2(12)).toBe(3);
+  });
+  it("Condition Monitor fill per level (p.124): L1/M2/S3/D6", () => {
+    expect(matrixConditionBoxes("L")).toBe(1);
+    expect(matrixConditionBoxes("M")).toBe(2);
+    expect(matrixConditionBoxes("S")).toBe(3);
+    expect(matrixConditionBoxes("D")).toBe(6);
+  });
+  it("Cybercombat staging — the book's Cassie example (p.124)", () => {
+    // Killer-6 on an Orange host = base Serious; IC 3 successes stage up to
+    // Deadly; Cassie's Bod(2) resist with 4 successes stages down to Moderate.
+    expect(matrixCombatOutcome("S", 3, 4)).toEqual({ level: "M", boxes: 2 });
+  });
+  it("Cybercombat staging — up clamps at Deadly, full resist = no damage", () => {
+    expect(matrixCombatOutcome("S", 6, 0)).toEqual({ level: "D", boxes: 6 }); // +3 clamps at D
+    expect(matrixCombatOutcome("L", 0, 4)).toEqual({ level: null, boxes: 0 }); // staged below L
+  });
+  it("Simsense Overload TN by level (p.124); Deadly auto-crashes → null", () => {
+    expect(simsenseOverloadTN("L")).toBe(2);
+    expect(simsenseOverloadTN("M")).toBe(3);
+    expect(simsenseOverloadTN("S")).toBe(5);
+    expect(simsenseOverloadTN("D")).toBeNull();
   });
 });

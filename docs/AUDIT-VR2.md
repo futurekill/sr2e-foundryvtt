@@ -511,13 +511,27 @@ ruleset → Virtual Realities 2.0** to opt in.
   uses the tiered VR2.0 price when `matrixRuleset === "vr2"`, else the flat
   core-book Size × 100. (A Rating-5 Attack program is 10,000¥ in VR2.0 vs
   5,000¥ in core.)
+- **`HostData` ACIFS subsystems + Security Value** (schema): the five subsystem
+  ratings (Access/Control/Index/Files/Slave), a `securityValueOverride` (with a
+  `securityValue` getter that falls back to the System Rating), and a
+  `subsystemRating(key)` accessor. Additive — the core Matrix ignores them.
+- **VR2.0 System Operations config** (`CONFIG.SR2E.vr2Subsystems`,
+  `vr2SystemOperations`): each operation mapped to its ACIFS Test subsystem,
+  transcribed and unit-checked against the VR2.0 System Operations pages
+  (pp.114–116).
+- **Cybercombat rules primitives** (unit-tested, verified against p.124):
+  `matrixConditionBoxes` (Condition Monitor Table L1/M2/S3/D6),
+  `matrixCombatOutcome` (attack/resist staging — validated against the book's
+  Cassie example), `MATRIX_MONITOR_MAX` (flat 10), and `simsenseOverloadTN`
+  (Overload Damage TNs L2/M3/S5, Deadly auto-crash).
 
-### Next (roughly in order)
-1. `HostData` ACIFS subsystem fields (Access/Control/Index/Files/Slave) +
-   Detection Factor, shown on the host sheet only in `vr2` mode.
-2. Branch `rollMatrixAttack` / `rollMatrixResistance` on the setting: VR2.0 uses
-   `cybercombatTN` + Bod/Security-Value resistance + staged Damage Codes.
-3. Branch dump shock to `dumpShockDamage` (staged Stun) with a Graceful Logoff
-   exemption.
-4. Per-subsystem System Tests opposed vs. Detection Factor.
-5. IC condition monitor flat 10 boxes in `vr2` mode; IC Damage Table.
+### Next (roughly in order) — the roll-time rewiring; needs live Foundry testing
+1. Branch `rollMatrixAttack` / `rollMatrixResistance` on the setting: VR2.0 uses
+   `cybercombatTN` + Bod/Security-Value resistance + `matrixCombatOutcome`.
+2. Branch dump shock to `dumpShockDamage` (staged Stun) with a Graceful Logoff
+   exemption; simsense overload via `simsenseOverloadTN`.
+3. Per-subsystem System Tests opposed vs. Detection Factor (uses
+   `vr2SystemOperations` + `subsystemRating`).
+4. IC condition monitor flat 10 boxes (`MATRIX_MONITOR_MAX`) in `vr2` mode; IC
+   Damage Table via `icDamageLevel`.
+5. Host-sheet UI for the ACIFS + Security Value fields, shown only in `vr2` mode.

@@ -1135,3 +1135,56 @@ export function programStreetIndexVR2(rating) {
   if (rating >= 4)  return 1.5;
   return 1;
 }
+
+/** VR2.0 Condition Monitor Table (p.124): boxes an icon fills per Damage Level.
+ *  Note this differs from the meat-body track (L1/M3/S6/D10). */
+export const MATRIX_CONDITION_BOXES = { L: 1, M: 2, S: 3, D: 6 };
+
+/**
+ * Boxes a Matrix icon's Condition Monitor fills for a Damage Level (VR2.0 p.124).
+ * @param {"L"|"M"|"S"|"D"} level
+ * @returns {number}
+ */
+export function matrixConditionBoxes(level) {
+  return MATRIX_CONDITION_BOXES[level] ?? 0;
+}
+
+/**
+ * Resolve a VR2.0 cybercombat hit (p.123–124). The attack has a base Damage
+ * Level; the attacker's successes stage it UP (1 level per 2, clamped at
+ * Deadly), then the target's Damage Resistance successes stage it DOWN (1 per
+ * 2). Returns the final level and the Condition-Monitor boxes it fills, or
+ * {level:null, boxes:0} when fully resisted (staged below Light). The Power /
+ * armor-utility reduction is handled at roll time (it sets the resist TN); this
+ * pure helper only stages the level.
+ * @param {"L"|"M"|"S"|"D"} baseLevel
+ * @param {number} attackerSuccesses
+ * @param {number} resistSuccesses
+ * @returns {{level:("L"|"M"|"S"|"D"|null), boxes:number}}
+ */
+export function matrixCombatOutcome(baseLevel, attackerSuccesses, resistSuccesses) {
+  const staged = stageLevel(baseLevel, netToSteps(attackerSuccesses));  // up, clamps at D
+  const idx = DAMAGE_LEVELS.indexOf(staged) - netToSteps(resistSuccesses);
+  if (idx < 0) return { level: null, boxes: 0 };
+  const level = DAMAGE_LEVELS[idx];
+  return { level, boxes: matrixConditionBoxes(level) };
+}
+
+/** VR2.0 flat Condition Monitor size — every icon has 10 boxes (p.123). */
+export const MATRIX_MONITOR_MAX = 10;
+
+/** Simsense-overload Willpower-test TN by the icon's Damage Level (VR2.0 p.124,
+ *  Overload Damage Target Numbers). Deadly auto-crashes (no test) → null. */
+export const SIMSENSE_OVERLOAD_TN = { L: 2, M: 3, S: 5 };
+
+/**
+ * Willpower-test TN a decker resists simsense overload at, from white/gray IC
+ * (VR2.0 p.124). Returns null for Deadly (the icon auto-crashes and the decker
+ * is dumped instead of testing). Hot-DNI +2 and ICCM −2 are applied at roll
+ * time.
+ * @param {"L"|"M"|"S"|"D"} level
+ * @returns {number|null}
+ */
+export function simsenseOverloadTN(level) {
+  return SIMSENSE_OVERLOAD_TN[level] ?? null;
+}

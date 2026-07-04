@@ -6,6 +6,19 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.16 — 2026-07-03
+
+### Features
+- **More VR2.0 Matrix groundwork** (still behind the Matrix-ruleset setting, no
+  effect in Core mode): host actors gained the five ACIFS subsystem ratings
+  (Access/Control/Index/Files/Slave) plus a Security Value; a config map of the
+  VR2.0 System Operations to their subsystem tests (pp.114–116); and the
+  cybercombat rules primitives — Condition Monitor fill (L1/M2/S3/D6), attack/
+  resist damage staging (verified against the book's worked example), the flat
+  10-box icon monitor, and the Simsense Overload target numbers. All unit-tested
+  and page-verified against the VR2.0 book. The roll-time rewiring that consumes
+  these comes next (see `docs/AUDIT-VR2.md`).
+
 ## 0.29.15 — 2026-07-03
 
 ### Fixes

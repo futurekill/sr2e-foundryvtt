@@ -51,3 +51,22 @@ describe("Security Codes → successes to breach (SR2E p.165)", () => {
     expect(Object.keys(SR2E.securityCodes).sort()).toEqual(["blue", "green", "orange", "red"]);
   });
 });
+
+describe("VR2.0 System Operations → ACIFS subsystem (FASA7904 pp.114–116)", () => {
+  it("every operation targets a valid ACIFS subsystem", () => {
+    const subsystems = Object.keys(SR2E.vr2Subsystems);
+    expect(subsystems).toEqual(["access", "control", "index", "files", "slave"]);
+    for (const [key, op] of Object.entries(SR2E.vr2SystemOperations)) {
+      expect(subsystems, `${key} → ${op.subsystem}`).toContain(op.subsystem);
+      expect(op.label, `${key} needs a label`).toBeTruthy();
+    }
+  });
+  it("maps the spot-checked operations to the book's Test subsystem", () => {
+    expect(SR2E.vr2SystemOperations.logonHost.subsystem).toBe("access");
+    expect(SR2E.vr2SystemOperations.gracefulLogoff.subsystem).toBe("access");
+    expect(SR2E.vr2SystemOperations.invalidatePasscode.subsystem).toBe("control");
+    expect(SR2E.vr2SystemOperations.locatePaydata.subsystem).toBe("index");
+    expect(SR2E.vr2SystemOperations.editFile.subsystem).toBe("files");
+    expect(SR2E.vr2SystemOperations.editSlave.subsystem).toBe("slave");
+  });
+});

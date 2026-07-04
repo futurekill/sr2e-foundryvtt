@@ -1137,6 +1137,21 @@ export class HostData extends SR2EDataModel {
         none: "none", passive: "passive", active: "active"
       }}),
 
+      // --- Virtual Realities 2.0 subsystems (ACIFS, p.16) ---
+      // Used only when the Matrix ruleset is "vr2"; the core-book Matrix ignores
+      // them. Each host rates five subsystems — Access, Control, Index, Files,
+      // Slave — and each System Test targets the relevant one. The Security
+      // Value (dump-shock Power, IC/host Damage Resistance) is GM-set; when left
+      // at 0 it falls back to the System Rating (see securityValue getter).
+      subsystems: new fields.SchemaField({
+        access:  new fields.NumberField({ integer: true, initial: 2, min: 0 }),
+        control: new fields.NumberField({ integer: true, initial: 2, min: 0 }),
+        index:   new fields.NumberField({ integer: true, initial: 2, min: 0 }),
+        files:   new fields.NumberField({ integer: true, initial: 2, min: 0 }),
+        slave:   new fields.NumberField({ integer: true, initial: 2, min: 0 })
+      }),
+      securityValueOverride: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+
       notes: new fields.HTMLField({ initial: "" })
     };
   }
@@ -1147,5 +1162,25 @@ export class HostData extends SR2EDataModel {
    */
   get successesNeeded() {
     return CONFIG.SR2E.securityCodes[this.securityCode]?.successes ?? 1;
+  }
+
+  /**
+   * VR2.0 Security Value (p.19): the host's dice for opposed System/Damage
+   * Resistance tests and the dump-shock Power. GM-set; defaults to the System
+   * Rating when not overridden. Inert in the core-book Matrix.
+   */
+  get securityValue() {
+    return this.securityValueOverride > 0 ? this.securityValueOverride : this.systemRating;
+  }
+
+  /**
+   * Rating of one ACIFS subsystem (VR2.0 p.16), the TN for a VR2.0 System Test.
+   * Falls back to the System Rating for an unknown key. Inert in the core-book
+   * Matrix.
+   * @param {"access"|"control"|"index"|"files"|"slave"} key
+   * @returns {number}
+   */
+  subsystemRating(key) {
+    return this.subsystems?.[key] ?? this.systemRating;
   }
 }
