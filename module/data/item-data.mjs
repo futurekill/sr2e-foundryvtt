@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -524,9 +524,15 @@ export class ProgramData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Program memory size = Rating² × Multiplier; cost = Size × 100 (p.174–177)
+    // Program memory size = Rating² × Multiplier (same in both rulesets).
     this.size = programSize(this.rating, this.multiplier);
-    this.cost = programCost(this.rating, this.multiplier);
+    // Cost: core book is a flat Size × 100 (p.174–177); VR2.0 tiers the price
+    // multiplier by rating (Program Prices Table, p.107). try/catch: data prep
+    // can run before settings are registered (default to the core formula).
+    let vr2 = false;
+    try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
+    this.cost = vr2 ? programCostVR2(this.rating, this.multiplier)
+                    : programCost(this.rating, this.multiplier);
   }
 }
 

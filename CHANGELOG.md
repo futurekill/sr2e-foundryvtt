@@ -6,6 +6,14 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.14 — 2026-07-03
+
+### Features
+- **VR2.0 program pricing** now applies when the Matrix ruleset is set to Virtual
+  Realities 2.0: programs use the tiered Program Prices Table (p.107) instead of
+  the flat core-book Size × 100. Rating 4–6 ×200, 7–9 ×500, 10+ ×1,000. Core
+  ruleset is unchanged.
+
 ## 0.29.13 — 2026-07-03
 
 ### Features

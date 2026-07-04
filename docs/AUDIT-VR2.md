@@ -507,15 +507,17 @@ ruleset → Virtual Realities 2.0** to opt in.
   - `detectionFactor(masking, sleazeRating)` — p.17–18
   - `programCostVR2` / `matrixProgramMultiplierVR2` / `programStreetIndexVR2` —
     tiered Program Prices Table (p.107, spot-checked against the physical page)
+- **Program pricing wired to the setting.** `ProgramData.prepareDerivedData`
+  uses the tiered VR2.0 price when `matrixRuleset === "vr2"`, else the flat
+  core-book Size × 100. (A Rating-5 Attack program is 10,000¥ in VR2.0 vs
+  5,000¥ in core.)
 
 ### Next (roughly in order)
-1. `matrixRuleset()` accessor + wire `programCost` to the tiered VR2.0 formula
-   when the setting is `vr2` (self-contained, low-risk).
-2. `HostData` ACIFS subsystem fields (Access/Control/Index/Files/Slave) +
+1. `HostData` ACIFS subsystem fields (Access/Control/Index/Files/Slave) +
    Detection Factor, shown on the host sheet only in `vr2` mode.
-3. Branch `rollMatrixAttack` / `rollMatrixResistance` on the setting: VR2.0 uses
+2. Branch `rollMatrixAttack` / `rollMatrixResistance` on the setting: VR2.0 uses
    `cybercombatTN` + Bod/Security-Value resistance + staged Damage Codes.
-4. Branch dump shock to `dumpShockDamage` (staged Stun) with a Graceful Logoff
+3. Branch dump shock to `dumpShockDamage` (staged Stun) with a Graceful Logoff
    exemption.
-5. Per-subsystem System Tests opposed vs. Detection Factor.
-6. IC condition monitor flat 10 boxes in `vr2` mode; IC Damage Table.
+4. Per-subsystem System Tests opposed vs. Detection Factor.
+5. IC condition monitor flat 10 boxes in `vr2` mode; IC Damage Table.
