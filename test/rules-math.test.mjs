@@ -11,7 +11,7 @@ import {
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
   modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase,
-  chargenSpend
+  chargenSpend, adeptPowerCost
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -589,6 +589,26 @@ describe("reactionBase (SR2E p.60, p.249)", () => {
     expect(reactionBase(6, 4, 2)).toBe(4);
     // without the exemption it would be (6+4)/2 = 5
     expect(reactionBase(6, 4, 0)).toBe(5);
+  });
+});
+
+describe("adeptPowerCost (SR2E p.124–126)", () => {
+  it("Increased Reflexes is cumulative 1 / 4 / 6 for 1 / 2 / 3 dice", () => {
+    expect(adeptPowerCost({ name: "Increased Reflexes", pointCost: 1, level: 1 })).toBe(1);
+    expect(adeptPowerCost({ name: "Increased Reflexes", pointCost: 1, level: 2 })).toBe(4);
+    expect(adeptPowerCost({ name: "Increased Reflexes", pointCost: 1, level: 3 })).toBe(6);
+  });
+  it("Increased Reaction is tiered by racial Reaction max (human 6: 0.5/1/2 bands)", () => {
+    // +2 both in the ≤½-max band (≤3): 0.5 + 0.5 = 1
+    expect(adeptPowerCost({ name: "Increased Reaction", level: 2 }, 6)).toBe(1);
+    // +4: 3×0.5 + 1×1 = 2.5
+    expect(adeptPowerCost({ name: "Increased Reaction", level: 4 }, 6)).toBe(2.5);
+    // +7: 3×0.5 + 3×1 + 1×2 = 6.5 (into the 1.5× band)
+    expect(adeptPowerCost({ name: "Increased Reaction", level: 7 }, 6)).toBe(6.5);
+  });
+  it("other powers are linear pointCost × level", () => {
+    expect(adeptPowerCost({ name: "Improved Ability", pointCost: 0.5, level: 4 })).toBe(2);
+    expect(adeptPowerCost({ name: "Pain Resistance", pointCost: 0.5, level: 3 })).toBe(1.5);
   });
 });
 

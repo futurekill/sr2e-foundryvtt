@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, adeptPowerCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -317,16 +317,18 @@ export class CharacterData extends SR2EDataModel {
     this._calculateArmor();
 
     // Calculate Adept Power Points (Magic Rating for Physical Adepts, SR2E
-    // p.124). Points USED = Σ(pointCost × level) over the adept's powers.
-    // ponytail: assumes linear per-level cost — correct for every core power
-    // except Increased Reflexes (2/3/5 for 1/2/3 dice), whose own description
-    // notes the exact figure; adjust that power's pointCost by hand if taken >L1.
+    // p.124). Points USED = Σ of each power's cost — linear (pointCost × level)
+    // for most, with the two non-linear powers handled by adeptPowerCost()
+    // (Increased Reflexes 1/4/6; Increased Reaction tiered by racial Rxn max).
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
+      const reactionMax = CONFIG.SR2E.racialMaximums?.[this.race]?.reaction ?? 6;
       let used = 0;
       for (const item of this.parent?.items ?? []) {
         if (item.type === "adept_power") {
-          used += (item.system.pointCost ?? 0) * (item.system.level ?? 1);
+          used += adeptPowerCost(
+            { name: item.name, pointCost: item.system.pointCost, level: item.system.level },
+            reactionMax);
         }
       }
       this.adeptPowerPoints.value = used;

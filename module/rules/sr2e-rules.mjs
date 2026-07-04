@@ -994,3 +994,34 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
     forcePoints: row(forceSpent, allot.forcePoints ?? 0)
   };
 }
+
+/**
+ * Power-point cost of a single physical-adept power (SR2E p.124–126). Most
+ * powers are linear (pointCost × level), but two are not:
+ *  - **Increased Reflexes**: 1 / 4 / 6 total for 1 / 2 / 3 Initiative dice (p.126).
+ *  - **Increased Reaction**: tiered by how the bonus compares to the racial
+ *    Reaction maximum — 0.5/+1 up to ½ max, 1/+1 up to max, 2/+1 up to 1.5×max.
+ * Identified by name so the compendium data can stay simple.
+ *
+ * @param {{name?:string, pointCost?:number, level?:number}} power
+ * @param {number} [racialReactionMax=6] - the adept's racial Reaction maximum
+ * @returns {number} power points spent on this power
+ */
+export function adeptPowerCost(power, racialReactionMax = 6) {
+  const level = Math.max(1, power.level ?? 1);
+  const name = power.name ?? "";
+  if (/increased reflexes/i.test(name)) {
+    return [1, 4, 6][Math.min(level, 3) - 1] ?? 6;
+  }
+  if (/increased reaction/i.test(name)) {
+    const half = Math.floor(racialReactionMax / 2);
+    let cost = 0;
+    for (let i = 1; i <= level; i++) {
+      if (i <= half) cost += 0.5;
+      else if (i <= racialReactionMax) cost += 1;
+      else cost += 2;
+    }
+    return cost;
+  }
+  return (power.pointCost ?? 0) * level;
+}

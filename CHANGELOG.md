@@ -6,6 +6,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 _Nothing yet._
 
+## 0.29.11 — 2026-07-03
+
+### Fixes
+- **Adept power-point costs corrected to the book (SR2E p.126):** Increased
+  Reflexes is now **1 / 4 / 6** total for 1 / 2 / 3 Initiative dice (was flat 2),
+  Killing Hands (Deadly) costs **4** (was 3), and Pain Resistance costs **0.5**
+  per point (was 0.25).
+- **Power-point tally now handles the non-linear powers exactly:** Increased
+  Reflexes uses the cumulative 1/4/6 table and Increased Reaction uses the tiered
+  0.5 / 1 / 2 per-point cost (banded against the racial Reaction maximum), instead
+  of a flat pointCost × level. Everything else stays linear.
+
 ## 0.29.10 — 2026-07-03
 
 ### Features

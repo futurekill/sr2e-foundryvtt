@@ -1209,7 +1209,10 @@ async function promptSpellOptions(actor, spell) {
   const initDrainType = defaultForce > magicAttr ? "Physical" : "Stun";
   const initTypeColor = defaultForce > magicAttr ? "#c44" : "#888";
 
-  // Totem note for shaman feedback
+  // Totem note for shaman feedback (SR2E p.119). Advisory: the totem's
+  // per-category Magic Pool bonus/penalty is shown so the caster adjusts their
+  // pool allocation by hand. Auto-applying it needs true bonus dice that bypass
+  // the pool-value clamp in rollSuccessTest — tracked as a post-launch item.
   let totemNote = "";
   if (actor.system.magic?.tradition === "shamanic" && actor.system.magic?.totem) {
     const totemData = CONFIG.SR2E.totems[actor.system.magic.totem];
@@ -1217,8 +1220,8 @@ async function promptSpellOptions(actor, spell) {
     if (totemData && cat) {
       const bonus   = totemData.spellBonus?.[cat]   ?? 0;
       const penalty = totemData.spellPenalty?.[cat] ?? 0;
-      if (bonus > 0)   totemNote += `<p style="margin:2px 0;font-size:10px;color:#6a6;">⬆ Totem bonus +${bonus} dice (${cat})</p>`;
-      if (penalty > 0) totemNote += `<p style="margin:2px 0;font-size:10px;color:#a44;">⬇ Totem penalty −${penalty} dice (${cat})</p>`;
+      if (bonus > 0)   totemNote += `<p style="margin:2px 0;font-size:10px;color:#6a6;">⬆ Totem bonus +${bonus} dice (${cat}) — add by hand</p>`;
+      if (penalty > 0) totemNote += `<p style="margin:2px 0;font-size:10px;color:#a44;">⬇ Totem penalty −${penalty} dice (${cat}) — subtract by hand</p>`;
     }
   }
 

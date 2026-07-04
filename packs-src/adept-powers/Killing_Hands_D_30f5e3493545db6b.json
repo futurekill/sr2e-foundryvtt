@@ -4,7 +4,7 @@
   "type": "adept_power",
   "img": "icons/svg/aura.svg",
   "system": {
-    "pointCost": 3,
+    "pointCost": 4,
     "level": 1,
     "maxLevel": 1,
     "description": "<p>Unarmed attacks may deal (Str)D PHYSICAL instead of (Str)M Stun — declare with the attack. Bare-handed only. SR2E p.125-126.</p>",
