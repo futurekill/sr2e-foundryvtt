@@ -4,7 +4,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-_Nothing yet._
+### In progress
+- **Skill Web defaulting engine** (SR2E p.68–69): a pure, unit-tested
+  `webDefaultingTN()` that traces the cheapest legal (arrow-respecting) path and
+  charges +2 per circle — related-skill *or* attribute defaulting, whichever is
+  cheaper, or "no default" for unconnected skills. Not yet wired into rolls (the
+  flat +4 still applies) and the web graph data is pending verification of the
+  p.69 diagram's circle counts.
 
 ## 0.29.16 — 2026-07-03
 

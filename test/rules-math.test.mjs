@@ -14,7 +14,8 @@ import {
   chargenSpend, adeptPowerCost,
   cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor,
   matrixProgramMultiplierVR2, programCostVR2, programStreetIndexVR2,
-  matrixConditionBoxes, matrixCombatOutcome, simsenseOverloadTN
+  matrixConditionBoxes, matrixCombatOutcome, simsenseOverloadTN,
+  webDefaultingTN
 } from "../module/rules/sr2e-rules.mjs";
 
 describe("Container cyberware essence — eyes/ears capacity (SR2E p.247)", () => {
@@ -721,5 +722,42 @@ describe("VR2.0 Matrix primitives (FASA7904)", () => {
     expect(simsenseOverloadTN("M")).toBe(3);
     expect(simsenseOverloadTN("S")).toBe(5);
     expect(simsenseOverloadTN("D")).toBeNull();
+  });
+});
+
+describe("Skill Web defaulting algorithm (SR2E p.68–69)", () => {
+  // Fixture web (not the real book graph — proves the ALGORITHM):
+  //   quickness →2→ firearms →1→ gunnery        (arrows one-way)
+  //   quickness →1→ athletics
+  //   (island has no incoming/outgoing edges)
+  const web = { edges: [
+    { from: "quickness", to: "firearms", circles: 2 },
+    { from: "firearms", to: "gunnery", circles: 1 },
+    { from: "quickness", to: "athletics", circles: 1 },
+  ] };
+
+  it("prefers the cheaper related-skill path over the attribute path", () => {
+    // Rolling firearms with gunnery known: trace desired(firearms)→owned(gunnery)
+    // follows the arrow firearms→gunnery = 1 circle (+2), cheaper than the
+    // attribute path quickness→firearms = 2 circles (+4).
+    expect(webDefaultingTN(web, "firearms", ["gunnery"]))
+      .toEqual({ penalty: 2, source: "gunnery", kind: "skill" });
+  });
+
+  it("+2 per circle when defaulting to the linked attribute", () => {
+    // Untrained firearms, no related skill: quickness → firearms = 2 circles.
+    expect(webDefaultingTN(web, "firearms", [])).toEqual({ penalty: 4, source: "quickness", kind: "attribute" });
+  });
+
+  it("respects arrow direction — a blocked related path falls back to the attribute", () => {
+    // Rolling gunnery with only firearms known: there is no forward path
+    // gunnery→firearms (the arrow runs firearms→gunnery), so the shortcut is
+    // blocked and it defaults via the attribute (quickness→gunnery = 3 circles).
+    expect(webDefaultingTN(web, "gunnery", ["firearms"]))
+      .toEqual({ penalty: 6, source: "quickness", kind: "attribute" });
+  });
+
+  it("returns null for a skill nothing connects to", () => {
+    expect(webDefaultingTN(web, "unreachable", ["firearms"])).toBeNull();
   });
 });

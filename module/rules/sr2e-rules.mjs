@@ -1188,3 +1188,79 @@ export const SIMSENSE_OVERLOAD_TN = { L: 2, M: 3, S: 5 };
 export function simsenseOverloadTN(level) {
   return SIMSENSE_OVERLOAD_TN[level] ?? null;
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// SKILL WEB defaulting (SR2E p.68–69)
+//
+// The web is a DIRECTED graph. Two ways to default, each adding +2 per circle
+// crossed along the cheapest legal (arrow-respecting) path:
+//   • related skill — trace from the desired skill → a skill the character has
+//   • attribute     — trace from an attribute → the desired skill
+// Some skills "simply do not connect" (p.69) → no default possible (null).
+// The graph DATA lives in CONFIG.SR2E.skillWeb; this algorithm is pure so it can
+// be unit-tested with a fixture and with the real web.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Attribute node keys that can seed an attribute-default (SR2E p.69). */
+export const WEB_ATTRIBUTES = ["body", "quickness", "strength", "charisma", "intelligence", "willpower", "reaction"];
+
+/** Shortest directed distance (summed circle weights) from `start` to every
+ *  reachable node, over the given adjacency map. Dijkstra; the web is tiny. */
+function webDistances(start, adjacency) {
+  const dist = new Map([[start, 0]]);
+  const seen = new Set();
+  while (seen.size < dist.size) {
+    // pick the unseen node with the smallest tentative distance
+    let u = null, best = Infinity;
+    for (const [node, d] of dist) {
+      if (!seen.has(node) && d < best) { best = d; u = node; }
+    }
+    if (u == null) break;
+    seen.add(u);
+    for (const { node: v, w } of adjacency.get(u) ?? []) {
+      const nd = best + w;
+      if (nd < (dist.get(v) ?? Infinity)) dist.set(v, nd);
+    }
+  }
+  return dist;
+}
+
+/**
+ * Minimum Skill Web defaulting TN penalty for rolling `target` untrained
+ * (SR2E p.68–69). Considers both related-skill and attribute defaulting and
+ * returns the cheaper. Returns null when the skill cannot be reached from any
+ * attribute or owned skill (an unconnected skill).
+ *
+ * @param {{edges: {from:string, to:string, circles:number}[]}} web  directed graph
+ * @param {string} target  desired skill key
+ * @param {string[]} [owned]  skill keys the character has at rating > 0
+ * @returns {{penalty:number, source:string, kind:"skill"|"attribute"}|null}
+ */
+export function webDefaultingTN(web, target, owned = []) {
+  const fwd = new Map();   // from → [{node:to, w:circles}]
+  const rev = new Map();   // to   → [{node:from, w:circles}]  (reverse graph)
+  for (const e of web?.edges ?? []) {
+    if (!fwd.has(e.from)) fwd.set(e.from, []);
+    if (!rev.has(e.to)) rev.set(e.to, []);
+    fwd.get(e.from).push({ node: e.to, w: e.circles });
+    rev.get(e.to).push({ node: e.from, w: e.circles });
+  }
+
+  let best = null;
+  const consider = (circles, source, kind) => {
+    if (circles != null && circles !== Infinity && (best == null || circles < best.circles)) {
+      best = { circles, source, kind };
+    }
+  };
+
+  // Related-skill: path target → an owned skill, following arrows.
+  const fromTarget = webDistances(target, fwd);
+  for (const s of owned) if (s !== target) consider(fromTarget.get(s), s, "skill");
+
+  // Attribute: path attribute → target, following arrows. Reverse-graph
+  // distances from target give the shortest FROM each attribute TO target.
+  const toTarget = webDistances(target, rev);
+  for (const a of WEB_ATTRIBUTES) consider(toTarget.get(a), a, "attribute");
+
+  return best ? { penalty: best.circles * 2, source: best.source, kind: best.kind } : null;
+}
