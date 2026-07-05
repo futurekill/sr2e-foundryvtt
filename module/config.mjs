@@ -110,10 +110,58 @@ SR2E.skillCategories = {
 };
 
 // Untrained skill defaulting (SR2E p.69, The Skill Web): each circle traced
-// on the web adds +2 TN. Defaulting from a skill to its linked Attribute is
-// typically two circles. The full web topology is not modelled — this flat
-// +4 is the standard simplification; GMs can adjust with the Other modifier.
+// on the web adds +2 TN. Flat fallback used for any skill not in the web graph
+// below (and while the web data is being verified).
 SR2E.defaultingPenalty = 4;
+
+// THE SKILL WEB (SR2E p.69) — directed graph consumed by webDefaultingTN().
+// Each edge is `from → to` with `circles` (×2 TN). Attribute-default edges run
+// attribute → skill (trace an attribute to the desired skill). The engine also
+// finds related-skill paths (desired skill → an owned skill) where skill→skill
+// edges exist.
+//
+// ⚠ PROVISIONAL circle counts — transcribed from a photo of p.69; the exact
+//   dot counts at some junctions are being verified against the book. Not yet
+//   wired into rolls (flat +4 above still applies). NOTE the web places
+//   Gunnery, Projectile and Throwing in the QUICKNESS cluster, which differs
+//   from activeSkills' current linkedAttribute (Intelligence/Strength) — that
+//   reconciliation is pending confirmation.
+SR2E.skillWeb = {
+  edges: [
+    // Quickness cluster
+    { from: "quickness", to: "athletics",         circles: 1 },
+    { from: "quickness", to: "stealth",           circles: 2 },
+    { from: "quickness", to: "firearms",          circles: 2 },
+    { from: "quickness", to: "gunnery",           circles: 2 },
+    { from: "quickness", to: "launch_weapons",    circles: 2 },
+    { from: "quickness", to: "projectile_weapons", circles: 3 },
+    { from: "quickness", to: "throwing_weapons",  circles: 3 },
+    { from: "quickness", to: "armed_combat",      circles: 3 },
+    { from: "quickness", to: "unarmed_combat",    circles: 4 },
+    // Strength / Body arrow into the melee skills (p.69 arrows)
+    { from: "strength", to: "armed_combat",       circles: 1 },
+    { from: "strength", to: "unarmed_combat",     circles: 2 },
+    { from: "body",     to: "unarmed_combat",     circles: 2 },
+    { from: "body",     to: "armed_combat",       circles: 2 },
+    // Intelligence technical cluster
+    { from: "intelligence", to: "computer",       circles: 2 },
+    { from: "intelligence", to: "electronics",    circles: 2 },
+    { from: "intelligence", to: "biotech",        circles: 2 },
+    { from: "intelligence", to: "demolitions",    circles: 2 },
+    // Charisma social cluster
+    { from: "charisma", to: "leadership",         circles: 1 },
+    { from: "charisma", to: "interrogation",      circles: 2 },
+    { from: "charisma", to: "negotiation",        circles: 2 },
+    { from: "charisma", to: "etiquette",          circles: 2 },
+    // Willpower magic cluster
+    { from: "willpower", to: "sorcery",           circles: 2 },
+    { from: "willpower", to: "conjuring",         circles: 2 },
+    // Reaction vehicle cluster
+    { from: "reaction", to: "bike",               circles: 2 },
+    { from: "reaction", to: "car",                circles: 2 },
+    { from: "reaction", to: "pilot",              circles: 3 },
+  ]
+};
 
 // Active skill linked attributes
 SR2E.activeSkills = {
