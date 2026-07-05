@@ -115,51 +115,144 @@ SR2E.skillCategories = {
 SR2E.defaultingPenalty = 4;
 
 // THE SKILL WEB (SR2E p.69) — directed graph consumed by webDefaultingTN().
-// Each edge is `from → to` with `circles` (×2 TN). Attribute-default edges run
-// attribute → skill (trace an attribute to the desired skill). The engine also
-// finds related-skill paths (desired skill → an owned skill) where skill→skill
-// edges exist.
-//
-// ⚠ PROVISIONAL circle counts — transcribed from a photo of p.69; the exact
-//   dot counts at some junctions are being verified against the book. Not yet
-//   wired into rolls (flat +4 above still applies). NOTE the web places
-//   Gunnery, Projectile and Throwing in the QUICKNESS cluster, which differs
-//   from activeSkills' current linkedAttribute (Intelligence/Strength) — that
-//   reconciliation is pending confirmation.
+// Nodes are attributes/skills (B/R skills carry `parentSkill`); `skillKey` maps
+// a node to the rollable activeSkills key where one exists (so the roll layer
+// can look a skill up by its system key). Edges are directed with `cost` = the
+// TN each hop adds — one circle = 2 (SR2E p.69: +2 per circle). The engine finds
+// the cheapest legal path attribute→skill (attribute defaulting) or skill→skill
+// (related-skill defaulting). Costs verified against a photo of p.69 with the
+// GM. ⚠ Not yet wired into rolls — the flat +4 above still applies until the
+// remaining clusters are confirmed.
 SR2E.skillWeb = {
+  nodes: {
+    // Attributes
+    quickness: { label: "Quickness", type: "attribute" },
+    strength: { label: "Strength", type: "attribute" },
+    body: { label: "Body", type: "attribute" },
+    intelligence: { label: "Intelligence", type: "attribute" },
+    charisma: { label: "Charisma", type: "attribute" },
+    reaction: { label: "Reaction", type: "attribute" },
+    willpower: { label: "Willpower", type: "attribute" },
+    // Quickness skills
+    athletics: { label: "Athletics", type: "skill" },
+    stealth: { label: "Stealth", type: "skill", skillKey: "stealth" },
+    firearms: { label: "Firearms", type: "skill", skillKey: "firearms" },
+    firearmsBR: { label: "Firearms (B/R)", type: "skill", parentSkill: "firearms" },
+    gunnery: { label: "Gunnery", type: "skill", skillKey: "gunnery" },
+    gunneryBR: { label: "Gunnery (B/R)", type: "skill", parentSkill: "gunnery" },
+    projectile: { label: "Projectile Weapons", type: "skill", skillKey: "projectile_weapons" },
+    projectileBR: { label: "Projectile Weapons (B/R)", type: "skill", parentSkill: "projectile" },
+    throwing: { label: "Throwing Weapons", type: "skill", skillKey: "throwing_weapons" },
+    throwingBR: { label: "Throwing Weapons (B/R)", type: "skill", parentSkill: "throwing" },
+    armedCombat: { label: "Armed Combat", type: "skill", skillKey: "armed_combat" },
+    armedCombatBR: { label: "Armed Combat (B/R)", type: "skill", parentSkill: "armedCombat" },
+    unarmedCombat: { label: "Unarmed Combat", type: "skill", skillKey: "unarmed_combat" },
+    // Tech skills
+    computer: { label: "Computer", type: "skill", skillKey: "computer" },
+    computerBR: { label: "Computer (B/R)", type: "skill", parentSkill: "computer" },
+    electronics: { label: "Electronics", type: "skill", skillKey: "electronics" },
+    electronicsBR: { label: "Electronics (B/R)", type: "skill", parentSkill: "electronics" },
+    biotech: { label: "Biotech", type: "skill", skillKey: "biotech" },
+    biotechBR: { label: "Biotech (B/R)", type: "skill", parentSkill: "biotech" },
+    // Social skills
+    leadership: { label: "Leadership", type: "skill", skillKey: "leadership" },
+    interrogation: { label: "Interrogation", type: "skill" },
+    negotiation: { label: "Negotiation", type: "skill", skillKey: "negotiation" },
+    etiquette: { label: "Etiquette", type: "skill", skillKey: "etiquette" },
+    // Vehicle skills
+    groundVehicles: { label: "Ground Vehicles", type: "skill" },
+    groundVehiclesBR: { label: "Ground Vehicles (B/R)", type: "skill", parentSkill: "groundVehicles" },
+    hovercraft: { label: "Hovercraft", type: "skill" },
+    bike: { label: "Bike", type: "skill", skillKey: "bike" },
+    car: { label: "Car", type: "skill", skillKey: "car" },
+    boats: { label: "Boats", type: "skill" },
+    boatsBR: { label: "Boats (B/R)", type: "skill", parentSkill: "boats" },
+    motorboat: { label: "Motorboat", type: "skill" },
+    sailboat: { label: "Sailboat", type: "skill" },
+    aircraft: { label: "Aircraft", type: "skill", skillKey: "pilot" },
+    aircraftBR: { label: "Aircraft (B/R)", type: "skill", parentSkill: "aircraft" },
+    winged: { label: "Winged Aircraft", type: "skill" },
+    rotor: { label: "Rotor Aircraft", type: "skill" },
+    vectorThrust: { label: "Vector Thrust Aircraft", type: "skill" },
+    // Knowledge / academic skills
+    demolitions: { label: "Demolitions", type: "skill", skillKey: "demolitions" },
+    physicalSciences: { label: "Physical Sciences", type: "skill" },
+    computerTheory: { label: "Computer Theory", type: "skill" },
+    cybertechnology: { label: "Cybertechnology", type: "skill" },
+    biology: { label: "Biology", type: "skill" },
+    militaryTheory: { label: "Military Theory", type: "skill" },
+    psychology: { label: "Psychology", type: "skill" },
+    sociology: { label: "Sociology", type: "skill" },
+    magicalTheory: { label: "Magical Theory", type: "skill" },
+    conjuring: { label: "Conjuring", type: "skill", skillKey: "conjuring" },
+    sorcery: { label: "Sorcery", type: "skill", skillKey: "sorcery" },
+  },
+  // Directed edges. cost = TN this hop adds (1 circle = 2). ⚠ Quickness cluster
+  // GM-verified; Projectile/Throwing are 2 circles (cost 4); other clusters are
+  // 1-circle placeholders pending the same verification pass.
   edges: [
-    // Quickness cluster
-    { from: "quickness", to: "athletics",         circles: 1 },
-    { from: "quickness", to: "stealth",           circles: 2 },
-    { from: "quickness", to: "firearms",          circles: 2 },
-    { from: "quickness", to: "gunnery",           circles: 2 },
-    { from: "quickness", to: "launch_weapons",    circles: 2 },
-    { from: "quickness", to: "projectile_weapons", circles: 3 },
-    { from: "quickness", to: "throwing_weapons",  circles: 3 },
-    { from: "quickness", to: "armed_combat",      circles: 3 },
-    { from: "quickness", to: "unarmed_combat",    circles: 4 },
-    // Strength / Body arrow into the melee skills (p.69 arrows)
-    { from: "strength", to: "armed_combat",       circles: 1 },
-    { from: "strength", to: "unarmed_combat",     circles: 2 },
-    { from: "body",     to: "unarmed_combat",     circles: 2 },
-    { from: "body",     to: "armed_combat",       circles: 2 },
-    // Intelligence technical cluster
-    { from: "intelligence", to: "computer",       circles: 2 },
-    { from: "intelligence", to: "electronics",    circles: 2 },
-    { from: "intelligence", to: "biotech",        circles: 2 },
-    { from: "intelligence", to: "demolitions",    circles: 2 },
-    // Charisma social cluster
-    { from: "charisma", to: "leadership",         circles: 1 },
-    { from: "charisma", to: "interrogation",      circles: 2 },
-    { from: "charisma", to: "negotiation",        circles: 2 },
-    { from: "charisma", to: "etiquette",          circles: 2 },
-    // Willpower magic cluster
-    { from: "willpower", to: "sorcery",           circles: 2 },
-    { from: "willpower", to: "conjuring",         circles: 2 },
-    // Reaction vehicle cluster
-    { from: "reaction", to: "bike",               circles: 2 },
-    { from: "reaction", to: "car",                circles: 2 },
-    { from: "reaction", to: "pilot",              circles: 3 },
+    // Quickness
+    { from: "quickness", to: "athletics", cost: 2 },
+    { from: "athletics", to: "stealth", cost: 2 },              // Stealth = 2 circles from Quickness
+    { from: "quickness", to: "firearms", cost: 2 },
+    { from: "firearms", to: "firearmsBR", cost: 2 },
+    { from: "quickness", to: "gunnery", cost: 2 },
+    { from: "gunnery", to: "gunneryBR", cost: 2 },
+    { from: "quickness", to: "projectile", cost: 4 },           // 2 circles (GM correction)
+    { from: "projectile", to: "projectileBR", cost: 2 },
+    { from: "quickness", to: "throwing", cost: 4 },             // 2 circles (GM correction)
+    { from: "throwing", to: "throwingBR", cost: 2 },
+    { from: "quickness", to: "armedCombat", cost: 2 },
+    { from: "armedCombat", to: "armedCombatBR", cost: 2 },
+    { from: "quickness", to: "unarmedCombat", cost: 2 },
+    // Strength / Body → melee (Strength & Body reach Armed & Unarmed Combat)
+    { from: "strength", to: "armedCombat", cost: 2 },
+    { from: "strength", to: "unarmedCombat", cost: 2 },
+    { from: "body", to: "armedCombat", cost: 2 },
+    { from: "body", to: "unarmedCombat", cost: 2 },
+    // Tech (Body-linked on the web)
+    { from: "body", to: "computer", cost: 2 },
+    { from: "computer", to: "computerBR", cost: 2 },
+    { from: "body", to: "electronics", cost: 2 },
+    { from: "electronics", to: "electronicsBR", cost: 2 },
+    { from: "body", to: "biotech", cost: 2 },
+    { from: "biotech", to: "biotechBR", cost: 2 },
+    { from: "computer", to: "computerTheory", cost: 2 },
+    { from: "electronics", to: "computerTheory", cost: 2 },
+    { from: "biotech", to: "biology", cost: 2 },
+    // Social
+    { from: "charisma", to: "leadership", cost: 2 },
+    { from: "leadership", to: "interrogation", cost: 2 },
+    { from: "interrogation", to: "negotiation", cost: 2 },
+    { from: "leadership", to: "etiquette", cost: 2 },
+    // Vehicles
+    { from: "reaction", to: "groundVehicles", cost: 2 },
+    { from: "groundVehicles", to: "groundVehiclesBR", cost: 2 },
+    { from: "groundVehicles", to: "hovercraft", cost: 2 },
+    { from: "groundVehicles", to: "bike", cost: 2 },
+    { from: "bike", to: "car", cost: 2 },
+    { from: "reaction", to: "boats", cost: 2 },
+    { from: "boats", to: "boatsBR", cost: 2 },
+    { from: "boats", to: "motorboat", cost: 2 },
+    { from: "boats", to: "sailboat", cost: 2 },
+    { from: "reaction", to: "aircraft", cost: 2 },
+    { from: "aircraft", to: "aircraftBR", cost: 2 },
+    { from: "aircraft", to: "winged", cost: 2 },
+    { from: "aircraft", to: "rotor", cost: 2 },
+    { from: "rotor", to: "vectorThrust", cost: 2 },
+    // Intelligence academic
+    { from: "intelligence", to: "physicalSciences", cost: 2 },
+    { from: "physicalSciences", to: "demolitions", cost: 2 },
+    { from: "physicalSciences", to: "computerTheory", cost: 2 },
+    { from: "computerTheory", to: "cybertechnology", cost: 2 },
+    { from: "cybertechnology", to: "biology", cost: 2 },
+    { from: "intelligence", to: "militaryTheory", cost: 2 },
+    { from: "militaryTheory", to: "psychology", cost: 2 },
+    { from: "psychology", to: "sociology", cost: 2 },
+    // Magic
+    { from: "willpower", to: "magicalTheory", cost: 2 },
+    { from: "magicalTheory", to: "conjuring", cost: 2 },
+    { from: "magicalTheory", to: "sorcery", cost: 2 },
   ]
 };
 

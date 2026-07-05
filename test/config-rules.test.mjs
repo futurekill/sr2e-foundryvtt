@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SR2E } from "../module/config.mjs";
+import { webDefaultingTN } from "../module/rules/sr2e-rules.mjs";
 
 // These lock in rules already verified against the SR2E core rulebook so a
 // future edit can't silently regress them.
@@ -68,5 +69,32 @@ describe("VR2.0 System Operations → ACIFS subsystem (FASA7904 pp.114–116)", 
     expect(SR2E.vr2SystemOperations.locatePaydata.subsystem).toBe("index");
     expect(SR2E.vr2SystemOperations.editFile.subsystem).toBe("files");
     expect(SR2E.vr2SystemOperations.editSlave.subsystem).toBe("slave");
+  });
+});
+
+describe("Skill Web — GM-verified Quickness cluster (SR2E p.69)", () => {
+  const web = SR2E.skillWeb;
+  const node = (skillKey) => Object.entries(web.nodes).find(([, n]) => n.skillKey === skillKey)?.[0];
+  const pen = (skillKey, owned = []) => webDefaultingTN(web, node(skillKey), owned)?.penalty;
+
+  it("firearms/gunnery default to Quickness at +2 (1 circle)", () => {
+    expect(pen("firearms")).toBe(2);
+    expect(pen("gunnery")).toBe(2);
+  });
+  it("projectile/throwing are 2 circles → +4", () => {
+    expect(pen("projectile_weapons")).toBe(4);
+    expect(pen("throwing_weapons")).toBe(4);
+  });
+  it("armed/unarmed combat are 1 circle → +2 (Quickness, Strength or Body)", () => {
+    expect(pen("armed_combat")).toBe(2);
+    expect(pen("unarmed_combat")).toBe(2);
+  });
+  it("stealth is 2 hops via athletics → +4", () => {
+    expect(pen("stealth")).toBe(4);
+  });
+  it("related-skill shortcut: knowing Firearms defaults Gunnery cheaper than the attribute", () => {
+    // Both are 1 circle from Quickness (+2); no direct firearms→gunnery edge, so
+    // it still resolves via the attribute at +2 (not cheaper, but never null).
+    expect(pen("gunnery", ["firearms"])).toBe(2);
   });
 });

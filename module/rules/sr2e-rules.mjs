@@ -1231,25 +1231,29 @@ function webDistances(start, adjacency) {
  * returns the cheaper. Returns null when the skill cannot be reached from any
  * attribute or owned skill (an unconnected skill).
  *
- * @param {{edges: {from:string, to:string, circles:number}[]}} web  directed graph
- * @param {string} target  desired skill key
+ * Edge weight is `cost` — the TN each edge adds (one circle = 2). Penalty is the
+ * summed cost of the cheapest legal path.
+ *
+ * @param {{edges: {from:string, to:string, cost?:number}[]}} web  directed graph
+ * @param {string} target  desired skill/node key
  * @param {string[]} [owned]  skill keys the character has at rating > 0
  * @returns {{penalty:number, source:string, kind:"skill"|"attribute"}|null}
  */
 export function webDefaultingTN(web, target, owned = []) {
-  const fwd = new Map();   // from → [{node:to, w:circles}]
-  const rev = new Map();   // to   → [{node:from, w:circles}]  (reverse graph)
+  const fwd = new Map();   // from → [{node:to, w:cost}]
+  const rev = new Map();   // to   → [{node:from, w:cost}]  (reverse graph)
   for (const e of web?.edges ?? []) {
+    const w = e.cost ?? (e.circles != null ? e.circles * 2 : 2);
     if (!fwd.has(e.from)) fwd.set(e.from, []);
     if (!rev.has(e.to)) rev.set(e.to, []);
-    fwd.get(e.from).push({ node: e.to, w: e.circles });
-    rev.get(e.to).push({ node: e.from, w: e.circles });
+    fwd.get(e.from).push({ node: e.to, w });
+    rev.get(e.to).push({ node: e.from, w });
   }
 
   let best = null;
-  const consider = (circles, source, kind) => {
-    if (circles != null && circles !== Infinity && (best == null || circles < best.circles)) {
-      best = { circles, source, kind };
+  const consider = (tn, source, kind) => {
+    if (tn != null && tn !== Infinity && (best == null || tn < best.tn)) {
+      best = { tn, source, kind };
     }
   };
 
@@ -1262,5 +1266,5 @@ export function webDefaultingTN(web, target, owned = []) {
   const toTarget = webDistances(target, rev);
   for (const a of WEB_ATTRIBUTES) consider(toTarget.get(a), a, "attribute");
 
-  return best ? { penalty: best.circles * 2, source: best.source, kind: best.kind } : null;
+  return best ? { penalty: best.tn, source: best.source, kind: best.kind } : null;
 }
