@@ -220,11 +220,16 @@ SR2E.skillWeb = {
     { from: "computer", to: "computerTheory", cost: 2 },
     { from: "electronics", to: "computerTheory", cost: 2 },
     { from: "biotech", to: "biology", cost: 2 },
-    // Social
+    // Social — Interrogation & Negotiation are BOTH 3 circles from Charisma
+    // (+6), GM-verified; they sit at a shared junction (related to each other,
+    // so knowing one defaults the other at +2). Leadership (+2) / Etiquette (+4)
+    // not yet separately verified.
     { from: "charisma", to: "leadership", cost: 2 },
-    { from: "leadership", to: "interrogation", cost: 2 },
-    { from: "interrogation", to: "negotiation", cost: 2 },
     { from: "leadership", to: "etiquette", cost: 2 },
+    { from: "charisma", to: "interrogation", cost: 6 },
+    { from: "charisma", to: "negotiation", cost: 6 },
+    { from: "interrogation", to: "negotiation", cost: 2 },
+    { from: "negotiation", to: "interrogation", cost: 2 },
     // Vehicles
     { from: "reaction", to: "groundVehicles", cost: 2 },
     { from: "groundVehicles", to: "groundVehiclesBR", cost: 2 },

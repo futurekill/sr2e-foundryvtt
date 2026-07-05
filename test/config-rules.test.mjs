@@ -97,4 +97,9 @@ describe("Skill Web — GM-verified Quickness cluster (SR2E p.69)", () => {
     // it still resolves via the attribute at +2 (not cheaper, but never null).
     expect(pen("gunnery", ["firearms"])).toBe(2);
   });
+  it("Negotiation & Interrogation are 3 circles from Charisma → +6 (GM-verified)", () => {
+    expect(pen("negotiation")).toBe(6);
+    // knowing Negotiation defaults Interrogation at +2 (shared junction)
+    expect(webDefaultingTN(web, "interrogation", ["negotiation"])?.penalty).toBe(2);
+  });
 });
