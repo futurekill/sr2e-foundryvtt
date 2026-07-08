@@ -397,15 +397,24 @@ export class SR2EItem extends Item {
     }
     if (skillRating <= 0) {
       const defaultSkillKey = skillKeys.find(k => CONFIG.SR2E.activeSkills[k]) ?? "";
-      const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
-      // "reaction" lives outside system.<attr>; everything else is an attributeField
-      const attrValue = attrKey === "reaction"
-        ? (actor.system.reaction?.value ?? 1)
-        : (actor.system[attrKey]?.value ?? 1);
-      dicePool = Math.max(1, attrValue);
-      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-      const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
-      defaultingNote = `defaulting to ${attrLabel} +${defaultingPenalty}`;
+      // Skill Web defaulting (SR2E p.69): cheapest legal source — a related owned
+      // skill or an attribute. Falls back to the flat linked-attribute penalty.
+      const web = actor._webDefaultByKey?.(defaultSkillKey);
+      if (web) {
+        dicePool = web.dice;
+        defaultingPenalty = web.penalty;
+        defaultingNote = web.label;
+      } else {
+        const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
+        // "reaction" lives outside system.<attr>; everything else is an attributeField
+        const attrValue = attrKey === "reaction"
+          ? (actor.system.reaction?.value ?? 1)
+          : (actor.system[attrKey]?.value ?? 1);
+        dicePool = Math.max(1, attrValue);
+        defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+        const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
+        defaultingNote = `defaulting to ${attrLabel} +${defaultingPenalty}`;
+      }
     }
     // Weapon focus adds its Force in dice on top of the skill (SR2E p.126).
     dicePool += focusDice;

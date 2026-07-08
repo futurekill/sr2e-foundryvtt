@@ -439,16 +439,34 @@ export class SR2EActor extends Actor {
     const web = CONFIG.SR2E.skillWeb;
     if (!web?.nodes) return null;
     const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
+    const target = Object.keys(web.nodes).find((k) => norm(web.nodes[k].label) === norm(skill.name)) ?? null;
+    return this._webDefaultForNode(target, skill.id);
+  }
+
+  /**
+   * Skill Web default for a skill given by its activeSkills key (e.g. "firearms")
+   * rather than a skill item — used by weapon/vehicle attack defaulting where the
+   * skill comes from the weapon, not an owned item (SR2E p.69).
+   */
+  _webDefaultByKey(skillKey) {
+    const web = CONFIG.SR2E.skillWeb;
+    if (!web?.nodes || !skillKey) return null;
+    const target = Object.keys(web.nodes).find((k) => web.nodes[k].skillKey === skillKey) ?? null;
+    return this._webDefaultForNode(target, null);
+  }
+
+  /** Shared Skill Web defaulting core: cheapest legal source for a target node. */
+  _webDefaultForNode(target, excludeItemId) {
+    const web = CONFIG.SR2E.skillWeb;
+    if (!web?.nodes || !target) return null;
+    const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
     const nodeFor = (name) =>
       Object.keys(web.nodes).find((k) => norm(web.nodes[k].label) === norm(name)) ?? null;
-
-    const target = nodeFor(skill.name);
-    if (!target) return null;
 
     // Owned skill nodes (rating > 0), for related-skill defaulting.
     const ownedByNode = new Map();
     for (const it of this.items) {
-      if (it.type === "skill" && it.id !== skill.id && (it.system.rating ?? 0) > 0) {
+      if (it.type === "skill" && it.id !== excludeItemId && (it.system.rating ?? 0) > 0) {
         const n = nodeFor(it.name);
         if (n) ownedByNode.set(n, it.system.rating);
       }
@@ -814,10 +832,17 @@ export class SR2EActor extends Actor {
     let defaultingPenalty = 0;
     let defaultingNote = "";
     if (rating <= 0) {
-      const attrKey = CONFIG.SR2E.activeSkills[skillKey]?.attribute ?? "strength";
-      dice = Math.max(1, this.system[attrKey]?.value ?? 1);
-      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-      defaultingNote = `, defaulting +${defaultingPenalty}`;
+      const web = this._webDefaultByKey(skillKey);
+      if (web) {
+        dice = web.dice;
+        defaultingPenalty = web.penalty;
+        defaultingNote = `, ${web.label}`;
+      } else {
+        const attrKey = CONFIG.SR2E.activeSkills[skillKey]?.attribute ?? "strength";
+        dice = Math.max(1, this.system[attrKey]?.value ?? 1);
+        defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+        defaultingNote = `, defaulting +${defaultingPenalty}`;
+      }
     }
 
     const tn = Math.max(2, 4 + choice.reachMod + choice.otherMod + defaultingPenalty);
@@ -935,9 +960,16 @@ export class SR2EActor extends Actor {
     let defaultingPenalty = 0;
     let defaultingNote = "";
     if (rating <= 0) {
-      dice = Math.max(1, this.system.reaction?.value ?? 1);
-      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-      defaultingNote = `, defaulting to Reaction +${defaultingPenalty}`;
+      const web = this._webDefaultByKey(skillKey);
+      if (web) {
+        dice = web.dice;
+        defaultingPenalty = web.penalty;
+        defaultingNote = `, ${web.label}`;
+      } else {
+        dice = Math.max(1, this.system.reaction?.value ?? 1);
+        defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+        defaultingNote = `, defaulting to Reaction +${defaultingPenalty}`;
+      }
     }
 
     const terrainMod = CONFIG.SR2E.vehicleTerrainMods[testType]?.[terrain] ?? 0;
@@ -2276,11 +2308,15 @@ export class SR2EActor extends Actor {
     }
     const level = SR2EActor.levelForBoxes(cm.value);
 
-    // Medic's Biotech (defaults to Intelligence at +4 when untrained)
+    // Medic's Biotech (defaults via the Skill Web when untrained, SR2E p.69)
     const biotech = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "biotech");
     let dice = biotech?.system?.rating ?? 0;
     let defaultMod = 0;
-    if (dice <= 0) { dice = Math.max(1, this.system.intelligence?.value ?? 1); defaultMod = CONFIG.SR2E.defaultingPenalty; }
+    if (dice <= 0) {
+      const web = this._webDefaultByKey("biotech");
+      dice = web?.dice ?? Math.max(1, this.system.intelligence?.value ?? 1);
+      defaultMod = web?.penalty ?? CONFIG.SR2E.defaultingPenalty;
+    }
 
     // First Aid Table TN + modifiers
     let tn = CONFIG.SR2E.firstAidTN[level] ?? 6;

@@ -1164,15 +1164,20 @@ async function onRollWeapon(event, target) {
     skillCap = Math.max(...skillChoices.map(c => c.rating));
     baseDice = rating;
   } else {
-    // Untrained: defaulting to the linked Attribute via the Skill Web
-    // (mirrors the dice/TN computed in SR2EItem#_rollWeaponAttack)
+    // Untrained: default via the Skill Web (mirrors SR2EItem#_rollWeaponAttack)
     const defaultSkillKey = skillKeys.find(k => CONFIG.SR2E.activeSkills[k]) ?? "";
-    const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
-    const attrValue = attrKey === "reaction"
-      ? (actor.system.reaction?.value ?? 1)
-      : (actor.system[attrKey]?.value ?? 1);
-    baseDice = Math.max(1, attrValue);
-    defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+    const web = actor._webDefaultByKey?.(defaultSkillKey);
+    if (web) {
+      baseDice = web.dice;
+      defaultingPenalty = web.penalty;
+    } else {
+      const attrKey = CONFIG.SR2E.activeSkills[defaultSkillKey]?.attribute ?? "quickness";
+      const attrValue = attrKey === "reaction"
+        ? (actor.system.reaction?.value ?? 1)
+        : (actor.system[attrKey]?.value ?? 1);
+      baseDice = Math.max(1, attrValue);
+      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+    }
   }
 
   // Pre-fill range / target Quickness from canvas targeting (T key)
@@ -2096,11 +2101,13 @@ async function promptVehicleTestOptions(actor, vehicle) {
   const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
   const skillItem = actor.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
   const rating    = skillItem?.system?.rating ?? 0;
-  const defaultingPenalty = rating > 0 ? 0 : CONFIG.SR2E.defaultingPenalty;
-  const baseDice  = rating > 0 ? rating : Math.max(1, actor.system.reaction?.value ?? 1);
+  // Untrained: mirror rollVehicleTest — Skill Web default, else flat Reaction +4.
+  const web = rating > 0 ? null : actor._webDefaultByKey?.(skillKey);
+  const defaultingPenalty = rating > 0 ? 0 : (web?.penalty ?? CONFIG.SR2E.defaultingPenalty);
+  const baseDice  = rating > 0 ? rating : (web?.dice ?? Math.max(1, actor.system.reaction?.value ?? 1));
   const skillLabel = rating > 0
     ? `${skillItem.name} ${rating}`
-    : `Reaction ${baseDice} (defaulting +${defaultingPenalty})`;
+    : (web ? `${baseDice} — ${web.label}` : `Reaction ${baseDice} (defaulting +${defaultingPenalty})`);
 
   // Control Pool — max dice = skill rating in use (SR2E p.84)
   const controlAvail = actor.system.dicePools?.control?.value ?? 0;
@@ -2634,7 +2641,7 @@ const SHARED_ACTIONS = {
     if (!weapon) return;
     const actor = this.document;
 
-    // Gunner's skill: Gunnery, defaulting to Intelligence (+4 TN) untrained
+    // Gunner's skill: Gunnery, defaulting via the Skill Web (SR2E p.69) untrained
     const gunnery = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "gunnery");
     const rating = gunnery?.system?.rating ?? 0;
     let skillCap = Infinity, baseDice = 1, defaultingPenalty = 0;
@@ -2642,8 +2649,9 @@ const SHARED_ACTIONS = {
       skillCap = rating;
       baseDice = rating;
     } else {
-      baseDice = Math.max(1, actor.system.intelligence?.value ?? 1);
-      defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
+      const web = actor._webDefaultByKey?.("gunnery");
+      baseDice = web?.dice ?? Math.max(1, actor.system.intelligence?.value ?? 1);
+      defaultingPenalty = web?.penalty ?? CONFIG.SR2E.defaultingPenalty;
     }
 
     // Distance measured from the vehicle's token (the weapon mount)

@@ -26,8 +26,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   with Biology → +2, not the attribute route). Connectivity is fully verified
   against the book; circle *costs* on the non-combat clusters are provisional
   (a flat +4 fallback covers any skill not yet on the web, e.g. Launch Weapons).
-  Weapon/melee/vehicle defaulting sites are still to come; full-fidelity circle
-  counts are in progress.
+  Full-fidelity circle counts are in progress.
+- **Combat & vehicle defaulting now route through the Skill Web too.** Untrained
+  weapon attacks, melee defense, vehicle control/handling tests, vehicle gunnery,
+  and First Aid (Biotech) all default via the web instead of a flat +4 — so an
+  untrained shooter defaults through the Quickness cluster, an untrained medic
+  can default Biotech via a related skill, etc. Each site keeps the flat-+4
+  fallback for skills not yet on the web.
 - **"Roll a Skill…" button** on the Skills tab: pick any skill and roll it
   whether or not the character has it — trained skills roll their rating,
   untrained ones default through the Skill Web automatically. No more adding a
