@@ -4,9 +4,15 @@
   </div>
   <div class="header-info flexcol">
 
-    {{!-- Row 1: Name (wound status moved to Attributes tab condition monitor) --}}
+    {{!-- Row 1: Name + shadowtalk banter (fills the unused top-right space) --}}
     <div class="header-name-row flexrow">
       <input type="text" name="name" value="{{actor.name}}" placeholder="Character Name" class="char-name-input" />
+      {{#if shadowtalk}}
+      <div class="sr2e-shadowtalk header-shadowtalk" title="Shadowland chatter — set frequency in system settings">
+        <span>&gt;&gt;&gt;&gt;&gt;[{{shadowtalk.text}}]&lt;&lt;&lt;&lt;&lt;</span>
+        <span class="sr2e-shadowtalk-by">— {{shadowtalk.by}}</span>
+      </div>
+      {{/if}}
     </div>
 
     {{!-- Row 2: Race (drag-drop from Metatypes compendium) + dice pool indicators --}}

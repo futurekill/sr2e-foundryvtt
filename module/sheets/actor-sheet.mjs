@@ -1,4 +1,5 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend } from "../rules/sr2e-rules.mjs";
+import { headerBanter } from "../banter.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
   onAddItem, onDeleteItem, onEditItem,
@@ -672,6 +673,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
 
     // Shared Team Karma Pool total (SR2E p.246) — shown on every character sheet.
     context.teamKarma = game.settings.get("sr2e", "teamKarma") ?? 0;
+
+    // Shadowtalk header line (null when banter is off) — rotates daily.
+    context.shadowtalk = headerBanter(this.document);
 
     return context;
   }

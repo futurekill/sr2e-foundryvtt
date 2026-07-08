@@ -1739,6 +1739,32 @@
   background: rgba(63, 174, 90, 0.08);
 }
 
+/* Shadowtalk banter — sourcebook margin-chatter styling */
+.sr2e-shadowtalk {
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: #4cc94c;
+  text-shadow: 0 0 6px rgba(57, 255, 20, 0.25);
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-left: 2px solid #2a7a2a;
+  background: rgba(10, 30, 10, 0.25);
+  line-height: 1.35;
+}
+.sr2e-shadowtalk .sr2e-shadowtalk-by {
+  display: block;
+  text-align: right;
+  color: #2f8f2f;
+  font-style: italic;
+  font-size: 10px;
+}
+.header-shadowtalk {
+  flex: 1;
+  margin: 0 0 0 12px;
+  max-width: 46%;
+  align-self: center;
+}
+
 /* Adept power-points readout: red when spend exceeds the Magic rating */
 .power-points.over { color: var(--sr2e-danger, #b00); font-weight: bold; }
 

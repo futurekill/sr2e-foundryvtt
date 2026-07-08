@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Features
+- **Shadowtalk banter** (prototype): occasional Shadowland margin-chatter à la
+  the sourcebooks. Chat cards get a reactive footer line — critical glitches
+  always draw commentary; big successes, whiffs and ordinary rolls chime in per
+  the new **Shadowtalk banter** world setting (Off / Rare / Chatty, default
+  Rare). Character sheets show a daily-rotating line in the header that reacts
+  to the character (metatype, chrome count, low essence, mage/adept/decker/
+  rigger, broke/rich). Lines are seeded per message/actor so re-renders never
+  reshuffle what players already read.
+
 ### In progress
 - **Skill Web defaulting engine** (SR2E p.68–69): a pure, unit-tested
   `webDefaultingTN()` that traces the cheapest legal (arrow-respecting) path and

@@ -34,6 +34,7 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 // Migrations
 import { migrateWorld, UNARMED_STRIKE_DATA } from "./migrations.mjs";
 import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
+import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
