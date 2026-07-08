@@ -265,6 +265,10 @@ SR2E.skillWeb = {
     //     skills; Charisma cannot reach back into magic.
     // ⚠ bridge circle counts are placeholders pending verification.
     { from: "biology", to: "willpower", cost: 2, dir: "oneWay" },
+    // Willpower reaches the Charisma social skills ONLY through Psychology or
+    // Sociology (GM: two one-way arrows into Charisma; the magic branch does not
+    // bridge). Willpower has no path to the academic/tech Intelligence skills.
+    { from: "psychology", to: "charisma", cost: 2, dir: "oneWay" },
     { from: "sociology", to: "charisma", cost: 2, dir: "oneWay" },
   ]
 };
