@@ -5,6 +5,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 ## Unreleased
 
 ### Features
+- **Shadowtalk banter — more lines + name-drops:** the pool grew from 27 to 72
+  (3–9 per category), and lines can now call the runner out by name (a
+  `{name}` token filled from the rolling character / sheet owner), e.g.
+  *">>>>>[Watch your back, Razor. The sprawl doesn't blink.]<<<<<"*.
 - **Shadowtalk banter** (prototype): occasional Shadowland margin-chatter à la
   the sourcebooks. Chat cards get a reactive footer line — critical glitches
   always draw commentary; big successes, whiffs and ordinary rolls chime in per

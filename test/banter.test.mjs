@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  BANTER, hashSeed, seededRng, shouldBanter, pickBanter, actorTags, testEventTag
+  BANTER, hashSeed, seededRng, shouldBanter, pickBanter, actorTags, testEventTag, applyName
 } from "../module/banter.mjs";
 
 describe("Shadowtalk banter", () => {
@@ -37,6 +37,20 @@ describe("Shadowtalk banter", () => {
     expect(testEventTag({ dice: dice(0) })).toBe("fail");
     expect(testEventTag({ dice: dice(2) })).toBe("success");
     expect(testEventTag(undefined)).toBeNull();
+  });
+
+  it("substitutes {name}, and falls back to a generic when absent", () => {
+    expect(applyName("Watch your back, {name}.", "Razor")).toBe("Watch your back, Razor.");
+    expect(applyName("{name} buys the drinks. {name} always does.", "Sable"))
+      .toBe("Sable buys the drinks. Sable always does.");
+    expect(applyName("Nice roll.", "Razor")).toBe("Nice roll."); // no token, unchanged
+    expect(applyName("Hey {name}.", "")).toBe("Hey chummer."); // fallback
+  });
+
+  it("has real variety per category (≥5 each for the event tags)", () => {
+    const count = (t) => BANTER.filter(l => l.tags.includes(t)).length;
+    for (const t of ["glitch", "crit", "fail"]) expect(count(t)).toBeGreaterThanOrEqual(5);
+    expect(BANTER.length).toBeGreaterThanOrEqual(60);
   });
 
   it("every line has text, a handle, and at least one known tag", () => {
