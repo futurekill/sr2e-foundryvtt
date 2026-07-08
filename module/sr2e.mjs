@@ -965,6 +965,24 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.
   // We resolve the defending actor from the currently controlled token (or assigned character).
+  // GM "Request a Roll" cards: each player rolls the named skill with their own
+  // character (assigned character, else controlled token, else a character they
+  // own), defaulting through the Skill Web when untrained.
+  html.querySelectorAll?.(".sr2e-skill-request-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const skill = btn.dataset.skill;
+      const tn = parseInt(btn.dataset.tn) || 4;
+      const actor = game.user.character
+        ?? canvas.tokens?.controlled?.[0]?.actor
+        ?? game.actors?.find(a => a.type === "character" && a.isOwner);
+      if (!actor) {
+        return ui.notifications.warn("Assign a character (User Configuration) or select your token to answer a roll request.");
+      }
+      return actor.rollNamedSkill(skill, tn);
+    });
+  });
+
   html.querySelectorAll?.(".sr2e-resist-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();

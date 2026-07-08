@@ -317,10 +317,21 @@ function allSkillNames() {
 async function onDefaultSkill(event, target) {
   event.preventDefault();
   const actor = this.document;
+  const isGM = game.user.isGM;
   const opts = allSkillNames().map(n => `<option value="${foundry.utils.escapeHTML(n)}">${foundry.utils.escapeHTML(n)}</option>`).join("");
   let result = null;
+  const setResult = (button) => {
+    result = { skill: button.form.elements.skill.value, tn: parseInt(button.form.elements.tn.value) || 4 };
+  };
+  const buttons = [
+    { action: "roll", label: "SR2E.Dialog.Roll", default: !isGM, callback: (e, b) => setResult(b) },
+  ];
+  // A GM can broadcast the request to the table instead of rolling this actor.
+  if (isGM) buttons.push({ action: "request", label: "Request from Players", default: true, callback: (e, b) => setResult(b) });
+  buttons.push({ action: "cancel", label: "SR2E.Dialog.Cancel" });
+
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: "Roll a Skill" },
+    window: { title: isGM ? "Roll / Request a Skill" : "Roll a Skill" },
     rejectClose: false,
     content: `
       <form>
@@ -332,22 +343,21 @@ async function onDefaultSkill(event, target) {
           <label>Target Number:</label>
           <input type="number" name="tn" value="4" min="2" max="30">
         </div>
-        <p style="font-size:10px;color:#aaa1c0;margin:4px 0 0;">Trained skills roll their rating; if this character doesn't have the skill it defaults through the Skill Web automatically.</p>
+        <p style="font-size:10px;color:#aaa1c0;margin:4px 0 0;">Trained skills roll their rating; if the character doesn't have the skill it defaults through the Skill Web automatically.${isGM ? " <em>Request from Players</em> posts a card each player rolls with their own character." : ""}</p>
       </form>`,
-    buttons: [
-      {
-        action: "roll", label: "SR2E.Dialog.Roll", default: true,
-        callback: (event, button) => {
-          result = {
-            skill: button.form.elements.skill.value,
-            tn: parseInt(button.form.elements.tn.value) || 4
-          };
-        }
-      },
-      { action: "cancel", label: "SR2E.Dialog.Cancel" }
-    ]
+    buttons
   });
-  if (action !== "roll" || !result) return;
+  if (!result) return;
+  if (action === "request") {
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="sr2e-skill-request">
+        <strong>🎲 Roll requested: ${foundry.utils.escapeHTML(result.skill)}</strong> — TN ${result.tn}
+        <br><em>Roll it with your character (trained, or defaulted via the Skill Web).</em>
+        <br><button type="button" class="sr2e-skill-request-btn" data-skill="${foundry.utils.escapeHTML(result.skill)}" data-tn="${result.tn}">Roll ${foundry.utils.escapeHTML(result.skill)}</button>
+      </div>`
+    });
+  }
   return actor.rollNamedSkill(result.skill, result.tn);
 }
 
