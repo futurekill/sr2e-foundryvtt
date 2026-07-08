@@ -978,9 +978,19 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       ev.preventDefault();
       const skill = btn.dataset.skill;
       const tn = parseInt(btn.dataset.tn) || 4;
-      const actor = game.user.character
-        ?? canvas.tokens?.controlled?.[0]?.actor
-        ?? game.actors?.find(a => a.type === "character" && a.isOwner);
+      // A targeted request names its actor; only that actor's owner (or the GM)
+      // may roll it. An untargeted card falls back to the clicker's own character.
+      let actor = null;
+      if (btn.dataset.actorUuid) {
+        actor = await fromUuid(btn.dataset.actorUuid);
+        if (actor && !(actor.isOwner || game.user.isGM)) {
+          return ui.notifications.warn(`${actor.name} isn't yours to roll.`);
+        }
+      } else {
+        actor = game.user.character
+          ?? canvas.tokens?.controlled?.[0]?.actor
+          ?? game.actors?.find(a => a.type === "character" && a.isOwner);
+      }
       if (!actor) {
         return ui.notifications.warn("Assign a character (User Configuration) or select your token to answer a roll request.");
       }

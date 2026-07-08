@@ -29,10 +29,11 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   untrained ones default through the Skill Web automatically. No more adding a
   throwaway skill just to roll a one-off Negotiation check.
 - **GM "Request a Skill Roll" macro:** a GM macro (auto-added to the world)
-  picks a skill + TN and posts a card to the table; each player clicks it and
-  their own character rolls that skill (trained or web-defaulted) — no need to
-  open anyone's sheet. Resolves the "everybody roll Stealth" moment in one click
-  each.
+  picks a skill, a TN, and **which characters** are being asked, then posts a
+  card with a roll button per selected character. The owning player (or the GM)
+  clicks their button and that character rolls the skill (trained or
+  web-defaulted) — no need to open anyone's sheet. Resolves the "Razor and Sable,
+  roll Stealth" moment in one click each.
 
 ## 0.29.16 — 2026-07-03
 
