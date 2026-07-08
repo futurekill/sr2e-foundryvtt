@@ -99,7 +99,22 @@ describe("Skill Web — GM-verified Quickness cluster (SR2E p.69)", () => {
   });
   it("Negotiation & Interrogation are 3 circles from Charisma → +6 (GM-verified)", () => {
     expect(pen("negotiation")).toBe(6);
-    // knowing Negotiation defaults Interrogation at +2 (shared junction)
-    expect(webDefaultingTN(web, "interrogation", ["negotiation"])?.penalty).toBe(2);
+  });
+  it("skill→skill defaulting EMERGES from the route topology (no pairwise edges)", () => {
+    // Knowing Negotiation, roll Interrogation: back over Negotiation's circle
+    // to the Leadership junction, out over Interrogation's = 2 circles → +4,
+    // cheaper than the +6 attribute path. No direct edge exists between them.
+    expect(webDefaultingTN(web, "interrogation", ["negotiation"]))
+      .toEqual({ penalty: 4, source: "negotiation", kind: "skill" });
+    // Athletics(1)↔Stealth(2) emerges as 3 circles (+6); the +4 attribute
+    // default is cheaper, so the engine picks it — both routes per the book.
+    expect(webDefaultingTN(web, "stealth", ["athletics"]))
+      .toEqual({ penalty: 4, source: "quickness", kind: "attribute" });
+  });
+  it("printed arrows still allow attribute defaults along their direction", () => {
+    // Strength→armedCombat is one-way (arrow into the cluster) but that IS the
+    // attribute-default direction, so +2 still resolves. (Blocking of the
+    // reverse direction is covered by the algorithm fixture test.)
+    expect(pen("armed_combat")).toBe(2);
   });
 });

@@ -114,15 +114,17 @@ SR2E.skillCategories = {
 // below (and while the web data is being verified).
 SR2E.defaultingPenalty = 4;
 
-// THE SKILL WEB (SR2E p.69) — directed graph consumed by webDefaultingTN().
+// THE SKILL WEB (SR2E p.69) — route graph consumed by webDefaultingTN().
 // Nodes are attributes/skills (B/R skills carry `parentSkill`); `skillKey` maps
-// a node to the rollable activeSkills key where one exists (so the roll layer
-// can look a skill up by its system key). Edges are directed with `cost` = the
-// TN each hop adds — one circle = 2 (SR2E p.69: +2 per circle). The engine finds
-// the cheapest legal path attribute→skill (attribute defaulting) or skill→skill
-// (related-skill defaulting). Costs verified against a photo of p.69 with the
-// GM. ⚠ Not yet wired into rolls — the flat +4 above still applies until the
-// remaining clusters are confirmed.
+// a node to the rollable activeSkills key where one exists. Edges carry `cost`
+// = TN the hop adds (one circle = 2, SR2E p.69) and are TWO-WAY by default —
+// the book blocks a trace only where a printed arrow opposes it, so edges with
+// a printed arrow are marked `dir: "oneWay"`. Skill→skill defaulting EMERGES
+// from the topology (desired → back up its branch → junction → out to the
+// owned skill, paying both branches' circles) — do not hand-author pairwise
+// skill→skill edges; only add a direct link where the diagram draws one.
+// Costs are GM-verified attribute→skill circle totals from a photo of p.69.
+// ⚠ Not yet wired into rolls — the flat +4 above still applies.
 SR2E.skillWeb = {
   nodes: {
     // Attributes
@@ -159,18 +161,16 @@ SR2E.skillWeb = {
     interrogation: { label: "Interrogation", type: "skill" },
     negotiation: { label: "Negotiation", type: "skill", skillKey: "negotiation" },
     etiquette: { label: "Etiquette", type: "skill", skillKey: "etiquette" },
-    // Vehicle skills
-    groundVehicles: { label: "Ground Vehicles", type: "skill" },
-    groundVehiclesBR: { label: "Ground Vehicles (B/R)", type: "skill", parentSkill: "groundVehicles" },
+    // Vehicle skills. Ground Vehicles/Boats/Aircraft are SINGLE skills whose
+    // printed names include "(B/R)" — they have no separate paired B/R skill.
+    groundVehicles: { label: "Ground Vehicles (B/R)", type: "skill" },
     hovercraft: { label: "Hovercraft", type: "skill" },
     bike: { label: "Bike", type: "skill", skillKey: "bike" },
     car: { label: "Car", type: "skill", skillKey: "car" },
-    boats: { label: "Boats", type: "skill" },
-    boatsBR: { label: "Boats (B/R)", type: "skill", parentSkill: "boats" },
+    boats: { label: "Boats (B/R)", type: "skill" },
     motorboat: { label: "Motorboat", type: "skill" },
     sailboat: { label: "Sailboat", type: "skill" },
-    aircraft: { label: "Aircraft", type: "skill", skillKey: "pilot" },
-    aircraftBR: { label: "Aircraft (B/R)", type: "skill", parentSkill: "aircraft" },
+    aircraft: { label: "Aircraft (B/R)", type: "skill", skillKey: "pilot" },
     winged: { label: "Winged Aircraft", type: "skill" },
     rotor: { label: "Rotor Aircraft", type: "skill" },
     vectorThrust: { label: "Vector Thrust Aircraft", type: "skill" },
@@ -187,13 +187,13 @@ SR2E.skillWeb = {
     conjuring: { label: "Conjuring", type: "skill", skillKey: "conjuring" },
     sorcery: { label: "Sorcery", type: "skill", skillKey: "sorcery" },
   },
-  // Directed edges. cost = TN this hop adds (1 circle = 2). ⚠ Quickness cluster
-  // GM-verified; Projectile/Throwing are 2 circles (cost 4); other clusters are
-  // 1-circle placeholders pending the same verification pass.
+  // Edges: two-way unless dir:"oneWay" (printed arrow). cost = TN (1 circle = 2).
+  // GM-verified: Quickness cluster, social cluster. Others pending verification.
   edges: [
-    // Quickness
+    // Quickness (GM-verified totals; Stealth is 2 circles from Quickness, so
+    // e.g. Athletics↔Stealth emerges as 1+2 = 3 circles = +6)
     { from: "quickness", to: "athletics", cost: 2 },
-    { from: "athletics", to: "stealth", cost: 2 },              // Stealth = 2 circles from Quickness
+    { from: "quickness", to: "stealth", cost: 4 },
     { from: "quickness", to: "firearms", cost: 2 },
     { from: "firearms", to: "firearmsBR", cost: 2 },
     { from: "quickness", to: "gunnery", cost: 2 },
@@ -205,11 +205,12 @@ SR2E.skillWeb = {
     { from: "quickness", to: "armedCombat", cost: 2 },
     { from: "armedCombat", to: "armedCombatBR", cost: 2 },
     { from: "quickness", to: "unarmedCombat", cost: 2 },
-    // Strength / Body → melee (Strength & Body reach Armed & Unarmed Combat)
-    { from: "strength", to: "armedCombat", cost: 2 },
-    { from: "strength", to: "unarmedCombat", cost: 2 },
-    { from: "body", to: "armedCombat", cost: 2 },
-    { from: "body", to: "unarmedCombat", cost: 2 },
+    // Strength / Body → melee: printed arrows point INTO the combat cluster
+    // (p.69), so these are one-way — you can't trace back out through them.
+    { from: "strength", to: "armedCombat", cost: 2, dir: "oneWay" },
+    { from: "strength", to: "unarmedCombat", cost: 2, dir: "oneWay" },
+    { from: "body", to: "armedCombat", cost: 2, dir: "oneWay" },
+    { from: "body", to: "unarmedCombat", cost: 2, dir: "oneWay" },
     // Tech (Body-linked on the web)
     { from: "body", to: "computer", cost: 2 },
     { from: "computer", to: "computerBR", cost: 2 },
@@ -220,28 +221,23 @@ SR2E.skillWeb = {
     { from: "computer", to: "computerTheory", cost: 2 },
     { from: "electronics", to: "computerTheory", cost: 2 },
     { from: "biotech", to: "biology", cost: 2 },
-    // Social — Interrogation & Negotiation are BOTH 3 circles from Charisma
-    // (+6), GM-verified; they sit at a shared junction (related to each other,
-    // so knowing one defaults the other at +2). Leadership (+2) / Etiquette (+4)
-    // not yet separately verified.
-    { from: "charisma", to: "leadership", cost: 2 },
+    // Social (GM-verified): Charisma→Leadership 2 circles (+4); Interrogation
+    // & Negotiation one circle deeper (3 total, +6). Knowing one defaults its
+    // sibling at +4 (back over its circle, out over the other's) — emergent,
+    // no direct edge. Etiquette (via Leadership, +6) not yet confirmed.
+    { from: "charisma", to: "leadership", cost: 4 },
+    { from: "leadership", to: "interrogation", cost: 2 },
+    { from: "leadership", to: "negotiation", cost: 2 },
     { from: "leadership", to: "etiquette", cost: 2 },
-    { from: "charisma", to: "interrogation", cost: 6 },
-    { from: "charisma", to: "negotiation", cost: 6 },
-    { from: "interrogation", to: "negotiation", cost: 2 },
-    { from: "negotiation", to: "interrogation", cost: 2 },
-    // Vehicles
+    // Vehicles (pending GM verification of circle counts)
     { from: "reaction", to: "groundVehicles", cost: 2 },
-    { from: "groundVehicles", to: "groundVehiclesBR", cost: 2 },
     { from: "groundVehicles", to: "hovercraft", cost: 2 },
     { from: "groundVehicles", to: "bike", cost: 2 },
     { from: "bike", to: "car", cost: 2 },
     { from: "reaction", to: "boats", cost: 2 },
-    { from: "boats", to: "boatsBR", cost: 2 },
     { from: "boats", to: "motorboat", cost: 2 },
     { from: "boats", to: "sailboat", cost: 2 },
     { from: "reaction", to: "aircraft", cost: 2 },
-    { from: "aircraft", to: "aircraftBR", cost: 2 },
     { from: "aircraft", to: "winged", cost: 2 },
     { from: "aircraft", to: "rotor", cost: 2 },
     { from: "rotor", to: "vectorThrust", cost: 2 },

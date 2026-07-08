@@ -1232,9 +1232,14 @@ function webDistances(start, adjacency) {
  * attribute or owned skill (an unconnected skill).
  *
  * Edge weight is `cost` — the TN each edge adds (one circle = 2). Penalty is the
- * summed cost of the cheapest legal path.
+ * summed cost of the cheapest legal path. Links are TWO-WAY by default (the
+ * book blocks a path only where a printed arrow opposes it — p.69); mark an
+ * edge `dir: "oneWay"` to model a printed arrow (traversable from→to only).
+ * With two-way links, skill→skill defaulting emerges from the topology (e.g.
+ * desired → back up its branch → shared junction → out to the owned skill,
+ * paying both branches' circles) instead of needing hand-authored pairs.
  *
- * @param {{edges: {from:string, to:string, cost?:number}[]}} web  directed graph
+ * @param {{edges: {from:string, to:string, cost?:number, dir?:"oneWay"}[]}} web
  * @param {string} target  desired skill/node key
  * @param {string[]} [owned]  skill keys the character has at rating > 0
  * @returns {{penalty:number, source:string, kind:"skill"|"attribute"}|null}
@@ -1242,12 +1247,16 @@ function webDistances(start, adjacency) {
 export function webDefaultingTN(web, target, owned = []) {
   const fwd = new Map();   // from → [{node:to, w:cost}]
   const rev = new Map();   // to   → [{node:from, w:cost}]  (reverse graph)
+  const addArc = (a, b, w) => {
+    if (!fwd.has(a)) fwd.set(a, []);
+    if (!rev.has(b)) rev.set(b, []);
+    fwd.get(a).push({ node: b, w });
+    rev.get(b).push({ node: a, w });
+  };
   for (const e of web?.edges ?? []) {
     const w = e.cost ?? (e.circles != null ? e.circles * 2 : 2);
-    if (!fwd.has(e.from)) fwd.set(e.from, []);
-    if (!rev.has(e.to)) rev.set(e.to, []);
-    fwd.get(e.from).push({ node: e.to, w });
-    rev.get(e.to).push({ node: e.from, w });
+    addArc(e.from, e.to, w);
+    if (e.dir !== "oneWay") addArc(e.to, e.from, w);
   }
 
   let best = null;

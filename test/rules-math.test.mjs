@@ -726,14 +726,15 @@ describe("VR2.0 Matrix primitives (FASA7904)", () => {
 });
 
 describe("Skill Web defaulting algorithm (SR2E p.68–69)", () => {
-  // Fixture web (not the real book graph — proves the ALGORITHM):
-  //   quickness →2→ firearms →1→ gunnery        (arrows one-way)
+  // Fixture web (not the real book graph — proves the ALGORITHM). All edges
+  // marked oneWay so the arrow-blocking assertions stay meaningful (real data
+  // is two-way by default; printed arrows are the exception):
+  //   quickness →2→ firearms →1→ gunnery
   //   quickness →1→ athletics
-  //   (island has no incoming/outgoing edges)
   const web = { edges: [
-    { from: "quickness", to: "firearms", circles: 2 },
-    { from: "firearms", to: "gunnery", circles: 1 },
-    { from: "quickness", to: "athletics", circles: 1 },
+    { from: "quickness", to: "firearms", circles: 2, dir: "oneWay" },
+    { from: "firearms", to: "gunnery", circles: 1, dir: "oneWay" },
+    { from: "quickness", to: "athletics", circles: 1, dir: "oneWay" },
   ] };
 
   it("prefers the cheaper related-skill path over the attribute path", () => {
