@@ -296,6 +296,11 @@ async function _ensureSystemMacros() {
       name: "Reset Condition Monitors",
       img: "icons/svg/heal.svg",
       src: "systems/sr2e/macros/reset-condition.js"
+    },
+    {
+      name: "Request a Skill Roll",
+      img: "icons/svg/d20.svg",
+      src: "systems/sr2e/macros/request-roll.js"
     }
   ];
 

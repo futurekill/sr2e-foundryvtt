@@ -28,11 +28,11 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   whether or not the character has it — trained skills roll their rating,
   untrained ones default through the Skill Web automatically. No more adding a
   throwaway skill just to roll a one-off Negotiation check.
-- **GM request-a-roll:** when a GM opens "Roll a Skill…" they get a *Request
-  from Players* button that posts a card to the table; each player clicks it and
-  their own character rolls that skill at the requested TN (trained or
-  web-defaulted). Resolves the "everyone make a Perception… I mean Stealth
-  check" moment in one click each.
+- **GM "Request a Skill Roll" macro:** a GM macro (auto-added to the world)
+  picks a skill + TN and posts a card to the table; each player clicks it and
+  their own character rolls that skill (trained or web-defaulted) — no need to
+  open anyone's sheet. Resolves the "everybody roll Stealth" moment in one click
+  each.
 
 ## 0.29.16 — 2026-07-03
 
