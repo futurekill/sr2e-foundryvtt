@@ -1739,24 +1739,28 @@
   background: rgba(63, 174, 90, 0.08);
 }
 
-/* Shadowtalk banter — sourcebook margin-chatter styling */
+/* Shadowtalk banter — a self-contained dark "terminal readout" so the green
+   reads on ANY background (light parchment chat cards or the dark sheet). */
 .sr2e-shadowtalk {
   font-family: "Courier New", monospace;
   font-size: 11px;
-  color: #4cc94c;
-  text-shadow: 0 0 6px rgba(57, 255, 20, 0.25);
+  color: #74f774;
+  text-shadow: 0 0 5px rgba(57, 255, 20, 0.35);
   margin-top: 6px;
-  padding: 4px 6px;
-  border-left: 2px solid #2a7a2a;
-  background: rgba(10, 30, 10, 0.25);
-  line-height: 1.35;
+  padding: 5px 8px;
+  border: 1px solid #1c4a1c;
+  border-left: 3px solid #39ff14;
+  border-radius: 3px;
+  background: #06120a;
+  line-height: 1.4;
 }
 .sr2e-shadowtalk .sr2e-shadowtalk-by {
   display: block;
   text-align: right;
-  color: #2f8f2f;
+  color: #4cae4c;
   font-style: italic;
   font-size: 10px;
+  margin-top: 1px;
 }
 .header-shadowtalk {
   flex: 1;

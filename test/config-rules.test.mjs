@@ -118,3 +118,33 @@ describe("Skill Web — GM-verified Quickness cluster (SR2E p.69)", () => {
     expect(pen("armed_combat")).toBe(2);
   });
 });
+
+describe("Skill Web reachability — matches the GM's per-attribute listing (p.69)", () => {
+  const web = SR2E.skillWeb;
+  // reachable skill nodes from an attribute, honoring one-way edges
+  const reach = (attr) => {
+    const adj = {};
+    for (const e of web.edges) {
+      (adj[e.from] ??= []).push(e.to);
+      if (e.dir !== "oneWay") (adj[e.to] ??= []).push(e.from);
+    }
+    const seen = new Set([attr]); const q = [attr];
+    while (q.length) for (const n of adj[q.shift()] ?? []) if (!seen.has(n)) { seen.add(n); q.push(n); }
+    return [...seen].filter(n => web.nodes[n]?.type === "skill");
+  };
+  const counts = { body: 3, strength: 3, quickness: 13, reaction: 11, charisma: 4, willpower: 10, intelligence: 21 };
+
+  for (const [attr, n] of Object.entries(counts)) {
+    it(`${attr} reaches exactly ${n} skills`, () => expect(reach(attr).length).toBe(n));
+  }
+  it("Body/Strength reach ONLY the melee skills (sink), not the Quickness cluster", () => {
+    expect(reach("body")).not.toContain("firearms");
+    expect(reach("body").sort()).toEqual(["armedCombat", "armedCombatBR", "unarmedCombat"]);
+  });
+  it("Tech & magic route correctly: Computer→Intelligence, Sorcery reachable from Intelligence", () => {
+    expect(reach("intelligence")).toContain("computer");   // tech is Int, not Body
+    expect(reach("body")).not.toContain("computer");
+    expect(reach("intelligence")).toContain("sorcery");    // via the one-way bridge
+    expect(reach("charisma")).not.toContain("sorcery");    // Charisma can't reach magic
+  });
+});

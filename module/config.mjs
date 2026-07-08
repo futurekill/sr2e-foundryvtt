@@ -202,21 +202,22 @@ SR2E.skillWeb = {
     { from: "projectile", to: "projectileBR", cost: 2 },
     { from: "quickness", to: "throwing", cost: 4 },             // 2 circles (GM correction)
     { from: "throwing", to: "throwingBR", cost: 2 },
-    { from: "quickness", to: "armedCombat", cost: 2 },
+    // Armed & Unarmed Combat are SINKS — all three source attributes' arrows
+    // point INTO them (p.69), so every attribute→melee edge is one-way. This is
+    // why Body/Strength reach ONLY the melee skills and can't ride back out into
+    // the Quickness cluster.
+    { from: "quickness", to: "armedCombat", cost: 2, dir: "oneWay" },
     { from: "armedCombat", to: "armedCombatBR", cost: 2 },
-    { from: "quickness", to: "unarmedCombat", cost: 2 },
-    // Strength / Body → melee: printed arrows point INTO the combat cluster
-    // (p.69), so these are one-way — you can't trace back out through them.
+    { from: "quickness", to: "unarmedCombat", cost: 2, dir: "oneWay" },
     { from: "strength", to: "armedCombat", cost: 2, dir: "oneWay" },
     { from: "strength", to: "unarmedCombat", cost: 2, dir: "oneWay" },
     { from: "body", to: "armedCombat", cost: 2, dir: "oneWay" },
     { from: "body", to: "unarmedCombat", cost: 2, dir: "oneWay" },
-    // Tech (Body-linked on the web)
-    { from: "body", to: "computer", cost: 2 },
+    // Tech — rooted at INTELLIGENCE via the academic bridge (Computer↔Computer
+    // Theory, Biotech↔Biology). Per the GM's listing, Body reaches ONLY the
+    // melee skills; tech defaults to Intelligence, not Body.
     { from: "computer", to: "computerBR", cost: 2 },
-    { from: "body", to: "electronics", cost: 2 },
     { from: "electronics", to: "electronicsBR", cost: 2 },
-    { from: "body", to: "biotech", cost: 2 },
     { from: "biotech", to: "biotechBR", cost: 2 },
     { from: "computer", to: "computerTheory", cost: 2 },
     { from: "electronics", to: "computerTheory", cost: 2 },
@@ -241,19 +242,30 @@ SR2E.skillWeb = {
     { from: "aircraft", to: "winged", cost: 2 },
     { from: "aircraft", to: "rotor", cost: 2 },
     { from: "rotor", to: "vectorThrust", cost: 2 },
-    // Intelligence academic
+    // Intelligence academic + tech root
     { from: "intelligence", to: "physicalSciences", cost: 2 },
     { from: "physicalSciences", to: "demolitions", cost: 2 },
     { from: "physicalSciences", to: "computerTheory", cost: 2 },
     { from: "computerTheory", to: "cybertechnology", cost: 2 },
     { from: "cybertechnology", to: "biology", cost: 2 },
-    { from: "intelligence", to: "militaryTheory", cost: 2 },
+    // Social sciences — rooted at WILLPOWER (reachable from Intelligence too via
+    // the one-way academic bridge below)
+    { from: "willpower", to: "militaryTheory", cost: 2 },
     { from: "militaryTheory", to: "psychology", cost: 2 },
     { from: "psychology", to: "sociology", cost: 2 },
-    // Magic
+    // Magic — rooted at Willpower
     { from: "willpower", to: "magicalTheory", cost: 2 },
     { from: "magicalTheory", to: "conjuring", cost: 2 },
     { from: "magicalTheory", to: "sorcery", cost: 2 },
+    // Cross-cluster bridges (ONE-WAY, per the printed arrows) that produce the
+    // nested reachability Charisma ⊂ Willpower ⊂ Intelligence for social/magic:
+    //   • Intelligence academic → Willpower cluster: Int reaches magic + social
+    //     sciences (and, via the next bridge, the social skills).
+    //   • Willpower cluster → Charisma: Willpower & Intelligence reach the social
+    //     skills; Charisma cannot reach back into magic.
+    // ⚠ bridge circle counts are placeholders pending verification.
+    { from: "biology", to: "willpower", cost: 2, dir: "oneWay" },
+    { from: "sociology", to: "charisma", cost: 2, dir: "oneWay" },
   ]
 };
 
