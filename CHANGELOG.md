@@ -14,13 +14,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   rigger, broke/rich). Lines are seeded per message/actor so re-renders never
   reshuffle what players already read.
 
-### In progress
-- **Skill Web defaulting engine** (SR2E p.68–69): a pure, unit-tested
-  `webDefaultingTN()` that traces the cheapest legal (arrow-respecting) path and
-  charges +2 per circle — related-skill *or* attribute defaulting, whichever is
-  cheaper, or "no default" for unconnected skills. Not yet wired into rolls (the
-  flat +4 still applies) and the web graph data is pending verification of the
-  p.69 diagram's circle counts.
+### Features
+- **Skill Web defaulting is now live for skill tests** (SR2E p.68–69). Rolling
+  an untrained skill no longer adds a flat +4 — it traces the cheapest legal
+  path on the Skill Web and charges +2 per circle, defaulting to a *related
+  skill you have* when that's cheaper than the attribute (e.g. roll Cybertech
+  with Biology → +2, not the attribute route). Connectivity is fully verified
+  against the book; circle *costs* on the non-combat clusters are provisional
+  (a flat +4 fallback covers any skill not yet on the web, e.g. Launch Weapons).
+  Weapon/melee/vehicle defaulting sites and an untrained-roll picker + GM
+  request-a-roll are still to come; full-fidelity circle counts are in progress.
 
 ## 0.29.16 — 2026-07-03
 

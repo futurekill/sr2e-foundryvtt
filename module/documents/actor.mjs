@@ -5,7 +5,7 @@ import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
-         knockdownTN, knockdownOutcome } from "../rules/sr2e-rules.mjs";
+         knockdownTN, knockdownOutcome, webDefaultingTN } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -426,6 +426,55 @@ export class SR2EActor extends Actor {
    * @param {object} [options]
    * @returns {Promise}
    */
+  /**
+   * Resolve untrained defaulting for a skill via the Skill Web (SR2E p.69),
+   * falling back to the flat penalty for skills not on the web. Maps skill
+   * items → web nodes by label (case-insensitive, ignoring "(B/R)"). Returns
+   * the dice pool to roll, the TN penalty, and a label — or null if the skill
+   * isn't on the web (caller uses the flat fallback).
+   * @param {Item} skill  the (untrained) skill being rolled
+   * @returns {{dice:number, penalty:number, label:string}|null}
+   */
+  _webDefault(skill) {
+    const web = CONFIG.SR2E.skillWeb;
+    if (!web?.nodes) return null;
+    const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
+    const nodeFor = (name) =>
+      Object.keys(web.nodes).find((k) => norm(web.nodes[k].label) === norm(name)) ?? null;
+
+    const target = nodeFor(skill.name);
+    if (!target) return null;
+
+    // Owned skill nodes (rating > 0), for related-skill defaulting.
+    const ownedByNode = new Map();
+    for (const it of this.items) {
+      if (it.type === "skill" && it.id !== skill.id && (it.system.rating ?? 0) > 0) {
+        const n = nodeFor(it.name);
+        if (n) ownedByNode.set(n, it.system.rating);
+      }
+    }
+    const best = webDefaultingTN(web, target, [...ownedByNode.keys()]);
+    if (!best) return null;
+
+    // Dice: the SOURCE's rating — an attribute value, or the owned related
+    // skill's rating (SR2E p.69: you roll the thing you're defaulting FROM).
+    let dice, srcLabel;
+    if (best.kind === "attribute") {
+      dice = best.source === "reaction"
+        ? (this.system.reaction?.value ?? 1)
+        : (this.system[best.source]?.value ?? 1);
+      srcLabel = best.source.charAt(0).toUpperCase() + best.source.slice(1);
+    } else {
+      dice = ownedByNode.get(best.source) ?? 1;
+      srcLabel = web.nodes[best.source]?.label ?? best.source;
+    }
+    return {
+      dice: Math.max(1, dice),
+      penalty: best.penalty,
+      label: `defaulting via ${srcLabel} +${best.penalty} TN`
+    };
+  }
+
   async rollSkillTest(skillId, targetNumber = 4, options = {}) {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
@@ -442,17 +491,26 @@ export class SR2EActor extends Actor {
       label = `${skill.name} (${skill.system[v].name}) Test`;
     }
 
-    // Untrained: default to the skill's linked Attribute via the Skill Web
-    // (SR2E p.69) — attribute dice at +CONFIG.SR2E.defaultingPenalty TN.
+    // Untrained: default via the Skill Web (SR2E p.69) — cheapest legal path to
+    // a related skill the character has, or to an attribute; +2 per circle. Web
+    // data drives the source and penalty; the flat fallback covers skills not on
+    // the web (or a name that doesn't map to a web node).
     if (dicePool <= 0) {
-      const attrKey = skill.system.linkedAttribute || "quickness";
-      const attrValue = attrKey === "reaction"
-        ? (this.system.reaction?.value ?? 1)
-        : (this.system[attrKey]?.value ?? 1);
-      dicePool = Math.max(1, attrValue);
-      targetNumber += CONFIG.SR2E.defaultingPenalty;
-      const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
-      label = `${skill.name} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
+      const web = this._webDefault(skill);
+      if (web) {
+        dicePool = web.dice;
+        targetNumber += web.penalty;
+        label = `${skill.name} Test — ${web.label}`;
+      } else {
+        const attrKey = skill.system.linkedAttribute || "quickness";
+        const attrValue = attrKey === "reaction"
+          ? (this.system.reaction?.value ?? 1)
+          : (this.system[attrKey]?.value ?? 1);
+        dicePool = Math.max(1, attrValue);
+        targetNumber += CONFIG.SR2E.defaultingPenalty;
+        const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
+        label = `${skill.name} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
+      }
     }
 
     return this.rollSuccessTest(dicePool, targetNumber, {
