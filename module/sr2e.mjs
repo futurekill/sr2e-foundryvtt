@@ -305,11 +305,17 @@ async function _ensureSystemMacros() {
   ];
 
   for (const def of MACROS) {
-    // Skip if a macro with this name already exists
-    if (game.macros.find(m => m.name === def.name && m.flags?.["sr2e"]?.systemMacro)) continue;
     try {
       const response = await fetch(def.src);
       const command = await response.text();
+      const existing = game.macros.find(m => m.name === def.name && m.flags?.["sr2e"]?.systemMacro);
+      if (existing) {
+        // Re-sync a system macro whose shipped file changed, so macro fixes
+        // actually reach existing worlds. (Only touches system-flagged macros;
+        // a GM who wants a custom version should duplicate under a new name.)
+        if (existing.command !== command) await existing.update({ command, img: def.img });
+        continue;
+      }
       await Macro.create({
         name: def.name,
         type: "script",
