@@ -294,6 +294,63 @@ async function onRollSkill(event, target) {
   });
 }
 
+/** Every rollable skill name for the untrained picker: the Skill Web's skill
+ *  nodes (canonical labels, incl. knowledge/vehicle) plus any activeSkills not
+ *  on the web, deduped and sorted. */
+function allSkillNames() {
+  const names = new Set();
+  for (const n of Object.values(CONFIG.SR2E.skillWeb?.nodes ?? {})) {
+    if (n.type === "skill") names.add(n.label);
+  }
+  for (const k of Object.keys(CONFIG.SR2E.activeSkills ?? {})) {
+    names.add(k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * "Roll a Skill…" — pick any skill and roll it whether or not the character has
+ * it. Trained skills roll their rating; untrained ones default through the
+ * Skill Web automatically (SR2E p.69). No throwaway item needed.
+ * @this {ApplicationV2}
+ */
+async function onDefaultSkill(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const opts = allSkillNames().map(n => `<option value="${foundry.utils.escapeHTML(n)}">${foundry.utils.escapeHTML(n)}</option>`).join("");
+  let result = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: "Roll a Skill" },
+    rejectClose: false,
+    content: `
+      <form>
+        <div class="form-group">
+          <label>Skill:</label>
+          <select name="skill" autofocus>${opts}</select>
+        </div>
+        <div class="form-group">
+          <label>Target Number:</label>
+          <input type="number" name="tn" value="4" min="2" max="30">
+        </div>
+        <p style="font-size:10px;color:#aaa1c0;margin:4px 0 0;">Trained skills roll their rating; if this character doesn't have the skill it defaults through the Skill Web automatically.</p>
+      </form>`,
+    buttons: [
+      {
+        action: "roll", label: "SR2E.Dialog.Roll", default: true,
+        callback: (event, button) => {
+          result = {
+            skill: button.form.elements.skill.value,
+            tn: parseInt(button.form.elements.tn.value) || 4
+          };
+        }
+      },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "roll" || !result) return;
+  return actor.rollNamedSkill(result.skill, result.tn);
+}
+
 /**
  * Roll initiative.
  * @this {ApplicationV2}
@@ -2459,6 +2516,7 @@ const SHARED_ACTIONS = {
   },
   rollAttribute: onRollAttribute,
   rollSkill: onRollSkill,
+  defaultSkill: onDefaultSkill,
   rollInitiative: onRollInitiative,
   rollWeapon: onRollWeapon,
   castSpell: onCastSpell,

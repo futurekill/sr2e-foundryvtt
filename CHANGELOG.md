@@ -22,8 +22,12 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   with Biology → +2, not the attribute route). Connectivity is fully verified
   against the book; circle *costs* on the non-combat clusters are provisional
   (a flat +4 fallback covers any skill not yet on the web, e.g. Launch Weapons).
-  Weapon/melee/vehicle defaulting sites and an untrained-roll picker + GM
-  request-a-roll are still to come; full-fidelity circle counts are in progress.
+  Weapon/melee/vehicle defaulting sites are still to come; full-fidelity circle
+  counts are in progress.
+- **"Roll a Skill…" button** on the Skills tab: pick any skill and roll it
+  whether or not the character has it — trained skills roll their rating,
+  untrained ones default through the Skill Web automatically. No more adding a
+  throwaway skill just to roll a one-off Negotiation check.
 
 ## 0.29.16 — 2026-07-03
 

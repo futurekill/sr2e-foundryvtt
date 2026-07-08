@@ -475,6 +475,44 @@ export class SR2EActor extends Actor {
     };
   }
 
+  /**
+   * Roll a skill BY NAME, whether or not the character has it (SR2E p.69). If
+   * they have it trained (rating > 0) it rolls the real skill; otherwise it
+   * defaults through the Skill Web (or the flat fallback). Powers the untrained-
+   * roll picker and GM request-a-roll — no throwaway item needed.
+   * @param {string} skillName
+   * @param {number} [targetNumber=4]
+   * @param {object} [options]  {poolDice, karmaDice}
+   */
+  async rollNamedSkill(skillName, targetNumber = 4, options = {}) {
+    const owned = this.items.find(i =>
+      i.type === "skill" && i.name.toLowerCase() === skillName.toLowerCase() && (i.system.rating ?? 0) > 0);
+    if (owned) return this.rollSkillTest(owned.id, targetNumber, options);
+
+    // Untrained → default. Reuse the web path via a synthetic skill snapshot.
+    const web = this._webDefault({ name: skillName, id: null, system: { rating: 0 } });
+    let dicePool, label;
+    if (web) {
+      dicePool = web.dice;
+      targetNumber += web.penalty;
+      label = `${skillName} Test — ${web.label}`;
+    } else {
+      // Flat fallback (skill not on the web): guess the attribute from the
+      // activeSkills table by name, else Quickness.
+      const key = Object.keys(CONFIG.SR2E.activeSkills).find(k =>
+        k.replace(/_/g, " ").toLowerCase() === skillName.toLowerCase());
+      const attrKey = CONFIG.SR2E.activeSkills[key]?.attribute || "quickness";
+      const attrValue = attrKey === "reaction"
+        ? (this.system.reaction?.value ?? 1)
+        : (this.system[attrKey]?.value ?? 1);
+      dicePool = Math.max(1, attrValue);
+      targetNumber += CONFIG.SR2E.defaultingPenalty;
+      const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
+      label = `${skillName} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
+    }
+    return this.rollSuccessTest(dicePool, targetNumber, { ...options, label });
+  }
+
   async rollSkillTest(skillId, targetNumber = 4, options = {}) {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
