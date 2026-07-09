@@ -4,7 +4,23 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-## 0.31.0 — 2026-07-09
+## 0.31.1 — 2026-07-09
+
+### Features
+- **Team Karma in the header.** The shared Team Karma Pool now shows in the top
+  stats row alongside Good Karma and Karma Pool (contribute/draw is still on the
+  Bio tab).
+
+### Fixes
+- **Tighter sheet header.** The two-/three-line banter used to balloon the name
+  row and leave a big empty gap; it now floats in the top-right corner (out of
+  flow) with the portrait and info top-aligned, so the header packs tight.
+- **Sample runners refreshed.** Tiger (Physical Adept)'s adept powers use the new
+  fields: Improved Ability now names its skill (Unarmed Combat, +4 dice) and
+  Increased Reflexes carries its +1 Initiative die. (No runner used the retired
+  weapon-as-focus fields, so nothing else needed migrating.)
+
+
 
 ### Features
 - **Weapon foci reworked — bond a focus to a weapon.** A Weapon Focus is now a

@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/upgrade.svg",
   "system": {
-    "biography": "<p>A weapon that happens to be a person. No cyber, no spells \u2014 just a body honed by magic into something faster and deadlier than chrome. Speaks softly; the killing hands do the talking.</p>",
+    "biography": "<p>A weapon that happens to be a person. No cyber, no spells — just a body honed by magic into something faster and deadlier than chrome. Speaks softly; the killing hands do the talking.</p>",
     "notes": "",
     "race": "human",
     "body": {
@@ -409,7 +409,8 @@
           "body": 0,
           "quickness": 0,
           "strength": 0,
-          "reaction": 0
+          "reaction": 0,
+          "initiativeDice": 1
         },
         "notes": "SR2E p.126. +1d6 Initiative. Cost: 1 pt."
       },
@@ -508,7 +509,7 @@
     },
     {
       "_id": "7c37be885a4da7c8",
-      "name": "Improved Ability",
+      "name": "Improved Ability (Unarmed Combat)",
       "type": "adept_power",
       "img": "icons/svg/aura.svg",
       "system": {
@@ -522,7 +523,8 @@
           "strength": 0,
           "reaction": 0
         },
-        "notes": "SR2E p.125. Extra dice for a specific skill. Cost/die: Athletic/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1. Combat skills: max extra dice \u2264 current skill rating."
+        "notes": "SR2E p.125. Extra dice for a specific skill. Cost/die: Athletic/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1. Combat skills: max extra dice ≤ current skill rating.",
+        "improvedSkill": "Unarmed Combat"
       },
       "effects": [],
       "flags": {},

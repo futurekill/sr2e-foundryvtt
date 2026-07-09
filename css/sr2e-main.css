@@ -170,8 +170,13 @@
 
 .sr2e-sheet-header .header-info {
   flex: 1;
-  gap: 4px;
+  gap: 3px;
 }
+
+/* Top-align the portrait + info instead of vertically centring on the (variable)
+   header height, and let the info column drive a tight height. Out-specifies
+   `.sr2e.sheet .flexrow` (0,3,0). */
+.sr2e.sheet .sr2e-sheet-header { align-items: flex-start; }
 
 /* Row 1: character name. Selector must out-specify `.sr2e.sheet .flexrow`
    (0,3,0), which otherwise forces align-items:center and re-centers the name
@@ -183,6 +188,7 @@
 
 .sr2e-sheet-header .char-name-input {
   flex: 1;
+  max-width: 56%; /* stay clear of the floated banter in the top-right */
   font-size: 22px;
   font-family: var(--sr2e-font-header);
   font-weight: 700;
@@ -1790,12 +1796,23 @@
   font-size: 10px;
   margin-top: 1px;
 }
+/* Banter floats in the top-right corner (out of flow) so its height never
+   balloons the name row — the left column (name/race/condition/stats) packs
+   tight underneath. Capped so it always clears the stats row below it. */
 .header-shadowtalk {
-  flex: 1;
-  margin: 0 0 0 12px;
-  max-width: 46%;
-  align-self: flex-start; /* top-align with the name box, not centered on the row */
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 42%;
+  max-width: 42%;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 3px 7px;
+  max-height: 4.4em;
+  overflow: hidden;
 }
+.header-shadowtalk .sr2e-shadowtalk-by { font-size: 9px; }
 
 /* Adept power-points readout: red when spend exceeds the Magic rating */
 .power-points.over { color: var(--sr2e-danger, #b00); font-weight: bold; }
