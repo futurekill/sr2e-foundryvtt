@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.8 — 2026-07-08
+
+### Fixes
+- **Weapon focus pricing.** A melee weapon flagged as a Weapon Focus (Force > 0)
+  now prices automatically as `[(Reach + 1) × 100,000¥] + Force × 90,000¥`
+  (SR2E p.126) instead of using a hand-entered cost, and the item sheet shows the
+  computed Focus Price. A weapon focus already appears in the Combat tab with its
+  ✦Force badge and adds its Force in dice to melee attacks when bonded — so the
+  weapon *is* the focus (set its Reach, damage, and Focus Force on one item).
+
 ## 0.30.7 — 2026-07-08
 
 ### Features

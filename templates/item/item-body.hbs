@@ -94,6 +94,10 @@
     <label title="Bond the focus (Karma) before its Force adds to attacks.">Focus Bonded:</label>
     <input type="checkbox" name="system.focusBonded" {{checked system.focusBonded}} />
   </div>
+  <div class="form-group">
+    <label title="[(Reach + 1) × 100,000¥] + Rating × 90,000¥ (SR2E p.126). Set automatically from Reach and Force.">Focus Price:</label>
+    <span class="focus-price">{{numberFormat system.cost}}¥</span>
+  </div>
   {{/ifGt}}
 
   {{!-- Firearm-specific fields --}}

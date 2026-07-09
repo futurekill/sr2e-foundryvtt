@@ -5,7 +5,7 @@ import {
   systemOperationTN, personaAttribute,
   icReactionBase, alertAdjustedRating, escalateAlert, programSize,
   burstRounds, recoilPenalty, burstDamageBonus,
-  programCost, focusCost,
+  programCost, focusCost, weaponFocusCost,
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
@@ -227,6 +227,12 @@ describe("Derived costs (SR2E p.174, p.249)", () => {
   it("focus cost is Force × per-Force unit", () => {
     expect(focusCost(6, 20000)).toBe(120000); // Power Focus Force 6
     expect(focusCost(1, 5000)).toBe(5000);    // Spell Lock Force 1
+  });
+
+  it("weapon focus cost is [(Reach+1)×100k] + Rating×90k (SR2E p.126)", () => {
+    expect(weaponFocusCost(1, 2)).toBe(380000); // Reach 1 katana, Force 2
+    expect(weaponFocusCost(0, 1)).toBe(190000); // Reach 0, Force 1
+    expect(weaponFocusCost(2, 3)).toBe(570000); // Reach 2 polearm, Force 3
   });
 });
 

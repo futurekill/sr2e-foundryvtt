@@ -238,6 +238,18 @@ export function focusCost(force, costPerForce) {
   return force * costPerForce;
 }
 
+/**
+ * Weapon focus price (SR2E p.126): a melee weapon enchanted as a focus costs
+ * [(Reach + 1) × 100,000¥] + Rating × 90,000¥. Reach comes from the weapon,
+ * Rating is the focus's Force.
+ * @param {number} reach   weapon reach (0 for most, higher for polearms)
+ * @param {number} rating  focus Force
+ * @returns {number} nuyen price
+ */
+export function weaponFocusCost(reach, rating) {
+  return (Math.max(0, reach) + 1) * 100000 + Math.max(0, rating) * 90000;
+}
+
 /** Base Reaction speed an IC's node Security Code grants (SR2E p.169). */
 export const IC_REACTION_BASE = { blue: 0, green: 5, orange: 7, red: 9 };
 

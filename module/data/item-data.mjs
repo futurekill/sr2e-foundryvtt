@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, weaponFocusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -184,6 +184,16 @@ export class WeaponData extends SR2EDataModel {
       quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };
+  }
+
+  /** True when this weapon is enchanted as a weapon focus (Rating > 0). */
+  get isWeaponFocus() {
+    return (this.weaponFocusForce ?? 0) > 0;
+  }
+
+  /** @override — a weapon focus derives its price from Reach + Rating (p.126). */
+  prepareDerivedData() {
+    if (this.isWeaponFocus) this.cost = weaponFocusCost(this.reach, this.weaponFocusForce);
   }
 
   /**
