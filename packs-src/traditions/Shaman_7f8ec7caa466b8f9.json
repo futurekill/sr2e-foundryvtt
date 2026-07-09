@@ -2,7 +2,7 @@
   "_id": "7f8ec7caa466b8f9",
   "name": "Shaman",
   "type": "tradition",
-  "img": "icons/magic/nature/leaf-oak-orange.webp",
+  "img": "icons/magic/nature/leaf-glow-maple-green.webp",
   "system": {
     "magicType": "full_magician",
     "tradition": "shamanic",

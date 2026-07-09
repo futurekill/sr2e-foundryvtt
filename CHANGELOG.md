@@ -4,6 +4,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.32.6 — 2026-07-09
+
+### Fixes
+- **Fixed 6 broken compendium icons.** Six documents pointed at core-Foundry icon
+  paths that were renamed in newer Foundry (so they rendered as broken images):
+  Low/Middle lifestyles (house), the shamanic traditions (oak leaf), Physical
+  Adept (unarmed punch), and three on the Glitch Decker runner (sword,
+  pickpocket, movement trail). All repointed to current core icons; a full
+  cross-check of every compendium `img`/token path against the installed core
+  icon set now comes back clean.
+
 ## 0.32.5 — 2026-07-09
 
 ### Changes

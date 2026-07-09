@@ -2,7 +2,7 @@
   "_id": "0f40393ee8116dea",
   "name": "Physical Adept",
   "type": "tradition",
-  "img": "icons/skills/melee/unarmed-punch.webp",
+  "img": "icons/skills/melee/unarmed-punch-fist.webp",
   "system": {
     "magicType": "physical_adept",
     "tradition": "none",

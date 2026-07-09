@@ -2,7 +2,7 @@
   "_id": "ced70d48d9026324",
   "name": "Middle",
   "type": "lifestyle",
-  "img": "icons/environment/settlement/house.webp",
+  "img": "icons/environment/settlement/house-two-stories.webp",
   "system": {
     "level": "middle",
     "monthlyCost": 5000,

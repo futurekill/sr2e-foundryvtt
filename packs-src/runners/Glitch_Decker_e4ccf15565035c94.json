@@ -489,7 +489,7 @@
       "_id": "a0c8dbc791f68b54",
       "name": "Attack (Rating 4)",
       "type": "program",
-      "img": "icons/skills/offense/sword.webp",
+      "img": "icons/svg/sword.svg",
       "system": {
         "category": "combat",
         "rating": 4,
@@ -522,7 +522,7 @@
       "_id": "40d151bd225ab1f7",
       "name": "Sleaze (Rating 5)",
       "type": "program",
-      "img": "icons/skills/social/theft-pickpocket.webp",
+      "img": "icons/skills/social/theft-pickpocket-bribery-brown.webp",
       "system": {
         "category": "masking",
         "rating": 5,
@@ -621,7 +621,7 @@
       "_id": "2e09b06de1d26d1a",
       "name": "Evasion (Rating 4)",
       "type": "program",
-      "img": "icons/magic/movement/trail-streak-zigzag-white.webp",
+      "img": "icons/magic/movement/trail-streak-zigzag-teal.webp",
       "system": {
         "category": "defense",
         "rating": 4,
