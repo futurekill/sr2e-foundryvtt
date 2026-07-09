@@ -37,6 +37,15 @@ function refreshTokenVisibility() {
 }
 
 globalThis.Hooks?.once("init", () => {
+  game.settings.register("sr2e", "spiritsAstralByDefault", {
+    name: "Spirits start astral-only",
+    hint: "New spirit tokens are flagged astral-only on placement (a summoned spirit is on the astral plane until it manifests, SR2E p.145). Toggle the token's astral button when it manifests.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   // Subclass whatever Token placeable is currently registered and layer the
   // astral rule on top of normal visibility.
   const BaseToken = CONFIG.Token.objectClass;
@@ -87,4 +96,25 @@ globalThis.Hooks?.on("renderTokenHUD", (hud, html) => {
     refreshTokenVisibility();
   });
   col.appendChild(btn);
+});
+
+// Visual cue: an astral-only token renders ethereal (astral-purple, translucent)
+// for whoever can see it — so astral viewers know it's astral and the GM can
+// spot flagged tokens at a glance. Re-applied each refresh (Foundry resets the
+// mesh from the document first, so this is stable, not cumulative).
+globalThis.Hooks?.on("refreshToken", (token) => {
+  if (!token.mesh || !token.document?.getFlag?.("sr2e", "astralOnly")) return;
+  token.mesh.tint = 0xB68CFF;
+  token.mesh.alpha = Math.min(token.mesh.alpha ?? 1, 0.78);
+});
+
+// A summoned spirit is on the astral plane until it manifests (SR2E p.145), so
+// default new spirit tokens to astral-only (world setting, on by default). The
+// GM clears the token's astral button when the spirit manifests.
+globalThis.Hooks?.on("preCreateToken", (tokenDoc, data) => {
+  if (tokenDoc.actor?.type !== "spirit") return;
+  if (foundry.utils.getProperty(data, "flags.sr2e.astralOnly") !== undefined) return;
+  let on = true;
+  try { on = game.settings.get("sr2e", "spiritsAstralByDefault"); } catch (e) { /* default */ }
+  if (on) tokenDoc.updateSource({ "flags.sr2e.astralOnly": true });
 });

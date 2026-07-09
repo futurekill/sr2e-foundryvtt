@@ -4,7 +4,20 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-## 0.32.0 — 2026-07-09
+## 0.32.1 — 2026-07-09
+
+### Features
+- **Astral tokens look astral.** An astral-only token now renders with an
+  ethereal astral-purple, translucent tint for anyone who can see it — so astral
+  viewers know it's on the astral plane and the GM can spot flagged tokens at a
+  glance.
+- **Spirits start astral-only.** New spirit tokens are auto-flagged astral-only
+  on placement (a summoned spirit is on the astral plane until it manifests,
+  SR2E p.145). Controlled by the new "Spirits start astral-only" world setting
+  (on by default); the GM clears the token's astral button when the spirit
+  manifests.
+
+
 
 ### Features
 - **Astral-only token visibility (SR2E p.145).** The GM can flag a token as
