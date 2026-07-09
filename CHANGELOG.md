@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.3 — 2026-07-08
+
+### Fixes
+- **Add the missing Athletics and Interrogation skills.** Both are core SR2
+  active skills (p.83–84) and sit on the Skill Web, but neither was in the
+  skills compendium or the active-skill list — so they couldn't be dragged onto
+  a sheet or picked in the "Roll a Skill…" dialog. Added both (Athletics →
+  Quickness, Interrogation → Charisma), wired to the web. Verified against the
+  core book that no other core active skills are missing.
+
 ## 0.30.2 — 2026-07-08
 
 ### Fixes

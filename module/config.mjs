@@ -136,7 +136,7 @@ SR2E.skillWeb = {
     reaction: { label: "Reaction", type: "attribute" },
     willpower: { label: "Willpower", type: "attribute" },
     // Quickness skills
-    athletics: { label: "Athletics", type: "skill" },
+    athletics: { label: "Athletics", type: "skill", skillKey: "athletics" },
     stealth: { label: "Stealth", type: "skill", skillKey: "stealth" },
     firearms: { label: "Firearms", type: "skill", skillKey: "firearms" },
     firearmsBR: { label: "Firearms (B/R)", type: "skill", parentSkill: "firearms" },
@@ -158,7 +158,7 @@ SR2E.skillWeb = {
     biotechBR: { label: "Biotech (B/R)", type: "skill", parentSkill: "biotech" },
     // Social skills
     leadership: { label: "Leadership", type: "skill", skillKey: "leadership" },
-    interrogation: { label: "Interrogation", type: "skill" },
+    interrogation: { label: "Interrogation", type: "skill", skillKey: "interrogation" },
     negotiation: { label: "Negotiation", type: "skill", skillKey: "negotiation" },
     etiquette: { label: "Etiquette", type: "skill", skillKey: "etiquette" },
     // Vehicle skills. Ground Vehicles/Boats/Aircraft are SINGLE skills whose
@@ -279,6 +279,7 @@ SR2E.skillWeb = {
 // Active skill linked attributes
 SR2E.activeSkills = {
   armed_combat:     { label: "SR2E.Skills.ArmedCombat",     attribute: "strength",     category: "active" },
+  athletics:        { label: "SR2E.Skills.Athletics",       attribute: "quickness",    category: "active" },
   bike:             { label: "SR2E.Skills.Bike",            attribute: "reaction",     category: "active" },
   biotech:          { label: "SR2E.Skills.Biotech",         attribute: "intelligence", category: "active" },
   car:              { label: "SR2E.Skills.Car",             attribute: "reaction",     category: "active" },
@@ -289,6 +290,7 @@ SR2E.activeSkills = {
   etiquette:        { label: "SR2E.Skills.Etiquette",       attribute: "charisma",     category: "active" },
   firearms:         { label: "SR2E.Skills.Firearms",        attribute: "quickness",    category: "active" },
   gunnery:          { label: "SR2E.Skills.Gunnery",         attribute: "intelligence", category: "active" },
+  interrogation:    { label: "SR2E.Skills.Interrogation",   attribute: "charisma",     category: "active" },
   launch_weapons:   { label: "SR2E.Skills.LaunchWeapons",   attribute: "quickness",    category: "active" },
   leadership:       { label: "SR2E.Skills.Leadership",      attribute: "charisma",     category: "active" },
   negotiation:      { label: "SR2E.Skills.Negotiation",     attribute: "charisma",     category: "active" },

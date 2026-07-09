@@ -1,0 +1,40 @@
+{
+  "_id": "a7112c50de6b90a1",
+  "name": "Athletics",
+  "type": "skill",
+  "img": "icons/svg/book.svg",
+  "system": {
+    "category": "active",
+    "linkedAttribute": "quickness",
+    "rating": 0,
+    "concentration": {
+      "name": "",
+      "rating": 0
+    },
+    "specialization": {
+      "name": "",
+      "rating": 0
+    },
+    "isMagical": false,
+    "notes": "Running, climbing, jumping, swimming, and general physical exertion (SR2 p.84)."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.30.2",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "18f4a05eb72fe212",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a7112c50de6b90a1"
+}
