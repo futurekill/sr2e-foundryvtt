@@ -1779,7 +1779,7 @@
   flex: 1;
   margin: 0 0 0 12px;
   max-width: 46%;
-  align-self: center;
+  align-self: flex-start; /* top-align with the name box, not centered on the row */
 }
 
 /* Adept power-points readout: red when spend exceeds the Magic rating */

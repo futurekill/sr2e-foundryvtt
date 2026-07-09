@@ -4,6 +4,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.4 — 2026-07-08
+
+### Fixes
+- **Header banter box top-aligns with the name field.** It was vertically
+  centered on the name row, so the taller banter block poked above the name box;
+  it now aligns its top with the character-name field.
+
 ## 0.30.3 — 2026-07-08
 
 ### Fixes
