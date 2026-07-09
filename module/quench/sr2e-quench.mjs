@@ -419,6 +419,21 @@ export function registerSR2EQuenchTests() {
             "power-point max should equal the Magic rating");
           assert.equal(actor.system.adeptPowerPoints.value, 4, "used should be 1×2 + 2×1 = 4");
         });
+
+        it("Improved Ability adds its levels to the named skill (rolled, not paid)", async () => {
+          actor = await Actor.create({
+            name: "Quench Improved", type: "character",
+            system: { magic: { type: "physical_adept" } }
+          });
+          const [skill] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } },
+            { name: "Improved Ability (Firearms)", type: "adept_power",
+              system: { pointCost: 1, level: 2, improvedSkill: "Firearms" } }
+          ]);
+          const derived = actor.items.get(skill.id);
+          assert.equal(derived.system._adeptBonus, 2, "skill should carry +2 adept bonus");
+          assert.equal(derived.system.rating, 4, "bought rating (budget) must stay 4, not 6");
+        });
       });
     }, { displayName: "SR2E: Adept power points" });
 

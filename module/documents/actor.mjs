@@ -535,16 +535,18 @@ export class SR2EActor extends Actor {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
 
-    let dicePool = skill.system.rating;
-    let label = `${skill.name} Test`;
+    // Improved Ability (adept) adds its levels in dice to the whole skill (p.125).
+    const adeptBonus = skill.system._adeptBonus ?? 0;
+    let dicePool = (skill.system.rating ?? 0) + adeptBonus;
+    let label = `${skill.name} Test${adeptBonus ? ` (+${adeptBonus} adept)` : ""}`;
 
     // Concentration/Specialization variant (SR2E p.70): roll that rating
     // instead of the general skill's.
     const v = options.variant;
     if ((v === "concentration" || v === "specialization") &&
         skill.system[v]?.name && skill.system[v].rating > 0) {
-      dicePool = skill.system[v].rating;
-      label = `${skill.name} (${skill.system[v].name}) Test`;
+      dicePool = skill.system[v].rating + adeptBonus;
+      label = `${skill.name} (${skill.system[v].name}) Test${adeptBonus ? ` (+${adeptBonus} adept)` : ""}`;
     }
 
     // Untrained: default via the Skill Web (SR2E p.69) — cheapest legal path to

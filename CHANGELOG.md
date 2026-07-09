@@ -4,6 +4,22 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.9 — 2026-07-09
+
+### Fixes
+- **Adept power points now equal the sum of the cost column.** "Used" summed a
+  hidden special-cased cost while the per-power Cost column showed pointCost ×
+  level, so a non-linear power (Increased Reflexes/Reaction) made the total
+  disagree (e.g. 5/6). Used now sums the same `pointCost × level` the column
+  shows — total always equals the sum of its parts.
+- **Improved Ability now boosts its skill.** A physical-adept power with an
+  "Improved Skill" adds its levels in dice to that Active Skill (SR2E p.125):
+  the Skills tab shows a `✦+N` badge, skill tests and weapon attacks roll the
+  bonus, and — importantly — the bought rating is unchanged, so it does *not*
+  inflate the chargen skill-point budget (the levels are paid with power points).
+  The adept-power item sheet gained the missing **Improved Skill** and
+  **Initiative Dice** fields.
+
 ## 0.30.8 — 2026-07-08
 
 ### Fixes

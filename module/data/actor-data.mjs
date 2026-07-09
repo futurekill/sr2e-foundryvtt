@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, adeptPowerCost } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -316,20 +316,17 @@ export class CharacterData extends SR2EDataModel {
     // Calculate Armor from equipped items
     this._calculateArmor();
 
-    // Calculate Adept Power Points (Magic Rating for Physical Adepts, SR2E
-    // p.124). Points USED = Σ of each power's cost — linear (pointCost × level)
-    // for most, with the two non-linear powers handled by adeptPowerCost()
-    // (Increased Reflexes 1/4/6; Increased Reaction tiered by racial Rxn max).
+    // Adept Power Points (Magic rating for Physical Adepts, SR2E p.124). Points
+    // USED = Σ of each power's cost. Sum the SAME per-power cost the sheet shows
+    // in its Cost column (pointCost × level = system.totalCost) so the total
+    // always equals the sum of its parts — non-linear powers (Increased
+    // Reflexes/Reaction) carry their book cost via pointCost, not a hidden
+    // override that made Used disagree with the column.
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
-      const reactionMax = CONFIG.SR2E.racialMaximums?.[this.race]?.reaction ?? 6;
       let used = 0;
       for (const item of this.parent?.items ?? []) {
-        if (item.type === "adept_power") {
-          used += adeptPowerCost(
-            { name: item.name, pointCost: item.system.pointCost, level: item.system.level },
-            reactionMax);
-        }
+        if (item.type === "adept_power") used += item.system.totalCost ?? 0;
       }
       this.adeptPowerPoints.value = used;
     }
@@ -340,6 +337,35 @@ export class CharacterData extends SR2EDataModel {
     // Inject skills from slotted skillsofts (must run after skill items are
     // prepared, so an override reads the real native rating first).
     this._applySkillsofts();
+
+    // Physical-adept Improved Ability: add each power's levels to its named skill
+    // as a derived bonus (rolled, not paid with skill points).
+    this._applyAdeptSkills();
+  }
+
+  /**
+   * Physical-adept "Improved Ability" (SR2E p.125): each such power names one
+   * Active Skill and adds +1 die per level to it. Applied as a derived
+   * `_adeptBonus` on the skill item (NOT folded into `rating`, so the bought
+   * rating — and therefore the chargen skill-point budget — is unchanged). Rolls
+   * add the bonus; the Skills tab shows it as a badge.
+   * @private
+   */
+  _applyAdeptSkills() {
+    const items = this.parent?.items;
+    if (!items) return;
+    const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
+    for (const power of items) {
+      if (power.type !== "adept_power") continue;
+      const target = norm(power.system.improvedSkill);
+      if (!target) continue;
+      const level = Math.max(0, power.system.level ?? 0);
+      if (level <= 0) continue;
+      const skill = items.find(i => i.type === "skill" && norm(i.name) === target);
+      if (!skill) continue;
+      skill.system._adeptBonus = (skill.system._adeptBonus ?? 0) + level;
+      skill.system._adeptSource = power.name;
+    }
   }
 
   /**

@@ -3394,6 +3394,13 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   font-weight: bold;
 }
 .sr2e .item-row.soft-slotted { box-shadow: inset 3px 0 0 var(--sr2e-gold, #00e5ff); }
+.sr2e .adept-badge {
+  margin-left: 4px;
+  color: var(--sr2e-magic, #9955cc);
+  font-size: 0.75em;
+  font-weight: bold;
+  vertical-align: super;
+}
 .sr2e .item-row.soft-slotted .fa-bolt { color: var(--sr2e-gold, #00e5ff); }
 .sr2e .soft-grant { flex: 1; opacity: 0.85; }
 .sr2e .soft-type { opacity: 0.6; font-size: 0.85em; text-transform: capitalize; }

@@ -339,12 +339,14 @@ export class SR2EItem extends Item {
     for (const item of actor.items) {
       if (item.type !== "skill") continue;
       if (skillKeys.includes(normalize(item.name))) {
-        skillRating = item.system.rating;
+        // Improved Ability (adept) adds its levels in dice to the skill (p.125).
+        const adeptBonus = item.system._adeptBonus ?? 0;
+        skillRating = item.system.rating + adeptBonus;
         // Concentration/Specialization pick from the dialog (SR2E p.70)
         const v = options.skillVariant;
         if ((v === "concentration" || v === "specialization") &&
             item.system[v]?.name && item.system[v].rating > 0) {
-          skillRating = item.system[v].rating;
+          skillRating = item.system[v].rating + adeptBonus;
           skillVariantNote = item.system[v].name;
         }
         break;

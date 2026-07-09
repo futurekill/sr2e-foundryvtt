@@ -622,12 +622,17 @@
     <span>{{system.totalCost}}</span>
   </div>
   <fieldset>
-    <legend>Attribute Modifiers</legend>
+    <legend>Attribute Modifiers (per level)</legend>
     <div class="form-group"><label>Body:</label><input type="number" name="system.attributeMods.body" value="{{system.attributeMods.body}}" /></div>
     <div class="form-group"><label>Quickness:</label><input type="number" name="system.attributeMods.quickness" value="{{system.attributeMods.quickness}}" /></div>
     <div class="form-group"><label>Strength:</label><input type="number" name="system.attributeMods.strength" value="{{system.attributeMods.strength}}" /></div>
     <div class="form-group"><label>Reaction:</label><input type="number" name="system.attributeMods.reaction" value="{{system.attributeMods.reaction}}" /></div>
+    <div class="form-group"><label title="Extra Initiative dice per level — Increased Reflexes.">Initiative Dice:</label><input type="number" name="system.attributeMods.initiativeDice" value="{{system.attributeMods.initiativeDice}}" /></div>
   </fieldset>
+  <div class="form-group">
+    <label title="Improved Ability (SR2E p.125): the Active Skill this power boosts by +1 die per level. Must match the skill's name on the Skills tab. Leave blank if this power doesn't improve a skill.">Improved Skill:</label>
+    <input type="text" name="system.improvedSkill" value="{{system.improvedSkill}}" placeholder="e.g. Firearms" />
+  </div>
   <div class="form-group stacked">
     <label>Description:</label>
     <prose-mirror name="system.description">{{{system.description}}}</prose-mirror>
