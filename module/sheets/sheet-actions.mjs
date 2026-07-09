@@ -2482,6 +2482,45 @@ async function onDrawTeamKarma(event) {
   });
 }
 
+/**
+ * Bond (or re-bond / unbond) a weapon focus to a melee weapon on the actor
+ * (SR2E p.126). Updates the focus's bondedWeaponId; the derived pipeline reprices
+ * it and re-tags the weapon. Called from the Magic tab's link button.
+ * @private
+ */
+async function onBondWeaponFocus(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const id = target.closest("[data-item-id]")?.dataset.itemId;
+  const focus = actor.items.get(id);
+  if (!focus || focus.system.focusType !== "weapon") return;
+  const weapons = actor.items.filter(i => i.type === "weapon" && i.system.weaponType === "melee");
+  if (!weapons.length) return ui.notifications.warn("No melee weapon to bond to — add one first (SR2E p.126).");
+  const opts = weapons.map(w =>
+    `<option value="${w.id}"${w.id === focus.system.bondedWeaponId ? " selected" : ""}>${foundry.utils.escapeHTML(w.name)} — Reach ${w.system.reach ?? 0}</option>`).join("");
+  let chosen = null, chosenForce = focus.system.force ?? 1, unbond = false;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Bond ${focus.name}` },
+    rejectClose: false,
+    content: `<form>
+      <p style="margin:0 0 8px;">Bond this weapon focus to a melee weapon. Its price updates from that weapon's Reach and the focus's Force.</p>
+      <div class="form-group"><label>Force:</label><input type="number" name="force" value="${focus.system.force ?? 1}" min="1" max="6" style="width:60px;"></div>
+      <div class="form-group"><label>Bond to:</label><select name="weapon" autofocus style="flex:1;">${opts}</select></div>
+    </form>`,
+    buttons: [
+      { action: "bond", label: "Bond & Activate", default: true, callback: (e, b) => {
+        chosen = b.form.elements.weapon.value;
+        chosenForce = Math.max(1, parseInt(b.form.elements.force.value) || (focus.system.force ?? 1));
+      } },
+      { action: "unbond", label: "Unbond", callback: () => { unbond = true; } },
+      { action: "cancel", label: "Cancel" }
+    ]
+  });
+  if (unbond) return focus.update({ "system.bondedWeaponId": "", "system.active": false });
+  if (action !== "bond" || !chosen) return;
+  return focus.update({ "system.bondedWeaponId": chosen, "system.force": chosenForce, "system.bonded": true, "system.active": true });
+}
+
 // ---------------------------------------------------------------------------
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
@@ -2551,6 +2590,7 @@ const SHARED_ACTIONS = {
   firstAid: onFirstAid,
   contributeTeamKarma: onContributeTeamKarma,
   drawTeamKarma: onDrawTeamKarma,
+  bondWeaponFocus: onBondWeaponFocus,
 
   /**
    * Increment the condition monitor of a linked vehicle actor.

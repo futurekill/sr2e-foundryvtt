@@ -205,8 +205,17 @@
           <span class="item-name">{{focus.name}}</span>
           <span>{{focus.system.focusType}}</span>
           <span>Force: {{focus.system.force}}</span>
+          {{#ifEquals focus.system.focusType "weapon"}}
+            {{#if focus.system._bondedWeaponName}}
+            <span class="focus-bond" title="Bonded to {{focus.system._bondedWeaponName}} — adds Force {{focus.system.force}} in dice to its melee and astral attacks{{#unless focus.system.active}} (currently inactive){{/unless}}.">✦ {{focus.system._bondedWeaponName}}{{#unless focus.system.active}} (inactive){{/unless}}</span>
+            {{else}}
+            <span class="focus-bond warn" title="Not bonded to a weapon — click the link button to bond it.">⚠ unbonded</span>
+            {{/if}}
+          {{else}}
           <span>{{#if focus.system.bonded}}Bonded{{else}}Unbonded{{/if}}</span>
+          {{/ifEquals}}
           <div class="item-controls">
+            {{#ifEquals focus.system.focusType "weapon"}}<a data-action="bondWeaponFocus" title="Bond / re-bond this focus to a melee weapon"><i class="fas fa-link"></i></a>{{/ifEquals}}
             {{#if focus.system.expendable}}<a data-action="spendFocus" title="Spend (single-use)"><i class="fas fa-bolt"></i></a>{{/if}}
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem"><i class="fas fa-trash"></i></a>

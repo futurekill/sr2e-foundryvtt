@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, weaponFocusCost } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
@@ -337,6 +337,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // --- Tradition drop handling ---
     if (itemData.type === "tradition") return this._onDropTradition(itemData);
 
+    // --- Weapon focus: bond to an existing melee weapon on drop (SR2E p.126),
+    // which prices it (Reach + Force) and auto-bonds/activates it. ---
+    if (itemData.type === "focus" && itemData.system?.focusType === "weapon") {
+      if (!(await this._bondWeaponFocusOnDrop(itemData))) return null;
+    }
+
     const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
 
     // Auto-charge purchases (user request): characters pay the street price
@@ -371,6 +377,53 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       }
     }
     return created;
+  }
+
+  /**
+   * A weapon focus must bond to an existing melee weapon on drop (SR2E p.126):
+   * prompt for one, then stamp bond fields + the derived price onto `itemData`
+   * (mutated in place) before it's created and charged. Returns false to abort
+   * the drop (no melee weapon on the actor, or the user cancelled).
+   * @param {object} itemData  focus item source data (mutated)
+   * @private
+   */
+  async _bondWeaponFocusOnDrop(itemData) {
+    const actor = this.document;
+    const weapons = actor.items.filter(i => i.type === "weapon" && i.system.weaponType === "melee");
+    if (!weapons.length) {
+      ui.notifications.warn("Add a melee weapon first — a weapon focus must be bonded to one (SR2E p.126).");
+      return false;
+    }
+    const force = itemData.system.force ?? 1;
+    const opts = weapons.map(w =>
+      `<option value="${w.id}">${foundry.utils.escapeHTML(w.name)} — Reach ${w.system.reach ?? 0}, ${foundry.utils.escapeHTML(w.system.damageCode ?? "")}</option>`).join("");
+    let chosen = null, chosenForce = force;
+    const action = await foundry.applications.api.DialogV2.wait({
+      window: { title: `Bond ${itemData.name}` },
+      rejectClose: false,
+      content: `<form>
+        <p style="margin:0 0 8px;">A weapon focus bonds to one melee weapon and adds its Force in dice to that weapon's attacks — on the physical and astral planes. Price = <strong>(Reach + 1) × 100,000¥ + Force × 90,000¥</strong>.</p>
+        <div class="form-group"><label>Force:</label>
+          <input type="number" name="force" value="${force}" min="1" max="6" style="width:60px;"></div>
+        <div class="form-group"><label>Bond to:</label>
+          <select name="weapon" autofocus style="flex:1;">${opts}</select></div>
+      </form>`,
+      buttons: [
+        { action: "bond", label: "Bond & Activate", default: true, callback: (e, b) => {
+          chosen = b.form.elements.weapon.value;
+          chosenForce = Math.max(1, parseInt(b.form.elements.force.value) || force);
+        } },
+        { action: "cancel", label: "Cancel" }
+      ]
+    });
+    if (action !== "bond" || !chosen) return false;
+    const weapon = actor.items.get(chosen);
+    itemData.system.force = chosenForce;
+    itemData.system.bondedWeaponId = chosen;
+    itemData.system.bonded = true;
+    itemData.system.active = true;
+    itemData.system.cost = weaponFocusCost(weapon?.system.reach ?? 0, chosenForce);
+    return true;
   }
 
   /**

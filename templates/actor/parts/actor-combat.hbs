@@ -48,11 +48,11 @@
             {{#if weapon.system.firingModes.bf}}BF {{/if}}
             {{#if weapon.system.firingModes.fa}}FA {{/if}}
           </span>
-          {{#ifGt weapon.system.weaponFocusForce 0}}
-          <span class="weapon-focus-badge" title="Weapon Focus Force {{weapon.system.weaponFocusForce}}{{#unless weapon.system.focusBonded}} — NOT bonded (no dice until bonded){{/unless}}">
-            ✦{{weapon.system.weaponFocusForce}}{{#if weapon.system.focusBonded}} bonded{{else}} unbonded{{/if}}
+          {{#if weapon.system._boundFocusForce}}
+          <span class="weapon-focus-badge" title="Weapon Focus: {{weapon.system._boundFocusName}} (Force {{weapon.system._boundFocusForce}}){{#unless weapon.system._boundFocusActive}} — inactive (bond & activate it on the Magic tab for the +dice){{/unless}}">
+            ✦{{weapon.system._boundFocusForce}}{{#if weapon.system._boundFocusActive}} focus{{else}} inactive{{/if}}
           </span>
-          {{/ifGt}}
+          {{/if}}
           <div class="item-controls">
             {{#ifEquals weapon.name "Unarmed Strike"}}
             <span class="innate-badge" title="Innate — every character has Unarmed Strike; it can't be sold or deleted."><i class="fas fa-hand-fist"></i></span>

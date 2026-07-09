@@ -85,20 +85,12 @@
     <label>Reach:</label>
     <input type="number" name="system.reach" value="{{system.reach}}" min="0" />
   </div>
+  {{#if system._boundFocusName}}
   <div class="form-group">
-    <label title="If this weapon is a Weapon Focus, its Force adds that many dice to your melee attacks when bonded (SR2E p.126). 0 = not a focus.">Weapon Focus (Force):</label>
-    <input type="number" name="system.weaponFocusForce" value="{{system.weaponFocusForce}}" min="0" />
+    <label title="A Weapon Focus item is bonded to this weapon (SR2E p.126). Manage it on the Magic tab.">Weapon Focus:</label>
+    <span class="focus-price">✦ {{system._boundFocusName}} (Force {{system._boundFocusForce}}){{#unless system._boundFocusActive}} — inactive{{/unless}}</span>
   </div>
-  {{#ifGt system.weaponFocusForce 0}}
-  <div class="form-group">
-    <label title="Bond the focus (Karma) before its Force adds to attacks.">Focus Bonded:</label>
-    <input type="checkbox" name="system.focusBonded" {{checked system.focusBonded}} />
-  </div>
-  <div class="form-group">
-    <label title="[(Reach + 1) × 100,000¥] + Rating × 90,000¥ (SR2E p.126). Set automatically from Reach and Force.">Focus Price:</label>
-    <span class="focus-price">{{numberFormat system.cost}}¥</span>
-  </div>
-  {{/ifGt}}
+  {{/if}}
 
   {{!-- Firearm-specific fields --}}
   {{#ifEquals system.weaponType "firearm"}}

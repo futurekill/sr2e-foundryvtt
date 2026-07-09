@@ -11,7 +11,7 @@
     "active": false,
     "cost": 10000,
     "notes": "SR2E p.164. A weapon imbued with magical energy. Adds Force to melee attack dice pools and can affect astral entities. Force 1.",
-    "costPerForce": 10000
+    "costPerForce": 0
   },
   "effects": [],
   "flags": {},

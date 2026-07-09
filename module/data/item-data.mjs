@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, weaponFocusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -184,16 +184,6 @@ export class WeaponData extends SR2EDataModel {
       quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };
-  }
-
-  /** True when this weapon is enchanted as a weapon focus (Rating > 0). */
-  get isWeaponFocus() {
-    return (this.weaponFocusForce ?? 0) > 0;
-  }
-
-  /** @override — a weapon focus derives its price from Reach + Rating (p.126). */
-  prepareDerivedData() {
-    if (this.isWeaponFocus) this.cost = weaponFocusCost(this.reach, this.weaponFocusForce);
   }
 
   /**
@@ -689,6 +679,10 @@ export class FocusData extends SR2EDataModel {
       bondingCost: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       bonded: new fields.BooleanField({ initial: false }),
       active: new fields.BooleanField({ initial: false }),
+      // Weapon focus (focusType "weapon"): the id of the melee weapon item on the
+      // same actor this focus is bonded to. Its Reach drives the price and it
+      // gains the focus's Force in dice; astral attacks manifest it (SR2E p.126).
+      bondedWeaponId: new fields.StringField({ initial: "", blank: true }),
       // Single-use foci (Grimoire fetish foci): a "Spend" button on the magic tab
       // expends the item after enhancing one casting.
       expendable: new fields.BooleanField({ initial: false }),

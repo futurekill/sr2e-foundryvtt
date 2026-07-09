@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -341,6 +341,38 @@ export class CharacterData extends SR2EDataModel {
     // Physical-adept Improved Ability: add each power's levels to its named skill
     // as a derived bonus (rolled, not paid with skill points).
     this._applyAdeptSkills();
+
+    // Weapon foci: price each from its bonded weapon's Reach + Force, and tag the
+    // bonded weapon so the Combat tab shows the focus and melee adds its dice.
+    this._applyWeaponFoci();
+  }
+
+  /**
+   * Wire each weapon focus (focusType "weapon") to the melee weapon it's bonded
+   * to (SR2E p.126). Derives the focus PRICE from the bonded weapon's Reach and
+   * the focus Force — [(Reach + 1) × 100k] + Force × 90k — and tags the weapon
+   * with `_boundFocus*` so the Combat tab and melee-attack dice can find it. Only
+   * the specific bonded weapon benefits (not every melee attack). No source
+   * mutation — un-bonding clears it on the next prepare.
+   * @private
+   */
+  _applyWeaponFoci() {
+    const items = this.parent?.items;
+    if (!items) return;
+    for (const focus of items) {
+      if (focus.type !== "focus" || focus.system.focusType !== "weapon") continue;
+      const weapon = focus.system.bondedWeaponId ? items.get(focus.system.bondedWeaponId) : null;
+      if (weapon?.type === "weapon") {
+        focus.system.cost = weaponFocusCost(weapon.system.reach ?? 0, focus.system.force ?? 0);
+        focus.system._bondedWeaponName = weapon.name;
+        weapon.system._boundFocusId = focus.id;
+        weapon.system._boundFocusName = focus.name;
+        weapon.system._boundFocusForce = focus.system.force ?? 0;
+        weapon.system._boundFocusActive = !!(focus.system.bonded && focus.system.active);
+      } else {
+        focus.system._bondedWeaponName = "";
+      }
+    }
   }
 
   /**

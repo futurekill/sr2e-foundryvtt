@@ -437,6 +437,39 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Adept power points" });
 
+    // ── Weapon focus bonded to a melee weapon (SR2E p.126) ─────────────────────
+    quench.registerBatch("sr2e.weapon-focus", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { await actor?.delete(); });
+
+      describe("Weapon focus bonding (SR2E p.126)", () => {
+        it("prices from the bonded weapon's Reach + Force and tags the weapon", async () => {
+          actor = await Actor.create({ name: "Quench Focus", type: "character" });
+          const [katana] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Katana", type: "weapon", system: { weaponType: "melee", reach: 1, damageCode: "6M" } }
+          ]);
+          const [focus] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Katana Focus", type: "focus",
+              system: { focusType: "weapon", force: 2, bonded: true, active: true, bondedWeaponId: katana.id } }
+          ]);
+          // Price = (Reach 1 + 1)*100k + Force 2*90k = 380,000
+          assert.equal(actor.items.get(focus.id).system.cost, 380000, "focus price should derive from reach+force");
+          const w = actor.items.get(katana.id);
+          assert.equal(w.system._boundFocusForce, 2, "weapon should be tagged with the focus force");
+          assert.equal(w.system._boundFocusActive, true, "weapon focus should read as active");
+        });
+
+        it("only the bonded weapon gets the dice, not other melee weapons", async () => {
+          const [club] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Club", type: "weapon", system: { weaponType: "melee", reach: 1, damageCode: "5M" } }
+          ]);
+          assert.ok(!actor.items.get(club.id).system._boundFocusForce,
+            "an unbonded melee weapon must not gain focus dice");
+        });
+      });
+    }, { displayName: "SR2E: Weapon focus" });
+
     // ── Innate Unarmed Strike can't be sold or deleted ─────────────────────────
     quench.registerBatch("sr2e.unarmed-protected", (context) => {
       const { describe, it, assert, after } = context;

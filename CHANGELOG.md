@@ -4,7 +4,20 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-## 0.30.10 — 2026-07-09
+## 0.31.0 — 2026-07-09
+
+### Features
+- **Weapon foci reworked — bond a focus to a weapon.** A Weapon Focus is now a
+  focus item you bond to an existing melee weapon: dropping one prompts you to
+  pick the weapon and its Force, prices it as `(Reach + 1) × 100,000¥ + Force ×
+  90,000¥`, and auto-bonds + activates it. The **Magic tab** shows which weapon
+  each focus is bonded to (with a link button to re-bond/unbond); the **Combat
+  tab** shows the `✦ focus` badge on the bonded weapon. Only that weapon gains
+  the focus's Force in dice — on both the physical and astral planes (astral
+  attacks already manifest a bonded weapon focus). The old "the weapon *is* the
+  focus" fields from 0.30.8 are retired.
+
+
 
 ### Features
 - **Augmented scores stand out at a glance.** An attribute (or Reaction) changed
