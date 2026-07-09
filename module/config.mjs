@@ -114,17 +114,17 @@ SR2E.skillCategories = {
 // below (and while the web data is being verified).
 SR2E.defaultingPenalty = 4;
 
-// THE SKILL WEB (SR2E p.69) — route graph consumed by webDefaultingTN().
-// Nodes are attributes/skills (B/R skills carry `parentSkill`); `skillKey` maps
-// a node to the rollable activeSkills key where one exists. Edges carry `cost`
-// = TN the hop adds (one circle = 2, SR2E p.69) and are TWO-WAY by default —
-// the book blocks a trace only where a printed arrow opposes it, so edges with
-// a printed arrow are marked `dir: "oneWay"`. Skill→skill defaulting EMERGES
-// from the topology (desired → back up its branch → junction → out to the
-// owned skill, paying both branches' circles) — do not hand-author pairwise
-// skill→skill edges; only add a direct link where the diagram draws one.
-// Costs are GM-verified attribute→skill circle totals from a photo of p.69.
-// ⚠ Not yet wired into rolls — the flat +4 above still applies.
+// THE SKILL WEB (SR2E p.68–69) — the printed route map, consumed by
+// findBestPath()/webDefaultingTN() and locked by test/skill-web.test.mjs.
+// `nodes` are attribute/skill ANCHORS (B/R skills carry `parentSkill`; `skillKey`
+// maps to the rollable activeSkills key where one exists). `links` (below) wire
+// anchors and zero-cost junctions through `circles` (black dots, +2 TN each) and
+// are the ONLY cost. Defaulting = the shortest legal route by circles; one-way
+// printed arrows (dir "aToB"/"bToA") block travel against them, and an unreached
+// skill returns null (defaulting not allowed) rather than a flat penalty. The
+// flat SR2E.defaultingPenalty above is only the fallback for skills not on the
+// web (e.g. Launch Weapons). Model the printed map — do NOT add direct
+// skill→skill links; skill→skill defaulting emerges from the shared junctions.
 SR2E.skillWeb = {
   nodes: {
     // Attributes
@@ -187,90 +187,93 @@ SR2E.skillWeb = {
     conjuring: { label: "Conjuring", type: "skill", skillKey: "conjuring" },
     sorcery: { label: "Sorcery", type: "skill", skillKey: "sorcery" },
   },
-  // Edges: two-way unless dir:"oneWay" (printed arrow). cost = TN (1 circle = 2).
-  // GM-verified: Quickness cluster, social cluster. Others pending verification.
-  edges: [
-    // Quickness (GM-verified totals; Stealth is 2 circles from Quickness, so
-    // e.g. Athletics↔Stealth emerges as 1+2 = 3 circles = +6)
-    { from: "quickness", to: "athletics", cost: 2 },
-    { from: "quickness", to: "stealth", cost: 4 },
-    { from: "quickness", to: "firearms", cost: 2 },
-    { from: "firearms", to: "firearmsBR", cost: 2 },
-    { from: "quickness", to: "gunnery", cost: 2 },
-    { from: "gunnery", to: "gunneryBR", cost: 2 },
-    { from: "quickness", to: "projectile", cost: 4 },           // 2 circles (GM correction)
-    { from: "projectile", to: "projectileBR", cost: 2 },
-    { from: "quickness", to: "throwing", cost: 4 },             // 2 circles (GM correction)
-    { from: "throwing", to: "throwingBR", cost: 2 },
-    // Armed & Unarmed Combat are SINKS — all three source attributes' arrows
-    // point INTO them (p.69), so every attribute→melee edge is one-way. This is
-    // why Body/Strength reach ONLY the melee skills and can't ride back out into
-    // the Quickness cluster.
-    { from: "quickness", to: "armedCombat", cost: 2, dir: "oneWay" },
-    { from: "armedCombat", to: "armedCombatBR", cost: 2 },
-    { from: "quickness", to: "unarmedCombat", cost: 2, dir: "oneWay" },
-    { from: "strength", to: "armedCombat", cost: 2, dir: "oneWay" },
-    { from: "strength", to: "unarmedCombat", cost: 2, dir: "oneWay" },
-    { from: "body", to: "armedCombat", cost: 2, dir: "oneWay" },
-    { from: "body", to: "unarmedCombat", cost: 2, dir: "oneWay" },
-    // Tech — rooted at INTELLIGENCE via the academic bridge (Computer↔Computer
-    // Theory, Biotech↔Biology). Per the GM's listing, Body reaches ONLY the
-    // melee skills; tech defaults to Intelligence, not Body.
-    { from: "computer", to: "computerBR", cost: 2 },
-    { from: "electronics", to: "electronicsBR", cost: 2 },
-    { from: "biotech", to: "biotechBR", cost: 2 },
-    { from: "computer", to: "computerTheory", cost: 2 },
-    { from: "electronics", to: "computerTheory", cost: 2 },
-    { from: "biotech", to: "biology", cost: 2 },
-    // Social (GM-verified): Charisma→Leadership 2 circles (+4); Interrogation
-    // & Negotiation one circle deeper (3 total, +6). Knowing one defaults its
-    // sibling at +4 (back over its circle, out over the other's) — emergent,
-    // no direct edge. Etiquette (via Leadership, +6) not yet confirmed.
-    { from: "charisma", to: "leadership", cost: 4 },
-    { from: "leadership", to: "interrogation", cost: 2 },
-    { from: "leadership", to: "negotiation", cost: 2 },
-    { from: "leadership", to: "etiquette", cost: 2 },
-    // Vehicles (pending GM verification of circle counts)
-    { from: "reaction", to: "groundVehicles", cost: 2 },
-    { from: "groundVehicles", to: "hovercraft", cost: 2 },
-    { from: "groundVehicles", to: "bike", cost: 2 },
-    { from: "bike", to: "car", cost: 2 },
-    { from: "reaction", to: "boats", cost: 2 },
-    { from: "boats", to: "motorboat", cost: 2 },
-    { from: "boats", to: "sailboat", cost: 2 },
-    { from: "reaction", to: "aircraft", cost: 2 },
-    { from: "aircraft", to: "winged", cost: 2 },
-    { from: "aircraft", to: "rotor", cost: 2 },
-    { from: "rotor", to: "vectorThrust", cost: 2 },
-    // Intelligence academic + tech root
-    { from: "intelligence", to: "physicalSciences", cost: 2 },
-    { from: "physicalSciences", to: "demolitions", cost: 2 },
-    { from: "physicalSciences", to: "computerTheory", cost: 2 },
-    { from: "computerTheory", to: "cybertechnology", cost: 2 },
-    { from: "cybertechnology", to: "biology", cost: 2 },
-    // Social sciences — rooted at WILLPOWER (reachable from Intelligence too via
-    // the one-way academic bridge below)
-    { from: "willpower", to: "militaryTheory", cost: 2 },
-    { from: "militaryTheory", to: "psychology", cost: 2 },
-    { from: "psychology", to: "sociology", cost: 2 },
-    // Magic — rooted at Willpower
-    { from: "willpower", to: "magicalTheory", cost: 2 },
-    { from: "magicalTheory", to: "conjuring", cost: 2 },
-    { from: "magicalTheory", to: "sorcery", cost: 2 },
-    // Cross-cluster bridges (ONE-WAY, per the printed arrows) that produce the
-    // nested reachability Charisma ⊂ Willpower ⊂ Intelligence for social/magic:
-    //   • Intelligence academic → Willpower cluster: Int reaches magic + social
-    //     sciences (and, via the next bridge, the social skills).
-    //   • Willpower cluster → Charisma: Willpower & Intelligence reach the social
-    //     skills; Charisma cannot reach back into magic.
-    // ⚠ bridge circle counts are placeholders pending verification.
-    { from: "biology", to: "willpower", cost: 2, dir: "oneWay" },
-    // Willpower reaches the Charisma social skills ONLY through Psychology or
-    // Sociology (GM: two one-way arrows into Charisma; the magic branch does not
-    // bridge). Willpower has no path to the academic/tech Intelligence skills.
-    { from: "psychology", to: "charisma", cost: 2, dir: "oneWay" },
-    { from: "sociology", to: "charisma", cost: 2, dir: "oneWay" },
-  ]
+  // Route graph (the printed Skill Web modeled as a map, NOT direct skill→skill
+  // edges). `links` connect entity anchors (keys in `nodes`) and zero-cost
+  // junctions (ids prefixed `j_`) through `circles` (black dots) — each circle
+  // crossed adds +2 TN. dir: "both" (bidirectional), "aToB", or "bToA" (printed
+  // one-way arrows block travel against them). Shortest legal path by circles is
+  // the defaulting penalty (module/rules findBestPath). GM-verified against the
+  // physical web via docs/SKILL-WEB-VERIFY.md; test/skill-web.test.mjs locks the
+  // circle counts and the acceptance cases (e.g. biology→computer = 5, arrows
+  // block armedCombat→quickness).
+  links: [
+    // ── Quickness ──────────────────────────────────────────────────────────
+    { from: "quickness", to: "j_q_as", circles: 0, dir: "both" },
+    { from: "j_q_as", to: "athletics", circles: 1, dir: "both" },
+    { from: "j_q_as", to: "stealth", circles: 2, dir: "both" },
+    { from: "quickness", to: "j_q_fg", circles: 1, dir: "both" },
+    { from: "j_q_fg", to: "firearms", circles: 1, dir: "both" },
+    { from: "j_q_fg", to: "gunnery", circles: 1, dir: "both" },
+    { from: "firearms", to: "firearmsBR", circles: 1, dir: "both" },
+    { from: "gunnery", to: "gunneryBR", circles: 1, dir: "both" },
+    { from: "quickness", to: "j_q_pt", circles: 1, dir: "both" },
+    { from: "j_q_pt", to: "projectile", circles: 1, dir: "both" },
+    { from: "j_q_pt", to: "throwing", circles: 1, dir: "both" },
+    { from: "projectile", to: "projectileBR", circles: 1, dir: "both" },
+    { from: "throwing", to: "throwingBR", circles: 1, dir: "both" },
+    // ── Armed & Unarmed Combat — SINKS (printed arrows point IN, p.69) ────────
+    // Strength 2 circles, Body 3; Quickness does not reach melee. One-way in, so
+    // there is no path back out to any attribute (armedCombat→quickness = null).
+    { from: "strength", to: "j_melee", circles: 1, dir: "aToB" },
+    { from: "body", to: "j_melee", circles: 2, dir: "aToB" },
+    { from: "j_melee", to: "armedCombat", circles: 1, dir: "both" },
+    { from: "j_melee", to: "unarmedCombat", circles: 1, dir: "both" },
+    { from: "armedCombat", to: "armedCombatBR", circles: 1, dir: "both" },
+    // ── Charisma — social ────────────────────────────────────────────────────
+    { from: "charisma", to: "j_ch", circles: 1, dir: "both" },
+    { from: "j_ch", to: "leadership", circles: 1, dir: "both" },
+    { from: "j_ch", to: "etiquette", circles: 1, dir: "both" },
+    { from: "leadership", to: "j_ch_in", circles: 1, dir: "both" },
+    { from: "j_ch_in", to: "interrogation", circles: 0, dir: "both" },
+    { from: "j_ch_in", to: "negotiation", circles: 0, dir: "both" },
+    // ── Willpower — magic & social sciences ──────────────────────────────────
+    { from: "willpower", to: "magicalTheory", circles: 3, dir: "both" },
+    { from: "magicalTheory", to: "conjuring", circles: 2, dir: "both" },
+    { from: "magicalTheory", to: "sorcery", circles: 2, dir: "both" },
+    { from: "willpower", to: "psychology", circles: 3, dir: "both" },
+    { from: "psychology", to: "sociology", circles: 1, dir: "both" },
+    { from: "sociology", to: "militaryTheory", circles: 1, dir: "both" },
+    // ── Intelligence — academic & tech ───────────────────────────────────────
+    // Intelligence's arrows are one-way INTO the academic skills, so the cluster
+    // can't shortcut back through the attribute (this is why biology→computer is
+    // 5, not a cheap ride through Intelligence). Physical Sciences & Demolitions
+    // are leaves; Cybertechnology↔Biology are adjacent (1 circle).
+    { from: "intelligence", to: "physicalSciences", circles: 3, dir: "aToB" },
+    { from: "intelligence", to: "demolitions", circles: 3, dir: "aToB" },
+    { from: "intelligence", to: "computerTheory", circles: 3, dir: "aToB" },
+    { from: "intelligence", to: "cybertechnology", circles: 3, dir: "aToB" },
+    { from: "intelligence", to: "biology", circles: 3, dir: "aToB" },
+    { from: "biology", to: "cybertechnology", circles: 1, dir: "both" },
+    { from: "cybertechnology", to: "computerTheory", circles: 3, dir: "both" },
+    { from: "computerTheory", to: "computer", circles: 1, dir: "both" },
+    { from: "computer", to: "electronics", circles: 1, dir: "both" },
+    { from: "biology", to: "biotech", circles: 2, dir: "both" },
+    { from: "computer", to: "computerBR", circles: 1, dir: "both" },
+    { from: "electronics", to: "electronicsBR", circles: 1, dir: "both" },
+    { from: "biotech", to: "biotechBR", circles: 1, dir: "both" },
+    // ── Reaction — vehicles ──────────────────────────────────────────────────
+    { from: "reaction", to: "j_r_ground", circles: 1, dir: "both" },
+    { from: "j_r_ground", to: "groundVehicles", circles: 1, dir: "both" },
+    { from: "j_r_ground", to: "hovercraft", circles: 1, dir: "both" },
+    { from: "j_r_ground", to: "bike", circles: 1, dir: "both" },
+    { from: "j_r_ground", to: "car", circles: 1, dir: "both" },
+    { from: "reaction", to: "j_r_water", circles: 1, dir: "both" },
+    { from: "j_r_water", to: "boats", circles: 1, dir: "both" },
+    { from: "j_r_water", to: "motorboat", circles: 1, dir: "both" },
+    { from: "j_r_water", to: "sailboat", circles: 1, dir: "both" },
+    { from: "reaction", to: "j_r_air", circles: 2, dir: "both" },
+    { from: "j_r_air", to: "aircraft", circles: 1, dir: "both" },
+    { from: "j_r_air", to: "winged", circles: 1, dir: "both" },
+    { from: "j_r_air", to: "rotor", circles: 1, dir: "both" },
+    { from: "j_r_air", to: "vectorThrust", circles: 1, dir: "both" },
+    // ── Cross-cluster bridges (one-way arrows) ───────────────────────────────
+    // Nested reachability Charisma ⊂ Willpower ⊂ Intelligence: Intelligence
+    // reaches the Willpower cluster (3 circles); the Willpower social sciences
+    // reach Charisma via a one-way arrow that lands as a junction (Sociology → 4
+    // circles to Charisma). Charisma cannot ride back.
+    { from: "intelligence", to: "willpower", circles: 3, dir: "aToB" },
+    { from: "sociology", to: "charisma", circles: 0, dir: "aToB" },
+  ],
 };
 
 // Active skill linked attributes

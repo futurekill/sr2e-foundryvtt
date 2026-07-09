@@ -1204,76 +1204,88 @@ export function simsenseOverloadTN(level) {
 /** Attribute node keys that can seed an attribute-default (SR2E p.69). */
 export const WEB_ATTRIBUTES = ["body", "quickness", "strength", "charisma", "intelligence", "willpower", "reaction"];
 
-/** Shortest directed distance (summed circle weights) from `start` to every
- *  reachable node, over the given adjacency map. Dijkstra; the web is tiny. */
-function webDistances(start, adjacency) {
-  const dist = new Map([[start, 0]]);
+/** Directed adjacency over the route graph's `links`. Circle counts are the
+ *  edge weights; junctions (ids not in `nodes`) are just zero-labelled waypoints.
+ *  dir: "both" (default), "aToB" (from→to only), "bToA" (to→from only). */
+function webAdjacency(web) {
+  const adj = new Map();
+  const add = (a, b, w) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push({ node: b, w }); };
+  for (const l of web?.links ?? []) {
+    const w = l.circles ?? 0;
+    if (l.dir !== "bToA") add(l.from, l.to, w);
+    if (l.dir !== "aToB") add(l.to, l.from, w);
+  }
+  return adj;
+}
+
+/**
+ * Shortest legal Skill Web route from one entity anchor to another, by number
+ * of black circles crossed (SR2E p.68–69). Circles are the cost; junctions and
+ * arrow landings are free; one-way arrows block travel against them. Returns
+ * null when no legal route exists (defaulting is not allowed — do NOT assign a
+ * penalty). Mirrors the reference `findBestPath` contract.
+ *
+ * @param {{links: {from:string,to:string,circles?:number,dir?:string}[]}} web
+ * @param {string} fromId  starting entity id (attribute or skill)
+ * @param {string} toId    destination entity id
+ * @returns {{from:string,to:string,circles:number,targetNumberModifier:number,path:string[]}|null}
+ */
+export function findBestPath(web, fromId, toId) {
+  if (fromId === toId) return { from: fromId, to: toId, circles: 0, targetNumberModifier: 0, path: [fromId] };
+  const adj = webAdjacency(web);
+  const dist = new Map([[fromId, 0]]);
+  const prev = new Map();
   const seen = new Set();
-  while (seen.size < dist.size) {
-    // pick the unseen node with the smallest tentative distance
+  while (true) {
     let u = null, best = Infinity;
-    for (const [node, d] of dist) {
-      if (!seen.has(node) && d < best) { best = d; u = node; }
-    }
-    if (u == null) break;
+    for (const [n, d] of dist) if (!seen.has(n) && d < best) { best = d; u = n; }
+    if (u == null || u === toId) break;
     seen.add(u);
-    for (const { node: v, w } of adjacency.get(u) ?? []) {
+    for (const { node: v, w } of adj.get(u) ?? []) {
       const nd = best + w;
-      if (nd < (dist.get(v) ?? Infinity)) dist.set(v, nd);
+      if (nd < (dist.get(v) ?? Infinity)) { dist.set(v, nd); prev.set(v, u); }
     }
   }
-  return dist;
+  if (!dist.has(toId)) return null;
+  const path = [toId];
+  for (let c = toId; c !== fromId; ) { c = prev.get(c); path.unshift(c); }
+  const circles = dist.get(toId);
+  return { from: fromId, to: toId, circles, targetNumberModifier: circles * 2, path };
 }
 
 /**
  * Minimum Skill Web defaulting TN penalty for rolling `target` untrained
- * (SR2E p.68–69). Considers both related-skill and attribute defaulting and
- * returns the cheaper. Returns null when the skill cannot be reached from any
- * attribute or owned skill (an unconnected skill).
+ * (SR2E p.68–69). Considers attribute defaulting (attribute → target) and
+ * related-skill defaulting (target → an owned skill), returning the cheaper.
+ * Ties favour the related skill (you roll its rating — usually more dice).
+ * Returns null when the skill cannot be reached from any attribute or owned
+ * skill (an unconnected skill — defaulting is not allowed).
  *
- * Edge weight is `cost` — the TN each edge adds (one circle = 2). Penalty is the
- * summed cost of the cheapest legal path. Links are TWO-WAY by default (the
- * book blocks a path only where a printed arrow opposes it — p.69); mark an
- * edge `dir: "oneWay"` to model a printed arrow (traversable from→to only).
- * With two-way links, skill→skill defaulting emerges from the topology (e.g.
- * desired → back up its branch → shared junction → out to the owned skill,
- * paying both branches' circles) instead of needing hand-authored pairs.
- *
- * @param {{edges: {from:string, to:string, cost?:number, dir?:"oneWay"}[]}} web
- * @param {string} target  desired skill/node key
- * @param {string[]} [owned]  skill keys the character has at rating > 0
+ * @param {object} web  the route graph (CONFIG.SR2E.skillWeb)
+ * @param {string} target  desired skill entity id
+ * @param {string[]} [owned]  skill entity ids the character has at rating > 0
  * @returns {{penalty:number, source:string, kind:"skill"|"attribute"}|null}
  */
 export function webDefaultingTN(web, target, owned = []) {
-  const fwd = new Map();   // from → [{node:to, w:cost}]
-  const rev = new Map();   // to   → [{node:from, w:cost}]  (reverse graph)
-  const addArc = (a, b, w) => {
-    if (!fwd.has(a)) fwd.set(a, []);
-    if (!rev.has(b)) rev.set(b, []);
-    fwd.get(a).push({ node: b, w });
-    rev.get(b).push({ node: a, w });
-  };
-  for (const e of web?.edges ?? []) {
-    const w = e.cost ?? (e.circles != null ? e.circles * 2 : 2);
-    addArc(e.from, e.to, w);
-    if (e.dir !== "oneWay") addArc(e.to, e.from, w);
-  }
-
   let best = null;
-  const consider = (tn, source, kind) => {
-    if (tn != null && tn !== Infinity && (best == null || tn < best.tn)) {
-      best = { tn, source, kind };
+  const consider = (circles, source, kind) => {
+    if (circles == null) return;
+    // Cheaper wins; on a tie, a related skill beats an attribute.
+    if (best == null || circles < best.circles ||
+        (circles === best.circles && kind === "skill" && best.kind === "attribute")) {
+      best = { circles, source, kind };
     }
   };
 
-  // Related-skill: path target → an owned skill, following arrows.
-  const fromTarget = webDistances(target, fwd);
-  for (const s of owned) if (s !== target) consider(fromTarget.get(s), s, "skill");
+  for (const a of WEB_ATTRIBUTES) {
+    const p = findBestPath(web, a, target);
+    if (p) consider(p.circles, a, "attribute");
+  }
+  for (const s of owned) {
+    if (s === target) continue;
+    const p = findBestPath(web, target, s);
+    if (p) consider(p.circles, s, "skill");
+  }
 
-  // Attribute: path attribute → target, following arrows. Reverse-graph
-  // distances from target give the shortest FROM each attribute TO target.
-  const toTarget = webDistances(target, rev);
-  for (const a of WEB_ATTRIBUTES) consider(toTarget.get(a), a, "attribute");
-
-  return best ? { penalty: best.tn, source: best.source, kind: best.kind } : null;
+  return best ? { penalty: best.circles * 2, source: best.source, kind: best.kind } : null;
 }

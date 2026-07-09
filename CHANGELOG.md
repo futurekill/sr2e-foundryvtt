@@ -23,10 +23,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   an untrained skill no longer adds a flat +4 — it traces the cheapest legal
   path on the Skill Web and charges +2 per circle, defaulting to a *related
   skill you have* when that's cheaper than the attribute (e.g. roll Cybertech
-  with Biology → +2, not the attribute route). Connectivity is fully verified
-  against the book; circle *costs* on the non-combat clusters are provisional
-  (a flat +4 fallback covers any skill not yet on the web, e.g. Launch Weapons).
-  Full-fidelity circle counts are in progress.
+  with Biology → +2, not the attribute route). A flat +4 fallback still covers
+  any skill not on the web (e.g. Launch Weapons).
+- **Full-fidelity Skill Web (route graph).** The web is now modeled as the
+  *printed route map* — anchors, zero-cost junctions, black-dot circles (+2 TN
+  each), and one-way arrows — instead of per-skill edges, and solved with a
+  shortest-circles pathfinder (`findBestPath`). This fixes cases the edge model
+  got wrong: skill→skill routes that must stay inside a cluster (Biology →
+  Computer is 5 circles, not a cheap ride through the attribute), disconnected
+  clusters (Quickness can't reach Computer at all), and arrows that truly block
+  the way back (Armed Combat can't default *to* Quickness). All circle counts
+  are GM-verified against the book scans and locked by a 19-case acceptance
+  suite (`test/skill-web.test.mjs`).
 - **Combat & vehicle defaulting now route through the Skill Web too.** Untrained
   weapon attacks, melee defense, vehicle control/handling tests, vehicle gunnery,
   and First Aid (Biotech) all default via the web instead of a flat +4 — so an

@@ -72,79 +72,81 @@ describe("VR2.0 System Operations → ACIFS subsystem (FASA7904 pp.114–116)", 
   });
 });
 
-describe("Skill Web — GM-verified Quickness cluster (SR2E p.69)", () => {
+describe("Skill Web — GM-verified circle counts default correctly (SR2E p.69)", () => {
   const web = SR2E.skillWeb;
-  const node = (skillKey) => Object.entries(web.nodes).find(([, n]) => n.skillKey === skillKey)?.[0];
-  const pen = (skillKey, owned = []) => webDefaultingTN(web, node(skillKey), owned)?.penalty;
+  const pen = (target, owned = []) => webDefaultingTN(web, target, owned)?.penalty;
 
-  it("firearms/gunnery default to Quickness at +2 (1 circle)", () => {
-    expect(pen("firearms")).toBe(2);
-    expect(pen("gunnery")).toBe(2);
+  it("Quickness cluster totals (firearms/gunnery/projectile/throwing = 2 circles → +4)", () => {
+    expect(pen("athletics")).toBe(2);   // 1 circle
+    expect(pen("stealth")).toBe(4);     // 2
+    expect(pen("firearms")).toBe(4);    // 2 (GM correction)
+    expect(pen("gunnery")).toBe(4);     // 2
+    expect(pen("projectile")).toBe(4);
+    expect(pen("throwing")).toBe(4);
   });
-  it("projectile/throwing are 2 circles → +4", () => {
-    expect(pen("projectile_weapons")).toBe(4);
-    expect(pen("throwing_weapons")).toBe(4);
+  it("Melee sinks: Strength 2 circles (+4), Body 3 (+6); combat defaults to Strength", () => {
+    expect(webDefaultingTN(web, "unarmedCombat", []))
+      .toEqual({ penalty: 4, source: "strength", kind: "attribute" });
+    expect(webDefaultingTN(web, "armedCombat", []))
+      .toEqual({ penalty: 4, source: "strength", kind: "attribute" });
   });
-  it("armed/unarmed combat are 1 circle → +2 (Quickness, Strength or Body)", () => {
-    expect(pen("armed_combat")).toBe(2);
-    expect(pen("unarmed_combat")).toBe(2);
-  });
-  it("stealth is 2 hops via athletics → +4", () => {
-    expect(pen("stealth")).toBe(4);
-  });
-  it("related-skill shortcut: knowing Firearms defaults Gunnery cheaper than the attribute", () => {
-    // Both are 1 circle from Quickness (+2); no direct firearms→gunnery edge, so
-    // it still resolves via the attribute at +2 (not cheaper, but never null).
-    expect(pen("gunnery", ["firearms"])).toBe(2);
-  });
-  it("Negotiation & Interrogation are 3 circles from Charisma → +6 (GM-verified)", () => {
+  it("Social/magic totals: Leadership +4, Interrogation/Negotiation +6, Conjuring +10", () => {
+    expect(pen("leadership")).toBe(4);
+    expect(pen("etiquette")).toBe(4);
+    expect(pen("interrogation")).toBe(6);
     expect(pen("negotiation")).toBe(6);
+    expect(pen("conjuring")).toBe(10);
+    expect(pen("militaryTheory")).toBe(10);
   });
-  it("skill→skill defaulting EMERGES from the route topology (no pairwise edges)", () => {
-    // Knowing Negotiation, roll Interrogation: back over Negotiation's circle
-    // to the Leadership junction, out over Interrogation's = 2 circles → +4,
-    // cheaper than the +6 attribute path. No direct edge exists between them.
-    expect(webDefaultingTN(web, "interrogation", ["negotiation"]))
-      .toEqual({ penalty: 4, source: "negotiation", kind: "skill" });
-    // Athletics(1)↔Stealth(2) emerges as 3 circles (+6); the +4 attribute
-    // default is cheaper, so the engine picks it — both routes per the book.
-    expect(webDefaultingTN(web, "stealth", ["athletics"]))
-      .toEqual({ penalty: 4, source: "quickness", kind: "attribute" });
+  it("Intelligence academics = 3 circles (+6); tech deeper (Computer +8, Electronics/Biotech +10)", () => {
+    expect(pen("physicalSciences")).toBe(6);
+    expect(pen("cybertechnology")).toBe(6);
+    expect(pen("biology")).toBe(6);
+    expect(pen("computer")).toBe(8);
+    expect(pen("electronics")).toBe(10);
+    expect(pen("biotech")).toBe(10);
   });
-  it("printed arrows still allow attribute defaults along their direction", () => {
-    // Strength→armedCombat is one-way (arrow into the cluster) but that IS the
-    // attribute-default direction, so +2 still resolves. (Blocking of the
-    // reverse direction is covered by the algorithm fixture test.)
-    expect(pen("armed_combat")).toBe(2);
+  it("related-skill defaulting: knowing Armed Combat defaults Unarmed via the melee junction", () => {
+    // Both hang off the melee sink; back over Armed's circle, out over Unarmed's
+    // = 2 circles (+4), tying the Strength default — the related skill wins the tie.
+    expect(webDefaultingTN(web, "unarmedCombat", ["armedCombat"]))
+      .toEqual({ penalty: 4, source: "armedCombat", kind: "skill" });
+    // GM's own example: knowing Biology defaults Cybertechnology at 1 circle (+2).
+    expect(webDefaultingTN(web, "cybertechnology", ["biology"]))
+      .toEqual({ penalty: 2, source: "biology", kind: "skill" });
+  });
+  it("unconnected skills return null (defaulting not allowed, not a flat penalty)", () => {
+    // Launch Weapons isn't on the web at all.
+    expect(webDefaultingTN(web, "launch_weapons", [])).toBeNull();
   });
 });
 
-describe("Skill Web reachability — matches the GM's per-attribute listing (p.69)", () => {
+describe("Skill Web reachability — nested Charisma ⊂ Willpower ⊂ Intelligence (p.69)", () => {
   const web = SR2E.skillWeb;
-  // reachable skill nodes from an attribute, honoring one-way edges
   const reach = (attr) => {
     const adj = {};
-    for (const e of web.edges) {
-      (adj[e.from] ??= []).push(e.to);
-      if (e.dir !== "oneWay") (adj[e.to] ??= []).push(e.from);
+    for (const l of web.links) {
+      if (l.dir !== "bToA") (adj[l.from] ??= []).push(l.to);
+      if (l.dir !== "aToB") (adj[l.to] ??= []).push(l.from);
     }
     const seen = new Set([attr]); const q = [attr];
     while (q.length) for (const n of adj[q.shift()] ?? []) if (!seen.has(n)) { seen.add(n); q.push(n); }
     return [...seen].filter(n => web.nodes[n]?.type === "skill");
   };
-  const counts = { body: 3, strength: 3, quickness: 13, reaction: 11, charisma: 4, willpower: 10, intelligence: 21 };
+  const counts = { body: 3, strength: 3, quickness: 10, reaction: 11, charisma: 4, willpower: 10, intelligence: 21 };
 
   for (const [attr, n] of Object.entries(counts)) {
     it(`${attr} reaches exactly ${n} skills`, () => expect(reach(attr).length).toBe(n));
   }
-  it("Body/Strength reach ONLY the melee skills (sink), not the Quickness cluster", () => {
-    expect(reach("body")).not.toContain("firearms");
+  it("Body/Strength reach ONLY the melee skills (one-way sink)", () => {
     expect(reach("body").sort()).toEqual(["armedCombat", "armedCombatBR", "unarmedCombat"]);
+    expect(reach("body")).not.toContain("firearms");
   });
-  it("Tech & magic route correctly: Computer→Intelligence, Sorcery reachable from Intelligence", () => {
-    expect(reach("intelligence")).toContain("computer");   // tech is Int, not Body
-    expect(reach("body")).not.toContain("computer");
+  it("Tech/magic isolation & bridges: Intelligence reaches magic/social; Charisma cannot", () => {
+    expect(reach("intelligence")).toContain("computer");   // tech is Intelligence-rooted
+    expect(reach("quickness")).not.toContain("computer");  // Quickness cluster is separate
     expect(reach("intelligence")).toContain("sorcery");    // via the one-way bridge
-    expect(reach("charisma")).not.toContain("sorcery");    // Charisma can't reach magic
+    expect(reach("willpower")).toContain("leadership");     // Willpower → Charisma bridge
+    expect(reach("charisma")).not.toContain("sorcery");    // Charisma can't ride back
   });
 });
