@@ -706,7 +706,12 @@ export class SR2EActor extends Actor {
         system: {
           spiritType: kind, force, domain, services, maxServices: services,
           conjurerUuid: this.uuid
-        }
+        },
+        // Summoned spirits are allies: friendly disposition so the whole team can
+        // see them (translucent while astral). The summoner always sees their own
+        // via the conjurer link (ownsConjurerOf); astral-hiding then only applies
+        // to neutral/hostile unknowns.
+        prototypeToken: { disposition: CONST.TOKEN_DISPOSITIONS.FRIENDLY }
       }]);
     } catch (err) {
       console.error("SR2E | Could not create spirit actor:", err);

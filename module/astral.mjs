@@ -20,6 +20,14 @@ function isAstralActive(actor) {
   return s === "perceiving" || s === "projecting";
 }
 
+/** Whether the current user is the summoner of this spirit (owns its conjurer),
+ *  so a mage always sees their own bound spirit regardless of astral state. */
+function ownsConjurerOf(token) {
+  const cuid = token.actor?.system?.conjurerUuid;
+  if (!cuid) return false;
+  try { return !!foundry.utils.fromUuidSync(cuid)?.isOwner; } catch (e) { return false; }
+}
+
 /**
  * Whether the current user counts as an astral viewer: their assigned character
  * or any token they currently control is astrally perceiving/projecting.
@@ -57,6 +65,8 @@ globalThis.Hooks?.once("init", () => {
         astralOnly: true,
         isGM: game.user.isGM,
         ownsToken: !!this.actor?.isOwner,
+        friendly: this.document?.disposition === CONST.TOKEN_DISPOSITIONS.FRIENDLY,
+        isSummoner: ownsConjurerOf(this),
         viewerAstralActive: viewerAstralActive()
       })) return false;
       return super.isVisible;

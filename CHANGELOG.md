@@ -4,7 +4,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-## 0.32.2 — 2026-07-09
+## 0.32.3 — 2026-07-09
+
+### Features
+- **Allied spirits stay visible.** Two exceptions to astral hiding: a **friendly**
+  astral token is visible to everyone, and a spirit's **summoner** always sees
+  their own bound spirit (via the conjurer link) whether or not they're astrally
+  perceiving — both rendered translucent while unmanifested. Summoned spirits are
+  now created friendly, so the whole team can see the party's spirits; only
+  neutral/hostile unknowns stay hidden from mundane eyes.
+
+
 
 ### Features
 - **Spirit tokens shimmer.** Every spirit token now has a gentle pulsing

@@ -242,16 +242,19 @@ export function focusCost(force, costPerForce) {
  * Whether the SR2 astral-visibility rule permits a viewer to see a token
  * (SR2E p.145, p.148): an astral-only entity (unmanifested spirit, focus,
  * quickened spell, a projecting/perceiving magician's astral form) is invisible
- * to normal sight — "a magician can see it only if astrally perceiving." The GM,
- * the token's owner, and any astrally active viewer (perceiving/projecting) see
- * it. Non-astral tokens are unaffected (returns true; physical visibility is
- * decided elsewhere).
- * @param {{astralOnly:boolean, isGM:boolean, viewerAstralActive:boolean, ownsToken:boolean}} p
+ * to normal sight — "a magician can see it only if astrally perceiving." Seen by
+ * the GM, the token's owner, and any astrally active viewer. Two allied
+ * exceptions so the table can play: a **friendly** astral being (an allied
+ * spirit) is visible to everyone, and a spirit's **summoner** always sees their
+ * own bound spirit regardless of astral state — both rendered translucent while
+ * unmanifested. Only neutral/hostile unknowns stay hidden from mundanes.
+ * Non-astral tokens are unaffected (physical visibility is decided elsewhere).
+ * @param {{astralOnly:boolean, isGM:boolean, viewerAstralActive:boolean, ownsToken:boolean, friendly?:boolean, isSummoner?:boolean}} p
  * @returns {boolean} whether the astral rule allows the view
  */
-export function astralAllowsView({ astralOnly, isGM, viewerAstralActive, ownsToken }) {
+export function astralAllowsView({ astralOnly, isGM, viewerAstralActive, ownsToken, friendly, isSummoner }) {
   if (!astralOnly) return true;
-  return !!(isGM || ownsToken || viewerAstralActive);
+  return !!(isGM || ownsToken || isSummoner || friendly || viewerAstralActive);
 }
 
 /**

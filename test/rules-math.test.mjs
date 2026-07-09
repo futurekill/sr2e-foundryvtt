@@ -235,12 +235,14 @@ describe("Derived costs (SR2E p.174, p.249)", () => {
     expect(weaponFocusCost(2, 3)).toBe(570000); // Reach 2 polearm, Force 3
   });
 
-  it("astral-only tokens: seen only by GM/owner/astrally-active (SR2E p.145)", () => {
+  it("astral-only tokens: seen by GM/owner/summoner/friendly/astrally-active (SR2E p.145)", () => {
     const v = (o) => astralAllowsView({ astralOnly: true, isGM: false, viewerAstralActive: false, ownsToken: false, ...o });
-    expect(v({})).toBe(false);                          // mundane viewer — hidden
+    expect(v({})).toBe(false);                          // mundane viewer, hostile/unknown — hidden
     expect(v({ isGM: true })).toBe(true);               // GM always sees
     expect(v({ viewerAstralActive: true })).toBe(true); // perceiving/projecting sees
     expect(v({ ownsToken: true })).toBe(true);          // owner sees their own
+    expect(v({ isSummoner: true })).toBe(true);         // a mage always sees their bound spirit
+    expect(v({ friendly: true })).toBe(true);           // allied astral beings are visible to all
     // A normal (non-astral) token is unaffected by this rule
     expect(astralAllowsView({ astralOnly: false, isGM: false, viewerAstralActive: false, ownsToken: false })).toBe(true);
   });
