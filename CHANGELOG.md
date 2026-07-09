@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.0 — 2026-07-08
+
 ### Features
 - **Shadowtalk banter — more lines + name-drops:** the pool grew from 27 to 72
   (3–9 per category), and lines can now call the runner out by name (a
