@@ -99,13 +99,60 @@ globalThis.Hooks?.on("renderTokenHUD", (hud, html) => {
 });
 
 // Visual cue: an astral-only token renders ethereal (astral-purple, translucent)
-// for whoever can see it — so astral viewers know it's astral and the GM can
-// spot flagged tokens at a glance. Re-applied each refresh (Foundry resets the
-// mesh from the document first, so this is stable, not cumulative).
+// for whoever can see it. Spirits are skipped here — they get the animated
+// spectral shimmer below instead (which already reads as astral).
 globalThis.Hooks?.on("refreshToken", (token) => {
-  if (!token.mesh || !token.document?.getFlag?.("sr2e", "astralOnly")) return;
+  if (!token.mesh || token.actor?.type === "spirit") return;
+  if (!token.document?.getFlag?.("sr2e", "astralOnly")) return;
   token.mesh.tint = 0xB68CFF;
   token.mesh.alpha = Math.min(token.mesh.alpha ?? 1, 0.78);
+});
+
+/* ── Spirit token shimmer ──────────────────────────────────────────────────
+ * A gentle pulsing spectral tint (teal ↔ violet) on every spirit token, so
+ * spirits look otherworldly by default. Astral-only spirits also read fainter.
+ * Driven by the canvas ticker (native — no Token Magic FX dependency). */
+
+let spiritFxOn = true;
+
+/** Blend two 0xRRGGBB colors; t in [0,1]. */
+function lerpColor(a, b, t) {
+  const r = ((a >> 16 & 255) + (((b >> 16 & 255) - (a >> 16 & 255)) * t)) & 255;
+  const g = ((a >> 8 & 255) + (((b >> 8 & 255) - (a >> 8 & 255)) * t)) & 255;
+  const c = ((a & 255) + (((b & 255) - (a & 255)) * t)) & 255;
+  return (r << 16) | (g << 8) | c;
+}
+
+function spiritFxTick() {
+  if (!spiritFxOn || !canvas?.ready) return;
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 555); // ~3.5s period
+  for (const token of canvas.tokens.placeables) {
+    if (token.actor?.type !== "spirit" || !token.mesh) continue;
+    token.mesh.tint = lerpColor(0x7FD9FF, 0xB98CFF, pulse);
+    const astral = token.document.getFlag("sr2e", "astralOnly");
+    token.mesh.alpha = (astral ? 0.55 : 0.9) + 0.08 * pulse;
+  }
+}
+
+/** Reset spirit meshes to the document defaults (when the FX is turned off). */
+function resetSpiritMeshes() {
+  for (const token of canvas?.tokens?.placeables ?? []) {
+    if (token.actor?.type === "spirit") token.renderFlags?.set({ refreshMesh: true });
+  }
+}
+
+globalThis.Hooks?.once("init", () => {
+  game.settings.register("sr2e", "spiritTokenFx", {
+    name: "Spirit token shimmer",
+    hint: "Give spirit tokens a gentle pulsing spectral glow so they look otherworldly. Purely cosmetic; per-client.",
+    scope: "client", config: true, type: Boolean, default: true,
+    onChange: (v) => { spiritFxOn = v; if (!v) resetSpiritMeshes(); }
+  });
+});
+
+globalThis.Hooks?.once("ready", () => {
+  try { spiritFxOn = game.settings.get("sr2e", "spiritTokenFx"); } catch (e) { /* default */ }
+  canvas?.app?.ticker?.add(spiritFxTick);
 });
 
 // A summoned spirit is on the astral plane until it manifests (SR2E p.145), so

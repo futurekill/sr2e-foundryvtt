@@ -4,7 +4,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-## 0.32.1 — 2026-07-09
+## 0.32.2 — 2026-07-09
+
+### Features
+- **Spirit tokens shimmer.** Every spirit token now has a gentle pulsing
+  spectral glow (teal ↔ violet) so spirits look otherworldly by default; astral
+  spirits read fainter. Native (no Token Magic FX needed) and per-client, via
+  the new "Spirit token shimmer" setting (on by default).
+
+
 
 ### Features
 - **Astral tokens look astral.** An astral-only token now renders with an
