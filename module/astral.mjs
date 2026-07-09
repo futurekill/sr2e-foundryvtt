@@ -25,7 +25,9 @@ function isAstralActive(actor) {
 function ownsConjurerOf(token) {
   const cuid = token.actor?.system?.conjurerUuid;
   if (!cuid) return false;
-  try { return !!foundry.utils.fromUuidSync(cuid)?.isOwner; } catch (e) { return false; }
+  // fromUuidSync is a Foundry global (not on foundry.utils) — see the codebase's
+  // own use in actor-sheet.mjs. World actors resolve synchronously.
+  try { return !!globalThis.fromUuidSync?.(cuid)?.isOwner; } catch (e) { return false; }
 }
 
 /**
@@ -139,6 +141,9 @@ function spiritFxTick() {
   for (const token of canvas.tokens.placeables) {
     if (token.actor?.type !== "spirit" || !token.mesh) continue;
     token.mesh.tint = lerpColor(0x7FD9FF, 0xB98CFF, pulse);
+    // Don't touch alpha on a hidden token — Foundry dims it (0.5) as the GM's
+    // "hidden" cue, and overwriting that each frame would erase it.
+    if (token.document.hidden) continue;
     const astral = token.document.getFlag("sr2e", "astralOnly");
     token.mesh.alpha = (astral ? 0.55 : 0.9) + 0.08 * pulse;
   }

@@ -707,11 +707,15 @@ export class SR2EActor extends Actor {
           spiritType: kind, force, domain, services, maxServices: services,
           conjurerUuid: this.uuid
         },
-        // Summoned spirits are allies: friendly disposition so the whole team can
-        // see them (translucent while astral). The summoner always sees their own
-        // via the conjurer link (ownsConjurerOf); astral-hiding then only applies
-        // to neutral/hostile unknowns.
-        prototypeToken: { disposition: CONST.TOKEN_DISPOSITIONS.FRIENDLY }
+        // A summoned spirit takes the summoner's side: friendly when a PLAYER
+        // conjures it (so the party sees it, translucent while astral), but it
+        // mirrors a GM-only conjurer's disposition (an enemy mage's spirit stays
+        // hostile → hidden from the party, not exposed by the friendly rule).
+        prototypeToken: {
+          disposition: this.hasPlayerOwner
+            ? CONST.TOKEN_DISPOSITIONS.FRIENDLY
+            : (this.prototypeToken?.disposition ?? CONST.TOKEN_DISPOSITIONS.HOSTILE)
+        }
       }]);
     } catch (err) {
       console.error("SR2E | Could not create spirit actor:", err);

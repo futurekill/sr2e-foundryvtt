@@ -4,6 +4,22 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.32.4 — 2026-07-09
+
+### Fixes (code review)
+- **Summoner-sees-own-spirit actually works.** `ownsConjurerOf` called
+  `foundry.utils.fromUuidSync` (undefined — it's a Foundry global); the error was
+  swallowed so the check always failed. Now uses the global.
+- **Enemy-summoned spirits stay hidden.** A summoned spirit was always given
+  friendly disposition, which the "friendly is visible to all" rule then exposed
+  to players. It now mirrors the summoner: friendly only when a player conjures
+  it; an enemy mage's spirit keeps its hostile stance.
+- **NPC weapon foci grant dice again.** The melee-attack path read only the
+  character-derived `_boundFocusActive`; NPCs (which don't run that derivation)
+  lost the focus bonus. It now falls back to the focus bonded to that weapon.
+- **Spirit shimmer no longer erases the GM's "hidden" dim.** The per-frame alpha
+  no longer overwrites a hidden token's dimmed cue.
+
 ## 0.32.3 — 2026-07-09
 
 ### Features

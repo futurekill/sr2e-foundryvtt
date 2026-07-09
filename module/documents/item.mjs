@@ -384,8 +384,16 @@ export class SR2EItem extends Item {
     // wired in derived data (_applyWeaponFoci), so only this weapon benefits —
     // not every melee attack the character makes. Applies to melee only.
     let focusDice = 0, focusNote = "";
-    if (isMelee && this.system._boundFocusActive) {
-      focusDice = Number(this.system._boundFocusForce) || 0;
+    if (isMelee) {
+      // Characters get the bond wired into derived data (_applyWeaponFoci); NPCs
+      // don't run that, so fall back to finding the focus bonded to THIS weapon.
+      if (this.system._boundFocusActive) {
+        focusDice = Number(this.system._boundFocusForce) || 0;
+      } else {
+        const f = actor.items.find(it => it.type === "focus" && it.system.focusType === "weapon"
+          && it.system.bonded && it.system.active && it.system.bondedWeaponId === this.id);
+        focusDice = Number(f?.system.force) || 0;
+      }
       if (focusDice > 0) focusNote = `+${focusDice} weapon focus`;
     }
     if (skillRating <= 0) {
