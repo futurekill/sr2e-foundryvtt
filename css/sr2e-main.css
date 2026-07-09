@@ -756,6 +756,19 @@
   border-radius: 2px;
   padding: 1px 4px;
 }
+/* Augmented score (cyberware/magic/adept changed it) — stand out at a glance. */
+.attr-total.augmented { width: auto; min-width: 30px; }
+.attr-total.augmented.up {
+  color: var(--sr2e-matrix, #00e5ff);
+  border-color: var(--sr2e-matrix, #00e5ff);
+  background: rgba(0, 229, 255, 0.18);
+}
+.attr-total.augmented.down {
+  color: var(--sr2e-failure, #e0556b);
+  border-color: var(--sr2e-failure, #e0556b);
+  background: rgba(224, 85, 107, 0.18);
+}
+.attr-total .augment-icon { font-size: 0.8em; margin-right: 2px; vertical-align: baseline; }
 
 /* ============================================================================
    CONDITION MONITOR  — stepper + visual bar + wound status

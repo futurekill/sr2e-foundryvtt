@@ -160,7 +160,11 @@
         <span class="cyber-mod">&mdash;</span>
         {{/ifGt}}
         {{/ifGt}}
-        <span class="attr-total">{{deepLookup ../system attr 'value'}}</span>
+        {{#ifGt (deepLookup ../system attr 'mod') 0}}
+        <span class="attr-total augmented up" title="Boosted +{{deepLookup ../system attr 'mod'}} by cyberware / magic / adept power (base {{deepLookup ../system attr 'base'}}). Something is changing this score."><i class="fas fa-caret-up augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        {{else}}{{#ifGt 0 (deepLookup ../system attr 'mod')}}
+        <span class="attr-total augmented down" title="Reduced {{deepLookup ../system attr 'mod'}} by damage / drain / essence loss (base {{deepLookup ../system attr 'base'}}). Something is changing this score."><i class="fas fa-caret-down augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        {{else}}<span class="attr-total">{{deepLookup ../system attr 'value'}}</span>{{/ifGt}}{{/ifGt}}
       </div>
       {{/each}}
     </fieldset>
@@ -192,7 +196,11 @@
         <span class="cyber-mod">&mdash;</span>
         {{/ifGt}}
         {{/ifGt}}
-        <span class="attr-total">{{deepLookup ../system attr 'value'}}</span>
+        {{#ifGt (deepLookup ../system attr 'mod') 0}}
+        <span class="attr-total augmented up" title="Boosted +{{deepLookup ../system attr 'mod'}} by cyberware / magic / adept power (base {{deepLookup ../system attr 'base'}}). Something is changing this score."><i class="fas fa-caret-up augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        {{else}}{{#ifGt 0 (deepLookup ../system attr 'mod')}}
+        <span class="attr-total augmented down" title="Reduced {{deepLookup ../system attr 'mod'}} by damage / drain / essence loss (base {{deepLookup ../system attr 'base'}}). Something is changing this score."><i class="fas fa-caret-down augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        {{else}}<span class="attr-total">{{deepLookup ../system attr 'value'}}</span>{{/ifGt}}{{/ifGt}}
       </div>
       {{/each}}
     </fieldset>
@@ -206,7 +214,11 @@
       </div>
       <div class="attribute-row flexrow">
         <label>{{localize "SR2E.Attributes.Reaction"}}</label>
-        <span class="attr-total">{{system.reaction.value}}</span>
+        {{#ifGt system.reaction.mod 0}}
+        <span class="attr-total augmented up" title="Boosted +{{system.reaction.mod}} by wired reflexes / VCR / magic (base {{system.reaction.base}})."><i class="fas fa-caret-up augment-icon"></i>{{system.reaction.value}}</span>
+        {{else}}{{#ifGt 0 system.reaction.mod}}
+        <span class="attr-total augmented down" title="Reduced {{system.reaction.mod}} (base {{system.reaction.base}})."><i class="fas fa-caret-down augment-icon"></i>{{system.reaction.value}}</span>
+        {{else}}<span class="attr-total">{{system.reaction.value}}</span>{{/ifGt}}{{/ifGt}}
       </div>
       {{#if isMagical}}
       <div class="attribute-row flexrow">

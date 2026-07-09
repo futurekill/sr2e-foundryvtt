@@ -4,6 +4,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.10 — 2026-07-09
+
+### Features
+- **Augmented scores stand out at a glance.** An attribute (or Reaction) changed
+  by cyberware, magic, or an adept power now shows a coloured total with a ▲/▼
+  icon and a tooltip naming the source and the base value — so player and GM can
+  immediately see the score isn't natural. (Skills already flag their sources
+  with the ✦ adept and ⚡ chip badges.)
+
 ## 0.30.9 — 2026-07-09
 
 ### Fixes
