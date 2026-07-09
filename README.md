@@ -126,7 +126,7 @@ This project uses GitHub Actions for automated releases:
 
 ## Compatibility
 
-- **FoundryVTT Version:** V13 (minimum and verified); V14 compatibility planned
+- **FoundryVTT Version:** V13 minimum, verified on V14
 - **Browser:** Any modern browser supported by FoundryVTT
 
 ## Project Structure

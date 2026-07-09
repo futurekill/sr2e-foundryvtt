@@ -173,10 +173,11 @@
   gap: 4px;
 }
 
-/* Row 1: character name */
-.sr2e-sheet-header .header-name-row {
-  align-items: flex-start; /* top-align name + banter; the taller banter must
-                              not vertically re-center the name box */
+/* Row 1: character name. Selector must out-specify `.sr2e.sheet .flexrow`
+   (0,3,0), which otherwise forces align-items:center and re-centers the name
+   box against the taller two-line banter. */
+.sr2e.sheet .sr2e-sheet-header .header-name-row {
+  align-items: flex-start;
   gap: 8px;
 }
 

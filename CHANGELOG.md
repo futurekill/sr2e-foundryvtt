@@ -4,6 +4,24 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.7 — 2026-07-08
+
+### Features
+- **Team Karma Pool GM macro** — a new "Team Karma Pool" macro lets the GM
+  deposit (or withdraw/set) an arbitrary amount in the shared pool, complementing
+  the per-character contribute/draw buttons on the Bio tab (SR2E p.246).
+
+### Fixes
+- **Header banter alignment (for real this time).** The name row's
+  `align-items: center` was coming from the `.flexrow` utility, which
+  out-specified the earlier fix; the selector now wins and the name box + banter
+  top-align.
+
+### Compatibility
+- **Foundry V14** — `compatibility.verified` bumped to 14 (14.364 tested), and
+  the deprecated global `TextEditor.enrichHTML` migrated to the namespaced
+  `foundry.applications.ux.TextEditor` form (works on both V13 and V14).
+
 ## 0.30.6 — 2026-07-08
 
 ### Fixes

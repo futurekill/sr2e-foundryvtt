@@ -301,6 +301,11 @@ async function _ensureSystemMacros() {
       name: "Request a Skill Roll",
       img: "icons/svg/d20.svg",
       src: "systems/sr2e/macros/request-roll.js"
+    },
+    {
+      name: "Team Karma Pool",
+      img: "icons/svg/aura.svg",
+      src: "systems/sr2e/macros/team-karma.js"
     }
   ];
 

@@ -514,13 +514,13 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.tabs = this._getTabs();
 
     // Enriched HTML fields
-    context.enrichedBiography = await TextEditor.enrichHTML(system.biography || "", {
+    context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(system.biography || "", {
       secrets: this.document.isOwner,
       rollData: actor.getRollData(),
       async: true,
       relativeTo: this.document
     });
-    context.enrichedNotes = await TextEditor.enrichHTML(system.notes || "", {
+    context.enrichedNotes = await foundry.applications.ux.TextEditor.implementation.enrichHTML(system.notes || "", {
       secrets: this.document.isOwner,
       rollData: actor.getRollData(),
       async: true,
@@ -799,7 +799,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.gear = actor.items.filter(i => i.type === "gear");
     context.spells = actor.items.filter(i => i.type === "spell");
 
-    context.enrichedBiography = await TextEditor.enrichHTML(actor.system.biography || "", {
+    context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(actor.system.biography || "", {
       secrets: this.document.isOwner,
       async: true,
       relativeTo: this.document

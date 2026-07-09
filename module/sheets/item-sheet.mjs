@@ -58,10 +58,10 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       relativeTo: this.document
     };
     if (item.system.notes) {
-      context.enrichedNotes = await TextEditor.enrichHTML(item.system.notes, enrichOpts);
+      context.enrichedNotes = await foundry.applications.ux.TextEditor.implementation.enrichHTML(item.system.notes, enrichOpts);
     }
     if (item.system.description) {
-      context.enrichedDescription = await TextEditor.enrichHTML(item.system.description, enrichOpts);
+      context.enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(item.system.description, enrichOpts);
     }
 
     // Map item type → FontAwesome icon class for the header display
