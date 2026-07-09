@@ -4,6 +4,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.5 — 2026-07-08
+
+### Fixes
+- **Header banter really top-aligns with the name now.** The name row was
+  `align-items: center`, so the taller two-line banter block re-centered the
+  name box downward. The row now top-aligns its items.
+
 ## 0.30.4 — 2026-07-08
 
 ### Fixes

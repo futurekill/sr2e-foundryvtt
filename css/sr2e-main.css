@@ -175,7 +175,8 @@
 
 /* Row 1: character name */
 .sr2e-sheet-header .header-name-row {
-  align-items: center;
+  align-items: flex-start; /* top-align name + banter; the taller banter must
+                              not vertically re-center the name box */
   gap: 8px;
 }
 
