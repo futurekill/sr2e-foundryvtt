@@ -4,7 +4,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
-## 0.31.1 — 2026-07-09
+## 0.32.0 — 2026-07-09
+
+### Features
+- **Astral-only token visibility (SR2E p.145).** The GM can flag a token as
+  *astral-only* via a new button on the Token HUD (the low-vision eye). Such a
+  token — an unmanifested spirit, a projecting mage's astral form, a quickened
+  spell — is hidden from a player unless they're the GM, own the token, or their
+  character is astrally **perceiving or projecting**. Visibility re-evaluates
+  automatically when a mage switches astral state, so an astral nasty pops into
+  view the instant a character starts perceiving, and vanishes when they stop.
+
+
 
 ### Features
 - **Team Karma in the header.** The shared Team Karma Pool now shows in the top

@@ -5,7 +5,7 @@ import {
   systemOperationTN, personaAttribute,
   icReactionBase, alertAdjustedRating, escalateAlert, programSize,
   burstRounds, recoilPenalty, burstDamageBonus,
-  programCost, focusCost, weaponFocusCost,
+  programCost, focusCost, weaponFocusCost, astralAllowsView,
   netToSteps, astralReaction, drainTargetNumber,
   woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
@@ -233,6 +233,16 @@ describe("Derived costs (SR2E p.174, p.249)", () => {
     expect(weaponFocusCost(1, 2)).toBe(380000); // Reach 1 katana, Force 2
     expect(weaponFocusCost(0, 1)).toBe(190000); // Reach 0, Force 1
     expect(weaponFocusCost(2, 3)).toBe(570000); // Reach 2 polearm, Force 3
+  });
+
+  it("astral-only tokens: seen only by GM/owner/astrally-active (SR2E p.145)", () => {
+    const v = (o) => astralAllowsView({ astralOnly: true, isGM: false, viewerAstralActive: false, ownsToken: false, ...o });
+    expect(v({})).toBe(false);                          // mundane viewer — hidden
+    expect(v({ isGM: true })).toBe(true);               // GM always sees
+    expect(v({ viewerAstralActive: true })).toBe(true); // perceiving/projecting sees
+    expect(v({ ownsToken: true })).toBe(true);          // owner sees their own
+    // A normal (non-astral) token is unaffected by this rule
+    expect(astralAllowsView({ astralOnly: false, isGM: false, viewerAstralActive: false, ownsToken: false })).toBe(true);
   });
 });
 

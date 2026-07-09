@@ -239,6 +239,22 @@ export function focusCost(force, costPerForce) {
 }
 
 /**
+ * Whether the SR2 astral-visibility rule permits a viewer to see a token
+ * (SR2E p.145, p.148): an astral-only entity (unmanifested spirit, focus,
+ * quickened spell, a projecting/perceiving magician's astral form) is invisible
+ * to normal sight — "a magician can see it only if astrally perceiving." The GM,
+ * the token's owner, and any astrally active viewer (perceiving/projecting) see
+ * it. Non-astral tokens are unaffected (returns true; physical visibility is
+ * decided elsewhere).
+ * @param {{astralOnly:boolean, isGM:boolean, viewerAstralActive:boolean, ownsToken:boolean}} p
+ * @returns {boolean} whether the astral rule allows the view
+ */
+export function astralAllowsView({ astralOnly, isGM, viewerAstralActive, ownsToken }) {
+  if (!astralOnly) return true;
+  return !!(isGM || ownsToken || viewerAstralActive);
+}
+
+/**
  * Weapon focus price (SR2E p.126): a melee weapon enchanted as a focus costs
  * [(Reach + 1) × 100,000¥] + Rating × 90,000¥. Reach comes from the weapon,
  * Rating is the focus's Force.
