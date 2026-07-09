@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.1 — 2026-07-08
+
+### Features
+- **More Shadowtalk banter + livelier sheet header.** The banter pool nearly
+  doubled (72 → 134 lines) with new Shadowland voices (Dodger, Wordsmith) across
+  every category. The character-sheet header line now rotates on a short window
+  (~8 min) instead of sitting on one line all day, so it feels alive between
+  visits while still staying put during the rapid re-renders while you edit a
+  sheet.
+
 ## 0.30.0 — 2026-07-08
 
 ### Features

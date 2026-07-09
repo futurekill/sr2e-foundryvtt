@@ -122,6 +122,79 @@ export const BANTER = [
   { tags: ["runner"], text: "Another face in the sprawl, another name in my files.", by: "Captain Chaos" },
   { tags: ["runner"], text: "Alive, armed, and off the grid. Livin' the dream.", by: "Netcat's Uncle" },
   { tags: ["runner"], text: "Watch your back, {name}. The sprawl doesn't blink.", by: "FastJack" },
+
+  // ══ Expansion pack — more Shadowland chatter ═══════════════════════════════
+  // ── Critical glitch ───────────────────────────────────────────────────────
+  { tags: ["glitch"], text: "That's not a fumble, that's a cry for help.", by: "Dodger" },
+  { tags: ["glitch"], text: "The dice betrayed you and honestly? Fair.", by: "Wordsmith" },
+  { tags: ["glitch"], text: "{name}, the only thing you hit was rock bottom.", by: "The Smiling Bandit" },
+  { tags: ["glitch"], text: "Mark the log: comedy, not action.", by: "FastJack" },
+  { tags: ["glitch"], text: "A trained monkey. We should've hired a trained monkey.", by: "Hatchetman" },
+  { tags: ["glitch"], text: "Whatever the plan was, it just filed for divorce.", by: "Wordsmith" },
+  { tags: ["glitch"], text: "Somewhere, Lofwyr felt that and smiled.", by: "Dodger" },
+  { tags: ["glitch"], text: "{name} found the one wrong way to do it. Impressive.", by: "Captain Chaos" },
+  { tags: ["glitch"], text: "Cameras, witnesses, AND that roll. Rough day.", by: "Netcat's Uncle" },
+  // ── Big success ───────────────────────────────────────────────────────────
+  { tags: ["crit"], text: "Poetry. Violent, expensive poetry.", by: "Wordsmith" },
+  { tags: ["crit"], text: "That's getting stitched onto a jacket, chummer.", by: "The Smiling Bandit" },
+  { tags: ["crit"], text: "{name} just wrote the after-action report in ink.", by: "Captain Chaos" },
+  { tags: ["crit"], text: "Better than the sim-flick. And the sim-flick was good.", by: "Dodger" },
+  { tags: ["crit"], text: "Hoi — save some competence for the rest of us.", by: "Netcat's Uncle" },
+  { tags: ["crit"], text: "The Johnson's gonna lowball the next job after THAT.", by: "The Chromed Accountant" },
+  { tags: ["crit"], text: "Frame it, gild it, hang it in the Big Rhino.", by: "Hatchetman" },
+  // ── Flat failure ──────────────────────────────────────────────────────────
+  { tags: ["fail"], text: "And the crowd goes mild.", by: "Captain Chaos" },
+  { tags: ["fail"], text: "That did precisely bupkis, chummer.", by: "Hatchetman" },
+  { tags: ["fail"], text: "{name} swung for the fences, hit the parking lot.", by: "The Smiling Bandit" },
+  { tags: ["fail"], text: "The dice abstained. Politically.", by: "Wordsmith" },
+  { tags: ["fail"], text: "Keep the receipt, that roll's getting returned.", by: "The Chromed Accountant" },
+  { tags: ["fail"], text: "Not wrong, not right, just... nowhere.", by: "Dodger" },
+  // ── Ordinary success ──────────────────────────────────────────────────────
+  { tags: ["success"], text: "Ugly, functional, paid. The runner's trinity.", by: "FastJack" },
+  { tags: ["success"], text: "It counts. Barely counts, but counts.", by: "Dodger" },
+  { tags: ["success"], text: "{name} gets there. Style points pending.", by: "Captain Chaos" },
+  { tags: ["success"], text: "No flair, no fuss, no funeral. I'll take it.", by: "Street Doc on Call" },
+  { tags: ["success"], text: "Money in the meter. Keep moving.", by: "The Smiling Bandit" },
+  // ── Metatype ──────────────────────────────────────────────────────────────
+  { tags: ["troll"], text: "{name} opens doors. Through the wall, usually.", by: "Captain Chaos" },
+  { tags: ["troll"], text: "Ceilings are more of a suggestion to this one.", by: "Dodger" },
+  { tags: ["troll"], text: "Dermal plate and a smile. Mostly plate.", by: "Street Doc on Call" },
+  { tags: ["elf"], text: "{name} was doing this before your grandsire had a SIN.", by: "Wordsmith" },
+  { tags: ["elf"], text: "Grace on legs. Annoying, immortal legs.", by: "Captain Chaos" },
+  { tags: ["elf"], text: "Elegant, deadly, and won't shut up about the Tir.", by: "Hatchetman" },
+  { tags: ["dwarf"], text: "{name} reads a circuit like a bedtime story.", by: "Netcat's Uncle" },
+  { tags: ["dwarf"], text: "Low center of gravity, high center of grudge.", by: "The Smiling Bandit" },
+  { tags: ["ork"], text: "{name} burns bright 'cause the fuse is short.", by: "Street Doc on Call" },
+  { tags: ["ork"], text: "All muscle, all business, zero patience.", by: "Hatchetman" },
+  // ── Cyberware / essence ───────────────────────────────────────────────────
+  { tags: ["chromed"], text: "{name} rustles when they walk. That's the alloy.", by: "Street Doc on Call" },
+  { tags: ["chromed"], text: "The wallet's meat. Everything else is invoice.", by: "The Chromed Accountant" },
+  { tags: ["chromed"], text: "MRI techs weep when {name} books an appointment.", by: "Netcat's Uncle" },
+  { tags: ["lowEssence"], text: "The mages won't stand downwind of that aura.", by: "FastJack" },
+  { tags: ["lowEssence"], text: "{name} traded the soul for the upgrade. Buyer's market.", by: "Street Doc on Call" },
+  // ── Archetype ─────────────────────────────────────────────────────────────
+  { tags: ["mage"], text: "{name} argues with physics and physics folds.", by: "Dodger" },
+  { tags: ["mage"], text: "Keep 'em fed, rested, and off the drain line.", by: "Street Doc on Call" },
+  { tags: ["mage"], text: "The wiz makes the impossible a Tuesday.", by: "Captain Chaos" },
+  { tags: ["adept"], text: "No spell, no chrome, still puts you through a wall.", by: "Hatchetman" },
+  { tags: ["adept"], text: "{name}'s the ghost story the street sams tell.", by: "The Smiling Bandit" },
+  { tags: ["decker"], text: "{name} left the meat at the door and the ICE crying.", by: "Netcat's Uncle" },
+  { tags: ["decker"], text: "Sees the world in glowing green. Lucky them.", by: "FastJack" },
+  { tags: ["decker"], text: "One jump ahead of the trace, same as always.", by: "Dodger" },
+  { tags: ["rigger"], text: "{name} thinks in wheels and rotors now.", by: "Captain Chaos" },
+  { tags: ["rigger"], text: "The drones love {name}. The drones love no one.", by: "The Smiling Bandit" },
+  // ── Wealth ────────────────────────────────────────────────────────────────
+  { tags: ["broke"], text: "{name} counts nuyen in single digits. Bold.", by: "The Chromed Accountant" },
+  { tags: ["broke"], text: "Ramen tonight. Ramen every night.", by: "Hatchetman" },
+  { tags: ["rich"], text: "{name} tips in certified credsticks. Show-off.", by: "Captain Chaos" },
+  { tags: ["rich"], text: "New money, old enemies. Balance the books, {name}.", by: "The Chromed Accountant" },
+  // ── Generic runner ────────────────────────────────────────────────────────
+  { tags: ["runner"], text: "No SIN, no past, no problem. That's the job.", by: "FastJack" },
+  { tags: ["runner"], text: "{name} runs the shadows so they don't run {name}.", by: "Dodger" },
+  { tags: ["runner"], text: "Deniable, disposable, and still breathing. Respect.", by: "Hatchetman" },
+  { tags: ["runner"], text: "Everybody's expendable. {name} just hasn't been spent.", by: "Wordsmith" },
+  { tags: ["runner"], text: "The sprawl remembers a name like {name}. Keep it quiet.", by: "Captain Chaos" },
+  { tags: ["runner"], text: "Trust the team, watch the Johnson, love no one.", by: "The Smiling Bandit" },
 ];
 
 /** Substitute the {name} token with the character's name (or a generic fill). */
@@ -223,9 +296,16 @@ globalThis.Hooks?.on("renderChatMessageHTML", (message, html) => {
   (html.querySelector(".message-content") ?? html).appendChild(div);
 });
 
+/** Header rotation window (ms). Short enough that the line feels alive between
+ *  visits, long enough that the rapid re-renders while editing a sheet (which
+ *  fire seconds apart) keep showing the same line instead of flickering. */
+export const HEADER_BANTER_WINDOW_MS = 8 * 60 * 1000; // 8 minutes
+
 /**
- * A header line for the character sheet: seeded by actor id + day, so it
- * rotates daily instead of flickering on every sheet re-render.
+ * A header line for the character sheet, reacting to the character. Seeded by
+ * actor id + a short time window (see above), so it rotates through the pool as
+ * play goes on rather than sitting on one line all day — but stays put across
+ * the sub-second re-renders that happen while a sheet is open and being edited.
  * @param {Actor} actor
  * @returns {{text:string, by:string}|null}
  */
@@ -243,7 +323,7 @@ export function headerBanter(actor) {
     mpcp: sys.cyberdeck?.mpcp,
     vcr: sys.vehicleControlRig
   });
-  const day = Math.floor(Date.now() / 86400000);
-  const line = pickBanter(tags, seededRng(hashSeed(`${actor?.id}:${day}`)));
+  const window = Math.floor(Date.now() / HEADER_BANTER_WINDOW_MS);
+  const line = pickBanter(tags, seededRng(hashSeed(`${actor?.id}:${window}`)));
   return line ? { text: applyName(line.text, actor?.name), by: line.by } : null;
 }
