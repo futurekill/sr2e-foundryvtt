@@ -4,6 +4,19 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.6 — 2026-07-08
+
+### Fixes
+- **Fix two Quench test-fixtures** (product code was correct): the special-skills
+  test matched the nav tab instead of the content `<section>`, and the adept
+  power-points test named its powers "Increased Reaction" (which is correctly
+  special-cased as a non-linear power) while asserting the plain linear sum.
+
+### Docs
+- **README refreshed** — full Skill Web defaulting, magic depth (adept/
+  initiation/area-effect), Matrix & decking, weapon accessories, Shadowtalk
+  banter, the newer settings, and a V14-compatibility roadmap note.
+
 ## 0.30.5 — 2026-07-08
 
 ### Fixes

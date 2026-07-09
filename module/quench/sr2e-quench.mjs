@@ -333,7 +333,9 @@ export function registerSR2EQuenchTests() {
           ]);
           await actor.sheet.render(true);
           await new Promise(r => setTimeout(r, 250));
-          const text = actor.sheet.element?.querySelector('[data-tab="skills"]')?.textContent ?? "";
+          // Select the CONTENT section, not the nav link — both carry
+          // data-tab="skills" and the nav <a> comes first in the DOM.
+          const text = actor.sheet.element?.querySelector('section[data-tab="skills"]')?.textContent ?? "";
           assert.ok(text.includes("QuenchAuraReading"),
             "special skill did not render in the skills tab");
         });
@@ -406,9 +408,12 @@ export function registerSR2EQuenchTests() {
             name: "Quench Adept", type: "character",
             system: { magic: { type: "physical_adept" } }
           });
+          // Generic names on purpose — "Increased Reaction"/"Increased Reflexes"
+          // are special-cased in adeptPowerCost() (non-linear per p.124); this
+          // test covers the plain linear Σ(pointCost × level) path.
           await actor.createEmbeddedDocuments("Item", [
-            { name: "Increased Reaction", type: "adept_power", system: { pointCost: 1, level: 2 } }, // 2
-            { name: "Killing Hands", type: "adept_power", system: { pointCost: 2, level: 1 } }       // 2
+            { name: "Quench Power A", type: "adept_power", system: { pointCost: 1, level: 2 } }, // 1×2 = 2
+            { name: "Quench Power B", type: "adept_power", system: { pointCost: 2, level: 1 } }  // 2×1 = 2
           ]);
           assert.equal(actor.system.adeptPowerPoints.max, actor.system.magic.value,
             "power-point max should equal the Magic rating");

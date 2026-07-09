@@ -42,7 +42,12 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Healing & Recovery** — Rest to recover Stun, natural Physical healing, and First Aid (Biotech) — each rolls the proper test and heals a wound level (SR2E p.112–115)
 - **Opposed Melee** — Both combatants roll their Combat Skill vs TN 4 + the Melee Modifiers Table (reach, friends, position, multiple targets); ties favour the attacker, net successes stage damage, and a winning defender strikes back with their own weapon
 - **Karma Pool** — Buy extra dice before a roll; reroll failures, avoid disasters, and buy successes from the chat card (SR2E p.190)
-- **Untrained Defaulting** — Missing or rating-0 skills default to the linked attribute at +4 TN (simplified Skill Web, SR2E p.69)
+- **Skill Web Defaulting** — Untrained skills default through the full printed Skill Web (SR2E p.68–69), modeled as the actual route map: it traces the shortest legal path by black circles crossed (+2 TN each), defaults to a *related skill you have* when that's cheaper than an attribute, honours one-way arrows, and disallows defaulting where the web has no path (a flat +4 fallback covers any skill not on the web). A "Roll a Skill…" picker rolls any skill trained-or-defaulted, and a GM "Request a Skill Roll" macro asks selected characters to roll
+- **Magic Depth** — Adept powers (with power-point budgeting), Initiation & metamagic (Centering, Shielding, Quickening), fetish/spell foci, and area-effect spells resolved through the blast engine
+- **Matrix & Decking** — Persona attributes, cybercombat, system operations with alert escalation, IC and Host (node) actors, and dump shock; an optional Virtual Realities 2.0 ruleset toggle
+- **Area-Effect & Blast** — Grenades and area spells fall off by distance with scatter, apply to everyone in radius, and can be cleared from the chat card
+- **Weapon Accessories** — Smartgun links, laser sights, gas vents, bipods, and more attach to weapons with their mechanical effects
+- **Shadowtalk Banter** — Optional sourcebook-style Shadowland margin chatter reacting to roll outcomes and to the character (metatype, chrome, archetype, wealth), with an off/rare/chatty frequency setting
 - **Ammunition Loading** — Each weapon selects a reserve ammo item to reload from; loaded rounds carry their book effects (explosive +1 Power, gel −2/Stun/Impact armor, APDS halves Ballistic, flechette vs armor rules) through attack and damage resistance
 - **Astral Projection & Combat** — Perceive or project astrally (initiative = Astral Reaction +15); astral combat uses Sorcery with Charisma-based damage resisted by Astral Body (Willpower), echoing onto the physical body (SR2E p.147)
 - **Conjuring** — Summon nature spirits (shamans, by domain) or elementals (mages): Conjuring Skill + totem bonus vs the spirit's Force, Charisma-based drain, and an auto-created spirit actor whose services, powers, and manifest attack are tracked on its sheet
@@ -56,6 +61,8 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - Auto-calculate Essence from cyberware
 - Item-deletion confirmation (per player)
 - Shadownet terminal theme (per player)
+- Shadowtalk banter frequency (off / rare / chatty)
+- Matrix ruleset (core book / Virtual Realities 2.0)
 
 ## Installation
 
@@ -119,7 +126,7 @@ This project uses GitHub Actions for automated releases:
 
 ## Compatibility
 
-- **FoundryVTT Version:** V13 (minimum and verified)
+- **FoundryVTT Version:** V13 (minimum and verified); V14 compatibility planned
 - **Browser:** Any modern browser supported by FoundryVTT
 
 ## Project Structure
@@ -168,6 +175,9 @@ sr2e/
 ```
 
 ## Roadmap
+
+### Planned System Work
+- **Foundry VTT V14 compatibility** — verify and support V14 when it releases
 
 ### Planned Compendium Modules
 - **Archetypes Pack** — Additional pre-built characters (a starter set of five
