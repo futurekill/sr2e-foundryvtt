@@ -141,6 +141,14 @@
   "SR2E.DicePools.Magic": "Magic Pool",
   "SR2E.DicePools.Control": "Control Pool",
 
+  "SR2E.Roll.Wound": "wound",
+  "SR2E.Roll.Sustaining": "sustaining",
+  "SR2E.Roll.DumpShock": "dump shock",
+  "SR2E.Roll.Centering": "centering",
+  "SR2E.Roll.Karma": "Karma",
+  "SR2E.Roll.TnBreakdown": "{tn} (base {base} {parts})",
+  "SR2E.Roll.DiceBreakdown": "{dice} {parts} = {total} total",
+
   "SR2E.Armor.Label": "Armor",
   "SR2E.Armor.Ballistic": "Ballistic",
   "SR2E.Armor.Impact": "Impact",

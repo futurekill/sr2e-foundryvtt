@@ -143,8 +143,10 @@ export class SR2EActor extends Actor {
     let poolDiceTotal = 0;
 
     const poolLabels = {
-      combat: "Combat Pool", magic: "Magic Pool", hacking: "Hacking Pool",
-      control: "Control Pool"
+      combat:  game.i18n.localize("SR2E.DicePools.Combat"),
+      magic:   game.i18n.localize("SR2E.DicePools.Magic"),
+      hacking: game.i18n.localize("SR2E.DicePools.Hacking"),
+      control: game.i18n.localize("SR2E.DicePools.Control")
     };
 
     for (const [key, requested] of Object.entries(poolDice)) {
@@ -168,21 +170,22 @@ export class SR2EActor extends Actor {
     const testResult = await SR2ESuccessRoll.successTest(totalDice, effectiveTN);
     const successes = testResult.successes;
 
-    // Build chat notes
+    // Build chat notes (localized — see SR2E.Roll.* in lang/en.json)
+    const i18n = game.i18n;
     const tnParts = [];
-    if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} wound`);
-    if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} sustaining`);
-    if (dumpShock > 0)      tnParts.push(`+${dumpShock} dump shock`);
-    if (centeringReduction > 0) tnParts.push(`−${centeringReduction} centering`);
+    if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} ${i18n.localize("SR2E.Roll.Wound")}`);
+    if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} ${i18n.localize("SR2E.Roll.Sustaining")}`);
+    if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
+    if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
-      ? `${effectiveTN} (base ${targetNumber} ${tnParts.join(", ")})`
+      ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
       : `${effectiveTN}`;
 
     let diceNote = `${dicePool}`;
     if (poolDiceTotal > 0 || karmaDice > 0) {
       const parts = poolsUsed.map(p => `+${p.amount} ${p.label}`);
-      if (karmaDice > 0) parts.push(`+${karmaDice} Karma`);
-      diceNote = `${dicePool} ${parts.join(", ")} = ${totalDice} total`;
+      if (karmaDice > 0) parts.push(`+${karmaDice} ${i18n.localize("SR2E.Roll.Karma")}`);
+      diceNote = i18n.format("SR2E.Roll.DiceBreakdown", { dice: dicePool, parts: parts.join(", "), total: totalDice });
     }
 
     // Card state — persisted in message flags so the Karma Pool buttons can

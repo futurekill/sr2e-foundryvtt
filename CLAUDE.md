@@ -76,8 +76,10 @@ save) and return update objects. Never reorder entries. System compendia
 are rebuilt from packs-src instead of runtime-migrated.
 
 ## Known deferred work
-Matrix subsystem (planning + rules reference in docs/MATRIX.md;
-build Phase 1 cybercombat first), full i18n of TN-breakdown strings.
+VR2.0 Matrix ruleset (optional; core Matrix is implemented — see docs/MATRIX.md).
+The success-test TN/dice breakdown is localized (`SR2E.Roll.*`); roll *labels*
+(e.g. "X Test — defaulting to Y") are still English — a broader i18n pass, low
+priority for a single-language project.
 
 Astral is implemented: astralState (none/perceiving/projecting) with
 Astral Reaction +15 initiative when projecting; rollAstralAttack /

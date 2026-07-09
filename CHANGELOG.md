@@ -4,6 +4,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.32.5 — 2026-07-09
+
+### Changes
+- **TN/dice breakdown localized.** The success-test chat note ("8 (base 4 +2
+  wound, +2 sustaining)" and the dice breakdown) now reads from `SR2E.Roll.*`
+  i18n keys instead of hardcoded English, along with the dice-pool labels.
+- **Foundry V14 deprecation audit (static): clean.** Verified every deprecated
+  global was already namespaced (foundry.utils, DialogV2, FilePicker,
+  loadTemplates, TextEditor, AudioHelper, renderChatMessageHTML). No changes
+  needed; only runtime items (TokenHUD DOM, the Token isVisible override) remain
+  to confirm on a real V14 build.
+
 ## 0.32.4 — 2026-07-09
 
 ### Fixes (code review)
