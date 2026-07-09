@@ -1973,12 +1973,12 @@
 }
 
 .sr2e-vehicle-sheet .vehicle-header .profile-img {
+  flex: 0 0 48px;
   width: 48px;
   height: 48px;
-  object-fit: cover;
+  object-fit: contain;
   border: 2px solid var(--sr2e-matrix);
   border-radius: 2px;
-  flex-shrink: 0;
 }
 
 .stat-grid {
@@ -2008,6 +2008,17 @@
   padding: 8px;
   border-bottom: 2px solid var(--sr2e-magic);
   gap: 8px;
+}
+
+/* Compact portrait, like the IC/host/vehicle sheets — a spirit doesn't need a
+   full-height icon (without this the image renders at its native size). */
+.sr2e-spirit-sheet .spirit-header .profile-img {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border: 2px solid var(--sr2e-magic);
+  border-radius: 2px;
 }
 
 .power-tag {

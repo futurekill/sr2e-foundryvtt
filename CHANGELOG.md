@@ -4,6 +4,14 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.30.2 — 2026-07-08
+
+### Fixes
+- **Spirit sheet no longer shows a giant portrait.** The spirit header was
+  missing the compact `.profile-img` sizing the IC/host/vehicle sheets have, so
+  the image rendered at full height. Spirits (and vehicles) now use the same
+  48px portrait as the other minor-actor sheets.
+
 ## 0.30.1 — 2026-07-08
 
 ### Features
