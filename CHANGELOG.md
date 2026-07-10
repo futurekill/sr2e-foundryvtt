@@ -4,6 +4,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.32.7 — 2026-07-09
+
+### Fixes
+- **B/R skills default to their parent skill, not the attribute.** A Build/Repair
+  check (e.g. Throwing Weapons (B/R)) with the parent skill owned was defaulting
+  all the way out to the linked attribute (Quickness). The skill-name→web-node
+  mapping was stripping the "(B/R)" suffix, collapsing the B/R skill onto its
+  parent node; since you *own* the parent, the defaulting engine skipped it (you
+  can't default a skill from itself) and fell through to the attribute. Now a
+  B/R label maps to its own node, so it correctly defaults to the parent skill at
+  +2 TN (SR2E p.68–69).
+
 ## 0.32.6 — 2026-07-09
 
 ### Fixes

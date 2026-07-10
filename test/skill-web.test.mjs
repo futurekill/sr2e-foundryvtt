@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SR2E } from "../module/config.mjs";
-import { findBestPath } from "../module/rules/sr2e-rules.mjs";
+import { findBestPath, webNodeForLabel, webDefaultingTN } from "../module/rules/sr2e-rules.mjs";
 
 // Acceptance tests for the printed Skill Web (SR2E p.68–69), traced from the
 // physical route map (docs/SKILL-WEB-VERIFY.md + book scans). These lock the
@@ -43,5 +43,21 @@ describe("Skill Web — findBestPath acceptance cases (printed route map)", () =
     expect(p.targetNumberModifier).toBe(10);
     expect(p.path[0]).toBe("willpower");
     expect(p.path.at(-1)).toBe("militaryTheory");
+  });
+
+  it("maps a (B/R) label to its own node, not the parent", () => {
+    // The bug: stripping "(B/R)" collapsed the B/R skill onto its parent, so a
+    // B/R check with the parent skill owned defaulted to the attribute instead.
+    expect(webNodeForLabel(web, "Throwing Weapons (B/R)")).toBe("throwingBR");
+    expect(webNodeForLabel(web, "Throwing Weapons")).toBe("throwing");
+    expect(webNodeForLabel(web, "Firearms (B/R)")).toBe("firearmsBR");
+  });
+
+  it("a B/R check defaults to the owned parent skill at +2, not the attribute", () => {
+    // Character has Throwing Weapons but not Throwing Weapons (B/R).
+    const target = webNodeForLabel(web, "Throwing Weapons (B/R)");
+    const owned = [webNodeForLabel(web, "Throwing Weapons")];
+    const best = webDefaultingTN(web, target, owned);
+    expect(best).toEqual({ penalty: 2, source: "throwing", kind: "skill" });
   });
 });

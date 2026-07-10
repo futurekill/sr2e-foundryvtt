@@ -5,7 +5,7 @@ import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
-         knockdownTN, knockdownOutcome, webDefaultingTN } from "../rules/sr2e-rules.mjs";
+         knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -441,9 +441,7 @@ export class SR2EActor extends Actor {
   _webDefault(skill) {
     const web = CONFIG.SR2E.skillWeb;
     if (!web?.nodes) return null;
-    const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
-    const target = Object.keys(web.nodes).find((k) => norm(web.nodes[k].label) === norm(skill.name)) ?? null;
-    return this._webDefaultForNode(target, skill.id);
+    return this._webDefaultForNode(webNodeForLabel(web, skill.name), skill.id);
   }
 
   /**
@@ -462,15 +460,12 @@ export class SR2EActor extends Actor {
   _webDefaultForNode(target, excludeItemId) {
     const web = CONFIG.SR2E.skillWeb;
     if (!web?.nodes || !target) return null;
-    const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
-    const nodeFor = (name) =>
-      Object.keys(web.nodes).find((k) => norm(web.nodes[k].label) === norm(name)) ?? null;
 
     // Owned skill nodes (rating > 0), for related-skill defaulting.
     const ownedByNode = new Map();
     for (const it of this.items) {
       if (it.type === "skill" && it.id !== excludeItemId && (it.system.rating ?? 0) > 0) {
-        const n = nodeFor(it.name);
+        const n = webNodeForLabel(web, it.name);
         if (n) ownedByNode.set(n, it.system.rating);
       }
     }

@@ -1320,3 +1320,19 @@ export function webDefaultingTN(web, target, owned = []) {
 
   return best ? { penalty: best.circles * 2, source: best.source, kind: best.kind } : null;
 }
+
+/**
+ * Resolve a skill NAME to its Skill Web node key by exact (case-insensitive)
+ * label match. The "(B/R)" suffix is significant — "Throwing Weapons (B/R)" must
+ * map to the throwingBR node, NOT collapse onto its parent "Throwing Weapons"
+ * (which would make a B/R check default to the attribute instead of the parent
+ * skill, SR2E p.68–69).
+ * @param {object} web CONFIG.SR2E.skillWeb
+ * @param {string} name skill label
+ * @returns {string|null} node key
+ */
+export function webNodeForLabel(web, name) {
+  const norm = (s) => (s ?? "").toLowerCase().trim();
+  const t = norm(name);
+  return Object.keys(web?.nodes ?? {}).find((k) => norm(web.nodes[k].label) === t) ?? null;
+}
