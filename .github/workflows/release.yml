@@ -34,7 +34,7 @@ jobs:
       # 1. Checkout the code at the tagged commit
       # ---------------------------------------------------------------
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ---------------------------------------------------------------
       # 2. Extract version from the tag (strips leading 'v')
@@ -53,9 +53,9 @@ jobs:
       #     (packs/ is gitignored — a build artifact, not committed)
       # ---------------------------------------------------------------
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install dependencies & build packs
         run: |
