@@ -4,6 +4,34 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixes
+- **Initiative: no more negative totals or dead characters jumping to the top.**
+  Spending an action now floors Initiative at 0 (SR2 p.78 — you're simply out at
+  ≤0). A new Combat Turn re-rolls only the living; defeated combatants stay out
+  with no initiative instead of getting a fresh high roll that sorted them first.
+  `startCombat` no longer opens on a corpse, and when nobody can act the turn
+  pointer clears instead of pointing at a dead token.
+- **Aerodynamic grenades/shuriken now scatter and range correctly.** A new
+  `aerodynamic` weapon flag routes them through the 2D6/−4-per-success scatter
+  profile and the Str×20/×30 long/extreme range brackets (SR2 p.96); Shuriken are
+  flagged aerodynamic.
+- **Vehicle (and NPC/spirit/IC/host) portraits are clickable again.** The
+  portrait picker (`editImage`) is now wired on every actor sheet, not just the
+  character header, so changing a vehicle's picture updates its portrait.
+- **Adept powers can be dragged to the hotbar.** Dropping a power on the hotbar
+  now posts its card (shared with the sheet's use-power action) instead of doing
+  nothing.
+
+### Additions
+- **Cyberdecks drive the Matrix tab.** A cyberdeck bought as gear now carries its
+  MPCP and hardware specs; activating one (⚡ on the Gear tab — only one active at
+  a time) snapshots them onto the Matrix tab. Persona attributes still come from
+  loaded persona programs. Decks without an active selection keep the old manual
+  fields as a fallback (no migration needed).
+- **Cyber-implant weapons (spurs, hand razors) work like weapons.** Weapon
+  cyberware now appears in the Combat tab, rolls through the melee attack path,
+  and is hotbar-droppable — while staying out of ammo/reload/accessory/sale UI.
+
 ## 0.32.8 — 2026-07-10
 
 ### Fixes

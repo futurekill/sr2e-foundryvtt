@@ -149,22 +149,58 @@ export class SR2EItem extends Item {
    * @param {object} [options] - Roll options
    * @returns {Promise}
    */
+  /**
+   * A real weapon OR a cyber-implant weapon (spurs, hand razors) flagged
+   * `isWeapon`. The single predicate used to decide "does this attack?" across
+   * roll(), the combat lists, and melee-defense selection — so a cyber-blade is
+   * a weapon where it matters (attack/defence) without becoming one where it
+   * doesn't (ammo, accessories, reload, vehicle mounts, weapon-focus bonding).
+   */
+  get isWeaponLike() {
+    return this.type === "weapon"
+      || (this.type === "cyberware" && this.system.isWeapon === true);
+  }
+
   async roll(options = {}) {
     const actor = this.parent;
     if (!actor) return;
 
+    // Weapons and weapon-cyberware both attack through the shared path.
+    if (this.isWeaponLike) return this._rollWeaponAttack(options);
+
     switch (this.type) {
-      case "weapon":
-        return this._rollWeaponAttack(options);
       case "spell":
         return this._rollSpellcast(options);
       case "skill":
         return this._rollSkillTest(options);
       case "program":
         return this._rollProgramAction(options);
+      case "adept_power":
+        return this._displayPowerCard();
       default:
         return this._displayItemCard();
     }
+  }
+
+  /**
+   * Post the adept-power reference card. Shared by the sheet's use-power action
+   * and hotbar `roll()`. Adept powers are passive/derived — this shows the
+   * power's stats and how to invoke it (Killing Hands via the attack dialog); it
+   * does NOT toggle any state.
+   */
+  async _displayPowerCard() {
+    const actor = this.parent;
+    const s = this.system;
+    const invoke = /killing hands/i.test(this.name)
+      ? `<br><em>Invoke via the "Killing Hands" checkbox on an Unarmed Strike attack.</em>`
+      : `<br><em>Passive — its bonus is already applied to the character's stats.</em>`;
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="sr2e-power-card">
+        <strong>✋ ${foundry.utils.escapeHTML(this.name)}</strong> (Level ${s.level}, ${s.totalCost} PP)
+        ${s.description || ""}${invoke}
+      </div>`
+    });
   }
 
   /**
@@ -678,7 +714,13 @@ export class SR2EItem extends Item {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
       const targetTok = game.user?.targets?.first?.();
       const safeName = foundry.utils.escapeHTML(this.name);
-      const delivery = this.system.weaponType === "grenade" ? "standard" : "launcher";
+      // Delivery drives the scatter profile (sr2e.mjs resolveBlast). Grenades
+      // scatter standard 1D6/−2, or 2D6/−4 if aerodynamic; launched ordnance
+      // (rockets/missiles) uses 3D6/−4. (This branch is already gated on
+      // blastType, so the aerodynamic scatter profile only applies to blasts.)
+      const delivery = this.system.weaponType !== "grenade"
+        ? "launcher"
+        : (this.system.aerodynamic ? "aerodynamic" : "standard");
       const hits = result.successes;
       const isSmoke = this.system.blastType === "smoke";
       const blurb = isSmoke

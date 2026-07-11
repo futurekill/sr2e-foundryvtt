@@ -703,6 +703,29 @@ export function thrownRange(strength, aerodynamic = false) {
   return { short: s * m.short, medium: s * m.medium, long: s * m.long, extreme: s * m.extreme };
 }
 
+/* ── INITIATIVE PASSES (SR2E p.78–79) — pure decision helpers for SR2ECombat ── */
+
+/** Initiative left after taking an action: −10, floored at 0 (you simply stop
+ * acting at ≤0; never show negatives). */
+export function spendInitiative(total) {
+  return Math.max(0, (total ?? 0) - 10);
+}
+
+/** The next Combat Phase: index of the first combatant with a positive total
+ * that isn't defeated, or `null` if nobody can act (clear the turn pointer).
+ * `combatants` must already be in descending-initiative order (Foundry's sort). */
+export function nextEligibleTurnIndex(combatants) {
+  const i = combatants.findIndex(c => (c.initiative ?? 0) > 0 && !c.isDefeated);
+  return i === -1 ? null : i;
+}
+
+/** IDs of the combatants that re-roll on a new Combat Turn — the living only.
+ * The defeated stay out (null initiative) so a re-rolled corpse can't jump to
+ * the top of the tracker. */
+export function livingCombatantIds(combatants) {
+  return combatants.filter(c => !c.isDefeated).map(c => c.id);
+}
+
 /**
  * Skill Memory Table (SR2E p.248) — a skillsoft's Memory cost (Mp) by skill
  * rating 1–10. General covers Active and Knowledge skills; Language covers

@@ -4,7 +4,7 @@
   "type": "character",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>An elven data-thief who grew up jacked in and never quite came back out. Glitch is charming in meatspace and untouchable in the Matrix \u2014 or so they keep saying.</p><p><em>Sample character \u2014 cyberdeck statistics are on the Matrix tab.</em></p>",
+    "biography": "<p>An elven data-thief who grew up jacked in and never quite came back out. Glitch is charming in meatspace and untouchable in the Matrix — or so they keep saying.</p><p><em>Sample character — cyberdeck statistics are on the Matrix tab.</em></p>",
     "notes": "",
     "race": "elf",
     "body": {
@@ -464,7 +464,7 @@
           "reaction": 0,
           "initiativeDice": 0
         },
-        "notes": "SR2E p.248. 100 megapulse of headware memory\u2014enough for multiple high-rating skillsofts. Essence 1.0."
+        "notes": "SR2E p.248. 100 megapulse of headware memory—enough for multiple high-rating skillsofts. Essence 1.0."
       },
       "effects": [],
       "flags": {},
@@ -775,6 +775,31 @@
       "sort": 0,
       "ownership": {
         "default": 0
+      }
+    },
+    {
+      "_id": "0cdba143f331e02d",
+      "name": "Fuchi Cyber-6 (Glitch's deck)",
+      "type": "gear",
+      "img": "icons/commodities/tech/console-green.webp",
+      "system": {
+        "category": "cyberdeck",
+        "quantity": 1,
+        "cost": 0,
+        "availability": "",
+        "legality": "Legal",
+        "concealability": 10,
+        "notes": "Glitch's personal deck. Activate (⚡) to drive the Matrix tab.",
+        "deck": {
+          "active": true,
+          "mpcp": 6,
+          "hardening": 3,
+          "activeMemory": 600,
+          "storageMemory": 1200,
+          "loadSpeed": 120,
+          "ioSpeed": 180,
+          "response": 1
+        }
       }
     }
   ],

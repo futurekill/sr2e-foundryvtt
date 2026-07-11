@@ -54,6 +54,12 @@
           </span>
           {{/if}}
           <div class="item-controls">
+            {{#ifEquals weapon.type "cyberware"}}
+            {{!-- Cyber-implant weapon (spurs, hand razors): no ammo/sell/equip —
+                  it's installed cyberware, managed on the Cyberware tab. --}}
+            <span class="innate-badge" title="Cyber-implant weapon — installed cyberware; manage it on the Cyberware tab."><i class="fas fa-microchip"></i></span>
+            <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
+            {{else}}
             {{#ifEquals weapon.name "Unarmed Strike"}}
             <span class="innate-badge" title="Innate — every character has Unarmed Strike; it can't be sold or deleted."><i class="fas fa-hand-fist"></i></span>
             {{else}}
@@ -65,6 +71,7 @@
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             {{#ifEquals weapon.name "Unarmed Strike"}}{{else}}
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
+            {{/ifEquals}}
             {{/ifEquals}}
           </div>
         </div>

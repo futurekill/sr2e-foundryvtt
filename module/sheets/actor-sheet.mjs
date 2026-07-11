@@ -35,6 +35,13 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     window: {
       resizable: true
     },
+    // Portrait click-to-edit for EVERY actor sheet. AppV2 deep-merges
+    // DEFAULT_OPTIONS.actions down the class chain, so putting editImage here
+    // gives npc/vehicle/spirit/ic/host their portrait picker without repeating it
+    // (previously only the character header wired data-action="editImage").
+    actions: {
+      editImage: SHARED_ACTIONS.editImage
+    },
     // V13: register DragDrop so _onDragOver/_onDrop/_onDragStart are bound.
     // Without this, dragover never calls preventDefault(), letting the browser's
     // native drop behaviour fire on form <select> elements and corrupt their values.
@@ -389,7 +396,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
    */
   async _bondWeaponFocusOnDrop(itemData) {
     const actor = this.document;
-    const weapons = actor.items.filter(i => i.type === "weapon" && i.system.weaponType === "melee");
+    const weapons = actor.items.filter(i => i.isWeaponLike && i.system.weaponType === "melee");
     if (!weapons.length) {
       ui.notifications.warn("Add a melee weapon first — a weapon focus must be bonded to one (SR2E p.126).");
       return false;
@@ -515,7 +522,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Organize items by type
     context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name))
       .concat(actor.system.chippedSkills ?? []); // synthetic skills from slotted skillsofts
-    context.weapons = actor.items.filter(i => i.type === "weapon");
+    context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
@@ -848,7 +855,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     const actor = this.document;
 
     context.skills = actor.items.filter(i => i.type === "skill");
-    context.weapons = actor.items.filter(i => i.type === "weapon");
+    context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.gear = actor.items.filter(i => i.type === "gear");
     context.spells = actor.items.filter(i => i.type === "spell");
 
@@ -988,7 +995,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    context.weapons = this.document.items.filter(i => i.type === "weapon");
+    context.weapons = this.document.items.filter(i => i.isWeaponLike);
     context.mods = this.document.items
       .filter(i => i.type === "vehicle_mod")
       .map(i => ({ id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) }));

@@ -179,6 +179,11 @@ export class WeaponData extends SR2EDataModel {
         // Smoke: no damage — drops a visibility-impairing cloud template
         smoke: "Smoke (no damage)"
       }}),
+      // Aerodynamic thrown weapon (shuriken, aerodynamic grenades — SR2 p.96):
+      // scatters 2D6/−4-per-success (vs a standard grenade's 1D6/−2) and reaches
+      // Str×20/×30 at long/extreme (vs ×10/×20). Only meaningful for throwing/
+      // grenade weapons; the scatter half applies only when blastType is set.
+      aerodynamic: new fields.BooleanField({ initial: false }),
       // Consumable count for thrown weapons (grenades, knives, shuriken): they
       // stack instead of reloading, and throwing one decrements this.
       quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
@@ -320,6 +325,16 @@ export class CyberwareData extends SR2EDataModel {
       streetIndex: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
       installed: new fields.BooleanField({ initial: true }),
+      // Cyber-implant melee weapon (spurs, hand razors, hand blades — SR2 p.256).
+      // When isWeapon, this cyberware also appears in the combat tab and rolls
+      // through the shared melee attack path (item.isWeaponLike). Only these
+      // melee-relevant fields are needed — no ammo/ranges/firing modes.
+      isWeapon: new fields.BooleanField({ initial: false }),
+      weaponType: new fields.StringField({ initial: "melee" }),
+      skill: new fields.StringField({ initial: "armed combat" }),
+      damageCode: new fields.StringField({ initial: "" }),
+      damageType: new fields.StringField({ initial: "physical" }),
+      reach: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Combat TN modifier — negative values reduce the attack TN (e.g. −1 for Smartlink).
       // Applied only when the target weapon has smartgunCompatible = true.
       combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
@@ -441,6 +456,23 @@ export class GearData extends SR2EDataModel {
       legality: new fields.StringField({ initial: "Legal" }),
       equipped: new fields.BooleanField({ initial: false }),
       concealability: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+
+      // Cyberdeck (SR2 p.140). A gear item with category "cyberdeck" carries a
+      // deck's machine-readable specs here. When `deck.active` (only one deck
+      // active per character), these snapshot onto the actor's system.cyberdeck.*
+      // and drive the Matrix tab. Field names MIRROR the actor's cyberdeck schema
+      // exactly so the snapshot is a straight copy. Persona attributes still come
+      // from loaded persona program items (capped by MPCP), not the deck.
+      deck: new fields.SchemaField({
+        active: new fields.BooleanField({ initial: false }),
+        mpcp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        hardening: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        activeMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        storageMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        loadSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        ioSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        response: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      }),
 
       // Weapon accessory (Laser Sight, Smartgun System, Gas-vent, Gyro Mount,
       // Bipod, Silencer, etc.): a mod that attaches to ONE weapon at a time

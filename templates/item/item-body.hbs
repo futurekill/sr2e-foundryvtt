@@ -557,6 +557,38 @@
            title="Worn receptor: −1 TN when firing a smartweapon while equipped (SR2E p.90, p.241)." />
   </div>
   {{/unless}}
+  {{#ifEquals system.category "cyberdeck"}}
+  <hr/>
+  <p class="hint">Cyberdeck (SR2 p.140). Activate it on the Gear tab (⚡) to drive the Matrix tab — only one deck is active at a time. Persona programs (Bod/Evasion/Masking/Sensor) are separate program items capped by MPCP.</p>
+  <div class="form-group">
+    <label>MPCP:</label>
+    <input type="number" name="system.deck.mpcp" value="{{system.deck.mpcp}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Hardening:</label>
+    <input type="number" name="system.deck.hardening" value="{{system.deck.hardening}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Active Memory (Mp):</label>
+    <input type="number" name="system.deck.activeMemory" value="{{system.deck.activeMemory}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Storage Memory (Mp):</label>
+    <input type="number" name="system.deck.storageMemory" value="{{system.deck.storageMemory}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Load Speed:</label>
+    <input type="number" name="system.deck.loadSpeed" value="{{system.deck.loadSpeed}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>I/O Speed:</label>
+    <input type="number" name="system.deck.ioSpeed" value="{{system.deck.ioSpeed}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Response Increase:</label>
+    <input type="number" name="system.deck.response" value="{{system.deck.response}}" min="0" />
+  </div>
+  {{/ifEquals}}
   {{#ifEquals system.category "skillsoft"}}
   <hr/>
   <p class="hint">Skillsoft — slot it on the Gear tab to grant the skill below at this Rating (SR2E p.243).</p>

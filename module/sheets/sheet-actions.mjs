@@ -431,7 +431,7 @@ function detectAttackTarget(attacker, weapon) {
   // core p.96-97). A Str-6 throw reaches 18 m short / 30 medium / 60 long.
   const wt = weapon?.system?.weaponType;
   const r = (wt === "throwing" || wt === "grenade")
-    ? thrownRange(attacker?.system?.strength?.value ?? 1)
+    ? thrownRange(attacker?.system?.strength?.value ?? 1, weapon?.system?.aerodynamic ?? false)
     : (weapon?.system?.ranges ?? {});
   if (r.short > 0) {
     if      (distance <= r.short)  presets.range = "short";
@@ -1884,17 +1884,28 @@ async function onUsePower(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const power = this.document.items.get(itemId);
   if (!power) return;
-  const s = power.system;
-  const invoke = /killing hands/i.test(power.name)
-    ? `<br><em>Invoke via the "Killing Hands" checkbox on an Unarmed Strike attack.</em>`
-    : `<br><em>Passive — its bonus is already applied to the character's stats.</em>`;
-  return ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor: this.document }),
-    content: `<div class="sr2e-power-card">
-      <strong>✋ ${foundry.utils.escapeHTML(power.name)}</strong> (Level ${s.level}, ${s.totalCost} PP)
-      ${s.description || ""}${invoke}
-    </div>`
-  });
+  // Shared with hotbar roll() so a dropped power posts the same card.
+  return power._displayPowerCard();
+}
+
+/**
+ * Activate (or deactivate) a cyberdeck gear item. Exactly one deck is active at
+ * a time: this one toggles, every OTHER deck is switched off — in one batch so
+ * there's no window with two active. The active deck's specs snapshot onto
+ * system.cyberdeck.* (CharacterData._snapshotActiveDeck) and drive the Matrix
+ * tab. Deactivating the last one falls back to the manual cyberdeck fields.
+ */
+async function onActivateDeck(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const deck = actor.items.get(itemId);
+  if (!deck || deck.system.category !== "cyberdeck") return;
+  const makeActive = !deck.system.deck?.active;
+  const updates = actor.items
+    .filter(i => i.type === "gear" && i.system.category === "cyberdeck")
+    .map(i => ({ _id: i.id, "system.deck.active": i.id === itemId ? makeActive : false }));
+  return actor.updateEmbeddedDocuments("Item", updates);
 }
 
 async function onSellItem(event, target) {
@@ -2494,7 +2505,7 @@ async function onBondWeaponFocus(event, target) {
   const id = target.closest("[data-item-id]")?.dataset.itemId;
   const focus = actor.items.get(id);
   if (!focus || focus.system.focusType !== "weapon") return;
-  const weapons = actor.items.filter(i => i.type === "weapon" && i.system.weaponType === "melee");
+  const weapons = actor.items.filter(i => i.isWeaponLike && i.system.weaponType === "melee");
   if (!weapons.length) return ui.notifications.warn("No melee weapon to bond to — add one first (SR2E p.126).");
   const opts = weapons.map(w =>
     `<option value="${w.id}"${w.id === focus.system.bondedWeaponId ? " selected" : ""}>${foundry.utils.escapeHTML(w.name)} — Reach ${w.system.reach ?? 0}</option>`).join("");
@@ -2577,6 +2588,7 @@ const SHARED_ACTIONS = {
   deleteItem: onDeleteItem,
   sellItem: onSellItem,
   usePower: onUsePower,
+  activateDeck: onActivateDeck,
   spendFocus: onSpendFocus,
   addItem: onAddItem,
   reloadWeapon: onReloadWeapon,

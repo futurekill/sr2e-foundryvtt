@@ -572,6 +572,25 @@ async function _resetCombatRecoil(combat) {
 Hooks.on("combatTurn",  (combat) => _resetCombatRecoil(combat));
 Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
 
+// Single active cyberdeck — belt-and-suspenders for when deck.active is set true
+// outside the activateDeck action (Adventure import, a direct item edit). When
+// one deck becomes active, switch the others off. Only the user who made the
+// change runs it (avoids every client firing), and reacting solely to
+// active→true means the resulting active→false cascade is a no-op — no recursion.
+Hooks.on("updateItem", async (item, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+  if (item.type !== "gear" || item.system.category !== "cyberdeck") return;
+  if (changes.system?.deck?.active !== true) return;
+  const actor = item.parent;
+  if (!actor) return;
+  const others = actor.items.filter(i =>
+    i.id !== item.id && i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active);
+  if (others.length) {
+    await actor.updateEmbeddedDocuments("Item",
+      others.map(i => ({ _id: i.id, "system.deck.active": false })));
+  }
+});
+
 /* -------------------------------------------- */
 /*  Wound Status Markers                        */
 /* -------------------------------------------- */

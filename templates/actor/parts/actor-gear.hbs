@@ -105,6 +105,12 @@
           {{/if}}
           <span class="item-price">{{priceTag g.system.cost g.system.streetIndex}}</span>
           <div class="item-controls">
+            {{#ifEquals g.system.category "cyberdeck"}}
+            <a data-action="activateDeck" class="{{#if g.system.deck.active}}deck-active{{/if}}"
+               title="{{#if g.system.deck.active}}Active deck — its specs drive the Matrix tab{{else}}Activate this deck (populates the Matrix tab; deactivates any other deck){{/if}}">
+              <i class="fas {{#if g.system.deck.active}}fa-bolt{{else}}fa-power-off{{/if}}"></i>
+            </a>
+            {{/ifEquals}}
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="Equip/Unequip">
               <i class="fas {{#if g.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
