@@ -466,10 +466,13 @@ export class SR2EActor extends Actor {
     for (const it of this.items) {
       if (it.type === "skill" && it.id !== excludeItemId && (it.system.rating ?? 0) > 0) {
         const n = webNodeForLabel(web, it.name);
-        if (n) ownedByNode.set(n, it.system.rating);
+        // Dedup by node keeping the MAX rating (two items on the same node — e.g.
+        // a specialization — must not let a lower rating win the dice lookup).
+        if (n) ownedByNode.set(n, Math.max(ownedByNode.get(n) ?? 0, it.system.rating));
       }
     }
-    const best = webDefaultingTN(web, target, [...ownedByNode.keys()]);
+    const best = webDefaultingTN(web, target,
+      [...ownedByNode].map(([node, rating]) => ({ node, rating })));
     if (!best) return null;
 
     // Dice: the SOURCE's rating — an attribute value, or the owned related
@@ -488,6 +491,27 @@ export class SR2EActor extends Actor {
       dice: Math.max(1, dice),
       penalty: best.penalty,
       label: `defaulting via ${srcLabel} +${best.penalty} TN`
+    };
+  }
+
+  /**
+   * Vehicle-weapon (Gunnery) attack dice for this operator. Shared by BOTH
+   * vehicle-weapon handlers (actor-sheet.onFireVehicleWeapon and
+   * sheet-actions.rollVehicleWeapon) so they can't silently diverge. Trained →
+   * Gunnery rating (capped); untrained → Skill Web default (most-advantageous
+   * related skill) with Intelligence as the no-web fallback (SR2E p.69).
+   * @returns {{skillCap:number, baseDice:number, defaultingPenalty:number}}
+   */
+  _gunneryAttackDice() {
+    const rating = this.items.find(
+      i => i.type === "skill" && i.name.toLowerCase() === "gunnery"
+    )?.system?.rating ?? 0;
+    if (rating > 0) return { skillCap: rating, baseDice: rating, defaultingPenalty: 0 };
+    const web = this._webDefaultByKey?.("gunnery");
+    return {
+      skillCap: Infinity,
+      baseDice: web?.dice ?? Math.max(1, this.system.intelligence?.value ?? 1),
+      defaultingPenalty: web?.penalty ?? CONFIG.SR2E.defaultingPenalty,
     };
   }
 

@@ -4,6 +4,22 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.32.8 — 2026-07-10
+
+### Fixes
+- **Untrained defaulting now always uses the most-advantageous related skill.**
+  When several owned skills can reach a target through the Skill Web at the same
+  cost (circles), the defaulting engine now picks the highest-rated one (more
+  dice at the same TN); a strictly-cheaper path still wins outright (RAW
+  cheapest-circles is never overridden by rating, SR2E p.68–69). A repeated node
+  (e.g. a skill + its specialization) keeps its highest rating instead of being
+  clobbered by a lower one.
+- **Vehicle-weapon fire routes through the Skill Web like every other test.**
+  One of the two vehicle-weapon handlers still hard-coded Intelligence + a flat
+  +4 for an untrained gunner, bypassing the web. Both handlers now share one
+  `_gunneryAttackDice()` path, so they can't diverge and both default Gunnery
+  through the web (Intelligence only as the no-web fallback).
+
 ## 0.32.7 — 2026-07-09
 
 ### Fixes

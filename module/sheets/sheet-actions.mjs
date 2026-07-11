@@ -2681,18 +2681,9 @@ const SHARED_ACTIONS = {
     if (!weapon) return;
     const actor = this.document;
 
-    // Gunner's skill: Gunnery, defaulting via the Skill Web (SR2E p.69) untrained
-    const gunnery = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "gunnery");
-    const rating = gunnery?.system?.rating ?? 0;
-    let skillCap = Infinity, baseDice = 1, defaultingPenalty = 0;
-    if (rating > 0) {
-      skillCap = rating;
-      baseDice = rating;
-    } else {
-      const web = actor._webDefaultByKey?.("gunnery");
-      baseDice = web?.dice ?? Math.max(1, actor.system.intelligence?.value ?? 1);
-      defaultingPenalty = web?.penalty ?? CONFIG.SR2E.defaultingPenalty;
-    }
+    // Gunnery, defaulting via the Skill Web (SR2E p.69) untrained — shared with
+    // actor-sheet.onFireVehicleWeapon so the two handlers can't diverge.
+    const { skillCap, baseDice, defaultingPenalty } = actor._gunneryAttackDice();
 
     // Distance measured from the vehicle's token (the weapon mount)
     const presets = detectAttackTarget(vehicle, weapon);

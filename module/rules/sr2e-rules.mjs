@@ -1299,23 +1299,40 @@ export function findBestPath(web, fromId, toId) {
  */
 export function webDefaultingTN(web, target, owned = []) {
   let best = null;
-  const consider = (circles, source, kind) => {
+  // Selection order (SR2E p.68–69 + house policy): fewest circles wins; on an
+  // equal-circle tie a related skill beats an attribute (RAW intent), and among
+  // skills the highest-rated one wins (more dice at the same TN). `rating` only
+  // participates in the skill-vs-skill tie-break.
+  const consider = (circles, source, kind, rating = 0) => {
     if (circles == null) return;
-    // Cheaper wins; on a tie, a related skill beats an attribute.
-    if (best == null || circles < best.circles ||
-        (circles === best.circles && kind === "skill" && best.kind === "attribute")) {
-      best = { circles, source, kind };
+    if (best == null
+        || circles < best.circles
+        || (circles === best.circles && kind === "skill" && best.kind === "attribute")
+        || (circles === best.circles && kind === "skill" && best.kind === "skill" && rating > best.rating)) {
+      best = { circles, source, kind, rating };
     }
   };
 
+  // Attributes first, so the skill-over-attribute tie-break can replace them.
   for (const a of WEB_ATTRIBUTES) {
     const p = findBestPath(web, a, target);
     if (p) consider(p.circles, a, "attribute");
   }
-  for (const s of owned) {
-    if (s === target) continue;
-    const p = findBestPath(web, target, s);
-    if (p) consider(p.circles, s, "skill");
+
+  // Owned skills: accept {node, rating} or a bare node string (rating 0). Dedup
+  // by node keeping the MAX rating, so a later lower-rated item on the same node
+  // can't clobber a higher one before the tie-break sees it.
+  const byNode = new Map();
+  for (const o of owned) {
+    const node = typeof o === "string" ? o : o?.node;
+    if (!node) continue;
+    const rating = typeof o === "string" ? 0 : (Number(o?.rating) || 0);
+    byNode.set(node, Math.max(byNode.get(node) ?? 0, rating));
+  }
+  for (const [node, rating] of byNode) {
+    if (node === target) continue;
+    const p = findBestPath(web, target, node);
+    if (p) consider(p.circles, node, "skill", rating);
   }
 
   return best ? { penalty: best.circles * 2, source: best.source, kind: best.kind } : null;

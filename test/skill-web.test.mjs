@@ -61,3 +61,45 @@ describe("Skill Web — findBestPath acceptance cases (printed route map)", () =
     expect(best).toEqual({ penalty: 2, source: "throwing", kind: "skill" });
   });
 });
+
+describe("Skill Web — most-advantageous defaulting (SR2E p.68–69 + rating tie-break)", () => {
+  // electronics and computerTheory both sit 1 circle from computer — a clean
+  // equal-distance pair for the rating tie-break and dedup cases.
+  it("on an equal-circle tie between two skills, picks the higher-rated one", () => {
+    const best = webDefaultingTN(web, "computer",
+      [{ node: "electronics", rating: 3 }, { node: "computerTheory", rating: 5 }]);
+    expect(best).toEqual({ penalty: 2, source: "computerTheory", kind: "skill" });
+  });
+
+  // Two items on the SAME node must keep the MAX rating regardless of insertion
+  // order — a lower rating can't clobber a higher one before the tie-break. The
+  // competitor (computerTheory 3) sits at the same distance with an intermediate
+  // rating, so the assertion only holds if electronics kept its max (5 > 3).
+  it.each([
+    ["high-then-low", [{ node: "electronics", rating: 5 }, { node: "electronics", rating: 2 }]],
+    ["low-then-high", [{ node: "electronics", rating: 2 }, { node: "electronics", rating: 5 }]],
+  ])("dedups a repeated node by MAX rating (%s order)", (_label, dup) => {
+    const best = webDefaultingTN(web, "computer",
+      [...dup, { node: "computerTheory", rating: 3 }]);
+    expect(best).toEqual({ penalty: 2, source: "electronics", kind: "skill" });
+  });
+
+  it("a strictly-cheaper source beats a higher-rated but farther one (RAW cheapest-circles)", () => {
+    // throwing is 1 circle from throwingBR; projectile is 3. Cheaper wins despite
+    // the far skill's much higher rating.
+    const best = webDefaultingTN(web, "throwingBR",
+      [{ node: "throwing", rating: 1 }, { node: "projectile", rating: 6 }]);
+    expect(best).toEqual({ penalty: 2, source: "throwing", kind: "skill" });
+  });
+
+  it("on a full tie (equal circles AND rating), first-owned wins (documented order)", () => {
+    const best = webDefaultingTN(web, "computer",
+      [{ node: "electronics", rating: 4 }, { node: "computerTheory", rating: 4 }]);
+    expect(best).toEqual({ penalty: 2, source: "electronics", kind: "skill" });
+  });
+
+  it("accepts a bare node-key array (rating 0) for back-compat", () => {
+    expect(webDefaultingTN(web, "throwingBR", ["throwing"]))
+      .toEqual({ penalty: 2, source: "throwing", kind: "skill" });
+  });
+});
