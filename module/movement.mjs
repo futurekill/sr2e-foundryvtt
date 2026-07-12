@@ -45,6 +45,11 @@ function limitActive(tokenDoc) {
     && tokenRates(tokenDoc) !== null;
 }
 
+/** Whether to hide Foundry's combat movement-history ruler (separate setting). */
+function hideHistory() {
+  return game.settings.get("sr2e", "hideCombatMovementHistory");
+}
+
 /** Grid distance (scene units = metres) between two pixel points. */
 function gridDistance(a, b) {
   return canvas.grid.measurePath([{ x: a.x, y: a.y }, { x: b.x, y: b.y }]).distance;
@@ -76,8 +81,14 @@ export function registerMovementLimit() {
       return BAND_COLOR[band(prior + waypointDistance(waypoint), rates)];
     }
 
+    /** Hide the "passed" combat movement history when the setting is on. */
+    #isHiddenHistory(waypoint) {
+      return hideHistory() && waypoint?.stage === "passed";
+    }
+
     _getSegmentStyle(waypoint) {
       const style = super._getSegmentStyle(waypoint);
+      if (this.#isHiddenHistory(waypoint)) { style.width = 0; style.alpha = 0; return style; }
       const c = this.#bandColor(waypoint);
       if (c !== null) style.color = c;
       return style;
@@ -85,9 +96,22 @@ export function registerMovementLimit() {
 
     _getWaypointStyle(waypoint) {
       const style = super._getWaypointStyle(waypoint);
+      if (this.#isHiddenHistory(waypoint)) { style.radius = 0; style.alpha = 0; return style; }
       const c = this.#bandColor(waypoint);
       if (c !== null) style.color = c;
       return style;
+    }
+
+    _getGridHighlightStyle(waypoint, offset) {
+      const style = super._getGridHighlightStyle(waypoint, offset);
+      if (this.#isHiddenHistory(waypoint)) style.alpha = 0;
+      return style;
+    }
+
+    _getWaypointLabelContext(waypoint, state) {
+      // Let super thread its label state, then drop the label for hidden history.
+      const context = super._getWaypointLabelContext(waypoint, state);
+      return this.#isHiddenHistory(waypoint) ? null : context;
     }
   }
 
@@ -109,9 +133,13 @@ Hooks.on("updateCombat", (combat, changes) => {
 // Enforce the cap on the moving user's client: block a drop past the running
 // maximum, warn when it crosses into running distance.
 Hooks.on("preUpdateToken", (tokenDoc, changes, options, userId) => {
-  if (game.user.id !== userId || game.user.isGM) return;     // GMs move freely
+  if (game.user.id !== userId) return;                       // the mover evaluates
   if (changes.x === undefined && changes.y === undefined) return;
   if (!limitActive(tokenDoc)) return;
+  // The GM may reposition NON-player tokens freely (NPCs, setup), but a
+  // player-owned token (a PC, or their drone/spirit) stays capped even when the
+  // GM drags it — otherwise the limit does nothing when the GM moves a PC.
+  if (game.user.isGM && !tokenDoc.actor?.hasPlayerOwner) return;
 
   const rates  = tokenRates(tokenDoc);
   const origin = tokenDoc.getFlag("sr2e", "moveOrigin") ?? { x: tokenDoc.x, y: tokenDoc.y };

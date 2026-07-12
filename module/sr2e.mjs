@@ -443,11 +443,25 @@ function _registerSystemSettings() {
   // In-combat movement limit (SR2E p.83), read in module/movement.mjs
   game.settings.register("sr2e", "movementLimit", {
     name: "Limit movement in combat",
-    hint: "While a combat is running, cap each token's move at its SR2 movement rate — walk = Quickness, run = Quickness × the metatype Running Modifier, metres per Combat Phase (SR2 p.83). The drag ruler turns green (walking) → amber (running, +4 target modifier) → red, and a drop past the running maximum is refused. GMs move freely. Off by default.",
+    hint: "While a combat is running, cap each token's move at its SR2 movement rate — walk = Quickness, run = Quickness × the metatype Running Modifier, metres per Combat Phase (SR2 p.83). The drag ruler turns green (walking) → amber (running, +4 target modifier) → red, and a drop past the running maximum is refused. The GM may move NPC tokens freely; player-owned tokens stay capped even when the GM drags them. Off by default.",
     scope: "world",
     config: true,
     type: Boolean,
     default: false
+  });
+
+  // Hide Foundry's combat movement-history ruler (the lines/cells shown on hover)
+  game.settings.register("sr2e", "hideCombatMovementHistory", {
+    name: "Hide combat movement history",
+    hint: "Suppress Foundry's built-in movement-history ruler — the path lines, dots, highlighted cells and distance labels shown when hovering a token during combat. The live drag ruler is unaffected. Off by default.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => {
+      // Redraw rulers so already-visible history clears without needing a hover.
+      for (const t of canvas.tokens?.placeables ?? []) t.renderFlags?.set({ refreshRuler: true });
+    }
   });
 
   // Automate Essence from Cyberware (read in CharacterData.prepareDerivedData)
