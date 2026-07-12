@@ -331,6 +331,11 @@ export class CharacterData extends SR2EDataModel {
       this.adeptPowerPoints.value = used;
     }
 
+    // Snapshot the active cyberdeck's specs onto system.cyberdeck.* so every
+    // Matrix consumer (persona, Hacking Pool, isDecker, targeting) reads one
+    // place. MUST run before _derivePersona (which reads cyberdeck.mpcp).
+    this._snapshotActiveDeck();
+
     // Derive Matrix persona attributes from loaded persona programs
     this._derivePersona();
 
@@ -473,6 +478,24 @@ export class CharacterData extends SR2EDataModel {
       accessPorts: chipjacks + datajacks, knowAccess,
       memCapacity, memUsed
     };
+  }
+
+  /**
+   * Copy the active cyberdeck gear item's specs onto system.cyberdeck.* so the
+   * Matrix tab and every consumer read one source of truth. Only one deck may be
+   * active at a time (enforced on activation). With NO active deck, the manual
+   * system.cyberdeck.* fields are left untouched as a fallback — so existing
+   * deckers who entered specs by hand keep working without a migration.
+   * @private
+   */
+  _snapshotActiveDeck() {
+    const deck = this.parent?.items?.find(i =>
+      i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active);
+    if (!deck) return;
+    const d = deck.system.deck;
+    for (const k of ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response"]) {
+      this.cyberdeck[k] = d[k] ?? 0;
+    }
   }
 
   /**

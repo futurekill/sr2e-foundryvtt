@@ -23,7 +23,13 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.249. Narrow blade anchored to bone. Non-retractable. (STR+2)M damage. Essence 0.1."
+    "notes": "SR2E p.249. Narrow blade anchored to bone. Non-retractable. (STR+2)M damage. Essence 0.1.",
+    "isWeapon": true,
+    "weaponType": "melee",
+    "skill": "armed combat",
+    "damageType": "physical",
+    "reach": 0,
+    "damageCode": "(Str+2)M"
   },
   "effects": [],
   "flags": {},

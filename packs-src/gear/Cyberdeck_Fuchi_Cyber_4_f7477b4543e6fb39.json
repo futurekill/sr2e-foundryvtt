@@ -4,7 +4,7 @@
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
-    "category": "matrix",
+    "category": "cyberdeck",
     "rating": 0,
     "quantity": 1,
     "weight": 0,
@@ -13,7 +13,17 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.262. Fuchi's solid mid-tier offering. MPCP 6, 100/500/20/20. Reliable and well-supported."
+    "notes": "SR2E p.262. Fuchi's solid mid-tier offering. MPCP 6, 100/500/20/20. Reliable and well-supported.",
+    "deck": {
+      "active": false,
+      "hardening": 0,
+      "response": 0,
+      "mpcp": 6,
+      "activeMemory": 100,
+      "storageMemory": 500,
+      "ioSpeed": 20,
+      "loadSpeed": 20
+    }
   },
   "effects": [],
   "flags": {},

@@ -779,9 +779,9 @@ export class SR2EActor extends Actor {
       return ui.notifications.warn("The attacker cannot defend against their own attack.");
     }
 
-    // ── Defending weapon choices ──────────────────────────────────────────────
+    // ── Defending weapon choices (incl. cyber-implant melee weapons) ──────────
     const meleeWeapons = this.items.filter(
-      i => i.type === "weapon" && ["melee", "throwing"].includes(i.system.weaponType)
+      i => i.isWeaponLike && ["melee", "throwing"].includes(i.system.weaponType)
     );
     const weaponOptions = [
       `<option value="">Unarmed — (Str)M Stun</option>`,

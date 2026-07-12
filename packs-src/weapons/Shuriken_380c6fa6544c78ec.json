@@ -37,7 +37,8 @@
     "accessories": [],
     "notes": "SR2E p.228. Multi-edged or spiked airfoil throwing blade. Easy to conceal, fast to deploy.",
     "quantity": 1,
-    "streetIndex": 2
+    "streetIndex": 2,
+    "aerodynamic": true
   },
   "effects": [],
   "flags": {},

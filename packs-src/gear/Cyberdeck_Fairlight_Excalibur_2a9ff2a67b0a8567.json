@@ -4,7 +4,7 @@
   "type": "gear",
   "img": "icons/svg/item-bag.svg",
   "system": {
-    "category": "matrix",
+    "category": "cyberdeck",
     "rating": 0,
     "quantity": 1,
     "weight": 0,
@@ -13,7 +13,17 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.262. The pinnacle of civilian deck design. MPCP 12, 500/1000/100/50 stats. Massively expensive but unmatched."
+    "notes": "SR2E p.262. The pinnacle of civilian deck design. MPCP 12, 500/1000/100/50 stats. Massively expensive but unmatched.",
+    "deck": {
+      "active": false,
+      "hardening": 0,
+      "response": 0,
+      "mpcp": 12,
+      "activeMemory": 500,
+      "storageMemory": 1000,
+      "ioSpeed": 100,
+      "loadSpeed": 50
+    }
   },
   "effects": [],
   "flags": {},

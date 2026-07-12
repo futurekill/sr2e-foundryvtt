@@ -13,13 +13,34 @@
  * actor (−10) and jump to the highest remaining total. The tracker's
  * descending sort keeps the visible order correct as totals fall.
  */
+import { spendInitiative, nextEligibleTurnIndex, livingCombatantIds } from "../rules/sr2e-rules.mjs";
+
 export class SR2ECombat extends Combat {
 
-  /** @override Roll initiative for anyone who hasn't, then begin. */
+  /** @override Roll initiative for the living who haven't rolled, then begin. */
   async startCombat() {
-    const unrolled = this.combatants.filter(c => c.initiative === null).map(c => c.id);
-    if (unrolled.length) await this.rollInitiative(unrolled);
-    return super.startCombat();
+    // Clear stale initiative on the defeated so a corpse can't sort first and
+    // capture the opening turn; roll only for the living who haven't rolled.
+    await this._clearDefeatedInitiative();
+    const unrolled = this.combatants.filter(c => !c.isDefeated && c.initiative === null).map(c => c.id);
+    if (unrolled.length) await this.rollInitiative(unrolled, { updateTurn: false });
+    await super.startCombat();
+    // Don't trust super's turn pointer (it can land on a corpse): point at the
+    // highest living total, or clear it if nobody can act.
+    return this._pointAtFirstLiving();
+  }
+
+  /** Set initiative to null on every defeated combatant that still holds one. */
+  async _clearDefeatedInitiative() {
+    const updates = this.combatants
+      .filter(c => c.isDefeated && c.initiative !== null)
+      .map(c => ({ _id: c.id, initiative: null }));
+    if (updates.length) await this.updateEmbeddedDocuments("Combatant", updates);
+  }
+
+  /** Point the tracker at the highest living total above 0, or clear it (null). */
+  async _pointAtFirstLiving() {
+    return this.update({ turn: nextEligibleTurnIndex(this.turns) });
   }
 
   /**
@@ -33,13 +54,14 @@ export class SR2ECombat extends Combat {
     if (current) {
       // Remember the actor for a one-step previousTurn undo
       await this.setFlag("sr2e", "lastActorId", current.id);
-      await current.update({ initiative: (current.initiative ?? 0) - 10 });
+      // Floor at 0 — SR2 (p.78) simply stops you acting at ≤0; never show negatives.
+      await current.update({ initiative: spendInitiative(current.initiative) });
     }
 
     // this.turns is re-sorted (descending initiative) after the update;
     // the first combatant above 0 is the next Combat Phase.
-    const next = this.turns.findIndex(c => (c.initiative ?? 0) > 0 && !c.isDefeated);
-    if (next === -1) return this.nextRound();
+    const next = nextEligibleTurnIndex(this.turns);
+    if (next === null) return this.nextRound();
     return this.update({ turn: next });
   }
 
@@ -68,10 +90,13 @@ export class SR2ECombat extends Combat {
    */
   async nextRound() {
     await this.unsetFlag("sr2e", "lastActorId");
-    // Clear old totals, advance the round marker, re-roll for everyone
-    await this.resetAll();
-    await this.update({ round: this.round + 1, turn: 0 });
-    await this.rollAll();
+    // A new Combat Turn: re-roll ONLY the living. The defeated stay out with
+    // null initiative — re-rolling a corpse used to give it a fresh high total
+    // that jumped it to the top of the tracker.
+    await this._clearDefeatedInitiative();
+    const live = livingCombatantIds(this.combatants);
+    await this.update({ round: this.round + 1, turn: null });
+    if (live.length) await this.rollInitiative(live, { updateTurn: false });
 
     await ChatMessage.create({
       content: `<div class="sr2e-item-card">
@@ -80,9 +105,8 @@ export class SR2ECombat extends Combat {
       </div>`
     });
 
-    // Point the tracker at the new highest total
-    const first = this.turns.findIndex(c => (c.initiative ?? 0) > 0 && !c.isDefeated);
-    return this.update({ turn: Math.max(0, first) });
+    // Point the tracker at the new highest living total (or clear it).
+    return this._pointAtFirstLiving();
   }
 
   /** @override Rewinding a whole Combat Turn cannot restore spent passes. */

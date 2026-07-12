@@ -23,7 +23,13 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.246 (table p.261). Retractable forearm blade — (Str+2)L damage. Essence .3, 11,500¥."
+    "notes": "SR2E p.246 (table p.261). Retractable forearm blade — (Str+2)L damage. Essence .3, 11,500¥.",
+    "isWeapon": true,
+    "weaponType": "melee",
+    "skill": "armed combat",
+    "damageType": "physical",
+    "reach": 0,
+    "damageCode": "(Str+2)L"
   },
   "effects": [],
   "flags": {},
