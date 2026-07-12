@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.34.0 — 2026-07-12
+
 ### Additions
 - **Optional in-combat movement limit (SR2E p.83).** New world setting "Limit
   movement in combat": while a combat is running, a token's drag is measured
