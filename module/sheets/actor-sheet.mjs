@@ -185,6 +185,18 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         item.update({ [field]: value });
       });
     }
+
+    // Make item rows draggable to the hotbar. V13's ActorSheetV2 binds its own
+    // DragDrop to the `.draggable` CLASS (and handles drops onto the whole sheet
+    // — that's why dropping items IN works). Our rows are keyed by [data-item-id]
+    // and never get that class, and the `dragDrop` DEFAULT_OPTIONS entry is an
+    // AppV1-only no-op in V2 — so nothing was draggable OUT. Wire it explicitly:
+    // set draggable + fire our _onDragStart (which writes {type:"Item", uuid} for
+    // the hotbarDrop hook to turn into an item.roll() macro).
+    for (const el of this.element.querySelectorAll("[data-item-id]")) {
+      el.setAttribute("draggable", "true");
+      el.addEventListener("dragstart", this._onDragStart.bind(this));
+    }
   }
 
   /**
