@@ -4,6 +4,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.34.1 — 2026-07-12
+
+### Fixes
+- **Movement-limit ruler no longer recolours the combat movement history.** The
+  colour bands were applied to Foundry's "passed" movement-history waypoints too
+  (shown on hover during combat), so the green/amber/red lines looked permanently
+  stuck after a token finished moving. The bands now colour only the live drag
+  (pending/planned); the movement history reverts to Foundry's default styling.
+
 ## 0.34.0 — 2026-07-12
 
 ### Additions

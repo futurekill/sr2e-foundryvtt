@@ -63,6 +63,10 @@ export function registerMovementLimit() {
   class SR2ETokenRuler extends Base {
     /** Band colour for a waypoint, or null to keep the default styling. */
     #bandColor(waypoint) {
+      // Only colour the LIVE drag. Foundry draws the combat movement HISTORY as
+      // "passed" waypoints (shown on hover); recolouring those made the bands
+      // look permanently stuck. Unknown/missing stages keep core styling.
+      if (!["pending", "planned"].includes(waypoint?.stage)) return null;
       const doc = this.token?.document;
       if (!limitActive(doc)) return null;
       const rates = tokenRates(doc);
