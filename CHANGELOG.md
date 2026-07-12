@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.33.0 — 2026-07-12
+
 ### Fixes
 - **Initiative: no more negative totals or dead characters jumping to the top.**
   Spending an action now floors Initiative at 0 (SR2 p.78 — you're simply out at
@@ -31,6 +33,19 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 - **Cyber-implant weapons (spurs, hand razors) work like weapons.** Weapon
   cyberware now appears in the Combat tab, rolls through the melee attack path,
   and is hotbar-droppable — while staying out of ammo/reload/accessory/sale UI.
+
+### Content
+- **29 vehicles corrected against the Rigger 2 Vehicle List (SR2, book p.148+).**
+  Render-verified every compendium vehicle against Rigger 2's consolidated stat
+  list: filled the missing Acceleration column (all were 0), remapped the
+  operator rating (Rigger 2 Autonav → Autonav, Pilot → Pilot; most were on the
+  wrong field), and corrected Speed/Body/Signature/Cost throughout. Fixed the GMC
+  Banshee's swapped Body/Armor. Slashed values (handling 5/11, speed 135/340) are
+  stored as on-road / max with the full pair kept in each vehicle's notes.
+
+### CI
+- Bumped GitHub Actions off the deprecated Node 20 runner (`checkout` and
+  `setup-node` → v5, `node-version` → 22 LTS).
 
 ## 0.32.8 — 2026-07-10
 
