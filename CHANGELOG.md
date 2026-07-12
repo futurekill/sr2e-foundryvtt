@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.33.2 — 2026-07-12
+
+### Fixes
+- **Hotbar weapon macros show the attack dialog.** A weapon dragged to the hotbar
+  fired with defaults and skipped the attack-options dialog (range, firing mode,
+  pool dice, concentration/spec) that clicking the weapon on the sheet gives you.
+  The sheet button and the hotbar macro now share one `rollWeaponInteractive`
+  path, so both open the same dialog. *(Weapon macros already on your hotbar carry
+  the old command — re-drag them to pick up the dialog.)*
+
 ## 0.33.1 — 2026-07-12
 
 ### Fixes
