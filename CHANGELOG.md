@@ -4,6 +4,21 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.34.2 — 2026-07-12
+
+### Fixes
+- **Movement limit now applies when the GM moves a player's token.** The cap was
+  skipped for any GM-performed move (the GM was fully exempt), so a GM dragging a
+  PC token past its maximum wasn't blocked. Now the GM may reposition NPC/GM-only
+  tokens freely, but **player-owned tokens stay capped even when the GM drags
+  them**.
+
+### Additions
+- **New "Hide combat movement history" setting.** Suppresses Foundry's built-in
+  movement-history ruler (the path lines, dots, highlighted cells and distance
+  labels shown when hovering a token in combat). The live drag ruler is
+  unaffected. Off by default, separate from the movement limit.
+
 ## 0.34.1 — 2026-07-12
 
 ### Fixes
