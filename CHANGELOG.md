@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.33.1 — 2026-07-12
+
+### Fixes
+- **Item rows can be dragged to the hotbar again.** The hotbar drag shipped in
+  0.33.0 never worked: Foundry V13's `ActorSheetV2` makes only `.draggable`-class
+  elements draggable, but our rows are keyed by `[data-item-id]`, and the
+  `dragDrop` option the sheet relied on is an ApplicationV1-only no-op in V2. Rows
+  are now wired as draggable in `_onRender`, so weapons, spells, adept powers, and
+  cyber-weapons drag from their tabs onto the hotbar as intended.
+
 ## 0.33.0 — 2026-07-12
 
 ### Fixes
