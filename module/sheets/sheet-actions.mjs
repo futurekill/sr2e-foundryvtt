@@ -1091,8 +1091,20 @@ async function onRollWeapon(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
+  return rollWeaponInteractive(this.document, item);
+}
 
-  const actor = this.document;
+/**
+ * The full interactive weapon-attack flow: resolve the skill (with Skill Web
+ * defaulting), offer concentration/specialization + attack options in a dialog,
+ * then roll. Shared by the sheet's weapon button (onRollWeapon) AND the hotbar
+ * item macro (see _createItemMacro), so a weapon dragged to the hotbar pops the
+ * SAME attack dialog instead of firing with defaults.
+ * @param {Actor} actor
+ * @param {Item}  item   a weapon (or weapon-cyberware) item
+ */
+export async function rollWeaponInteractive(actor, item) {
+  if (!actor || !item) return;
 
   // SR2E weapon-type → default skill (mirrors the lookup in _rollWeaponAttack)
   const WEAPON_TYPE_DEFAULT_SKILLS = {

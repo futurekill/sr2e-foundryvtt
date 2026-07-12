@@ -26,6 +26,7 @@ import {
   SR2EHostSheet
 } from "./sheets/actor-sheet.mjs";
 import { SR2EItemSheet } from "./sheets/item-sheet.mjs";
+import { rollWeaponInteractive } from "./sheets/sheet-actions.mjs";
 
 // Helpers
 import { preloadTemplates } from "./helpers/templates.mjs";
@@ -50,6 +51,9 @@ Hooks.once("init", async () => {
 
   // Store configuration on the global CONFIG object
   CONFIG.SR2E = SR2E;
+
+  // Public API for macros (hotbar item macros call the interactive attack flow).
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive });
 
   // Register custom Document classes
   CONFIG.Actor.documentClass = documents.SR2EActor;
@@ -361,10 +365,15 @@ async function _createItemMacro(data, slot) {
   if (!item) return;
 
   // Resolve via UUID so the macro also works for items on unlinked token
-  // actors and survives the actor being renamed.
+  // actors and survives the actor being renamed. Weapons (and weapon-cyberware)
+  // go through the interactive attack flow so the hotbar pops the SAME attack
+  // dialog as clicking the weapon on the sheet, instead of firing with defaults.
   const command = `
     const item = await fromUuid("${item.uuid}");
     if (!item) return ui.notifications.warn("Cannot find the item for this macro.");
+    if (item.isWeaponLike && game.sr2e?.rollWeaponInteractive) {
+      return game.sr2e.rollWeaponInteractive(item.actor, item);
+    }
     item.roll();
   `;
 
