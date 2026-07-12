@@ -37,6 +37,7 @@ import { migrateWorld, UNARMED_STRIKE_DATA } from "./migrations.mjs";
 import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
+import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -54,6 +55,9 @@ Hooks.once("init", async () => {
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
   game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive });
+
+  // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
+  registerMovementLimit();
 
   // Register custom Document classes
   CONFIG.Actor.documentClass = documents.SR2EActor;
@@ -434,6 +438,16 @@ function _registerSystemSettings() {
     config: true,
     type: Boolean,
     default: true
+  });
+
+  // In-combat movement limit (SR2E p.83), read in module/movement.mjs
+  game.settings.register("sr2e", "movementLimit", {
+    name: "Limit movement in combat",
+    hint: "While a combat is running, cap each token's move at its SR2 movement rate — walk = Quickness, run = Quickness × the metatype Running Modifier, metres per Combat Phase (SR2 p.83). The drag ruler turns green (walking) → amber (running, +4 target modifier) → red, and a drop past the running maximum is refused. GMs move freely. Off by default.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false
   });
 
   // Automate Essence from Cyberware (read in CharacterData.prepareDerivedData)

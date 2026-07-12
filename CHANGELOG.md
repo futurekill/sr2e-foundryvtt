@@ -4,6 +4,16 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Additions
+- **Optional in-combat movement limit (SR2E p.83).** New world setting "Limit
+  movement in combat": while a combat is running, a token's drag is measured
+  against its actor's movement rate (walk = Quickness, run = Quickness × the
+  metatype Running Modifier — human/elf/ork ×3, dwarf/troll ×2). The drag ruler
+  turns **green** within walking distance, **amber** once into running (with a
+  +4-target-modifier reminder), and **red** past the running maximum; a drop
+  beyond the max is refused. Measured from where the token began its Combat
+  Phase. GMs move freely. Off by default.
+
 ## 0.33.2 — 2026-07-12
 
 ### Fixes

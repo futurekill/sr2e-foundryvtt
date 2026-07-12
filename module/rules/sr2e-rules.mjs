@@ -703,6 +703,31 @@ export function thrownRange(strength, aerodynamic = false) {
   return { short: s * m.short, medium: s * m.medium, long: s * m.long, extreme: s * m.extreme };
 }
 
+/* ── MOVEMENT (SR2E p.83) — walking & running rates per Combat Phase ── */
+
+/** Running Modifier by metatype (SR2E p.83 Running Table). Default ×3 (human). */
+export const RUN_MULTIPLIER = Object.freeze({
+  human: 3, elf: 3, ork: 3, dwarf: 2, troll: 2
+});
+
+/** Running Modifier for a metatype key (case-insensitive); unknown → 3. */
+export function runMultiplierForRace(raceKey) {
+  return RUN_MULTIPLIER[String(raceKey ?? "").toLowerCase()] ?? 3;
+}
+
+/**
+ * Movement rates in metres per Combat Phase (SR2E p.83): walking = Quickness,
+ * running = Quickness × the metatype's Running Modifier. Running also imposes a
+ * +4 target modifier to tests that phase (applied elsewhere / by the GM).
+ * @param {number} quickness
+ * @param {number} [runMultiplier=3]
+ * @returns {{walk:number, run:number}}
+ */
+export function movementRates(quickness, runMultiplier = 3) {
+  const q = Math.max(0, Math.floor(quickness || 0));
+  return { walk: q, run: q * runMultiplier };
+}
+
 /* ── INITIATIVE PASSES (SR2E p.78–79) — pure decision helpers for SR2ECombat ── */
 
 /** Initiative left after taking an action: −10, floored at 0 (you simply stop
