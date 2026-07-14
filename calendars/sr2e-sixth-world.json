@@ -1,0 +1,1266 @@
+{
+  "id": "sr2e-sixth-world",
+  "name": "Shadowrun: Sixth World",
+  "years": {
+    "yearZero": 1970,
+    "firstWeekday": 4
+  },
+  "leapYearConfig": {
+    "rule": "gregorian",
+    "start": 0
+  },
+  "months": {
+    "values": {
+      "january000000000": {
+        "name": "January",
+        "abbreviation": "Jan",
+        "ordinal": 1,
+        "days": 31
+      },
+      "february00000000": {
+        "name": "February",
+        "abbreviation": "Feb",
+        "ordinal": 2,
+        "days": 28,
+        "leapDays": 29
+      },
+      "march00000000000": {
+        "name": "March",
+        "abbreviation": "Mar",
+        "ordinal": 3,
+        "days": 31
+      },
+      "april00000000000": {
+        "name": "April",
+        "abbreviation": "Apr",
+        "ordinal": 4,
+        "days": 30
+      },
+      "may0000000000000": {
+        "name": "May",
+        "abbreviation": "May",
+        "ordinal": 5,
+        "days": 31
+      },
+      "june000000000000": {
+        "name": "June",
+        "abbreviation": "Jun",
+        "ordinal": 6,
+        "days": 30
+      },
+      "july000000000000": {
+        "name": "July",
+        "abbreviation": "Jul",
+        "ordinal": 7,
+        "days": 31
+      },
+      "august0000000000": {
+        "name": "August",
+        "abbreviation": "Aug",
+        "ordinal": 8,
+        "days": 31
+      },
+      "september0000000": {
+        "name": "September",
+        "abbreviation": "Sep",
+        "ordinal": 9,
+        "days": 30
+      },
+      "october000000000": {
+        "name": "October",
+        "abbreviation": "Oct",
+        "ordinal": 10,
+        "days": 31
+      },
+      "november00000000": {
+        "name": "November",
+        "abbreviation": "Nov",
+        "ordinal": 11,
+        "days": 30
+      },
+      "december00000000": {
+        "name": "December",
+        "abbreviation": "Dec",
+        "ordinal": 12,
+        "days": 31
+      }
+    }
+  },
+  "days": {
+    "values": {
+      "sunday0000000000": {
+        "name": "Sunday",
+        "abbreviation": "Sun",
+        "ordinal": 1,
+        "isRestDay": true
+      },
+      "monday0000000000": {
+        "name": "Monday",
+        "abbreviation": "Mon",
+        "ordinal": 2
+      },
+      "tuesday000000000": {
+        "name": "Tuesday",
+        "abbreviation": "Tue",
+        "ordinal": 3
+      },
+      "wednesday0000000": {
+        "name": "Wednesday",
+        "abbreviation": "Wed",
+        "ordinal": 4
+      },
+      "thursday00000000": {
+        "name": "Thursday",
+        "abbreviation": "Thu",
+        "ordinal": 5
+      },
+      "friday0000000000": {
+        "name": "Friday",
+        "abbreviation": "Fri",
+        "ordinal": 6
+      },
+      "saturday00000000": {
+        "name": "Saturday",
+        "abbreviation": "Sat",
+        "ordinal": 7,
+        "isRestDay": true
+      }
+    },
+    "daysPerYear": 365,
+    "hoursPerDay": 24,
+    "minutesPerHour": 60,
+    "secondsPerMinute": 60
+  },
+  "seasons": {
+    "values": {
+      "spring0000000000": {
+        "name": "Spring",
+        "icon": "fas fa-seedling",
+        "color": "#90ee90",
+        "seasonalType": "spring",
+        "dayStart": 79,
+        "dayEnd": 171,
+        "abbreviation": "Spr"
+      },
+      "summer0000000000": {
+        "name": "Summer",
+        "icon": "fas fa-sun",
+        "color": "#ffd700",
+        "seasonalType": "summer",
+        "dayStart": 172,
+        "dayEnd": 265,
+        "abbreviation": "Sum"
+      },
+      "autumn0000000000": {
+        "name": "Autumn",
+        "icon": "fas fa-leaf",
+        "color": "#d2691e",
+        "seasonalType": "autumn",
+        "dayStart": 266,
+        "dayEnd": 354,
+        "abbreviation": "Aut"
+      },
+      "winter0000000000": {
+        "name": "Winter",
+        "icon": "fas fa-snowflake",
+        "color": "#87ceeb",
+        "seasonalType": "winter",
+        "dayStart": 355,
+        "dayEnd": 78,
+        "abbreviation": "Win"
+      }
+    }
+  },
+  "eras": {
+    "commonera0000000": {
+      "name": "Common Era",
+      "abbreviation": "CE",
+      "startYear": 1,
+      "endYear": null
+    }
+  },
+  "moons": {
+    "luna000000000000": {
+      "name": "Luna",
+      "cycleLength": 29.53059,
+      "color": "#C0C0C0",
+      "phases": {
+        "newmoon000000000": {
+          "name": "New Moon",
+          "icon": "modules/calendaria/assets/moon-phases/01_newmoon.svg",
+          "start": 0,
+          "end": 0.125
+        },
+        "waxingcrescent00": {
+          "name": "Waxing Crescent",
+          "icon": "modules/calendaria/assets/moon-phases/02_waxingcrescent.svg",
+          "start": 0.125,
+          "end": 0.25
+        },
+        "firstquarter0000": {
+          "name": "First Quarter",
+          "icon": "modules/calendaria/assets/moon-phases/03_firstquarter.svg",
+          "start": 0.25,
+          "end": 0.375
+        },
+        "waxinggibbous000": {
+          "name": "Waxing Gibbous",
+          "icon": "modules/calendaria/assets/moon-phases/04_waxinggibbous.svg",
+          "start": 0.375,
+          "end": 0.5
+        },
+        "fullmoon00000000": {
+          "name": "Full Moon",
+          "icon": "modules/calendaria/assets/moon-phases/05_fullmoon.svg",
+          "start": 0.5,
+          "end": 0.625
+        },
+        "waninggibbous000": {
+          "name": "Waning Gibbous",
+          "icon": "modules/calendaria/assets/moon-phases/06_waninggibbous.svg",
+          "start": 0.625,
+          "end": 0.75
+        },
+        "lastquarter00000": {
+          "name": "Last Quarter",
+          "icon": "modules/calendaria/assets/moon-phases/07_lastquarter.svg",
+          "start": 0.75,
+          "end": 0.875
+        },
+        "waningcrescent00": {
+          "name": "Waning Crescent",
+          "icon": "modules/calendaria/assets/moon-phases/08_waningcrescent.svg",
+          "start": 0.875,
+          "end": 1
+        }
+      },
+      "referenceDate": {
+        "year": 2025,
+        "month": 0,
+        "dayOfMonth": 28
+      },
+      "eclipseMode": "rare"
+    }
+  },
+  "daylight": {
+    "enabled": true,
+    "shortestDay": 8,
+    "longestDay": 16,
+    "winterSolstice": 355,
+    "summerSolstice": 172
+  },
+  "festivals": {
+    "theawakening0000": {
+      "name": "The Awakening",
+      "month": 11,
+      "dayOfMonth": 23,
+      "icon": "fa-dragon",
+      "color": "#7b2ff7",
+      "description": "The day magic returned to the world. On 24 December 2011, near Mount Fuji, humanity recorded the first Great Dragon, Ryumyo — the signpost of the Sixth World's dawn. The Awakened mark the anniversary, and mana runs strong on the longest nights.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 12
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 24
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "goblinizationday": {
+      "name": "Goblinization Day",
+      "month": 3,
+      "dayOfMonth": 29,
+      "icon": "fa-hand-fist",
+      "color": "#a0522d",
+      "description": "Anniversary of 30 April 2021, when Unexplained Genetic Expression peaked and countless people changed into orks and trolls overnight. For metahumanity a day of pride and remembrance; for the fearful, a night to lock the doors.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 4
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 30
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "crashday00000000": {
+      "name": "Crash Day",
+      "month": 1,
+      "dayOfMonth": 7,
+      "icon": "fa-triangle-exclamation",
+      "color": "#c0202a",
+      "description": "On 8 February 2029 a self-replicating virus crashed computer systems across the planet, erasing data and lives and clearing the ground for the Matrix. Deckers and data-havens still pour one out for the Crash of '29.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 2
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 8
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "newyearsday00000": {
+      "name": "New Year's Day",
+      "month": 0,
+      "dayOfMonth": 0,
+      "icon": "fa-champagne-glasses",
+      "color": "#FFD700",
+      "description": "The first day of the year, seen in worldwide — fireworks over the sprawl, corp galas, and street parties in the barrens alike.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 1
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 1
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "valentinesday000": {
+      "name": "Valentine's Day",
+      "month": 1,
+      "dayOfMonth": 13,
+      "icon": "fa-heart",
+      "color": "#E91E63",
+      "description": "A day of romance and commerce, hawked hard by every megacorp with something to sell.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 2
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 14
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "stpatricksday000": {
+      "name": "St. Patrick's Day",
+      "month": 2,
+      "dayOfMonth": 16,
+      "icon": "fa-clover",
+      "color": "#4CAF50",
+      "description": "Irish culture celebrated with parades and green — and, since the Awakening, a nod to the Emerald Isle's own returned magic.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 3
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 17
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "vernalequinox000": {
+      "name": "Vernal Equinox",
+      "month": 2,
+      "dayOfMonth": 19,
+      "icon": "fa-scale-balanced",
+      "color": "#90ee90",
+      "description": "Day and night in balance. Shamans and mages watch the turning mana tides; a potent day for magic and ritual.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 3
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 20
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "earthday00000000": {
+      "name": "Earth Day",
+      "month": 3,
+      "dayOfMonth": 21,
+      "icon": "fa-earth-americas",
+      "color": "#2e8b57",
+      "description": "A worldwide day for the planet — carrying real weight in a Sixth World of eco-shamans, awakened wilds, and green policlubs.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 4
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 22
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "mayday0000000000": {
+      "name": "May Day",
+      "month": 4,
+      "dayOfMonth": 0,
+      "icon": "fa-people-group",
+      "color": "#d32f2f",
+      "description": "International workers' day — and a rallying point for the sprawl's unions, policlubs, and neo-anarchists.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 5
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 1
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "summersolstice00": {
+      "name": "Summer Solstice",
+      "month": 5,
+      "dayOfMonth": 20,
+      "icon": "fa-sun",
+      "color": "#ffd700",
+      "description": "The longest day. A high holy day for many magical traditions, when solar mana peaks.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 6
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 21
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "autumnalequinox0": {
+      "name": "Autumnal Equinox",
+      "month": 8,
+      "dayOfMonth": 21,
+      "icon": "fa-leaf",
+      "color": "#d2691e",
+      "description": "Day and night in balance once more; the year turns toward the dark, and the mana tides with it.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 9
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 22
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "halloween0000000": {
+      "name": "Halloween",
+      "month": 9,
+      "dayOfMonth": 30,
+      "icon": "fa-ghost",
+      "color": "#ff7518",
+      "description": "All Hallows' Eve — never taken lightly in a world where the dead, the astral, and worse are demonstrably real. The veil feels thin, and the Awakened stay wary.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 10
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 31
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "dayofthedead0000": {
+      "name": "Day of the Dead",
+      "month": 10,
+      "dayOfMonth": 0,
+      "icon": "fa-skull",
+      "color": "#c2185b",
+      "description": "Día de los Muertos, observed across Aztlan and the sprawls to honor the departed — a living tradition given new meaning in the Sixth World.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 11
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 1
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "wintersolstice00": {
+      "name": "Winter Solstice",
+      "month": 11,
+      "dayOfMonth": 20,
+      "icon": "fa-snowflake",
+      "color": "#87ceeb",
+      "description": "The longest night. Mana runs high; many magicians time their most important workings to it.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 12
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 21
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "christmasday0000": {
+      "name": "Christmas Day",
+      "month": 11,
+      "dayOfMonth": 24,
+      "icon": "fa-tree",
+      "color": "#2e7d32",
+      "description": "Still kept the world over, sacred and commercial at once, from cathedral to corp arcology.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 12
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 25
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    },
+    "newyearseve00000": {
+      "name": "New Year's Eve",
+      "month": 11,
+      "dayOfMonth": 30,
+      "icon": "fa-champagne-glasses",
+      "color": "#FFD700",
+      "description": "The old year burns out in fireworks, gunfire, and neon — the sprawl at its loudest.",
+      "duration": 1,
+      "countsForWeekday": true,
+      "leapYearOnly": false,
+      "conditionTree": {
+        "type": "group",
+        "mode": "and",
+        "children": [
+          {
+            "type": "condition",
+            "field": "month",
+            "op": "==",
+            "value": 12
+          },
+          {
+            "type": "condition",
+            "field": "day",
+            "op": "==",
+            "value": 31
+          }
+        ]
+      },
+      "allDay": true,
+      "displayStyle": "banner",
+      "visibility": "visible",
+      "silent": true,
+      "hasDuration": false,
+      "reminderType": "none",
+      "reminderOffset": 0
+    }
+  },
+  "cycles": {},
+  "canonicalHours": {},
+  "weeks": {
+    "enabled": false,
+    "type": "year-based",
+    "names": {}
+  },
+  "amPmNotation": {
+    "am": "Ante Meridiem",
+    "pm": "Post Meridiem",
+    "amAbbr": "AM",
+    "pmAbbr": "PM"
+  },
+  "dateFormats": {
+    "short": "D MMM",
+    "long": "D MMMM, Y",
+    "full": "MMMM D, Y",
+    "time": "HH:mm",
+    "time12": "h:mm a",
+    "weekHeader": "[Week] W [of] MMMM, Y",
+    "yearHeader": "Y",
+    "yearLabel": "Y G"
+  },
+  "metadata": {
+    "id": "sr2e-sixth-world",
+    "description": "The Sixth World calendar for Shadowrun, Second Edition — the standard Gregorian year with the Awakened world's anniversaries. Set your world date to 2055 or later. Ships with the sr2e system.",
+    "author": "sr2e",
+    "system": "Shadowrun, Second Edition",
+    "luxonSync": {
+      "theme": "CE"
+    }
+  },
+  "weather": {
+    "activeZone": "temperate",
+    "zones": {
+      "temperate000000": {
+        "id": "temperate",
+        "name": "CALENDARIA.Weather.Climate.Temperate",
+        "description": "CALENDARIA.Weather.Climate.TemperateDesc",
+        "windSpeedRange": {
+          "min": 0,
+          "max": 3
+        },
+        "windDirections": {
+          "W": 20,
+          "WSW": 15,
+          "SW": 12,
+          "WNW": 10,
+          "NW": 8,
+          "S": 8,
+          "N": 5,
+          "NNW": 5,
+          "E": 4,
+          "SE": 4,
+          "NE": 3,
+          "SSW": 3,
+          "SSE": 1,
+          "ESE": 1,
+          "ENE": 1
+        },
+        "brightnessMultiplier": 1,
+        "shortestDay": 8,
+        "longestDay": 16,
+        "temperatures": {
+          "_default": {
+            "min": 8,
+            "max": 20
+          },
+          "Spring": {
+            "min": 8,
+            "max": 18
+          },
+          "Summer": {
+            "min": 18,
+            "max": 30
+          },
+          "Autumn": {
+            "min": 8,
+            "max": 18
+          },
+          "Winter": {
+            "min": -5,
+            "max": 5
+          }
+        },
+        "presets": {
+          "clear0000000000": {
+            "id": "clear",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "partlycloudy000": {
+            "id": "partly-cloudy",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "cloudy000000000": {
+            "id": "cloudy",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "overcast0000000": {
+            "id": "overcast",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "drizzle00000000": {
+            "id": "drizzle",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "rain00000000000": {
+            "id": "rain",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "fog000000000000": {
+            "id": "fog",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "mist00000000000": {
+            "id": "mist",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "windy0000000000": {
+            "id": "windy",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "snow00000000000": {
+            "id": "snow",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "blizzard0000000": {
+            "id": "blizzard",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          },
+          "thunderstorm000": {
+            "id": "thunderstorm",
+            "enabled": true,
+            "tempMin": null,
+            "tempMax": null
+          }
+        },
+        "seasonOverrides": {
+          "Spring": {
+            "temperatures": {
+              "min": 8,
+              "max": 18
+            },
+            "presets": {
+              "rain": {
+                "id": "rain",
+                "chance": 25,
+                "enabled": true
+              },
+              "drizzle": {
+                "id": "drizzle",
+                "chance": 19,
+                "enabled": true
+              },
+              "partly-cloudy": {
+                "id": "partly-cloudy",
+                "chance": 19,
+                "enabled": true
+              },
+              "clear": {
+                "id": "clear",
+                "chance": 13,
+                "enabled": true
+              },
+              "mist": {
+                "id": "mist",
+                "chance": 13,
+                "enabled": true
+              },
+              "cloudy": {
+                "id": "cloudy",
+                "chance": 13,
+                "enabled": true
+              },
+              "thunderstorm": {
+                "id": "thunderstorm",
+                "chance": 0,
+                "enabled": false
+              },
+              "fog": {
+                "id": "fog",
+                "chance": 0,
+                "enabled": false
+              },
+              "windy": {
+                "id": "windy",
+                "chance": 0,
+                "enabled": false
+              },
+              "snow": {
+                "id": "snow",
+                "chance": 0,
+                "enabled": false
+              },
+              "blizzard": {
+                "id": "blizzard",
+                "chance": 0,
+                "enabled": false
+              },
+              "overcast": {
+                "id": "overcast",
+                "chance": 0,
+                "enabled": false
+              }
+            }
+          },
+          "Summer": {
+            "temperatures": {
+              "min": 18,
+              "max": 30
+            },
+            "presets": {
+              "clear": {
+                "id": "clear",
+                "chance": 35,
+                "enabled": true
+              },
+              "partly-cloudy": {
+                "id": "partly-cloudy",
+                "chance": 24,
+                "enabled": true
+              },
+              "thunderstorm": {
+                "id": "thunderstorm",
+                "chance": 12,
+                "enabled": true
+              },
+              "rain": {
+                "id": "rain",
+                "chance": 12,
+                "enabled": true
+              },
+              "cloudy": {
+                "id": "cloudy",
+                "chance": 6,
+                "enabled": true
+              },
+              "mist": {
+                "id": "mist",
+                "chance": 6,
+                "enabled": true
+              },
+              "drizzle": {
+                "id": "drizzle",
+                "chance": 6,
+                "enabled": true
+              },
+              "fog": {
+                "id": "fog",
+                "chance": 0,
+                "enabled": false
+              },
+              "windy": {
+                "id": "windy",
+                "chance": 0,
+                "enabled": false
+              },
+              "snow": {
+                "id": "snow",
+                "chance": 0,
+                "enabled": false
+              },
+              "blizzard": {
+                "id": "blizzard",
+                "chance": 0,
+                "enabled": false
+              },
+              "overcast": {
+                "id": "overcast",
+                "chance": 0,
+                "enabled": false
+              }
+            }
+          },
+          "Autumn": {
+            "temperatures": {
+              "min": 8,
+              "max": 18
+            },
+            "presets": {
+              "cloudy": {
+                "id": "cloudy",
+                "chance": 24,
+                "enabled": true
+              },
+              "rain": {
+                "id": "rain",
+                "chance": 18,
+                "enabled": true
+              },
+              "fog": {
+                "id": "fog",
+                "chance": 18,
+                "enabled": true
+              },
+              "partly-cloudy": {
+                "id": "partly-cloudy",
+                "chance": 12,
+                "enabled": true
+              },
+              "windy": {
+                "id": "windy",
+                "chance": 12,
+                "enabled": true
+              },
+              "mist": {
+                "id": "mist",
+                "chance": 6,
+                "enabled": true
+              },
+              "drizzle": {
+                "id": "drizzle",
+                "chance": 6,
+                "enabled": true
+              },
+              "clear": {
+                "id": "clear",
+                "chance": 6,
+                "enabled": true
+              },
+              "thunderstorm": {
+                "id": "thunderstorm",
+                "chance": 0,
+                "enabled": false
+              },
+              "snow": {
+                "id": "snow",
+                "chance": 0,
+                "enabled": false
+              },
+              "blizzard": {
+                "id": "blizzard",
+                "chance": 0,
+                "enabled": false
+              },
+              "overcast": {
+                "id": "overcast",
+                "chance": 0,
+                "enabled": false
+              }
+            }
+          },
+          "Winter": {
+            "temperatures": {
+              "min": -5,
+              "max": 5
+            },
+            "presets": {
+              "snow": {
+                "id": "snow",
+                "chance": 26,
+                "enabled": true
+              },
+              "blizzard": {
+                "id": "blizzard",
+                "chance": 11,
+                "enabled": true
+              },
+              "fog": {
+                "id": "fog",
+                "chance": 11,
+                "enabled": true
+              },
+              "overcast": {
+                "id": "overcast",
+                "chance": 16,
+                "enabled": true
+              },
+              "clear": {
+                "id": "clear",
+                "chance": 11,
+                "enabled": true
+              },
+              "rain": {
+                "id": "rain",
+                "chance": 5,
+                "enabled": true
+              },
+              "cloudy": {
+                "id": "cloudy",
+                "chance": 11,
+                "enabled": true
+              },
+              "mist": {
+                "id": "mist",
+                "chance": 5,
+                "enabled": true
+              },
+              "drizzle": {
+                "id": "drizzle",
+                "chance": 5,
+                "enabled": true
+              },
+              "partly-cloudy": {
+                "id": "partly-cloudy",
+                "chance": 0,
+                "enabled": false
+              },
+              "thunderstorm": {
+                "id": "thunderstorm",
+                "chance": 0,
+                "enabled": false
+              },
+              "windy": {
+                "id": "windy",
+                "chance": 0,
+                "enabled": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

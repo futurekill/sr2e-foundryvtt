@@ -4,6 +4,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.35.0 — 2026-07-13
+
+### Additions
+- **Sixth World calendar for the Calendaria module** (`calendars/sr2e-sixth-world.json`).
+  A player-safe, spoiler-free calendar of Shadowrun 2nd Edition holidays: the
+  Awakening (24 Dec), Goblinization Day (30 Apr) and Crash Day (8 Feb) — sourced
+  from the SR2 core rulebook — plus the real-world holidays and solstices/equinoxes
+  that persist in 2055. Standard Gregorian months/leap-years, so weekdays land
+  authentically for any 2050s year. Import via Calendaria → set the world date to
+  your campaign's start. See `calendars/README.md`.
+
 ## 0.34.2 — 2026-07-12
 
 ### Fixes
