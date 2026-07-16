@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.37.0 — 2026-07-16
 
 ### Additions
 - **Biosystem overstress is automated (Shadowtech p.7).** While a character's Body
