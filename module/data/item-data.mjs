@@ -272,6 +272,11 @@ export class SpellData extends SR2EDataModel {
       damageCode: new fields.StringField({ initial: "" }),
       isAreaEffect: new fields.BooleanField({ initial: false }),
       isVoluntary: new fields.BooleanField({ initial: false }),
+      // Marks a spell as "magical healing" for the bioware interference rule
+      // (Shadowtech p.6). Not the same set as the health category — Increase
+      // Reflexes is a health spell but heals nothing. Flagged per-spell so a GM
+      // can tick it for homebrew healing spells.
+      healsDamage: new fields.BooleanField({ initial: false }),
       // Sustained-spell state (SR2E p.130): while sustaining, the caster takes
       // +2 TN on all other tests per spell — unless a spell lock holds it.
       sustaining: new fields.BooleanField({ initial: false }),
@@ -343,6 +348,11 @@ export class CyberwareData extends SR2EDataModel {
       // bonuses apply only while jacked in (SR2E p.85) — do NOT also give the
       // item attributeMods for them.
       isVcr: new fields.BooleanField({ initial: false }),
+      // Tactical computer (Shadowtech p.53): its rating adds to Initiative, up
+      // to the natural Reaction maximum. Set the *effective* level here — extra
+      // senses (+1 each) and an orientation system (+2) raise it, and the book
+      // leaves that tally to the GM.
+      isTacticalComputer: new fields.BooleanField({ initial: false }),
       // Muscle Replacement (SR2E p.249) and Muscle Augmentation (Shadowtech)
       // raise Strength AND Quickness, but "this change does not affect
       // Reaction". When set, the item's Quickness bonus is excluded from the

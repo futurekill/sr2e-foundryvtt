@@ -14,7 +14,8 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits."
+    "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits.",
+    "healsDamage": true
   },
   "effects": [],
   "flags": {},

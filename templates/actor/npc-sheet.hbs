@@ -54,6 +54,10 @@
         <span>{{system.essence.value}}</span>
       </div>
       <div class="attr-item">
+        <label title="Body Index — total Body Cost of this NPC's bioware (Shadowtech p.6). Typed, not summed from items. Over natural Body ({{system.bodyIndex.max}}) it inflicts overstress: +1 TN per point on Body tests, and it raises the TN to magically heal this NPC by half its value.">BI</label>
+        <input type="number" name="system.bodyIndex.value" value="{{system.bodyIndex.value}}" min="0" step="0.25" />
+      </div>
+      <div class="attr-item">
         <label>R</label>
         <span>{{system.reaction.value}}</span>
       </div>

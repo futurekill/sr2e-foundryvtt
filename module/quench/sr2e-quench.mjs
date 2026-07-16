@@ -728,6 +728,60 @@ export function registerSR2EQuenchTests() {
           assert.equal(actor.system.armor.ballistic, bal0 + 1, "Orthoskin R2 adds +1 Ballistic");
         });
       });
+      // The min() clamp can only be proven in-engine: Vitest exercises the pure
+      // helper, not Foundry's formula parser. These assert the real Roll.
+      describe("Tactical computer initiative (Shadowtech p.53)", () => {
+        const tacChar = async (rating) => {
+          const a = await makeChar({ quickness: { base: 4 }, intelligence: { base: 4 } });
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Tac Computer", type: "cyberware",
+              system: { installed: true, rating, isTacticalComputer: true } }
+          ]);
+          return a;
+        };
+
+        it("derives the rating onto the actor only when installed", async () => {
+          const actor = await tacChar(2);
+          assert.equal(actor.system.tacticalComputer, 2, "installed tac computer sets the level");
+          await actor.items.find(i => i.type === "cyberware").update({ "system.installed": false });
+          assert.equal(actor.system.tacticalComputer, 0, "uninstalling clears it");
+        });
+
+        it("builds a min() formula Foundry can actually evaluate, and clamps it", async () => {
+          const actor = await tacChar(2);
+          const { base, dice, tac } = actor._getInitiativeParts();
+          assert.equal(tac, 2, "tac bonus reaches the initiative parts");
+          const formula = actor._initiativeFormula({ base, dice, tac });
+          assert.ok(formula.startsWith("min("), `expected a min() clamp, got ${formula}`);
+
+          // Evaluate for real — proves V13's parser accepts min() around a dice term.
+          const cap = base + 6 * dice;
+          for (let i = 0; i < 40; i++) {
+            const roll = await new Roll(formula).evaluate();
+            assert.ok(Number.isInteger(roll.total), `total should be numeric, got ${roll.total}`);
+            assert.ok(roll.total <= cap, `total ${roll.total} must never exceed the cap ${cap}`);
+            assert.ok(roll.total >= base + 1, `total ${roll.total} below the floor`);
+            assert.ok(roll.dice.length > 0, "dice terms must survive for Dice So Nice / tooltips");
+          }
+        });
+
+        it("gives no bonus while rigging (book: no help rigging or decking)", async () => {
+          const actor = await tacChar(2);
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "VCR", type: "cyberware", system: { installed: true, rating: 2, isVcr: true } }
+          ]);
+          await actor.update({ "system.rigging": true });
+          assert.equal(actor._getInitiativeParts().tac, 0, "rigging suppresses the tac bonus");
+          assert.ok(!actor._initiativeFormula(actor._getInitiativeParts()).includes("min("),
+            "rigged formula should carry no clamp");
+        });
+
+        it("omits the clamp entirely with no tactical computer", async () => {
+          const actor = await makeChar();
+          assert.ok(!actor._initiativeFormula(actor._getInitiativeParts()).includes("min("),
+            "plain actors keep the simple base + Nd6 formula");
+        });
+      });
     }, { displayName: "SR2E: Bioware / Body Index" });
 
     // ── Purchase re-pricing: charge/refund when a paid item's Rating or Grade

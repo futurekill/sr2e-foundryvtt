@@ -13,6 +13,24 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   Body is the higher attribute (ties resolve to Willpower). Non-Body tests are
   untouched.
 
+- **Bioware interferes with magical healing (Shadowtech p.6).** Casting a healing
+  spell on someone with bioware raises the TN by half the *subject's* Body Index,
+  rounded down. Spells carry a new **Heals Damage** checkbox — the health category
+  isn't the right set (Increase Reflexes heals nothing), so only **Heal** ships
+  ticked; tick others (Stabilize, or homebrew) to taste. The subject is the
+  targeted token, falling back to self, and the cast dialog names them before you
+  commit pool dice. Drain is untouched — that's the caster's strain, not the
+  subject's biology.
+- **Tactical computer initiative (Shadowtech p.53).** Cyberware has an
+  **is Tactical Computer** checkbox; when installed, its rating adds to
+  Initiative but can never push the total past what you could have rolled unaided
+  (Reaction + 6 per die). No help while rigging or decking, per the book. Set the
+  *effective* level on the item — extra senses (+1 each) and an orientation
+  system (+2) raise it, and the book leaves that tally to the GM.
+- **NPCs have a Body Index.** A new **BI** box on the NPC stat block feeds the
+  same overstress and magical-healing rules characters get. It's typed rather
+  than summed from items, matching how NPC Essence already works.
+
 ### Fixes
 - **Centering now works on attribute tests.** `rollAttributeTest` silently dropped
   `centeringReduction`, so an initiate could never buy down the TN on an attribute

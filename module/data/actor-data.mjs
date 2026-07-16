@@ -195,6 +195,10 @@ export class CharacterData extends SR2EDataModel {
       // --- VEHICLE CONTROL RIG ---
       vehicleControlRig: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 3 }),
 
+      // Tactical computer effective level (Shadowtech p.53) — adds to Initiative
+      // up to the natural Reaction maximum. No help while rigging or decking.
+      tacticalComputer: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+
       // Jacked in via VCR (SR2E p.85): while rigging, initiative uses ONLY the
       // VCR's Reaction (+2/level) and Initiative (+1d6/level) bonuses — no
       // other Reaction/Initiative enhancers apply, except injury modifiers.
@@ -265,6 +269,7 @@ export class CharacterData extends SR2EDataModel {
     // (quick NPC-style setups). Must run before _calculateDicePools
     // (Control Pool requires a VCR).
     if (mods.vcrLevel > 0) this.vehicleControlRig = mods.vcrLevel;
+    this.tacticalComputer = mods.tacComputer;
 
     // Essence loss from installed cyberware (toggleable via the autoEssence setting).
     // try/catch: settings are registered in the init hook, but data prep can be
@@ -562,7 +567,7 @@ export class CharacterData extends SR2EDataModel {
     const mods = {
       body: 0, quickness: 0, strength: 0,
       charisma: 0, intelligence: 0, willpower: 0,
-      reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0,
+      reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0, tacComputer: 0,
       // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
       // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
       reactionExemptQuickness: 0,
@@ -586,6 +591,9 @@ export class CharacterData extends SR2EDataModel {
         // Installed VCR cyberware sets the character's rig level (its rating)
         if (item.system.isVcr) {
           mods.vcrLevel = Math.max(mods.vcrLevel, item.system.rating || 1);
+        }
+        if (item.system.isTacticalComputer) {
+          mods.tacComputer = Math.max(mods.tacComputer, item.system.rating || 1);
         }
       }
       if (item.type === "bioware" && item.system.installed) {
@@ -917,6 +925,15 @@ export class NPCData extends SR2EDataModel {
         value: new fields.NumberField({ initial: 6.0, min: 0, max: 6 }),
         max: new fields.NumberField({ initial: 6.0, min: 0, max: 6 })
       }),
+      // Body Index (Shadowtech p.6). GM-typed, like Essence above — NPCs are
+      // stat blocks, so implants aren't summed from items the way they are for
+      // characters. Typing a value here is enough to drive everything
+      // downstream: biosystem overstress on Body tests and the bioware
+      // interference penalty when someone magically heals this NPC.
+      bodyIndex: new fields.SchemaField({
+        value: new fields.NumberField({ required: true, initial: 0, min: 0 }),
+        max: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
+      }),
       magic: new fields.SchemaField({
         value: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         max: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
@@ -981,6 +998,9 @@ export class NPCData extends SR2EDataModel {
       }
     }
 
+    // Body Index cap = the NPC's natural (unmodified) Body — Shadowtech p.6.
+    this.bodyIndex.max = this.body.base;
+
     // Reaction
     this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
     this.reaction.value = this.reaction.base + this.reaction.mod;
@@ -1027,6 +1047,15 @@ export class NPCData extends SR2EDataModel {
       this.conditionMonitor.physical.value,
       this.conditionMonitor.stun.value
     );
+  }
+
+  /**
+   * Biosystem overstress (Shadowtech p.7) — see CharacterData#bodyOverstressTN.
+   * Present here so the Body-test plumbing treats NPCs identically.
+   * @returns {number}
+   */
+  get bodyOverstressTN() {
+    return overstressPenalty(this.bodyIndex?.value, this.bodyIndex?.max);
   }
 
   /**

@@ -1595,3 +1595,23 @@ export function overstressPenalty(value, max) {
 export function biowareHealingTnMod(bodyIndex) {
   return Math.floor((Number(bodyIndex) || 0) / 2);
 }
+
+/**
+ * Tactical computer initiative cap (Shadowtech p.53): the implant's rating adds
+ * to Initiative, but "an Initiative value calculated in this fashion cannot
+ * exceed the normal Reaction maximum" — i.e. the highest total the character
+ * could have rolled unaided (base + 6 per Initiative die). The book's example:
+ * Reaction 4 + 1D6 with a Level 2 computer may add +2 but never exceed 10.
+ *
+ * The bonus therefore only fills the gap up to that ceiling; it never raises it.
+ * @param {number} rolled  base + dice result, before the implant
+ * @param {number} rating  tactical computer effective level
+ * @param {number} base    adjusted Reaction (initiative base)
+ * @param {number} dice    number of Initiative dice
+ * @returns {number} final Initiative total
+ */
+export function tacticalComputerInitiative(rolled, rating, base, dice) {
+  const r = Math.max(0, Number(rating) || 0);
+  const cap = (Number(base) || 0) + 6 * Math.max(0, Number(dice) || 0);
+  return Math.min((Number(rolled) || 0) + r, cap);
+}

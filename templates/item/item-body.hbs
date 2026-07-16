@@ -246,6 +246,10 @@
     <label>Area Effect:</label>
     <input type="checkbox" name="system.isAreaEffect" {{checked system.isAreaEffect}} />
   </div>
+  <div class="form-group">
+    <label title="Magical healing takes +½ the subject's Body Index to its TN (Shadowtech p.6).">Heals Damage:</label>
+    <input type="checkbox" name="system.healsDamage" {{checked system.healsDamage}} />
+  </div>
   <div class="form-group notes">
     <label>Description:</label>
     <textarea name="system.notes">{{system.notes}}</textarea>
@@ -461,6 +465,11 @@
     <label>Vehicle Control Rig:</label>
     <input type="checkbox" name="system.isVcr" {{checked system.isVcr}} />
     <span class="hint">(when installed, this item's Rating sets the character's VCR level)</span>
+  </div>
+  <div class="form-group">
+    <label>Tactical Computer:</label>
+    <input type="checkbox" name="system.isTacticalComputer" {{checked system.isTacticalComputer}} />
+    <span class="hint">(adds its Rating to Initiative, never past the natural Reaction max; no help rigging/decking)</span>
   </div>
   <div class="form-group">
     <label title="Matrixware — a cyberdeck built into the skull (Shadowtech p.54)">Cranial Cyberdeck (C2):</label>

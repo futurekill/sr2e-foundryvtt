@@ -311,8 +311,22 @@ export class SR2EActor extends Actor {
    * @override
    */
   getInitiativeRoll(formula) {
-    const { base, dice } = this._getInitiativeParts();
-    return new Roll(`${base} + ${dice}d6`, this.getRollData());
+    return new Roll(this._initiativeFormula(this._getInitiativeParts()), this.getRollData());
+  }
+
+  /**
+   * Build the initiative roll formula from _getInitiativeParts output.
+   *
+   * A tactical computer's rating is added inside a min() against the natural
+   * Reaction maximum (base + 6/die) so the cap applies to the rolled TOTAL, as
+   * the book requires (Shadowtech p.53) — it can't be expressed as a flat bonus.
+   * @param {{base:number, dice:number, tac?:number}} parts
+   * @returns {string}
+   * @private
+   */
+  _initiativeFormula({ base, dice, tac = 0 }) {
+    if (tac > 0) return `min(${base} + ${dice}d6 + ${tac}, ${base + 6 * dice})`;
+    return `${base} + ${dice}d6`;
   }
 
   /**
@@ -375,7 +389,19 @@ export class SR2EActor extends Actor {
     notes.push(rigged ? `Rigged (VCR ${vcr}): Reaction ${reaction}` : `Reaction ${reaction}`);
     if (woundPenalty) notes.push(`−${woundPenalty} wound`);
     if (vehicleMod)   notes.push(`${vehicleMod} vehicle damage`);
-    return { base, dice: Math.max(1, system.initiative?.dice ?? 1), rigged, notes };
+
+    // Tactical computer (Shadowtech p.53) adds its rating to Initiative, capped
+    // at the natural Reaction maximum. Explicitly no help while rigging; the
+    // Matrix branch returns earlier, so decking is covered too.
+    //
+    // The cap is built from the WOUNDED base, so injuries lower the ceiling too.
+    // The book only illustrates an unwounded case ("Reaction 4 + 1D6 ... never
+    // exceed 10"), but the implant predicts rather than accelerates — letting it
+    // hold the healthy ceiling would quietly cancel wound penalties.
+    const dice = Math.max(1, system.initiative?.dice ?? 1);
+    const tac = rigged ? 0 : (system.tacticalComputer ?? 0);
+    if (tac > 0) notes.push(`+${tac} tactical computer (max ${base + 6 * dice})`);
+    return { base, dice, rigged, tac, notes };
   }
 
   /**
@@ -392,10 +418,10 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Roll>}
    */
   async rollSR2Initiative() {
-    const { base, dice, rigged, astral, matrix, notes } = this._getInitiativeParts();
+    const parts = this._getInitiativeParts();
+    const { base, dice, rigged, astral, matrix, notes } = parts;
 
-    const formula = `${base} + ${dice}d6`;
-    const roll = new Roll(formula);
+    const roll = new Roll(this._initiativeFormula(parts));
     await roll.evaluate();
 
     const tag = matrix ? " — Matrix" : astral ? " — Astral" : rigged ? " — Rigged" : "";

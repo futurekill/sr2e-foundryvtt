@@ -1,6 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -1043,12 +1043,27 @@ export class SR2EItem extends Item {
       }
     }
 
+    // ── Bioware interference with magical healing (Shadowtech p.6) ────────────
+    // "For magical healing on subjects with bioware, increase the target numbers
+    // by one-half the character's current Body Index, rounding down." The mod is
+    // keyed to the SUBJECT's Body Index but lands on the caster's test, so we
+    // resolve the subject from the targeted token, falling back to the caster
+    // (self-healing) — the same targeting convention the cast dialog uses for
+    // combat-spell TNs.
+    let healingTN = 0, healingLabel = "";
+    if (this.system.healsDamage) {
+      const subject = game.user?.targets?.first?.()?.actor ?? actor;
+      healingTN = biowareHealingTnMod(subject.system?.bodyIndex?.value ?? 0);
+      if (healingTN > 0) healingLabel = `bioware interference (${subject.name})`;
+    }
+
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
       label: `Cast ${this.name} (Force ${force}${totemNote})`,
       poolDice: options.poolDice,   // magic pool dice pre-allocated by player
       karmaDice: options.karmaDice, // extra dice bought with Karma Pool
-      centeringReduction            // Centering vs Penalties (Grimoire p.44)
+      centeringReduction,           // Centering vs Penalties (Grimoire p.44)
+      extraTN: healingTN, extraTNLabel: healingLabel
     });
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)

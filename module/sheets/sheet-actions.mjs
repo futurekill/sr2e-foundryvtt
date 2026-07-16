@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod } from "../rules/sr2e-rules.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -1273,6 +1273,16 @@ async function promptSpellOptions(actor, spell) {
     tnNote = `<span style="color:#6a8;">Target ${foundry.utils.escapeHTML(tgtTok.name)}: ${isMana ? "Willpower" : "Body"} ${suggestedTN}</span>`;
   } else if (isCombat) {
     tnNote = `<span style="color:#a86;">No target — TN is the victim's ${isMana ? "Willpower (mana)" : "Body (physical)"}.</span>`;
+  } else if (spell?.system?.healsDamage) {
+    // Bioware interferes with magical healing (Shadowtech p.6): +½ the SUBJECT's
+    // Body Index. Surfaced here so the caster sees it before committing pool dice.
+    const subject = tgtActor ?? actor;
+    const bhMod   = biowareHealingTnMod(subject.system?.bodyIndex?.value ?? 0);
+    if (bhMod > 0) {
+      tnNote = `<span style="color:#a86;">${foundry.utils.escapeHTML(subject.name)} has bioware (Body Index ${subject.system.bodyIndex.value}): +${bhMod} TN to heal.</span>`;
+    } else if (!tgtActor) {
+      tnNote = `<span style="color:#888;">No target — assuming self. Target the subject to apply any bioware healing penalty.</span>`;
+    }
   }
 
   // Initial drain readout at the default Force

@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   effectiveBodyCost, bodyIndexTotal, biowareEssence,
-  overstressPenalty, biowareHealingTnMod, BIOWARE_CULTURED_MULTIPLIER,
+  overstressPenalty, biowareHealingTnMod, tacticalComputerInitiative, BIOWARE_CULTURED_MULTIPLIER,
   compensatedWoundPenalty, totalWoundPenalty
 } from "../module/rules/sr2e-rules.mjs";
 
@@ -90,5 +90,23 @@ describe("secondary effects (Shadowtech p.6–7)", () => {
     expect(biowareHealingTnMod(0)).toBe(0);
     expect(biowareHealingTnMod(3)).toBe(1);
     expect(biowareHealingTnMod(4)).toBe(2);
+  });
+});
+
+describe("tactical computer initiative (Shadowtech p.53)", () => {
+  // Book example: Reaction 4 + 1D6, Level 2 computer — may add +2, never past 10.
+  it("adds the rating below the cap", () => {
+    expect(tacticalComputerInitiative(5, 2, 4, 1)).toBe(7);   // rolled 1 → 5+2
+  });
+  it("clamps to the natural maximum (base + 6/die)", () => {
+    expect(tacticalComputerInitiative(9, 2, 4, 1)).toBe(10);  // rolled 5 → 11 → 10
+    expect(tacticalComputerInitiative(10, 2, 4, 1)).toBe(10); // already maxed
+  });
+  it("scales the cap with extra initiative dice", () => {
+    expect(tacticalComputerInitiative(20, 3, 8, 3)).toBe(23); // cap 8+18=26
+    expect(tacticalComputerInitiative(25, 3, 8, 3)).toBe(26); // clamped
+  });
+  it("is inert at rating 0", () => {
+    expect(tacticalComputerInitiative(7, 0, 4, 1)).toBe(7);
   });
 });
