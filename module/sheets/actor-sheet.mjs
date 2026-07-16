@@ -379,7 +379,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
 
     // Auto-charge purchases: characters pay the street price (base cost × Street
     // Index) for dropped items, where base cost accounts for the chosen Rating AND
-    // Grade (alphaware ×2, cultured ×4). The paid amount is remembered on the item
+    // Grade (SSC p.98 / Shadowtech p.7). The paid amount is remembered on the item
     // so the sell button and the Rating/Grade-change hook can refund/re-price it.
     // Hold ALT while dropping to add it for FREE (no charge, no `paid` flag).
     if (created && isCharacter && autoCharge) {
@@ -419,10 +419,25 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
   static async _promptPurchaseOptions(itemData, actor) {
     const sys = itemData.system ?? {};
     const rows = [...(sys.ratingStats ?? [])].sort((a, b) => a.rating - b.rating);
-    const gradeChoices = itemData.type === "cyberware"
-        ? { standard: "Standard", alpha: "Alphaware (×2 ¥, ×0.8 Essence)" }
-      : itemData.type === "bioware"
-        ? { standard: "Standard", cultured: "Cultured (×0.75 Body Cost, ×4 ¥)" }
+    // Built from the shared grade tables rather than restated here — this dialog
+    // used to carry its own hand-written copy of the multipliers, which is how it
+    // came to advertise a ×2 alphaware price the rules module didn't charge.
+    const describeGrade = (key, g) => {
+      const label = game.i18n.localize(CONFIG.SR2E.cyberwareGrades[key]?.label
+                                    ?? CONFIG.SR2E.biowareGrades[key]?.label ?? key);
+      const bits = [];
+      if (g.costMultiplier !== 1)       bits.push(`×${g.costMultiplier} ¥`);
+      if (g.essenceMultiplier != null && g.essenceMultiplier !== 1)
+        bits.push(`×${g.essenceMultiplier} Essence`);
+      if (g.bodyCostMultiplier != null && g.bodyCostMultiplier !== 1)
+        bits.push(`×${g.bodyCostMultiplier} Body Cost`);
+      return bits.length ? `${label} (${bits.join(", ")})` : label;
+    };
+    const gradeTable = itemData.type === "cyberware" ? CONFIG.SR2E.cyberwareGrades
+                     : itemData.type === "bioware"   ? CONFIG.SR2E.biowareGrades
+                     : null;
+    const gradeChoices = gradeTable
+      ? Object.fromEntries(Object.entries(gradeTable).map(([k, g]) => [k, describeGrade(k, g)]))
       : null;
     const ratingSel = rows.length > 1 ? `<div class="form-group"><label>Rating:</label>
       <select name="rating" style="flex:1;">${rows.map(r =>
@@ -793,6 +808,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const itemData = actor.items.map((i) => ({
       type: i.type,
       cost: i.system.cost ?? 0,
+      // Rating/grade/ratingStats travel too — chargenSpend prices through
+      // itemBaseCost, so rated and alpha/beta/cultured ware count properly.
+      rating: i.system.rating ?? 1,
+      grade: i.system.grade,
+      ratingStats: i.system.ratingStats,
       quantity: i.system.quantity ?? 1,
       force: i.system.force ?? 0,
       bondingCost: i.system.bondingCost ?? 0

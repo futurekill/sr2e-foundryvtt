@@ -2,6 +2,8 @@
  * Shadowrun 2nd Edition system configuration constants.
  * All game-mechanical values from the SR2e core rulebook (FASA 7901).
  */
+import { CYBERWARE_GRADES, BIOWARE_GRADES } from "./rules/sr2e-rules.mjs";
+
 export const SR2E = {};
 
 SR2E.systemId = "sr2e";
@@ -576,19 +578,23 @@ SR2E.armorTypes = {
 // ---------------------------------------------------------------------------
 // CYBERWARE
 // ---------------------------------------------------------------------------
-SR2E.cyberwareGrades = {
-  standard: { label: "SR2E.Cyberware.Standard", essenceMultiplier: 1.0, costMultiplier: 1.0 },
-  alpha:    { label: "SR2E.Cyberware.Alpha",    essenceMultiplier: 0.8, costMultiplier: 2.0 }
-};
+// Custom cyberware grades from a Shadow Clinic (Street Samurai Catalog p.98).
+// The numbers live in module/rules/sr2e-rules.mjs — the pure module is the single
+// source of truth, shared with the purchase hooks. Config only adds UI labels.
+// (These two used to be maintained separately and silently drifted apart.)
+const gradeLabels = { standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha",
+                      beta: "SR2E.Cyberware.Beta" };
+SR2E.cyberwareGrades = Object.fromEntries(
+  Object.entries(CYBERWARE_GRADES).map(([k, v]) => [k, { ...v, label: gradeLabels[k] }])
+);
 
-// Bioware grades (Shadowtech FASA7110 p.7). Cultured reduces Body Cost to 0.75×.
-// The nuyen ×4 factor is recorded for reference only — it is NOT auto-applied
-// (the compendium stores the book's listed price; a manual grade change does not
-// re-price the item — the GM adjusts). See PLAN.md.
-SR2E.biowareGrades = {
-  standard: { label: "SR2E.Bioware.Standard", bodyCostMultiplier: 1.0 },
-  cultured: { label: "SR2E.Bioware.Cultured", bodyCostMultiplier: 0.75, nuyenMultiplierInfo: 4.0 }
-};
+// Bioware grades (Shadowtech FASA7110 p.7). Cultured reduces Body Cost to 0.75×
+// and costs ×4 nuyen — the purchase system applies that multiplier on a grade
+// change; the compendium stores the book's listed (standard) price.
+const bioLabels = { standard: "SR2E.Bioware.Standard", cultured: "SR2E.Bioware.Cultured" };
+SR2E.biowareGrades = Object.fromEntries(
+  Object.entries(BIOWARE_GRADES).map(([k, v]) => [k, { ...v, label: bioLabels[k] }])
+);
 
 // Bioware body systems (Shadowtech) — sheet grouping + flavor, non-mechanical.
 SR2E.bodySystems = {

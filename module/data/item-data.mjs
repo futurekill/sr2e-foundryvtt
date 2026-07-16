@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -320,8 +320,11 @@ export class CyberwareData extends SR2EDataModel {
         headware: "SR2E.Cyberware.Headware", bodyware: "SR2E.Cyberware.Bodyware",
         cyberlimb: "SR2E.Cyberware.Cyberlimb", other: "SR2E.Cyberware.Other"
       }}),
+      // Custom cyberware from a Shadow Clinic (SSC p.98). Alpha and Beta are the
+      // only grades SR2 offers — deltaware is an SR3 concept.
       grade: new fields.StringField({ initial: "standard", choices: {
-        standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha"
+        standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha",
+        beta: "SR2E.Cyberware.Beta"
       }}),
       essenceCost: new fields.NumberField({ required: true, initial: 0.5, min: 0 }),
       rating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
@@ -461,15 +464,14 @@ export class CyberwareData extends SR2EDataModel {
    * capacity; ordinary cyberware (capacity 0, no modules) is just the base.
    */
   get actualEssenceCost() {
-    const gradeData = CONFIG.SR2E.cyberwareGrades[this.grade];
-    const mult = gradeData?.essenceMultiplier || 1.0;
     // A cranial cyberdeck's Essence is the sum of its installed Matrixware
     // components, derived from the deck's own ratings (Shadowtech p.54–59),
     // rather than a flat authored value.
     const base = this.cranialDeck
       ? cranialDeckEssence(this.deck)
       : this.essenceCost + (this.capacityOver ?? 0);
-    return Math.round(base * mult * 100) / 100;
+    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost.
+    return gradeEssenceCost(base, this.grade);
   }
 }
 

@@ -661,6 +661,33 @@ describe("chargenSpend — priority budget tracking (SR2E p.44–45)", () => {
     expect(r.resources.spent).toBe(700 + 60 + 5000);
     expect(r.resources.remaining).toBe(90000 - 5760);
   });
+  // Regression: resources were summed from each item's flat `cost`, so a rated
+  // item (whose prices live in ratingStats, flat cost usually 0) counted as FREE,
+  // grade multipliers were ignored, and bioware was left out of the resource list
+  // entirely. A starting character could load up on chrome for nothing.
+  it("prices rated items from their ratingStats row, not the flat cost", () => {
+    const rows = [{ rating: 1, cost: 60000 }, { rating: 2, cost: 100000 }];
+    const r = chargenSpend({ items: [
+      { type: "cyberware", cost: 0, rating: 2, grade: "standard", ratingStats: rows }
+    ] }, { resources: 1000000 });
+    expect(r.resources.spent).toBe(100000);
+  });
+  it("counts bioware as a resource", () => {
+    const r = chargenSpend({ items: [
+      { type: "bioware", cost: 60000, rating: 1, grade: "standard", ratingStats: [] }
+    ] }, { resources: 1000000 });
+    expect(r.resources.spent).toBe(60000);
+  });
+  it("applies grade multipliers to the resource total", () => {
+    const cultured = chargenSpend({ items: [
+      { type: "bioware", cost: 60000, rating: 1, grade: "cultured", ratingStats: [] }
+    ] }, { resources: 1000000 });
+    expect(cultured.resources.spent).toBe(240000);   // ×4 (Shadowtech p.7)
+    const alpha = chargenSpend({ items: [
+      { type: "cyberware", cost: 55000, rating: 1, grade: "alpha", ratingStats: [] }
+    ] }, { resources: 1000000 });
+    expect(alpha.resources.spent).toBe(165000);      // ×3 (SSC p.98)
+  });
   it("Force Points = spell Force + focus bonding cost", () => {
     const items = [
       { type: "spell", force: 4 }, { type: "spell", force: 5 },

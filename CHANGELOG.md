@@ -31,7 +31,33 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   same overstress and magical-healing rules characters get. It's typed rather
   than summed from items, matching how NPC Essence already works.
 
+- **Betaware.** Custom cyberware now offers Beta grade alongside Alpha: ×0.6
+  Essence for ×7 the price (Street Samurai Catalog p.98). SR2 has no deltaware —
+  that's a 3rd-edition grade — so the list stops at Beta.
+
 ### Fixes
+- **Alphaware cost was wrong: ×2 → ×3.** The Street Samurai Catalog's Custom
+  Cyberware table (p.98) prices Alpha at ×3, not ×2. The old value — with the
+  since-removed comment citing "SSC p.29 / SR2E p.246" — was SR3's alphaware line
+  imported into an SR2 system; neither cited page says anything of the kind (SSC
+  p.29 is a pistol, and the SR2 core has no grade rules at all). Alphaware now
+  costs what the book says. **If a character already owns alphaware, it's priced
+  correctly from now on but nothing is retroactively re-billed.**
+- **Grade Essence now rounds up and floors at .05.** The book says "Round all
+  numbers up. Essence Cost may never be reduced below .05 in this manner"; the
+  code rounded to nearest and had no floor (SSC p.98).
+- **Chargen counted rated gear as free.** The Resources budget summed each item's
+  flat cost — but a rated item keeps its prices in its per-rating table and its
+  flat cost is usually 0, so every rated implant counted as **0¥**. Grades were
+  ignored on top of that, and **bioware wasn't counted at all**. A sample loadout
+  that should cost 665,800¥ was being charged 55,800¥. Resources now price through
+  the same table the shop does. **Check any character built during 0.36.x — they
+  may have been allowed more chrome than their Resources priority actually buys.**
+- **The purchase system can no longer refund money that was never spent.** Refunds
+  were computed from the current price tables rather than what the character
+  actually paid, so if a price ever moved under a saved item — a GM edits a cost,
+  or a rules fix lands like the alphaware one above — downgrading it paid out the
+  difference as profit. Refunds are now capped at the recorded `paid` amount.
 - **Centering now works on attribute tests.** `rollAttributeTest` silently dropped
   `centeringReduction`, so an initiate could never buy down the TN on an attribute
   roll (Grimoire p.44).

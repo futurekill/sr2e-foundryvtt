@@ -659,7 +659,21 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
 
   const inChargen = !!actor.system.chargen?.inProgress;
   const priceOf = (c) => inChargen ? c : streetPrice(c, item.system.streetIndex);
-  const delta = Math.round(priceOf(newBase) - priceOf(oldBase));
+  let delta = Math.round(priceOf(newBase) - priceOf(oldBase));
+
+  // A refund is computed from the CURRENT price tables, but `paid` is what the
+  // character really handed over, and the two disagree whenever a price moves
+  // under a saved item — a GM edits a cost, or a rules fix lands (the alphaware
+  // ×2→×3 correction did exactly that). Paying out the raw delta would then
+  // refund money that was never spent.
+  //
+  // Settle instead on the invariant that survives any price drift: after a
+  // downgrade you are left having paid the new configuration's price — or less,
+  // if you got it cheaper than that to begin with. So a legacy ×2 alphaware
+  // (paid 200k, now listed 300k) downgraded to a 100k standard piece refunds
+  // 100k and leaves 100k paid, rather than refunding the full 200k and handing
+  // over the standard ware for nothing.
+  if (delta < 0) delta = Math.min(paid, Math.round(priceOf(newBase))) - paid;
   if (delta === 0) return;
   const nuyen = actor.system.nuyen ?? 0;
   if (delta > 0 && nuyen < delta) {

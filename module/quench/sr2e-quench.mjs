@@ -849,6 +849,50 @@ export function registerSR2EQuenchTests() {
           assert.equal(actor.system.nuyen, n0, "no paid flag → not re-charged");
           assert.equal(pump.system.rating, 2, "…and the rating change itself still went through");
         });
+
+        // The refund is derived from the CURRENT price tables, but `paid` is what
+        // the character actually handed over. They disagree whenever a price moves
+        // under a saved item — a GM edits a cost, or a rules fix lands (the
+        // alphaware ×2→×3 correction did exactly this). Refunding the computed
+        // delta would then pay out money that was never spent.
+        it("caps a refund when the price moved under a legacy item", async () => {
+          const actor = await makeBuyer("Quench Legacy", 50000);
+          // Bought under the old (wrong) ×2 alphaware rule: paid 200,000¥.
+          // The table now prices alpha at ×3 = 300,000¥, standard at 100,000¥.
+          const [ware] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Legacy Chrome", type: "cyberware",
+              flags: { sr2e: { paid: 200000 } },
+              system: { grade: "alpha", essenceCost: 0.5, cost: 100000, streetIndex: "1" } }
+          ]);
+          const n0 = actor.system.nuyen;
+          await ware.update({ "system.grade": "standard" });
+          // Raw delta would be 100k − 300k = −200k, refunding the whole 200k paid
+          // AND leaving 100k of standard ware for free. Correct: refund 100k and
+          // leave them having paid 100k for what they now hold.
+          assert.ok(await settle(() => actor.system.nuyen - n0 === 100000),
+            `expected a 100000¥ refund; got ${actor.system.nuyen - n0}`);
+          assert.ok(await settle(() => ware.getFlag("sr2e", "paid") === 100000),
+            `paid should settle at the standard price; got ${ware.getFlag("sr2e", "paid")}`);
+        });
+      });
+
+      describe("Custom cyberware grades (SSC p.98)", () => {
+        it("prices alpha at ×3 and beta at ×7, and reduces Essence by 20% / 40%", async () => {
+          const actor = await makeBuyer("Quench Grades", 5000000);
+          const [ware] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Wired Reflexes 1", type: "cyberware",
+              system: { essenceCost: 2.0, cost: 55000, streetIndex: "1" } }
+          ]);
+          assert.equal(ware.system.actualEssenceCost, 2.0, "standard is unreduced");
+
+          await ware.update({ "system.grade": "alpha" });
+          assert.ok(await settle(() => ware.system.actualEssenceCost === 1.6),
+            `alpha Essence should be 1.6; got ${ware.system.actualEssenceCost}`);
+
+          await ware.update({ "system.grade": "beta" });
+          assert.ok(await settle(() => ware.system.actualEssenceCost === 1.2),
+            `beta Essence should be 1.2; got ${ware.system.actualEssenceCost}`);
+        });
       });
     }, { displayName: "SR2E: Purchases" });
 

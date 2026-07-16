@@ -1055,7 +1055,7 @@ export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
 }
 
 /** Item types whose nuyen cost counts against the chargen Resources budget. */
-export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "focus", "lifestyle"];
+export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle"];
 
 /**
  * Character-creation point spend per category, versus the allotment granted by
@@ -1068,13 +1068,14 @@ export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyber
  *   and Special skills follow the p.74 special rules (native language is free,
  *   others need GM approval), so they are NOT charged against the skill budget.
  * - Resources: sum of the **list** nuyen cost of owned gear (chargen pays list
- *   price with no Street Index), cost × quantity.
+ *   price with no Street Index), priced at the item's rating and grade × quantity.
  * - Force Points (magicians only): sum of spell Force + focus Bonding cost.
  *
  * @param {object} data
  * @param {{base:number}[]} [data.attributes] - the six physical/mental attributes
  * @param {{category:string, rating:number}[]} [data.skills]
- * @param {{type:string, cost:number, quantity?:number, force?:number, bondingCost?:number}[]} [data.items]
+ * @param {{type:string, cost:number, rating?:number, grade?:string, ratingStats?:Array,
+ *          quantity?:number, force?:number, bondingCost?:number}[]} [data.items]
  * @param {{attributes?:number, skills?:number, resources?:number, forcePoints?:number}} [allot]
  * @returns {{attributes:object, skills:object, resources:object, forcePoints:object}}
  *          each row is {spent, total, remaining, over}
@@ -1084,9 +1085,13 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
   const skillSpent = skills
     .filter((k) => k.category === "active" || k.category === "build_repair")
     .reduce((s, k) => s + (k.rating ?? 0), 0);
+  // Price each item through itemBaseCost, not its flat `cost`: a rated item
+  // keeps its prices in ratingStats (its flat cost is often 0), and a grade
+  // multiplies them. Reading `cost` alone counted rated ware as free and ignored
+  // alpha/beta/cultured entirely.
   const resSpent = items
     .filter((i) => CHARGEN_RESOURCE_TYPES.includes(i.type))
-    .reduce((s, i) => s + (i.cost ?? 0) * (i.quantity ?? 1), 0);
+    .reduce((s, i) => s + itemBaseCost(i) * (i.quantity ?? 1), 0);
   const forceSpent = items.reduce((s, i) => {
     if (i.type === "spell") return s + (i.force ?? 0);
     if (i.type === "focus") return s + (i.bondingCost ?? 0);
@@ -1532,18 +1537,81 @@ export function cranialDeckEssence(deck = {}) {
 // --- Purchase pricing: rating + grade (Street Samurai Catalog / Shadowtech) ----
 
 /**
- * Cost multiplier for an item's quality grade. Alphaware cyberware costs ×2
- * (SSC p.29 / SR2E p.246); cultured bioware costs ×4 (Shadowtech p.7). Everything
- * else is ×1. (Neural bioware is stored at standard grade with its already-cultured
- * price, so it correctly gets ×1 — see the Shadowtech module notes.)
+ * Custom cyberware grades — Street Samurai Catalog (Revised) p.98.
+ *
+ * In SR2 "alphaware" is not a generic quality tier: it is *custom cyberware*
+ * from a Shadow Clinic, and Alpha/Beta are the only grades the book offers
+ * ("The Shadow Clinics to which the characters are most likely to have access
+ * offer basic levels of Custom Cyberware: Alpha and Beta"). There is no
+ * deltaware in SR2, and the core rulebook has no grade rules at all.
+ *
+ *          Essence Reduction   Cost Multiple   Damage Resist
+ *   Alpha  -20% (×.8)          ×3              5/6
+ *   Beta   -40% (×.6)          ×7              4/5
+ *
+ * damageResist is recorded from the table for completeness; nothing consumes it
+ * yet because the system models no cyberware damage (SSC: roll 5 dice vs the
+ * Serious/Deadly target, one success ignores the damage entirely).
+ *
+ * NOTE: Shadowtech p.40 — "None of the cyberware presented in the book is
+ * currently available in either alpha or beta grades."
+ */
+export const CYBERWARE_GRADES = {
+  standard: { essenceMultiplier: 1.0, costMultiplier: 1 },
+  alpha:    { essenceMultiplier: 0.8, costMultiplier: 3, damageResist: [5, 6] },
+  beta:     { essenceMultiplier: 0.6, costMultiplier: 7, damageResist: [4, 5] }
+};
+
+/** Bioware grades — Shadowtech p.7. Cultured is ×0.75 Body Cost and ×4 nuyen. */
+export const BIOWARE_GRADES = {
+  standard: { bodyCostMultiplier: 1.0,                        costMultiplier: 1 },
+  cultured: { bodyCostMultiplier: BIOWARE_CULTURED_MULTIPLIER, costMultiplier: 4 }
+};
+
+/** Smallest Essence a grade reduction may leave (SSC p.98). */
+export const CYBERWARE_GRADE_ESSENCE_FLOOR = 0.05;
+
+/**
+ * Cost multiplier for an item's quality grade — the single source of truth,
+ * read by both the purchase hooks and CONFIG.SR2E.
+ *
+ * (Neural bioware is stored at standard grade with its already-cultured price,
+ * so it correctly gets ×1 — see the Shadowtech module notes.)
  * @param {string} type item type
  * @param {string} grade item grade
  * @returns {number}
  */
 export function gradeCostMultiplier(type, grade) {
-  if (type === "cyberware" && grade === "alpha") return 2;
-  if (type === "bioware" && grade === "cultured") return 4;
+  if (type === "cyberware") return CYBERWARE_GRADES[grade]?.costMultiplier ?? 1;
+  if (type === "bioware")   return BIOWARE_GRADES[grade]?.costMultiplier ?? 1;
   return 1;
+}
+
+/**
+ * Essence cost of a piece of cyberware at a given grade (SSC p.98): "Reduce the
+ * amount of Base Essence Cost by the percentage listed... Round all numbers up.
+ * Essence Cost may never be reduced below .05 in this manner."
+ *
+ * The book doesn't state a precision for "round up"; hundredths is implied by
+ * the .05 floor, and matches how the system stores Essence. The epsilon keeps
+ * binary floats (0.8 × 0.3 = 0.24000000000000002) from rounding up a whole cent.
+ *
+ * The floor applies only to a grade REDUCTION — a standard item authored below
+ * .05 keeps its printed value.
+ * @param {number} baseEssence
+ * @param {string} grade
+ * @returns {number}
+ */
+export function gradeEssenceCost(baseEssence, grade) {
+  const base = Math.max(0, Number(baseEssence) || 0);
+  const mult = CYBERWARE_GRADES[grade]?.essenceMultiplier ?? 1;
+  // No reduction → the authored value stands, untouched (don't re-round it: an
+  // item authored to finer precision than hundredths keeps what it was given).
+  if (mult === 1) return base;
+  // Free ware stays free — nothing has been "reduced below .05" from zero.
+  if (base === 0) return 0;
+  const cost = Math.ceil((base * mult * 100) - 1e-9) / 100;
+  return Math.max(CYBERWARE_GRADE_ESSENCE_FLOOR, cost);
 }
 
 /**
