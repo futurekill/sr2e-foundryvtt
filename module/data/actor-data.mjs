@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -824,6 +824,16 @@ export class CharacterData extends SR2EDataModel {
     if (maxDamage >= 3)  return "Moderate";
     if (maxDamage >= 1)  return "Light";
     return "Undamaged";
+  }
+
+  /**
+   * Biosystem overstress (Shadowtech p.7): while the Body Index exceeds its cap
+   * the character makes ALL Body Success Tests at +1 TN per point, or fraction
+   * thereof, over — until the Index drops back under their natural Body.
+   * @returns {number}
+   */
+  get bodyOverstressTN() {
+    return overstressPenalty(this.bodyIndex?.value, this.bodyIndex?.max);
   }
 
   /**

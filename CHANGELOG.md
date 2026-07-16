@@ -4,6 +4,20 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Additions
+- **Biosystem overstress is automated (Shadowtech p.7).** While a character's Body
+  Index sits above its cap, every **Body Success Test** takes +1 TN per point (or
+  fraction) over — itemized in the roll breakdown as "biosystem overstress". It
+  reaches every Body-test path, not just the attribute roll: damage resistance,
+  knockdown, physical spell resistance, physical healing, and Recover Stun when
+  Body is the higher attribute (ties resolve to Willpower). Non-Body tests are
+  untouched.
+
+### Fixes
+- **Centering now works on attribute tests.** `rollAttributeTest` silently dropped
+  `centeringReduction`, so an initiate could never buy down the TN on an attribute
+  roll (Grimoire p.44).
+
 ## 0.36.0 — 2026-07-15
 
 ### Additions

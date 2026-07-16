@@ -698,6 +698,22 @@ export function registerSR2EQuenchTests() {
           assert.equal(mage.system.woundPenalty, 0, "active editor ignores the Stun penalty");
         });
 
+        it("biosystem overstress raises the TN of Body tests only (p.7)", async () => {
+          const actor = await makeChar();   // Body base 4 → cap 4
+          assert.equal(actor.system.bodyOverstressTN, 0, "under the cap → no overstress");
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Heavy Bio", type: "bioware", system: { installed: true, bodyCost: 5.5 } }
+          ]);
+          // Body Index 5.5 vs cap 4 → ceil(1.5) = +2 TN on Body tests.
+          assert.equal(actor.system.bodyOverstressTN, 2, "1.5 over the cap → +2 (per point or fraction)");
+          const card = await actor.rollAttributeTest("body", 4);
+          assert.ok(String(card?.content ?? "").includes("overstress"),
+            "a Body test should itemize the overstress modifier");
+          const other = await actor.rollAttributeTest("quickness", 4);
+          assert.ok(!String(other?.content ?? "").includes("overstress"),
+            "a non-Body test must NOT take the overstress penalty");
+        });
+
         it("Orthoskin bioware armor adds to worn armor", async () => {
           const actor = await makeChar();
           const imp0 = actor.system.armor.impact;

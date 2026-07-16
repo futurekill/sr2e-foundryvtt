@@ -135,11 +135,14 @@ export class SR2EActor extends Actor {
     // 1.5 × Intelligence costs +4 on EVERY action, "across the board". Like the
     // sustain penalty, resistance tests get no exemption from it.
     const mpcpOverload = this.system.mpcpOverloadPenalty ?? 0;
+    // Caller-supplied TN modifier that only applies to certain tests (e.g. the
+    // biosystem-overstress penalty, which hits Body Success Tests only).
+    const extraTN = options.extraTN ?? 0;
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload);
-    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock + mpcpOverload - centeringReduction;
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN);
+    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN - centeringReduction;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
@@ -181,6 +184,7 @@ export class SR2EActor extends Actor {
     if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} ${i18n.localize("SR2E.Roll.Wound")}`);
     if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} ${i18n.localize("SR2E.Roll.Sustaining")}`);
     if (mpcpOverload > 0) tnParts.push(`+${mpcpOverload} MPCP overload`);
+    if (extraTN > 0) tnParts.push(`+${extraTN} ${options.extraTNLabel ?? "modifier"}`);
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
@@ -418,13 +422,29 @@ export class SR2EActor extends Actor {
    * @param {number} targetNumber - Target number
    * @returns {Promise}
    */
+  /**
+   * TN options every BODY Success Test must carry: the biosystem-overstress
+   * penalty (Shadowtech p.7) — +1 TN per point (or fraction) the Body Index sits
+   * above the character's natural Body. Spread this into any Body-dice test, not
+   * just rollAttributeTest("body"): damage resistance, knockdown, physical spell
+   * resistance and physical healing are Body Success Tests too.
+   * @returns {{extraTN:number, extraTNLabel:string}}
+   * @private
+   */
+  _bodyTestOpts() {
+    return { extraTN: this.system.bodyOverstressTN ?? 0, extraTNLabel: "biosystem overstress" };
+  }
+
   async rollAttributeTest(attribute, targetNumber = 4, options = {}) {
     const attrValue = this.system[attribute]?.value || 0;
     const label = game.i18n.localize(CONFIG.SR2E.attributes[attribute]) || attribute;
     return this.rollSuccessTest(attrValue, targetNumber, {
       label: `${label} Test`,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice
+      karmaDice: options.karmaDice,
+      // Centering (Grimoire p.44) was being dropped here — pass it through.
+      centeringReduction: options.centeringReduction,
+      ...(attribute === "body" ? this._bodyTestOpts() : {})
     });
   }
 
@@ -1512,7 +1532,8 @@ export class SR2EActor extends Actor {
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
       label: `Resist Damage: ${level} (Power ${power})`,
       poolDice: rollResult.poolDice,
-      isResistance: true   // Injury Modifier does not apply to resistance (p.112)
+      isResistance: true,  // Injury Modifier does not apply to resistance (p.112)
+      ...this._bodyTestOpts()   // …but this IS a Body test, so overstress applies
     });
 
     // Stage damage down: 2 successes = 1 level reduction
@@ -1569,7 +1590,8 @@ export class SR2EActor extends Actor {
     const tn = knockdownTN(power, gel);
     const roll = await this.rollSuccessTest(this.system.body?.value ?? 1, tn, {
       label: `Knockdown Test (TN ${tn}${gel ? ", gel" : ""})`,
-      isResistance: true   // stopping power is not subject to the Injury Modifier
+      isResistance: true,  // stopping power is not subject to the Injury Modifier
+      ...this._bodyTestOpts()   // …but biosystem overstress still applies (Shadowtech p.7)
     });
     const outcome = knockdownOutcome(level, roll?.successes ?? 0);
     const msg = outcome === "prone"
@@ -2203,7 +2225,10 @@ export class SR2EActor extends Actor {
       ? ` +${useDef} ${shield ? "Shielding" : "Spell Defense"}` : "";
     const resist = await this.rollSuccessTest(dice, state.force, {
       label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${defNote} (TN ${state.force})`,
-      isResistance: true
+      isResistance: true,
+      // A physical spell is resisted with BODY, so overstress applies; a mana
+      // spell is resisted with Willpower and must not take it.
+      ...(attr === "body" ? this._bodyTestOpts() : {})
     });
     if (useDef > 0) {
       // Spell defense + free shielding dice are spent for the exchange.
@@ -2269,11 +2294,16 @@ export class SR2EActor extends Actor {
     const body = this.system.body?.value ?? 1;
     const will = this.system.willpower?.value ?? 1;
     const dice = Math.max(body, will);
+    // "Body or Willpower, whichever is higher" — when BODY is the one actually
+    // rolled this is a Body Success Test, so biosystem overstress applies
+    // (Shadowtech p.7). Ties resolve to Willpower, which keeps it unambiguous.
+    const usingBody = body > will;
 
     // Base TN 2; the book modifies this by current injury modifiers (Stun +
     // Physical), which rollSuccessTest adds automatically — so no isResistance.
     const result = await this.rollSuccessTest(dice, 2, {
-      label: `Recover Stun — best of Body/Willpower (${dice} dice)`
+      label: `Recover Stun — ${usingBody ? "Body" : "Willpower"} (${dice} dice)`,
+      ...(usingBody ? this._bodyTestOpts() : {})
     });
     const succ = result?.successes ?? 0;
     if (succ <= 0) {
@@ -2315,7 +2345,8 @@ export class SR2EActor extends Actor {
 
     const result = await this.rollSuccessTest(naturalBody, tn, {
       label: `Heal ${level} (natural Body ${naturalBody} vs TN ${tn})`,
-      isResistance: true
+      isResistance: true,
+      ...this._bodyTestOpts()
     });
     const succ = result?.successes ?? 0;
     if (succ <= 0) {
