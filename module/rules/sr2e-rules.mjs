@@ -788,8 +788,16 @@ export const SKILL_MEMORY = Object.freeze({
   language: [3, 6, 9, 24, 30, 36, 70, 80, 90, 300]
 });
 
-/** Per-Mp nuyen rate by skillsoft type (Skillsoft Costs, SR2E p.243). */
-export const SKILLSOFT_MP_COST = Object.freeze({ active: 100, knowledge: 150, language: 50 });
+/**
+ * Per-Mp nuyen rate by skillsoft type (Skillsoft Costs, SR2E p.243).
+ *
+ * `data` is NOT in the core table — core says DataSoft "Varies with value of
+ * data" and prints no rate, which left every DataSoft costing 0. Fields of Fire
+ * is the only book that pins one: Mp x 100Y on its consolidated gear list. It's
+ * a FLOOR for generic data, not a valuation of paydata — so a DataSoft with an
+ * authored cost keeps it (see skillsoftCost).
+ */
+export const SKILLSOFT_MP_COST = Object.freeze({ active: 100, knowledge: 150, language: 50, data: 100 });
 
 /**
  * Memory (Mp) a skillsoft of the given type + rating consumes (SR2E p.248).
@@ -810,7 +818,12 @@ export function skillsoftMemory(category, rating) {
  * @param {string} category - "active" | "knowledge" | "language"
  * @param {number} rating
  */
-export function skillsoftCost(category, rating) {
+export function skillsoftCost(category, rating, authoredCost = 0) {
+  // A DataSoft's worth is the data, not the megapulses — core explicitly leaves
+  // it open ("Varies with value of data"). So an authored price wins for data,
+  // and FoF's Mp x 100Y is only the fallback. Skill-bearing softs always derive:
+  // their price IS a function of rating.
+  if (category === "data" && authoredCost > 0) return authoredCost;
   const rate = SKILLSOFT_MP_COST[category];
   return rate ? skillsoftMemory(category, rating) * rate : 0;
 }

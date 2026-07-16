@@ -376,6 +376,10 @@
     <input type="checkbox" name="system.triggered" {{checked system.triggered}} />
     <span class="hint">(bonuses apply only when activated via the ⚡ on the character sheet)</span>
   </div>
+  <div class="form-group">
+    <label title="Dice added to every Active Skill Success Test while installed — sheet skill rolls AND weapon attacks. Enhanced Articulation (Shadowtech p.34) is 1. Per Level, like the attribute mods. RAW this covers all Active Skills, which in SR2 includes Sorcery/Conjuring and the social skills. 0 = no effect.">Active Skill Dice:</label>
+    <input type="number" name="system.activeSkillDice" value="{{system.activeSkillDice}}" min="0" />
+  </div>
 
   <fieldset>
     <legend>Attribute Modifiers <span class="hint">— per Level (multiplied by Rating)</span></legend>

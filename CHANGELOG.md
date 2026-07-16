@@ -5,6 +5,27 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 ## Unreleased
 
 ### Fixes
+- **Enhanced Articulation never gave its die.** The +1 Reaction worked; the rule
+  that defines the implant — "+1 die on any Success Test involving an Active
+  Skill" (Shadowtech p.34) — was in the item's notes and in no code. It now
+  applies to sheet skill rolls **and weapon attacks** (a Firearms attack is a
+  Success Test involving an Active Skill), itemized in the roll label. Bioware
+  gained an **Active Skill Dice** field so homebrew implants can do the same.
+  Applied **RAW**: SR2's Active Skills include Sorcery/Conjuring and the social
+  skills, and unlike ActiveSofts (core p.243) the book carves out no exception.
+  The +1 Reaction was already correctly excluded from rigging and decking.
+- **Every DataSoft was mis-typed as an ActiveSoft.** Its `grantedSkillCategory`
+  was null, which coerced to "active" — so a slotted DataSoft **demanded
+  skillwires it doesn't need, ate skillwire capacity from real ActiveSofts**, and
+  was flagged over-budget on a character with none. DataSofts are now their own
+  category, gated on a datasoft link / headware memory like Know- and LinguaSofts.
+  Their price being right was a coincidence: `active` and `data` share the same
+  100¥/Mp rate.
+- **DataSoft pricing is sourced.** Core says only "Varies with value of data" and
+  prints no rate; **Fields of Fire** is the only book that pins one (Mp × 100¥),
+  so that's now the default — but an authored price **wins** for DataSofts, since
+  the data's worth isn't a function of its megapulses. Skill-bearing softs still
+  always derive.
 - **Bone lacing never touched your fists.** All three laces correctly gave +Body
   and armor, and silently did nothing to unarmed damage — the rule was in the item
   notes and in no code. The innate Unarmed Strike now derives its Power from the

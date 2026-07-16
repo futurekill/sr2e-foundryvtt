@@ -377,12 +377,16 @@ export class SR2EItem extends Item {
       if (skillKeys.includes(normalize(item.name))) {
         // Improved Ability (adept) adds its levels in dice to the skill (p.125).
         const adeptBonus = item.system._adeptBonus ?? 0;
-        skillRating = item.system.rating + adeptBonus;
+        // Enhanced Articulation (Shadowtech p.34) — a weapon attack IS a Success
+        // Test involving an Active Skill, so the die applies here too, not just
+        // to sheet skill rolls.
+        const bonus = adeptBonus + (actor._activeSkillBonus?.(item) ?? 0);
+        skillRating = item.system.rating + bonus;
         // Concentration/Specialization pick from the dialog (SR2E p.70)
         const v = options.skillVariant;
         if ((v === "concentration" || v === "specialization") &&
             item.system[v]?.name && item.system[v].rating > 0) {
-          skillRating = item.system[v].rating + adeptBonus;
+          skillRating = item.system[v].rating + bonus;
           skillVariantNote = item.system[v].name;
         }
         break;

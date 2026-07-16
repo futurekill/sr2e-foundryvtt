@@ -457,6 +457,25 @@ export class SR2EActor extends Actor {
    * @returns {{extraTN:number, extraTNLabel:string}}
    * @private
    */
+  /**
+   * Dice a cyber/bio implant adds to a Success Test using this skill — Enhanced
+   * Articulation (Shadowtech p.34), which grants +1 die on "any Success Test
+   * involving an Active Skill".
+   *
+   * SR2's Active Skills include Build/Repair (chargen budgets them with Active,
+   * p.44-45) and the magic skills Sorcery/Conjuring — the book carves out no
+   * exception here, unlike ActiveSofts (core p.243). Knowledge and Language are
+   * NOT Active Skills and get nothing.
+   * @param {Item} skill
+   * @returns {number}
+   * @private
+   */
+  _activeSkillBonus(skill) {
+    const cat = skill?.system?.category;
+    if (cat !== "active" && cat !== "build_repair") return 0;
+    return this.system.activeSkillDice ?? 0;
+  }
+
   _bodyTestOpts() {
     return { extraTN: this.system.bodyOverstressTN ?? 0, extraTNLabel: "biosystem overstress" };
   }
@@ -611,16 +630,22 @@ export class SR2EActor extends Actor {
 
     // Improved Ability (adept) adds its levels in dice to the whole skill (p.125).
     const adeptBonus = skill.system._adeptBonus ?? 0;
-    let dicePool = (skill.system.rating ?? 0) + adeptBonus;
-    let label = `${skill.name} Test${adeptBonus ? ` (+${adeptBonus} adept)` : ""}`;
+    // Enhanced Articulation (Shadowtech p.34): +1 die on ANY Active Skill test.
+    // Build/Repair skills are Active Skills in SR2's taxonomy (chargen budgets
+    // them together); Knowledge and Language are not.
+    const artBonus = this._activeSkillBonus(skill);
+    const bonus = adeptBonus + artBonus;
+    const tag = `${adeptBonus ? ` (+${adeptBonus} adept)` : ""}${artBonus ? ` (+${artBonus} articulation)` : ""}`;
+    let dicePool = (skill.system.rating ?? 0) + bonus;
+    let label = `${skill.name} Test${tag}`;
 
     // Concentration/Specialization variant (SR2E p.70): roll that rating
     // instead of the general skill's.
     const v = options.variant;
     if ((v === "concentration" || v === "specialization") &&
         skill.system[v]?.name && skill.system[v].rating > 0) {
-      dicePool = skill.system[v].rating + adeptBonus;
-      label = `${skill.name} (${skill.system[v].name}) Test${adeptBonus ? ` (+${adeptBonus} adept)` : ""}`;
+      dicePool = skill.system[v].rating + bonus;
+      label = `${skill.name} (${skill.system[v].name}) Test${tag}`;
     }
 
     // Untrained: default via the Skill Web (SR2E p.69) — cheapest legal path to

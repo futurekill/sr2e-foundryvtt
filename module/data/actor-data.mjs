@@ -199,6 +199,10 @@ export class CharacterData extends SR2EDataModel {
       // up to the natural Reaction maximum. No help while rigging or decking.
       tacticalComputer: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
+      // Dice added to every Active Skill Success Test — Enhanced Articulation
+      // (Shadowtech p.34). Summed from installed bioware.
+      activeSkillDice: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+
       // Jacked in via VCR (SR2E p.85): while rigging, initiative uses ONLY the
       // VCR's Reaction (+2/level) and Initiative (+1d6/level) bonuses — no
       // other Reaction/Initiative enhancers apply, except injury modifiers.
@@ -270,6 +274,7 @@ export class CharacterData extends SR2EDataModel {
     // (Control Pool requires a VCR).
     if (mods.vcrLevel > 0) this.vehicleControlRig = mods.vcrLevel;
     this.tacticalComputer = mods.tacComputer;
+    this.activeSkillDice = mods.activeSkillDice;
 
     // Essence loss from installed cyberware (toggleable via the autoEssence setting).
     // try/catch: settings are registered in the init hook, but data prep can be
@@ -589,7 +594,7 @@ export class CharacterData extends SR2EDataModel {
       body: 0, quickness: 0, strength: 0,
       charisma: 0, intelligence: 0, willpower: 0,
       reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0, tacComputer: 0,
-      unarmedPower: 0,
+      unarmedPower: 0, activeSkillDice: 0,
       // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
       // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
       reactionExemptQuickness: 0,
@@ -639,6 +644,9 @@ export class CharacterData extends SR2EDataModel {
           if (sys.noReactionBonus) {
             mods.reactionExemptQuickness += (sys.attributeMods?.quickness || 0) * rating;
           }
+          // Enhanced Articulation's +1 die (Shadowtech p.34) — per-Level like the
+          // attribute mods, and gated by the same triggered/active check.
+          mods.activeSkillDice += (sys.activeSkillDice || 0) * rating;
         }
       }
       if (item.type === "adept_power") {

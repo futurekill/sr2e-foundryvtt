@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A pure-data library accessed via a datasoft link or headware memory; grants no skill. Cost varies with the data. SR2E p.243."
+    "notes": "A pure-data library accessed via a datasoft link or headware memory; grants no skill. Cost varies with the data. SR2E p.243.",
+    "grantedSkillCategory": "data"
   },
   "effects": [],
   "flags": {},

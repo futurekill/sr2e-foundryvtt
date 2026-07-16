@@ -759,6 +759,61 @@ export function registerSR2EQuenchTests() {
           assert.equal(actor.system.armor.ballistic, bal0 + 1, "Orthoskin R2 adds +1 Ballistic");
         });
       });
+      // Enhanced Articulation adds a die to Active Skill tests — derived onto the
+      // actor and read at two separate roll sites, so only in-engine proves it.
+      describe("Enhanced Articulation: +1 die on Active Skills (Shadowtech p.34)", () => {
+        const articulated = async (dice = 1) => {
+          const a = await makeChar();
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Enhanced Articulation", type: "bioware",
+              system: { installed: true, bodyCost: 0.6, activeSkillDice: dice,
+                        attributeMods: { reaction: 1 } } },
+            { name: "Firearms",  type: "skill", system: { category: "active",    rating: 5 } },
+            { name: "Sorcery",   type: "skill", system: { category: "active",    rating: 4, isMagical: true } },
+            { name: "Sprawl Life", type: "skill", system: { category: "knowledge", rating: 3 } },
+            { name: "English",   type: "skill", system: { category: "language",  rating: 2 } }
+          ]);
+          return a;
+        };
+        const skill = (a, n) => a.items.find(i => i.type === "skill" && i.name === n);
+
+        it("derives the bonus onto the actor when installed", async () => {
+          const actor = await articulated();
+          assert.equal(actor.system.activeSkillDice, 1, "installed articulation should set +1");
+        });
+
+        it("applies to Active Skills — including Sorcery, per RAW", async () => {
+          const actor = await articulated();
+          assert.equal(actor._activeSkillBonus(skill(actor, "Firearms")), 1, "Firearms is Active");
+          assert.equal(actor._activeSkillBonus(skill(actor, "Sorcery")), 1,
+            "Sorcery IS an Active Skill in SR2 — the book carves out no exception here");
+        });
+
+        it("does NOT apply to Knowledge or Language skills", async () => {
+          const actor = await articulated();
+          assert.equal(actor._activeSkillBonus(skill(actor, "Sprawl Life")), 0, "Knowledge is not Active");
+          assert.equal(actor._activeSkillBonus(skill(actor, "English")), 0, "Language is not Active");
+        });
+
+        it("also grants its +1 Reaction, and keeps it out of rigging/decking", async () => {
+          const actor = await articulated();
+          assert.equal(actor.system.reaction.mod, 1, "+1 Reaction lands in mod");
+          // Decking reads reaction.base, which excludes mod — so the bonus can't leak in.
+          const natural = actor.system.reaction.base;
+          assert.equal(natural, actor.system.reaction.value - 1,
+            "base must exclude the bioware bonus (the Matrix path reads base)");
+        });
+
+        it("an uninstalled articulation does nothing", async () => {
+          const actor = await makeChar();
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Boxed Articulation", type: "bioware",
+              system: { installed: false, activeSkillDice: 1 } }
+          ]);
+          assert.equal(actor.system.activeSkillDice, 0, "not installed → no dice");
+        });
+      });
+
       // Bone lacing rewrites the innate Unarmed Strike's damage code in derived
       // data — only provable against a real embedded item + prepare cycle.
       describe("Bone lacing raises unarmed Power (Shadowtech p.42)", () => {

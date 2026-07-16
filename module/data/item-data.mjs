@@ -554,6 +554,14 @@ export class BiowareData extends SR2EDataModel {
       // Pump: "Quickness raised in this manner does not also affect Reaction").
       // Muscle Augmentation/Suprathyroid Quickness DOES feed Reaction — leave off.
       noReactionBonus: new fields.BooleanField({ initial: false }),
+      // Dice added to every ACTIVE SKILL Success Test while installed — Enhanced
+      // Articulation (Shadowtech p.34): "Possessors of enhanced articulation roll
+      // an additional die when making any Success Test involving an Active Skill."
+      // Applied RAW: in SR2 the Active Skills include Sorcery/Conjuring and the
+      // social skills, and unlike ActiveSofts (core p.243) the book carves out no
+      // exception here. The prose calls them "motion-intensive", but that already
+      // doesn't describe Etiquette — "(Active Skills)" is the operative rule.
+      activeSkillDice: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Damage Compensator (Shadowtech p.24): a damage track at or below this
       // item's Rating inflicts no Injury Modifier; over it, the penalty is full.
       damageCompensator: new fields.BooleanField({ initial: false }),
@@ -671,8 +679,13 @@ export class GearData extends SR2EDataModel {
       // natural ability is lost for the duration of the skillsoft access").
       slotted: new fields.BooleanField({ initial: false }),
       grantedSkill: new fields.StringField({ initial: "" }),
+      // "data" is a DataSoft: a pure data library that grants no skill, read
+      // through a datasoft link or headware memory. It needs NO skillwires, so it
+      // has to be distinguishable from an ActiveSoft — a null here used to coerce
+      // to "active", which made every DataSoft consume skillwire capacity and go
+      // over-budget on a character who had none.
       grantedSkillCategory: new fields.StringField({ initial: "active", choices: {
-        active: "active", knowledge: "knowledge", language: "language"
+        active: "active", knowledge: "knowledge", language: "language", data: "data"
       }}),
       grantedSkillAttribute: new fields.StringField({ initial: "intelligence" }),
 
@@ -686,7 +699,11 @@ export class GearData extends SR2EDataModel {
     // Table by type + rating (SR2E p.243, p.248), overriding any manual cost.
     if (this.category === "skillsoft") {
       this.mp = skillsoftMemory(this.grantedSkillCategory, this.rating);
-      this.cost = skillsoftCost(this.grantedSkillCategory, this.rating);
+      // Read the AUTHORED price off _source: this.cost is what we're about to
+      // overwrite, so passing it would feed the derived value back in as though a
+      // GM had typed it. Only a DataSoft honours it (see skillsoftCost).
+      this.cost = skillsoftCost(this.grantedSkillCategory, this.rating,
+                                this._source?.cost ?? 0);
     }
   }
 }
