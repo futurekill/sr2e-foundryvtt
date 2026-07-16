@@ -17,7 +17,7 @@
   ],
   "compatibility": {
     "minimum": "13",
-    "verified": "14"
+    "verified": "13"
   },
   "esmodules": [
     "module/sr2e.mjs"
@@ -464,6 +464,6 @@
       "flags": {}
     }
   ],
-  "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.9.4/sr2e.zip",
+  "download": "https://github.com/futurekill/sr2e-foundryvtt/releases/download/v0.37.0/sr2e.zip",
   "flags": {}
 }

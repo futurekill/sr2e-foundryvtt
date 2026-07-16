@@ -247,12 +247,12 @@ export function testEventTag(test) {
   return "success";
 }
 
-/** Format a line in sourcebook shadowtalk style (plain text; caller escapes). */
-export function formatShadowtalk(line) {
-  return `>>>>>[${line.text}]<<<<<\n— ${line.by}`;
-}
 
-/* ── Foundry wiring (no-op outside Foundry) ──────────────────────────────── */
+/* ── Foundry wiring (no-op outside Foundry) ──────────────────────────────────
+ * These hooks register on import, not from an explicit call — so the chat-card
+ * banter is live only because actor-sheet.mjs imports headerBanter from here.
+ * Keep that import even if the header line ever goes away, or this dies silently.
+ */
 
 globalThis.Hooks?.once("init", () => {
   game.settings.register("sr2e", "banterFrequency", {
