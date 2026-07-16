@@ -420,15 +420,26 @@ export function registerSR2EQuenchTests() {
     // ── Adept power points: used = Σ(pointCost × level), max = Magic (p.124) ────
     quench.registerBatch("sr2e.adept-points", (context) => {
       const { describe, it, assert, after } = context;
+      // Every actor gets tracked: a shared `let actor` reassigned per test leaves
+      // all but the last one behind in the world.
+      const made = [];
       let actor;
-      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+      const newAdept = async (name) => {
+        const a = await Actor.create({ name, type: "character",
+          system: { magic: { type: "physical_adept" } } });
+        made.push(a);
+        return a;
+      };
+      after(async () => {
+        for (const a of made) {
+          try { await a.sheet?.close(); } catch (e) {}
+          try { await a.delete(); } catch (e) {}
+        }
+      });
 
       describe("Adept power points (SR2E p.124)", () => {
         it("sums pointCost×level of adept powers against Magic", async () => {
-          actor = await Actor.create({
-            name: "Quench Adept", type: "character",
-            system: { magic: { type: "physical_adept" } }
-          });
+          actor = await newAdept("Quench Adept");
           // Generic names on purpose — "Increased Reaction"/"Increased Reflexes"
           // are special-cased in adeptPowerCost() (non-linear per p.124); this
           // test covers the plain linear Σ(pointCost × level) path.
@@ -442,10 +453,7 @@ export function registerSR2EQuenchTests() {
         });
 
         it("Improved Ability adds its levels to the named skill (rolled, not paid)", async () => {
-          actor = await Actor.create({
-            name: "Quench Improved", type: "character",
-            system: { magic: { type: "physical_adept" } }
-          });
+          actor = await newAdept("Quench Improved");
           const [skill] = await actor.createEmbeddedDocuments("Item", [
             { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } },
             { name: "Improved Ability (Firearms)", type: "adept_power",
@@ -706,12 +714,16 @@ export function registerSR2EQuenchTests() {
           ]);
           // Body Index 5.5 vs cap 4 → ceil(1.5) = +2 TN on Body tests.
           assert.equal(actor.system.bodyOverstressTN, 2, "1.5 over the cap → +2 (per point or fraction)");
-          const card = await actor.rollAttributeTest("body", 4);
-          assert.ok(String(card?.content ?? "").includes("overstress"),
-            "a Body test should itemize the overstress modifier");
+          // rollSuccessTest resolves to the test RESULT (not the ChatMessage), so
+          // assert on the effective TN it reports — that's the mechanic itself.
+          const body = await actor.rollAttributeTest("body", 4);
+          assert.equal(body.targetNumber, 6, "Body test TN should take the +2 overstress");
           const other = await actor.rollAttributeTest("quickness", 4);
-          assert.ok(!String(other?.content ?? "").includes("overstress"),
-            "a non-Body test must NOT take the overstress penalty");
+          assert.equal(other.targetNumber, 4, "a non-Body test must NOT take the overstress penalty");
+          // …and the card should itemize it for the player.
+          const card = game.messages.contents.at(-2);
+          assert.ok(String(card?.content ?? "").includes("overstress"),
+            "the Body test card should itemize the overstress modifier");
         });
 
         it("Orthoskin bioware armor adds to worn armor", async () => {
