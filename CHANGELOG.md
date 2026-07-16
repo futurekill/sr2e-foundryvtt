@@ -2,6 +2,25 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Fixes
+- **Bone lacing never touched your fists.** All three laces correctly gave +Body
+  and armor, and silently did nothing to unarmed damage — the rule was in the item
+  notes and in no code. The innate Unarmed Strike now derives its Power from the
+  installed lace (Shadowtech p.42): plastic **(Str+1)M**, aluminum **(Str+2)M**,
+  titanium **(Str+3)M**. The highest lace wins rather than summing, an uninstalled
+  lace does nothing, and an already-modified base (an adept's Killing Hands) is
+  added to rather than overwritten. Cyberware gained an **Unarmed Power Bonus**
+  field so homebrew implants can do the same.
+  _Note on the book's notation:_ Shadowtech prints these as `(Str+1)M2`. The
+  trailing digit is **1st-edition staging** — SR2 made staging universally 2
+  successes and dropped it (the core lists unarmed as plain `(STR)M Stun`), so the
+  SR2 codes carry no `2`. The shipped item notes said `M2`; they now say `M`.
+  _Not automated:_ the book's option to deal Physical instead at half Power (round
+  up) is a per-attack choice — `unarmedPhysicalPower()` exists for it, but the
+  attack flow doesn't offer the toggle yet. Halve it by hand.
+
 ## 0.37.0 — 2026-07-16
 
 ### Additions

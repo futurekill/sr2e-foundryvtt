@@ -1665,6 +1665,48 @@ export function biowareHealingTnMod(bodyIndex) {
 }
 
 /**
+ * Unarmed damage code with a cyber-implant Power bonus folded in — bone lacing
+ * (Shadowtech p.42): "Unarmed blows by persons with plastic bone lacing are at
+ * (Str + 1)M2, (Str + 2)M2 for aluminum, and (Str + 3)M2 for titanium."
+ *
+ * NOTE ON THE BOOK'S NOTATION: Shadowtech is a 1st-edition book, and "M2" is 1e
+ * damage notation — Power, Level, then the STAGING interval. SR2 made staging
+ * universally 2 successes and dropped the trailing digit (the SR2 core lists
+ * unarmed as plain "(STR)M Stun"). So the SR2 code is "(Str+1)M", not "(Str+1)M2".
+ *
+ * Rewrites the formula inside the parens rather than replacing the whole code, so
+ * a modified base survives: an adept's Killing Hands "(Str+2)M" plus titanium
+ * becomes "(Str+2+3)M", which evaluateDamageCode resolves arithmetically. A plain
+ * numeric code ("6M") is wrapped so it stays parseable.
+ *
+ * @param {string} baseCode e.g. "(Str)M"
+ * @param {number} powerBonus 0 = unchanged
+ * @returns {string}
+ */
+export function unarmedDamageCode(baseCode, powerBonus) {
+  const bonus = Math.max(0, Math.floor(Number(powerBonus) || 0));
+  const code = String(baseCode ?? "").trim();
+  if (bonus === 0 || !code) return code;
+  const formula = code.match(/^\(([^)]+)\)([LMSD])$/i);
+  if (formula) return `(${formula[1]}+${bonus})${formula[2].toUpperCase()}`;
+  const simple = code.match(/^(\d+)([LMSD])$/i);
+  if (simple) return `(${simple[1]}+${bonus})${simple[2].toUpperCase()}`;
+  return code;   // unrecognised shape — leave it alone rather than corrupt it
+}
+
+/**
+ * Unarmed Power when the wielder opts to do PHYSICAL rather than Stun damage
+ * (Shadowtech p.42): "A character with bone lacing can also choose to have his
+ * unarmed blows do physical damage, but the Power Level of the attack is halved
+ * (round up)."
+ * @param {number} power
+ * @returns {number}
+ */
+export function unarmedPhysicalPower(power) {
+  return Math.ceil(Math.max(0, Number(power) || 0) / 2);
+}
+
+/**
  * Tactical computer initiative cap (Shadowtech p.53): the implant's rating adds
  * to Initiative, but "an Initiative value calculated in this fashion cannot
  * exceed the normal Reaction maximum" — i.e. the highest total the character

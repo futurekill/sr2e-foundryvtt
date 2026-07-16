@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -373,6 +373,11 @@ export class CharacterData extends SR2EDataModel {
     // Weapon foci: price each from its bonded weapon's Reach + Force, and tag the
     // bonded weapon so the Combat tab shows the focus and melee adds its dice.
     this._applyWeaponFoci();
+
+    // Bone lacing raises the Power of unarmed blows (Shadowtech p.42). Derived
+    // onto the innate Unarmed Strike so every path that reads its damageCode —
+    // the attack dialog, opposed melee, the riposte — sees it without changes.
+    this._applyUnarmedPower(mods.unarmedPower);
   }
 
   /**
@@ -426,6 +431,22 @@ export class CharacterData extends SR2EDataModel {
       skill.system._adeptBonus = (skill.system._adeptBonus ?? 0) + level;
       skill.system._adeptSource = power.name;
     }
+  }
+
+  /**
+   * Fold a cyber-implant Power bonus into the innate Unarmed Strike's damage
+   * code (Shadowtech p.42 — bone lacing). Mutates the derived item, never the
+   * source, so it recomputes from scratch each prepare and can't accumulate.
+   * @param {number} bonus
+   * @private
+   */
+  _applyUnarmedPower(bonus) {
+    if (!bonus) return;
+    const unarmed = this.parent?.items?.find(
+      i => i.type === "weapon" && i.name === "Unarmed Strike");
+    if (!unarmed) return;
+    unarmed.system.damageCode = unarmedDamageCode(unarmed.system.damageCode, bonus);
+    unarmed.system._unarmedPowerBonus = bonus;
   }
 
   /**
@@ -568,6 +589,7 @@ export class CharacterData extends SR2EDataModel {
       body: 0, quickness: 0, strength: 0,
       charisma: 0, intelligence: 0, willpower: 0,
       reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0, tacComputer: 0,
+      unarmedPower: 0,
       // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
       // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
       reactionExemptQuickness: 0,
@@ -595,6 +617,9 @@ export class CharacterData extends SR2EDataModel {
         if (item.system.isTacticalComputer) {
           mods.tacComputer = Math.max(mods.tacComputer, item.system.rating || 1);
         }
+        // Bone lacing (Shadowtech p.42) — highest wins; you can't layer plastic
+        // under titanium.
+        mods.unarmedPower = Math.max(mods.unarmedPower, item.system.unarmedPowerBonus || 0);
       }
       if (item.type === "bioware" && item.system.installed) {
         const sys = item.system;

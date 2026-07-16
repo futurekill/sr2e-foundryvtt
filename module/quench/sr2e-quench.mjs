@@ -12,6 +12,8 @@
  * Foundry's Add-on Modules browser, enable it in the world, then open the Quench
  * window (its button sits at the bottom of the sidebar) and run the SR2E batches.
  */
+import { evaluateDamageCode } from "../documents/item.mjs";
+
 export function registerSR2EQuenchTests() {
   Hooks.on("quenchReady", (quench) => {
     const ACTOR_TYPES = ["character", "npc", "vehicle", "spirit", "ic", "host"];
@@ -757,6 +759,64 @@ export function registerSR2EQuenchTests() {
           assert.equal(actor.system.armor.ballistic, bal0 + 1, "Orthoskin R2 adds +1 Ballistic");
         });
       });
+      // Bone lacing rewrites the innate Unarmed Strike's damage code in derived
+      // data — only provable against a real embedded item + prepare cycle.
+      describe("Bone lacing raises unarmed Power (Shadowtech p.42)", () => {
+        const laced = async (bonus) => {
+          const a = await makeChar({ strength: { base: 4 } });
+          if (bonus) await a.createEmbeddedDocuments("Item", [
+            { name: "Bone Lacing", type: "cyberware",
+              system: { installed: true, unarmedPowerBonus: bonus } }
+          ]);
+          return a;
+        };
+        // Every character gets an innate Unarmed Strike (SR2E p.100-101).
+        const fist = (a) => a.items.find(i => i.type === "weapon" && i.name === "Unarmed Strike");
+
+        it("leaves the innate (Str)M alone with no lacing", async () => {
+          const actor = await laced(0);
+          assert.ok(fist(actor), "every character should have an Unarmed Strike");
+          assert.equal(fist(actor).system.damageCode, "(Str)M", "unlaced fists are unchanged");
+        });
+
+        it("titanium takes the fist to (Str+3)M and it evaluates to Str+3", async () => {
+          const actor = await laced(3);
+          assert.equal(fist(actor).system.damageCode, "(Str+3)M",
+            `expected (Str+3)M; got ${fist(actor).system.damageCode}`);
+          // Str 4 + 3 = Power 7. Proves the code still parses after the rewrite.
+          const dmg = evaluateDamageCode(fist(actor).system.damageCode, actor);
+          assert.equal(dmg.power, 7, `Str 4 + titanium 3 should be Power 7; got ${dmg.power}`);
+          assert.equal(dmg.level, "M", "level stays Moderate");
+        });
+
+        it("does not accumulate across re-preparation", async () => {
+          const actor = await laced(1);
+          assert.equal(fist(actor).system.damageCode, "(Str+1)M");
+          actor.reset(); actor.reset();
+          assert.equal(fist(actor).system.damageCode, "(Str+1)M",
+            "re-preparing must not stack the bonus onto itself");
+        });
+
+        it("takes the highest lacing rather than summing them", async () => {
+          const actor = await laced(1);
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Bone Lacing (Titanium)", type: "cyberware",
+              system: { installed: true, unarmedPowerBonus: 3 } }
+          ]);
+          assert.equal(fist(actor).system.damageCode, "(Str+3)M",
+            "plastic + titanium should be +3, not +4");
+        });
+
+        it("an uninstalled lacing does nothing", async () => {
+          const actor = await makeChar({ strength: { base: 4 } });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Boxed Lacing", type: "cyberware",
+              system: { installed: false, unarmedPowerBonus: 3 } }
+          ]);
+          assert.equal(fist(actor).system.damageCode, "(Str)M", "not installed → no effect");
+        });
+      });
+
       // The min() clamp can only be proven in-engine: Vitest exercises the pure
       // helper, not Foundry's formula parser. These assert the real Roll.
       describe("Tactical computer initiative (Shadowtech p.53)", () => {

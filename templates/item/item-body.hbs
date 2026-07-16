@@ -472,6 +472,10 @@
     <span class="hint">(adds its Rating to Initiative, never past the natural Reaction max; no help rigging/decking)</span>
   </div>
   <div class="form-group">
+    <label title="Power added to the wearer's unarmed blows while installed. Bone lacing (Shadowtech p.42): plastic +1, aluminum +2, titanium +3 — the innate Unarmed Strike becomes (Str+N)M. The highest installed value wins; laces don't stack. 0 = no effect.">Unarmed Power Bonus:</label>
+    <input type="number" name="system.unarmedPowerBonus" value="{{system.unarmedPowerBonus}}" min="0" />
+  </div>
+  <div class="form-group">
     <label title="Matrixware — a cyberdeck built into the skull (Shadowtech p.54)">Cranial Cyberdeck (C2):</label>
     <input type="checkbox" name="system.cranialDeck" {{checked system.cranialDeck}} />
     <span class="hint">(drives the Matrix tab like a gear deck; Essence is derived from the components below)</span>

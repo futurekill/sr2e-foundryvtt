@@ -356,6 +356,10 @@ export class CyberwareData extends SR2EDataModel {
       // senses (+1 each) and an orientation system (+2) raise it, and the book
       // leaves that tally to the GM.
       isTacticalComputer: new fields.BooleanField({ initial: false }),
+      // Power added to the wearer's unarmed blows — bone lacing (Shadowtech
+      // p.42): plastic +1, aluminum +2, titanium +3. The highest installed value
+      // wins rather than summing; the laces are alternatives, not stackable.
+      unarmedPowerBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Muscle Replacement (SR2E p.249) and Muscle Augmentation (Shadowtech)
       // raise Strength AND Quickness, but "this change does not affect
       // Reaction". When set, the item's Quickness bonus is excluded from the

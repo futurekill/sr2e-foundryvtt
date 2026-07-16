@@ -2,7 +2,8 @@
 import { describe, it, expect } from "vitest";
 import {
   effectiveBodyCost, bodyIndexTotal, biowareEssence,
-  overstressPenalty, biowareHealingTnMod, tacticalComputerInitiative, BIOWARE_CULTURED_MULTIPLIER,
+  overstressPenalty, biowareHealingTnMod, tacticalComputerInitiative, unarmedDamageCode,
+  unarmedPhysicalPower, BIOWARE_CULTURED_MULTIPLIER,
   compensatedWoundPenalty, totalWoundPenalty
 } from "../module/rules/sr2e-rules.mjs";
 
@@ -108,5 +109,40 @@ describe("tactical computer initiative (Shadowtech p.53)", () => {
   });
   it("is inert at rating 0", () => {
     expect(tacticalComputerInitiative(7, 0, 4, 1)).toBe(7);
+  });
+});
+
+describe("bone lacing unarmed damage (Shadowtech p.42)", () => {
+  // Book table: Plastic (Str+1)M2 · Aluminum (Str+2)M2 · Titanium (Str+3)M2.
+  // The trailing 2 is 1e STAGING notation; SR2 made staging universally 2 and
+  // dropped the digit (core lists unarmed as "(STR)M Stun"), so the SR2 codes
+  // are (Str+1)M / (Str+2)M / (Str+3)M.
+  it("folds each lacing's Power bonus into the innate (Str)M", () => {
+    expect(unarmedDamageCode("(Str)M", 1)).toBe("(Str+1)M");
+    expect(unarmedDamageCode("(Str)M", 2)).toBe("(Str+2)M");
+    expect(unarmedDamageCode("(Str)M", 3)).toBe("(Str+3)M");
+  });
+  it("leaves the code untouched with no lacing", () => {
+    expect(unarmedDamageCode("(Str)M", 0)).toBe("(Str)M");
+  });
+  it("stacks onto an already-modified base rather than replacing it", () => {
+    // An adept's Killing Hands has already rewritten the code; titanium adds to it.
+    expect(unarmedDamageCode("(Str+2)M", 3)).toBe("(Str+2+3)M");
+  });
+  it("preserves a non-Moderate damage level", () => {
+    expect(unarmedDamageCode("(Str)S", 2)).toBe("(Str+2)S");
+  });
+  it("wraps a plain numeric code so it stays parseable", () => {
+    expect(unarmedDamageCode("6M", 1)).toBe("(6+1)M");
+  });
+  it("refuses to corrupt an unrecognised code", () => {
+    expect(unarmedDamageCode("weird", 2)).toBe("weird");
+    expect(unarmedDamageCode("", 2)).toBe("");
+  });
+  it("halves Power (round up) when opting for physical damage", () => {
+    expect(unarmedPhysicalPower(7)).toBe(4);   // Str 4 + titanium 3 = 7 -> 4
+    expect(unarmedPhysicalPower(6)).toBe(3);
+    expect(unarmedPhysicalPower(1)).toBe(1);
+    expect(unarmedPhysicalPower(0)).toBe(0);
   });
 });
