@@ -274,7 +274,7 @@ export function registerSR2EQuenchTests() {
       describe("Weapon accessories (SR2E p.240–241)", () => {
         it("attach → benefit → detach → re-attach to another weapon", async () => {
           actor = track(await Actor.create({ name: "Quench Accessories", type: "character" }));
-          const [hk, pred, bipod, vent] = await actor.createEmbeddedDocuments("Item", [
+          await actor.createEmbeddedDocuments("Item", [
             { name: "HK227", type: "weapon",
               system: { weaponType: "firearm", firingModes: { sa: true, bf: true }, recoilComp: 0 } },
             { name: "Ares Predator", type: "weapon",
@@ -284,6 +284,16 @@ export function registerSR2EQuenchTests() {
             { name: "Gas Vent III", type: "gear",
               system: { weaponAccessory: true, accessoryRecoilComp: 3, permanentAccessory: true } }
           ]);
+          // Bind by name: createEmbeddedDocuments does NOT return the documents in
+          // the order they were passed, so positional destructuring silently binds
+          // the wrong items. (These asserts are self-referential enough that they
+          // would still have passed while testing the wrong pair.)
+          const byName = (n) => actor.items.find(i => i.name === n);
+          const hk = byName("HK227"), pred = byName("Ares Predator");
+          const bipod = byName("Bipod"), vent = byName("Gas Vent III");
+          for (const [n, d] of [["HK227", hk], ["Ares Predator", pred], ["Bipod", bipod], ["Gas Vent III", vent]]) {
+            assert.ok(d, `${n} was not created`);
+          }
 
           // Attach the bipod to the HK227 (what the gear-tab dropdown writes)
           await bipod.update({ "system.linkedWeaponId": hk.id });
@@ -325,12 +335,16 @@ export function registerSR2EQuenchTests() {
 
         it("smartgun accessory makes a dumb weapon smart-capable", async () => {
           actor = track(await Actor.create({ name: "Quench Smart", type: "character" }));
-          const [gun, sg] = await actor.createEmbeddedDocuments("Item", [
+          await actor.createEmbeddedDocuments("Item", [
             { name: "Dumb Gun", type: "weapon",
               system: { weaponType: "firearm", smartgunCompatible: false, firingModes: { sa: true } } },
             { name: "Smartgun System (External)", type: "gear",
               system: { weaponAccessory: true, grantsSmartgun: true } }
           ]);
+          // Bind by name — the returned order is not the passed order.
+          const gun = actor.items.find(i => i.name === "Dumb Gun");
+          const sg  = actor.items.find(i => i.name === "Smartgun System (External)");
+          assert.ok(gun && sg, "smartgun test items were not created");
           await sg.update({ "system.linkedWeaponId": gun.id });
           const attached = actor.items.filter(i =>
             i.type === "gear" && i.system.weaponAccessory && i.system.linkedWeaponId === gun.id);
@@ -454,12 +468,15 @@ export function registerSR2EQuenchTests() {
 
         it("Improved Ability adds its levels to the named skill (rolled, not paid)", async () => {
           actor = await newAdept("Quench Improved");
-          const [skill] = await actor.createEmbeddedDocuments("Item", [
+          await actor.createEmbeddedDocuments("Item", [
             { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } },
             { name: "Improved Ability (Firearms)", type: "adept_power",
               system: { pointCost: 1, level: 2, improvedSkill: "Firearms" } }
           ]);
-          const derived = actor.items.get(skill.id);
+          // Look the skill up by identity, not by position in the returned array —
+          // don't make the assertion depend on createEmbeddedDocuments' ordering.
+          const derived = actor.items.find(i => i.type === "skill" && i.name === "Firearms");
+          assert.ok(derived, "the Firearms skill item was not created");
           assert.equal(derived.system._adeptBonus, 2, "skill should carry +2 adept bonus");
           assert.equal(derived.system.rating, 4, "bought rating (budget) must stay 4, not 6");
         });
