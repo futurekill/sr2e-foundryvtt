@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, weaponFocusCost } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, weaponFocusCost, overstressPenalty, itemBaseCost } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
@@ -362,33 +362,41 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (!(await this._bondWeaponFocusOnDrop(itemData))) return null;
     }
 
+    // Purchase options: for a chargeable character drop, let the buyer pick the
+    // Rating and Grade before it's created/charged (any item with a rating table
+    // or quality grades). Alt-drop (free) and the setting-off path skip the prompt.
+    const isCharacter = this.document.type === "character";
+    let autoCharge = true;
+    try { autoCharge = game.settings.get("sr2e", "autoChargePurchases"); } catch (e) { /* default on */ }
+    if (isCharacter && autoCharge && !event?.altKey && this.constructor._hasPurchaseOptions(itemData)) {
+      const chosen = await this.constructor._promptPurchaseOptions(itemData, this.document);
+      if (chosen === null) return null;                 // cancelled the purchase
+      if (chosen.rating != null) itemData.system.rating = chosen.rating;
+      if (chosen.grade != null) itemData.system.grade = chosen.grade;
+    }
+
     const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
 
-    // Auto-charge purchases (user request): characters pay the street price
-    // (cost × Street Index) for dropped items; the paid amount is remembered
-    // on the item so the sell button can refund it.
-    // Hold ALT while dropping to add the item for FREE (found loot / GM gift) —
-    // the charge is skipped and no "paid" flag is set, so selling it later
-    // credits full value as expected.
-    if (created && this.document.type === "character" &&
-        game.settings.get("sr2e", "autoChargePurchases")) {
-      const cost = Number(created.system?.cost) || 0;
+    // Auto-charge purchases: characters pay the street price (base cost × Street
+    // Index) for dropped items, where base cost accounts for the chosen Rating AND
+    // Grade (alphaware ×2, cultured ×4). The paid amount is remembered on the item
+    // so the sell button and the Rating/Grade-change hook can refund/re-price it.
+    // Hold ALT while dropping to add it for FREE (no charge, no `paid` flag).
+    if (created && isCharacter && autoCharge) {
+      const base = itemBaseCost({ type: created.type, ...created.system });
       if (event?.altKey) {
-        if (cost > 0) ui.notifications.info(`${created.name} added to ${this.document.name} for free (Alt-drop — no charge).`);
-      } else if (cost > 0) {
+        if (base > 0) ui.notifications.info(`${created.name} added to ${this.document.name} for free (Alt-drop — no charge).`);
+      } else if (base > 0) {
         // During character creation, gear is bought at LIST price — the
         // Street Index markup only applies to in-play purchases.
         const inChargen = !!this.document.system.chargen?.inProgress;
-        const price = inChargen ? cost : streetPrice(cost, created.system.streetIndex);
+        const price = Math.round(inChargen ? base : streetPrice(base, created.system.streetIndex));
         const nuyen = this.document.system.nuyen ?? 0;
         if (nuyen >= price) {
           await this.document.update({ "system.nuyen": nuyen - price });
           await created.setFlag("sr2e", "paid", price);
-          ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${inChargen ? " (list — character creation)" : (price !== cost ? ` (${cost}¥ list)` : "")} — ${nuyen - price}¥ left.`);
+          ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${nuyen - price}¥ left.`);
         } else {
-          // Can't afford it — refuse the purchase rather than leave an unpaid
-          // item on the sheet (which could then be sold for profit it never
-          // cost). Alt-drop still adds it for free intentionally.
           await created.delete();
           ui.notifications.warn(`${this.document.name} can't afford ${created.name} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);
           return null;
@@ -396,6 +404,53 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       }
     }
     return created;
+  }
+
+  /** True if a dropped item exposes a Rating and/or Grade choice worth prompting. */
+  static _hasPurchaseOptions(itemData) {
+    const rows = itemData.system?.ratingStats ?? [];
+    return rows.length > 1 || itemData.type === "cyberware" || itemData.type === "bioware";
+  }
+
+  /**
+   * Ask the buyer which Rating and Grade to purchase. Returns `{rating, grade}`
+   * (either may be undefined if not applicable) or `null` if cancelled.
+   */
+  static async _promptPurchaseOptions(itemData, actor) {
+    const sys = itemData.system ?? {};
+    const rows = [...(sys.ratingStats ?? [])].sort((a, b) => a.rating - b.rating);
+    const gradeChoices = itemData.type === "cyberware"
+        ? { standard: "Standard", alpha: "Alphaware (×2 ¥, ×0.8 Essence)" }
+      : itemData.type === "bioware"
+        ? { standard: "Standard", cultured: "Cultured (×0.75 Body Cost, ×4 ¥)" }
+      : null;
+    const ratingSel = rows.length > 1 ? `<div class="form-group"><label>Rating:</label>
+      <select name="rating" style="flex:1;">${rows.map(r =>
+        `<option value="${r.rating}"${r.rating === (sys.rating ?? 1) ? " selected" : ""}>Rating ${r.rating} — ${r.cost}¥ list</option>`).join("")}</select></div>` : "";
+    const gradeSel = gradeChoices ? `<div class="form-group"><label>Grade:</label>
+      <select name="grade" style="flex:1;">${Object.entries(gradeChoices).map(([k, lbl]) =>
+        `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>` : "";
+
+    let result = null;
+    await foundry.applications.api.DialogV2.wait({
+      window: { title: `Buy ${itemData.name}` },
+      rejectClose: false,
+      content: `<form>
+        <p style="margin:0 0 8px;">Choose what ${foundry.utils.escapeHTML(actor.name)} is buying. Price is charged on purchase (street price in play, list in character creation). Alt-drop instead to add it for free.</p>
+        ${ratingSel}${gradeSel}
+      </form>`,
+      buttons: [
+        { action: "buy", label: "Buy", default: true, callback: (e, b) => {
+          const f = b.form.elements;
+          result = {
+            rating: f.rating ? parseInt(f.rating.value) : undefined,
+            grade: f.grade ? f.grade.value : undefined
+          };
+        } },
+        { action: "cancel", label: "Cancel" }
+      ]
+    });
+    return result;
   }
 
   /**
@@ -538,6 +593,14 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
+    // Bioware, sorted by body system so same-system implants group together
+    // (Shadowtech). config.bodySystems gives the template localized labels.
+    context.bioware = actor.items.filter(i => i.type === "bioware")
+      .sort((a, b) => (a.system.bodySystem ?? "").localeCompare(b.system.bodySystem ?? "")
+                   || a.name.localeCompare(b.name));
+    context.bodySystems = CONFIG.SR2E.bodySystems;
+    context.bodyIndexOver = (actor.system.bodyIndex?.value ?? 0) > (actor.system.bodyIndex?.max ?? 0);
+    context.bodyIndexOverstress = overstressPenalty(actor.system.bodyIndex?.value, actor.system.bodyIndex?.max);
     context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");
     context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
     context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, accessPorts: 0, knowAccess: false, memCapacity: 0, memUsed: 0 };

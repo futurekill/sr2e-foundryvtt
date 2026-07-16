@@ -581,6 +581,28 @@ SR2E.cyberwareGrades = {
   alpha:    { label: "SR2E.Cyberware.Alpha",    essenceMultiplier: 0.8, costMultiplier: 2.0 }
 };
 
+// Bioware grades (Shadowtech FASA7110 p.7). Cultured reduces Body Cost to 0.75×.
+// The nuyen ×4 factor is recorded for reference only — it is NOT auto-applied
+// (the compendium stores the book's listed price; a manual grade change does not
+// re-price the item — the GM adjusts). See PLAN.md.
+SR2E.biowareGrades = {
+  standard: { label: "SR2E.Bioware.Standard", bodyCostMultiplier: 1.0 },
+  cultured: { label: "SR2E.Bioware.Cultured", bodyCostMultiplier: 0.75, nuyenMultiplierInfo: 4.0 }
+};
+
+// Bioware body systems (Shadowtech) — sheet grouping + flavor, non-mechanical.
+SR2E.bodySystems = {
+  circulatory: "SR2E.Bioware.System.Circulatory",
+  dermal:      "SR2E.Bioware.System.Dermal",
+  endocrine:   "SR2E.Bioware.System.Endocrine",
+  hepatic:     "SR2E.Bioware.System.Hepatic",
+  lymphatic:   "SR2E.Bioware.System.Lymphatic",
+  neural:      "SR2E.Bioware.System.Neural",
+  renal:       "SR2E.Bioware.System.Renal",
+  respiratory: "SR2E.Bioware.System.Respiratory",
+  structural:  "SR2E.Bioware.System.Structural"
+};
+
 SR2E.cyberwareLocations = {
   headware: "SR2E.Cyberware.Headware",
   bodyware: "SR2E.Cyberware.Bodyware",

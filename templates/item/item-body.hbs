@@ -271,6 +271,128 @@
   {{/ifEquals}}
 
   {{!-- CYBERWARE --}}
+  {{#ifEquals type "bioware"}}
+  <div class="form-group">
+    <label>Body System:</label>
+    <select name="system.bodySystem">
+      {{#each config.bodySystems as |label key|}}
+      <option value="{{key}}" {{selected ../system.bodySystem key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Grade:</label>
+    <select name="system.grade">
+      {{#each config.biowareGrades as |grade key|}}
+      <option value="{{key}}" {{selected ../system.grade key}}>{{localize grade.label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    {{#if hasRatingTable}}
+    <select name="system.rating">
+      {{#each system.ratingStats}}
+      <option value="{{this.rating}}" {{selected ../system.rating this.rating}}>{{this.rating}}</option>
+      {{/each}}
+    </select>
+    {{else}}
+    <input type="number" name="system.rating" value="{{system.rating}}" min="0" />
+    {{/if}}
+  </div>
+
+  {{#unless hasRatingTable}}
+  <div class="form-group">
+    <label>Body Cost:</label>
+    <input type="number" name="system.bodyCost" value="{{system.bodyCost}}" min="0" step="0.05" />
+    {{#ifEquals system.grade "cultured"}}
+    <span class="hint">(Cultured — actual: {{formatEssence system.actualBodyCost}})</span>
+    {{/ifEquals}}
+  </div>
+  <div class="form-group">
+    <label>Cost (¥):</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" />
+  </div>
+  <div class="form-group">
+    <label>Availability:</label>
+    <input type="text" name="system.availability" value="{{system.availability}}" />
+  </div>
+  <div class="form-group">
+    <label>Street Index:</label>
+    <input type="text" name="system.streetIndex" value="{{system.streetIndex}}" />
+  </div>
+  <div class="form-group">
+    <label title="Subdermal armor (Orthoskin) — adds to worn armor">Armor (Ball / Imp):</label>
+    <input type="number" name="system.armorBallistic" value="{{system.armorBallistic}}" min="0" style="width:3em" />
+    <input type="number" name="system.armorImpact" value="{{system.armorImpact}}" min="0" style="width:3em" />
+  </div>
+  {{/unless}}
+
+  {{#if hasRatingTable}}
+  <div class="rating-stats-section">
+    <div class="rating-stats-header">
+      <span>Per-Rating Stats</span>
+      {{#ifEquals system.grade "cultured"}}
+      <span class="hint">— Actual Body Cost at Rating {{system.rating}}: {{formatEssence system.actualBodyCost}}</span>
+      {{/ifEquals}}
+    </div>
+    <table class="rating-stats-table">
+      <thead>
+        <tr><th>Rating</th><th>Body Cost</th><th>Cost (¥)</th><th>Avail</th><th>Street Index</th><th title="Subdermal armor at this rating">Arm B/I</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{#each system.ratingStats}}
+        <tr class="{{#ifEquals ../system.rating this.rating}}active-rating-row{{/ifEquals}}">
+          <td><input type="number" name="system.ratingStats.{{@index}}.rating"      value="{{this.rating}}"      min="1" /></td>
+          <td><input type="number" name="system.ratingStats.{{@index}}.bodyCost"    value="{{this.bodyCost}}"    min="0" step="0.05" /></td>
+          <td><input type="number" name="system.ratingStats.{{@index}}.cost"        value="{{this.cost}}"        min="0" /></td>
+          <td><input type="text"   name="system.ratingStats.{{@index}}.availability" value="{{this.availability}}" /></td>
+          <td><input type="text"   name="system.ratingStats.{{@index}}.streetIndex"  value="{{this.streetIndex}}" /></td>
+          <td><input type="number" name="system.ratingStats.{{@index}}.armorBallistic" value="{{this.armorBallistic}}" min="0" style="width:2.5em" /><input type="number" name="system.ratingStats.{{@index}}.armorImpact" value="{{this.armorImpact}}" min="0" style="width:2.5em" /></td>
+          <td><button type="button" class="remove-row-btn" data-action="removeRatingRow" data-index="{{@index}}" title="Remove row"><i class="fas fa-times"></i></button></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+  <div class="rating-stats-add">
+    <button type="button" class="add-rating-row-btn" data-action="addRatingRow">
+      <i class="fas fa-plus"></i>
+      {{#if hasRatingTable}}Add Rating Row{{else}}Enable Rating Table{{/if}}
+    </button>
+  </div>
+
+  <div class="form-group">
+    <label>Installed:</label>
+    <input type="checkbox" name="system.installed" {{checked system.installed}} />
+  </div>
+  <div class="form-group">
+    <label title="Adrenal Pump, Pain Editor: mods apply only while activated">Triggered:</label>
+    <input type="checkbox" name="system.triggered" {{checked system.triggered}} />
+    <span class="hint">(bonuses apply only when activated via the ⚡ on the character sheet)</span>
+  </div>
+
+  <fieldset>
+    <legend>Attribute Modifiers <span class="hint">— per Level (multiplied by Rating)</span></legend>
+    <div class="attr-mods-grid">
+      <div class="form-group"><label>Body:</label><input type="number" name="system.attributeMods.body" value="{{system.attributeMods.body}}" /></div>
+      <div class="form-group"><label>Quickness:</label><input type="number" name="system.attributeMods.quickness" value="{{system.attributeMods.quickness}}" /></div>
+      <div class="form-group"><label>Strength:</label><input type="number" name="system.attributeMods.strength" value="{{system.attributeMods.strength}}" /></div>
+      <div class="form-group"><label>Charisma:</label><input type="number" name="system.attributeMods.charisma" value="{{system.attributeMods.charisma}}" /></div>
+      <div class="form-group"><label>Intelligence:</label><input type="number" name="system.attributeMods.intelligence" value="{{system.attributeMods.intelligence}}" /></div>
+      <div class="form-group"><label>Willpower:</label><input type="number" name="system.attributeMods.willpower" value="{{system.attributeMods.willpower}}" /></div>
+      <div class="form-group"><label>Reaction:</label><input type="number" name="system.attributeMods.reaction" value="{{system.attributeMods.reaction}}" /></div>
+      <div class="form-group"><label>Init Dice:</label><input type="number" name="system.attributeMods.initiativeDice" value="{{system.attributeMods.initiativeDice}}" /></div>
+    </div>
+    <div class="form-group">
+      <label>No Reaction bonus:</label>
+      <input type="checkbox" name="system.noReactionBonus" {{checked system.noReactionBonus}} />
+      <span class="hint">(Adrenal Pump: its +Quickness doesn't raise Reaction)</span>
+    </div>
+  </fieldset>
+  {{/ifEquals}}
+
   {{#ifEquals type "cyberware"}}
   <div class="form-group">
     <label>Location:</label>
@@ -340,6 +462,30 @@
     <input type="checkbox" name="system.isVcr" {{checked system.isVcr}} />
     <span class="hint">(when installed, this item's Rating sets the character's VCR level)</span>
   </div>
+  <div class="form-group">
+    <label title="Matrixware — a cyberdeck built into the skull (Shadowtech p.54)">Cranial Cyberdeck (C2):</label>
+    <input type="checkbox" name="system.cranialDeck" {{checked system.cranialDeck}} />
+    <span class="hint">(drives the Matrix tab like a gear deck; Essence is derived from the components below)</span>
+  </div>
+
+  {{#if system.cranialDeck}}
+  <hr/>
+  <p class="hint">Cranial cyberdeck / "C2" (Matrixware, Shadowtech p.54–59). Activate it on the Gear tab (⚡) to drive the Matrix tab — only one deck (gear or cranial) is active at a time. Persona programs (Bod/Evasion/Masking/Sensor) are separate program items capped by MPCP. <strong>Essence is derived: {{formatEssence system.actualEssenceCost}}</strong> — MPCP (Rating/10 + 0.1) + Persona 0.30 + Hardening 0.3 + Transfer 0.1 + Response 0.2. Caps: MPCP ≤ 1.5 × Intelligence (over = <strong>+4 TN to every action</strong>), Persona ≤ 75% MPCP, Hardening ≤ ½ MPCP, Response ≤ MPCP/4.</p>
+  <div class="form-group"><label>MPCP:</label>
+    <input type="number" name="system.deck.mpcp" value="{{system.deck.mpcp}}" min="0" /></div>
+  <div class="form-group"><label>Hardening:</label>
+    <input type="number" name="system.deck.hardening" value="{{system.deck.hardening}}" min="0" /></div>
+  <div class="form-group"><label>Active Memory (Mp):</label>
+    <input type="number" name="system.deck.activeMemory" value="{{system.deck.activeMemory}}" min="0" /></div>
+  <div class="form-group"><label>Storage Memory (Mp):</label>
+    <input type="number" name="system.deck.storageMemory" value="{{system.deck.storageMemory}}" min="0" /></div>
+  <div class="form-group"><label>Load Speed:</label>
+    <input type="number" name="system.deck.loadSpeed" value="{{system.deck.loadSpeed}}" min="0" /></div>
+  <div class="form-group"><label title="Transfer Rating — a C2's I/O speed; capped by your datajack's DFR">Transfer / I/O:</label>
+    <input type="number" name="system.deck.ioSpeed" value="{{system.deck.ioSpeed}}" min="0" /></div>
+  <div class="form-group"><label title="Each level adds +2 Reaction while decking">Response:</label>
+    <input type="number" name="system.deck.response" value="{{system.deck.response}}" min="0" /></div>
+  {{/if}}
 
   {{!-- Per-rating stats table --}}
   {{#if hasRatingTable}}
@@ -872,6 +1018,7 @@
   {{#ifEquals type "weapon"}}   <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "armor"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "cyberware"}}<div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
+  {{#ifEquals type "bioware"}}  <div class="form-group notes"><label>Notes:</label><textarea name="system.notes" rows="6">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "program"}}  <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "gear"}}     <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "focus"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}

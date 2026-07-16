@@ -131,10 +131,15 @@ export class SR2EActor extends Actor {
     const sustainPenalty = this.system.sustainPenalty ?? 0;
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
     const dumpShock = this.system.dumpShock ? 2 : 0;
+    // Over-spec'd cranial cyberdeck (Matrixware, Shadowtech p.54): an MPCP above
+    // 1.5 × Intelligence costs +4 on EVERY action, "across the board". Like the
+    // sustain penalty, resistance tests get no exemption from it.
+    const mpcpOverload = this.system.mpcpOverloadPenalty ?? 0;
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
-    const centeringReduction = Math.min(options.centeringReduction ?? 0, woundPenalty + sustainPenalty + dumpShock);
-    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock - centeringReduction;
+    const centeringReduction = Math.min(options.centeringReduction ?? 0,
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload);
+    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock + mpcpOverload - centeringReduction;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
@@ -175,6 +180,7 @@ export class SR2EActor extends Actor {
     const tnParts = [];
     if (woundPenalty > 0)   tnParts.push(`+${woundPenalty} ${i18n.localize("SR2E.Roll.Wound")}`);
     if (sustainPenalty > 0) tnParts.push(`+${sustainPenalty} ${i18n.localize("SR2E.Roll.Sustaining")}`);
+    if (mpcpOverload > 0) tnParts.push(`+${mpcpOverload} MPCP overload`);
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length

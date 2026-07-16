@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -348,6 +348,26 @@ export class CyberwareData extends SR2EDataModel {
       // Reaction". When set, the item's Quickness bonus is excluded from the
       // Reaction calculation (but still counts for Combat Pool and tests).
       noReactionBonus: new fields.BooleanField({ initial: false }),
+      // Cyber-implant armor cumulative with worn armor (Bone Lacing aluminum/
+      // titanium, Shadowtech p.42; Dermal Plating). Added in _calculateArmor.
+      armorBallistic: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      armorImpact:    new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Cranial cyberdeck / "C2" (Matrixware, Shadowtech p.54–59). The book: "C2
+      // decks operate exactly like regular cyberdecks", so this carries the SAME
+      // deck block as a gear cyberdeck — the actor's deck snapshot, Matrix tab,
+      // persona derivation and cybercombat all consume it unchanged. Essence is
+      // DERIVED from the component ratings (see actualEssenceCost).
+      cranialDeck: new fields.BooleanField({ initial: false }),
+      deck: new fields.SchemaField({
+        active: new fields.BooleanField({ initial: false }),
+        mpcp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        hardening: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        activeMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        storageMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        loadSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        ioSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        response: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      }),
       // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
       // are derived from the row matching the current rating (prepareDerivedData).
       // For non-tiered items, leave this empty and fill the flat fields directly.
@@ -433,8 +453,130 @@ export class CyberwareData extends SR2EDataModel {
   get actualEssenceCost() {
     const gradeData = CONFIG.SR2E.cyberwareGrades[this.grade];
     const mult = gradeData?.essenceMultiplier || 1.0;
-    const total = (this.essenceCost + (this.capacityOver ?? 0)) * mult;
-    return Math.round(total * 100) / 100;
+    // A cranial cyberdeck's Essence is the sum of its installed Matrixware
+    // components, derived from the deck's own ratings (Shadowtech p.54–59),
+    // rather than a flat authored value.
+    const base = this.cranialDeck
+      ? cranialDeckEssence(this.deck)
+      : this.essenceCost + (this.capacityOver ?? 0);
+    return Math.round(base * mult * 100) / 100;
+  }
+}
+
+/**
+ * Data model for Bioware (Shadowtech FASA7110). Bioware mirrors cyberware's
+ * shape (so `_collectItemModifiers` reads `attributeMods` uniformly) but costs
+ * BODY INDEX rather than Essence in the cyber sense: a `bodyCost` that sums into
+ * the character's Body Index, and — for the magically active only — an Essence
+ * loss equal to that Body Cost (Shadowtech p.6). Grades are standard/cultured
+ * (cultured = 0.75× Body Cost, p.7), NOT the cyberware alpha/beta grades.
+ */
+export class BiowareData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    return {
+      // Body system this bioware augments — sheet grouping + flavor, non-mechanical.
+      bodySystem: new fields.StringField({ initial: "structural", choices: {
+        circulatory: "SR2E.Bioware.System.Circulatory", dermal: "SR2E.Bioware.System.Dermal",
+        endocrine: "SR2E.Bioware.System.Endocrine", hepatic: "SR2E.Bioware.System.Hepatic",
+        lymphatic: "SR2E.Bioware.System.Lymphatic", neural: "SR2E.Bioware.System.Neural",
+        renal: "SR2E.Bioware.System.Renal", respiratory: "SR2E.Bioware.System.Respiratory",
+        structural: "SR2E.Bioware.System.Structural"
+      }}),
+      grade: new fields.StringField({ initial: "standard", choices: {
+        standard: "SR2E.Bioware.Standard", cultured: "SR2E.Bioware.Cultured"
+      }}),
+      // Listed (pre-grade) Body Cost. actualBodyCost applies the cultured multiplier.
+      bodyCost: new fields.NumberField({ required: true, initial: 0.25, min: 0 }),
+      rating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+      cost: new fields.NumberField({ initial: 0, min: 0 }),
+      availability: new fields.StringField({ initial: "" }),
+      streetIndex: new fields.StringField({ initial: "" }),
+      legality: new fields.StringField({ initial: "Legal" }),
+      installed: new fields.BooleanField({ initial: true }),
+      // Triggered bioware (Adrenal Pump, Pain Editor): the attribute mods apply
+      // only while ACTIVATED. `triggered` = catalog flag; `active` = the player's
+      // on/off toggle. Body Index / Essence always count (the implant is there);
+      // only the mods are gated. Non-triggered implants ignore both.
+      triggered: new fields.BooleanField({ initial: false }),
+      active: new fields.BooleanField({ initial: false }),
+      // Per-rating stats. Rows carry rating-dependent BODY COST (not essenceCost)
+      // and optional per-rating ARMOR (Orthoskin's non-linear ballistic/impact).
+      // Rows must have sorted, unique ratings (enforced by the content validator
+      // and the item-sheet add-row action). prepareDerivedData copies the row.
+      ratingStats: new fields.ArrayField(
+        new fields.SchemaField({
+          rating:       new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+          bodyCost:     new fields.NumberField({ initial: 0, min: 0 }),
+          cost:         new fields.NumberField({ initial: 0, min: 0 }),
+          availability: new fields.StringField({ initial: "" }),
+          streetIndex:  new fields.StringField({ initial: "" }),
+          armorBallistic: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+          armorImpact:    new fields.NumberField({ integer: true, initial: 0, min: 0 })
+        }),
+        { initial: [] }
+      ),
+      // Armor granted while installed (Orthoskin). For rated items this is copied
+      // from the active rating row in prepareDerivedData.
+      armorBallistic: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      armorImpact:    new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Attribute modifiers — same shape/keys as CyberwareData so the actor's
+      // `_collectItemModifiers` walks bioware and cyberware identically. These are
+      // PER-LEVEL values: the collector multiplies them by the item's Rating
+      // (every rated attribute bioware in Shadowtech scales linearly per level).
+      attributeMods: new fields.SchemaField({
+        body: new fields.NumberField({ integer: true, initial: 0 }),
+        quickness: new fields.NumberField({ integer: true, initial: 0 }),
+        strength: new fields.NumberField({ integer: true, initial: 0 }),
+        charisma: new fields.NumberField({ integer: true, initial: 0 }),
+        intelligence: new fields.NumberField({ integer: true, initial: 0 }),
+        willpower: new fields.NumberField({ integer: true, initial: 0 }),
+        reaction: new fields.NumberField({ integer: true, initial: 0 }),
+        initiativeDice: new fields.NumberField({ integer: true, initial: 0 })
+      }),
+      // When set, this item's Quickness bonus does NOT feed Reaction (Adrenal
+      // Pump: "Quickness raised in this manner does not also affect Reaction").
+      // Muscle Augmentation/Suprathyroid Quickness DOES feed Reaction — leave off.
+      noReactionBonus: new fields.BooleanField({ initial: false }),
+      // Damage Compensator (Shadowtech p.24): a damage track at or below this
+      // item's Rating inflicts no Injury Modifier; over it, the penalty is full.
+      damageCompensator: new fields.BooleanField({ initial: false }),
+      // Pain Editor (p.26): while ACTIVE, mental/Stun wound penalties are ignored.
+      ignoresStunPenalty: new fields.BooleanField({ initial: false }),
+      notes: new fields.StringField({ initial: "" })
+    };
+  }
+
+  /** @override */
+  prepareDerivedData() {
+    // Rated bioware: copy the selected rating row into the flat fields (mirrors
+    // CyberwareData). Rows are sorted; on no exact match, clamp to the NEAREST
+    // rating rather than blindly using the last row.
+    if (this.ratingStats?.length > 0) {
+      const rows = [...this.ratingStats].sort((a, b) => a.rating - b.rating);
+      let row = rows.find(r => r.rating === this.rating);
+      if (!row) {
+        row = rows.reduce((best, r) =>
+          Math.abs(r.rating - this.rating) < Math.abs(best.rating - this.rating) ? r : best, rows[0]);
+      }
+      if (row) {
+        this.bodyCost       = row.bodyCost;
+        this.cost           = row.cost;
+        this.availability   = row.availability;
+        this.streetIndex    = row.streetIndex;
+        this.armorBallistic = row.armorBallistic;
+        this.armorImpact    = row.armorImpact;
+      }
+    }
+  }
+
+  /**
+   * Effective Body Cost after grade (cultured = 0.75×). Unrounded — the single
+   * canonical value the actor's Body Index / Essence math and the sheet both
+   * consume (sheet rounds for display only). Shadowtech p.7.
+   */
+  get actualBodyCost() {
+    return effectiveBodyCost(this.bodyCost, this.grade);
   }
 }
 

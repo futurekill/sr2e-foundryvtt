@@ -4,6 +4,54 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.36.0 — 2026-07-15
+
+### Additions
+- **Matrixware — the cranial cyberdeck ("C2", Shadowtech p.54–59).** Cyberware can
+  now BE a cyberdeck: flag an implant as a **Cranial Deck** and it carries the same
+  deck block as a gear cyberdeck, so activating it (⚡ on the Gear tab) drives the
+  Matrix tab, persona derivation and cybercombat **unchanged** — exactly as the book
+  intends ("C2 decks operate exactly like regular cyberdecks"). Only one deck (gear
+  or cranial) can be active at a time. Its **Essence is derived** from the installed
+  components — MPCP (Rating/10 + 0.1) + Persona 0.30 + Hardening 0.3 + Transfer 0.1
+  + Response 0.2 — and an **MPCP above 1.5 × Intelligence automatically inflicts +4
+  TN on every action**, shown in the roll breakdown as "MPCP overload".
+- **Damage Compensator and Pain Editor are automated.** An installed **Damage
+  Compensator** now suppresses a damage track's Injury Modifier while that track
+  sits at or below its Rating — and once a track exceeds the Rating its penalty
+  returns **in full** (Physical and Stun judged separately, Shadowtech p.24). An
+  **active Pain Editor** ignores Stun/mental wound penalties outright while
+  physical penalties still apply (p.26). Driven by explicit `damageCompensator` /
+  `ignoresStunPenalty` item flags (no name matching).
+- **Buy items at any Rating and Grade, charged correctly.** Dropping a rated or
+  graded item (cyberware, bioware, anything with a rating table) now opens a
+  **purchase dialog** to pick Rating and Grade before it's created and charged;
+  price accounts for the grade (**alphaware ×2¥, cultured ×4¥**) and the rating
+  row, street-indexed in play / list in chargen. Changing a purchased item's
+  **Rating or Grade afterward charges (or refunds) the difference**, and an
+  upgrade the character can't afford is **refused**. Alt-drop still adds an item
+  for free. (`itemBaseCost` pricing helper + a `preUpdateItem` charge/veto hook.)
+- **Bioware + Body Index (Shadowtech FASA7110).** New `bioware` item type and a
+  derived **Body Index** on the character sheet (Σ effective Body Cost of installed
+  bioware; cap = natural, unaugmented Body). Cultured grade = 0.75× Body Cost.
+  Bioware costs **Essence only for awakened characters** (magicians/adepts), equal to
+  its Body Cost — mundanes pay Body Index only. The cap is a **warning, not a block**
+  (over-cap is the GM's call): the sheet shows the overstress penalty (+1 TN to Body
+  tests per point over) as an indicator. Rides the existing Essence→Magic pipeline and
+  the `autoEssence` setting. Ships the mechanics only; the Shadowtech catalog (bioware,
+  expanded cyberware, gene-tech, drugs) is a separate `sr2e-shadowtech` content module.
+  Planned + cross-model reviewed — see PLAN.md / PLAN-REVIEW-LOG.md.
+  _Deferred to backlog: automating the overstress + magical-healing TN penalties and
+  drug effects; Body Index on NPC/critter actors._
+- **Bioware modifiers, triggers, and armor.** Bioware `attributeMods` are **per-Level**
+  (scaled by the item's Rating — Cerebral Booster R2 = +2 Int, etc.); **triggered**
+  implants (Adrenal Pump, Pain Editor) apply their bonuses only while activated via a
+  ⚡ toggle on the character sheet (Body Index/Essence still count when dormant); and
+  bioware can grant **subdermal armor** (Orthoskin) that adds to worn armor, with
+  per-rating values. The augmentation row shows each implant's effective effect,
+  rating, active state, and armor. **Cyberware** likewise grants Ballistic/Impact
+  armor cumulative with worn armor (Bone Lacing aluminum/titanium; Dermal Plating).
+
 ## 0.35.0 — 2026-07-13
 
 ### Additions

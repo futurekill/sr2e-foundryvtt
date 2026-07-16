@@ -8,6 +8,7 @@ export {
   ArmorData,
   SpellData,
   CyberwareData,
+  BiowareData,
   GearData,
   ProgramData,
   AdeptPowerData,

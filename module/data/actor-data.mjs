@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -33,6 +33,14 @@ export class CharacterData extends SR2EDataModel {
       essence: new fields.SchemaField({
         value: new fields.NumberField({ required: true, initial: 6.0, min: 0, max: 6 }),
         max: new fields.NumberField({ required: true, initial: 6.0, min: 0, max: 6 })
+      }),
+      // Body Index (Shadowtech FASA7110 p.6): Σ effective Body Cost of installed
+      // bioware. Both fields are derived every prepare (value from bioware, max
+      // from natural Body) — declared here because strict TypeDataModels reject
+      // assigning undeclared props during derivation.
+      bodyIndex: new fields.SchemaField({
+        value: new fields.NumberField({ required: true, initial: 0, min: 0 }),
+        max: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),
       magic: new fields.SchemaField({
         value: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
@@ -236,11 +244,21 @@ export class CharacterData extends SR2EDataModel {
     // modifiers (cyberware, adept powers, foci, skills) are collected here.
     // This is the single source of truth for derived character stats —
     // SR2EActor adds no further derivation.
-    const mods = this._collectItemModifiers();
+    // Awakened status must be read from magic.type BEFORE Essence/Magic are
+    // (re)derived below — magic.max depends on the Essence this collection feeds,
+    // so consulting it here would be circular (Shadowtech bioware Essence rule).
+    const isAwakened = this.magic.type !== "none";
+    const mods = this._collectItemModifiers({ isAwakened });
 
     // Calculate final attribute values (base + racial clamped to racial max,
     // then cyberware/adept modifiers applied on top)
     this._calculateAttributeValues(mods);
+
+    // Body Index (Shadowtech p.6): value from installed bioware (collected above,
+    // assigned exactly once here); cap = natural, unaugmented Body — computed
+    // from base+racial so bioware/AE Body bonuses can never inflate the cap.
+    this.bodyIndex.value = mods.bodyIndex;
+    this.bodyIndex.max = this._naturalAttribute("body");
 
     // Installed VCR cyberware is AUTHORITATIVE for the rig level — the manual
     // field on the vehicles tab only applies when no rig item is installed
@@ -489,8 +507,13 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _snapshotActiveDeck() {
+    // A cranial cyberdeck ("C2", Matrixware — Shadowtech p.54) is cyberware that
+    // carries the same deck block: "C2 decks operate exactly like regular
+    // cyberdecks", so it snapshots through this identical path and the whole
+    // Matrix tab / persona / cybercombat stack works on it unchanged.
     const deck = this.parent?.items?.find(i =>
-      i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active);
+      (i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active) ||
+      (i.type === "cyberware" && i.system.cranialDeck && i.system.installed && i.system.deck?.active));
     if (!deck) return;
     const d = deck.system.deck;
     for (const k of ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response"]) {
@@ -525,22 +548,30 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
-   * Collect attribute/initiative/essence modifiers from installed cyberware
-   * and adept powers.
+   * Collect attribute/initiative/essence modifiers from installed cyberware,
+   * bioware, and adept powers.
+   * @param {{isAwakened:boolean}} opts isAwakened captured from `magic.type` at the
+   *   top of prepareDerivedData (must NOT read the derived `magic.max`, which
+   *   depends on the Essence this collection feeds — that would be circular).
    * @returns {{body:number, quickness:number, strength:number, charisma:number,
    *            intelligence:number, willpower:number, reaction:number,
-   *            initiativeDice:number, essenceLoss:number}}
+   *            initiativeDice:number, essenceLoss:number, bodyIndex:number}}
    * @private
    */
-  _collectItemModifiers() {
+  _collectItemModifiers({ isAwakened = false } = {}) {
     const mods = {
       body: 0, quickness: 0, strength: 0,
       charisma: 0, intelligence: 0, willpower: 0,
       reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0,
       // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
       // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
-      reactionExemptQuickness: 0
+      reactionExemptQuickness: 0,
+      // Body Index = Σ effective Body Cost of installed bioware (Shadowtech p.6).
+      bodyIndex: 0
     };
+    // Raw (unrounded) bioware Body Cost, summed then rounded ONCE below so this
+    // matches the pure `bodyIndexTotal` helper exactly (one canonical value).
+    let biowareRaw = 0;
     for (const item of this.parent?.items ?? []) {
       if (item.type === "cyberware" && item.system.installed) {
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
@@ -557,6 +588,26 @@ export class CharacterData extends SR2EDataModel {
           mods.vcrLevel = Math.max(mods.vcrLevel, item.system.rating || 1);
         }
       }
+      if (item.type === "bioware" && item.system.installed) {
+        const sys = item.system;
+        // Body Index / Essence always accrue — the implant is present regardless
+        // of activation (Shadowtech p.6). Armor (Orthoskin) is added in _calculateArmor.
+        biowareRaw += sys.actualBodyCost;
+        // Attribute mods are PER-LEVEL — scale by Rating (all rated attribute
+        // bioware in Shadowtech is linear). Triggered implants (Adrenal Pump,
+        // Pain Editor) only apply their mods while `active`.
+        if (!sys.triggered || sys.active) {
+          const rating = Math.max(1, sys.rating ?? 1);
+          for (const [key, val] of Object.entries(sys.attributeMods ?? {})) {
+            if (key in mods) mods[key] += val * rating;
+          }
+          // Explicit flag only (no name heuristic): e.g. Adrenal Pump's Quickness
+          // does not feed Reaction, but Muscle Augmentation's / Suprathyroid's does.
+          if (sys.noReactionBonus) {
+            mods.reactionExemptQuickness += (sys.attributeMods?.quickness || 0) * rating;
+          }
+        }
+      }
       if (item.type === "adept_power") {
         // Power effects are per-level (SR2E p.124–126): scale by the level.
         const lvl = Math.max(1, item.system.level ?? 1);
@@ -565,6 +616,12 @@ export class CharacterData extends SR2EDataModel {
         }
       }
     }
+    // Bioware total stays UNROUNDED (locked decision) — same raw summation as the
+    // pure `bodyIndexTotal` helper, so model == helper. The sheet rounds for display.
+    mods.bodyIndex = biowareRaw;
+    // Awakened characters pay Essence equal to their bioware Body Index; mundanes
+    // pay none (Shadowtech p.6). Same raw total for exact parity.
+    if (isAwakened) mods.essenceLoss += mods.bodyIndex;
     return mods;
   }
 
@@ -582,6 +639,21 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
+   * The natural, unaugmented value of an attribute: base + racial, clamped to
+   * the racial maximum, BEFORE any cyber/bio/adept/AE modifier. Shared by the
+   * attribute calc and the Body Index cap so the two can never diverge.
+   * @param {string} attr
+   * @returns {number}
+   * @private
+   */
+  _naturalAttribute(attr) {
+    const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
+    let natural = (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0);
+    if (maxes[attr] != null && natural > maxes[attr]) natural = maxes[attr];
+    return natural;
+  }
+
+  /**
    * Calculate final attribute values.
    * The natural attribute (base + racial) is clamped to the racial maximum;
    * cyberware/adept modifiers then apply on top of the clamped natural value.
@@ -589,15 +661,12 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _calculateAttributeValues(mods) {
-    const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
         // .mod at this point = stored value + Active Effect contributions
         // (effects are applied before prepareDerivedData); item mods stack on top.
         this[attr].mod = (this[attr].mod ?? 0) + mods[attr];
-        let natural = this[attr].base + this[attr].racial;
-        if (maxes[attr] != null && natural > maxes[attr]) natural = maxes[attr];
-        this[attr].value = Math.max(1, natural + this[attr].mod);
+        this[attr].value = Math.max(1, this._naturalAttribute(attr) + this[attr].mod);
       }
     }
   }
@@ -698,8 +767,19 @@ export class CharacterData extends SR2EDataModel {
     // applied as an extra Body die on Damage Resistance Tests in
     // SR2EActor#rollDamageResistance — it is not an armor rating bonus.
     // Cyber Dermal Plating raises the Body Attribute itself (p.242).
-    this.armor.ballistic = worn.ballistic + aeBallistic;
-    this.armor.impact = worn.impact + aeImpact;
+    // Bioware body armor (Orthoskin, Shadowtech p.17) is a subdermal layer that
+    // ADDS on top of worn armor (it does not compete for the highest-rating slot).
+    // Bioware (Orthoskin) and cyber-implant armor (Bone Lacing, Dermal Plating)
+    // both add on top of worn armor while installed (Shadowtech p.17, p.42).
+    let implantBallistic = 0, implantImpact = 0;
+    for (const i of this.parent?.items ?? []) {
+      if ((i.type === "bioware" || i.type === "cyberware") && i.system.installed) {
+        implantBallistic += i.system.armorBallistic ?? 0;
+        implantImpact    += i.system.armorImpact ?? 0;
+      }
+    }
+    this.armor.ballistic = worn.ballistic + aeBallistic + implantBallistic;
+    this.armor.impact = worn.impact + aeImpact + implantImpact;
   }
 
   /**
@@ -709,12 +789,24 @@ export class CharacterData extends SR2EDataModel {
    * Moderate at 3, Serious at 6 (Deadly at 10 = unconscious; no modifier
    * listed, capped at +3 here). Condition Levels are cumulative ACROSS the
    * Physical and Stun columns — e.g. Moderate Stun + Light Physical = +3.
+   *
+   * Shadowtech automation: an installed **Damage Compensator** suppresses a
+   * track's modifier while that track sits at or below its Rating (p.24), and an
+   * ACTIVE **Pain Editor** ignores mental/Stun penalties outright (p.26).
    * @returns {number}
    */
   get woundPenalty() {
-    return totalWoundPenalty(
+    let compensator = 0, ignoreStun = false;
+    for (const i of this.parent?.items ?? []) {
+      const s = i.system;
+      if (i.type !== "bioware" || !s?.installed) continue;
+      if (s.damageCompensator) compensator = Math.max(compensator, s.rating || 0);
+      if (s.ignoresStunPenalty && (!s.triggered || s.active)) ignoreStun = true;
+    }
+    return compensatedWoundPenalty(
       this.conditionMonitor.physical.value,
-      this.conditionMonitor.stun.value
+      this.conditionMonitor.stun.value,
+      { compensator, ignoreStun }
     );
   }
 
@@ -732,6 +824,25 @@ export class CharacterData extends SR2EDataModel {
     if (maxDamage >= 3)  return "Moderate";
     if (maxDamage >= 1)  return "Light";
     return "Undamaged";
+  }
+
+  /**
+   * Universal TN penalty from an over-spec'd cranial cyberdeck (Matrixware,
+   * Shadowtech p.54): an installed MPCP above 1.5 × Intelligence (round up)
+   * inflicts +4 on the target number of EVERY action, "across the board".
+   * Applies whether or not the deck is currently active — the hardware is in
+   * the decker's skull either way.
+   * @returns {number}
+   */
+  get mpcpOverloadPenalty() {
+    let mpcp = 0;
+    for (const i of this.parent?.items ?? []) {
+      if (i.type === "cyberware" && i.system.cranialDeck && i.system.installed) {
+        mpcp = Math.max(mpcp, i.system.deck?.mpcp ?? 0);
+      }
+    }
+    if (mpcp <= 0) return 0;
+    return mpcp > mpcpMaxRating(this.intelligence?.value ?? 0) ? MPCP_OVERLOAD_TN : 0;
   }
 
   /**

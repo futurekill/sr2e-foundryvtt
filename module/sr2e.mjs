@@ -38,8 +38,29 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
+
+/**
+ * Delete every world document a Quench run leaves behind. Quench doesn't clean
+ * up documents the batches create; ours are all named with a "Quench" prefix,
+ * so this sweeps them from every world collection. Run `game.sr2e.cleanupQuench()`
+ * (GM only) from the console after testing.
+ * @returns {Promise<number>} how many documents were deleted
+ */
+async function cleanupQuench() {
+  if (!game.user.isGM) { ui.notifications?.warn("cleanupQuench: GM only"); return 0; }
+  const collections = [game.actors, game.items, game.scenes, game.journal,
+    game.macros, game.tables, game.playlists, game.cards, game.messages, game.combats];
+  let total = 0;
+  for (const coll of collections) {
+    if (!coll) continue;
+    const ids = coll.filter(d => (d.name ?? "").startsWith("Quench")).map(d => d.id);
+    if (ids.length) { await coll.documentClass.deleteDocuments(ids); total += ids.length; }
+  }
+  ui.notifications?.info(`cleanupQuench: removed ${total} leftover document(s).`);
+  return total;
+}
 
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
@@ -54,7 +75,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -111,6 +132,7 @@ Hooks.once("init", async () => {
     armor: dataModels.ArmorData,
     spell: dataModels.SpellData,
     cyberware: dataModels.CyberwareData,
+    bioware: dataModels.BiowareData,
     gear: dataModels.GearData,
     program: dataModels.ProgramData,
     adept_power: dataModels.AdeptPowerData,
@@ -609,6 +631,104 @@ async function _resetCombatRecoil(combat) {
 Hooks.on("combatTurn",  (combat) => _resetCombatRecoil(combat));
 Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
 
+// Charge (or refund) the nuyen difference when a purchased item's Rating or Grade
+// changes on a character (task: buy higher-rating/graded items). Runs in
+// preUpdateItem so an unaffordable upgrade can be VETOED. Only re-prices items the
+// character actually bought (a `paid` flag exists — Alt-dropped/GM-gifted items,
+// which have none, are left alone). Respects the autoChargePurchases setting and
+// the chargen list-vs-street rule, and folds the new paid total into the same update.
+Hooks.on("preUpdateItem", (item, changes, options, userId) => {
+  if (game.user.id !== userId || options?.sr2eNoCharge) return;
+  const cRating = changes.system?.rating;
+  const cGrade  = changes.system?.grade;
+  if (cRating === undefined && cGrade === undefined) return;
+  const actor = item.parent;
+  if (!(actor instanceof Actor) || actor.type !== "character") return;
+  let autoCharge = true;
+  try { autoCharge = game.settings.get("sr2e", "autoChargePurchases"); } catch (e) { /* default on */ }
+  if (!autoCharge) return;
+  const paid = item.getFlag("sr2e", "paid");
+  if (paid == null) return;   // free / GM-gifted item — don't start charging it
+
+  const oldSys = { type: item.type, grade: item.system.grade, rating: item.system.rating,
+    ratingStats: item.system.ratingStats, cost: item.system.cost };
+  const newSys = { ...oldSys, rating: cRating ?? oldSys.rating, grade: cGrade ?? oldSys.grade };
+  const oldBase = itemBaseCost(oldSys);
+  const newBase = itemBaseCost(newSys);
+  if (oldBase === newBase) return;
+
+  const inChargen = !!actor.system.chargen?.inProgress;
+  const priceOf = (c) => inChargen ? c : streetPrice(c, item.system.streetIndex);
+  const delta = Math.round(priceOf(newBase) - priceOf(oldBase));
+  if (delta === 0) return;
+  const nuyen = actor.system.nuyen ?? 0;
+  if (delta > 0 && nuyen < delta) {
+    ui.notifications.warn(`${actor.name} can't afford to upgrade ${item.name} — needs ${delta}¥ more (has ${nuyen}¥). Change refused.`);
+    return false;   // veto the Rating/Grade change (must be synchronous)
+  }
+  // Don't charge here: a preUpdate hook can't await, so a fire-and-forget
+  // actor.update() could fail (or read stale nuyen) while the item change still
+  // commits — a free upgrade. Hand the charge to the updateItem hook below,
+  // which awaits it, re-reads nuyen, and rolls the item back on failure.
+  options.sr2ePurchase = {
+    delta,
+    newPaid: Math.max(0, paid + delta),
+    revert: { rating: item.system.rating, grade: item.system.grade }
+  };
+});
+
+// Second half of the purchase re-pricing: perform the nuyen charge/refund AFTER
+// the item change has committed, where we can await it. On any failure the item
+// is rolled back to its previous Rating/Grade so a character can never keep an
+// unpaid upgrade. The `paid` flag is only stamped once the money actually moved.
+Hooks.on("updateItem", async (item, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+  const p = options?.sr2ePurchase;
+  if (!p) return;
+  const actor = item.parent;
+  if (!actor) return;
+  // All-or-nothing: if any step fails, undo whatever already happened — including
+  // the money, if it already moved. Otherwise a setFlag failure after a successful
+  // charge would revert the item while the nuyen stayed spent (paid for nothing).
+  let charged = false;
+  try {
+    const nuyen = actor.system.nuyen ?? 0;   // fresh read, not the preUpdate snapshot
+    if (p.delta > 0 && nuyen < p.delta) throw new Error(`needs ${p.delta}¥, has ${nuyen}¥`);
+    await actor.update({ "system.nuyen": nuyen - p.delta });
+    charged = true;
+    await item.setFlag("sr2e", "paid", p.newPaid);
+    ui.notifications.info(`${actor.name} ${p.delta > 0 ? "pays" : "refunds"} ${Math.abs(p.delta)}¥ to change ${item.name} — ${nuyen - p.delta}¥ left.`);
+  } catch (err) {
+    // Unwind carefully: only revert the item once the money is confirmed back.
+    // Never swallow a failure here — a silent one leaves nuyen and the item
+    // disagreeing, which is worse than a loud message the GM can act on.
+    if (charged) {
+      try {
+        await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + p.delta });
+      } catch (refundErr) {
+        console.error("sr2e | refund failed after a failed purchase", refundErr);
+        ui.notifications.error(
+          `${item.name}: paid ${Math.abs(p.delta)}¥ but the purchase failed AND the refund failed — ` +
+          `the item has been left as-is (you kept what you paid for). Fix ${actor.name}'s nuyen by hand. (${refundErr.message})`);
+        return;   // do NOT revert: the money is gone, so let them keep the upgrade
+      }
+    }
+    try {
+      await item.update(
+        { "system.rating": p.revert.rating, "system.grade": p.revert.grade },
+        { sr2eNoCharge: true }   // don't re-enter the charge on the rollback
+      );
+    } catch (revertErr) {
+      console.error("sr2e | item rollback failed after a failed purchase", revertErr);
+      ui.notifications.error(
+        `${item.name}: the purchase failed and the money was refunded, but the item could NOT be ` +
+        `reverted — it is still changed and now unpaid. Fix it by hand. (${revertErr.message})`);
+      return;
+    }
+    ui.notifications.error(`Purchase failed for ${item.name} — change reverted, no money spent (${err.message}).`);
+  }
+});
+
 // Single active cyberdeck — belt-and-suspenders for when deck.active is set true
 // outside the activateDeck action (Adventure import, a direct item edit). When
 // one deck becomes active, switch the others off. Only the user who made the
@@ -616,12 +736,21 @@ Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
 // active→true means the resulting active→false cascade is a no-op — no recursion.
 Hooks.on("updateItem", async (item, changes, options, userId) => {
   if (game.user.id !== userId) return;
-  if (item.type !== "gear" || item.system.category !== "cyberdeck") return;
+  // Both kinds of deck compete for the single active slot: a gear cyberdeck and
+  // an INSTALLED cranial deck ("C2", Matrixware — Shadowtech p.54).
+  const isDeck = (i) => (i.type === "gear" && i.system.category === "cyberdeck") ||
+                        (i.type === "cyberware" && i.system.cranialDeck && i.system.installed);
   if (changes.system?.deck?.active !== true) return;
+  // A C2 that isn't in your head can never be the active deck — a direct item
+  // edit could still try, so force it back off rather than let it hold the slot
+  // (the deck snapshot ignores it, which would leave the Matrix tab dead).
+  if (item.type === "cyberware" && item.system.cranialDeck && !item.system.installed) {
+    return item.update({ "system.deck.active": false }, { sr2eNoCharge: true });
+  }
+  if (!isDeck(item)) return;
   const actor = item.parent;
   if (!actor) return;
-  const others = actor.items.filter(i =>
-    i.id !== item.id && i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active);
+  const others = actor.items.filter(i => i.id !== item.id && isDeck(i) && i.system.deck?.active);
   if (others.length) {
     await actor.updateEmbeddedDocuments("Item",
       others.map(i => ({ _id: i.id, "system.deck.active": false })));

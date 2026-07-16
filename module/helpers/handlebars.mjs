@@ -244,4 +244,21 @@ export function registerHandlebarsHelpers() {
     // Fallback: capitalize the raw key
     return raceKey.charAt(0).toUpperCase() + raceKey.slice(1);
   });
+
+  // Compact readable summary of an attributeMods object, e.g. "+1 Reaction, +1 Init".
+  // Used on augmentation rows so a player can see at a glance what an implant grants
+  // (empty string when it has no passive attribute effect — e.g. a triggered implant).
+  Handlebars.registerHelper("attrModSummary", function (mods, rating) {
+    if (!mods) return "";
+    // rating is optional (Handlebars passes the options hash if omitted).
+    const mult = (typeof rating === "number" && rating > 0) ? rating : 1;
+    const labels = { body: "Body", quickness: "Qui", strength: "Str", charisma: "Cha",
+      intelligence: "Int", willpower: "Wil", reaction: "Reaction", initiativeDice: "Init" };
+    const parts = [];
+    for (const [k, label] of Object.entries(labels)) {
+      const v = (mods[k] ?? 0) * mult;
+      if (v) parts.push(`${v > 0 ? "+" : ""}${v} ${label}`);
+    }
+    return parts.join(", ");
+  });
 }

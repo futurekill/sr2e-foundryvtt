@@ -95,6 +95,33 @@ export function totalWoundPenalty(physicalBoxes, stunBoxes) {
 }
 
 /**
+ * Injury Modifier after cyber/bioware that suppresses it (Shadowtech).
+ *
+ * Damage Compensator (p.24): while a track's damage is AT OR BELOW the
+ * compensator's Level, that track inflicts NO target-number/Initiative penalty.
+ * Once a track EXCEEDS the Level, that track's penalty applies in full. The
+ * Physical and Mental tracks are judged separately.
+ *
+ * Pain Editor (p.26), while active: the penalties from MENTAL damage are
+ * ignored entirely (physical penalties still apply).
+ *
+ * @param {number} physicalBoxes
+ * @param {number} stunBoxes
+ * @param {{compensator?:number, ignoreStun?:boolean}} [opts]
+ * @returns {number} the effective Injury Modifier
+ */
+export function compensatedWoundPenalty(physicalBoxes, stunBoxes, opts = {}) {
+  const comp = Math.max(0, Number(opts.compensator) || 0);
+  const phys = Number(physicalBoxes) || 0;
+  const stun = Number(stunBoxes) || 0;
+  // A track at/below the compensator level contributes nothing; over it, in full.
+  const effPhys = phys > comp ? phys : 0;
+  let effStun = stun > comp ? stun : 0;
+  if (opts.ignoreStun) effStun = 0;   // active Pain Editor
+  return totalWoundPenalty(effPhys, effStun);
+}
+
+/**
  * Wound level for a number of filled condition boxes (SR2E p.113): the same
  * 1/3/6/10 thresholds as the Injury Modifier.
  * @param {number} boxes
@@ -1400,4 +1427,171 @@ export function webNodeForLabel(web, name) {
   const norm = (s) => (s ?? "").toLowerCase().trim();
   const t = norm(name);
   return Object.keys(web?.nodes ?? {}).find((k) => norm(web.nodes[k].label) === t) ?? null;
+}
+
+// --- Bioware / Body Index (Shadowtech FASA7110, p.5–7) ------------------------
+
+/** Cultured bioware is implanted at 0.75× its listed Body Cost (Shadowtech p.7). */
+export const BIOWARE_CULTURED_MULTIPLIER = 0.75;
+
+/**
+ * A bioware item's effective Body Cost after its grade. Cultured reduces the
+ * cost by 25%; standard is unchanged. Non-finite/negative costs normalise to 0
+ * so bad imported content can't poison Body Index / Essence totals. Unrounded —
+ * callers round only the final sum / display (one canonical representation).
+ * @param {number} bodyCost listed (pre-grade) Body Cost
+ * @param {string} grade "standard" | "cultured"
+ * @returns {number}
+ */
+export function effectiveBodyCost(bodyCost, grade) {
+  const bc = Number(bodyCost);
+  if (!Number.isFinite(bc) || bc < 0) return 0;
+  return grade === "cultured" ? bc * BIOWARE_CULTURED_MULTIPLIER : bc;
+}
+
+/**
+ * Body Index = Σ effective Body Cost of INSTALLED bioware (Shadowtech p.6).
+ * Returned UNROUNDED (the locked decision: the mechanical total stays raw so
+ * overstress thresholds and Essence can't shift; the sheet rounds for display
+ * only). The model's collector sums identically, so model == helper.
+ * @param {Array<{installed:boolean, bodyCost:number, grade:string}>} rows
+ * @returns {number}
+ */
+export function bodyIndexTotal(rows) {
+  let total = 0;
+  for (const r of rows ?? []) {
+    if (!r?.installed) continue;
+    total += effectiveBodyCost(r.bodyCost, r.grade);
+  }
+  return total;
+}
+
+/**
+ * Essence lost to bioware. Shadowtech p.6: bioware "costs most characters no
+ * Essence Points" — only the magically active (magicians/adepts) pay Essence,
+ * equal to the Body Cost. Mundanes pay Body Index only.
+ * @param {Array<{installed:boolean, bodyCost:number, grade:string}>} rows
+ * @param {boolean} isAwakened
+ * @returns {number}
+ */
+export function biowareEssence(rows, isAwakened) {
+  return isAwakened ? bodyIndexTotal(rows) : 0;
+}
+
+// --- Matrixware: the cranial cyberdeck / "C2" (Shadowtech p.54–59) ------------
+
+/** Exceeding the MPCP cap costs +4 TN to ALL actions (Shadowtech p.54). */
+export const MPCP_OVERLOAD_TN = 4;
+
+/**
+ * Maximum MPCP rating a cranial deck may carry: 1.5 × Intelligence, rounded UP
+ * (Shadowtech p.54). Installing higher is legal but inflicts MPCP_OVERLOAD_TN
+ * on every roll.
+ * @param {number} intelligence
+ * @returns {number}
+ */
+export function mpcpMaxRating(intelligence) {
+  return Math.ceil(1.5 * (Number(intelligence) || 0));
+}
+
+/** Persona module cap: 75% of MPCP, round down (Shadowtech p.55). */
+export function personaModuleMax(mpcp) {
+  return Math.floor(0.75 * (Number(mpcp) || 0));
+}
+
+/** Hardening cap: one-half MPCP, round down (Shadowtech p.56). */
+export function hardeningMax(mpcp) {
+  return Math.floor((Number(mpcp) || 0) / 2);
+}
+
+/** Response cap: MPCP / 4, round down (Shadowtech p.59). */
+export function responseMax(mpcp) {
+  return Math.floor((Number(mpcp) || 0) / 4);
+}
+
+/**
+ * Total Essence a cranial cyberdeck costs, summed from its installed components
+ * (Shadowtech p.54–59): MPCP = (Rating/10) + 0.1; Persona Module = 0.30;
+ * Hardening = 0.3; Transfer (I/O) = 0.1; Response = 0.2. Components rated 0 are
+ * simply not installed. Headware memory is a separate implant and is NOT counted
+ * here (the C2's own active memory, MPCP × 50 Mp, is dedicated and included).
+ * @param {{mpcp:number, hardening:number, ioSpeed:number, response:number}} deck
+ * @returns {number} Essence, rounded to 2 dp
+ */
+export function cranialDeckEssence(deck = {}) {
+  const mpcp = Math.max(0, Number(deck.mpcp) || 0);
+  if (mpcp <= 0) return 0;                     // no MPCP = no deck
+  let e = (mpcp / 10) + 0.1;                   // MPCP
+  e += 0.30;                                   // persona module (essential to C2 ops)
+  if ((Number(deck.hardening) || 0) > 0) e += 0.3;
+  if ((Number(deck.ioSpeed) || 0) > 0)   e += 0.1;   // Transfer
+  if ((Number(deck.response) || 0) > 0)  e += 0.2;
+  return Math.round(e * 100) / 100;
+}
+
+// --- Purchase pricing: rating + grade (Street Samurai Catalog / Shadowtech) ----
+
+/**
+ * Cost multiplier for an item's quality grade. Alphaware cyberware costs ×2
+ * (SSC p.29 / SR2E p.246); cultured bioware costs ×4 (Shadowtech p.7). Everything
+ * else is ×1. (Neural bioware is stored at standard grade with its already-cultured
+ * price, so it correctly gets ×1 — see the Shadowtech module notes.)
+ * @param {string} type item type
+ * @param {string} grade item grade
+ * @returns {number}
+ */
+export function gradeCostMultiplier(type, grade) {
+  if (type === "cyberware" && grade === "alpha") return 2;
+  if (type === "bioware" && grade === "cultured") return 4;
+  return 1;
+}
+
+/**
+ * The base cost of a rated item at a given rating: the matching ratingStats row's
+ * cost (exact rating, else nearest), or the flat cost when there's no table.
+ * @param {Array<{rating:number, cost:number}>} ratingStats
+ * @param {number} rating
+ * @param {number} flatCost
+ * @returns {number}
+ */
+export function ratedCost(ratingStats, rating, flatCost) {
+  if (ratingStats?.length) {
+    const rows = [...ratingStats].sort((a, b) => a.rating - b.rating);
+    const row = rows.find(r => r.rating === rating)
+      ?? rows.reduce((b, r) => Math.abs(r.rating - rating) < Math.abs(b.rating - rating) ? r : b, rows[0]);
+    return row?.cost ?? 0;
+  }
+  return flatCost ?? 0;
+}
+
+/**
+ * Full base (list) nuyen cost of an item at its rating AND grade — before the
+ * Street Index markup. The single source of truth for what a configured item costs.
+ * @param {{type:string, grade:string, rating:number, ratingStats:Array, cost:number}} sys
+ * @returns {number}
+ */
+export function itemBaseCost(sys) {
+  const base = ratedCost(sys?.ratingStats, sys?.rating, sys?.cost);
+  return base * gradeCostMultiplier(sys?.type, sys?.grade);
+}
+
+/**
+ * Overstress penalty (Shadowtech p.7): +1 TN to Body tests per whole or partial
+ * point the Body Index exceeds its max; zero-floored so it never reads negative.
+ * @param {number} value Body Index
+ * @param {number} max cap (natural Body)
+ * @returns {number}
+ */
+export function overstressPenalty(value, max) {
+  return Math.ceil(Math.max(0, (Number(value) || 0) - (Number(max) || 0)));
+}
+
+/**
+ * Magical-healing interference (Shadowtech p.6): heal-test TNs rise by half the
+ * subject's current Body Index, rounded down.
+ * @param {number} bodyIndex
+ * @returns {number}
+ */
+export function biowareHealingTnMod(bodyIndex) {
+  return Math.floor((Number(bodyIndex) || 0) / 2);
 }

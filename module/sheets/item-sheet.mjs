@@ -71,6 +71,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       armor:       "fas fa-shield-alt",
       spell:       "fas fa-hat-wizard",
       cyberware:   "fas fa-microchip",
+      bioware:     "fas fa-dna",
       gear:        "fas fa-toolbox",
       program:     "fas fa-laptop-code",
       ammo:        "fas fa-circle",
@@ -100,6 +101,11 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         context.cyberwareLocations = CONFIG.SR2E.cyberwareLocations;
         context.hasRatingTable = (item.system.ratingStats?.length ?? 0) > 0;
         context.isContainer = (item.system.capacity ?? 0) > 0 || (item.system.modules?.length ?? 0) > 0;
+        break;
+      case "bioware":
+        context.biowareGrades = CONFIG.SR2E.biowareGrades;
+        context.bodySystems = CONFIG.SR2E.bodySystems;
+        context.hasRatingTable = (item.system.ratingStats?.length ?? 0) > 0;
         break;
       case "program":
         context.programCategories = CONFIG.SR2E.programCategories;
@@ -190,15 +196,18 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /**
-   * Add a new row to the cyberware rating stats table.
-   * The new row gets the next sequential rating after the last existing row.
+   * Add a new row to the rating stats table. The new row gets the next unique
+   * rating after the highest existing one (keeps ratings sorted + unique, which
+   * BiowareData.prepareDerivedData relies on). Bioware rows carry `bodyCost`;
+   * cyberware rows carry `essenceCost`.
    */
   static async _addRatingRow(event, target) {
     event.preventDefault();
     const item = this.document;
     const rows = foundry.utils.deepClone(item.system.ratingStats ?? []);
-    const nextRating = rows.length > 0 ? (rows[rows.length - 1].rating + 1) : 1;
-    rows.push({ rating: nextRating, essenceCost: 0, cost: 0, availability: "", streetIndex: "" });
+    const nextRating = rows.length > 0 ? (Math.max(...rows.map(r => r.rating)) + 1) : 1;
+    const costKey = item.type === "bioware" ? { bodyCost: 0 } : { essenceCost: 0 };
+    rows.push({ rating: nextRating, ...costKey, cost: 0, availability: "", streetIndex: "" });
     await item.update({ "system.ratingStats": rows });
   }
 

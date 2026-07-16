@@ -1797,11 +1797,32 @@ async function onToggleEquip(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
-  const field = item.type === "cyberware" ? "system.installed" :
+  const usesInstalled = item.type === "cyberware" || item.type === "bioware";
+  const field = usesInstalled ? "system.installed" :
                 item.type === "program" ? "system.loaded" : "system.equipped";
-  const currentValue = item.type === "cyberware" ? item.system.installed :
+  const currentValue = usesInstalled ? item.system.installed :
                        item.type === "program" ? item.system.loaded : item.system.equipped;
-  return item.update({ [field]: !currentValue });
+  const update = { [field]: !currentValue };
+  // Pulling a cranial deck out of your head must also switch it off — an
+  // uninstalled C2 is ignored by the deck snapshot, so leaving it "active" would
+  // hold the single active-deck slot hostage and leave the Matrix tab dead.
+  if (item.type === "cyberware" && item.system.cranialDeck && currentValue) {
+    update["system.deck.active"] = false;
+  }
+  return item.update(update);
+}
+
+/**
+ * Activate / deactivate a triggered bioware implant (Adrenal Pump, Pain Editor).
+ * While active, the implant's attribute mods apply; the GM/player tracks the
+ * duration and crash effects by hand (Shadowtech p.19/26).
+ */
+async function onToggleBioActive(event, target) {
+  event.preventDefault();
+  const itemId = target.closest("[data-item-id]")?.dataset.itemId;
+  const item = this.document.items.get(itemId);
+  if (!item || item.type !== "bioware") return;
+  return item.update({ "system.active": !item.system.active });
 }
 
 /**
@@ -1912,10 +1933,16 @@ async function onActivateDeck(event, target) {
   const actor = this.document;
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const deck = actor.items.get(itemId);
-  if (!deck || deck.system.category !== "cyberdeck") return;
+  // A deck is either a gear cyberdeck or an implanted cranial deck ("C2",
+  // Matrixware — Shadowtech p.54). Only ONE may be active at a time across both.
+  // A cranial deck must be INSTALLED to count: the actor's deck snapshot ignores
+  // an uninstalled C2, so letting one "activate" would silently switch off the
+  // decker's real deck and leave the Matrix tab dead.
+  const isDeck = (i) => (i.type === "gear" && i.system.category === "cyberdeck") ||
+                        (i.type === "cyberware" && i.system.cranialDeck && i.system.installed);
+  if (!deck || !isDeck(deck)) return;
   const makeActive = !deck.system.deck?.active;
-  const updates = actor.items
-    .filter(i => i.type === "gear" && i.system.category === "cyberdeck")
+  const updates = actor.items.filter(isDeck)
     .map(i => ({ _id: i.id, "system.deck.active": i.id === itemId ? makeActive : false }));
   return actor.updateEmbeddedDocuments("Item", updates);
 }
@@ -2595,6 +2622,7 @@ const SHARED_ACTIONS = {
   recoverDumpShock: onRecoverDumpShock,
   rollProgram: onRollProgram,
   toggleEquip: onToggleEquip,
+  toggleBioActive: onToggleBioActive,
   toggleSlot: onToggleSlot,
   editItem: onEditItem,
   deleteItem: onDeleteItem,

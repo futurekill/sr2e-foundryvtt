@@ -19,11 +19,62 @@
           </span>
           <span class="cyber-location">{{cyber.system.location}}</span>
           <span class="cyber-grade">{{cyber.system.grade}}</span>
+          {{#if cyber.system.cranialDeck}}<span class="cyber-mods {{#if cyber.system.deck.active}}bio-active{{/if}}" title="Cranial cyberdeck — MPCP {{cyber.system.deck.mpcp}}. Activate (⚡) to drive the Matrix tab."><i class="fas fa-bolt"></i> C2 MPCP {{cyber.system.deck.mpcp}}{{#if cyber.system.deck.active}} · active{{/if}}</span>{{/if}}
           <span class="cyber-essence">Ess: {{cyber.system.actualEssenceCost}}</span>
           <span class="cyber-installed">
             {{#if cyber.system.installed}}<i class="fas fa-check-circle"></i> Installed{{else}}<i class="fas fa-times-circle"></i> Not installed{{/if}}
           </span>
           <div class="item-controls">
+            {{#if cyber.system.cranialDeck}}<a data-action="activateDeck" title="Activate / deactivate this cranial deck (drives the Matrix tab)"><i class="fas fa-bolt {{#if cyber.system.deck.active}}bio-active-icon{{/if}}"></i></a>{{/if}}
+            <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
+            <a data-action="toggleEquip" title="Install/Remove"><i class="fas fa-wrench"></i></a>
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+            <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    {{!-- Bioware (Shadowtech) --}}
+    <div class="gear-category">
+      <div class="category-header flexrow">
+        <h3>Bioware</h3>
+        <span class="essence-display {{#if bodyIndexOver}}over-cap{{/if}}" title="Body Index — total Body Cost of installed bioware. Max = natural Body. Over the cap is allowed (GM discretion); it inflicts an overstress penalty (Shadowtech p.7).">
+          Body Index: {{formatEssence system.bodyIndex.value}} / {{system.bodyIndex.max}}
+        </span>
+        <button type="button" data-action="addItem" data-type="bioware" class="btn-add">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      {{#if bodyIndexOver}}
+      <div class="bioware-overstress-warning" title="System shock: +1 TN to Body tests per point over the cap.">
+        <i class="fas fa-triangle-exclamation"></i>
+        Over Body Index cap — overstress: +{{bodyIndexOverstress}} TN to Body tests
+      </div>
+      {{/if}}
+      <div class="item-list">
+        {{#each bioware as |bio|}}
+        <div class="item-row cyber-row flexrow {{#if bio.system.installed}}cyber-on{{else}}cyber-off{{/if}} {{#if bio.system.active}}bio-active-row{{/if}}" data-item-id="{{bio.id}}">
+          <span class="item-name">
+            <i class="fas fa-dna"></i>
+            {{bio.name}}{{#if bio.system.ratingStats.length}} <span class="cyber-rating" title="Rating — edit the item (✏️) to change; higher ratings cost more Body Index">R{{bio.system.rating}}</span>{{/if}}
+          </span>
+          <span class="cyber-location">{{localize (lookup ../bodySystems bio.system.bodySystem)}}</span>
+          <span class="cyber-grade">{{bio.system.grade}}</span>
+          {{#if bio.system.triggered}}
+            {{#if bio.system.active}}<span class="cyber-mods bio-active" title="Triggered — ACTIVE. Apply these while the surge lasts (see notes)."><i class="fas fa-bolt"></i> {{attrModSummary bio.system.attributeMods bio.system.rating}}</span>
+            {{else}}<span class="cyber-mods bio-triggered" title="Triggered implant — click the ⚡ to activate its surge (see notes)."><i class="fas fa-bolt"></i> triggered</span>{{/if}}
+          {{else}}
+            {{#with (attrModSummary bio.system.attributeMods bio.system.rating) as |summary|}}{{#if summary}}<span class="cyber-mods" title="Passive effect while installed">{{summary}}</span>{{/if}}{{/with}}
+          {{/if}}
+          {{#if bio.system.armorImpact}}<span class="cyber-mods" title="Subdermal armor (adds to worn armor)">Armor {{bio.system.armorBallistic}}B/{{bio.system.armorImpact}}I</span>{{/if}}
+          <span class="cyber-essence" title="Effective Body Cost (cultured applied)">BC: {{formatEssence bio.system.actualBodyCost}}</span>
+          <span class="cyber-installed">
+            {{#if bio.system.installed}}<i class="fas fa-check-circle"></i> Installed{{else}}<i class="fas fa-times-circle"></i> Not installed{{/if}}
+          </span>
+          <div class="item-controls">
+            {{#if bio.system.triggered}}<a data-action="toggleBioActive" title="Activate / deactivate the implant's surge"><i class="fas fa-bolt {{#if bio.system.active}}bio-active-icon{{/if}}"></i></a>{{/if}}
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="Install/Remove"><i class="fas fa-wrench"></i></a>
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
