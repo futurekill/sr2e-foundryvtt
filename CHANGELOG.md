@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.38.0 — 2026-07-16
 
 ### Fixes
 - **Enhanced Articulation never gave its die.** The +1 Reaction worked; the rule
