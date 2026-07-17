@@ -2,7 +2,7 @@
   "_id": "f31e579dcf8bc085",
   "name": "Silk (Face)",
   "type": "character",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/pregen_portraits/silk.webp",
   "system": {
     "biography": "<p>A silver-tongued fixer's fixer — the face the team sends when a job needs a handshake, not a firefight. Tailored charm, an enhanced voice, and a Lined Coat that says \"I belong in this boardroom.\"</p>",
     "notes": "",
@@ -683,7 +683,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "systems/sr2e/assets/pregen_portraits/silk.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

@@ -2,6 +2,12 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.44.2 — 2026-07-17
+
+### Fixes
+- **Silk (Face) now has her portrait too** — completes the pregen runner art set;
+  all seven runners carry their character portrait on sheet and token.
+
 ## 0.44.1 — 2026-07-17
 
 ### Fixes
