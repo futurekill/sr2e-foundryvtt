@@ -457,7 +457,19 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         const nuyen = this.document.system.nuyen ?? 0;
         if (nuyen >= price) {
           await this.document.update({ "system.nuyen": nuyen - price });
-          await created.setFlag("sr2e", "paid", price);
+          // Write the purchase flags in ONE update so they can't partially land —
+          // ammo left with `paid` but no basis would fall back to the old
+          // full-refund. Ammo depletes as it's fired, so it also records the
+          // acquisition basis: how many rounds and what list value it bought.
+          // Sell-back then refunds proportionally to what's left, and chargen
+          // counts the bundle value — not `cost × rounds` (see proportionalRefund
+          // / chargenItemCost).
+          const flags = { paid: price };
+          if (created.type === "ammo") {
+            flags.acquiredQuantity = created.system.quantity ?? 0;
+            flags.acquiredListValue = base;
+          }
+          await created.update({ "flags.sr2e": flags });
           ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${nuyen - price}¥ left.`);
         } else {
           await created.delete();
@@ -882,6 +894,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       grade: i.system.grade,
       ratingStats: i.system.ratingStats,
       quantity: i.system.quantity ?? 1,
+      // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
+      // ammo by this, not cost × rounds.
+      acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
       force: i.system.force ?? 0,
       bondingCost: i.system.bondingCost ?? 0
     }));

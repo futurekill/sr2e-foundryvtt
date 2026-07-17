@@ -2,6 +2,27 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.46.0 — 2026-07-17
+
+### Fixes
+- **The free-ammo refund exploit is closed.** Buying a box, firing/reloading it
+  empty, then selling the box back used to refund the **full** purchase price —
+  repeatably. Ammo now records what it cost and how many rounds it bought, and
+  sell-back refunds **proportionally to what's left**: an emptied box refunds 0,
+  a half-used one refunds half, and a GM inflating the round count can't refund
+  more than was paid.
+- **Character creation over-charged 10× for ammo.** A 15¥ box of 10 rounds
+  counted as 150¥ against the Resources budget (its bundle price was multiplied by
+  the round count). Ammo now counts its **bundle** price, once.
+- **Consolidate Ammo** carries the acquisition basis through a merge, and won't
+  merge a purchased box with a free/untracked one (which would have let untracked
+  rounds inherit refundable value).
+
+### Notes
+Ammo bought before this update has no recorded basis, so it keeps the old
+behaviour (full refund on sell, one-bundle chargen cost) until re-bought — a
+controlled migration for legacy ammo can come later.
+
 ## 0.45.1 — 2026-07-17
 
 ### Changed

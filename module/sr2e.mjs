@@ -171,11 +171,12 @@ async function repairStaleImplants({ apply = false } = {}) {
  * 50-round belt — are deliberately NOT merged: `cost` means "price of the whole
  * bundle" for ammo, so mixing them would corrupt the price basis.
  *
- * What moves: `quantity` and `flags.sr2e.paid` are summed, so the merged pile is
- * worth exactly what the parts were worth and the sell-back refund is preserved.
- * `system.cost` is untouched (it's catalog data, per PLAN-ammo-stacking.md).
- * Chargen is unaffected: it prices ammo at `cost * quantity`, which sums to the
- * same total either way.
+ * What moves: `quantity`, `flags.sr2e.paid`, and the acquisition basis
+ * (`acquiredQuantity` / `acquiredListValue`) are all summed, so the merged pile
+ * is worth exactly what the parts were and both the proportional sell-back and
+ * the chargen bundle value are preserved. `system.cost` is untouched (catalog
+ * data, per PLAN-ammo-stacking.md). Piles of different money provenance
+ * (a tracked box vs an untracked/legacy box) are NOT merged — see the grouping.
  *
  * Safety: a loaded pile is preferred as the survivor, and every weapon naming a
  * doomed pile is re-pointed — BOTH `system.ammo.sourceId` and
@@ -214,9 +215,17 @@ async function consolidateAmmo(actor, { dryRun = false } = {}) {
   // on one side, so compare against each existing group's first member and take
   // the first match — deterministic, and never merges a pair it wouldn't accept.
   const ammo = actor.items.filter((i) => i.type === "ammo");
+  // Two piles merge only when they're the same shape AND the same money
+  // provenance class. A "based" pile carries an acquisition basis
+  // (acquiredQuantity); an untracked/legacy pile doesn't. Merging across the two
+  // would let untracked rounds inherit a based pile's refundable value — an
+  // emptied purchased box + a free box would refund money on the free rounds
+  // (Codex). Same-class merges keep the basis consistent with quantity and paid.
+  const hasBasis = (i) => i.getFlag("sr2e", "acquiredQuantity") != null;
   const groups = [];
   for (const item of ammo) {
-    const g = groups.find((grp) => ammoStacks(shapeOf(grp[0]), shapeOf(item)));
+    const g = groups.find((grp) =>
+      ammoStacks(shapeOf(grp[0]), shapeOf(item)) && hasBasis(grp[0]) === hasBasis(item));
     if (g) g.push(item); else groups.push([item]);
   }
   const dupes = groups.filter((g) => g.length > 1);
@@ -241,12 +250,22 @@ async function consolidateAmmo(actor, { dryRun = false } = {}) {
     const doomed = group.filter((i) => i.id !== survivor.id);
     const totalQty = group.reduce((s, i) => s + (i.system.quantity ?? 0), 0);
     const totalPaid = group.reduce((s, i) => s + (i.getFlag("sr2e", "paid") ?? 0), 0);
+    // Sum the sell-back/chargen basis too. Every pile in a "based" group carries
+    // a basis (the grouping guarantees same provenance class), so the sums are
+    // complete; an untracked group has no basis and stays untracked.
+    const totalAcqQty = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredQuantity") ?? 0), 0);
+    const totalAcqVal = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredListValue") ?? 0), 0);
     report.push({ name: survivor.name, piles: group.length, quantity: totalQty, paid: totalPaid });
     if (dryRun) continue;
 
     // Snapshot everything this group is about to touch, for rollback.
     const snapshot = {
-      survivor: { quantity: survivor.system.quantity, paid: survivor.getFlag("sr2e", "paid") ?? 0 },
+      survivor: {
+        quantity: survivor.system.quantity,
+        paid: survivor.getFlag("sr2e", "paid") ?? 0,
+        acqQty: survivor.getFlag("sr2e", "acquiredQuantity") ?? 0,
+        acqVal: survivor.getFlag("sr2e", "acquiredListValue") ?? 0
+      },
       doomed: doomed.map((i) => i.toObject()),
       weapons: actor.items.filter((w) => w.type === "weapon"
           && (doomed.some((d) => d.id === w.system.ammo?.sourceId)
@@ -270,15 +289,19 @@ async function consolidateAmmo(actor, { dryRun = false } = {}) {
       //    nothing has been credited yet and the rounds still exist exactly once.
       await actor.deleteEmbeddedDocuments("Item", doomed.map((i) => i.id));
 
-      // 3. Credit the survivor with the whole pile.
+      // 3. Credit the survivor with the whole pile + summed basis.
       await survivor.update({ "system.quantity": totalQty }, { sr2eNoCharge: true });
       await survivor.setFlag("sr2e", "paid", totalPaid);
+      if (totalAcqQty) await survivor.setFlag("sr2e", "acquiredQuantity", totalAcqQty);
+      if (totalAcqVal) await survivor.setFlag("sr2e", "acquiredListValue", totalAcqVal);
       merged++; removed += doomed.length;
     } catch (err) {
       console.error("SR2E | consolidateAmmo failed; rolling back", err);
       try {
         await survivor.update({ "system.quantity": snapshot.survivor.quantity }, { sr2eNoCharge: true });
         await survivor.setFlag("sr2e", "paid", snapshot.survivor.paid);
+        await survivor.setFlag("sr2e", "acquiredQuantity", snapshot.survivor.acqQty);
+        await survivor.setFlag("sr2e", "acquiredListValue", snapshot.survivor.acqVal);
         const missing = snapshot.doomed.filter((d) => !actor.items.get(d._id));
         if (missing.length) await actor.createEmbeddedDocuments("Item", missing, { keepId: true, sr2eNoCharge: true });
         if (snapshot.weapons.length) await actor.updateEmbeddedDocuments("Item", snapshot.weapons, { sr2eNoCharge: true });

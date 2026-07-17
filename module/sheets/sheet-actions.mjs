@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
@@ -2014,10 +2014,21 @@ async function onSellItem(event, target) {
   }
 
   const paid = item.getFlag("sr2e", "paid");
-  const price = paid ?? streetPrice(Number(item.system.cost) || 0, item.system.streetIndex);
+  const acquiredQuantity = item.getFlag("sr2e", "acquiredQuantity");
+  // Ammo depletes as it's fired: refund proportionally to what's left, so an
+  // emptied box refunds nothing (no more selling a fired-out box for full price).
+  // Everything else refunds the price paid, or street price if untracked.
+  let price, note;
+  if (item.type === "ammo" && acquiredQuantity != null) {
+    price = proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: item.system.quantity ?? 0 });
+    note = ` (${item.system.quantity ?? 0}/${acquiredQuantity} rounds left — proportional refund)`;
+  } else {
+    price = paid ?? streetPrice(Number(item.system.cost) || 0, item.system.streetIndex);
+    note = paid != null ? " (refund of the price paid)" : " (street price)";
+  }
   const confirmed = await foundry.applications.api.DialogV2.confirm({
     window: { title: `Sell ${item.name}?` },
-    content: `<p>Sell <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>${paid != null ? " (refund of the price paid)" : " (street price)"}? The item will be removed.</p>`
+    content: `<p>Sell <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>${note}? The item will be removed.</p>`
   });
   if (!confirmed) return;
 

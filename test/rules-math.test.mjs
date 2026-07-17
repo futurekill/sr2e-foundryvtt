@@ -650,16 +650,18 @@ describe("chargenSpend — priority budget tracking (SR2E p.44–45)", () => {
     expect(r.skills.spent).toBe(10);   // 6 + 4 only
     expect(r.skills.over).toBe(true);  // 10 > 8
   });
-  it("sums gear list cost × quantity; ignores non-purchasable types", () => {
+  it("sums gear list cost × quantity; ammo counts its bundle, not ×rounds", () => {
     const items = [
       { type: "weapon", cost: 700, quantity: 1 },
-      { type: "ammo", cost: 20, quantity: 3 },      // 60
+      { type: "ammo", cost: 20, quantity: 3 },      // bundle price 20 — NOT 20×3
       { type: "skill", cost: 999 },                  // not a resource type
       { type: "cyberware", cost: 5000 }
     ];
     const r = chargenSpend({ items }, { resources: 90000 });
-    expect(r.resources.spent).toBe(700 + 60 + 5000);
-    expect(r.resources.remaining).toBe(90000 - 5760);
+    // Ammo's `cost` is the whole bundle, so a 3-round box counts 20, not 60
+    // (the old ×quantity was the 10×-overcharge bug, PLAN-ammo-stacking #4).
+    expect(r.resources.spent).toBe(700 + 20 + 5000);
+    expect(r.resources.remaining).toBe(90000 - 5720);
   });
   // Regression: resources were summed from each item's flat `cost`, so a rated
   // item (whose prices live in ratingStats, flat cost usually 0) counted as FREE,

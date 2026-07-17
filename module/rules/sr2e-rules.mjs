@@ -1235,6 +1235,48 @@ export function attributeEdgeViolations(qualities = []) {
 }
 
 /**
+ * Chargen resource cost of a single owned item.
+ *
+ * Normal gear is `itemBaseCost × quantity`. **Ammo is the exception:** its `cost`
+ * is the price of the whole bundle (a 15¥ box of 10), so multiplying by quantity
+ * (the round count) 10×-counts it. Ammo is priced by its recorded acquisition
+ * value — what it cost when bought — falling back to one bundle's `itemBaseCost`
+ * for legacy ammo with no recorded basis.
+ *
+ * @param {object} i - projected item: {type, cost, rating, grade, ratingStats,
+ *                     quantity, acquiredListValue?}
+ * @param {object} [ctx] - itemBaseCost context (vr2 etc.)
+ * @returns {number}
+ */
+export function chargenItemCost(i, ctx = {}) {
+  if (i?.type === "ammo") {
+    return (typeof i.acquiredListValue === "number") ? i.acquiredListValue : itemBaseCost(i, ctx);
+  }
+  return itemBaseCost(i, ctx) * (i?.quantity ?? 1);
+}
+
+/**
+ * Sell-back refund for a depleting item (ammo): proportional to how much is left,
+ * capped at what was paid.
+ *
+ * Fixes the free-ammo exploit — buy a box, fire/reload it empty, sell the box
+ * back for its full price. Refund = paid × currentQuantity / acquiredQuantity, so
+ * an emptied box refunds 0 and a half-used one refunds half. The `min(paid, …)`
+ * cap stops a GM quantity-inflation from refunding more than was ever paid, and
+ * `acquiredQuantity === 0` (missing basis) refunds 0 rather than dividing by zero.
+ *
+ * @param {{paid?:number, acquiredQuantity?:number, currentQuantity?:number}} o
+ * @returns {number}
+ */
+export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuantity = 0 } = {}) {
+  const aq = Number(acquiredQuantity) || 0;
+  if (aq <= 0) return 0;
+  const cq = Math.max(0, Number(currentQuantity) || 0);
+  const p = Math.max(0, Number(paid) || 0);
+  return Math.min(p, Math.floor(p * cq / aq));
+}
+
+/**
  * Character-creation point spend per category, versus the allotment granted by
  * the chosen priorities (SR2E p.44–45). Pure counting — the caller pulls plain
  * data off the actor so this stays testable.
@@ -1247,8 +1289,8 @@ export function attributeEdgeViolations(qualities = []) {
  * - Skills: sum of **Active + Build/Repair** skill ratings. Knowledge, Language
  *   and Special skills follow the p.74 special rules (native language is free,
  *   others need GM approval), so they are NOT charged against the skill budget.
- * - Resources: sum of the **list** nuyen cost of owned gear (chargen pays list
- *   price with no Street Index), priced at the item's rating and grade × quantity.
+ * - Resources: sum of gear cost via chargenItemCost (list price, no Street Index;
+ *   ammo priced by bundle, not ×rounds).
  * - Force Points (magicians only): sum of spell Force + focus Bonding cost.
  *
  * @param {object} data
@@ -1265,13 +1307,12 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
   const skillSpent = skills
     .filter((k) => k.category === "active" || k.category === "build_repair")
     .reduce((s, k) => s + (k.rating ?? 0), 0);
-  // Price each item through itemBaseCost, not its flat `cost`: a rated item
-  // keeps its prices in ratingStats (its flat cost is often 0), and a grade
-  // multiplies them. Reading `cost` alone counted rated ware as free and ignored
-  // alpha/beta/cultured entirely.
+  // Price each item through chargenItemCost: itemBaseCost × quantity for normal
+  // gear, but ammo's `cost` is the price of the WHOLE bundle, so multiplying by
+  // quantity (rounds) 10×-counted it.
   const resSpent = items
     .filter((i) => CHARGEN_RESOURCE_TYPES.includes(i.type))
-    .reduce((s, i) => s + itemBaseCost(i) * (i.quantity ?? 1), 0);
+    .reduce((s, i) => s + chargenItemCost(i), 0);
   const forceSpent = items.reduce((s, i) => {
     if (i.type === "spell") return s + (i.force ?? 0);
     if (i.type === "focus") return s + (i.bondingCost ?? 0);

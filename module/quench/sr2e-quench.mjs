@@ -784,6 +784,61 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Misc dice" });
 
+    // ── Ammo money basis: consolidation must sum the sell-back/chargen basis
+    //    (acquiredQuantity / acquiredListValue), not just quantity + paid. ──
+    quench.registerBatch("sr2e.ammo-money", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+
+      describe("Ammo acquisition basis", () => {
+        it("consolidation sums acquiredQuantity and acquiredListValue", async () => {
+          const actor = await Actor.create({ name: "Quench Ammo $", type: "character", system: { nuyen: 1000 } });
+          made.push(actor);
+          // Two identical boxes bought separately, each with its recorded basis.
+          const mk = () => ({
+            name: "Regular Ammo", type: "ammo",
+            system: { ammoType: "regular", quantity: 10, cost: 15, streetIndex: 1,
+                      damageModifier: 0, armorModifier: 0, damageType: "", armorCalc: "standard" }
+          });
+          const [a, b] = await actor.createEmbeddedDocuments("Item", [mk(), mk()]);
+          for (const it of [a, b]) {
+            await it.setFlag("sr2e", "paid", 15);
+            await it.setFlag("sr2e", "acquiredQuantity", 10);
+            await it.setFlag("sr2e", "acquiredListValue", 15);
+          }
+          await game.sr2e.consolidateAmmo(actor);
+          const pile = actor.items.filter((i) => i.type === "ammo");
+          assert.equal(pile.length, 1, "two identical boxes merge into one");
+          const s = pile[0];
+          assert.equal(s.system.quantity, 20, "quantities summed");
+          assert.equal(s.getFlag("sr2e", "acquiredQuantity"), 20, "acquiredQuantity summed");
+          assert.equal(s.getFlag("sr2e", "acquiredListValue"), 30, "acquiredListValue summed");
+          assert.equal(s.getFlag("sr2e", "paid"), 30, "paid summed");
+        });
+
+        it("does NOT merge a tracked box with a free/untracked box of the same ammo", async () => {
+          // The exploit Codex caught: an emptied purchased box + a free box would
+          // let the free rounds inherit the purchased box's refundable value.
+          const actor = await Actor.create({ name: "Quench Ammo mix", type: "character" });
+          made.push(actor);
+          const mk = () => ({
+            name: "Regular Ammo", type: "ammo",
+            system: { ammoType: "regular", quantity: 10, cost: 15, streetIndex: 1,
+                      damageModifier: 0, armorModifier: 0, damageType: "", armorCalc: "standard" }
+          });
+          const [tracked, free] = await actor.createEmbeddedDocuments("Item", [mk(), mk()]);
+          await tracked.setFlag("sr2e", "acquiredQuantity", 10);   // a purchased box
+          await tracked.setFlag("sr2e", "acquiredListValue", 15);
+          await tracked.setFlag("sr2e", "paid", 15);
+          // `free` has no basis (picked up / legacy).
+          const res = await game.sr2e.consolidateAmmo(actor);
+          assert.equal(res.merged, 0, "different provenance classes must not merge");
+          assert.equal(actor.items.filter((i) => i.type === "ammo").length, 2, "both piles remain");
+        });
+      });
+    }, { displayName: "SR2E: Ammo money" });
+
     // ── Attribute provenance: system.<attr>.sources names each cyber/bio/adept/
     //    Active-Effect contribution for the sheet tooltip. Vitest tests the
     //    formatter; this proves the data model actually collects the sources. ──
