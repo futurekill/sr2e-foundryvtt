@@ -1020,6 +1020,100 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      // Derived-cost items price from a FORMULA, not the stored snapshot. Only
+      // in-engine proves the hook reprices them — Vitest can't run preUpdateItem.
+      describe("Derived-cost repricing (the 29,000Y exploit)", () => {
+        it("charges the real difference when a skillsoft's rating changes", async () => {
+          const actor = await makeBuyer("Quench Soft", 1000000);
+          const [soft] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Firearms ActiveSoft", type: "gear",
+              flags: { sr2e: { paid: 1000 } },
+              system: { category: "skillsoft", grantedSkillCategory: "active",
+                        rating: 1, streetIndex: "1" } }
+          ]);
+          assert.equal(soft.system.cost, 1000, "rating 1 derives to 1,000Y");
+          const n0 = actor.system.nuyen;
+          await soft.update({ "system.rating": 6 });
+          // Was 0 before: itemBaseCost read the stale `cost` snapshot for both sides.
+          assert.ok(await settle(() => n0 - actor.system.nuyen === 29000),
+            `rating 1->6 should charge 29,000Y; charged ${n0 - actor.system.nuyen}`);
+          assert.ok(await settle(() => soft.getFlag("sr2e", "paid") === 30000),
+            `paid should reach 30,000Y; got ${soft.getFlag("sr2e", "paid")}`);
+        });
+
+        it("reprices a DataSoft category switch using the authored price", async () => {
+          const actor = await makeBuyer("Quench Data", 1000000);
+          const [soft] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Paydata", type: "gear",
+              flags: { sr2e: { paid: 50000 } },
+              system: { category: "skillsoft", grantedSkillCategory: "data",
+                        rating: 1, cost: 50000, streetIndex: "1" } }
+          ]);
+          // An authored price wins for data — reconstructing this from the PREPARED
+          // cost alone is impossible, which is why ctx carries _source.
+          assert.equal(soft.system.cost, 50000, "authored DataSoft price survives derivation");
+          const n0 = actor.system.nuyen;
+          await soft.update({ "system.grantedSkillCategory": "active" });
+          // active at rating 1 = 1,000Y; refund is capped at what was paid.
+          assert.ok(await settle(() => actor.system.nuyen > n0),
+            "switching data->active should refund the difference");
+        });
+
+        it("a GM editing the catalog price charges NOTHING", async () => {
+          const actor = await makeBuyer("Quench Catalog", 1000000);
+          const [soft] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Catalog Soft", type: "gear",
+              flags: { sr2e: { paid: 1000 } },
+              system: { category: "skillsoft", grantedSkillCategory: "active",
+                        rating: 1, streetIndex: "1" } }
+          ]);
+          const n0 = actor.system.nuyen;
+          // cost / streetIndex are catalog metadata — NOT purchase drivers.
+          await soft.update({ "system.streetIndex": "5" });
+          await settle(() => actor.system.nuyen !== n0, 300);
+          assert.equal(actor.system.nuyen, n0,
+            "re-pricing the market must not retroactively transact against the actor");
+        });
+
+        it("re-sending the same value is a no-op", async () => {
+          const actor = await makeBuyer("Quench Noop", 1000000);
+          const [soft] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Noop Soft", type: "gear",
+              flags: { sr2e: { paid: 1000 } },
+              system: { category: "skillsoft", grantedSkillCategory: "active",
+                        rating: 1, streetIndex: "1" } }
+          ]);
+          const n0 = actor.system.nuyen;
+          await soft.update({ "system.rating": 1 });   // unchanged
+          await settle(() => actor.system.nuyen !== n0, 300);
+          assert.equal(actor.system.nuyen, n0, "an unchanged driver must not transact");
+        });
+
+        it("rebonding a weapon focus reprices off the NEW weapon's Reach", async () => {
+          const actor = await makeBuyer("Quench Rebond", 5000000);
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Knife",   type: "weapon", system: { weaponType: "melee", reach: 0 } },
+            { name: "Polearm", type: "weapon", system: { weaponType: "melee", reach: 2 } }
+          ]);
+          const knife = actor.items.find(i => i.name === "Knife");
+          const pole  = actor.items.find(i => i.name === "Polearm");
+          // Reach 0 + Force 2 = (0+1)*100k + 2*90k = 280,000
+          const [focus] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Blade Focus", type: "focus",
+              flags: { sr2e: { paid: 280000 } },
+              system: { focusType: "weapon", force: 2, bonded: true,
+                        bondedWeaponId: knife.id, streetIndex: "1" } }
+          ]);
+          const n0 = actor.system.nuyen;
+          await focus.update({ "system.bondedWeaponId": pole.id });
+          // Reach 2 + Force 2 = (2+1)*100k + 2*90k = 480,000 -> charge 200,000.
+          // Resolving BOTH sides from the new id would give a zero delta — the very
+          // bug this guards.
+          assert.ok(await settle(() => n0 - actor.system.nuyen === 200000),
+            `rebond knife->polearm should charge 200,000Y; charged ${n0 - actor.system.nuyen}`);
+        });
+      });
+
       describe("Custom cyberware grades (SSC p.98)", () => {
         it("prices alpha at ×3 and beta at ×7, and reduces Essence by 20% / 40%", async () => {
           const actor = await makeBuyer("Quench Grades", 5000000);

@@ -1697,21 +1697,33 @@ export function ratedStreetIndex(ratingStats, rating, flatSI) {
  */
 export function derivedItemCost(sys, ctx = {}) {
   if (!sys) return null;
+  // Every branch REFUSES to compute unless it has every input. A caller that
+  // projects a partial item (chargenSpend passes no `multiplier`) must fall back to
+  // the stored snapshot, not receive NaN — and `NaN ?? fallback` does NOT fall
+  // through, so a garbage number here would propagate silently into a nuyen total.
+  const num = (v) => (typeof v === "number" && Number.isFinite(v));
+
   if (sys.type === "gear" && sys.category === "skillsoft") {
+    if (!num(sys.rating)) return null;
     return skillsoftCost(sys.grantedSkillCategory, sys.rating, ctx.authoredCost ?? 0);
   }
   if (sys.type === "program") {
+    if (!num(sys.rating) || !num(sys.multiplier)) return null;
     return ctx.vr2 ? programCostVR2(sys.rating, sys.multiplier)
                    : programCost(sys.rating, sys.multiplier);
   }
   if (sys.type === "focus") {
-    // A weapon focus bonded to a weapon prices off that weapon's Reach (p.126) and
+    // A WEAPON focus bonded to a weapon prices off that weapon's Reach (p.126) and
     // OVERRIDES the flat per-Force path — mirroring _applyWeaponFoci, which runs
-    // after the item's own prepare. Only when we actually know the Reach.
-    if (ctx.bondedWeaponReach != null) {
-      return weaponFocusCost(ctx.bondedWeaponReach, sys.force ?? 0);
+    // after the item's own prepare. Gate on focusType exactly as that pass does:
+    // a focus retyped to "spell" while a stale bondedWeaponId lingers must NOT keep
+    // weapon pricing, or the hook prices something the sheet doesn't.
+    if (sys.focusType === "weapon" && num(ctx.bondedWeaponReach) && num(sys.force)) {
+      return weaponFocusCost(ctx.bondedWeaponReach, sys.force);
     }
-    if ((sys.costPerForce ?? 0) > 0) return focusCost(sys.force ?? 0, sys.costPerForce);
+    if (num(sys.force) && num(sys.costPerForce) && sys.costPerForce > 0) {
+      return focusCost(sys.force, sys.costPerForce);
+    }
   }
   return null;
 }

@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, weaponFocusCost, overstressPenalty, itemBaseCost } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, overstressPenalty, itemBaseCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
@@ -383,7 +383,17 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // so the sell button and the Rating/Grade-change hook can refund/re-price it.
     // Hold ALT while dropping to add it for FREE (no charge, no `paid` flag).
     if (created && isCharacter && autoCharge) {
-      const base = itemBaseCost({ type: created.type, ...created.system });
+      // Price with the SAME context the purchase hook uses, or an authored DataSoft
+      // is re-derived at the Mp fallback (charged the wrong price) and a bonded
+      // weapon focus is priced off costPerForce instead of its weapon's Reach.
+      let vr2 = false;
+      try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
+      const bondedReach = created.system.bondedWeaponId
+        ? (this.document.items.get(created.system.bondedWeaponId)?.system.reach ?? null)
+        : null;
+      const base = itemBaseCost(
+        { type: created.type, ...created.system },
+        { authoredCost: created._source.system?.cost ?? 0, vr2, bondedWeaponReach: bondedReach });
       if (event?.altKey) {
         if (base > 0) ui.notifications.info(`${created.name} added to ${this.document.name} for free (Alt-drop — no charge).`);
       } else if (base > 0) {
@@ -511,7 +521,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     itemData.system.bondedWeaponId = chosen;
     itemData.system.bonded = true;
     itemData.system.active = true;
-    itemData.system.cost = weaponFocusCost(weapon?.system.reach ?? 0, chosenForce);
+    // Shared derivation (site 5 of 5) — the same helper the prepare pass and the
+    // purchase hook use, so a bonded focus prices identically wherever it's read.
+    itemData.system.cost = derivedItemCost(
+      { type: "focus", focusType: "weapon", force: chosenForce,
+        costPerForce: itemData.system.costPerForce ?? 0 },
+      { bondedWeaponReach: weapon?.system.reach ?? 0 }) ?? itemData.system.cost;
     return true;
   }
 

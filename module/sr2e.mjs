@@ -38,7 +38,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -631,17 +631,35 @@ async function _resetCombatRecoil(combat) {
 Hooks.on("combatTurn",  (combat) => _resetCombatRecoil(combat));
 Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
 
-// Charge (or refund) the nuyen difference when a purchased item's Rating or Grade
-// changes on a character (task: buy higher-rating/graded items). Runs in
-// preUpdateItem so an unaffordable upgrade can be VETOED. Only re-prices items the
-// character actually bought (a `paid` flag exists — Alt-dropped/GM-gifted items,
-// which have none, are left alone). Respects the autoChargePurchases setting and
-// the chargen list-vs-street rule, and folds the new paid total into the same update.
+// Fields whose change IS a purchase decision — "which variant did the character
+// buy?". Changing one charges or refunds the difference.
+//
+// Deliberately NOT here, though they all feed the price: ratingStats, cost,
+// streetIndex, multiplier, costPerForce. Those are CATALOG/AUTHORSHIP metadata. A
+// GM fixing a market price or repairing a rating table must never retroactively
+// transact against every character who owns the item. They are still READ below —
+// each configuration is priced with its own row and Street Index — they just don't
+// TRIGGER anything.
+const PURCHASE_DRIVERS = ["rating", "grade", "force", "grantedSkillCategory",
+                          "bondedWeaponId", "category", "focusType"];
+
+// Charge (or refund) the nuyen difference when a purchased item's configuration
+// changes on a character. Runs in preUpdateItem so an unaffordable upgrade can be
+// VETOED. Only re-prices items the character actually bought (a `paid` flag exists —
+// Alt-dropped/GM-gifted items, which have none, are left alone). Respects the
+// autoChargePurchases setting and the chargen list-vs-street rule, and folds the new
+// paid total into the same update.
 Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   if (game.user.id !== userId || options?.sr2eNoCharge) return;
-  const cRating = changes.system?.rating;
-  const cGrade  = changes.system?.grade;
-  if (cRating === undefined && cGrade === undefined) return;
+  // Only react to a driver that ACTUALLY changed. A write that re-sends the same
+  // value (an importer normalising, a sheet re-submit) must not transact or record
+  // a rollback.
+  const changed = {};
+  for (const k of PURCHASE_DRIVERS) {
+    const v = changes.system?.[k];
+    if (v !== undefined && v !== item.system[k]) changed[k] = v;
+  }
+  if (!Object.keys(changed).length) return;
   const actor = item.parent;
   if (!(actor instanceof Actor) || actor.type !== "character") return;
   let autoCharge = true;
@@ -650,16 +668,45 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   const paid = item.getFlag("sr2e", "paid");
   if (paid == null) return;   // free / GM-gifted item — don't start charging it
 
-  const oldSys = { type: item.type, grade: item.system.grade, rating: item.system.rating,
-    ratingStats: item.system.ratingStats, cost: item.system.cost };
-  const newSys = { ...oldSys, rating: cRating ?? oldSys.rating, grade: cGrade ?? oldSys.grade };
-  const oldBase = itemBaseCost(oldSys);
-  const newBase = itemBaseCost(newSys);
-  if (oldBase === newBase) return;
+  let vr2 = false;
+  try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
+  // The AUTHORED price and Street Index — never the prepared ones. `system.cost` on
+  // a skillsoft is already DERIVED for the current rating, and `system.streetIndex`
+  // has been overwritten by the active rating row; feeding either back in prices the
+  // OLD configuration and the delta collapses to zero.
+  const authoredCost = item._source.system?.cost ?? 0;
+  const flatSI       = item._source.system?.streetIndex;
+  // A weapon focus prices off its BONDED WEAPON's Reach (p.126), so each side must
+  // resolve its own weapon. Using the changed id for both sides would make a rebond
+  // price identically old and new — the very zero-delta bug this fixes.
+  const reachOf = (id) => {
+    const w = id ? actor.items.get(id) : null;
+    return w?.type === "weapon" ? (w.system.reach ?? 0) : null;
+  };
+  const sysFor = (over) => ({
+    type: item.type, grade: item.system.grade, rating: item.system.rating,
+    ratingStats: item.system.ratingStats, cost: authoredCost,
+    category: item.system.category, grantedSkillCategory: item.system.grantedSkillCategory,
+    multiplier: item.system.multiplier, costPerForce: item.system.costPerForce,
+    force: item.system.force, focusType: item.system.focusType,
+    bondedWeaponId: item.system.bondedWeaponId,
+    ...over
+  });
+  const oldSys = sysFor({});
+  const newSys = sysFor(changed);
+  const ctxFor = (sys) => ({ authoredCost, vr2, bondedWeaponReach: reachOf(sys.bondedWeaponId) });
+  const oldBase = itemBaseCost(oldSys, ctxFor(oldSys));
+  const newBase = itemBaseCost(newSys, ctxFor(newSys));
 
   const inChargen = !!actor.system.chargen?.inProgress;
-  const priceOf = (c) => inChargen ? c : streetPrice(c, item.system.streetIndex);
-  let delta = Math.round(priceOf(newBase) - priceOf(oldBase));
+  // Each side is priced at ITS OWN Street Index: the SI can live on the rating row,
+  // so a rating change moves it too.
+  const priceOf = (c, sys) =>
+    inChargen ? c : streetPrice(c, ratedStreetIndex(sys.ratingStats, sys.rating, flatSI));
+  const oldPrice = priceOf(oldBase, oldSys);
+  const newPrice = priceOf(newBase, newSys);
+  if (oldPrice === newPrice) return;
+  let delta = Math.round(newPrice - oldPrice);
 
   // A refund is computed from the CURRENT price tables, but `paid` is what the
   // character really handed over, and the two disagree whenever a price moves
@@ -673,7 +720,7 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   // (paid 200k, now listed 300k) downgraded to a 100k standard piece refunds
   // 100k and leaves 100k paid, rather than refunding the full 200k and handing
   // over the standard ware for nothing.
-  if (delta < 0) delta = Math.min(paid, Math.round(priceOf(newBase))) - paid;
+  if (delta < 0) delta = Math.min(paid, Math.round(newPrice)) - paid;
   if (delta === 0) return;
   const nuyen = actor.system.nuyen ?? 0;
   if (delta > 0 && nuyen < delta) {
@@ -684,11 +731,11 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   // actor.update() could fail (or read stale nuyen) while the item change still
   // commits — a free upgrade. Hand the charge to the updateItem hook below,
   // which awaits it, re-reads nuyen, and rolls the item back on failure.
-  options.sr2ePurchase = {
-    delta,
-    newPaid: Math.max(0, paid + delta),
-    revert: { rating: item.system.rating, grade: item.system.grade }
-  };
+  // Snapshot EVERY driver being changed, dotted and ready to apply. Reverting only
+  // rating/grade while gating more fields would leave the item changed but unpaid.
+  const revert = {};
+  for (const k of Object.keys(changed)) revert[`system.${k}`] = item.system[k];
+  options.sr2ePurchase = { delta, newPaid: Math.max(0, paid + delta), revert };
 });
 
 // Second half of the purchase re-pricing: perform the nuyen charge/refund AFTER
@@ -729,8 +776,8 @@ Hooks.on("updateItem", async (item, changes, options, userId) => {
     }
     try {
       await item.update(
-        { "system.rating": p.revert.rating, "system.grade": p.revert.grade },
-        { sr2eNoCharge: true }   // don't re-enter the charge on the rollback
+        p.revert,                 // every driver that changed, restored
+        { sr2eNoCharge: true }    // don't re-enter the charge on the rollback
       );
     } catch (revertErr) {
       console.error("sr2e | item rollback failed after a failed purchase", revertErr);

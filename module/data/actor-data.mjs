@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -401,7 +401,13 @@ export class CharacterData extends SR2EDataModel {
       if (focus.type !== "focus" || focus.system.focusType !== "weapon") continue;
       const weapon = focus.system.bondedWeaponId ? items.get(focus.system.bondedWeaponId) : null;
       if (weapon?.type === "weapon") {
-        focus.system.cost = weaponFocusCost(weapon.system.reach ?? 0, focus.system.force ?? 0);
+        // Shared derivation (site 4 of 5). This pass is the ONLY one that can see
+        // the bonded weapon, so it supplies the Reach as context — the purchase
+        // hook resolves the same Reach itself and must agree with what lands here.
+        focus.system.cost = derivedItemCost(
+          { type: "focus", focusType: "weapon", force: focus.system.force ?? 0,
+            costPerForce: focus.system.costPerForce ?? 0 },
+          { bondedWeaponReach: weapon.system.reach ?? 0 }) ?? focus.system.cost;
         focus.system._bondedWeaponName = weapon.name;
         weapon.system._boundFocusId = focus.id;
         weapon.system._boundFocusName = focus.name;

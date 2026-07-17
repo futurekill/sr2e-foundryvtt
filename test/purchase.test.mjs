@@ -136,6 +136,21 @@ describe("ratedStreetIndex", () => {
 });
 
 describe("derivedItemCost — cost computed from a formula, not a snapshot", () => {
+  // REGRESSION: a partial projection (chargenSpend passes no `multiplier`) used to
+  // yield NaN — and `NaN ?? fallback` does NOT fall through, so it propagated
+  // straight into the chargen resources total. Refuse rather than guess.
+  it("returns null — never NaN — when an input it needs is missing", () => {
+    expect(derivedItemCost({ type: "program", rating: 3 })).toBe(null);            // no multiplier
+    expect(derivedItemCost({ type: "program", multiplier: 2 })).toBe(null);        // no rating
+    expect(derivedItemCost({ type: "gear", category: "skillsoft" })).toBe(null);   // no rating
+    expect(derivedItemCost({ type: "focus" })).toBe(null);                         // no force
+    expect(derivedItemCost({ type: "focus", force: 2 })).toBe(null);               // no unit cost
+  });
+  it("a partial projection falls back to the stored snapshot, not NaN", () => {
+    const proj = { type: "program", cost: 1800, rating: 3, ratingStats: [] };
+    expect(itemBaseCost(proj)).toBe(1800);
+    expect(Number.isNaN(itemBaseCost(proj))).toBe(false);
+  });
   it("returns null for authored/rated items (they price the old way)", () => {
     expect(derivedItemCost({ type: "weapon", cost: 700 })).toBe(null);
     expect(derivedItemCost({ type: "gear", category: "clothing", cost: 50 })).toBe(null);
@@ -165,9 +180,16 @@ describe("derivedItemCost — cost computed from a formula, not a snapshot", () 
     expect(derivedItemCost({ type: "focus", force: 3, costPerForce: 10000 })).toBe(30000);
   });
   it("a bonded weapon focus prices off the WEAPON's reach and overrides the flat path", () => {
-    const sys = { type: "focus", force: 2, costPerForce: 10000 };
+    const sys = { type: "focus", focusType: "weapon", force: 2, costPerForce: 10000 };
     // (reach 1 + 1) x 100k + force 2 x 90k = 380,000 — not force x costPerForce.
     expect(derivedItemCost(sys, { bondedWeaponReach: 1 })).toBe(380000);
+  });
+  it("only a WEAPON focus takes the weapon path, even with a stale reach", () => {
+    // _applyWeaponFoci gates on focusType === "weapon"; the helper must agree, or a
+    // focus retyped to "spell" with a lingering bondedWeaponId keeps weapon pricing
+    // in the hook while the sheet shows the flat price.
+    const spell = { type: "focus", focusType: "spell", force: 2, costPerForce: 10000 };
+    expect(derivedItemCost(spell, { bondedWeaponReach: 1 })).toBe(20000);
   });
   it("an unbonded weapon focus (no reach in ctx) falls back to the flat path", () => {
     expect(derivedItemCost({ type: "focus", force: 2, costPerForce: 10000 })).toBe(20000);
