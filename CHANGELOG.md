@@ -2,6 +2,18 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.44.0 — 2026-07-17
+
+### Added
+- **Misc Dice now covers every player roll dialog.** The situational ± field
+  from 0.43.1 is now on spell casting, conjuring, Matrix attack, Matrix system
+  operation, vehicle tests, gunnery, and the "Roll a Skill…" picker — in addition
+  to the skill/attribute/weapon/resistance/melee dialogs it already had. Casting
+  and conjuring apply it to the **test only**, never their Drain roll (they're
+  separate tests); the same isolation holds for a failed Crash Test's resistance
+  and for Matrix resistance. Codex-reviewed; Quench asserts the no-leak
+  separation for both casting and conjuring.
+
 ## 0.43.1 — 2026-07-17
 
 ### Added

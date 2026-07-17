@@ -770,7 +770,8 @@ export class SR2EActor extends Actor {
     const conjureResult = await this.rollSuccessTest(conjuringDice, force, {
       label: `Conjure ${kind === "elemental" ? "Elemental" : "Nature Spirit"} ` +
              `(Force ${force}, ${domain}${totemNote}${fociNote})`,
-      karmaDice: opts.karmaDice
+      karmaDice: opts.karmaDice,
+      miscDice: opts.miscDice, miscLabel: opts.miscLabel
     });
     const services = conjureResult?.successes ?? 0;
 
@@ -1979,7 +1980,8 @@ export class SR2EActor extends Actor {
     const result = await this.rollSuccessTest(Math.max(1, opts.attackDice), Math.max(2, opts.tn), {
       label: opts.label ?? `Matrix Attack (TN ${opts.tn})`,
       poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
-      karmaDice: opts.karmaDice ?? 0
+      karmaDice: opts.karmaDice ?? 0,
+      miscDice: opts.miscDice, miscLabel: opts.miscLabel
     });
     if ((result?.successes ?? 0) <= 0) return result;
 
@@ -2160,7 +2162,8 @@ export class SR2EActor extends Actor {
     const result = await this.rollSuccessTest(Math.max(1, dice), Math.max(2, tn), {
       label: `${opLabel} — Computer (TN ${tn})`,
       poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
-      karmaDice: opts.karmaDice ?? 0
+      karmaDice: opts.karmaDice ?? 0,
+      miscDice: opts.miscDice, miscLabel: opts.miscLabel
     });
     const successes = result?.successes ?? 0;
     const beat = successes >= needed;

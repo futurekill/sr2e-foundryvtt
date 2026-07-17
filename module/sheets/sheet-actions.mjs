@@ -337,19 +337,24 @@ async function onDefaultSkill(event, target) {
           <input type="number" name="tn" value="4" min="2" max="30">
         </div>
         <p style="font-size:10px;color:#aaa1c0;margin:4px 0 0;">Trained skills roll their rating; if the character doesn't have the skill it defaults through the Skill Web automatically.</p>
+        ${miscDiceHTML()}
       </form>`,
     buttons: [
       {
         action: "roll", label: "SR2E.Dialog.Roll", default: true,
         callback: (event, button) => {
-          result = { skill: button.form.elements.skill.value, tn: parseInt(button.form.elements.tn.value) || 4 };
+          result = {
+            skill: button.form.elements.skill.value,
+            tn: parseInt(button.form.elements.tn.value) || 4,
+            ...readMiscDice(button.form)
+          };
         }
       },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }
     ]
   });
   if (action !== "roll" || !result) return;
-  return actor.rollNamedSkill(result.skill, result.tn);
+  return actor.rollNamedSkill(result.skill, result.tn, { miscDice: result.miscDice, miscLabel: result.miscLabel });
 }
 
 /**
@@ -1403,6 +1408,7 @@ async function promptSpellOptions(actor, spell) {
       ${tnNote ? `<div style="margin:-2px 0 6px;font-size:10px;padding-left:4px;">${tnNote}</div>` : ""}
       ${poolSection}
       ${karmaDiceSection(actor, magicAttr)}
+      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {
@@ -1424,7 +1430,11 @@ async function promptSpellOptions(actor, spell) {
             drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {},
             // Cap by the chosen Force here; rollSuccessTest re-clamps against
             // the final spell dice (Force + totem) and the live Karma Pool.
-            karmaDice:     readKarmaDice(button.form, actor, force)
+            karmaDice:     readKarmaDice(button.form, actor, force),
+            // Misc applies to the CASTING test only. onCastSpell routes it through
+            // item.roll → the spell roll, which forwards it; the Drain roll uses
+            // drainPoolDice and never receives misc, so casting misc can't leak.
+            ...readMiscDice(button.form)
           };
         }
       },
@@ -1450,7 +1460,8 @@ async function onCastSpell(event, target) {
   return item.roll({
     force: opts.force, targetNumber: opts.tn,
     poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice,
-    karmaDice: opts.karmaDice
+    karmaDice: opts.karmaDice,
+    miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }
 
@@ -1523,6 +1534,7 @@ async function promptConjureOptions(actor, elementals) {
         <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
+      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {
@@ -1534,7 +1546,9 @@ async function promptConjureOptions(actor, elementals) {
             kind,
             domain:    f.domain?.value ?? "",
             fociDice:  Math.max(0, parseInt(f.fociDice?.value) || 0),
-            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+            // Misc applies to the Conjuring test only, not the Charisma Drain roll.
+            ...readMiscDice(button.form)
           };
         }
       },
@@ -1616,6 +1630,7 @@ async function promptMatrixAttackOptions(actor) {
         <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
+      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {
@@ -1627,7 +1642,8 @@ async function promptMatrixAttackOptions(actor) {
             hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
             tn:        Math.max(2, parseInt(f.tn?.value) || 4),
             node:      Math.max(0, parseInt(f.node?.value) || 0),
-            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+            ...readMiscDice(button.form)
           };
         }
       },
@@ -1654,7 +1670,8 @@ async function onMatrixAttack(event, target) {
   return actor.rollMatrixAttack({
     attackDice, tn: opts.tn, nodeRating: opts.node,
     hacking: actor.type === "ic" ? 0 : opts.hacking,
-    karmaDice: opts.karmaDice
+    karmaDice: opts.karmaDice,
+    miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }
 
@@ -1771,6 +1788,7 @@ async function promptSystemOperationOptions(actor) {
         <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
+      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {
@@ -1781,7 +1799,8 @@ async function promptSystemOperationOptions(actor) {
             hostId:    f.host?.value ?? null,
             operation: f.operation?.value ?? null,
             hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
-            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+            karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+            ...readMiscDice(button.form)
           };
         }
       },
@@ -1803,7 +1822,8 @@ async function onSystemOperation(event, target) {
   const opts = await promptSystemOperationOptions(actor);
   if (!opts || !opts.host) return;
   return actor.rollSystemOperation(opts.host, opts.operation, {
-    hacking: opts.hacking, karmaDice: opts.karmaDice
+    hacking: opts.hacking, karmaDice: opts.karmaDice,
+    miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }
 
@@ -2292,6 +2312,7 @@ async function promptVehicleTestOptions(actor, vehicle) {
       </div>
       ${controlHTML}
       ${karmaDiceSection(actor, baseDice)}
+      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {
@@ -2305,7 +2326,8 @@ async function promptVehicleTestOptions(actor, vehicle) {
             terrain:   f.terrain?.value  ?? "normal",
             otherMod:  parseInt(f.otherMod?.value) || 0,
             poolDice:  control > 0 ? { control } : {},
-            karmaDice: readKarmaDice(button.form, actor, baseDice)
+            karmaDice: readKarmaDice(button.form, actor, baseDice),
+            ...readMiscDice(button.form)
           };
         }
       },

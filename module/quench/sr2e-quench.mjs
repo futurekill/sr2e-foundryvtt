@@ -743,6 +743,44 @@ export function registerSR2EQuenchTests() {
           assert.equal(r.dice.length, 4, "no misc → base dice only");
           assert.notInclude(lastCard(), "misc", "a zero misc must not itemize anything");
         });
+
+        it("applies conjuring misc to the summon test but NOT its Drain (separate tests)", async () => {
+          // The correctness Codex flagged: a modifier on the active test must not
+          // leak into the resistance/Drain test. rollConjuring posts the summon
+          // card then the Drain card — the misc must land on the first only.
+          const actor = await Actor.create({
+            name: "Quench Conjure Misc", type: "character",
+            system: { charisma: { base: 4 }, magic: { type: "full_magician", rating: 5 } }
+          });
+          made.push(actor);
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Conjuring", type: "skill", system: { rating: 5, category: "active" } }
+          ]);
+          await actor.rollConjuring({ force: 2, kind: "elemental", domain: "fire", miscDice: 2, miscLabel: "ally" });
+          const cards = game.messages.contents;
+          const summon = cards.find(m => /Conjure/.test(m.content ?? ""));
+          const drain  = cards.find(m => /Conjuring Drain/.test(m.content ?? ""));
+          assert.ok(summon?.content.includes("ally"), "the summon test card should carry the misc note");
+          assert.notInclude(drain?.content ?? "", "ally", "Drain must NOT inherit the conjuring misc");
+        });
+
+        it("applies casting misc to the spell test but NOT its Drain (separate tests)", async () => {
+          const actor = await Actor.create({
+            name: "Quench Cast Misc", type: "character",
+            system: { charisma: { base: 4 }, willpower: { base: 5 }, magic: { type: "full_magician", rating: 5 } }
+          });
+          made.push(actor);
+          const [spell] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Manabolt", type: "spell",
+            system: { category: "combat", drainCode: "[(F÷2)+1]M", force: 5 }
+          }]);
+          await spell.roll({ force: 3, targetNumber: 4, miscDice: 2, miscLabel: "power site" });
+          const cards = game.messages.contents;
+          const cast  = cards.find(m => /Manabolt/.test(m.content ?? "") && !/Drain/.test(m.content ?? ""));
+          const drain = cards.find(m => /Drain Resist/.test(m.content ?? ""));
+          assert.ok(cast?.content.includes("power site"), "the casting card should carry the misc note");
+          assert.notInclude(drain?.content ?? "", "power site", "Drain must NOT inherit the casting misc");
+        });
       });
     }, { displayName: "SR2E: Misc dice" });
 
