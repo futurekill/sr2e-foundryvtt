@@ -64,6 +64,26 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - Shadowtalk banter frequency (off / rare / chatty)
 - Matrix ruleset (core book / Virtual Realities 2.0)
 
+### GM Tools
+These GM-only macros install themselves into the world's **Macro Directory** on
+load (and re-sync when the system updates). Each previews what it will do and
+asks before changing anything. In Foundry, see the **GM Tools & Utility Macros**
+journal in the *SR2E Guides* compendium.
+
+- **Award Karma / Award Nuyen / Team Karma Pool / Refresh Karma Pool / Reset
+  Condition Monitors / Request a Skill Roll** — the everyday GM helpers.
+- **Consolidate Ammo** — merges a character's duplicate ammo piles into one stack
+  each (select the token first). Same-shape piles only; sums quantity and paid
+  value so nothing is lost.
+- **Repair Stale Implants** — fills mechanical fields on implants installed
+  *before* a system update added them (e.g. bone lacing's unarmed Power,
+  Enhanced Articulation's die). Foundry never updates a compendium copy already
+  on a character, so this back-fills only fields still at their default.
+
+Each is a wrapper over the scripting API, also callable from the console:
+`game.sr2e.consolidateAmmo(actor, { dryRun: true })` and
+`game.sr2e.repairStaleImplants()` (add `{ apply: true }` to write).
+
 ## Installation
 
 ### Automatic (Recommended)

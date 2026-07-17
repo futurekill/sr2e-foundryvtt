@@ -2,6 +2,17 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.43.0 — 2026-07-17
+
+### Added
+- **The GM utilities are now installed macros, and documented.** *Consolidate
+  Ammo* and *Repair Stale Implants* were only reachable as `game.sr2e.*` console
+  calls; they now install themselves into the Macro Directory like the other GM
+  macros, each with a preview-then-confirm dialog so nothing changes until you
+  approve it. A new **GM Tools & Utility Macros** journal in the *SR2E Guides*
+  compendium explains all of them, and the README gained a GM Tools section. The
+  console API still works for anyone who prefers it.
+
 ## 0.42.1 — 2026-07-17
 
 ### Fixes

@@ -574,6 +574,16 @@ async function _ensureSystemMacros() {
       name: "Team Karma Pool",
       img: "icons/svg/aura.svg",
       src: "systems/sr2e/macros/team-karma.js"
+    },
+    {
+      name: "Consolidate Ammo",
+      img: "icons/svg/ammunition.svg",
+      src: "systems/sr2e/macros/consolidate-ammo.js"
+    },
+    {
+      name: "Repair Stale Implants",
+      img: "icons/svg/upgrade.svg",
+      src: "systems/sr2e/macros/repair-implants.js"
     }
   ];
 

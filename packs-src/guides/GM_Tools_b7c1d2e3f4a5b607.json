@@ -1,0 +1,49 @@
+{
+  "_id": "b7c1d2e3f4a5b607",
+  "name": "GM Tools & Utility Macros",
+  "folder": null,
+  "sort": 200000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "c8d2e3f4a5b60718",
+      "name": "Utility Macros",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>These GM tools install themselves into your <strong>Macro Directory</strong> automatically — no setup. Look for them by name; each previews what it will do and asks before changing anything.</em></p><h2>Consolidate Ammo</h2><p>Rolls a character's duplicate ammo piles into a single stack each — for a runner who bought ammo a box at a time. <strong>Select the character's token</strong>, then run the macro. It previews what would merge and acts only after you confirm. Quantity and the paid value are summed, so nothing is lost and sell-back still refunds correctly. Piles only merge when they're genuinely the same: a 10-round box and a 50-round belt stay separate, because for ammo the cost is the price of the whole bundle.</p><h2>Repair Stale Implants</h2><p>Fixes implants that were installed <em>before</em> a system update added their mechanics. Foundry copies a compendium item onto a character when you drag it and never updates that copy afterwards — so bone lacing installed before its unarmed-Power field existed, or Enhanced Articulation from before its +1-die field, silently does nothing. This walks every character, previews the fixes, and writes only after you confirm.</p><p>It is <strong>safe</strong>: it fills a field only when the character's copy still holds the default <em>and</em> the compendium has a real value, so it never changes anything you have edited. Implants on <strong>unlinked tokens</strong> aren't touched — link the token, or edit those by hand.</p><h2>The other GM macros</h2><p><strong>Award Karma</strong>, <strong>Award Nuyen</strong>, <strong>Team Karma Pool</strong>, <strong>Refresh Karma Pool</strong>, <strong>Reset Condition Monitors</strong> and <strong>Request a Skill Roll</strong> install the same way. All are GM-only.</p><h2>Running from the console instead</h2><p>Every macro above is a thin wrapper over the system's scripting API, which you can also call from the console (F12) or your own macros:</p><ul><li><code>game.sr2e.consolidateAmmo(actor, { dryRun: true })</code> — preview; drop <code>dryRun</code> to act. Omit <code>actor</code> to use the selected token.</li><li><code>game.sr2e.repairStaleImplants()</code> — preview (dry run); <code>{ apply: true }</code> to write.</li></ul>"
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.0.1",
+    "createdTime": 1782000000000,
+    "modifiedTime": 1782000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!journal!b7c1d2e3f4a5b607"
+}
