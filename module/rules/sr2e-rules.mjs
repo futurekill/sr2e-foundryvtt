@@ -1098,6 +1098,58 @@ export function naturalAttribute(base, racial = 0, edgeBonus = 0, racialMax = nu
   return Math.min(natural, (Number(racialMax) || 0) + (Number(maxBonus) || 0));
 }
 
+/**
+ * Whether two ammo items are the same pile and may be merged.
+ *
+ * Shape equality is ALWAYS required — a shared compendium source never
+ * overrides it, because the drop path is `fromUuid().toObject()` + create and
+ * nothing guarantees `compendiumSource` is populated (packs-src has it null).
+ * Two *conflicting* sources block the merge; a missing source on either side
+ * falls back to shape alone.
+ *
+ * `cost` is part of the shape: for ammo it means "price of this whole bundle",
+ * so a 10-round box at 15¥ and a 50-round belt at 100¥ are NOT the same pile
+ * even if they fire identically.
+ *
+ * @param {object} a - plain ammo data: {src, name, ammoType, damageModifier, armorModifier, damageType, armorCalc, streetIndex, cost}
+ * @param {object} b
+ * @returns {boolean}
+ */
+export function ammoStacks(a, b) {
+  if (!a || !b) return false;
+  const SHAPE = ["name", "ammoType", "damageModifier", "armorModifier",
+                 "damageType", "armorCalc", "streetIndex", "cost"];
+  const sameShape = SHAPE.every((k) => (a[k] ?? null) === (b[k] ?? null));
+  if (!sameShape) return false;
+  // Both sides carry a source: they must agree. Otherwise shape alone decides.
+  if (a.src && b.src) return a.src === b.src;
+  return true;
+}
+
+/**
+ * Whether an update re-opening character creation must be refused.
+ *
+ * "Creation in progress" is one-way for players: they may finish creation, but
+ * only a GM may reopen it. The flag is not cosmetic — while it's set, purchases
+ * are auto-charged at LIST price with no Street Index markup, so re-opening
+ * creation restores book prices mid-campaign and is a GM call.
+ *
+ * Only the off -> on transition is blocked; turning it off, a GM doing anything,
+ * and updates that leave the flag alone (`next === undefined`) all pass.
+ *
+ * Pure so it can be tested without Foundry — the veto itself lives in the
+ * preUpdateActor hook, and Quench can't cover it because Quench runs as a GM.
+ *
+ * @param {boolean} isGM
+ * @param {boolean} current - the flag's stored value
+ * @param {boolean|undefined} next - the flag's incoming value, if the update sets it
+ * @returns {boolean} true if the update should be vetoed
+ */
+export function blocksChargenReopen(isGM, current, next) {
+  if (isGM) return false;
+  return next === true && current === false;
+}
+
 /** "Players can take no more than 5 bonus Attribute Points." (Companion p.24) */
 export const MAX_BONUS_ATTRIBUTE_POINTS = 5;
 

@@ -117,8 +117,12 @@
       <legend>Character Creation</legend>
       <div class="chargen-grid">
         <div class="priority-row flexrow">
-          <label title="While ticked: gear buys at LIST price (no Street Index markup) and the point/nuyen budget panel is shown. Untick for ported or karma-advanced characters and when play begins — the budget panel hides so grown-past-creation totals don't flag as over-budget.">Creation in progress:</label>
-          <input type="checkbox" name="system.chargen.inProgress" {{checked system.chargen.inProgress}} style="width:auto;" />
+          <label title="While ticked: gear buys at LIST price (no Street Index markup) and the point/nuyen budget panel is shown. Untick for ported or karma-advanced characters and when play begins — the budget panel hides so grown-past-creation totals don't flag as over-budget. Unticking is one-way: only the GM can reopen creation, since it restores list-price buying.">Creation in progress:</label>
+          {{!-- One-way for players: unticking is theirs, reopening is the GM's
+                (it restores list-price buying). Disabled rather than left to
+                snap back from the preUpdateActor veto. --}}
+          <input type="checkbox" name="system.chargen.inProgress" {{checked system.chargen.inProgress}} style="width:auto;"
+                 {{#if chargenReopenLocked}}disabled title="Creation is finished. Only the GM can reopen it — it restores list-price buying."{{/if}} />
         </div>
         <div class="priority-row flexrow">
           <label>Method:</label>

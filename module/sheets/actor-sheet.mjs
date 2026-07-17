@@ -832,6 +832,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       force: i.system.force ?? 0,
       bondingCost: i.system.bondingCost ?? 0
     }));
+    // Reopening creation is GM-only (it restores list-price buying), so a player
+    // looking at a finished character gets the box disabled rather than a click
+    // the preUpdateActor veto silently undoes.
+    context.chargenReopenLocked = !game.user.isGM && !system.chargen?.inProgress;
     context.chargenBudget = chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
     // The Companion's two hard limits on the Attribute Edges (p.24). Reported
     // beside the budget, not enforced — like everything else in this panel.

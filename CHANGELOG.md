@@ -2,6 +2,40 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.40.0 — 2026-07-16
+
+### Fixes
+- **Players could re-open character creation, and buy at list price again.**
+  "Creation in progress" isn't cosmetic — while it's ticked, auto-charged
+  purchases pay the **list price with no Street Index markup**. Anyone who could
+  tick it back on was buying gear at book prices mid-campaign. It's now one-way
+  for players: they can finish creation, but only a GM can re-open it. The
+  checkbox is disabled rather than left to snap back, and the veto covers only
+  the off → on transition, so turning it off and every unrelated sheet edit are
+  untouched.
+
+### Added
+- **`game.sr2e.consolidateAmmo()`** rolls an actor's duplicate ammo piles into
+  one stack each — for tidying up a character who bought ammo a box at a time.
+  Select a token and run it from a macro or the console; pass
+  `{ dryRun: true }` first to see what *would* merge without changing anything.
+  Quantity and the paid basis are summed, so the merged pile is worth exactly
+  what the parts were and sell-back is preserved. Piles only merge when they're
+  genuinely the same thing: different bundle sizes (a 10-round box vs a 50-round
+  belt) stay separate, because for ammo `cost` is the price of the whole bundle.
+  A loaded pile is preferred as the survivor and weapons are re-pointed at it.
+
+### Upgrading
+**If bone lacing isn't reaching a character's fists, its implant is a stale
+copy.** 0.38.0 taught the Unarmed Strike to read an `Unarmed Power Bonus` off
+the installed lace — but Foundry copies a compendium item onto a character at
+drag time and never updates that copy afterwards. Any lace installed *before*
+0.38.0 therefore carries a bonus of 0 and does nothing, which 0.38.0's note
+failed to mention. Fix it by opening the lace and setting **Unarmed Power
+Bonus** (plastic 1, aluminum 2, titanium 3) — do NOT delete and re-drag it, as
+that re-charges the character for the implant. The same applies to any implant
+whose behaviour a later release moved into a new field.
+
 ## 0.39.0 — 2026-07-16
 
 ### Fixes

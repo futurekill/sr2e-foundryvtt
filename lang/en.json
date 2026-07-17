@@ -317,6 +317,7 @@
   "SR2E.Quality.Flaw": "Flaw",
   "SR2E.Quality.Attribute": "Attribute",
   "SR2E.Quality.NoAttribute": "— none —",
+  "SR2E.Chargen.ReopenGMOnly": "Character creation is finished. Only the GM can reopen it — it restores list-price buying (no Street Index markup).",
   "SR2E.Quality.Skill": "Skill",
   "SR2E.Quality.Mental": "Mental",
   "SR2E.Quality.Physical": "Physical",
@@ -397,5 +398,12 @@
   "TYPES.Item.focus": "Magical Focus",
   "TYPES.Item.vehicle_mod": "Vehicle Modification",
   "TYPES.Item.race": "Metatype",
-  "TYPES.Item.quality": "Edge / Flaw"
+  "TYPES.Item.quality": "Edge / Flaw",
+  "SR2E.Ammo.ConsolidateNoActor": "Select a token (or assign yourself a character) whose ammo you want to consolidate.",
+  "SR2E.Ammo.ConsolidateNotOwner": "You don't own that character, so its ammo can't be consolidated.",
+  "SR2E.Ammo.ConsolidateNothing": "No duplicate ammo piles to consolidate.",
+  "SR2E.Ammo.ConsolidateDryRun": "Would consolidate: {summary}. Nothing was changed.",
+  "SR2E.Ammo.ConsolidateDone": "Consolidated ammo: {summary}. Removed {removed} duplicate pile(s).",
+  "SR2E.Ammo.ConsolidateFailed": "Consolidating {name} failed; the change was rolled back. Nothing was lost.",
+  "SR2E.Ammo.ConsolidateRollbackFailed": "Consolidating ammo on {name} FAILED AND COULD NOT BE ROLLED BACK. Check that character's ammo and weapons before playing."
 }

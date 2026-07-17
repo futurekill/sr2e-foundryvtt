@@ -38,7 +38,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -62,6 +62,143 @@ async function cleanupQuench() {
   return total;
 }
 
+/**
+ * Roll an actor's duplicate ammo piles into one stack each.
+ *
+ * For a GM tidying up a character who bought ammo a box at a time. Piles merge
+ * only when `ammoStacks` says they're the same thing (identical shape, and no
+ * conflicting compendium source). Different bundle sizes — a 10-round box vs a
+ * 50-round belt — are deliberately NOT merged: `cost` means "price of the whole
+ * bundle" for ammo, so mixing them would corrupt the price basis.
+ *
+ * What moves: `quantity` and `flags.sr2e.paid` are summed, so the merged pile is
+ * worth exactly what the parts were worth and the sell-back refund is preserved.
+ * `system.cost` is untouched (it's catalog data, per PLAN-ammo-stacking.md).
+ * Chargen is unaffected: it prices ammo at `cost * quantity`, which sums to the
+ * same total either way.
+ *
+ * Safety: a loaded pile is preferred as the survivor, and every weapon naming a
+ * doomed pile is re-pointed — BOTH `system.ammo.sourceId` and
+ * `system.ammo.loadedSourceId`, since re-pointing only one leaves a weapon aimed
+ * at a deleted item. Duplicates are deleted BEFORE the survivor is credited: the
+ * reverse order double-counts the rounds if the delete fails. On any failure the
+ * snapshot is rolled back and the error surfaced rather than swallowed.
+ *
+ * Run `game.sr2e.consolidateAmmo()` on the selected token, or pass an actor.
+ *
+ * @param {Actor} [actor] - defaults to the selected token's actor, else your character
+ * @param {{dryRun?: boolean}} [options] - dryRun reports what WOULD merge, changing nothing
+ * @returns {Promise<{merged: number, removed: number, groups: object[]}>}
+ */
+async function consolidateAmmo(actor, { dryRun = false } = {}) {
+  actor ??= canvas.tokens?.controlled?.[0]?.actor ?? game.user.character;
+  if (!actor) {
+    ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNoActor"));
+    return { merged: 0, removed: 0, groups: [] };
+  }
+  if (!actor.isOwner) {
+    ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNotOwner"));
+    return { merged: 0, removed: 0, groups: [] };
+  }
+
+  const shapeOf = (i) => ({
+    src: i._stats?.compendiumSource ?? null,
+    name: i.name,
+    ammoType: i.system.ammoType, damageModifier: i.system.damageModifier,
+    armorModifier: i.system.armorModifier, damageType: i.system.damageType,
+    armorCalc: i.system.armorCalc, streetIndex: i.system.streetIndex,
+    cost: i.system.cost
+  });
+
+  // Group by mergeability. ammoStacks isn't transitive when a source is missing
+  // on one side, so compare against each existing group's first member and take
+  // the first match — deterministic, and never merges a pair it wouldn't accept.
+  const ammo = actor.items.filter((i) => i.type === "ammo");
+  const groups = [];
+  for (const item of ammo) {
+    const g = groups.find((grp) => ammoStacks(shapeOf(grp[0]), shapeOf(item)));
+    if (g) g.push(item); else groups.push([item]);
+  }
+  const dupes = groups.filter((g) => g.length > 1);
+  if (!dupes.length) {
+    ui.notifications?.info(game.i18n.localize("SR2E.Ammo.ConsolidateNothing"));
+    return { merged: 0, removed: 0, groups: [] };
+  }
+
+  // A weapon's loaded snapshot must survive, so prefer a referenced pile as the
+  // survivor; failing that, the biggest.
+  const referenced = new Set();
+  for (const w of actor.items.filter((i) => i.type === "weapon")) {
+    if (w.system.ammo?.sourceId) referenced.add(w.system.ammo.sourceId);
+    if (w.system.ammo?.loadedSourceId) referenced.add(w.system.ammo.loadedSourceId);
+  }
+  const report = [];
+  let merged = 0, removed = 0;
+
+  for (const group of dupes) {
+    const survivor = group.find((i) => referenced.has(i.id))
+      ?? group.reduce((a, b) => ((b.system.quantity ?? 0) > (a.system.quantity ?? 0) ? b : a));
+    const doomed = group.filter((i) => i.id !== survivor.id);
+    const totalQty = group.reduce((s, i) => s + (i.system.quantity ?? 0), 0);
+    const totalPaid = group.reduce((s, i) => s + (i.getFlag("sr2e", "paid") ?? 0), 0);
+    report.push({ name: survivor.name, piles: group.length, quantity: totalQty, paid: totalPaid });
+    if (dryRun) continue;
+
+    // Snapshot everything this group is about to touch, for rollback.
+    const snapshot = {
+      survivor: { quantity: survivor.system.quantity, paid: survivor.getFlag("sr2e", "paid") ?? 0 },
+      doomed: doomed.map((i) => i.toObject()),
+      weapons: actor.items.filter((w) => w.type === "weapon"
+          && (doomed.some((d) => d.id === w.system.ammo?.sourceId)
+           || doomed.some((d) => d.id === w.system.ammo?.loadedSourceId)))
+        .map((w) => ({ _id: w.id,
+          "system.ammo.sourceId": w.system.ammo.sourceId,
+          "system.ammo.loadedSourceId": w.system.ammo.loadedSourceId }))
+    };
+
+    try {
+      // 1. Re-point weapons off the doomed piles and onto the survivor.
+      const repoint = snapshot.weapons.map((w) => {
+        const u = { _id: w._id };
+        if (doomed.some((d) => d.id === w["system.ammo.sourceId"])) u["system.ammo.sourceId"] = survivor.id;
+        if (doomed.some((d) => d.id === w["system.ammo.loadedSourceId"])) u["system.ammo.loadedSourceId"] = survivor.id;
+        return u;
+      });
+      if (repoint.length) await actor.updateEmbeddedDocuments("Item", repoint, { sr2eNoCharge: true });
+
+      // 2. Delete the duplicates BEFORE crediting the survivor. If this throws,
+      //    nothing has been credited yet and the rounds still exist exactly once.
+      await actor.deleteEmbeddedDocuments("Item", doomed.map((i) => i.id));
+
+      // 3. Credit the survivor with the whole pile.
+      await survivor.update({ "system.quantity": totalQty }, { sr2eNoCharge: true });
+      await survivor.setFlag("sr2e", "paid", totalPaid);
+      merged++; removed += doomed.length;
+    } catch (err) {
+      console.error("SR2E | consolidateAmmo failed; rolling back", err);
+      try {
+        await survivor.update({ "system.quantity": snapshot.survivor.quantity }, { sr2eNoCharge: true });
+        await survivor.setFlag("sr2e", "paid", snapshot.survivor.paid);
+        const missing = snapshot.doomed.filter((d) => !actor.items.get(d._id));
+        if (missing.length) await actor.createEmbeddedDocuments("Item", missing, { keepId: true, sr2eNoCharge: true });
+        if (snapshot.weapons.length) await actor.updateEmbeddedDocuments("Item", snapshot.weapons, { sr2eNoCharge: true });
+        ui.notifications?.error(game.i18n.format("SR2E.Ammo.ConsolidateFailed", { name: survivor.name }));
+      } catch (rollbackErr) {
+        // Never silent: the actor may now be inconsistent and the GM must know.
+        console.error("SR2E | consolidateAmmo ROLLBACK FAILED", rollbackErr);
+        ui.notifications?.error(game.i18n.format("SR2E.Ammo.ConsolidateRollbackFailed", { name: actor.name }));
+      }
+      return { merged, removed, groups: report };
+    }
+  }
+
+  const summary = report.map((r) => `${r.name} ×${r.quantity} (${r.piles} piles)`).join(", ");
+  ui.notifications?.info(dryRun
+    ? game.i18n.format("SR2E.Ammo.ConsolidateDryRun", { summary })
+    : game.i18n.format("SR2E.Ammo.ConsolidateDone", { removed, summary }));
+  return { merged, removed, groups: report };
+}
+
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
 /* -------------------------------------------- */
@@ -75,7 +212,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -922,6 +1059,27 @@ Hooks.on("preUpdateActor", (actor, changes) => {
   if (!game.settings.get("sr2e", "syncPortraitToToken")) return;
   const tokenSrc = changes.prototypeToken?.texture?.src;
   if (tokenSrc && changes.img === undefined) changes.img = tokenSrc;
+});
+
+// "Creation in progress" is a ONE-WAY switch for players: they can finish
+// creation, but only a GM can reopen it.
+//
+// It isn't cosmetic — while it's on, auto-charged purchases pay the LIST price
+// with no Street Index markup (see the preUpdateItem purchase hook). A player
+// who flips it back on is buying at book prices mid-campaign, so re-opening
+// creation is a GM call.
+//
+// Vetoing only the off -> on transition leaves every other path alone: turning
+// it off, a GM doing anything, and any update that doesn't touch the flag.
+Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
+  if (actor.type !== "character") return;
+  // Hooks fire on every client; only the one that asked for this should judge it.
+  if (game.user.id !== userId || game.user.isGM) return;
+  const blocked = blocksChargenReopen(
+    game.user.isGM, actor.system.chargen?.inProgress, changes.system?.chargen?.inProgress);
+  if (!blocked) return;
+  ui.notifications.warn(game.i18n.localize("SR2E.Chargen.ReopenGMOnly"));
+  return false;
 });
 
 Hooks.on("updateActor", (actor, changes) => {
