@@ -641,6 +641,59 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Unarmed protected" });
 
+    // ── Derived-value-into-authored-field compounding (GitHub #15). Pure rule
+    //    tests can't see this — it's a Foundry lifecycle bug: a relative
+    //    transform writes the prepared value, the sheet edits the prepared value,
+    //    and saving it back re-applies the transform. Editing ANY unrelated field
+    //    must not change the compounding target. ──
+    quench.registerBatch("sr2e.derived-compounding", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+
+      describe("Bone lacing does not compound unarmed damage", () => {
+        it("keeps (Str+3)M no matter how often the sheet is saved", async () => {
+          const actor = await mk({
+            name: "Quench Compound", type: "character", system: { strength: { base: 6 } }
+          });
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Bone Lacing (Titanium)", type: "cyberware",
+            system: { installed: true, unarmedPowerBonus: 3 }
+          }]);
+          const fist = () => actor.items.find(i => i.name === "Unarmed Strike");
+          assert.equal(fist().system.damageCode, "(Str+3)M", "one lace should give +3");
+          assert.equal(fist()._source.system.damageCode, "(Str)M",
+            "the AUTHORED code must stay (Str)M — the bonus is derived, not stored");
+
+          // Simulate what the sheet does: edit an UNRELATED field. Before the fix
+          // this re-submitted the derived (Str+3)M into source and compounded.
+          for (let i = 0; i < 3; i++) {
+            await fist().update({ "system.damageType": i % 2 ? "physical" : "stun" });
+          }
+          assert.equal(fist()._source.system.damageCode, "(Str)M",
+            "editing damageType must NOT rewrite the authored damage code");
+          assert.equal(fist().system.damageCode, "(Str+3)M",
+            "derived damage must not compound to (Str+3+3)M");
+        });
+
+        it("does not compound a container's combat TN modifier", async () => {
+          const actor = await mk({ name: "Quench TN", type: "character" });
+          const [eyes] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Cybereyes", type: "cyberware",
+            system: { installed: true, combatTnMod: 0, capacity: 0.5,
+              modules: [{ name: "Smartlink", active: true, combatTnMod: -2, essenceCost: 0, cost: 0, rating: 0 }] }
+          }]);
+          const item = () => actor.items.get(eyes.id);
+          assert.equal(item().system.combatTnMod, -2, "active module should give −2");
+          assert.equal(item()._source.system.combatTnMod, 0, "authored base stays 0");
+          for (let i = 0; i < 3; i++) await item().update({ "system.installed": i % 2 === 0 });
+          assert.equal(item()._source.system.combatTnMod, 0, "base must not absorb the module bonus");
+          assert.equal(item().system.combatTnMod, -2, "derived TN must not compound to −8");
+        });
+      });
+    }, { displayName: "SR2E: Derived compounding" });
+
     // ── Bioware / Body Index (Shadowtech) — the derivation edge cases Vitest
     //    can't reach: real prepareData() cycles, awakened Essence, idempotence ──
     quench.registerBatch("sr2e.bioware", (context) => {

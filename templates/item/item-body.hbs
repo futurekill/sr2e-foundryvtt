@@ -58,7 +58,10 @@
   </div>
   <div class="form-group">
     <label>Damage Code:</label>
-    <input type="text" name="system.damageCode" value="{{system.damageCode}}" placeholder="e.g., 6M" />
+    {{!-- Bind the AUTHORED code, not the prepared one — bone lacing rewrites the
+          prepared value and saving it back would compound (GitHub #15). --}}
+    <input type="text" name="system.damageCode" value="{{authored.damageCode}}" placeholder="e.g., 6M" />
+    {{#if damageCodeDerived}}<span class="derived-readout" title="After cyberware/adept modifiers. This is what the attack uses; the field above is the base you author.">Effective: <strong>{{effective.damageCode}}</strong></span>{{/if}}
   </div>
   <div class="form-group">
     <label>Damage Type:</label>
@@ -462,7 +465,10 @@
   </div>
   <div class="form-group">
     <label>Combat TN Modifier:</label>
-    <input type="number" name="system.combatTnMod" value="{{system.combatTnMod}}" />
+    {{!-- Authored value, not prepared: active modules add to it, and saving the
+          prepared value back would fold that bonus in again on every edit. --}}
+    <input type="number" name="system.combatTnMod" value="{{authored.combatTnMod}}" />
+    {{#if combatTnModDerived}}<span class="derived-readout" title="Base plus active module bonuses. This is what weapons see.">Effective: <strong>{{effective.combatTnMod}}</strong></span>{{/if}}
     <span class="hint">(e.g. −1 for Smartlink; applies to compatible weapons only)</span>
   </div>
   <div class="form-group">

@@ -458,7 +458,11 @@ export class CharacterData extends SR2EDataModel {
     const unarmed = this.parent?.items?.find(
       i => i.type === "weapon" && i.name === "Unarmed Strike");
     if (!unarmed) return;
-    unarmed.system.damageCode = unarmedDamageCode(unarmed.system.damageCode, bonus);
+    // Derive from the AUTHORED code, never the prepared one. This is a relative
+    // transform (base + bonus) landing on a field the item sheet also edits, so
+    // reading the prepared value re-adds the bonus to a value that already has
+    // it — (Str+3)M becomes (Str+3+3)M and compounds on every save (GitHub #15).
+    unarmed.system.damageCode = unarmedDamageCode(unarmed._source.system.damageCode, bonus);
     unarmed.system._unarmedPowerBonus = bonus;
   }
 

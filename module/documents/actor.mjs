@@ -938,10 +938,21 @@ export class SR2EActor extends Actor {
     const skillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
     const rating = skillItem?.system?.rating ?? 0;
 
-    let dice = rating;
+    // Defending in melee is a skill test, so it earns the same passive dice as
+    // attacking: Improved Ability (adept) and Enhanced Articulation's +1 on any
+    // Active Skill (Shadowtech p.34). This path counted `rating` alone and
+    // dropped both (GitHub #14). Mirror rollSkillTest exactly — including that
+    // the bonus can lift a 0-rating skill out of defaulting.
+    const adeptBonus = skillItem?.system?._adeptBonus ?? 0;
+    const artBonus = this._activeSkillBonus(skillItem);
+    const skillBonus = adeptBonus + artBonus;
+    const bonusNote = `${adeptBonus ? ` (+${adeptBonus} adept)` : ""}${artBonus ? ` (+${artBonus} articulation)` : ""}`;
+
+    let dice = rating + skillBonus;
     let defaultingPenalty = 0;
-    let defaultingNote = "";
-    if (rating <= 0) {
+    let defaultingNote = bonusNote;
+    if (dice <= 0) {
+      defaultingNote = "";
       const web = this._webDefaultByKey(skillKey);
       if (web) {
         dice = web.dice;

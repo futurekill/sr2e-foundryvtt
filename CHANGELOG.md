@@ -2,6 +2,41 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.41.0 — 2026-07-17
+
+### Fixes
+- **Bone lacing compounded unarmed damage every time you saved the item
+  (GitHub #15).** The Unarmed Strike's derived Power was written into the same
+  `damageCode` field the weapon sheet edits, so opening the weapon and changing
+  anything — even the damage type — re-submitted `(Str+3)M` as the new base, and
+  the next prepare added the +3 again: `(Str+3+3)M`, then `(Str+3+3+3)M`. The
+  derivation now reads the **authored** code, and the sheet edits the authored
+  code while showing the derived one as a read-only "Effective:" hint.
+- **The same bug silently inflated cyberware target numbers.** A container
+  implant (cybereyes/cyberears) folded its active modules' TN bonus into the
+  editable `Combat TN Modifier`, so a Smartlink's −2 compounded on every edit —
+  making the wearer permanently better at shooting. Nobody had reported it yet.
+  Same fix: derive from the authored value, show the effective one beside it.
+- **Enhanced Articulation and Improved Ability did nothing when defending in
+  melee (GitHub #14).** The opposed-melee defence counted skill rating alone and
+  dropped both the adept dice and the +1 Active-Skill die. It now mirrors the
+  attack roll exactly, including that the bonus can lift a 0-rating skill out of
+  defaulting. (The *attack* side already worked; this was the defence path.)
+
+### Upgrading
+- **A weapon already showing `(Str+3+3)M` (or more) is corrupted** by the old
+  bug — its stored base was overwritten. Open the weapon and reset **Damage
+  Code** to its true base (`(Str)M` for innate Unarmed Strike; an adept's Killing
+  Hands uses its own). The lace bonus then re-derives on top. This can't be
+  auto-repaired: a value like `(Str+3)M` is indistinguishable from one a GM
+  authored deliberately.
+- **Enhanced Articulation with no effect, or bone lacing that never reached the
+  fists, is a stale embedded copy** — the implant predates the release that added
+  its field, and Foundry never updates a compendium copy already on a character.
+  Open the implant and set the field by hand: **Active Skill Dice** = 1 for
+  Enhanced Articulation; **Unarmed Power Bonus** = 1/2/3 for plastic/aluminum/
+  titanium lacing. (A GM repair tool for this is planned.)
+
 ## 0.40.0 — 2026-07-16
 
 ### Fixes

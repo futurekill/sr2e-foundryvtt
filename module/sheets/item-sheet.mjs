@@ -45,6 +45,20 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     context.item = item;
     context.system = item.system;
+    // Fields the derivation OVERWRITES in place must be EDITED at their authored
+    // value, or saving the sheet persists the derived one. Where the transform is
+    // relative (base + bonus) that compounds on every save: bone lacing turned
+    // (Str)M into (Str+3)M into (Str+3+3)M (GitHub #15), and module TN bonuses did
+    // the same to combatTnMod. A narrow projection rather than all of `_source`,
+    // so templates don't grow a dependency on a private Foundry property.
+    // `effective` is the prepared value — display only, never an input.
+    context.authored = {
+      damageCode: item._source.system?.damageCode,
+      combatTnMod: item._source.system?.combatTnMod
+    };
+    context.effective = { damageCode: item.system.damageCode, combatTnMod: item.system.combatTnMod };
+    context.damageCodeDerived = context.authored.damageCode !== context.effective.damageCode;
+    context.combatTnModDerived = context.authored.combatTnMod !== context.effective.combatTnMod;
     context.effects = item.effects.contents;
     context.config = CONFIG.SR2E;
     context.isOwned = !!item.parent;

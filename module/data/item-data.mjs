@@ -459,7 +459,13 @@ export class CyberwareData extends SR2EDataModel {
     this.capacityUsed = Math.round(modEssence * 100) / 100;
     this.capacityOver = Math.max(0, Math.round((modEssence - (this.capacity ?? 0)) * 100) / 100);
     this.moduleCost   = modCost;
-    this.combatTnMod  = (this.combatTnMod ?? 0) + modTn;
+    // Add the modules' TN bonus to the AUTHORED value, never to the prepared one.
+    // This is a relative transform landing on a field the sheet also edits, so
+    // reading `this.combatTnMod` would fold the modules' bonus in again every
+    // time a prepared value got saved back — permanently improving the wearer's
+    // target numbers on each edit. (GitHub #15 was the same bug on unarmed
+    // damage.) `_source` is what the user actually typed.
+    this.combatTnMod = (this._source.combatTnMod ?? 0) + modTn;
   }
 
   /**
