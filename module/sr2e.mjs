@@ -38,7 +38,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -60,6 +60,106 @@ async function cleanupQuench() {
   }
   ui.notifications?.info(`cleanupQuench: removed ${total} leftover document(s).`);
   return total;
+}
+
+/**
+ * Re-stamp system-owned mechanical fields onto stale embedded implants.
+ *
+ * Foundry copies a compendium item onto a character at drag time and never
+ * updates that copy, so an implant installed before a field existed keeps the
+ * schema default forever and its feature silently does nothing — bone lacing
+ * that never reaches the fists (unarmedPowerBonus 0), Enhanced Articulation with
+ * no +1 die (activeSkillDice 0). This walks every character's cyberware/bioware,
+ * resolves each item's compendium source, and — for the whitelist in
+ * REPAIRABLE_IMPLANT_FIELDS only — fills a field that still holds its default
+ * from the current compendium value.
+ *
+ * Safe by construction (see `repairedFieldValue`): it only ever writes a field
+ * the character hasn't touched, and only from a resolved source, so it can't
+ * clobber a GM's edits or invent values. Items with no resolvable source are
+ * reported and skipped. Dry-run by default.
+ *
+ * Run `game.sr2e.repairStaleImplants()` to preview, then `{ apply: true }`.
+ *
+ * @param {{apply?: boolean}} [options] - apply:false (default) reports only
+ * @returns {Promise<{scanned:number, repaired:number, noSource:number, changes:object[]}>}
+ */
+async function repairStaleImplants({ apply = false } = {}) {
+  if (!game.user.isGM) { ui.notifications?.warn(game.i18n.localize("SR2E.Repair.GMOnly")); return { scanned: 0, repaired: 0, noSource: 0, changes: [] }; }
+
+  // Group the whitelist by item type for a quick per-item lookup.
+  const byType = {};
+  for (const [type, field, dflt] of REPAIRABLE_IMPLANT_FIELDS) {
+    (byType[type] ??= []).push({ field, dflt });
+  }
+
+  // Resolve a compendium source once per UUID — many characters share an item.
+  const sourceCache = new Map();
+  const resolveSource = async (item) => {
+    const uuid = item._stats?.compendiumSource;
+    if (uuid) {
+      if (!sourceCache.has(uuid)) {
+        try { sourceCache.set(uuid, await fromUuid(uuid)); } catch { sourceCache.set(uuid, null); }
+      }
+      if (sourceCache.get(uuid)) return sourceCache.get(uuid);
+    }
+    // Fallback: exact name+type match across item compendia. Exact name isn't
+    // identity, so require EXACTLY ONE match in the entire estate — a second hit
+    // anywhere (another pack, or a duplicate inside one pack) makes it ambiguous
+    // and we skip rather than risk sourcing from the wrong catalog item (Codex).
+    const key = `${item.type}:${item.name}`;
+    if (!sourceCache.has(key)) {
+      const hits = [];
+      for (const pack of game.packs) {
+        if (pack.documentName !== "Item") continue;
+        for (const e of pack.index) {
+          if (e.type === item.type && e.name === item.name) hits.push({ pack, id: e._id });
+        }
+      }
+      sourceCache.set(key, hits.length === 1 ? await hits[0].pack.getDocument(hits[0].id) : null);
+    }
+    return sourceCache.get(key);
+  };
+
+  const changes = [];
+  let scanned = 0, noSource = 0;
+  for (const actor of game.actors) {
+    const perItem = [];
+    for (const item of actor.items) {
+      const fields = byType[item.type];
+      if (!fields) continue;
+      scanned++;
+      const source = await resolveSource(item);
+      if (!source) { noSource++; continue; }
+      const update = { _id: item.id };
+      const touched = [];
+      for (const { field, dflt } of fields) {
+        const next = repairedFieldValue(item.system[field], source.system?.[field], dflt);
+        if (next !== null) { update[`system.${field}`] = next; touched.push({ field, from: item.system[field], to: next }); }
+      }
+      if (touched.length) {
+        perItem.push(update);
+        changes.push({ actor: actor.name, item: item.name, fields: touched });
+      }
+    }
+    if (perItem.length && apply) {
+      await actor.updateEmbeddedDocuments("Item", perItem, { sr2eNoCharge: true });
+    }
+  }
+
+  const fieldCount = changes.reduce((n, c) => n + c.fields.length, 0);
+  const summary = changes.map((c) => `${c.actor} · ${c.item}: ${c.fields.map((f) => `${f.field} ${f.from}→${f.to}`).join(", ")}`);
+  if (!changes.length) {
+    ui.notifications?.info(game.i18n.format("SR2E.Repair.Nothing", { scanned, noSource }));
+  } else if (apply) {
+    ui.notifications?.info(game.i18n.format("SR2E.Repair.Applied", { count: fieldCount }));
+    console.log("SR2E | repairStaleImplants applied:\n" + summary.join("\n"));
+  } else {
+    ui.notifications?.info(game.i18n.format("SR2E.Repair.DryRun", { count: fieldCount }));
+    console.log("SR2E | repairStaleImplants would change (run with {apply:true}):\n" + summary.join("\n"));
+  }
+  // repaired counts FIELDS; changes lists items (each with its fields[]).
+  return { scanned, repaired: apply ? fieldCount : 0, noSource, changes };
 }
 
 /**
@@ -212,7 +312,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();

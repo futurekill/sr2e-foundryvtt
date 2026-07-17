@@ -979,10 +979,18 @@ export class SR2EActor extends Actor {
     const { winner, net } = meleeOutcome(state.successes, defense?.successes ?? 0);
 
     if (winner === "defender") {
-      // Defender wins and strikes back with THEIR weapon
-      const code = weapon ? weapon.system.damageCode : "(Str)M";
+      // Defender wins and strikes back with THEIR weapon. For an unarmed
+      // counterstrike, use the actor's own Unarmed Strike so bone lacing's Power
+      // reaches it (it hardcoded "(Str)M" and dropped the lace bonus entirely).
+      // A riposte is reactive with no dialog, so it stays Stun — the bone-lacing
+      // physical option is an active declaration made on your own attack.
+      const strikeWeapon = weapon
+        ?? this.items.find(i => i.type === "weapon" && i.name === "Unarmed Strike");
+      const code = strikeWeapon ? strikeWeapon.system.damageCode : "(Str)M";
       const dmg = evaluateDamageCode(code, this);
-      const damageType = weapon ? (weapon.system.damageType || "physical") : "stun";
+      const damageType = weapon
+        ? (weapon.system.damageType || "physical")
+        : (strikeWeapon?.system.damageType || "stun");
       await this._resolveMeleeHit(message, state, {
         winnerName: this.name, loserName: state.attackerName,
         weaponName: defWeaponName, net,

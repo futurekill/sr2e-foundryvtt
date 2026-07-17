@@ -1150,6 +1150,54 @@ export function blocksChargenReopen(isGM, current, next) {
   return next === true && current === false;
 }
 
+/**
+ * System-owned fields that were added to item schemas AFTER content shipped, and
+ * whose absence on an embedded copy is silently invisible (the feature just does
+ * nothing). Foundry never updates a compendium item already on a character, so a
+ * copy dragged before the field existed keeps the schema default forever. The
+ * repair tool re-stamps ONLY these, and only from a resolved compendium source.
+ *
+ * Each entry is [itemType, fieldPath, schemaDefault]. Keep this list in step with
+ * the schemas in item-data.mjs when a new mechanical field lands on old content.
+ */
+// NUMBER fields only, where the schema default 0 unambiguously means "this
+// feature is absent" on an item whose identity makes the bonus mandatory (a lace
+// with no unarmed Power, Enhanced Articulation with no die — both nonsensical).
+// A boolean like isTacticalComputer is deliberately EXCLUDED: default `false` is
+// indistinguishable from a GM who turned it off, so repairing it could re-enable
+// something disabled on purpose (Codex).
+export const REPAIRABLE_IMPLANT_FIELDS = Object.freeze([
+  ["cyberware", "unarmedPowerBonus", 0],  // 0.38.0 — bone lacing (Shadowtech p.42)
+  ["bioware",   "activeSkillDice", 0]      // 0.38.0 — Enhanced Articulation (Shadowtech p.34)
+]);
+
+/**
+ * Decide the repaired value for one field of a stale embedded implant, or null
+ * to leave it alone.
+ *
+ * The rule: re-stamp ONLY when the embedded copy still holds the schema default
+ * AND the source has a different, real value to restore. The default is a *proxy*
+ * for "predates the field", not a proof — a GM who deliberately set the default
+ * is indistinguishable — so this is confined to number fields where the default
+ * (0) is nonsensical for the item that carries it (a bone lace worth 0 unarmed
+ * Power), and it always runs dry-run first for the GM to review. It will not
+ * touch a field the GM has moved off the default.
+ *
+ * A source value equal to the default carries no information, so it's skipped:
+ * plenty of cyberware legitimately has `unarmedPowerBonus: 0`.
+ *
+ * @param {*} embedded - the field's value on the character's copy
+ * @param {*} source - the field's value in the current compendium item
+ * @param {*} schemaDefault - the field's schema initial
+ * @returns {*|null} the value to write, or null for "leave it"
+ */
+export function repairedFieldValue(embedded, source, schemaDefault) {
+  if (embedded !== schemaDefault) return null;          // GM has a value here — hands off
+  if (source === schemaDefault || source === undefined || source === null) return null;
+  if (source === embedded) return null;                 // nothing would change
+  return source;
+}
+
 /** "Players can take no more than 5 bonus Attribute Points." (Companion p.24) */
 export const MAX_BONUS_ATTRIBUTE_POINTS = 5;
 
@@ -1921,6 +1969,25 @@ export function unarmedDamageCode(baseCode, powerBonus) {
  */
 export function unarmedPhysicalPower(power) {
   return Math.ceil(Math.max(0, Number(power) || 0) / 2);
+}
+
+/**
+ * Whether an unarmed strike should take the bone-lacing physical option this
+ * attack (Shadowtech p.42) — halved Power, physical damage.
+ *
+ * It is a per-attack CHOICE, never inferred from the weapon's damage type: the
+ * type alone can't tell "chose the lacing option" from "an adept who set their
+ * fists to physical" from stray data. The three conditions (Codex's review):
+ *  - the option was chosen this attack;
+ *  - the character actually has lacing that adds unarmed Power (bonus > 0);
+ *  - Killing Hands is NOT in play — it supplies physical damage under its own
+ *    rule and replaces the level, so it isn't the lacing option and isn't halved.
+ *
+ * @param {{boneLacingPhysical?:boolean, killingHands?:string, unarmedPowerBonus?:number}} o
+ * @returns {boolean}
+ */
+export function appliesBoneLacingPhysical({ boneLacingPhysical, killingHands, unarmedPowerBonus } = {}) {
+  return !!boneLacingPhysical && !killingHands && (Number(unarmedPowerBonus) || 0) > 0;
 }
 
 /**

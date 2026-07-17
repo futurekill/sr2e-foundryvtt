@@ -1,6 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -683,6 +683,7 @@ export class SR2EItem extends Item {
     if (isMelee) {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
       let level = dmg.level;
+      let power = Math.max(1, dmg.power);
       let damageType = this.system.damageType || "physical";
       let weaponName = this.name;
       // Killing Hands (SR2E p.125–126): an adept may declare their unarmed
@@ -693,13 +694,24 @@ export class SR2EItem extends Item {
         level = options.killingHands;
         damageType = "physical";
         weaponName = `${this.name} (Killing Hands)`;
+      } else if (appliesBoneLacingPhysical({
+        boneLacingPhysical: options.boneLacingPhysical,
+        killingHands: options.killingHands,
+        unarmedPowerBonus: this.system._unarmedPowerBonus
+      })) {
+        // Bone lacing physical option (Shadowtech p.42): physical damage at
+        // HALF Power (round up). The lace bonus is already in dmg.power via the
+        // derived code; halve the resolved number, never the (Str+N) formula.
+        power = Math.max(1, unarmedPhysicalPower(power));
+        damageType = "physical";
+        weaponName = `${this.name} (physical, ½ Power)`;
       }
       const meleeState = {
         attackerUuid: actor.uuid,
         attackerName: actor.name,
         weaponName,
         successes: result.successes,
-        power: Math.max(1, dmg.power),
+        power,
         level,
         damageType,
         resolved: false

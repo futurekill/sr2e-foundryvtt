@@ -2,6 +2,36 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.42.0 — 2026-07-17
+
+### Added
+- **Bone lacing can strike for physical damage** (Shadowtech p.42). An unarmed
+  attack from a laced character now offers a **Physical (½ Power)** option in the
+  melee dialog: the blow becomes physical but its Power is halved, rounding up —
+  so a titanium `(Str+3)` at Power 9 lands as physical Power 5. Shown alongside
+  Killing Hands for an adept who has both; ticking Killing Hands takes precedence
+  (it has its own physical rule and isn't halved). Unarmed **counterstrikes** now
+  also carry the lace's Power bonus — they previously hardcoded `(Str)M` and
+  ignored bone lacing entirely — and stay Stun, since a riposte makes no
+  declaration.
+- **`game.sr2e.repairStaleImplants()`** — a GM tool to fix implants that predate
+  a field. When a release adds a mechanic (0.38.0 added bone lacing's Power and
+  Enhanced Articulation's die), implants already on a character keep the old
+  default and do nothing, because Foundry never updates a compendium copy in
+  place. This walks every character, matches each cyberware/bioware to its
+  compendium source, and fills only a whitelisted field still sitting at its
+  default. **Dry-run by default** — run it, read the console list, then re-run
+  with `{ apply: true }`. It only touches number fields where the default is
+  nonsensical for the item (a lace worth 0 Power), never booleans like the
+  tactical computer where "off" might be deliberate, and never a value a GM has
+  moved off the default. Items with no single unambiguous source are skipped.
+
+### Notes
+- The repair tool covers world actors; implants on **unlinked** tokens aren't
+  swept (link the token, or edit the field by hand). The schema default is a
+  proxy for "predates the field", not proof — which is why it's dry-run first and
+  confined to fields where the default can't be a real choice.
+
 ## 0.41.0 — 2026-07-17
 
 ### Fixes

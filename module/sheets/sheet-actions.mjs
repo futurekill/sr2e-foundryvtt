@@ -490,6 +490,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     }
   }
 
+  // Bone lacing physical option (Shadowtech p.42): with lacing, an unarmed blow
+  // may be declared physical at HALF Power. Offered whenever a lace contributes
+  // unarmed Power (that positive bonus lives only on the innate Unarmed Strike,
+  // so it also gates out any other /unarmed/i weapon). It's shown ALONGSIDE the
+  // Killing Hands box for an adept who has both — the roll resolves KH first when
+  // both are ticked, so an adept can uncheck KH and take the lacing option
+  // instead (Codex).
+  const laceBonus = weapon.system._unarmedPowerBonus ?? 0;
+  const offerBoneLacingPhysical = isMelee && laceBonus > 0;
+
   // ── Auto-detected modifiers ───────────────────────────────────────────────
 
   // Accessories attached to this weapon (SR2E p.240–241): recoil comp, TN
@@ -832,6 +842,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <label title="Declare the strike as PHYSICAL damage at your Killing Hands level instead of (Str)M Stun (SR2E p.125-126)">Killing Hands (${killingHands} Physical):</label>
         <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked style="width:auto;">
       </div>` : ""}
+      ${offerBoneLacingPhysical ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+        <label title="Bone lacing lets you strike for PHYSICAL damage, but the Power Level is halved, round up (Shadowtech p.42). Leave unchecked for normal (Str+${laceBonus})M Stun.">Physical (½ Power):</label>
+        <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical" style="width:auto;">
+      </div>` : ""}
       <div class="form-group" style="margin:2px 0;">
         <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
@@ -1066,6 +1080,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             positionMod:     (f.supPos?.checked ? -1 : 0) + (f.prone?.checked ? -2 : 0),
             multiMod:        2 * Math.max(0, parseInt(f.multiTargets?.value) || 0),
             killingHands:    f.killingHands?.checked ? killingHands : "",
+            boneLacingPhysical: !!f.boneLacingPhysical?.checked,
             shotSpread:      !!f.shotSpread?.checked,
             choke:           weapon.system.choke ?? 0,
             poolDice,
@@ -1203,6 +1218,7 @@ export async function rollWeaponInteractive(actor, item) {
     skillVariant:    opts.skillVariant,
     visMod:          opts.visMod,
     killingHands:    opts.killingHands,
+    boneLacingPhysical: opts.boneLacingPhysical,
     range:           opts.range,
     firingMode:      opts.firingMode,
     rounds:          opts.rounds,

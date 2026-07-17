@@ -405,5 +405,9 @@
   "SR2E.Ammo.ConsolidateDryRun": "Would consolidate: {summary}. Nothing was changed.",
   "SR2E.Ammo.ConsolidateDone": "Consolidated ammo: {summary}. Removed {removed} duplicate pile(s).",
   "SR2E.Ammo.ConsolidateFailed": "Consolidating {name} failed; the change was rolled back. Nothing was lost.",
-  "SR2E.Ammo.ConsolidateRollbackFailed": "Consolidating ammo on {name} FAILED AND COULD NOT BE ROLLED BACK. Check that character's ammo and weapons before playing."
+  "SR2E.Ammo.ConsolidateRollbackFailed": "Consolidating ammo on {name} FAILED AND COULD NOT BE ROLLED BACK. Check that character's ammo and weapons before playing.",
+  "SR2E.Repair.GMOnly": "Repairing stale implants is GM-only.",
+  "SR2E.Repair.Nothing": "No stale implants found ({scanned} scanned, {noSource} with no compendium source).",
+  "SR2E.Repair.DryRun": "{count} implant field(s) can be repaired. See the console for the list, then re-run with apply:true to write them.",
+  "SR2E.Repair.Applied": "Repaired {count} stale implant field(s). See the console for details."
 }
