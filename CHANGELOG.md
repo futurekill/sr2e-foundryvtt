@@ -2,6 +2,19 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.44.1 — 2026-07-17
+
+### Fixes
+- **Sample runners now have portraits and locked token rotation.** The six
+  pregen runners (Razor, Tiger, Hexen, Glitch, Patch, Whisper) carry their new
+  character art on both the sheet and the token; all seven (incl. Silk) ship with
+  `lockRotation` on, so dragging/targeting a token can't spin the portrait.
+- **Consolidate Ammo macro had a broken icon.** It pointed at
+  `icons/svg/ammunition.svg`, which isn't a core Foundry icon — swapped to
+  `icons/svg/target.svg` (the same icon the ammo items use). Also fixed the macro
+  re-sync so an icon-only change actually reaches existing worlds (it previously
+  re-synced only when the macro's *command* changed).
+
 ## 0.44.0 — 2026-07-17
 
 ### Added

@@ -2,9 +2,9 @@
   "_id": "839a67840ff48d74",
   "name": "Whisper (Dog Shaman)",
   "type": "character",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/pregen_portraits/whisper.webp",
   "system": {
-    "biography": "<p>A street medic turned shaman after Dog found her patching gangers in a condemned clinic. Loyal to her neighbourhood to a fault; her healing magic is the only clinic some of them will ever see.</p><p><em>Sample character \u2014 Dog totem: +2 dice on detection spells, +2 on field/hearth spirits (SR2E p.122).</em></p>",
+    "biography": "<p>A street medic turned shaman after Dog found her patching gangers in a condemned clinic. Loyal to her neighbourhood to a fault; her healing magic is the only clinic some of them will ever see.</p><p><em>Sample character — Dog totem: +2 dice on detection spells, +2 on field/hearth spirits (SR2E p.122).</em></p>",
     "notes": "",
     "race": "human",
     "body": {
@@ -727,7 +727,7 @@
         "legality": "Legal",
         "equipped": true,
         "isLayered": false,
-        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives\u2014stylish and protective."
+        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives—stylish and protective."
       },
       "effects": [],
       "flags": {},
@@ -771,7 +771,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "systems/sr2e/assets/pregen_portraits/whisper.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -783,7 +783,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

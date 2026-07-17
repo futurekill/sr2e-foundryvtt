@@ -2,7 +2,7 @@
   "_id": "e01ce6f649485ac3",
   "name": "Patch (Rigger)",
   "type": "character",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/pregen_portraits/patch.webp",
   "system": {
     "biography": "<p>A dwarven wheelman who loves machines more than people and trusts them further. Jacked into a rig, Patch IS the vehicle — link a vehicle actor on the Vehicles tab and toggle Jacked In.</p><p><em>Sample character.</em></p>",
     "notes": "",
@@ -660,7 +660,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "systems/sr2e/assets/pregen_portraits/patch.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -672,7 +672,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

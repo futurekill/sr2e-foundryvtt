@@ -2,7 +2,7 @@
   "_id": "117e09f576634196",
   "name": "Tiger (Physical Adept)",
   "type": "character",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/pregen_portraits/tiger.webp",
   "system": {
     "biography": "<p>A weapon that happens to be a person. No cyber, no spells — just a body honed by magic into something faster and deadlier than chrome. Speaks softly; the killing hands do the talking.</p>",
     "notes": "",
@@ -662,7 +662,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/upgrade.svg",
+      "src": "systems/sr2e/assets/pregen_portraits/tiger.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -674,7 +674,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

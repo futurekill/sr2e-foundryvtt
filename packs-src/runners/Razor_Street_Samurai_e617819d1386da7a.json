@@ -2,7 +2,7 @@
   "_id": "e617819d1386da7a",
   "name": "Razor (Street Samurai)",
   "type": "character",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/pregen_portraits/razor.webp",
   "system": {
     "biography": "<p>An ork muscle-for-hire who treats violence as a trade skill and contracts as sacred. Wired reflexes and a smartlinked SMG do the talking; the katana is for when talking fails.</p><p><em>Sample character — adjust gear and contacts to taste.</em></p>",
     "notes": "",
@@ -878,7 +878,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "systems/sr2e/assets/pregen_portraits/razor.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -890,7 +890,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

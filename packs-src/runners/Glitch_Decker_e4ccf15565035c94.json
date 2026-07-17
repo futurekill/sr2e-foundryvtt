@@ -2,7 +2,7 @@
   "_id": "e4ccf15565035c94",
   "name": "Glitch (Decker)",
   "type": "character",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/pregen_portraits/glitch.webp",
   "system": {
     "biography": "<p>An elven data-thief who grew up jacked in and never quite came back out. Glitch is charming in meatspace and untouchable in the Matrix — or so they keep saying.</p><p><em>Sample character — cyberdeck statistics are on the Matrix tab.</em></p>",
     "notes": "",
@@ -825,7 +825,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/mystery-man.svg",
+      "src": "systems/sr2e/assets/pregen_portraits/glitch.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -837,7 +837,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

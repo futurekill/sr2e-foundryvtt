@@ -577,7 +577,7 @@ async function _ensureSystemMacros() {
     },
     {
       name: "Consolidate Ammo",
-      img: "icons/svg/ammunition.svg",
+      img: "icons/svg/target.svg",
       src: "systems/sr2e/macros/consolidate-ammo.js"
     },
     {
@@ -593,10 +593,12 @@ async function _ensureSystemMacros() {
       const command = await response.text();
       const existing = game.macros.find(m => m.name === def.name && m.flags?.["sr2e"]?.systemMacro);
       if (existing) {
-        // Re-sync a system macro whose shipped file changed, so macro fixes
-        // actually reach existing worlds. (Only touches system-flagged macros;
-        // a GM who wants a custom version should duplicate under a new name.)
-        if (existing.command !== command) await existing.update({ command, img: def.img });
+        // Re-sync a system macro whose shipped file OR icon changed, so macro
+        // fixes reach existing worlds. (Only touches system-flagged macros; a GM
+        // who wants a custom version should duplicate under a new name.)
+        if (existing.command !== command || existing.img !== def.img) {
+          await existing.update({ command, img: def.img });
+        }
         continue;
       }
       await Macro.create({
