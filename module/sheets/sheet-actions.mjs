@@ -1,5 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod } from "../rules/sr2e-rules.mjs";
+import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -118,6 +119,8 @@ function readKarmaDice(form, actor, baseDice) {
   return Math.max(0, Math.min(raw, cap));
 }
 
+
+
 /**
  * Prompt for a target number and optional pool / karma dice via DialogV2.
  * Shows only pools that have available dice.
@@ -197,6 +200,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
         </div>
         ${poolHTML}
         ${karmaHTML}
+        ${miscDiceHTML()}
       </form>
     `,
     buttons: [
@@ -215,7 +219,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
             if (clamped > 0) poolDice[p.key] = clamped;
           }
           const karmaDice = readKarmaDice(button.form, actor, baseDice);
-          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice };
+          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice, ...readMiscDice(button.form) };
         }
       },
       {
@@ -246,7 +250,7 @@ async function onRollAttribute(event, target) {
   const opts = await promptRollOptions(actor, { showPools: false, baseDice });
   if (!opts) return;
   return actor.rollAttributeTest(attribute, opts.tn, {
-    poolDice: opts.poolDice, karmaDice: opts.karmaDice
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }
 
@@ -264,7 +268,7 @@ async function onRollSkill(event, target) {
     const chip = actor.system.chippedSkills?.find(s => s.softId === softId);
     const opts = await promptRollOptions(actor, { showPools: false, baseDice: chip?.system.rating ?? 1 });
     if (!opts) return;
-    return actor.rollChippedSkill(softId, opts.tn, { poolDice: opts.poolDice, karmaDice: opts.karmaDice });
+    return actor.rollChippedSkill(softId, opts.tn, { poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
   }
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
@@ -290,7 +294,7 @@ async function onRollSkill(event, target) {
   const opts = await promptRollOptions(actor, { showPools: false, baseDice });
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, {
-    poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant, miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }
 
@@ -1044,6 +1048,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       </div>
       ${poolHTML}
       ${karmaDiceSection(actor, baseDice)}
+      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {
@@ -1084,7 +1089,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             shotSpread:      !!f.shotSpread?.checked,
             choke:           weapon.system.choke ?? 0,
             poolDice,
-            karmaDice:       readKarmaDice(button.form, actor, baseDice)
+            karmaDice:       readKarmaDice(button.form, actor, baseDice),
+            ...readMiscDice(button.form)
           };
         }
       },
@@ -1219,6 +1225,8 @@ export async function rollWeaponInteractive(actor, item) {
     visMod:          opts.visMod,
     killingHands:    opts.killingHands,
     boneLacingPhysical: opts.boneLacingPhysical,
+    miscDice:        opts.miscDice,
+    miscLabel:       opts.miscLabel,
     range:           opts.range,
     firingMode:      opts.firingMode,
     rounds:          opts.rounds,
@@ -1811,7 +1819,7 @@ async function onRollProgram(event, target) {
   // Karma dice are capped at the program rating (= base dice in use)
   const opts = await promptRollOptions(this.document, { baseDice: item.system.rating ?? 0 });
   if (opts === null) return;
-  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice, karmaDice: opts.karmaDice });
+  return item.roll({ targetNumber: opts.tn, poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
 }
 
 /**

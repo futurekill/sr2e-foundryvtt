@@ -694,6 +694,58 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Derived compounding" });
 
+    // ── Misc dice: a signed situational modifier threaded through rollSuccessTest.
+    //    Vitest can't reach the roll engine, so assert the rolled dice COUNT
+    //    (deterministic) and the itemized breakdown on the card. ──
+    quench.registerBatch("sr2e.misc-dice", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+      const mk = async () => { const a = await Actor.create({ name: "Quench Misc", type: "character", system: { body: { base: 4 } } }); made.push(a); return a; };
+      const lastCard = () => game.messages.contents.at(-1)?.content ?? "";
+
+      describe("Misc dice (situational ± modifier)", () => {
+        it("adds a positive misc bonus to the pool and itemizes it", async () => {
+          const actor = await mk();  // Body 4
+          const r = await actor.rollAttributeTest("body", 4, { miscDice: 2, miscLabel: "Tailored Pheromones" });
+          assert.equal(r.dice.length, 6, "4 base + 2 misc = 6 dice rolled");
+          assert.ok(lastCard().includes("+2") && lastCard().includes("Tailored Pheromones"),
+            "the card should itemize +2 misc with the note");
+        });
+
+        it("applies a negative misc as a dice penalty", async () => {
+          const actor = await mk();  // Body 4
+          const r = await actor.rollAttributeTest("body", 4, { miscDice: -1 });
+          assert.equal(r.dice.length, 3, "4 base − 1 misc = 3 dice");
+          assert.ok(lastCard().includes("−1"), "the card should show the −1 misc penalty");
+        });
+
+        it("floors the pool at ZERO dice (automatic failure), never negative", async () => {
+          const actor = await mk();  // Body 4
+          const r = await actor.rollAttributeTest("body", 4, { miscDice: -99 });
+          assert.equal(r.dice.length, 0, "a penalty past the pool is an automatic failure (0 dice)");
+          assert.equal(r.successes, 0, "0 dice can score no successes");
+          assert.ok(lastCard().includes("min 0"), "the card should flag that the pool floored at 0");
+        });
+
+        it("bounds an absurd programmatic value instead of freezing the client", async () => {
+          const actor = await mk();  // Body 4
+          const r = await actor.rollAttributeTest("body", 4, { miscDice: Infinity });
+          // Infinity → 0 (non-finite guard); a finite over-cap → clamped to +100.
+          assert.equal(r.dice.length, 4, "Infinity is rejected, not rolled");
+          const r2 = await actor.rollAttributeTest("body", 4, { miscDice: 100000 });
+          assert.equal(r2.dice.length, 104, "over-cap misc clamps to +100 (4 + 100)");
+        });
+
+        it("is a no-op at zero (no breakdown noise)", async () => {
+          const actor = await mk();
+          const r = await actor.rollAttributeTest("body", 4, { miscDice: 0 });
+          assert.equal(r.dice.length, 4, "no misc → base dice only");
+          assert.notInclude(lastCard(), "misc", "a zero misc must not itemize anything");
+        });
+      });
+    }, { displayName: "SR2E: Misc dice" });
+
     // ── Bioware / Body Index (Shadowtech) — the derivation edge cases Vitest
     //    can't reach: real prepareData() cycles, awakened Essence, idempotence ──
     quench.registerBatch("sr2e.bioware", (context) => {

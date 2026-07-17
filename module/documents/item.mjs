@@ -638,7 +638,7 @@ export class SR2EItem extends Item {
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
@@ -1077,7 +1077,7 @@ export class SR2EItem extends Item {
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
       label: `Cast ${this.name} (Force ${force}${totemNote})`,
       poolDice: options.poolDice,   // magic pool dice pre-allocated by player
-      karmaDice: options.karmaDice, // extra dice bought with Karma Pool
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
       centeringReduction,           // Centering vs Penalties (Grimoire p.44)
       extraTN: healingTN, extraTNLabel: healingLabel
     });
@@ -1251,7 +1251,7 @@ export class SR2EItem extends Item {
     return actor.rollSuccessTest(rating, targetNumber, {
       label: `${this.name} (Rating ${rating})`,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }
 

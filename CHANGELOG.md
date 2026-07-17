@@ -2,6 +2,21 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.43.1 — 2026-07-17
+
+### Added
+- **Misc Dice field on the roll dialogs.** A signed situational dice modifier
+  with an optional note, for the many SR2 one-offs that don't have a dedicated
+  field — Tailored Pheromones +2 vs a metahuman on a social test, Aptitude, a
+  friend helping, a GM ruling. Enter `+2` (or a `−1` penalty) and a note like
+  "Tailored Pheromones"; both the bonus and the note show in the roll's dice
+  breakdown on the chat card. Present on the **skill, attribute, chipped-skill,
+  weapon-attack, damage-resistance, and melee-defence** dialogs. A penalty that
+  wipes the pool floors it at **0 dice** (an automatic failure), never negative,
+  and the value is bounded so a stray huge number can't lock up the client.
+  _(The spell-casting, conjuring, Matrix and vehicle dialogs don't offer it yet —
+  a follow-up; the plumbing is shared, so adding them is small.)_
+
 ## 0.43.0 — 2026-07-17
 
 ### Added

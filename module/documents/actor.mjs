@@ -2,6 +2,7 @@
  * Extended Actor document for the Shadowrun 2E system.
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
+import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
@@ -173,8 +174,18 @@ export class SR2EActor extends Actor {
     const karmaAvail = this.system.karma?.pool ?? 0;
     const karmaDice  = Math.max(0, Math.min(options.karmaDice ?? 0, karmaAvail, dicePool));
 
-    // Roll base + pool + karma dice together (respects Rule of Six)
-    const totalDice = dicePool + poolDiceTotal + karmaDice;
+    // Situational misc dice the player declares in the roll dialog (SR2 has many
+    // one-off bonuses/penalties in dice: Tailored Pheromones vs metahumans,
+    // Aptitude, a GM ruling). Signed, bounded (no infinities / client-freezing
+    // pools), with an optional note that lands in the breakdown.
+    const miscDice  = clampMiscDice(options.miscDice);
+    const miscLabel = clampMiscLabel(options.miscLabel);
+
+    // Roll base + pool + karma + misc together (respects Rule of Six). Floor at
+    // ZERO, not one: a penalty that wipes the pool is an automatic failure (the
+    // roll engine handles 0 dice), and the pre-existing callers that need a
+    // 1-die minimum already apply their own Math.max(1, …). Never negative.
+    const totalDice = Math.max(0, dicePool + poolDiceTotal + karmaDice + miscDice);
     const testResult = await SR2ESuccessRoll.successTest(totalDice, effectiveTN);
     const successes = testResult.successes;
 
@@ -192,9 +203,17 @@ export class SR2EActor extends Actor {
       : `${effectiveTN}`;
 
     let diceNote = `${dicePool}`;
-    if (poolDiceTotal > 0 || karmaDice > 0) {
+    if (poolDiceTotal > 0 || karmaDice > 0 || miscDice !== 0) {
       const parts = poolsUsed.map(p => `+${p.amount} ${p.label}`);
       if (karmaDice > 0) parts.push(`+${karmaDice} ${i18n.localize("SR2E.Roll.Karma")}`);
+      if (miscDice !== 0) {
+        const sign = miscDice > 0 ? "+" : "−";
+        const tag  = miscLabel ? ` ${i18n.localize("SR2E.Roll.Misc")} (${foundry.utils.escapeHTML(miscLabel)})` : ` ${i18n.localize("SR2E.Roll.Misc")}`;
+        // If a penalty took the pool below zero, the shown total is the 0 floor,
+        // not the raw arithmetic — say so rather than imply e.g. 4 − 9 = 0.
+        const floored = (dicePool + poolDiceTotal + karmaDice + miscDice) < 0;
+        parts.push(`${sign}${Math.abs(miscDice)}${tag}${floored ? ` ${i18n.localize("SR2E.Roll.Floored")}` : ""}`);
+      }
       diceNote = i18n.format("SR2E.Roll.DiceBreakdown", { dice: dicePool, parts: parts.join(", "), total: totalDice });
     }
 
@@ -486,7 +505,7 @@ export class SR2EActor extends Actor {
     return this.rollSuccessTest(attrValue, targetNumber, {
       label: `${label} Test`,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice,
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // Centering (Grimoire p.44) was being dropped here — pass it through.
       centeringReduction: options.centeringReduction,
       ...(attribute === "body" ? this._bodyTestOpts() : {})
@@ -673,7 +692,7 @@ export class SR2EActor extends Actor {
     return this.rollSuccessTest(dicePool, targetNumber, {
       label,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }
 
@@ -692,7 +711,7 @@ export class SR2EActor extends Actor {
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
       label: `${soft.system.grantedSkill || soft.name} Test (chipped)`,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }
 
@@ -909,6 +928,7 @@ export class SR2EActor extends Actor {
         <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           Base TN 4 + modifiers. Most successes hits — if you out-roll the
           attacker, YOU strike THEM (SR2E p.100).</p>
+        ${miscDiceHTML()}
       </form>`,
       buttons: [
         {
@@ -920,7 +940,8 @@ export class SR2EActor extends Actor {
               reachMod:  parseInt(f.reachMod?.value) || 0,
               otherMod:  parseInt(f.otherMod?.value) || 0,
               poolDice:  Math.max(0, Math.min(parseInt(f.pool_combat?.value) || 0, combatAvail)),
-              karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0)
+              karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+              ...readMiscDice(button.form)
             };
           }
         },
@@ -972,7 +993,8 @@ export class SR2EActor extends Actor {
     const defense = await this.rollSuccessTest(dice, tn, {
       label: `Defend vs ${state.attackerName} — ${defWeaponName}${defaultingNote} TN ${tn}`,
       poolDice: choice.poolDice > 0 ? { combat: choice.poolDice } : {},
-      karmaDice: choice.karmaDice
+      karmaDice: choice.karmaDice,
+      miscDice: choice.miscDice, miscLabel: choice.miscLabel
     });
 
     // ── Compare and resolve (ties favour the attacker) ───────────────────────
@@ -1115,7 +1137,7 @@ export class SR2EActor extends Actor {
     const result = await this.rollSuccessTest(dice, tn, {
       label,
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
 
     // Failed Crash Test → the vehicle crashes (p.107)
@@ -1220,7 +1242,7 @@ export class SR2EActor extends Actor {
     // My ram test (Control Pool / karma may assist)
     const myResult = await this.rollSuccessTest(myDice, myTN, {
       label: `Ram: ${myVehicle.name} → ${oppName} (TN ${myTN})`,
-      poolDice: options.poolDice, karmaDice: options.karmaDice
+      poolDice: options.poolDice, karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
     // Opposing ram test (rolled by the system; no pool)
     const oppResult = await SR2ESuccessRoll.successTest(oppDice, oppTN);
@@ -1579,6 +1601,7 @@ export class SR2EActor extends Actor {
           ${flechetteNote}
         </div>
         ${poolHTML}
+        ${miscDiceHTML()}
       </form>`,
       buttons: [
         {
@@ -1588,7 +1611,8 @@ export class SR2EActor extends Actor {
           callback: (event, button) => {
             const raw = parseInt(button.form.elements.pool_combat?.value) || 0;
             rollResult = {
-              poolDice: { combat: Math.min(Math.max(0, raw), combatAvail) }
+              poolDice: { combat: Math.min(Math.max(0, raw), combatAvail) },
+              ...readMiscDice(button.form)
             };
           }
         },
@@ -1602,6 +1626,8 @@ export class SR2EActor extends Actor {
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
       label: `Resist Damage: ${level} (Power ${power})`,
       poolDice: rollResult.poolDice,
+      miscDice: rollResult.miscDice,
+      miscLabel: rollResult.miscLabel,
       isResistance: true,  // Injury Modifier does not apply to resistance (p.112)
       ...this._bodyTestOpts()   // …but this IS a Body test, so overstress applies
     });
