@@ -775,6 +775,73 @@
   background: rgba(224, 85, 107, 0.18);
 }
 .attr-total .augment-icon { font-size: 0.8em; margin-right: 2px; vertical-align: baseline; }
+.attr-total.augmented { cursor: help; }
+
+/* ── Augmentation breakdown tooltip — themed Foundry tooltip (data-tooltip-class
+   "sr2e-attr-tt"). Cyberpunk panel: magenta glow frame, cyan value, neon deltas,
+   a faint scanline sweep for flair. ── */
+#tooltip.sr2e-attr-tt {
+  background: linear-gradient(158deg, #120a24 0%, #0a0618 62%, #100622 100%);
+  border: 1px solid var(--sr2e-highlight);
+  border-radius: 3px;
+  box-shadow: 0 0 14px rgba(233, 30, 140, 0.5), inset 0 0 22px rgba(0, 229, 255, 0.05);
+  color: var(--sr2e-text);
+  font-family: var(--sr2e-font);
+  padding: 0;
+  max-width: 250px;
+  text-align: left;
+}
+/* Foundry draws a connecting arrow via ::before/::after — recolor to the frame. */
+#tooltip.sr2e-attr-tt::before { border-top-color: var(--sr2e-highlight); }
+
+.sr2e-attr-bd { position: relative; overflow: hidden; padding: 7px 10px 8px; }
+/* scanline flair + a slow cyan sweep across the panel */
+.sr2e-attr-bd::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 229, 255, 0.045) 0, rgba(0, 229, 255, 0.045) 1px, transparent 1px, transparent 3px);
+}
+.sr2e-attr-bd::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 40%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.10), transparent);
+  animation: sr2e-bd-sweep 2.6s ease-in-out infinite;
+}
+@keyframes sr2e-bd-sweep { 0% { left: -40%; } 55%, 100% { left: 120%; } }
+
+.sr2e-attr-bd .bd-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  border-bottom: 1px solid var(--sr2e-border-red);
+  padding-bottom: 3px; margin-bottom: 4px;
+}
+.sr2e-attr-bd .bd-name {
+  text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; font-size: 10px;
+  color: var(--sr2e-highlight); text-shadow: 0 0 7px rgba(233, 30, 140, 0.65);
+}
+.sr2e-attr-bd .bd-val {
+  color: var(--sr2e-gold); font-weight: bold; font-size: 16px; line-height: 1;
+  text-shadow: 0 0 9px rgba(0, 229, 255, 0.7);
+}
+.sr2e-attr-bd .bd-base {
+  color: var(--sr2e-text-muted); font-size: 9px; letter-spacing: 0.5px; margin-bottom: 5px;
+}
+.sr2e-attr-bd .bd-src { list-style: none; margin: 0; padding: 0; }
+.sr2e-attr-bd .bd-src li { display: flex; align-items: baseline; gap: 7px; font-size: 11px; padding: 1px 0; }
+.sr2e-attr-bd .bd-delta {
+  min-width: 24px; text-align: right; font-weight: bold; font-variant-numeric: tabular-nums;
+}
+.sr2e-attr-bd .bd-delta.up   { color: var(--sr2e-neon);   text-shadow: 0 0 6px rgba(212, 255, 0, 0.55); }
+.sr2e-attr-bd .bd-delta.down { color: var(--sr2e-danger); text-shadow: 0 0 6px rgba(255, 59, 92, 0.55); }
+.sr2e-attr-bd .bd-nm { color: var(--sr2e-text); }
+.sr2e-attr-bd .bd-total {
+  margin-top: 5px; padding-top: 3px; border-top: 1px dashed var(--sr2e-border);
+  font-size: 10px; text-align: right; letter-spacing: 0.5px; font-weight: bold;
+}
+.sr2e-attr-bd .bd-total.up   { color: var(--sr2e-matrix); }
+.sr2e-attr-bd .bd-total.down { color: var(--sr2e-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sr2e-attr-bd::after { animation: none; display: none; }
+}
 
 /* ============================================================================
    CONDITION MONITOR  — stepper + visual bar + wound status

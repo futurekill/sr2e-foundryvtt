@@ -72,20 +72,40 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   _buildAttrBreakdown() {
     const sys = this.document.system ?? {};
     const provenance = sys.attributeSources ?? {};
+    const esc = foundry.utils.escapeHTML;
     const out = {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       const a = sys[attr];
       if (!a) continue;
       const b = attributeBreakdown({ base: a.base ?? 0, value: a.value ?? 0, sources: provenance[attr] ?? [] });
       const label = game.i18n.localize(CONFIG.SR2E.attributes[attr] ?? attr);
-      const lines = b.sources.map(
-        (s) => `  ${s.value > 0 ? "+" : "−"}${Math.abs(s.value)}  ${s.name}`);
+      const rows = b.sources.map((s) => {
+        const up = s.value > 0;
+        return `<li><span class="bd-delta ${up ? "up" : "down"}">${up ? "+" : "−"}${Math.abs(s.value)}</span>` +
+               `<span class="bd-nm">${esc(s.name)}</span></li>`;
+      }).join("");
+      const total = b.count
+        ? `<div class="bd-total ${b.up ? "up" : "down"}">${b.up ? "+" : "−"}${Math.abs(b.modTotal)} net</div>`
+        : "";
       out[attr] = {
         summary: b.summary,
-        // Native title tooltips render \n as line breaks in every browser.
-        title: b.count
-          ? `${label} ${b.value} (base ${b.base})\n${lines.join("\n")}`
-          : `${label} ${b.value}`
+        // Rich HTML for Foundry's themed tooltip (styled via .sr2e-attr-bd).
+        tt: `<div class="sr2e-attr-bd"><div class="bd-head"><span class="bd-name">${esc(label)}</span>` +
+            `<span class="bd-val">${b.value}</span></div><div class="bd-base">base ${b.base}</div>` +
+            `<ul class="bd-src">${rows}</ul>${total}</div>`
+      };
+    }
+    // Reaction gets the same chrome, minus the itemised sources (not tracked yet).
+    const r = sys.reaction;
+    if (r) {
+      const rl = game.i18n.localize("SR2E.Attributes.Reaction");
+      const mod = r.mod ?? 0;
+      const modLine = mod
+        ? `<div class="bd-total ${mod > 0 ? "up" : "down"}">${mod > 0 ? "+" : "−"}${Math.abs(mod)} modifier</div>`
+        : "";
+      out.reaction = {
+        tt: `<div class="sr2e-attr-bd"><div class="bd-head"><span class="bd-name">${esc(rl)}</span>` +
+            `<span class="bd-val">${r.value ?? 0}</span></div><div class="bd-base">base ${r.base ?? 0}</div>${modLine}</div>`
       };
     }
     return out;

@@ -2,6 +2,15 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.45.1 — 2026-07-17
+
+### Changed
+- **The attribute breakdown tooltip is now themed.** Moved off the plain OS
+  tooltip onto Foundry's tooltip with a cyberpunk panel that matches the sheet:
+  magenta-glow attribute name, electric-cyan value, neon-green/red signed deltas
+  per source, a net-modifier footer, and a faint scanline + slow cyan sweep for
+  flair. Source names are HTML-escaped. Respects `prefers-reduced-motion`.
+
 ## 0.45.0 — 2026-07-17
 
 ### Added

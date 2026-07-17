@@ -161,9 +161,9 @@
         {{/ifGt}}
         {{/ifGt}}
         {{#ifGt (deepLookup ../system attr 'mod') 0}}
-        <span class="attr-total augmented up" title="{{deepLookup ../attrBreakdown attr 'title'}}"><i class="fas fa-caret-up augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        <span class="attr-total augmented up" data-tooltip="{{deepLookup ../attrBreakdown attr 'tt'}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-up augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
         {{else}}{{#ifGt 0 (deepLookup ../system attr 'mod')}}
-        <span class="attr-total augmented down" title="{{deepLookup ../attrBreakdown attr 'title'}}"><i class="fas fa-caret-down augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        <span class="attr-total augmented down" data-tooltip="{{deepLookup ../attrBreakdown attr 'tt'}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-down augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
         {{else}}<span class="attr-total">{{deepLookup ../system attr 'value'}}</span>{{/ifGt}}{{/ifGt}}
       </div>
       {{/each}}
@@ -197,9 +197,9 @@
         {{/ifGt}}
         {{/ifGt}}
         {{#ifGt (deepLookup ../system attr 'mod') 0}}
-        <span class="attr-total augmented up" title="{{deepLookup ../attrBreakdown attr 'title'}}"><i class="fas fa-caret-up augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        <span class="attr-total augmented up" data-tooltip="{{deepLookup ../attrBreakdown attr 'tt'}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-up augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
         {{else}}{{#ifGt 0 (deepLookup ../system attr 'mod')}}
-        <span class="attr-total augmented down" title="{{deepLookup ../attrBreakdown attr 'title'}}"><i class="fas fa-caret-down augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
+        <span class="attr-total augmented down" data-tooltip="{{deepLookup ../attrBreakdown attr 'tt'}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-down augment-icon"></i>{{deepLookup ../system attr 'value'}}</span>
         {{else}}<span class="attr-total">{{deepLookup ../system attr 'value'}}</span>{{/ifGt}}{{/ifGt}}
       </div>
       {{/each}}
@@ -215,9 +215,9 @@
       <div class="attribute-row flexrow">
         <label>{{localize "SR2E.Attributes.Reaction"}}</label>
         {{#ifGt system.reaction.mod 0}}
-        <span class="attr-total augmented up" title="{{localize 'SR2E.Attributes.Reaction'}} {{system.reaction.value}} — base {{system.reaction.base}}, +{{system.reaction.mod}} modifier."><i class="fas fa-caret-up augment-icon"></i>{{system.reaction.value}}</span>
+        <span class="attr-total augmented up" data-tooltip="{{attrBreakdown.reaction.tt}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-up augment-icon"></i>{{system.reaction.value}}</span>
         {{else}}{{#ifGt 0 system.reaction.mod}}
-        <span class="attr-total augmented down" title="{{localize 'SR2E.Attributes.Reaction'}} {{system.reaction.value}} — base {{system.reaction.base}}, {{system.reaction.mod}} modifier."><i class="fas fa-caret-down augment-icon"></i>{{system.reaction.value}}</span>
+        <span class="attr-total augmented down" data-tooltip="{{attrBreakdown.reaction.tt}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-down augment-icon"></i>{{system.reaction.value}}</span>
         {{else}}<span class="attr-total">{{system.reaction.value}}</span>{{/ifGt}}{{/ifGt}}
       </div>
       {{#if isMagical}}
