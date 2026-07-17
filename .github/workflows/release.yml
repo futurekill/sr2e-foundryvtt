@@ -100,10 +100,17 @@ jobs:
           # Create a staging directory with the system id as the folder name
           mkdir -p staging/${{ env.SYSTEM_ID }}
 
-          # Copy all system files (exclude CI/dev files)
-          rsync -av \
+          # Copy all system files (exclude CI/dev files).
+          # -m prunes directories left empty by the excludes below: '*.md' takes
+          # the contents of docs/ and .impeccable/critique/ but would otherwise
+          # still ship their hollow parents.
+          rsync -avm \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='.impeccable' \
+            --exclude='docs' \
+            --exclude='_work' \
+            --exclude='.DS_Store' \
             --exclude='staging' \
             --exclude='node_modules' \
             --exclude='.gitignore' \
