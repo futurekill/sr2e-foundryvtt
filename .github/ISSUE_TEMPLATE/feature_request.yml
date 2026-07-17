@@ -1,0 +1,90 @@
+name: "💡 Feature request"
+description: Suggest a new feature, rule, or improvement for the SR2E system.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! A couple of things that help these move faster:
+        - If it's a **rule**, a book + page citation (SR2 core, Shadowtech, Rigger 2, Companion…) lets it be implemented accurately without guesswork.
+        - One request per issue keeps discussion focused.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the system would this touch?
+      options:
+        - Character sheet & derived data
+        - Dice & success tests
+        - Karma Pool
+        - Ranged combat
+        - Melee combat
+        - Damage resistance & staging
+        - Magic / spellcasting
+        - Conjuring
+        - Astral
+        - Matrix / decking
+        - Vehicles & rigging
+        - Healing
+        - Cyberware / foci / adept powers
+        - Compendia & item content
+        - GM tools / macros
+        - Character creation / chargen
+        - Sheets (NPC/Spirit/IC/Host/Vehicle)
+        - Settings / import-export / misc
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem or gap, not the solution — "I want to X, but currently I have to Y."
+      placeholder: |
+        When a character has Tailored Pheromones I want to add its situational dice
+        to a social test, but there's no field for a one-off dice bonus.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: Your suggested behaviour. Rough is fine.
+      placeholder: A "misc dice" field on the roll dialog, with a note that shows on the chat card.
+    validations:
+      required: true
+
+  - type: textarea
+    id: rule
+    attributes:
+      label: Rule reference (if this is a game rule)
+      description: Book + page, and the relevant text if you have it. Leave blank for pure UI/QoL ideas.
+      placeholder: "Shadowtech p.42 — “A character with bone lacing can also choose to have his unarmed blows do physical damage…”"
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or workarounds
+      description: How do you handle this today? Anything you've already tried?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where should this live?
+      description: Best guess — no worries if you're not sure.
+      options:
+        - The core SR2E system
+        - A specific content module (Shadowtech, Rigger 2, Companion, …)
+        - Not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Mockups / extra notes
+      description: Screenshots, sketches, links. Drag images straight into this box.
