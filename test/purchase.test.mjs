@@ -2,7 +2,8 @@
 // Custom cyberware grades: Street Samurai Catalog (Revised) p.98. Bioware: Shadowtech p.7.
 import { describe, it, expect } from "vitest";
 import { gradeCostMultiplier, ratedCost, itemBaseCost, gradeEssenceCost,
-         CYBERWARE_GRADE_ESSENCE_FLOOR } from "../module/rules/sr2e-rules.mjs";
+         CYBERWARE_GRADE_ESSENCE_FLOOR, ratedRow, ratedStreetIndex,
+         derivedItemCost } from "../module/rules/sr2e-rules.mjs";
 
 describe("gradeCostMultiplier", () => {
   // SSC p.98 Custom Cyberware table: Alpha ×3, Beta ×7. (An earlier version of
@@ -91,5 +92,111 @@ describe("itemBaseCost — rating × grade", () => {
   });
   it("betaware cyberware applies ×7 (SSC p.98)", () => {
     expect(itemBaseCost({ type: "cyberware", grade: "beta", cost: 5000, ratingStats: [] })).toBe(35000);
+  });
+});
+
+
+describe("ratedRow / ratedCost semantics", () => {
+  const rows = [{ rating: 1, cost: 60000 }, { rating: 2, cost: 100000 }];
+  it("picks the exact row, else the nearest", () => {
+    expect(ratedRow(rows, 2).cost).toBe(100000);
+    expect(ratedRow(rows, 9).cost).toBe(100000);   // nearest
+    expect(ratedRow([], 1)).toBe(null);
+  });
+  // The asymmetry is deliberate and load-bearing: a row that EXISTS but has no
+  // `cost` must yield 0, NOT the flat cost. `?? flatCost` would silently re-price
+  // partial/malformed tables.
+  it("a row present but lacking `cost` is 0, NOT the flat cost", () => {
+    expect(ratedCost([{ rating: 1 }], 1, 4200)).toBe(0);
+  });
+  it("no table falls back to the flat cost", () => {
+    expect(ratedCost([], 1, 4200)).toBe(4200);
+    expect(ratedCost(undefined, 1, 4200)).toBe(4200);
+  });
+  it("no table and no flat cost is 0", () => {
+    expect(ratedCost([], 1, undefined)).toBe(0);
+  });
+});
+
+describe("ratedStreetIndex", () => {
+  it("takes the governing row's SI", () => {
+    expect(ratedStreetIndex([{ rating: 1, streetIndex: 3 }], 1, 1)).toBe(3);
+  });
+  it("treats a numeric 0 as PRESENT, not absent", () => {
+    // `||` would fall through to the flat SI here — the bug this guards.
+    expect(ratedStreetIndex([{ rating: 1, streetIndex: 0 }], 1, 2)).toBe(0);
+  });
+  it("falls back when the row specifies none", () => {
+    expect(ratedStreetIndex([{ rating: 1, streetIndex: "" }], 1, 2)).toBe(2);
+    expect(ratedStreetIndex([{ rating: 1 }], 1, 2)).toBe(2);
+  });
+  it("falls back with no table at all", () => {
+    expect(ratedStreetIndex([], 1, 2)).toBe(2);
+  });
+});
+
+describe("derivedItemCost — cost computed from a formula, not a snapshot", () => {
+  it("returns null for authored/rated items (they price the old way)", () => {
+    expect(derivedItemCost({ type: "weapon", cost: 700 })).toBe(null);
+    expect(derivedItemCost({ type: "gear", category: "clothing", cost: 50 })).toBe(null);
+    expect(derivedItemCost(null)).toBe(null);
+  });
+  it("prices a skillsoft from its category + rating", () => {
+    const sys = { type: "gear", category: "skillsoft", grantedSkillCategory: "active", rating: 6 };
+    expect(derivedItemCost(sys)).toBe(30000);        // 300 Mp x 100
+  });
+  it("honours an authored DataSoft price via ctx", () => {
+    const sys = { type: "gear", category: "skillsoft", grantedSkillCategory: "data", rating: 1 };
+    expect(derivedItemCost(sys, { authoredCost: 50000 })).toBe(50000);
+    expect(derivedItemCost(sys)).toBe(1000);         // FoF Mp x 100 fallback
+  });
+  it("prices a program by ruleset — VR2 comes from ctx, not a setting", () => {
+    // VR2's per-Mp multiplier is BANDED (100/200/500/1000 by rating), so ratings
+    // 1-3 are identical to core and prove nothing. Rating 4 is the first band edge.
+    const low = { type: "program", rating: 3, multiplier: 2 };
+    expect(derivedItemCost(low, { vr2: false })).toBe(1800);
+    expect(derivedItemCost(low, { vr2: true })).toBe(1800);    // same band — no divergence
+
+    const high = { type: "program", rating: 4, multiplier: 2 };
+    expect(derivedItemCost(high, { vr2: false })).toBe(3200);  // ceil(16x2)=32 x100
+    expect(derivedItemCost(high, { vr2: true })).toBe(6400);   // x200 in VR2's band
+  });
+  it("prices a flat focus from force x costPerForce", () => {
+    expect(derivedItemCost({ type: "focus", force: 3, costPerForce: 10000 })).toBe(30000);
+  });
+  it("a bonded weapon focus prices off the WEAPON's reach and overrides the flat path", () => {
+    const sys = { type: "focus", force: 2, costPerForce: 10000 };
+    // (reach 1 + 1) x 100k + force 2 x 90k = 380,000 — not force x costPerForce.
+    expect(derivedItemCost(sys, { bondedWeaponReach: 1 })).toBe(380000);
+  });
+  it("an unbonded weapon focus (no reach in ctx) falls back to the flat path", () => {
+    expect(derivedItemCost({ type: "focus", force: 2, costPerForce: 10000 })).toBe(20000);
+  });
+});
+
+describe("itemBaseCost prices a HYPOTHETICAL configuration (the exploit)", () => {
+  // THE BUG: the purchase hook builds newSys = {...oldSys, rating: 6} while `cost`
+  // still holds the value derived for rating 1. Pricing that off the snapshot
+  // returned the OLD price, so delta === 0 and the upgrade was free.
+  const soft = (rating) => ({
+    type: "gear", category: "skillsoft", grantedSkillCategory: "active",
+    rating, ratingStats: [], cost: 1000    // cost = the rating-1 snapshot, deliberately stale
+  });
+  it("charges 29,000Y for an ActiveSoft rating 1 -> 6", () => {
+    const oldBase = itemBaseCost(soft(1));
+    const newBase = itemBaseCost(soft(6));
+    expect(oldBase).toBe(1000);
+    expect(newBase).toBe(30000);
+    expect(newBase - oldBase).toBe(29000);   // was 0 before derivedItemCost
+  });
+  it("still applies the grade multiplier on top of a derived cost", () => {
+    // Not a real combination today, but the composition must hold.
+    const sys = { type: "program", rating: 3, multiplier: 2, grade: "standard" };
+    expect(itemBaseCost(sys, { vr2: false })).toBe(1800);
+  });
+  it("leaves rated ware pricing exactly as before", () => {
+    const pump = { type: "bioware", grade: "cultured", rating: 2,
+                   ratingStats: [{ rating: 1, cost: 60000 }, { rating: 2, cost: 100000 }] };
+    expect(itemBaseCost(pump)).toBe(400000);   // 100k x4 cultured
   });
 });

@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -699,11 +699,15 @@ export class GearData extends SR2EDataModel {
     // Table by type + rating (SR2E p.243, p.248), overriding any manual cost.
     if (this.category === "skillsoft") {
       this.mp = skillsoftMemory(this.grantedSkillCategory, this.rating);
-      // Read the AUTHORED price off _source: this.cost is what we're about to
-      // overwrite, so passing it would feed the derived value back in as though a
-      // GM had typed it. Only a DataSoft honours it (see skillsoftCost).
-      this.cost = skillsoftCost(this.grantedSkillCategory, this.rating,
-                                this._source?.cost ?? 0);
+      // Route through the SHARED derivation (rules.derivedItemCost) so the purchase
+      // hook — which must price HYPOTHETICAL configurations — can never disagree
+      // with what the sheet shows. Read the AUTHORED price off _source: this.cost is
+      // what we're about to overwrite, so passing it would feed the derived value
+      // back in as though a GM had typed it. Only a DataSoft honours it.
+      this.cost = derivedItemCost({ type: "gear", category: this.category,
+                                    grantedSkillCategory: this.grantedSkillCategory,
+                                    rating: this.rating },
+                                  { authoredCost: this._source?.cost ?? 0 });
     }
   }
 }
@@ -738,8 +742,10 @@ export class ProgramData extends SR2EDataModel {
     // can run before settings are registered (default to the core formula).
     let vr2 = false;
     try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
-    this.cost = vr2 ? programCostVR2(this.rating, this.multiplier)
-                    : programCost(this.rating, this.multiplier);
+    // Shared derivation — the ruleset is read HERE and passed in, because the rules
+    // module is Foundry-free and must not touch game.settings itself.
+    this.cost = derivedItemCost({ type: "program", rating: this.rating,
+                                  multiplier: this.multiplier }, { vr2 });
   }
 }
 
@@ -903,7 +909,13 @@ export class FocusData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    if (this.costPerForce > 0) this.cost = focusCost(this.force, this.costPerForce);
+    // Shared derivation. No bondedWeaponReach here: a weapon focus prices off its
+    // bonded weapon, which lives on the ACTOR — CharacterData._applyWeaponFoci runs
+    // after this and supplies the Reach.
+    if (this.costPerForce > 0) {
+      this.cost = derivedItemCost({ type: "focus", force: this.force,
+                                    costPerForce: this.costPerForce }) ?? this.cost;
+    }
   }
 }
 

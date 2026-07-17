@@ -1628,31 +1628,104 @@ export function gradeEssenceCost(baseEssence, grade) {
 }
 
 /**
- * The base cost of a rated item at a given rating: the matching ratingStats row's
- * cost (exact rating, else nearest), or the flat cost when there's no table.
+ * The ratingStats row that governs a given rating: exact match, else nearest.
+ * Extracted so cost and Street Index can never disagree about WHICH row applies.
+ * @param {Array<{rating:number}>} ratingStats
+ * @param {number} rating
+ * @returns {object|null} the row, or null when there is no table
+ */
+export function ratedRow(ratingStats, rating) {
+  if (!ratingStats?.length) return null;
+  const rows = [...ratingStats].sort((a, b) => a.rating - b.rating);
+  return rows.find(r => r.rating === rating)
+    ?? rows.reduce((b, r) => Math.abs(r.rating - rating) < Math.abs(b.rating - rating) ? r : b, rows[0]);
+}
+
+/**
+ * The base cost of a rated item at a given rating: the governing ratingStats row's
+ * cost, or the flat cost when there's no table.
+ *
+ * NOTE the deliberate asymmetry: a row that EXISTS but has no `cost` yields 0, NOT
+ * the flat cost. That is the long-standing behaviour and partial/malformed tables
+ * depend on it — `?? flatCost` here would silently re-price them.
  * @param {Array<{rating:number, cost:number}>} ratingStats
  * @param {number} rating
  * @param {number} flatCost
  * @returns {number}
  */
 export function ratedCost(ratingStats, rating, flatCost) {
-  if (ratingStats?.length) {
-    const rows = [...ratingStats].sort((a, b) => a.rating - b.rating);
-    const row = rows.find(r => r.rating === rating)
-      ?? rows.reduce((b, r) => Math.abs(r.rating - rating) < Math.abs(b.rating - rating) ? r : b, rows[0]);
-    return row?.cost ?? 0;
+  const row = ratedRow(ratingStats, rating);
+  return row ? (row.cost ?? 0) : (flatCost ?? 0);
+}
+
+/**
+ * The Street Index governing a given rating — the row's, else the flat one.
+ *
+ * NOT `||`: a numeric 0 is a PRESENT index (free on the street), not an absent one.
+ * Only "", null and undefined mean "this row doesn't specify one".
+ * @param {Array<{rating:number, streetIndex:*}>} ratingStats
+ * @param {number} rating
+ * @param {*} flatSI
+ * @returns {*}
+ */
+export function ratedStreetIndex(ratingStats, rating, flatSI) {
+  const row = ratedRow(ratingStats, rating);
+  const si = row ? row.streetIndex : flatSI;
+  return (si === "" || si === null || si === undefined) ? flatSI : si;
+}
+
+/**
+ * Cost of an item whose price is COMPUTED from other fields rather than authored
+ * or read off a rating table. Returns null for everything else.
+ *
+ * Why this exists: `system.cost` on such an item is the value already derived for
+ * its CURRENT configuration — a snapshot, not a formula. Pricing a HYPOTHETICAL
+ * configuration (what the purchase hook does when a rating changes) off that
+ * snapshot returns the old price, so the delta computes as zero and the change is
+ * free. This recomputes from the formula instead.
+ *
+ * The rules module is Foundry-free: it can read neither `game.settings` (the VR2
+ * ruleset) nor a document's `_source` (an authored DataSoft price) nor a sibling
+ * item (a weapon focus's bonded Reach). Every caller supplies those via `ctx`.
+ *
+ * MUST be the only derivation site — `prepareDerivedData` calls it too, or the two
+ * drift and the hook prices something the sheet doesn't.
+ *
+ * @param {object} sys item system data (plus `type`)
+ * @param {{authoredCost?:number, vr2?:boolean, bondedWeaponReach?:number|null}} [ctx]
+ * @returns {number|null} null when the item's cost is authored/rated, not derived
+ */
+export function derivedItemCost(sys, ctx = {}) {
+  if (!sys) return null;
+  if (sys.type === "gear" && sys.category === "skillsoft") {
+    return skillsoftCost(sys.grantedSkillCategory, sys.rating, ctx.authoredCost ?? 0);
   }
-  return flatCost ?? 0;
+  if (sys.type === "program") {
+    return ctx.vr2 ? programCostVR2(sys.rating, sys.multiplier)
+                   : programCost(sys.rating, sys.multiplier);
+  }
+  if (sys.type === "focus") {
+    // A weapon focus bonded to a weapon prices off that weapon's Reach (p.126) and
+    // OVERRIDES the flat per-Force path — mirroring _applyWeaponFoci, which runs
+    // after the item's own prepare. Only when we actually know the Reach.
+    if (ctx.bondedWeaponReach != null) {
+      return weaponFocusCost(ctx.bondedWeaponReach, sys.force ?? 0);
+    }
+    if ((sys.costPerForce ?? 0) > 0) return focusCost(sys.force ?? 0, sys.costPerForce);
+  }
+  return null;
 }
 
 /**
  * Full base (list) nuyen cost of an item at its rating AND grade — before the
  * Street Index markup. The single source of truth for what a configured item costs.
  * @param {{type:string, grade:string, rating:number, ratingStats:Array, cost:number}} sys
+ * @param {{authoredCost?:number, vr2?:boolean, bondedWeaponReach?:number|null}} [ctx]
  * @returns {number}
  */
-export function itemBaseCost(sys) {
-  const base = ratedCost(sys?.ratingStats, sys?.rating, sys?.cost);
+export function itemBaseCost(sys, ctx = {}) {
+  const base = derivedItemCost(sys, ctx)
+    ?? ratedCost(sys?.ratingStats, sys?.rating, sys?.cost);
   return base * gradeCostMultiplier(sys?.type, sys?.grade);
 }
 
