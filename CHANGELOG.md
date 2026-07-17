@@ -2,6 +2,19 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.42.1 — 2026-07-17
+
+### Fixes
+- **Clicking "Undefended" (or "Defend") on a melee attack popped a bogus
+  "Resist Damage: M (Power 0)" dialog.** Those buttons share a CSS class with the
+  real damage-resist button, and the resist click handler bound to all of them —
+  so it fired on a button with no damage data, showing Power 0, level M, and the
+  wrong (Ballistic) armor against whatever token happened to be selected. The
+  handler now ignores any button without damage data. Resolve an undefended hit
+  by clicking the **Resist Damage** button on the resolved card, with the
+  defender's token selected — it correctly uses the attack's Power and, for a
+  melee blow, **Impact** armor.
+
 ## 0.42.0 — 2026-07-17
 
 ### Added

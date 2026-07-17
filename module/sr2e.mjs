@@ -1515,6 +1515,12 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   });
 
   html.querySelectorAll?.(".sr2e-resist-btn").forEach(btn => {
+    // `sr2e-resist-btn` is ALSO a shared styling class on the Defend / Undefended
+    // / Resist Spell / Resist Astral action buttons, which have their own
+    // handlers. Only a true damage-resist button carries data-power, so without
+    // this guard clicking Undefended also opened a bogus "Resist Damage: M
+    // (Power 0)" dialog (it read the Undefended button, which has no power).
+    if (btn.dataset.power === undefined) return;
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       const power      = parseInt(btn.dataset.power)   || 0;
