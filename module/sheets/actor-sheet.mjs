@@ -1,5 +1,6 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
+import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
   onAddItem, onDeleteItem, onEditItem,
@@ -55,7 +56,39 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.system   = this.document.system;
     context.config   = CONFIG.SR2E;
     context.editable = this.isEditable;
+    context.attrBreakdown = this._buildAttrBreakdown();
     return context;
+  }
+
+  /**
+   * Per-attribute augmentation breakdown for the sheet tooltip: names every
+   * cyberware / bioware / adept power / Active Effect moving the attribute,
+   * instead of the old generic "cyberware / magic / adept power". Formatted as a
+   * multi-line `title` (a summary line, then one line per source) so it reads
+   * everywhere without depending on a rich-tooltip renderer.
+   * @returns {Record<string,{summary:string, title:string}>}
+   * @private
+   */
+  _buildAttrBreakdown() {
+    const sys = this.document.system ?? {};
+    const provenance = sys.attributeSources ?? {};
+    const out = {};
+    for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
+      const a = sys[attr];
+      if (!a) continue;
+      const b = attributeBreakdown({ base: a.base ?? 0, value: a.value ?? 0, sources: provenance[attr] ?? [] });
+      const label = game.i18n.localize(CONFIG.SR2E.attributes[attr] ?? attr);
+      const lines = b.sources.map(
+        (s) => `  ${s.value > 0 ? "+" : "−"}${Math.abs(s.value)}  ${s.name}`);
+      out[attr] = {
+        summary: b.summary,
+        // Native title tooltips render \n as line breaks in every browser.
+        title: b.count
+          ? `${label} ${b.value} (base ${b.base})\n${lines.join("\n")}`
+          : `${label} ${b.value}`
+      };
+    }
+    return out;
   }
 
   /**

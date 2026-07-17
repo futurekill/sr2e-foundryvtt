@@ -784,6 +784,65 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Misc dice" });
 
+    // ── Attribute provenance: system.<attr>.sources names each cyber/bio/adept/
+    //    Active-Effect contribution for the sheet tooltip. Vitest tests the
+    //    formatter; this proves the data model actually collects the sources. ──
+    quench.registerBatch("sr2e.attr-sources", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+      const mk = async () => { const a = await Actor.create({ name: "Quench Sources", type: "character", system: { body: { base: 4 } } }); made.push(a); return a; };
+      const bodySources = (a) => a.system.attributeSources?.body ?? [];
+      const ADD = CONST.ACTIVE_EFFECT_MODES.ADD;
+      const OVERRIDE = CONST.ACTIVE_EFFECT_MODES.OVERRIDE;
+
+      describe("Attribute source attribution", () => {
+        it("names a cyberware contributor", async () => {
+          const actor = await mk();
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Bone Density Augmentation", type: "cyberware",
+            system: { installed: true, attributeMods: { body: 2 } }
+          }]);
+          const s = bodySources(actor);
+          assert.ok(s.some(x => x.name === "Bone Density Augmentation" && x.value === 2),
+            `cyberware should appear in body sources; got ${JSON.stringify(s)}`);
+        });
+
+        it("names an additive Active-Effect alongside the implant, and sources sum to .mod", async () => {
+          const actor = await mk();
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Bone Density Augmentation", type: "cyberware",
+            system: { installed: true, attributeMods: { body: 2 } }
+          }]);
+          await actor.createEmbeddedDocuments("ActiveEffect", [{
+            name: "Increase Body", changes: [{ key: "system.body.mod", mode: ADD, value: "3" }]
+          }]);
+          const s = bodySources(actor);
+          assert.ok(s.some(x => x.name === "Bone Density Augmentation" && x.value === 2), "implant source kept");
+          assert.ok(s.some(x => x.name === "Increase Body" && x.value === 3), "additive AE named");
+          assert.equal(s.reduce((t, x) => t + x.value, 0), actor.system.body.mod, "sources sum to body.mod");
+        });
+
+        it("folds a non-additive effect into an 'other' residual so sources still sum to .mod", async () => {
+          const actor = await mk();  // body base 4
+          // An OVERRIDE effect's change value (10) is NOT its additive contribution,
+          // so it must not be recorded as a +10 named line; the residual catches it.
+          await actor.createEmbeddedDocuments("ActiveEffect", [{
+            name: "Body Override", changes: [{ key: "system.body.mod", mode: OVERRIDE, value: "10" }]
+          }]);
+          const s = bodySources(actor);
+          assert.notOk(s.some(x => x.name === "Body Override"), "an override effect is not a named additive source");
+          assert.equal(s.reduce((t, x) => t + x.value, 0), actor.system.body.mod,
+            "even with a non-additive effect, listed sources sum to body.mod (via residual)");
+        });
+
+        it("leaves sources empty when nothing modifies the attribute", async () => {
+          const actor = await mk();
+          assert.equal(bodySources(actor).length, 0, "an unmodified attribute has no sources");
+        });
+      });
+    }, { displayName: "SR2E: Attribute sources" });
+
     // ── Bioware / Body Index (Shadowtech) — the derivation edge cases Vitest
     //    can't reach: real prepareData() cycles, awakened Essence, idempotence ──
     quench.registerBatch("sr2e.bioware", (context) => {

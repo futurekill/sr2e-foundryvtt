@@ -2,6 +2,18 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.45.0 — 2026-07-17
+
+### Added
+- **Attribute tooltips now name what's boosting the score.** Hovering an
+  augmented attribute used to say a generic "boosted +N by cyberware / magic /
+  adept power"; it now lists each contributor by name — e.g. *Body 8 (base 4) ·
+  +2 Muscle Replacement · +2 Increase Body (sustained)* — pulling from installed
+  cyberware, bioware, adept powers, AND active effects like sustained spells. A
+  modifier that can't be attributed to a name (a non-additive effect) shows as a
+  single "other" line, so the listed sources always add up to the total. Reaction
+  keeps a plain "base + modifier" note for now (its sources aren't itemised yet).
+
 ## 0.44.2 — 2026-07-17
 
 ### Fixes

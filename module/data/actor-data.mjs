@@ -607,6 +607,11 @@ export class CharacterData extends SR2EDataModel {
       charisma: 0, intelligence: 0, willpower: 0,
       reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0, tacComputer: 0,
       unarmedPower: 0, activeSkillDice: 0,
+      // Provenance for the attribute tooltip: one {name, value} per item that
+      // moves an attribute, so the sheet can name the source instead of a generic
+      // "cyberware / magic / adept power". Active-Effect sources are added later
+      // (they're applied before this runs; see _attributeEffectSources).
+      sources: { body: [], quickness: [], strength: [], charisma: [], intelligence: [], willpower: [] },
       // Attribute Edges (Companion): edgeAttr raises the RATING, edgeMax the
       // racial MAXIMUM. Both are part of the NATURAL attribute, not `mod`.
       edgeAttr: {}, edgeMax: {},
@@ -623,6 +628,7 @@ export class CharacterData extends SR2EDataModel {
       if (item.type === "cyberware" && item.system.installed) {
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
           if (key in mods) mods[key] += val;
+          if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val });
         }
         // Muscle Replacement/Augmentation Quickness doesn't raise Reaction
         // (flag, with a name fallback for pre-0.28 world copies).
@@ -653,6 +659,7 @@ export class CharacterData extends SR2EDataModel {
           const rating = Math.max(1, sys.rating ?? 1);
           for (const [key, val] of Object.entries(sys.attributeMods ?? {})) {
             if (key in mods) mods[key] += val * rating;
+            if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val * rating });
           }
           // Explicit flag only (no name heuristic): e.g. Adrenal Pump's Quickness
           // does not feed Reaction, but Muscle Augmentation's / Suprathyroid's does.
@@ -681,6 +688,7 @@ export class CharacterData extends SR2EDataModel {
         const lvl = Math.max(1, item.system.level ?? 1);
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
           if (key in mods) mods[key] += val * lvl;
+          if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val * lvl });
         }
       }
     }
@@ -733,14 +741,54 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _calculateAttributeValues(mods) {
+    const aeSources = this._attributeEffectSources();
+    // Provenance lives in a top-level EPHEMERAL map, not on system.<attr>.sources:
+    // the attribute is a declared SchemaField and V13 may seal it, so an
+    // undeclared nested property can be dropped or throw. Top-level derived data
+    // on the model is safe (the system assigns lots of it here).
+    this.attributeSources = {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
         // .mod at this point = stored value + Active Effect contributions
         // (effects are applied before prepareDerivedData); item mods stack on top.
         this[attr].mod = (this[attr].mod ?? 0) + mods[attr];
         this[attr].value = Math.max(1, this._naturalAttribute(attr, mods) + this[attr].mod);
+
+        // Named sources: additive Active Effects + item mods (cyber/bio/adept).
+        const named = [...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? [])];
+        // Anything in `.mod` we couldn't attribute (a non-additive effect —
+        // override/multiply — or an unknown contributor) becomes one honest
+        // "other" line, so the listed sources ALWAYS sum to `.mod`.
+        const residual = this[attr].mod - named.reduce((t, s) => t + s.value, 0);
+        if (residual) named.push({ name: game.i18n.localize("SR2E.Attr.OtherSource"), value: residual });
+        this.attributeSources[attr] = named;
       }
     }
+  }
+
+  /**
+   * Attribute modifiers contributed by ADDITIVE Active Effects (sustained spells,
+   * temporary buffs/penalties), grouped by attribute with the effect's name.
+   * Only ADD-mode changes are attributed by name — for override/multiply modes
+   * the change value isn't the additive contribution, so those fall into the
+   * "other" residual computed by the caller. Effects are applied to
+   * `system.<attr>.mod` before prepareDerivedData, so they don't pass through
+   * _collectItemModifiers and must be read here.
+   * @returns {Record<string,{name:string,value:number}[]>}
+   * @private
+   */
+  _attributeEffectSources() {
+    const out = { body: [], quickness: [], strength: [], charisma: [], intelligence: [], willpower: [] };
+    const ADD = CONST.ACTIVE_EFFECT_MODES.ADD;
+    for (const effect of this.parent?.appliedEffects ?? []) {
+      for (const ch of effect.changes ?? []) {
+        if (ch.mode !== ADD) continue;   // non-additive → residual, not a named line
+        const m = /^system\.(body|quickness|strength|charisma|intelligence|willpower)\.mod$/.exec(ch.key ?? "");
+        const value = Number(ch.value) || 0;
+        if (m && value) out[m[1]].push({ name: effect.name || "Effect", value });
+      }
+    }
+    return out;
   }
 
   /**
