@@ -405,6 +405,110 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Chargen budget" });
 
+    // ── Attribute Edges apply themselves (Shadowrun Companion p.24) ──
+    // The Vitest suite locks naturalAttribute's math; this locks the half Vitest
+    // can't see — that a quality item on a real actor actually drives it, and
+    // that the chargen budget ignores points bought with Edge (the reported
+    // off-by-N). Qualities are bound BY NAME: createEmbeddedDocuments does not
+    // return documents in the order they were passed.
+    quench.registerBatch("sr2e.attribute-edges", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { try { await actor?.sheet?.close(); } catch (e) {} await actor?.delete(); });
+
+      const edge = (name, system) => ({ name, type: "quality", system: { kind: "edge", category: "attribute", ...system } });
+
+      describe("Attribute Edges (Companion p.24)", () => {
+        it("a Bonus Attribute Point raises the rating, bounded by the racial maximum", async () => {
+          // Human: Strength 4 (max 6). +1 point => 5.
+          actor = await Actor.create({
+            name: "Quench Edges", type: "character",
+            // Quickness 2 leaves headroom for the 3 Edge points added below to
+            // land without hitting the human maximum of 6 and muddying that test.
+            system: { race: "human", strength: { base: 4 }, body: { base: 6 }, quickness: { base: 2 } }
+          });
+          await actor.createEmbeddedDocuments("Item", [
+            edge("Bonus Attribute Point", { attribute: "strength", attributeBonus: 1, pointValue: 1 })
+          ]);
+          assert.equal(actor.system.strength.value, 5, "bonus point did not reach Strength");
+
+          // Body 6 is already at the human maximum: +2 points must not pass it.
+          await actor.createEmbeddedDocuments("Item", [
+            edge("Bonus Body", { attribute: "body", attributeBonus: 2, pointValue: 2 })
+          ]);
+          assert.equal(actor.system.body.value, 6, "bonus points escaped the racial maximum");
+        });
+
+        it("Exceptional Attribute raises the maximum WITHOUT raising the rating", async () => {
+          const [item] = await actor.createEmbeddedDocuments("Item", [
+            edge("Exceptional Attribute", { attribute: "body", maximumBonus: 1, pointValue: 2 })
+          ]);
+          // The book: it "simply raises the maximum—it does not increase the
+          // character's actual Attribute Rating to the new maximum." Body still
+          // has its 2 bonus points pending, which may now claim exactly 1 of the
+          // raised ceiling: 6 base, cap 7 => 7, not 8.
+          assert.equal(actor.system.body.value, 7, "raised ceiling not honoured");
+          await item.delete();
+          assert.equal(actor.system.body.value, 6, "ceiling did not fall back to the racial maximum");
+        });
+
+        it("does not charge the chargen Attribute budget for Edge-bought points", async () => {
+          // The reported bug: the warning read "off by 3" because the points had
+          // to be added by hand, landing in `base` — which the budget sums.
+          // The budget is computed in the sheet context, so read it from there.
+          await actor.update({ "system.chargen.priorities.attributes": "B" }); // B = 24
+          const spent = async () => (await actor.sheet._prepareContext({}))
+            .chargenBudget.attributes.spent;
+          const before = await spent();
+          await actor.createEmbeddedDocuments("Item", [
+            edge("Bonus Quickness", { attribute: "quickness", attributeBonus: 3, pointValue: 3 })
+          ]);
+          assert.equal(await spent(), before,
+            "Edge-bought attribute points were charged against the chargen budget");
+          assert.equal(actor.system.quickness.value, actor.system.quickness.base + 3,
+            "the 3 Edge points did not actually reach Quickness");
+        });
+
+        it("leaves a legacy hand-edited character untouched", async () => {
+          // The upgrade path. Players worked around the dead Edge by naming the
+          // attribute in the item's title and adding the points to `base` by
+          // hand. Those items have no `attribute` set, so they must stay inert —
+          // if a blank Edge ever applied itself, every such character would
+          // silently gain points on upgrade.
+          const legacy = await Actor.create({
+            name: "Quench Legacy Edges", type: "character",
+            system: { race: "human", willpower: { base: 5 } } // 2 bought + 3 by hand
+          });
+          try {
+            await legacy.createEmbeddedDocuments("Item", [
+              edge("Bonus Attribute Point (Willpower +3)", { pointValue: 3 })
+            ]);
+            assert.equal(legacy.system.willpower.value, 5,
+              "an Edge with no Attribute picked changed the character");
+          } finally {
+            await legacy.delete();
+          }
+        });
+
+        it("offers exactly the Attributes config allows, and no more", async () => {
+          // QualityData relists these choices because a data model's schema is
+          // built before CONFIG.SR2E is populated. Vitest can't import the model
+          // (it needs Foundry globals), so this is the only place the two copies
+          // can be checked against each other.
+          const schema = Object.keys(
+            CONFIG.Item.dataModels.quality.schema.fields.attribute.choices ?? {}
+          );
+          const config = Object.keys(CONFIG.SR2E.qualityAttributes);
+          assert.sameMembers(schema, config,
+            "QualityData's attribute choices have drifted from CONFIG.SR2E.qualityAttributes");
+          // "any Attribute except Essence, Reaction or Magic" (p.24).
+          for (const banned of ["essence", "reaction", "magic"]) {
+            assert.notInclude(schema, banned, `${banned} must not be selectable`);
+          }
+        });
+      });
+    }, { displayName: "SR2E: Attribute Edges" });
+
     // ── Astral projection swaps the Initiative panel to astral values (p.147) ──
     quench.registerBatch("sr2e.astral-init", (context) => {
       const { describe, it, assert, after } = context;

@@ -213,6 +213,23 @@
           </div>
           {{/if}}
         </div>
+        {{!-- The Companion's two hard limits on the Attribute Edges (p.24).
+             Reported, never blocked — the panel is informational. --}}
+        {{#if attributeEdges.bonusOverCap}}
+        <p class="priority-warning">
+          <i class="fas fa-triangle-exclamation"></i>
+          <strong>{{attributeEdges.bonusTotal}}</strong> bonus Attribute Points taken;
+          the Companion allows no more than 5 (p.24).
+        </p>
+        {{/if}}
+        {{#if attributeEdges.exceptionalRepeats.length}}
+        <p class="priority-warning">
+          <i class="fas fa-triangle-exclamation"></i>
+          Exceptional Attribute may be taken only once per Attribute (p.24), but is
+          taken more than once for:
+          <strong>{{#each attributeEdges.exceptionalRepeats}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</strong>.
+        </p>
+        {{/if}}
         {{/if}}
       </div>
     </fieldset>

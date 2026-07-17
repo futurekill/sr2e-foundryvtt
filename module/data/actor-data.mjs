@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -266,7 +266,9 @@ export class CharacterData extends SR2EDataModel {
     // assigned exactly once here); cap = natural, unaugmented Body — computed
     // from base+racial so bioware/AE Body bonuses can never inflate the cap.
     this.bodyIndex.value = mods.bodyIndex;
-    this.bodyIndex.max = this._naturalAttribute("body");
+    // An Edge-granted Body point is NATURAL (not augmentation), so it raises the
+    // Body Index cap too — the cap is the character's unaugmented Body.
+    this.bodyIndex.max = this._naturalAttribute("body", mods);
 
     // Installed VCR cyberware is AUTHORITATIVE for the rig level — the manual
     // field on the vehicles tab only applies when no rig item is installed
@@ -601,6 +603,9 @@ export class CharacterData extends SR2EDataModel {
       charisma: 0, intelligence: 0, willpower: 0,
       reaction: 0, initiativeDice: 0, essenceLoss: 0, vcrLevel: 0, tacComputer: 0,
       unarmedPower: 0, activeSkillDice: 0,
+      // Attribute Edges (Companion): edgeAttr raises the RATING, edgeMax the
+      // racial MAXIMUM. Both are part of the NATURAL attribute, not `mod`.
+      edgeAttr: {}, edgeMax: {},
       // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
       // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
       reactionExemptQuickness: 0,
@@ -655,6 +660,18 @@ export class CharacterData extends SR2EDataModel {
           mods.activeSkillDice += (sys.activeSkillDice || 0) * rating;
         }
       }
+      // Attribute Edges (Companion): Bonus Attribute Point raises a rating,
+      // Exceptional Attribute raises that attribute's racial maximum. Data-driven
+      // via explicit fields — never by matching the item's name.
+      if (item.type === "quality" && item.system.attribute) {
+        const a = item.system.attribute;
+        if (item.system.attributeBonus) {
+          mods.edgeAttr[a] = (mods.edgeAttr[a] ?? 0) + item.system.attributeBonus;
+        }
+        if (item.system.maximumBonus) {
+          mods.edgeMax[a] = (mods.edgeMax[a] ?? 0) + item.system.maximumBonus;
+        }
+      }
       if (item.type === "adept_power") {
         // Power effects are per-level (SR2E p.124–126): scale by the level.
         const lvl = Math.max(1, item.system.level ?? 1);
@@ -693,11 +710,15 @@ export class CharacterData extends SR2EDataModel {
    * @returns {number}
    * @private
    */
-  _naturalAttribute(attr) {
+  _naturalAttribute(attr, mods = null) {
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
-    let natural = (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0);
-    if (maxes[attr] != null && natural > maxes[attr]) natural = maxes[attr];
-    return natural;
+    return naturalAttribute(
+      this[attr]?.base ?? 0,
+      this[attr]?.racial ?? 0,
+      mods?.edgeAttr?.[attr] ?? 0,
+      maxes[attr] ?? null,
+      mods?.edgeMax?.[attr] ?? 0
+    );
   }
 
   /**
@@ -713,7 +734,7 @@ export class CharacterData extends SR2EDataModel {
         // .mod at this point = stored value + Active Effect contributions
         // (effects are applied before prepareDerivedData); item mods stack on top.
         this[attr].mod = (this[attr].mod ?? 0) + mods[attr];
-        this[attr].value = Math.max(1, this._naturalAttribute(attr) + this[attr].mod);
+        this[attr].value = Math.max(1, this._naturalAttribute(attr, mods) + this[attr].mod);
       }
     }
   }

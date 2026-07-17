@@ -1,6 +1,5 @@
 {
   "SR2E.SystemName": "Shadowrun 2nd Edition",
-
   "SR2E.Race.Label": "Race",
   "SR2E.Essence": "Essence",
   "SR2E.Nuyen": "Nuyen",
@@ -12,7 +11,6 @@
   "SR2E.Initiative": "Initiative",
   "SR2E.Movement": "Movement",
   "SR2E.Weapons.Label": "Weapons",
-
   "SR2E.Attributes.Body": "Body",
   "SR2E.Attributes.Quickness": "Quickness",
   "SR2E.Attributes.Strength": "Strength",
@@ -22,13 +20,11 @@
   "SR2E.Attributes.Essence": "Essence",
   "SR2E.Attributes.Magic": "Magic",
   "SR2E.Attributes.Reaction": "Reaction",
-
   "SR2E.Races.Human": "Human",
   "SR2E.Races.Dwarf": "Dwarf",
   "SR2E.Races.Elf": "Elf",
   "SR2E.Races.Ork": "Ork",
   "SR2E.Races.Troll": "Troll",
-
   "SR2E.Race.DragHint": "Drag a metatype from the SR2E Metatypes compendium to set this character's race.",
   "SR2E.Race.ChangeTitle": "Change Metatype?",
   "SR2E.Race.ChangeWarning": "This character is currently a {current}. Replace with {next}? Racial attribute modifiers and maximums will be updated.",
@@ -37,7 +33,6 @@
   "SR2E.Race.AttributeMods": "Racial Modifiers",
   "SR2E.Race.AttributeMaximums": "Racial Maximums",
   "SR2E.Race.KarmaCost": "Karma Cost",
-
   "SR2E.Tabs.Attributes": "Attributes",
   "SR2E.Tabs.Skills": "Skills",
   "SR2E.Tabs.Combat": "Combat",
@@ -49,7 +44,6 @@
   "SR2E.Tabs.Bio": "Bio",
   "SR2E.Tabs.Overview": "Overview",
   "SR2E.Tabs.Design": "Design",
-
   "SR2E.Design.BuildTitle": "Design From Scratch",
   "SR2E.Design.Chassis": "Chassis",
   "SR2E.Design.PowerPlant": "Power Plant",
@@ -82,13 +76,11 @@
   "SR2E.Design.Applied": "Applied the design build to {name}.",
   "SR2E.Design.NoData": "No vehicle-design tables are loaded. Enable a content module that provides them (e.g. Shadowrun 2E: Rigger 2) to design vehicles from scratch.",
   "SR2E.Vehicle.NoGunner": "A vehicle weapon needs a gunner. Select your gunner's token (or assign a character to your user) and fire again.",
-
   "SR2E.Skills.Active": "Active Skills",
   "SR2E.Skills.BuildRepair": "Build/Repair Skills",
   "SR2E.Skills.Knowledge": "Knowledge Skills",
   "SR2E.Skills.Language": "Languages",
   "SR2E.Skills.Special": "Special Skills",
-
   "SR2E.Skills.ArmedCombat": "Armed Combat",
   "SR2E.Skills.Athletics": "Athletics",
   "SR2E.Skills.Bike": "Bike",
@@ -119,7 +111,6 @@
   "SR2E.Skills.Survival": "Survival",
   "SR2E.Skills.ThrowingWeapons": "Throwing Weapons",
   "SR2E.Skills.UnarmedCombat": "Unarmed Combat",
-
   "SR2E.Skills.AircraftBR": "Aircraft B/R",
   "SR2E.Skills.BoatBR": "Boat B/R",
   "SR2E.Skills.CyberwareBR": "Cyberware B/R",
@@ -127,20 +118,16 @@
   "SR2E.Skills.GroundVehicleBR": "Ground Vehicle B/R",
   "SR2E.Skills.RotorAircraftBR": "Rotor Aircraft B/R",
   "SR2E.Skills.WeaponsBR": "Weapons B/R",
-
   "SR2E.Damage.Physical": "Physical",
   "SR2E.Damage.Stun": "Stun",
-
   "SR2E.Condition.Light": "Light",
   "SR2E.Condition.Moderate": "Moderate",
   "SR2E.Condition.Serious": "Serious",
   "SR2E.Condition.Deadly": "Deadly",
-
   "SR2E.DicePools.Combat": "Combat Pool",
   "SR2E.DicePools.Hacking": "Hacking Pool",
   "SR2E.DicePools.Magic": "Magic Pool",
   "SR2E.DicePools.Control": "Control Pool",
-
   "SR2E.Roll.Wound": "wound",
   "SR2E.Roll.Sustaining": "sustaining",
   "SR2E.Roll.DumpShock": "dump shock",
@@ -148,11 +135,9 @@
   "SR2E.Roll.Karma": "Karma",
   "SR2E.Roll.TnBreakdown": "{tn} (base {base} {parts})",
   "SR2E.Roll.DiceBreakdown": "{dice} {parts} = {total} total",
-
   "SR2E.Armor.Label": "Armor",
   "SR2E.Armor.Ballistic": "Ballistic",
   "SR2E.Armor.Impact": "Impact",
-
   "SR2E.Magic.None": "None",
   "SR2E.Magic.Hermetic": "Hermetic",
   "SR2E.Magic.Shamanic": "Shamanic",
@@ -175,7 +160,6 @@
   "SR2E.Magic.NoAstralAccess": "No Astral Access",
   "SR2E.Magic.DropTradition": "Drop a Tradition here",
   "SR2E.Magic.ClearTradition": "Remove tradition",
-
   "SR2E.Totems.Bear": "Bear",
   "SR2E.Totems.Cat": "Cat",
   "SR2E.Totems.Coyote": "Coyote",
@@ -191,7 +175,6 @@
   "SR2E.Totems.Shark": "Shark",
   "SR2E.Totems.Snake": "Snake",
   "SR2E.Totems.Wolf": "Wolf",
-
   "SR2E.Spells.Combat": "Combat",
   "SR2E.Spells.Detection": "Detection",
   "SR2E.Spells.Health": "Health",
@@ -211,12 +194,10 @@
   "SR2E.Spells.SubcatControl": "Control",
   "SR2E.Spells.SubcatTelekinetic": "Telekinetic",
   "SR2E.Spells.SubcatTransformation": "Transformation",
-
   "SR2E.Drain.Light": "Light",
   "SR2E.Drain.Moderate": "Moderate",
   "SR2E.Drain.Serious": "Serious",
   "SR2E.Drain.Deadly": "Deadly",
-
   "SR2E.Spirits.City": "City",
   "SR2E.Spirits.Field": "Field",
   "SR2E.Spirits.Forest": "Forest",
@@ -233,7 +214,6 @@
   "SR2E.Spirits.Water": "Water",
   "SR2E.Spirits.Air": "Air",
   "SR2E.Spirits.Earth": "Earth",
-
   "SR2E.Powers.Accident": "Accident",
   "SR2E.Powers.Concealment": "Concealment",
   "SR2E.Powers.Confusion": "Confusion",
@@ -248,11 +228,9 @@
   "SR2E.Powers.AidSorcery": "Aid Sorcery",
   "SR2E.Powers.AidStudy": "Aid Study",
   "SR2E.Powers.SpellSustaining": "Spell Sustaining",
-
   "SR2E.Astral.None": "Physical",
   "SR2E.Astral.Perceiving": "Astrally Perceiving",
   "SR2E.Astral.Projecting": "Astrally Projecting",
-
   "SR2E.Weapons.Melee": "Melee",
   "SR2E.Weapons.Projectile": "Projectile",
   "SR2E.Weapons.Throwing": "Throwing",
@@ -263,7 +241,6 @@
   "SR2E.Weapons.SemiAutomatic": "Semi-Automatic",
   "SR2E.Weapons.BurstFire": "Burst Fire",
   "SR2E.Weapons.FullAuto": "Full Auto",
-
   "SR2E.Bioware.Standard": "Standard",
   "SR2E.Bioware.Cultured": "Cultured",
   "SR2E.Bioware.BodyCost": "Body Cost",
@@ -285,7 +262,6 @@
   "SR2E.Cyberware.Bodyware": "Bodyware",
   "SR2E.Cyberware.Cyberlimb": "Cyberlimb",
   "SR2E.Cyberware.Other": "Other",
-
   "SR2E.Matrix.Attack": "Attack",
   "SR2E.Matrix.Sleaze": "Sleaze",
   "SR2E.Matrix.Mask": "Mask",
@@ -319,7 +295,6 @@
   "SR2E.Matrix.AlertPassive": "Passive alert",
   "SR2E.Matrix.AlertActive": "Active alert",
   "SR2E.Sheets.Host": "SR2E Host Sheet",
-
   "SR2E.Vehicles.Ground": "Ground",
   "SR2E.Vehicles.Hovercraft": "Hovercraft",
   "SR2E.Vehicles.Boat": "Boat",
@@ -327,14 +302,12 @@
   "SR2E.Vehicles.Rotor": "Rotorcraft",
   "SR2E.Vehicles.VectoredThrust": "Vectored Thrust",
   "SR2E.Vehicles.Drone": "Drone",
-
   "SR2E.Lifestyle.Streets": "Streets",
   "SR2E.Lifestyle.Squatter": "Squatter",
   "SR2E.Lifestyle.Low": "Low",
   "SR2E.Lifestyle.Middle": "Middle",
   "SR2E.Lifestyle.High": "High",
   "SR2E.Lifestyle.Luxury": "Luxury",
-
   "SR2E.Contact.Contact": "Contact",
   "SR2E.Contact.Buddy": "Buddy",
   "SR2E.Contact.Friend": "Friend For Life",
@@ -343,6 +316,7 @@
   "SR2E.Quality.Edge": "Edge",
   "SR2E.Quality.Flaw": "Flaw",
   "SR2E.Quality.Attribute": "Attribute",
+  "SR2E.Quality.NoAttribute": "— none —",
   "SR2E.Quality.Skill": "Skill",
   "SR2E.Quality.Mental": "Mental",
   "SR2E.Quality.Physical": "Physical",
@@ -350,20 +324,17 @@
   "SR2E.Quality.Magical": "Magical",
   "SR2E.Quality.Other": "Other",
   "SR2E.Quality.Label": "Edges & Flaws",
-
   "SR2E.Focus.Spell": "Spell Focus",
   "SR2E.Focus.Spirit": "Spirit Focus",
   "SR2E.Focus.Power": "Power Focus",
   "SR2E.Focus.Weapon": "Weapon Focus",
   "SR2E.Focus.SpellLock": "Spell Lock",
-
   "SR2E.Sheets.Character": "SR2E Character Sheet",
   "SR2E.Sheets.NPC": "SR2E NPC Sheet",
   "SR2E.Sheets.Vehicle": "SR2E Vehicle Sheet",
   "SR2E.Sheets.Spirit": "SR2E Spirit Sheet",
   "SR2E.Sheets.IC": "SR2E IC Sheet",
   "SR2E.Sheets.Item": "SR2E Item Sheet",
-
   "SR2E.Vehicles.TestHandling": "Handling Test",
   "SR2E.Vehicles.TestPosition": "Position Test",
   "SR2E.Vehicles.TestCrash": "Crash Test",
@@ -371,13 +342,11 @@
   "SR2E.Vehicles.TerrainNormal": "Normal",
   "SR2E.Vehicles.TerrainRestricted": "Restricted",
   "SR2E.Vehicles.TerrainTight": "Tight",
-
   "SR2E.Ammo.DamageTypeWeapon": "Weapon default",
   "SR2E.Ammo.ArmorStandard": "Standard",
   "SR2E.Ammo.ArmorHalfBallistic": "½ Ballistic (APDS)",
   "SR2E.Ammo.ArmorImpact": "Impact applies (Gel)",
   "SR2E.Ammo.ArmorFlechette": "max(2×Impact, Ballistic) (Flechette)",
-
   "SR2E.Dialog.RollOptions": "Roll Options",
   "SR2E.Dialog.TargetNumber": "Target Number",
   "SR2E.Dialog.Roll": "Roll",
@@ -392,7 +361,6 @@
   "SR2E.Dialog.PoolDiceHeader": "Pool Dice (optional — reduces pool after roll)",
   "SR2E.Dialog.KarmaDice": "Karma dice",
   "SR2E.Dialog.KarmaDiceHint": "(1 Karma each, max {cap} — pool: {avail})",
-
   "SR2E.Chat.Dice": "Dice",
   "SR2E.Chat.TN": "TN",
   "SR2E.Chat.Successes": "Successes",
@@ -405,19 +373,16 @@
   "SR2E.Chat.KarmaRerolls": "({count} Karma reroll(s))",
   "SR2E.Chat.BoughtSuccesses": "({count} bought with Karma)",
   "SR2E.Chat.ResistDamage": "🛡 Resist Damage",
-
   "SR2E.Settings.RuleOfSix": "Rule of Six",
   "SR2E.Settings.RuleOfSixHint": "Enable the Rule of Six (exploding 6s on dice rolls). When a 6 is rolled, the die is rerolled and added, allowing target numbers above 6 to be achieved.",
   "SR2E.Settings.AutoEssence": "Auto-Calculate Essence",
   "SR2E.Settings.AutoEssenceHint": "Automatically reduce Essence when cyberware is added to a character.",
-
   "TYPES.Actor.character": "Character",
   "TYPES.Actor.npc": "NPC",
   "TYPES.Actor.vehicle": "Vehicle",
   "TYPES.Actor.spirit": "Spirit",
   "TYPES.Actor.ic": "IC",
   "TYPES.Actor.host": "Host",
-
   "TYPES.Item.skill": "Skill",
   "TYPES.Item.weapon": "Weapon",
   "TYPES.Item.armor": "Armor",
@@ -433,5 +398,4 @@
   "TYPES.Item.vehicle_mod": "Vehicle Modification",
   "TYPES.Item.race": "Metatype",
   "TYPES.Item.quality": "Edge / Flaw"
-
 }

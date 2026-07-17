@@ -824,6 +824,14 @@ SR2E.qualityKinds = {
   edge: "SR2E.Quality.Edge",
   flaw: "SR2E.Quality.Flaw"
 };
+// Attributes an Attribute Edge (Companion p.24) may target: "any Attribute
+// except Essence, Reaction or Magic" — which is exactly SR2E.attributes, since
+// the excluded three are the Special Attributes above. Derived from it rather
+// than relisted so the two can't drift. QualityData relists these choices (data
+// models can't read CONFIG at schema-build time); config-rules.test.mjs locks
+// the two together.
+SR2E.qualityAttributes = { "": "SR2E.Quality.NoAttribute", ...SR2E.attributes };
+
 SR2E.qualityCategories = {
   attribute: "SR2E.Quality.Attribute",
   skill:     "SR2E.Quality.Skill",

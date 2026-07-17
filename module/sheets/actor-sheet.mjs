@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, overstressPenalty, itemBaseCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
@@ -833,6 +833,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       bondingCost: i.system.bondingCost ?? 0
     }));
     context.chargenBudget = chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+    // The Companion's two hard limits on the Attribute Edges (p.24). Reported
+    // beside the budget, not enforced — like everything else in this panel.
+    context.attributeEdges = attributeEdgeViolations(
+      actor.items.filter((i) => i.type === "quality").map((i) => ({
+        attribute: i.system.attribute,
+        attributeBonus: i.system.attributeBonus,
+        maximumBonus: i.system.maximumBonus
+      }))
+    );
     // Thousands separators for the ¥ figures (they climb toward 1,000,000).
     for (const k of ["spent", "total", "remaining"]) {
       context.chargenBudget.resources[`${k}Fmt`] = context.chargenBudget.resources[k].toLocaleString("en-US");

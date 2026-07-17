@@ -136,6 +136,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       case "quality":
         context.qualityKinds = CONFIG.SR2E.qualityKinds;
         context.qualityCategories = CONFIG.SR2E.qualityCategories;
+        context.qualityAttributes = CONFIG.SR2E.qualityAttributes;
         break;
     }
 

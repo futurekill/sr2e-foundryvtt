@@ -150,3 +150,28 @@ describe("Skill Web reachability — nested Charisma ⊂ Willpower ⊂ Intellige
     expect(reach("charisma")).not.toContain("sorcery");    // Charisma can't ride back
   });
 });
+
+describe("Attribute Edge targets (Shadowrun Companion p.24)", () => {
+  // "The bonus Attribute Point can be added to any Attribute except Essence,
+  // Reaction or Magic." The excluded three are exactly the Special Attributes,
+  // so the offer is SR2E.attributes plus a blank. QualityData relists these
+  // choices (a data model can't read CONFIG when its schema is built) — the
+  // sr2e.attribute-edges Quench batch locks that copy against this one.
+  it("offers every Physical/Mental attribute, plus a blank", () => {
+    const keys = Object.keys(SR2E.qualityAttributes);
+    expect(keys).toContain("");
+    for (const attr of Object.keys(SR2E.attributes)) expect(keys).toContain(attr);
+    expect(keys.length).toBe(Object.keys(SR2E.attributes).length + 1);
+  });
+
+  it("offers none of the Special Attributes the book excludes", () => {
+    for (const special of Object.keys(SR2E.specialAttributes)) {
+      expect(SR2E.qualityAttributes).not.toHaveProperty(special);
+    }
+    // Named explicitly too, so a future rename of specialAttributes can't quietly
+    // empty the loop above.
+    for (const banned of ["essence", "reaction", "magic"]) {
+      expect(SR2E.qualityAttributes).not.toHaveProperty(banned);
+    }
+  });
+});

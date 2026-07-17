@@ -1071,12 +1071,79 @@ export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
 export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle"];
 
 /**
+ * An attribute's natural, unaugmented rating: what the character has before any
+ * cyber/bio/adept/Active-Effect modifier.
+ *
+ * The two Companion Attribute Edges (p.24) both land here rather than in the
+ * modifier total, because the book bounds them the way it bounds the natural
+ * rating and a modifier would escape the clamp:
+ *  - **Bonus Attribute Point** (`edgeBonus`) raises the RATING, and "cannot
+ *    raise the Attribute Ratings of characters beyond the racial maximums."
+ *  - **Exceptional Attribute** (`maxBonus`) raises that attribute's racial
+ *    MAXIMUM by 1 and explicitly does NOT raise the rating with it.
+ *
+ * Pass `racialMax = null` for an attribute with no published maximum, which
+ * leaves the rating unclamped.
+ *
+ * @param {number} base - the rating bought at character creation
+ * @param {number} [racial=0] - the metatype's modifier
+ * @param {number} [edgeBonus=0] - Bonus Attribute Points applied to this attribute
+ * @param {number|null} [racialMax=null] - the metatype's maximum, or null for none
+ * @param {number} [maxBonus=0] - Exceptional Attribute's raise to that maximum
+ * @returns {number}
+ */
+export function naturalAttribute(base, racial = 0, edgeBonus = 0, racialMax = null, maxBonus = 0) {
+  const natural = (Number(base) || 0) + (Number(racial) || 0) + (Number(edgeBonus) || 0);
+  if (racialMax === null || racialMax === undefined) return natural;
+  return Math.min(natural, (Number(racialMax) || 0) + (Number(maxBonus) || 0));
+}
+
+/** "Players can take no more than 5 bonus Attribute Points." (Companion p.24) */
+export const MAX_BONUS_ATTRIBUTE_POINTS = 5;
+
+/**
+ * The two limits the Companion places on the Attribute Edges (p.24), checked
+ * against a character's quality items.
+ *
+ * Both are unqualified: "Players can take no more than 5 bonus Attribute
+ * Points," and "Player characters can take Exceptional Attribute only once per
+ * Attribute." The book's one GM override — "Unless authorized by the
+ * gamemaster" — attaches solely to *exceeding racial maximums*, so it does not
+ * license going past either of these. They're still only reported, never
+ * blocked: the whole chargen panel is informational (see the sheet), and a GM
+ * who wants to break a rule shouldn't have to fight the sheet to do it.
+ *
+ * Only Edges with an `attribute` set are counted — one without a target does
+ * nothing mechanically, so charging it against the cap would be a false alarm.
+ *
+ * @param {{attribute?:string, attributeBonus?:number, maximumBonus?:number}[]} [qualities]
+ * @returns {{bonusTotal:number, bonusOverCap:boolean, exceptionalRepeats:string[]}}
+ */
+export function attributeEdgeViolations(qualities = []) {
+  const applied = qualities.filter((q) => q?.attribute);
+  const bonusTotal = applied.reduce((s, q) => s + (Number(q.attributeBonus) || 0), 0);
+  const maxByAttr = {};
+  for (const q of applied) {
+    const raise = Number(q.maximumBonus) || 0;
+    if (raise) maxByAttr[q.attribute] = (maxByAttr[q.attribute] ?? 0) + raise;
+  }
+  return {
+    bonusTotal,
+    bonusOverCap: bonusTotal > MAX_BONUS_ATTRIBUTE_POINTS,
+    exceptionalRepeats: Object.keys(maxByAttr).filter((a) => maxByAttr[a] > 1).sort()
+  };
+}
+
+/**
  * Character-creation point spend per category, versus the allotment granted by
  * the chosen priorities (SR2E p.44–45). Pure counting — the caller pulls plain
  * data off the actor so this stays testable.
  *
  * - Attributes: sum of the six Physical/Mental **base** ratings. Reaction,
  *   Essence and Magic are Special Attributes (not bought), so they're excluded.
+ *   Bonus Attribute Points (Companion p.24) are bought with Edge, not with the
+ *   attribute budget; they live outside `base` (see naturalAttribute) and so are
+ *   excluded here for free.
  * - Skills: sum of **Active + Build/Repair** skill ratings. Knowledge, Language
  *   and Special skills follow the p.74 special rules (native language is free,
  *   others need GM approval), so they are NOT charged against the skill budget.

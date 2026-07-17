@@ -1073,6 +1073,29 @@ export class QualityData extends SR2EDataModel {
       }}),
       // Build-point value: positive for Edges, negative for Flaws.
       pointValue: new fields.NumberField({ integer: true, initial: 0 }),
+
+      // Which Attribute this quality acts on. Blank for the vast majority.
+      // Essence/Reaction/Magic are excluded: "The bonus Attribute Point can be
+      // added to any Attribute except Essence, Reaction or Magic" (Companion,
+      // Attribute Edges) — and Reaction is derived here anyway.
+      attribute: new fields.StringField({ initial: "", blank: true, choices: {
+        "": "SR2E.Quality.NoAttribute",
+        body: "SR2E.Attributes.Body", quickness: "SR2E.Attributes.Quickness",
+        strength: "SR2E.Attributes.Strength", charisma: "SR2E.Attributes.Charisma",
+        intelligence: "SR2E.Attributes.Intelligence", willpower: "SR2E.Attributes.Willpower"
+      }}),
+      // Bonus Attribute Point (Companion, Value 1 each): raises the RATING of
+      // `attribute`. Counts as part of the NATURAL attribute — the book bounds it
+      // by the racial maximum, and a bonus in `mod` would escape that clamp. Max 5
+      // by the book; not enforced, because the same paragraph lets the GM allow
+      // more (this system warns rather than blocks — cf. the Body Index cap).
+      attributeBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Exceptional Attribute (Companion, Value 2 each): raises the racial MAXIMUM
+      // of `attribute` by 1. "Exceptional Attribute simply raises the maximum — it
+      // does not increase the character's actual Attribute Rating to the new
+      // maximum. To do that, players must take bonus Attribute Points."
+      maximumBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+
       source: new fields.StringField({ initial: "" }),
       notes: new fields.HTMLField({ initial: "" })
     };

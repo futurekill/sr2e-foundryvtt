@@ -2,6 +2,45 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.39.0 — 2026-07-16
+
+### Fixes
+- **The Attribute Edges did nothing.** Bonus Attribute Point and Exceptional
+  Attribute (Shadowrun Companion p.24) could be added to a character and had no
+  mechanical effect — you had to name the Attribute in the item's title and add
+  the points by hand, which then left the chargen warning **off by the number of
+  points you'd bought with Edge**. Qualities gained **Attribute**, **Attribute
+  Bonus** and **Racial Maximum Bonus** fields, and both Edges now apply
+  themselves. Bonus Attribute Points are part of the character's *natural*
+  rating, so they're bounded by the racial maximum the way the book bounds them,
+  and the chargen Attribute budget correctly ignores them. Essence, Reaction and
+  Magic aren't offered — the book excludes them.
+- **The Companion's two limits on the Attribute Edges are now reported** beside
+  the chargen budget: more than 5 bonus Attribute Points, and Exceptional
+  Attribute taken twice on one Attribute (both p.24). Reported, never blocked —
+  the panel is informational throughout. Note the book's "unless authorized by
+  the gamemaster" covers only *exceeding racial maximums*, not these two limits;
+  for that authorized case, an Active Effect on `system.<attr>.mod` still applies
+  above the maximum by design.
+- **Both shipped Attribute Edges described the rule wrongly.** Exceptional
+  Attribute's note read "Raise one Attribute one point above its natural racial
+  maximum," which is the opposite of the book: it raises the **maximum** and
+  explicitly does *not* raise the rating. Take Bonus Attribute Points to actually
+  reach the new maximum (the point that passes the *original* racial maximum has
+  an Edge value of 2). Both notes rewritten with their p.24 citation.
+
+### Upgrading
+Existing characters are unaffected: the new **Attribute** field starts blank, and
+an Edge with no Attribute picked does nothing — so a character who worked around
+this by hand keeps exactly the ratings and the off-by-N warning they have today.
+
+If you *did* work around it (typing the Attribute into the item's title and
+adding the points to the Attribute by hand), fix it in this order, or the points
+will be counted twice: **first subtract the hand-added points from the Attribute**,
+returning it to what you actually bought, **then** set the Edge's Attribute and
+Attribute Bonus. The chargen Attribute total should drop by the number of points
+you'd bought with Edge — that's the off-by-N going away.
+
 ## 0.38.0 — 2026-07-16
 
 ### Fixes
