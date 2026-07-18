@@ -2,7 +2,7 @@
   "_id": "5db042fa4a082c24",
   "name": "Unicorn",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/unicorn.webp",
   "system": {
     "biography": "<p>A horned equine of unspoiled wilderness, hostile to corruption of any kind.</p><p><strong>Powers:</strong> Immunity (Pathogens), Magical Guard</p><p><strong>Weaknesses:</strong> Allergy (Pollutants, Severe)</p><p><em>Perception rating 4 (best sense); running multiplier ×6; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/unicorn.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -203,7 +203,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

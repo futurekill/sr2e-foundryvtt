@@ -2,6 +2,25 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.48.0 — 2026-07-17
+
+### Added
+- **Every critter now has custom portrait art.** All 40 creatures in the
+  compendium (from Rats to Great Dragons' lesser kin) carry a painterly
+  Shadowrun-styled portrait instead of the paw-print placeholder, with mood
+  tuned per creature — bright daylight for the mundane animals, radiant fire
+  for the Phoenix, deep dark for the Vampire and Kraken, and so on. Tokens are
+  rotation-locked by default.
+
+### Changed
+- **Creature and sample-runner art is now uniform 1024×1024 (square).** Token
+  art fits a battlemap grid cell cleanly, and files are optimized webp
+  (~70–290KB). The four hand-made sample creatures and the seven sample
+  runners were re-squared to match.
+- **The NPC/critter sheet portrait is now a proper square** (was stretching
+  into a wide banner — the flexrow lacked a flex-basis lock). Shows the new
+  square token art at a comfortable showcase size.
+
 ## 0.47.0 — 2026-07-17
 
 ### Added

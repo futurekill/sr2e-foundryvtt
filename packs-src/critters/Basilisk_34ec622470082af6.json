@@ -2,7 +2,7 @@
   "_id": "34ec622470082af6",
   "name": "Basilisk",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/basilisk.webp",
   "system": {
     "biography": "<p>A squat reptile whose gaze calcifies living tissue.</p><p><strong>Powers:</strong> Petrifying Gaze</p><p><strong>Weaknesses:</strong> Allergy (Own Gaze, Extreme)</p><p><em>Perception rating 3 (best sense); running multiplier ×3; dual-natured (astally active); natural armor 2. Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/basilisk.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -203,7 +203,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

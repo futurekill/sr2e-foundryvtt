@@ -2,7 +2,7 @@
   "_id": "7407dba51ab28234",
   "name": "Ghost",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/ghost.webp",
   "system": {
     "biography": "<p>A lingering psychic imprint of the dead; physical attributes are meaningless against it. Attacks: special (see powers).</p><p><strong>Powers:</strong> Fear, Manifestation, Psychokinesis; some show Compulsion, Noxious Breath, Paralyzing Touch</p><p><em>running multiplier ×1; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -124,7 +124,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/ghost.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -136,7 +136,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

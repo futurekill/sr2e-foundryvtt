@@ -2,7 +2,7 @@
   "_id": "29b9f2c44b1a8cf8",
   "name": "Vampire",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/vampire.webp",
   "system": {
     "biography": "<p>An HMHVV-infected human retaining its living intellect; statistics shown are a typical example — a vampire keeps its original Attributes, with Strength one higher. Buoyant (+3 TN swimming).</p><p><strong>Powers:</strong> Enhanced Physical Attributes, Enhanced Senses (Hearing, Smell), Essence Drain, Immunity (Age, Pathogens, Poison), Infection, Mist Form, Regeneration, Thermographic Vision</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Severe), Induced Dormancy (Lack of Air), Essence Loss, Vulnerability (Wood)</p><p><em>Perception rating 4 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/vampire.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -203,7 +203,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,
