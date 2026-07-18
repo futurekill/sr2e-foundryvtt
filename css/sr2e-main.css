@@ -2398,12 +2398,15 @@
 }
 
 .sr2e.sheet.item .item-icon-badge {
+  /* flex-basis lock + aspect-ratio keep the flexrow from stretching the badge
+     into a wide letterbox — width alone doesn't hold here. Square, modest, just
+     enough to show what the item is. */
+  flex: 0 0 64px;
+  align-self: flex-start;
   width: 64px;
   height: 64px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  aspect-ratio: 1 / 1;
+  display: block;
   border: 1px solid var(--sr2e-gold-dim);
   border-radius: 3px;
   background: var(--sr2e-bg-light);
