@@ -1950,6 +1950,27 @@ export function itemBaseCost(sys, ctx = {}) {
 }
 
 /**
+ * The cost-driving fields a buyer should pick when purchasing this item — the
+ * spec behind the drop-time purchase dialog. Empty array = nothing to ask (the
+ * item has a single fixed price), so no dialog opens. Weapon foci are excluded:
+ * they bond to a weapon through their own dialog (_bondWeaponFocusOnDrop).
+ * @param {{type?:string, category?:string, focusType?:string, costPerForce?:number, ratingStats?:Array}} [sys]
+ * @returns {string[]} subset of ["rating","grantedSkillCategory","force","grade"]
+ */
+export function purchasePromptFields(sys = {}) {
+  const out = [];
+  const rows = sys.ratingStats ?? [];
+  const skillsoft = sys.type === "gear" && sys.category === "skillsoft";
+  const program   = sys.type === "program";
+  const flatFocus = sys.type === "focus" && sys.focusType !== "weapon" && (sys.costPerForce ?? 0) > 0;
+  if (rows.length > 1 || skillsoft || program) out.push("rating");
+  if (skillsoft) out.push("grantedSkillCategory");
+  if (flatFocus) out.push("force");
+  if (sys.type === "cyberware" || sys.type === "bioware") out.push("grade");
+  return out;
+}
+
+/**
  * Overstress penalty (Shadowtech p.7): +1 TN to Body tests per whole or partial
  * point the Body Index exceeds its max; zero-floored so it never reads negative.
  * @param {number} value Body Index

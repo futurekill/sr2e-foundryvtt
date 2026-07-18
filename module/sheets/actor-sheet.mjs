@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
 import {
@@ -426,6 +426,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (chosen === null) return null;                 // cancelled the purchase
       if (chosen.rating != null) itemData.system.rating = chosen.rating;
       if (chosen.grade != null) itemData.system.grade = chosen.grade;
+      if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
+      if (chosen.force != null) itemData.system.force = chosen.force;
     }
 
     const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
@@ -495,10 +497,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     return created;
   }
 
-  /** True if a dropped item exposes a Rating and/or Grade choice worth prompting. */
+  /** True if a dropped item has any cost-driving field worth prompting for. */
   static _hasPurchaseOptions(itemData) {
-    const rows = itemData.system?.ratingStats ?? [];
-    return rows.length > 1 || itemData.type === "cyberware" || itemData.type === "bioware";
+    return purchasePromptFields({ type: itemData.type, ...itemData.system }).length > 0;
   }
 
   /**
@@ -507,6 +508,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
    */
   static async _promptPurchaseOptions(itemData, actor) {
     const sys = itemData.system ?? {};
+    const fields = purchasePromptFields({ type: itemData.type, ...sys });
+    if (!fields.length) return {};
     const rows = [...(sys.ratingStats ?? [])].sort((a, b) => a.rating - b.rating);
     // Built from the shared grade tables rather than restated here — this dialog
     // used to carry its own hand-written copy of the multipliers, which is how it
@@ -528,10 +531,26 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const gradeChoices = gradeTable
       ? Object.fromEntries(Object.entries(gradeTable).map(([k, g]) => [k, describeGrade(k, g)]))
       : null;
-    const ratingSel = rows.length > 1 ? `<div class="form-group"><label>Rating:</label>
-      <select name="rating" style="flex:1;">${rows.map(r =>
-        `<option value="${r.rating}"${r.rating === (sys.rating ?? 1) ? " selected" : ""}>Rating ${r.rating} — ${r.cost}¥ list</option>`).join("")}</select></div>` : "";
-    const gradeSel = gradeChoices ? `<div class="form-group"><label>Grade:</label>
+    // Rating: a select when there's a real rating table, else a number input
+    // (skillsoft chips 1–10, programs 1+). Only shown when it drives cost.
+    let ratingSel = "";
+    if (fields.includes("rating")) {
+      if (rows.length > 1) {
+        ratingSel = `<div class="form-group"><label>Rating:</label>
+          <select name="rating" style="flex:1;">${rows.map(r =>
+            `<option value="${r.rating}"${r.rating === (sys.rating ?? 1) ? " selected" : ""}>Rating ${r.rating} — ${r.cost}¥ list</option>`).join("")}</select></div>`;
+      } else {
+        const max = (itemData.type === "gear" && sys.category === "skillsoft") ? 10 : 100;
+        ratingSel = `<div class="form-group"><label>Rating:</label>
+          <input type="number" name="rating" value="${sys.rating ?? 1}" min="1" max="${max}" style="width:70px;"></div>`;
+      }
+    }
+    const catSel = fields.includes("grantedSkillCategory") ? `<div class="form-group"><label>Skill Type:</label>
+      <select name="grantedSkillCategory" style="flex:1;">${["active", "knowledge", "language", "data"].map(c =>
+        `<option value="${c}"${c === (sys.grantedSkillCategory ?? "active") ? " selected" : ""}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join("")}</select></div>` : "";
+    const forceSel = fields.includes("force") ? `<div class="form-group"><label>Force:</label>
+      <input type="number" name="force" value="${sys.force ?? 1}" min="1" max="6" style="width:70px;"></div>` : "";
+    const gradeSel = fields.includes("grade") && gradeChoices ? `<div class="form-group"><label>Grade:</label>
       <select name="grade" style="flex:1;">${Object.entries(gradeChoices).map(([k, lbl]) =>
         `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>` : "";
 
@@ -541,14 +560,17 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       rejectClose: false,
       content: `<form>
         <p style="margin:0 0 8px;">Choose what ${foundry.utils.escapeHTML(actor.name)} is buying. Price is charged on purchase (street price in play, list in character creation). Alt-drop instead to add it for free.</p>
-        ${ratingSel}${gradeSel}
+        ${ratingSel}${catSel}${forceSel}${gradeSel}
       </form>`,
       buttons: [
         { action: "buy", label: "Buy", default: true, callback: (e, b) => {
           const f = b.form.elements;
+          const intOr = (el, d) => { const n = parseInt(el?.value); return Number.isFinite(n) ? Math.max(1, n) : d; };
           result = {
-            rating: f.rating ? parseInt(f.rating.value) : undefined,
-            grade: f.grade ? f.grade.value : undefined
+            rating: f.rating ? intOr(f.rating, sys.rating ?? 1) : undefined,
+            grade: f.grade ? f.grade.value : undefined,
+            grantedSkillCategory: f.grantedSkillCategory ? f.grantedSkillCategory.value : undefined,
+            force: f.force ? intOr(f.force, sys.force ?? 1) : undefined
           };
         } },
         { action: "cancel", label: "Cancel" }

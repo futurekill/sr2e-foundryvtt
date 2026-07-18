@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { gradeCostMultiplier, ratedCost, itemBaseCost, gradeEssenceCost,
          CYBERWARE_GRADE_ESSENCE_FLOOR, ratedRow, ratedStreetIndex,
-         derivedItemCost } from "../module/rules/sr2e-rules.mjs";
+         derivedItemCost, purchasePromptFields } from "../module/rules/sr2e-rules.mjs";
 
 describe("gradeCostMultiplier", () => {
   // SSC p.98 Custom Cyberware table: Alpha ×3, Beta ×7. (An earlier version of
@@ -220,5 +220,37 @@ describe("itemBaseCost prices a HYPOTHETICAL configuration (the exploit)", () =>
     const pump = { type: "bioware", grade: "cultured", rating: 2,
                    ratingStats: [{ rating: 1, cost: 60000 }, { rating: 2, cost: 100000 }] };
     expect(itemBaseCost(pump)).toBe(400000);   // 100k x4 cultured
+  });
+});
+
+describe("purchasePromptFields — which cost drivers the buy dialog asks for", () => {
+  it("skillsoft → rating + skill category", () => {
+    expect(purchasePromptFields({ type: "gear", category: "skillsoft" }))
+      .toEqual(["rating", "grantedSkillCategory"]);
+  });
+  it("program → rating", () => {
+    expect(purchasePromptFields({ type: "program" })).toEqual(["rating"]);
+  });
+  it("a flat (per-Force) focus → force", () => {
+    expect(purchasePromptFields({ type: "focus", focusType: "spell", costPerForce: 20000 }))
+      .toEqual(["force"]);
+  });
+  it("a weapon focus asks NOTHING here (its own bond dialog handles it)", () => {
+    expect(purchasePromptFields({ type: "focus", focusType: "weapon", costPerForce: 0 }))
+      .toEqual([]);
+  });
+  it("cyberware → grade (even with no rating table)", () => {
+    expect(purchasePromptFields({ type: "cyberware" })).toEqual(["grade"]);
+  });
+  it("rated cyberware → rating + grade", () => {
+    expect(purchasePromptFields({ type: "cyberware",
+      ratingStats: [{ rating: 1 }, { rating: 2 }] })).toEqual(["rating", "grade"]);
+  });
+  it("plain single-price gear → nothing (no dialog)", () => {
+    expect(purchasePromptFields({ type: "gear", category: "general" })).toEqual([]);
+  });
+  it("gear with a real rating table → rating", () => {
+    expect(purchasePromptFields({ type: "gear",
+      ratingStats: [{ rating: 1 }, { rating: 2 }] })).toEqual(["rating"]);
   });
 });

@@ -1,7 +1,15 @@
 # Plan: purchase flow for derived-cost gear
 
 _Locked 2026-07-16. Hardened by Codex over 4 adversarial rounds (12 findings, 3 of
-which would have shipped as live bugs). Not yet implemented._
+which would have shipped as live bugs)._
+
+_**Implemented.** The pricing helpers, all five derivation sites, and the
+charge/refund hook (§§1–5) shipped earlier; the purchase-prompt dialog (§6) —
+`purchasePromptFields()` driving `_hasPurchaseOptions` / `_promptPurchaseOptions`
+so skillsoft/program/focus prompt for their cost drivers — landed 2026-07-18.
+Pure logic is unit-tested (`test/purchase.test.mjs`, incl. the 29,000¥ exploit
+regression); the DialogV2 flow itself still wants an in-Foundry check. The
+implementation-level Codex review is deferred (image/code quota exhausted)._
 
 ## Why
 
