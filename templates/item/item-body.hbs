@@ -1049,6 +1049,61 @@
   </div>
   {{/ifEquals}}
 
+  {{!-- TRADITION --}}
+  {{#ifEquals type "tradition"}}
+  <div class="form-group">
+    <label>Magic Type:</label>
+    <select name="system.magicType">
+      <option value="full_magician" {{selected system.magicType "full_magician"}}>Full Magician</option>
+      <option value="physical_adept" {{selected system.magicType "physical_adept"}}>Physical Adept</option>
+      <option value="shamanic_adept" {{selected system.magicType "shamanic_adept"}}>Shamanic Adept</option>
+      <option value="magical_adept" {{selected system.magicType "magical_adept"}}>Magical Adept</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Tradition:</label>
+    <select name="system.tradition">
+      <option value="none" {{selected system.tradition "none"}}>None</option>
+      <option value="hermetic" {{selected system.tradition "hermetic"}}>Hermetic</option>
+      <option value="shamanic" {{selected system.tradition "shamanic"}}>Shamanic</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label title="Which magical skills this tradition grants.">Magical Skills:</label>
+    <select name="system.skill">
+      <option value="none" {{selected system.skill "none"}}>None (Physical Adept)</option>
+      <option value="sorcery" {{selected system.skill "sorcery"}}>Sorcery only</option>
+      <option value="conjuring" {{selected system.skill "conjuring"}}>Conjuring only</option>
+      <option value="both" {{selected system.skill "both"}}>Sorcery + Conjuring</option>
+    </select>
+  </div>
+  <div class="form-group notes">
+    <label>Description:</label>
+    <prose-mirror name="system.description">{{{system.description}}}</prose-mirror>
+  </div>
+  {{/ifEquals}}
+
+  {{!-- VEHICLE MOD --}}
+  {{#ifEquals type "vehicle_mod"}}
+  <div class="form-group">
+    <label>Mod Type:</label>
+    <input type="text" name="system.modType" value="{{system.modType}}" placeholder="general" />
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    <input type="number" name="system.rating" value="{{system.rating}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Cost (¥):</label>
+    <input type="number" name="system.cost" value="{{system.cost}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label>Installed:</label>
+    <input type="checkbox" name="system.installed" {{checked system.installed}} />
+  </div>
+  <p class="hint">Design-Point and Cargo-Factor costing (build-from-scratch) is managed by the vehicle design engine, not edited here.</p>
+  {{/ifEquals}}
+
   {{!-- Notes (common to all non-race items) --}}
   {{#ifEquals type "skill"}}    <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
   {{#ifEquals type "quality"}}  <div class="form-group notes"><label>Notes:</label><textarea name="system.notes">{{system.notes}}</textarea></div>{{/ifEquals}}
