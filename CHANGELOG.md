@@ -2,6 +2,15 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.47.0 — 2026-07-17
+
+### Added
+- **Ammo stacks on drop.** Buying (or dropping) more of a box you already
+  carry now folds it into the matching pile instead of leaving a duplicate
+  line. It reuses the safe, provenance-aware Consolidate Ammo logic, so a
+  purchased box and a free/untracked one of the same ammo still stay separate,
+  and only the dropped box's pile is touched — your other stacks are left alone.
+
 ## 0.46.0 — 2026-07-17
 
 ### Fixes

@@ -478,6 +478,20 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         }
       }
     }
+
+    // Ammo stacks on drop: fold the new box into a matching pile (same shape and
+    // same money provenance) instead of leaving a duplicate line. Reuses the
+    // safe, provenance-aware consolidation — an emptied/tracked box and a free
+    // one still stay separate. Quiet: the purchase was already announced.
+    if (created?.type === "ammo" && created.parent && game.sr2e?.consolidateAmmo) {
+      const res = await game.sr2e.consolidateAmmo(this.document, { quiet: true, itemId: created.id });
+      // The new box may have merged into another pile and been deleted; hand the
+      // caller the surviving pile (consolidateAmmo reports its id) rather than a
+      // dead document.
+      if (!this.document.items.get(created.id)) {
+        return this.document.items.get(res?.groups?.[0]?.survivorId) ?? null;
+      }
+    }
     return created;
   }
 

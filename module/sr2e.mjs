@@ -188,17 +188,20 @@ async function repairStaleImplants({ apply = false } = {}) {
  * Run `game.sr2e.consolidateAmmo()` on the selected token, or pass an actor.
  *
  * @param {Actor} [actor] - defaults to the selected token's actor, else your character
- * @param {{dryRun?: boolean}} [options] - dryRun reports what WOULD merge, changing nothing
- * @returns {Promise<{merged: number, removed: number, groups: object[]}>}
+ * @param {object} [options]
+ * @param {boolean} [options.dryRun] - report what WOULD merge, changing nothing
+ * @param {boolean} [options.quiet] - suppress notifications (drop-time stacking already announced the buy)
+ * @param {string} [options.itemId] - only merge the group containing this item, not every dupe pile on the actor (stack-on-drop scopes to the new box)
+ * @returns {Promise<{merged: number, removed: number, groups: object[]}>} report entries carry `survivorId`
  */
-async function consolidateAmmo(actor, { dryRun = false } = {}) {
+async function consolidateAmmo(actor, { dryRun = false, quiet = false, itemId = null } = {}) {
   actor ??= canvas.tokens?.controlled?.[0]?.actor ?? game.user.character;
   if (!actor) {
-    ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNoActor"));
+    if (!quiet) ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNoActor"));
     return { merged: 0, removed: 0, groups: [] };
   }
   if (!actor.isOwner) {
-    ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNotOwner"));
+    if (!quiet) ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNotOwner"));
     return { merged: 0, removed: 0, groups: [] };
   }
 
@@ -228,9 +231,13 @@ async function consolidateAmmo(actor, { dryRun = false } = {}) {
       ammoStacks(shapeOf(grp[0]), shapeOf(item)) && hasBasis(grp[0]) === hasBasis(item));
     if (g) g.push(item); else groups.push([item]);
   }
-  const dupes = groups.filter((g) => g.length > 1);
+  // Stack-on-drop scopes to the dropped box: merge only its group, leaving the
+  // player's other dupe piles (and their weapon references) untouched. The
+  // manual command passes no itemId and still consolidates everything.
+  const scoped = itemId ? groups.filter((g) => g.some((i) => i.id === itemId)) : groups;
+  const dupes = scoped.filter((g) => g.length > 1);
   if (!dupes.length) {
-    ui.notifications?.info(game.i18n.localize("SR2E.Ammo.ConsolidateNothing"));
+    if (!quiet) ui.notifications?.info(game.i18n.localize("SR2E.Ammo.ConsolidateNothing"));
     return { merged: 0, removed: 0, groups: [] };
   }
 
@@ -255,7 +262,7 @@ async function consolidateAmmo(actor, { dryRun = false } = {}) {
     // complete; an untracked group has no basis and stays untracked.
     const totalAcqQty = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredQuantity") ?? 0), 0);
     const totalAcqVal = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredListValue") ?? 0), 0);
-    report.push({ name: survivor.name, piles: group.length, quantity: totalQty, paid: totalPaid });
+    report.push({ name: survivor.name, survivorId: survivor.id, piles: group.length, quantity: totalQty, paid: totalPaid });
     if (dryRun) continue;
 
     // Snapshot everything this group is about to touch, for rollback.
@@ -316,9 +323,11 @@ async function consolidateAmmo(actor, { dryRun = false } = {}) {
   }
 
   const summary = report.map((r) => `${r.name} ×${r.quantity} (${r.piles} piles)`).join(", ");
-  ui.notifications?.info(dryRun
-    ? game.i18n.format("SR2E.Ammo.ConsolidateDryRun", { summary })
-    : game.i18n.format("SR2E.Ammo.ConsolidateDone", { removed, summary }));
+  if (!quiet) {
+    ui.notifications?.info(dryRun
+      ? game.i18n.format("SR2E.Ammo.ConsolidateDryRun", { summary })
+      : game.i18n.format("SR2E.Ammo.ConsolidateDone", { removed, summary }));
+  }
   return { merged, removed, groups: report };
 }
 

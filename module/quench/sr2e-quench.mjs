@@ -836,6 +836,29 @@ export function registerSR2EQuenchTests() {
           assert.equal(res.merged, 0, "different provenance classes must not merge");
           assert.equal(actor.items.filter((i) => i.type === "ammo").length, 2, "both piles remain");
         });
+
+        it("itemId scopes stack-on-drop to the dropped box's group only", async () => {
+          // Stack-on-drop must not touch the player's unrelated dupe piles. Two
+          // Regular piles + two APDS piles; consolidating scoped to one Regular
+          // box merges only the Regulars and leaves both APDS piles alone.
+          const actor = await Actor.create({ name: "Quench Ammo scope", type: "character" });
+          made.push(actor);
+          const mk = (ammoType) => ({
+            name: ammoType === "regular" ? "Regular Ammo" : "APDS Ammo", type: "ammo",
+            system: { ammoType, quantity: 10, cost: 15, streetIndex: 1,
+                      damageModifier: 0, armorModifier: 0, damageType: "", armorCalc: "standard" }
+          });
+          const [r1, r2, ap1, ap2] = await actor.createEmbeddedDocuments("Item",
+            [mk("regular"), mk("regular"), mk("apds"), mk("apds")]);
+          const res = await game.sr2e.consolidateAmmo(actor, { itemId: r2.id, quiet: true });
+          assert.equal(res.merged, 1, "only the dropped box's group merges");
+          assert.equal(res.groups[0].survivorId != null, true, "reports the survivor id");
+          const regs = actor.items.filter((i) => i.type === "ammo" && i.name === "Regular Ammo");
+          const apds = actor.items.filter((i) => i.type === "ammo" && i.name === "APDS Ammo");
+          assert.equal(regs.length, 1, "Regulars stacked");
+          assert.equal(regs[0].system.quantity, 20, "Regular quantities summed");
+          assert.equal(apds.length, 2, "unrelated APDS piles left untouched");
+        });
       });
     }, { displayName: "SR2E: Ammo money" });
 
