@@ -2,7 +2,7 @@
   "_id": "wl7u7gj9e000jvwv",
   "name": "Cybereyes",
   "type": "cyberware",
-  "img": "icons/svg/eye.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/cybereyes.webp",
   "system": {
     "location": "headware",
     "grade": "standard",
@@ -57,7 +57,7 @@
         "rating": 0,
         "combatTnMod": 0,
         "active": false,
-        "notes": "Custom appearance \u2014 natural or outlandish. No essence cost. SR2E p.247."
+        "notes": "Custom appearance — natural or outlandish. No essence cost. SR2E p.247."
       },
       {
         "name": "Retinal Duplication",
@@ -66,7 +66,7 @@
         "rating": 0,
         "combatTnMod": 0,
         "active": false,
-        "notes": "Forges a retinal print to fool scanners \u2014 illegal. SR2E p.247."
+        "notes": "Forges a retinal print to fool scanners — illegal. SR2E p.247."
       }
     ],
     "attributeMods": {

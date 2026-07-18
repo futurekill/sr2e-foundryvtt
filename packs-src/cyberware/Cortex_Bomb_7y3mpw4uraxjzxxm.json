@@ -2,7 +2,7 @@
   "_id": "7y3mpw4uraxjzxxm",
   "name": "Cortex Bomb",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/cortex-bomb.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

@@ -2,7 +2,7 @@
   "_id": "e773cae1c764f4a9",
   "name": "Colt M22A2",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/colt-m22a2.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
@@ -36,7 +36,7 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.233. Colt's high-velocity assault carbine. A standard-issue weapon for corporate strike teams and NAN border troops.",
-    "streetIndex": 2.0
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

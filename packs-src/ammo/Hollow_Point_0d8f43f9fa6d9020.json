@@ -2,7 +2,7 @@
   "_id": "0d8f43f9fa6d9020",
   "name": "Hollow Point",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/hollow-point.webp",
   "system": {
     "ammoType": "hollow_point",
     "quantity": 10,

@@ -2,7 +2,7 @@
   "_id": "9f5e4c2ac0bebfdb",
   "name": "Gyro Mount, Standard",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/gyro-mount-standard.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

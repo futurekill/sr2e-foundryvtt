@@ -2,7 +2,7 @@
   "_id": "834efad8e8de8c65",
   "name": "Program Chip",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/program-chip.webp",
   "system": {
     "category": "entertainment",
     "rating": 0,

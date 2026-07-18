@@ -2,7 +2,7 @@
   "_id": "ac32b5872fe8953b",
   "name": "Personal Computer (Pocket)",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/personal-computer-pocket.webp",
   "system": {
     "category": "electronics",
     "rating": 0,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Pocket computer (\u00d71.5 memory cost). Priced by Memory: a device costs its memory (20\u00a5/Mp) \u00d7 the listed multiplier \u2014 set the \u00a5 for the capacity you buy. SR2E p.259."
+    "notes": "Pocket computer (×1.5 memory cost). Priced by Memory: a device costs its memory (20¥/Mp) × the listed multiplier — set the ¥ for the capacity you buy. SR2E p.259."
   },
   "effects": [],
   "flags": {},

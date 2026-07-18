@@ -2,7 +2,7 @@
   "_id": "1caacfc1ca151028",
   "name": "Cybertorso",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/cybertorso.webp",
   "system": {
     "location": "cyberlimb",
     "grade": "standard",

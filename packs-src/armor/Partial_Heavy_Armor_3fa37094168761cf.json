@@ -2,7 +2,7 @@
   "_id": "3fa37094168761cf",
   "name": "Partial Heavy Armor",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/partial-heavy-armor.webp",
   "system": {
     "ballistic": 6,
     "impact": 4,

@@ -2,7 +2,7 @@
   "_id": "3a0230f56487744f",
   "name": "Offensive Grenade",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/offensive-grenade.webp",
   "system": {
     "weaponType": "grenade",
     "skill": "throwing_weapons",

@@ -2,7 +2,7 @@
   "_id": "19442d94afd21368",
   "name": "Remington 990",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/remington-990.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

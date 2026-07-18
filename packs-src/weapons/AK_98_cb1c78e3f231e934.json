@@ -2,7 +2,7 @@
   "_id": "cb1c78e3f231e934",
   "name": "AK-98",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/ak-98.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

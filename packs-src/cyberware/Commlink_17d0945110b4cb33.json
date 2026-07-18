@@ -2,7 +2,7 @@
   "_id": "17d0945110b4cb33",
   "name": "Commlink II",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/commlink-ii.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

@@ -2,7 +2,7 @@
   "_id": "6b294fcefcd7b625",
   "name": "Remington 950",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/remington-950.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

@@ -2,7 +2,7 @@
   "_id": "380c6fa6544c78ec",
   "name": "Shuriken",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/shuriken.webp",
   "system": {
     "weaponType": "throwing",
     "skill": "throwing_weapons",

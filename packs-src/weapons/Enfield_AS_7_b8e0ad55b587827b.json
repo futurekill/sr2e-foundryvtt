@@ -2,7 +2,7 @@
   "_id": "b8e0ad55b587827b",
   "name": "Enfield AS-7",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/enfield-as-7.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

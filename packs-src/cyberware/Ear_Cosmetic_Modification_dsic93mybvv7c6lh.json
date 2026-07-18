@@ -2,7 +2,7 @@
   "_id": "dsic93mybvv7c6lh",
   "name": "Ear Cosmetic Modification",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/ear-cosmetic-modification.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

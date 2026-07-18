@@ -2,7 +2,7 @@
   "_id": "a47a6346c7923825",
   "name": "Chemsuit",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/chemsuit.webp",
   "system": {
     "category": "survival",
     "rating": 1,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Sealed suit protecting against chemical/toxin exposure. Rated item \u2014 cost shown is per Rating point (\u00d7Rating). SR2E p.258."
+    "notes": "Sealed suit protecting against chemical/toxin exposure. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
   },
   "effects": [],
   "flags": {},

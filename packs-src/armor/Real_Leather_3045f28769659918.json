@@ -2,7 +2,7 @@
   "_id": "3045f28769659918",
   "name": "Real Leather",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/real-leather.webp",
   "system": {
     "ballistic": 0,
     "impact": 2,

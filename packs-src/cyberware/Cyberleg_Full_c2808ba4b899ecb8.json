@@ -2,7 +2,7 @@
   "_id": "c2808ba4b899ecb8",
   "name": "Cyberleg (Full)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/cyberleg-full.webp",
   "system": {
     "location": "cyberlimb",
     "grade": "standard",

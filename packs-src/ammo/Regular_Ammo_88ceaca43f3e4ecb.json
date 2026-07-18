@@ -2,7 +2,7 @@
   "_id": "88ceaca43f3e4ecb",
   "name": "Regular Ammo",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/regular-ammo.webp",
   "system": {
     "ammoType": "regular",
     "quantity": 10,

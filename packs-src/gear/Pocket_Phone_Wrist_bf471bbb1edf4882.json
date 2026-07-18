@@ -2,7 +2,7 @@
   "_id": "bf471bbb1edf4882",
   "name": "Pocket Phone (Wrist)",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/pocket-phone-wrist.webp",
   "system": {
     "category": "electronics",
     "rating": 0,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Wrist-worn phone; +500\u00a5 for a flip-up screen. SR2E p.259."
+    "notes": "Wrist-worn phone; +500¥ for a flip-up screen. SR2E p.259."
   },
   "effects": [],
   "flags": {},

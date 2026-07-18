@@ -2,7 +2,7 @@
   "_id": "72972838fc632021",
   "name": "Commlink (Port-a-john)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/commlink-port-a-john.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

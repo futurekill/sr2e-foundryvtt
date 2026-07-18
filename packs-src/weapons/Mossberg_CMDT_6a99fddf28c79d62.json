@@ -2,7 +2,7 @@
   "_id": "6a99fddf28c79d62",
   "name": "Mossberg CMDT",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/mossberg-cmdt.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

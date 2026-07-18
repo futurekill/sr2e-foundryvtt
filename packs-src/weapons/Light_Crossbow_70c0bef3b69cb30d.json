@@ -2,7 +2,7 @@
   "_id": "70c0bef3b69cb30d",
   "name": "Light Crossbow",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/light-crossbow.webp",
   "system": {
     "weaponType": "projectile",
     "skill": "projectile_weapons",

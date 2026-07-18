@@ -2,7 +2,7 @@
   "_id": "1fcec872ab0474df",
   "name": "Cyberdeck (Allegiance Beta)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/cyberdeck-allegiance-beta.webp",
   "system": {
     "category": "cyberdeck",
     "rating": 0,

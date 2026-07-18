@@ -2,7 +2,7 @@
   "_id": "e4b172d1c4f60f09",
   "name": "Shotgun Slug",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/shotgun-slug.webp",
   "system": {
     "ammoType": "slug",
     "quantity": 10,

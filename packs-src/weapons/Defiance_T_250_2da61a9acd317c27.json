@@ -2,7 +2,7 @@
   "_id": "2da61a9acd317c27",
   "name": "Defiance T-250",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/defiance-t-250.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

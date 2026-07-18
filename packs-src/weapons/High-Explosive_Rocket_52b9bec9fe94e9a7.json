@@ -2,7 +2,7 @@
   "_id": "52b9bec9fe94e9a7",
   "name": "High-Explosive Rocket",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/high-explosive-rocket.webp",
   "system": {
     "weaponType": "heavy",
     "skill": "gunnery",
@@ -29,7 +29,7 @@
       "extreme": 1500
     },
     "strengthMin": 0,
-    "weight": 1.0,
+    "weight": 1,
     "cost": 1500,
     "availability": "8/14 days",
     "legality": "Forbidden",

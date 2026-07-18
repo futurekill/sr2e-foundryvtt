@@ -2,7 +2,7 @@
   "_id": "66d9a885db0215ce",
   "name": "Portable Recorder",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/portable-recorder.webp",
   "system": {
     "category": "entertainment",
     "rating": 0,

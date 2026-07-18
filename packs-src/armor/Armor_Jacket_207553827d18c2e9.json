@@ -2,7 +2,7 @@
   "_id": "207553827d18c2e9",
   "name": "Armor Jacket",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/armor-jacket.webp",
   "system": {
     "ballistic": 5,
     "impact": 3,

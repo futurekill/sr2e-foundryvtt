@@ -2,7 +2,7 @@
   "_id": "836deadef269d1bd",
   "name": "White Noise Generator",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/white-noise-generator.webp",
   "system": {
     "category": "electronics",
     "rating": 5,
@@ -13,7 +13,7 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.243. Creates a field of random noise masking sounds within its area. Defeats eavesdroppers and shotgun/laser mics. Base 1,500\u00a5."
+    "notes": "SR2E p.243. Creates a field of random noise masking sounds within its area. Defeats eavesdroppers and shotgun/laser mics. Base 1,500¥."
   },
   "effects": [],
   "flags": {},

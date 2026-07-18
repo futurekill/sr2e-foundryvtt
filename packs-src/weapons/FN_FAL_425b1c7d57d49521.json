@@ -2,7 +2,7 @@
   "_id": "425b1c7d57d49521",
   "name": "FN FAL",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/fn-fal.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

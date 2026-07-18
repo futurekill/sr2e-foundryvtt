@@ -2,7 +2,7 @@
   "_id": "0e387aca14bacb91",
   "name": "Pocket Phone (Handset)",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/pocket-phone-handset.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

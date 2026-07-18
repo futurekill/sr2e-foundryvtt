@@ -2,14 +2,14 @@
   "_id": "319569a8f793665a",
   "name": "Data Codebreaker",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/data-codebreaker.webp",
   "system": {
     "category": "security",
     "rating": 1,
     "quantity": 1,
     "weight": 0,
     "cost": 10000,
-    "availability": "Rating\u00d710 days",
+    "availability": "Rating×10 days",
     "legality": "Restricted",
     "equipped": false,
     "concealability": 2,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Cracks data encryption. Rated item \u2014 cost shown is per Rating point (\u00d7Rating). SR2E p.258."
+    "notes": "Cracks data encryption. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
   },
   "effects": [],
   "flags": {},

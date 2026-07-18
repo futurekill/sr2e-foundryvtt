@@ -2,7 +2,7 @@
   "_id": "4d76543d99c31c3c",
   "name": "H&K VP225",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/h-k-vp225.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

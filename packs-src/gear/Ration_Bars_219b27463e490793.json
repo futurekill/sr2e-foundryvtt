@@ -2,7 +2,7 @@
   "_id": "219b27463e490793",
   "name": "Ration Bars",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/ration-bars.webp",
   "system": {
     "category": "survival",
     "rating": 0,

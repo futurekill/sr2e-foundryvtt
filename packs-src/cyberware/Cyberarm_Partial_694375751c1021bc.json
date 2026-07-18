@@ -2,7 +2,7 @@
   "_id": "694375751c1021bc",
   "name": "Cyberarm (Partial)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/cyberarm-partial.webp",
   "system": {
     "location": "cyberlimb",
     "grade": "standard",

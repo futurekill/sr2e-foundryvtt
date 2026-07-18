@@ -2,7 +2,7 @@
   "_id": "e516b711c1ef134b",
   "name": "Facility",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/facility.webp",
   "system": {
     "category": "working",
     "rating": 0,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A full fabrication facility. \u00d72 cost for vehicle work, \u00d73 for electronics/computer/cyberware. SR2E p.259."
+    "notes": "A full fabrication facility. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259."
   },
   "effects": [],
   "flags": {},

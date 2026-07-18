@@ -2,7 +2,7 @@
   "_id": "d33fe747d94e22eb",
   "name": "Anti-Personnel Rocket",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/anti-personnel-rocket.webp",
   "system": {
     "weaponType": "heavy",
     "skill": "gunnery",
@@ -29,7 +29,7 @@
       "extreme": 1500
     },
     "strengthMin": 0,
-    "weight": 1.0,
+    "weight": 1,
     "cost": 1000,
     "availability": "8/14 days",
     "legality": "Restricted",

@@ -2,7 +2,7 @@
   "_id": "d02a9fe7f86b94fa",
   "name": "Security Helmet",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/security-helmet.webp",
   "system": {
     "ballistic": 0,
     "impact": 2,

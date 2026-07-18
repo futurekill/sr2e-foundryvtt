@@ -2,7 +2,7 @@
   "_id": "2668e5889f9904a4",
   "name": "Bow",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/bow.webp",
   "system": {
     "weaponType": "projectile",
     "skill": "projectile_weapons",

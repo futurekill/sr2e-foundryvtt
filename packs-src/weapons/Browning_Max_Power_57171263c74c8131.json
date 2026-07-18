@@ -2,7 +2,7 @@
   "_id": "57171263c74c8131",
   "name": "Browning Max-Power",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/browning-max-power.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
@@ -29,7 +29,7 @@
       "extreme": 60
     },
     "strengthMin": 0,
-    "weight": 2.0,
+    "weight": 2,
     "cost": 450,
     "availability": "4/48hrs",
     "legality": "Legal",

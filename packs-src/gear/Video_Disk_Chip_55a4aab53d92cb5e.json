@@ -2,7 +2,7 @@
   "_id": "55a4aab53d92cb5e",
   "name": "Video Disk/Chip",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/video-disk-chip.webp",
   "system": {
     "category": "entertainment",
     "rating": 0,

@@ -2,7 +2,7 @@
   "_id": "6bc862b27d8ff016",
   "name": "HK G12A3Z",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/hk-g12a3z.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

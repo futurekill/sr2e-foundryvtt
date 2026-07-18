@@ -2,7 +2,7 @@
   "_id": "d94e559998982924",
   "name": "Maglock Passkey",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/maglock-passkey.webp",
   "system": {
     "category": "security",
     "rating": 3,

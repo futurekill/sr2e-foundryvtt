@@ -2,7 +2,7 @@
   "_id": "7tuo7vbiqlcdsia6",
   "name": "Dermal Plating (Level 1)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/dermal-plating-level-1.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

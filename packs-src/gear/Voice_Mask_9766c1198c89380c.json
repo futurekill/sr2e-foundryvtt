@@ -2,7 +2,7 @@
   "_id": "9766c1198c89380c",
   "name": "Voice Mask",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/voice-mask.webp",
   "system": {
     "category": "security",
     "rating": 1,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Disguises or alters the wearer's voiceprint. Rated item \u2014 cost shown is per Rating point (\u00d7Rating). SR2E p.258."
+    "notes": "Disguises or alters the wearer's voiceprint. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
   },
   "effects": [],
   "flags": {},

@@ -2,7 +2,7 @@
   "_id": "4a24290e6f6b5dd0",
   "name": "Respirator",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/respirator.webp",
   "system": {
     "category": "survival",
     "rating": 0,

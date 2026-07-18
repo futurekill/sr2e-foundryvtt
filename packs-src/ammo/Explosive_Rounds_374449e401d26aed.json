@@ -2,7 +2,7 @@
   "_id": "374449e401d26aed",
   "name": "Explosive Rounds",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/explosive-rounds.webp",
   "system": {
     "ammoType": "explosive",
     "quantity": 10,

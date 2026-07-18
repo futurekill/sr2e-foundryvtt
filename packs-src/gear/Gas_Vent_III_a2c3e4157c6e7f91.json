@@ -2,7 +2,7 @@
   "_id": "a2c3e4157c6e7f91",
   "name": "Gas Vent III",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/gas-vent-iii.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

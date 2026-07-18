@@ -2,7 +2,7 @@
   "_id": "cd409a2f6a8e4684",
   "name": "Defensive Grenade",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/defensive-grenade.webp",
   "system": {
     "weaponType": "grenade",
     "skill": "throwing_weapons",

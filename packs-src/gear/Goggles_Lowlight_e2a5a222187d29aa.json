@@ -2,7 +2,7 @@
   "_id": "e2a5a222187d29aa",
   "name": "Goggles (Lowlight)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/goggles-lowlight.webp",
   "system": {
     "category": "protective",
     "rating": 0,

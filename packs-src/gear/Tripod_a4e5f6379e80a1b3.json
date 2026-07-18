@@ -2,7 +2,7 @@
   "_id": "a4e5f6379e80a1b3",
   "name": "Tripod",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/tripod.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

@@ -2,7 +2,7 @@
   "_id": "36pf3e9pl2gpu5m5",
   "name": "Damper",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/damper.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

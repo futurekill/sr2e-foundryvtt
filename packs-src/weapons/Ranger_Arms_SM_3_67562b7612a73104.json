@@ -2,7 +2,7 @@
   "_id": "67562b7612a73104",
   "name": "Ranger Arms SM-3",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/ranger-arms-sm-3.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

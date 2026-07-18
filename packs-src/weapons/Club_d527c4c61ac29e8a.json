@@ -2,7 +2,7 @@
   "_id": "d527c4c61ac29e8a",
   "name": "Club",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/club.webp",
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",

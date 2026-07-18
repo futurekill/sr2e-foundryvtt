@@ -2,7 +2,7 @@
   "_id": "3250f12f6d200f2b",
   "name": "AK-97 SMG/Carbine",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/ak-97-smg-carbine.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

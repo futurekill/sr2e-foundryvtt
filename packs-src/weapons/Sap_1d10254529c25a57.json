@@ -2,7 +2,7 @@
   "_id": "1d10254529c25a57",
   "name": "Sap",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/sap.webp",
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",

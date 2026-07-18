@@ -2,7 +2,7 @@
   "_id": "f7477b4543e6fb39",
   "name": "Cyberdeck (Fuchi Cyber-4)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/cyberdeck-fuchi-cyber-4.webp",
   "system": {
     "category": "cyberdeck",
     "rating": 0,

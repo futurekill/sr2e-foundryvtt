@@ -2,7 +2,7 @@
   "_id": "ca17afcb8c61ee53",
   "name": "Streetline Special",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/streetline-special.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

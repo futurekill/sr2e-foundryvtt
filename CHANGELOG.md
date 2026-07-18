@@ -2,6 +2,21 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.49.0 — 2026-07-18
+
+### Added
+- **Custom flavor icons on 252 items** — weapons, armor, ammo, foci, all of
+  gear, and a first wave of cyberware/programs/spells now carry a painterly
+  object icon (each item's own materials driving the colour) instead of a
+  generic placeholder. Tiny 256×256 webp (~7KB each). The remaining ~136
+  items keep their placeholder icons for now and get art in a follow-up.
+
+### Changed
+- **`tradition` and `vehicle_mod` items have real editors.** Both rendered a
+  near-empty sheet before; tradition now edits Magic Type / Tradition /
+  Magical Skills + a description, and vehicle_mod edits Mod Type / Rating /
+  Cost / Installed.
+
 ## 0.48.1 — 2026-07-17
 
 ### Changed

@@ -2,7 +2,7 @@
   "_id": "7fd3c8e5a36db979",
   "name": "Colt America L36",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/colt-america-l36.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
@@ -29,7 +29,7 @@
       "extreme": 50
     },
     "strengthMin": 0,
-    "weight": 1.0,
+    "weight": 1,
     "cost": 350,
     "availability": "3/48hrs",
     "legality": "Legal",

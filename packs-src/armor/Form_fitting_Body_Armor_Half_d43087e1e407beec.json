@@ -2,7 +2,7 @@
   "_id": "d43087e1e407beec",
   "name": "Form-fitting Body Armor (Half)",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/form-fitting-body-armor-half.webp",
   "system": {
     "ballistic": 1,
     "impact": 1,

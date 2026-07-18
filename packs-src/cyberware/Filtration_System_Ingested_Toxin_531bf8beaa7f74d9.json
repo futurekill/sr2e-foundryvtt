@@ -2,7 +2,7 @@
   "_id": "531bf8beaa7f74d9",
   "name": "Filtration System (Ingested Toxin)",
   "type": "cyberware",
-  "img": "icons/svg/biohazard.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/filtration-system-ingested-toxin.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",
@@ -53,7 +53,7 @@
       },
       {
         "rating": 5,
-        "essenceCost": 1.0,
+        "essenceCost": 1,
         "cost": 50000,
         "availability": "6/4 days",
         "streetIndex": ""

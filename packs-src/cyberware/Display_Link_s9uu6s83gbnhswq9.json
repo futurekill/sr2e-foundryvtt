@@ -2,7 +2,7 @@
   "_id": "s9uu6s83gbnhswq9",
   "name": "Display Link",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/display-link.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

@@ -2,7 +2,7 @@
   "_id": "5a23d7cfe385a3c9",
   "name": "Synthetic Leather",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/synthetic-leather.webp",
   "system": {
     "ballistic": 0,
     "impact": 1,

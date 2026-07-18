@@ -2,7 +2,7 @@
   "_id": "839d931880cfecda",
   "name": "Gel Rounds",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/gel-rounds.webp",
   "system": {
     "ammoType": "gel",
     "quantity": 10,

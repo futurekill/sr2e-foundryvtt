@@ -2,7 +2,7 @@
   "_id": "a719286ac1b3d4e6",
   "name": "Smartgun System (External)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/smartgun-system-external.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

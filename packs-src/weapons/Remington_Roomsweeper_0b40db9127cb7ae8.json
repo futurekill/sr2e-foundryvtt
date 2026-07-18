@@ -2,7 +2,7 @@
   "_id": "0b40db9127cb7ae8",
   "name": "Remington Roomsweeper",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/remington-roomsweeper.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

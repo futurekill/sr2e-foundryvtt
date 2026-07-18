@@ -2,7 +2,7 @@
   "_id": "5188c9757ea10f7f",
   "name": "Printer",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/printer.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

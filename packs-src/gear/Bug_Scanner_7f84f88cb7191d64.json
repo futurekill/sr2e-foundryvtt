@@ -2,7 +2,7 @@
   "_id": "7f84f88cb7191d64",
   "name": "Bug Scanner",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/bug-scanner.webp",
   "system": {
     "category": "security",
     "rating": 1,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Detects surveillance bugs and taps. Rated item \u2014 cost shown is per Rating point (\u00d7Rating). SR2E p.258."
+    "notes": "Detects surveillance bugs and taps. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
   },
   "effects": [],
   "flags": {},

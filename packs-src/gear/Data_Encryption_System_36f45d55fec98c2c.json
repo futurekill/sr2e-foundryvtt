@@ -2,7 +2,7 @@
   "_id": "36f45d55fec98c2c",
   "name": "Data Encryption System",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/data-encryption-system.webp",
   "system": {
     "category": "security",
     "rating": 1,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Encrypts stored or transmitted data. Rated item \u2014 cost shown is per Rating point (\u00d7Rating). SR2E p.258."
+    "notes": "Encrypts stored or transmitted data. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
   },
   "effects": [],
   "flags": {},

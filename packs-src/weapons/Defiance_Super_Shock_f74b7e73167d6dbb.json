@@ -2,7 +2,7 @@
   "_id": "f74b7e73167d6dbb",
   "name": "Defiance Super Shock",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/defiance-super-shock.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

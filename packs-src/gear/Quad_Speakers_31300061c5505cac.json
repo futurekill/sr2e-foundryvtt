@@ -2,7 +2,7 @@
   "_id": "31300061c5505cac",
   "name": "Quad Speakers",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/quad-speakers.webp",
   "system": {
     "category": "entertainment",
     "rating": 0,

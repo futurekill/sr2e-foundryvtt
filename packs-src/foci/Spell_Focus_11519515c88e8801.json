@@ -2,7 +2,7 @@
   "_id": "11519515c88e8801",
   "name": "Spell Focus",
   "type": "focus",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/foci/spell-focus.webp",
   "system": {
     "focusType": "spell",
     "force": 1,

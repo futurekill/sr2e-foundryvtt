@@ -2,7 +2,7 @@
   "_id": "364245b6a78f4502",
   "name": "Spell Lock",
   "type": "focus",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/foci/spell-lock.webp",
   "system": {
     "focusType": "spell_lock",
     "force": 1,

@@ -2,7 +2,7 @@
   "_id": "p0nuuohinl6yazbw",
   "name": "Ear Modification",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/ear-modification.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

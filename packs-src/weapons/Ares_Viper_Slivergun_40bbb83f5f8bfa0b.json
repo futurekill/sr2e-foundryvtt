@@ -2,7 +2,7 @@
   "_id": "40bbb83f5f8bfa0b",
   "name": "Ares Viper Slivergun",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/ares-viper-slivergun.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

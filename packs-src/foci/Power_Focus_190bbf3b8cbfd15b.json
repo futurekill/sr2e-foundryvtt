@@ -2,7 +2,7 @@
   "_id": "190bbf3b8cbfd15b",
   "name": "Power Focus",
   "type": "focus",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/foci/power-focus.webp",
   "system": {
     "focusType": "power",
     "force": 1,

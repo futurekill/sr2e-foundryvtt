@@ -2,7 +2,7 @@
   "_id": "0f1e8ce8f691ddc7",
   "name": "Ares Antioch-2",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/ares-antioch-2.webp",
   "system": {
     "weaponType": "heavy",
     "skill": "firearms",

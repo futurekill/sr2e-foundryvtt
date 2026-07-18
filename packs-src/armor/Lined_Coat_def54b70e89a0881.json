@@ -2,7 +2,7 @@
   "_id": "def54b70e89a0881",
   "name": "Lined Coat",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/lined-coat.webp",
   "system": {
     "ballistic": 4,
     "impact": 2,

@@ -2,7 +2,7 @@
   "_id": "3a53febec6132e84",
   "name": "Generic MMG",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/generic-mmg.webp",
   "system": {
     "weaponType": "heavy",
     "skill": "gunnery",

@@ -2,7 +2,7 @@
   "_id": "144bdb840b3ae99b",
   "name": "Eye Camera",
   "type": "cyberware",
-  "img": "icons/svg/biohazard.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/eye-camera.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

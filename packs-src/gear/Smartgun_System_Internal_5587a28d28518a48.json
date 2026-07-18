@@ -2,7 +2,7 @@
   "_id": "5587a28d28518a48",
   "name": "Smartgun System (Internal)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/smartgun-system-internal.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

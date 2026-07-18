@@ -2,7 +2,7 @@
   "_id": "b848aa22d16a4286",
   "name": "Vest with Plates",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/vest-with-plates.webp",
   "system": {
     "ballistic": 4,
     "impact": 3,

@@ -2,7 +2,7 @@
   "_id": "8z3grw7tos8ys5yt",
   "name": "Ear Recorder",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/ear-recorder.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

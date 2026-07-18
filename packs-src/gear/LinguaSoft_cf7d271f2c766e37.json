@@ -2,7 +2,7 @@
   "_id": "cf7d271f2c766e37",
   "name": "LinguaSoft",
   "type": "gear",
-  "img": "icons/svg/circle.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/linguasoft.webp",
   "system": {
     "category": "skillsoft",
     "rating": 1,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A language chip granting comprehension and use at its Rating. Cost = Mp \u00d7 50\u00a5. Cost varies with the chip's Memory (Mp), which scales with Rating \u2014 see Skillsofts, SR2E p.243.",
+    "notes": "A language chip granting comprehension and use at its Rating. Cost = Mp × 50¥. Cost varies with the chip's Memory (Mp), which scales with Rating — see Skillsofts, SR2E p.243.",
     "grantedSkillCategory": "language",
     "slotted": false
   },

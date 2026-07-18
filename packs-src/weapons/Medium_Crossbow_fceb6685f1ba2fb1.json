@@ -2,7 +2,7 @@
   "_id": "fceb6685f1ba2fb1",
   "name": "Medium Crossbow",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/medium-crossbow.webp",
   "system": {
     "weaponType": "projectile",
     "skill": "projectile_weapons",

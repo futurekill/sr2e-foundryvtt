@@ -2,7 +2,7 @@
   "_id": "54beac68289408c4",
   "name": "Baseball Bat",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/baseball-bat.webp",
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",

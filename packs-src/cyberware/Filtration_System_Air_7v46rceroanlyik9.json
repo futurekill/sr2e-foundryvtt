@@ -2,7 +2,7 @@
   "_id": "7v46rceroanlyik9",
   "name": "Filtration System (Air)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/filtration-system-air.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

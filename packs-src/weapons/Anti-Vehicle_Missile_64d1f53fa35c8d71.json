@@ -2,7 +2,7 @@
   "_id": "64d1f53fa35c8d71",
   "name": "Anti-Vehicle Missile",
   "type": "weapon",
-  "img": "icons/svg/explosion.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/anti-vehicle-missile.webp",
   "system": {
     "weaponType": "heavy",
     "skill": "gunnery",

@@ -2,7 +2,7 @@
   "_id": "f3e441aa1f3fb3d5",
   "name": "Pocket Phone (Earplug)",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/pocket-phone-earplug.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

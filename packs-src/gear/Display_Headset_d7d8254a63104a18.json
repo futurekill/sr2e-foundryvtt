@@ -2,7 +2,7 @@
   "_id": "d7d8254a63104a18",
   "name": "Display Headset",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/display-headset.webp",
   "system": {
     "category": "electronics",
     "rating": 0,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Head-mounted display, to 300 Mp (\u00d73 memory cost). Priced by Memory: a device costs its memory (20\u00a5/Mp) \u00d7 the listed multiplier \u2014 set the \u00a5 for the capacity you buy. SR2E p.259."
+    "notes": "Head-mounted display, to 300 Mp (×3 memory cost). Priced by Memory: a device costs its memory (20¥/Mp) × the listed multiplier — set the ¥ for the capacity you buy. SR2E p.259."
   },
   "effects": [],
   "flags": {},

@@ -2,7 +2,7 @@
   "_id": "87f7bdd470f76b3e",
   "name": "Beretta Model 101T",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/beretta-model-101t.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

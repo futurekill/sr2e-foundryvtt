@@ -2,7 +2,7 @@
   "_id": "ab5d6cae05f7182a",
   "name": "Imaging Scope (Low-Light)",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/imaging-scope-low-light.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

@@ -2,7 +2,7 @@
   "_id": "a5f60748af91b2c4",
   "name": "Gyro Mount, Deluxe",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/gyro-mount-deluxe.webp",
   "system": {
     "category": "accessories",
     "rating": 0,

@@ -2,7 +2,7 @@
   "_id": "eba7d5482fc27fc4",
   "name": "Playback Unit",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/playback-unit.webp",
   "system": {
     "category": "entertainment",
     "rating": 0,

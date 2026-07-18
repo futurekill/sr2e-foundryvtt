@@ -2,7 +2,7 @@
   "_id": "a840a9f90a6ce27d",
   "name": "Flechette",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/flechette.webp",
   "system": {
     "ammoType": "flechette",
     "quantity": 10,

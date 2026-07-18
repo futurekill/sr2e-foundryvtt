@@ -2,7 +2,7 @@
   "_id": "f5a6b7c8d9e00b53",
   "name": "Unarmed Strike",
   "type": "weapon",
-  "img": "icons/skills/melee/unarmed-punch-fist.webp",
+  "img": "systems/sr2e/assets/item_icons/weapons/unarmed-strike.webp",
   "system": {
     "weaponType": "melee",
     "skill": "unarmed_combat",

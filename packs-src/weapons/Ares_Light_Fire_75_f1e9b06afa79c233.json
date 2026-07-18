@@ -2,7 +2,7 @@
   "_id": "f1e9b06afa79c233",
   "name": "Ares Light Fire 75",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/ares-light-fire-75.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

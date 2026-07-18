@@ -2,7 +2,7 @@
   "_id": "9c3ecd993794ca0a",
   "name": "APDS",
   "type": "ammo",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/apds.webp",
   "system": {
     "ammoType": "apds",
     "quantity": 10,

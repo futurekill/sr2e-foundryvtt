@@ -2,7 +2,7 @@
   "_id": "d27e55aa3a081409",
   "name": "Tracking Signal",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/tracking-signal.webp",
   "system": {
     "category": "security",
     "rating": 1,

@@ -2,7 +2,7 @@
   "_id": "04d27fdacfd012cf",
   "name": "Fake License",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/fake-license.webp",
   "system": {
     "category": "documents",
     "rating": 3,

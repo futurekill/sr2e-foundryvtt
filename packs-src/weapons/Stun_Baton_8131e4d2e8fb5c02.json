@@ -2,7 +2,7 @@
   "_id": "8131e4d2e8fb5c02",
   "name": "Stun Baton",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/stun-baton.webp",
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",

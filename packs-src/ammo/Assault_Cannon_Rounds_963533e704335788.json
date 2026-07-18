@@ -2,7 +2,7 @@
   "_id": "963533e704335788",
   "name": "Assault Cannon Rounds",
   "type": "ammo",
-  "img": "icons/svg/target.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/assault-cannon-rounds.webp",
   "system": {
     "ammoType": "ac",
     "quantity": 10,

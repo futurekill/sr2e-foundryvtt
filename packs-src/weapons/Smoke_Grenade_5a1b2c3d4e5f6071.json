@@ -2,7 +2,7 @@
   "_id": "5a1b2c3d4e5f6071",
   "name": "Smoke Grenade",
   "type": "weapon",
-  "img": "icons/magic/air/fog-gas-smoke-swirling-gray.webp",
+  "img": "systems/sr2e/assets/item_icons/weapons/smoke-grenade.webp",
   "system": {
     "weaponType": "grenade",
     "skill": "throwing_weapons",

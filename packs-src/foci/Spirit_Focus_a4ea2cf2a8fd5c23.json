@@ -2,7 +2,7 @@
   "_id": "a4ea2cf2a8fd5c23",
   "name": "Spirit Focus",
   "type": "focus",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/foci/spirit-focus.webp",
   "system": {
     "focusType": "spirit",
     "force": 1,

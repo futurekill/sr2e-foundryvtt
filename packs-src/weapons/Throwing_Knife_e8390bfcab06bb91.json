@@ -2,7 +2,7 @@
   "_id": "e8390bfcab06bb91",
   "name": "Throwing Knife",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/throwing-knife.webp",
   "system": {
     "weaponType": "throwing",
     "skill": "throwing_weapons",

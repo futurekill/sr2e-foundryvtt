@@ -2,7 +2,7 @@
   "_id": "f2523fa8d40daa0e",
   "name": "Secure Long Coat",
   "type": "armor",
-  "img": "icons/svg/shield.svg",
+  "img": "systems/sr2e/assets/item_icons/armor/secure-long-coat.webp",
   "system": {
     "ballistic": 5,
     "impact": 3,

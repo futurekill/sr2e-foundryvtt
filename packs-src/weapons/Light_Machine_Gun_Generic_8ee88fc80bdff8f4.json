@@ -2,7 +2,7 @@
   "_id": "8ee88fc80bdff8f4",
   "name": "Light Machine Gun (Generic)",
   "type": "weapon",
-  "img": "icons/svg/sword.svg",
+  "img": "systems/sr2e/assets/item_icons/weapons/light-machine-gun-generic.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",

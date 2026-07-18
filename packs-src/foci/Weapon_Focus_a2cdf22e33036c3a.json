@@ -2,7 +2,7 @@
   "_id": "a2cdf22e33036c3a",
   "name": "Weapon Focus",
   "type": "focus",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/foci/weapon-focus.webp",
   "system": {
     "focusType": "weapon",
     "force": 1,
