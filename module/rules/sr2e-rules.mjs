@@ -1971,6 +1971,51 @@ export function purchasePromptFields(sys = {}) {
 }
 
 /**
+ * Split a nuyen payout across runners. Every mode leaves any unallocated
+ * remainder (or rounding) for the communal pot — matching the even-split
+ * default. Awards are whole nuyen (floored).
+ *
+ * @param {object} o
+ * @param {number}  [o.total]       base payout the GM entered
+ * @param {number}  [o.pot]         current communal pot
+ * @param {boolean} [o.includePot]  fold the pot into the pool being split
+ * @param {"even"|"amount"|"percent"|"weight"} [o.mode]
+ * @param {string[]} [o.ids]        selected recipient ids
+ * @param {Object<string,number>} [o.shares]  per-id value: ¥ (amount), % (percent), or weight
+ * @returns {{ok:boolean, error?:string, pool:number, awards:Object<string,number>, awarded:number, leftover:number, newPot:number}}
+ */
+export function allocateNuyen({ total = 0, pot = 0, includePot = false, mode = "even", ids = [], shares = {} } = {}) {
+  const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  const potFloor = Math.max(0, Math.floor(num(pot)));
+  const pool = Math.max(0, Math.floor(num(total))) + (includePot ? potFloor : 0);
+  const potBase = includePot ? 0 : potFloor;
+  ids = (ids ?? []).filter(Boolean);
+  const fail = (error) => ({ ok: false, error, pool, awards: {}, awarded: 0, leftover: 0, newPot: potFloor });
+  if (!ids.length) return fail("No recipients selected.");
+
+  const awards = {};
+  if (mode === "even") {
+    const share = Math.floor(pool / ids.length);
+    for (const id of ids) awards[id] = share;
+  } else if (mode === "amount") {
+    for (const id of ids) awards[id] = Math.max(0, Math.floor(num(shares[id])));
+  } else if (mode === "percent") {
+    for (const id of ids) awards[id] = Math.max(0, Math.floor(pool * Math.max(0, num(shares[id])) / 100));
+  } else if (mode === "weight") {
+    const totalW = ids.reduce((s, id) => s + Math.max(0, num(shares[id])), 0);
+    if (totalW <= 0) return fail("Weights must add up to more than zero.");
+    for (const id of ids) awards[id] = Math.floor(pool * Math.max(0, num(shares[id])) / totalW);
+  } else {
+    return fail(`Unknown allocation mode "${mode}".`);
+  }
+
+  const awarded = ids.reduce((s, id) => s + awards[id], 0);
+  if (awarded > pool) return fail(`Shares total ${awarded}¥ but only ${pool}¥ is available.`);
+  const leftover = pool - awarded;
+  return { ok: true, pool, awards, awarded, leftover, newPot: potBase + leftover };
+}
+
+/**
  * Overstress penalty (Shadowtech p.7): +1 TN to Body tests per whole or partial
  * point the Body Index exceeds its max; zero-floored so it never reads negative.
  * @param {number} value Body Index
