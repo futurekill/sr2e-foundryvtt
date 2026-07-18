@@ -2,7 +2,7 @@
   "_id": "cd6e9ec2bbba9b52",
   "name": "Barghest",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/barghest.webp",
   "system": {
     "biography": "<p>An oversized mastiff-like predator with a pale shine to its eyes; its howl roots victims in place.</p><p><strong>Powers:</strong> Fear, Paralyzing Howl, Enhanced Senses (Sonar)</p><p><em>Perception rating 6 (best sense); running multiplier ×4; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/barghest.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -203,7 +203,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

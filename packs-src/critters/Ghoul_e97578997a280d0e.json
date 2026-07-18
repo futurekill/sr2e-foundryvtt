@@ -2,7 +2,7 @@
   "_id": "e97578997a280d0e",
   "name": "Ghoul",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/ghoul.webp",
   "system": {
     "biography": "<p>An HMHVV-infected metahuman driven to feed on the dead; blind but keen-nosed.</p><p><strong>Powers:</strong> Enhanced Senses (Smell, Hearing)</p><p><strong>Weaknesses:</strong> Allergy (Sunlight, Moderate), Reduced Senses (Blind)</p><p><em>Perception rating 4 (best sense); running multiplier ×4; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/ghoul.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -203,7 +203,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,

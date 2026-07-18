@@ -2,7 +2,7 @@
   "_id": "7f5bf03e9f16c9d5",
   "name": "Cockatrice",
   "type": "npc",
-  "img": "icons/svg/pawprint.svg",
+  "img": "systems/sr2e/assets/creature_portraits/cockatrice.webp",
   "system": {
     "biography": "<p>A feathered serpent-bird whose touch paralyzes.</p><p><strong>Powers:</strong> Paralyzing Touch, Invulnerability (Own Touch)</p><p><em>Perception rating 3 (best sense); running multiplier ×3; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
@@ -191,7 +191,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/pawprint.svg",
+      "src": "systems/sr2e/assets/creature_portraits/cockatrice.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
@@ -203,7 +203,7 @@
       "tint": "#ffffff",
       "alphaThreshold": 0.75
     },
-    "lockRotation": false,
+    "lockRotation": true,
     "rotation": 0,
     "alpha": 1,
     "disposition": -1,
