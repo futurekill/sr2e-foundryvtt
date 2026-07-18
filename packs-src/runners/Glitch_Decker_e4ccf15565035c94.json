@@ -399,7 +399,7 @@
       "_id": "9217f021fcbb8e7c",
       "name": "Datajack",
       "type": "cyberware",
-      "img": "icons/svg/upgrade.svg",
+      "img": "systems/sr2e/assets/item_icons/cyberware/datajack.webp",
       "system": {
         "location": "headware",
         "grade": "standard",
@@ -687,7 +687,7 @@
       "_id": "a05cca2bf3251b9b",
       "name": "Fichetti Security 500",
       "type": "weapon",
-      "img": "icons/svg/sword.svg",
+      "img": "systems/sr2e/assets/item_icons/weapons/fichetti-security-500.webp",
       "system": {
         "weaponType": "firearm",
         "skill": "firearms",
@@ -745,7 +745,7 @@
       "_id": "d3a3ace1b4456c8c",
       "name": "Armor Vest",
       "type": "armor",
-      "img": "icons/svg/shield.svg",
+      "img": "systems/sr2e/assets/item_icons/armor/armor-vest.webp",
       "system": {
         "ballistic": 2,
         "impact": 1,

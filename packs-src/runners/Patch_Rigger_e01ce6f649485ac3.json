@@ -468,7 +468,7 @@
       "_id": "2c22d2c7ee2b71a3",
       "name": "Datajack",
       "type": "cyberware",
-      "img": "icons/svg/upgrade.svg",
+      "img": "systems/sr2e/assets/item_icons/cyberware/datajack.webp",
       "system": {
         "location": "headware",
         "grade": "standard",
@@ -513,7 +513,7 @@
       "_id": "f5c2b37eeabbc020",
       "name": "Ares Predator",
       "type": "weapon",
-      "img": "icons/svg/sword.svg",
+      "img": "systems/sr2e/assets/item_icons/weapons/ares-predator.webp",
       "system": {
         "weaponType": "firearm",
         "skill": "firearms",
@@ -571,7 +571,7 @@
       "_id": "3b133cee317d11c4",
       "name": "Armor Jacket",
       "type": "armor",
-      "img": "icons/svg/shield.svg",
+      "img": "systems/sr2e/assets/item_icons/armor/armor-jacket.webp",
       "system": {
         "ballistic": 5,
         "impact": 3,
@@ -607,7 +607,7 @@
       "_id": "5fabaa62fe3052ae",
       "name": "Regular Ammo",
       "type": "ammo",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/ammo/regular-ammo.webp",
       "system": {
         "ammoType": "regular",
         "quantity": 10,

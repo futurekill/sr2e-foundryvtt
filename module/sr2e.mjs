@@ -616,6 +616,11 @@ async function _ensureSystemMacros() {
       name: "Repair Stale Implants",
       img: "icons/svg/upgrade.svg",
       src: "systems/sr2e/macros/repair-implants.js"
+    },
+    {
+      name: "Refresh Item Art",
+      img: "icons/svg/upgrade.svg",
+      src: "systems/sr2e/macros/refresh-item-art.js"
     }
   ];
 
