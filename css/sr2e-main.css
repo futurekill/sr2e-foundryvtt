@@ -2398,8 +2398,8 @@
 }
 
 .sr2e.sheet.item .item-icon-badge {
-  width: 44px;
-  height: 44px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2407,12 +2407,16 @@
   border: 1px solid var(--sr2e-gold-dim);
   border-radius: 3px;
   background: var(--sr2e-bg-light);
+  overflow: hidden;
 }
 
-.sr2e.sheet.item .item-icon-badge i {
-  font-size: 22px;
-  color: var(--sr2e-gold);
-  opacity: 0.85;
+.sr2e.sheet.item .item-icon-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  cursor: pointer;
+  display: block;
 }
 
 .sr2e.sheet.item .item-type {

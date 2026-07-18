@@ -1,6 +1,8 @@
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
+import { SHARED_ACTIONS } from "./sheet-actions.mjs";
+
 // V13: TextEditor is namespaced; shim for backwards compat
 const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
 
@@ -22,7 +24,8 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removeModuleRow: SR2EItemSheet._removeModuleRow,
       addEffect:       SR2EItemSheet._addEffect,
       editEffect:      SR2EItemSheet._editEffect,
-      deleteEffect:    SR2EItemSheet._deleteEffect
+      deleteEffect:    SR2EItemSheet._deleteEffect,
+      editImage:       SHARED_ACTIONS.editImage
     },
     form: {
       submitOnChange: true
