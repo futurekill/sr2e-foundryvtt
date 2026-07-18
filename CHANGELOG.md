@@ -2,6 +2,26 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.50.0 — 2026-07-18
+
+### Added
+- **Buy dialog for derived-cost gear.** Dropping a skillsoft, a Matrix program,
+  or a per-Force focus onto a character now prompts for its cost drivers
+  (skill type + rating / rating / Force) instead of silently creating it at the
+  default — completing the derived-cost purchase flow. (The pricing/refund half,
+  including the skillsoft rating-upgrade exploit fix, shipped earlier.)
+- **Award Nuyen — advanced uneven splits.** The macro keeps its even split and
+  adds custom modes: by flat ¥, by percentage, or by weight (2/1/1 → 50/25/25).
+  Every mode still routes the leftover to the communal pot; the payday card
+  itemises each runner's cut.
+- **"Refresh Item Art" GM macro.** Sweeps world characters and re-points each
+  item's icon to the matching compendium art — so existing characters pick up
+  the new item artwork. Safe: only replaces placeholder icons, never custom ones.
+
+### Changed
+- **Item sheets show the item's own image** in a 64px square badge (click to
+  change) instead of a generic type glyph.
+
 ## 0.49.0 — 2026-07-18
 
 ### Added
