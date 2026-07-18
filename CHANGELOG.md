@@ -2,6 +2,13 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.48.1 — 2026-07-17
+
+### Changed
+- **Larger creature-sheet portrait** (110→160px) so the token art reads clearly
+  on a battlemap and when shown to players. Display-only; the image files are
+  unchanged.
+
 ## 0.48.0 — 2026-07-17
 
 ### Added

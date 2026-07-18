@@ -2032,10 +2032,10 @@
 .sr2e-npc-sheet .profile-img {
   /* Locked square: flex-basis + aspect-ratio keep the flexrow from stretching
      the portrait into a wide banner. Creature art is square (1:1) token art. */
-  flex: 0 0 110px;
+  flex: 0 0 160px;
   align-self: flex-start;
-  width: 110px;
-  height: 110px;
+  width: 160px;
+  height: 160px;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border: 2px solid var(--sr2e-gold-dim);
