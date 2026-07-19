@@ -2,7 +2,7 @@
   "_id": "23e64b82077f889e",
   "name": "Increase [Attribute]",
   "type": "spell",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/increase-attribute.webp",
   "system": {
     "category": "health",
     "type": "mana",

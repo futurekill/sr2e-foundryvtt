@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "A target who fails to resist a chaos spell is subject to massive distractions. The spell consumes all senses in a cloud of blinding sights, fierce odors, and tickling sensations. A major distraction (+ 1 to all target numbers) is suffered for every extra success the spell has after being reduced by the Spell Resistance Test. This spell can also deceive technological sensing devices in addition to the target's own senses."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/chaos.webp",
   "effects": [],
   "folder": "f8017241a9f6dd76",
   "sort": 0,

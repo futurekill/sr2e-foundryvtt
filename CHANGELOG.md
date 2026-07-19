@@ -2,6 +2,15 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.51.0 — 2026-07-18
+
+### Added
+- **Item icons complete — all 388.** The remaining cyberware, Matrix programs,
+  spells, and gear now have custom painterly icons (spells as arcane glyphs,
+  programs as digital sigils, cyberware as chrome tech), finishing the set begun
+  in 0.49.0. Each a 256×256 webp. Sample runners updated so their gear shows the
+  art too. Run the **Refresh Item Art** macro to update existing characters.
+
 ## 0.50.0 — 2026-07-18
 
 ### Added

@@ -2,7 +2,7 @@
   "_id": "97654c4d19652f04",
   "name": "Deception",
   "type": "program",
-  "img": "icons/svg/terror.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/deception.webp",
   "system": {
     "category": "masking",
     "rating": 1,

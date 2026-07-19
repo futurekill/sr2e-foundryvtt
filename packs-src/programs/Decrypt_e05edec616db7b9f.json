@@ -2,7 +2,7 @@
   "_id": "e05edec616db7b9f",
   "name": "Decrypt",
   "type": "program",
-  "img": "icons/svg/padlock.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/decrypt.webp",
   "system": {
     "category": "other",
     "rating": 1,

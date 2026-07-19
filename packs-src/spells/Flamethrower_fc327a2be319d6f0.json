@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "This spell creates a stream of flame from the caster to the target. Being of real flame, it causes easily flammable materials to ignite and burn. The Damage Code for this attack is (F)M. Every 2 successes increase the Damage Code by one level. The spell is resisted by Body. and one-half the value of Impact Armor reduces the Power (Force) of the attack. Resolve using the ranged combat procedure."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/flamethrower.webp",
   "effects": [],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,

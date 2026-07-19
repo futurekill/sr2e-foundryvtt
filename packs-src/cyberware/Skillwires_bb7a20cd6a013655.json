@@ -2,7 +2,7 @@
   "_id": "bb7a20cd6a013655",
   "name": "Skillwires",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/skillwires.webp",
   "system": {
     "grade": "standard",
     "legality": "Restricted",
@@ -54,7 +54,7 @@
       },
       {
         "rating": 5,
-        "essenceCost": 1.0,
+        "essenceCost": 1,
         "cost": 500000,
         "availability": "5/10 days",
         "streetIndex": ""

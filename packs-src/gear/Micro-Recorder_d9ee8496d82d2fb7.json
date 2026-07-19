@@ -2,7 +2,7 @@
   "_id": "d9ee8496d82d2fb7",
   "name": "Micro-Recorder",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/micro-recorder.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

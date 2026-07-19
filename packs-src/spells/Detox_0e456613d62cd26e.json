@@ -2,7 +2,7 @@
   "_id": "0e456613d62cd26e",
   "name": "Detox",
   "type": "spell",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/detox.webp",
   "system": {
     "category": "health",
     "type": "mana",

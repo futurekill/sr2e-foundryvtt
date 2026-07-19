@@ -16,7 +16,7 @@
     "isVoluntary": true,
     "notes": "This spell requires that the magician touch a voluntary subject. The subject assumes some physical appearance (same basic size and shape) chosen by the caster. The number of successes becomes the target number for Perception Tests by observers. This spell does not work through technological devices."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/mask.webp",
   "effects": [],
   "folder": "f8017241a9f6dd76",
   "sort": 0,

@@ -413,7 +413,7 @@
         "isVoluntary": false,
         "notes": "A powerful bolt of magical energy that causes Physical damage."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/mana-bolt.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -451,7 +451,7 @@
         "isVoluntary": false,
         "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/powerball.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -489,7 +489,7 @@
         "isVoluntary": true,
         "notes": "A voluntary subject is required. The magician gives the subject built-in armor, knitting his tissues into tougher compounds. Treat one-half the successes made in the Spell Success Test as the Dermal Armor Rating (add to Body) for as long as the spell is maintained."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/armor.webp",
       "effects": [
         {
           "_id": "027246c7fa762324",
@@ -552,7 +552,7 @@
       "_id": "3c23a6f159627ee8",
       "name": "Increase Reflexes",
       "type": "spell",
-      "img": "icons/svg/lightning.svg",
+      "img": "systems/sr2e/assets/item_icons/spells/increase-reflexes.webp",
       "system": {
         "category": "health",
         "subcategory": "",
@@ -632,7 +632,7 @@
       "_id": "9c48efd49a8dca0f",
       "name": "Heal",
       "type": "spell",
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/heal.webp",
       "system": {
         "category": "health",
         "type": "mana",
@@ -683,7 +683,7 @@
         "isVoluntary": false,
         "notes": "The spellcaster must touch the subject, who becomes invisible to normal light. Thermographic vision can still detect body heat, and the subject is completely tangible and detectable to the senses of hearing, smell, and so forth. Double the number of successes to get the target number for an observer's Perception Test. A successful Perception Test means that the invisible person or thing has been noticed. The spell does not affect technological sensing systems (not including cybereyes which are considered natural because of the Essence Cost paid)."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/invisibility.webp",
       "effects": [],
       "flags": {},
       "_stats": {

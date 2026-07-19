@@ -2,7 +2,7 @@
   "_id": "rsbj92r50vs5iv13",
   "name": "High Frequency Hearing",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/high-frequency-hearing.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

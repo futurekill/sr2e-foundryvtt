@@ -2,7 +2,7 @@
   "_id": "67a6f37e1f9f7362",
   "name": "Heal",
   "type": "spell",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/heal.webp",
   "system": {
     "category": "health",
     "type": "mana",

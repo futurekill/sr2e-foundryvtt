@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "This is an area-effect version of the Chaos spell."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/chaotic-world.webp",
   "effects": [],
   "folder": "f8017241a9f6dd76",
   "sort": 0,

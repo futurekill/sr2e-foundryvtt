@@ -16,7 +16,7 @@
     "isVoluntary": true,
     "notes": "An area-effect, general hypersense spell requiring a voluntary subject. Within range, detects living beings who have hostile intentions toward the subject of the spell. This spell would not detect a trap (it is not alive) nor a terrorist about to shoot into a crowd at random (the intention is not personal)."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/detect-enemies.webp",
   "effects": [],
   "folder": "f998bf7f58ce1843",
   "sort": 0,

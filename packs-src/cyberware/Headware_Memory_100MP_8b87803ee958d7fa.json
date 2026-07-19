@@ -2,7 +2,7 @@
   "_id": "8b87803ee958d7fa",
   "name": "Headware Memory (100MP)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/headware-memory-100mp.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

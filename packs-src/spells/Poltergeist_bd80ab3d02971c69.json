@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "Within the area of this spell, all small objects and debris, up to a kilogram in mass, whirl around in random patterns. This reduces the visibility factor of the area (+2 to all target numbers). The spell does Stun damage as well, whacking targets with ﬂying debris. Targets within the area use their Quickness Rating, not Body, for their Resistance Tests against such damage, with the Spell Force Rating as the target number. The Damage Category is Light. Impact armor provides protection against this damage."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/poltergeist.webp",
   "effects": [],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,

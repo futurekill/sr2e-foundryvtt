@@ -2,7 +2,7 @@
   "_id": "b2cc43aa6248a93b",
   "name": "Radio (Headware)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/radio-headware.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

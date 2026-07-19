@@ -2,7 +2,7 @@
   "_id": "9i6g5s9fxe4ykzk7",
   "name": "Thermographic Vision",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/thermographic-vision.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

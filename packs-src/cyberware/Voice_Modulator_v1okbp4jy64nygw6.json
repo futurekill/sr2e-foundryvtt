@@ -2,7 +2,7 @@
   "_id": "v1okbp4jy64nygw6",
   "name": "Voice Modulator",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/voice-modulator.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

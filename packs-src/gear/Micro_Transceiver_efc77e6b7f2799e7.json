@@ -2,7 +2,7 @@
   "_id": "efc77e6b7f2799e7",
   "name": "Micro-Transceiver",
   "type": "gear",
-  "img": "icons/svg/item-bag.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/micro-transceiver.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

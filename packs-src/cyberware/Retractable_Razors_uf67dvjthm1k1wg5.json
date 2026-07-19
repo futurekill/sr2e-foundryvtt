@@ -2,7 +2,7 @@
   "_id": "uf67dvjthm1k1wg5",
   "name": "Retractable Razors",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/retractable-razors.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

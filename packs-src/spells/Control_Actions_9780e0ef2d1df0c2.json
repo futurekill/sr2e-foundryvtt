@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "Like a puppeteer, the magician controls the physical actions of a target. The victim's consciousness is not affected, but becomes only a passenger in its own body. The victim uses any skills possessed at the magician's orders, but with +4 to all target numbers. The Threshold is the target's Willpower Rating."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/control-actions.webp",
   "effects": [],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,

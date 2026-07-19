@@ -2,7 +2,7 @@
   "_id": "c2f3e4d5a6b70829",
   "name": "Wired Reflexes (Level 3)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/wired-reflexes-level-3.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

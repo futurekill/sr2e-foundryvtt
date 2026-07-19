@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "An area-effect spell. This spell creates a pool of darkness equal to one-half the caster's Magic Rating times the spell's successes in meters. The target number depends on the local conditions: bright midday, 6; day, 5; day, overcast, 4; twilight, 3; street light or darker, 2. Every 2 successes imposes a + 1 target modiﬁer for Combat or Perception Tests against targets within the area of shadow."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/shadow.webp",
   "effects": [],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,

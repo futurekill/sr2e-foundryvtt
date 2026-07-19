@@ -2,7 +2,7 @@
   "_id": "8wowabmno7q0ei3t",
   "name": "Low-Light Vision",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/low-light-vision.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

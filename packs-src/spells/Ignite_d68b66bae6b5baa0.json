@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "The magician accelerates molecular speed in a target, making it catch ﬁre. Anything that can burn is subject to this spell. The base time to ignite the target is 10 turns, divided by the magician's successes. Once the target ignites, it is burning until it either burns up or is extinguished by smothering, water, or a ﬁre extinguisher. The spell must generated more successes than the Body Rating of living targets or the base Barrier Rating of inanimate objects. The ignite spell wraps a being in ﬂames, causing (F)M damage on the ﬁrst turn. The Power increases by 1 point per Combat Turn. At the end of each turn, make a Damage Resistance Test, counting one-half impact armor. Ammo or explosives carried by the victim may go off. If ﬂames are not extinguished, they burn out in 1D6 Combat Turns."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/ignite.webp",
   "effects": [],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,

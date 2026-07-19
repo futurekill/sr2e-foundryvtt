@@ -2,7 +2,7 @@
   "_id": "a15d1d7b0ae428f8",
   "name": "Flare Compensation",
   "type": "cyberware",
-  "img": "icons/svg/biohazard.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/flare-compensation.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

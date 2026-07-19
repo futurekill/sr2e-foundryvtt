@@ -2,7 +2,7 @@
   "_id": "yorc0y7n9rjwas5j",
   "name": "Retinal Duplication",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/retinal-duplication.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

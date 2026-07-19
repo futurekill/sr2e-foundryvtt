@@ -2,7 +2,7 @@
   "_id": "4b9f89d1f37ad527",
   "name": "Shop",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/shop.webp",
   "system": {
     "category": "working",
     "rating": 0,
@@ -18,7 +18,7 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A fixed workshop. \u00d72 cost for vehicle work, \u00d73 for electronics/computer/cyberware. SR2E p.259."
+    "notes": "A fixed workshop. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259."
   },
   "effects": [],
   "flags": {},

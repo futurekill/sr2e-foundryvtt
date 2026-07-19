@@ -2,7 +2,7 @@
   "_id": "a98ae3d68722e751",
   "name": "Masking",
   "type": "program",
-  "img": "icons/magic/perception/eye-ringed-green.webp",
+  "img": "systems/sr2e/assets/item_icons/programs/masking.webp",
   "system": {
     "category": "masking",
     "rating": 1,

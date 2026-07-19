@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "A bolt of magical power that causes Physical damage."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/mana-missile.webp",
   "effects": [],
   "folder": "19d91418e8a36713",
   "sort": 0,

@@ -2,7 +2,7 @@
   "_id": "4b85970f3319b119",
   "name": "Slow",
   "type": "program",
-  "img": "icons/svg/net.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/slow.webp",
   "system": {
     "category": "combat",
     "rating": 1,

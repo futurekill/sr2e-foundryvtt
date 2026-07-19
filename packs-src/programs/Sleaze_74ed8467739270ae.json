@@ -2,7 +2,7 @@
   "_id": "74ed8467739270ae",
   "name": "Sleaze",
   "type": "program",
-  "img": "icons/svg/terror.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/sleaze.webp",
   "system": {
     "category": "masking",
     "rating": 1,

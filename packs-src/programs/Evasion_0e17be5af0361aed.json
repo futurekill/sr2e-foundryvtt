@@ -2,7 +2,7 @@
   "_id": "0e17be5af0361aed",
   "name": "Evasion",
   "type": "program",
-  "img": "icons/svg/wing.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/evasion.webp",
   "system": {
     "category": "defense",
     "rating": 1,

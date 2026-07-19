@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "An area-effect, general hypersense spell. The magician detects a speciﬁed type of target: detect ork, detect dragon, detect guns, detect computers, detect cameras, and so forth. Each variation is a separate spell."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/detect-object.webp",
   "effects": [],
   "folder": "f998bf7f58ce1843",
   "sort": 0,

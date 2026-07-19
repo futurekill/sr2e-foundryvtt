@@ -2,7 +2,7 @@
   "_id": "c452b21a39888a1b",
   "name": "Decrease [Attribute]",
   "type": "spell",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/decrease-attribute.webp",
   "system": {
     "category": "health",
     "type": "mana",

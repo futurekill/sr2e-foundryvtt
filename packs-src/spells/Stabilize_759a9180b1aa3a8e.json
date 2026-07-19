@@ -2,7 +2,7 @@
   "_id": "759a9180b1aa3a8e",
   "name": "Stabilize",
   "type": "spell",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/stabilize.webp",
   "system": {
     "category": "health",
     "type": "mana",

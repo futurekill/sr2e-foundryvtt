@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "The ram spell damages inanimate targets. Successes from the casting are added to the spell's Force, which is then compared to the target's Barrier Rating to determine the effect. Against vehicles, use the same procedure, comparing the results against the vehicle's Body as the Barrier Rating. Each indicated reduction of the Barrier Rating does Light damage to the vehicle, but does not actually reduce the Body Rating. If vehicle armor is present, it should be added to the vehicle's Body to determine the Barrier Rating."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/ram.webp",
   "effects": [],
   "folder": "19d91418e8a36713",
   "sort": 0,

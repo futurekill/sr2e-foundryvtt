@@ -399,7 +399,7 @@
       "_id": "5428ee8d690c2cca",
       "name": "Vehicle Control Rig",
       "type": "cyberware",
-      "img": "icons/svg/upgrade.svg",
+      "img": "systems/sr2e/assets/item_icons/cyberware/vehicle-control-rig.webp",
       "system": {
         "location": "bodyware",
         "grade": "standard",

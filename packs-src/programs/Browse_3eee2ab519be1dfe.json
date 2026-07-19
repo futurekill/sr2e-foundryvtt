@@ -2,7 +2,7 @@
   "_id": "3eee2ab519be1dfe",
   "name": "Browse",
   "type": "program",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/browse.webp",
   "system": {
     "category": "sensor",
     "rating": 1,

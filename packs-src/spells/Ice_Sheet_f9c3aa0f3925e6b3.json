@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "This spell creates a ﬂat sheet of ice that covers a number of square meters equal to the caster's Magic Rating multiplied by the successes. Characters crossing the sheet must make a Quickness Test against a Target Number 3 to avoid falling prone. Vehicles must make a Handling Test to avoid having to make a Crash Test. The sheet melts at a rate of 1 square meters per minute."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/ice-sheet.webp",
   "effects": [],
   "folder": "26eccbc4cdef1e32",
   "sort": 0,

@@ -2,7 +2,7 @@
   "_id": "7326801f84b69050",
   "name": "Cure Disease",
   "type": "spell",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/cure-disease.webp",
   "system": {
     "category": "health",
     "type": "mana",

@@ -16,7 +16,7 @@
     "isVoluntary": true,
     "notes": "An area-effect, general hypersense spell. The magician detects all living beings within range and knows their number and position. In a crowded area, the spell is virtually useless, picking up a blurred mass of traces. Requires a voluntary subject."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/detect-life.webp",
   "effects": [],
   "folder": "f998bf7f58ce1843",
   "sort": 0,

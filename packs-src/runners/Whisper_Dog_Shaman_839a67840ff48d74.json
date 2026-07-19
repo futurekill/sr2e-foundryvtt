@@ -399,7 +399,7 @@
       "_id": "802601615a275da4",
       "name": "Heal",
       "type": "spell",
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/heal.webp",
       "system": {
         "category": "health",
         "type": "mana",
@@ -450,7 +450,7 @@
         "isVoluntary": true,
         "notes": "An area-effect, general hypersense spell requiring a voluntary subject. Within range, detects living beings who have hostile intentions toward the subject of the spell. This spell would not detect a trap (it is not alive) nor a terrorist about to shoot into a crowd at random (the intention is not personal)."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/detect-enemies.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -488,7 +488,7 @@
         "isVoluntary": false,
         "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/manaball.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -526,7 +526,7 @@
         "isVoluntary": true,
         "notes": "A voluntary subject is required. The magician gives the subject built-in armor, knitting his tissues into tougher compounds. Treat one-half the successes made in the Spell Success Test as the Dermal Armor Rating (add to Body) for as long as the spell is maintained."
       },
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/armor.webp",
       "effects": [
         {
           "_id": "027246c7fa762324",
@@ -589,7 +589,7 @@
       "_id": "232b3afa5136feb2",
       "name": "Stabilize",
       "type": "spell",
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/spells/stabilize.webp",
       "system": {
         "category": "health",
         "type": "mana",

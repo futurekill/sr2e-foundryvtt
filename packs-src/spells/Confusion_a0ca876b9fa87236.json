@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "This is an area-effect spell similar to the chaos spell, except that the confusion spell does not affect technological systems. Visual illusions ﬁll the affected area, making it a place of shifting forms, dazzling lights, and pools of shadow. Those who fail to resist suffer a distraction (+1 to all target numbers) for every two successes remaining after reductions from the Spell Resistance Test."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/confusion.webp",
   "effects": [],
   "folder": "f8017241a9f6dd76",
   "sort": 0,

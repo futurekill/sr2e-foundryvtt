@@ -2,7 +2,7 @@
   "_id": "f929067d0e536db0",
   "name": "Increase Reflexes",
   "type": "spell",
-  "img": "icons/svg/lightning.svg",
+  "img": "systems/sr2e/assets/item_icons/spells/increase-reflexes.webp",
   "system": {
     "category": "health",
     "subcategory": "",

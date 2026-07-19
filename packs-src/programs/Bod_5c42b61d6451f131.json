@@ -2,7 +2,7 @@
   "_id": "5c42b61d6451f131",
   "name": "Bod",
   "type": "program",
-  "img": "icons/magic/defensive/shield-barrier-glowing-triangle-teal.webp",
+  "img": "systems/sr2e/assets/item_icons/programs/bod.webp",
   "system": {
     "category": "defense",
     "rating": 1,

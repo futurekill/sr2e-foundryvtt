@@ -16,7 +16,7 @@
     "isVoluntary": true,
     "notes": "The voluntary subject experiences a full sensory illusion of whatever type the spellcaster desires. This is usually a luxury spell bought by the rich and jaded, seeking sensations they cannot ﬁnd in the real world. Successes measure the pleasure of the subject."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/stimulation.webp",
   "effects": [],
   "folder": "f8017241a9f6dd76",
   "sort": 0,

@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "An area-effect spell that causes Stun damage to living targets only."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/sleep.webp",
   "effects": [],
   "folder": "19d91418e8a36713",
   "sort": 0,

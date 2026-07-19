@@ -2,7 +2,7 @@
   "_id": "399qebdkfbz9i75m",
   "name": "Radio Receiver (Headware)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/radio-receiver-headware.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

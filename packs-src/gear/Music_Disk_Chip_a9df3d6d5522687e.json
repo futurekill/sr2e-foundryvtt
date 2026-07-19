@@ -2,7 +2,7 @@
   "_id": "a9df3d6d5522687e",
   "name": "Music Disk/Chip",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/music-disk-chip.webp",
   "system": {
     "category": "entertainment",
     "rating": 0,

@@ -2,7 +2,7 @@
   "_id": "73b1b160934c1943",
   "name": "Micro-Camcorder",
   "type": "gear",
-  "img": "icons/svg/chest.svg",
+  "img": "systems/sr2e/assets/item_icons/gear/micro-camcorder.webp",
   "system": {
     "category": "electronics",
     "rating": 0,

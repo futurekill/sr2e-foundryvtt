@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "This area spell stimulates the sense of smell. Subjects within the area of effect make normal Spell Resistance Tests to reduce the magician's successes. Each remaining success increases all of the victims' target numbers by + 1 because of the sickening effect of the smell's stench."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/stink.webp",
   "effects": [],
   "folder": "f8017241a9f6dd76",
   "sort": 0,

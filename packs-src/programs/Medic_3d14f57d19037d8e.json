@@ -2,7 +2,7 @@
   "_id": "3d14f57d19037d8e",
   "name": "Medic",
   "type": "program",
-  "img": "icons/svg/heal.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/medic.webp",
   "system": {
     "category": "defense",
     "rating": 1,

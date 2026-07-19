@@ -16,7 +16,7 @@
     "isVoluntary": true,
     "notes": "A hypersense spell requiring a voluntary subject. The subject becomes able to subconsciously analyze combat or other dangerous situations. The theory is that the spell allows precognition, with the subject sensing events a split second before they occur. Every 2 successes adds to the subject's Combat Pool for the duration of the spell."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/combat-sense.webp",
   "effects": [
     {
       "_id": "b26a2d1b65b7dba8",

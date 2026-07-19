@@ -2,7 +2,7 @@
   "_id": "c5caf508f73eed34",
   "name": "Evaluate",
   "type": "program",
-  "img": "icons/svg/coins.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/evaluate.webp",
   "system": {
     "category": "sensor",
     "rating": 1,

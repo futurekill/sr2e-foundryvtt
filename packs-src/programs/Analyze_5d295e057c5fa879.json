@@ -2,7 +2,7 @@
   "_id": "5d295e057c5fa879",
   "name": "Analyze",
   "type": "program",
-  "img": "icons/svg/eye.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/analyze.webp",
   "system": {
     "category": "sensor",
     "rating": 1,

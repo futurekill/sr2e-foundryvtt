@@ -16,7 +16,7 @@
     "isVoluntary": true,
     "notes": "An area-effect, general hypersense spell requiring a voluntary subject. To detect the presence of a particular individual, the magician names the individual when the spell is cast. The target number is 10 minus the Essence of the target, if the target is mundane, or 10 minus the Magic Rating (or either force or Essence, as appropriate) of the target, if the target is magically active."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/detect-individual.webp",
   "effects": [],
   "folder": "f998bf7f58ce1843",
   "sort": 0,

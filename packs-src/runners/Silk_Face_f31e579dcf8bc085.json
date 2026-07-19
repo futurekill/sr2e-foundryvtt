@@ -399,7 +399,7 @@
       "_id": "b7e819ebcc04e6f4",
       "name": "Voice Modulator",
       "type": "cyberware",
-      "img": "icons/svg/upgrade.svg",
+      "img": "systems/sr2e/assets/item_icons/cyberware/voice-modulator.webp",
       "system": {
         "location": "bodyware",
         "grade": "standard",

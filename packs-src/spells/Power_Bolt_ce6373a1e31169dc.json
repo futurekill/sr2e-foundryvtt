@@ -16,7 +16,7 @@
     "isVoluntary": false,
     "notes": "A powerful bolt of magical energy that causes Physical damage."
   },
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/spells/power-bolt.webp",
   "effects": [],
   "folder": "19d91418e8a36713",
   "sort": 0,

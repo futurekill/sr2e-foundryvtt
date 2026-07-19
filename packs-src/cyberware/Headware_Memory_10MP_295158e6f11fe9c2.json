@@ -2,7 +2,7 @@
   "_id": "295158e6f11fe9c2",
   "name": "Headware Memory (10MP)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/headware-memory-10mp.webp",
   "system": {
     "location": "headware",
     "grade": "standard",

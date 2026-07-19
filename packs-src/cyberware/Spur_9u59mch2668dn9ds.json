@@ -2,7 +2,7 @@
   "_id": "9u59mch2668dn9ds",
   "name": "Spur",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/spur.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

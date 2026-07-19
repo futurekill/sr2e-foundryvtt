@@ -2,7 +2,7 @@
   "_id": "327f4ac01a347cc1",
   "name": "Mirrors",
   "type": "program",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/mirrors.webp",
   "system": {
     "category": "defense",
     "rating": 1,

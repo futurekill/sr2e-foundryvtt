@@ -2,7 +2,7 @@
   "_id": "c2b3c4e5f6a70890",
   "name": "Muscle Replacement (Rating 2)",
   "type": "cyberware",
-  "img": "icons/svg/upgrade.svg",
+  "img": "systems/sr2e/assets/item_icons/cyberware/muscle-replacement-rating-2.webp",
   "system": {
     "location": "bodyware",
     "grade": "standard",

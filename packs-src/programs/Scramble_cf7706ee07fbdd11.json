@@ -2,7 +2,7 @@
   "_id": "cf7706ee07fbdd11",
   "name": "Scramble",
   "type": "program",
-  "img": "icons/svg/trap.svg",
+  "img": "systems/sr2e/assets/item_icons/programs/scramble.webp",
   "system": {
     "category": "defense",
     "rating": 1,
