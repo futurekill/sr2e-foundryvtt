@@ -67,6 +67,8 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.isOwned = !!item.parent;
     context.type = item.type;
     context.editable = this.isEditable;
+    // Skillwire systems expose a "Plus" toggle (doubles ActiveSoft capacity).
+    context.isSkillwire = item.type === "cyberware" && /skillwire/i.test(item.name);
 
     // Provide enriched HTML for notes/descriptions
     const enrichOpts = {

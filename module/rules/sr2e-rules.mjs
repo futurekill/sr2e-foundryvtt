@@ -814,19 +814,21 @@ export function skillsoftMemory(category, rating) {
 
 /**
  * Total-Ratings capacity of an installed skillwire system — the budget for the
- * summed ratings of all running ActiveSofts. A **Skillwire Plus** system (name
- * contains "plus") carries twice the Classic capacity (Total Ratings = Level × 2,
- * Shadowtech p.19); a Classic system handles up to its Level. 0 if `name` isn't a
- * skillwire item at all.
+ * summed ratings of all running ActiveSofts. A **Skillwire Plus** system carries
+ * twice the Classic capacity (Total Ratings = Level × 2, Shadowtech p.47); a
+ * Classic system handles up to its Level. 0 if `name` isn't a skillwire item.
+ * Plus is driven by the explicit `isPlus` flag; the name ("…plus…") is only a
+ * fallback for legacy/hand-named items.
  * @param {string} name   the cyberware item's name
  * @param {number} rating the item's Rating / Level
+ * @param {boolean} [isPlus] the system.skillwirePlus flag
  * @returns {number} total accessible ActiveSoft rating budget
  */
-export function skillwireCapacity(name = "", rating = 0) {
+export function skillwireCapacity(name = "", rating = 0, isPlus = false) {
   const r = Math.max(0, Math.round(Number(rating) || 0));
   const n = String(name).toLowerCase();
   if (!n.includes("skillwire")) return 0;
-  return n.includes("plus") ? r * 2 : r;
+  return (isPlus || n.includes("plus")) ? r * 2 : r;
 }
 
 /**

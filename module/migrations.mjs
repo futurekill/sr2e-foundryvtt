@@ -144,6 +144,21 @@ const MIGRATIONS = [
       }
       return null;
     }
+  },
+  {
+    // Skillwire Plus is now an explicit flag (system.skillwirePlus), not inferred
+    // from the item name. Auto-flag any cyberware already named "…Skillwire…Plus…"
+    // so existing characters keep their doubled ActiveSoft budget without a manual
+    // edit. (A plain "Skillwires" the player MEANT as Plus still needs the box —
+    // no migration can read that intent.)
+    version: "0.52.0",
+    migrateItem(source) {
+      if (source.type === "cyberware" && !source.system?.skillwirePlus
+          && /skillwire/i.test(source.name ?? "") && /plus/i.test(source.name ?? "")) {
+        return { "system.skillwirePlus": true };
+      }
+      return null;
+    }
   }
 ];
 

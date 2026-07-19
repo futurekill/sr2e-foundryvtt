@@ -2,6 +2,16 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.52.0 — 2026-07-18
+
+### Added
+- **Skillwire Plus is now a proper, robust feature.** A new **Skillwire Plus**
+  checkbox on skillwire cyberware (and a matching **Skillwires Plus** compendium
+  item with Shadowtech p.47 stats) doubles the ActiveSoft budget to Rating × 2 —
+  no longer dependent on the item being named exactly right. A migration
+  auto-flags any cyberware already named "…Skillwire…Plus…", and the name still
+  works as a fallback.
+
 ## 0.51.1 — 2026-07-18
 
 ### Fixes

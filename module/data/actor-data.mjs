@@ -490,7 +490,7 @@ export class CharacterData extends SR2EDataModel {
         const n = i.name.toLowerCase();
         if (n.includes("chipjack")) chipjacks++;
         if (n.includes("datajack")) datajacks++;
-        if (n.includes("skillwire")) skillwires = Math.max(skillwires, skillwireCapacity(i.name, i.system.rating || 0));
+        if (n.includes("skillwire")) skillwires = Math.max(skillwires, skillwireCapacity(i.name, i.system.rating || 0, i.system.skillwirePlus));
         const m = /(\d[\d,]*)\s*mp/i.exec(i.name);
         if (m) memCapacity += parseInt(m[1].replace(/,/g, ""), 10);
       }

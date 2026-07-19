@@ -12,6 +12,14 @@ describe("skillwireCapacity", () => {
     expect(skillwireCapacity("Skillwires Plus", 4)).toBe(8);
     expect(skillwireCapacity("Skillwire Plus System", 3)).toBe(6);
   });
+  it("the explicit isPlus flag doubles capacity regardless of name", () => {
+    expect(skillwireCapacity("Skillwires", 4, true)).toBe(8);        // plain name, flagged
+    expect(skillwireCapacity("Custom Wire Rig", 4, true)).toBe(0);   // not a skillwire → still 0
+  });
+  it("the flag OR the name triggers Plus (either works)", () => {
+    expect(skillwireCapacity("Skillwires Plus", 4, false)).toBe(8);  // name only
+    expect(skillwireCapacity("Skillwires", 4, false)).toBe(4);       // neither → Classic
+  });
   it("is case-insensitive on both 'skillwire' and 'plus'", () => {
     expect(skillwireCapacity("SKILLWIRES PLUS", 5)).toBe(10);
   });

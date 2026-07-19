@@ -385,6 +385,11 @@ export class CyberwareData extends SR2EDataModel {
         ioSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         response: new fields.NumberField({ integer: true, initial: 0, min: 0 })
       }),
+      // Skillwire PLUS (Shadowtech p.47): a skillwire system whose Total-Ratings
+      // capacity is Level × 2 (a Classic system is Level × 1). An explicit flag so
+      // capacity never depends on the item's exact name — the name ("…plus…") is
+      // only a fallback for legacy/hand-named items.
+      skillwirePlus: new fields.BooleanField({ initial: false }),
       // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
       // are derived from the row matching the current rating (prepareDerivedData).
       // For non-tiered items, leave this empty and fill the flat fields directly.

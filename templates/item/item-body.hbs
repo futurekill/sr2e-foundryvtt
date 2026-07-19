@@ -422,6 +422,14 @@
     </select>
   </div>
 
+  {{#if isSkillwire}}
+  <div class="form-group">
+    <label title="Skillwire Plus (Shadowtech p.47) doubles the ActiveSoft rating budget to Rating × 2.">Skillwire Plus:</label>
+    <input type="checkbox" name="system.skillwirePlus" {{checked system.skillwirePlus}} />
+    <span class="hint">×2 ActiveSoft capacity (Rating × 2)</span>
+  </div>
+  {{/if}}
+
   {{!-- Rating: dropdown from table tiers (if tiered) or plain number input --}}
   <div class="form-group">
     <label>Rating:</label>
