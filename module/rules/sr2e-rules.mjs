@@ -2135,3 +2135,14 @@ export function tacticalComputerInitiative(rolled, rating, base, dice) {
   const cap = (Number(base) || 0) + 6 * Math.max(0, Number(dice) || 0);
   return Math.min((Number(rolled) || 0) + r, cap);
 }
+
+/**
+ * Pick a random portrait variation for a summoned spirit/elemental.
+ * @param {number} count  How many variations ship for this domain (0 = none).
+ * @param {() => number} rng  Random source (injectable for tests).
+ * @returns {number} 1..count, or 0 when no art exists (caller keeps the SVG).
+ */
+export function spiritPortraitVariant(count, rng = Math.random) {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  return n <= 0 ? 0 : 1 + Math.floor(rng() * n);
+}

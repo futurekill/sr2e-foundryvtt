@@ -2,6 +2,16 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Added
+- **Summoned spirits & elementals get random portraits by type.** When a
+  conjured spirit's element/domain has portrait art, one of its variations is
+  picked at random for the actor and its token (rotation-locked); types with no
+  art yet keep the default SVG. Shipping now: Fire (×3) and Water (×2)
+  elementals — the rest follow as their art is generated
+  (`CONFIG.SR2E.spiritPortraitVariants` is the count contract).
+
 ## 0.52.0 — 2026-07-18
 
 ### Added

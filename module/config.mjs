@@ -511,6 +511,14 @@ SR2E.elementalTypes = {
   earth: { label: "SR2E.Spirits.Earth", aids: "manipulation" }
 };
 
+// How many portrait variations ship per summonable type, keyed by element /
+// nature-spirit domain. A summoned spirit picks a random one of these
+// (assets/spirit_portraits/<key>-<1..N>.webp); a type absent here keeps the
+// default SVG. Grow these numbers as more art lands — the count IS the contract.
+SR2E.spiritPortraitVariants = {
+  fire: 3, water: 2
+};
+
 /**
  * Conjuring Drain (SR2E p.139): drain level scales with the spirit's Force
  * relative to the conjurer's Charisma. Stun until Force exceeds Charisma,

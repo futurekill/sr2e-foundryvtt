@@ -6,7 +6,8 @@ import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../di
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
-         knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel } from "../rules/sr2e-rules.mjs";
+         knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
+         spiritPortraitVariant } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -825,11 +826,17 @@ export class SR2EActor extends Actor {
       ? `${domainLabel} Elemental (F${force})`
       : `${domainLabel} Spirit (F${force})`;
 
+    // Random portrait per type when art ships for this domain (config count),
+    // else the default SVG. Token gets the same image, rotation locked.
+    const variant = spiritPortraitVariant(CONFIG.SR2E?.spiritPortraitVariants?.[domain] ?? 0);
+    const img = variant
+      ? `systems/sr2e/assets/spirit_portraits/${domain}-${variant}.webp`
+      : (kind === "elemental" ? "icons/svg/fire.svg" : "icons/svg/oak.svg");
+
     let spirit = null;
     try {
       [spirit] = await Actor.createDocuments([{
-        name, type: "spirit",
-        img: kind === "elemental" ? "icons/svg/fire.svg" : "icons/svg/oak.svg",
+        name, type: "spirit", img,
         system: {
           spiritType: kind, force, domain, services, maxServices: services,
           conjurerUuid: this.uuid
@@ -841,7 +848,10 @@ export class SR2EActor extends Actor {
         prototypeToken: {
           disposition: this.hasPlayerOwner
             ? CONST.TOKEN_DISPOSITIONS.FRIENDLY
-            : (this.prototypeToken?.disposition ?? CONST.TOKEN_DISPOSITIONS.HOSTILE)
+            : (this.prototypeToken?.disposition ?? CONST.TOKEN_DISPOSITIONS.HOSTILE),
+          // Show the portrait on the token too (square art, rotation locked);
+          // the SVG fallback needs neither.
+          ...(variant ? { lockRotation: true, texture: { src: img, fit: "cover" } } : {})
         }
       }]);
     } catch (err) {
