@@ -287,10 +287,11 @@ export function registerSR2EQuenchTests() {
           assert.equal(actor.system.activeSkillDice, 1, "Enhanced Articulation should grant +1 active-skill die");
           const chip = (actor.system.chippedSkills ?? []).find(s => s.name === "Stealth");
           assert.ok(chip, "ActiveSoft did not inject Stealth");
-          const res = await actor.rollChippedSkill(chip.softId, 4, {});
-          // successTest echoes the dice actually rolled as `dicePool`: rating(4)
-          // + articulation(1) = 5.
-          assert.equal(res?.dicePool, 5, `chipped roll should be 4 + 1 articulation = 5 dice; got ${res?.dicePool}`);
+          // Pass pool dice too: they must be IGNORED (skillwires bar pools, core
+          // p.243), so the roll is still rating(4) + articulation(1) = 5.
+          const res = await actor.rollChippedSkill(chip.softId, 4, { poolDice: 3 });
+          assert.equal(res?.dicePool, 5,
+            `chipped roll should be 4 + 1 articulation = 5 dice (pools barred); got ${res?.dicePool}`);
         });
       });
     }, { displayName: "SR2E: Skillsofts" });

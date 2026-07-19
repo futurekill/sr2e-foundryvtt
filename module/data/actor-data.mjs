@@ -767,11 +767,20 @@ export class CharacterData extends SR2EDataModel {
           const raceKey = (this.race ?? "").charAt(0).toUpperCase() + (this.race ?? "").slice(1);
           named.push({ name: game.i18n.localize(`SR2E.Races.${raceKey}`), value: racial });
         }
-        named.push(...(mods.edgeSources?.[attr] ?? []),
-                   ...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? []));
-        // Anything left over — a clamped edge, a non-additive effect (override/
-        // multiply), an unknown contributor — folds into one honest "other" line,
-        // so base + every listed source ALWAYS equals the shown value.
+        // Bonus Attribute Point edge — attribute its EFFECTIVE points (after the
+        // racial-maximum clamp), not the raw purchased amount, so a partly-wasted
+        // edge doesn't read as "+N edge" with a phantom "−N other".
+        const edgeItems = mods.edgeSources?.[attr] ?? [];
+        if (edgeItems.length) {
+          const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
+          const natNoEdge = naturalAttribute(this[attr].base ?? 0, racial, 0, maxes[attr] ?? null, mods?.edgeMax?.[attr] ?? 0);
+          const edgeEff = this._naturalAttribute(attr, mods) - natNoEdge;
+          if (edgeEff > 0) named.push({ name: edgeItems.map((e) => e.name).join(" + "), value: edgeEff });
+        }
+        named.push(...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? []));
+        // Anything left over — a non-additive effect (override/multiply) or an
+        // unknown contributor — folds into one honest "other" line, so base +
+        // every listed source ALWAYS equals the shown value.
         const residual = (this[attr].value - (this[attr].base ?? 0)) - named.reduce((t, s) => t + s.value, 0);
         if (residual) named.push({ name: game.i18n.localize("SR2E.Attr.OtherSource"), value: residual });
         this.attributeSources[attr] = named;

@@ -714,9 +714,11 @@ export class SR2EActor extends Actor {
     // dice. _activeSkillBonus returns 0 for a knowsoft (knowledge/language).
     const artBonus = this._activeSkillBonus({ system: { category: chip?.system.category ?? "active" } });
     const dicePool = base + artBonus;
+    // Skillwire-driven skills cannot use dice POOLS (Combat Pool, etc.; core
+    // p.243) — the wires override the character's own reflexes. So pool dice are
+    // NOT forwarded here, even if the roll dialog offered them.
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
       label: `${soft.system.grantedSkill || soft.name} Test (chipped)${artBonus ? ` (+${artBonus} articulation)` : ""}`,
-      poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }
