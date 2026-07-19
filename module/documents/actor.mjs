@@ -707,9 +707,15 @@ export class SR2EActor extends Actor {
     const soft = this.items.get(softId);
     if (!soft) return;
     const chip = this.system.chippedSkills?.find(s => s.softId === softId);
-    const dicePool = chip?.system.rating ?? soft.system.rating ?? 0;
+    const base = chip?.system.rating ?? soft.system.rating ?? 0;
+    // Enhanced Articulation (Shadowtech p.34) is a PASSIVE +die on any Active
+    // Skill Success Test — a chipped skill is still an Active Skill test, so it
+    // qualifies. Skillwires only bar the use of POOLS (core p.243), not passive
+    // dice. _activeSkillBonus returns 0 for a knowsoft (knowledge/language).
+    const artBonus = this._activeSkillBonus({ system: { category: chip?.system.category ?? "active" } });
+    const dicePool = base + artBonus;
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
-      label: `${soft.system.grantedSkill || soft.name} Test (chipped)`,
+      label: `${soft.system.grantedSkill || soft.name} Test (chipped)${artBonus ? ` (+${artBonus} articulation)` : ""}`,
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });

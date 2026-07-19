@@ -260,6 +260,38 @@ export function registerSR2EQuenchTests() {
           assert.equal(lang.system.category, "language", "injected skill is not a language");
           assert.equal(lang.system.rating, 4, "LinguaSoft should run at full rating off a datajack");
         });
+
+        it("Skillwire PLUS carries twice the Classic total-ratings budget (Shadowtech p.19)", async () => {
+          actor = await Actor.create({ name: "Quench SkillwirePlus", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Skillwires Plus", type: "cyberware", system: { installed: true, rating: 4 } }
+          ]);
+          assert.equal(actor.system.skillsoft.skillwiresRating, 8,
+            "a Plus rating-4 should give an 8-point ActiveSoft budget, not 4");
+          // Two ActiveSofts summing to 8 both fit (would be over-budget on a Classic-4).
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Stealth ActiveSoft", type: "gear", system: { category: "skillsoft", rating: 5, slotted: true, grantedSkill: "Stealth", grantedSkillCategory: "active" } },
+            { name: "Firearms ActiveSoft", type: "gear", system: { category: "skillsoft", rating: 3, slotted: true, grantedSkill: "Firearms", grantedSkillCategory: "active" } }
+          ]);
+          const overBudget = actor.items.filter(i => i.system._overBudget).length;
+          assert.equal(overBudget, 0, "5 + 3 = 8 fits an 8-point Plus budget; nothing should be over-budget");
+        });
+
+        it("a chipped Active skill gets the Enhanced Articulation die (passive, not a pool)", async () => {
+          actor = await Actor.create({ name: "Quench ChipArt", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Skillwires", type: "cyberware", system: { installed: true, rating: 6 } },
+            { name: "Enhanced Articulation", type: "bioware", system: { installed: true, activeSkillDice: 1 } },
+            { name: "Stealth ActiveSoft", type: "gear", system: { category: "skillsoft", rating: 4, slotted: true, grantedSkill: "Stealth", grantedSkillCategory: "active" } }
+          ]);
+          assert.equal(actor.system.activeSkillDice, 1, "Enhanced Articulation should grant +1 active-skill die");
+          const chip = (actor.system.chippedSkills ?? []).find(s => s.name === "Stealth");
+          assert.ok(chip, "ActiveSoft did not inject Stealth");
+          const res = await actor.rollChippedSkill(chip.softId, 4, {});
+          // successTest echoes the dice actually rolled as `dicePool`: rating(4)
+          // + articulation(1) = 5.
+          assert.equal(res?.dicePool, 5, `chipped roll should be 4 + 1 articulation = 5 dice; got ${res?.dicePool}`);
+        });
       });
     }, { displayName: "SR2E: Skillsofts" });
 
@@ -884,6 +916,20 @@ export function registerSR2EQuenchTests() {
           const s = bodySources(actor);
           assert.ok(s.some(x => x.name === "Bone Density Augmentation" && x.value === 2),
             `cyberware should appear in body sources; got ${JSON.stringify(s)}`);
+        });
+
+        it("names a Bonus Attribute Point edge (a purchased natural bonus)", async () => {
+          const actor = await mk();  // Body base 4
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Bonus Attribute Point (Body)", type: "quality",
+            system: { attribute: "body", attributeBonus: 1 }
+          }]);
+          const s = bodySources(actor);
+          assert.ok(s.some(x => /Bonus Attribute/i.test(x.name) && x.value === 1),
+            `the edge should be a named source; got ${JSON.stringify(s)}`);
+          // base 4 + all listed sources must equal the final value.
+          const sum = s.reduce((t, x) => t + x.value, 0);
+          assert.equal(4 + sum, actor.system.body.value, "base + sources must equal the shown value");
         });
 
         it("names an additive Active-Effect alongside the implant, and sources sum to .mod", async () => {

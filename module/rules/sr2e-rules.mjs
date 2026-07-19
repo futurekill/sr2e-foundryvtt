@@ -813,6 +813,23 @@ export function skillsoftMemory(category, rating) {
 }
 
 /**
+ * Total-Ratings capacity of an installed skillwire system — the budget for the
+ * summed ratings of all running ActiveSofts. A **Skillwire Plus** system (name
+ * contains "plus") carries twice the Classic capacity (Total Ratings = Level × 2,
+ * Shadowtech p.19); a Classic system handles up to its Level. 0 if `name` isn't a
+ * skillwire item at all.
+ * @param {string} name   the cyberware item's name
+ * @param {number} rating the item's Rating / Level
+ * @returns {number} total accessible ActiveSoft rating budget
+ */
+export function skillwireCapacity(name = "", rating = 0) {
+  const r = Math.max(0, Math.round(Number(rating) || 0));
+  const n = String(name).toLowerCase();
+  if (!n.includes("skillwire")) return 0;
+  return n.includes("plus") ? r * 2 : r;
+}
+
+/**
  * Nuyen cost of a skillsoft = its Memory (Mp) × the per-type rate (SR2E p.243).
  * 0 for DataSofts / unknown types (cost "varies with the value of the data").
  * @param {string} category - "active" | "knowledge" | "language"

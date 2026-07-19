@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -490,7 +490,7 @@ export class CharacterData extends SR2EDataModel {
         const n = i.name.toLowerCase();
         if (n.includes("chipjack")) chipjacks++;
         if (n.includes("datajack")) datajacks++;
-        if (n.includes("skillwire")) skillwires = Math.max(skillwires, i.system.rating || 0);
+        if (n.includes("skillwire")) skillwires = Math.max(skillwires, skillwireCapacity(i.name, i.system.rating || 0));
         const m = /(\d[\d,]*)\s*mp/i.exec(i.name);
         if (m) memCapacity += parseInt(m[1].replace(/,/g, ""), 10);
       }
@@ -614,7 +614,8 @@ export class CharacterData extends SR2EDataModel {
       sources: { body: [], quickness: [], strength: [], charisma: [], intelligence: [], willpower: [] },
       // Attribute Edges (Companion): edgeAttr raises the RATING, edgeMax the
       // racial MAXIMUM. Both are part of the NATURAL attribute, not `mod`.
-      edgeAttr: {}, edgeMax: {},
+      // edgeSources keeps the named per-quality breakdown for the sheet tooltip.
+      edgeAttr: {}, edgeMax: {}, edgeSources: {},
       // Quickness bonus that must NOT feed Reaction (Muscle Replacement/
       // Augmentation, SR2E p.249). Still counts for Combat Pool and tests.
       reactionExemptQuickness: 0,
@@ -678,6 +679,7 @@ export class CharacterData extends SR2EDataModel {
         const a = item.system.attribute;
         if (item.system.attributeBonus) {
           mods.edgeAttr[a] = (mods.edgeAttr[a] ?? 0) + item.system.attributeBonus;
+          (mods.edgeSources[a] ??= []).push({ name: item.name, value: item.system.attributeBonus });
         }
         if (item.system.maximumBonus) {
           mods.edgeMax[a] = (mods.edgeMax[a] ?? 0) + item.system.maximumBonus;
@@ -754,12 +756,23 @@ export class CharacterData extends SR2EDataModel {
         this[attr].mod = (this[attr].mod ?? 0) + mods[attr];
         this[attr].value = Math.max(1, this._naturalAttribute(attr, mods) + this[attr].mod);
 
-        // Named sources: additive Active Effects + item mods (cyber/bio/adept).
-        const named = [...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? [])];
-        // Anything in `.mod` we couldn't attribute (a non-additive effect —
-        // override/multiply — or an unknown contributor) becomes one honest
-        // "other" line, so the listed sources ALWAYS sum to `.mod`.
-        const residual = this[attr].mod - named.reduce((t, s) => t + s.value, 0);
+        // Named sources reconcile to the WHOLE base→value gap the tooltip shows,
+        // not just `.mod`: metatype (racial rating bonus) and the Bonus Attribute
+        // Point edge are part of the NATURAL rating but still moved the attribute
+        // above its bought base, so the player should see them too. Order:
+        // metatype, edge, then additive Active Effects + item mods (cyber/bio/adept).
+        const named = [];
+        const racial = this[attr].racial ?? 0;
+        if (racial) {
+          const raceKey = (this.race ?? "").charAt(0).toUpperCase() + (this.race ?? "").slice(1);
+          named.push({ name: game.i18n.localize(`SR2E.Races.${raceKey}`), value: racial });
+        }
+        named.push(...(mods.edgeSources?.[attr] ?? []),
+                   ...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? []));
+        // Anything left over — a clamped edge, a non-additive effect (override/
+        // multiply), an unknown contributor — folds into one honest "other" line,
+        // so base + every listed source ALWAYS equals the shown value.
+        const residual = (this[attr].value - (this[attr].base ?? 0)) - named.reduce((t, s) => t + s.value, 0);
         if (residual) named.push({ name: game.i18n.localize("SR2E.Attr.OtherSource"), value: residual });
         this.attributeSources[attr] = named;
       }
