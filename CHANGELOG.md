@@ -2,6 +2,18 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## 0.51.1 — 2026-07-18
+
+### Fixes
+- **Skillwire Plus** now carries twice the Classic budget (Total Ratings =
+  Level × 2, Shadowtech p.19) — a Rating-4 Plus slots 8 points of ActiveSofts,
+  not 4.
+- **Attribute tooltip** now names the purchased **Bonus Attribute Point** edge
+  and the metatype racial bonus, showing their effective points.
+- **Enhanced Articulation** now adds its die to **chipped** Active skills (a
+  passive bonus, not a pool). Chipped rolls also correctly ignore dice pools,
+  which skillwires forbid (core p.243).
+
 ## 0.51.0 — 2026-07-18
 
 ### Added
