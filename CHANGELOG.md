@@ -11,6 +11,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   character can be recovered without GM surgery. Available on NPC, vehicle,
   spirit, IC and host sheets too, not just characters.
 
+### Fixed
+- **Shadowtalk banter no longer overlaps the name fields.** It was positioned
+  out of flow at 42% of the whole header while the name column was capped at
+  56% of the header *minus* the portrait — two different reference widths, so
+  they collided by ~50px. The banter is now a normal flex sibling of the name,
+  which makes overlap impossible at any window size.
+
 ## 0.54.0 — 2026-07-20
 
 ### Added

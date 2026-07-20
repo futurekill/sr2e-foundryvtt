@@ -205,8 +205,8 @@
 /* Name stack: street name leads, government name is a quiet subtitle. The
    stack owns the width cap so both inputs stay clear of the floated banter. */
 .sr2e-sheet-header .char-name-stack {
-  flex: 1;
-  max-width: 56%;
+  flex: 1 1 auto;
+  min-width: 0;   /* allow shrinking so a long name never shoves the banter */
   gap: 1px;
 }
 .sr2e-sheet-header .char-realname-input {
@@ -1885,15 +1885,17 @@
   font-size: 10px;
   margin-top: 1px;
 }
-/* Banter floats in the top-right corner (out of flow) so its height never
-   balloons the name row — the left column (name/race/condition/stats) packs
-   tight underneath. Capped so it always clears the stats row below it. */
+/* Banter sits at the top-right of the name row as a flex SIBLING of the name
+   stack, and is height-capped so it never balloons that row.
+
+   It used to be absolutely positioned (out of flow) at 42% of the whole header,
+   while the name stack was capped at 56% of the header MINUS the portrait — two
+   different reference boxes, so the two overlapped by ~50px at typical widths.
+   Being flex items, they now cannot overlap at any window size; don't take this
+   out of flow again. */
 .header-shadowtalk {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 42%;
-  max-width: 42%;
+  flex: 0 1 42%;
+  align-self: flex-start;
   margin: 0;
   font-size: 10px;
   line-height: 1.2;
