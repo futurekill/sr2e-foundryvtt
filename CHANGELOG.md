@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.55.0 — 2026-07-20
 
 ### Added
 - **Export to JSON** in every actor sheet's header menu (the ⋮ next to the
