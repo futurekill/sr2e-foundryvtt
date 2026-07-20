@@ -3109,6 +3109,20 @@ const SHARED_ACTIONS = {
       }
     });
     fp.browse();
+  },
+
+  /**
+   * Download this actor — stats, items, effects and all — as a JSON backup.
+   *
+   * Foundry's own exportToJSON does the work (same payload as the sidebar's
+   * "Export Data"); this only surfaces it on the sheet, where a player is when
+   * they actually want a safety copy. Restoring is the sidebar's native
+   * "Import Data" on an actor, so the round trip needs no code from us.
+   * @this {ApplicationV2}
+   */
+  exportJson: async function(event, target) {
+    event.preventDefault();
+    await this.document.exportToJSON();
   }
 };
 

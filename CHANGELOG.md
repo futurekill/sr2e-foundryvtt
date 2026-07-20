@@ -2,6 +2,15 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Added
+- **Export to JSON** in every actor sheet's header menu (the ⋮ next to the
+  close button) — a one-click backup of the character, items, effects and all.
+  Restore it with the sidebar's existing **Import Data** on an actor, so a
+  character can be recovered without GM surgery. Available on NPC, vehicle,
+  spirit, IC and host sheets too, not just characters.
+
 ## 0.54.0 — 2026-07-20
 
 ### Added

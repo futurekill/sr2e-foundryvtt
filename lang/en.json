@@ -416,5 +416,6 @@
   "SR2E.Dialog.MiscDiceTitle": "Situational dice bonus (+) or penalty (−) not covered by another field — e.g. Tailored Pheromones vs a metahuman, Aptitude, a helper. The final pool never drops below 1 die.",
   "SR2E.Dialog.MiscDiceNote": "note (e.g. Tailored Pheromones)",
   "SR2E.Roll.Floored": "(min 0)",
-  "SR2E.Attr.OtherSource": "other"
+  "SR2E.Attr.OtherSource": "other",
+  "SR2E.Sheet.ExportJson": "Export to JSON (backup)"
 }

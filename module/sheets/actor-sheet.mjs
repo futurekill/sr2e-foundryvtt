@@ -41,13 +41,33 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // gives npc/vehicle/spirit/ic/host their portrait picker without repeating it
     // (previously only the character header wired data-action="editImage").
     actions: {
-      editImage: SHARED_ACTIONS.editImage
+      editImage: SHARED_ACTIONS.editImage,
+      exportJson: SHARED_ACTIONS.exportJson
     },
     // V13: register DragDrop so _onDragOver/_onDrop/_onDragStart are bound.
     // Without this, dragover never calls preventDefault(), letting the browser's
     // native drop behaviour fire on form <select> elements and corrupt their values.
     dragDrop: [{ dragSelector: "[data-item-id]", dropSelector: null }]
   };
+
+  /**
+   * Add "Export to JSON" to the sheet's header menu, for every actor type.
+   *
+   * APPENDS to whatever the parent offers rather than declaring
+   * `window.controls` in DEFAULT_OPTIONS — that key is an ARRAY, and the option
+   * merge replaces arrays wholesale, which would silently drop the inherited
+   * Configure Sheet / Prototype Token / artwork entries.
+   * @override
+   */
+  _getHeaderControls() {
+    const controls = super._getHeaderControls();
+    controls.push({
+      icon: "fa-solid fa-file-arrow-down",
+      label: "SR2E.Sheet.ExportJson",
+      action: "exportJson"
+    });
+    return controls;
+  }
 
   /** @override */
   async _prepareContext(options) {
