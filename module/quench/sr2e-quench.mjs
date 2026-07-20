@@ -789,10 +789,17 @@ export function registerSR2EQuenchTests() {
           await actor.createEmbeddedDocuments("Item", [
             { name: "Conjuring", type: "skill", system: { rating: 5, category: "active" } }
           ]);
+          // Scope to cards this test just posted. `game.messages` is the WHOLE
+          // world log, so a bare .find() scans from the OLDEST message and
+          // happily returns a Conjure card from actual play (or an earlier
+          // quench run) that predates this roll — which is exactly how this
+          // assertion failed while the code was correct.
+          const before = game.messages.size;
           await actor.rollConjuring({ force: 2, kind: "elemental", domain: "fire", miscDice: 2, miscLabel: "ally" });
-          const cards = game.messages.contents;
+          const cards = game.messages.contents.slice(before);
           const summon = cards.find(m => /Conjure/.test(m.content ?? ""));
           const drain  = cards.find(m => /Conjuring Drain/.test(m.content ?? ""));
+          assert.ok(summon, "rollConjuring should post a summon card");
           assert.ok(summon?.content.includes("ally"), "the summon test card should carry the misc note");
           assert.notInclude(drain?.content ?? "", "ally", "Drain must NOT inherit the conjuring misc");
         });
@@ -807,10 +814,15 @@ export function registerSR2EQuenchTests() {
             name: "Manabolt", type: "spell",
             system: { category: "combat", drainCode: "[(F÷2)+1]M", force: 5 }
           }]);
+          // Same scoping as above: this one passed only by luck (a stale Manabolt
+          // card carries the same label), so it was one edit away from the same
+          // false failure.
+          const before = game.messages.size;
           await spell.roll({ force: 3, targetNumber: 4, miscDice: 2, miscLabel: "power site" });
-          const cards = game.messages.contents;
+          const cards = game.messages.contents.slice(before);
           const cast  = cards.find(m => /Manabolt/.test(m.content ?? "") && !/Drain/.test(m.content ?? ""));
           const drain = cards.find(m => /Drain Resist/.test(m.content ?? ""));
+          assert.ok(cast, "spell.roll should post a casting card");
           assert.ok(cast?.content.includes("power site"), "the casting card should carry the misc note");
           assert.notInclude(drain?.content ?? "", "power site", "Drain must NOT inherit the casting misc");
         });
