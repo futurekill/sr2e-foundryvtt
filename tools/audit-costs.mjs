@@ -5,8 +5,8 @@
  * The core book prints most gear TWICE and the two tables disagree in places
  * (see CLAUDE.md). An early import mixed them and invented a few values, which
  * is how player-visible prices drifted. `tools/data/street-gear-prices.tsv` is a
- * hand-verified transcription of the canonical list, read off rendered PDF pages
- * because the text layer mis-aligns these columns.
+ * hand-verified transcription of the canonical list (corrected 11th printing),
+ * read off rendered pages because the text layer mis-aligns these columns.
  *
  *   npm run audit-costs           # report drift
  *   npm run audit-costs -- --fix  # write the printed values into packs-src
@@ -24,8 +24,8 @@ const PACKS = "packs-src";
 const rows = readFileSync(REF, "utf8").split("\n")
   .filter(l => l.trim() && !l.startsWith("#"))
   .map(l => {
-    const [name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, pdfPage, extra] = l.split("\t");
-    return { name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, pdfPage, extra };
+    const [name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, bookPage, extra] = l.split("\t");
+    return { name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, bookPage, extra };
   });
 
 // Every item we ship, by name (packs-src is one JSON document per file).
@@ -79,7 +79,7 @@ for (const r of rows) {
   for (const [field, want, got] of checks) {
     if (got === undefined) continue;              // field not modelled on this type
     if (String(want) === String(got)) continue;
-    drift.push({ name: r.name, field, want, got, page: r.pdfPage, path: hit.path });
+    drift.push({ name: r.name, field, want, got, page: r.bookPage, path: hit.path });
     if (FIX) {
       hit.doc.system[field] = want;
       writeFileSync(hit.path, JSON.stringify(hit.doc, null, 2) + "\n");
@@ -90,7 +90,7 @@ for (const r of rows) {
 const pad = (s, n) => String(s).padEnd(n);
 if (drift.length) {
   console.log(`${FIX ? "FIXED" : "DRIFT"} — ${drift.length} field(s) disagree with the printed table:\n`);
-  console.log(`  ${pad("ITEM", 40)}${pad("FIELD", 16)}${pad("OURS", 14)}${pad("PRINTED", 14)}PDF p.`);
+  console.log(`  ${pad("ITEM", 40)}${pad("FIELD", 16)}${pad("OURS", 14)}${pad("PRINTED", 14)}book p.`);
   for (const d of drift) {
     console.log(`  ${pad(d.name, 40)}${pad(d.field, 16)}${pad(d.got, 14)}${pad(d.want, 14)}${d.page}`);
   }

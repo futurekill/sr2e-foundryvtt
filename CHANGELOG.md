@@ -5,13 +5,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 ## Unreleased
 
 ### Fixed
-- **Weapon prices and damage corrected against the printed table (p.96, p.279).**
+- **Weapon prices and damage corrected against the printed table (p.96, p.254).**
   A shuriken is **30¥** (was 50) and a throwing knife **20¥** (was 50); both do
   **(Str)L** — they were doing (Str+1)L / (Str+1)M. A Pole Arm does **(Str)S**,
   not (Str+3)S. Remington 950 is **800¥** and the Defiance T-250 **500¥** (the
   latter previously matched neither printed table). Katana and Pole Arm now
   carry their printed Street Index of 2, so they cost the right amount at the shop.
-- **Armor concealability corrected** (p.283): Armor Jacket 6 (was 8), Armor Vest
+- **Armor concealability corrected** (p.257): Armor Jacket 6 (was 8), Armor Vest
   12 (was 8), Vest with Plates 10 (was 4). Ratings and prices were already right.
 - **Bows are priced and staged off their Strength Minimum, as printed.** A bow
   is "purchased with a specified Strength Minimum" (p.96): it now costs

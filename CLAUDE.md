@@ -7,16 +7,25 @@ before touching `packs/` (LevelDB locks).
 
 ## Rules accuracy policy
 Never implement a rule from memory. The SR2E core rulebook PDF lives in the
-parent folder (`../Shadowrun 2e - Shadowrun Second Edition {FASA7901}.pdf`);
-extract with `pdftotext`, or render pages with `gs` and read the image when
-tables come out garbled (book page N ≈ PDF page N+2). Cite page numbers in
-comments. Sourcebook PDFs (Rigger 2, Street Samurai Catalog, Grimoire,
-Virtual Realities) are also in the parent folder.
+parent folder — use the **corrected 11th printing**, the final printing and the
+canonical text: `../Shadowrun 2e - Shadowrun Second Edition (corrected 11th
+printing) {FASA7901}.pdf`. It has a real text layer (the older scan was OCR),
+so `pdftotext -layout` is reliable; still render the page (`pdftoppm -r 220`)
+and read the image for dense tables, whose columns mis-align in any extraction.
 
-**Prices: the Street Gear list (book p.279+) is canonical.** The core book
+**The PDF-to-book page offset is NOT constant** — unnumbered plates push it
+from +1 early (PDF 97 = book 96) to +25 by the gear chapter (PDF 279 = book
+254). Never assume an offset: read the printed folio in the page footer
+("96 SHADOWRUN"). Cite the BOOK page in comments.
+
+Sourcebook PDFs (Rigger 2, Street Samurai Catalog, Grimoire, Virtual Realities)
+are also in the parent folder.
+
+**Prices: the Street Gear list (book p.254+) is canonical.** The core book
 prints most gear twice — once in its rules chapter, once in the Street Gear
 shopping list — and the two DISAGREE in places (Remington 950 is 1,300¥ in
-the combat chapter but 800¥ in Street Gear; Defiance T-250, 1,400¥ vs 500¥).
+the combat chapter but 800¥ in Street Gear; Defiance T-250, 1,400¥ vs 500¥ —
+both discrepancies survive into the corrected 11th printing).
 Street Gear wins: it is the buying table and the only one carrying Street
 Index and Availability, which the purchase system models. An earlier import
 mixed both tables (and invented a few values), which is why player-reported
