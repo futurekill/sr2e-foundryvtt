@@ -6,7 +6,12 @@
 
     {{!-- Row 1: Name + shadowtalk banter (fills the unused top-right space) --}}
     <div class="header-name-row flexrow">
-      <input type="text" name="name" value="{{actor.name}}" placeholder="Character Name" class="char-name-input" />
+      <div class="char-name-stack flexcol">
+        <input type="text" name="name" value="{{actor.name}}" placeholder="Street Name" class="char-name-input"
+               title="The handle this character runs under. Foundry uses it for the token, the sidebar and chat cards." />
+        <input type="text" name="system.realName" value="{{system.realName}}" placeholder="Government name (optional)"
+               class="char-realname-input" title="The name on the SIN, if the character admits to one. Never shown on tokens or chat." />
+      </div>
       {{#if shadowtalk}}
       <div class="sr2e-shadowtalk header-shadowtalk" title="Shadowland chatter — set frequency in system settings">
         <span>&gt;&gt;&gt;&gt;&gt;[{{shadowtalk.text}}]&lt;&lt;&lt;&lt;&lt;</span>

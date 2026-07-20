@@ -9,6 +9,11 @@ export class CharacterData extends SR2EDataModel {
     const fields = foundry.data.fields;
     return {
       // --- BIOGRAPHY ---
+      // The actor NAME is the street handle — Foundry pushes it to tokens, the
+      // sidebar and chat cards, which is what the table should see. The legal
+      // name is the optional secondary field, blank for most runners (and for
+      // any who would rather nobody had it written down).
+      realName: new fields.StringField({ initial: "" }),
       biography: new fields.HTMLField({ initial: "" }),
       notes: new fields.HTMLField({ initial: "" }),
 

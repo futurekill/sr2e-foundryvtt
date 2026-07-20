@@ -187,8 +187,7 @@
 }
 
 .sr2e-sheet-header .char-name-input {
-  flex: 1;
-  max-width: 56%; /* stay clear of the floated banter in the top-right */
+  width: 100%;
   font-size: 22px;
   font-family: var(--sr2e-font-header);
   font-weight: 700;
@@ -201,6 +200,29 @@
   padding: 0;
   min-width: 0;
   text-shadow: 0 0 8px rgba(233, 30, 140, 0.3);
+}
+
+/* Name stack: street name leads, government name is a quiet subtitle. The
+   stack owns the width cap so both inputs stay clear of the floated banter. */
+.sr2e-sheet-header .char-name-stack {
+  flex: 1;
+  max-width: 56%;
+  gap: 1px;
+}
+.sr2e-sheet-header .char-realname-input {
+  font-size: 12px;
+  font-family: var(--sr2e-font-body, inherit);
+  letter-spacing: 0.04em;
+  border: none;
+  background: transparent;
+  color: var(--sr2e-text-muted);
+  padding: 0;
+  width: 100%;
+}
+.sr2e-sheet-header .char-realname-input::placeholder {
+  color: var(--sr2e-text-muted);
+  opacity: .55;
+  font-style: italic;
 }
 
 .sr2e-sheet-header .char-name-input::placeholder {

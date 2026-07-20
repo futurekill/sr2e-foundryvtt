@@ -2,6 +2,16 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Added
+- **Street name and government name are now separate fields.** The big name on
+  the character sheet is the handle the character runs under — Foundry uses it
+  for the token, the sidebar and chat cards, so that is what the table sees. A
+  quiet **Government name** field sits under it for the name on the SIN, blank
+  for most runners. No more "Munetaka Murakami aka Heikegani" crammed into one
+  box: put the handle up top and the legal name below.
+
 ## 0.53.0 — 2026-07-19
 
 ### Fixed
