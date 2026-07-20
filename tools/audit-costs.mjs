@@ -24,8 +24,8 @@ const PACKS = "packs-src";
 const rows = readFileSync(REF, "utf8").split("\n")
   .filter(l => l.trim() && !l.startsWith("#"))
   .map(l => {
-    const [name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, pdfPage] = l.split("\t");
-    return { name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, pdfPage };
+    const [name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, pdfPage, extra] = l.split("\t");
+    return { name, category, conceal, reach, damage, type, weight, avail, cost, streetIndex, pdfPage, extra };
   });
 
 // Every item we ship, by name (packs-src is one JSON document per file).
@@ -69,6 +69,12 @@ for (const r of rows) {
   // so compare against that rather than skipping — an unset index on a Katana
   // (printed 2) really does overcharge/undercharge at the shop.
   if (num(r.streetIndex) !== null) checks.push(["streetIndex", num(r.streetIndex), sys.streetIndex ?? 1]);
+  // Per-category fields the fixed columns cannot express — "ballistic=3;impact=0"
+  // for armor, "essenceCost=.2" for cyberware, "rating=3" for electronics.
+  for (const pair of (r.extra ?? "").split(";").filter(Boolean)) {
+    const [k, v] = pair.split("=");
+    checks.push([k.trim(), Number(v), sys[k.trim()]]);
+  }
 
   for (const [field, want, got] of checks) {
     if (got === undefined) continue;              // field not modelled on this type
@@ -84,9 +90,9 @@ for (const r of rows) {
 const pad = (s, n) => String(s).padEnd(n);
 if (drift.length) {
   console.log(`${FIX ? "FIXED" : "DRIFT"} — ${drift.length} field(s) disagree with the printed table:\n`);
-  console.log(`  ${pad("ITEM", 24)}${pad("FIELD", 16)}${pad("OURS", 14)}${pad("PRINTED", 14)}PDF p.`);
+  console.log(`  ${pad("ITEM", 40)}${pad("FIELD", 16)}${pad("OURS", 14)}${pad("PRINTED", 14)}PDF p.`);
   for (const d of drift) {
-    console.log(`  ${pad(d.name, 24)}${pad(d.field, 16)}${pad(d.got, 14)}${pad(d.want, 14)}${d.page}`);
+    console.log(`  ${pad(d.name, 40)}${pad(d.field, 16)}${pad(d.got, 14)}${pad(d.want, 14)}${d.page}`);
   }
 } else {
   console.log("No drift: every transcribed price matches what we ship.");

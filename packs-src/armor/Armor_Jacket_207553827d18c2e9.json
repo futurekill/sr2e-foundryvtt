@@ -6,7 +6,7 @@
   "system": {
     "ballistic": 5,
     "impact": 3,
-    "concealability": 8,
+    "concealability": 6,
     "weight": 0,
     "cost": 900,
     "availability": "3/48hrs",

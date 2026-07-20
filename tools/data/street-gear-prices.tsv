@@ -44,3 +44,22 @@ Beretta Model 101T	firearm	5	0	6L	p	0	3/12 hrs	350	.8	281
 Fichetti Security 500	firearm	7	0	6L	p	1	3/12 hrs	400	.8	280
 Fichetti Security 500a	firearm	6	0	6L	p	1.25	3/12 hrs	450	.8	280
 Colt America L36	firearm	6	0	6L	p	1	3/12 hrs	350	.8	280
+# Assault rifles / heavy weapons (p281). Names are OURS where they differ from
+# the printed row: Panther Assault Cannon = "Assault Cannon", Light Machine Gun
+# (Generic) = "Ingram Valiant", Missile/Rocket Launcher = "Multi-Launcher".
+AK-97	firearm	3	0	8M	p	4.5	3/36 hrs	700	2	281
+AK-98	firearm	2	0	8M	p	6	8/4 days	2500	4	281
+FN HAR	firearm	2	0	8M	p	4.5	4/48 hrs	1200	2	281
+Generic Under-Barrel Grenade Launcher	heavy		0		p	2	8/4 days	1700	3	281
+Ingram Valiant	heavy	99	0	7S	p	9	6/5 days	1500	2	281
+Generic MMG	heavy	99	0	9S	p	12	14/14 days	2500	2	281
+Generic HMG	heavy	99	0	10S	p	15	18/18 days	4000	2	281
+Panther Assault Cannon	heavy	99	0	18D	p	20	16/14 days	6500	2	281
+Missile/Rocket Launcher	heavy	99	0		p	8	12/14 days	8000	2	281
+# Clothing & armor + commercial explosives (p283). `extra` carries the
+# per-category fields: ballistic/impact for armor.
+Armor Clothing	armor	10	0		p	2	2/36 hrs	500	1	283	ballistic=3;impact=0
+Armor Jacket	armor	6	0		p	2	3/36 hrs	900	.75	283	ballistic=5;impact=3
+Armor Vest	armor	12	0		p	1	2/36 hrs	200	.8	283	ballistic=2;impact=1
+Vest with Plates	armor	10	0		p	2	3/36 hrs	600	1	283	ballistic=4;impact=3
+Lined Coat	armor	8	0		p	1	2/24 hrs	700	.75	283	ballistic=4;impact=2
