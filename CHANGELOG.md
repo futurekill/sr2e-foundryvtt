@@ -12,6 +12,12 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   for most runners. No more "Munetaka Murakami aka Heikegani" crammed into one
   box: put the handle up top and the legal name below.
 
+  Renaming an actor now carries its **prototype token** along, because chat
+  cards resolve the speaker through the token name — otherwise a renamed
+  character would keep announcing their old name in chat. A token you renamed
+  on purpose ("Guard" over "Lone Star Patrolman") is left alone. Tokens already
+  placed on a scene keep their own copy: re-drag those.
+
 ## 0.53.0 — 2026-07-19
 
 ### Fixed

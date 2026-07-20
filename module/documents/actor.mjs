@@ -104,6 +104,29 @@ export class SR2EActor extends Actor {
   // embedded items are fully prepared before the models' prepareDerivedData
   // runs, so no Document-level post-processing is needed.
 
+  /**
+   * Keep the prototype token's name on the actor's name.
+   *
+   * `prototypeToken.name` is an independent stored copy, and Foundry does NOT
+   * sync it — so renaming an actor to their street handle would leave the token
+   * (and therefore every chat card, since ChatMessage.getSpeaker prefers the
+   * token name) showing the old name.
+   *
+   * Only syncs when the token name still MATCHES the pre-rename actor name, so
+   * a deliberately different token name ("Guard" over "Lone Star Patrolman")
+   * survives untouched. Already-placed tokens keep their own copy — re-drag
+   * those, same as the linked-token rule.
+   * @override
+   */
+  async _preUpdate(changed, options, user) {
+    if (changed.name && changed.name !== this.name
+        && this.prototypeToken?.name === this.name
+        && changed.prototypeToken?.name === undefined) {
+      changed.prototypeToken = { ...(changed.prototypeToken ?? {}), name: changed.name };
+    }
+    return super._preUpdate(changed, options, user);
+  }
+
   // -------------------------------------------------------------------------
   // ROLLING METHODS
   // -------------------------------------------------------------------------

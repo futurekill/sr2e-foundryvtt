@@ -898,6 +898,53 @@ export function registerSR2EQuenchTests() {
     // ── Attribute provenance: system.<attr>.sources names each cyber/bio/adept/
     //    Active-Effect contribution for the sheet tooltip. Vitest tests the
     //    formatter; this proves the data model actually collects the sources. ──
+    quench.registerBatch("sr2e.identity", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+      const mk = async (name, tokenName) => {
+        const a = await Actor.create({
+          name, type: "character",
+          ...(tokenName ? { prototypeToken: { name: tokenName } } : {})
+        });
+        made.push(a); return a;
+      };
+
+      describe("Street name vs government name", () => {
+        it("renaming the actor carries the prototype token with it", async () => {
+          // Chat cards resolve through ChatMessage.getSpeaker, which prefers the
+          // TOKEN name — so a stale token name would keep leaking the old name.
+          const actor = await mk("Munetaka Murakami aka Heikegani");
+          await actor.update({ name: "Heikegani" });
+          assert.equal(actor.prototypeToken.name, "Heikegani",
+            "prototype token should follow the actor's new street name");
+        });
+
+        it("leaves a deliberately DIFFERENT token name alone", async () => {
+          const actor = await mk("Lone Star Patrolman", "Guard");
+          await actor.update({ name: "Lone Star Sergeant" });
+          assert.equal(actor.prototypeToken.name, "Guard",
+            "a token renamed on purpose must not be clobbered by an actor rename");
+        });
+
+        it("respects an explicit token name set in the same update", async () => {
+          const actor = await mk("Heikegani");
+          await actor.update({ name: "Crab", prototypeToken: { name: "Something Else" } });
+          assert.equal(actor.prototypeToken.name, "Something Else",
+            "an explicit prototypeToken.name in the same update wins");
+        });
+
+        it("keeps the government name off the token and out of the speaker", async () => {
+          const actor = await mk("Heikegani");
+          await actor.update({ "system.realName": "Munetaka Murakami" });
+          assert.equal(actor.system.realName, "Munetaka Murakami", "realName should persist");
+          assert.equal(actor.prototypeToken.name, "Heikegani", "token keeps the handle");
+          assert.equal(ChatMessage.getSpeaker({ actor }).alias, "Heikegani",
+            "chat cards must speak as the handle, never the legal name");
+        });
+      });
+    });
+
     quench.registerBatch("sr2e.attr-sources", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];
