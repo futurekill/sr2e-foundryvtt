@@ -6,7 +6,7 @@
   "system": {
     "weaponType": "projectile",
     "skill": "projectile_weapons",
-    "damageCode": "(Str+2)M",
+    "damageCode": "3M",
     "damageType": "physical",
     "concealability": 2,
     "reach": 0,
@@ -30,12 +30,15 @@
     },
     "strengthMin": 0,
     "weight": 1,
-    "cost": 400,
+    "cost": 100,
     "availability": "4/48 hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "Bought at a Strength Minimum; range & damage scale with it. SR2E p.254."
+    "notes": "Purchased at a specified Strength Minimum (SR2 p.96): price is 100¥ x Str Min and damage is (Str Min + 2)M — the WEAPON's Str Min, not the wielder's Strength. A wielder below the Str Min takes +1 target number per point short. Str Min also sets the range brackets.",
+    "strengthMinimum": 1,
+    "costPerStrengthMin": 100,
+    "strMinDamageBonus": 2
   },
   "effects": [],
   "flags": {},

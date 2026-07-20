@@ -13,6 +13,24 @@ tables come out garbled (book page N ≈ PDF page N+2). Cite page numbers in
 comments. Sourcebook PDFs (Rigger 2, Street Samurai Catalog, Grimoire,
 Virtual Realities) are also in the parent folder.
 
+**Prices: the Street Gear list (book p.279+) is canonical.** The core book
+prints most gear twice — once in its rules chapter, once in the Street Gear
+shopping list — and the two DISAGREE in places (Remington 950 is 1,300¥ in
+the combat chapter but 800¥ in Street Gear; Defiance T-250, 1,400¥ vs 500¥).
+Street Gear wins: it is the buying table and the only one carrying Street
+Index and Availability, which the purchase system models. An earlier import
+mixed both tables (and invented a few values), which is why player-reported
+prices were wrong. `npm run audit-costs` diffs packs-src against the
+transcribed reference in `tools/data/street-gear-prices.tsv` — re-run it
+after touching prices, and pin new values with a test.
+
+**Costs printed as formulas must stay formulas.** A bow is "purchased with a
+specified Strength Minimum" (p.96) — 100¥ x Str Min, damage (Str Min + 2)M.
+Flattening such an entry to one number (as the old Bow did at 400¥) both
+misprices it and, when the damage formula reads the WIELDER's attribute
+instead of the weapon's rating, breaks combat. Model the driving rating as a
+field and derive cost/damage from it (`strengthMinWeaponStats`).
+
 ## Architecture
 - ALL derived data lives in the TypeDataModels (`module/data/`) — embedded
   items are prepared before `prepareDerivedData`, so no Document-level

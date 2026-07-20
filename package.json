@@ -6,7 +6,8 @@
     "extract-packs": "node tools/extract-packs.mjs",
     "build-packs": "node tools/build-packs.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "audit-costs": "node tools/audit-costs.mjs"
   },
   "devDependencies": {
     "classic-level": "^3.0.0",

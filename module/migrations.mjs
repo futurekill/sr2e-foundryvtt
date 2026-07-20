@@ -159,6 +159,48 @@ const MIGRATIONS = [
       }
       return null;
     }
+  },
+
+  {
+    // Projectile Weapons Table corrections (SR2 p.96). The throwing rows were
+    // imported with the wrong price AND damage, and the Bow was flattened to a
+    // single 400¥/(Str+2)M entry — which also read the WIELDER's Strength, so a
+    // troll hit harder with a weak bow. Bows now carry the Strength Minimum
+    // they were bought at and derive both price and damage from it.
+    //
+    // Each fix is gated on the old wrong value, so a GM's deliberate house
+    // price or a custom bow is left alone.
+    version: "0.53.0",
+    migrateItem(source) {
+      if (source.type !== "weapon") return null;
+      const sys = source.system ?? {};
+      const name = source.name ?? "";
+
+      // Bow: recover the Str Min the player actually paid for (400¥ → Str Min 4).
+      if (/\bbow\b/i.test(name) && !/crossbow/i.test(name) && !(sys.costPerStrengthMin > 0)) {
+        const strMin = Math.max(1, Math.round((Number(sys.cost) || 100) / 100));
+        return {
+          "system.strengthMinimum": sys.strengthMinimum || strMin,
+          "system.costPerStrengthMin": 100,
+          "system.strMinDamageBonus": 2,
+          // prepareDerivedData recomputes both from Str Min; these keep the
+          // stored source coherent for anything reading it raw.
+          "system.cost": 100 * (sys.strengthMinimum || strMin),
+          "system.damageCode": `${(sys.strengthMinimum || strMin) + 2}M`
+        };
+      }
+
+      // Throwing weapons: flat price, (Str)L damage.
+      const THROWN = { "shuriken": 30, "throwing knife": 20 };
+      const book = THROWN[name.toLowerCase()];
+      if (book !== undefined) {
+        const update = {};
+        if (Number(sys.cost) === 50) update["system.cost"] = book;      // the bad import
+        if (/^\(Str\+1\)[LM]$/i.test(sys.damageCode ?? "")) update["system.damageCode"] = "(Str)L";
+        return Object.keys(update).length ? update : null;
+      }
+      return null;
+    }
   }
 ];
 

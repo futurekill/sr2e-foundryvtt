@@ -88,6 +88,11 @@
     <label>Reach:</label>
     <input type="number" name="system.reach" value="{{system.reach}}" min="0" />
   </div>
+  <div class="form-group">
+    <label title="Bows and crossbows list a Strength Minimum (SR2 p.96). A wielder below it takes +1 target number per point short. 0 = not applicable.">Strength Min:</label>
+    <input type="number" name="system.strengthMinimum" value="{{system.strengthMinimum}}" min="0" />
+    {{#if system.costPerStrengthMin}}<span class="derived-readout" title="This bow is priced and staged off its Strength Minimum (SR2 p.96) — change Str Min and both follow.">{{system.costPerStrengthMin}}¥ x Str Min = {{system.cost}}¥, damage {{system.damageCode}}</span>{{/if}}
+  </div>
   {{#if system._boundFocusName}}
   <div class="form-group">
     <label title="A Weapon Focus item is bonded to this weapon (SR2E p.126). Manage it on the Magic tab.">Weapon Focus:</label>

@@ -1,4 +1,4 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
 import {
@@ -428,6 +428,14 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (chosen.grade != null) itemData.system.grade = chosen.grade;
       if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
       if (chosen.force != null) itemData.system.force = chosen.force;
+      if (chosen.strengthMinimum != null) {
+        itemData.system.strengthMinimum = chosen.strengthMinimum;
+        // Bake the Str-Min price and damage into the SOURCE so the authored
+        // fields on the sheet match what the bow actually is. prepareDerivedData
+        // recomputes the same values, so this stays consistent either way.
+        const scaled = strengthMinWeaponStats(itemData.system);
+        if (scaled) Object.assign(itemData.system, scaled);
+      }
     }
 
     const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
@@ -550,6 +558,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         `<option value="${c}"${c === (sys.grantedSkillCategory ?? "active") ? " selected" : ""}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join("")}</select></div>` : "";
     const forceSel = fields.includes("force") ? `<div class="form-group"><label>Force:</label>
       <input type="number" name="force" value="${sys.force ?? 1}" min="1" max="6" style="width:70px;"></div>` : "";
+    // Bows are bought at a chosen Strength Minimum, which sets price AND damage
+    // (p.96). Cap at 20: the table's "1+" has no printed ceiling.
+    const strMinSel = fields.includes("strengthMinimum") ? `<div class="form-group"><label>Strength Min:</label>
+      <input type="number" name="strengthMinimum" value="${sys.strengthMinimum || 1}" min="1" max="20" style="width:70px;">
+      <span style="opacity:.7;margin-left:6px;">${sys.costPerStrengthMin}¥ each, damage (Str Min +${sys.strMinDamageBonus ?? 0})</span></div>` : "";
     const gradeSel = fields.includes("grade") && gradeChoices ? `<div class="form-group"><label>Grade:</label>
       <select name="grade" style="flex:1;">${Object.entries(gradeChoices).map(([k, lbl]) =>
         `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>` : "";
@@ -560,7 +573,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       rejectClose: false,
       content: `<form>
         <p style="margin:0 0 8px;">Choose what ${foundry.utils.escapeHTML(actor.name)} is buying. Price is charged on purchase (street price in play, list in character creation). Alt-drop instead to add it for free.</p>
-        ${ratingSel}${catSel}${forceSel}${gradeSel}
+        ${ratingSel}${catSel}${forceSel}${strMinSel}${gradeSel}
       </form>`,
       buttons: [
         { action: "buy", label: "Buy", default: true, callback: (e, b) => {
@@ -570,7 +583,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
             rating: f.rating ? intOr(f.rating, sys.rating ?? 1) : undefined,
             grade: f.grade ? f.grade.value : undefined,
             grantedSkillCategory: f.grantedSkillCategory ? f.grantedSkillCategory.value : undefined,
-            force: f.force ? intOr(f.force, sys.force ?? 1) : undefined
+            force: f.force ? intOr(f.force, sys.force ?? 1) : undefined,
+            strengthMinimum: f.strengthMinimum ? intOr(f.strengthMinimum, sys.strengthMinimum || 1) : undefined
           };
         } },
         { action: "cancel", label: "Cancel" }

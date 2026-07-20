@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -115,6 +115,17 @@ export class WeaponData extends SR2EDataModel {
       concealability: new fields.NumberField({ integer: true, initial: 6, min: 0 }),
       reach: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
+      // Strength Minimum (SR2 p.96). Bows and crossbows list one: a wielder
+      // below it takes +1 TN per point short, and it sets the weapon's range.
+      // 0 = NA (the table's dash), which is most weapons.
+      strengthMinimum: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Bows only: the weapon is "purchased with a specified Strength Minimum",
+      // which prices it (100¥ x Str Min) and sets its damage (Str Min + 2)M.
+      // costPerStrengthMin 0 = flat-priced (every other weapon); > 0 turns on
+      // the derivation below and makes Str Min a purchase-time choice.
+      costPerStrengthMin: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      strMinDamageBonus: new fields.NumberField({ integer: true, initial: 0 }),
+
       // Shotgun choke (SR2E p.95): 0 = not a shotgun; 2–10 enables firing shot
       // rounds, which spread into a cone (the higher the choke, the slower the
       // spread). Drives the "fire shot (spread)" option in the attack dialog.
@@ -189,6 +200,18 @@ export class WeaponData extends SR2EDataModel {
       quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };
+  }
+
+  prepareDerivedData() {
+    super.prepareDerivedData?.();
+    // A bow's price AND damage both follow the Strength Minimum it was bought
+    // at (SR2 p.96), so the sheet, the attack roll and the nuyen ledger all
+    // read the same numbers. No-op for every flat-priced weapon.
+    const scaled = strengthMinWeaponStats(this);
+    if (scaled) {
+      this.cost = scaled.cost;
+      this.damageCode = scaled.damageCode;
+    }
   }
 
   /**

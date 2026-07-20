@@ -4,7 +4,27 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixed
+- **Weapon prices and damage corrected against the printed table (p.96, p.279).**
+  A shuriken is **30¥** (was 50) and a throwing knife **20¥** (was 50); both do
+  **(Str)L** — they were doing (Str+1)L / (Str+1)M. A Pole Arm does **(Str)S**,
+  not (Str+3)S. Remington 950 is **800¥** and the Defiance T-250 **500¥** (the
+  latter previously matched neither printed table). Katana and Pole Arm now
+  carry their printed Street Index of 2, so they cost the right amount at the shop.
+- **Bows are priced and staged off their Strength Minimum, as printed.** A bow
+  is "purchased with a specified Strength Minimum" (p.96): it now costs
+  **100¥ x Str Min** and does **(Str Min + 2)M** — so a Str-Min-4 bow is 400¥
+  and 6M. Previously every bow was a flat 400¥ doing (Str+2)M off the *wielder's*
+  Strength, which let a strong troll do 10M with a weak bow. Buying a bow now
+  asks which Strength Minimum you want. Existing bows are migrated, keeping the
+  Str Min their old price paid for.
+
 ### Added
+- **`npm run audit-costs`** diffs the compendium against a hand-verified
+  transcription of the book's Street Gear table
+  (`tools/data/street-gear-prices.tsv`), with `--fix` to apply printed values.
+  The core book prints gear twice and the two tables disagree; the Street Gear
+  list is now the documented canonical source (see CLAUDE.md).
 - **Summoned spirits & elementals get random portraits by type.** When a
   conjured spirit's element/domain has portrait art, one of its variations is
   picked at random for the actor and its token (rotation-locked); types with no

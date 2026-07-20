@@ -1952,6 +1952,11 @@ export function derivedItemCost(sys, ctx = {}) {
       return focusCost(sys.force, sys.costPerForce);
     }
   }
+  if (sys.type === "weapon") {
+    // Bows: price scales with the Strength Minimum they were bought at (p.96).
+    const scaled = strengthMinWeaponStats(sys);
+    if (scaled) return scaled.cost;
+  }
   return null;
 }
 
@@ -1985,6 +1990,7 @@ export function purchasePromptFields(sys = {}) {
   if (rows.length > 1 || skillsoft || program) out.push("rating");
   if (skillsoft) out.push("grantedSkillCategory");
   if (flatFocus) out.push("force");
+  if (sys.type === "weapon" && (sys.costPerStrengthMin ?? 0) > 0) out.push("strengthMinimum");
   if (sys.type === "cyberware" || sys.type === "bioware") out.push("grade");
   return out;
 }
@@ -2145,4 +2151,33 @@ export function tacticalComputerInitiative(rolled, rating, base, dice) {
 export function spiritPortraitVariant(count, rng = Math.random) {
   const n = Math.max(0, Math.floor(Number(count) || 0));
   return n <= 0 ? 0 : 1 + Math.floor(rng() * n);
+}
+
+/**
+ * Stats for a weapon bought at a chosen Strength Minimum.
+ *
+ * SR2 p.96 (Projectile Weapons Table): a bow is "purchased with a specified
+ * Strength Minimum", and that one number sets BOTH its price (100¥ x Str Min)
+ * and its damage ((Str Min + 2)M). Note the damage keys off the WEAPON's Str
+ * Min, not the wielder's Strength — a troll does not hit harder with a weak bow.
+ *
+ * Power is computed from Str Min rather than parsed out of the stored code, so
+ * re-deriving an already-derived weapon returns the same values (idempotent) —
+ * a sheet that saves the derived "6M" back over the "(Str Min + 2)M" template
+ * therefore cannot corrupt the item.
+ *
+ * @param {{strengthMinimum?:number, costPerStrengthMin?:number,
+ *          strMinDamageBonus?:number, damageCode?:string}} [sys]
+ * @returns {{cost:number, damageCode:string}|null} null when this weapon does
+ *   not scale with Str Min (i.e. every flat-priced weapon).
+ */
+export function strengthMinWeaponStats(sys = {}) {
+  const perPoint = Number(sys.costPerStrengthMin) || 0;
+  const strMin   = Number(sys.strengthMinimum)    || 0;
+  if (perPoint <= 0 || strMin <= 0) return null;
+  const level = /([LMSD])\s*$/i.exec(sys.damageCode ?? "")?.[1]?.toUpperCase() ?? "M";
+  return {
+    cost: perPoint * strMin,
+    damageCode: `${strMin + (Number(sys.strMinDamageBonus) || 0)}${level}`
+  };
 }

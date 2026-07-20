@@ -6,7 +6,7 @@
   "system": {
     "weaponType": "throwing",
     "skill": "throwing_weapons",
-    "damageCode": "(Str+1)L",
+    "damageCode": "(Str)L",
     "damageType": "physical",
     "concealability": 8,
     "reach": 0,
@@ -30,7 +30,7 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 50,
+    "cost": 30,
     "availability": "Always",
     "legality": "Legal",
     "equipped": false,

@@ -6,7 +6,7 @@
   "system": {
     "weaponType": "melee",
     "skill": "armed_combat",
-    "damageCode": "(Str+3)S",
+    "damageCode": "(Str)S",
     "damageType": "physical",
     "concealability": 2,
     "reach": 2,
@@ -35,7 +35,8 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E Melee Weapons Table p.101: (Str+3)S, Reach 2, Concealability 2, 500¥."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+3)S, Reach 2, Concealability 2, 500¥.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},
