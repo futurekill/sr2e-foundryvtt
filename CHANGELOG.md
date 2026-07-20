@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.53.0 — 2026-07-19
 
 ### Fixed
 - **Weapon prices and damage corrected against the printed table (p.96, p.254).**
