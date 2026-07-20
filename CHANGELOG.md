@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.54.0 — 2026-07-20
 
 ### Added
 - **Street name and government name are now separate fields.** The big name on
