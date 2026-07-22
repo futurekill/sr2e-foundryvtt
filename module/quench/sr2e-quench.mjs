@@ -929,8 +929,9 @@ export function registerSR2EQuenchTests() {
           const actor = await fromUuid(uuid);
           made.push(actor);
           assert.equal(actor?.name, "Quench Relay Spirit");
-          assert.equal(actor.ownership[game.user.id], CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
-            "the requester should own the created actor");
+          // A GM owns the result implicitly (via role); the direct path no longer
+          // forces an ownership map, which is what had been breaking creation.
+          assert.ok(actor.isOwner, "the creator should own the result");
         });
 
         it("a successful summon creates and binds a spirit, and posts a real summon card", async () => {

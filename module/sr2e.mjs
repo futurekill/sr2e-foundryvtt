@@ -583,25 +583,33 @@ const _pendingActorCreates = new Map();
  * @returns {boolean}
  */
 function canCreateActor() {
-  return game.user.hasPermission("ACTOR_CREATE") || !!game.users.activeGM;
+  // isGM is the definitive test — never route a GM through the relay (a socket
+  // emit does not loop back to the sender, so a solo GM would just time out).
+  return game.user.isGM || game.user.hasPermission?.("ACTOR_CREATE") || !!game.users.activeGM;
+}
+
+/** Actor creation data, cleaned of ids that don't belong in a fresh world doc. */
+function _cleanActorData(actorData) {
+  const data = foundry.utils.deepClone(actorData);
+  delete data._id;
+  delete data.folder;     // a compendium folder id is meaningless in the world
+  return data;
 }
 
 /**
  * Create an Actor, relaying to the active GM when the user lacks permission.
- * The result is always owned by the requester so they can command it.
  * @param {object} actorData - Actor creation data (no _id needed).
  * @returns {Promise<string|null>} the new Actor's uuid, or null on failure.
  * @throws if no GM is connected and the user cannot create actors themselves.
  */
 async function createActorViaGM(actorData) {
-  const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-  // Direct path: GMs, or a world that granted players the permission.
-  if (game.user.hasPermission("ACTOR_CREATE")) {
-    const data = foundry.utils.deepClone(actorData);
-    delete data._id;
-    delete data.folder;   // a compendium folder id is meaningless in the world
-    data.ownership = { ...(data.ownership ?? {}), [game.user.id]: OWNER };
-    const [doc] = await Actor.createDocuments([data]);
+  // Direct path — GMs (who own everything implicitly) or players the world
+  // granted the permission. Create with the data AS-IS: forcing an ownership
+  // map here previously broke creation, and it buys nothing (a GM already owns
+  // the result). Ownership only matters on the relay path below, where a GM
+  // creates the actor on behalf of an absent player.
+  if (game.user.isGM || game.user.hasPermission?.("ACTOR_CREATE")) {
+    const [doc] = await Actor.createDocuments([_cleanActorData(actorData)]);
     return doc?.uuid ?? null;
   }
   // Relay path: hand it to the one active GM.
@@ -617,16 +625,15 @@ async function createActorViaGM(actorData) {
   });
 }
 
-/** Active-GM side of the relay: create the requested actor, owned by the requester. */
+/** Active-GM side of the relay: create the actor, then grant the requester ownership. */
 async function _handleCreateActorRequest({ requestId, requesterId, actorData }) {
   if (game.user !== game.users.activeGM) return;   // exactly one responder
   let uuid = null, error = null;
   try {
-    const data = foundry.utils.deepClone(actorData);
-    delete data._id;
-    delete data.folder;   // a compendium folder id is meaningless in the world
-    data.ownership = { ...(data.ownership ?? {}), [requesterId]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER };
-    const [doc] = await Actor.createDocuments([data]);
+    const [doc] = await Actor.createDocuments([_cleanActorData(actorData)]);
+    // Grant ownership via a follow-up update (a flat key touches just this one
+    // user, and can't derail the create the way a partial ownership map can).
+    if (doc) await doc.update({ [`ownership.${requesterId}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
     uuid = doc?.uuid ?? null;
   } catch (err) {
     error = err.message;

@@ -890,6 +890,7 @@ export class SR2EActor extends Actor {
       });
     } catch (err) {
       console.error("SR2E | Could not create spirit actor:", err);
+      ui.notifications.error(`Spirit creation failed: ${err?.message ?? "see the console (F12)"}`);
     }
 
     if (spiritUuid) {
