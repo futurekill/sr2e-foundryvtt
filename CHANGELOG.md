@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## 0.57.0 — 2026-07-23
+## 0.57.0 — 2026-07-22
 
 ### Added
 - **Dice pools refresh automatically during combat.** Combat, Magic, Hacking
