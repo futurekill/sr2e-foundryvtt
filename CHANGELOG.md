@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.57.0 — 2026-07-23
 
 ### Added
 - **Dice pools refresh automatically during combat.** Combat, Magic, Hacking
@@ -14,14 +14,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   on the sheet regardless. Committed Spell Defense releases on refresh (p.132).
 
 ### Fixed
-- **Players can now summon spirits and link vehicles even without the "Create
-  New Actors" permission.** Both create a world Actor, which players can't do by
-  default — previously a summon failed *silently*: the mage paid drain, got a
-  "summoned" card, but no spirit actor existed. Creation now routes through the
-  active GM (a socket relay) and the result is owned by the requesting player.
-  If no GM is connected and the player lacks the permission, the summon aborts
-  **before** rolling — no wasted drain — with a clear message instead of a
-  console-only error. Same fix covers dragging a compendium vehicle onto a sheet.
+- **Summoning is more robust.** GM-summoned spirits now reliably create and
+  bind (fixing a case where creation could fail after drain was already paid).
+  When a spirit can't be created, you get a clear message instead of a silent
+  failure with a misleading "summoned" card, and if creation is impossible up
+  front the summon aborts **before** rolling — no wasted drain. Groundwork is in
+  place for players to summon / link compendium vehicles without the "Create New
+  Actors" permission (creation relays to a connected GM); the player-side relay
+  is still being finalized, so for now grant that permission or have the GM
+  create the actor.
 
 ## 0.56.0 — 2026-07-20
 
