@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.56.0 — 2026-07-20
 
 ### Added
 - **Treat spell** (Health) — the curative twin of Heal, now in the spells
