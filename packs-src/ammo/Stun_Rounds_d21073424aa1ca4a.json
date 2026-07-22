@@ -1,0 +1,36 @@
+{
+  "_id": "d21073424aa1ca4a",
+  "name": "Stun Rounds",
+  "type": "ammo",
+  "img": "systems/sr2e/assets/item_icons/ammo/gel-rounds.webp",
+  "system": {
+    "ammoType": "stun",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "cost": 100,
+    "notes": "Riot-control rounds for LARGE-BORE weapons only (shotguns). All damage is Stun; Impact Armor applies and Ballistic Armor is useless against their high mass / low speed. 100¥ per 10 rounds. SR2 p.256 (Street Gear), rules p.95.",
+    "damageType": "stun",
+    "armorCalc": "impact",
+    "streetIndex": 1
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!d21073424aa1ca4a"
+}

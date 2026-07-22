@@ -1,0 +1,37 @@
+{
+  "_id": "7be6c801b23c50bd",
+  "name": "Stimulant Patch",
+  "type": "gear",
+  "img": "systems/sr2e/assets/item_icons/gear/trauma-patch.webp",
+  "system": {
+    "category": "medical",
+    "rating": 4,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 100,
+    "availability": "Always",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "notes": "Slap patch (SR2 p.250). When applied, reduce Stun damage on the Condition Monitor by boxes equal to the patch Rating. Effects wear off in 2D6 minutes, then the removed damage returns PLUS one extra box. MAGICIANS beware: make a Magic Test vs the patch Rating; on a failure, follow the Deadly-wound Essence-loss procedure. Cost 25¥ × Rating (shown at Rating 4 = 100¥ — adjust Rating and cost to taste). Dermal armor reduces the effective Rating; blood-filtration implants negate all but the trauma patch."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "db653a93393074a8",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!7be6c801b23c50bd"
+}

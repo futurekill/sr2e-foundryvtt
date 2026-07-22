@@ -1,0 +1,39 @@
+{
+  "_id": "041ed8cdf9af8697",
+  "name": "Treat",
+  "type": "spell",
+  "img": "systems/sr2e/assets/item_icons/spells/heal.webp",
+  "system": {
+    "category": "health",
+    "type": "mana",
+    "range": "touch",
+    "duration": "permanent",
+    "force": 1,
+    "drainCode": "-1(S)",
+    "target": "",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "SR2 p.157. Curative twin of Heal: boxes healed = successes. MUST be applied within ONE HOUR of the injury (Heal has no time limit). Target number 8 − subject's Essence. A character can only be magically treated OR healed once per set of injuries. Type Mana, Range Touch, Permanent. Drain simplified to match the Heal spell's model.",
+    "healsDamage": true
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "351afa1b9f352545",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!041ed8cdf9af8697"
+}

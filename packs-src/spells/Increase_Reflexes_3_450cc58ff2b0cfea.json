@@ -1,6 +1,6 @@
 {
-  "_id": "f929067d0e536db0",
-  "name": "Increase Reflexes",
+  "_id": "450cc58ff2b0cfea",
+  "name": "Increase Reflexes +3",
   "type": "spell",
   "img": "systems/sr2e/assets/item_icons/spells/increase-reflexes.webp",
   "system": {
@@ -10,20 +10,20 @@
     "range": "touch",
     "duration": "sustained",
     "force": 1,
-    "drainCode": "((F / 2) + 1)S",
-    "target": "Voluntary subject",
+    "drainCode": "(F / 2)D",
+    "target": "2 × Reaction",
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": true,
     "sustaining": false,
     "sustainedForce": 0,
     "spellLocked": false,
-    "notes": "Increases the Initiative dice of a voluntary subject by one die while sustained. Characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted by this spell. SR2E p.157 and Table of Spells."
+    "notes": "Increases the voluntary subject's Initiative dice by +3 while sustained (SR2 p.157, Table of Spells). No cybered version: characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted. Sustain it on a Spell Lock focus to hold it with no sustaining penalty."
   },
   "effects": [
     {
-      "_id": "6bac6b2477c2ea15",
-      "name": "Increase Reflexes",
+      "_id": "09d15b6a534a5d56",
+      "name": "Increase Reflexes +3",
       "img": "icons/svg/lightning.svg",
       "type": "base",
       "system": {},
@@ -33,11 +33,11 @@
         {
           "key": "system.initiative.mod",
           "mode": 2,
-          "value": "1",
+          "value": "3",
           "priority": null
         }
       ],
-      "description": "<p>+1 Initiative die while sustained. Not compatible with cybernetic initiative enhancement (SR2E p.157).</p>",
+      "description": "<p>+3 Initiative dice while sustained. Not compatible with cybernetic initiative enhancement, e.g. wired reflexes (SR2 p.157).</p>",
       "duration": {
         "startTime": null,
         "combat": null
@@ -66,7 +66,7 @@
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.4.0",
+    "systemVersion": "0.55.0",
     "createdTime": 1780000000000,
     "modifiedTime": 1780000000000,
     "lastModifiedBy": null,
@@ -77,5 +77,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!f929067d0e536db0"
+  "_key": "!items!450cc58ff2b0cfea"
 }

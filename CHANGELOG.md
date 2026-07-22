@@ -2,6 +2,25 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Added
+- **Treat spell** (Health) — the curative twin of Heal, now in the spells
+  compendium. Heals boxes = successes, but must be applied within one hour of
+  the injury (SR2 p.157).
+- **Increase Reflexes now ships as +1 / +2 / +3** separate spells, matching the
+  book (each is learned separately with its own drain: (F÷2)M / S / D, SR2
+  p.157). Previously only a single +1 version existed, and its drain code was
+  wrong ((F÷2)+1 S instead of (F÷2)M) — that's fixed. Sustain any of them on a
+  **Spell Lock** focus (magic tab → sustain the spell, then toggle the lock) to
+  hold the initiative-dice bonus with no sustaining penalty.
+- **Stun Rounds** ammunition (SR2 p.256) — riot-control rounds for large-bore
+  weapons: all Stun damage, Impact armor applies, Ballistic armor useless.
+  Distinct from the existing Gel Rounds.
+- **Stimulant Patch** (SR2 p.250) — a slap patch that clears Stun boxes equal
+  to its rating, with the magic-loss risk and the delayed rebound spelled out
+  in its notes.
+
 ## 0.55.0 — 2026-07-20
 
 ### Added
