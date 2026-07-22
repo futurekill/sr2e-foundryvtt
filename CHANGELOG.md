@@ -2,6 +2,18 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Fixed
+- **Players can now summon spirits and link vehicles even without the "Create
+  New Actors" permission.** Both create a world Actor, which players can't do by
+  default — previously a summon failed *silently*: the mage paid drain, got a
+  "summoned" card, but no spirit actor existed. Creation now routes through the
+  active GM (a socket relay) and the result is owned by the requesting player.
+  If no GM is connected and the player lacks the permission, the summon aborts
+  **before** rolling — no wasted drain — with a clear message instead of a
+  console-only error. Same fix covers dragging a compendium vehicle onto a sheet.
+
 ## 0.56.0 — 2026-07-20
 
 ### Added

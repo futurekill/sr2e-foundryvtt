@@ -910,6 +910,50 @@ export function registerSR2EQuenchTests() {
     // ── Attribute provenance: system.<attr>.sources names each cyber/bio/adept/
     //    Active-Effect contribution for the sheet tooltip. Vitest tests the
     //    formatter; this proves the data model actually collects the sources. ──
+    quench.registerBatch("sr2e.actor-relay", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => {
+        for (const a of made.splice(0)) await a?.delete();
+        for (const a of game.actors.filter(a => a.type === "spirit" && /Quench/.test(a.name))) await a.delete();
+      });
+
+      describe("GM-relayed actor creation (direct path — run as GM)", () => {
+        it("canCreateActor is true for a GM", () => {
+          assert.ok(game.sr2e.canCreateActor(), "a GM can always create actors");
+        });
+
+        it("createActorViaGM makes an actor owned by the requester and returns its uuid", async () => {
+          const uuid = await game.sr2e.createActorViaGM({ name: "Quench Relay Spirit", type: "spirit" });
+          assert.ok(uuid, "should return the new actor's uuid");
+          const actor = await fromUuid(uuid);
+          made.push(actor);
+          assert.equal(actor?.name, "Quench Relay Spirit");
+          assert.equal(actor.ownership[game.user.id], CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
+            "the requester should own the created actor");
+        });
+
+        it("a successful summon creates and binds a spirit, and posts a real summon card", async () => {
+          const before = game.messages.size;
+          const mage = await Actor.create({
+            name: "Quench Conjurer", type: "character",
+            system: { charisma: { base: 6 }, magic: { type: "full_magician", rating: 6 } }
+          });
+          made.push(mage);
+          await mage.createEmbeddedDocuments("Item", [
+            { name: "Conjuring", type: "skill", system: { rating: 6, category: "active" } }
+          ]);
+          // Force 1 → TN 1, so the Conjuring Test essentially always nets successes.
+          await mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire" });
+          assert.equal(mage.system.boundSpirits?.length ?? 0, 1, "the summoned spirit should be bound");
+          const spirit = await fromUuid(mage.system.boundSpirits[0]);
+          assert.ok(spirit && spirit.type === "spirit", "a spirit actor exists at the bound uuid");
+          const card = game.messages.contents.slice(before).find(m => /summoned/.test(m.content ?? ""));
+          assert.ok(card, "a genuine 'summoned' card is posted only when the actor exists");
+        });
+      });
+    }, { displayName: "SR2E: Actor-create relay" });
+
     quench.registerBatch("sr2e.identity", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

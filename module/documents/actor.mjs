@@ -790,6 +790,14 @@ export class SR2EActor extends Actor {
       totemBonus = totem?.conjuringBonus?.[domain] ?? 0;
     }
 
+    // A summoned spirit becomes a world Actor. Verify we can actually create one
+    // — the caster holds the permission, or a GM is connected to relay it —
+    // BEFORE rolling, so a player-mage never pays drain for a spirit that can't
+    // be created (which previously failed silently with a misleading card).
+    if (!game.sr2e?.canCreateActor?.()) {
+      return ui.notifications.warn("Can't summon: creating the spirit needs the “Create New Actors” permission or a connected GM. Ask your GM.");
+    }
+
     const conjuringDice = conjuring + totemBonus + fociDice;
     if (conjuringDice <= 0) {
       return ui.notifications.warn("No Conjuring skill — a magician needs the Conjuring skill to summon spirits.");
@@ -856,9 +864,12 @@ export class SR2EActor extends Actor {
       ? `systems/sr2e/assets/spirit_portraits/${domain}-${variant}.webp`
       : (kind === "elemental" ? "icons/svg/fire.svg" : "icons/svg/oak.svg");
 
-    let spirit = null;
+    let spiritUuid = null;
     try {
-      [spirit] = await Actor.createDocuments([{
+      // Route through the GM-relay so a player-mage (who can't create world
+      // Actors) still gets a spirit, owned by them. Falls back to a direct
+      // create for GMs / permitted players.
+      spiritUuid = await game.sr2e.createActorViaGM({
         name, type: "spirit", img,
         system: {
           spiritType: kind, force, domain, services, maxServices: services,
@@ -876,24 +887,32 @@ export class SR2EActor extends Actor {
           // the SVG fallback needs neither.
           ...(variant ? { lockRotation: true, texture: { src: img, fit: "cover" } } : {})
         }
-      }]);
+      });
     } catch (err) {
       console.error("SR2E | Could not create spirit actor:", err);
     }
 
-    if (spirit) {
+    if (spiritUuid) {
       const bound = this.system.boundSpirits ?? [];
-      await this.update({ "system.boundSpirits": [...bound, spirit.uuid] });
+      await this.update({ "system.boundSpirits": [...bound, spiritUuid] });
     }
 
+    // Be honest about the outcome: only claim a summon if the actor exists.
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<div class="sr2e-damage-result">
-        <strong>${foundry.utils.escapeHTML(name)} summoned</strong> —
-        <strong>${services} service${services === 1 ? "" : "s"}</strong>.
-        <br><em>Conjuring successes: ${services} (TN ${force}).${
-          kind === "nature" ? " Nature spirits vanish at the next sunrise or sunset." : ""}</em>
-      </div>`
+      content: spiritUuid
+        ? `<div class="sr2e-damage-result">
+            <strong>${foundry.utils.escapeHTML(name)} summoned</strong> —
+            <strong>${services} service${services === 1 ? "" : "s"}</strong>.
+            <br><em>Conjuring successes: ${services} (TN ${force}).${
+              kind === "nature" ? " Nature spirits vanish at the next sunrise or sunset." : ""}</em>
+          </div>`
+        : `<div class="sr2e-damage-result">
+            <strong>${foundry.utils.escapeHTML(name)} — summoning incomplete.</strong>
+            <br><em>The Conjuring Test succeeded (${services} services, TN ${force}) and drain was
+            resisted, but the spirit actor could not be created (the GM may have disconnected).
+            Ask your GM to add it, or retry.</em>
+          </div>`
     });
 
     return conjureResult;

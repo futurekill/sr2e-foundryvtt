@@ -392,14 +392,26 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Don't link an actor to itself
     if (dropped.uuid === this.document.uuid) return false;
     // A compendium vehicle has no world presence, so it can't be placed on a
-    // map. Import it into the Actors directory first, then link that copy.
-    let vehicle = dropped;
+    // map. Create a world copy first, then link that. Creating a world Actor
+    // needs permission a player lacks, so route it through the GM-relay (which
+    // also grants the dropping player ownership of the vehicle).
+    let vehicleUuid = dropped.uuid;
     if (dropped.pack) {
-      vehicle = await game.actors.importFromCompendium(game.packs.get(dropped.pack), dropped.id);
+      if (!game.sr2e?.canCreateActor?.()) {
+        ui.notifications.warn("Can't add this vehicle: importing it needs the “Create New Actors” permission or a connected GM. Ask your GM.");
+        return false;
+      }
+      try {
+        vehicleUuid = await game.sr2e.createActorViaGM(dropped.toObject());
+      } catch (err) {
+        console.error("SR2E | Could not import vehicle:", err);
+        ui.notifications.error("The vehicle could not be added — the GM may have disconnected. See the console.");
+        return false;
+      }
     }
     const current = this.document.system.linkedVehicles ?? [];
-    if (current.includes(vehicle.uuid)) return false; // already linked
-    return this.document.update({ "system.linkedVehicles": [...current, vehicle.uuid] });
+    if (!vehicleUuid || current.includes(vehicleUuid)) return false; // failed or already linked
+    return this.document.update({ "system.linkedVehicles": [...current, vehicleUuid] });
   }
 
   /**

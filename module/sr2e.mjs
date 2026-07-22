@@ -344,7 +344,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, allocateNuyen });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, allocateNuyen, canCreateActor, createActorViaGM });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -542,14 +542,106 @@ async function _applyTeamKarmaDelta(delta) {
 }
 
 /**
- * Socket listener. The active GM applies Team Karma changes requested by players.
+ * Socket listener. Dispatches by message type; each handler decides internally
+ * whether THIS client should act (e.g. only the active GM writes settings or
+ * creates relayed actors).
  * @private
  */
 function _onSocketMessage(data) {
-  if (data?.type !== "teamKarmaDelta") return;
-  // Exactly one client (the designated active GM) performs the write.
-  if (game.user !== game.users.activeGM) return;
-  _applyTeamKarmaDelta(data.delta);
+  switch (data?.type) {
+    case "teamKarmaDelta":
+      // Exactly one client (the designated active GM) performs the write.
+      if (game.user === game.users.activeGM) _applyTeamKarmaDelta(data.delta);
+      break;
+    case "createActorRequest":
+      _handleCreateActorRequest(data);
+      break;
+    case "createActorResponse":
+      _resolveCreateActorResponse(data);
+      break;
+  }
+}
+
+/* -------------------------------------------- */
+/*  GM-relayed actor creation                   */
+/* -------------------------------------------- */
+/**
+ * Players cannot create world Actors unless the world grants them the "Create
+ * New Actors" permission. Summoning a spirit and linking a compendium vehicle
+ * both need a world Actor, so without this a player's summon failed silently
+ * (drain spent, a misleading "summoned" card, no actor). This relays the
+ * creation to the active GM's client, which creates the Actor and grants the
+ * requester ownership, then returns its uuid.
+ */
+const _pendingActorCreates = new Map();
+
+/**
+ * Can the current user get an Actor created — either directly (they hold the
+ * permission / are a GM) or by relaying to a connected GM? Call this BEFORE
+ * doing irreversible work (rolling, spending drain) so a doomed action aborts
+ * cleanly instead of failing partway.
+ * @returns {boolean}
+ */
+function canCreateActor() {
+  return game.user.hasPermission("ACTOR_CREATE") || !!game.users.activeGM;
+}
+
+/**
+ * Create an Actor, relaying to the active GM when the user lacks permission.
+ * The result is always owned by the requester so they can command it.
+ * @param {object} actorData - Actor creation data (no _id needed).
+ * @returns {Promise<string|null>} the new Actor's uuid, or null on failure.
+ * @throws if no GM is connected and the user cannot create actors themselves.
+ */
+async function createActorViaGM(actorData) {
+  const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+  // Direct path: GMs, or a world that granted players the permission.
+  if (game.user.hasPermission("ACTOR_CREATE")) {
+    const data = foundry.utils.deepClone(actorData);
+    delete data._id;
+    delete data.folder;   // a compendium folder id is meaningless in the world
+    data.ownership = { ...(data.ownership ?? {}), [game.user.id]: OWNER };
+    const [doc] = await Actor.createDocuments([data]);
+    return doc?.uuid ?? null;
+  }
+  // Relay path: hand it to the one active GM.
+  if (!game.users.activeGM) throw new Error("No GM is connected to create the actor.");
+  const requestId = foundry.utils.randomID();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      _pendingActorCreates.delete(requestId);
+      reject(new Error("Timed out waiting for the GM to create the actor."));
+    }, 15000);
+    _pendingActorCreates.set(requestId, { resolve, reject, timer });
+    game.socket.emit("system.sr2e", { type: "createActorRequest", requestId, requesterId: game.user.id, actorData });
+  });
+}
+
+/** Active-GM side of the relay: create the requested actor, owned by the requester. */
+async function _handleCreateActorRequest({ requestId, requesterId, actorData }) {
+  if (game.user !== game.users.activeGM) return;   // exactly one responder
+  let uuid = null, error = null;
+  try {
+    const data = foundry.utils.deepClone(actorData);
+    delete data._id;
+    delete data.folder;   // a compendium folder id is meaningless in the world
+    data.ownership = { ...(data.ownership ?? {}), [requesterId]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER };
+    const [doc] = await Actor.createDocuments([data]);
+    uuid = doc?.uuid ?? null;
+  } catch (err) {
+    error = err.message;
+    console.error("SR2E | GM-relayed actor creation failed:", err);
+  }
+  game.socket.emit("system.sr2e", { type: "createActorResponse", requestId, uuid, error });
+}
+
+/** Requester side: settle the pending promise for a returned creation. */
+function _resolveCreateActorResponse({ requestId, uuid, error }) {
+  const pending = _pendingActorCreates.get(requestId);
+  if (!pending) return;                            // not ours / already settled
+  clearTimeout(pending.timer);
+  _pendingActorCreates.delete(requestId);
+  error ? pending.reject(new Error(error)) : pending.resolve(uuid);
 }
 
 /**

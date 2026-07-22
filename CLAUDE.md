@@ -102,6 +102,18 @@ receive document SOURCE data (removed fields survive there until next
 save) and return update objects. Never reorder entries. System compendia
 are rebuilt from packs-src instead of runtime-migrated.
 
+## Creating actors from player actions
+Players can't create world Actors without the "Create New Actors" permission,
+so any player-triggered flow that spawns an Actor (summoning a spirit, linking
+a compendium vehicle) MUST go through `game.sr2e.createActorViaGM(data)` — it
+creates directly when the user is permitted, else relays to the active GM
+(`game.users.activeGM`) via the `system.sr2e` socket, and always grants the
+requester OWNER. Gate the surrounding action with `game.sr2e.canCreateActor()`
+BEFORE any irreversible step (rolling, spending drain) so a doomed action
+aborts cleanly instead of failing half-done. The relay is request/response over
+one socket channel; its player→GM path can't be unit- or single-client-Quench-
+tested — verify it in a live 2-client session.
+
 ## Known deferred work
 VR2.0 Matrix ruleset (optional; core Matrix is implemented — see docs/MATRIX.md).
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`); roll *labels*
