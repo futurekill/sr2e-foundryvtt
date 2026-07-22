@@ -4,6 +4,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Added
+- **Dice pools refresh automatically during combat.** Combat, Magic, Hacking
+  and Control pools (never Karma) top back up as combat runs, and reset when
+  combat ends. The default is rules-accurate (SR2 p.84): each character's pools
+  refresh at the start of every one of their actions. A **Combat pool refresh**
+  world setting switches this to "at round end" (all combatants refresh when a
+  new Combat Turn begins) or "off" (manual only). The Reset Pools button stays
+  on the sheet regardless. Committed Spell Defense releases on refresh (p.132).
+
 ### Fixed
 - **Players can now summon spirits and link vehicles even without the "Create
   New Actors" permission.** Both create a world Actor, which players can't do by

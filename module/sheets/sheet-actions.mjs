@@ -2377,16 +2377,9 @@ async function onResetRecoil(event, target) {
  */
 async function onResetPools(event, target) {
   event.preventDefault();
-  const system = this.document.system;
-  const updates = {};
-  for (const pool of ["combat", "hacking", "magic", "control"]) {
-    if (system.dicePools[pool]) {
-      updates[`system.dicePools.${pool}.value`] = system.dicePools[pool].max;
-    }
-  }
-  // Spell Defense allocations are released when the Magic Pool refreshes (p.132)
-  updates["system.dicePools.spellDefense"] = 0;
-  return this.document.update(updates);
+  // Same refresh the combat tracker performs automatically (SR2E p.84) — the
+  // manual button is the escape hatch when auto-refresh is off, or mid-turn.
+  return this.document.refreshDicePools();
 }
 
 /**

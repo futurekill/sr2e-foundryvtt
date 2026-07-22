@@ -25,9 +25,32 @@ export class SR2ECombat extends Combat {
     const unrolled = this.combatants.filter(c => !c.isDefeated && c.initiative === null).map(c => c.id);
     if (unrolled.length) await this.rollInitiative(unrolled, { updateTurn: false });
     await super.startCombat();
+    // SR2E p.84: all Dice Pools are full at the first step of the first Combat
+    // Turn of an encounter (unless auto-refresh is off).
+    if (this._poolRefreshMode() !== "off") await this._refreshAllActors();
     // Don't trust super's turn pointer (it can land on a corpse): point at the
     // highest living total, or clear it if nobody can act.
     return this._pointAtFirstLiving();
+  }
+
+  /** Configured pool-refresh behaviour: "action" (RAW), "round", or "off". */
+  _poolRefreshMode() {
+    try { return game.settings.get("sr2e", "combatPoolRefresh"); }
+    catch { return "action"; }
+  }
+
+  /** Refresh the acting combatant's refreshable pools (SR2E p.84). GM-side. */
+  async _refreshActorPools(combatant) {
+    if (!game.user.isGM) return;
+    await combatant?.actor?.refreshDicePools?.();
+  }
+
+  /** Refresh every distinct combatant actor's refreshable pools. GM-side. */
+  async _refreshAllActors() {
+    if (!game.user.isGM) return;
+    const seen = new Map();
+    for (const c of this.combatants) if (c.actor) seen.set(c.actor.id, c.actor);
+    for (const actor of seen.values()) await actor.refreshDicePools?.();
   }
 
   /** Set initiative to null on every defeated combatant that still holds one. */
@@ -62,7 +85,11 @@ export class SR2ECombat extends Combat {
     // the first combatant above 0 is the next Combat Phase.
     const next = nextEligibleTurnIndex(this.turns);
     if (next === null) return this.nextRound();
-    return this.update({ turn: next });
+    const result = await this.update({ turn: next });
+    // RAW (p.84): pools refresh at the START of each character's action, so the
+    // combatant now taking the spotlight gets theirs back.
+    if (this._poolRefreshMode() === "action") await this._refreshActorPools(this.combatant);
+    return result;
   }
 
   /**
@@ -106,7 +133,36 @@ export class SR2ECombat extends Combat {
     });
 
     // Point the tracker at the new highest living total (or clear it).
-    return this._pointAtFirstLiving();
+    const result = await this._pointAtFirstLiving();
+    // "round" refreshes everyone at the top of the new Combat Turn; "action"
+    // refreshes just the combatant whose action opens the Turn (the rest get
+    // theirs as their actions come up in nextTurn).
+    const mode = this._poolRefreshMode();
+    if (mode === "round") await this._refreshAllActors();
+    else if (mode === "action") await this._refreshActorPools(this.combatant);
+    return result;
+  }
+
+  /**
+   * @override Snapshot the combatant actors before deletion so combat-end can
+   * refresh their pools — `this.combatants` is empty by the time _onDelete runs.
+   */
+  async _preDelete(options, user) {
+    const seen = new Map();
+    for (const c of this.combatants) if (c.actor) seen.set(c.actor.id, c.actor);
+    this._sr2eActorsAtDelete = [...seen.values()];
+    return super._preDelete(options, user);
+  }
+
+  /** @override Combat ended — refresh everyone's pools for the next encounter. */
+  _onDelete(options, userId) {
+    super._onDelete(options, userId);
+    const actors = this._sr2eActorsAtDelete;
+    this._sr2eActorsAtDelete = null;
+    // Only the client that ran _preDelete has the snapshot; deleting a combat
+    // requires GM, so that client can update the actors.
+    if (!actors || !game.user.isGM || this._poolRefreshMode() === "off") return;
+    for (const actor of actors) actor.refreshDicePools?.();
   }
 
   /** @override Rewinding a whole Combat Turn cannot restore spent passes. */

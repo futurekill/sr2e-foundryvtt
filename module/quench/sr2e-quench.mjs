@@ -910,6 +910,40 @@ export function registerSR2EQuenchTests() {
     // ── Attribute provenance: system.<attr>.sources names each cyber/bio/adept/
     //    Active-Effect contribution for the sheet tooltip. Vitest tests the
     //    formatter; this proves the data model actually collects the sources. ──
+    quench.registerBatch("sr2e.pool-refresh", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+
+      describe("refreshDicePools (SR2 p.84)", () => {
+        it("refills a spent Combat Pool to its derived max", async () => {
+          const a = await Actor.create({
+            name: "Quench Pool", type: "character",
+            system: { quickness: { base: 6 }, intelligence: { base: 6 }, willpower: { base: 6 } }
+          });
+          made.push(a);
+          const max = a.system.dicePools.combat.max;
+          assert.ok(max > 0, "combat pool should derive a positive max");
+          await a.update({ "system.dicePools.combat.value": 0 });
+          await a.refreshDicePools();
+          assert.equal(a.system.dicePools.combat.value, max, "the pool should be back to full");
+        });
+
+        it("releases committed Spell Defense and never touches Karma", async () => {
+          const a = await Actor.create({
+            name: "Quench Pool SD", type: "character",
+            system: { quickness: { base: 6 }, intelligence: { base: 6 }, willpower: { base: 6 },
+                      karma: { pool: 3 }, dicePools: { spellDefense: 2 } }
+          });
+          made.push(a);
+          const karmaBefore = a.system.karma.pool;
+          await a.refreshDicePools();
+          assert.equal(a.system.dicePools.spellDefense, 0, "Spell Defense should release on refresh");
+          assert.equal(a.system.karma.pool, karmaBefore, "Karma Pool must be untouched");
+        });
+      });
+    }, { displayName: "SR2E: Dice-pool refresh" });
+
     quench.registerBatch("sr2e.actor-relay", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

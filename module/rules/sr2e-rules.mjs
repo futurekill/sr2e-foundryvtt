@@ -2181,3 +2181,25 @@ export function strengthMinWeaponStats(sys = {}) {
     damageCode: `${strMin + (Number(sys.strMinDamageBonus) || 0)}${level}`
   };
 }
+
+/**
+ * The update object that refreshes an actor's refreshable dice pools to full
+ * (SR2E p.84): Combat, Hacking, Magic and Control all follow the standard Dice
+ * Pool refresh; the Karma Pool does NOT (it isn't a dicePool). Committed Spell
+ * Defense releases when the Magic Pool refreshes (p.132). Only pools present on
+ * `pools` are touched, and a pool already at full is skipped — so the caller can
+ * avoid a no-op document update (and its re-render).
+ * @param {object} pools - the actor's system.dicePools
+ * @returns {Record<string, number>} update keys (empty when nothing changed)
+ */
+export function dicePoolRefreshUpdates(pools = {}) {
+  const updates = {};
+  for (const key of ["combat", "hacking", "magic", "control"]) {
+    const p = pools[key];
+    if (p && p.value !== p.max) updates[`system.dicePools.${key}.value`] = p.max;
+  }
+  if ("spellDefense" in pools && pools.spellDefense !== 0) {
+    updates["system.dicePools.spellDefense"] = 0;
+  }
+  return updates;
+}

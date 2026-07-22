@@ -847,6 +847,24 @@ function _registerSystemSettings() {
     default: true
   });
 
+  // Auto-refresh of the refreshable dice pools (Combat/Magic/Hacking/Control)
+  // during combat. RAW (p.84) is "action": pools refresh at the start of each
+  // of a character's actions. "round" is the common simplification (refresh
+  // everyone when a new Combat Turn begins). Read in module/documents/combat.mjs.
+  game.settings.register("sr2e", "combatPoolRefresh", {
+    name: "SR2E.Settings.PoolRefresh",
+    hint: "SR2E.Settings.PoolRefreshHint",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      action: "SR2E.Settings.PoolRefreshAction",
+      round: "SR2E.Settings.PoolRefreshRound",
+      off: "SR2E.Settings.PoolRefreshOff"
+    },
+    default: "action"
+  });
+
   // In-combat movement limit (SR2E p.83), read in module/movement.mjs
   game.settings.register("sr2e", "movementLimit", {
     name: "Limit movement in combat",

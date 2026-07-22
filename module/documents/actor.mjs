@@ -7,7 +7,7 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
-         spiritPortraitVariant } from "../rules/sr2e-rules.mjs";
+         spiritPortraitVariant, dicePoolRefreshUpdates } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -280,6 +280,19 @@ export class SR2EActor extends Actor {
     if (Object.keys(updates).length > 0) await this.update(updates);
 
     return { ...testResult, successes, targetNumber: effectiveTN };
+  }
+
+  /**
+   * Refresh the refreshable dice pools to full (SR2E p.84). Combat, Hacking,
+   * Magic and Control all follow the standard Dice Pool refresh; the Karma Pool
+   * does NOT (it is not in dicePools). Committed Spell Defense releases when the
+   * Magic Pool refreshes (p.132). Only touches pools this actor type actually
+   * has, and only writes when something changed (so it never forces a re-render).
+   * @returns {Promise<Actor|undefined>}
+   */
+  async refreshDicePools() {
+    const updates = dicePoolRefreshUpdates(this.system.dicePools);
+    if (!foundry.utils.isEmpty(updates)) return this.update(updates);
   }
 
   /**
