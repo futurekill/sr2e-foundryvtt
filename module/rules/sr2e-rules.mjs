@@ -2203,3 +2203,48 @@ export function dicePoolRefreshUpdates(pools = {}) {
   }
   return updates;
 }
+
+/* ── SUMMONED-SPIRIT PLACEMENT ── nearest unoccupied grid cell to the caster ── */
+
+/**
+ * The nearest unoccupied grid cell to a summoner, searched ring by ring
+ * (Chebyshev distance) outward from the caster's cell — so a summoned spirit
+ * materialises right beside the caster in the first free space.
+ *
+ * Pure and grid-coordinate based (col/row), so it unit-tests without a canvas.
+ * The caller resolves pixel positions and the live occupancy set from the scene.
+ *
+ * @param {{col:number,row:number}} origin - the caster's cell
+ * @param {Set<string>} occupied - taken cells as "col,row" strings (incl. the caster)
+ * @param {{cols:number,rows:number}} [bounds] - grid size; omit for unbounded
+ * @param {number} [maxRadius=25] - how far out to search before giving up
+ * @returns {{col:number,row:number}|null} the free cell, or null if none found
+ */
+export function nearestFreeCell(origin, occupied = new Set(), bounds = null, maxRadius = 25) {
+  const inBounds = (c, r) =>
+    !bounds || (c >= 0 && r >= 0 && c < bounds.cols && r < bounds.rows);
+  const free = (c, r) => inBounds(c, r) && !occupied.has(`${c},${r}`);
+  const { col, row } = origin;
+
+  for (let radius = 1; radius <= maxRadius; radius++) {
+    // Walk the ring at this Chebyshev distance in a stable order (N, then
+    // clockwise) so the pick is deterministic and biased to orthogonal cells.
+    const ring = [];
+    for (let d = -radius; d <= radius; d++) {
+      ring.push([col + d, row - radius]);   // top edge
+      ring.push([col + d, row + radius]);   // bottom edge
+    }
+    for (let d = -radius + 1; d <= radius - 1; d++) {
+      ring.push([col - radius, row + d]);   // left edge
+      ring.push([col + radius, row + d]);   // right edge
+    }
+    // Nearest-by-Euclidean within the ring keeps the choice visually tightest.
+    ring.sort((a, b) => {
+      const da = (a[0] - col) ** 2 + (a[1] - row) ** 2;
+      const db = (b[0] - col) ** 2 + (b[1] - row) ** 2;
+      return da - db;
+    });
+    for (const [c, r] of ring) if (free(c, r)) return { col: c, row: r };
+  }
+  return null;
+}
