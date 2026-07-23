@@ -1,129 +1,178 @@
 # Plan: seamless summoning, spirit placement, movement-limiter revisit
 
-Workstream for three combat/summoning items. Design + **methodical test
-procedures** so we verify each rather than hand-wave. Live/canvas/2-client work
-happens in one session; Codex reviews the batch before release (available
-Fri 2026-07-24).
+Design + **methodical test procedures** for three combat/summoning items.
+Live/canvas/2-client work happens in one session; Codex reviews the batch before
+release. **Revised 2026-07-23 after a Codex audit** — which turned up two bugs
+already shipped in 0.57.0 and corrected several assumptions below.
 
-Legend: ✅ prepped (in repo, unreviewed) · ⏳ needs the live session · 🔬 verify step.
+Legend: ✅ prepped · ⏳ needs the live session · 🔬 verify · ⚠️ **shipped bug**.
+
+---
+
+## 0. ⚠️ Two bugs already in 0.57.0 (found by the audit)
+
+**A. The actor-creation relay is an unvalidated GM-write endpoint.**
+`_handleCreateActorRequest` (module/sr2e.mjs) trusts `requesterId` **and arbitrary
+`actorData`** from any client. A player who crafts a `createActorRequest` socket
+message (dev tools) can make the GM create *any* world actor with *any* ownership.
+Practical risk at a trusted home table is low, and the normal player flow is
+broken anyway — but it's a real design flaw, and extending it to place tokens
+would make it an arbitrary GM **scene**-write too. **Fix as part of the relay
+rework, before wiring placement:** send a *constrained* request (caster UUID +
+force/kind/domain/services — not raw actorData), validate GM-side, require
+`requesterId === ` the caster's owner, whitelist actor type, GM constructs the
+actual data. Use typed operations with per-op validators, not "create anything."
+
+**B. The movement limiter measures net displacement, not distance travelled.**
+`preUpdateToken` (module/movement.mjs) measures a straight line from `moveOrigin`
+to the drop. Move 10 m east → back to origin → 10 m west = 30 m travelled, each
+drop within 15 m, **never capped**. My earlier plan called this "sound" — it
+isn't. Plus two more scope bugs in the same function: it fires for **any** token
+while a combat exists (bystanders, tokens on other scenes — not just combatants),
+and a token with no stamped `moveOrigin` falls back to its current position, so
+**repeated short drags grant unlimited movement**. These three together are the
+most likely source of the reported "too strict / too loose" and "GM/player
+wrong." Movement is opt-in (off by default), so it's not a fire, but it's a real
+correctness bug.
 
 ---
 
 ## 1. Summoning must work for players AND GMs
 
-**State.** GM summon works. Player summon is broken and *undiagnosed* — the bug
-lives entirely in the player→GM socket round-trip (`createActorViaGM` →
-`_handleCreateActorRequest` → `_resolveCreateActorResponse` in `module/sr2e.mjs`),
-which cannot be reproduced single-client.
+**State.** GM summon works. Player summon broken, undiagnosed — lives in the
+player→GM socket round-trip, not reproducible single-client.
 
-**✅ Prepped.** Diagnostic trail added to the relay — `console.debug("SR2E | relay: …")`
-at every step (player emits, GM receives + reports whether it's the activeGM, GM
-creates, player resolves, timeout). Quiet unless the console's **Verbose** level
-is on.
+**✅ Prepped.** `console.debug("SR2E | relay: …")` trail at every hop (Verbose level).
 
-**🔬 Diagnostic protocol (2 clients, both consoles open, filter `relay`):**
-1. GM online, one Player logged in (a real player user, not the GM). Player owns a
-   mage with the Conjuring skill.
-2. Player summons a Force-1 fire elemental. Watch **both** consoles.
-3. Read the trace to locate the break:
-   - Player shows `emitting createActorRequest <id>` but the **GM console shows
-     nothing** → the socket message isn't reaching the GM (channel/registration).
-   - GM shows `received … I am NOT the activeGM` → GM election is wrong (no active
-     GM, or a different GM is elected).
-   - GM shows `GM created actor <uuid>` but the **player** shows a timeout →
-     the response emit isn't reaching the player, or the player's listener isn't
-     registered.
-   - GM shows `GM-relayed actor creation failed: …` → the create/ownership-update
-     throws GM-side; the message names the cause.
-   - Player shows `response … ignored (not ours / already settled)` → requestId
-     mismatch or double-settle.
-4. Capture the exact line where it breaks → that dictates the one-line fix.
+**🔬 Diagnostic protocol (2 clients, both consoles, filter `relay`):** GM online,
+a real Player user with a mage + Conjuring skill summons a Force-1 fire elemental;
+read the trace to find which hop breaks (player emit → GM receive/activeGM check →
+GM create → player resolve/timeout).
 
-**Likely suspects (ranked):** (a) the player client never registered
-`game.socket.on("system.sr2e", …)` — it runs in the `ready` hook; confirm it
-runs for non-GM users; (b) `game.users.activeGM` resolves null/other on the
-player client; (c) response emit not delivered.
+**Revised lead suspect (was wrong).** The likeliest failure is a **cross-client
+readiness race**, not "`ready` doesn't run for players": `game.socket.on` is
+registered in `Hooks.once("ready")`, and a player who finishes loading *first* can
+see `game.users.activeGM` as non-null and emit **before the GM's listener is
+registered** — the message is dropped (socket messages aren't queued for an
+unregistered listener). Test explicitly: player ready before GM; summon the
+instant `activeGM` becomes non-null; GM reconnect mid-request; election change;
+two GMs one still loading. **Likely fix:** register the socket listener earlier
+(as soon as `game.socket` exists, not in `ready`), and/or a readiness handshake so
+`canCreateActor()` only returns true when a relay-ready GM is confirmed.
 
-**Acceptance:** a Player summons → spirit actor appears, **owned by that player**,
-bound to their mage, honest "summoned" card. No wasted drain on any failure path.
+**Also fix in the rework (audit):**
+- **Response-before-sync race:** the socket response can reach the player before
+  Foundry syncs the created actor/ownership to them. Today it's masked (we only
+  store the uuid), but it's fragile. The player should wait for the actor to
+  appear in `game.actors` with the expected ownership (bounded timeout), not just
+  settle on the socket reply. Diagnostics should distinguish "response received"
+  from "actor visible and owned locally."
+- **Idempotency / orphans:** a timeout doesn't mean the GM failed — it may create
+  the spirit *after* the player gave up (orphan), and a retry makes a duplicate.
+  Cache the result GM-side keyed by requestId so a retry returns the same actor.
+- **Direct permitted-player ownership:** a player with `ACTOR_CREATE` uses the
+  direct path, which grants no ownership — cover this case explicitly.
+
+**Acceptance:** Player summons → spirit appears, **owned by that player**, bound,
+honest card, no wasted drain on any failure path; verified across GM / relayed
+player / permitted player / assistant GM / two-GM / GM-reload-mid-request.
 
 ---
 
-## 2. Summoned spirit appears in the nearest unoccupied space to the caster
+## 2. Spirit appears in the nearest unoccupied space to the caster
 
-**State.** Not implemented — summon creates the actor only; no token is dropped.
+**State.** Not implemented. `nearestFreeCell` (pure, tested) exists but the audit
+shows it's **only correct for a 1-cell square-grid token** — insufficient as-is.
 
-**✅ Prepped.** Pure `nearestFreeCell(origin, occupied, bounds, maxRadius)` in
-`sr2e-rules.mjs` (+ `test/spirit-placement.test.mjs`): ring-by-ring Chebyshev
-search from the caster's cell, biased to orthogonal-nearest, bounds-aware,
-returns null when packed. No canvas dependency.
+**Revisions from the audit — do NOT wire until these are handled:**
+- **Footprint:** the search must test every cell the *summoned* token would cover
+  (2×2 spirits, fractional sizes, non-grid-aligned pixels), not just one cell.
+  Add a candidate-footprint predicate (width/height + occupied + bounds).
+- **Hex / gridless:** Chebyshev `col,row` rings are square-grid only. Support
+  matrix: square = footprint search; hex = Foundry grid APIs for adjacency/
+  offset/footprint; gridless = radial pixel candidates + overlap test, or fall
+  back to prompt/off. Applying the current helper to every scene would be a bug.
+- **Blocking:** "unoccupied" ≠ "reachable" — walls / inaccessible cells can place
+  a spirit inside a wall; decide whether to test collision. Also hidden tokens,
+  defeated tokens, elevation.
+- **maxRadius=25 is arbitrary** — compute from scene bounds (or bounded BFS with
+  accurate exhaustion reporting), don't silently ignore a free cell at radius 26.
+- **Pass stable IDs, not "scene + cell":** the caster may move/switch scenes/have
+  their token deleted during roll+drain+relay, and a client-supplied cell is
+  untrusted. Send `{sceneId, casterTokenId, casterActorUuid}`; the GM resolves the
+  live token position immediately before placing. Define behaviour for multiple
+  caster tokens / speaker-token ≠ selected-token.
+- **Transactional + structured result:** actor-created-but-token-failed must be
+  deliberate and reported: `{actorUuid, tokenUuid, placementStatus, warning}`.
+  Handle no-free-cell, deleted/changed scene, token-permission error, retries.
+- **`prompt` fallback through the relay is problematic** — which client shows it,
+  who owns the interaction, cancellation, how long the request stays pending. A
+  GM-side prompt isn't seamless for a player summon. Reconsider this option.
 
-**⏳ Wiring (deferred — entangled with the relay + needs canvas).** Placement is a
-**scene write** (`scene.createEmbeddedDocuments("Token", …)`), which a player
-can't do — so it must happen on the **actor-creating client** (the GM, directly
-or via the relay). Design:
-- On the client that creates the spirit actor, after creation: resolve the
-  **caster's** active token, build the `occupied` set from the scene's tokens
-  (cell footprints), call `nearestFreeCell`, drop the spirit token there.
-- For a relayed (player) summon, the GM does this; the relay request must carry
-  the caster's scene + cell so the GM knows where "beside the caster" is.
+**Setting `spiritPlacement`:** `nearest` (default) / `nearestOrCenter` / `prompt`
+(pending the concern above) / `off`. `nearestOrCenter` must still avoid walls /
+occupied / off-scene.
 
-**Setting (per your call — configurable fallback).** Register `spiritPlacement`:
-- `nearest` (default) — nearest free cell to the caster; **no caster token on the
-  active scene → create actor only** (today's behavior).
-- `nearestOrCenter` — nearest free cell, else drop at the scene centre.
-- `prompt` — click-to-place (like a measured template).
-- `off` — never auto-place.
-
-**🔬 Test:**
-- GM mage token on a gridded scene, neighbours open → summon → spirit lands in an
-  adjacent free cell. Surround the mage → summon → spirit steps out a ring.
-- Caster has no token on the scene → behaviour matches the chosen setting.
-- (After #1) Player summon → token drops beside the **player's** token, owned by them.
+**🔬 Test:** adjacent-free, surrounded (ring out), no caster token (setting), 2×2
+spirit near occupied cells, hex scene, gridless scene, wall-adjacent, player
+summon (after §1) drops beside the *player's* token owned by them.
 
 ---
 
 ## 3. Movement-in-combat limiter revisit
 
-Reported: **cap too strict/loose**, **GM/player behaviour wrong**, **ruler
-visuals/stuck colours**. Book re-checked (SR2 p.83):
+Book re-checked (SR2 p.83). **Rates are correct** (per Combat Phase; walk =
+Quickness, run = Quickness × Running-Table mod — human/elf/ork ×3, dwarf/troll
+×2). The bugs are in *how spent movement is measured and scoped* (§0-B) plus:
 
-**Audit findings.**
-- ✅ **Rates are correct.** Movement is per Combat **Phase** (p.83: "may move at
-  one of the two rates during a Combat Phase"). walk = Quickness, run =
-  Quickness × Running-Table modifier (human/elf/ork ×3, dwarf/troll ×2). The
-  per-phase `moveOrigin` stamp is right. So the *rates* aren't the bug.
-- ⏳ **"Run only once per Combat Turn" is NOT enforced** (p.83: "Characters who
-  have multiple Actions may run only in one of those Combat Phases"). Today a
-  3-pass character can run every phase → **too loose**. Fix: flag a token when it
-  runs in a phase; in later phases that turn, cap at the **walk** rate; clear the
-  flag each new Combat Turn. *(Confirm this is the "too loose" you saw before
-  building it — if the complaint is "too strict", it's a different root cause.)*
-- ⏳ **+1 walking target modifier not surfaced** (p.83) — only the +4 running
-  reminder posts. Minor; add a walk reminder.
-- 🔬 **GM/player behaviour** — current rule: GM moves NON-player tokens freely,
-  but a player-owned token stays capped even when the GM drags it
-  (`movement.mjs` preUpdateToken guard). Decide with a live drag whether that
-  matches intent, and whether the limit should fire only for the *active*
-  combatant vs any token.
-- 🔬 **Ruler visuals** — `#bandColor` only colours `pending`/`planned` stages;
-  history is separated. Reproduce the "stuck colours" live to see if it's a V13
-  TokenRuler stage/redraw issue.
+- **Primary (§0-B): cumulative path cost, not net displacement.** Track distance
+  *travelled* this phase (use the ruler/movement-history path cost, or accumulate
+  each accepted move's measured cost), not straight-line origin→drop.
+- **Scope:** `limitActive` must require the token be a combatant **in the active
+  combat, on that combat's scene**, and normally its **active combatant** — not
+  merely "a combat exists." Decide policy for out-of-turn/reaction movement,
+  programmatic/forced movement, and a GM bypass (modifier key / update flag).
+- **"Run only once per Combat Turn"** (p.83, reading is sound) — but don't use a
+  cleared boolean (races with round changes, combat delete/rewind, token dup,
+  multi-token actors, reload). Store a **round-qualified** value `{combatId,
+  round}`; running is barred only when it matches the current combat+round — no
+  cleanup needed. Better: fold run-state + `distanceSpent` + mode into one
+  **per-phase movement ledger** keyed to `{combatId, round, combatant}`, lazily
+  initialized on the moving update (avoids the cross-client `moveOrigin` stamp
+  race, §0/audit-#11).
+- **Commit point:** mark "ran" only after an *accepted* move pushes cumulative
+  distance past the walk allowance — not when the ruler merely turns amber or a
+  blocked attempt enters the band.
+- **GM/player policy must be explicit and match the docs** (header says "GMs move
+  freely" but the code caps GM-moved player tokens). `hasPlayerOwner` is a poor
+  proxy for "tactical movement vs GM repositioning."
+- **Reminders aren't mechanics:** the +4 running / +1 walking notifications don't
+  actually apply the modifier and can spam on every drag adjustment. Decide: make
+  movement-state one authoritative source consumed by attack/TN construction
+  (coordinate with existing attacker-movement + gyro modifiers to avoid double-
+  count), or label it clearly advisory and post once per phase/mode change.
 
-**🔬 Diagnostic test (isolates strict-vs-loose + the other two):**
-1. Human Q5 (walk 5 m / run 15 m), gridded scene, movement limit ON, in combat.
-2. Drag ≤5 m → **green**, no warning. 5–15 m → **amber** + running reminder.
-   >15 m → **red** + blocked (snaps back). Confirms rate direction.
-3. Give the token multiple actions (high initiative). Run in phase 1, then in
-   phase 2 try to run again → **should be walk-capped** (currently isn't).
-4. GM drags a player token vs an NPC token → note which is capped. GM drags
-   during a player's turn → note behaviour.
-5. Hover to show movement history → check the band colours don't stick/mis-colour.
+**🔬 Diagnostic test:** Q5 human (walk 5 / run 15); ≤5 green, 5–15 amber+warn,
+>15 blocked; **out-and-back** (should count travelled distance, currently doesn't);
+run phase 1 then try to run phase 2 (should walk-cap); bystander / other-scene
+token (should NOT be capped); repeated short drags (should NOT bypass); GM drags
+player vs NPC token; hover history colours.
 
 ---
 
+## Test matrix (broaden — audit #18)
+Relay: player-ready-first, election change, two GMs, GM reload mid-request,
+delayed response after timeout, duplicate/retry, spoofed requester/caster,
+permitted-player-without-scene-write, multiple caster tokens, non-viewed caster
+scene, simultaneous summons for one cell. Placement: 2×2/fractional footprints,
+hex, gridless, walls. Movement: combatant vs bystander, no-origin short drags,
+immediate move after phase transition, turn undo, combat delete/recreate,
+multi-token actor.
+
 ## Sequencing
-1. **Fri:** live 2-client session → diagnose relay (§1), confirm movement
-   direction (§3), decide GM/player intent. Then implement the confirmed fixes +
-   the placement wiring (§2), Codex-review the batch, release.
-2. Verified procedures here graduate into `docs/QA-PLAN.md`.
+1. **Relay hardening + fix (§0-A, §1)** is release-blocking-ish and gates
+   placement — do it first, with the validation redesign.
+2. **Movement fixes (§0-B, §3)** — independent; can land separately.
+3. **Placement wiring (§2)** — after the relay is trustworthy and footprint/grid
+   handling is designed.
+4. Codex-review the batch; verified procedures graduate into `docs/QA-PLAN.md`.
