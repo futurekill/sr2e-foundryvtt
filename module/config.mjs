@@ -516,7 +516,11 @@ SR2E.elementalTypes = {
 // (assets/spirit_portraits/<key>-<1..N>.webp); a type absent here keeps the
 // default SVG. Grow these numbers as more art lands — the count IS the contract.
 SR2E.spiritPortraitVariants = {
-  fire: 3, water: 2
+  // Elementals
+  fire: 3, water: 3, air: 3, earth: 3,
+  // Nature-spirit domains
+  city: 3, field: 3, forest: 3, hearth: 3, lake: 3, mountain: 3,
+  prairie: 3, river: 3, sea: 3, desert: 3, swamp: 3, wind: 3
 };
 
 /**

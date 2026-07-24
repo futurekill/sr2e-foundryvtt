@@ -4,6 +4,13 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Added
+- **Every summonable spirit type now has portraits.** All four elementals (Fire,
+  Water, Air, Earth) and all twelve nature-spirit domains (City, Field, Forest,
+  Hearth, Lake, Mountain, Prairie, River, Sea, Desert, Swamp, Wind) ship three
+  painterly variations each — 48 in total. A summoned spirit picks one at random
+  for its actor and token, so the same domain looks different each time.
+
 ### Fixed
 - **Combat pool auto-refresh: two bugs found by a Codex audit of 0.57.0.**
   (1) Refreshing now clears committed **Shielding** dice alongside Spell Defense
