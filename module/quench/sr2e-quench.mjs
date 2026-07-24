@@ -893,9 +893,14 @@ export function registerSR2EQuenchTests() {
             system: { ammoType, quantity: 10, cost: 15, streetIndex: 1,
                       damageModifier: 0, armorModifier: 0, damageType: "", armorCalc: "standard" }
           });
-          const [r1, r2, ap1, ap2] = await actor.createEmbeddedDocuments("Item",
+          await actor.createEmbeddedDocuments("Item",
             [mk("regular"), mk("regular"), mk("apds"), mk("apds")]);
-          const res = await game.sr2e.consolidateAmmo(actor, { itemId: r2.id, quiet: true });
+          // createEmbeddedDocuments does NOT guarantee the returned order matches
+          // the input order, so pick the box by identity — destructuring
+          // positionally here silently scoped the merge to an APDS pile instead.
+          const regular = actor.items.find((i) => i.type === "ammo" && i.system.ammoType === "regular");
+          assert.ok(regular, "a Regular box should exist to scope the merge to");
+          const res = await game.sr2e.consolidateAmmo(actor, { itemId: regular.id, quiet: true });
           assert.equal(res.merged, 1, "only the dropped box's group merges");
           assert.equal(res.groups[0].survivorId != null, true, "reports the survivor id");
           const regs = actor.items.filter((i) => i.type === "ammo" && i.name === "Regular Ammo");
@@ -966,10 +971,13 @@ export function registerSR2EQuenchTests() {
           name: "Quench Movement", width: 2000, height: 2000,
           grid: { type: SQUARE, size: 100, distance: 1, units: "m" }
         });
-        const [tok, byTok] = await scene.createEmbeddedDocuments("Token", [
+        await scene.createEmbeddedDocuments("Token", [
           { name: runner.name, actorId: runner.id, x: 500, y: 500, width: 1, height: 1 },
           { name: bystander.name, actorId: bystander.id, x: 1200, y: 1200, width: 1, height: 1 }
         ]);
+        // Select by identity: createEmbeddedDocuments doesn't guarantee return order.
+        const tok = scene.tokens.find((t) => t.actorId === runner.id);
+        const byTok = scene.tokens.find((t) => t.actorId === bystander.id);
         await scene.view();
         const combat = await Combat.create({ scene: scene.id });
         await combat.createEmbeddedDocuments("Combatant", [
