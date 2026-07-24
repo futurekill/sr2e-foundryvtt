@@ -1054,7 +1054,7 @@ Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
 // each configuration is priced with its own row and Street Index — they just don't
 // TRIGGER anything.
 const PURCHASE_DRIVERS = ["rating", "grade", "force", "grantedSkillCategory",
-                          "bondedWeaponId", "category", "focusType"];
+                          "bondedWeaponId", "category", "focusType", "strengthMinimum"];
 
 // Charge (or refund) the nuyen difference when a purchased item's configuration
 // changes on a character. Runs in preUpdateItem so an unaffordable upgrade can be
@@ -1103,6 +1103,9 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     multiplier: item.system.multiplier, costPerForce: item.system.costPerForce,
     force: item.system.force, focusType: item.system.focusType,
     bondedWeaponId: item.system.bondedWeaponId,
+    // Bows price off Strength Minimum (100¥ x Str Min), so re-pricing a Str-Min
+    // change needs both fields to reach derivedItemCost's weapon branch.
+    strengthMinimum: item.system.strengthMinimum, costPerStrengthMin: item.system.costPerStrengthMin,
     ...over
   });
   const oldSys = sysFor({});

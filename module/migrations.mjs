@@ -177,7 +177,13 @@ const MIGRATIONS = [
       const name = source.name ?? "";
 
       // Bow: recover the Str Min the player actually paid for (400¥ → Str Min 4).
-      if (/\bbow\b/i.test(name) && !/crossbow/i.test(name) && !(sys.costPerStrengthMin > 0)) {
+      // Gate on the mis-imported bow's EXACT old state (flat 400¥ + (Str+2)M) so
+      // a GM's homebrew bow with a custom price/damage is left untouched — the
+      // comment above promised this, but the name-only gate didn't deliver it.
+      const wasMisImported = Number(sys.cost) === 400
+        && /^\(Str\s*\+\s*2\)M$/i.test((sys.damageCode ?? "").trim());
+      if (/\bbow\b/i.test(name) && !/crossbow/i.test(name)
+          && !(sys.costPerStrengthMin > 0) && wasMisImported) {
         const strMin = Math.max(1, Math.round((Number(sys.cost) || 100) / 100));
         return {
           "system.strengthMinimum": sys.strengthMinimum || strMin,
