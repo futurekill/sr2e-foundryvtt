@@ -4,6 +4,14 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixed
+- **The summon chat card no longer waits on click-to-place.** With *Summoned
+  spirit placement* set to **Prompt**, the summon card was posted only *after*
+  someone clicked the map — so an unanswered prompt meant the spirit was created
+  and bound but no card ever appeared. The card now posts as soon as the summon
+  resolves, and placement happens after it. The click prompt also self-cancels
+  after a minute instead of waiting forever.
+
 ### Changed
 - **In-combat movement limit reworked (SR2 p.84).** The limit now measures the
   distance a token actually *travels* each Combat Phase, not the straight line to

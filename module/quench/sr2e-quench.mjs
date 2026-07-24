@@ -1062,8 +1062,18 @@ export function registerSR2EQuenchTests() {
     }, { displayName: "SR2E: Movement limiter" });
 
     quench.registerBatch("sr2e.actor-relay", (context) => {
-      const { describe, it, assert, afterEach } = context;
+      const { describe, it, assert, before, after, afterEach } = context;
       const made = [];
+      // Placement must not run during the summon test: with spiritPlacement on
+      // "prompt" the summon waits for a human to click the map, which stalls the
+      // test (and used to stall the summon card — see rollConjuring). Force it off
+      // and restore the world's real setting afterwards.
+      let prevPlacement;
+      before(async () => {
+        prevPlacement = game.settings.get("sr2e", "spiritPlacement");
+        await game.settings.set("sr2e", "spiritPlacement", "off");
+      });
+      after(async () => { await game.settings.set("sr2e", "spiritPlacement", prevPlacement); });
       afterEach(async () => {
         for (const a of made.splice(0)) await a?.delete();
         for (const a of game.actors.filter(a => a.type === "spirit" && /Quench/.test(a.name))) await a.delete();

@@ -13,6 +13,9 @@
  */
 import { nearestFreeCell } from "./rules/sr2e-rules.mjs";
 
+/** How long click-to-place waits for a click before giving up (ms). */
+const PROMPT_TIMEOUT = 60000;
+
 /**
  * @param {Actor} spirit - the created spirit actor
  * @param {Actor} caster - the summoning character
@@ -104,9 +107,11 @@ function _promptForPoint(name) {
     const stage = canvas.stage;
     let settled = false;
     const note = ui.notifications.info(`Click the map to place ${name}. (Esc to cancel.)`, { permanent: true });
+    let timer;
     const done = (value) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       stage.off("pointerdown", onClick);
       window.removeEventListener("keydown", onKey, true);
       Hooks.off("canvasTearDown", onTearDown);
@@ -125,6 +130,12 @@ function _promptForPoint(name) {
     };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); done(null); } };
     const onTearDown = () => done(null);
+    // Never wait forever: an unanswered prompt (nobody at the keyboard, an
+    // automated caller) must self-cancel so the awaiting summon always settles.
+    timer = setTimeout(() => {
+      ui.notifications?.warn(`Placement for ${name} timed out — drag it onto the map from the sidebar.`);
+      done(null);
+    }, PROMPT_TIMEOUT);
     stage.on("pointerdown", onClick);
     window.addEventListener("keydown", onKey, true);
     Hooks.once("canvasTearDown", onTearDown);

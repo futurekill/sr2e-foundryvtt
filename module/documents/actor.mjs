@@ -911,10 +911,6 @@ export class SR2EActor extends Actor {
     if (spiritUuid) {
       const bound = this.system.boundSpirits ?? [];
       await this.update({ "system.boundSpirits": [...bound, spiritUuid] });
-      // Drop the spirit's token onto the scene (nearest open cell / click-to-place
-      // per the spiritPlacement setting). Best-effort — never blocks the summon.
-      const spiritActor = await fromUuid(spiritUuid);
-      if (spiritActor) await placeSummonedToken(spiritActor, this);
     }
 
     // Be honest about the outcome: only claim a summon if the actor exists.
@@ -934,6 +930,14 @@ export class SR2EActor extends Actor {
             Ask your GM to add it, or retry.</em>
           </div>`
     });
+
+    // Placement runs AFTER the card: click-to-place waits on a human, and the
+    // summon result must never be held hostage to that (or to a map that can't
+    // take a token). Best-effort — placement swallows its own failures.
+    if (spiritUuid) {
+      const spiritActor = await fromUuid(spiritUuid);
+      if (spiritActor) await placeSummonedToken(spiritActor, this);
+    }
 
     return conjureResult;
   }
