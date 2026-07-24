@@ -755,6 +755,36 @@ export function movementRates(quickness, runMultiplier = 3) {
   return { walk: q, run: q * runMultiplier };
 }
 
+const MOVE_EPS = 1e-6;
+
+/**
+ * Evaluate one movement attempt within a Combat Phase (SR2 p.84). Distance is
+ * CUMULATIVE — `spent` is what the token has already travelled this phase, `move`
+ * is this attempt — so an out-and-back that nets zero still counts. `capIsWalk`
+ * is true when the character already ran in an earlier phase this Combat Turn
+ * ("may run only in one of those Combat Phases"), which caps this phase at a walk.
+ * @returns {{allowed:boolean, cap:number, newSpent:number, ran:boolean}}
+ *   `ran` = this attempt pushed cumulative distance into running range.
+ */
+export function movementPhase(spent, move, rates, capIsWalk) {
+  const cap = capIsWalk ? rates.walk : rates.run;
+  const newSpent = (spent || 0) + (move || 0);
+  return {
+    allowed: newSpent <= cap + MOVE_EPS,
+    cap,
+    newSpent,
+    ran: !capIsWalk && newSpent > rates.walk + MOVE_EPS
+  };
+}
+
+/** Ruler band for a cumulative distance: 0 walk (green), 1 run (amber), 2 over
+ *  (red). A character already walk-capped this turn skips amber — over walk is red. */
+export function movementColorBand(total, rates, capIsWalk) {
+  if (total <= rates.walk + MOVE_EPS) return 0;
+  if (!capIsWalk && total <= rates.run + MOVE_EPS) return 1;
+  return 2;
+}
+
 /* ── INITIATIVE PASSES (SR2E p.78–79) — pure decision helpers for SR2ECombat ── */
 
 /** Initiative left after taking an action: −10, floored at 0 (you simply stop

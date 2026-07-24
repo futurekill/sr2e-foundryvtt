@@ -129,6 +129,16 @@ summon (after §1) drops beside the *player's* token owned by them.
 
 ## 3. Movement-in-combat limiter revisit
 
+> **REWORKED 2026-07-24** (module/movement.mjs + rules `movementPhase` /
+> `movementColorBand`, test/movement.test.mjs). Fixes landed: cumulative
+> per-phase distance via a round-qualified `moveLedger` flag (out-and-back and
+> repeated short drags now count; the old `moveOrigin` stamp + net-displacement
+> measure are gone); scope narrowed to the **active combatant only** (bystanders
+> / other-scene / out-of-turn move freely; `options.sr2eBypassMovement` escape
+> hatch for programmatic moves); **run once per Combat Turn** enforced (p.84 —
+> a phase after running is walk-capped); +4 running notice made advisory + posts
+> once. **Still ⏳ live-verify** the diagnostic matrix below, then Codex-review.
+
 Book re-checked (SR2 p.83). **Rates are correct** (per Combat Phase; walk =
 Quickness, run = Quickness × Running-Table mod — human/elf/ork ×3, dwarf/troll
 ×2). The bugs are in *how spent movement is measured and scoped* (§0-B) plus:

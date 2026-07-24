@@ -4,6 +4,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Changed
+- **In-combat movement limit reworked (SR2 p.84).** The limit now measures the
+  distance a token actually *travels* each Combat Phase, not the straight line to
+  its final spot — so an out-and-back, or a string of small drags, counts against
+  the allowance instead of slipping past it. It applies only to the **active
+  combatant** now (bystanders, tokens on other scenes, and out-of-turn/GM
+  repositioning move freely). Running is enforced as **once per Combat Turn**: a
+  character who runs in one phase is walk-capped in their later phases that round.
+  The +4 running notice is explicitly advisory (apply it on the attack; it isn't
+  auto-applied) and posts once, when the token first crosses into running.
+  *(Off by default — Settings → "Limit movement in combat".)*
+
 ## 0.59.0 — 2026-07-24
 
 ### Added
