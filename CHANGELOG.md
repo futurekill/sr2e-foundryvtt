@@ -2,6 +2,16 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Fixed
+- **Combat pool auto-refresh: two bugs found by a Codex audit of 0.57.0.**
+  (1) Refreshing now clears committed **Shielding** dice alongside Spell Defense
+  — previously free Shielding dice survived a refresh and kept getting rolled on
+  Resist Spell. (2) Round/start/combat-end refresh now keys combatants by uuid,
+  so multiple **unlinked tokens sharing one base actor** each refresh (id-dedup
+  had refreshed only one of them).
+
 ## 0.57.0 — 2026-07-22
 
 ### Added

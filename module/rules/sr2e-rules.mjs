@@ -2198,8 +2198,14 @@ export function dicePoolRefreshUpdates(pools = {}) {
     const p = pools[key];
     if (p && p.value !== p.max) updates[`system.dicePools.${key}.value`] = p.max;
   }
+  // Spell Defense AND its free Shielding bonus both release when the Magic Pool
+  // refreshes — the normal clear path resets both, so refresh must too, or
+  // surviving Shielding dice keep getting rolled on Resist Spell.
   if ("spellDefense" in pools && pools.spellDefense !== 0) {
     updates["system.dicePools.spellDefense"] = 0;
+  }
+  if ("shieldingBonus" in pools && pools.shieldingBonus !== 0) {
+    updates["system.dicePools.shieldingBonus"] = 0;
   }
   return updates;
 }

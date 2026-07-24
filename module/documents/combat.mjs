@@ -49,7 +49,9 @@ export class SR2ECombat extends Combat {
   async _refreshAllActors() {
     if (!game.user.isGM) return;
     const seen = new Map();
-    for (const c of this.combatants) if (c.actor) seen.set(c.actor.id, c.actor);
+    // Key by uuid, not actor.id: distinct UNLINKED tokens can share a base Actor
+    // id yet hold independent pools (ActorDelta), so id-dedup would drop all but one.
+    for (const c of this.combatants) if (c.actor) seen.set(c.actor.uuid, c.actor);
     for (const actor of seen.values()) await actor.refreshDicePools?.();
   }
 
@@ -149,7 +151,9 @@ export class SR2ECombat extends Combat {
    */
   async _preDelete(options, user) {
     const seen = new Map();
-    for (const c of this.combatants) if (c.actor) seen.set(c.actor.id, c.actor);
+    // Key by uuid, not actor.id: distinct UNLINKED tokens can share a base Actor
+    // id yet hold independent pools (ActorDelta), so id-dedup would drop all but one.
+    for (const c of this.combatants) if (c.actor) seen.set(c.actor.uuid, c.actor);
     this._sr2eActorsAtDelete = [...seen.values()];
     return super._preDelete(options, user);
   }

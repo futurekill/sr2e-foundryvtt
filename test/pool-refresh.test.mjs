@@ -25,9 +25,14 @@ describe("dicePoolRefreshUpdates", () => {
     });
   });
 
-  it("releases committed Spell Defense (p.132)", () => {
-    expect(dicePoolRefreshUpdates({ magic: full(6), spellDefense: 3 }))
-      .toEqual({ "system.dicePools.spellDefense": 0 });
+  it("releases committed Spell Defense AND its free Shielding bonus (p.132/Grimoire p.45)", () => {
+    // Both are set together on allocation and must both release on refresh, or
+    // surviving Shielding dice keep getting rolled on Resist Spell.
+    expect(dicePoolRefreshUpdates({ magic: full(6), spellDefense: 3, shieldingBonus: 2 }))
+      .toEqual({ "system.dicePools.spellDefense": 0, "system.dicePools.shieldingBonus": 0 });
+    // Shielding can survive even when spellDefense is already 0.
+    expect(dicePoolRefreshUpdates({ magic: full(6), spellDefense: 0, shieldingBonus: 2 }))
+      .toEqual({ "system.dicePools.shieldingBonus": 0 });
   });
 
   it("is a no-op when everything is already full — no needless update", () => {
