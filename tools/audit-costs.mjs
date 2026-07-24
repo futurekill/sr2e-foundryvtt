@@ -45,6 +45,11 @@ for (const pack of readdirSync(PACKS)) {
 // A formula price ("100*strMin") is carried by the Str-Min fields, not `cost`.
 const isFormula = (c) => /\*/.test(c ?? "");
 const num = (v) => (v === "" || v == null ? null : Number(v));
+const normAvail = (v) => String(v ?? "").toLowerCase().replace(/\s+/g, "");
+// Cyberware/bioware model streetIndex as a StringField (weapons/armor/ammo use a
+// NumberField), so --fix must write the matching type or the value round-trips
+// as a stringified number on disk.
+const SI_IS_STRING = new Set(["cyberware", "bioware"]);
 
 const drift = [];
 const unshipped = [];
@@ -69,6 +74,13 @@ for (const r of rows) {
   // so compare against that rather than skipping — an unset index on a Katana
   // (printed 2) really does overcharge/undercharge at the shop.
   if (num(r.streetIndex) !== null) checks.push(["streetIndex", num(r.streetIndex), sys.streetIndex ?? 1]);
+  // Availability is prose ("3/72 hrs" vs "3/72hrs"), so compare it whitespace-
+  // and case-insensitively — only a genuinely different value should report
+  // (a Datajack printed "Always" that we ship as "4/48hrs").
+  if (r.avail && sys.availability !== undefined
+      && normAvail(r.avail) !== normAvail(sys.availability)) {
+    checks.push(["availability", r.avail, sys.availability]);
+  }
   // Per-category fields the fixed columns cannot express — "ballistic=3;impact=0"
   // for armor, "essenceCost=.2" for cyberware, "rating=3" for electronics.
   for (const pair of (r.extra ?? "").split(";").filter(Boolean)) {
@@ -81,7 +93,8 @@ for (const r of rows) {
     if (String(want) === String(got)) continue;
     drift.push({ name: r.name, field, want, got, page: r.bookPage, path: hit.path });
     if (FIX) {
-      hit.doc.system[field] = want;
+      hit.doc.system[field] = (field === "streetIndex" && SI_IS_STRING.has(hit.doc.type))
+        ? String(want) : want;
       writeFileSync(hit.path, JSON.stringify(hit.doc, null, 2) + "\n");
     }
   }

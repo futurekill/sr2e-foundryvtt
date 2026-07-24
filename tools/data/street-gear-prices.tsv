@@ -64,3 +64,51 @@ Armor Jacket	armor	6	0		p	2	3/36 hrs	900	.75	257	ballistic=5;impact=3
 Armor Vest	armor	12	0		p	1	2/36 hrs	200	.8	257	ballistic=2;impact=1
 Vest with Plates	armor	10	0		p	2	3/36 hrs	600	1	257	ballistic=4;impact=3
 Lined Coat	armor	8	0		p	1	2/24 hrs	700	.75	257	ballistic=4;impact=2
+#
+# ── CYBERTECH (book p.260–261) ─────────────────────────────────────────────
+# Read off rendered pages: the text layer mangles this section's headers
+# ("Avallablllty", "Saeet Index"). The Essence column prints a division glyph
+# that both the scan and the text layer render as "+": "Rating + 10" is
+# mechanically impossible (a character has 6 Essence), so it is Rating ÷ 10 —
+# which is what the per-rating tables already implement. Rating-table items
+# (Filtration, Skillwires, Muscle Replacement, Dermal Plating, Vehicle Control
+# Rig) carry their values in `ratingStats`, so only their flat/derived values
+# are checked here; Vehicle Control Rig is omitted because its Street Index
+# differs per level (1 / 1.25 / 1.5) and is set on its rating rows instead.
+Chipjack	cyberware						3/72 hrs	1000	.9	260	essenceCost=.2
+Datajack	cyberware						Always	1000	.9	260	essenceCost=.2
+Radio (Headware)	cyberware						2/24 hrs	4000	.8	260	essenceCost=.75
+Radio Receiver (Headware)	cyberware						2/24 hrs	2000	.8	260	essenceCost=.4
+Telephone (Headware)	cyberware						3/24 hrs	3700	.9	260	essenceCost=.5
+Cyberear Replacement	cyberware						2/24 hrs	4000	.75	260	essenceCost=.3
+Ear Modification	cyberware						2/24 hrs	2000	1	260	essenceCost=.1
+Ear Cosmetic Modification	cyberware						2/24 hrs	1000	.8	260	essenceCost=0
+Damper	cyberware						4/48 hrs	3500	1.25	260	essenceCost=.1
+High Frequency Hearing	cyberware						4/48 hrs	3000	1.25	260	essenceCost=.2
+Low Frequency Hearing	cyberware						4/48 hrs	3000	1.25	260	essenceCost=.2
+Ear Recorder	cyberware						8/48 hrs	7000	2	260	essenceCost=.3
+Cybereyes	cyberware						2/24 hrs	5000	.75	260	essenceCost=.2
+Eye Camera	cyberware						6/24 hrs	5000	2	260	essenceCost=.4
+Eye Cosmetic Modification	cyberware						2/24 hrs	1000	.75	260	essenceCost=0
+Flare Compensation	cyberware						5/48 hrs	2000	1.25	260	essenceCost=.1
+Low-Light Vision	cyberware						4/36 hrs	3000	1.25	260	essenceCost=.2
+Retinal Duplication	cyberware						12/7 days	50000	2	260	essenceCost=.1
+Thermographic Vision	cyberware						4/36 hrs	3000	1.25	260	essenceCost=.2
+Cortex Bomb	cyberware						20/14 days	500000	1	260	essenceCost=0
+Data Filter	cyberware						6/36 hrs	5000	1.5	260	essenceCost=.3
+Data Lock	cyberware						6/36 hrs	1000	1.5	260	essenceCost=.2
+Datasoft Link	cyberware						3/24 hrs	1000	1	260	essenceCost=.1
+Display Link	cyberware						4/36 hrs	1000	1	260	essenceCost=.1
+Fingertip Compartment	cyberware						3/24 hrs	3000	1	261	essenceCost=.1
+Hand Razors	cyberware						3/72 hrs	4500	1	261	essenceCost=.1
+Retractable Razors	cyberware						5/72 hrs	9000	1	261	essenceCost=.2
+Retractable Spur	cyberware						5/72 hrs	11500	1	261	essenceCost=.3
+Smartlink	cyberware						3/36 hrs	2500	1	261	essenceCost=.5
+Spur	cyberware						3/72 hrs	7000	1	261	essenceCost=.1
+Voice Modulator	cyberware						2/24 hrs	45000	1	261	essenceCost=.2
+Dermal Plating (Level 1)	cyberware						4/12 days	6000	1	261	essenceCost=.5
+Dermal Plating (Level 2)	cyberware						4/12 days	15000	1	261	essenceCost=1
+Dermal Plating (Level 3)	cyberware						4/12 days	45000	1	261	essenceCost=1.5
+Wired Reflexes (Level 1)	cyberware						4/8 days	55000	1	261	essenceCost=2
+Wired Reflexes (Level 2)	cyberware						4/8 days	165000	1	261	essenceCost=3
+Wired Reflexes (Level 3)	cyberware						8/14 days	500000	1	261	essenceCost=5

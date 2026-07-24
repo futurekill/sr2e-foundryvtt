@@ -23,7 +23,8 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.248. Filters harmful Matrix input. Resists MIJI effects. SI 1.5. Essence 0.3."
+    "notes": "SR2E p.248. Filters harmful Matrix input. Resists MIJI effects. SI 1.5. Essence 0.3.",
+    "streetIndex": "1.5"
   },
   "effects": [],
   "flags": {},

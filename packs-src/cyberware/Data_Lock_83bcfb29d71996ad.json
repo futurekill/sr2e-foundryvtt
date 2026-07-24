@@ -9,7 +9,7 @@
     "essenceCost": 0.2,
     "rating": 0,
     "cost": 1000,
-    "availability": "3/48hrs",
+    "availability": "6/36 hrs",
     "legality": "Restricted",
     "installed": false,
     "attributeMods": {
@@ -22,7 +22,8 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.244 (table p.260). Head memory accessible only via external jack + access code. Essence .2, 1,000¥."
+    "notes": "SR2E p.244 (table p.260). Head memory accessible only via external jack + access code. Essence .2, 1,000¥.",
+    "streetIndex": "1.5"
   },
   "effects": [],
   "flags": {},

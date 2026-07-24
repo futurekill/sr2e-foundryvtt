@@ -9,7 +9,7 @@
     "concealability": 10,
     "weight": 0,
     "cost": 500,
-    "availability": "Always",
+    "availability": "2/36 hrs",
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,

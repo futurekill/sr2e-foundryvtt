@@ -23,7 +23,8 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.245 (table p.260). Receive-only implant radio. Essence .4, 2,000¥."
+    "notes": "SR2E p.245 (table p.260). Receive-only implant radio. Essence .4, 2,000¥.",
+    "streetIndex": "0.8"
   },
   "effects": [],
   "flags": {},

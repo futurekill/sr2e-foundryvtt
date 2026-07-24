@@ -9,7 +9,7 @@
     "essenceCost": 0.75,
     "rating": 0,
     "cost": 4000,
-    "availability": "4/48hrs",
+    "availability": "2/24 hrs",
     "legality": "Restricted",
     "installed": false,
     "attributeMods": {
@@ -22,7 +22,8 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.245 (table p.260). Implanted two-way radio. Essence .75, 4,000¥."
+    "notes": "SR2E p.245 (table p.260). Implanted two-way radio. Essence .75, 4,000¥.",
+    "streetIndex": "0.8"
   },
   "effects": [],
   "flags": {},

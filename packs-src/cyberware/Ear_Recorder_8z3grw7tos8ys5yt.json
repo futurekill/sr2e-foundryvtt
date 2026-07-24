@@ -23,7 +23,8 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. Cyberear modification. Records everything the user hears. Popular with couriers and investigators. SI 2."
+    "notes": "SR2E p.247. Cyberear modification. Records everything the user hears. Popular with couriers and investigators. SI 2.",
+    "streetIndex": "2"
   },
   "effects": [],
   "flags": {},

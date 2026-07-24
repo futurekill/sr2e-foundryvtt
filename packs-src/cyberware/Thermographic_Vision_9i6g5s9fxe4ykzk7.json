@@ -23,7 +23,8 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.247. See heat signatures. Light level irrelevant. Strong heat sources create visual noise. SI 1.25."
+    "notes": "SR2E p.247. See heat signatures. Light level irrelevant. Strong heat sources create visual noise. SI 1.25.",
+    "streetIndex": "1.25"
   },
   "effects": [],
   "flags": {},

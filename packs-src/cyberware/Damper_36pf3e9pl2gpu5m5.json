@@ -23,7 +23,8 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.245 (table p.260). Cuts dangerous noise levels; protects against sonic attacks. Essence .1, 3,500¥."
+    "notes": "SR2E p.245 (table p.260). Cuts dangerous noise levels; protects against sonic attacks. Essence .1, 3,500¥.",
+    "streetIndex": "1.25"
   },
   "effects": [],
   "flags": {},

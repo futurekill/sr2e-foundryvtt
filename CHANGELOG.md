@@ -4,6 +4,23 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixed
+- **Cyberware now prices at street value, not list.** Every cybertech item was
+  shipping without a Street Index, so the shop charged the printed list price for
+  all of it. The index from the book's Cybertech table (p.260–261) is now on all
+  of them — an Ear Recorder or Retinal Duplication (index 2) costs twice list on
+  the street, while a datajack or cybereye replacement (.75–.9) comes in under it.
+  *Already-installed cyberware is untouched — no retroactive charges or refunds.*
+- **Availability corrected on 36 items** (weapons, armor, cyberware) against the
+  printed tables — e.g. a Datajack is *Always* available, not 4/48hrs; the
+  Monofilament Whip is 24/14 days, not 8/14.
+
+### Changed
+- `npm run audit-costs` now checks **availability** (whitespace/case-insensitive,
+  so only real differences report) and covers the **Cybertech table (p.260–261)**.
+  Essence and nuyen costs for all cyberware were verified against the book and
+  needed no correction.
+
 ## 0.60.0 — 2026-07-24
 
 ### Fixed

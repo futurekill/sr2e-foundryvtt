@@ -9,7 +9,7 @@
     "essenceCost": 0.2,
     "rating": 0,
     "cost": 1000,
-    "availability": "4/48hrs",
+    "availability": "Always",
     "legality": "Restricted",
     "installed": false,
     "attributeMods": {
@@ -22,7 +22,8 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2."
+    "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2.",
+    "streetIndex": "0.9"
   },
   "effects": [],
   "flags": {},
