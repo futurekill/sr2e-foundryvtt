@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.59.0 — 2026-07-24
+
 ### Added
 - **Summoned spirits drop onto the map automatically.** A new **Summoned spirit
   placement** setting: *Nearest open space to the caster* (default — the spirit's
