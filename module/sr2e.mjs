@@ -821,6 +821,21 @@ function _registerSystemSettings() {
     default: "action"
   });
 
+  // Where a summoned spirit's token appears (read in module/placement.mjs).
+  game.settings.register("sr2e", "spiritPlacement", {
+    name: "SR2E.Settings.SpiritPlacement",
+    hint: "SR2E.Settings.SpiritPlacementHint",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      nearest: "SR2E.Settings.SpiritPlacementNearest",
+      prompt: "SR2E.Settings.SpiritPlacementPrompt",
+      off: "SR2E.Settings.SpiritPlacementOff"
+    },
+    default: "nearest"
+  });
+
   // In-combat movement limit (SR2E p.83), read in module/movement.mjs
   game.settings.register("sr2e", "movementLimit", {
     name: "Limit movement in combat",

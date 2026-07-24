@@ -2223,13 +2223,28 @@ export function dicePoolRefreshUpdates(pools = {}) {
  * @param {{col:number,row:number}} origin - the caster's cell
  * @param {Set<string>} occupied - taken cells as "col,row" strings (incl. the caster)
  * @param {{cols:number,rows:number}} [bounds] - grid size; omit for unbounded
- * @param {number} [maxRadius=25] - how far out to search before giving up
- * @returns {{col:number,row:number}|null} the free cell, or null if none found
+ * @param {object} [opts]
+ * @param {number} [opts.maxRadius=25] - how far out to search before giving up
+ * @param {{w:number,h:number}} [opts.footprint] - the PLACED token's size in cells;
+ *   every cell it would cover (top-left = the returned cell) must be free/in-bounds,
+ *   so a 2×2 spirit never lands half-on an occupied square.
+ * @returns {{col:number,row:number}|null} the free top-left cell, or null if none
  */
-export function nearestFreeCell(origin, occupied = new Set(), bounds = null, maxRadius = 25) {
+export function nearestFreeCell(origin, occupied = new Set(), bounds = null, opts = {}) {
+  // Back-compat: an old call passed maxRadius as the 4th positional arg.
+  const maxRadius = typeof opts === "number" ? opts : (opts.maxRadius ?? 25);
+  const fw = Math.max(1, Math.floor(opts.footprint?.w ?? 1));
+  const fh = Math.max(1, Math.floor(opts.footprint?.h ?? 1));
   const inBounds = (c, r) =>
     !bounds || (c >= 0 && r >= 0 && c < bounds.cols && r < bounds.rows);
-  const free = (c, r) => inBounds(c, r) && !occupied.has(`${c},${r}`);
+  const cellOpen = (c, r) => inBounds(c, r) && !occupied.has(`${c},${r}`);
+  // The candidate (c,r) is the token's top-left; every covered cell must be open.
+  const free = (c, r) => {
+    for (let dc = 0; dc < fw; dc++) for (let dr = 0; dr < fh; dr++) {
+      if (!cellOpen(c + dc, r + dr)) return false;
+    }
+    return true;
+  };
   const { col, row } = origin;
 
   for (let radius = 1; radius <= maxRadius; radius++) {

@@ -4,6 +4,7 @@
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
+import { placeSummonedToken } from "../placement.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
@@ -909,6 +910,10 @@ export class SR2EActor extends Actor {
     if (spiritUuid) {
       const bound = this.system.boundSpirits ?? [];
       await this.update({ "system.boundSpirits": [...bound, spiritUuid] });
+      // Drop the spirit's token onto the scene (nearest open cell / click-to-place
+      // per the spiritPlacement setting). Best-effort — never blocks the summon.
+      const spiritActor = await fromUuid(spiritUuid);
+      if (spiritActor) await placeSummonedToken(spiritActor, this);
     }
 
     // Be honest about the outcome: only claim a summon if the actor exists.

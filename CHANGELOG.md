@@ -4,6 +4,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Added
+- **Summoned spirits drop onto the map automatically.** A new **Summoned spirit
+  placement** setting: *Nearest open space to the caster* (default — the spirit's
+  token appears in the closest free cell beside the summoner, footprint-aware),
+  *Prompt* (click the map to place it), or *Off* (no token — drag it from the
+  sidebar). Needs the summoner able to create tokens (the "Create New Actors"
+  permission). Hex/gridless scenes drop beside the caster; placement never blocks
+  the summon if the map can't take a token.
+
 ### Changed
 - **Player summoning now uses the "Create New Actors" permission, not a socket
   relay.** The GM-relay that let unpermitted players summon has been removed —

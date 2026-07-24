@@ -40,4 +40,25 @@ describe("nearestFreeCell", () => {
     for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) packed.add(`${c},${r}`);
     expect(nearestFreeCell({ col: 1, row: 1 }, packed, bounds)).toBeNull();
   });
+
+  it("a 2×2 token needs all four covered cells free (footprint-aware)", () => {
+    // Caster at 5,5. Block enough that no 2×2 block fits at ring 1, forcing it out.
+    const taken = occ("5,5", "6,5", "5,6", "6,6", "4,4", "4,5", "4,6");
+    const cell = nearestFreeCell({ col: 5, row: 5 }, taken, null, { footprint: { w: 2, h: 2 } });
+    // Every cell the 2×2 would cover must be free.
+    for (let dc = 0; dc < 2; dc++) for (let dr = 0; dr < 2; dr++) {
+      expect(taken.has(`${cell.col + dc},${cell.row + dr}`)).toBe(false);
+    }
+  });
+
+  it("honours scene bounds for a footprint (a 2×2 can't hang off the edge)", () => {
+    const cell = nearestFreeCell({ col: 8, row: 8 }, occ("8,8"), { cols: 10, rows: 10 },
+      { footprint: { w: 2, h: 2 } });
+    expect(cell.col).toBeLessThanOrEqual(8);   // top-left leaves room for w=2 within 10
+    expect(cell.row).toBeLessThanOrEqual(8);
+  });
+
+  it("still accepts the legacy maxRadius-as-4th-arg call", () => {
+    expect(nearestFreeCell({ col: 0, row: 0 }, occ("0,0"), null, 25)).toBeTruthy();
+  });
 });
