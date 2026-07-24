@@ -617,7 +617,7 @@ async function createActorViaGM(actorData) {
   const requestId = foundry.utils.randomID();
   // Diagnostic trail for the 2-client debug session (console → filter "relay").
   // console.debug is quiet unless the browser's Verbose level is on.
-  console.debug(`SR2E | relay: player emitting createActorRequest ${requestId} to activeGM ${game.users.activeGM?.name}`);
+  console.log(`SR2E | relay: player emitting createActorRequest ${requestId} to activeGM ${game.users.activeGM?.name}`);
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       _pendingActorCreates.delete(requestId);
@@ -631,7 +631,10 @@ async function createActorViaGM(actorData) {
 
 /** Active-GM side of the relay: create the actor, then grant the requester ownership. */
 async function _handleCreateActorRequest({ requestId, requesterId, actorData }) {
-  console.debug(`SR2E | relay: received createActorRequest ${requestId}; I am${game.user === game.users.activeGM ? "" : " NOT"} the activeGM`);
+  const amActive = game.user === game.users.activeGM;
+  console.log(`SR2E | relay: received createActorRequest ${requestId}; I am${amActive ? "" : " NOT"} the activeGM (activeGM=${game.users.activeGM?.name ?? "none"})`);
+  // TEMP DIAGNOSTIC: make the relay visible on the GM while we debug the player path.
+  if (game.user.isGM) ui.notifications.info(`SR2E relay: summon request received — ${amActive ? "I'm the active GM, creating the spirit" : "I am NOT the active GM, ignoring"}`);
   if (game.user !== game.users.activeGM) return;   // exactly one responder
   let uuid = null, error = null;
   try {
@@ -640,7 +643,7 @@ async function _handleCreateActorRequest({ requestId, requesterId, actorData }) 
     // user, and can't derail the create the way a partial ownership map can).
     if (doc) await doc.update({ [`ownership.${requesterId}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
     uuid = doc?.uuid ?? null;
-    console.debug(`SR2E | relay: GM created actor ${uuid} for request ${requestId}`);
+    console.log(`SR2E | relay: GM created actor ${uuid} for request ${requestId}`);
   } catch (err) {
     error = err.message;
     console.error("SR2E | GM-relayed actor creation failed:", err);
@@ -652,10 +655,10 @@ async function _handleCreateActorRequest({ requestId, requesterId, actorData }) 
 function _resolveCreateActorResponse({ requestId, uuid, error }) {
   const pending = _pendingActorCreates.get(requestId);
   if (!pending) {
-    console.debug(`SR2E | relay: response for ${requestId} ignored (not ours / already settled)`);
+    console.log(`SR2E | relay: response for ${requestId} ignored (not ours / already settled)`);
     return;                                        // not ours / already settled
   }
-  console.debug(`SR2E | relay: response for ${requestId} → ${error ? `error: ${error}` : `uuid ${uuid}`}`);
+  console.log(`SR2E | relay: response for ${requestId} → ${error ? `error: ${error}` : `uuid ${uuid}`}`);
   clearTimeout(pending.timer);
   _pendingActorCreates.delete(requestId);
   error ? pending.reject(new Error(error)) : pending.resolve(uuid);
