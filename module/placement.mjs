@@ -5,7 +5,7 @@
  *   - "prompt": click the map to choose the spot
  *   - "off": do nothing — the spirit actor is in the sidebar, drag it out
  *
- * Runs on the summoner's own client (they created the actor + own the scene-
+ * Runs on the summoner's own client (they created the actor and own the scene-
  * write). Best-effort: any failure is logged and swallowed, because the spirit
  * actor already exists and is bound — a placement hiccup must never break the
  * summon. Only the SQUARE grid gets the ring search; hex/gridless fall back to
@@ -20,13 +20,17 @@ import { nearestFreeCell } from "./rules/sr2e-rules.mjs";
  */
 export async function placeSummonedToken(spirit, caster) {
   try {
-    if (!spirit || !canvas?.ready) return;
+    if (!spirit || !canvas?.ready || !canvas.scene) return;
     let mode = "nearest";
     try { mode = game.settings.get("sr2e", "spiritPlacement"); } catch (e) { /* default */ }
     if (mode === "off") return;
 
+    // Creating a Token is a separate right from creating an Actor. A player with
+    // "Create New Actors" but not token-create can't place — skip cleanly rather
+    // than prompt-then-fail.
+    if (!game.user.isGM && !game.user.hasPermission?.("TOKEN_CREATE")) return;
+
     const scene = canvas.scene;
-    if (!scene) return;
 
     // Token payload from the spirit's prototype (carries the portrait/size).
     const proto = (await spirit.getTokenDocument()).toObject();
@@ -34,10 +38,13 @@ export async function placeSummonedToken(spirit, caster) {
     const fw = Math.max(1, Math.round(proto.width ?? 1));
     const fh = Math.max(1, Math.round(proto.height ?? 1));
 
-    let point = mode === "prompt"
+    const point = mode === "prompt"
       ? await _promptForPoint(spirit.name)
       : _nearestPoint(caster, fw, fh);
     if (!point) return;                    // cancelled / no anchor / no room
+
+    // Guard against a scene swap mid-prompt.
+    if (canvas.scene !== scene) return;
 
     proto.x = Math.round(point.x);
     proto.y = Math.round(point.y);
@@ -60,46 +67,66 @@ function _nearestPoint(caster, fw, fh) {
     return { x: c.x + grid.sizeX - (fw * grid.sizeX) / 2, y: c.y - (fh * grid.sizeY) / 2 };
   }
 
-  const anchor = grid.getOffset(casterToken.center);     // {i: row, j: col}
-  const origin = { col: anchor.j, row: anchor.i };
+  // getOffset's cell origin sits at the padded-canvas corner, so translate every
+  // offset relative to the inner SCENE rect's top-left cell before searching, and
+  // translate the result back. Otherwise padding throws the bounds off (cells at
+  // the right/bottom of the scene get wrongly rejected).
+  const dims = canvas.dimensions;
+  const base = grid.getOffset({ x: dims.sceneX, y: dims.sceneY });   // {i,j} of scene top-left
+  const rel = (o) => ({ col: o.j - base.j, row: o.i - base.i });
 
-  // Occupancy = every cell covered by every token already on the scene.
+  const origin = rel(grid.getOffset(casterToken.center));
+
   const occupied = new Set();
   for (const t of canvas.scene.tokens) {
-    const o = grid.getOffset({ x: t.x, y: t.y });
+    const o = rel(grid.getOffset({ x: t.x, y: t.y }));
     const w = Math.max(1, Math.round(t.width ?? 1));
     const h = Math.max(1, Math.round(t.height ?? 1));
-    for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < h; dr++) occupied.add(`${o.j + dc},${o.i + dr}`);
+    for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < h; dr++) occupied.add(`${o.col + dc},${o.row + dr}`);
   }
 
-  const dims = canvas.dimensions;
   const bounds = {
     cols: Math.floor(dims.sceneWidth / grid.sizeX),
     rows: Math.floor(dims.sceneHeight / grid.sizeY)
   };
   const cell = nearestFreeCell(origin, occupied, bounds, { footprint: { w: fw, h: fh } });
   if (!cell) return null;
-  return grid.getTopLeftPoint({ i: cell.row, j: cell.col });
+  return grid.getTopLeftPoint({ i: cell.row + base.i, j: cell.col + base.j });
 }
 
-/** Resolve to a world {x,y} when the user clicks the canvas, or null on Escape. */
+/**
+ * Resolve to the top-left pixel of the clicked cell, or null on cancel. Uses
+ * canvas.mousePosition (world coords) rather than raw event coords, and cancels
+ * on Escape OR a scene change so the summon promise never hangs.
+ */
 function _promptForPoint(name) {
   return new Promise((resolve) => {
-    ui.notifications.info(`Click the map to place ${name}. (Esc to cancel.)`);
     const stage = canvas.stage;
+    let settled = false;
+    const note = ui.notifications.info(`Click the map to place ${name}. (Esc to cancel.)`, { permanent: true });
     const done = (value) => {
+      if (settled) return;
+      settled = true;
       stage.off("pointerdown", onClick);
       window.removeEventListener("keydown", onKey, true);
+      Hooks.off("canvasTearDown", onTearDown);
+      try { ui.notifications.remove?.(note); } catch (e) { /* older API */ }
       resolve(value);
     };
     const onClick = (event) => {
-      const p = event.getLocalPosition(stage);
-      // Snap to the grid so the token lands on a cell.
-      const snapped = canvas.grid.getSnappedPoint(p, { mode: CONST.GRID_SNAPPING_MODES?.TOP_LEFT_VERTEX ?? 0 }) ?? p;
-      done(snapped);
+      event?.stopPropagation?.();
+      const grid = canvas.grid;
+      const m = canvas.mousePosition ?? event?.getLocalPosition?.(stage);
+      if (!m) return done(null);
+      const tl = grid.type === CONST.GRID_TYPES.GRIDLESS
+        ? { x: m.x - grid.sizeX / 2, y: m.y - grid.sizeY / 2 }
+        : grid.getTopLeftPoint(grid.getOffset(m));
+      done(tl);
     };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); done(null); } };
+    const onTearDown = () => done(null);
     stage.on("pointerdown", onClick);
     window.addEventListener("keydown", onKey, true);
+    Hooks.once("canvasTearDown", onTearDown);
   });
 }
