@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.60.0 — 2026-07-24
+
 ### Fixed
 - **The summon chat card no longer waits on click-to-place.** With *Summoned
   spirit placement* set to **Prompt**, the summon card was posted only *after*
