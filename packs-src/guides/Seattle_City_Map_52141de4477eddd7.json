@@ -1,0 +1,66 @@
+{
+  "_id": "52141de4477eddd7",
+  "name": "Seattle — City Map",
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "f8871f46b79fe98a",
+      "name": "About This Map",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>A reference map of the Seattle metroplex, 2050s. Districts, sprawl, and the arcology skyline — handy for orienting yourself between runs.</em></p><p>Open the <strong>Seattle Metroplex</strong> page for the full map. GM: drop it on a scene background if you want to run travel or legwork across the city.</p>"
+      }
+    },
+    {
+      "_id": "7954cf2e07bf06ac",
+      "name": "Seattle Metroplex",
+      "type": "image",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {
+        "caption": "Seattle metroplex — districts and sprawl."
+      },
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": "systems/sr2e/assets/seattle_map.webp",
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": ""
+      }
+    }
+  ],
+  "_stats": {},
+  "_key": "!journal!52141de4477eddd7"
+}
