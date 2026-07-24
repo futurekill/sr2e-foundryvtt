@@ -2,7 +2,7 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
+## 0.58.0 — 2026-07-24
 
 ### Added
 - **Every summonable spirit type now has portraits.** All four elementals (Fire,
@@ -10,6 +10,9 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   Hearth, Lake, Mountain, Prairie, River, Sea, Desert, Swamp, Wind) ship three
   painterly variations each — 48 in total. A summoned spirit picks one at random
   for its actor and token, so the same domain looks different each time.
+- **Seattle city map for players.** A new "Seattle — City Map" reference in the
+  guides compendium (visible to every player) with the metroplex map; the GM can
+  also drop it as a scene background for city legwork.
 
 ### Fixed
 - **Combat pool auto-refresh: two bugs found by a Codex audit of 0.57.0.**
@@ -18,6 +21,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   Resist Spell. (2) Round/start/combat-end refresh now keys combatants by uuid,
   so multiple **unlinked tokens sharing one base actor** each refresh (id-dedup
   had refreshed only one of them).
+- **Bow purchases (Codex audit of 0.53.0).** Changing a bow's Strength Minimum
+  after purchase now charges/refunds the 100¥-per-point price difference (it was
+  free before). The 0.53.0 bow migration is also tightened so it only converts
+  the mis-imported stock bow, never a GM's homebrew bow.
 
 ## 0.57.0 — 2026-07-22
 
