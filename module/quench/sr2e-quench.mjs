@@ -944,6 +944,123 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Dice-pool refresh" });
 
+    // ── In-combat movement limiter (module/movement.mjs) ────────────────────────
+    // Drives the REAL preMoveToken / preUpdateToken hooks with a synthetic V13
+    // movement operation, so the enforcement, cumulative per-phase ledger, active-
+    // combatant scope, and method exemption are all exercised end-to-end without
+    // faking a canvas drag. The pure walk/run math lives in test/movement.test.mjs.
+    quench.registerBatch("sr2e.movement", (context) => {
+      const { describe, it, assert, before, after, beforeEach } = context;
+      const SQUARE = CONST.GRID_TYPES.SQUARE;
+      let env, prevSetting, prevScene;
+
+      // A Q5 human = walk 5 / run 15 (m per Combat Phase). Scene is 100px/1m.
+      before(async () => {
+        prevScene = canvas.scene;
+        prevSetting = game.settings.get("sr2e", "movementLimit");
+        await game.settings.set("sr2e", "movementLimit", true);
+
+        const runner = await Actor.create({ name: "Quench Runner", type: "character", system: { quickness: { base: 5 } } });
+        const bystander = await Actor.create({ name: "Quench Bystander", type: "character", system: { quickness: { base: 5 } } });
+        const scene = await Scene.create({
+          name: "Quench Movement", width: 2000, height: 2000,
+          grid: { type: SQUARE, size: 100, distance: 1, units: "m" }
+        });
+        const [tok, byTok] = await scene.createEmbeddedDocuments("Token", [
+          { name: runner.name, actorId: runner.id, x: 500, y: 500, width: 1, height: 1 },
+          { name: bystander.name, actorId: bystander.id, x: 1200, y: 1200, width: 1, height: 1 }
+        ]);
+        await scene.view();
+        const combat = await Combat.create({ scene: scene.id });
+        await combat.createEmbeddedDocuments("Combatant", [
+          { tokenId: tok.id, sceneId: scene.id, actorId: runner.id, initiative: 20 },
+          { tokenId: byTok.id, sceneId: scene.id, actorId: bystander.id, initiative: 10 }
+        ]);
+        await combat.activate();
+        await combat.startCombat();
+        // Make the runner the active combatant regardless of any init re-roll.
+        const idx = combat.turns.findIndex(c => c.tokenId === tok.id);
+        await combat.update({ turn: idx });
+        env = { runner, bystander, scene, tok, byTok, combat };
+      });
+
+      after(async () => {
+        try { await env?.combat?.delete(); } catch (e) {}
+        try { await env?.scene?.delete(); } catch (e) {}       // deletes its tokens
+        try { await env?.runner?.delete(); } catch (e) {}
+        try { await env?.bystander?.delete(); } catch (e) {}
+        try { await game.settings.set("sr2e", "movementLimit", prevSetting); } catch (e) {}
+        try { await prevScene?.view(); } catch (e) {}
+      });
+
+      // Reset the per-phase ledger before each test so they're independent.
+      beforeEach(async () => { try { await env.tok.unsetFlag("sr2e", "moveLedger"); } catch (e) {} });
+
+      /** Fire the hooks for a move of `metres`. Returns whether it was allowed;
+       *  persists the ledger flag on accept so the next call sees it (cumulative). */
+      async function move(token, metres, { method = "dragging", persist = true } = {}) {
+        const dest = { x: token.x + metres * 100, y: token.y };
+        const movement = {
+          id: foundry.utils.randomID(), method,
+          passed: { distance: 0 }, pending: { distance: metres },
+          origin: { x: token.x, y: token.y }, destination: dest
+        };
+        const allowed = Hooks.call("preMoveToken", token, movement, { user: game.user.id }) !== false;
+        if (allowed && persist) {
+          const changes = { x: dest.x, y: dest.y };
+          Hooks.call("preUpdateToken", token, changes, {}, game.user.id);
+          if (changes.flags) await token.update({ flags: changes.flags });
+        }
+        return allowed;
+      }
+      const spent = () => env.tok.getFlag("sr2e", "moveLedger")?.spent ?? 0;
+      const ran = () => !!env.tok.getFlag("sr2e", "moveLedger")?.ranThisRound;
+
+      describe("preMoveToken enforcement (SR2 p.84)", () => {
+        it("the active combatant is set up as expected", () => {
+          assert.ok(env.combat.started, "combat should be started");
+          assert.equal(env.combat.combatant?.tokenId, env.tok.id, "runner should be the active combatant");
+        });
+
+        it("walking distance (5 m) is allowed and not flagged as running", async () => {
+          assert.ok(await move(env.tok, 5), "5 m should be allowed");
+          assert.equal(spent(), 5, "ledger should record 5 m spent");
+          assert.notOk(ran(), "5 m is a walk, not a run");
+        });
+
+        it("running distance (12 m) is allowed and flags the run", async () => {
+          assert.ok(await move(env.tok, 12), "12 m should be allowed");
+          assert.ok(ran(), "12 m should flag ranThisRound");
+        });
+
+        it("beyond the running maximum (20 m) is blocked", async () => {
+          assert.notOk(await move(env.tok, 20), "20 m exceeds run 15 → blocked");
+        });
+
+        it("cumulative: an out-and-back (10 m + 10 m) is blocked on the second leg", async () => {
+          assert.ok(await move(env.tok, 10), "first 10 m allowed");
+          assert.equal(spent(), 10, "10 m recorded");
+          assert.notOk(await move(env.tok, 10), "cumulative 20 m > 15 → blocked");
+        });
+
+        it("a bystander (not the active combatant) is never capped", async () => {
+          assert.ok(await move(env.byTok, 20, { persist: false }), "bystander moves freely, even 20 m");
+        });
+
+        it("non-tactical movement (undo) is not capped", async () => {
+          assert.ok(await move(env.tok, 20, { method: "undo", persist: false }), "undo is not a Combat-Phase move");
+        });
+
+        it("the ledger persists through preUpdateToken", async () => {
+          await move(env.tok, 12);
+          const led = env.tok.getFlag("sr2e", "moveLedger");
+          assert.ok(led, "moveLedger flag should be written");
+          assert.equal(led.spent, 12, "spent should persist as 12");
+          assert.equal(led.combatId, env.combat.id, "ledger should be tagged to this combat");
+        });
+      });
+    }, { displayName: "SR2E: Movement limiter" });
+
     quench.registerBatch("sr2e.actor-relay", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

@@ -29,6 +29,7 @@ so they don't pollute the world.
 | **Persistence** | A `karma.current` update sticks on the directory document (the Good-Karma-not-saving bug). |
 | **Metamagic** | Quickening a sustained spell drops it from the sustain penalty (Grimoire p.44). |
 | **Compendium** | Sample runners are linked tokens (karma-desync cause); the Offensive Grenade has no ammo block (consumable); every roll table has result rows (lost-content bug). |
+| **Movement limiter** | The in-combat cap fires via `preMoveToken`/`preUpdateToken`: walk allowed, run flagged, over-max blocked, out-and-back counts cumulatively, a bystander is uncapped, and undo isn't counted as movement (SR2 p.84). |
 
 ## Adding a batch
 Add a `quench.registerBatch("sr2e.<name>", (ctx) => { … }, { displayName })` inside

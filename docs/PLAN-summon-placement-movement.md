@@ -148,9 +148,13 @@ summon (after §1) drops beside the *player's* token owned by them.
 > are capped — `undo`/`api`/`hud`/`paste` pass free (fixes the undo-as-movement
 > case). Codex-reviewed: stashes a `skip` marker so uncapped moves don't hit the
 > fallback, and a freshness TTL so an orphaned stash can't apply to a later move.
-> **Still ⏳ live-verify** (needs a running Foundry): confirm `preMoveToken` fires
-> + `return false` snaps back; bent single drag counts full path; undo/HUD nudge
-> uncapped; region-interrupted (chained) movement doesn't double-count.
+> **Quench batch `sr2e.movement`** now drives the real hooks with a synthetic
+> movement op — covers enforcement, cumulative out-and-back, active-combatant
+> scope, undo exemption, ledger persistence. **Still ⏳ true-drag verify** (Quench
+> can't originate a canvas drag): that a real drag actually routes through
+> `preMoveToken` and `return false` snaps the token back; that a bent single drag
+> reports its full path in `passed+pending`; region-interrupted (chained) movement
+> doesn't double-count.
 > **Accepted as-is** (off-by-default home-table limiter, not a security boundary):
 > client-side enforcement can in theory lose an update under truly concurrent
 > writes to one token; `sr2eBypassMovement` is an intentional escape hatch, not
