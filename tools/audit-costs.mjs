@@ -60,8 +60,16 @@ for (const r of rows) {
   const checks = [];
 
   if (isFormula(r.cost)) {
-    const [per] = r.cost.split("*");
-    checks.push(["costPerStrengthMin", Number(per), sys.costPerStrengthMin]);
+    // Formula prices are carried by the field that drives them, not by `cost`
+    // (which holds the DERIVED value). Which field depends on the multiplicand:
+    //   "150000*rating" → costPerRating        (cyberlimb Increased Strength)
+    //   "4*base"        → costMultiplierOfBase (cyberlimb Built-In Device)
+    //   "100*strMin"    → costPerStrengthMin   (Str-Min bows)
+    const [lhs, rhs] = r.cost.split("*");
+    const field = rhs === "rating" ? "costPerRating"
+                : lhs === "4" && rhs === "base" ? "costMultiplierOfBase"
+                : "costPerStrengthMin";
+    checks.push([field, Number(field === "costMultiplierOfBase" ? lhs : lhs), sys[field]]);
   } else if (num(r.cost) !== null) {
     checks.push(["cost", num(r.cost), sys.cost]);
   }

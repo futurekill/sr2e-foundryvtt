@@ -4,6 +4,19 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Added
+- **Cyberlimb options (SR2 p.261).** The three sub-options the Cybertech table
+  prints under Limbs are now in the compendium — **Increased Strength**
+  (150,000¥ × Rating), **Built-In Smartlink** (.25 Essence, +2,500¥, acts as your
+  smartlink receptor) and **Built-In Device** (4 × the device's normal price) —
+  plus the missing **Simple Replacement** limb (1 Essence, 50,000¥). Attach an
+  option to a limb from the cyberware list, the way weapon accessories attach to
+  a weapon; the formula prices derive from the Rating (or the device's cost) so
+  they stay formulas rather than one frozen number.
+  *The Increased Strength bonus is reported on the limb, not added to your
+  Strength — a cyberlimb's Strength is the limb's, and the book gives no
+  general rule for converting it.*
+
 ### Fixed
 - **Cyberware now prices at street value, not list.** Every cybertech item was
   shipping without a Street Index, so the shop charged the printed list price for

@@ -19,6 +19,17 @@
           </span>
           <span class="cyber-location">{{cyber.system.location}}</span>
           <span class="cyber-grade">{{cyber.system.grade}}</span>
+          {{#if cyber.system.limbOption}}
+          <span class="weapon-mount" title="Attach this option to one cyberlimb (SR2E p.261). Its cost and Essence belong to that limb.">
+            <i class="fas fa-link"></i>
+            <select data-field="system.linkedLimbId">
+              <option value="" {{#unless cyber.system.linkedLimbId}}selected{{/unless}}>— unattached —</option>
+              {{#each @root.cyberlimbs as |limb|}}
+              <option value="{{limb.id}}" {{selected cyber.system.linkedLimbId limb.id}}>{{limb.name}}</option>
+              {{/each}}
+            </select>
+          </span>
+          {{/if}}
           {{#if cyber.system.cranialDeck}}<span class="cyber-mods {{#if cyber.system.deck.active}}bio-active{{/if}}" title="Cranial cyberdeck — MPCP {{cyber.system.deck.mpcp}}. Activate (⚡) to drive the Matrix tab."><i class="fas fa-bolt"></i> C2 MPCP {{cyber.system.deck.mpcp}}{{#if cyber.system.deck.active}} · active{{/if}}</span>{{/if}}
           <span class="cyber-essence">Ess: {{cyber.system.actualEssenceCost}}</span>
           <span class="cyber-installed">

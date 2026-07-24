@@ -427,6 +427,25 @@
     </select>
   </div>
 
+  {{!-- Cyberlimb option (SR2E p.261): priced as an addition to a parent limb --}}
+  <div class="form-group">
+    <label title="A sub-option installed into a cyberlimb (SR2E p.261) rather than a standalone implant. Attach it to a limb on the character sheet.">Cyberlimb option:</label>
+    <input type="checkbox" name="system.limbOption" {{checked system.limbOption}} />
+    <span class="hint">priced as an addition to a limb</span>
+  </div>
+  {{#if system.limbOption}}
+  <div class="form-group">
+    <label title="Increased Strength is Rating × 150,000¥ (SR2E p.261). Set this to price per point of Rating; leave 0 for a flat price.">Cost per Rating:</label>
+    <input type="number" name="system.costPerRating" value="{{system.costPerRating}}" min="0" step="1" />
+    <span class="hint">¥ × Rating (Increased Strength: 150000)</span>
+  </div>
+  <div class="form-group">
+    <label title="Built-In Device costs 4 × the device's normal price (SR2E p.261). Put the device's NORMAL cost in the Cost field; this multiplies it.">Cost multiplier:</label>
+    <input type="number" name="system.costMultiplierOfBase" value="{{system.costMultiplierOfBase}}" min="0" step="1" />
+    <span class="hint">× the Cost field (Built-In Device: 4)</span>
+  </div>
+  {{/if}}
+
   {{#if isSkillwire}}
   <div class="form-group">
     <label title="Skillwire Plus (Shadowtech p.47) doubles the ActiveSoft rating budget to Rating × 2.">Skillwire Plus:</label>

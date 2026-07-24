@@ -770,6 +770,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
+    // Candidate parents for a cyberlimb option's attach dropdown (SR2E p.261) —
+    // only actual limbs, and never an option itself.
+    context.cyberlimbs = context.cyberware.filter(i =>
+      i.system.location === "cyberlimb" && !i.system.limbOption);
     // Bioware, sorted by body system so same-system implants group together
     // (Shadowtech). config.bodySystems gives the template localized labels.
     context.bioware = actor.items.filter(i => i.type === "bioware")

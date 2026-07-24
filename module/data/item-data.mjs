@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level }.
@@ -356,6 +356,19 @@ export class CyberwareData extends SR2EDataModel {
       streetIndex: new fields.StringField({ initial: "" }),
       legality: new fields.StringField({ initial: "Legal" }),
       installed: new fields.BooleanField({ initial: true }),
+      // Cyberlimb sub-option (SR2 p.261): Increased Strength, Built-In Smartlink,
+      // Built-In Device. The book prices these as ADDITIONS to a parent limb
+      // ("+ (Rating x 150,000¥)"), so they are modelled the same way weapon
+      // accessories are — their own item, linked to the parent's id — rather than
+      // as embedded `modules` entries, because unlike an absorbed cybereye module
+      // each is a catalogue entry with its own price, Street Index and icon.
+      limbOption: new fields.BooleanField({ initial: false }),
+      linkedLimbId: new fields.StringField({ initial: "" }),
+      // Formula prices that must stay formulas (CLAUDE.md): Increased Strength is
+      // Rating x 150,000¥, Built-In Device is 4 x the device's normal cost. Set
+      // ONE of these; `cost` then carries the base the multiplier applies to.
+      costPerRating: new fields.NumberField({ initial: 0, min: 0 }),
+      costMultiplierOfBase: new fields.NumberField({ initial: 0, min: 0 }),
       // Cyber-implant melee weapon (spurs, hand razors, hand blades — SR2 p.256).
       // When isWeapon, this cyberware also appears in the combat tab and rolls
       // through the shared melee attack path (item.isWeaponLike). Only these
@@ -472,6 +485,18 @@ export class CyberwareData extends SR2EDataModel {
         this.availability = row.availability;
         this.streetIndex  = row.streetIndex;
       }
+    }
+
+    // Cyberlimb option formula pricing (SR2 p.261). Derive from `_source` so the
+    // result never re-multiplies a previously prepared value that got saved back
+    // — the same idempotence trap as combatTnMod below.
+    if (this.limbOption) {
+      this.cost = limbOptionCost({
+        rating: this.rating,
+        cost: this._source.cost ?? 0,
+        costPerRating: this.costPerRating,
+        costMultiplierOfBase: this.costMultiplierOfBase
+      });
     }
 
     // Container cyberware: total the ACTIVE modules and surface derived readouts.

@@ -112,3 +112,10 @@ Dermal Plating (Level 3)	cyberware						4/12 days	45000	1	261	essenceCost=1.5
 Wired Reflexes (Level 1)	cyberware						4/8 days	55000	1	261	essenceCost=2
 Wired Reflexes (Level 2)	cyberware						4/8 days	165000	1	261	essenceCost=3
 Wired Reflexes (Level 3)	cyberware						8/14 days	500000	1	261	essenceCost=5
+# Cyberlimb options (p.261) price as ADDITIONS to the parent limb. Two are
+# formulas and stay formulas: 150000*rating (Increased Strength) and 4*base
+# (Built-In Device = 4 x the device's normal cost).
+Increased Strength (Cyberlimb)	cyberware						6/4 days	150000*rating	1.5	261	essenceCost=0
+Built-In Smartlink (Cyberlimb)	cyberware						6/4 days	2500	1.5	261	essenceCost=.25
+Built-In Device (Cyberlimb)	cyberware						Varies	4*base		261	essenceCost=0
+Simple Replacement (Limb)	cyberware						4/48 hrs	50000	1	261	essenceCost=1
