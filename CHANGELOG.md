@@ -2,6 +2,19 @@
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
+## Unreleased
+
+### Changed
+- **Player summoning now uses the "Create New Actors" permission, not a socket
+  relay.** The GM-relay that let unpermitted players summon has been removed —
+  Foundry's cross-client `system.*` socket relay silently drops messages behind
+  some hosts, so a player's summon would spend drain and then time out with a
+  misleading "incomplete" card. Now: grant players **Create New Actors**
+  (Settings → Configure Permissions) and they summon directly (Foundry makes them
+  the owner). A player without that permission is stopped **before** rolling, so
+  no drain is wasted and no false "summoned" card appears. Same for dragging a
+  compendium vehicle onto a sheet.
+
 ## 0.58.0 — 2026-07-24
 
 ### Added

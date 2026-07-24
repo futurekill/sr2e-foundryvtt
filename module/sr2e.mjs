@@ -553,12 +553,6 @@ function _onSocketMessage(data) {
       // Exactly one client (the designated active GM) performs the write.
       if (game.user === game.users.activeGM) _applyTeamKarmaDelta(data.delta);
       break;
-    case "createActorRequest":
-      _handleCreateActorRequest(data);
-      break;
-    case "createActorResponse":
-      _resolveCreateActorResponse(data);
-      break;
   }
 }
 
@@ -573,19 +567,21 @@ function _onSocketMessage(data) {
  * creation to the active GM's client, which creates the Actor and grants the
  * requester ownership, then returns its uuid.
  */
-const _pendingActorCreates = new Map();
-
 /**
- * Can the current user get an Actor created — either directly (they hold the
- * permission / are a GM) or by relaying to a connected GM? Call this BEFORE
- * doing irreversible work (rolling, spending drain) so a doomed action aborts
- * cleanly instead of failing partway.
+ * Can the current user create an Actor directly? Gate any Actor-creating action
+ * (summoning a spirit, linking a compendium vehicle) with this BEFORE any
+ * irreversible step (rolling, spending drain) so a doomed action aborts cleanly.
+ *
+ * NOTE: a player→GM socket RELAY once backed this so permission-less players
+ * could summon, but Foundry's `system.*` socket relay proved unreliable behind
+ * some hosts (messages are silently dropped), so it was shelved. The supported
+ * way to let players summon / link vehicles is the **"Create New Actors"**
+ * world permission (Settings → Configure Permissions). Foundry makes the
+ * creating player the OWNER automatically, so they command what they create.
  * @returns {boolean}
  */
 function canCreateActor() {
-  // isGM is the definitive test — never route a GM through the relay (a socket
-  // emit does not loop back to the sender, so a solo GM would just time out).
-  return game.user.isGM || game.user.hasPermission?.("ACTOR_CREATE") || !!game.users.activeGM;
+  return game.user.isGM || game.user.hasPermission?.("ACTOR_CREATE");
 }
 
 /** Actor creation data, cleaned of ids that don't belong in a fresh world doc. */
@@ -597,71 +593,18 @@ function _cleanActorData(actorData) {
 }
 
 /**
- * Create an Actor, relaying to the active GM when the user lacks permission.
+ * Create an Actor directly. Callers gate with canCreateActor() first, so this
+ * only runs for a GM or a permitted player; otherwise it throws (the caller
+ * turns that into a clean message) rather than silently doing nothing.
  * @param {object} actorData - Actor creation data (no _id needed).
- * @returns {Promise<string|null>} the new Actor's uuid, or null on failure.
- * @throws if no GM is connected and the user cannot create actors themselves.
+ * @returns {Promise<string|null>} the new Actor's uuid.
  */
 async function createActorViaGM(actorData) {
-  // Direct path — GMs (who own everything implicitly) or players the world
-  // granted the permission. Create with the data AS-IS: forcing an ownership
-  // map here previously broke creation, and it buys nothing (a GM already owns
-  // the result). Ownership only matters on the relay path below, where a GM
-  // creates the actor on behalf of an absent player.
-  if (game.user.isGM || game.user.hasPermission?.("ACTOR_CREATE")) {
-    const [doc] = await Actor.createDocuments([_cleanActorData(actorData)]);
-    return doc?.uuid ?? null;
+  if (!(game.user.isGM || game.user.hasPermission?.("ACTOR_CREATE"))) {
+    throw new Error("You don't have permission to create actors — ask your GM to enable “Create New Actors”.");
   }
-  // Relay path: hand it to the one active GM.
-  if (!game.users.activeGM) throw new Error("No GM is connected to create the actor.");
-  const requestId = foundry.utils.randomID();
-  // Diagnostic trail for the 2-client debug session (console → filter "relay").
-  // console.debug is quiet unless the browser's Verbose level is on.
-  console.log(`SR2E | relay: player emitting createActorRequest ${requestId} to activeGM ${game.users.activeGM?.name}`);
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      _pendingActorCreates.delete(requestId);
-      console.warn(`SR2E | relay: request ${requestId} TIMED OUT — no response from the GM in 15s`);
-      reject(new Error("Timed out waiting for the GM to create the actor."));
-    }, 15000);
-    _pendingActorCreates.set(requestId, { resolve, reject, timer });
-    game.socket.emit("system.sr2e", { type: "createActorRequest", requestId, requesterId: game.user.id, actorData });
-  });
-}
-
-/** Active-GM side of the relay: create the actor, then grant the requester ownership. */
-async function _handleCreateActorRequest({ requestId, requesterId, actorData }) {
-  const amActive = game.user === game.users.activeGM;
-  console.log(`SR2E | relay: received createActorRequest ${requestId}; I am${amActive ? "" : " NOT"} the activeGM (activeGM=${game.users.activeGM?.name ?? "none"})`);
-  // TEMP DIAGNOSTIC: make the relay visible on the GM while we debug the player path.
-  if (game.user.isGM) ui.notifications.info(`SR2E relay: summon request received — ${amActive ? "I'm the active GM, creating the spirit" : "I am NOT the active GM, ignoring"}`);
-  if (game.user !== game.users.activeGM) return;   // exactly one responder
-  let uuid = null, error = null;
-  try {
-    const [doc] = await Actor.createDocuments([_cleanActorData(actorData)]);
-    // Grant ownership via a follow-up update (a flat key touches just this one
-    // user, and can't derail the create the way a partial ownership map can).
-    if (doc) await doc.update({ [`ownership.${requesterId}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
-    uuid = doc?.uuid ?? null;
-    console.log(`SR2E | relay: GM created actor ${uuid} for request ${requestId}`);
-  } catch (err) {
-    error = err.message;
-    console.error("SR2E | GM-relayed actor creation failed:", err);
-  }
-  game.socket.emit("system.sr2e", { type: "createActorResponse", requestId, uuid, error });
-}
-
-/** Requester side: settle the pending promise for a returned creation. */
-function _resolveCreateActorResponse({ requestId, uuid, error }) {
-  const pending = _pendingActorCreates.get(requestId);
-  if (!pending) {
-    console.log(`SR2E | relay: response for ${requestId} ignored (not ours / already settled)`);
-    return;                                        // not ours / already settled
-  }
-  console.log(`SR2E | relay: response for ${requestId} → ${error ? `error: ${error}` : `uuid ${uuid}`}`);
-  clearTimeout(pending.timer);
-  _pendingActorCreates.delete(requestId);
-  error ? pending.reject(new Error(error)) : pending.resolve(uuid);
+  const [doc] = await Actor.createDocuments([_cleanActorData(actorData)]);
+  return doc?.uuid ?? null;
 }
 
 /**

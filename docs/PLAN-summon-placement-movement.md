@@ -39,6 +39,14 @@ correctness bug.
 
 ## 1. Summoning must work for players AND GMs
 
+> **SHELVED 2026-07-24.** The player→GM socket relay was REMOVED: a raw
+> `game.socket.emit`/`on` ping did not arrive GM-side at the live table, i.e.
+> Foundry's `system.*` relay does not deliver in that deployment (Team Karma's
+> cross-client sync fails there too). Current solution: grant players the
+> **"Create New Actors"** permission so they use the direct path. Re-open only
+> after confirming `system.*` messages actually deliver in the target host.
+
+
 **State.** GM summon works. Player summon broken, undiagnosed — lives in the
 player→GM socket round-trip, not reproducible single-client.
 
