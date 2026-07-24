@@ -140,15 +140,21 @@ summon (after §1) drops beside the *player's* token owned by them.
 > once. **Still ⏳ live-verify** the diagnostic matrix below.
 >
 > **Codex-reviewed 2026-07-24.** Fixed from the review: scene/UUID scope (token
-> ids are scene-local), null turn identity. **Deferred to the live session:** a
-> single drag with a *bent/looping* path is charged only its straight-line chord
-> — the correct fix enforces in `preMoveToken` (V13) using the finalized movement
-> path cost, wired + verified live (the reported bug *class* — out-and-back and
-> repeated short drags across separate drops — is already handled by the
-> cumulative ledger). **Accepted as-is** (off-by-default home-table limiter, not
-> a security boundary): client-side enforcement can in theory lose an update
-> under truly concurrent writes to one token; `options.sr2eBypassMovement` is an
-> intentional escape hatch, not authenticated; running is inferred from distance.
+> ids are scene-local), null turn identity. **Bent-path fix landed 2026-07-24:**
+> enforcement now runs primarily in `preMoveToken` (V13), charging the operation's
+> measured `passed.distance + pending.distance` (whole travelled route, so a bent/
+> looping single drag counts), with `preUpdateToken` persisting the ledger and a
+> chord fallback if `preMoveToken` never fires. Only `dragging`/`keyboard` methods
+> are capped — `undo`/`api`/`hud`/`paste` pass free (fixes the undo-as-movement
+> case). Codex-reviewed: stashes a `skip` marker so uncapped moves don't hit the
+> fallback, and a freshness TTL so an orphaned stash can't apply to a later move.
+> **Still ⏳ live-verify** (needs a running Foundry): confirm `preMoveToken` fires
+> + `return false` snaps back; bent single drag counts full path; undo/HUD nudge
+> uncapped; region-interrupted (chained) movement doesn't double-count.
+> **Accepted as-is** (off-by-default home-table limiter, not a security boundary):
+> client-side enforcement can in theory lose an update under truly concurrent
+> writes to one token; `sr2eBypassMovement` is an intentional escape hatch, not
+> authenticated; running is inferred from distance.
 
 Book re-checked (SR2 p.83). **Rates are correct** (per Combat Phase; walk =
 Quickness, run = Quickness × Running-Table mod — human/elf/ork ×3, dwarf/troll

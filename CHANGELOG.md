@@ -13,7 +13,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   repositioning move freely). Running is enforced as **once per Combat Turn**: a
   character who runs in one phase is walk-capped in their later phases that round.
   The +4 running notice is explicitly advisory (apply it on the attack; it isn't
-  auto-applied) and posts once, when the token first crosses into running.
+  auto-applied) and posts once, when the token first crosses into running. It now
+  charges the token's real drag *path* (a bent or looping single drag counts its
+  whole route, via Foundry's movement measurement), and a token HUD nudge, paste,
+  or undo/revert no longer counts as movement.
   *(Off by default — Settings → "Limit movement in combat".)*
 
 ## 0.59.0 — 2026-07-24

@@ -157,38 +157,122 @@ export function registerMovementLimit() {
   CONFIG.Token.rulerClass = SR2ETokenRuler;
 }
 
-// Enforce the cap on the moving user's client. Only the active combatant's token
-// is capped; each accepted move accumulates into a round-qualified ledger that
-// is written back into THIS SAME update (no separate write, no stamp race).
-Hooks.on("preUpdateToken", (tokenDoc, changes, options, userId) => {
-  if (game.user.id !== userId) return;                       // the mover evaluates
-  if (changes.x === undefined && changes.y === undefined) return;
-  if (options?.sr2eBypassMovement) return;                   // programmatic/forced move
-  if (!isCapped(tokenDoc)) return;
+// Movement methods that count as tactical movement (subject to the cap). Every
+// other method — a token HUD nudge, a paste, an undo/revert, a programmatic
+// `token.update({x,y})` — is repositioning, not a Combat-Phase move, so it isn't
+// charged. (SR2 p.84 governs a character choosing to walk/run on their turn.)
+const TACTICAL_METHODS = new Set(["dragging", "keyboard"]);
 
+// preMoveToken (V13) hands us the FINALIZED movement path, so a single bent /
+// looping drag is charged its real travelled distance — not just the straight
+// line to the drop. The decision (block, or the ledger to persist on accept, or a
+// `skip` marker for a handled-but-uncapped move) is stashed by token UUID for the
+// following preUpdateToken to consume. Invariant: a stash present ⟺ preMoveToken
+// ran for this move, so the chord fallback fires ONLY when preMoveToken didn't.
+// Each stash is timestamped; a stash older than STASH_TTL (an orphan left by an
+// update aborted after preMoveToken) is ignored, so it can never be mis-applied
+// to a later, unrelated move.
+const _pendingLedger = new Map();
+const STASH_TTL = 2000;   // ms; the real gap between the two hooks is sub-ms
+const _now = () => globalThis.performance?.now?.() ?? Date.now();
+
+/** Metres travelled by a movement operation: sum the measured passed + pending
+ *  path sections (Foundry has already measured them in scene units = metres);
+ *  fall back to the straight origin→destination line. */
+function operationDistance(movement) {
+  const passed = movement?.passed?.distance;
+  const pending = movement?.pending?.distance;
+  if (Number.isFinite(passed) || Number.isFinite(pending)) {
+    return (Number.isFinite(passed) ? passed : 0) + (Number.isFinite(pending) ? pending : 0);
+  }
+  const o = movement?.origin, d = movement?.destination;
+  return (o && d) ? gridDistance(o, d) : 0;
+}
+
+/**
+ * Decide a move against the cap. Returns the ledger flag to persist on accept,
+ * or throws no state — pure aside from reading the token's current ledger.
+ * @returns {{blocked:boolean, cap:number, newSpent:number, ledger:object, crossedIntoRun:boolean}}
+ */
+function decideMove(tokenDoc, moveMetres) {
   const rates = tokenRates(tokenDoc);
   const phase = currentPhase();
   const led   = readLedger(tokenDoc, phase);
-  const dest  = { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y };
-  const move  = gridDistance({ x: tokenDoc.x, y: tokenDoc.y }, dest);
-
-  const result = movementPhase(led.spent, move, rates, led.capIsWalk);
-  if (!result.allowed) {
-    ui.notifications.warn(
-      `${tokenDoc.name}: ${Math.round(result.newSpent)} m exceeds the ${result.cap === rates.walk ? "walking" : "running"} maximum of ${result.cap} m this phase — blocked (SR2 p.84).`);
-    return false;
-  }
-
+  const result = movementPhase(led.spent, moveMetres, rates, led.capIsWalk);
   const ranThisRound = led.ranThisRound || result.ran;
-  foundry.utils.setProperty(changes, "flags.sr2e.moveLedger", {
-    combatId: phase.combatId, round: phase.round, turn: phase.turn,
-    spent: result.newSpent, capIsWalk: led.capIsWalk, ranThisRound
-  });
+  return {
+    blocked: !result.allowed,
+    cap: result.cap,
+    walkCap: result.cap === rates.walk,
+    newSpent: result.newSpent,
+    crossedIntoRun: !led.ranThisRound && result.ran,
+    ledger: {
+      combatId: phase.combatId, round: phase.round, turn: phase.turn,
+      spent: result.newSpent, capIsWalk: led.capIsWalk, ranThisRound
+    }
+  };
+}
 
-  // Advisory only (this does NOT auto-apply the modifier); post once, when the
-  // token first crosses into running this phase.
-  if (!led.ranThisRound && result.ran) {
+/** Post the block warning / the once-per-phase running advisory. */
+function announce(tokenDoc, d) {
+  if (d.blocked) {
+    ui.notifications.warn(
+      `${tokenDoc.name}: ${Math.round(d.newSpent)} m exceeds the ${d.walkCap ? "walking" : "running"} maximum of ${d.cap} m this phase — blocked (SR2 p.84).`);
+  } else if (d.crossedIntoRun) {
     ui.notifications.info(
       `${tokenDoc.name} is running: +4 target modifier to tests this phase (SR2 p.84) — apply it on the attack.`);
   }
+}
+
+// Primary enforcement: measure the true travelled path and block past the max.
+// Stashes on EVERY move it handles on the mover's client — `{skip:true}` when the
+// move is uncapped (non-tactical method, bypass, or not the active combatant),
+// `{ledger}` when an accepted tactical move must persist — so the fallback below
+// never re-touches a move preMoveToken already cleared. A blocked move returns
+// false (cancels the update) and needs no stash.
+Hooks.on("preMoveToken", (document, movement, operation) => {
+  const uid = operation?.user?.id ?? operation?.user;
+  if (uid && uid !== game.user.id) return;                   // only the mover evaluates
+  const stash = (v) => { if (document.uuid) _pendingLedger.set(document.uuid, { ...v, t: _now() }); };
+
+  if (operation?.sr2eBypassMovement) return stash({ skip: true });
+  if (movement?.method && !TACTICAL_METHODS.has(movement.method)) return stash({ skip: true });  // undo/api/hud/paste
+  if (!isCapped(document)) return stash({ skip: true });
+
+  const d = decideMove(document, operationDistance(movement));
+  announce(document, d);
+  if (d.blocked) return false;                               // cancels the movement
+  stash({ ledger: d.ledger });
 });
+
+// Persist the accepted move's ledger into the same document update. A fresh stash
+// means preMoveToken handled the move: write its ledger (or nothing, for a skip).
+// With no fresh stash, fall back to the straight-line chord measure — so on any
+// build where preMoveToken doesn't fire, behaviour degrades to exactly the
+// previous shipped limiter, never worse.
+Hooks.on("preUpdateToken", (tokenDoc, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+  if (changes.x === undefined && changes.y === undefined) return;
+
+  const stashed = tokenDoc.uuid ? _pendingLedger.get(tokenDoc.uuid) : null;
+  if (stashed) {
+    _pendingLedger.delete(tokenDoc.uuid);
+    if (_now() - stashed.t < STASH_TTL) {                    // fresh: preMoveToken owns this move
+      if (stashed.ledger) foundry.utils.setProperty(changes, "flags.sr2e.moveLedger", stashed.ledger);
+      return;
+    }
+    // stale orphan (aborted update): drop it and enforce via the fallback below
+  }
+
+  if (options?.sr2eBypassMovement) return;
+  if (!isCapped(tokenDoc)) return;
+  const dest = { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y };
+  const d = decideMove(tokenDoc, gridDistance({ x: tokenDoc.x, y: tokenDoc.y }, dest));
+  announce(tokenDoc, d);
+  if (d.blocked) return false;
+  foundry.utils.setProperty(changes, "flags.sr2e.moveLedger", d.ledger);
+});
+
+// Drop any stale stash when combat ends, so an un-consumed decision can't leak
+// into a later move (the ledger flag itself is round-qualified and self-expiring).
+Hooks.on("deleteCombat", () => _pendingLedger.clear());
