@@ -137,7 +137,18 @@ summon (after §1) drops beside the *player's* token owned by them.
 > / other-scene / out-of-turn move freely; `options.sr2eBypassMovement` escape
 > hatch for programmatic moves); **run once per Combat Turn** enforced (p.84 —
 > a phase after running is walk-capped); +4 running notice made advisory + posts
-> once. **Still ⏳ live-verify** the diagnostic matrix below, then Codex-review.
+> once. **Still ⏳ live-verify** the diagnostic matrix below.
+>
+> **Codex-reviewed 2026-07-24.** Fixed from the review: scene/UUID scope (token
+> ids are scene-local), null turn identity. **Deferred to the live session:** a
+> single drag with a *bent/looping* path is charged only its straight-line chord
+> — the correct fix enforces in `preMoveToken` (V13) using the finalized movement
+> path cost, wired + verified live (the reported bug *class* — out-and-back and
+> repeated short drags across separate drops — is already handled by the
+> cumulative ledger). **Accepted as-is** (off-by-default home-table limiter, not
+> a security boundary): client-side enforcement can in theory lose an update
+> under truly concurrent writes to one token; `options.sr2eBypassMovement` is an
+> intentional escape hatch, not authenticated; running is inferred from distance.
 
 Book re-checked (SR2 p.83). **Rates are correct** (per Combat Phase; walk =
 Quickness, run = Quickness × Running-Table mod — human/elf/ork ×3, dwarf/troll

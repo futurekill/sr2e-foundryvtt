@@ -44,7 +44,9 @@ function tokenRates(tokenDoc) {
 function currentPhase() {
   const combat = game.combat;
   if (!combat?.started) return null;
-  return { combatId: combat.id, round: combat.round ?? 0, turn: combat.turn ?? 0, combat };
+  // turn may be null between phases; keep it honest so the ledger identity can't
+  // collide a null turn with real turn index 0.
+  return { combatId: combat.id, round: combat.round ?? 0, turn: combat.turn ?? null, combat };
 }
 
 /**
@@ -57,7 +59,9 @@ function isCapped(tokenDoc) {
   const phase = currentPhase();
   if (!phase) return false;
   const active = phase.combat.combatant?.token;
-  if (!active || active.id !== tokenDoc.id) return false;
+  // Compare UUIDs, not ids — token ids are scene-local, so a token on another
+  // scene sharing the active combatant's id must not be treated as active.
+  if (!active || active.uuid !== tokenDoc.uuid) return false;
   return tokenRates(tokenDoc) !== null;
 }
 
