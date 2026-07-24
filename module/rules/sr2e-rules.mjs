@@ -2269,3 +2269,27 @@ export function nearestFreeCell(origin, occupied = new Set(), bounds = null, opt
   }
   return null;
 }
+
+/* ── SUMMONED-SPIRIT NAMES ── a short evocative moniker so multiple summons of
+   the same type are told apart. Elements get themed roots; nature spirits and
+   anything unknown draw the otherworldly default pool. Pure + rng-injectable. ─ */
+const _SPIRIT_ROOTS = {
+  fire:  ["Ash", "Cinder", "Ember", "Pyre", "Scorch", "Coal", "Flare", "Soot"],
+  water: ["Tide", "Brine", "Mist", "Rill", "Surge", "Foam", "Deep", "Well"],
+  air:   ["Gale", "Zephyr", "Gust", "Cloud", "Whirl", "Squall", "Draft", "Sky"],
+  earth: ["Crag", "Loam", "Slate", "Iron", "Granite", "Moss", "Stone", "Clay"],
+  _default: ["Vael", "Umbra", "Shael", "Mor", "Nyx", "Kael", "Threx", "Vorn", "Sable", "Wraith"]
+};
+const _SPIRIT_SUFFIX = ["vex", "ith", "ael", "oth", "une", "ara", "iel", "mora", "yss", "rin", "dros", "en"];
+
+/**
+ * A random spirit name for a summoned elemental/spirit, e.g. "Cindervex".
+ * @param {string} domain - element or nature-spirit domain (drives the flavour)
+ * @param {() => number} [rng=Math.random]
+ * @returns {string}
+ */
+export function randomSpiritName(domain, rng = Math.random) {
+  const pick = (arr) => arr[Math.floor(rng() * arr.length)] ?? arr[0];
+  const roots = _SPIRIT_ROOTS[String(domain ?? "").toLowerCase()] ?? _SPIRIT_ROOTS._default;
+  return pick(roots) + pick(_SPIRIT_SUFFIX);
+}

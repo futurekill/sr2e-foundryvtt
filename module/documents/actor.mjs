@@ -8,7 +8,7 @@ import { placeSummonedToken } from "../placement.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
-         spiritPortraitVariant, dicePoolRefreshUpdates } from "../rules/sr2e-rules.mjs";
+         spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -867,9 +867,10 @@ export class SR2EActor extends Actor {
     const domainLabel = kind === "elemental"
       ? game.i18n.localize(CONFIG.SR2E.elementalTypes[domain]?.label ?? domain)
       : game.i18n.localize(CONFIG.SR2E.spiritDomains[domain] ?? domain);
-    const name = kind === "elemental"
-      ? `${domainLabel} Elemental (F${force})`
-      : `${domainLabel} Spirit (F${force})`;
+    // A random moniker tells multiple summons of the same type apart, and the
+    // conjurer's name marks who it belongs to: "Cindervex, Hexen's Fire Elemental (F1)".
+    const typeLabel = kind === "elemental" ? `${domainLabel} Elemental` : `${domainLabel} Spirit`;
+    const name = `${randomSpiritName(domain)}, ${this.name}'s ${typeLabel} (F${force})`;
 
     // Random portrait per type when art ships for this domain (config count),
     // else the default SVG. Token gets the same image, rotation locked.

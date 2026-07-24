@@ -12,6 +12,11 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   sidebar). Needs the summoner able to create tokens (the "Create New Actors"
   permission). Hex/gridless scenes drop beside the caster; placement never blocks
   the summon if the map can't take a token.
+- **Summoned spirits get a name and an owner.** Each summon now reads like
+  *"Cindervex, Hexen's Fire Elemental (F1)"* — a random moniker (element-themed)
+  so several of the same type are easy to tell apart, plus the conjurer's name
+  so it's clear whose spirit it is. (Tip: set the token's name-display to
+  hover-only if the full label is too long on the map.)
 
 ### Changed
 - **Player summoning now uses the "Create New Actors" permission, not a socket
