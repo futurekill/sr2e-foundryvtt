@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A full fabrication facility. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259."
+    "notes": "A full fabrication facility. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259.",
+    "streetIndex": 4
   },
   "effects": [],
   "flags": {},

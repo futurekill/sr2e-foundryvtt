@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Filters airborne particulates and smoke. SR2E p.258."
+    "notes": "Filters airborne particulates and smoke. SR2E p.258.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

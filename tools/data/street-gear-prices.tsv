@@ -119,3 +119,35 @@ Increased Strength (Cyberlimb)	cyberware						6/4 days	150000*rating	1.5	261	ess
 Built-In Smartlink (Cyberlimb)	cyberware						6/4 days	2500	1.5	261	essenceCost=.25
 Built-In Device (Cyberlimb)	cyberware						Varies	4*base		261	essenceCost=0
 Simple Replacement (Limb)	cyberware						4/48 hrs	50000	1	261	essenceCost=1
+#
+# ── GEAR / EQUIPMENT (book p.257-259) ───────────────────────────────────────
+# Rating-priced gear (Jammer, Bug Scanner, Maglock Passkey, ...) is printed as
+# 'N x Rating'. This system stores the PER-RATING figure in `cost` with rating 1,
+# so `cost` below is that per-rating number, not a rating-1 total.
+Data Codebreaker	gear						Rating/10 days	10000	1.5	258	
+Dataline Tap	gear						Rating/8 days	5000	1.5	258	
+Laser Microphone	gear						Rating/48 hrs	1500	1.5	258	
+Signal Locator	gear						Rating/48 hrs	1000	1.5	258	
+Voice Identifier	gear						Rating/72 hrs	2000	2	258	
+Bug Scanner	gear						Rating/48 hrs	500	1.5	258	
+Data Encryption System	gear						Rating/14 days	1000	2	258	
+Dataline Scanner	gear						Rating/14 days	100	2	258	
+Jammer	gear						Rating/72 hrs	1000	1.5	258	
+White Noise Generator	gear						Rating/72 hrs	1500	1.5	258	
+Maglock	gear						Rating/72 hrs	100	1	258	
+Maglock Passkey	gear						(Rating x 2)/10 days	10000	3	258	
+Palmprint Scanner	gear						(Rating +1)/72 hrs	300	2	258	
+Micro-Camcorder	gear						6/48 hrs	2500	2	258	
+Micro-Recorder	gear						6/48 hrs	1000	2	258	
+Micro-Transceiver	gear						6/48 hrs	2500	2	258	
+Chemsuit	gear						(Rating/Rating) days	200	1	258	
+Pressure Regulator	gear						6/48 hrs	250	2	258	
+Respirator	gear						4/48 hrs	500	2	258	
+Survival Kit	gear						2/48 hrs	100	1	258	
+Binoculars	gear						Always	100	.8	257	
+Kit	gear						5/48 hrs	500	2	259	
+Shop	gear						8/72 hrs	5000	3	259	
+Facility	gear						14/7 days	100000	4	259	
+Playback Unit	gear						Always	200	.75	259	
+Player Unit	gear						Always	350	.75	259	
+Phone Booster Pack	gear						Always	500	1	259	

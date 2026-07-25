@@ -45,7 +45,10 @@ for (const pack of readdirSync(PACKS)) {
 // A formula price ("100*strMin") is carried by the Str-Min fields, not `cost`.
 const isFormula = (c) => /\*/.test(c ?? "");
 const num = (v) => (v === "" || v == null ? null : Number(v));
-const normAvail = (v) => String(v ?? "").toLowerCase().replace(/\s+/g, "");
+// Availability is prose. Ignore whitespace, case and PARENTHESES so
+// "(Rating +1)/72 hrs" and "Rating+1/72 hrs" match, while a genuinely different
+// value (× vs ÷, 14 days vs 24 hrs) still reports.
+const normAvail = (v) => String(v ?? "").toLowerCase().replace(/[\s()]+/g, "");
 // Cyberware/bioware model streetIndex as a StringField (weapons/armor/ammo use a
 // NumberField), so --fix must write the matching type or the value round-trips
 // as a stringified number on disk.

@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Reads audio off a vibrating surface at range. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
+    "notes": "Reads audio off a vibrating surface at range. Rated item — cost shown is per Rating point (×Rating). SR2E p.258.",
+    "streetIndex": 1.5
   },
   "effects": [],
   "flags": {},

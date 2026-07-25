@@ -8,12 +8,13 @@
     "rating": 5,
     "quantity": 1,
     "weight": 0,
-    "cost": 500,
-    "availability": "Always",
+    "cost": 1500,
+    "availability": "Rating/72 hrs",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.243. Creates a field of random noise masking sounds within its area. Defeats eavesdroppers and shotgun/laser mics. Base 1,500¥."
+    "notes": "SR2E p.243. Creates a field of random noise masking sounds within its area. Defeats eavesdroppers and shotgun/laser mics. Base 1,500¥.",
+    "streetIndex": 1.5
   },
   "effects": [],
   "flags": {},

@@ -4,6 +4,19 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixed
+- **Gear prices audited against the printed Equipment tables (book p.257–259).**
+  Five items were being sold at a fraction of their real price — the worst by far
+  a **Maglock Passkey at 600¥ instead of 10,000¥** (it is priced per Rating, so a
+  Rating-3 passkey is 30,000¥ of gear that cost less than a medkit). Also
+  **Micro-Transceiver 200¥ → 2,500¥**, **White Noise Generator 500¥ → 1,500¥**,
+  **Playback Unit 20¥ → 200¥**, and a **Chemsuit that was free** → 200¥ per Rating.
+- **Street Index added to 22 more gear items.** Same gap the cybertech pass found:
+  without an index the shop charges list price, so surveillance and security gear
+  (indexes 1.5–3 — a Maglock Passkey is 3) was selling far too cheap on the
+  street, while a few items were overcharged. Availability was corrected on the
+  same rows.
+
 ## 0.61.0 — 2026-07-24
 
 ### Fixed

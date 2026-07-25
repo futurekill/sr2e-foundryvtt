@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Portable tool kit. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259."
+    "notes": "Portable tool kit. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

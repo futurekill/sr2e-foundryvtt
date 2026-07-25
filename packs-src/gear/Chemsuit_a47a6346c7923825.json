@@ -8,7 +8,7 @@
     "rating": 1,
     "quantity": 1,
     "weight": 0,
-    "cost": 0,
+    "cost": 200,
     "availability": "Rating/Rating days",
     "legality": "Restricted",
     "equipped": false,

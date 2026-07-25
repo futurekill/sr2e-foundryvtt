@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Lets the wearer function at altitude/depth/pressure. SR2E p.258."
+    "notes": "Lets the wearer function at altitude/depth/pressure. SR2E p.258.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

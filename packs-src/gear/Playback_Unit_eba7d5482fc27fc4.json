@@ -8,7 +8,7 @@
     "rating": 0,
     "quantity": 1,
     "weight": 0,
-    "cost": 20,
+    "cost": 200,
     "availability": "Always",
     "legality": "Legal",
     "equipped": false,
@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Plays music disks/chips. SR2E p.259."
+    "notes": "Plays music disks/chips. SR2E p.259.",
+    "streetIndex": 0.75
   },
   "effects": [],
   "flags": {},

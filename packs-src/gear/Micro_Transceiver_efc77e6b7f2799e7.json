@@ -8,12 +8,13 @@
     "rating": 0,
     "quantity": 1,
     "weight": 0,
-    "cost": 200,
-    "availability": "Always",
+    "cost": 2500,
+    "availability": "6/48 hrs",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.244. A barely-visible transceiver hidden in clothing, jewelry, or equipment. Range limited; pairs with boom or earplug mics."
+    "notes": "SR2E p.244. A barely-visible transceiver hidden in clothing, jewelry, or equipment. Range limited; pairs with boom or earplug mics.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

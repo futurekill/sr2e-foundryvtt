@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "A concealable audio/video camcorder. SR2E p.258."
+    "notes": "A concealable audio/video camcorder. SR2E p.258.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

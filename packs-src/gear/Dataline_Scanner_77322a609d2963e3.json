@@ -9,7 +9,7 @@
     "quantity": 1,
     "weight": 0,
     "cost": 100,
-    "availability": "Rating/72 hrs",
+    "availability": "Rating/14 days",
     "legality": "Restricted",
     "equipped": false,
     "concealability": 2,
@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Detects dataline taps. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
+    "notes": "Detects dataline taps. Rated item — cost shown is per Rating point (×Rating). SR2E p.258.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

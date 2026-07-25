@@ -18,7 +18,8 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Palmprint identification lock. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
+    "notes": "Palmprint identification lock. Rated item — cost shown is per Rating point (×Rating). SR2E p.258.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},
