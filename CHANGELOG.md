@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.61.0 — 2026-07-24
+
 ### Fixed
 - **Treat and Heal now use the book's Drain (SR2 p.155).** Both curative spells
   shipped with a placeholder `-1(S)`; the real rule is **(F÷2)(Wound Level)** —
