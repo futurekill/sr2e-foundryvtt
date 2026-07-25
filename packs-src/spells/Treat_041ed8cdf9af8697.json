@@ -9,13 +9,14 @@
     "range": "touch",
     "duration": "permanent",
     "force": 1,
-    "drainCode": "-1(S)",
+    "drainCode": "(F / 2)W",
     "target": "",
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2 p.157. Curative twin of Heal: boxes healed = successes. MUST be applied within ONE HOUR of the injury (Heal has no time limit). Target number 8 − subject's Essence. A character can only be magically treated OR healed once per set of injuries. Type Mana, Range Touch, Permanent. Drain simplified to match the Heal spell's model.",
-    "healsDamage": true
+    "notes": "SR2E p.155. Target number 8 \u2212 subject's Essence. Boxes healed = successes. Treat must be applied within one hour of the injury. A character can only be magically treated or healed once per set of injuries. Type Mana, Range Touch, Permanent. Drain is (F / 2) at the subject's current Wound Level.",
+    "healsDamage": true,
+    "healingTnBase": 8
   },
   "effects": [],
   "flags": {},

@@ -4,6 +4,24 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixed
+- **Treat and Heal now use the book's Drain (SR2 p.155).** Both curative spells
+  shipped with a placeholder `-1(S)`; the real rule is **(F÷2)(Wound Level)** —
+  the Drain Level is *the patient's* current wound level, so patching up a lightly
+  grazed runner costs the magician far less than dragging someone back from
+  Deadly. The cast dialog resolves it live against your selected target (or
+  yourself, for self-healing) and shows which, e.g. *"(F÷2)S — target Jax is
+  Serious"*. Both spells' notes were also corrected: they cite p.155 now (the old
+  cites, p.157 and p.184, were both wrong) and record the real target numbers —
+  **8 − Essence** for Treat, **10 − Essence** for Heal.
+- **Curative spells now cast at the right target number.** Treat and Heal were
+  rolling against a flat TN 4, which is not a rule anywhere; the book sets their
+  TN from *the subject's* Essence — **8 − Essence** (Treat), **10 − Essence**
+  (Heal), so a chromed-up patient is genuinely harder to mend. The dialog now
+  works it out from your selected target (or yourself) and shows the arithmetic.
+  Bioware interference (+½ Body Index) still applies on top, and both notes are
+  displayed together instead of one hiding the other.
+
 ### Added
 - **Cyberlimb options (SR2 p.261).** The three sub-options the Cybertech table
   prints under Limbs are now in the compendium — **Increased Strength**

@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
@@ -1273,15 +1273,28 @@ async function promptSpellOptions(actor, spell) {
   const magicAttr  = actor.system.magic?.value ?? 0;
   const spellCap   = Math.min(available, magicAttr);     // cap for spell test
   const drainCap   = available;                          // no cap for drain resist
+  const tgtTok     = game.user?.targets?.first?.();
+  const tgtActor   = tgtTok?.actor;
 
   // Parse drain code directly from the raw string — avoids DataModel prototype
   // chain issues and works even with serialised/plain-object item data.
   const drainCodeStr = spell?.system?.drainCode ?? "(F / 2)M";
   const drain        = parseDrainCode(drainCodeStr);
   const drainMod     = drain.modifier;   // numeric modifier used in live TN calc
-  const drainLevel   = drain.level;      // L, M, S, D
-  // Full formula string for display — matches the rulebook exactly
-  const drainFormula = drainCodeStr;
+  let drainLevel = drain.level;
+  let drainFormula = drainCodeStr;
+  let drainSubjectNote = "";
+  if (drain.levelFromWound) {
+    const subject = tgtActor ?? actor;
+    const physicalBoxes = subject.system?.conditionMonitor?.physical?.value ?? 0;
+    const subjectWound = woundLevel(physicalBoxes);
+    drainLevel = healingDrainLevel(physicalBoxes);
+    const source = tgtActor ? `target ${subject.name}` : `self ${subject.name}`;
+    // Resolve the W before display: the patient drives curative Drain (p.155),
+    // while no selected target means the common self-healing case.
+    drainFormula = `(F÷2)${drainLevel} — ${source} is ${subjectWound}`;
+    drainSubjectNote = `${source} is ${subjectWound}`;
+  }
 
   // Force defaults to the spell's learned Force (set when the spell is added) —
   // the caster doesn't re-enter it every cast, just adjusts if they want to.
@@ -1292,8 +1305,6 @@ async function promptSpellOptions(actor, spell) {
   // the currently-targeted token for combat spells; otherwise fall back to 4.
   const isMana   = spell?.system?.type === "mana";
   const isCombat = spell?.system?.category === "combat";
-  const tgtTok   = game.user?.targets?.first?.();
-  const tgtActor = tgtTok?.actor;
   let suggestedTN = 4;
   let tnNote = "";
   if (isCombat && tgtActor) {
@@ -1303,14 +1314,29 @@ async function promptSpellOptions(actor, spell) {
   } else if (isCombat) {
     tnNote = `<span style="color:#a86;">No target — TN is the victim's ${isMana ? "Willpower (mana)" : "Body (physical)"}.</span>`;
   } else if (spell?.system?.healsDamage) {
+    // Curative spells derive their TN from the SUBJECT's Essence (SR2E p.155) —
+    // Treat 8 − Essence, Heal 10 − Essence — so a chromed patient is harder to
+    // mend. Without this the dialog fell back to a flat TN 4, which is not a
+    // rule anywhere.
+    const subject = tgtActor ?? actor;
+    const tnBase  = spell?.system?.healingTnBase ?? 0;
+    if (tnBase > 0) {
+      const ess = subject.system?.essence?.value ?? 6;
+      suggestedTN = healingSpellTN(tnBase, ess);
+      const who = tgtActor ? `Target ${tgtTok.name}` : `Self (${subject.name})`;
+      tnNote = `<span style="color:#6a8;">${foundry.utils.escapeHTML(who)}: ${tnBase} − Essence ${ess} → TN ${suggestedTN}</span>`;
+    }
     // Bioware interferes with magical healing (Shadowtech p.6): +½ the SUBJECT's
     // Body Index. Surfaced here so the caster sees it before committing pool dice.
-    const subject = tgtActor ?? actor;
+    // It is applied as a separate extra TN on the cast test, not folded in above.
     const bhMod   = biowareHealingTnMod(subject.system?.bodyIndex?.value ?? 0);
+    // APPEND — the Essence-derived TN above and the bioware surcharge are two
+    // separate facts about the same cast, and the caster needs to see both.
+    const addNote = (html) => { tnNote = tnNote ? `${tnNote}<br>${html}` : html; };
     if (bhMod > 0) {
-      tnNote = `<span style="color:#a86;">${foundry.utils.escapeHTML(subject.name)} has bioware (Body Index ${subject.system.bodyIndex.value}): +${bhMod} TN to heal.</span>`;
+      addNote(`<span style="color:#a86;">${foundry.utils.escapeHTML(subject.name)} has bioware (Body Index ${subject.system.bodyIndex.value}): +${bhMod} TN to heal.</span>`);
     } else if (!tgtActor) {
-      tnNote = `<span style="color:#888;">No target — assuming self. Target the subject to apply any bioware healing penalty.</span>`;
+      addNote(`<span style="color:#888;">No target — assuming self. Target the subject to apply any bioware healing penalty.</span>`);
     }
   }
 
@@ -1426,6 +1452,8 @@ async function promptSpellOptions(actor, spell) {
           rollResult = {
             force,
             tn,
+            resolvedDrainLevel: drainLevel,
+            drainSubjectNote,
             poolDice:      spellAlloc > 0 ? { magic: spellAlloc } : {},
             drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {},
             // Cap by the chosen Force here; rollSuccessTest re-clamps against
@@ -1461,6 +1489,8 @@ async function onCastSpell(event, target) {
     force: opts.force, targetNumber: opts.tn,
     poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice,
     karmaDice: opts.karmaDice,
+    resolvedDrainLevel: opts.resolvedDrainLevel,
+    drainSubjectNote: opts.drainSubjectNote,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }

@@ -1,6 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -1094,11 +1094,22 @@ export class SR2EItem extends Item {
     const drainTN        = drainTargetNumber(force, drain.modifier);
     // Physical drain if Force > Magic Rating (SR2E p.138)
     const drainType      = force > magicRating ? "physical" : "stun";
-    const startLevel     = drain.level;   // L, M, S, or D
+    let startLevel = drain.level;
+    let drainSubjectNote = options.drainSubjectNote ?? "";
+    if (drain.levelFromWound) {
+      const subject = game.user?.targets?.first?.()?.actor ?? actor;
+      const physicalBoxes = subject.system?.conditionMonitor?.physical?.value ?? 0;
+      startLevel = options.resolvedDrainLevel
+        ?? healingDrainLevel(physicalBoxes);
+      if (!drainSubjectNote) {
+        const source = subject === actor ? `self ${subject.name}` : `target ${subject.name}`;
+        drainSubjectNote = `${source} is ${woundLevel(physicalBoxes)}`;
+      }
+    }
     const willpowerDice  = actor.system.willpower?.value ?? 1;
 
     const drainResult = await actor.rollSuccessTest(willpowerDice, drainTN, {
-      label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})`,
+      label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`,
       poolDice: options.drainPoolDice,  // separately allocated magic pool dice
       isResistance: true                // Injury Modifier does not apply (p.112)
     });

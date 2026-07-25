@@ -7,7 +7,7 @@ import {
   burstRounds, recoilPenalty, burstDamageBonus,
   programCost, focusCost, weaponFocusCost, astralAllowsView,
   netToSteps, astralReaction, drainTargetNumber,
-  woundLevel, firstAidBodyMod, meleeOutcome, containerEssence,
+  woundLevel, healingDrainLevel, healingSpellTN, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
   modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase,
@@ -42,6 +42,48 @@ describe("Damage levels & boxes (SR2E p.113)", () => {
 
   it("orders levels L < M < S < D", () => {
     expect(DAMAGE_LEVELS).toEqual(["L", "M", "S", "D"]);
+  });
+});
+
+describe("Treat / Heal cast TN (SR2E p.155)", () => {
+  it("Treat is 8 − Essence, Heal is 10 − Essence", () => {
+    expect(healingSpellTN(8, 6)).toBe(2);    // Treat on an unmodified subject
+    expect(healingSpellTN(10, 6)).toBe(4);   // Heal on an unmodified subject
+    expect(healingSpellTN(10, 3)).toBe(7);   // heavily chromed → much harder
+    expect(healingSpellTN(8, 3)).toBe(5);
+  });
+
+  it("floors a fractional Essence, so cyberware never makes healing easier", () => {
+    // Essence 5.4 → ⌊5.4⌋ = 5 → 10 − 5 = 5, i.e. ⌈10 − 5.4⌉. Matches the
+    // system's existing Magic = ⌊Essence⌋ convention.
+    expect(healingSpellTN(10, 5.4)).toBe(5);
+    expect(healingSpellTN(10, 5.9)).toBe(5);
+    expect(healingSpellTN(8, 0.5)).toBe(8);
+  });
+
+  it("never drops below the TN floor of 2", () => {
+    expect(healingSpellTN(8, 9)).toBe(2);
+    expect(healingSpellTN(8, 6.9)).toBe(2);
+  });
+});
+
+describe("Treat / Heal Drain Level (SR2E p.155)", () => {
+  it("maps the subject's physical wound level to the four drain levels", () => {
+    expect(healingDrainLevel(1)).toBe("L");
+    expect(healingDrainLevel(3)).toBe("M");
+    expect(healingDrainLevel(6)).toBe("S");
+    expect(healingDrainLevel(10)).toBe("D");
+  });
+
+  it("floors an undamaged subject at Light (nothing to heal)", () => {
+    expect(healingDrainLevel(0)).toBe("L");
+  });
+
+  it("reads the physical monitor only — these spells don't treat stun", () => {
+    // 2 physical boxes is Light whatever the stun monitor says; stun is not an
+    // input at all, which is the point (SR2E p.155).
+    expect(healingDrainLevel(2)).toBe("L");
+    expect(healingDrainLevel(9)).toBe("S");
   });
 });
 

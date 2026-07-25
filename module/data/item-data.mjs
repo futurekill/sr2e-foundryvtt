@@ -2,7 +2,7 @@ import { SR2EDataModel } from "./base-data.mjs";
 import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost } from "../rules/sr2e-rules.mjs";
 
 /**
- * Parse a drain code string into { modifier, level }.
+ * Parse a drain code string into { modifier, level, levelFromWound }.
  *
  * Exported as a standalone function so it can be used anywhere without
  * depending on the DataModel prototype chain (e.g. in actor-sheet.mjs
@@ -18,9 +18,12 @@ import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, s
  *   Legacy (old compact format, kept for backward compat):
  *     "+3(D)"               → { modifier: +3, level: "D" }
  *     "-1(S)"               → { modifier: -1, level: "S" }
+ *   Target wound level (Treat / Heal, SR2E p.155):
+ *     "(F / 2)W"            → { modifier: 0, level: "W", levelFromWound: true }
+ *     "0(W)"                → { modifier: 0, level: "W", levelFromWound: true }
  *
  * @param {string} s  The raw drain code string.
- * @returns {{ modifier: number, level: string }}
+ * @returns {{ modifier: number, level: string, levelFromWound: boolean }}
  */
 export function parseDrainCode(s) {
   s = s ?? "";
@@ -28,15 +31,23 @@ export function parseDrainCode(s) {
   const withMod = s.match(/\(\(F\s*\/\s*2\)\s*([+\-\u2013\u2014])\s*(\d+)\)\s*([LMSD])/);
   if (withMod) {
     const sign = withMod[1] === "+" ? 1 : -1;
-    return { modifier: sign * parseInt(withMod[2]), level: withMod[3] };
+    return { modifier: sign * parseInt(withMod[2]), level: withMod[3], levelFromWound: false };
   }
   // Canonical without modifier: (F / 2)Level
-  const noMod = s.match(/\(F\s*\/\s*2\)\s*([LMSD])/);
-  if (noMod) return { modifier: 0, level: noMod[1] };
+  const noMod = s.match(/\(F\s*\/\s*2\)\s*([LMSDW])/);
+  if (noMod) {
+    return { modifier: 0, level: noMod[1], levelFromWound: noMod[1] === "W" };
+  }
   // Legacy compact: +3(D), -1(S), +0(M) etc.
-  const legacy = s.match(/([+-]?\d+)\(([LMSD])\)/);
-  if (legacy) return { modifier: parseInt(legacy[1]), level: legacy[2] };
-  return { modifier: 0, level: "M" };
+  const legacy = s.match(/([+-]?\d+)\(([LMSDW])\)/);
+  if (legacy) {
+    return {
+      modifier: parseInt(legacy[1]),
+      level: legacy[2],
+      levelFromWound: legacy[2] === "W"
+    };
+  }
+  return { modifier: 0, level: "M", levelFromWound: false };
 }
 
 /**
@@ -300,6 +311,10 @@ export class SpellData extends SR2EDataModel {
       // Reflexes is a health spell but heals nothing. Flagged per-spell so a GM
       // can tick it for homebrew healing spells.
       healsDamage: new fields.BooleanField({ initial: false }),
+      // Curative spells set their Spell Success TN from the SUBJECT's Essence
+      // (SR2E p.155): "10 or 8 minus the subject's Essence" — Treat 8, Heal 10.
+      // 0 = this spell's TN does not derive from Essence (every other spell).
+      healingTnBase: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Sustained-spell state (SR2E p.130): while sustaining, the caster takes
       // +2 TN on all other tests per spell — unless a spell lock holds it.
       sustaining: new fields.BooleanField({ initial: false }),

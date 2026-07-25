@@ -136,6 +136,52 @@ export function woundLevel(boxes) {
 }
 
 /**
+ * Treat and Heal take their Drain Level from the subject's current Wound Level
+ * (SR2E p.155) — drain scales with how badly hurt the patient is.
+ *
+ * Deliberately reads the PHYSICAL monitor only: both spells heal physical
+ * damage, so a subject who is merely stunned presents no injury for them to
+ * work on. The book says "Wound Level" without disambiguating a character who
+ * is hurt on both monitors; physical-only is the reading that matches what the
+ * spells actually treat. The book gives no drain for an uninjured subject
+ * (there is nothing to heal), so Undamaged floors at Light.
+ *
+ * @param {number} physicalBoxes - filled boxes on the physical monitor.
+ * @returns {"L"|"M"|"S"|"D"}
+ */
+/**
+ * Spell Success Test target number for the curative spells (SR2E p.155): "The
+ * target number for these spells is 10 or 8 minus the subject's Essence" — 8 for
+ * Treat, 10 for Heal. A heavily chromed patient is harder to mend.
+ *
+ * Essence is fractional once cyberware is installed, and a target number must be
+ * a whole number. This floors the Essence, matching what the system already does
+ * when deriving an integer from Essence (Magic rating = ⌊Essence⌋). Because the
+ * base is an integer, that is exactly ⌈base − Essence⌉ — never easier than the
+ * printed value. The book does not spell the rounding out.
+ *
+ * Bioware interference (+½ Body Index, Shadowtech p.6) is NOT included here; it
+ * is applied separately as an extra TN on the cast test.
+ *
+ * @param {number} base - 8 (Treat) or 10 (Heal).
+ * @param {number} essence - the SUBJECT's current Essence.
+ * @returns {number} target number, floored at 2 like every other TN.
+ */
+export function healingSpellTN(base, essence) {
+  return Math.max(2, (Number(base) || 0) - Math.floor(Number(essence) || 0));
+}
+
+export function healingDrainLevel(physicalBoxes) {
+  return {
+    Undamaged: "L",
+    Light: "L",
+    Moderate: "M",
+    Serious: "S",
+    Deadly: "D"
+  }[woundLevel(physicalBoxes)];
+}
+
+/**
  * First Aid target-number modifier from the patient's Body (SR2E p.115):
  * a tougher patient is easier to stabilise. −1 at Body 4+, −2 at 7+, −3 at 10+.
  * @param {number} body

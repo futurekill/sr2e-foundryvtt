@@ -9,13 +9,14 @@
     "range": "touch",
     "duration": "permanent",
     "force": 1,
-    "drainCode": "-1(S)",
+    "drainCode": "(F / 2)W",
     "target": "",
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits.",
-    "healsDamage": true
+    "notes": "SR2E p.155. Target number 10 \u2212 subject's Essence. Boxes healed = successes. Heal has no time limit. A character can only be magically treated or healed once per set of injuries. Type Mana, Range Touch, Permanent. Drain is (F / 2) at the subject's current Wound Level.",
+    "healsDamage": true,
+    "healingTnBase": 10
   },
   "effects": [],
   "flags": {},

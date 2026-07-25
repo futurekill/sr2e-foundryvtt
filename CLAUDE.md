@@ -10,8 +10,19 @@ Never implement a rule from memory. The SR2E core rulebook PDF lives in the
 parent folder — use the **corrected 11th printing**, the final printing and the
 canonical text: `../Shadowrun 2e - Shadowrun Second Edition (corrected 11th
 printing) {FASA7901}.pdf`. It has a real text layer (the older scan was OCR),
-so `pdftotext -layout` is reliable; still render the page (`pdftoppm -r 220`)
-and read the image for dense tables, whose columns mis-align in any extraction.
+so `pdftotext -layout` is reliable **for prose and page-finding**; still render
+the page (`pdftoppm -r 220`) and read the image for dense tables, whose columns
+mis-align in any extraction.
+
+**NEVER read a formula, drain code, or cost/Essence expression from the text
+layer — it silently corrupts math glyphs.** Confirmed: `÷` extracts as `+`, and
+`S` (Serious) extracts as `5`. The Treat/Heal drain on p.155 extracts as
+`(F + 2)(Wound Level)` but prints `(F ÷ 2)`; Cybertech p.261 Filtration Essence
+extracts as `Rating + 10` but prints `Rating ÷ 10` (a `+` reading is impossible —
+6 Essence is the ceiling). This has produced three wrong values in practice.
+Render the page (`pdftoppm -r 600` cropped, for one cell) and read the image for
+any number. **A mechanically impossible value means a substituted glyph, not a
+strange rule.**
 
 **The PDF-to-book page offset is NOT constant** — unnumbered plates push it
 from +1 early (PDF 97 = book 96) to +25 by the gear chapter (PDF 279 = book
