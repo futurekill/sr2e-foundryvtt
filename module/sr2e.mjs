@@ -1703,6 +1703,22 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Wire up "Apply Healing" buttons on Treat/Heal cards (SR2E p.155). The
+  // PATIENT resolves it — the dialog splits the caster's successes between boxes
+  // healed and reducing the time the spell must be maintained.
+  html.querySelectorAll?.(".sr2e-apply-healing-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const actor = await resolveCardDefender(btn.dataset.actorUuid);
+      if (!actor) return ui.notifications.warn("Can't find the patient for this healing.");
+      return actor.applyMagicalHealing({
+        successes:  parseInt(btn.dataset.successes) || 0,
+        spellName:  btn.dataset.spellName || "Heal",
+        casterName: btn.dataset.casterName || ""
+      });
+    });
+  });
+
   // Wire up "Resolve Spread" buttons on shotgun shot-round cards (SR2E p.95).
   html.querySelectorAll?.(".sr2e-spread-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {

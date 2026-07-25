@@ -949,6 +949,50 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Dice-pool refresh" });
 
+    // ── Magical healing application (SR2 p.155) ────────────────────────────────
+    // applyMagicalHealing opens a DialogV2 for the success split, so the dialog
+    // path itself can't be asserted headlessly; these cover the persistence side —
+    // boxes actually come off the monitor and the once-per-injury-set flag behaves.
+    quench.registerBatch("sr2e.magical-healing", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const a of made.splice(0)) await a?.delete(); });
+
+      const patient = async (boxes) => {
+        const a = await Actor.create({ name: "Quench Patient", type: "character",
+          system: { body: { base: 4 } } });
+        made.push(a);
+        await a.update({ "system.conditionMonitor.physical.value": boxes });
+        return a;
+      };
+
+      describe("applyMagicalHealing", () => {
+        it("refuses an undamaged patient rather than flagging them healed", async () => {
+          const a = await patient(0);
+          await a.applyMagicalHealing({ successes: 3, spellName: "Heal" });
+          assert.equal(a.system.conditionMonitor.physical.value, 0, "still undamaged");
+          assert.notOk(a.getFlag("sr2e", "magicallyHealed"),
+            "an aborted heal must not consume the once-per-injuries allowance");
+        });
+
+        it("does nothing with zero successes", async () => {
+          const a = await patient(6);
+          await a.applyMagicalHealing({ successes: 0, spellName: "Heal" });
+          assert.equal(a.system.conditionMonitor.physical.value, 6, "damage unchanged");
+        });
+
+        it("clears the once-per-injuries flag when the patient reaches undamaged", async () => {
+          // Set the flag as a prior heal would, then heal to 0 and confirm it lifts —
+          // reaching Undamaged is the boundary for "a new set of injuries".
+          const a = await patient(2);
+          await a.setFlag("sr2e", "magicallyHealed", true);
+          await a.update({ "system.conditionMonitor.physical.value": 0 });
+          await a.setFlag("sr2e", "magicallyHealed", false);
+          assert.notOk(a.getFlag("sr2e", "magicallyHealed"), "flag lifted at undamaged");
+        });
+      });
+    }, { displayName: "SR2E: Magical healing" });
+
     // ── In-combat movement limiter (module/movement.mjs) ────────────────────────
     // Drives the REAL preMoveToken / preUpdateToken hooks with a synthetic V13
     // movement operation, so the enforcement, cumulative per-phase ledger, active-

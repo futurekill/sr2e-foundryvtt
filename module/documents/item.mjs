@@ -1168,6 +1168,30 @@ export class SR2EItem extends Item {
       });
     }
 
+    // ── Curative spells: offer to apply the healing (SR2E p.155) ──────────────
+    // Boxes healed = successes, but the magician may divert some into reducing the
+    // maintenance time, so the patient's own client resolves the split via a
+    // button rather than this path silently applying boxes.
+    if (this.system.healsDamage && (spellResult?.successes ?? 0) > 0) {
+      const subject = game.user?.targets?.first?.()?.actor ?? actor;
+      const hurt    = (subject.system?.conditionMonitor?.physical?.value ?? 0) > 0;
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${foundry.utils.escapeHTML(this.name)} on ${foundry.utils.escapeHTML(subject.name)}</strong>
+          — <strong>${spellResult.successes}</strong> success${spellResult.successes === 1 ? "" : "es"}
+          to spend on boxes healed and/or reducing the maintenance time.
+          ${hurt ? `<br><button class="sr2e-apply-healing-btn"
+              data-actor-uuid="${subject.uuid}"
+              data-successes="${spellResult.successes}"
+              data-spell-name="${foundry.utils.escapeHTML(this.name)}"
+              data-caster-name="${foundry.utils.escapeHTML(actor.name)}"
+              title="Split the successes between healing boxes and reducing the time the spell must be maintained (SR2 p.155)">✚ Apply Healing</button>`
+            : `<br><em>${foundry.utils.escapeHTML(subject.name)} has no Physical damage to heal.</em>`}
+        </div>`
+      });
+    }
+
     // ── Combat spells: post a Resist Spell card (SR2E p.130–131) ──────────────
     // The target resists with Willpower (mana spell) or Body (physical spell)
     // — armor does not help — plus any Spell Defense dice protecting them.

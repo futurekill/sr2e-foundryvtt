@@ -150,6 +150,58 @@ export function woundLevel(boxes) {
  * @returns {"L"|"M"|"S"|"D"}
  */
 /**
+ * HEALING TABLE (SR2E p.155) — base time a curative spell must be maintained,
+ * in Combat Turns, by the subject's damage level.
+ */
+export const HEALING_BASE_TIME = Object.freeze({ L: 5, M: 10, S: 15, D: 20 });
+
+/**
+ * Base maintenance time in Combat Turns for a curative spell on a subject at
+ * this damage level (SR2E p.155). Unknown/undamaged falls back to the Light row.
+ * @param {"L"|"M"|"S"|"D"} level
+ * @returns {number} turns
+ */
+export function healingBaseTime(level) {
+  return HEALING_BASE_TIME[level] ?? HEALING_BASE_TIME.L;
+}
+
+/**
+ * Time left after spending successes on reducing it (SR2E p.155): "Divide the
+ * successes into the base time." Zero successes spent leaves the base time.
+ *
+ * Rounds UP — a fraction of a Combat Turn is still a turn the magician must keep
+ * the spell running — and never drops below 1 turn.
+ *
+ * @param {number} baseTurns
+ * @param {number} successesToTime - successes allocated to time reduction.
+ * @returns {number} turns
+ */
+export function healingTimeReduced(baseTurns, successesToTime) {
+  const base = Math.max(0, Number(baseTurns) || 0);
+  const n    = Math.max(0, Math.floor(Number(successesToTime) || 0));
+  if (n <= 0) return base;
+  return Math.max(1, Math.ceil(base / n));
+}
+
+/**
+ * Split a curative spell's successes between healing boxes and reducing the
+ * maintenance time (SR2E p.155): "The total successes can be split between the
+ * two uses (healing and time reduction), as the magician desires."
+ *
+ * Clamps the requested time allocation into [0, total] so the caller can't spend
+ * successes it does not have, and reports the remainder as boxes healed.
+ *
+ * @param {number} total - successes from the Spell Success Test.
+ * @param {number} toTime - successes the magician wants to spend on time.
+ * @returns {{boxes:number, toTime:number}}
+ */
+export function splitHealingSuccesses(total, toTime) {
+  const t = Math.max(0, Math.floor(Number(total) || 0));
+  const time = Math.min(t, Math.max(0, Math.floor(Number(toTime) || 0)));
+  return { boxes: t - time, toTime: time };
+}
+
+/**
  * Spell Success Test target number for the curative spells (SR2E p.155): "The
  * target number for these spells is 10 or 8 minus the subject's Essence" — 8 for
  * Treat, 10 for Heal. A heavily chromed patient is harder to mend.

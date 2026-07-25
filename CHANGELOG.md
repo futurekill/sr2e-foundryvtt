@@ -21,6 +21,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   works it out from your selected target (or yourself) and shows the arithmetic.
   Bioware interference (+½ Body Index) still applies on top, and both notes are
   displayed together instead of one hiding the other.
+- **Treat and Heal now actually heal.** The spells rolled, took drain and posted a
+  card, but the patient's damage was never touched — the successes were computed
+  and thrown away. A successful cast now offers **✚ Apply Healing**, which asks how
+  to split the successes: each one heals a box, or divides into the **base
+  maintenance time** from the Healing Table (Deadly 20 / Serious 15 / Moderate 10 /
+  Light 5 turns), as the magician prefers (SR2 p.155). The card reports the boxes
+  healed and how long the spell must be held — drop it early and the healing
+  undoes. It also warns when a character has already been magically treated or
+  healed for this set of injuries (once only, p.155), and reminds you that Treat
+  is only valid within an hour of the wound. The warning is a confirm, not a block:
+  what counts as "one set of injuries" stays the GM's call.
 
 ### Added
 - **Cyberlimb options (SR2 p.261).** The three sub-options the Cybertech table

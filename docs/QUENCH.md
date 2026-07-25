@@ -29,6 +29,7 @@ so they don't pollute the world.
 | **Persistence** | A `karma.current` update sticks on the directory document (the Good-Karma-not-saving bug). |
 | **Metamagic** | Quickening a sustained spell drops it from the sustain penalty (Grimoire p.44). |
 | **Compendium** | Sample runners are linked tokens (karma-desync cause); the Offensive Grenade has no ammo block (consumable); every roll table has result rows (lost-content bug). |
+| **Magical healing** | Treat/Heal application persists: boxes come off the monitor, an undamaged or zero-success cast is refused without consuming the once-per-injuries allowance (SR2 p.155). |
 | **Movement limiter** | The in-combat cap fires via `preMoveToken`/`preUpdateToken`: walk allowed, run flagged, over-max blocked, out-and-back counts cumulatively, a bystander is uncapped, and undo isn't counted as movement (SR2 p.84). |
 
 ## Adding a batch

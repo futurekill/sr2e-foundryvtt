@@ -8,7 +8,8 @@ import { placeSummonedToken } from "../placement.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
-         spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName } from "../rules/sr2e-rules.mjs";
+         spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
+         healingBaseTime, healingTimeReduced, splitHealingSuccesses } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -2599,6 +2600,82 @@ export class SR2EActor extends Actor {
     }
     return patient._healOneLevel("physical",
       `First Aid by ${foundry.utils.escapeHTML(this.name)} (one attempt per injury — use before magical healing)`);
+  }
+
+  /**
+   * Apply a curative spell's result to this patient (SR2E p.155). The magician's
+   * successes are split between boxes healed and reducing the time the spell must
+   * be maintained; this asks how, then heals and reports the remaining time.
+   *
+   * Called from the Apply Healing button on a Treat/Heal card, so `this` is the
+   * PATIENT and `casterName` is just for the note.
+   *
+   * @param {object} opts
+   * @param {number} opts.successes  - successes from the Spell Success Test.
+   * @param {string} opts.spellName  - "Treat" or "Heal" (drives the 1-hour note).
+   * @param {string} [opts.casterName]
+   */
+  async applyMagicalHealing({ successes = 0, spellName = "Heal", casterName = "" } = {}) {
+    const cm = this.system.conditionMonitor?.physical;
+    if (!cm || cm.value <= 0) {
+      return ui.notifications.info(`${this.name} has no Physical damage to heal.`);
+    }
+    if (successes <= 0) return ui.notifications.info("No successes — nothing to apply.");
+
+    // "A character can only be magically treated or healed once for any single
+    // set of injuries" (p.155). Advisory, not a block: what counts as one set of
+    // injuries is the GM's call, and the flag clears when they reach undamaged.
+    if (this.getFlag("sr2e", "magicallyHealed")) {
+      const ok = await foundry.applications.api.DialogV2.confirm({
+        window: { title: "Already magically healed" },
+        content: `<p>${foundry.utils.escapeHTML(this.name)} has already been magically treated or
+          healed for this set of injuries (SR2 p.155). Apply anyway?</p>`
+      });
+      if (!ok) return;
+    }
+
+    const level     = SR2EActor.levelForBoxes(cm.value);
+    const levelKey  = { Light: "L", Moderate: "M", Serious: "S", Deadly: "D" }[level] ?? "L";
+    const baseTime  = healingBaseTime(levelKey);
+
+    // Ask how to split the successes (p.155). Default: all into healing boxes.
+    const form = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `${spellName}: allocate ${successes} success${successes === 1 ? "" : "es"}` },
+      content: `<p>${foundry.utils.escapeHTML(this.name)} is <strong>${level}</strong> —
+          base maintenance time <strong>${baseTime} turns</strong> (SR2 p.155).</p>
+        <p>Successes heal one box each, or divide into the base time. Split them as you like.</p>
+        <div class="form-group">
+          <label>Successes spent reducing the time:</label>
+          <input type="number" name="toTime" value="0" min="0" max="${successes}" step="1" autofocus />
+        </div>`,
+      ok: { label: "Apply", callback: (ev, btn) => new FormDataExtended(btn.form).object }
+    }).catch(() => null);
+    if (!form) return;                                   // cancelled
+
+    const { boxes, toTime } = splitHealingSuccesses(successes, form.toTime);
+    const turns  = healingTimeReduced(baseTime, toTime);
+    const before = cm.value;
+    const after  = Math.max(0, before - boxes);
+    await this.update({ "system.conditionMonitor.physical.value": after });
+    // Stamp the once-per-injury-set marker; clear it once they're undamaged, which
+    // is the cleanest available boundary for "a new set of injuries".
+    await this.setFlag("sr2e", "magicallyHealed", after > 0);
+
+    const who = casterName ? ` by ${foundry.utils.escapeHTML(casterName)}` : "";
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result">
+        <strong>${foundry.utils.escapeHTML(this.name)}: ${spellName}${who}</strong>
+        — healed <strong>${boxes}</strong> box${boxes === 1 ? "" : "es"}
+        <em>(${before} → ${after})</em>
+        <br><em>Maintain the spell for <strong>${turns} turn${turns === 1 ? "" : "s"}</strong>${
+          toTime > 0 ? ` (${baseTime} ÷ ${toTime} success${toTime === 1 ? "" : "es"})` : ""
+        }; dropping it early undoes the healing (SR2 p.155).</em>${
+          spellName === "Treat"
+            ? `<br><em>Treat is only valid within one hour of the injury.</em>` : ""
+        }
+      </div>`
+    });
   }
 
   /**

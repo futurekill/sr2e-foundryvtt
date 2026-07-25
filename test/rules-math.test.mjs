@@ -7,7 +7,8 @@ import {
   burstRounds, recoilPenalty, burstDamageBonus,
   programCost, focusCost, weaponFocusCost, astralAllowsView,
   netToSteps, astralReaction, drainTargetNumber,
-  woundLevel, healingDrainLevel, healingSpellTN, firstAidBodyMod, meleeOutcome, containerEssence,
+  woundLevel, healingDrainLevel, healingSpellTN, healingBaseTime,
+  healingTimeReduced, splitHealingSuccesses, firstAidBodyMod, meleeOutcome, containerEssence,
   vehicleDesign, engineCustomizationCost, DESIGN_OPTION_COSTS,
   resolveVehicleDesign, designNum, aggregateModDesign, modDesignPoints,
   modCfConsumed, modLoadReduction, skillsoftMemory, skillsoftCost, shotgunSpread, skillSubRatings, streetPrice, knockdownTN, knockdownThreshold, knockdownOutcome, reactionBase,
@@ -42,6 +43,35 @@ describe("Damage levels & boxes (SR2E p.113)", () => {
 
   it("orders levels L < M < S < D", () => {
     expect(DAMAGE_LEVELS).toEqual(["L", "M", "S", "D"]);
+  });
+});
+
+describe("Healing Table + success split (SR2E p.155)", () => {
+  it("base maintenance time is 5/10/15/20 turns for L/M/S/D", () => {
+    expect(healingBaseTime("L")).toBe(5);
+    expect(healingBaseTime("M")).toBe(10);
+    expect(healingBaseTime("S")).toBe(15);
+    expect(healingBaseTime("D")).toBe(20);
+  });
+
+  it("divides successes into the base time, rounding up, floor 1 turn", () => {
+    expect(healingTimeReduced(15, 3)).toBe(5);    // Serious, 3 successes → 5 turns
+    expect(healingTimeReduced(20, 4)).toBe(5);    // Deadly, 4 → 5
+    expect(healingTimeReduced(10, 3)).toBe(4);    // 10/3 = 3.33 → 4 turns
+    expect(healingTimeReduced(5, 99)).toBe(1);    // never below one turn
+  });
+
+  it("spending nothing on time leaves the base time", () => {
+    expect(healingTimeReduced(15, 0)).toBe(15);
+  });
+
+  it("splits successes between boxes and time, clamped to what was rolled", () => {
+    expect(splitHealingSuccesses(5, 2)).toEqual({ boxes: 3, toTime: 2 });
+    expect(splitHealingSuccesses(5, 0)).toEqual({ boxes: 5, toTime: 0 });
+    expect(splitHealingSuccesses(5, 5)).toEqual({ boxes: 0, toTime: 5 });
+    // can't spend successes you don't have
+    expect(splitHealingSuccesses(3, 9)).toEqual({ boxes: 0, toTime: 3 });
+    expect(splitHealingSuccesses(3, -2)).toEqual({ boxes: 3, toTime: 0 });
   });
 });
 
