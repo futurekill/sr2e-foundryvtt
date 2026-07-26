@@ -2,7 +2,7 @@
   "_id": "21fe66be66e752df",
   "name": "Bike",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/bike.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "quickness",

@@ -22,7 +22,11 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const FIX = process.argv.includes("--fix");
-const PACKS = ["contacts", "races"];
+// Pack directory names, which double as the art subdirectory — so an art dir must
+// match its pack dir EXACTLY. (assets/item_icons/adept_powers existed with an
+// underscore while the pack is `adept-powers`; the mismatch meant every icon
+// placed there would have been silently ignored.)
+const PACKS = ["contacts", "races", "skills", "adept-powers", "traditions", "lifestyles"];
 const SRC = "packs-src";
 const ART = "assets/item_icons";
 

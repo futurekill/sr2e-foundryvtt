@@ -2,7 +2,7 @@
   "_id": "7a0d75fdff5a7fc2",
   "name": "German",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/german.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

@@ -2,7 +2,7 @@
   "_id": "6c685bf6e98032c6",
   "name": "Throwing Weapons",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/throwing-weapons.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "strength",

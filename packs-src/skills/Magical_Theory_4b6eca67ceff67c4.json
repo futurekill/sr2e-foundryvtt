@@ -2,7 +2,7 @@
   "_id": "4b6eca67ceff67c4",
   "name": "Magical Theory",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/magical-theory.webp",
   "system": {
     "category": "knowledge",
     "linkedAttribute": "intelligence",

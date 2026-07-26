@@ -2,7 +2,7 @@
   "_id": "37ff226e2ce25dd3",
   "name": "Arabic",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/arabic.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

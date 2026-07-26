@@ -2,7 +2,7 @@
   "_id": "1a7e550ca7be0f01",
   "name": "Interrogation",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/interrogation.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "charisma",

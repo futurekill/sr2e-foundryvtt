@@ -2,7 +2,7 @@
   "_id": "34e55da8cb1d9f18",
   "name": "Sprawl Life",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/sprawl-life.webp",
   "system": {
     "category": "knowledge",
     "linkedAttribute": "intelligence",

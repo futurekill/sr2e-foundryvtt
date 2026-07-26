@@ -2,7 +2,7 @@
   "_id": "508cffffdde08080",
   "name": "Negotiation",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/negotiation.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "charisma",

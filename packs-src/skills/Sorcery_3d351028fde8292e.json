@@ -2,7 +2,7 @@
   "_id": "3d351028fde8292e",
   "name": "Sorcery",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/sorcery.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "intelligence",

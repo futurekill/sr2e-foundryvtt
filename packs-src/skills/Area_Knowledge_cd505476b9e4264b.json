@@ -2,7 +2,7 @@
   "_id": "cd505476b9e4264b",
   "name": "Area Knowledge",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/area-knowledge.webp",
   "system": {
     "category": "knowledge",
     "linkedAttribute": "intelligence",

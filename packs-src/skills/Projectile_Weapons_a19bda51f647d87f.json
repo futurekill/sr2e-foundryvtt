@@ -2,7 +2,7 @@
   "_id": "a19bda51f647d87f",
   "name": "Projectile Weapons",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/projectile-weapons.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "strength",

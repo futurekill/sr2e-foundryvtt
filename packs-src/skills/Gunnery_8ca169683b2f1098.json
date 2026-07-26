@@ -2,7 +2,7 @@
   "_id": "8ca169683b2f1098",
   "name": "Gunnery",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/gunnery.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "intelligence",

@@ -2,7 +2,7 @@
   "_id": "c18c2ac6461f5b3a",
   "name": "Launch Weapons",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/launch-weapons.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "strength",

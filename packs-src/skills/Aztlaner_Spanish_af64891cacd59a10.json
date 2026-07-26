@@ -2,7 +2,7 @@
   "_id": "af64891cacd59a10",
   "name": "Aztlaner Spanish",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/aztlaner-spanish.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

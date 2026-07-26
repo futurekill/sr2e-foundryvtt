@@ -2,7 +2,7 @@
   "_id": "7c42f892160e1d5e",
   "name": "Pilot",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/pilot.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "quickness",

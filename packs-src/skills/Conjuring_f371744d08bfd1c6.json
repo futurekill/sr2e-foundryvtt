@@ -2,7 +2,7 @@
   "_id": "f371744d08bfd1c6",
   "name": "Conjuring",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/conjuring.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "charisma",

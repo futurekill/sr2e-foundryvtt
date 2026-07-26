@@ -2,7 +2,7 @@
   "_id": "c967d9078ffe2312",
   "name": "Car",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/car.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "quickness",

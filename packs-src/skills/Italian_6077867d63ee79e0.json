@@ -2,7 +2,7 @@
   "_id": "6077867d63ee79e0",
   "name": "Italian",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/italian.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

@@ -2,7 +2,7 @@
   "_id": "0c841e7932becd1e",
   "name": "Leadership",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/leadership.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "charisma",

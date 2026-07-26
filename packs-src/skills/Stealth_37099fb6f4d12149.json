@@ -2,7 +2,7 @@
   "_id": "37099fb6f4d12149",
   "name": "Stealth",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "quickness",

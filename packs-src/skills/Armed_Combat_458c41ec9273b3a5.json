@@ -2,7 +2,7 @@
   "_id": "458c41ec9273b3a5",
   "name": "Armed Combat",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/armed-combat.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "strength",

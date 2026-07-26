@@ -2,7 +2,7 @@
   "_id": "dbbe689402fb559a",
   "name": "Spanish",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/spanish.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

@@ -4,6 +4,33 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+- Art still to come for the last three core packs: **traditions (8), adept
+  powers (14), lifestyles (6)**. Generation is blocked on an external
+  image-generation quota, not on anything in this repo.
+
+## 0.66.0 — 2026-07-26
+
+### Added
+- **Custom icons for all 47 core skills.** Symbolic single-device emblems in one
+  matched family. Language skills are represented by a cultural or regional
+  emblem rather than by writing the language's script or name, so nothing in the
+  set depends on reading text at 32 px.
+
+### Fixed
+- **`assets/item_icons/adept_powers` could never have worked.** The directory
+  used an underscore while the pack is `adept-powers`, and
+  `tools/set-item-icons.mjs` derives its art directory from the pack name — so
+  any icon placed there would have been silently ignored. Renamed to match.
+- **`tools/set-item-icons.mjs` only swept 2 of the packs that have art.** `PACKS`
+  listed `contacts` and `races`; it now also covers `skills`, `adept-powers`,
+  `traditions` and `lifestyles`, so those packs are reachable at all.
+- **`Or'zet` shipped an unwired icon.** Its art was generated as `or-zet.webp`
+  because a throwaway path-generating script kept the straight apostrophe as a
+  separator, while the authoritative slug rule in `set-item-icons.mjs` strips it
+  (`orzet`). Renamed the file. The lesson is the same one that produced the
+  orphaned Rigger 2 icon: derive paths from the tool that consumes them, never
+  from a second hand-written slug function.
+
 ## 0.65.0 — 2026-07-26
 
 ### Fixed

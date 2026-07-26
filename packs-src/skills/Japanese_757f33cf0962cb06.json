@@ -2,7 +2,7 @@
   "_id": "757f33cf0962cb06",
   "name": "Japanese",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/japanese.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

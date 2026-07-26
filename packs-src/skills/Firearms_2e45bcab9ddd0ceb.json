@@ -2,7 +2,7 @@
   "_id": "2e45bcab9ddd0ceb",
   "name": "Firearms",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "quickness",

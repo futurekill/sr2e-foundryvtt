@@ -2,7 +2,7 @@
   "_id": "69a8b25081ed1806",
   "name": "Lakota",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/lakota.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

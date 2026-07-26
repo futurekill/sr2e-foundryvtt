@@ -2,7 +2,7 @@
   "_id": "1df2311fe9f99b9f",
   "name": "Corporate Politics",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/corporate-politics.webp",
   "system": {
     "category": "knowledge",
     "linkedAttribute": "intelligence",

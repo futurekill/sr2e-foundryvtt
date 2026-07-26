@@ -2,7 +2,7 @@
   "_id": "edd1dc6f23e0f508",
   "name": "Demolitions",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/demolitions.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "intelligence",

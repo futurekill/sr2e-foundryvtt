@@ -2,7 +2,7 @@
   "_id": "7a0470b02455939e",
   "name": "Salish",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/salish.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

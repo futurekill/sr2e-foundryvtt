@@ -2,7 +2,7 @@
   "_id": "d44f4197f9b7e317",
   "name": "Portuguese",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/portuguese.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

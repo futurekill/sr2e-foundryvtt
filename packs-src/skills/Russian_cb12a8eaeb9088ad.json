@@ -2,7 +2,7 @@
   "_id": "cb12a8eaeb9088ad",
   "name": "Russian",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/russian.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

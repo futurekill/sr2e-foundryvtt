@@ -2,7 +2,7 @@
   "_id": "6c506543bbdf3da5",
   "name": "English",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/english.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

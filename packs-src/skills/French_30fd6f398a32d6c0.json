@@ -2,7 +2,7 @@
   "_id": "30fd6f398a32d6c0",
   "name": "French",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/french.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

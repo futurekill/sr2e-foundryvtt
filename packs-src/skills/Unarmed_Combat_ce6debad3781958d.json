@@ -2,7 +2,7 @@
   "_id": "ce6debad3781958d",
   "name": "Unarmed Combat",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/unarmed-combat.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "strength",

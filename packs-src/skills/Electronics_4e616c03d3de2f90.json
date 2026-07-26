@@ -2,7 +2,7 @@
   "_id": "4e616c03d3de2f90",
   "name": "Electronics",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
   "system": {
     "category": "active",
     "linkedAttribute": "intelligence",

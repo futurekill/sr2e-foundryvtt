@@ -2,7 +2,7 @@
   "_id": "275bf41f51c67790",
   "name": "Sperethiel",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/sperethiel.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

@@ -2,7 +2,7 @@
   "_id": "97f2b9d9975d6c97",
   "name": "Korean",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/korean.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

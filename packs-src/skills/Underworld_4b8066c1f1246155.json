@@ -2,7 +2,7 @@
   "_id": "4b8066c1f1246155",
   "name": "Underworld",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/underworld.webp",
   "system": {
     "category": "knowledge",
     "linkedAttribute": "intelligence",

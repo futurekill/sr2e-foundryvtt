@@ -2,7 +2,7 @@
   "_id": "3c11bbb35cc852a7",
   "name": "Cantonese",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/cantonese.webp",
   "system": {
     "category": "language",
     "linkedAttribute": "intelligence",

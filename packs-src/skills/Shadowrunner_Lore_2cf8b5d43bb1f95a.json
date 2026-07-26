@@ -2,7 +2,7 @@
   "_id": "2cf8b5d43bb1f95a",
   "name": "Shadowrunner Lore",
   "type": "skill",
-  "img": "icons/svg/book.svg",
+  "img": "systems/sr2e/assets/item_icons/skills/shadowrunner-lore.webp",
   "system": {
     "category": "knowledge",
     "linkedAttribute": "intelligence",
