@@ -427,5 +427,12 @@
   "SR2E.Dialog.MiscDiceNote": "note (e.g. Tailored Pheromones)",
   "SR2E.Roll.Floored": "(min 0)",
   "SR2E.Attr.OtherSource": "other",
-  "SR2E.Sheet.ExportJson": "Export to JSON (backup)"
+  "SR2E.Sheet.ExportJson": "Export to JSON (backup)",
+  "SR2E.Spirits.Mist": "Mist",
+  "SR2E.Spirits.Storm": "Storm",
+  "SR2E.Powers.Alienation": "Alienation",
+  "SR2E.Powers.Binding": "Binding",
+  "SR2E.Powers.ElectricalProjection": "Electrical Projection",
+  "SR2E.Powers.FlameAura": "Flame Aura",
+  "SR2E.Powers.FlameProjection": "Flame Projection"
 }

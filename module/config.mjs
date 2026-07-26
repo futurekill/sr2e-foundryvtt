@@ -487,16 +487,23 @@ SR2E.healTime = {
 // ---------------------------------------------------------------------------
 
 // Nature spirit domains — a shaman may only summon a spirit in its domain.
+// The thirteen printed domains (SR2E p.235) plus `wind`, this system's older
+// umbrella for the Of-the-Sky pair. Mist and Storm are the book's actual
+// Of-the-Sky spirits and have DIFFERENT powers (only Storm has Electrical
+// Projection), so they are listed separately; `wind` is kept because shipped
+// worlds and portrait art use it.
 SR2E.spiritDomains = {
   city:    "SR2E.Spirits.City",
   field:   "SR2E.Spirits.Field",
   forest:  "SR2E.Spirits.Forest",
   hearth:  "SR2E.Spirits.Hearth",
   lake:    "SR2E.Spirits.Lake",
+  mist:    "SR2E.Spirits.Mist",
   mountain:"SR2E.Spirits.Mountain",
   prairie: "SR2E.Spirits.Prairie",
   river:   "SR2E.Spirits.River",
   sea:     "SR2E.Spirits.Sea",
+  storm:   "SR2E.Spirits.Storm",
   desert:  "SR2E.Spirits.Desert",
   swamp:   "SR2E.Spirits.Swamp",
   wind:    "SR2E.Spirits.Wind"
@@ -566,6 +573,9 @@ SR2E.spiritPortraitVariants = {
   // Nature-spirit domains
   city: 3, field: 3, forest: 3, hearth: 3, lake: 3, mountain: 3,
   prairie: 3, river: 3, sea: 3, desert: 3, swamp: 3, wind: 3
+  // NOTE: mist and storm have no art of their own yet — they fall through to the
+  // default portrait. They share the air stat profile with `wind`, whose three
+  // images could be reused if that reads better at the table.
 };
 
 /**
@@ -590,19 +600,61 @@ SR2E.conjuringDrain = (force, charisma) => {
 // (Full descriptions: Critters / Powers of the Awakened, SR2E p.214+.)
 SR2E.spiritPowers = {
   accident:      "SR2E.Powers.Accident",
+  alienation:    "SR2E.Powers.Alienation",
+  binding:       "SR2E.Powers.Binding",
   concealment:   "SR2E.Powers.Concealment",
   confusion:     "SR2E.Powers.Confusion",
+  electricalProjection: "SR2E.Powers.ElectricalProjection",
   engulf:        "SR2E.Powers.Engulf",
   fear:          "SR2E.Powers.Fear",
+  flameAura:     "SR2E.Powers.FlameAura",
+  flameProjection: "SR2E.Powers.FlameProjection",
   guard:         "SR2E.Powers.Guard",
   manifestation: "SR2E.Powers.Manifestation",
   movement:      "SR2E.Powers.Movement",
   noxiousBreath: "SR2E.Powers.NoxiousBreath",
   psychokinesis: "SR2E.Powers.Psychokinesis",
   search:        "SR2E.Powers.Search",
+  // Services a bound spirit performs rather than innate critter powers (p.140).
   aidSorcery:    "SR2E.Powers.AidSorcery",
   aidStudy:      "SR2E.Powers.AidStudy",
   spellSustaining:"SR2E.Powers.SpellSustaining"
+};
+
+// The powers each summonable type actually HAS (SR2E Critter Statistics Table,
+// p.234–235). These are not interchangeable: a Storm Spirit projects lightning
+// and a Field Spirit does not; only water-group spirits Engulf; only Fire among
+// the elementals has the flame powers. A summoned spirit is created with its
+// printed set, which the GM can still edit on the sheet.
+SR2E.spiritDomainPowers = {
+  // ── Elementals ──────────────────────────────────────────────────────────
+  air:   ["engulf", "manifestation", "movement", "noxiousBreath", "psychokinesis"],
+  earth: ["engulf", "manifestation", "movement"],
+  fire:  ["engulf", "flameAura", "flameProjection", "guard", "manifestation", "movement"],
+  water: ["engulf", "manifestation", "movement"],
+  // ── Nature spirits: Of Man ──────────────────────────────────────────────
+  city:   ["accident", "alienation", "concealment", "confusion", "fear", "guard", "search"],
+  hearth: ["accident", "alienation", "concealment", "confusion", "guard", "search"],
+  field:  ["accident", "concealment", "guard", "search"],
+  // ── Of the Land ─────────────────────────────────────────────────────────
+  desert:   ["concealment", "guard", "movement", "search"],
+  forest:   ["accident", "concealment", "confusion", "fear", "guard"],
+  mountain: ["accident", "concealment", "guard", "movement", "search"],
+  prairie:  ["accident", "alienation", "concealment", "guard", "movement", "search"],
+  // ── Of the Sky ──────────────────────────────────────────────────────────
+  mist:  ["accident", "concealment", "confusion", "guard", "movement"],
+  storm: ["concealment", "confusion", "electricalProjection", "fear"],
+  // `wind` is this system's older umbrella for the Of-the-Sky domains. The book
+  // has no Wind Spirit, so it takes the Mist set (the more general of the two);
+  // pick `mist` or `storm` explicitly to get the printed spirit.
+  wind:  ["accident", "concealment", "confusion", "guard", "movement"],
+  // ── Of the Waters ───────────────────────────────────────────────────────
+  lake:  ["accident", "engulf", "fear", "guard", "movement", "search"],
+  river: ["accident", "concealment", "engulf", "fear", "guard", "movement", "search"],
+  sea:   ["accident", "alienation", "concealment", "confusion", "engulf", "fear",
+          "guard", "movement", "search"],
+  swamp: ["accident", "binding", "concealment", "confusion", "engulf", "fear",
+          "guard", "movement", "search"]
 };
 
 // ---------------------------------------------------------------------------

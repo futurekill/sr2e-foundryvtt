@@ -5,6 +5,20 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 ## Unreleased
 
 ### Fixed
+- **Shaman-summoned nature spirits now arrive with their own powers.** Every
+  spirit was created with an empty power list, so a Storm Spirit and a Field
+  Spirit were mechanically identical until the GM filled them in by hand. Each of
+  the thirteen printed domains now carries its own set (p.234–235): only Storm
+  projects lightning, only the water spirits Engulf, only the Swamp Spirit binds,
+  and among elementals only Fire has the flame powers.
+- **Five spirit powers were missing entirely** — Alienation, Binding, Electrical
+  Projection, Flame Aura and Flame Projection — so several printed spirits could
+  not be represented at all.
+- **Mist and Storm Spirits are summonable.** The domain list carried a single
+  `wind` entry standing in for both, which is fine for stats (all Of-the-Sky
+  spirits share the air profile) but wrong for powers, since the two differ.
+  `wind` is kept so existing spirits and their art keep working.
+
 - **Summoned spirits and elementals had the wrong stats — every attribute was
   just its Force.** The book gives four distinct profiles (Critter Statistics
   Table, p.234–235), and nature spirits share them by domain group. A Force-4

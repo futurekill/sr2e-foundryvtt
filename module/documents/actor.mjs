@@ -889,7 +889,11 @@ export class SR2EActor extends Actor {
         name, type: "spirit", img,
         system: {
           spiritType: kind, force, domain, services, maxServices: services,
-          conjurerUuid: this.uuid
+          conjurerUuid: this.uuid,
+          // The powers this spirit actually has, per its printed entry
+          // (SR2E p.234–235) — a Storm Spirit projects lightning, a Field Spirit
+          // does not. Editable on the sheet afterwards.
+          powers: [...(CONFIG.SR2E.spiritDomainPowers?.[domain] ?? [])]
         },
         // A summoned spirit takes the summoner's side: friendly when a PLAYER
         // conjures it (so the party sees it, translucent while astral), but it
