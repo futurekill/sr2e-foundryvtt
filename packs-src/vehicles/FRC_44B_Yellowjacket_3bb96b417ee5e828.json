@@ -2,7 +2,7 @@
   "_id": "3bb96b417ee5e828",
   "name": "FRC-44B Yellowjacket",
   "type": "vehicle",
-  "img": "icons/svg/windmill.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/frc-44b-yellowjacket.webp",
   "system": {
     "vehicleType": "rotor",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "FRC-44B Yellowjacket",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 9,
+    "height": 9,
     "texture": {
-      "src": "icons/svg/windmill.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/frc-44b-yellowjacket.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

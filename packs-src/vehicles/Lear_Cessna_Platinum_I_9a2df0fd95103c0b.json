@@ -2,7 +2,7 @@
   "_id": "9a2df0fd95103c0b",
   "name": "Lear-Cessna Platinum I",
   "type": "vehicle",
-  "img": "icons/svg/wing.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/lear-cessna-platinum-i.webp",
   "system": {
     "vehicleType": "aircraft",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Lear-Cessna Platinum I",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 15,
+    "height": 14,
     "texture": {
-      "src": "icons/svg/wing.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/lear-cessna-platinum-i.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

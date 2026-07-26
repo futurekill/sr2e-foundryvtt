@@ -2,7 +2,7 @@
   "_id": "9e269eccff58623d",
   "name": "Eurocar Westwind 2000",
   "type": "vehicle",
-  "img": "icons/svg/direction.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/eurocar-westwind-2000.webp",
   "system": {
     "vehicleType": "ground",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Eurocar Westwind 2000",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 2,
+    "height": 5,
     "texture": {
-      "src": "icons/svg/direction.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/eurocar-westwind-2000.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

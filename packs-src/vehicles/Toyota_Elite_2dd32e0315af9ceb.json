@@ -2,7 +2,7 @@
   "_id": "2dd32e0315af9ceb",
   "name": "Toyota Elite",
   "type": "vehicle",
-  "img": "icons/svg/direction.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/toyota-elite.webp",
   "system": {
     "vehicleType": "ground",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Toyota Elite",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 2,
+    "height": 5,
     "texture": {
-      "src": "icons/svg/direction.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/toyota-elite.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

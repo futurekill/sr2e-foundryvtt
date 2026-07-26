@@ -4,6 +4,25 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Added
+- **Every vehicle has real top-down token art.** All 32 vehicles and drones were
+  shipping on stock Foundry icons — a Cessna as a generic wing, the Nightrunner as
+  an anchor. Each now has a 1024×1024 illustration drawn strictly overhead with a
+  **transparent background**, so it reads as a proper map token rather than a
+  portrait pasted on a square. Vehicles deliberately keep rotation unlocked: the
+  art points nose-up so a token swings to face the way it's driving.
+
+### Fixed
+- **Vehicle tokens are no longer all 1×1.** On a 1 m grid every vehicle occupied a
+  single square, which made an Ares Citymaster one metre long and squashed the art
+  into one cell. Footprints are now sized per craft — an Americar is 2×5, a
+  Citymaster 3×7, a Nightsky limo 2×7, an Ares Dragon 20×20 rotor disc, a
+  Surveillance Drone stays 1×1. This matters beyond looks: vehicle ramming and
+  vehicle combat are implemented, and a van occupying one square can't be
+  positioned or rammed sensibly. *SR2 gives vehicles a Body rating but no
+  dimensions, so these are real-world estimates rather than book values — change
+  any token's size freely; nothing derives from them.*
+
 ### Fixed
 - **Gear prices audited against the printed Equipment tables (book p.257–259).**
   Five items were being sold at a fraction of their real price — the worst by far

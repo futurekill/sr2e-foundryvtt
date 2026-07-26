@@ -2,7 +2,7 @@
   "_id": "8bb9cfefbc1c87ec",
   "name": "Sendanko Marlin",
   "type": "vehicle",
-  "img": "icons/svg/anchor.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/sendanko-marlin.webp",
   "system": {
     "vehicleType": "boat",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Sendanko Marlin",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 3,
+    "height": 7,
     "texture": {
-      "src": "icons/svg/anchor.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/sendanko-marlin.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

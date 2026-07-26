@@ -2,7 +2,7 @@
   "_id": "69fd8e02108ca380",
   "name": "Hughes Airstar",
   "type": "vehicle",
-  "img": "icons/svg/windmill.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/hughes-airstar.webp",
   "system": {
     "vehicleType": "rotor",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Hughes Airstar",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 14,
+    "height": 14,
     "texture": {
-      "src": "icons/svg/windmill.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/hughes-airstar.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

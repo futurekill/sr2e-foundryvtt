@@ -2,7 +2,7 @@
   "_id": "b33a9832e56d2aaa",
   "name": "Northrup PRC-42B Wasp",
   "type": "vehicle",
-  "img": "icons/svg/windmill.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/northrup-prc-42b-wasp.webp",
   "system": {
     "vehicleType": "rotor",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Northrup PRC-42B Wasp",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 8,
+    "height": 8,
     "texture": {
-      "src": "icons/svg/windmill.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/northrup-prc-42b-wasp.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

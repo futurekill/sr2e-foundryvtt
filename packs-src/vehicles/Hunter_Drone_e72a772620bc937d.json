@@ -2,7 +2,7 @@
   "_id": "e72a772620bc937d",
   "name": "Hunter Drone",
   "type": "vehicle",
-  "img": "icons/svg/eye.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/hunter-drone.webp",
   "system": {
     "vehicleType": "drone",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Hunter Drone",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 2,
+    "height": 2,
     "texture": {
-      "src": "icons/svg/eye.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/hunter-drone.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

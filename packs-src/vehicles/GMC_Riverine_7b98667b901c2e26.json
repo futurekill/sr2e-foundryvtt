@@ -2,7 +2,7 @@
   "_id": "7b98667b901c2e26",
   "name": "GMC Riverine",
   "type": "vehicle",
-  "img": "icons/svg/anchor.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/gmc-riverine.webp",
   "system": {
     "vehicleType": "boat",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "GMC Riverine",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 4,
+    "height": 12,
     "texture": {
-      "src": "icons/svg/anchor.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/gmc-riverine.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

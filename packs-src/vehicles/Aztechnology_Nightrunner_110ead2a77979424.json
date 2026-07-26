@@ -2,7 +2,7 @@
   "_id": "110ead2a77979424",
   "name": "Aztechnology Nightrunner",
   "type": "vehicle",
-  "img": "icons/svg/anchor.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/aztechnology-nightrunner.webp",
   "system": {
     "vehicleType": "boat",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Aztechnology Nightrunner",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 3,
+    "height": 9,
     "texture": {
-      "src": "icons/svg/anchor.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/aztechnology-nightrunner.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

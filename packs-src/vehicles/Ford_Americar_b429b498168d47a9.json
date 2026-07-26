@@ -2,7 +2,7 @@
   "_id": "b429b498168d47a9",
   "name": "Ford Americar",
   "type": "vehicle",
-  "img": "icons/svg/direction.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/ford-americar.webp",
   "system": {
     "vehicleType": "ground",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Ford Americar",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 2,
+    "height": 5,
     "texture": {
-      "src": "icons/svg/direction.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/ford-americar.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

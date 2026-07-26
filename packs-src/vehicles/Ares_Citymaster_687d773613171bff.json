@@ -2,7 +2,7 @@
   "_id": "687d773613171bff",
   "name": "Ares Citymaster",
   "type": "vehicle",
-  "img": "icons/svg/direction.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/ares-citymaster.webp",
   "system": {
     "vehicleType": "ground",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Ares Citymaster",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 3,
+    "height": 7,
     "texture": {
-      "src": "icons/svg/direction.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/ares-citymaster.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

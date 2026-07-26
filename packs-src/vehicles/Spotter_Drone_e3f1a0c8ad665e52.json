@@ -2,7 +2,7 @@
   "_id": "e3f1a0c8ad665e52",
   "name": "Spotter Drone",
   "type": "vehicle",
-  "img": "icons/svg/eye.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/spotter-drone.webp",
   "system": {
     "vehicleType": "drone",
     "skill": "",
@@ -49,7 +49,7 @@
     "width": 1,
     "height": 1,
     "texture": {
-      "src": "icons/svg/eye.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/spotter-drone.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

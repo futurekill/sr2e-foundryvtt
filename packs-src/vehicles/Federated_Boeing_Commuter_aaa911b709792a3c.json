@@ -2,7 +2,7 @@
   "_id": "aaa911b709792a3c",
   "name": "Federated-Boeing Commuter",
   "type": "vehicle",
-  "img": "icons/svg/windmill.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/federated-boeing-commuter.webp",
   "system": {
     "vehicleType": "rotor",
     "skill": "",
@@ -46,10 +46,10 @@
     "name": "Federated-Boeing Commuter",
     "displayName": 0,
     "actorLink": false,
-    "width": 1,
-    "height": 1,
+    "width": 14,
+    "height": 14,
     "texture": {
-      "src": "icons/svg/windmill.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/federated-boeing-commuter.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,

@@ -2,7 +2,7 @@
   "_id": "c9330e180d1d7e0e",
   "name": "Harley Scorpion",
   "type": "vehicle",
-  "img": "icons/svg/direction.svg",
+  "img": "systems/sr2e/assets/vehicle_portraits/harley-scorpion.webp",
   "system": {
     "vehicleType": "ground",
     "skill": "bike",
@@ -47,9 +47,9 @@
     "displayName": 0,
     "actorLink": false,
     "width": 1,
-    "height": 1,
+    "height": 3,
     "texture": {
-      "src": "icons/svg/direction.svg",
+      "src": "systems/sr2e/assets/vehicle_portraits/harley-scorpion.webp",
       "anchorX": 0.5,
       "anchorY": 0.5,
       "offsetX": 0,
