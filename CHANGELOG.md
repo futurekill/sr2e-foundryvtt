@@ -4,6 +4,29 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.64.0 — 2026-07-26
+
+### Fixed
+- **Refresh Item Art now reaches everything, not just player characters.** The
+  macro swept `game.actors` filtered to `type === "character"`, so a GM's NPCs
+  and vehicles kept their placeholder icons, and — the one most likely to look
+  like a bug — so did every **unlinked token**, whose items are a separate copy
+  the actor loop never sees. It now covers all world actors, unlinked token
+  actors, and loose items in the world Items directory. Still safe and
+  idempotent: it only upgrades core `icons/…` placeholders and never touches a
+  custom image you set yourself.
+- **Nine sample-runner and critter icons were stale.** Eight critters kept
+  `bones.svg` for Unarmed Strike and Whisper kept `mystery-man.svg` for her
+  Shaman contact, because `tools/refresh-embedded-art.mjs` had no `TYPE_DIR`
+  entry for `contact`/`race` (added after that tool was written) and defaulted
+  to the `runners` pack alone. It now knows both types and sweeps `runners`,
+  `critters`, `vehicles` and `ic`.
+
+### Notes
+- The macro matches art from **every** loaded Item compendium, so the new
+  content-module artwork (Rigger 2 0.4.0, Shadowtech 0.6.0, Street Samurai
+  Catalog 0.2.0) is picked up automatically — no per-module version needed.
+
 ## 0.63.0 — 2026-07-26
 
 ### Fixed

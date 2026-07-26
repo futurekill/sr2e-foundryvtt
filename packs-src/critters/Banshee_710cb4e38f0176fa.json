@@ -106,7 +106,7 @@
       "_id": "4734a2f100e681a2",
       "name": "Unarmed Strike",
       "type": "weapon",
-      "img": "icons/svg/bones.svg",
+      "img": "systems/sr2e/assets/item_icons/weapons/unarmed-strike.webp",
       "system": {
         "weaponType": "melee",
         "skill": "",

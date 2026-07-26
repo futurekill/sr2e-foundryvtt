@@ -10,15 +10,21 @@
 // and only sets a path whose file actually ships. Re-run after more art lands.
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 
+// Keep in step with the directories under assets/item_icons/ — a type missing
+// here is silently skipped, which is how the sample runners' Shaman contact and
+// the critters' Unarmed Strike kept their placeholders after that art shipped.
 const TYPE_DIR = {
   weapon: "weapons", armor: "armor", ammo: "ammo", focus: "foci",
-  gear: "gear", cyberware: "cyberware", program: "programs", spell: "spells"
+  gear: "gear", cyberware: "cyberware", program: "programs", spell: "spells",
+  contact: "contacts", race: "races"
 };
 const slug = (s) => s.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const isPlaceholder = (img) => !img || img.startsWith("icons/");
 
+// Every pack that ships actors carrying embedded items, not just the runners —
+// critters have an Unarmed Strike each, and vehicles/ic can hold gear.
 const packs = process.argv.slice(2);
-if (!packs.length) packs.push("runners");
+if (!packs.length) packs.push("runners", "critters", "vehicles", "ic");
 
 let touchedItems = 0, touchedDocs = 0;
 for (const pack of packs) {
