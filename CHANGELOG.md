@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.63.0 — 2026-07-26
+
 ### Fixed
 - **Shaman-summoned nature spirits now arrive with their own powers.** Every
   spirit was created with an empty power list, so a Storm Spirit and a Field
