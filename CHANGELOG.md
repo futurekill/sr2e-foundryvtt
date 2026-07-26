@@ -4,6 +4,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.62.0 — 2026-07-26
+
 ### Added
 - **Quick reference guides in the Player Guides compendium.** Three journals of
   the tables you reach for most, transcribed off the printed pages and readable by
