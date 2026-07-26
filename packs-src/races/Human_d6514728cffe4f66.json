@@ -2,7 +2,7 @@
   "_id": "d6514728cffe4f66",
   "name": "Human",
   "type": "race",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/races/human.webp",
   "system": {
     "raceKey": "human",
     "attributeMods": {

@@ -2,7 +2,7 @@
   "_id": "c18cc3ad00e29066",
   "name": "Talismonger",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/talismonger.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Talismonger",

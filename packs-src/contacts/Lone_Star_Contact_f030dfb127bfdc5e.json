@@ -2,7 +2,7 @@
   "_id": "f030dfb127bfdc5e",
   "name": "Lone Star Contact",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/lone-star-contact.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Cop (Lone Star)",

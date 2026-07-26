@@ -2,7 +2,7 @@
   "_id": "4d617fc9268a42d2",
   "name": "Dwarf",
   "type": "race",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/races/dwarf.webp",
   "system": {
     "raceKey": "dwarf",
     "attributeMods": {

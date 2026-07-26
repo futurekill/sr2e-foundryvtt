@@ -2,7 +2,7 @@
   "_id": "d3ec17842d274d04",
   "name": "Elf",
   "type": "race",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/races/elf.webp",
   "system": {
     "raceKey": "elf",
     "attributeMods": {

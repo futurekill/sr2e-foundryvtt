@@ -2,7 +2,7 @@
   "_id": "3f090193cc234da2",
   "name": "Ork",
   "type": "race",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/races/ork.webp",
   "system": {
     "raceKey": "ork",
     "attributeMods": {

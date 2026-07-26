@@ -2,7 +2,7 @@
   "_id": "0cd74aba1490fdf9",
   "name": "Mr. Johnson",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/mr-johnson.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Johnson (Employer)",

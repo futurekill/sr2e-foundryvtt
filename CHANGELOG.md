@@ -12,8 +12,10 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   how the levels stack across the two condition tracks, and Stun/Physical recovery,
   p.112–113), and **Movement** (walk/run rates, the Running Table, and the
   once-per-Combat-Turn limit on running, p.84).
-- **Portrait icons for contacts.** The contact archetypes were all sharing Foundry's
-  stock silhouette; each now has its own 256×256 portrait in the house style.
+- **Portrait icons for every contact and metatype.** All 21 contact archetypes and
+  the 5 metatypes were sharing Foundry's stock silhouette; each now has its own
+  256×256 portrait in the house style — a Mr. Johnson in mirrored shades, a
+  blood-aproned street doc, a tusked ork, a horned troll.
 
 ### Added
 - **Every vehicle has real top-down token art.** All 32 vehicles and drones were

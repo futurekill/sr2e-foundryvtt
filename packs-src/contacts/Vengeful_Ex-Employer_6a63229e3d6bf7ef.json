@@ -2,14 +2,14 @@
   "_id": "6a63229e3d6bf7ef",
   "name": "Vengeful Ex-Employer",
   "type": "contact",
-  "img": "icons/svg/terror.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/vengeful-ex-employer.webp",
   "system": {
     "contactType": "enemy",
     "archetype": "Corp Manager",
     "loyalty": 4,
     "influence": 4,
     "description": "",
-    "notes": "A Johnson whose deniable asset you became \u2014 burned by the run, now spending real budget to make it personal. SR Companion (Enemies)."
+    "notes": "A Johnson whose deniable asset you became — burned by the run, now spending real budget to make it personal. SR Companion (Enemies)."
   },
   "effects": [],
   "flags": {},
