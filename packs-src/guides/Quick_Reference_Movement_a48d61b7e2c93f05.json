@@ -1,0 +1,49 @@
+{
+  "_id": "a48d61b7e2c93f05",
+  "name": "Quick Reference \u2014 Movement",
+  "folder": null,
+  "sort": 120000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "p1movement0000001",
+      "name": "Movement in Combat",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Movement in combat (SR2 p.84). Movement never costs you actions &mdash;\nit does not change what Free, Simple or Complex Actions are available. Rates are\nper <strong>Combat Phase</strong>. You may also simply stand still.</em></p>\n<h2>Walking</h2>\n<p>Move up to your <strong>Quickness</strong> in metres this Combat Phase.</p>\n<ul>\n<li><strong>+1</strong> target number if you combine the move with an action requiring a\nSuccess Test.</li>\n<li><strong>+2</strong> if the movement is over rough terrain or through obstacles.</li>\n</ul>\n<h2>Running</h2>\n<p>Move Quickness &times; the Running Modifier for your metatype, in metres per Combat\nPhase.</p>\n<table><thead><tr><th>Metatype</th><th>Running Modifier</th></tr></thead><tbody>\n<tr><td>Human</td><td>&times;3</td></tr>\n<tr><td>Elf</td><td>&times;3</td></tr>\n<tr><td>Ork</td><td>&times;3</td></tr>\n<tr><td>Dwarf</td><td>&times;2</td></tr>\n<tr><td>Troll</td><td>&times;2</td></tr>\n</tbody></table>\n<ul>\n<li><strong>+4</strong> target number to any test attempted while running.</li>\n<li>A character with <strong>Running Skill</strong> may spend a Complex Action (Use Skill)\nto push further: each success against Target Number 4 adds 1 point of effective\nQuickness for that Combat Phase.</li>\n</ul>\n<h2>Once per Combat Turn</h2>\n<p>A character with several Combat Phases in a Turn may <strong>run in only one of\nthem</strong> &mdash; though it does not matter which. Their other phases are walking\nat most.</p>\n<h2>Interception</h2>\n<p>Moving within one metre of an opponent lets that opponent intercept &mdash; see\nthe full rule on p.84.</p>\n<p><em>The system can enforce these rates for you: enable\n<strong>Settings &rarr; Limit movement in combat</strong> and the drag ruler turns green\nwithin a walk, amber into a run, and refuses a drop past the running maximum.</em></p>"
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.61.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!journal!a48d61b7e2c93f05"
+}

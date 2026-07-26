@@ -2,7 +2,7 @@
   "_id": "ab2344e914739348",
   "name": "DocWagon Contact",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/docwagon-contact.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Medical (DocWagon)",

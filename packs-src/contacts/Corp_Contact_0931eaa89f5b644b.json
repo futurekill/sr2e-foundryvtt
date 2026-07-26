@@ -2,7 +2,7 @@
   "_id": "0931eaa89f5b644b",
   "name": "Corp Contact",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/corp-contact.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Corporate Employee",

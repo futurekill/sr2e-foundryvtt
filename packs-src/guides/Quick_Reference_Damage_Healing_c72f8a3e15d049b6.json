@@ -1,0 +1,74 @@
+{
+  "_id": "c72f8a3e15d049b6",
+  "name": "Quick Reference \u2014 Damage & Healing",
+  "folder": null,
+  "sort": 110000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "p1damagemods00001",
+      "name": "Damage Modifiers",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Damage Modifiers Table (SR2 p.112). The <strong>Injury Modifier</strong> is a\nuniversal target-number modifier applying to nearly every Success Test the injured\ncharacter attempts &mdash; <em>except</em> tests to resist or avoid damage. The\n<strong>Initiative Modifier</strong> is applied to Reaction <em>before</em> Initiative\ndice are rolled; if it drops Reaction to 0 or less, the character cannot act that\nCombat Turn.</em></p>\n<table><thead><tr><th>Damage Level</th><th>Injury Modifier</th><th>Initiative Modifier</th></tr></thead><tbody>\n<tr><td>Uninjured</td><td>none</td><td>none</td></tr>\n<tr><td>Light</td><td>+1</td><td>&minus;1</td></tr>\n<tr><td>Moderate</td><td>+2</td><td>&minus;2</td></tr>\n<tr><td>Serious</td><td>+3</td><td>&minus;3</td></tr>\n<tr><td>Deadly</td><td colspan=\"2\" style=\"text-align:center\">unconscious or near death</td></tr>\n</tbody></table>\n<h2>How the levels stack</h2>\n<p>Within a single column the levels are <strong>not</strong> cumulative &mdash; only the\nhighest level reached counts. Across the two columns they <strong>are</strong>\ncumulative.</p>\n<p><em>Worked example from the book:</em> a character Moderately wounded in Stun and\nLightly wounded in Physical takes +2/&minus;2 for the Stun and +1/&minus;1 for the\nPhysical, for a total of <strong>+3 target number and &minus;3 Initiative</strong>.</p>\n<h2>Condition Monitor</h2>\n<p>Two tracks, Stun and Physical, each marked at Light / Moderate / Serious / Deadly.\nBoxes fill at <strong>1 / 3 / 6 / 10</strong>. Physical damage beyond Deadly runs into\n<strong>Physical Damage Overflow</strong>.</p>"
+      }
+    },
+    {
+      "_id": "p2healing00000001",
+      "name": "Healing & Recovery",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Recovering damage (SR2 p.112&ndash;113). Stun and Physical heal\ndifferently and at different rates.</em></p>\n<h2>Stun</h2>\n<p>Roll <strong>Body or Willpower</strong>, whichever is higher, against a base\n<strong>Target Number 2</strong>. That target number <em>is</em> modified by any injury\nmodifiers the character currently has, Stun or Physical.</p>\n<p>Recovering one box has a base time of <strong>60 minutes</strong>; the actual time is\nthe base divided by the successes rolled. After that time one box is erased.</p>\n<ul>\n<li>The character must be <strong>resting completely</strong>. Interrupt the rest and the\nrecovery aborts &mdash; re-roll using the condition at that moment, but the result can\nnever be better than the first roll.</li>\n<li>A character knocked unconscious by Deadly Stun does not wake until their Stun is\nreduced to <strong>Serious</strong>.</li>\n<li>Rest is the <em>only</em> way to recover Stun. No medical treatment helps, and no\nknown spell does either. A Stim Patch buys time at a long-term cost (p.250).</li>\n</ul>\n<h2>Curative magic</h2>\n<p>The <strong>treat</strong> and <strong>heal</strong> spells (p.155) each mend a number of\nboxes equal to the successes rolled. Treat must be applied within one hour of the\ninjury; heal has no time limit. A character can be magically treated or healed only\n<strong>once per set of injuries</strong>.</p>"
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.61.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!journal!c72f8a3e15d049b6"
+}

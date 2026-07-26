@@ -1,0 +1,74 @@
+{
+  "_id": "b1e4c9f207a3d856",
+  "name": "Quick Reference \u2014 Ranged Combat",
+  "folder": null,
+  "sort": 100000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "p1rangedmods0001",
+      "name": "Ranged Combat Modifiers",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Every modifier that can land on a ranged attack, from the printed\nRanged Combat Modifiers Table (SR2 p.89). Modifiers are cumulative.</em></p>\n<table><thead><tr><th>Situation</th><th>Modifier</th></tr></thead><tbody>\n<tr><td>Recoil, semi-automatic</td><td>+1 for the second shot that Combat Phase</td></tr>\n<tr><td>Recoil, burst-fire</td><td>+3 per burst that Combat Phase</td></tr>\n<tr><td>Recoil, full-auto</td><td>+1 per round fired that Combat Phase</td></tr>\n<tr><td>Recoil, heavy weapon</td><td>2 &times; uncompensated recoil</td></tr>\n<tr><td>Blind fire</td><td>+8</td></tr>\n<tr><td>Partial cover</td><td>+4</td></tr>\n<tr><td>Visibility impaired</td><td>see the Visibility Table below</td></tr>\n<tr><td>Multiple targets</td><td>+2 per additional target that Combat Phase</td></tr>\n<tr><td>Target running</td><td>+2</td></tr>\n<tr><td>Target stationary</td><td>&minus;1</td></tr>\n<tr><td>Attacker in melee combat</td><td>+2 per opponent</td></tr>\n<tr><td>Attacker running</td><td>+4</td></tr>\n<tr><td>Attacker running (difficult ground)</td><td>+6</td></tr>\n<tr><td>Attacker walking</td><td>+1</td></tr>\n<tr><td>Attacker walking (difficult ground)</td><td>+2</td></tr>\n<tr><td>Attacker wounded</td><td>see Injury Modifier (p.112)</td></tr>\n<tr><td>Smartlink (with smartgun)</td><td>&minus;2</td></tr>\n<tr><td>Smart goggles (with smartgun)</td><td>&minus;1</td></tr>\n<tr><td>Laser sight</td><td>&minus;1</td></tr>\n<tr><td>Using a second firearm</td><td>+2</td></tr>\n<tr><td>Aimed shot</td><td>&minus;1 per Simple Action</td></tr>\n<tr><td>Image magnification</td><td>special</td></tr>\n<tr><td>Recoil compensation</td><td>reduces the recoil modifier</td></tr>\n<tr><td>Gyro stabilization</td><td>reduces the recoil or movement modifier</td></tr>\n</tbody></table>\n<p><strong>Recoil.</strong> Only recoil compensation or gyro stabilization counters it.\nHeavy weapons (medium/heavy MGs and shotguns) double the <em>uncompensated</em>\nrecoil: an MMG firing 10 rounds with 6 points of compensation ends at +6\n(9 &minus; 6 = 3, doubled).</p>"
+      }
+    },
+    {
+      "_id": "p2visibility0001",
+      "name": "Visibility",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Visibility Table (SR2 p.89). Where an entry is split by a slash, the\nfirst number is for cybernetic or electronic vision and the second for natural\nmetahuman vision; a single number applies to all vision types.</em></p>\n<table><thead><tr><th>Condition</th><th>Normal</th><th>Low-Light</th><th>Thermographic</th></tr></thead><tbody>\n<tr><td>Full darkness</td><td>+8</td><td>+8/+8</td><td>+4/+2</td></tr>\n<tr><td>Minimal light</td><td>+6</td><td>+4/+2</td><td>+4/+2</td></tr>\n<tr><td>Partial light</td><td>+2</td><td>+1/0</td><td>+2/+1</td></tr>\n<tr><td>Glare</td><td>+2</td><td>+4/+2</td><td>+4/+2</td></tr>\n<tr><td>Mist</td><td>+2</td><td>+2/0</td><td>0</td></tr>\n<tr><td>Light smoke/fog/rain</td><td>+4</td><td>+4/+2</td><td>0</td></tr>\n<tr><td>Heavy smoke/fog/rain</td><td>+6</td><td>+6/+4</td><td>+1/0</td></tr>\n<tr><td>Thermal smoke</td><td>as smoke</td><td>as smoke</td><td>as normal</td></tr>\n</tbody></table>\n<p><strong>Full darkness</strong> is a complete absence of light, usually indoors or\nunderground. <strong>Minimal light</strong> is a match, a small flashlight, moonlight.\n<strong>Partial light</strong> is the most common &mdash; city streets at night, a partly\nlit stairway. <strong>Glare</strong> is looking into the sun or a spotlight.\n<strong>Thermal smoke</strong> is engineered to blind thermographic vision, and does so\nthe way ordinary smoke blinds ordinary sight.</p>"
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.61.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!journal!b1e4c9f207a3d856"
+}

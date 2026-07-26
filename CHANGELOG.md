@@ -5,6 +5,17 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 ## Unreleased
 
 ### Added
+- **Quick reference guides in the Player Guides compendium.** Three journals of
+  the tables you reach for most, transcribed off the printed pages and readable by
+  everyone at the table: **Ranged Combat** (the full modifiers table plus the
+  Visibility grid, p.89), **Damage & Healing** (Injury *and* Initiative modifiers,
+  how the levels stack across the two condition tracks, and Stun/Physical recovery,
+  p.112–113), and **Movement** (walk/run rates, the Running Table, and the
+  once-per-Combat-Turn limit on running, p.84).
+- **Portrait icons for contacts.** The contact archetypes were all sharing Foundry's
+  stock silhouette; each now has its own 256×256 portrait in the house style.
+
+### Added
 - **Every vehicle has real top-down token art.** All 32 vehicles and drones were
   shipping on stock Foundry icons — a Cessna as a generic wing, the Nightrunner as
   an anchor. Each now has a 1024×1024 illustration drawn strictly overhead with a

@@ -2,7 +2,7 @@
   "_id": "a1398af165d79f0a",
   "name": "Fixer",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/fixer.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Fixer",

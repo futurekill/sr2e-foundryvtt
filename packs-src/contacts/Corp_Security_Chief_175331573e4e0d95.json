@@ -2,14 +2,14 @@
   "_id": "175331573e4e0d95",
   "name": "Corp Security Chief",
   "type": "contact",
-  "img": "icons/svg/terror.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/corp-security-chief.webp",
   "system": {
     "contactType": "enemy",
     "archetype": "Security Specialist",
     "loyalty": 3,
     "influence": 5,
     "description": "",
-    "notes": "Head of security at a corp you hit \u2014 has your description on file and the resources of a department behind the grudge. SR Companion (Enemies)."
+    "notes": "Head of security at a corp you hit — has your description on file and the resources of a department behind the grudge. SR Companion (Enemies)."
   },
   "effects": [],
   "flags": {},

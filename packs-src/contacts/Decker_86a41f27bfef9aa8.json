@@ -2,7 +2,7 @@
   "_id": "86a41f27bfef9aa8",
   "name": "Decker",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/decker.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Decker",

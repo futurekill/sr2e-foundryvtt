@@ -2,7 +2,7 @@
   "_id": "6f7a3c95cabdba3b",
   "name": "Info Broker",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/info-broker.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Info Broker",

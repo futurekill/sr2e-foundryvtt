@@ -2,7 +2,7 @@
   "_id": "c72a895b6ab1ac32",
   "name": "Bounty Hunter",
   "type": "contact",
-  "img": "icons/svg/terror.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/bounty-hunter.webp",
   "system": {
     "contactType": "enemy",
     "archetype": "Bounty Hunter",

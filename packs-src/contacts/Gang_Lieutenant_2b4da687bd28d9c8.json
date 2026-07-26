@@ -2,7 +2,7 @@
   "_id": "2b4da687bd28d9c8",
   "name": "Gang Lieutenant",
   "type": "contact",
-  "img": "icons/svg/terror.svg",
+  "img": "systems/sr2e/assets/item_icons/contacts/gang-lieutenant.webp",
   "system": {
     "contactType": "enemy",
     "archetype": "Go-Ganger",
