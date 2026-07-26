@@ -37,7 +37,13 @@ function tokenRates(tokenDoc) {
   const actor = tokenDoc?.actor;
   const q = Number(actor?.system?.quickness?.value) || 0;
   if (q <= 0) return null;
-  return movementRates(q, runMultiplierForRace(actor.system?.race));
+  // Prefer an actor-supplied movement multiplier over the metatype table.
+  // Spirits carry their own (SR2 p.234-235: air x4, fire x3, earth/water x2) and
+  // have no `race`, so the race lookup silently ran them all at human x3.
+  const mult = Number(actor.system?.moveMult) > 0
+    ? Number(actor.system.moveMult)
+    : runMultiplierForRace(actor.system?.race);
+  return movementRates(q, mult);
 }
 
 /** The current combat + phase identity, or null when no combat is running. */

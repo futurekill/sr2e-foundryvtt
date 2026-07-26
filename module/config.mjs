@@ -502,6 +502,51 @@ SR2E.spiritDomains = {
   wind:    "SR2E.Spirits.Wind"
 };
 
+// Spirit/elemental stat profiles (SR2E Critter Statistics Table, p.234–235).
+// Attributes are NOT simply Force — each of the four elemental profiles applies
+// its own modifiers to Body, Quickness, Strength and Reaction, while Charisma,
+// Intelligence and Willpower are Force and Essence is Force ("(F)A": the A marks
+// its astral nature, not a number).
+//
+// `q` is the QUICKNESS modifier; `mult` is the separate movement multiplier. The
+// book prints them together as "(F + 3) x 4", the standard critter notation used
+// throughout that table (a Sasquatch is "3 x 4" = Quickness 3, multiplier 4) —
+// NOT Quickness multiplied by four.
+SR2E.spiritProfiles = {
+  air:   { b: -2, q: +3, mult: 4, s: -3, r: +2,
+           // "Attacks: as Powers" — an air elemental has no generic attack.
+           attack: null },
+  earth: { b: +4, q: -2, mult: 2, s: +4, r: -2,
+           attack: { mode: "melee",  level: "S", damageType: "physical", dice: "reaction", reach: 1 } },
+  fire:  { b: +1, q: +2, mult: 3, s: -2, r: +1,
+           attack: { mode: "ranged", level: "M", damageType: "physical", dice: "reaction", rangeMult: 2 } },
+  water: { b: +2, q:  0, mult: 2, s:  0, r: -1,
+           attack: { mode: "melee",  level: "S", damageType: "stun",     dice: "force" } }
+};
+
+// Which profile each summonable key uses. Elementals name their element in the
+// same `domain` field nature spirits use for their domain, so one map covers
+// both. Nature-spirit groups (p.235): Of Man = fire, Of the Land = earth,
+// Of the Sky = air, Of the Waters = water.
+//
+// NOTE ON `wind`: the book's Of-the-Sky domains are Mist and Storm; this system
+// ships `wind` as the umbrella and has portrait art under that key. All three
+// resolve to the same air profile, so the naming difference changes no stat —
+// `wind` is kept to avoid churning art, localisation and saved actors, and
+// `mist`/`storm` are mapped too in case a GM sets them by hand.
+SR2E.spiritDomainProfile = {
+  // Elementals name their element directly
+  fire: "fire", water: "water", air: "air", earth: "earth",
+  // Of Man
+  city: "fire", hearth: "fire", field: "fire",
+  // Of the Land
+  desert: "earth", forest: "earth", mountain: "earth", prairie: "earth",
+  // Of the Sky
+  wind: "air", mist: "air", storm: "air",
+  // Of the Waters
+  lake: "water", river: "water", sea: "water", swamp: "water"
+};
+
 // Elemental types — a mage summons elementals of the four classical elements.
 // Each aids one spell category for Aid Sorcery (SR2E p.140).
 SR2E.elementalTypes = {

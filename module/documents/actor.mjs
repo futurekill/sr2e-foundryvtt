@@ -1830,10 +1830,28 @@ export class SR2EActor extends Actor {
   async rollSpiritAttack() {
     if (this.type !== "spirit") return;
     const force = this.system.force ?? 1;
-    const level = this.system.spiritType === "elemental" ? "S" : "M";
 
-    const result = await this.rollSuccessTest(force, 4, {
-      label: `${this.name} — Manifest Attack (Force ${force})`
+    // The attack comes from the spirit's stat profile (SR2E p.234–235), not one
+    // blanket rule: earth strikes with Reaction dice for (F)S, fire is a RANGED
+    // (F)M at Force x 2 metres, water does (F)S STUN on Force dice — and air has
+    // no generic attack at all, its printed Attacks entry being "as Powers".
+    const atk = this.system.attackProfile;
+    if (!atk) {
+      return ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result">
+          <strong>${foundry.utils.escapeHTML(this.name)} has no manifest attack.</strong>
+          <br><em>Its attacks are its Powers (SR2 p.234) — use those instead.</em>
+        </div>`
+      });
+    }
+
+    const level = atk.level;
+    const dice  = atk.dice === "reaction" ? (this.system.reaction?.value ?? force) : force;
+    const diceLabel = atk.dice === "reaction" ? "Reaction" : "Force";
+
+    const result = await this.rollSuccessTest(dice, 4, {
+      label: `${this.name} — Manifest Attack (${diceLabel} ${dice})`
     });
     if ((result?.successes ?? 0) <= 0) return result;
 
@@ -1842,16 +1860,22 @@ export class SR2EActor extends Actor {
     const finalIdx = Math.min(stages.indexOf(level) + stageUps, 3);
     const safeName = foundry.utils.escapeHTML(this.name);
 
+    const isStun = atk.damageType === "stun";
+    const detail = atk.mode === "ranged"
+      ? `ranged, range ${force * (atk.rangeMult ?? 2)} m`
+      : `melee${atk.reach ? `, +${atk.reach} Reach` : ""}`;
+
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
-        <strong>${safeName} Attack:</strong> ${force}${stages[finalIdx]}
-        <br><em>Base ${force}${level} | staged up ${stageUps} level(s)</em>
+        <strong>${safeName} Attack:</strong> ${force}${stages[finalIdx]}${isStun ? " Stun" : ""}
+        <br><em>Base ${force}${level}${isStun ? " Stun" : ""} | ${diceLabel} ${dice} dice
+        | staged up ${stageUps} level(s) | ${detail}</em>
         <br>
         <button class="sr2e-resist-btn"
                 data-power="${force}" data-base-power="${force}"
                 data-level="${stages[finalIdx]}" data-armor-type="impact"
-                data-damage-type="physical" data-armor-calc="standard"
+                data-damage-type="${isStun ? "stun" : "physical"}" data-armor-calc="standard"
                 data-armor-mod="0" data-ammo-name="">
           ${game.i18n.localize("SR2E.Chat.ResistDamage")}
         </button>

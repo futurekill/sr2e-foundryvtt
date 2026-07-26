@@ -4,6 +4,30 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+### Fixed
+- **Summoned spirits and elementals had the wrong stats — every attribute was
+  just its Force.** The book gives four distinct profiles (Critter Statistics
+  Table, p.234–235), and nature spirits share them by domain group. A Force-4
+  earth elemental should be **Body 8, Strength 8, Quickness 2** — it was coming
+  out 4/4/4, with half the toughness and double the agility. Air is fast and
+  frail (B−2, Q+3, S−3), earth slow and immensely strong (B+4, Q−2, S+4), fire
+  quick and sharp (B+1, Q+2, S−2), water solid and steady (B+2, Q−, S−).
+- **Spirit attacks were one invented blanket rule.** Each profile now attacks as
+  printed: earth strikes for (F)S on **Reaction** dice with **+1 Reach**, fire is
+  a **ranged** (F)M out to Force × 2 metres, water deals (F)S **Stun** on Force
+  dice — and **air has no manifest attack at all**, its printed entry being "as
+  Powers", so the button now says so instead of rolling a phantom attack.
+- **Spirit Reaction and Initiative** now come from the profile rather than raw
+  Force, so the stored initiative matches what actually gets rolled.
+- **Spirits move at their own rate.** The in-combat movement limiter read the
+  metatype table, and a spirit has no metatype, so every spirit ran at human ×3.
+  Air is ×4, fire ×3, earth and water ×2.
+- **Spirit condition monitors are 10 boxes**, not Force × 2. The old figure had no
+  basis in the book and fought the 1/3/6/10 wound thresholds: below Force 5 a
+  spirit could never reach Deadly; above Force 5 it had boxes beyond it.
+- **Overflow damage on a spirit no longer breaks.** Spirits were missing the
+  condition-monitor field that damage overflow writes to.
+
 ## 0.62.0 — 2026-07-26
 
 ### Added

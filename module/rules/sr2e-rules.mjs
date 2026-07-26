@@ -883,6 +883,47 @@ export function movementColorBand(total, rates, capIsWalk) {
   return 2;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Spirit / elemental attributes (SR2E Critter Statistics Table, p.234–235)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Derive a spirit's attributes from its Force and stat profile.
+ *
+ * A spirit's attributes are NOT all equal to its Force: each of the four
+ * elemental profiles modifies Body, Quickness, Strength and Reaction, while
+ * Charisma, Intelligence, Willpower and Essence are Force. Nature spirits reuse
+ * the same four profiles by domain group (p.235).
+ *
+ * FLOOR OF 1 — the book prints these as formulas and never addresses what a low
+ * Force does to them: a Force-1 air elemental computes Body −1 and Strength −2, a
+ * Force-1 earth computes Reaction −1, a Force-1 water computes Reaction 0. A
+ * zero-or-less attribute would break dice pools, initiative and the movement
+ * limiter, so everything floors at 1. That floor is this system's, not the book's.
+ *
+ * @param {object} profile - one of CONFIG.SR2E.spiritProfiles.
+ * @param {number} force
+ * @returns {{body:number, quickness:number, strength:number, charisma:number,
+ *            intelligence:number, willpower:number, reaction:number,
+ *            essence:number, moveMult:number}}
+ */
+export function spiritAttributes(profile, force) {
+  const f = Math.max(1, Math.floor(Number(force) || 1));
+  const p = profile ?? {};
+  const at = (mod) => Math.max(1, f + (mod ?? 0));
+  return {
+    body:         at(p.b),
+    quickness:    at(p.q),
+    strength:     at(p.s),
+    charisma:     f,
+    intelligence: f,
+    willpower:    f,
+    reaction:     at(p.r),
+    essence:      f,
+    moveMult:     p.mult ?? 3
+  };
+}
+
 /* ── INITIATIVE PASSES (SR2E p.78–79) — pure decision helpers for SR2ECombat ── */
 
 /** Initiative left after taking an action: −10, floored at 0 (you simply stop

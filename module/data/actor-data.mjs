@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -1377,7 +1377,12 @@ export class SpiritData extends SR2EDataModel {
 
       conditionMonitor: new fields.SchemaField({
         physical: SR2EDataModel.conditionMonitorField(),
-        stun: SR2EDataModel.conditionMonitorField()
+        stun: SR2EDataModel.conditionMonitorField(),
+        // Parent-level overflow, which applyDamage reads and writes when damage
+        // exceeds the physical monitor. Without it that path computed
+        // `undefined + n` on a spirit. (The per-monitor `overflow` inside
+        // conditionMonitorField is a different, unused-here field.)
+        overflow: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),
 
       initiative: new fields.SchemaField({
@@ -1395,23 +1400,46 @@ export class SpiritData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Spirit attributes are generally equal to Force
-    // Specific spirit types may override individual attributes
+    // Attributes come from the spirit's STAT PROFILE, not flatly from Force
+    // (SR2E Critter Statistics Table, p.234–235). Both elementals and nature
+    // spirits name their element/domain in `domain`, so one lookup serves both;
+    // an unknown domain falls back to the fire profile, which is the "average"
+    // of the four and matches Of Man.
     const f = this.force;
-    for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
-      this[attr].base = f;
-      this[attr].value = f + this[attr].mod;
-    }
-    this.essence.value = f;
-    this.essence.max = f;
-    this.reaction.base = f;
-    this.reaction.value = f + this.reaction.mod;
-    this.initiative.base = f;
-    this.initiative.value = f + this.initiative.mod;
+    const key = CONFIG.SR2E?.spiritDomainProfile?.[this.domain] ?? "fire";
+    const profile = CONFIG.SR2E?.spiritProfiles?.[key];
+    const a = spiritAttributes(profile, f);
 
-    // Condition monitors
-    this.conditionMonitor.physical.max = f * 2;
-    this.conditionMonitor.stun.max = f * 2;
+    for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
+      this[attr].base = a[attr];
+      this[attr].value = Math.max(1, a[attr] + this[attr].mod);
+    }
+    this.essence.value = a.essence;
+    this.essence.max = a.essence;
+
+    this.reaction.base = a.reaction;
+    this.reaction.value = Math.max(1, a.reaction + this.reaction.mod);
+
+    // Initiative follows the PROFILE'S Reaction, not raw Force — the roll path
+    // uses reaction.value, so deriving these from Force let the stored value
+    // disagree with what actually got rolled.
+    this.initiative.base = this.reaction.value;
+    this.initiative.value = Math.max(1, this.reaction.value + this.initiative.mod);
+
+    // Movement multiplier for the in-combat movement limiter, which otherwise
+    // falls back to the metatype table and treats a raceless spirit as human ×3.
+    this.moveMult = a.moveMult;
+
+    // Standard 10-box monitors. The previous `Force × 2` had no citation and
+    // fought the hard-coded 1/3/6/10 wound thresholds — below Force 5 a spirit
+    // could never reach Deadly, above Force 5 it had boxes beyond it.
+    this.conditionMonitor.physical.max = 10;
+    this.conditionMonitor.stun.max = 10;
+
+    // The profile's attack descriptor, for rollSpiritAttack and the sheet.
+    // null for air, whose printed Attacks entry is "as Powers".
+    this.attackProfile = profile?.attack ?? null;
+    this.profileKey = key;
   }
 }
 
