@@ -1,0 +1,74 @@
+{
+  "_id": "d95c30a8be714f26",
+  "name": "Quick Reference \u2014 Resisting Damage & Knockdown",
+  "folder": null,
+  "sort": 115000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "p1resistdamage001",
+      "name": "Resisting Damage",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Resolving damage once an attack hits (SR2 p.91). Also called the\nDamage Resistance Test.</em></p>\n<h2>1 &middot; Roll to resist</h2>\n<ul>\n<li><strong>Target number</strong> = the weapon's <strong>Power Rating &minus; the armor\nrating</strong> the character is wearing. Any result below 2 counts as 2.</li>\n<li><strong>Dice</strong> = Body, plus any Combat Pool dice committed. Roll Combat Pool\ndice in a different colour &mdash; you need to know how many of <em>them</em>\nsucceeded, separately from the total.</li>\n<li>Rule of One and Rule of Six apply as normal.</li>\n</ul>\n<h2>2 &middot; Compare successes and stage the damage</h2>\n<p style=\"text-align:center\"><strong>(L)ight &mdash; (M)oderate &mdash; (S)erious &mdash; (D)eadly</strong><br>\n<em>stage up one level per 2 net successes &rarr; &nbsp;&nbsp; &larr; stage down one level per 2 net successes</em></p>\n<table><thead><tr><th>Result</th><th>Effect</th></tr></thead><tbody>\n<tr><td>Attacker rolls more successes</td><td>damage rises one level per <strong>2 full</strong> net successes</td></tr>\n<tr><td>Successes are equal</td><td>the weapon does its <strong>base</strong> Damage Level</td></tr>\n<tr><td>Target rolls more successes</td><td>damage drops one level per <strong>2 full</strong> net successes</td></tr>\n<tr><td>Damage falls below Light</td><td><strong>no damage</strong></td></tr>\n<tr><td>Target's <em>Combat Pool dice alone</em> beat the attacker's successes</td><td><strong>complete miss</strong></td></tr>\n</tbody></table>\n<p><em>Book example:</em> Snot has Body 5 and 5 points of ballistic armor; Liam fires an\nAres Predator (9M). Snot's target number is 4 (9 &minus; 5). Liam scores 5 successes to\nSnot's 3 &mdash; 2 net, enough to stage 9M up to <strong>9S</strong>. Had Snot beaten Liam by\n2, he'd have staged it down to Light; by 4, no damage at all.</p>\n<h2>3 &middot; Apply it</h2>\n<p>Record the result on the target's Condition Monitor (p.111), then check knockdown.</p>"
+      }
+    },
+    {
+      "_id": "p2knockdown000001",
+      "name": "Stopping & Knockdown",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>Stopping and Knockdown (SR2 p.91). A character struck by a ranged\nweapon may be knocked off their feet by the blow.</em></p>\n<h2>The test</h2>\n<ul>\n<li><strong>Body Test</strong> against a target number equal to <strong>one-half the Power\nof the attack, rounded down</strong>.</li>\n<li>Beat the <strong>Threshold Number</strong> &mdash; one-half the damage done &mdash; and\nthere is no effect.</li>\n</ul>\n<table><thead><tr><th>Wound taken</th><th>Threshold to stay put</th></tr></thead><tbody>\n<tr><td>Light</td><td>1</td></tr>\n<tr><td>Moderate</td><td>2</td></tr>\n<tr><td>Serious</td><td>3</td></tr>\n</tbody></table>\n<h2>Outcomes</h2>\n<table><thead><tr><th>Result</th><th>What happens</th></tr></thead><tbody>\n<tr><td>Successes exceed the threshold</td><td>no effect &mdash; the character shrugs it off</td></tr>\n<tr><td>Some successes, but not enough</td><td>stays standing, but is driven a step or two\n(one metre) away from the direction of the attack</td></tr>\n<tr><td>No successes at all</td><td>knocked down &mdash; the character falls <strong>prone</strong></td></tr>\n</tbody></table>\n<p><em>So a character carrying a Moderate wound must generate more than 2 successes to\nstand their ground.</em></p>\n<p><em>Damage cards in this system carry a <strong>Knockdown Test</strong> button that\nworks this out for you.</em></p>"
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.61.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!journal!d95c30a8be714f26"
+}

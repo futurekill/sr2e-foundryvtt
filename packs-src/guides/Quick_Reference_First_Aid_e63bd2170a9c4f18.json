@@ -1,0 +1,49 @@
+{
+  "_id": "e63bd2170a9c4f18",
+  "name": "Quick Reference \u2014 First Aid",
+  "folder": null,
+  "sort": 118000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {},
+  "pages": [
+    {
+      "_id": "p1firstaid0000001",
+      "name": "First Aid",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><em>First Aid (SR2 p.115). Biotech, for when a wound cannot wait for a\nprofessional. It treats <strong>Physical damage only</strong> &mdash; Stun comes back\nwith rest and nothing else.</em></p>\n<h2>The golden hour</h2>\n<ul>\n<li>First aid must be applied within the <strong>first hour</strong> after the injury.</li>\n<li>Once <strong>magical healing</strong> has been applied, first aid is of no further use\n&mdash; so treat first, then cast.</li>\n</ul>\n<h2>First Aid Table</h2>\n<table><thead><tr><th>Condition Level</th><th>Target Number</th><th>Treatment Time</th></tr></thead><tbody>\n<tr><td>Light</td><td>4</td><td>10 minutes</td></tr>\n<tr><td>Moderate</td><td>6</td><td>20 minutes</td></tr>\n<tr><td>Serious</td><td>8</td><td>30 minutes</td></tr>\n<tr><td>Deadly</td><td>10</td><td>special &mdash; stabilise only</td></tr>\n</tbody></table>\n<h2>Target number modifiers</h2>\n<table><thead><tr><th>Situation</th><th>Modifier</th></tr></thead><tbody>\n<tr><td>Patient is a magician</td><td>+2</td></tr>\n<tr><td>Bad conditions</td><td>+1</td></tr>\n<tr><td>Terrible conditions</td><td>+3</td></tr>\n<tr><td>Patient's Body 1&ndash;3</td><td>+0</td></tr>\n<tr><td>Patient's Body 4&ndash;6</td><td>&minus;1</td></tr>\n<tr><td>Patient's Body 7&ndash;9</td><td>&minus;2</td></tr>\n<tr><td>Patient's Body 10+</td><td>&minus;3</td></tr>\n<tr><td>No medkit available</td><td>+4</td></tr>\n</tbody></table>\n<h2>Result</h2>\n<ul>\n<li><strong>One or more successes</strong> reduces the Damage Level by <strong>one level\n&mdash; never more</strong>, however well you roll.</li>\n<li>Divide the Biotech successes into the treatment time: the result is how many\n<strong>uninterrupted</strong> minutes it takes.</li>\n<li>A serious interruption aborts the attempt, but it may be repeated.</li>\n<li>A <strong>Deadly</strong> wound can only be <em>stabilised</em>, never healed, and the\nstabilisation must be maintained continuously until professional help arrives.</li>\n</ul>\n<p><strong>Treating a magician</strong> risks their Magic: the +2 can be skipped, but then\nroll 2D6 &mdash; a result at or under their current Magic Rating costs\n<strong>1 point permanently</strong>. A Deadly wound treated <em>without</em> the +2 checks\ntwice.</p>\n<p><strong>Trauma patch:</strong> a last-ditch stabiliser granting an extra Body Test at\nTarget Number 4, plus the rating of any dermal armor or blood filter (both restrict\nthe medicine). See p.114 for the lasting ill-effects.</p>"
+      }
+    }
+  ],
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.61.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!journal!e63bd2170a9c4f18"
+}
