@@ -8,12 +8,13 @@
     "rating": 0,
     "quantity": 1,
     "weight": 0,
-    "cost": 400,
-    "availability": "Always",
+    "cost": 2200,
+    "availability": "6/48 hrs",
     "legality": "Legal",
     "equipped": false,
-    "concealability": 10,
-    "notes": "SR2E p.257. Goggles with built-in thermographic vision. See heat patterns in total darkness."
+    "concealability": 6,
+    "notes": "Vision Enhancers, SR2E p.257. Goggles (20x magnification) with the thermographic option: 1,500¥ base + 700¥. Street Index 2.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

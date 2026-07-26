@@ -4,6 +4,51 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+## 0.65.0 — 2026-07-26
+
+### Fixed
+- **Three firearms shipped under invented names, with invented stats.** They
+  were invisible to `npm run audit-costs` because it matches on name: two of
+  them used names the book never prints, so the audit reported them as *missing
+  from the compendium* rather than as price drift. The reference table had the
+  right values the whole time. Every corrected value was read off a 300-dpi page
+  render, never the PDF text layer.
+  - **"HK HK227" → "Heckler & Koch HK227"**: availability was `5/72hrs`, book
+    prints **4/24 hrs**; recoil compensation was 1, but the standard model has an
+    integral gas-vent system at **Rating 2** (p.238), so every burst it fired was
+    understated.
+  - **"Heckler & Koch HK227-S" → "HK227-S"**: Street Index was `.75`, book prints
+    **2** — as shipped, a restricted special-forces variant was *cheaper* on the
+    street than the base model. Ammo type was `pistol` on a 28(c) SMG. Recoil
+    compensation was 1 and is now **0**: p.238 states the S variant substitutes
+    an integral silencer *for* the recoil system, a trade-off that had been lost.
+  - **"Light Machine Gun (Generic)" → "Ingram Valiant"**: wrong in every field.
+    Damage 8S → **7S**, ammo 100 → **Belt 50 (c)**, cost 3,000¥ → **1,500¥**,
+    availability 12/7 days → **6/5 days**, weight 0 → **9**, Street Index unset →
+    **2**, recoil comp 4 → **1** (hip-brace recoil pad, p.238), and ranges
+    15/80/200/400 → **20/40/80/150** (the LMG row of the Weapon Range Table,
+    p.88). "Light Machine Gun (Generic)" is not a book entry — the Valiant is the
+    only LMG the Firearms table lists.
+- **Light Machine Guns is a _Firearms_ concentration, not Gunnery** (p.46).
+  Gunnery governs heavy weapons "on tripods, vehicle mounts, pintles, or in fixed
+  emplacements" and its concentrations start at MMG; the Weapon Range Table
+  agrees, placing LMG under Firearms and MMG under Heavy Weapons.
+- **The Vision Enhancers table (p.257) had never been transcribed.** The shipped
+  low-light and thermographic goggles cost 300¥ and 400¥ — figures that appear
+  nowhere in the book. The printed table gives goggles a **1,500¥** base with
+  **+500¥** low-light and **+700¥** thermographic, so those are now **2,000¥**
+  and **2,200¥**; concealability was 10 and is now **6**. Adds the base
+  **Goggles** (1,500¥, SI 1.5) and the whole **Binoculars** line (100¥ base,
+  SI .8, plus +200¥ low-light and +250¥ thermographic), none of which shipped
+  before, with new icons.
+- **Razor's embedded HK227** was refreshed from the corrected compendium entry,
+  so the sample runner no longer carries the old stats.
+
+### Notes
+- 7 rows added to `tools/data/street-gear-prices.tsv`; `npm run audit-costs` is
+  now clean with no unmatched entries in either direction (123 reference rows vs
+  537 items). `test/street-gear-firearms.test.mjs` pins all of the above.
+
 ## 0.64.0 — 2026-07-26
 
 ### Fixed

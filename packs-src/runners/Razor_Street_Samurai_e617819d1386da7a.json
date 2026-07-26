@@ -579,7 +579,7 @@
     },
     {
       "_id": "4b46958ff57bd78f",
-      "name": "HK HK227",
+      "name": "Heckler & Koch HK227",
       "type": "weapon",
       "img": "systems/sr2e/assets/item_icons/weapons/hk-hk227.webp",
       "system": {
@@ -600,7 +600,7 @@
           "max": 28,
           "type": "smg"
         },
-        "recoilComp": 1,
+        "recoilComp": 2,
         "ranges": {
           "short": 10,
           "medium": 40,
@@ -608,13 +608,14 @@
           "extreme": 150
         },
         "strengthMin": 0,
-        "weight": 0,
-        "cost": 600,
-        "availability": "5/72hrs",
+        "weight": 4,
+        "cost": 1500,
+        "availability": "4/24 hrs",
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.232. A precise, well-balanced SMG from Heckler & Koch. Favored by corporate security and runners who value accuracy."
+        "notes": "Submachine gun. The SMG of choice for corporate security, military police and base security worldwide. The standard model has a retractable stock, integral laser sight (under-barrel mount) and an integral gas-vent recoil compensation system (barrel mount, Rating 2). SR2E p.238, p.254.",
+        "streetIndex": 0.75
       },
       "effects": [],
       "flags": {},

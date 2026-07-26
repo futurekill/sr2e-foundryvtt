@@ -1,6 +1,6 @@
 {
   "_id": "760798fc72bcd2e8",
-  "name": "Heckler & Koch HK227-S",
+  "name": "HK227-S",
   "type": "weapon",
   "img": "systems/sr2e/assets/item_icons/weapons/heckler-koch-hk227-s.webp",
   "system": {
@@ -19,9 +19,9 @@
     "ammo": {
       "current": 28,
       "max": 28,
-      "type": "pistol"
+      "type": "smg"
     },
-    "recoilComp": 1,
+    "recoilComp": 0,
     "ranges": {
       "short": 10,
       "medium": 40,
@@ -35,8 +35,8 @@
     "legality": "Forbidden",
     "equipped": false,
     "accessories": [],
-    "notes": "Stocked/suppressed variant of the HK227. SR2E p.254-255.",
-    "streetIndex": 0.75
+    "notes": "Submachine gun. The S variant, popular with corporate strike teams and special forces, SUBSTITUTES an integral silencer for the standard model's gas-vent recoil system — so it has no recoil compensation. SR2E p.238, p.254.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

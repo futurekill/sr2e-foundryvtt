@@ -1,12 +1,12 @@
 {
   "_id": "8ee88fc80bdff8f4",
-  "name": "Light Machine Gun (Generic)",
+  "name": "Ingram Valiant",
   "type": "weapon",
   "img": "systems/sr2e/assets/item_icons/weapons/light-machine-gun-generic.webp",
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "8S",
+    "damageCode": "7S",
     "damageType": "physical",
     "concealability": 99,
     "reach": 0,
@@ -18,24 +18,25 @@
     },
     "ammo": {
       "current": 100,
-      "max": 100,
+      "max": 50,
       "type": "belt"
     },
-    "recoilComp": 4,
+    "recoilComp": 1,
     "ranges": {
-      "short": 15,
-      "medium": 80,
-      "long": 200,
-      "extreme": 400
+      "short": 20,
+      "medium": 40,
+      "long": 80,
+      "extreme": 150
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 3000,
-    "availability": "12/7 days",
+    "weight": 9,
+    "cost": 1500,
+    "availability": "6/5 days",
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.234. Belt-fed light machine gun for squad support. BF/FA capable."
+    "notes": "Light machine gun, belt-fed 50 (c). Popular with merc units worldwide; the most common LMG model. Has a hip-brace recoil pad (Rating 1) and an ammunition bin slung over the shoulder. Light Machine Guns is a FIREARMS concentration, not Gunnery — Gunnery covers weapons on tripods, mounts, pintles and emplacements (p.46). SR2E p.238, p.254.",
+    "streetIndex": 2
   },
   "effects": [],
   "flags": {},

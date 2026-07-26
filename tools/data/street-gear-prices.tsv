@@ -52,7 +52,6 @@ AK-97	firearm	3	0	8M	p	4.5	3/36 hrs	700	2	255
 AK-98	firearm	2	0	8M	p	6	8/4 days	2500	4	255
 FN HAR	firearm	2	0	8M	p	4.5	4/48 hrs	1200	2	255
 Generic Under-Barrel Grenade Launcher	heavy		0		p	2	8/4 days	1700	3	255
-Ingram Valiant	heavy	99	0	7S	p	9	6/5 days	1500	2	255
 Generic MMG	heavy	99	0	9S	p	12	14/14 days	2500	2	255
 Generic HMG	heavy	99	0	10S	p	15	18/18 days	4000	2	255
 Panther Assault Cannon	heavy	99	0	18D	p	20	16/14 days	6500	2	255
@@ -144,10 +143,16 @@ Chemsuit	gear						(Rating/Rating) days	200	1	258
 Pressure Regulator	gear						6/48 hrs	250	2	258	
 Respirator	gear						4/48 hrs	500	2	258	
 Survival Kit	gear						2/48 hrs	100	1	258	
-Binoculars	gear						Always	100	.8	257	
 Kit	gear						5/48 hrs	500	2	259	
 Shop	gear						8/72 hrs	5000	3	259	
 Facility	gear						14/7 days	100000	4	259	
 Playback Unit	gear						Always	200	.75	259	
 Player Unit	gear						Always	350	.75	259	
 Phone Booster Pack	gear						Always	500	1	259	
+Goggles	gear	6				0	4/48 hrs	1500	1.5	257
+Binoculars	gear	5				1	Always	100	.8	257
+Binoculars (Low-Light)	gear	5				1	4/48 hrs	300	1.25	257
+Binoculars (Thermographic)	gear	5				1	4/48 hrs	350	1.25	257
+Goggles (Low-Light)	gear	6				0	6/48 hrs	2000	2	257
+Goggles (Thermographic)	gear	6				0	6/48 hrs	2200	2	257
+Ingram Valiant	firearm		0	7S	p	9	6/5 days	1500	2	255

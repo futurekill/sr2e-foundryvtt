@@ -1,27 +1,27 @@
 {
-  "_id": "e2a5a222187d29aa",
-  "name": "Goggles (Low-Light)",
+  "_id": "383bb35bc7fc7542",
+  "name": "Binoculars",
   "type": "gear",
-  "img": "systems/sr2e/assets/item_icons/gear/goggles-lowlight.webp",
+  "img": "systems/sr2e/assets/item_icons/gear/binoculars.webp",
   "system": {
     "category": "protective",
     "rating": 0,
     "quantity": 1,
-    "weight": 0,
-    "cost": 2000,
-    "availability": "6/48 hrs",
+    "weight": 1,
+    "cost": 100,
+    "availability": "Always",
     "legality": "Legal",
     "equipped": false,
-    "concealability": 6,
-    "notes": "Vision Enhancers, SR2E p.257. Goggles (20x magnification) with the low-light option: 1,500¥ base + 500¥. Street Index 2.",
-    "streetIndex": 2
+    "concealability": 5,
+    "streetIndex": 0.8,
+    "notes": "Vision Enhancers, SR2E p.257. 50x magnification. Low-light (+200¥) and thermographic (+250¥) options are separate items."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.65.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -34,5 +34,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!e2a5a222187d29aa"
+  "_key": "!items!383bb35bc7fc7542"
 }
