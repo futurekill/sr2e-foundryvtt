@@ -676,6 +676,11 @@ async function _ensureSystemMacros() {
       name: "Refresh Item Art",
       img: "icons/svg/upgrade.svg",
       src: "systems/sr2e/macros/refresh-item-art.js"
+    },
+    {
+      name: "Sync Token Names",
+      img: "icons/svg/pawprint.svg",
+      src: "systems/sr2e/macros/sync-token-names.js"
     }
   ];
 

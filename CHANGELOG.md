@@ -8,6 +8,24 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.68.0 — 2026-07-27
+
+### Added
+- **Two Shadowrun turn-marker assets** in `assets/markers/` — an angular
+  cyberdeck-style targeting reticle to replace Foundry's default orange d20.
+  `sr2e-turn-marker.webp` is amber (use with Disposition Tint **off**);
+  `sr2e-turn-marker-tintable.webp` is near-white so Foundry's disposition tint
+  colours it cleanly (use with Disposition Tint **on**). Both 512x512 with a
+  fully transparent background, and deliberately asymmetric so the spin reads.
+  Point **Combat Tracker settings → Media Source** at one of them.
+- **"Sync Token Names" GM macro.** The combat tracker labels a combatant from
+  its TOKEN, not its Actor (`name ||= token?.name || actor?.name`), so renaming
+  an Actor leaves placed tokens and the prototype token on the old name and the
+  tracker keeps showing it. This re-points token names at their actor's name,
+  covering both prototype tokens and every placed token. Linked tokens only by
+  default — unlinked ones are often renamed deliberately ("Ganger 3"), so they
+  are reported instead.
+
 ## 0.67.0 — 2026-07-27
 
 ### Fixed
