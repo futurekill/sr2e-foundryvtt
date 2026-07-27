@@ -359,6 +359,13 @@ Hooks.once("init", async () => {
   // and a new Combat Turn re-rolls everyone (SR2E p.78-79).
   CONFIG.Combat.documentClass = SR2ECombat;
 
+  // NOTE: the SR2E turn-marker reticles in assets/markers/ are deliberately NOT
+  // installed as a default. Foundry falls back to CONFIG.Combat.fallbackTurnMarker
+  // (stock: the "icons/vtt-512.png" d20) only when the world's
+  // combatTrackerConfig `src` is blank, so overriding it here would work — but the
+  // marker is a GM's aesthetic choice, so it stays opt-in via
+  // Combat Tracker settings → Media Source.
+
   // Modern ActiveEffect behaviour: effects defined on owned items apply to
   // the actor directly (when transfer = true) without copying at creation.
   CONFIG.ActiveEffect.legacyTransferral = false;
