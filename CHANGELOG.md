@@ -8,6 +8,37 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.67.0 — 2026-07-27
+
+### Fixed
+- **Rated surveillance and security gear did not scale its price with Rating.**
+  The Street Gear list prices 18 items "x Rating" (p.258) — Jammer, Voice Mask,
+  Signal Locator, Data Codebreaker, the scanners and taps, Chemsuit — and each
+  shipped storing the price of a *single* rating point as a flat cost. That is
+  correct at Rating 1, which is how the compendium ships them, and wrong at every
+  rating above it: a Rating 6 Jammer charged 1,000¥ instead of 6,000¥. `GearData`
+  gains a `costPerRating` field and `derivedItemCost` a matching branch, so the
+  price is a formula again as CLAUDE.md requires. Ordinary flat-priced gear is
+  untouched (the branch only fires when `costPerRating > 0`).
+- **Two items actually shipped undercharging**, being the only two stored above
+  Rating 1: **Maglock Passkey** (Rating 3) 10,000¥ → **30,000¥**, and **White
+  Noise Generator** (Rating 5) 1,500¥ → **7,500¥**.
+- **Seven of those items had no Street Index at all**, so they priced at face
+  value on the street: Chemsuit 1, Maglock 1, Retinal Scanner 3, Shotgun
+  Microphone 1, Thumbprint Scanner 1, Voice Mask 1.5, Palmprint Scanner 2.
+- **Tracking Signal** is priced **100¥ x Concealability**, not x Rating, and its
+  printed Concealability is **3** — it shipped at Concealability 2 with a note
+  claiming "200 x Concealability". Now 300¥ at Concealability 3, with the real
+  formula in the note. Deliberately *not* wired to the per-Rating mechanism: one
+  item with a one-off formula does not justify a second pricing path.
+
+### Notes
+- The 18 formula prices are expressed in `street-gear-prices.tsv` as
+  `N*rating`, which `audit-costs` already routes to `costPerRating` — so the
+  audit compares against the per-point price rather than the derived total.
+  Clean in both directions at 127 reference rows vs 537 items.
+  `test/rated-gear-cost.test.mjs` pins all of it (27 cases).
+
 ## 0.66.0 — 2026-07-26
 
 ### Added

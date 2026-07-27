@@ -18,7 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Disguises or alters the wearer's voiceprint. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
+    "notes": "Disguises or alters the wearer's voiceprint. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 3,000¥ x Rating (p.258).",
+    "costPerRating": 3000,
+    "streetIndex": 1.5
   },
   "effects": [],
   "flags": {},

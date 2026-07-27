@@ -18,7 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Electronic magnetic lock. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
+    "notes": "Electronic magnetic lock. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 100¥ x Rating (p.258).",
+    "costPerRating": 100,
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

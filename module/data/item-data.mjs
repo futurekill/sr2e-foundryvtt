@@ -746,6 +746,14 @@ export class GearData extends SR2EDataModel {
       // short range is the floor (Image Modification Systems, p.88).
       rangeShift: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
+      // Per-Rating price. The Street Gear list prices a whole class of security
+      // and surveillance gear "x Rating" (Jammer, Voice Mask, Signal Locator,
+      // the scanners…), which per CLAUDE.md must stay a FORMULA rather than be
+      // flattened to one number. Set this to the price of ONE rating point and
+      // the sheet derives cost = costPerRating x rating. Left 0, the flat `cost`
+      // is used exactly as before.
+      costPerRating: new fields.NumberField({ initial: 0, min: 0 }),
+
       // Skillsoft (category === "skillsoft"): a chip run through a chipjack +
       // Skillwires that grants a skill at its Rating while slotted (SR2E p.243).
       // The granted skill shows on the Skills tab; if it duplicates a natural
@@ -782,6 +790,16 @@ export class GearData extends SR2EDataModel {
                                     grantedSkillCategory: this.grantedSkillCategory,
                                     rating: this.rating },
                                   { authoredCost: this._source?.cost ?? 0 });
+    }
+    // Per-Rating gear. Unlike the skillsoft branch this needs no _source read:
+    // costPerRating is its own authored field and is never overwritten, so the
+    // derivation cannot feed its own output back in. A Rating 1 item derives to
+    // exactly its stored price, so nothing already bought changes value.
+    else if (this.costPerRating > 0) {
+      const derived = derivedItemCost({ type: "gear", category: this.category,
+                                        costPerRating: this.costPerRating,
+                                        rating: this.rating });
+      if (derived !== null) this.cost = derived;
     }
   }
 }

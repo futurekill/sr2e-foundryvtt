@@ -18,8 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Identifies/authenticates voiceprints. Rated item — cost shown is per Rating point (×Rating). SR2E p.258.",
-    "streetIndex": 2
+    "notes": "Identifies/authenticates voiceprints. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 2,000¥ x Rating (p.258).",
+    "streetIndex": 2,
+    "costPerRating": 2000
   },
   "effects": [],
   "flags": {},

@@ -8,13 +8,14 @@
     "rating": 3,
     "quantity": 1,
     "weight": 0,
-    "cost": 10000,
+    "cost": 30000,
     "availability": "(Rating x 2)/10 days",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.244. Sophisticated electronic device that fools maglocks into opening. Illegal. Often leaves lock scrambled.",
-    "streetIndex": 3
+    "notes": "SR2E p.244. Sophisticated electronic device that fools maglocks into opening. Illegal. Often leaves lock scrambled. Priced 10,000¥ x Rating (p.258).",
+    "streetIndex": 3,
+    "costPerRating": 10000
   },
   "effects": [],
   "flags": {},

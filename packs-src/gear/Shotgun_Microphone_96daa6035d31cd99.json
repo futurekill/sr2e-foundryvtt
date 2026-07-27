@@ -18,7 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Directional long-range microphone. Rated item — cost shown is per Rating point (×Rating). SR2E p.258."
+    "notes": "Directional long-range microphone. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 1,000¥ x Rating (p.258).",
+    "costPerRating": 1000,
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

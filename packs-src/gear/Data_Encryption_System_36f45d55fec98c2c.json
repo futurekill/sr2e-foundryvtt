@@ -18,8 +18,9 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Encrypts stored or transmitted data. Rated item — cost shown is per Rating point (×Rating). SR2E p.258.",
-    "streetIndex": 2
+    "notes": "Encrypts stored or transmitted data. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 1,000¥ x Rating (p.258).",
+    "streetIndex": 2,
+    "costPerRating": 1000
   },
   "effects": [],
   "flags": {},

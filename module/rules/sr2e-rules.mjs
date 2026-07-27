@@ -2152,6 +2152,15 @@ export function derivedItemCost(sys, ctx = {}) {
     if (!num(sys.rating)) return null;
     return skillsoftCost(sys.grantedSkillCategory, sys.rating, ctx.authoredCost ?? 0);
   }
+  // Gear the Street Gear list prices "x Rating" — Jammer, Voice Mask, Signal
+  // Locator, the scanners and taps (p.257-258). The stored costPerRating is the
+  // price of ONE point, so a Rating 1 item is unchanged and only raising the
+  // rating moves the price. Gate on > 0 so ordinary flat-priced gear is
+  // untouched and still falls through to the stored cost.
+  if (sys.type === "gear" && num(sys.costPerRating) && sys.costPerRating > 0) {
+    if (!num(sys.rating)) return null;
+    return sys.costPerRating * sys.rating;
+  }
   if (sys.type === "program") {
     if (!num(sys.rating) || !num(sys.multiplier)) return null;
     return ctx.vr2 ? programCostVR2(sys.rating, sys.multiplier)
