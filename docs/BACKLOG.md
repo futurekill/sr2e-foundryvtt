@@ -7,14 +7,16 @@ Last reviewed 2026-07-26 (system 0.64.0).
 
 ## Broken / needs a live session
 
-- **Player-triggered summoning does not work.** The GM path works; the
-  player→GM Actor-creation relay is still broken and undiagnosed. A
-  `console.debug` trace is in place at every hop. Needs a live 2-client
-  session (player + GM) — cannot be tested single-client. Full protocol,
-  suspect ranking and acceptance criteria in `PLAN-summon-placement-movement.md`
-  §1. **Note:** repo CLAUDE.md records that a socket relay was later *removed*
-  because `system.*` messages silently drop on some hosts — confirm which state
-  `main` is actually in before resuming.
+- ~~Player-triggered summoning does not work.~~ **Not a bug — resolved
+  2026-07-27.** The socket relay was removed deliberately; `canCreateActor()`
+  now gates on the `ACTOR_CREATE` permission *before* the roll and drain, and
+  throws a readable message otherwise. Player summoning works as soon as the GM
+  enables Settings → Configure Permissions → **"Create New Actors"** for the
+  Player role. No code to write.
+- **Summoned-spirit token placement is unwired on the canvas side.**
+  `nearestFreeCell` is pure and unit-tested; the scene write is not done, so
+  placement still prompts the GM for a click. See
+  `PLAN-summon-placement-movement.md` §1.
 - **Movement limiter: live true-drag verify.** The cumulative-path enforcement
   was reworked and Quench-covered, but nobody has watched a real drag across a
   bent path in a live world. ~2 min check.
@@ -26,16 +28,19 @@ Last reviewed 2026-07-26 (system 0.64.0).
 
 ## Content gaps
 
-- **4 items in the Street Gear reference table that we don't ship:** Heckler &
-  Koch HK227, HK227-S, Ingram Valiant, Binoculars. Surfaced by
-  `npm run audit-costs`. Transcribe and add.
-- **Cost audit is ~22% complete** — 118 transcribed reference rows vs 533
-  compendium items. Audited: cyberware, gear, firearms, melee, heavy, armor,
-  projectile, throwing. **Unaudited: ammo, programs, lifestyles, foci, spells,
-  and the rest of gear.** Extend `tools/data/street-gear-prices.tsv`.
-- **Rating-priced gear does not multiply by Rating.** Items whose book price is
-  per-Rating-point store the unit price; the sheet shows that unit price rather
-  than price × Rating. Affects several security/electronics items.
+- ~~4 items in the Street Gear reference table that we don't ship.~~ **Done in
+  0.65.0** — three were shipped under invented names with wrong stats (the audit
+  matches on name, so it reported them as missing rather than as drift), and the
+  Vision Enhancers table had never been transcribed.
+- **Cost audit is ~24% complete** — 127 transcribed reference rows vs 537
+  compendium items. Audited: cyberware, gear (incl. all per-Rating and vision
+  entries), firearms, melee, heavy, armor, projectile, throwing. **Unaudited:
+  ammo, programs, lifestyles, foci, spells, and the remainder of gear.** Extend
+  `tools/data/street-gear-prices.tsv`. This is the highest-value content work
+  left — wrong prices are what started the whole audit.
+- ~~Rating-priced gear does not multiply by Rating.~~ **Done in 0.67.0** —
+  `GearData.costPerRating` + a `derivedItemCost` branch; 18 items converted,
+  Maglock Passkey and White Noise Generator were undercharging.
 - **Mist and Storm spirits have no portrait art** — they were added to
   `spiritDomains` in 0.63.0 and fall back to the `wind` art.
 
