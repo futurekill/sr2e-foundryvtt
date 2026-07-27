@@ -1,25 +1,28 @@
 {
-  "_id": "88ceaca43f3e4ecb",
-  "name": "Regular Ammo",
+  "_id": "babb4ebd9ecc8d8c",
+  "name": "Taser Dart",
   "type": "ammo",
-  "img": "systems/sr2e/assets/item_icons/ammo/regular-ammo.webp",
+  "img": "icons/svg/target.svg",
   "system": {
-    "ammoType": "regular",
+    "ammoType": "taser",
     "quantity": 10,
     "damageModifier": 0,
     "armorModifier": 0,
-    "cost": 20,
-    "notes": "Standard rounds. SR2E p.93.",
     "damageType": "",
     "armorCalc": "standard",
-    "streetIndex": 0.75
+    "cost": 50,
+    "streetIndex": 1.5,
+    "concealability": 3,
+    "weight": 0.5,
+    "availability": "6/36 hrs",
+    "notes": "Taser dart, per 10. Damage is Special — see the taser rules. AMMUNITION table, SR2E p.256."
   },
   "effects": [],
   "flags": {},
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
-    "systemVersion": "0.3.7",
+    "systemVersion": "0.69.0",
     "createdTime": 1700000000000,
     "modifiedTime": 1700000000000,
     "lastModifiedBy": null,
@@ -32,5 +35,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!88ceaca43f3e4ecb"
+  "_key": "!items!babb4ebd9ecc8d8c"
 }

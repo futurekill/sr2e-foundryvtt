@@ -8,6 +8,34 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.69.0 — 2026-07-27
+
+### Fixed
+- **Ammunition prices audited against the printed table (p.256).** Three were
+  wrong, and the two most-bought kinds were among them:
+  - **Regular Ammo** 15¥ → **20¥** per 10
+  - **Flechette** 40¥ → **100¥** per 10 (2.5x under)
+  - **APDS** 120¥ → **70¥** per 10, priced in the core book's Sourcebook Updates
+    table (p.280) rather than the main gear list
+  Explosive, Gel, Stun and Assault Cannon rounds were already right. Street
+  Index was missing on Flechette and APDS (SI **4** — the most restricted ammo
+  in the book) so both priced at face value on the street.
+
+### Added
+- **Two printed ammunition rows that had never shipped:** **Taser Dart** (50¥,
+  SI 1.5) and the **Assault Cannon Belt (100)** (4,250¥, SI 2). The latter is
+  printed as "Belt 100" *indented under* Assault Cannon, so it is cannon
+  ammunition rather than a machine-gun belt — 4,250¥ per 100 against 450¥ per 10
+  loose, which is the sanity check that confirms the reading.
+
+### Notes
+- 9 ammunition rows added to `street-gear-prices.tsv`; `audit-costs` clean in
+  both directions at 136 reference rows vs 539 items.
+- The remaining ammo the system ships — Ex-Explosive, Hollow Point, Subsonic,
+  Tracers, Buckshot, Shotgun Slug, Machine Gun Belt (Regular) — is **not priced
+  anywhere in the core book**, so it is left alone rather than invented against.
+  Those need their real sourcebook before they can be audited.
+
 ## 0.68.0 — 2026-07-27
 
 ### Added

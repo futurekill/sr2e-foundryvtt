@@ -1,0 +1,39 @@
+{
+  "_id": "dc4a096be8b8d3bb",
+  "name": "Assault Cannon Belt (100)",
+  "type": "ammo",
+  "img": "icons/svg/target.svg",
+  "system": {
+    "ammoType": "belt",
+    "quantity": 10,
+    "damageModifier": 0,
+    "armorModifier": 0,
+    "damageType": "",
+    "armorCalc": "standard",
+    "cost": 4250,
+    "streetIndex": 2,
+    "concealability": 99,
+    "weight": 12.5,
+    "availability": "6/3 days",
+    "notes": "A 100-round belt of assault cannon ammunition. Listed as \"Belt 100\" indented under Assault Cannon, so it is CANNON ammunition, not a machine-gun belt — 4,250¥ per 100 against 450¥ per 10 loose. Belted ammo adds rounds/100 to Availability. SR2E p.256."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.69.0",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!dc4a096be8b8d3bb"
+}

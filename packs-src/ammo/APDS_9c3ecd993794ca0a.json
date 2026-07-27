@@ -8,10 +8,11 @@
     "quantity": 10,
     "damageModifier": 0,
     "armorModifier": 0,
-    "cost": 120,
+    "cost": 70,
     "notes": "Armor-piercing discarding sabot: halves the target's Ballistic Armor Rating. SSC p.63.",
     "damageType": "",
-    "armorCalc": "half_ballistic"
+    "armorCalc": "half_ballistic",
+    "streetIndex": 4
   },
   "effects": [],
   "flags": {},

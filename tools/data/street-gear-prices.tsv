@@ -160,3 +160,12 @@ Shotgun Microphone	gear							1000*rating		258
 Voice Mask	gear							3000*rating		258
 Thumbprint Scanner	gear							200*rating		258
 Retinal Scanner	gear							1000*rating		258
+Regular Ammo	ammo	8				.5	2/24 hrs	20	.75	256
+Flechette	ammo	8				.5	3/36 hrs	100	.8	256
+Explosive Rounds	ammo	8				.75	3/36 hrs	50	.8	256
+Gel Rounds	ammo	8				.25	4/48 hrs	30	1	256
+Stun Rounds	ammo	8				1	4/48 hrs	100	1	256
+Assault Cannon Rounds	ammo	3				1.25	5/3 days	450	2	256
+Taser Dart	ammo	3				.5	6/36 hrs	50	1.5	256
+Assault Cannon Belt (100)	ammo					12.5	6/3 days	4250	2	256
+APDS	ammo	8				.25	14/14 days	70	4	280

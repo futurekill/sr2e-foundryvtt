@@ -8,10 +8,11 @@
     "quantity": 10,
     "damageModifier": 0,
     "armorModifier": 0,
-    "cost": 40,
+    "cost": 100,
     "notes": "+1 Damage Level vs unarmored targets. Armor counts as double Impact or normal Ballistic, whichever is higher. SR2E p.93.",
     "damageType": "",
-    "armorCalc": "flechette"
+    "armorCalc": "flechette",
+    "streetIndex": 0.8
   },
   "effects": [],
   "flags": {},
