@@ -5,10 +5,10 @@
   "img": "icons/environment/settlement/house-two-stories-small.webp",
   "system": {
     "level": "low",
-    "monthlyCost": 500,
+    "monthlyCost": 1000,
     "monthsPaid": 1,
     "description": "",
-    "notes": "SR2E p.44. Rented room in a bad neighborhood."
+    "notes": "SR2E p.46 (Cost of Extras); described p.44. Rented room in a bad neighborhood."
   },
   "effects": [],
   "flags": {},

@@ -6,12 +6,14 @@
   "system": {
     "focusType": "spell",
     "force": 1,
-    "bondingCost": 2,
+    "bondingCost": 1,
     "bonded": false,
     "active": false,
     "cost": 10000,
-    "notes": "SR2E p.164. A specific spell focus (or spell-type focus). Adds Force to spell casting dice pool for designated spell or school.",
-    "costPerForce": 10000
+    "notes": "SR2E p.138, p.164. Modelled as a SPECIFIC spell focus: bonding costs 1 x Force in Karma and it aids one named spell. The broader Spell CATEGORY focus bonds at 3 x Force and ships in the sr2e-grimoire module. Force 1.",
+    "costPerForce": 45000,
+    "streetIndex": 2,
+    "availability": "4/48 hrs"
   },
   "effects": [],
   "flags": {},

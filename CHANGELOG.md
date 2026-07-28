@@ -8,6 +8,45 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.70.0 — 2026-07-27
+
+### Fixed
+- **Every focus was priced a fraction of the book.** The Magical Equipment table
+  (p.254) prices foci per point of Force, and all four flat entries were far
+  under:
+  - **Power Focus** 20,000¥ → **105,000¥** per Force (5x under)
+  - **Spirit Focus** 10,000¥ → **60,000¥** per Force
+  - **Spell Focus** 10,000¥ → **45,000¥** per Force
+  - **Spell Lock** 5,000¥ per Force → a **flat 45,000¥** (it is not per-Force)
+  None carried a Street Index; all are **2**, and Weapon Focus is **3**.
+- **Focus bonding Karma was wrong on three of five** (Focus Bonding Table,
+  p.138). Bonding costs Karma equal to the multiplier x Force:
+  - **Power Focus** 3 → **5**
+  - **Weapon Focus** 2 → **4** (Small; Large is 5 — noted on the item)
+  - **Spell Focus** 2 → **1**, modelled as the *Specific* spell focus; the
+    Spell *Category* focus bonds at 3x and ships in the Grimoire module
+  The Power Focus note also contradicted the table, claiming "2x Force".
+- **Low lifestyle cost 500¥ → 1,000¥ per month** (Cost of Extras, p.46). The
+  other five were right. Every lifestyle cited p.44 for its price, but p.44
+  carries only the prose descriptions — the cost column is on p.46.
+- **`audit-costs` reported a false green on formula prices it did not
+  understand.** An unrecognised multiplicand (`45000*force`) fell through the
+  routing chain to `costPerStrengthMin`, so foci were compared against a field
+  they do not use and passed without being checked. Unknown multiplicands now
+  throw. Verified by deliberately breaking a value and confirming the audit
+  catches it.
+
+### Notes
+- **Blackbriar's Weapon Focus is not a data bug.** `weaponFocusCost` already
+  implements the printed `[(Reach + 1) x 100,000¥] + Force x 90,000¥`: for a
+  reach-1 katana at Force 3 that is exactly the 470,000¥ his sheet recorded as
+  paid. The 290,000¥ on the item was a snapshot from before the focus was bonded
+  to a reach-1 weapon, and the derivation corrects it on load.
+- **Spells are not auditable for price** — the spell schema has no cost field at
+  all, because spells are learned with Karma rather than bought. Those 61 items
+  come off the "unaudited" list permanently rather than staying as debt.
+- 10 lifestyle and foci rows added; audit clean at 146 rows vs 539 items.
+
 ## 0.69.0 — 2026-07-27
 
 ### Fixed

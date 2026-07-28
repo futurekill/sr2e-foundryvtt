@@ -68,10 +68,15 @@ for (const r of rows) {
     //   "150000*rating" → costPerRating        (cyberlimb Increased Strength)
     //   "4*base"        → costMultiplierOfBase (cyberlimb Built-In Device)
     //   "100*strMin"    → costPerStrengthMin   (Str-Min bows)
+    //   "45000*force"   → costPerForce         (foci)
+    // An unrecognised multiplicand THROWS rather than falling through to
+    // costPerStrengthMin: that fallback silently compared foci against a field
+    // they don't use, and the audit reported "no drift" without checking
+    // anything. A false green is worse than a missing row.
     const [lhs, rhs] = r.cost.split("*");
-    const field = rhs === "rating" ? "costPerRating"
-                : lhs === "4" && rhs === "base" ? "costMultiplierOfBase"
-                : "costPerStrengthMin";
+    const FIELDS = { rating: "costPerRating", force: "costPerForce", strMin: "costPerStrengthMin" };
+    const field = (lhs === "4" && rhs === "base") ? "costMultiplierOfBase" : FIELDS[rhs];
+    if (!field) throw new Error(`${r.name}: unknown cost formula "${r.cost}" — add its field to FIELDS in audit-costs.mjs`);
     checks.push([field, Number(field === "costMultiplierOfBase" ? lhs : lhs), sys[field]]);
   } else if (num(r.cost) !== null) {
     checks.push(["cost", num(r.cost), sys.cost]);

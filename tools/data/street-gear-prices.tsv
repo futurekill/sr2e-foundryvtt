@@ -169,3 +169,13 @@ Assault Cannon Rounds	ammo	3				1.25	5/3 days	450	2	256
 Taser Dart	ammo	3				.5	6/36 hrs	50	1.5	256
 Assault Cannon Belt (100)	ammo					12.5	6/3 days	4250	2	256
 APDS	ammo	8				.25	14/14 days	70	4	280
+Low	lifestyle							1000		46
+Middle	lifestyle							5000		46
+High	lifestyle							10000		46
+Luxury	lifestyle							100000		46
+Squatter	lifestyle							100		46
+Streets	lifestyle							0		46
+Spell Focus	focus						4/48 hrs	45000*force	2	254
+Spirit Focus	focus						4/48 hrs	60000*force	2	254
+Power Focus	focus						6/72 hrs	105000*force	2	254
+Spell Lock	focus						2/48 hrs	45000	2	254

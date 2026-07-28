@@ -11,7 +11,9 @@
     "active": false,
     "cost": 10000,
     "notes": "SR2E p.164. Adds Force to Conjuring and spirit control tests. Force 1.",
-    "costPerForce": 10000
+    "costPerForce": 60000,
+    "streetIndex": 2,
+    "availability": "4/48 hrs"
   },
   "effects": [],
   "flags": {},
