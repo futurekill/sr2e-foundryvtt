@@ -75,11 +75,8 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   catches it.
 
 ### Notes
-- **Blackbriar's Weapon Focus is not a data bug.** `weaponFocusCost` already
-  implements the printed `[(Reach + 1) x 100,000¥] + Force x 90,000¥`: for a
-  reach-1 katana at Force 3 that is exactly the 470,000¥ his sheet recorded as
-  paid. The 290,000¥ on the item was a snapshot from before the focus was bonded
-  to a reach-1 weapon, and the derivation corrects it on load.
+- **`weaponFocusCost` was already correct** and needed no change: it implements
+  the printed `[(Reach + 1) x 100,000¥] + Force x 90,000¥`.
 - **Spells are not auditable for price** — the spell schema has no cost field at
   all, because spells are learned with Karma rather than bought. Those 61 items
   come off the "unaudited" list permanently rather than staying as debt.
