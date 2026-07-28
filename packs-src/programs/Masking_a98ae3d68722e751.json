@@ -4,10 +4,10 @@
   "type": "program",
   "img": "systems/sr2e/assets/item_icons/programs/masking.webp",
   "system": {
-    "category": "masking",
+    "category": "persona",
     "rating": 1,
     "size": 2,
-    "multiplier": 1.5,
+    "multiplier": 2,
     "cost": 200,
     "loaded": false,
     "notes": "SR2E p.262. Persona program: how well your persona blends with legitimate Matrix traffic."

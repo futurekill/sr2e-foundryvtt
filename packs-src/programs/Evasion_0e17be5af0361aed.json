@@ -4,10 +4,10 @@
   "type": "program",
   "img": "systems/sr2e/assets/item_icons/programs/evasion.webp",
   "system": {
-    "category": "defense",
+    "category": "persona",
     "rating": 1,
     "size": 1,
-    "multiplier": 1,
+    "multiplier": 3,
     "cost": 100,
     "loaded": false,
     "notes": "SR2E p.262. Persona program: your ability to dodge IC and hostile programs."

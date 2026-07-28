@@ -343,13 +343,37 @@ export function programSize(rating, multiplier) {
 }
 
 /**
- * Nuyen cost of a Matrix program (SR2E p.174): Size × 100¥ (Street Index 1).
+ * Nuyen cost of a Matrix program — Program Costs and Availability, book p.259.
+ * Cost is Size × a per-Mp rate that STEPS with the rating band, and the rate
+ * differs for persona and utility programs:
+ *
+ *   band     persona    utility
+ *   1-3        100¥       100¥
+ *   4-6        500¥       200¥
+ *   7-9      1,000¥       500¥
+ *   10+      5,000¥     1,000¥
+ *
+ * Only the 1-3 band was implemented before, so every program above Rating 3
+ * priced at the cheapest rate — a Rating 6 Attack cost half what it should and
+ * a Rating 7 Bod a tenth.
+ *
  * @param {number} rating
- * @param {number} multiplier
+ * @param {number} multiplier - the program's size multiplier
+ * @param {boolean} [isPersona] - persona programs (Bod/Evasion/Masking/Sensors)
+ *                                use the more expensive rate column
  * @returns {number}
  */
-export function programCost(rating, multiplier) {
-  return programSize(rating, multiplier) * 100;
+export function programCost(rating, multiplier, isPersona = false) {
+  const r = Math.max(1, Math.floor(rating || 1));
+  const band = r <= 3 ? 0 : r <= 6 ? 1 : r <= 9 ? 2 : 3;
+  const RATE = isPersona ? [100, 500, 1000, 5000] : [100, 200, 500, 1000];
+  return programSize(r, multiplier) * RATE[band];
+}
+
+/** Street Index by program rating band (p.259) — the same bands as the cost. */
+export function programStreetIndex(rating) {
+  const r = Math.max(1, Math.floor(rating || 1));
+  return r <= 3 ? 1 : r <= 6 ? 1.5 : r <= 9 ? 2 : 3;
 }
 
 /**
@@ -2164,7 +2188,7 @@ export function derivedItemCost(sys, ctx = {}) {
   if (sys.type === "program") {
     if (!num(sys.rating) || !num(sys.multiplier)) return null;
     return ctx.vr2 ? programCostVR2(sys.rating, sys.multiplier)
-                   : programCost(sys.rating, sys.multiplier);
+                   : programCost(sys.rating, sys.multiplier, sys.category === "persona");
   }
   if (sys.type === "focus") {
     // A WEAPON focus bonded to a weapon prices off that weapon's Reach (p.126) and

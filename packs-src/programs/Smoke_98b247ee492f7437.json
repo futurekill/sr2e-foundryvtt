@@ -7,7 +7,7 @@
     "category": "defense",
     "rating": 1,
     "size": 4,
-    "multiplier": 4,
+    "multiplier": 2,
     "cost": 400,
     "loaded": false,
     "notes": "SR2E p.175. Defense utility: adds its rating to every target number in the node (including the deck's own tests); degrades by 1 each Combat Turn."

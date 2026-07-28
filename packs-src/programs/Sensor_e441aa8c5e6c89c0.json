@@ -4,10 +4,10 @@
   "type": "program",
   "img": "systems/sr2e/assets/item_icons/programs/sensor.webp",
   "system": {
-    "category": "sensor",
+    "category": "persona",
     "rating": 1,
     "size": 1,
-    "multiplier": 1,
+    "multiplier": 2,
     "cost": 100,
     "loaded": false,
     "notes": "SR2E p.262. Persona program: detection and scanning in the Matrix. Alerts you to IC and system features."

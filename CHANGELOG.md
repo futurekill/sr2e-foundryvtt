@@ -8,6 +8,44 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.71.0 — 2026-07-27
+
+### Fixed
+- **Eight of eighteen Matrix programs had the wrong size multiplier** (Program
+  Sizes, p.259). Size drives both memory and price, so these were wrong in two
+  currencies at once: **Bod** 1→3, **Evasion** 1→3, **Masking** 1.5→2,
+  **Sensor** 1→2, **Sleaze** 1.5→3, **Slow** 2→4, **Smoke** 4→2, **Medic** 3→4.
+- **Program cost ignored the rating bands.** The book prices a program at Size ×
+  a per-Mp rate that *steps* with rating, and the rate differs for persona and
+  utility programs — but only the cheapest band was implemented, so every
+  program above Rating 3 was underpriced. A Rating 6 Attack cost half what it
+  should; a Rating 7 Bod a tenth.
+
+  | band | persona | utility |
+  |---|---|---|
+  | 1-3 | 100¥ | 100¥ |
+  | 4-6 | 500¥ | 200¥ |
+  | 7-9 | 1,000¥ | 500¥ |
+  | 10+ | 5,000¥ | 1,000¥ |
+
+- **The banded rate was mistaken for a Virtual Realities 2.0 rule.** It was
+  implemented only in `programCostVR2`, and a test comment asserted "VR2's
+  per-Mp multiplier is BANDED… ratings 1-3 are identical to core". It is the
+  *core* rule, printed on p.259. Core now bands correctly; `programCostVR2` is
+  left in place because the VR2 book has not been checked, but for utility
+  programs it now computes the same thing as core.
+- Bod, Evasion, Masking and Sensor are now `category: "persona"`, which is what
+  the field is for and what selects the steeper rate column. Persona detection
+  for the Matrix tab matches on item NAME and is unaffected.
+
+### Notes
+- Two tests changed because they asserted the old flat ×100 — they had encoded
+  the bug. Replaced with the book's values plus a band-edge test at 3/4, 6/7 and
+  9/10. 532 pass.
+- Printed but not shipped: **Armor**, **Restore** and **Sift** utility programs.
+  Left as a content gap. **Scramble** is shipped but appears nowhere in the
+  Program Sizes table — left alone rather than guessed at.
+
 ## 0.70.0 — 2026-07-27
 
 ### Fixed

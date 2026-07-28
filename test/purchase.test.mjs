@@ -165,16 +165,19 @@ describe("derivedItemCost — cost computed from a formula, not a snapshot", () 
     expect(derivedItemCost(sys, { authoredCost: 50000 })).toBe(50000);
     expect(derivedItemCost(sys)).toBe(1000);         // FoF Mp x 100 fallback
   });
-  it("prices a program by ruleset — VR2 comes from ctx, not a setting", () => {
-    // VR2's per-Mp multiplier is BANDED (100/200/500/1000 by rating), so ratings
-    // 1-3 are identical to core and prove nothing. Rating 4 is the first band edge.
+  it("prices a program off the rating band, and persona costs more than utility", () => {
+    // The banded 100/200/500/1000 per-Mp rate is the CORE rule (Program Costs
+    // and Availability, p.259) — it was previously implemented only in the VR2
+    // path, leaving core flat at x100 and so correct only for ratings 1-3.
     const low = { type: "program", rating: 3, multiplier: 2 };
-    expect(derivedItemCost(low, { vr2: false })).toBe(1800);
-    expect(derivedItemCost(low, { vr2: true })).toBe(1800);    // same band — no divergence
+    expect(derivedItemCost(low, { vr2: false })).toBe(1800);   // size 18 x 100
 
     const high = { type: "program", rating: 4, multiplier: 2 };
-    expect(derivedItemCost(high, { vr2: false })).toBe(3200);  // ceil(16x2)=32 x100
-    expect(derivedItemCost(high, { vr2: true })).toBe(6400);   // x200 in VR2's band
+    expect(derivedItemCost(high, { vr2: false })).toBe(6400);  // size 32 x 200
+
+    // Persona programs (Bod/Evasion/Masking/Sensors) use the steeper column.
+    const persona = { type: "program", rating: 4, multiplier: 2, category: "persona" };
+    expect(derivedItemCost(persona, { vr2: false })).toBe(16000); // size 32 x 500
   });
   it("prices a flat focus from force x costPerForce", () => {
     expect(derivedItemCost({ type: "focus", force: 3, costPerForce: 10000 })).toBe(30000);

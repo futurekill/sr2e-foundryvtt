@@ -7,7 +7,7 @@
     "category": "masking",
     "rating": 1,
     "size": 2,
-    "multiplier": 1.5,
+    "multiplier": 3,
     "cost": 200,
     "loaded": false,
     "notes": "SR2E p.262. Persona program: your ability to perform Matrix actions quietly, avoiding triggering alarms."

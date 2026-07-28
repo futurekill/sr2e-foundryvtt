@@ -837,7 +837,8 @@ export class ProgramData extends SR2EDataModel {
     // Shared derivation — the ruleset is read HERE and passed in, because the rules
     // module is Foundry-free and must not touch game.settings itself.
     this.cost = derivedItemCost({ type: "program", rating: this.rating,
-                                  multiplier: this.multiplier }, { vr2 });
+                                  multiplier: this.multiplier,
+                                  category: this.category }, { vr2 });
   }
 }
 

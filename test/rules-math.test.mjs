@@ -291,9 +291,27 @@ describe("Spell Drain TN (SR2E p.131, p.140)", () => {
 });
 
 describe("Derived costs (SR2E p.174, p.249)", () => {
-  it("program cost is Size × 100", () => {
-    expect(programCost(3, 1)).toBe(900);    // Browse R3: size 9
-    expect(programCost(4, 2)).toBe(3200);   // Attack R4: size 32
+  it("program cost is Size × a per-Mp rate that STEPS by rating band (p.259)", () => {
+    // Utility column: 1-3 → 100¥, 4-6 → 200¥, 7-9 → 500¥, 10+ → 1,000¥.
+    expect(programCost(3, 1)).toBe(900);      // Browse R3: size 9 × 100
+    expect(programCost(4, 2)).toBe(6400);     // Attack R4: size 32 × 200
+    expect(programCost(7, 2)).toBe(49000);    // size 98 × 500
+    expect(programCost(10, 2)).toBe(200000);  // size 200 × 1,000
+
+    // Persona column is steeper: 1-3 → 100¥, 4-6 → 500¥, 7-9 → 1,000¥, 10+ → 5,000¥.
+    expect(programCost(3, 3, true)).toBe(2700);    // Bod R3: size 27 × 100
+    expect(programCost(4, 3, true)).toBe(24000);   // size 48 × 500
+    expect(programCost(7, 3, true)).toBe(147000);  // size 147 × 1,000
+  });
+
+  it("the band edges are 3/4, 6/7 and 9/10", () => {
+    // Guards an off-by-one in the band lookup: each pair straddles one edge.
+    expect(programCost(3, 1)).toBe(9 * 100);
+    expect(programCost(4, 1)).toBe(16 * 200);
+    expect(programCost(6, 1)).toBe(36 * 200);
+    expect(programCost(7, 1)).toBe(49 * 500);
+    expect(programCost(9, 1)).toBe(81 * 500);
+    expect(programCost(10, 1)).toBe(100 * 1000);
   });
 
   it("focus cost is Force × per-Force unit", () => {

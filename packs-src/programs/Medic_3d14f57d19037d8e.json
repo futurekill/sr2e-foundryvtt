@@ -7,7 +7,7 @@
     "category": "defense",
     "rating": 1,
     "size": 3,
-    "multiplier": 3,
+    "multiplier": 4,
     "cost": 300,
     "loaded": false,
     "notes": "SR2E p.176. Repairs damage to the persona's Condition Monitor each turn (Program Repair Table); cannot be augmented with pool dice."
