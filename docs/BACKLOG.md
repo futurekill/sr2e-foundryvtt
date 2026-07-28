@@ -32,12 +32,25 @@ Last reviewed 2026-07-26 (system 0.64.0).
   0.65.0** — three were shipped under invented names with wrong stats (the audit
   matches on name, so it reported them as missing rather than as drift), and the
   Vision Enhancers table had never been transcribed.
-- **Cost audit is ~24% complete** — 127 transcribed reference rows vs 537
-  compendium items. Audited: cyberware, gear (incl. all per-Rating and vision
-  entries), firearms, melee, heavy, armor, projectile, throwing. **Unaudited:
-  ammo, programs, lifestyles, foci, spells, and the remainder of gear.** Extend
-  `tools/data/street-gear-prices.tsv`. This is the highest-value content work
-  left — wrong prices are what started the whole audit.
+- ~~Cost audit~~ **The pass is done (0.65.0–0.71.0).** Every priceable core
+  pack has been checked against a rendered page: cyberware, gear, firearms,
+  melee, heavy, armor, projectile, throwing, **ammo, foci, lifestyles and
+  programs**. Spells are not priceable — the schema has no cost field, because
+  spells are learned with Karma. 146 reference rows vs 539 items, clean in both
+  directions.
+
+  Still open, deliberately left rather than invented:
+  - Ammo the core book never prices: Ex-Explosive, Hollow Point, Subsonic,
+    Tracers, Buckshot, Shotgun Slug, Machine Gun Belt (Regular). Need their
+    actual sourcebook.
+  - Utility programs printed but not shipped: **Armor**, **Restore**, **Sift**.
+    And **Scramble** is shipped but appears in no printed table.
+  - Rigger Black Book vehicle weapons from the p.283 damage table (Vengeance
+    MMG, Vanquisher HMG, Victory/Vigilant Rotary Cannons, AAM/AGM warheads,
+    7.62/12.7cm rockets) — that module ships no weapons at all.
+  - `programCostVR2` now duplicates core utility pricing, because the banded
+    rate turned out to be the core rule rather than a VR2 one. Revisit if VR2
+    is ever implemented.
 - ~~Rating-priced gear does not multiply by Rating.~~ **Done in 0.67.0** —
   `GearData.costPerRating` + a `derivedItemCost` branch; 18 items converted,
   Maglock Passkey and White Noise Generator were undercharging.
