@@ -266,9 +266,18 @@ async function onRollSkill(event, target) {
   const softId = target.closest("[data-soft-id]")?.dataset.softId;
   if (softId) {
     const chip = actor.system.chippedSkills?.find(s => s.softId === softId);
-    const opts = await promptRollOptions(actor, { showPools: false, baseDice: chip?.system.rating ?? 1 });
+    // A chipped LANGUAGE carries a family (SR2E p.74 via p.248), so its family
+    // tag is clickable like a learned language's. Read the variant here or the
+    // tag would silently roll the full language rating instead of the family's.
+    const chipVariant = target?.dataset?.variant
+      ?? event.target?.closest?.("[data-variant]")?.dataset?.variant ?? "";
+    const family = chipVariant === "family" && chip?.system.familyRating > 0;
+    const opts = await promptRollOptions(actor, {
+      showPools: false,
+      baseDice: (family ? chip.system.familyRating : chip?.system.rating) ?? 1
+    });
     if (!opts) return;
-    return actor.rollChippedSkill(softId, opts.tn, { poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
+    return actor.rollChippedSkill(softId, opts.tn, { variant: family ? "family" : "", poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
   }
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
@@ -1914,7 +1923,7 @@ async function onToggleBioActive(event, target) {
 }
 
 /**
- * Slot / un-slot a skillsoft (SR2E p.243). Slotting is gated by skillsoft
+ * Slot / un-slot a skillsoft (SR2E p.248). Slotting is gated by skillsoft
  * capacity: one slot per installed chipjack, and ActiveSofts additionally need
  * an installed Skillwires system. Un-slotting is always allowed.
  * @this {ApplicationV2}

@@ -8,6 +8,37 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.77.0 — 2026-07-28
+
+### Fixed
+- **A chipped language did not show its specialization status.** Player report,
+  and a rules error of mine in 0.73.0. I had decided a LinguaSoft grants the
+  language only, no family — but book **p.248** says a LinguaSoft "allows
+  language use and **replicates Language Skills**", and a Language Skill *is* a
+  Specialization of a family with the family 4 below it (p.74). The chip carries
+  that structure. Only the chargen **+2** is withheld, because that is a rule
+  about buying a language during character generation, not part of the skill.
+
+  Worse, it was **inconsistent**: the same LinguaSoft displayed a family if the
+  character already owned that language natively and none if they didn't — so
+  the behaviour depended on something invisible.
+
+  Chipped languages now carry their family name and rating, and the family tag
+  is clickable like a learned language's. The roll path was fixed too: without
+  it, clicking the tag on a chipped language would have silently rolled the full
+  language rating instead of the family's.
+
+- **Skillsoft page citations were wrong** throughout — they pointed at p.243,
+  which is surveillance gear. Skillsofts are on **p.248**. Corrected in the
+  places I verified against a render; the dice-pool restriction still cites
+  p.243 and is left alone, since I have not located its page.
+
+### Added
+- `CONFIG.SR2E.languageFamilies`, needed because a chip creates its skill from a
+  name with no compendium lookup available. `test/language-skills.test.mjs` pins
+  it against `packs-src` so the two copies cannot drift, including a guard that
+  fails if the map ever parses empty.
+
 ## 0.76.0 — 2026-07-28
 
 ### Added

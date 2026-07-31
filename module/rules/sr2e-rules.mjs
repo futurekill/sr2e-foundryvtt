@@ -982,7 +982,7 @@ export const SKILL_MEMORY = Object.freeze({
 });
 
 /**
- * Per-Mp nuyen rate by skillsoft type (Skillsoft Costs, SR2E p.243).
+ * Per-Mp nuyen rate by skillsoft type (Skillsoft Costs, SR2E p.248).
  *
  * `data` is NOT in the core table — core says DataSoft "Varies with value of
  * data" and prints no rate, which left every DataSoft costing 0. Fields of Fire
@@ -1025,7 +1025,7 @@ export function skillwireCapacity(name = "", rating = 0, isPlus = false) {
 }
 
 /**
- * Nuyen cost of a skillsoft = its Memory (Mp) × the per-type rate (SR2E p.243).
+ * Nuyen cost of a skillsoft = its Memory (Mp) × the per-type rate (SR2E p.248).
  * 0 for DataSofts / unknown types (cost "varies with the value of the data").
  * @param {string} category - "active" | "knowledge" | "language"
  * @param {number} rating

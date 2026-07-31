@@ -95,3 +95,46 @@ describe("shipped language skills", () => {
     expect(byName["Or'zet"]).toBe("");
   });
 });
+
+describe("CONFIG language families vs the compendium", () => {
+  // The runtime map exists because a LinguaSoft creates its skill from a NAME
+  // with no compendium available (SR2E p.248 — a LinguaSoft replicates Language
+  // Skills, so the chip must carry the same p.74 family structure). Two copies
+  // of the same fact, so pin them together.
+  const cfg = readFileSync("module/config.mjs", "utf8");
+  const block = /SR2E\.languageFamilies\s*=\s*\{([\s\S]*?)\n\};/.exec(cfg)[1];
+  const CONFIG_MAP = Object.fromEntries(
+    [...block.matchAll(/^\s*"?([^":\n]+?)"?:\s*"([^"]*)"/gm)].map(m => [m[1].trim(), m[2]])
+  );
+
+  const shipped = readdirSync("packs-src/skills").filter(f => f.endsWith(".json"))
+    .map(f => JSON.parse(readFileSync(`packs-src/skills/${f}`, "utf8")))
+    .filter(d => d.system?.category === "language");
+
+  it("actually parsed the map", () => {
+    // Without this the three assertions below pass vacuously if the regex breaks.
+    expect(Object.keys(CONFIG_MAP).length).toBe(15);
+  });
+
+  it("agrees with every shipped language that has a family", () => {
+    for (const l of shipped) {
+      const fam = l.system.languageFamily;
+      if (!fam) continue;                       // deliberately family-less
+      expect(CONFIG_MAP[l.name.toLowerCase()],
+        `${l.name}: compendium says "${fam}", CONFIG says "${CONFIG_MAP[l.name.toLowerCase()]}"`).toBe(fam);
+    }
+  });
+
+  it("omits the three languages that belong to no family", () => {
+    // p.74: City Speak and Elvish are in no formal group; there are no formal
+    // ork languages. A chip for one of these must get no family, not a wrong one.
+    for (const n of ["cityspeak", "sperethiel", "or'zet"]) {
+      expect(CONFIG_MAP[n]).toBeUndefined();
+    }
+  });
+
+  it("does not invent languages the compendium does not ship", () => {
+    const names = new Set(shipped.map(l => l.name.toLowerCase()));
+    for (const k of Object.keys(CONFIG_MAP)) expect(names.has(k), `CONFIG has unknown language "${k}"`).toBe(true);
+  });
+});

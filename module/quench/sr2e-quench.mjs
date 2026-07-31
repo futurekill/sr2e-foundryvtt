@@ -201,7 +201,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Contacts" });
 
-    // ── Slotted skillsofts inject / override skills (SR2E p.243) ────────────────
+    // ── Slotted skillsofts inject / override skills (SR2E p.248) ────────────────
     quench.registerBatch("sr2e.skillsofts", (context) => {
       const { describe, it, assert, after } = context;
       let actor;
@@ -261,8 +261,33 @@ export function registerSR2EQuenchTests() {
           assert.equal(lang.system.rating, 4, "LinguaSoft should run at full rating off a datajack");
           // A chip is not a chargen purchase (SR2E p.74) and grants the specific
           // language only — no +2, and no family to fall back on.
+          // A LinguaSoft "replicates Language Skills" (SR2E p.248), and a
+          // Language Skill IS a specialization of a family (p.74) — so the chip
+          // carries the family too. Only the chargen +2 is withheld.
           assert.equal(lang.system.languageRating, 4, "a chipped language must not get the chargen +2");
-          assert.equal(lang.system.familyRating, 0, "a chip should not grant family facility");
+          assert.equal(lang.system.familyRating, 1, "a chipped language should carry its family (4 - 4 = 0 -> 1)");
+          assert.equal(lang.system.languageFamily, "", "Sperethiel is in no formal family (p.74)");
+        });
+
+        it("a chip-granted language shows its family, with or without a native skill", async () => {
+          // Player report: LinguaSofts chip fine now, but their specialization
+          // status does not show. Cause: the synthetic path (character has NO
+          // native skill for that language — Blackbriar's case) withheld the
+          // family, while the overwrite path kept it. Same chip, two displays.
+          actor = await Actor.create({ name: "Quench ChipFamily", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Softlink", type: "cyberware", system: { location: "headware", installed: true, rating: 4, accessPorts: 4 } }
+          ]);
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "German LinguaSoft", type: "gear",
+            system: { category: "skillsoft", rating: 3, slotted: true,
+                      grantedSkill: "German", grantedSkillCategory: "language" }
+          }]);
+          const german = (actor.system.chippedSkills ?? []).find(s => s.name === "German");
+          assert.ok(german, "LinguaSoft did not inject German");
+          assert.equal(german.system.languageFamily, "Germanic", "chipped language lost its family");
+          assert.equal(german.system.familyRating, 1, "German 3 -> Germanic max(1, 3-4) = 1");
+          assert.equal(german.system.languageRating, 3, "a chip gets no chargen +2");
         });
 
         it("an implant that DECLARES access ports counts however it is named", async () => {

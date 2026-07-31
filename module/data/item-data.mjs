@@ -473,7 +473,7 @@ export class CyberwareData extends SR2EDataModel {
       // capacity never depends on the item's exact name — the name ("…plus…") is
       // only a fallback for legacy/hand-named items.
       skillwirePlus: new fields.BooleanField({ initial: false }),
-      // Chip access ports this implant provides for Know/LinguaSofts (SR2E p.243).
+      // Chip access ports this implant provides for Know/LinguaSofts (SR2E p.248).
       // Access used to be detected by NAME ("chipjack"/"datajack" substrings),
       // which made any device a SOURCEBOOK named differently invisible — a
       // Shadowtech Softlink is an advanced chipjack and was rejected outright

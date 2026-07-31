@@ -1044,3 +1044,38 @@ SR2E.vehicleMarkup = {
     { label: "Drone", value: "×0.1" }
   ]
 };
+
+/**
+ * Language → family (SR2E p.74). A specific language is a Specialization of a
+ * family, and the family is the general skill beneath it.
+ *
+ * This exists because a LinguaSoft "replicates Language Skills" (p.248), so a
+ * chip-granted language has to carry the same family structure as a learned
+ * one — and the chip is created at runtime from a gear item that knows only a
+ * NAME, with no compendium lookup available synchronously in prepareDerivedData.
+ *
+ * Only the shipped languages are listed; a GM's own language simply gets no
+ * family until they type one on the skill. `test/language-skills.test.mjs`
+ * pins this against packs-src so the two cannot drift.
+ *
+ * Cityspeak, Sperethiel and Or'zet are deliberately absent: p.74 puts City
+ * Speak and Elvish in no formal group, and states there are no formal ork
+ * languages.
+ */
+SR2E.languageFamilies = {
+  arabic: "Semitic",
+  "aztlaner spanish": "Romance",
+  cantonese: "Sino-Tibetan",
+  english: "Germanic",
+  french: "Romance",
+  german: "Germanic",
+  italian: "Romance",
+  japanese: "Japanese",
+  korean: "Korean",
+  lakota: "Siouan",
+  mandarin: "Sino-Tibetan",
+  portuguese: "Romance",
+  russian: "Slavic",
+  salish: "Salish",
+  spanish: "Romance"
+};

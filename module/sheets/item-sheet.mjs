@@ -141,7 +141,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         // Skillsoft: offer a dropdown of standard skills (from the skills
         // compendium) matching the soft's type, so the granted skill is picked
         // rather than typed. ActiveSofts cover Active + Build/Repair (technical)
-        // skills; Know/LinguaSofts cover their own categories (SR2E p.243).
+        // skills; Know/LinguaSofts cover their own categories (SR2E p.248).
         if (item.system.category === "skillsoft") {
           const cats = item.system.grantedSkillCategory === "active"
             ? ["active", "build_repair"]

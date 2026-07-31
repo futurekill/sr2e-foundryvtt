@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -540,15 +540,27 @@ export class CharacterData extends SR2EDataModel {
         existing.system.applyLanguageRatings?.();
       } else {
         // Built by hand rather than through the data model, so the p.74 numbers
-        // have to be supplied. A chip grants the specific language only: no
-        // chargen +2, and no family facility to roll (p.74 — fluency in the
-        // family comes from having learned it, not from slotting a chip).
+        // have to be supplied.
+        //
+        // A LinguaSoft "replicates Language Skills" (SR2E p.248), and a Language
+        // Skill IS a Specialization of a family with the family 4 below it
+        // (p.74) — so a chipped language carries that structure too. An earlier
+        // version withheld it here while the `existing` branch above kept it,
+        // so the SAME chip displayed differently depending on whether the
+        // character happened to already own the skill.
+        //
+        // The chargen +2 still does not apply: that is a rule about buying a
+        // language at character generation, not part of the skill's structure.
+        const lang = cat === "language" ? languageSkillRatings(rating, false) : null;
         this.chippedSkills.push({
           id: "", softId: soft.id, name,
           system: {
             category: cat, rating, linkedAttribute: soft.system.grantedSkillAttribute || "intelligence",
             _chipped: true, _synthetic: true, _chipSource: soft.name,
-            languageRating: rating, familyRating: 0, chargenLanguage: false,
+            languageRating: lang?.language ?? rating,
+            familyRating: lang?.family ?? 0,
+            languageFamily: lang ? (CONFIG.SR2E?.languageFamilies?.[name.toLowerCase()] ?? "") : "",
+            chargenLanguage: false,
             concentration: { name: "" }, specialization: { name: "" }
           }
         });

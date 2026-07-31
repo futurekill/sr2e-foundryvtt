@@ -746,7 +746,7 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Roll a skill granted by a slotted skillsoft (SR2E p.243) — used only for
+   * Roll a skill granted by a slotted skillsoft (SR2E p.248) — used only for
    * synthetic skills the character has no natural item for. Rolls the soft's
    * effective rating (already capped by Skillwires in derived data). No
    * untrained defaulting: a soft always supplies its rating.
@@ -756,7 +756,12 @@ export class SR2EActor extends Actor {
     const soft = this.items.get(softId);
     if (!soft) return;
     const chip = this.system.chippedSkills?.find(s => s.softId === softId);
-    const base = chip?.system.rating ?? soft.system.rating ?? 0;
+    // A chipped language's family is rolled at 4 below the language (SR2E p.74;
+    // a LinguaSoft "replicates Language Skills", p.248).
+    const family = options.variant === "family" && chip?.system.familyRating > 0;
+    const base = family
+      ? chip.system.familyRating
+      : (chip?.system.rating ?? soft.system.rating ?? 0);
     // Enhanced Articulation (Shadowtech p.34) is a PASSIVE +die on any Active
     // Skill Success Test — a chipped skill is still an Active Skill test, so it
     // qualifies. Skillwires only bar the use of POOLS (core p.243), not passive
@@ -767,7 +772,7 @@ export class SR2EActor extends Actor {
     // p.243) — the wires override the character's own reflexes. So pool dice are
     // NOT forwarded here, even if the roll dialog offered them.
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
-      label: `${soft.system.grantedSkill || soft.name} Test (chipped)${artBonus ? ` (+${artBonus} articulation)` : ""}`,
+      label: `${family ? (chip.system.languageFamily || "Language family") : (soft.system.grantedSkill || soft.name)} Test (chipped)${artBonus ? ` (+${artBonus} articulation)` : ""}`,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }
