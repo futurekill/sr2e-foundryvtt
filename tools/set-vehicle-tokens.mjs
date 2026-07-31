@@ -5,7 +5,12 @@
  *   npm run vehicle-tokens          # report what would change
  *   npm run vehicle-tokens -- --fix # write it into packs-src/vehicles
  *
- * ART. Each vehicle gets one 1024x1024 WebP (transparent background, strict
+ * ART. Portraits are TRIMMED to the vehicle by tools/fit-vehicle-art.mjs — they
+ * used to be square 1024x1024 canvases that were half empty air, which made the
+ * vehicle render at about half its own footprint. This tool only sets
+ * `texture.src`, so the `fit` that tool chooses survives a re-run.
+ *
+ * Each vehicle gets one WebP (transparent background, strict
  * top-down, nose pointing UP) used as BOTH the actor portrait and the token
  * texture — the same convention the creature portraits use. Vehicles keep
  * `lockRotation: false`, unlike creatures: a top-down vehicle SHOULD swing to

@@ -9,7 +9,8 @@
     "test:watch": "vitest",
     "audit-costs": "node tools/audit-costs.mjs",
     "vehicle-tokens": "node tools/set-vehicle-tokens.mjs",
-    "item-icons": "node tools/set-item-icons.mjs"
+    "item-icons": "node tools/set-item-icons.mjs",
+    "fit-vehicles": "node tools/fit-vehicle-art.mjs"
   },
   "devDependencies": {
     "classic-level": "^3.0.0",

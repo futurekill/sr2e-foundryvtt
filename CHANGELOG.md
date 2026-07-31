@@ -8,6 +8,25 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.75.0 — 2026-07-28
+
+### Fixed
+- **Vehicle art rendered at about half its token footprint.** The portraits are
+  square 1024x1024 canvases with the vehicle drawn nose-up down the middle, so
+  most of each image is empty air — the Mitsubishi Nightsky used **25%** of its
+  canvas, and the median across the set was 50%. Foundry's `contain` scales the
+  whole canvas, margin included, to fit the token box, so the vehicle shrank.
+
+  `npm run fit-vehicles -- --fix` trims all 32 portraits to the vehicle and picks
+  each token's texture fit. Re-running is idempotent — already-trimmed files are
+  skipped rather than shaved again.
+
+- **Token footprints are deliberately unchanged.** `set-vehicle-tokens.mjs` sets
+  them from real-world dimensions of the closest equivalent craft, which beats an
+  artist's framing as a source. Rotorcraft in particular are square on purpose —
+  the rotor disc is what occupies the ground — so 22 of 32 keep `contain` and
+  only the 10 whose box genuinely matches their art get `fill`.
+
 ## 0.74.0 — 2026-07-28
 
 ### Added

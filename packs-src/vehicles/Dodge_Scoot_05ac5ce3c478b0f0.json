@@ -54,7 +54,7 @@
       "anchorY": 0.5,
       "offsetX": 0,
       "offsetY": 0,
-      "fit": "contain",
+      "fit": "fill",
       "scaleX": 1,
       "scaleY": 1,
       "rotation": 0,
