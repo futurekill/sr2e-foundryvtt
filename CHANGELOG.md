@@ -8,6 +8,27 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.72.0 — 2026-07-28
+
+### Fixed
+- **A Shadowtech Softlink was not recognised as a chip reader.** Access ports
+  for Know/LinguaSofts were detected by matching the implant's NAME against
+  "chipjack"/"datajack", so a player wearing a Softlink — an advanced chipjack
+  that accepts up to 4 chips — was told to "install a chipjack, datajack, or
+  headware memory". `CyberwareData` gains an **`accessPorts`** field: any implant
+  that declares it counts as a reader whatever it is called. Name matching stays
+  as a fallback so items authored before the field keep working.
+
+  This was never really about one item — **every sourcebook device that reads
+  chips under its own name was invisible to the core system**, and Shadowtech's
+  Improved Datajack only worked by the accident of having "datajack" in its name.
+
+### Notes
+- The port COUNT still isn't enforced anywhere — slotting checks "has any
+  access", not how many chips fit. `accessPorts` is therefore a flat authored
+  count rather than a derived one; a GM raising a Softlink's Level should raise
+  the field to match. Worth deriving only once something enforces the limit.
+
 ## 0.71.0 — 2026-07-27
 
 ### Fixed

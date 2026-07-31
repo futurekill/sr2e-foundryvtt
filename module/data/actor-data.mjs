@@ -493,7 +493,12 @@ export class CharacterData extends SR2EDataModel {
       for (const i of items) {
         if (i.type !== "cyberware" || !i.system.installed) continue;
         const n = i.name.toLowerCase();
-        if (n.includes("chipjack")) chipjacks++;
+        // Declared ports first: an implant that says it reads chips is one,
+        // whatever it's called. The name check stays as a fallback so items
+        // authored before the field existed keep working.
+        const declared = i.system.accessPorts ?? 0;
+        if (declared > 0) chipjacks += declared;
+        else if (n.includes("chipjack")) chipjacks++;
         if (n.includes("datajack")) datajacks++;
         if (n.includes("skillwire")) skillwires = Math.max(skillwires, skillwireCapacity(i.name, i.system.rating || 0, i.system.skillwirePlus));
         const m = /(\d[\d,]*)\s*mp/i.exec(i.name);

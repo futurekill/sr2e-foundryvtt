@@ -441,6 +441,17 @@ export class CyberwareData extends SR2EDataModel {
       // capacity never depends on the item's exact name — the name ("…plus…") is
       // only a fallback for legacy/hand-named items.
       skillwirePlus: new fields.BooleanField({ initial: false }),
+      // Chip access ports this implant provides for Know/LinguaSofts (SR2E p.243).
+      // Access used to be detected by NAME ("chipjack"/"datajack" substrings),
+      // which made any device a SOURCEBOOK named differently invisible — a
+      // Shadowtech Softlink is an advanced chipjack and was rejected outright
+      // ("you need a chipjack, datajack, or headware memory") despite being one.
+      // Set this on any implant that can read a chip: a chipjack is 1.
+      // ponytail: a flat count, not derived from rating. The Softlink's ports
+      // equal its Level, so a GM raising the Level should raise this too — worth
+      // deriving only once something actually ENFORCES the port count, which
+      // nothing does today (slotting checks "has any access", not how many).
+      accessPorts: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Per-rating stats table. When populated, essenceCost/cost/availability/streetIndex
       // are derived from the row matching the current rating (prepareDerivedData).
       // For non-tiered items, leave this empty and fill the flat fields directly.
