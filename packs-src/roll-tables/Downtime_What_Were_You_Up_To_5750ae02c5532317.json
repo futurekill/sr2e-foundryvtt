@@ -1,0 +1,183 @@
+{
+  "_id": "5750ae02c5532317",
+  "name": "Downtime — What Were You Up To?",
+  "img": "icons/svg/d20-black.svg",
+  "description": "<p>What a runner got up to between jobs, on their own time. Each player rolls once per downtime period.</p><p><em>2d6, so the quiet middle is common and both extremes are rare (a jackpot or a disaster is about 3%). The mechanical hooks are suggestions — overrule them freely.</em></p>",
+  "formula": "2d6",
+  "replacement": true,
+  "displayRoll": true,
+  "results": [
+    {
+      "_id": "d0db853533e23a02",
+      "type": "text",
+      "text": "<strong>Something bad went down.</strong> A deal soured, a fixer sold you out, or the wrong people put your name in a file. Lose one Contact — the GM picks, and they have gone to ground, gone bad, or gone missing — <em>or</em> buy your way clear for [[2d6*500]]&yen;. Your call, but you decide before you know the price.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        2,
+        2
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "184ba4c649059b9e",
+      "type": "text",
+      "text": "<strong>A run went bad.</strong> You took the job, it fell apart, nobody got paid. No nuyen this downtime, and the lifestyle still comes due. If you cannot cover it, drop a lifestyle level until you can.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        3,
+        3
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "cf10c7f8dc5754d2",
+      "type": "text",
+      "text": "<strong>You picked up heat.</strong> Somebody is asking about you by description. The GM opens the next run with one complication already in play — a tail, a flagged SIN, or a Lone Star patrol that knows your face.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        4,
+        4
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "61903d46769fce39",
+      "type": "text",
+      "text": "<strong>You met someone new.</strong> Make a Contact at Loyalty 1 and Connection 1&ndash;3; you decide what they do, the GM decides what they want. Roll on <em>Contact Loyalty &amp; Reaction</em> the first time you lean on them.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        5,
+        5
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "58d9a74704b29c5c",
+      "type": "text",
+      "text": "<strong>You put in the work.</strong> Training, practice, or a course you actually finished. The Karma cost of your next skill improvement drops by 1 (minimum 1). Name the skill now, before you know what the next run needs.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        6,
+        6
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "50b38769e19e0961",
+      "type": "text",
+      "text": "<strong>You laid low.</strong> Sleep, cheap soy, bad trid. Nothing gained, nothing lost — and nobody found you either. Clear any heat left over from a previous downtime.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        7,
+        7
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "0ecc52c9de245c7a",
+      "type": "text",
+      "text": "<strong>Odd jobs.</strong> Bodyguard work, a courier run, a night on a door. No story in it, but the rent is covered: [[1d6*100]]&yen; and your lifestyle is paid this month.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        8,
+        8
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "5693afdd2652e0ec",
+      "type": "text",
+      "text": "<strong>You got a line on gear.</strong> One item you have been after is available this downtime at &minus;2 to its Availability target number <em>or</em> at a 10% discount — pick one. The offer dies when the next run starts.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        9,
+        9
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "1577c2e04841ae2b",
+      "type": "text",
+      "text": "<strong>A contact came through.</strong> One of your Contacts does you a favour unasked: a warning, an introduction, a piece of hardware, or a name you needed. Raise their Loyalty by 1 (max 6).",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        10,
+        10
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "0da6c213ef9e0d85",
+      "type": "text",
+      "text": "<strong>Things went your way.</strong> A debt got paid, a rumour turned out true, or someone owed you and actually remembered. Gain [[1d6*500]]&yen; <em>and</em> one straight answer from the GM about an upcoming job.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        11,
+        11
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    },
+    {
+      "_id": "9bcd9fca60fe2412",
+      "type": "text",
+      "text": "<strong>A spectacular score.</strong> You freelanced without the team and it went perfectly. Gain [[1d10*1000]]&yen;. The GM decides who noticed — that much nuyen moving leaves a trail.",
+      "img": "icons/svg/d20-black.svg",
+      "weight": 1,
+      "range": [
+        12,
+        12
+      ],
+      "drawn": false,
+      "documentUuid": null,
+      "flags": {}
+    }
+  ],
+  "ownership": {
+    "default": 2
+  },
+  "folder": null,
+  "sort": 0,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.1.0",
+    "createdTime": 1782200000000,
+    "modifiedTime": 1782200000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!tables!5750ae02c5532317"
+}

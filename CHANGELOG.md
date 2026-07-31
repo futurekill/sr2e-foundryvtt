@@ -8,6 +8,30 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.74.0 — 2026-07-28
+
+### Added
+- **"Downtime — What Were You Up To?" roll table**, in SR2E Roll Tables and
+  rollable by players themselves (the pack already grants PLAYER: OBSERVER).
+  Each runner rolls once per downtime period for what they got up to on their
+  own time.
+
+  **2d6, not d6.** On a flat d6 a 10,000¥ score is a 1-in-6 event per character
+  per downtime — with four runners that is roughly one jackpot every downtime.
+  On 2d6 both tails sit at 1/36 and the quiet outcomes carry the middle, where
+  downtime belongs. Eleven results: disaster, a run gone bad, heat, a new
+  contact, training, laying low, odd jobs, a line on gear, a contact coming
+  through, a lucky break, and the spectacular score.
+
+  Every result carries a mechanical hook so it is playable without the GM
+  improvising a ruling, and the four that promise money roll it inline
+  (`[[1d10*1000]]¥` on the jackpot) rather than leaving a number to invent.
+
+### Added — tests
+- `test/roll-tables.test.mjs` checks every shipped table covers its whole
+  formula range with no gaps or overlaps. A gap means a roll silently produces
+  nothing at the table and Foundry never complains; all six tables are clean.
+
 ## 0.73.0 — 2026-07-28
 
 ### Added
