@@ -7,6 +7,38 @@ Last reviewed 2026-07-26 (system 0.64.0).
 
 ## Broken / needs a live session
 
+- **Player-reported: dropping a skillsoft does nothing (NOT reproducible by the
+  GM).** Investigated 2026-07-28 and parked — the purchase path was proven
+  working end-to-end on the GM client (correct item, correct 300¥ for a Rating-2
+  LinguaSoft), so there is nothing to fix blind. Ruled out: the data model
+  (validation and create both succeed), the item's own data, missing access
+  ports, the drop path being changed recently (it was not), and both schema
+  fields that could reject the document.
+
+  Most likely a **client/permission difference** — the same shape as the
+  summoning issue, where the GM path worked and the player path did not. When it
+  next happens, get the PLAYER's console (F12); do not debug from the GM seat.
+
+  Two defects found along the way that made the report undiagnosable. Worth
+  fixing whenever this is picked up, independently of the drop bug:
+  - `SR2EBaseActorSheet#_onDrop` does `catch(e) { return; }` around
+    `JSON.parse(dataTransfer)` — a malformed drag payload vanishes with no
+    message anywhere.
+  - `_promptPurchaseOptions` initialises `result = null`, and `_onDropItem`
+    treats `null` as "user cancelled". So ANY failure inside the Buy callback is
+    indistinguishable from clicking Cancel.
+
+  Diagnostics that worked are worth rebuilding if needed: one macro that
+  validates + creates the compendium item directly, and one that wraps
+  `sheet._onDropItem` with error capture and reports what the prompt returned.
+
+- **Skillsofts ship as blank chips.** A dropped LinguaSoft/ActiveSoft cannot
+  grant a skill until the GM types a skill name on the item sheet AND toggles
+  the slot AND the character has an access port. The purchase prompt asks for
+  rating and skill *category* but never the skill *name*, so the one field that
+  makes the chip functional is the one it does not ask for. Reproducible; a
+  design change, not a bug.
+
 - ~~Player-triggered summoning does not work.~~ **Not a bug — resolved
   2026-07-27.** The socket relay was removed deliberately; `canCreateActor()`
   now gates on the `ACTOR_CREATE` permission *before* the roll and drain, and
