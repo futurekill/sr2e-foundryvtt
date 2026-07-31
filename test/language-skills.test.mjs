@@ -1,48 +1,60 @@
 // SR2E p.74: "each specific language is a Specialization of a family of
-// languages"; chargen specializations get +2; the family sits 4 below the
-// language. Read from a 300 dpi render, not the text layer.
+// languages"; the family sits 4 below the language. Read from a 300 dpi render.
 //
-// The family being 4 below the LANGUAGE (not 4 below the number bought) is a
-// deliberate reading — it keeps the language↔family spread at 4, matching the
-// generic specialization rule on p.55/p.70. See docs/PLAN-language-skills.md.
+// GM RULING (futurekill, 2026-07-31) — TWO increases, not one:
+//   +2 always, because a language IS a Specialization and p.70 says "use of a
+//      Specialized skill adds +2 to the original general skill rating". This
+//      reaches LinguaSofts too: p.248 says a chip "replicates Language Skills".
+//   +2 more at character generation — p.74's "automatically increase by +2",
+//      read as an ADDITIONAL native-speaker bonus.
+// The counter-argument (p.70 also REDUCES the general by 2, which a single +2
+// reproduces and a double +2 does not) was weighed and overruled by the GM.
+// Both readings are written up in docs/PLAN-language-skills.md.
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { languageSkillRatings, skillRollRating, skillSubRatings } from "../module/rules/sr2e-rules.mjs";
 
 describe("language skills (SR2E p.74)", () => {
-  it("adds +2 to a language taken at character generation", () => {
-    expect(languageSkillRatings(4, true).language).toBe(6);
-    expect(languageSkillRatings(1, true).language).toBe(3);   // the reported case
+  it("adds +2 for the specialization alone, however the language was got", () => {
+    // A LinguaSoft or a language bought later with Karma: structural +2 only.
+    expect(languageSkillRatings(1, false).language).toBe(3);   // the Rating 1 chip case
+    expect(languageSkillRatings(4, false).language).toBe(6);
   });
 
-  it("adds nothing to one picked up afterwards", () => {
-    expect(languageSkillRatings(4, false).language).toBe(4);
+  it("adds +4 to a language taken at character generation", () => {
+    // Structural +2, plus the native-speaker +2.
+    expect(languageSkillRatings(1, true).language).toBe(5);
+    expect(languageSkillRatings(4, true).language).toBe(8);
   });
 
-  it("puts the family 4 below the language", () => {
-    // Spanish bought at 4 in chargen → Spanish 6, Romance 2.
-    expect(languageSkillRatings(4, true)).toEqual({ language: 6, family: 2 });
-    expect(languageSkillRatings(8, false)).toEqual({ language: 8, family: 4 });
+  it("puts the family 4 below whatever the language ends up at", () => {
+    expect(languageSkillRatings(4, true)).toEqual({ language: 8, family: 4 });
+    expect(languageSkillRatings(4, false)).toEqual({ language: 6, family: 2 });
+    expect(languageSkillRatings(8, false)).toEqual({ language: 10, family: 6 });
   });
 
   it("treats any modified rating below 1 as a 1", () => {
     // "Any modified rating less than 1 is treated as a 1."
-    expect(languageSkillRatings(1, true).family).toBe(1);     // 3 - 4 = -1 → 1
-    expect(languageSkillRatings(2, true).family).toBe(1);     // 4 - 4 =  0 → 1
-    expect(languageSkillRatings(3, true).family).toBe(1);     // 5 - 4 =  1
-    expect(languageSkillRatings(4, true).family).toBe(2);     // first value above the floor
+    expect(languageSkillRatings(1, false).family).toBe(1);    // 3 - 4 = -1 -> 1
+    expect(languageSkillRatings(2, false).family).toBe(1);    // 4 - 4 =  0 -> 1
+    expect(languageSkillRatings(3, false).family).toBe(1);    // 5 - 4 =  1
+    expect(languageSkillRatings(4, false).family).toBe(2);    // first above the floor
+    expect(languageSkillRatings(1, true).family).toBe(1);     // 5 - 4 =  1
   });
 
-  it("keeps the same language↔family spread as an ordinary specialization", () => {
-    // p.55/p.70: specialization = general + 4. p.74 must not invent a different
-    // spread — that was the reading this implementation deliberately rejected.
-    const { language, family } = languageSkillRatings(9, true);
-    expect(language - family).toBe(4);
-    expect(skillSubRatings(family).specialization).toBe(language);
+  it("keeps the language exactly 4 above its family", () => {
+    // p.74's spread, and the one thing both readings of the +2 agree on.
+    for (const [r, c] of [[9, true], [9, false], [6, true], [4, false]]) {
+      const { language, family } = languageSkillRatings(r, c);
+      if (family > 1) expect(language - family).toBe(4);      // ignore floored cases
+      expect(skillSubRatings(family).specialization).toBe(family + 4);
+    }
   });
 
   it("leaves an untrained language at 0 so defaulting still fires", () => {
+    // No rating means no language, not a free +2.
     expect(languageSkillRatings(0, true)).toEqual({ language: 0, family: 0 });
+    expect(languageSkillRatings(0, false)).toEqual({ language: 0, family: 0 });
   });
 });
 
@@ -156,8 +168,8 @@ describe("a language in no formal family (SR2E p.74)", () => {
   });
 
   it("still gets one when the language DOES have a family", () => {
-    expect(familyOf(9, true, "Romance")).toBe(7);
-    expect(familyOf(3, false, "Germanic")).toBe(1);   // floor still applies
+    expect(familyOf(9, true, "Romance")).toBe(9);     // 9 + 4 = 13, family 9
+    expect(familyOf(3, false, "Germanic")).toBe(1);   // 3 + 2 = 5, family 1
   });
 
   it("covers exactly the three shipped family-less languages", () => {

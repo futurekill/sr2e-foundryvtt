@@ -127,9 +127,9 @@
           <span class="skill-rating chipped" title="From a slotted skillsoft">{{skill.system.rating}}</span>
           {{else}}
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
-                 class="skill-rating" min="0" max="12" title="The rating as bought. Speaks at {{skill.system.languageRating}}." />
+                 class="skill-rating" min="0" max="12" title="The rating as bought. Speaks at {{skill.system.languageRating}} (Specialization +2, and +2 more if a native speaker)." />
           {{#if skill.system.chargenLanguage}}
-          <span class="lang-chargen-badge" title="Taken at character generation: +2 to the language (SR2E p.74)">→{{skill.system.languageRating}}</span>
+          <span class="lang-chargen-badge" title="Native speaker: +2 for the Specialization and +2 more for character generation (SR2E p.74)">→{{skill.system.languageRating}}</span>
           {{/if}}
           {{/if}}
           <div class="item-controls">

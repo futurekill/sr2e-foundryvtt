@@ -264,7 +264,7 @@ export function registerSR2EQuenchTests() {
           // A LinguaSoft "replicates Language Skills" (SR2E p.248), and a
           // Language Skill IS a specialization of a family (p.74) — so the chip
           // carries the family too. Only the chargen +2 is withheld.
-          assert.equal(lang.system.languageRating, 4, "a chipped language must not get the chargen +2");
+          assert.equal(lang.system.languageRating, 6, "a chipped language gets the Specialization +2, not the native +2");
           // Sperethiel is in NO formal family (p.74), so it must get no family
           // rating either — a positive rating with a blank name rendered a
           // clickable empty tag that rolled dice for a family that does not exist.
@@ -289,8 +289,8 @@ export function registerSR2EQuenchTests() {
           const german = (actor.system.chippedSkills ?? []).find(s => s.name === "German");
           assert.ok(german, "LinguaSoft did not inject German");
           assert.equal(german.system.languageFamily, "Germanic", "chipped language lost its family");
-          assert.equal(german.system.familyRating, 1, "German 3 -> Germanic max(1, 3-4) = 1");
-          assert.equal(german.system.languageRating, 3, "a chip gets no chargen +2");
+          assert.equal(german.system.familyRating, 1, "German 3 -> speaks 5, Germanic max(1, 5-4) = 1");
+          assert.equal(german.system.languageRating, 5, "chip rating 3 + the Specialization +2; no native +2");
         });
 
         it("an implant that DECLARES access ports counts however it is named", async () => {
@@ -316,8 +316,8 @@ export function registerSR2EQuenchTests() {
             { name: "Spanish", type: "skill", system: { category: "language", rating: 6, languageFamily: "Romance" } }
           ]);
           const native = actor.items.find(i => i.name === "Spanish");
-          assert.equal(native.system.languageRating, 8, "chargen Spanish 6 should speak at 8 (p.74)");
-          assert.equal(native.system.familyRating, 4, "Romance should sit 4 below the language");
+          assert.equal(native.system.languageRating, 10, "chargen Spanish 6: +2 Specialization, +2 native");
+          assert.equal(native.system.familyRating, 6, "Romance sits 4 below the language");
 
           await actor.createEmbeddedDocuments("Item", [{
             name: "Spanish LinguaSoft", type: "gear",
@@ -326,9 +326,9 @@ export function registerSR2EQuenchTests() {
           }]);
           const chipped = actor.items.find(i => i.name === "Spanish");
           assert.ok(chipped.system._chipped, "native Spanish was not flagged as chipped");
-          assert.equal(chipped.system.languageRating, 5,
+          assert.equal(chipped.system.languageRating, 7,
             "chipped language still reporting the pre-chip rating — derived values went stale");
-          assert.equal(chipped.system.familyRating, 1, "family should re-derive off the chip rating");
+          assert.equal(chipped.system.familyRating, 3, "family should re-derive off the chip rating");
           // The flag itself must never be written: the item sheet submits real
           // schema fields, so a persisted `false` would survive un-slotting.
           assert.equal(chipped._source.system.chargenLanguage, true,

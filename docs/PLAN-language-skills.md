@@ -19,7 +19,34 @@ re-decided as a result, signed off by the user 2026-07-31.
 
 Read from the rendered image, not the text layer, per the repo rules policy.
 
-### The arithmetic — SETTLED after review (see §1 of the review below)
+### SUPERSEDED by GM ruling, 2026-07-31
+
+**futurekill ruled that TWO increases apply, not one.** A language always gets
+**+2** for being a Specialization (p.70: "use of a Specialized skill adds +2 to
+the original general skill rating"), and one taken at **character generation**
+gets a **further +2** — the character is a native speaker, with the fluency and
+cultural insight that implies. The family remains 4 below whatever the language
+ends up at, floored at 1.
+
+    Spanish 1, chip or learned later  ->  Spanish 3, family 1
+    Spanish 1 at chargen              ->  Spanish 5, family 1
+    Spanish 5 at chargen              ->  Spanish 9, family 5
+
+The structural +2 reaches **LinguaSofts**, because p.248 says a chip
+"replicates Language Skills" and a Language Skill is specialized by definition —
+so a Rating 1 LinguaSoft rolls 3 dice. The native +2 does not: a chip is not a
+childhood.
+
+**The argument against, which the GM weighed and overruled:** p.70 says
+specializing also REDUCES the general by 2 (Firearms 5 -> Uzi III 7 / Firearms
+3). Under a single +2 the family lands at rating−2, reproducing that reduction;
+under two, the family lands at the rating itself and the general is never
+reduced. The GM's reading treats p.74's "+2" as an exception granted on top of
+the generic rule rather than a restatement of it, which the sentence structure
+supports — p.74 establishes that languages ARE specializations first, then adds
+the +2 as a separate consequence of character generation.
+
+### The arithmetic as originally reasoned (kept for the record)
 
 **Decision, user sign-off 2026-07-31:** "the Language Rating" means the
 language's own rating *after* the chargen +2, so the family sits 4 below it —

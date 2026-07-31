@@ -8,6 +8,38 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.78.0 — 2026-07-28
+
+### Changed
+- **Languages now get two +2s, per GM ruling.** A language always gains **+2**
+  for being a Specialization (p.70: "use of a Specialized skill adds +2 to the
+  original general skill rating"), and one taken at **character generation**
+  gains a **further +2** as a native speaker. The family stays 4 below whatever
+  the language ends up at, floored at 1.
+
+  | | speaks at | family |
+  |---|---|---|
+  | Spanish 1, chipped or learned later | 3 | 1 |
+  | Spanish 1 at chargen | 5 | 1 |
+  | Spanish 5 at chargen | 9 | 5 |
+
+  **A LinguaSoft gets the structural +2**, because p.248 says a chip
+  "replicates Language Skills" and a Language Skill is specialized by
+  definition — so a **Rating 1 LinguaSoft now rolls 3 dice**, not 1. It does not
+  get the native-speaker +2.
+
+  This supersedes the single-+2 reading shipped in 0.73.0. Every language on
+  every sheet goes up by 2, chipped languages by 2 from where they were this
+  morning. The skill's checkbox is now labelled "Native speaker (+2 more)".
+
+### Notes
+- This is a **ruling on an ambiguous passage**, recorded as such. The argument
+  against is that p.70 also REDUCES the general by 2 when you specialize, which
+  a single +2 reproduces (family = rating−2) and two do not (family = rating).
+  Reasoning for both readings is in `docs/PLAN-language-skills.md` and in the
+  header of `languageSkillRatings`, so a future reader can see it was a decision
+  rather than a transcription.
+
 ## 0.77.1 — 2026-07-28
 
 ### Fixed

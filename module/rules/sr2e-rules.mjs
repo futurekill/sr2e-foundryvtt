@@ -1261,18 +1261,31 @@ export function skillSubRatings(general) {
  * "a skill rating of 4 less than the Language Rating itself. Any modified
  * rating less than 1 is treated as a 1."
  *
- * "When language Specializations are taken as part of character generation, the
- * Specialization Ratings automatically increase by +2" — the same step
- * `skillSubRatings` already models for ordinary skills, which is why the
- * language↔family spread here is 4 and not 6: "the Language Rating" is the
- * language's own rating AFTER that +2, not the number the player paid for.
- * Reading it the other way puts languages 6 apart from their family and
- * contradicts p.55/p.70. (Settled deliberately — docs/PLAN-language-skills.md.)
+ * TWO separate increases apply, per the GM's ruling (futurekill, 2026-07-31):
  *
- * Spanish bought at 4 in chargen → Spanish 6, Romance 2.
+ *   +2  ALWAYS — a language IS a Specialization (p.74), and "use of a
+ *       Specialized skill adds +2 to the original general skill rating" (p.70).
+ *       This applies to a LinguaSoft too: p.248 says a chip "replicates Language
+ *       Skills", and a Language Skill is specialized by definition.
+ *   +2  MORE at character generation — p.74's "the Specialization Ratings
+ *       automatically increase by +2", read as an ADDITIONAL bonus on top of the
+ *       structural one, representing a native speaker's fluency and cultural
+ *       insight rather than a language picked up later.
+ *
+ * The family is then 4 below whatever the language ends up at, floored at 1.
+ *
+ *   Spanish 1, chip or learned later  → Spanish 3, family 1
+ *   Spanish 1 at chargen              → Spanish 5, family 1
+ *   Spanish 5 at chargen              → Spanish 9, family 5
+ *
+ * This is a RULING on an ambiguous passage, not a transcription. The argument
+ * against is that p.70 says specializing REDUCES the general by 2, and under a
+ * single-+2 reading the family lands at rating−2 (matching p.70) rather than at
+ * the rating itself. The GM weighed that and chose the two-bonus reading; the
+ * reasoning for both sides is in docs/PLAN-language-skills.md.
  *
  * @param {number} rating - The rating as bought/entered.
- * @param {boolean} [chargen] - Taken during character generation (the +2).
+ * @param {boolean} [chargen] - Taken at character generation (the extra +2).
  * @returns {{language:number, family:number}}
  */
 /**
@@ -1294,7 +1307,8 @@ export function languageSkillRatings(rating, chargen = true) {
   // An untrained language (rating 0) stays 0 so the defaulting path still fires;
   // the +2 is for a language you actually took.
   if (r <= 0) return { language: 0, family: 0 };
-  const language = r + (chargen ? 2 : 0);
+  // +2 for being a specialization at all, +2 again for a native speaker.
+  const language = r + 2 + (chargen ? 2 : 0);
   return { language, family: Math.max(1, language - 4) };
 }
 
