@@ -8,6 +8,28 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.75.1 — 2026-07-28
+
+### Fixed
+- **Vehicles drove backwards.** Moving a vehicle token rotated it to face its
+  direction of travel — pointing the wrong way. Foundry's token rotation 0 faces
+  **south** (v13 `foundry.mjs:92045`) and movement sets
+  `rotation = toDegrees(ray.angle) - 90`, so art drawn nose-**up** ends up 180°
+  out: drive east, the nose points west.
+
+  All 34 vehicle portraits are rotated to point **south**. There was no field to
+  compensate with — `texture.rotation` exists in the schema but is never read;
+  the token mesh only consumes fit/scale/anchor/tint — so the pixels had to move.
+
+  `tools/face-south.mjs` records the conversion in a marker file so it cannot be
+  run twice (a second pass would rotate a full 360° and silently look "fine").
+
+### Notes
+- Vehicle **portraits on the sheet** now point down too, since one file serves as
+  both portrait and token texture. Splitting them would double the asset count
+  for a thumbnail; say the word if it grates.
+- Creature tokens are unaffected — they use `lockRotation: true` and never rotate.
+
 ## 0.75.0 — 2026-07-28
 
 ### Fixed

@@ -1,0 +1,6 @@
+south
+
+Vehicle token art in this directory points SOUTH (nose down).
+Foundry's token rotation 0 faces south, and movement rotates a token to its
+direction of travel — nose-up art renders every vehicle driving backwards.
+Any NEW vehicle art added here must be nose-down too.

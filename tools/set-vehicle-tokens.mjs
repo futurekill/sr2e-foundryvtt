@@ -11,10 +11,11 @@
  * `texture.src`, so the `fit` that tool chooses survives a re-run.
  *
  * Each vehicle gets one WebP (transparent background, strict
- * top-down, nose pointing UP) used as BOTH the actor portrait and the token
+ * top-down, nose pointing DOWN — see the orientation note below) used as BOTH
+ * the actor portrait and the token
  * texture — the same convention the creature portraits use. Vehicles keep
  * `lockRotation: false`, unlike creatures: a top-down vehicle SHOULD swing to
- * face its direction of travel, which is why the art is drawn nose-up.
+ * face its direction of travel, which is why the art points south.
  *
  * FOOTPRINT. Everything shipped at 1x1, which on this system's scenes (100 px
  * per cell, 1 m per cell — see the scene convention in the module docs) makes a
@@ -26,7 +27,7 @@
  * SR2 gives vehicles a Body rating but no physical dimensions, so there is no
  * table to transcribe. The numbers below are real-world dimensions for the
  * closest equivalent craft, rounded to whole cells at 1 m per cell — width =
- * cells ACROSS the beam, height = cells ALONG the length (nose-up art). For
+ * cells ACROSS the beam, height = cells ALONG the length (nose-down (south) art). For
  * rotorcraft the rotor disc dominates, so the footprint is square. A GM who
  * disagrees can change any token's size in Foundry; nothing derives from these.
  */

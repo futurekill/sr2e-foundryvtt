@@ -6,7 +6,7 @@
  *   npm run fit-vehicles -- --fix # rewrite the .webp files and packs-src
  *
  * WHY. The portraits are square 1024x1024 canvases with the vehicle drawn
- * nose-up down the middle, so most of the image is empty air — the Mitsubishi
+ * down the middle, so most of the image is empty air — the Mitsubishi
  * Nightsky uses 25% of its canvas, and the median across the set is 50%.
  * Foundry's `contain` scales the WHOLE canvas, margin included, to fit the token
  * box, so the vehicle rendered at roughly half the size of its own footprint.
