@@ -8,6 +8,29 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.78.1 — 2026-07-28
+
+### Fixed
+- **0.78.0 changed the rule but not the chip.** A chip-granted language still
+  displayed, seeded its Karma cap from, and ROLLED the raw chip rating — 2 below
+  the language the chip actually grants. Blackbriar's Rating 1 LinguaSofts read
+  and rolled **1** instead of **3**, so the ruling had no effect at the table.
+
+  All three paths now use the derived rating (`skillRollRating`), the same
+  helper every other roll path already used. The row also shows the number that
+  gets rolled, with the chip's own rating in its tooltip.
+
+  This was flagged in the 0.77.0 review — "synthetic display shows
+  `system.rating`, not `languageRating`… the UI silently depends on chips being
+  denied the bonus" — and I noted it without fixing it, then changed exactly
+  that policy a version later.
+
+### Notes
+- The **"Native speaker (+2 more)"** checkbox lives on a language skill's own
+  item sheet, so it is only reachable for a language the character actually has
+  as a skill. A purely chip-granted language has no item to open — and would not
+  want the checkbox anyway, since a chip never gets the native bonus.
+
 ## 0.78.0 — 2026-07-28
 
 ### Changed

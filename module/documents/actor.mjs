@@ -759,9 +759,13 @@ export class SR2EActor extends Actor {
     // A chipped language's family is rolled at 4 below the language (SR2E p.74;
     // a LinguaSoft "replicates Language Skills", p.248).
     const family = options.variant === "family" && chip?.system.familyRating > 0;
+    // skillRollRating, not chip.system.rating: for a LANGUAGE the dice are the
+    // derived rating (chip rating + the Specialization +2, p.74/p.248), and the
+    // raw chip rating is 2 lower. Reading `rating` here was invisible while
+    // chips got no bonus and became a live wrong number the moment they did.
     const base = family
       ? chip.system.familyRating
-      : (chip?.system.rating ?? soft.system.rating ?? 0);
+      : (skillRollRating(chip?.system) || soft.system.rating || 0);
     // Enhanced Articulation (Shadowtech p.34) is a PASSIVE +die on any Active
     // Skill Success Test — a chipped skill is still an Active Skill test, so it
     // qualifies. Skillwires only bar the use of POOLS (core p.243), not passive

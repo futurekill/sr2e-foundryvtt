@@ -58,6 +58,32 @@ describe("language skills (SR2E p.74)", () => {
   });
 });
 
+describe("skillRollRating on a chip-granted language", () => {
+  // Regression: display, roll and Karma cap all read chip.system.rating, which
+  // is 2 BELOW the language the chip grants. Invisible while chips got no
+  // bonus; a live wrong number the moment 0.78.0 gave them the Specialization
+  // +2. Blackbriar's Rating 1 LinguaSofts showed and rolled 1 instead of 3.
+  const chipFor = (rating) => {
+    const r = languageSkillRatings(rating, false);
+    return { category: "language", rating, languageRating: r.language, familyRating: r.family };
+  };
+
+  it("rolls the granted language, not the raw chip rating", () => {
+    expect(skillRollRating(chipFor(1))).toBe(3);   // the reported case
+    expect(skillRollRating(chipFor(3))).toBe(5);
+    expect(skillRollRating(chipFor(6))).toBe(8);
+  });
+
+  it("never reports the raw chip rating for a language", () => {
+    for (const n of [1, 2, 3, 4, 5, 6]) expect(skillRollRating(chipFor(n))).not.toBe(n);
+  });
+
+  it("leaves a non-language chip on its plain rating", () => {
+    // An ActiveSoft grants the skill at its rating, full stop.
+    expect(skillRollRating({ category: "active", rating: 4 })).toBe(4);
+  });
+});
+
 describe("skillRollRating", () => {
   it("rolls the derived rating for a language", () => {
     expect(skillRollRating({ category: "language", rating: 4, languageRating: 6 })).toBe(6);

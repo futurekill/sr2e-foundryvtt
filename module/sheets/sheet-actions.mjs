@@ -274,7 +274,7 @@ async function onRollSkill(event, target) {
     const family = chipVariant === "family" && chip?.system.familyRating > 0;
     const opts = await promptRollOptions(actor, {
       showPools: false,
-      baseDice: (family ? chip.system.familyRating : chip?.system.rating) ?? 1
+      baseDice: (family ? chip.system.familyRating : skillRollRating(chip?.system)) || 1
     });
     if (!opts) return;
     return actor.rollChippedSkill(softId, opts.tn, { variant: family ? "family" : "", poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
