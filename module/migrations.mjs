@@ -48,7 +48,7 @@ export const UNARMED_STRIKE_DATA = {
 };
 
 /** Ordered list of migrations. Append new entries; never reorder. */
-const MIGRATIONS = [
+export const MIGRATIONS = [
   // 0.9.8 — PCs must use LINKED prototype tokens. Characters created before the
   // link default was added drop unlinked tokens on the canvas, so karma/damage
   // spent on a dragged-out token never reaches the sidebar actor. Link them.
@@ -205,6 +205,32 @@ const MIGRATIONS = [
         if (/^\(Str\+1\)[LM]$/i.test(sys.damageCode ?? "")) update["system.damageCode"] = "(Str)L";
         return Object.keys(update).length ? update : null;
       }
+      return null;
+    }
+  },
+
+  {
+    // 0.72.1 — Backfill `accessPorts` on chip readers implanted before the field
+    // existed. 0.72.0 stopped detecting Know/LinguaSoft access by NAME, which is
+    // what made a Shadowtech Softlink invisible — but the fix only reaches items
+    // that DECLARE the field, and an already-embedded implant on a live PC does
+    // not. Blackbriar has a Level 4 Softlink and still got "install a chipjack,
+    // datajack, or headware memory".
+    //
+    // Repairing authored data by name is legitimate where detecting by name at
+    // runtime was not: this runs once, over documents whose names were assigned
+    // by us, and a device we do not know about is simply left for its own
+    // sourcebook to declare.
+    version: "0.72.1",
+    migrateItem(source) {
+      if (source.type !== "cyberware") return null;
+      if ((source.system?.accessPorts ?? 0) > 0) return null;   // already declared
+      const name = source.name ?? "";
+      // Softlink ports equal its Level (Shadowtech p.46); a chipjack has one.
+      if (/\bsoftlink\b/i.test(name)) {
+        return { "system.accessPorts": Math.max(1, source.system?.rating ?? 1) };
+      }
+      if (/\bchipjack\b/i.test(name)) return { "system.accessPorts": 1 };
       return null;
     }
   }

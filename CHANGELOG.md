@@ -8,6 +8,18 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.72.1 — 2026-07-28
+
+### Fixed
+- **The 0.72.0 Softlink fix did not reach characters who already had one.**
+  Reading `accessPorts` only helps implants that declare it, and an implant
+  already embedded on a live PC does not — a player with a **Level 4 Softlink**
+  was still told to "install a chipjack, datajack, or headware memory". A
+  migration backfills the field on existing Softlinks (one port per Level) and
+  Chipjacks. Runs once, on world load, GM client.
+- The warning itself no longer names only the three core implants, since a
+  sourcebook reader now qualifies too.
+
 ## 0.72.0 — 2026-07-28
 
 ### Fixed

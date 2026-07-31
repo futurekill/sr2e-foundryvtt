@@ -1936,7 +1936,10 @@ async function onToggleSlot(event, target) {
         return;
       }
     } else if (!cap.knowAccess) {
-      ui.notifications.warn("Know/LinguaSofts need an access port — install a chipjack, datajack, or headware memory.");
+      // Don't name only the three core implants: a sourcebook reader (a
+      // Shadowtech Softlink) also qualifies, and a player wearing one was told
+      // by this exact message to go buy a chipjack.
+      ui.notifications.warn("Know/LinguaSofts need an access port — install a chipjack, datajack, headware memory, or another implant that reads chips.");
       return;
     }
   }
