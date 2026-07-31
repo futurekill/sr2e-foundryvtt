@@ -265,8 +265,11 @@ export function registerSR2EQuenchTests() {
           // Language Skill IS a specialization of a family (p.74) — so the chip
           // carries the family too. Only the chargen +2 is withheld.
           assert.equal(lang.system.languageRating, 4, "a chipped language must not get the chargen +2");
-          assert.equal(lang.system.familyRating, 1, "a chipped language should carry its family (4 - 4 = 0 -> 1)");
+          // Sperethiel is in NO formal family (p.74), so it must get no family
+          // rating either — a positive rating with a blank name rendered a
+          // clickable empty tag that rolled dice for a family that does not exist.
           assert.equal(lang.system.languageFamily, "", "Sperethiel is in no formal family (p.74)");
+          assert.equal(lang.system.familyRating, 0, "a family-less language must not get a family rating");
         });
 
         it("a chip-granted language shows its family, with or without a native skill", async () => {

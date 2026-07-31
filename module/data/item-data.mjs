@@ -120,7 +120,12 @@ export class SkillData extends SR2EDataModel {
     const chargen = this.chargenLanguage && !this._chipped;
     const r = languageSkillRatings(this.rating, chargen);
     this.languageRating = r.language;
-    this.familyRating = r.family;
+    // No family, no family rating. p.74 puts City Speak, Sperethiel and the ork
+    // tongues in NO formal group — "Different language families are not
+    // considered to be related", and these belong to none — so there is nothing
+    // to muddle through toward. Deriving a number anyway made the sheet render a
+    // clickable blank tag that rolled dice for a family that does not exist.
+    this.familyRating = this.languageFamily ? r.family : 0;
   }
 
   /**

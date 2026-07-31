@@ -86,6 +86,15 @@ Last reviewed 2026-07-26 (system 0.64.0).
 - ~~Rating-priced gear does not multiply by Rating.~~ **Done in 0.67.0** —
   `GearData.costPerRating` + a `derivedItemCost` branch; 18 items converted,
   Maglock Passkey and White Noise Generator were undercharging.
+- **A LinguaSoft identifies its language by NAME.** `_applySkillsofts` matches
+  an owned skill by lower-cased name + category, and the synthetic path looks the
+  family up in `CONFIG.SR2E.languageFamilies` by the same string. So a renamed
+  skill, an alias ("Spanish (Castilian)"), a typo or a localized name silently
+  gets no family — and the two paths can disagree, since the overwrite path keeps
+  whatever family the skill item carries. A canonical id (or reading the family
+  off a compendium link) would fix it properly. Raised by adversarial review of
+  0.77.0; not worth the refactor for a single-table game, but it is the reason
+  any "why has my language no family" report should start here.
 - **Language families are free text.** p.74's full family table (~400 languages
   across ~40 families) is not transcribed; the 18 shipped languages carry their
   family, anything a GM adds is typed by hand. Worth doing only if something

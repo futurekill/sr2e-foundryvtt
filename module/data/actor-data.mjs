@@ -527,7 +527,13 @@ export class CharacterData extends SR2EDataModel {
       memUsed += skillsoftMemory(cat, rating);
       if (!name || rating <= 0) continue;
 
-      const existing = items.find(i => i.type === "skill" && i.name.toLowerCase() === name.toLowerCase());
+      // Match on category too: a soft declares what KIND of skill it grants, and
+        // matching on name alone let a LinguaSoft named after an Active skill
+        // overwrite that skill — which then never became a language, because
+        // applyLanguageRatings() returns early for a non-language category.
+        const existing = items.find(i => i.type === "skill"
+          && i.name.toLowerCase() === name.toLowerCase()
+          && i.system.category === cat);
       if (existing) {
         existing.system._chipped = true;
         existing.system._chipSource = soft.name;
@@ -552,14 +558,16 @@ export class CharacterData extends SR2EDataModel {
         // The chargen +2 still does not apply: that is a rule about buying a
         // language at character generation, not part of the skill's structure.
         const lang = cat === "language" ? languageSkillRatings(rating, false) : null;
+        const family = lang ? (CONFIG.SR2E?.languageFamilies?.[name.toLowerCase()] ?? "") : "";
         this.chippedSkills.push({
           id: "", softId: soft.id, name,
           system: {
             category: cat, rating, linkedAttribute: soft.system.grantedSkillAttribute || "intelligence",
             _chipped: true, _synthetic: true, _chipSource: soft.name,
             languageRating: lang?.language ?? rating,
-            familyRating: lang?.family ?? 0,
-            languageFamily: lang ? (CONFIG.SR2E?.languageFamilies?.[name.toLowerCase()] ?? "") : "",
+            // No family, no family rating — same rule as SkillData#applyLanguageRatings.
+            familyRating: family ? lang.family : 0,
+            languageFamily: family,
             chargenLanguage: false,
             concentration: { name: "" }, specialization: { name: "" }
           }

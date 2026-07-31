@@ -8,6 +8,31 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.77.1 — 2026-07-28
+
+### Fixed
+- **Cityspeak, Sperethiel and Or'zet showed a blank, clickable family tag.**
+  A family rating was derived for every language regardless of whether it HAS a
+  family — p.74 puts those three in no formal group — so the sheet rendered
+  `< 1>` and clicking it rolled a die for a family that does not exist. This
+  affected **learned languages too**, not just chipped ones, and shipped in
+  0.73.0. A language with no family now gets no family rating, and the tag is
+  gated on the family NAME so a missing one can never render an empty tag.
+- **A skillsoft could overwrite a same-named skill of the wrong category.**
+  The owned-skill lookup matched on name alone, so a LinguaSoft named after an
+  Active skill overwrote that skill — which then never became a language, since
+  the language derivation returns early for a non-language category. It now
+  matches the category the soft declares.
+
+### Notes
+- Both found by adversarial review of 0.77.0 *after* it shipped. The Quench case
+  I added in 0.77.0 asserted the blank-tag state as though it were correct; it
+  now asserts the opposite.
+- Review also flagged that a LinguaSoft identifies its language by name, so
+  renames, aliases and localized names silently lose the family. Recorded in the
+  backlog rather than fixed — it needs a canonical id, and it is the first place
+  to look if a language ever shows no family.
+
 ## 0.77.0 — 2026-07-28
 
 ### Fixed

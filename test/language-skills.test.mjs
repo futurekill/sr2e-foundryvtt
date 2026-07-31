@@ -138,3 +138,33 @@ describe("CONFIG language families vs the compendium", () => {
     for (const k of Object.keys(CONFIG_MAP)) expect(names.has(k), `CONFIG has unknown language "${k}"`).toBe(true);
   });
 });
+
+describe("a language in no formal family (SR2E p.74)", () => {
+  // City Speak, Sperethiel and the ork tongues belong to no group, so there is
+  // nothing to muddle through toward. Deriving a family rating anyway made the
+  // sheet render a clickable BLANK tag that rolled dice for a family that does
+  // not exist — on native languages as well as chipped ones. Found by review
+  // after 0.77.0 shipped.
+  /** Mirror of SkillData#applyLanguageRatings' family gate. */
+  const familyOf = (rating, chargen, languageFamily) =>
+    languageFamily ? languageSkillRatings(rating, chargen).family : 0;
+
+  it("gets no family rating, however high the language", () => {
+    expect(familyOf(3, true, "")).toBe(0);
+    expect(familyOf(9, true, "")).toBe(0);
+    expect(familyOf(6, false, "")).toBe(0);
+  });
+
+  it("still gets one when the language DOES have a family", () => {
+    expect(familyOf(9, true, "Romance")).toBe(7);
+    expect(familyOf(3, false, "Germanic")).toBe(1);   // floor still applies
+  });
+
+  it("covers exactly the three shipped family-less languages", () => {
+    const langs = readdirSync("packs-src/skills").filter(f => f.endsWith(".json"))
+      .map(f => JSON.parse(readFileSync(`packs-src/skills/${f}`, "utf8")))
+      .filter(d => d.system?.category === "language");
+    const none = langs.filter(l => !l.system.languageFamily).map(l => l.name).sort();
+    expect(none).toEqual(["Cityspeak", "Or'zet", "Sperethiel"]);
+  });
+});

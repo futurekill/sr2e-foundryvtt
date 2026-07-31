@@ -1056,7 +1056,10 @@ SR2E.vehicleMarkup = {
  *
  * Only the shipped languages are listed; a GM's own language simply gets no
  * family until they type one on the skill. `test/language-skills.test.mjs`
- * pins this against packs-src so the two cannot drift.
+ * compares this against packs-src, which catches one copy being edited
+ * without the other — it does NOT prove either copy is right, and it
+ * cannot see renamed, aliased or GM-authored languages, which are matched
+ * by lower-cased name only.
  *
  * Cityspeak, Sperethiel and Or'zet are deliberately absent: p.74 puts City
  * Speak and Elvish in no formal group, and states there are no formal ork
