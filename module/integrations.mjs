@@ -10,7 +10,36 @@
 
 /* ── Dice So Nice ─────────────────────────────────────────────────────────── */
 
-globalThis.Hooks?.once("diceSoNiceReady", (dice3d) => {
+globalThis.Hooks?.once("diceSoNiceReady", async (dice3d) => {
+  // Textures must be registered BEFORE the colorsets that name them, or the
+  // colorset resolves `texture` against a list that does not contain it yet.
+  // addTexture returns a promise (it loads the image), so these are awaited.
+  //
+  // Shape verified against Dice So Nice 5.3.4 (api.js `addTexture(id, spec)`):
+  // `composite` is a canvas globalCompositeOperation applied over the colorset
+  // background, `source` a colour map, `bump` a grayscale height map. With no
+  // `atlas` key, source/bump are plain file paths.
+  //
+  // Textures are 512x512 (DSN's own are 256, but those are atlas-packed) and
+  // the bumps are derived from the colour maps by tools/make-dice-bumps.mjs.
+  const TEX = "systems/sr2e/assets/dice_textures";
+  const texture = async (id, name, file, material) => dice3d.addTexture(id, {
+    name,
+    composite: "multiply",
+    source: `${TEX}/${file}.webp`,
+    bump: `${TEX}/${file}.bump.webp`,
+    ...(material ? { material } : {})
+  });
+
+  await Promise.all([
+    texture("sr2e-gunmetal",    "SR2E — Riveted Plate",  "sr2e-gunmetal",    "metal"),
+    texture("sr2e-orichalcum",  "SR2E — Orichalcum",     "sr2e-orichalcum",  "stone"),
+    texture("sr2e-matrixgrid",  "SR2E — Matrix Grid",    "sr2e-matrixgrid",  "metal"),
+    texture("sr2e-streetgrime", "SR2E — Street Grime",   "sr2e-streetgrime", "metal"),
+    texture("sr2e-datajack",    "SR2E — Datajack",       "sr2e-datajack",    "metal"),
+    texture("sr2e-bloodslick",  "SR2E — Blood on Tar",   "sr2e-bloodslick",  "glass")
+  ]);
+
   dice3d.addColorset({
     name: "sr2e-matrix",
     description: "SR2E — Matrix Neon",
@@ -33,6 +62,36 @@ globalThis.Hooks?.once("diceSoNiceReady", (dice3d) => {
     edge: "#8888a0",
     material: "chrome"
   }, "default");
+
+  // One colorset per texture. `foreground` is the NUMERAL colour — DSN draws the
+  // numbers itself, which is why the textures contain none — so each is picked
+  // to survive against its own texture rather than to look good in isolation.
+  const set = (name, description, texture, foreground, background, edge, outline, material) =>
+    dice3d.addColorset({ name, description, category: "Shadowrun 2E",
+                         foreground, background, outline, edge, texture, material }, "default");
+
+  // Pale numerals sit on the bright panel crowns; the seams stay dark.
+  set("sr2e-plate", "SR2E — Riveted Plate", "sr2e-gunmetal",
+      "#f2f5f8", "#5a6472", "#12161c", "#9aa7b8", "metal");
+
+  // Near-white rather than gold: gold numerals disappear into the veins.
+  set("sr2e-orichalcum", "SR2E — Orichalcum", "sr2e-orichalcum",
+      "#fff4d6", "#1a1410", "#000000", "#ffb020", "stone");
+
+  // Matches the existing sr2e-matrix palette, now with the grid under it.
+  set("sr2e-matrixgrid", "SR2E — Matrix Grid", "sr2e-matrixgrid",
+      "#c9ffc0", "#050805", "#0a2a0a", "#39ff14", "metal");
+
+  set("sr2e-streetgrime", "SR2E — Street Grime", "sr2e-streetgrime",
+      "#ffffff", "#6b6660", "#1a1512", "#b87333", "metal");
+
+  // Amber numerals read as another indicator on the board.
+  set("sr2e-datajack", "SR2E — Datajack", "sr2e-datajack",
+      "#ffc046", "#0d0d0f", "#000000", "#b87333", "metal");
+
+  // Bone white against the red; anything warm vanishes into the blood.
+  set("sr2e-bloodslick", "SR2E — Blood on Tar", "sr2e-bloodslick",
+      "#f0ece4", "#0a0a0a", "#000000", "#8b0f14", "glass");
 });
 
 /* ── Token Magic FX ───────────────────────────────────────────────────────── */

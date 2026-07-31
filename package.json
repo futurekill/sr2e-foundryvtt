@@ -10,7 +10,9 @@
     "audit-costs": "node tools/audit-costs.mjs",
     "vehicle-tokens": "node tools/set-vehicle-tokens.mjs",
     "item-icons": "node tools/set-item-icons.mjs",
-    "fit-vehicles": "node tools/fit-vehicle-art.mjs"
+    "fit-vehicles": "node tools/fit-vehicle-art.mjs",
+    "dice-textures": "zsh tools/gen-dice-textures.sh",
+    "dice-bumps": "node tools/make-dice-bumps.mjs"
   },
   "devDependencies": {
     "classic-level": "^3.0.0",

@@ -8,6 +8,42 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.76.0 — 2026-07-28
+
+### Added
+- **Six Shadowrun dice textures for Dice So Nice**, each with a matching
+  colorset, under the "Shadowrun 2E" category:
+
+  | Texture | Look |
+  |---|---|
+  | Orichalcum | black basalt shot through with molten gold veins |
+  | Street Grime | pitted chrome with rust blooms and deep gouges |
+  | Riveted Plate | steel armour panels, deep seams, rows of rivets |
+  | Matrix Grid | acid-green wireframe and scanlines on black |
+  | Datajack | black polymer, copper traces, amber indicator LEDs |
+  | Blood on Tar | vivid crimson across wet black asphalt |
+
+  Numeral colours are picked to survive each texture rather than to look good
+  in isolation — gold numerals vanish into orichalcum's veins, so those are
+  bone-white.
+
+  Every texture ships a **bump map derived from its own colour map**, so the
+  two always line up: bright reads as raised, which puts rivets, circuit traces
+  and grid lines proud of the surface, and pools blood into the low spots.
+
+  512x512, ~920 KB for all twelve files. Generated with the Codex imagegen
+  skill via `npm run dice-textures`; `npm run dice-bumps` does the downscale and
+  bump derivation.
+
+### Notes
+- Textures are **materials, not pictures of dice**. Dice So Nice draws the
+  numerals itself from the colorset's `foreground`, so a digit baked into a
+  texture is a defect — the generation prompt forbids numbers, objects and
+  baked-in lighting (the renderer supplies its own).
+- Two of the first six were unusable and were regenerated: at a d6's actual
+  size they fell to 3.5 and 3.2 standard deviation — muddy brown noise and flat
+  grey. Bolder direction took them to 6.5 and 9.2; the whole set now clears 6.5.
+
 ## 0.75.1 — 2026-07-28
 
 ### Fixed
