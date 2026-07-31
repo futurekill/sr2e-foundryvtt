@@ -73,16 +73,19 @@ already-entered PC language pick the rule up with no migration — decision 3.
 
 ### Derivation — `SkillData#prepareDerivedData`
 
+*Superseded by the review — as shipped, the math lives in
+`languageSkillRatings` and is applied by `SkillData#applyLanguageRatings`, which
+`prepareDerivedData` calls and `_applySkillsofts` calls again (review §2):*
+
 ```js
-if (this.category === "language") {
-  this.languageRating = this.rating + (this.chargenLanguage ? 2 : 0);
-  this.familyRating   = Math.max(1, this.rating - 4);
-}
+const language = r + (chargen ? 2 : 0);
+return { language, family: Math.max(1, language - 4) };
 ```
 
-**`this.rating` is never mutated.** The sheet's rating input is bound to
-`system.rating`; bumping it in derivation would render the boosted number into
-the input and re-save it, ratcheting +2 on every save. New derived fields only.
+**`this.rating` is never mutated.** Bumping it in derivation would render the
+boosted number into the item sheet's rating input and re-save it, ratcheting +2
+on every save. New derived fields only. (Review §4: this is an *item*-sheet
+hazard; the actor sheet's input is `data-field` and is not submitted.)
 
 ### Rolling — `SR2EActor#rollSkill` (`module/documents/actor.mjs`)
 
@@ -94,11 +97,12 @@ resolving to `familyRating` and labelling with the family name.
 
 `CharacterData#_applySkillsofts` overwrites an existing skill's rating when a
 soft is slotted, and pushes synthetic skill entries for ones the character does
-not have. Both paths must set `chargenLanguage: false` — a LinguaSoft is not a
-chargen purchase, and the +2 on top of a chip's rating would be a straight
-error. The synthetic-entry path also needs `languageFamily`/`familyRating`
-supplied, since it builds a bare `system` object by hand rather than running
-through the data model.
+not have. A LinguaSoft is not a chargen purchase, so the +2 must not apply. **Superseded
+by review §3:** the draft wrote `chargenLanguage: false` on the prepared item,
+which the item sheet would have persisted and outlived the chip. As shipped the
+suppression rides on the transient `_chipped`, and the schema field is never
+written. The synthetic-entry path still supplies the derived numbers by hand,
+since it builds a bare `system` object rather than running through the model.
 
 ### Content — family names for the 18 shipped languages
 
@@ -133,15 +137,18 @@ Three ship with **no family**, deliberately:
   shown only for `category === "language"`.
 - `templates/actor/parts/actor-skills.hbs` — a family chip beside the language,
   `data-action="rollSkill" data-variant="family"`, matching the existing
-  concentration/specialization chips. Four copies of that line exist (character,
-  NPC, and two others); all four need it or the feature is invisible on some
-  sheets.
+  concentration/specialization chips. **Corrected by review §6:** the four
+  copies in that file are one per skill CATEGORY, so the chip belongs only in
+  the language block — and the NPC sheet is a separate template
+  (`templates/actor/npc-sheet.hbs`) the draft had missed entirely.
 
 ### Tests
 
 `test/language-skills.test.mjs`, pure math in `module/rules/sr2e-rules.mjs`:
-chargen +2, non-chargen no bonus, family = R−4, the min-1 floor at R ≤ 4, and
-that a chipped language gets neither.
+chargen +2, non-chargen no bonus, the family 4 below the language, the min-1
+floor, the shipped family assignments — plus Quench cases for the parts Vitest
+cannot reach (review §2/§3): stale derived values after chipping, and the flag
+never reaching `_source`.
 
 ## Deliberately NOT doing
 
