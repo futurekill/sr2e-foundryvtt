@@ -16,7 +16,8 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Sixth World language (SR2E p.69)."
+    "notes": "Sixth World language (SR2E p.69).",
+    "languageFamily": "Semitic"
   },
   "effects": [],
   "flags": {},

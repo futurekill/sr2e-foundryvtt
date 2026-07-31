@@ -116,13 +116,21 @@
       <div class="skill-list">
         {{#each skills as |skill|}}
         {{#ifEquals skill.system.category "language"}}
-        <div class="skill-row flexrow" data-item-id="{{skill.id}}">
-          <span class="skill-name">{{skill.name}}{{#if skill.system._chipped}}<span class="chip-badge" title="Chipped from slotted {{skill.system._chipSource}}{{#if skill.system._nativeRating}} — natural rating {{skill.system._nativeRating}} suppressed{{/if}}"><i class="fas fa-bolt"></i></span>{{/if}}{{#if skill.system._adeptBonus}}<span class="adept-badge" title="Improved Ability ({{skill.system._adeptSource}}): +{{skill.system._adeptBonus}} dice on top of the bought rating (SR2E p.125)">✦+{{skill.system._adeptBonus}}</span>{{/if}}</span>
+        {{!-- SR2E p.74: the language is a Specialization; the family under it is
+              the general skill, rolled at 4 less. The editable number stays the
+              rating as BOUGHT — the chargen +2 is shown, not typed. --}}
+        <div class="skill-row flexrow" data-item-id="{{skill.id}}" {{#if skill.system._synthetic}}data-soft-id="{{skill.softId}}"{{/if}}>
+          <span class="skill-name" data-action="rollSkill">
+            <i class="fas fa-dice"></i>
+            {{skill.name}}{{#if skill.system.familyRating}}<span class="skill-family-inline" data-action="rollSkill" data-variant="family" title="{{skill.system.languageFamily}} family — roll {{skill.system.familyRating}} dice to muddle through a related language (SR2E p.74)"> &lt;{{skill.system.languageFamily}} {{skill.system.familyRating}}&gt;</span>{{/if}}{{#if skill.system._chipped}}<span class="chip-badge" title="Chipped from slotted {{skill.system._chipSource}}{{#if skill.system._nativeRating}} — natural rating {{skill.system._nativeRating}} suppressed{{/if}}"><i class="fas fa-bolt"></i></span>{{/if}}{{#if skill.system._adeptBonus}}<span class="adept-badge" title="Improved Ability ({{skill.system._adeptSource}}): +{{skill.system._adeptBonus}} dice on top of the bought rating (SR2E p.125)">✦+{{skill.system._adeptBonus}}</span>{{/if}}</span>
           {{#if skill.system._chipped}}
           <span class="skill-rating chipped" title="From a slotted skillsoft">{{skill.system.rating}}</span>
           {{else}}
           <input type="number" value="{{skill.system.rating}}" data-field="system.rating"
-                 class="skill-rating" min="0" max="12" />
+                 class="skill-rating" min="0" max="12" title="The rating as bought. Speaks at {{skill.system.languageRating}}." />
+          {{#if skill.system.chargenLanguage}}
+          <span class="lang-chargen-badge" title="Taken at character generation: +2 to the language (SR2E p.74)">→{{skill.system.languageRating}}</span>
+          {{/if}}
           {{/if}}
           <div class="item-controls">
             {{#unless skill.system._synthetic}}

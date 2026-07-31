@@ -1255,6 +1255,50 @@ export function skillSubRatings(general) {
 }
 
 /**
+ * Language skills are an exception (SR2E p.74): "each specific language is a
+ * Specialization of a family of languages". So the skill you write on the sheet
+ * is the SPECIALIZATION, and the family is the general skill under it —
+ * "a skill rating of 4 less than the Language Rating itself. Any modified
+ * rating less than 1 is treated as a 1."
+ *
+ * "When language Specializations are taken as part of character generation, the
+ * Specialization Ratings automatically increase by +2" — the same step
+ * `skillSubRatings` already models for ordinary skills, which is why the
+ * language↔family spread here is 4 and not 6: "the Language Rating" is the
+ * language's own rating AFTER that +2, not the number the player paid for.
+ * Reading it the other way puts languages 6 apart from their family and
+ * contradicts p.55/p.70. (Settled deliberately — docs/PLAN-language-skills.md.)
+ *
+ * Spanish bought at 4 in chargen → Spanish 6, Romance 2.
+ *
+ * @param {number} rating - The rating as bought/entered.
+ * @param {boolean} [chargen] - Taken during character generation (the +2).
+ * @returns {{language:number, family:number}}
+ */
+/**
+ * The dice a skill rolls by default. Every skill rolls its rating, except a
+ * language, which rolls the derived spoken rating (SR2E p.74 — see
+ * `languageSkillRatings`). One helper so the roll and the prompt that seeds the
+ * Karma cap can't disagree about the number.
+ * @param {object} system - A skill item's system data (prepared).
+ * @returns {number}
+ */
+export function skillRollRating(system) {
+  if (!system) return 0;
+  if (system.category === "language" && system.languageRating > 0) return system.languageRating;
+  return system.rating ?? 0;
+}
+
+export function languageSkillRatings(rating, chargen = true) {
+  const r = Math.max(0, rating || 0);
+  // An untrained language (rating 0) stays 0 so the defaulting path still fires;
+  // the +2 is for a language you actually took.
+  if (r <= 0) return { language: 0, family: 0 };
+  const language = r + (chargen ? 2 : 0);
+  return { language, family: Math.max(1, language - 4) };
+}
+
+/**
  * Street price of an item: base cost × Street Index, rounded to the nearest
  * nuyen (SR2E p.238: legal-channel prices are list; the street marks gear up
  * or down by its Street Index). SI ≤ 0 / missing means "no street market

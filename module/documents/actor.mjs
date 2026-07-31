@@ -9,7 +9,8 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
-         healingBaseTime, healingTimeReduced, splitHealingSuccesses } from "../rules/sr2e-rules.mjs";
+         healingBaseTime, healingTimeReduced, splitHealingSuccesses,
+         skillRollRating } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -694,7 +695,10 @@ export class SR2EActor extends Actor {
     const artBonus = this._activeSkillBonus(skill);
     const bonus = adeptBonus + artBonus;
     const tag = `${adeptBonus ? ` (+${adeptBonus} adept)` : ""}${artBonus ? ` (+${artBonus} articulation)` : ""}`;
-    let dicePool = (skill.system.rating ?? 0) + bonus;
+    // A language IS a Specialization (SR2E p.74), so the rating you roll to
+    // speak it is the derived one, not the number bought. Everything else rolls
+    // its rating directly.
+    let dicePool = skillRollRating(skill.system) + bonus;
     let label = `${skill.name} Test${tag}`;
 
     // Concentration/Specialization variant (SR2E p.70): roll that rating
@@ -704,6 +708,12 @@ export class SR2EActor extends Actor {
         skill.system[v]?.name && skill.system[v].rating > 0) {
       dicePool = skill.system[v].rating + bonus;
       label = `${skill.name} (${skill.system[v].name}) Test${tag}`;
+    }
+    // The language family is the general skill beneath the language (p.74) —
+    // what you roll to muddle through a related tongue you never learned.
+    if (v === "family" && skill.system.familyRating > 0) {
+      dicePool = skill.system.familyRating + bonus;
+      label = `${skill.system.languageFamily || "Language family"} Test${tag}`;
     }
 
     // Untrained: default via the Skill Web (SR2E p.69) — cheapest legal path to

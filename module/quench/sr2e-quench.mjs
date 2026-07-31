@@ -259,6 +259,52 @@ export function registerSR2EQuenchTests() {
           assert.ok(lang, "LinguaSoft did not inject a language skill");
           assert.equal(lang.system.category, "language", "injected skill is not a language");
           assert.equal(lang.system.rating, 4, "LinguaSoft should run at full rating off a datajack");
+          // A chip is not a chargen purchase (SR2E p.74) and grants the specific
+          // language only — no +2, and no family to fall back on.
+          assert.equal(lang.system.languageRating, 4, "a chipped language must not get the chargen +2");
+          assert.equal(lang.system.familyRating, 0, "a chip should not grant family facility");
+        });
+
+        it("an implant that DECLARES access ports counts however it is named", async () => {
+          // Regression: access was detected by matching implant names against
+          // "chipjack"/"datajack", so a Shadowtech Softlink — an advanced
+          // chipjack — was rejected with "install a chipjack, datajack, or
+          // headware memory" while the character was wearing one.
+          actor = await Actor.create({ name: "Quench Softlink", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Softlink", type: "cyberware", system: { location: "headware", installed: true, rating: 4, accessPorts: 4 } }
+          ]);
+          assert.ok(actor.system.skillsoft.knowAccess, "a declared-port implant did not grant chip access");
+          assert.equal(actor.system.skillsoft.accessPorts, 4, "port count should come from the declared value");
+        });
+
+        it("a slotted LinguaSoft re-derives a native language's p.74 numbers", async () => {
+          // The chip overwrites `rating` on the ALREADY-PREPARED skill item, so
+          // languageRating/familyRating have to be recomputed at that point or
+          // they keep describing the pre-chip rating.
+          actor = await Actor.create({ name: "Quench LangChip", type: "character" });
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Datajack", type: "cyberware", system: { location: "headware", installed: true } },
+            { name: "Spanish", type: "skill", system: { category: "language", rating: 6, languageFamily: "Romance" } }
+          ]);
+          const native = actor.items.find(i => i.name === "Spanish");
+          assert.equal(native.system.languageRating, 8, "chargen Spanish 6 should speak at 8 (p.74)");
+          assert.equal(native.system.familyRating, 4, "Romance should sit 4 below the language");
+
+          await actor.createEmbeddedDocuments("Item", [{
+            name: "Spanish LinguaSoft", type: "gear",
+            system: { category: "skillsoft", rating: 5, slotted: true,
+                      grantedSkill: "Spanish", grantedSkillCategory: "language" }
+          }]);
+          const chipped = actor.items.find(i => i.name === "Spanish");
+          assert.ok(chipped.system._chipped, "native Spanish was not flagged as chipped");
+          assert.equal(chipped.system.languageRating, 5,
+            "chipped language still reporting the pre-chip rating — derived values went stale");
+          assert.equal(chipped.system.familyRating, 1, "family should re-derive off the chip rating");
+          // The flag itself must never be written: the item sheet submits real
+          // schema fields, so a persisted `false` would survive un-slotting.
+          assert.equal(chipped._source.system.chargenLanguage, true,
+            "chargenLanguage was persisted to source — it must stay a transient");
         });
 
         it("Skillwire PLUS carries twice the Classic total-ratings budget (Shadowtech p.19)", async () => {

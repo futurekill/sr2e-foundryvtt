@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -75,6 +75,16 @@ export class SkillData extends SR2EDataModel {
         rating: new fields.NumberField({ integer: true, initial: 0, min: 0 })
       }),
       isMagical: new fields.BooleanField({ initial: false }),
+      // Language skills only (SR2E p.74): the specific language is a
+      // Specialization of a family, and the family is the general skill beneath
+      // it. Free text — a lookup of the book's ~400 languages buys nothing until
+      // something validates against it.
+      languageFamily: new fields.StringField({ initial: "" }),
+      // The +2 is written as a character-generation rule, so it is flagged
+      // rather than automatic. Default true: hand-entered languages (including
+      // every one already on a live sheet) get it with no bookkeeping, and the
+      // flag exists to turn it OFF for one bought later with Karma.
+      chargenLanguage: new fields.BooleanField({ initial: true }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -89,6 +99,28 @@ export class SkillData extends SR2EDataModel {
     const sub = skillSubRatings(this.rating);
     if (this.concentration.name) this.concentration.rating = sub.concentration;
     if (this.specialization.name) this.specialization.rating = sub.specialization;
+    this.applyLanguageRatings();
+  }
+
+  /**
+   * Derive the spoken-language and family ratings (SR2E p.74).
+   *
+   * Separate from prepareDerivedData because a slotted LinguaSoft overwrites
+   * `rating` on the ALREADY-PREPARED item (CharacterData#_applySkillsofts), so
+   * these have to be recomputed at that point or they silently describe the
+   * pre-chip rating. `rating` itself is never touched: the item sheet binds it
+   * as a real form field with submitOnChange, so a derived value written there
+   * gets persisted and compounds on every save.
+   */
+  applyLanguageRatings() {
+    if (this.category !== "language") return;
+    // `_chipped` is set by the actor when a LinguaSoft supplies the rating. A
+    // chip is not a chargen purchase, so it gets no +2 — read as a transient,
+    // never by writing the schema field, which the item sheet would persist.
+    const chargen = this.chargenLanguage && !this._chipped;
+    const r = languageSkillRatings(this.rating, chargen);
+    this.languageRating = r.language;
+    this.familyRating = r.family;
   }
 
   /**

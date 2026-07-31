@@ -1175,6 +1175,23 @@
   font-style: italic;
 }
 
+/* Language family shown inline in <> — the general skill beneath the language
+   (SR2E p.74). Dim, because it's the fallback you roll when you DON'T speak it. */
+.skill-family-inline {
+  font-family: var(--sr2e-font);
+  color: var(--sr2e-text-muted);
+  font-style: italic;
+}
+
+/* The chargen +2 on a language: the input holds the rating as bought, this is
+   what the character actually speaks at. */
+.lang-chargen-badge {
+  font-family: var(--sr2e-font);
+  font-size: 10px;
+  color: var(--sr2e-gold);
+  margin-left: 2px;
+}
+
 .skill-attr {
   font-size: 9px;
   font-family: var(--sr2e-font-header);

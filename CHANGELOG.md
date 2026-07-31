@@ -8,6 +8,37 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.73.0 — 2026-07-28
+
+### Added
+- **Language skills are specializations of a family (SR2E p.74).** A language
+  taken at character generation now rolls **+2** — the rule a player flagged
+  ("rating 1 is really a 3") — and carries the **family** beneath it as a
+  clickable roll at 4 below the language, for muddling through a related tongue
+  you never learned. All 18 shipped languages carry their p.74 family; City
+  Speak, Sperethiel and Or'zet deliberately carry none, because the book puts
+  them in no formal group.
+
+  The +2 is a checkbox on the skill (default on), not automatic: p.74 grants it
+  for chargen purchases, so a language bought later with Karma can be marked as
+  such. A slotted LinguaSoft never gets it — a chip is not a chargen purchase,
+  and it grants the specific language only, no family facility.
+
+  **Existing characters:** whatever rating is on the sheet is read as the rating
+  bought, so languages effectively go up by 2. That was a deliberate call; no
+  data is migrated.
+
+### Notes
+- The reading of "4 less than the Language Rating itself" was changed during
+  review. Taking it as 4 below the *purchased* number would put a language and
+  its family 6 apart, contradicting the generic specialization rule two pages
+  earlier (p.55/p.70), where the spread is 4. It is 4 below the language's own
+  (boosted) rating: Spanish bought at 4 in chargen → **Spanish 6, Romance 2**.
+  Reasoning and the rejected alternative are in `docs/PLAN-language-skills.md`.
+- Skill Web defaulting still reads the purchased rating for a language, and NPC
+  rows show the derived number but have no family chip. Both recorded in the
+  backlog rather than quietly fixed.
+
 ## 0.72.1 — 2026-07-28
 
 ### Fixed

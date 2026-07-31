@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
@@ -283,8 +283,12 @@ async function onRollSkill(event, target) {
   // Karma dice (p.190) may still be bought, capped at the dice in use:
   // the skill rating, or the linked attribute when defaulting untrained.
   const skillItem = actor.items.get(skillId);
-  let baseDice = (variant && skillItem?.system?.[variant]?.rating)
-    || skillItem?.system?.rating || 0;
+  // The family variant is a flat number, not a {name, rating} sub-object, so it
+  // is read separately — and the plain case must use the language's derived
+  // rating (SR2E p.74) or the Karma cap would sit 2 below the dice being rolled.
+  let baseDice = (variant === "family" ? skillItem?.system?.familyRating : 0)
+    || (variant && skillItem?.system?.[variant]?.rating)
+    || skillRollRating(skillItem?.system) || 0;
   if (baseDice <= 0) {
     const attrKey = skillItem?.system?.linkedAttribute || "quickness";
     baseDice = attrKey === "reaction"

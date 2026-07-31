@@ -109,7 +109,11 @@
         {{#each skills as |skill|}}
         <div class="npc-skill-row flexrow" data-item-id="{{skill.id}}">
           <span class="rollable" data-action="rollSkill" title="Roll {{skill.name}}">{{skill.name}}</span>
-          <span>{{skill.system.rating}}</span>
+          {{!-- A language rolls its derived rating, not the one bought (SR2E
+                p.74) — show the number the dice will actually use. ponytail: no
+                family chip here; NPC rows have no variant plumbing and a GM
+                muddling through a related language can roll it off the PC side. --}}
+          <span>{{#if skill.system.languageRating}}{{skill.system.languageRating}}{{else}}{{skill.system.rating}}{{/if}}</span>
           <a data-action="editItem"><i class="fas fa-edit"></i></a>
         </div>
         {{/each}}

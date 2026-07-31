@@ -36,6 +36,21 @@
     <span title="general + 4 (SR2E p.70)">Rating: {{system.specialization.rating}}</span>
     {{/if}}
   </div>
+  {{#ifEquals system.category "language"}}
+  {{!-- SR2E p.74: a specific language IS a Specialization of a family. --}}
+  <div class="form-group">
+    <label title="SR2E p.74. The family this language belongs to — you can muddle through related tongues at 4 below the language itself. Leave blank for a language in no family (City Speak, Sperethiel, Or'zet).">Language Family:</label>
+    <input type="text" name="system.languageFamily" value="{{system.languageFamily}}" placeholder="e.g., Romance" />
+    {{#if system.languageFamily}}
+    <span title="the language's rating − 4, minimum 1 (SR2E p.74)">Rating: {{system.familyRating}}</span>
+    {{/if}}
+  </div>
+  <div class="form-group">
+    <label title="SR2E p.74: language Specializations taken as part of CHARACTER GENERATION automatically increase by +2. Uncheck for a language picked up later with Karma.">Taken at chargen (+2):</label>
+    <input type="checkbox" name="system.chargenLanguage" {{checked system.chargenLanguage}} />
+    <span title="the rating actually rolled to speak it (SR2E p.74)">Speaks at: {{system.languageRating}}</span>
+  </div>
+  {{/ifEquals}}
   <div class="form-group">
     <label>Magical Skill:</label>
     <input type="checkbox" name="system.isMagical" {{checked system.isMagical}} />

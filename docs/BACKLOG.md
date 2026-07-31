@@ -86,6 +86,11 @@ Last reviewed 2026-07-26 (system 0.64.0).
 - ~~Rating-priced gear does not multiply by Rating.~~ **Done in 0.67.0** —
   `GearData.costPerRating` + a `derivedItemCost` branch; 18 items converted,
   Maglock Passkey and White Noise Generator were undercharging.
+- **Language families are free text.** p.74's full family table (~400 languages
+  across ~40 families) is not transcribed; the 18 shipped languages carry their
+  family, anything a GM adds is typed by hand. Worth doing only if something
+  starts validating the field. Lakota is filed under Siouan as a judgement call —
+  p.74 lists Dakota, not Lakota.
 - **Mist and Storm spirits have no portrait art** — they were added to
   `spiritDomains` in 0.63.0 and fall back to the `wind` art.
 

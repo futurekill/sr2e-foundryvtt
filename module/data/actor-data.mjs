@@ -533,12 +533,22 @@ export class CharacterData extends SR2EDataModel {
         existing.system._chipSource = soft.name;
         existing.system._nativeRating = existing.system.rating;
         existing.system.rating = rating;
+        // The item's own prepareDerivedData already ran, off the NATIVE rating.
+        // Re-derive the language/family numbers or they describe a rating the
+        // character no longer has (SR2E p.74) — and a chip is not a chargen
+        // purchase, so `_chipped` above suppresses the +2.
+        existing.system.applyLanguageRatings?.();
       } else {
+        // Built by hand rather than through the data model, so the p.74 numbers
+        // have to be supplied. A chip grants the specific language only: no
+        // chargen +2, and no family facility to roll (p.74 — fluency in the
+        // family comes from having learned it, not from slotting a chip).
         this.chippedSkills.push({
           id: "", softId: soft.id, name,
           system: {
             category: cat, rating, linkedAttribute: soft.system.grantedSkillAttribute || "intelligence",
             _chipped: true, _synthetic: true, _chipSource: soft.name,
+            languageRating: rating, familyRating: 0, chargenLanguage: false,
             concentration: { name: "" }, specialization: { name: "" }
           }
         });
