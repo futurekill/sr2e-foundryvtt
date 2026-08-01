@@ -37,14 +37,18 @@
       <span class="hint" style="flex:1;text-align:right;">Each power use costs 1 service</span>
     </div>
     <div class="flexrow" style="align-items:center;gap:6px;margin-top:6px;">
+      {{#if spiritPowers.length}}
       <select name="spiritPower" style="flex:1;">
-        {{#each spiritPowers as |label key|}}
-        <option value="{{key}}">{{localize label}}</option>
+        {{#each spiritPowers as |p|}}
+        <option value="{{p.key}}">{{p.label}}</option>
         {{/each}}
       </select>
       <button type="button" class="btn-small" data-action="useSpiritPower">
         <i class="fas fa-bolt"></i> Use Power
       </button>
+      {{else}}
+      <span class="hint" style="flex:1;">No powers recorded for this spirit — set its domain, or add powers on the actor.</span>
+      {{/if}}
     </div>
   </fieldset>
 

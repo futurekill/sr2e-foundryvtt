@@ -1414,7 +1414,16 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    context.spiritPowers = CONFIG.SR2E.spiritPowers;
+    // THIS spirit's powers, not the global catalogue. `system.powers` is an
+    // ArrayField(StringField) of power keys, populated at summoning from
+    // CONFIG.SR2E.spiritDomainPowers[domain] — so it must be mapped to
+    // {key,label} pairs. Iterating the array directly in the template would
+    // make the array INDEX the action key, which is why the select previously
+    // used the catalogue object instead.
+    context.spiritPowers = (this.document.system.powers ?? []).map(key => ({
+      key,
+      label: game.i18n.localize(CONFIG.SR2E.spiritPowers[key] ?? key)
+    }));
     context.spiritDomains = CONFIG.SR2E.spiritDomains;
     context.isElemental = this.document.system.spiritType === "elemental";
     // Resolve the conjurer for a back-link

@@ -8,6 +8,34 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.79.0 — 2026-08-01
+
+Post-session fixes, part 1 of 2. Plan and the five-round Codex review that
+hardened it are in `PLAN.md` / `PLAN-REVIEW-LOG.md`.
+
+### Added
+- **NPC attributes are rollable.** Click B/Q/S/C/I/W on an NPC sheet to roll it.
+  The action sits on the *label*, not the cell or the input, so the numbers stay
+  editable — clicking to change a value no longer risks opening a roll dialog.
+  Essence, Body Index and Reaction are excluded: the first two are not
+  attributes and Reaction is derived.
+
+### Fixed
+- **A summoned spirit's power list showed every power in the game.** The sheet
+  rendered `CONFIG.SR2E.spiritPowers` — the global catalogue — instead of the
+  spirit's own `system.powers`, which summoning populates from its domain. The
+  list is now the spirit's actual powers, and a spirit with none says so rather
+  than offering an empty control.
+- **The dark spirit portraits were unreadable on a dark map.** 40 of 48 lifted
+  toward the creature-portrait baseline: set mean 0.217 → **0.312**, against the
+  creature average of 0.309. The eight already at or above it — the desert and
+  wind spirits — are untouched.
+
+  `npm run brighten-spirits` derives every output from immutable sources kept in
+  `tools/art-src/` (outside `assets/`, so nothing ships twice) with a
+  content-hash manifest, so re-running cannot compound lossy re-encoding. Gamma
+  is solved per image from its own median, not applied as a blanket factor.
+
 ## 0.78.1 — 2026-07-28
 
 ### Fixed

@@ -1192,6 +1192,14 @@
   margin-left: 2px;
 }
 
+/* NPC attribute labels double as roll triggers (the input stays editable). */
+.attr-roll {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.attr-roll:hover { color: var(--sr2e-gold); }
+
 .skill-attr {
   font-size: 9px;
   font-family: var(--sr2e-font-header);

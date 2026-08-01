@@ -1,0 +1,242 @@
+{
+  "air-1.webp": {
+    "sha": "00c43ad27b8f2597",
+    "gamma": 1.248,
+    "skipped": false
+  },
+  "air-2.webp": {
+    "sha": "2905aa94b784346d",
+    "gamma": 1.147,
+    "skipped": false
+  },
+  "air-3.webp": {
+    "sha": "035400b51c5ee3ce",
+    "gamma": 1.354,
+    "skipped": false
+  },
+  "city-1.webp": {
+    "sha": "974fb958d1a9af40",
+    "gamma": 1.853,
+    "skipped": false
+  },
+  "city-2.webp": {
+    "sha": "2e16e287946cace3",
+    "gamma": 2.042,
+    "skipped": false
+  },
+  "city-3.webp": {
+    "sha": "945b29b45b5c8ecb",
+    "gamma": 2.032,
+    "skipped": false
+  },
+  "desert-1.webp": {
+    "sha": "0240557921727c85",
+    "gamma": 0.719,
+    "skipped": true
+  },
+  "desert-2.webp": {
+    "sha": "5f07d7a663485cc0",
+    "gamma": 0.748,
+    "skipped": true
+  },
+  "desert-3.webp": {
+    "sha": "05c8ddb1d8a0e04f",
+    "gamma": 0.663,
+    "skipped": true
+  },
+  "earth-1.webp": {
+    "sha": "f7568acfc29a951a",
+    "gamma": 2.112,
+    "skipped": false
+  },
+  "earth-2.webp": {
+    "sha": "d943d92695c95df7",
+    "gamma": 1.624,
+    "skipped": false
+  },
+  "earth-3.webp": {
+    "sha": "55525e3061e720b1",
+    "gamma": 1.878,
+    "skipped": false
+  },
+  "field-1.webp": {
+    "sha": "89c107733c843020",
+    "gamma": 1.296,
+    "skipped": false
+  },
+  "field-2.webp": {
+    "sha": "24941ae2bd2d96ba",
+    "gamma": 1.433,
+    "skipped": false
+  },
+  "field-3.webp": {
+    "sha": "a10d620e7ff8b829",
+    "gamma": 1.435,
+    "skipped": false
+  },
+  "fire-1.webp": {
+    "sha": "3569f0247d166f85",
+    "gamma": 1.591,
+    "skipped": false
+  },
+  "fire-2.webp": {
+    "sha": "1f78001618b14e31",
+    "gamma": 1.608,
+    "skipped": false
+  },
+  "fire-3.webp": {
+    "sha": "1429bcfab8d7fd48",
+    "gamma": 1.347,
+    "skipped": false
+  },
+  "forest-1.webp": {
+    "sha": "85eef7045c22c672",
+    "gamma": 1.772,
+    "skipped": false
+  },
+  "forest-2.webp": {
+    "sha": "fcdffe3e80f987dd",
+    "gamma": 1.513,
+    "skipped": false
+  },
+  "forest-3.webp": {
+    "sha": "964682b941f0e57a",
+    "gamma": 1.841,
+    "skipped": false
+  },
+  "hearth-1.webp": {
+    "sha": "2b2a254d7a5ab13a",
+    "gamma": 1.741,
+    "skipped": false
+  },
+  "hearth-2.webp": {
+    "sha": "ab19f722f7ed1eb6",
+    "gamma": 1.827,
+    "skipped": false
+  },
+  "hearth-3.webp": {
+    "sha": "76a48fcd376daf2e",
+    "gamma": 2.2,
+    "skipped": false
+  },
+  "lake-1.webp": {
+    "sha": "1338bdeda7ddc7db",
+    "gamma": 1.432,
+    "skipped": false
+  },
+  "lake-2.webp": {
+    "sha": "951ab40f27366ac2",
+    "gamma": 1.404,
+    "skipped": false
+  },
+  "lake-3.webp": {
+    "sha": "358f8c340f51fa26",
+    "gamma": 1.726,
+    "skipped": false
+  },
+  "mountain-1.webp": {
+    "sha": "36b85c3f03e82cd7",
+    "gamma": 1.5,
+    "skipped": false
+  },
+  "mountain-2.webp": {
+    "sha": "b8b245eebffcce57",
+    "gamma": 1.293,
+    "skipped": false
+  },
+  "mountain-3.webp": {
+    "sha": "16d67588f874d106",
+    "gamma": 1.521,
+    "skipped": false
+  },
+  "prairie-1.webp": {
+    "sha": "af3903ae4b6f814b",
+    "gamma": 1.117,
+    "skipped": false
+  },
+  "prairie-2.webp": {
+    "sha": "493b392a1f066e48",
+    "gamma": 0.999,
+    "skipped": true
+  },
+  "prairie-3.webp": {
+    "sha": "16e23eb081666b10",
+    "gamma": 1.001,
+    "skipped": true
+  },
+  "river-1.webp": {
+    "sha": "e64dc26c3befdf5a",
+    "gamma": 1.155,
+    "skipped": false
+  },
+  "river-2.webp": {
+    "sha": "19bee6a5c2f97514",
+    "gamma": 1.342,
+    "skipped": false
+  },
+  "river-3.webp": {
+    "sha": "a1e3d721b1cd241d",
+    "gamma": 1.181,
+    "skipped": false
+  },
+  "sea-1.webp": {
+    "sha": "03743ae032696c03",
+    "gamma": 1.404,
+    "skipped": false
+  },
+  "sea-2.webp": {
+    "sha": "350cf0536e6f70d7",
+    "gamma": 1.231,
+    "skipped": false
+  },
+  "sea-3.webp": {
+    "sha": "4e9274e6ec7df69d",
+    "gamma": 1.431,
+    "skipped": false
+  },
+  "swamp-1.webp": {
+    "sha": "6b02952458938293",
+    "gamma": 1.669,
+    "skipped": false
+  },
+  "swamp-2.webp": {
+    "sha": "b79c0e20407078cc",
+    "gamma": 1.841,
+    "skipped": false
+  },
+  "swamp-3.webp": {
+    "sha": "db864e5557fb479e",
+    "gamma": 1.895,
+    "skipped": false
+  },
+  "water-1.webp": {
+    "sha": "8e23ca103d268750",
+    "gamma": 1.397,
+    "skipped": false
+  },
+  "water-2.webp": {
+    "sha": "0a39e7d170433005",
+    "gamma": 1.504,
+    "skipped": false
+  },
+  "water-3.webp": {
+    "sha": "4292f81caee6281c",
+    "gamma": 1.232,
+    "skipped": false
+  },
+  "wind-1.webp": {
+    "sha": "a9f1a5a6c7aaeb10",
+    "gamma": 0.723,
+    "skipped": true
+  },
+  "wind-2.webp": {
+    "sha": "c3585edbc8a4b971",
+    "gamma": 0.73,
+    "skipped": true
+  },
+  "wind-3.webp": {
+    "sha": "4ec483e0a89976bb",
+    "gamma": 0.508,
+    "skipped": true
+  }
+}
