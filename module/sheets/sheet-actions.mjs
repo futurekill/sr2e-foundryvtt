@@ -608,7 +608,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     <hr style="margin:8px 0 6px;">
     <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
     ${availablePools.map(p => `
-    <div class="form-group" style="margin:3px 0;align-items:flex-start;gap:6px;">
+    <div class="sr2e-attack__field">
       <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
         <span style="color:#aaa1c0;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
@@ -863,7 +863,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // Melee:  target Quickness (= base TN) + reach modifier; no range/firing/cover/recoil
   // Concentration/Specialization selector (SR2E p.70) — only when choices exist
   const skillSelectHTML = presets.skillChoices?.length > 1 ? `
-    <div class="form-group" style="margin:2px 0 6px;">
+    <div class="sr2e-attack__field">
       <label title="Roll the general skill, or a Concentration/Specialization rating (SR2E p.70)">Skill used:</label>
       <select name="skillVariant">
         ${presets.skillChoices.map(c =>
@@ -874,8 +874,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   const topInputsHTML = isRanged ? `
     ${skillSelectHTML}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
-      <div class="form-group" style="margin:2px 0;">
+    <div class="sr2e-attack__grid">
+      <div class="sr2e-attack__field">
         <label>Range:</label>
         <select id="sr2e-attack-range" name="range">
           ${["short", "medium", "long", "extreme"].map(k =>
@@ -883,7 +883,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ).join("")}
         </select>
       </div>
-      ${hasRecoil ? `<div class="form-group" style="margin:2px 0;">
+      ${hasRecoil ? `<div class="sr2e-attack__field">
         <label>Firing Mode:</label>
         <select id="sr2e-firing-mode" name="firingMode">${
           Object.entries(FIRING_MODE_DATA)
@@ -892,7 +892,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             .join("") || `<option value="sa">${FIRING_MODE_DATA.sa.label}</option>`
         }</select>
       </div>` : ""}
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Cover:</label>
         <select id="sr2e-cover" name="cover">
           <option value="0">None</option>
@@ -901,7 +901,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="6">Near-Total (+6)</option>
         </select>
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label title="Visibility Table (SR2E p.89), NORMAL vision values. Low-light/thermographic vision reduces these — Full Darkness: LL +8, Thermo +4(cyber)/+2; Minimal: LL +4/+2, Thermo +4/+2; Partial: LL +1/0, Thermo +2/+1; Glare: LL/Thermo +4/+2; Mist: LL +2/0, Thermo 0; Light smoke: LL +4/+2, Thermo 0; Heavy smoke: LL +6/+4, Thermo +1/0; blind fire +8. Adjust for the shooter's vision.">Visibility:</label>
         <select id="sr2e-visibility" name="visibility">
           ${[[0, "Clear"], [2, "Partial Light / Glare / Mist (+2)"],
@@ -911,30 +911,30 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ).join("")}
         </select>
       </div>
-      ${(weapon.system.choke ?? 0) >= 2 ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+      ${(weapon.system.choke ?? 0) >= 2 ? `<div class="sr2e-attack__field">
         <label title="Fire shot rounds in a spreading cone (SR2E p.95): a wider spread lowers your TN but reduces Power, and hits everyone in the cone.">Shot (spread):</label>
         <input type="checkbox" id="sr2e-shot-spread" name="shotSpread" style="width:auto;">
         <span style="margin-left:6px;font-size:11px;color:#9d8fc2;">choke ${weapon.system.choke}</span>
       </div>` : ""}
-      <div class="form-group" id="sr2e-fa-rounds-row" style="margin:2px 0;display:none;">
+      <div class="sr2e-attack__field" id="sr2e-fa-rounds-row" style="display:none;">
         <label>FA Rounds (3–10):</label>
         <input type="number" id="sr2e-fa-rounds" name="rounds" value="3" min="3" max="10"
                style="width:52px;text-align:center;"
                title="Rounds in the full-auto burst: +1 Power and +1 recoil per round, +1 Damage Level per 3 rounds (SR2E p.93)">
       </div>
-      <div class="form-group" style="margin:2px 0;align-items:center;">
+      <div class="sr2e-attack__field">
         <label>Foes engaging you (+2 ea):</label>
         <input type="number" id="sr2e-in-melee" name="inMelee" value="0" min="0"
                style="width:52px;text-align:center;"
                title="Firing a ranged weapon while engaged in melee: +2 TN per opponent present (SR2E p.90)">
       </div>
-      ${accBase.needsDeployment.length ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+      ${accBase.needsDeployment.length ? `<div class="sr2e-attack__field">
         <label>${foundry.utils.escapeHTML(accBase.needsDeployment.join("/"))} deployed:</label>
         <input type="checkbox" id="sr2e-deployed" name="deployed" style="width:auto;"
                title="Recoil compensation from a bipod/tripod only counts when the mount is set up — fired from a braced sitting or lying position (SR2E p.240–241)">
       </div>` : ""}
       <hr style="margin:4px 0;opacity:.3;">
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
         <input type="number" id="sr2e-aim" name="aimActions" value="0" min="0" max="${maxAim}"
                style="width:52px;text-align:center;" ${aimDisabled}
@@ -943,13 +943,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <input type="checkbox" id="sr2e-aim-multiphase" name="aimMultiPhase" ${aimDisabled}> over multiple phases
         </label>
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label title="SR2E p.92. +4 TN, and the Damage Code goes up one level (max D). Single-shot, semi-auto and burst only — never full auto.">Called shot:</label>
         <input type="checkbox" id="sr2e-called-shot" name="calledShot" ${calledDisabled}
                title="${calledDisabled ? "Not eligible: p.92 allows called shots only for weapons firing SS, SA or BF." : "+4 TN, damage +1 level."}">
       </div>
-      <div class="form-group" style="margin:2px 0;">
-        <label title="SR2E p.98. Firing THROUGH a barrier at someone beyond it, or attacking the barrier itself to BREAK through.">Barrier:</label>
+      <details class="sr2e-attack__reveal">
+        <summary>Firing through a barrier? (SR2E p.98)</summary>
+        <div class="sr2e-attack__grid">
+      <div class="sr2e-attack__field">
+        <label title="SR2E p.98. Firing THROUGH a barrier at someone beyond it, or attacking the barrier itself to BREAK through.">Material:</label>
         <select id="sr2e-barrier" name="barrierRating" style="flex:1;">
           <option value="">— none —</option>
           ${barrierOptions}
@@ -965,52 +968,54 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="security">security door</option>
         </select>
       </div>
+        </div>
+      </details>
     </div>` : `
     ${skillSelectHTML}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
-      ${killingHands ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+    <div class="sr2e-attack__grid">
+      ${killingHands ? `<div class="sr2e-attack__field">
         <label title="Declare the strike as PHYSICAL damage at your Killing Hands level instead of (Str)M Stun (SR2E p.125-126)">Killing Hands (${killingHands} Physical):</label>
         <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked style="width:auto;">
       </div>` : ""}
-      ${offerBoneLacingPhysical ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+      ${offerBoneLacingPhysical ? `<div class="sr2e-attack__field">
         <label title="Bone lacing lets you strike for PHYSICAL damage, but the Power Level is halved, round up (Shadowtech p.42). Leave unchecked for normal (Str+${laceBonus})M Stun.">Physical (½ Power):</label>
         <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical" style="width:auto;">
       </div>` : ""}
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
                value="0" style="width:52px;text-align:center;"
                title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)">
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
                style="width:52px;text-align:center;"
                title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Your allies in melee:</label>
         <input type="number" id="sr2e-allies" name="allies" value="0" min="0" max="4"
                style="width:52px;text-align:center;"
                title="Friends actively in this brawl: −1 TN each (max −4). (SR2E p.101)">
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Foe's allies in melee:</label>
         <input type="number" id="sr2e-foes" name="foes" value="0" min="0" max="4"
                style="width:52px;text-align:center;"
                title="Opponent's friends in the brawl: +1 TN each (max +4). (SR2E p.101)">
       </div>
-      <div class="form-group" style="margin:2px 0;align-items:center;">
+      <div class="sr2e-attack__field">
         <label>Superior position (−1):</label>
         <input type="checkbox" id="sr2e-sup-pos" name="supPos" style="width:auto;"
                title="Higher or steadier ground than your opponent (SR2E p.101)">
       </div>
-      <div class="form-group" style="margin:2px 0;align-items:center;">
+      <div class="sr2e-attack__field">
         <label>Opponent prone (−2):</label>
         <input type="checkbox" id="sr2e-prone" name="prone" style="width:auto;"
                title="Opponent is lying on the ground (SR2E p.101)">
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Additional targets (+2 ea):</label>
         <input type="number" id="sr2e-multi" name="multiTargets" value="0" min="0"
                style="width:52px;text-align:center;"
@@ -1020,7 +1025,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   const commonInputsHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:4px;">
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label title="Attacker movement (SR2E p.90). A gyro mount reduces these.">Attacker:</label>
         <select id="sr2e-attacker" name="attacker">
           <option value="0">Stationary</option>
@@ -1030,7 +1035,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="6">Running, difficult ground (+6)</option>
         </select>
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label title="Target movement (SR2E p.90): an unmoving target is −1.">Target:</label>
         <select id="sr2e-target" name="target">
           <option value="-1">Stationary (−1)</option>
@@ -1038,7 +1043,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="2">Running (+2)</option>
         </select>
       </div>
-      <div class="form-group" style="margin:2px 0;">
+      <div class="sr2e-attack__field">
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
                style="width:52px;text-align:center;"
@@ -1155,21 +1160,25 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   let rollResult = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: game.i18n.format("SR2E.Dialog.AttackTitle", { name: weapon.name }) },
+    // Resizable, and narrow enough to sit beside a battle map on a laptop. The
+    // form scrolls internally, so the TN readout and buttons stay reachable at
+    // any height the user drags it to.
+    window: { title: game.i18n.format("SR2E.Dialog.AttackTitle", { name: weapon.name }), resizable: true },
+    position: { width: 520 },
     rejectClose: false,
-    content: `<form>
+    content: `<form class="sr2e-attack">
       ${targetBanner}
       ${topInputsHTML}
       ${isRanged ? commonInputsHTML : ""}
-      <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
-        <table style="width:100%;border-collapse:collapse;">
+      <div class="sr2e-attack__readout">
+        <div class="sr2e-attack__tn">
+          <span class="sr2e-attack__tn-label">Target</span>
+          <span id="sr2e-final-tn" class="sr2e-attack__tn-value">${initFinalTN}</span>
+        </div>
+        <table class="sr2e-attack__breakdown-table">
           ${baseTnRow}
           ${rangedOnlyRows}
           ${autoRows}
-          <tr style="border-top:1px solid rgba(255,255,255,0.15);">
-            <td style="font-weight:bold;padding-top:3px;">Final TN:</td>
-            <td id="sr2e-final-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initFinalTN}</td>
-          </tr>
         </table>
       </div>
       ${poolHTML}

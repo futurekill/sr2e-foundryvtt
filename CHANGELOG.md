@@ -8,6 +8,30 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.81.0 — 2026-08-01
+
+### Changed
+- **The attack dialog is redesigned.** Reported as busy, unreadable on a laptop,
+  and not resizable.
+
+  - **Resizable**, and 520px by default so it sits beside a battle map. The form
+    scrolls internally, so the readout and buttons stay reachable at any height.
+  - **Two columns that become one** on a narrow window — an auto-fit grid, so
+    there are no breakpoints to maintain and it reflows at any width.
+  - **The Final TN is now the loudest thing on screen**, pinned to the bottom
+    with its breakdown beside it. It was previously a table row buried
+    mid-form — the one number the dialog exists to produce, styled like
+    everything else.
+  - **Barrier controls collapse behind a disclosure.** Three selects become one
+    line for the majority of shots that do not involve a wall.
+  - Controls are grouped and labelled (Technique, Dice) instead of 15 rows at
+    identical weight, and labels sit next to their inputs rather than across a
+    column gap.
+
+  No rules changed. Every control keeps its `name` and `id`: verified that all
+  26 fields the submit callback reads, and all 48 ids the live-update hook
+  queries, still exist in the markup.
+
 ## 0.80.1 — 2026-08-01
 
 ### Fixed

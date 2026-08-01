@@ -3575,3 +3575,193 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .cyber-row.cyber-off { opacity: 0.55; border-left: 3px solid transparent; }
 .cyber-row.cyber-off .cyber-installed { color: #c66; font-style: italic; }
 .price-base { color: #9d8fc2; font-size: 0.85em; }
+
+/* ============================================================================
+   ATTACK DIALOG
+   Players reported it as busy, unreadable on a laptop, and not resizable. The
+   fix is structural, not cosmetic: the form had ~15 controls at one visual
+   weight, each a full-width label-left row, so nothing read as more important
+   than anything else — and the Final TN, which is the only number the dialog
+   exists to produce, was buried mid-form in a table.
+
+   Three moves:
+     1. Group the controls and label the groups, so the eye lands on a section
+        rather than scanning 15 equal rows.
+     2. Auto-fit the grid, so it reflows to one column on a narrow window with
+        no breakpoints to maintain.
+     3. Pin the TN readout at the bottom as the loudest thing on screen.
+
+   Spacing comes from a 4pt scale. Colours are the existing theme tokens; this
+   introduces no new palette.
+   ========================================================================= */
+
+.sr2e-attack {
+  --atk-1: 4px;  --atk-2: 8px;  --atk-3: 12px; --atk-4: 16px; --atk-6: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--atk-3);
+  /* Resizable dialog: the form owns the scroll, so the TN bar and buttons stay
+     reachable however short the window gets. */
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Right: clear of the scrollbar. Bottom: the readout is sticky, so without
+     this the final control sits permanently underneath it and can never be
+     scrolled into view. */
+  padding-right: var(--atk-1);
+  padding-bottom: var(--atk-2);
+  scroll-padding-bottom: 64px;
+}
+
+/* --- groups --------------------------------------------------------------- */
+.sr2e-attack__group { border: 0; margin: 0; padding: 0; min-width: 0; }
+
+.sr2e-attack__legend {
+  display: block;
+  width: 100%;
+  padding: 0 0 var(--atk-1);
+  margin-bottom: var(--atk-2);
+  border-bottom: 1px solid var(--sr2e-border);
+  color: var(--sr2e-gold);
+  font-family: var(--sr2e-font-header, inherit);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* 2D by nature (label/control pairs across rows) → Grid, auto-fit so a narrow
+   dialog collapses to one column without a media query. */
+.sr2e-attack__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--atk-2) var(--atk-3);
+  align-items: center;
+}
+.sr2e-attack__grid--wide { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+/* --- fields --------------------------------------------------------------- */
+.sr2e-attack__field { display: flex; align-items: center; gap: var(--atk-2); min-width: 0; }
+.sr2e-attack__field > label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+  white-space: nowrap;
+}
+.sr2e-attack__field > select,
+.sr2e-attack__field > input[type="number"],
+.sr2e-attack__field > input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 24px;
+  font-size: 12px;
+}
+.sr2e-attack__field > input[type="number"] { max-width: 68px; text-align: center; }
+.sr2e-attack__field > input[type="checkbox"] { flex: 0 0 auto; width: auto; margin: 0; }
+
+/* A checkbox reads as its label, so the whole pair is the hit target. */
+.sr2e-attack__check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--atk-1);
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sr2e-attack__check input { margin: 0; width: auto; }
+.sr2e-attack__check:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+
+/* --- progressive disclosure ------------------------------------------------ */
+/* Barriers apply to a minority of shots. Collapsed, they cost one line instead
+   of three controls, which is most of the reported "busy". */
+.sr2e-attack__reveal > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--sr2e-text-muted);
+  padding: var(--atk-1) 0;
+  user-select: none;
+}
+.sr2e-attack__reveal > summary::-webkit-details-marker { display: none; }
+.sr2e-attack__reveal > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  color: var(--sr2e-gold-dim);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sr2e-attack__reveal[open] > summary::before { transform: rotate(90deg); }
+.sr2e-attack__reveal > summary:hover { color: var(--sr2e-text); }
+.sr2e-attack__reveal[open] > summary { color: var(--sr2e-gold); }
+
+/* --- the readout ----------------------------------------------------------- */
+/* The one number the dialog exists to produce. Pinned so it stays visible while
+   the form scrolls, and the largest type in the window. */
+.sr2e-attack__readout {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--atk-3);
+  flex-wrap: wrap;
+  margin-top: var(--atk-1);
+  padding: var(--atk-2) var(--atk-3);
+  background: var(--sr2e-bg-light);
+  border: 1px solid var(--sr2e-gold-dim);
+  border-radius: 4px;
+  /* It floats over scrolling content, so it needs to look like it does. */
+  box-shadow: 0 -6px 12px -6px rgba(0, 0, 0, 0.7);
+}
+.sr2e-attack__tn { display: flex; align-items: baseline; gap: var(--atk-2); }
+.sr2e-attack__tn-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+}
+.sr2e-attack__tn-value {
+  font-family: var(--sr2e-font-header, inherit);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sr2e-gold);
+  font-variant-numeric: tabular-nums;
+  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* The breakdown earns its place by explaining the number beside it, not by
+   being a table of its own. */
+.sr2e-attack__breakdown {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--atk-1) var(--atk-2);
+  font-size: 10px;
+  color: var(--sr2e-text-muted);
+  line-height: 1.5;
+}
+.sr2e-attack__chip { white-space: nowrap; }
+.sr2e-attack__chip b { color: var(--sr2e-text); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sr2e-attack__reveal > summary::before,
+  .sr2e-attack__tn-value { transition: none; }
+}
+
+/* The breakdown keeps its generated rows (the live hook writes into them by id);
+   it just stops looking like a spreadsheet sitting in the middle of a form. */
+.sr2e-attack__breakdown-table {
+  flex: 1 1 240px;
+  min-width: 0;
+  border-collapse: collapse;
+  font-size: 10px;
+  color: var(--sr2e-text-muted);
+}
+.sr2e-attack__breakdown-table td { padding: 0 0 1px; }
+.sr2e-attack__breakdown-table td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--sr2e-text);
+  padding-left: var(--atk-2, 8px);
+}
