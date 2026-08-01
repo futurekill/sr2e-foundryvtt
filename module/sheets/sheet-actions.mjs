@@ -587,35 +587,40 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // it earlier threw "Cannot access 'maxAim' before initialization" and the
   // dialog never opened.
   const tacticsHTML = `
-      <div class="sr2e-attack__field">
-        <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
-        <input type="number" id="sr2e-aim" name="aimActions" value="0" min="0" max="${maxAim}"
-               style="width:52px;text-align:center;" ${aimDisabled}
-               title="${aimDisabled ? "This weapon cannot be aimed — p.82 allows a READY ranged weapon only." : `−1 TN each, maximum ${maxAim} at this skill.`}">
-        <label style="margin-left:8px;" title="SR2E p.82: a character aiming over MULTIPLE Combat Phases may not use Dice Pool dice at all. A single-phase aim is unaffected.">
-          <input type="checkbox" id="sr2e-aim-multiphase" name="aimMultiPhase" ${aimDisabled}> over multiple phases
+      <div class="sr2e-attack__grid">
+        <div class="sr2e-attack__field">
+          <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
+          <input type="number" id="sr2e-aim" name="aimActions" value="0" min="0" max="${maxAim}" ${aimDisabled}
+                 title="${aimDisabled ? "This weapon cannot be aimed — p.82 allows a READY ranged weapon only." : `−1 TN each, maximum ${maxAim} at this skill.`}">
+        </div>
+        <label class="sr2e-attack__check" title="SR2E p.82: a character aiming over MULTIPLE Combat Phases may not use Dice Pool dice at all. A single-phase aim is unaffected.">
+          <input type="checkbox" id="sr2e-aim-multiphase" name="aimMultiPhase" ${aimDisabled}> Over multiple phases
         </label>
       </div>
-      <div class="sr2e-attack__field">
-        <label title="SR2E p.92. +4 TN, and the Damage Code goes up one level (max D). Single-shot, semi-auto and burst only — never full auto.">Called shot:</label>
-        <input type="checkbox" id="sr2e-called-shot" name="calledShot" ${calledDisabled}
-               title="${calledDisabled ? "Not eligible: p.92 allows called shots only for weapons firing SS, SA or BF." : "+4 TN, damage +1 level."}">
-      </div>
+      <label class="sr2e-attack__check" title="SR2E p.92. +4 TN, and the Damage Code goes up one level (max D). Single-shot, semi-auto and burst only — never full auto.">
+        <input type="checkbox" id="sr2e-called-shot" name="calledShot" ${calledDisabled}> Called shot
+        <span class="sr2e-attack__hint">+4 TN, damage +1 level</span>
+      </label>
       <details class="sr2e-attack__reveal">
         <summary>Firing through a barrier? (SR2E p.98)</summary>
         <div class="sr2e-attack__grid">
       <div class="sr2e-attack__field">
         <label title="SR2E p.98. Firing THROUGH a barrier at someone beyond it, or attacking the barrier itself to BREAK through.">Material:</label>
-        <select id="sr2e-barrier" name="barrierRating" style="flex:1;">
+        <select id="sr2e-barrier" name="barrierRating">
           <option value="">— none —</option>
           ${barrierOptions}
         </select>
-        <select id="sr2e-barrier-mode" name="barrierMode" style="margin-left:4px;">
+      </div>
+      <div class="sr2e-attack__field">
+        <label>Intent:</label>
+        <select id="sr2e-barrier-mode" name="barrierMode">
           <option value="through">firing through</option>
           <option value="break">breaking through</option>
         </select>
-        <select id="sr2e-barrier-door" name="barrierDoor" style="margin-left:4px;"
-                title="A security door is twice its material's rating, and must be reduced to 0 before it opens; a regular door opens at half.">
+      </div>
+      <div class="sr2e-attack__field">
+        <label title="A security door is twice its material's rating, and must be reduced to 0 before it opens; a regular door opens at half.">Door:</label>
+        <select id="sr2e-barrier-door" name="barrierDoor">
           <option value="none">not a door</option>
           <option value="regular">regular door</option>
           <option value="security">security door</option>
@@ -653,16 +658,12 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">${game.i18n.localize("SR2E.Dialog.PoolDiceHeader")}</p>
     ${availablePools.map(p => `
     <div class="sr2e-attack__field">
-      <label style="font-size:12px;flex:1;padding-top:3px;">${p.label}
-        <span style="color:#aaa1c0;font-size:10px;">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
+      <label>${p.label}
+        <span class="sr2e-attack__hint">(${p.available} left${p.cap < p.available ? `, max ${p.cap}` : ""})</span>
       </label>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-        <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
-               data-pool-key="${p.key}" data-pool-cap="${p.cap}"
-               style="width:52px;text-align:center;">
-        <span class="sr2e-pool-error" data-for="${p.key}"
-              style="color:#e44;font-size:9px;display:none;line-height:1.2;text-align:right;"></span>
-      </div>
+      <input type="number" name="pool_${p.key}" value="0" min="0" max="${p.cap}"
+             data-pool-key="${p.key}" data-pool-cap="${p.cap}">
+      <span class="sr2e-pool-error" data-for="${p.key}"></span>
     </div>`).join("")}
   ` : "";
 
@@ -958,7 +959,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       ${(weapon.system.choke ?? 0) >= 2 ? `<div class="sr2e-attack__field">
         <label title="Fire shot rounds in a spreading cone (SR2E p.95): a wider spread lowers your TN but reduces Power, and hits everyone in the cone.">Shot (spread):</label>
         <input type="checkbox" id="sr2e-shot-spread" name="shotSpread" style="width:auto;">
-        <span style="margin-left:6px;font-size:11px;color:#9d8fc2;">choke ${weapon.system.choke}</span>
+        <span class="sr2e-attack__hint">choke ${weapon.system.choke}</span>
       </div>` : ""}
       <div class="sr2e-attack__field" id="sr2e-fa-rounds-row" style="display:none;">
         <label>FA Rounds (3–10):</label>
@@ -1167,6 +1168,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     </div>` : "";
 
   let rollResult = null;
+  // Per-dialog tab ids. The labels drive their radios through for=/id=, and
+  // getElementById returns the FIRST match in the document — so with fixed ids
+  // a second open attack dialog would switch the first dialog's tabs.
+  const tabName = `sr2e-atk-${foundry.utils.randomID(8)}`;
   const action = await foundry.applications.api.DialogV2.wait({
     // Resizable, and narrow enough to sit beside a battle map on a laptop. The
     // form scrolls internally, so the TN readout and buttons stay reachable at
@@ -1181,16 +1186,23 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     //
     // The readout sits OUTSIDE the panels: the target number is the thing you
     // are tuning, so it must not disappear when you change tab.
-    content: `<form class="sr2e-attack">
+    // NOT a <form>. DialogV2#_renderHTML wraps `content` in its own
+    // <form class="dialog-form">, and the HTML parser silently DROPS a nested
+    // <form> start tag — so a <form class="sr2e-attack"> never reaches the DOM.
+    // Everything hung on that class went with it: the --atk-* spacing scale
+    // (every padding/gap collapsed to 0) and the flex chain that makes the
+    // panels scroll. Inputs still submit either way: they belong to the outer
+    // form, which is what `button.form.elements` reads below.
+    content: `<div class="sr2e-attack">
       ${targetBanner}
       <div class="sr2e-attack__tabs">
-        <input type="radio" name="__tab" id="sr2e-tab-shot" class="sr2e-attack__tab-input" checked>
-        <input type="radio" name="__tab" id="sr2e-tab-tactics" class="sr2e-attack__tab-input">
-        <input type="radio" name="__tab" id="sr2e-tab-dice" class="sr2e-attack__tab-input">
+        <input type="radio" name="${tabName}" id="${tabName}-shot" class="sr2e-attack__tab-input" checked>
+        <input type="radio" name="${tabName}" id="${tabName}-tactics" class="sr2e-attack__tab-input">
+        <input type="radio" name="${tabName}" id="${tabName}-dice" class="sr2e-attack__tab-input">
         <nav class="sr2e-attack__tablist">
-          <label for="sr2e-tab-shot"    class="sr2e-attack__tab">Shot</label>
-          <label for="sr2e-tab-tactics" class="sr2e-attack__tab">Tactics</label>
-          <label for="sr2e-tab-dice"    class="sr2e-attack__tab">Dice</label>
+          <label for="${tabName}-shot"    class="sr2e-attack__tab"><i class="fas fa-crosshairs"></i>Shot</label>
+          <label for="${tabName}-tactics" class="sr2e-attack__tab"><i class="fas fa-chess-knight"></i>Tactics</label>
+          <label for="${tabName}-dice"    class="sr2e-attack__tab"><i class="fas fa-dice"></i>Dice</label>
         </nav>
         <div class="sr2e-attack__panels">
           <section class="sr2e-attack__panel">${topInputsHTML}</section>
@@ -1216,7 +1228,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ${autoRows}
         </table>
       </div>
-    </form>`,
+    </div>`,
     buttons: [
       {
         action: "roll",

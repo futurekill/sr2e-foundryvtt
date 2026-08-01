@@ -8,6 +8,39 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.83.0 — 2026-08-01
+
+### Fixed
+- **The attack dialog's whole spacing and scrolling layer never applied.**
+  `DialogV2` wraps dialog `content` in its own `<form>`, and the HTML parser
+  silently drops a nested `<form>` start tag — so `<form class="sr2e-attack">`
+  never reached the DOM. Everything hung on that class went with it: the
+  `--atk-*` spacing scale (so every `padding`/`gap` computed to **0**, which is
+  why the tabs rendered as "SHOTTACTICSDICE" and the fields ran together) and
+  the flex/`min-height:0` chain that lets the panels scroll when the window is
+  dragged smaller. The root is now a `<div>`, and the scroll chain is applied
+  to Foundry's real ancestors (`.window-content > form.dialog-form >
+  .dialog-content`). Reproduced and verified by rendering the dialog headless
+  against Foundry's own stylesheet.
+- Two attack dialogs open at once no longer drive each other's tabs: the tab
+  radio ids are randomised per dialog, and the CSS matches on the id suffix
+  rather than a fixed id or sibling position.
+- Keyboard focus ringed **all three** tabs at once; it now rings only the
+  focused one.
+- Undid Foundry's global `table { margin: 1rem 0 }` on the TN breakdown, which
+  was padding the readout with 32px of dead space.
+
+### Changed
+- Field labels sit **above** their control instead of beside it, so controls
+  line up in columns and a long label no longer squeezes its input to a sliver.
+  Checkboxes are exempt and stay on one line — a label stranded above a lone
+  checkbox reads as a different control.
+- Tabs are styled like the character sheet's: equal-width segments on a rail,
+  the active one lit gold with an underline and tint, each with an icon
+  (crosshairs / knight / dice).
+- The three barrier selects became three labelled fields instead of one crowded
+  row; the aim and called-shot checkboxes are inline with their text.
+
 ## 0.82.1 — 2026-08-01
 
 ### Fixed

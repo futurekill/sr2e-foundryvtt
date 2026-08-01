@@ -3599,23 +3599,30 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   --atk-1: 4px;  --atk-2: 8px;  --atk-3: 12px; --atk-4: 16px; --atk-6: 24px;
   display: flex;
   flex-direction: column;
-  gap: var(--atk-2);
-  /* Fill the window and let the PANELS scroll. The previous version capped the
-     form at a slice of the viewport, which ignores the window entirely — so
-     dragging the resize handle smaller clipped the content with no scrollbar to
-     recover it. min-height:0 is what actually allows a flex child to shrink
-     below its content and become scrollable. */
+  gap: var(--atk-3);
+  /* Fill the window and let the PANELS scroll. min-height:0 is what actually
+     allows a flex child to shrink below its content and become scrollable. */
   min-height: 0;
-  max-height: 100%;
+  flex: 1 1 auto;
 }
 
-/* ApplicationV2 puts the form inside .window-content; it has to become a flex
-   container too, or the form has no height to fill. */
-.application .window-content:has(> .sr2e-attack) {
+/* The scroll chain. DialogV2 nests our root three levels down:
+     .window-content > form.dialog-form > .dialog-content > .sr2e-attack
+   EVERY link has to be a column flex box with min-height:0, or the innermost
+   panel can never shrink below its content and the resize handle just clips
+   things off with no scrollbar to recover them. Scoped with :has() so this
+   only ever touches a dialog that contains OUR root. */
+.application .window-content:has(.sr2e-attack),
+.application .window-content:has(.sr2e-attack) > form.dialog-form,
+.application .window-content:has(.sr2e-attack) .dialog-content {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  flex: 1 1 auto;
+}
+/* The footer must keep its natural height while the content above it scrolls. */
+.application .window-content:has(.sr2e-attack) > form.dialog-form > .form-footer {
+  flex: 0 0 auto;
 }
 
 /* --- groups --------------------------------------------------------------- */
@@ -3638,26 +3645,34 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
    dialog collapses to one column without a media query. */
 .sr2e-attack__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: var(--atk-2) var(--atk-3);
-  align-items: center;
+  /* 230 not 190: at 190 a third column squeezed in and the controls collided.
+     Wider tracks mean fewer, roomier columns. */
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: var(--atk-3) var(--atk-4);   /* stacked labels already separate the rows; columns need 16 */
+  align-items: end;
 }
 .sr2e-attack__grid--wide { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
-/* --- fields --------------------------------------------------------------- */
+/* --- fields ---------------------------------------------------------------
+   Label ABOVE the control, not beside it. Side-by-side made the label column
+   as wide as its longest string ("Foes engaging you (+2 ea):"), which left the
+   control a sliver and pushed every row out of alignment with its neighbours.
+   Stacked, the controls line up and the label always has room. */
 .sr2e-attack__field {
   display: flex;
-  align-items: center;
-  gap: var(--atk-3);            /* 12px — 8 read as touching next to a full-width select */
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--atk-1);
   min-width: 0;
-  overflow: hidden;             /* a long option must not push the control past its cell */
 }
 .sr2e-attack__field > label {
-  flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--sr2e-text-muted);
-  white-space: nowrap;
-  padding-right: var(--atk-1);  /* optical breathing room against the control's border */
+  /* Long labels wrap instead of forcing the dialog wider. */
+  white-space: normal;
+  line-height: 1.3;
 }
 .sr2e-attack__field > select,
 .sr2e-attack__field > input[type="number"],
@@ -3669,21 +3684,53 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   height: 24px;
   font-size: 12px;
 }
-.sr2e-attack__field > input[type="number"] { max-width: 68px; text-align: center; }
+.sr2e-attack__field > input[type="number"] { max-width: 80px; text-align: center; }
+
+/* A checkbox is never stacked — its text IS its label, so a label sitting above
+   an orphaned box reads as a different control. Handled here rather than by
+   rewriting each call site, so checkboxes added later get it for free.
+   `order` (not row-reverse) keeps any trailing hint span after the label. */
+.sr2e-attack__field:has(> input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--atk-2);
+  min-height: 24px;
+}
+.sr2e-attack__field:has(> input[type="checkbox"]) > label { text-transform: none; font-size: 11px; letter-spacing: 0; }
+.sr2e-attack__field > input[type="checkbox"] { order: -1; }
 .sr2e-attack__field > input[type="checkbox"] { flex: 0 0 auto; width: auto; margin: 0; }
 
-/* A checkbox reads as its label, so the whole pair is the hit target. */
+/* A checkbox reads as its label, so the whole pair is the hit target — and it
+   stays on ONE line. The stacked label/control layout above is right for a
+   select, but it orphans a checkbox from its text. Sits on the grid's bottom
+   edge so it lines up with the control beside it. */
 .sr2e-attack__check {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--atk-1);
+  align-self: start;
+  gap: var(--atk-2);
+  min-height: 24px;              /* match the control height it sits beside */
   font-size: 11px;
   color: var(--sr2e-text-muted);
   cursor: pointer;
-  white-space: nowrap;
 }
-.sr2e-attack__check input { margin: 0; width: auto; }
+/* In a grid cell it sits on the row's bottom edge, level with the control
+   beside it; as a standalone panel child it stays at the left margin. */
+.sr2e-attack__grid > .sr2e-attack__check { align-self: end; }
+.sr2e-attack__check input { flex: 0 0 auto; margin: 0; width: auto; }
 .sr2e-attack__check:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+/* Secondary detail on a row: present, but never competing. */
+.sr2e-attack__hint { font-size: 10px; opacity: 0.7; font-weight: 400; }
+
+/* Pool over/under-spend warning. Hidden until the validator writes text into
+   it, so it costs no space in the common case (the validator also toggles
+   display inline, which wins either way). */
+.sr2e-attack__field > .sr2e-pool-error {
+  color: #ff6b6b;
+  font-size: 10px;
+  line-height: 1.2;
+}
+.sr2e-attack__field > .sr2e-pool-error:empty { display: none; }
 
 /* --- progressive disclosure ------------------------------------------------ */
 /* Barriers apply to a minority of shots. Collapsed, they cost one line instead
@@ -3716,18 +3763,18 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
      always on screen without overlaying anything. */
   flex: 0 0 auto;
   display: flex;
-  align-items: baseline;
-  gap: var(--atk-3);
+  align-items: center;
+  gap: var(--atk-4);
   flex-wrap: wrap;
   margin-top: var(--atk-1);
-  padding: var(--atk-2) var(--atk-3);
+  padding: var(--atk-3) var(--atk-4);
   background: var(--sr2e-bg-light);
   border: 1px solid var(--sr2e-gold-dim);
   border-radius: 4px;
   /* It floats over scrolling content, so it needs to look like it does. */
   box-shadow: 0 -6px 12px -6px rgba(0, 0, 0, 0.7);
 }
-.sr2e-attack__tn { display: flex; align-items: baseline; gap: var(--atk-2); }
+.sr2e-attack__tn { flex: 0 0 auto; display: flex; align-items: baseline; gap: var(--atk-2); }
 .sr2e-attack__tn-label {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -3766,8 +3813,14 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 /* The breakdown keeps its generated rows (the live hook writes into them by id);
    it just stops looking like a spreadsheet sitting in the middle of a form. */
 .sr2e-attack__breakdown-table {
-  flex: 1 1 240px;
+  flex: 1 1 190px;
   min-width: 0;
+  /* Foundry styles every <table> with `margin: 1rem 0` plus a background and
+     top/bottom rules. Unset: the 32px of margin was padding the readout out
+     with dead space, and the chrome made a 3-line breakdown look like a report. */
+  margin: 0;
+  background: none;
+  border: 0;
   border-collapse: collapse;
   font-size: 10px;
   color: var(--sr2e-text-muted);
@@ -3792,42 +3845,67 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 }
 .sr2e-attack__tab-input { position: absolute; opacity: 0; pointer-events: none; }
 
+/* Same idiom as the character sheet's .sr2e-tabs: equal-width segments on a
+   dark rail, the active one lit gold with a 2px underline and a tint. */
 .sr2e-attack__tablist {
   display: flex;
-  gap: var(--atk-1);
-  border-bottom: 1px solid var(--sr2e-border);
-  margin-bottom: var(--atk-3);
+  gap: 2px;
+  background: var(--sr2e-bg);
+  border-bottom: 2px solid var(--sr2e-border);
+  margin-bottom: var(--atk-4);
   flex: 0 0 auto;
 }
 .sr2e-attack__tab {
-  padding: var(--atk-2) var(--atk-3);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--atk-2);
+  padding: var(--atk-2) var(--atk-4);
+  font-family: var(--sr2e-font-header, inherit);
   font-size: 11px;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--sr2e-text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  margin-bottom: -2px;
   transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1),
-              border-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+              border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.sr2e-attack__tab:hover { color: var(--sr2e-text); }
+.sr2e-attack__tab:hover { color: var(--sr2e-text); background: rgba(233, 30, 140, 0.08); }
+/* The icon is a cue, not a second focal point — it stays a size below the label
+   and never carries its own colour. */
+.sr2e-attack__tab > i { font-size: 12px; color: inherit; opacity: 0.85; }
 
-.sr2e-attack__panels { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: var(--atk-1); }
-.sr2e-attack__panel { display: none; flex-direction: column; gap: var(--atk-3); }
+.sr2e-attack__panels { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: var(--atk-2); }
+.sr2e-attack__panel { display: none; flex-direction: column; gap: var(--atk-4); }
 
-/* checked radio -> matching tab label lit, matching panel shown */
-#sr2e-tab-shot:checked    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(1),
-#sr2e-tab-tactics:checked ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(2),
-#sr2e-tab-dice:checked    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(3) {
+/* checked radio -> matching tab label lit, matching panel shown.
+   Matched on the id SUFFIX, not on position and not on a fixed id. The ids are
+   randomised per dialog (so two open attack dialogs cannot drive each other's
+   tabs) but always end -shot/-tactics/-dice. An earlier :nth-of-type version
+   silently remapped every tab if any <input> were ever added above them. */
+.sr2e-attack__tab-input[id$="-shot"]:checked    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(1),
+.sr2e-attack__tab-input[id$="-tactics"]:checked ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(2),
+.sr2e-attack__tab-input[id$="-dice"]:checked    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(3) {
   color: var(--sr2e-gold);
   border-bottom-color: var(--sr2e-gold);
+  background: rgba(0, 229, 255, 0.07);
 }
-#sr2e-tab-shot:checked    ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(1),
-#sr2e-tab-tactics:checked ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(2),
-#sr2e-tab-dice:checked    ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(3) { display: flex; }
+.sr2e-attack__tab-input[id$="-shot"]:checked    ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(1),
+.sr2e-attack__tab-input[id$="-tactics"]:checked ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(2),
+.sr2e-attack__tab-input[id$="-dice"]:checked    ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(3) { display: flex; }
 
-/* Keyboard users must see the focused tab. */
-.sr2e-attack__tab-input:focus-visible ~ .sr2e-attack__tablist .sr2e-attack__tab { outline: 1px dotted var(--sr2e-gold-dim); }
+/* Keyboard users must see WHICH tab has focus. Ringing all three (what a bare
+   descendant selector does) tells them nothing. */
+.sr2e-attack__tab-input[id$="-shot"]:focus-visible    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(1),
+.sr2e-attack__tab-input[id$="-tactics"]:focus-visible ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(2),
+.sr2e-attack__tab-input[id$="-dice"]:focus-visible    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(3) {
+  outline: 2px solid var(--sr2e-gold);
+  outline-offset: -2px;
+}
 
 @media (prefers-reduced-motion: reduce) { .sr2e-attack__tab { transition: none; } }
