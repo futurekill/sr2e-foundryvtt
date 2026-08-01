@@ -2602,3 +2602,163 @@ export function randomSpiritName(domain, rng = Math.random) {
   const roots = _SPIRIT_ROOTS[String(domain ?? "").toLowerCase()] ?? _SPIRIT_ROOTS._default;
   return pick(roots) + pick(_SPIRIT_SUFFIX);
 }
+
+/* ── Called shots, aiming, and barriers ─────────────────────────────────────
+ * All three were added after a live session; the plan and the five-round Codex
+ * review that hardened it are in PLAN.md / PLAN-REVIEW-LOG.md.
+ */
+
+/** Target-number penalty for calling a shot (SR2E p.92). */
+export const CALLED_SHOT_TN = 4;
+
+/**
+ * Damage levels a called shot adds (SR2E p.92): "The Damage Code is increased
+ * by one level (L becomes M, M becomes S, and so on, up to a maximum of D)."
+ * Returned as STEPS, not a level, so the caller can sum it with the burst and
+ * success steps and cap once — capping each contribution separately would lose
+ * stages.
+ */
+export const CALLED_SHOT_STEPS = 1;
+
+/**
+ * May this weapon call a shot? (SR2E p.92: "Only weapons that fire in
+ * single-shot, semi-automatic, and burst-fire modes are eligible.")
+ *
+ * Both halves matter. `weaponType` must be one that HAS firing modes at all —
+ * melee, thrown, grenades and bows do not — and the declared mode must be one
+ * of SS/SA/BF *and actually present on the weapon*. Checking `mode !== "fa"`
+ * alone is not enough: the attack path defaults a missing mode to "sa", which
+ * would make a mode-less weapon look eligible.
+ *
+ * @param {string} weaponType - melee|projectile|throwing|firearm|heavy|grenade
+ * @param {string} mode - ss|sa|bf|fa
+ * @param {object} firingModes - {ss,sa,bf,fa} booleans from the weapon
+ * @returns {boolean}
+ */
+export function canCallShot(weaponType, mode, firingModes = {}) {
+  if (weaponType !== "firearm" && weaponType !== "heavy") return false;
+  if (!["ss", "sa", "bf"].includes(mode)) return false;
+  return firingModes[mode] === true;
+}
+
+/**
+ * Maximum sequential Take Aim actions (SR2E p.82): "equal to one-half the
+ * character's skill with that weapon, rounded down."
+ */
+export function maxAimActions(skillRating) {
+  return Math.max(0, Math.floor((skillRating || 0) / 2));
+}
+
+/**
+ * Target-number reduction from aiming (SR2E p.82): "Each Take Aim action
+ * reduces the base target number by 1." Returned POSITIVE; the caller
+ * subtracts it.
+ */
+export function aimTnReduction(aimActions, skillRating) {
+  return Math.min(Math.max(0, aimActions || 0), maxAimActions(skillRating));
+}
+
+/** May this weapon be aimed? (SR2E p.82: "a ready ranged weapon".) */
+export function canAim(weaponType, equipped) {
+  return !!equipped && ["firearm", "heavy", "projectile", "throwing"].includes(weaponType);
+}
+
+/** Barrier Rating Table (SR2E p.98). */
+export const BARRIER_RATINGS = [
+  { label: "Standard Glass", rating: 2, transparent: true },
+  { label: "Cheap Material / Regular Tires", rating: 3, transparent: false },
+  { label: "Average Material / Ballistic Glass", rating: 4, transparent: true },
+  { label: "Heavy Material", rating: 6, transparent: false },
+  { label: "Reinforced / Armored Glass", rating: 8, transparent: true },
+  { label: "Structural Material", rating: 12, transparent: false },
+  { label: "Heavy Structural Material", rating: 16, transparent: false },
+  { label: "Armored / Reinforced Material", rating: 24, transparent: false },
+  { label: "Hardened Material", rating: 32, transparent: false }
+];
+
+/**
+ * The barrier's effective rating for a given use (SR2E p.98).
+ *
+ * Two DIFFERENT adjusted ratings exist and must never be conflated:
+ *  - "penetrate": firing through at a target beyond. Normal rating vs blunt
+ *    melee; TWICE vs edged melee.
+ *  - "damage": what the barrier resists when you are attacking IT. TWICE vs
+ *    firearm rounds and other ranged attacks ("a bullet ... really does punch
+ *    only a tiny hole"), and twice vs melee.
+ *
+ * A security door is twice its material either way (p.98: "Security doors have
+ * twice the rating of the material").
+ */
+export function adjustedBarrierRating(baseRating, { use, attackKind = "ranged", doorType = "none" } = {}) {
+  let r = Math.max(0, baseRating || 0);
+  if (doorType === "security") r *= 2;
+  if (use === "damage") {
+    if (attackKind === "ranged" || attackKind === "meleeBlunt" || attackKind === "meleeEdged") r *= 2;
+  } else {                                  // penetrate
+    if (attackKind === "meleeEdged") r *= 2;
+  }
+  return r;
+}
+
+/**
+ * Barrier Effect Table (SR2E p.98) — what an attack does TO a barrier.
+ * `power` must be the base Power of the round, unmodified for burst or full
+ * auto ("Always use the base Power Rating of the round ... for comparison
+ * against the Barrier Rating").
+ *
+ * @returns {{tier:string, ratingReduction:number, holes:number}}
+ */
+export function barrierEffect(power, damageRating) {
+  const p = Math.max(0, power || 0);
+  const r = Math.max(0, damageRating || 0);
+  if (r <= 0) return { tier: "destroyed", ratingReduction: 0, holes: 0 };
+  if (p < r / 2) return { tier: "none", ratingReduction: 0, holes: 0 };
+  if (p <= r) return { tier: "damaged", ratingReduction: 1, holes: 0 };
+  // "For every increment equal to half the Barrier Rating that the Power
+  // exceeds that rating, a one-half meter hole is opened and the Barrier
+  // Rating reduced by 1."
+  const holes = Math.floor((p - r) / (r / 2));
+  return { tier: "breached", ratingReduction: Math.max(1, holes), holes };
+}
+
+/**
+ * Resolve an attack against or through a barrier (SR2E p.98).
+ *
+ * Takes the BASE rating and derives every adjustment itself — a pre-adjusted
+ * rating would make the returned `newBaseRating` and the door thresholds wrong.
+ *
+ * Returns a `powerReduction`, NOT a finished damage Power: it is not given
+ * `effectivePower` and must not invent one. Armour is deliberately absent —
+ * p.98 has the defender subtract armour *and* the barrier, but the existing
+ * resistance path already applies armour, so doing it here would double it.
+ *
+ * @returns {{stopped:boolean, powerReduction:number, effect:object|null,
+ *            newBaseRating:number, opensDoor:boolean, penetrationRating:number}}
+ */
+export function resolveBarrier({ baseRating, doorType = "none", barrierMode = "through",
+                                 comparisonPower, attackKind = "ranged" } = {}) {
+  const penetrationRating = adjustedBarrierRating(baseRating, { use: "penetrate", attackKind, doorType });
+  const damageRating      = adjustedBarrierRating(baseRating, { use: "damage",    attackKind, doorType });
+  const power = Math.max(0, comparisonPower || 0);
+
+  // Breaking through: the barrier IS the target, so there is no penetration.
+  const stopped = barrierMode === "break" ? true : power <= penetrationRating;
+
+  // p.98 assesses damage to the barrier when you attack it, and when a
+  // firing-through shot is stopped ("this may still damage the barrier"). A
+  // shot that penetrates does not also damage it.
+  const effect = (barrierMode === "break" || stopped) ? barrierEffect(power, damageRating) : null;
+
+  const newBaseRating = Math.max(0, (baseRating || 0) - (effect?.ratingReduction ?? 0));
+  // "A regular door will break open when its Barrier Rating is reduced to
+  // one-half. A security door must be reduced to 0."
+  const opensDoor = doorType === "regular" ? newBaseRating <= (baseRating || 0) / 2
+                  : doorType === "security" ? newBaseRating <= 0
+                  : false;
+
+  return {
+    stopped,
+    powerReduction: barrierMode === "break" ? 0 : penetrationRating,
+    effect, newBaseRating, opensDoor, penetrationRating
+  };
+}

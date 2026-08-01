@@ -8,6 +8,65 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.80.0 — 2026-08-01
+
+Post-session fixes, part 2: the attack flow. Landed as one change because all
+three items touch the same dialog. Plan and its five-round Codex review are in
+`PLAN.md` / `PLAN-REVIEW-LOG.md`.
+
+### Added
+- **Called shots (p.92).** +4 TN, Damage Code up one level (capped at D).
+  Offered only for weapons that actually fire **SS, SA or BF** — never full
+  auto — and the mode must be enabled on the weapon, not merely declared. The
+  checkbox disables itself live when you switch to FA, and the attack refuses
+  the combination again server-side, because a macro can bypass the dialog.
+- **Take Aim (p.82).** An "Aim actions" spinner: **−1 TN each**, capped at half
+  your skill with that weapon, rounded down. The cap follows the skill variant
+  you actually select, not the highest on offer. Only for a **ready ranged
+  weapon** — equipped, and firearm/heavy/projectile/throwing.
+
+  You track the action economy; the tooltip says so. Foundry has no "actor took
+  an action" hook, so a persistent aim flag could not be cleared honestly, and
+  the system does not pretend otherwise.
+
+  The one part that IS enforced: **aiming across multiple Combat Phases forbids
+  Dice Pool dice**. Tick "over multiple phases" and the pool controls disable;
+  a direct call that asks for both aborts *before* ammunition is spent. A
+  single-phase aim is unaffected — the rule is multi-phase only.
+- **Barriers (p.98).** Pick a barrier (the nine printed ratings), whether you
+  are **firing through** it or **breaking through** it, and whether it is a
+  regular or security door. Firing through applies **+8 Blind Fire** unless the
+  barrier is transparent, and subtracts the barrier from Power; if the barrier
+  wins the shot is **stopped cold**. Breaking through resolves the Barrier
+  Effect Table and reports holes, the reduced rating, and whether a door opens.
+
+### Fixed
+- **The attack dialog silently dropped two of its own fields.** The result was
+  re-listed by hand into `item.roll()`, and `deployed` and `distance` were
+  missing — collected, then thrown away. It now forwards wholesale, so new
+  options cannot be lost the same way.
+- **`otherMod`'s tooltip invited double-counting.** It told you to enter aimed
+  shot −1 and called shot +4 by hand. With dedicated controls that would have
+  applied both twice; the tooltip now says so explicitly.
+- **Barrier blind fire no longer stacks with the visibility selector** — an
+  opaque barrier plus a Blind Fire pick would have reached +16. It replaces
+  rather than adds.
+- **A refused attack no longer consumes a thrown weapon.** Validation ran after
+  the quantity decrement, so a rejected grenade was still gone.
+- **Base Power is captured, not reverse-engineered.** The vehicle-armour check
+  derived it as `effectivePower - rounds`, which is correct only because
+  `burstDamageBonus()` happens to return `powerBonus === rounds`. It now records
+  what burst actually added — and the barrier comparison uses that same value,
+  per p.98's "always use the base Power Rating of the round, unmodified for
+  burst or full auto".
+
+### Notes
+- Barriers are wired for ordinary weapon fire only. Melee, magic, blast and
+  shot-spread attacks **refuse** a barrier selection rather than half-applying
+  it — their resolvers return before the damage card this hooks into.
+- Barrier Rating reduction is **advisory**: reported in chat, not persisted. A
+  dropdown has no document to write back to.
+
 ## 0.79.0 — 2026-08-01
 
 Post-session fixes, part 1 of 2. Plan and the five-round Codex review that

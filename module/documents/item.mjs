@@ -1,6 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel } from "../rules/sr2e-rules.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating } from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -321,6 +322,36 @@ export class SR2EItem extends Item {
     // by quantity instead of reloading. Block an empty stack; spend one otherwise.
     // They never touch the ammo/reload path (a legacy grenade may still carry a
     // 1/1 ammo block from before they became consumables).
+    // --- Validate the new combat options BEFORE anything mutates ----------
+    // The dialog is bypassable (macros, direct item.roll()), and the thrown
+    // consumption below is a mutation — so a refusal has to happen first or a
+    // rejected attack still eats the grenade.
+    const wType_ = this.system.weaponType;
+    const modes_ = this.system.firingModes ?? {};
+    const declaredMode_ = options.firingMode ?? "sa";
+
+    if (options.calledShot && !canCallShot(wType_, declaredMode_, modes_)) {
+      ui.notifications.warn(game.i18n.localize("SR2E.Warn.CalledShotIneligible")
+        || "Called shots need a weapon firing SS, SA or BF (SR2E p.92).");
+      return;
+    }
+    if (options.aimActions > 0 && !canAim(wType_, this.system.equipped)) {
+      ui.notifications.warn("Aiming needs a READY ranged weapon (SR2E p.82).");
+      return;
+    }
+    // Aiming across phases forbids Dice Pool dice entirely (p.82). Abort rather
+    // than silently discarding them, so the player can choose which to keep.
+    if (options.aimMultiPhase && options.aimActions > 0 && (options.poolDice ?? 0) > 0) {
+      ui.notifications.warn("Aiming over multiple Combat Phases forbids Dice Pool dice (SR2E p.82). Drop the pool dice or the aim.");
+      return;
+    }
+    // Barriers are wired for ordinary weapon fire only; the blast and
+    // shotgun-spread resolvers return before the damage card this hooks into.
+    if (options.barrierRating > 0 && (options.shotSpread || this.system.blastType)) {
+      ui.notifications.warn("Barrier resolution is not wired for blast or shot-spread attacks yet.");
+      return;
+    }
+
     const isThrown = ["throwing", "grenade"].includes(this.system.weaponType);
     if (isThrown) {
       const qty = this.system.quantity ?? 0;
@@ -608,11 +639,23 @@ export class SR2EItem extends Item {
         spreadMod = shotgunSpread(this.system.choke, spreadDist).tnModifier;
       }
 
+      // Called shot +4 (p.92) and Take Aim −1 each (p.82). Barrier blind fire
+      // REPLACES the visibility value rather than stacking with it (p.98).
+      const calledShotMod_ = options.calledShot ? CALLED_SHOT_TN : 0;
+      const aimCut_ = aimTnReduction(options.aimActions ?? 0, skillRating);
+      const barrierBlind_ = (options.barrierRating > 0 && options.barrierMode !== "break"
+                             && !options.barrierTransparent) ? 8 : 0;
+      const effVis_ = Math.max(visMod, barrierBlind_);
+
       targetNumber = Math.max(2,
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
-                + visMod + spreadMod + defaultingPenalty
+                + effVis_ + spreadMod + defaultingPenalty
+                + calledShotMod_ - aimCut_
       );
+      if (calledShotMod_) modParts.push(`called shot +${calledShotMod_}`);
+      if (aimCut_)        modParts.push(`aim −${aimCut_}`);
+      if (barrierBlind_ && barrierBlind_ >= visMod) modParts.push("blind fire through barrier +8");
 
       if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
       if (defaultingNote) modParts.push(defaultingNote);
@@ -800,6 +843,7 @@ export class SR2EItem extends Item {
       const armorType    = "ballistic";
       let effectivePower = dmg.power;
       let levelBonus     = 0;
+      let burstPowerAdded = 0;
       const powerNotes   = [];
 
       // Loaded ammunition effects (SR2E p.93–94) — ranged, tracked weapons only
@@ -820,23 +864,82 @@ export class SR2EItem extends Item {
       if (isRanged && isBurst) {
         const burst = burstDamageBonus(rounds);
         effectivePower += burst.powerBonus;
+        burstPowerAdded = burst.powerBonus;
         levelBonus = burst.levelSteps;
         powerNotes.push(`+${burst.powerBonus} burst, level +${levelBonus}`);
       }
       effectivePower = Math.max(1, effectivePower);
-      const powerNote = powerNotes.length
+      let powerNote = powerNotes.length
         ? ` <em>(base ${dmg.power}, ${foundry.utils.escapeHTML(powerNotes.join(", "))})</em>` : "";
 
       const stageUps = netToSteps(result.successes);
       const stages   = ["L", "M", "S", "D"];
       const baseIdx  = stages.indexOf(dmg.level);
-      const finalIdx = Math.min(baseIdx + levelBonus + stageUps, 3);
+      // Called shot stages damage up one level (p.92). Kept as its own counter
+      // and summed into the SINGLE existing cap — capping each contribution
+      // separately would silently lose stages.
+      const calledShotSteps = options.calledShot ? CALLED_SHOT_STEPS : 0;
+      const finalIdx = Math.min(baseIdx + levelBonus + calledShotSteps + stageUps, 3);
+      if (calledShotSteps) powerNotes.push("called shot: damage +1 level");
       const safeName = foundry.utils.escapeHTML(this.name);
       const ammoLine = ammoName
         ? `<br><em>Loaded: ${foundry.utils.escapeHTML(ammoName)}</em>` : "";
-      // Base Power unmodified by burst/full-auto — used for the vehicle-armor
-      // penetration check (SR2E p.108)
-      const basePower = effectivePower - (isRanged && isBurst ? rounds : 0);
+      // Base Power of the round: ammunition INCLUDED, burst/full-auto excluded.
+      // Used for the vehicle-armor penetration check (SR2E p.108) and for the
+      // barrier comparison (p.98: "always use the base Power Rating of the
+      // round, unmodified for burst or full auto"). Captured from
+      // burst.powerBonus rather than re-derived by subtracting `rounds`: those
+      // are equal today, but only because burstDamageBonus() happens to return
+      // powerBonus === rounds, which nothing guarantees.
+      const basePower = effectivePower - burstPowerAdded;
+
+      // --- Barrier resolution (SR2E p.98) ---------------------------------
+      // Runs BEFORE the ordinary damage card and has three terminal outcomes:
+      // breaking through posts only the barrier result (the barrier WAS the
+      // target); a stopped shot posts stopped + barrier result; a penetrating
+      // shot falls through to normal defender resistance with Power reduced.
+      //
+      // `basePower` — not `effectivePower` — is what the barrier is compared
+      // against, per p.98's "unmodified for burst or full auto".
+      let barrierPowerCut = 0;
+      if (options.barrierRating > 0) {
+        const bar = resolveBarrier({
+          baseRating: options.barrierRating,
+          doorType: options.barrierDoor ?? "none",
+          barrierMode: options.barrierMode ?? "through",
+          comparisonPower: basePower,
+          attackKind: "ranged"
+        });
+        const eff = bar.effect;
+        const effLine = !eff ? ""
+          : eff.tier === "none"     ? "The barrier holds — cosmetic damage only."
+          : eff.tier === "damaged"  ? `The barrier is damaged: rating ${options.barrierRating} → ${bar.newBaseRating}.`
+          : `Breached — ${eff.holes} half-metre hole${eff.holes === 1 ? "" : "s"} opened; rating ${options.barrierRating} → ${bar.newBaseRating}.`;
+        const doorLine = bar.opensDoor ? " <strong>The door breaks open.</strong>" : "";
+        const advisory = eff ? ` <em>(advisory — the new rating is not saved anywhere)</em>` : "";
+
+        if ((options.barrierMode ?? "through") === "break" || bar.stopped) {
+          const damageRating = adjustedBarrierRating(options.barrierRating,
+            { use: "damage", attackKind: "ranged", doorType: options.barrierDoor ?? "none" });
+          const why = (options.barrierMode ?? "through") === "break"
+            ? `Attacking the barrier directly: rating ${options.barrierRating}, doubled to ${damageRating} against ranged fire (p.98). Base Power ${basePower}.`
+            : `Base Power ${basePower} did not beat the barrier (${bar.penetrationRating}) — <strong>stopped cold</strong>.`;
+          await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor }),
+            content: `<div class="sr2e-card"><h3>${safeName} vs Barrier</h3>` +
+                     `<p>${why}</p><p>${effLine}${doorLine}${advisory}</p></div>`
+          });
+          return result;   // terminal: no defender damage card
+        }
+        // Penetrated: the barrier only reduces Power. Armour is NOT applied
+        // here — the resistance path already does that, and doing both would
+        // double it.
+        barrierPowerCut = bar.powerReduction;
+        effectivePower = Math.max(1, effectivePower - barrierPowerCut);
+        // Rebuild the note — it was assembled before this reduction.
+        powerNotes.push(`−${barrierPowerCut} barrier`);
+        powerNote = ` <em>(base ${dmg.power}, ${foundry.utils.escapeHTML(powerNotes.join(", "))})</em>`;
+      }
 
       // The defender = the attacker's current target (T key), if any, so the
       // Resist button rolls for the target rather than whoever has a token

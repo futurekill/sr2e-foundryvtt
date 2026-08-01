@@ -201,6 +201,118 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Contacts" });
 
+    // ── Called shot / aim / barriers, through the REAL attack path ─────────────
+    // Vitest covers the arithmetic; these cover what it cannot reach — the
+    // dialog result travelling through item.roll() into _rollWeaponAttack(),
+    // where the review said the risk actually lives.
+    quench.registerBatch("sr2e.attack-options", (context) => {
+      const { describe, it, assert, after } = context;
+      let actor;
+      after(async () => { await actor?.delete(); });
+
+      const mkActor = async (name) => Actor.create({ name, type: "character" });
+
+      describe("Called shots (SR2E p.92)", () => {
+        it("is refused on full auto even when the dialog is bypassed", async () => {
+          actor = await mkActor("Quench CalledShot");
+          const [gun] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test AR", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "8M",
+                      firingModes: { ss: false, sa: true, bf: true, fa: true },
+                      ammo: { current: 30, max: 30 } }
+          }]);
+          const before = gun.system.ammo.current;
+          // Direct call — no dialog in the way.
+          await gun.roll({ firingMode: "fa", calledShot: true, rounds: 6 });
+          assert.equal(gun.system.ammo.current, before,
+            "a refused called shot must not consume ammunition");
+        });
+
+        it("does not consume a thrown weapon when refused", async () => {
+          // Validation runs BEFORE the quantity decrement; this is the ordering
+          // bug the review caught.
+          actor = await mkActor("Quench Thrown");
+          const [nade] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Grenade", type: "weapon",
+            system: { weaponType: "grenade", skill: "throwing weapons", damageCode: "10S", quantity: 3 }
+          }]);
+          await nade.roll({ calledShot: true });
+          assert.equal(nade.system.quantity, 3, "a refused attack still ate the grenade");
+        });
+      });
+
+      describe("Take Aim (SR2E p.82)", () => {
+        it("aborts a multi-phase aim that also asks for pool dice", async () => {
+          actor = await mkActor("Quench Aim");
+          const [gun] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Pistol", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "9M", equipped: true,
+                      firingModes: { sa: true }, ammo: { current: 10, max: 10 } }
+          }]);
+          const before = gun.system.ammo.current;
+          await gun.roll({ firingMode: "sa", aimActions: 2, aimMultiPhase: true, poolDice: 3 });
+          assert.equal(gun.system.ammo.current, before,
+            "the abort must happen before ammunition is spent");
+        });
+
+        it("permits pool dice on a SINGLE-phase aim", async () => {
+          // p.82 restricts pools only when aim spans multiple phases. An earlier
+          // draft banned them for any aim at all.
+          actor = await mkActor("Quench Aim1");
+          const [gun] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Pistol", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "9M", equipped: true,
+                      firingModes: { sa: true }, ammo: { current: 10, max: 10 } }
+          }]);
+          const before = gun.system.ammo.current;
+          await gun.roll({ firingMode: "sa", aimActions: 2, aimMultiPhase: false, poolDice: 3 });
+          assert.isBelow(gun.system.ammo.current, before, "a single-phase aim should still fire");
+        });
+
+        it("refuses to aim a weapon that is not a ready ranged weapon", async () => {
+          actor = await mkActor("Quench AimMelee");
+          const [blade] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Blade", type: "weapon",
+            system: { weaponType: "melee", skill: "armed combat", damageCode: "(Str)M", equipped: true }
+          }]);
+          const r = await blade.roll({ aimActions: 1 });
+          assert.notOk(r, "melee weapons cannot be aimed (p.82)");
+        });
+      });
+
+      describe("Barriers (SR2E p.98)", () => {
+        it("compares the BASE round Power, not the burst-inflated Power", async () => {
+          // The whole point of p.98's "unmodified for burst or full auto".
+          // A 6M weapon on a 3-round burst has effective Power 9; the barrier
+          // must see 6. Barrier 8 therefore STOPS it.
+          actor = await mkActor("Quench BarrierPower");
+          const [gun] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test SMG", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "6M",
+                      firingModes: { sa: true, bf: true }, ammo: { current: 30, max: 30 } }
+          }]);
+          const msgsBefore = game.messages.size;
+          await gun.roll({ firingMode: "bf", rounds: 3, barrierRating: 8, barrierMode: "through" });
+          const last = [...game.messages].pop();
+          assert.include(last?.content ?? "", "stopped cold",
+            "burst Power leaked into the barrier comparison — 6 should not beat 8");
+          assert.isAbove(game.messages.size, msgsBefore);
+        });
+
+        it("is refused for shot-spread attacks rather than half-wired", async () => {
+          actor = await mkActor("Quench BarrierSpread");
+          const [sg] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Shotgun", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "10S",
+                      firingModes: { sa: true }, ammo: { current: 8, max: 8 } }
+          }]);
+          const before = sg.system.ammo.current;
+          await sg.roll({ firingMode: "sa", shotSpread: true, barrierRating: 4 });
+          assert.equal(sg.system.ammo.current, before, "should have been refused before firing");
+        });
+      });
+    }, { displayName: "SR2E: Attack Options" });
+
     // ── Slotted skillsofts inject / override skills (SR2E p.248) ────────────────
     quench.registerBatch("sr2e.skillsofts", (context) => {
       const { describe, it, assert, after } = context;

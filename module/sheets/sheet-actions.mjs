@@ -1,5 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating } from "../rules/sr2e-rules.mjs";
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating,
+         maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
@@ -559,6 +560,27 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     ? accBase.laserMod : 0;
   const accessoryTnMod = accBase.tnMod + laserMod;
 
+  // --- Aim, called shot, barrier (SR2E p.82 / p.92 / p.98) -------------------
+  // Eligibility is decided HERE for the UI and again in _rollWeaponAttack(),
+  // because a macro or direct item.roll() bypasses this dialog entirely.
+  const wType = weapon.system.weaponType;
+  const modes = weapon.system.firingModes ?? {};
+  const declaredMode = presets.firingMode ?? (modes.sa ? "sa" : modes.ss ? "ss" : modes.bf ? "bf" : "fa");
+
+  // The aim cap follows the skill actually being rolled. `skillCap` is seeded
+  // from the HIGHEST variant on offer, so using it directly would let a player
+  // claim more aim than the variant they picked supports; the render hook below
+  // recomputes this when the variant changes.
+  const aimSkill   = Number.isFinite(skillCap) ? skillCap : 0;
+  const maxAim     = maxAimActions(aimSkill);
+  const aimOk      = canAim(wType, weapon.system.equipped) && maxAim > 0;
+  const aimDisabled = aimOk ? "" : "disabled";
+  const calledOk   = canCallShot(wType, declaredMode, modes);
+  const calledDisabled = calledOk ? "" : "disabled";
+  const barrierOptions = BARRIER_RATINGS.map(b =>
+    `<option value="${b.rating}" data-transparent="${b.transparent}">${b.label} (${b.rating})</option>`).join("");
+
+
   const woundPenalty   = actor.system.woundPenalty ?? 0;
   const sustainPenalty = actor.system.sustainPenalty ?? 0;
   const shotsFired    = actor.system.combatRecoil  ?? 0;
@@ -733,7 +755,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
         if (gyroRow)      gyroRow.style.display    = gyroCut > 0 ? "" : "none";
         if (gyroVal)      gyroVal.textContent      = `−${gyroCut}`;
-        finalTN = Math.max(2, BASE_TN + rMod + cMod + vMod + aMod + tMod + mMod + oMod
+        // Barrier blind fire REPLACES the visibility value rather than adding to
+        // it (p.98: "+8 Blind Fire ... If the intervening barrier is
+        // transparent, the modifier does not apply"). Adding would let an
+        // opaque barrier plus a Blind Fire visibility pick reach +16.
+        const effVis = Math.max(vMod, barrierBlindFire());
+        finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod
+                                      + calledShotMod() - aimMod()
                                       + cyberwareMod + accessoryTnMod
                                       + woundPenalty + sustainPenalty
                                       + recoil - gyroCut + defaultingPenalty);
@@ -758,6 +786,54 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
     }
+
+    // --- aim / called shot / barrier, live (p.82, p.92, p.98) ---------------
+    const aimInput      = root.querySelector("#sr2e-aim");
+    const aimMultiBox   = root.querySelector("#sr2e-aim-multiphase");
+    const calledBox     = root.querySelector("#sr2e-called-shot");
+    const barrierSelect = root.querySelector("#sr2e-barrier");
+    const barrierModeSel= root.querySelector("#sr2e-barrier-mode");
+
+    const aimMod = () => Math.max(0, Math.min(parseInt(aimInput?.max) || 0,
+                                              parseInt(aimInput?.value) || 0));
+    const calledShotMod = () => (calledBox && !calledBox.disabled && calledBox.checked) ? CALLED_SHOT_TN : 0;
+    const barrierBlindFire = () => {
+      if (!barrierSelect?.value) return 0;
+      if (barrierModeSel?.value === "break") return 0;   // you can see what you are shooting
+      const opt = barrierSelect.selectedOptions?.[0];
+      return opt?.dataset?.transparent === "true" ? 0 : 8;
+    };
+
+    // A called shot is illegal on full auto (p.92). Couple the controls so the
+    // combination cannot be seen on screen; _rollWeaponAttack() refuses it too.
+    const syncCalledShot = () => {
+      if (!calledBox) return;
+      const mode = modeSelect?.value ?? "sa";
+      const legal = canCallShot(weapon.system.weaponType, mode, weapon.system.firingModes ?? {});
+      calledBox.disabled = !legal;
+      if (!legal) calledBox.checked = false;
+      calledBox.title = legal ? "+4 TN, damage +1 level."
+        : "Not eligible: p.92 allows called shots only for weapons firing SS, SA or BF.";
+    };
+
+    // Aiming across phases forbids Dice Pool dice entirely (p.82). Disable them
+    // rather than silently discarding what the player typed.
+    const poolInputs = () => [...root.querySelectorAll('input[name$="Pool"], #sr2e-pool-dice')];
+    const syncAimPools = () => {
+      const ban = !!aimMultiBox?.checked && aimMod() > 0;
+      for (const el of poolInputs()) {
+        el.disabled = ban;
+        if (ban) el.value = 0;
+        el.title = ban ? "Aiming over multiple Combat Phases forbids Dice Pool dice (SR2E p.82)." : (el.dataset.baseTitle ?? el.title);
+      }
+    };
+
+    for (const el of [aimInput, aimMultiBox, calledBox, barrierSelect, barrierModeSel]) {
+      el?.addEventListener("change", () => { syncCalledShot(); syncAimPools(); updateTN(); });
+      el?.addEventListener("input",  () => { syncAimPools(); updateTN(); });
+    }
+    modeSelect?.addEventListener("change", () => { syncCalledShot(); updateTN(); });
+    syncCalledShot(); syncAimPools();
 
     // Reset Recoil button — clears rounds already fired and persists to the actor
     const resetRecoilBtn = root.querySelector("#sr2e-reset-recoil-btn");
@@ -878,7 +954,39 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
                style="width:52px;text-align:center;"
-               title="Aimed shot −1/Simple Action · called shot +4 (bypass armour / location) · visibility (half value) · environment. Enter the net here.">
+               title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
+      </div>
+      <hr style="margin:4px 0;opacity:.3;">
+      <div class="form-group" style="margin:2px 0;">
+        <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
+        <input type="number" id="sr2e-aim" name="aimActions" value="0" min="0" max="${maxAim}"
+               style="width:52px;text-align:center;" ${aimDisabled}
+               title="${aimDisabled ? "This weapon cannot be aimed — p.82 allows a READY ranged weapon only." : `−1 TN each, maximum ${maxAim} at this skill.`}">
+        <label style="margin-left:8px;" title="SR2E p.82: a character aiming over MULTIPLE Combat Phases may not use Dice Pool dice at all. A single-phase aim is unaffected.">
+          <input type="checkbox" id="sr2e-aim-multiphase" name="aimMultiPhase" ${aimDisabled}> over multiple phases
+        </label>
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label title="SR2E p.92. +4 TN, and the Damage Code goes up one level (max D). Single-shot, semi-auto and burst only — never full auto.">Called shot:</label>
+        <input type="checkbox" id="sr2e-called-shot" name="calledShot" ${calledDisabled}
+               title="${calledDisabled ? "Not eligible: p.92 allows called shots only for weapons firing SS, SA or BF." : "+4 TN, damage +1 level."}">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label title="SR2E p.98. Firing THROUGH a barrier at someone beyond it, or attacking the barrier itself to BREAK through.">Barrier:</label>
+        <select id="sr2e-barrier" name="barrierRating" style="flex:1;">
+          <option value="">— none —</option>
+          ${barrierOptions}
+        </select>
+        <select id="sr2e-barrier-mode" name="barrierMode" style="margin-left:4px;">
+          <option value="through">firing through</option>
+          <option value="break">breaking through</option>
+        </select>
+        <select id="sr2e-barrier-door" name="barrierDoor" style="margin-left:4px;"
+                title="A security door is twice its material's rating, and must be reduced to 0 before it opens; a regular door opens at half.">
+          <option value="none">not a door</option>
+          <option value="regular">regular door</option>
+          <option value="security">security door</option>
+        </select>
       </div>
       <div class="form-group" style="margin:2px 0;">
         <label>Your allies in melee:</label>
@@ -934,7 +1042,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
                style="width:52px;text-align:center;"
-               title="Aimed shot −1/Simple Action · called shot +4 (bypass armour / location) · visibility · environment. Enter the net here.">
+               title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
     </div>`;
 
@@ -1098,6 +1206,20 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             distance:        presets.distance ?? null,
             otherMod:        parseInt(f.otherMod?.value)        || 0,
             reachMod:        parseInt(f.reachMod?.value)        || 0,
+            // --- aim / called shot / barrier (p.82, p.92, p.98) ---
+            // Clamped here and revalidated server-side; the spinner is
+            // player-asserted and the dialog is bypassable.
+            aimActions:      Math.max(0, Math.min(maxAim, parseInt(f.aimActions?.value) || 0)),
+            aimMultiPhase:   !!f.aimMultiPhase?.checked,
+            calledShot:      !!f.calledShot?.checked,
+            barrierRating:   parseInt(f.barrierRating?.value) || 0,
+            barrierMode:     f.barrierMode?.value === "break" ? "break" : "through",
+            barrierDoor:     ["regular", "security"].includes(f.barrierDoor?.value) ? f.barrierDoor.value : "none",
+            barrierTransparent: (() => {
+              const sel = f.barrierRating;
+              const opt = sel?.selectedOptions?.[0];
+              return opt?.dataset?.transparent === "true";
+            })(),
             friendsMod:      Math.min(4, Math.max(0, parseInt(f.foes?.value) || 0))
                            - Math.min(4, Math.max(0, parseInt(f.allies?.value) || 0)),
             positionMod:     (f.supPos?.checked ? -1 : 0) + (f.prone?.checked ? -2 : 0),
@@ -1238,30 +1360,11 @@ export async function rollWeaponInteractive(actor, item) {
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
                                                defaultingPenalty, presets);
   if (!opts) return;
-  return item.roll({
-    skillVariant:    opts.skillVariant,
-    visMod:          opts.visMod,
-    killingHands:    opts.killingHands,
-    boneLacingPhysical: opts.boneLacingPhysical,
-    miscDice:        opts.miscDice,
-    miscLabel:       opts.miscLabel,
-    range:           opts.range,
-    firingMode:      opts.firingMode,
-    rounds:          opts.rounds,
-    coverMod:        opts.coverMod,
-    attackerMod:     opts.attackerMod,
-    targetMod:       opts.targetMod,
-    meleeMod:        opts.meleeMod,
-    otherMod:        opts.otherMod,
-    reachMod:        opts.reachMod,
-    friendsMod:      opts.friendsMod,
-    positionMod:     opts.positionMod,
-    multiMod:        opts.multiMod,
-    shotSpread:      opts.shotSpread,
-    choke:           opts.choke,
-    poolDice:        opts.poolDice,
-    karmaDice:       opts.karmaDice
-  });
+  // Forward the dialog result WHOLESALE. This used to re-list every field by
+  // hand, which silently dropped `deployed` and `distance` — the dialog
+  // collected them and the attack never saw them. Any field added to the prompt
+  // would have been lost the same way, so new options are spread, not copied.
+  return item.roll({ ...opts });
 }
 
 /**
