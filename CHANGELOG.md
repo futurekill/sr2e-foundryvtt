@@ -8,6 +8,34 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.84.0 — 2026-08-01
+
+### Added
+- **"Foes engaging you" is now counted automatically.** Opening an attack pre-fills
+  the field from hostile tokens near your own, and the field stays editable —
+  the canvas cannot know who is really swinging at you.
+  - The radius is **two metres**, from p.90: "…or if he is aware of another
+    character attempting to block the attempt *within two meters* of him, the
+    attack takes a +2 modifier per opponent present." Read from a 300 dpi render
+    of the printed page.
+  - Distance is measured **footprint to footprint**, not centre to centre, so a
+    large token standing right against you counts instead of being measured from
+    its distant middle.
+  - Hidden tokens are skipped — p.90 conditions the modifier on the attacker
+    being *aware* of the character, which also keeps the count from revealing a
+    token a player should not see. Defeated tokens are skipped too.
+  - No claim is made when it cannot be answered honestly: no scene, no token of
+    yours, a neutral-disposition attacker (no inferable enemies), or any token
+    that cannot be measured leaves the field at 0 with no "auto" marker rather
+    than showing a partial tally.
+  - Not applied to vehicle-mounted weapons: p.90 describes a character engaged in
+    melee, and a vehicle footprint would need its own distance policy first.
+
+### Fixed
+- The +2-per-opponent modifier was hard-coded separately in the label, the live
+  target-number preview, and the submitted roll. All three now read one exported
+  constant, so the shown target number cannot drift from the rolled one.
+
 ## 0.83.1 — 2026-08-01
 
 ### Fixed

@@ -1,6 +1,8 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating,
-         maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS } from "../rules/sr2e-rules.mjs";
+         maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
+         countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE,
+         footprintDistance } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
@@ -411,6 +413,71 @@ const FIRING_MODE_DATA = {
  * @returns {{targetName?: string, distance?: number, range?: string,
  *            outOfRange?: boolean}}
  */
+/**
+ * Count opponents engaging the attacker, for the Attacker In Melee Combat
+ * modifier (SR2E p.90: +2 per opponent within two metres).
+ *
+ * Deliberately independent of targeting — you are just as engaged whether or
+ * not you have pressed T — so it is NOT folded into detectAttackTarget, which
+ * returns early when there is no target.
+ *
+ * Distance is footprint-to-footprint (see footprintDistance), not centre-to-
+ * centre, so a large token adjacent to you counts instead of being measured
+ * from its distant middle. Known limitation: on a hex scene the footprints are
+ * bounding boxes, so a foe past a corner can read marginally close.
+ *
+ * @param {Actor} attacker
+ * @returns {number|null} the count, or null when the canvas cannot answer — no
+ *   scene, no token of this attacker's, a NEUTRAL attacker (no inferable
+ *   enemies), or any token that cannot be measured. The caller then leaves the
+ *   field at 0 with no "auto" claim, rather than showing a partial tally.
+ */
+function detectEngagingFoes(attacker) {
+  if (!canvas?.ready) return null;
+  // The origin MUST be this attacker's own token. An unfiltered
+  // canvas.tokens.controlled[0] fallback would happily take whatever the user
+  // happens to have selected and read ITS position and disposition — quietly
+  // computing the penalty for the wrong character.
+  const originToken = attacker?.getActiveTokens?.()[0]
+                   ?? canvas.tokens?.controlled?.find(t => t.actor === attacker);
+  if (!originToken) return null;
+
+  const attackerDisposition = originToken.document?.disposition ?? 0;
+  // A NEUTRAL shooter has no inferable enemies. Report "don't know" rather than
+  // a confident 0, so the dialog shows no auto-detected claim.
+  if (!attackerDisposition) return null;
+
+  const pxPerUnit = canvas.grid.size / canvas.grid.distance;
+  // document.x/y is the top-left in world pixels and document.width/height are
+  // in GRID SPACES (foundry.mjs:22096), so the footprint is unambiguous —
+  // unlike Token#bounds, whose coordinate space would have to be assumed.
+  const footprint = (doc) => ({
+    x: doc.x, y: doc.y,
+    width:  (doc.width  ?? 1) * canvas.grid.size,
+    height: (doc.height ?? 1) * canvas.grid.size
+  });
+  // The ATTACKER's own footprint matters too: measuring from its centre would
+  // put a large shooter's edge closer to a foe than the maths admits.
+  const originRect = footprint(originToken.document);
+
+  const others = [];
+  for (const t of canvas.tokens?.placeables ?? []) {
+    if (t === originToken) continue;
+    const distanceM = footprintDistance(originRect, footprint(t.document), pxPerUnit);
+    // An unmeasurable token makes the whole count untrustworthy — presenting a
+    // partial tally as an automatic answer would silently understate the TN.
+    if (!Number.isFinite(distanceM)) return null;
+    others.push({
+      disposition: t.document?.disposition ?? 0,
+      distanceM,
+      hidden: t.document?.hidden === true,
+      // `combatant` is a TokenDocument getter (foundry.mjs:52437).
+      defeated: t.document?.combatant?.isDefeated === true
+    });
+  }
+  return countEngagingFoes(attackerDisposition, others);
+}
+
 function detectAttackTarget(attacker, weapon) {
   const presets = {};
   const targetToken = game.user?.targets?.first?.();
@@ -783,7 +850,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         const cMod = parseInt(coverSelect?.value) || 0;
         const vMod = parseInt(root.querySelector("#sr2e-visibility")?.value) || 0;
         // Firing while in melee: +2 per opponent engaging the attacker (p.90)
-        const mMod = 2 * Math.max(0, parseInt(meleeCheck?.value) || 0);
+        const mMod = ENGAGED_TN_PER_FOE * Math.max(0, parseInt(meleeCheck?.value) || 0);
         const recoil = currentRecoil();
         // Gyro mount eats recoil + attacker movement modifiers (p.90)
         const gyroCut = gyroReduction(accBase.gyroRating, recoil, aMod);
@@ -958,24 +1025,25 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       </div>
       ${(weapon.system.choke ?? 0) >= 2 ? `<div class="sr2e-attack__field">
         <label title="Fire shot rounds in a spreading cone (SR2E p.95): a wider spread lowers your TN but reduces Power, and hits everyone in the cone.">Shot (spread):</label>
-        <input type="checkbox" id="sr2e-shot-spread" name="shotSpread" style="width:auto;">
+        <input type="checkbox" id="sr2e-shot-spread" name="shotSpread">
         <span class="sr2e-attack__hint">choke ${weapon.system.choke}</span>
       </div>` : ""}
       <div class="sr2e-attack__field" id="sr2e-fa-rounds-row" style="display:none;">
         <label>FA Rounds (3–10):</label>
         <input type="number" id="sr2e-fa-rounds" name="rounds" value="3" min="3" max="10"
-               style="width:52px;text-align:center;"
+
                title="Rounds in the full-auto burst: +1 Power and +1 recoil per round, +1 Damage Level per 3 rounds (SR2E p.93)">
       </div>
       <div class="sr2e-attack__field">
-        <label>Foes engaging you (+2 ea):</label>
-        <input type="number" id="sr2e-in-melee" name="inMelee" value="0" min="0"
-               style="width:52px;text-align:center;"
-               title="Firing a ranged weapon while engaged in melee: +2 TN per opponent present (SR2E p.90)">
+        <label>Foes engaging you (+${ENGAGED_TN_PER_FOE} ea):${presets.inMelee
+          ? ` <span class="sr2e-attack__hint">auto · ${ENGAGEMENT_RANGE_M} m</span>` : ""}</label>
+        <input type="number" id="sr2e-in-melee" name="inMelee" value="${presets.inMelee ?? 0}" min="0"
+               title="Firing a ranged weapon while engaged in melee: +2 TN per opponent present (SR2E p.90).
+Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 counts an opponent 'within two meters'). Hidden and defeated tokens are skipped. Override freely — the canvas cannot know who is actually swinging at you.">
       </div>
       ${accBase.needsDeployment.length ? `<div class="sr2e-attack__field">
         <label>${foundry.utils.escapeHTML(accBase.needsDeployment.join("/"))} deployed:</label>
-        <input type="checkbox" id="sr2e-deployed" name="deployed" style="width:auto;"
+        <input type="checkbox" id="sr2e-deployed" name="deployed"
                title="Recoil compensation from a bipod/tripod only counts when the mount is set up — fired from a braced sitting or lying position (SR2E p.240–241)">
       </div>` : ""}
 
@@ -984,50 +1052,50 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     <div class="sr2e-attack__grid">
       ${killingHands ? `<div class="sr2e-attack__field">
         <label title="Declare the strike as PHYSICAL damage at your Killing Hands level instead of (Str)M Stun (SR2E p.125-126)">Killing Hands (${killingHands} Physical):</label>
-        <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked style="width:auto;">
+        <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked>
       </div>` : ""}
       ${offerBoneLacingPhysical ? `<div class="sr2e-attack__field">
         <label title="Bone lacing lets you strike for PHYSICAL damage, but the Power Level is halved, round up (Shadowtech p.42). Leave unchecked for normal (Str+${laceBonus})M Stun.">Physical (½ Power):</label>
-        <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical" style="width:auto;">
+        <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical">
       </div>` : ""}
       <div class="sr2e-attack__field">
         <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
-               value="0" style="width:52px;text-align:center;"
+               value="0"
                title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)">
       </div>
       <div class="sr2e-attack__field">
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
-               style="width:52px;text-align:center;"
+
                title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
       <div class="sr2e-attack__field">
         <label>Your allies in melee:</label>
         <input type="number" id="sr2e-allies" name="allies" value="0" min="0" max="4"
-               style="width:52px;text-align:center;"
+
                title="Friends actively in this brawl: −1 TN each (max −4). (SR2E p.101)">
       </div>
       <div class="sr2e-attack__field">
         <label>Foe's allies in melee:</label>
         <input type="number" id="sr2e-foes" name="foes" value="0" min="0" max="4"
-               style="width:52px;text-align:center;"
+
                title="Opponent's friends in the brawl: +1 TN each (max +4). (SR2E p.101)">
       </div>
       <div class="sr2e-attack__field">
         <label>Superior position (−1):</label>
-        <input type="checkbox" id="sr2e-sup-pos" name="supPos" style="width:auto;"
+        <input type="checkbox" id="sr2e-sup-pos" name="supPos"
                title="Higher or steadier ground than your opponent (SR2E p.101)">
       </div>
       <div class="sr2e-attack__field">
         <label>Opponent prone (−2):</label>
-        <input type="checkbox" id="sr2e-prone" name="prone" style="width:auto;"
+        <input type="checkbox" id="sr2e-prone" name="prone"
                title="Opponent is lying on the ground (SR2E p.101)">
       </div>
       <div class="sr2e-attack__field">
         <label>Additional targets (+2 ea):</label>
         <input type="number" id="sr2e-multi" name="multiTargets" value="0" min="0"
-               style="width:52px;text-align:center;"
+
                title="Attacking multiple targets this action: +2 TN per extra target (SR2E p.101)">
       </div>
     </div>`;
@@ -1055,7 +1123,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       <div class="sr2e-attack__field">
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
-               style="width:52px;text-align:center;"
+
                title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
     </div>`;
@@ -1254,7 +1322,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             attackerMod:     parseInt(f.attacker?.value)        || 0,
             targetMod:       parseInt(f.target?.value)          || 0,
             // Firing while engaged in melee: +2 per opponent (SR2E p.90)
-            meleeMod:        2 * Math.max(0, parseInt(f.inMelee?.value) || 0),
+            meleeMod:        ENGAGED_TN_PER_FOE * Math.max(0, parseInt(f.inMelee?.value) || 0),
             deployed:        !!f.deployed?.checked,
             distance:        presets.distance ?? null,
             otherMod:        parseInt(f.otherMod?.value)        || 0,
@@ -1408,6 +1476,12 @@ export async function rollWeaponInteractive(actor, item) {
 
   // Pre-fill range / target Quickness from canvas targeting (T key)
   const presets = detectAttackTarget(actor, item);
+  // Opponents within two metres (p.90). Separate from the target detection
+  // above: you are engaged whether or not you have targeted anything. Not done
+  // for vehicle mounts — p.90 describes a character engaged in melee, and a
+  // vehicle's footprint would need its own distance policy first.
+  const engaging = detectEngagingFoes(actor);
+  if (engaging != null) presets.inMelee = engaging;
   if (skillChoices.length > 1) presets.skillChoices = skillChoices;
 
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,

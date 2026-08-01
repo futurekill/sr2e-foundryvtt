@@ -3719,8 +3719,15 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-attack__grid > .sr2e-attack__check { align-self: end; }
 .sr2e-attack__check input { flex: 0 0 auto; margin: 0; width: auto; }
 .sr2e-attack__check:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
-/* Secondary detail on a row: present, but never competing. */
-.sr2e-attack__hint { font-size: 10px; opacity: 0.7; font-weight: 400; }
+/* Secondary detail on a row: present, but never competing. Opts out of the
+   label's uppercase/tracking — a hint set in caps reads as another label. */
+.sr2e-attack__hint {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
 
 /* Pool over/under-spend warning. Hidden until the validator writes text into
    it, so it costs no space in the common case (the validator also toggles

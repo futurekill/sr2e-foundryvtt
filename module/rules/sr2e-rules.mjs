@@ -2762,3 +2762,84 @@ export function resolveBarrier({ baseRating, doorType = "none", barrierMode = "t
     effect, newBaseRating, opensDoor, penetrationRating
   };
 }
+
+/* ==========================================================================
+   Attacker In Melee Combat (SR2E p.90)
+   ========================================================================== */
+
+/**
+ * How close a hostile character has to be to count as engaging the attacker.
+ *
+ * p.90, verified from a 300 dpi render of the printed page: "If the attacker is
+ * attempting to conduct a ranged attack while engaged in melee combat with an
+ * opponent, or if he is aware of another character attempting to block the
+ * attempt WITHIN TWO METERS of him, the attack takes a +2 modifier per opponent
+ * present." Two metres — not one, and not "adjacent square".
+ * @type {number}
+ */
+export const ENGAGEMENT_RANGE_M = 2;
+
+/** TN penalty per engaging opponent (p.90 Ranged Combat Modifiers Table). */
+export const ENGAGED_TN_PER_FOE = 2;
+
+/**
+ * Gap between two token footprints, in scene units. 0 when they touch or overlap.
+ *
+ * Centre-to-centre is wrong once either token is bigger than one square: a 4x4
+ * troll standing right against you has its centre well over two metres away, so
+ * a centre measurement calls it "not engaging" when it is literally adjacent.
+ * Measuring footprint-to-footprint counts it, and stays within half a square of
+ * the centre measurement for the ordinary 1x1-vs-1x1 case.
+ *
+ * Both rectangles are axis-aligned. On a SQUARE or gridless scene that is the
+ * token's true occupied area. On a HEX scene it is the bounding box of a hex
+ * footprint, so a foe diagonally past a corner can read slightly closer than it
+ * really is — accepted rather than pulling in TokenDocument#getGridSpacePolygon
+ * and polygon-to-polygon distance, because the result only pre-fills an input
+ * the player can edit. Revisit if SR2E ever ships hex scenes.
+ *
+ * @param {{x: number, y: number, width: number, height: number}} a - pixels.
+ * @param {{x: number, y: number, width: number, height: number}} b - pixels.
+ * @param {number} pxPerUnit - canvas.grid.size / canvas.grid.distance.
+ * @returns {number} distance in scene units, or NaN if it cannot be computed.
+ */
+export function footprintDistance(a, b, pxPerUnit) {
+  if (!a || !b || !Number.isFinite(pxPerUnit) || pxPerUnit <= 0) return NaN;
+  const vals = [a.x, a.y, a.width, a.height, b.x, b.y, b.width, b.height];
+  if (!vals.every(Number.isFinite)) return NaN;
+  // 0 on whichever axis the two rectangles already overlap.
+  const dx = Math.max(b.x - (a.x + a.width),  0, a.x - (b.x + b.width));
+  const dy = Math.max(b.y - (a.y + a.height), 0, a.y - (b.y + b.height));
+  return Math.hypot(dx, dy) / pxPerUnit;
+}
+
+/**
+ * Count how many nearby characters are "engaging" the attacker for the
+ * Attacker In Melee Combat modifier.
+ *
+ * Pure so it can be tested without a canvas: the caller measures distances and
+ * hands over plain descriptors.
+ *
+ * @param {number} attackerDisposition - Foundry TOKEN_DISPOSITIONS of the shooter.
+ * @param {Array<{disposition: number, distanceM: number, hidden?: boolean,
+ *                defeated?: boolean}>} others - Every other token on the scene.
+ * @returns {number} opponents present (never negative).
+ */
+export function countEngagingFoes(attackerDisposition, others = []) {
+  // A NEUTRAL shooter has no automatic enemies — sign comparison would count
+  // nobody anyway, but returning early says so on purpose rather than by luck.
+  if (!attackerDisposition) return 0;
+
+  return others.filter(o => {
+    if (!o || !Number.isFinite(o.distanceM)) return false;
+    if (o.distanceM > ENGAGEMENT_RANGE_M) return false;
+    // The book conditions this on the attacker being AWARE of the character,
+    // so a hidden token cannot contribute — which also stops the count from
+    // leaking the presence of a token the player is not allowed to see.
+    if (o.hidden) return false;
+    if (o.defeated) return false;
+    // Opposed dispositions only: FRIENDLY(1) vs HOSTILE(-1)/SECRET(-2), and the
+    // mirror for a GM-side shooter. NEUTRAL(0) is nobody's opponent.
+    return o.disposition * attackerDisposition < 0;
+  }).length;
+}
