@@ -8,6 +8,20 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.82.1 — 2026-08-01
+
+### Fixed
+- **Weapon attacks were completely broken in 0.82.0.** Clicking a weapon threw
+  `Cannot access 'maxAim' before initialization` and no dialog opened. The
+  tabbed rebuild put the Tactics-tab markup (`const tacticsHTML`) fifty lines
+  above the aim/called-shot/barrier values it interpolates; a template literal
+  evaluates on declaration, so it hit the temporal dead zone every time.
+  Declaration moved below its inputs.
+- Added `test/declaration-order.test.mjs`, which fails on any template-literal
+  `const` in the sheet-action dialogs that reads a `const` declared later in
+  the same function. `node --check` cannot see this class of bug and no test
+  builds the attack dialog, which is why 0.82.0 shipped with the feature dead.
+
 ## 0.82.0 — 2026-08-01
 
 ### Changed

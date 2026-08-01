@@ -560,7 +560,32 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     ? accBase.laserMod : 0;
   const accessoryTnMod = accBase.tnMod + laserMod;
 
+
+  // --- Aim, called shot, barrier (SR2E p.82 / p.92 / p.98) -------------------
+  // Eligibility is decided HERE for the UI and again in _rollWeaponAttack(),
+  // because a macro or direct item.roll() bypasses this dialog entirely.
+  const wType = weapon.system.weaponType;
+  const modes = weapon.system.firingModes ?? {};
+  const declaredMode = presets.firingMode ?? (modes.sa ? "sa" : modes.ss ? "ss" : modes.bf ? "bf" : "fa");
+
+  // The aim cap follows the skill actually being rolled. `skillCap` is seeded
+  // from the HIGHEST variant on offer, so using it directly would let a player
+  // claim more aim than the variant they picked supports; the render hook below
+  // recomputes this when the variant changes.
+  const aimSkill   = Number.isFinite(skillCap) ? skillCap : 0;
+  const maxAim     = maxAimActions(aimSkill);
+  const aimOk      = canAim(wType, weapon.system.equipped) && maxAim > 0;
+  const aimDisabled = aimOk ? "" : "disabled";
+  const calledOk   = canCallShot(wType, declaredMode, modes);
+  const calledDisabled = calledOk ? "" : "disabled";
+  const barrierOptions = BARRIER_RATINGS.map(b =>
+    `<option value="${b.rating}" data-transparent="${b.transparent}">${b.label} (${b.rating})</option>`).join("");
+
   // Aim / called shot / barrier live on their own tab (see the tab strip below).
+  // MUST come after maxAim/aimDisabled/calledDisabled/barrierOptions: this is a
+  // template literal, so it evaluates them the moment it is declared. Declaring
+  // it earlier threw "Cannot access 'maxAim' before initialization" and the
+  // dialog never opened.
   const tacticsHTML = `
       <div class="sr2e-attack__field">
         <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
@@ -599,27 +624,6 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         </div>
       </details>
   `;
-
-  // --- Aim, called shot, barrier (SR2E p.82 / p.92 / p.98) -------------------
-  // Eligibility is decided HERE for the UI and again in _rollWeaponAttack(),
-  // because a macro or direct item.roll() bypasses this dialog entirely.
-  const wType = weapon.system.weaponType;
-  const modes = weapon.system.firingModes ?? {};
-  const declaredMode = presets.firingMode ?? (modes.sa ? "sa" : modes.ss ? "ss" : modes.bf ? "bf" : "fa");
-
-  // The aim cap follows the skill actually being rolled. `skillCap` is seeded
-  // from the HIGHEST variant on offer, so using it directly would let a player
-  // claim more aim than the variant they picked supports; the render hook below
-  // recomputes this when the variant changes.
-  const aimSkill   = Number.isFinite(skillCap) ? skillCap : 0;
-  const maxAim     = maxAimActions(aimSkill);
-  const aimOk      = canAim(wType, weapon.system.equipped) && maxAim > 0;
-  const aimDisabled = aimOk ? "" : "disabled";
-  const calledOk   = canCallShot(wType, declaredMode, modes);
-  const calledDisabled = calledOk ? "" : "disabled";
-  const barrierOptions = BARRIER_RATINGS.map(b =>
-    `<option value="${b.rating}" data-transparent="${b.transparent}">${b.label} (${b.rating})</option>`).join("");
-
 
   const woundPenalty   = actor.system.woundPenalty ?? 0;
   const sustainPenalty = actor.system.sustainPenalty ?? 0;
