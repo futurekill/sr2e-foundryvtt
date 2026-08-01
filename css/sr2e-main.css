@@ -3599,18 +3599,23 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   --atk-1: 4px;  --atk-2: 8px;  --atk-3: 12px; --atk-4: 16px; --atk-6: 24px;
   display: flex;
   flex-direction: column;
-  gap: var(--atk-3);
-  /* Resizable dialog: the form owns the scroll, so the TN bar and buttons stay
-     reachable however short the window gets. */
-  max-height: min(72vh, 640px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* Right: clear of the scrollbar. Bottom: the readout is sticky, so without
-     this the final control sits permanently underneath it and can never be
-     scrolled into view. */
-  padding-right: var(--atk-1);
-  padding-bottom: var(--atk-2);
-  scroll-padding-bottom: 64px;
+  gap: var(--atk-2);
+  /* Fill the window and let the PANELS scroll. The previous version capped the
+     form at a slice of the viewport, which ignores the window entirely — so
+     dragging the resize handle smaller clipped the content with no scrollbar to
+     recover it. min-height:0 is what actually allows a flex child to shrink
+     below its content and become scrollable. */
+  min-height: 0;
+  max-height: 100%;
+}
+
+/* ApplicationV2 puts the form inside .window-content; it has to become a flex
+   container too, or the form has no height to fill. */
+.application .window-content:has(> .sr2e-attack) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* --- groups --------------------------------------------------------------- */
@@ -3640,18 +3645,27 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-attack__grid--wide { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
 /* --- fields --------------------------------------------------------------- */
-.sr2e-attack__field { display: flex; align-items: center; gap: var(--atk-2); min-width: 0; }
+.sr2e-attack__field {
+  display: flex;
+  align-items: center;
+  gap: var(--atk-3);            /* 12px — 8 read as touching next to a full-width select */
+  min-width: 0;
+  overflow: hidden;             /* a long option must not push the control past its cell */
+}
 .sr2e-attack__field > label {
   flex: 0 0 auto;
   font-size: 11px;
   color: var(--sr2e-text-muted);
   white-space: nowrap;
+  padding-right: var(--atk-1);  /* optical breathing room against the control's border */
 }
 .sr2e-attack__field > select,
 .sr2e-attack__field > input[type="number"],
 .sr2e-attack__field > input[type="text"] {
   flex: 1 1 auto;
   min-width: 0;
+  max-width: 100%;              /* Foundry's own select rules otherwise win and overflow */
+  width: auto;
   height: 24px;
   font-size: 12px;
 }
@@ -3698,9 +3712,9 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 /* The one number the dialog exists to produce. Pinned so it stays visible while
    the form scrolls, and the largest type in the window. */
 .sr2e-attack__readout {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  /* No longer sticky: it is a flex sibling of the scrolling panels, so it is
+     always on screen without overlaying anything. */
+  flex: 0 0 auto;
   display: flex;
   align-items: baseline;
   gap: var(--atk-3);
@@ -3765,3 +3779,55 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   color: var(--sr2e-text);
   padding-left: var(--atk-2, 8px);
 }
+
+/* --- tabs ------------------------------------------------------------------
+   CSS-only: three radios drive three panels via :checked ~ sibling selectors.
+   No JS, so nothing to desynchronise, and every field stays in the DOM on every
+   tab — hidden inputs still submit and are still queryable by the live hook. */
+.sr2e-attack__tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.sr2e-attack__tab-input { position: absolute; opacity: 0; pointer-events: none; }
+
+.sr2e-attack__tablist {
+  display: flex;
+  gap: var(--atk-1);
+  border-bottom: 1px solid var(--sr2e-border);
+  margin-bottom: var(--atk-3);
+  flex: 0 0 auto;
+}
+.sr2e-attack__tab {
+  padding: var(--atk-2) var(--atk-3);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sr2e-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sr2e-attack__tab:hover { color: var(--sr2e-text); }
+
+.sr2e-attack__panels { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: var(--atk-1); }
+.sr2e-attack__panel { display: none; flex-direction: column; gap: var(--atk-3); }
+
+/* checked radio -> matching tab label lit, matching panel shown */
+#sr2e-tab-shot:checked    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(1),
+#sr2e-tab-tactics:checked ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(2),
+#sr2e-tab-dice:checked    ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(3) {
+  color: var(--sr2e-gold);
+  border-bottom-color: var(--sr2e-gold);
+}
+#sr2e-tab-shot:checked    ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(1),
+#sr2e-tab-tactics:checked ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(2),
+#sr2e-tab-dice:checked    ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(3) { display: flex; }
+
+/* Keyboard users must see the focused tab. */
+.sr2e-attack__tab-input:focus-visible ~ .sr2e-attack__tablist .sr2e-attack__tab { outline: 1px dotted var(--sr2e-gold-dim); }
+
+@media (prefers-reduced-motion: reduce) { .sr2e-attack__tab { transition: none; } }

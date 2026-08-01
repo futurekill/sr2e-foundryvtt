@@ -560,6 +560,46 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     ? accBase.laserMod : 0;
   const accessoryTnMod = accBase.tnMod + laserMod;
 
+  // Aim / called shot / barrier live on their own tab (see the tab strip below).
+  const tacticsHTML = `
+      <div class="sr2e-attack__field">
+        <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
+        <input type="number" id="sr2e-aim" name="aimActions" value="0" min="0" max="${maxAim}"
+               style="width:52px;text-align:center;" ${aimDisabled}
+               title="${aimDisabled ? "This weapon cannot be aimed — p.82 allows a READY ranged weapon only." : `−1 TN each, maximum ${maxAim} at this skill.`}">
+        <label style="margin-left:8px;" title="SR2E p.82: a character aiming over MULTIPLE Combat Phases may not use Dice Pool dice at all. A single-phase aim is unaffected.">
+          <input type="checkbox" id="sr2e-aim-multiphase" name="aimMultiPhase" ${aimDisabled}> over multiple phases
+        </label>
+      </div>
+      <div class="sr2e-attack__field">
+        <label title="SR2E p.92. +4 TN, and the Damage Code goes up one level (max D). Single-shot, semi-auto and burst only — never full auto.">Called shot:</label>
+        <input type="checkbox" id="sr2e-called-shot" name="calledShot" ${calledDisabled}
+               title="${calledDisabled ? "Not eligible: p.92 allows called shots only for weapons firing SS, SA or BF." : "+4 TN, damage +1 level."}">
+      </div>
+      <details class="sr2e-attack__reveal">
+        <summary>Firing through a barrier? (SR2E p.98)</summary>
+        <div class="sr2e-attack__grid">
+      <div class="sr2e-attack__field">
+        <label title="SR2E p.98. Firing THROUGH a barrier at someone beyond it, or attacking the barrier itself to BREAK through.">Material:</label>
+        <select id="sr2e-barrier" name="barrierRating" style="flex:1;">
+          <option value="">— none —</option>
+          ${barrierOptions}
+        </select>
+        <select id="sr2e-barrier-mode" name="barrierMode" style="margin-left:4px;">
+          <option value="through">firing through</option>
+          <option value="break">breaking through</option>
+        </select>
+        <select id="sr2e-barrier-door" name="barrierDoor" style="margin-left:4px;"
+                title="A security door is twice its material's rating, and must be reduced to 0 before it opens; a regular door opens at half.">
+          <option value="none">not a door</option>
+          <option value="regular">regular door</option>
+          <option value="security">security door</option>
+        </select>
+      </div>
+        </div>
+      </details>
+  `;
+
   // --- Aim, called shot, barrier (SR2E p.82 / p.92 / p.98) -------------------
   // Eligibility is decided HERE for the UI and again in _rollWeaponAttack(),
   // because a macro or direct item.roll() bypasses this dialog entirely.
@@ -933,43 +973,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <input type="checkbox" id="sr2e-deployed" name="deployed" style="width:auto;"
                title="Recoil compensation from a bipod/tripod only counts when the mount is set up — fired from a braced sitting or lying position (SR2E p.240–241)">
       </div>` : ""}
-      <hr style="margin:4px 0;opacity:.3;">
-      <div class="sr2e-attack__field">
-        <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
-        <input type="number" id="sr2e-aim" name="aimActions" value="0" min="0" max="${maxAim}"
-               style="width:52px;text-align:center;" ${aimDisabled}
-               title="${aimDisabled ? "This weapon cannot be aimed — p.82 allows a READY ranged weapon only." : `−1 TN each, maximum ${maxAim} at this skill.`}">
-        <label style="margin-left:8px;" title="SR2E p.82: a character aiming over MULTIPLE Combat Phases may not use Dice Pool dice at all. A single-phase aim is unaffected.">
-          <input type="checkbox" id="sr2e-aim-multiphase" name="aimMultiPhase" ${aimDisabled}> over multiple phases
-        </label>
-      </div>
-      <div class="sr2e-attack__field">
-        <label title="SR2E p.92. +4 TN, and the Damage Code goes up one level (max D). Single-shot, semi-auto and burst only — never full auto.">Called shot:</label>
-        <input type="checkbox" id="sr2e-called-shot" name="calledShot" ${calledDisabled}
-               title="${calledDisabled ? "Not eligible: p.92 allows called shots only for weapons firing SS, SA or BF." : "+4 TN, damage +1 level."}">
-      </div>
-      <details class="sr2e-attack__reveal">
-        <summary>Firing through a barrier? (SR2E p.98)</summary>
-        <div class="sr2e-attack__grid">
-      <div class="sr2e-attack__field">
-        <label title="SR2E p.98. Firing THROUGH a barrier at someone beyond it, or attacking the barrier itself to BREAK through.">Material:</label>
-        <select id="sr2e-barrier" name="barrierRating" style="flex:1;">
-          <option value="">— none —</option>
-          ${barrierOptions}
-        </select>
-        <select id="sr2e-barrier-mode" name="barrierMode" style="margin-left:4px;">
-          <option value="through">firing through</option>
-          <option value="break">breaking through</option>
-        </select>
-        <select id="sr2e-barrier-door" name="barrierDoor" style="margin-left:4px;"
-                title="A security door is twice its material's rating, and must be reduced to 0 before it opens; a regular door opens at half.">
-          <option value="none">not a door</option>
-          <option value="regular">regular door</option>
-          <option value="security">security door</option>
-        </select>
-      </div>
-        </div>
-      </details>
+
     </div>` : `
     ${skillSelectHTML}
     <div class="sr2e-attack__grid">
@@ -1166,10 +1170,37 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     window: { title: game.i18n.format("SR2E.Dialog.AttackTitle", { name: weapon.name }), resizable: true },
     position: { width: 520 },
     rejectClose: false,
+    // Tabs, CSS-only (radio + :checked siblings) so there is no JS to keep in
+    // sync and no dependency on render order. Every field stays in the DOM on
+    // every tab — hidden inputs still carry values and are still queryable — so
+    // the submit callback and the live TN hook are untouched by the split.
+    //
+    // The readout sits OUTSIDE the panels: the target number is the thing you
+    // are tuning, so it must not disappear when you change tab.
     content: `<form class="sr2e-attack">
       ${targetBanner}
-      ${topInputsHTML}
-      ${isRanged ? commonInputsHTML : ""}
+      <div class="sr2e-attack__tabs">
+        <input type="radio" name="__tab" id="sr2e-tab-shot" class="sr2e-attack__tab-input" checked>
+        <input type="radio" name="__tab" id="sr2e-tab-tactics" class="sr2e-attack__tab-input">
+        <input type="radio" name="__tab" id="sr2e-tab-dice" class="sr2e-attack__tab-input">
+        <nav class="sr2e-attack__tablist">
+          <label for="sr2e-tab-shot"    class="sr2e-attack__tab">Shot</label>
+          <label for="sr2e-tab-tactics" class="sr2e-attack__tab">Tactics</label>
+          <label for="sr2e-tab-dice"    class="sr2e-attack__tab">Dice</label>
+        </nav>
+        <div class="sr2e-attack__panels">
+          <section class="sr2e-attack__panel">${topInputsHTML}</section>
+          <section class="sr2e-attack__panel">
+            ${isRanged ? tacticsHTML : ""}
+            ${isRanged ? commonInputsHTML : ""}
+          </section>
+          <section class="sr2e-attack__panel">
+            ${poolHTML}
+            ${karmaDiceSection(actor, baseDice)}
+            ${miscDiceHTML()}
+          </section>
+        </div>
+      </div>
       <div class="sr2e-attack__readout">
         <div class="sr2e-attack__tn">
           <span class="sr2e-attack__tn-label">Target</span>
@@ -1181,9 +1212,6 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ${autoRows}
         </table>
       </div>
-      ${poolHTML}
-      ${karmaDiceSection(actor, baseDice)}
-      ${miscDiceHTML()}
     </form>`,
     buttons: [
       {

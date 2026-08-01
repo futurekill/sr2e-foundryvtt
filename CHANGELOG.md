@@ -8,6 +8,30 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.82.0 — 2026-08-01
+
+### Changed
+- **The attack dialog is now tabbed**, on the GM's suggestion: **Shot**,
+  **Tactics**, **Dice**. Everyday settings (range, mode, cover, visibility, foes
+  engaging) are on the first tab; aim, called shot, barrier and the
+  attacker/target/other modifiers move to Tactics; pools, karma and misc dice to
+  Dice. **The target number stays visible on every tab** — it is the thing you
+  are tuning, so it must not vanish when you change tab.
+
+  The tabs are CSS-only, so every field stays in the DOM on every tab. Hidden
+  inputs still carry values and are still queryable, which is why the submit
+  callback and the live TN hook needed no changes. No defaults changed.
+
+### Fixed
+- **Resizing the window hid content with no way to scroll it back.** The form
+  was capped at a fraction of the *viewport*, which ignores the window entirely,
+  so dragging the resize handle smaller just clipped it. The form now fills the
+  window and the tab panel scrolls, at any height the window is dragged to.
+- **Labels sat too close to their controls** (8px read as touching beside a
+  full-width select) — now 12px plus optical padding.
+- **Long dropdown options could push a select past its column.** Foundry's own
+  select rules were overriding the width; constrained now.
+
 ## 0.81.0 — 2026-08-01
 
 ### Changed
