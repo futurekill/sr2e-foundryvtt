@@ -933,29 +933,6 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <input type="checkbox" id="sr2e-deployed" name="deployed" style="width:auto;"
                title="Recoil compensation from a bipod/tripod only counts when the mount is set up — fired from a braced sitting or lying position (SR2E p.240–241)">
       </div>` : ""}
-    </div>` : `
-    ${skillSelectHTML}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
-      ${killingHands ? `<div class="form-group" style="margin:2px 0;align-items:center;">
-        <label title="Declare the strike as PHYSICAL damage at your Killing Hands level instead of (Str)M Stun (SR2E p.125-126)">Killing Hands (${killingHands} Physical):</label>
-        <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked style="width:auto;">
-      </div>` : ""}
-      ${offerBoneLacingPhysical ? `<div class="form-group" style="margin:2px 0;align-items:center;">
-        <label title="Bone lacing lets you strike for PHYSICAL damage, but the Power Level is halved, round up (Shadowtech p.42). Leave unchecked for normal (Str+${laceBonus})M Stun.">Physical (½ Power):</label>
-        <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical" style="width:auto;">
-      </div>` : ""}
-      <div class="form-group" style="margin:2px 0;">
-        <label>Reach Mod:</label>
-        <input type="number" id="sr2e-reach-mod" name="reachMod"
-               value="0" style="width:52px;text-align:center;"
-               title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)">
-      </div>
-      <div class="form-group" style="margin:2px 0;">
-        <label>Other Mod:</label>
-        <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
-               style="width:52px;text-align:center;"
-               title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
-      </div>
       <hr style="margin:4px 0;opacity:.3;">
       <div class="form-group" style="margin:2px 0;">
         <label title="SR2E p.82. Each Take Aim Simple Action lowers the target number by 1, up to half your skill with this weapon (rounded down). YOU track the action economy — the system does not know when you took another action, so it cannot clear this for you.">Aim actions:</label>
@@ -987,6 +964,29 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           <option value="regular">regular door</option>
           <option value="security">security door</option>
         </select>
+      </div>
+    </div>` : `
+    ${skillSelectHTML}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+      ${killingHands ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+        <label title="Declare the strike as PHYSICAL damage at your Killing Hands level instead of (Str)M Stun (SR2E p.125-126)">Killing Hands (${killingHands} Physical):</label>
+        <input type="checkbox" id="sr2e-killing-hands" name="killingHands" checked style="width:auto;">
+      </div>` : ""}
+      ${offerBoneLacingPhysical ? `<div class="form-group" style="margin:2px 0;align-items:center;">
+        <label title="Bone lacing lets you strike for PHYSICAL damage, but the Power Level is halved, round up (Shadowtech p.42). Leave unchecked for normal (Str+${laceBonus})M Stun.">Physical (½ Power):</label>
+        <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical" style="width:auto;">
+      </div>` : ""}
+      <div class="form-group" style="margin:2px 0;">
+        <label>Reach Mod:</label>
+        <input type="number" id="sr2e-reach-mod" name="reachMod"
+               value="0" style="width:52px;text-align:center;"
+               title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)">
+      </div>
+      <div class="form-group" style="margin:2px 0;">
+        <label>Other Mod:</label>
+        <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
+               style="width:52px;text-align:center;"
+               title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
       <div class="form-group" style="margin:2px 0;">
         <label>Your allies in melee:</label>

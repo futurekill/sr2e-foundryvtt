@@ -8,6 +8,19 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.80.1 — 2026-08-01
+
+### Fixed
+- **The aim, called shot and barrier controls did not appear on a ranged
+  attack.** They were inserted into the attack dialog's *melee* branch — the
+  dialog builds two different bodies and I anchored on a row that exists only
+  in the melee one. So the three controls shipped in 0.80.0 rendered nowhere a
+  player would use them, since all three are ranged-only mechanics.
+
+  Moved into the ranged branch. Verified by rendering the fragment in isolation:
+  all six inputs present, the aim cap interpolated from the skill, and the
+  called-shot box disabled when the weapon is ineligible.
+
 ## 0.80.0 — 2026-08-01
 
 Post-session fixes, part 2: the attack flow. Landed as one change because all
