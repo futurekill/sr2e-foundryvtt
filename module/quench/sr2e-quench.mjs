@@ -285,18 +285,45 @@ export function registerSR2EQuenchTests() {
           // The whole point of p.98's "unmodified for burst or full auto".
           // A 6M weapon on a 3-round burst has effective Power 9; the barrier
           // must see 6. Barrier 8 therefore STOPS it.
-          actor = await mkActor("Quench BarrierPower");
-          const [gun] = await actor.createEmbeddedDocuments("Item", [{
-            name: "Test SMG", type: "weapon",
-            system: { weaponType: "firearm", skill: "firearms", damageCode: "6M",
-                      firingModes: { sa: true, bf: true }, ammo: { current: 30, max: 30 } }
-          }]);
-          const msgsBefore = game.messages.size;
-          await gun.roll({ firingMode: "bf", rounds: 3, barrierRating: 8, barrierMode: "through" });
-          const last = [...game.messages].pop();
-          assert.include(last?.content ?? "", "stopped cold",
-            "burst Power leaked into the barrier comparison — 6 should not beat 8");
-          assert.isAbove(game.messages.size, msgsBefore);
+          //
+          // The barrier branch lives inside `if (result.successes > 0)`, so a
+          // MISSED attack posts no barrier card at all and this asserted against
+          // the attack card instead — a coin-flip failure that says nothing
+          // about the rule. Force every die to a 5: it beats TN 4 so the shot
+          // always connects, and unlike a 6 it does not trigger the Rule of Six
+          // (an always-6 stub would re-roll forever and hang the batch).
+          // mapRandomFace(u) = ceil((1 - u) * 6), so u = 0.2 -> 5.
+          const realRandom = CONFIG.Dice.randomUniform;
+          CONFIG.Dice.randomUniform = () => 0.2;
+          try {
+            actor = await mkActor("Quench BarrierPower");
+            // A forced 5 only guarantees a hit if the TN really is 4, so both
+            // things that would raise it are pinned: an actual Firearms skill
+            // (no defaulting penalty) and recoilComp 3 to cancel the 3-round
+            // burst's +3 recoil. Neither touches the Power being asserted.
+            await actor.createEmbeddedDocuments("Item", [
+              { name: "Firearms", type: "skill", system: { rating: 6, category: "active" } }
+            ]);
+            const [gun] = await actor.createEmbeddedDocuments("Item", [{
+              name: "Test SMG", type: "weapon",
+              system: { weaponType: "firearm", skill: "firearms", damageCode: "6M", recoilComp: 3,
+                        firingModes: { sa: true, bf: true }, ammo: { current: 30, max: 30 } }
+            }]);
+            const before = game.messages.size;
+            await gun.roll({ firingMode: "bf", rounds: 3, barrierRating: 8, barrierMode: "through" });
+            // Scope to cards THIS roll posted, for the same reason the conjuring
+            // tests do: game.messages is the whole world log.
+            const cards = game.messages.contents.slice(before);
+            const barrierCard = cards.find(m => /vs Barrier/.test(m.content ?? ""));
+            assert.ok(barrierCard,
+              "no barrier card was posted — the shot should have connected and hit the barrier");
+            assert.include(barrierCard.content, "stopped cold",
+              "burst Power leaked into the barrier comparison — 6 should not beat 8");
+            assert.include(barrierCard.content, "Base Power 6",
+              "the card must show the BASE power (6), not the burst-inflated 9");
+          } finally {
+            CONFIG.Dice.randomUniform = realRandom;
+          }
         });
 
         it("is refused for shot-spread attacks rather than half-wired", async () => {

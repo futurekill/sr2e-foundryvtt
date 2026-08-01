@@ -8,6 +8,23 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.83.1 — 2026-08-01
+
+### Fixed
+- **Summoning a spirit never finished when spirit placement is set to "prompt".**
+  `rollConjuring` awaited the token placement, and click-to-place waits for a
+  human — so the returned promise did not settle until the GM clicked the map,
+  holding every caller hostage to that click. The design already said placement
+  must not block the summon result; now it genuinely doesn't. The chat card and
+  the bound-spirit link were never affected, only anything awaiting the call.
+
+### Changed
+- The `sr2e.attack-options` barrier Quench case now forces the dice instead of
+  rolling live. Its barrier card is only built on a hit, so a missed attack made
+  it assert against the wrong card — a coin flip that said nothing about the
+  rule. It also asserts the card prints the BASE Power, which is the actual
+  p.98 claim. The rule itself was correct and unchanged.
+
 ## 0.83.0 — 2026-08-01
 
 ### Fixed

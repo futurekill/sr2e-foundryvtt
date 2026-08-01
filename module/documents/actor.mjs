@@ -955,12 +955,18 @@ export class SR2EActor extends Actor {
           </div>`
     });
 
-    // Placement runs AFTER the card: click-to-place waits on a human, and the
-    // summon result must never be held hostage to that (or to a map that can't
-    // take a token). Best-effort — placement swallows its own failures.
+    // Placement runs AFTER the card and is deliberately NOT awaited. With the
+    // "prompt" placement setting, _promptForPoint waits on a human click, so
+    // awaiting it meant rollConjuring's promise did not settle until the GM
+    // clicked the map — holding the caller hostage to a human, which is exactly
+    // what the design says must not happen. (It also hung the Quench batch,
+    // where nobody ever clicks.) Best-effort and detached: placeSummonedToken
+    // already swallows its own failures; .catch() covers the rest so a detached
+    // rejection can never surface as an unhandled promise.
     if (spiritUuid) {
-      const spiritActor = await fromUuid(spiritUuid);
-      if (spiritActor) await placeSummonedToken(spiritActor, this);
+      fromUuid(spiritUuid)
+        .then(spiritActor => spiritActor && placeSummonedToken(spiritActor, this))
+        .catch(err => console.error("SR2E | Spirit token placement failed:", err));
     }
 
     return conjureResult;
