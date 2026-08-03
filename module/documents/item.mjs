@@ -975,10 +975,14 @@ export class SR2EItem extends Item {
       // TOKEN when given one — which is what we want: it names the specific
       // token that was shot, not the prototype actor, so four identical guards
       // stay distinguishable.
+      // Keep the alias SHORT. Foundry gives .message-sender white-space:nowrap
+      // with no ellipsis, so a long name simply runs off the card — and naming
+      // the attacker here is redundant anyway, since the damage line below
+      // already reads "<attacker>'s <weapon> Damage".
       const speaker = defender
         ? ChatMessage.getSpeaker({ actor: defender, token: targetTok?.document,
-                                   alias: `${defender.name} — resisting ${attackerName}` })
-        : ChatMessage.getSpeaker({ actor, alias: `${attackerName} — no target selected` });
+                                   alias: `${defender.name} — resisting` })
+        : ChatMessage.getSpeaker({ actor, alias: `${attackerName} — no target` });
       // When the defender is speaking, the weapon has to be attributed or the
       // line reads as though it were the defender's own gun.
       const attackerAttrib = defender && attackerName

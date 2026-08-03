@@ -4010,3 +4010,13 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   font-size: 10px;
   color: var(--sr2e-text-muted);
 }
+
+/* Foundry gives .message-sender `white-space: nowrap` and `flex: 3` but no
+   overflow handling, so a long speaker alias (or just a long actor name) runs
+   straight off the edge of the card instead of being clipped. Ellipsise it —
+   the full text stays available on hover via the title attribute Foundry sets. */
+.chat-message .message-header .message-sender {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
