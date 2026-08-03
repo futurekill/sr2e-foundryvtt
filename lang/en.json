@@ -434,5 +434,12 @@
   "SR2E.Powers.Binding": "Binding",
   "SR2E.Powers.ElectricalProjection": "Electrical Projection",
   "SR2E.Powers.FlameAura": "Flame Aura",
-  "SR2E.Powers.FlameProjection": "Flame Projection"
+  "SR2E.Powers.FlameProjection": "Flame Projection",
+  "SR2E.Settings.DiceSourceStyle": "Dice source on chat cards",
+  "SR2E.Settings.DiceSourceStyleHint": "How a roll shows which dice came from your skill, a dice pool, Karma, or a situational modifier. SR2 rolls one undifferentiated handful, so the split is presentational — dice are attributed in the order the pool was assembled. Rolls with a single source are always shown plainly.",
+  "SR2E.Settings.DiceSourceGroups": "Grouped — caption over each run (recommended)",
+  "SR2E.Settings.DiceSourceInline": "Inline — one row, labelled at each change",
+  "SR2E.Settings.DiceSourceUnderline": "Underlined — coloured bar beneath each die",
+  "SR2E.Settings.DiceSourceLanes": "Lanes — one row per source",
+  "SR2E.Settings.DiceSourceNone": "Off — a single plain row"
 }

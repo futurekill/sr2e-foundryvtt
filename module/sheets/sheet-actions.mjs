@@ -1,7 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
-         countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE,
+         countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
@@ -712,7 +712,14 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     ? Math.max(0, shotsFired - recoilComp) * (heavyRecoil ? 2 : 1) : 0;
 
   // ── Pool inputs ───────────────────────────────────────────────────────────
+  // Only Combat Pool may augment a weapon attack (SR2E p.84, verified from the
+  // render): the Combat Pool covers "Firearm, Projectile Weapon, Throwing
+  // Weapon, Gunnery, Melee Combat, or similar offensive Combat Skill Tests".
+  // Magic/Hacking/Control are for spells, decking and vehicle control — a mage
+  // firing a pistol was being offered Magic Pool, which the book does not allow.
+  const allowedPools = poolsAllowedFor("combat");
   const availablePools = POOL_DEFS
+    .filter(p => !allowedPools || allowedPools.includes(p.key))
     .map(p => {
       const available = getPoolAvailable(actor, p.key);
       const cap = skillCap === Infinity ? available : Math.min(available, skillCap);

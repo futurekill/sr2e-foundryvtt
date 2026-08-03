@@ -10,7 +10,8 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
-         skillRollRating } from "../rules/sr2e-rules.mjs";
+         skillRollRating,
+         diceSourceRuns, attributeDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -31,21 +32,103 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
  * @param {object} state
  * @returns {string} HTML
  */
+/**
+ * One die, with its existing state cues untouched. Provenance never touches
+ * .success/.failure/.exploded/.rerolled — success/failure has to stay the
+ * loudest thing on the card.
+ * @param {object} die
+ * @param {boolean} mark - add the per-die source class (the "underline" style only)
+ */
+function renderDie(die, mark = false) {
+  const cls = ["sr2e-die", die.success ? "success" : "failure"];
+  if (die.exploded) cls.push("exploded");
+  if (die.rerolled) cls.push("rerolled");
+  // The source class is emitted ONLY for the underline style; every other style
+  // conveys provenance through layout, so the die stays visually pristine.
+  if (mark && die.sourceKey) cls.push(`src-${die.sourceKey.startsWith("pool:") ? "pool" : die.sourceKey}`);
+  const rolls = Array.isArray(die.rolls) ? die.rolls.join(" + ") : String(die.total);
+  const title = die.sourceLabel ? `${die.sourceLabel} — ${rolls}` : rolls;
+  return `<span class="${cls.join(" ")}" title="${foundry.utils.escapeHTML(title)}">${die.total}</span>`;
+}
+
+/** Consecutive dice sharing a sourceKey. Untagged dice form one unlabelled run. */
+function diceRuns(dice) {
+  const runs = [];
+  for (const die of dice) {
+    const key = die.sourceKey ?? null;
+    const last = runs[runs.length - 1];
+    if (last && last.key === key) last.dice.push(die);
+    else runs.push({ key, label: die.sourceLabel ?? "", dice: [die] });
+  }
+  return runs;
+}
+
+/**
+ * Render the dice for a chat card in the GM's chosen style
+ * (setting `sr2e.diceSourceStyle`).
+ *
+ * All four styles show the SAME dice in the same order; they differ only in how
+ * they signal which pool each came from. "none" reproduces the original flat
+ * row exactly, and is also the automatic fallback whenever there is nothing to
+ * disambiguate — a roll with one source gets no extra furniture.
+ *
+ * @param {object[]} dice - from flags.sr2e.test.dice, tagged by attributeDice()
+ * @returns {string} HTML
+ */
+export function renderDiceResults(dice = []) {
+  let style = "groups";
+  try { style = game.settings.get("sr2e", "diceSourceStyle") || "groups"; }
+  catch (e) { /* settings not ready (or a bare test harness) — use the default */ }
+
+  const runs = diceRuns(dice);
+  // One run means one source: nothing to tell apart, so never pay the cost.
+  if (style === "none" || runs.length < 2 || !runs.every(r => r.key)) {
+    return `<div class="sr2e-dice-results">${dice.map(d => renderDie(d)).join("")}</div>`;
+  }
+
+  const cap = r => foundry.utils.escapeHTML(r.label || r.key);
+
+  switch (style) {
+    case "lanes":
+      return `<div class="sr2e-dice-lanes">` + runs.map(r =>
+        `<span class="sr2e-dice-lane-label">${cap(r)}</span>` +
+        `<div class="sr2e-dice-results">${r.dice.map(d => renderDie(d)).join("")}</div>`
+      ).join("") + `</div>`;
+
+    case "inline":
+      // Each run is its own inline-flex unit so a label can never be orphaned
+      // from its dice when the row wraps — which is exactly what went wrong in
+      // the mockup when the boundary chips were emitted as loose siblings.
+      return `<div class="sr2e-dice-flow">` + runs.map((r, i) =>
+        `<span class="sr2e-dice-seg">` +
+        (i ? `<span class="sr2e-dice-bnd">${cap(r)}</span>` : "") +
+        r.dice.map(d => renderDie(d)).join("") + `</span>`
+      ).join("") + `</div>`;
+
+    case "underline":
+      return `<div class="sr2e-dice-results sr2e-dice-marked">` +
+        dice.map(d => renderDie(d, true)).join("") +
+        `</div><div class="sr2e-dice-key">` + runs.map(r =>
+          `<span class="sr2e-dice-key-item"><i class="src-${
+            r.key.startsWith("pool:") ? "pool" : r.key}"></i>${cap(r)}</span>`
+        ).join("") + `</div>`;
+
+    case "groups":
+    default:
+      return `<div class="sr2e-dice-groups">` + runs.map(r =>
+        `<div class="sr2e-dice-group"><span class="sr2e-dice-cap">${cap(r)}</span>` +
+        `<div class="sr2e-dice-results">${r.dice.map(d => renderDie(d)).join("")}</div></div>`
+      ).join("") + `</div>`;
+  }
+}
+
 export function renderSuccessTestCard(state) {
   const natural   = state.dice.filter(d => d.success).length;
   const successes = natural + (state.boughtSuccesses ?? 0);
   const failures  = state.dice.length - natural;
   const glitch    = state.criticalGlitch && !state.glitchAvoided;
 
-  let diceHtml = '<div class="sr2e-dice-results">';
-  for (const die of state.dice) {
-    const successClass  = die.success ? "success" : "failure";
-    const explodedClass = die.exploded ? "exploded" : "";
-    const rerolledClass = die.rerolled ? "rerolled" : "";
-    const title = die.exploded ? die.rolls.join(" + ") : String(die.total);
-    diceHtml += `<span class="sr2e-die ${successClass} ${explodedClass} ${rerolledClass}" title="${title}">${die.total}</span>`;
-  }
-  diceHtml += "</div>";
+  const diceHtml = renderDiceResults(state.dice);
 
   const _l = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize(key);
 
@@ -252,7 +335,17 @@ export class SR2EActor extends Actor {
       label,
       tnNote,
       diceNote,
-      dice: testResult.dice,
+      // Tag each die with the pool it is attributed to (see diceSourceRuns:
+      // positional, presentational, stable across explosions and rerolls) and
+      // persist it, so a re-render after a Karma action does not have to
+      // recompute — and cannot drift from what was originally shown.
+      dice: attributeDice(testResult.dice, diceSourceRuns({
+        // RAW, not the pre-escaped `label` — renderDie/cap escape it themselves,
+        // and escaping twice renders visible &amp; entities.
+        baseDice: dicePool, baseLabel: options.sourceLabel || options.label || "",
+        poolsUsed, karmaDice, miscDice, miscLabel,
+        karmaLabel: game.i18n.localize("SR2E.Roll.Karma")
+      })),
       rerolls: 0,
       boughtSuccesses: 0,
       glitchAvoided: false,
@@ -322,7 +415,13 @@ export class SR2EActor extends Actor {
       }
       const reroll = await SR2ESuccessRoll.successTest(failedIdx.length, state.tn);
       failedIdx.forEach((dieIdx, j) => {
-        state.dice[dieIdx] = { ...reroll.dice[j], rerolled: true };
+        // Carry the provenance across: the spread would otherwise drop
+        // sourceKey/sourceLabel and the die would fall out of its group.
+        state.dice[dieIdx] = {
+          ...reroll.dice[j], rerolled: true,
+          sourceKey:   state.dice[dieIdx].sourceKey,
+          sourceLabel: state.dice[dieIdx].sourceLabel
+        };
       });
       state.rerolls = (state.rerolls ?? 0) + 1;
       newRolls = reroll.rolls;

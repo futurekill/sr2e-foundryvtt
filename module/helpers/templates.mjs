@@ -29,7 +29,6 @@ export async function preloadTemplates() {
     "systems/sr2e/templates/item/item-body.hbs",
 
     // Chat
-    "systems/sr2e/templates/chat/roll-result.hbs"
   ];
 
   // V13: loadTemplates is now foundry.applications.handlebars.loadTemplates

@@ -848,6 +848,25 @@ function _registerSystemSettings() {
     default: "nearest"
   });
 
+  // How chat cards show which dice came from which pool. Purely presentational —
+  // SR2 rolls one undifferentiated handful, so provenance is attributed by
+  // position (see diceSourceRuns). "none" reproduces the pre-0.85 card exactly.
+  game.settings.register("sr2e", "diceSourceStyle", {
+    name: "SR2E.Settings.DiceSourceStyle",
+    hint: "SR2E.Settings.DiceSourceStyleHint",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      groups:    "SR2E.Settings.DiceSourceGroups",
+      inline:    "SR2E.Settings.DiceSourceInline",
+      underline: "SR2E.Settings.DiceSourceUnderline",
+      lanes:     "SR2E.Settings.DiceSourceLanes",
+      none:      "SR2E.Settings.DiceSourceNone"
+    },
+    default: "groups"
+  });
+
   // In-combat movement limit (SR2E p.83), read in module/movement.mjs
   game.settings.register("sr2e", "movementLimit", {
     name: "Limit movement in combat",

@@ -3916,3 +3916,89 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 }
 
 @media (prefers-reduced-motion: reduce) { .sr2e-attack__tab { transition: none; } }
+
+/* ===========================================================================
+   Dice provenance on chat cards — which dice came from which pool.
+   Style is the GM's choice (setting `sr2e.diceSourceStyle`); every style shows
+   the SAME dice in the same order and NONE of them touch .success/.failure/
+   .exploded/.rerolled, so success remains the loudest signal on the card.
+   =========================================================================== */
+
+/* --- "groups": a caption and rule over each run (default) ----------------- */
+.sr2e-dice-groups { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.sr2e-dice-group  { display: flex; flex-direction: column; gap: 3px; }
+.sr2e-dice-cap {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--sr2e-text-muted);
+  border-bottom: 1px solid var(--sr2e-border);
+  padding-bottom: 2px;
+}
+
+/* --- "inline": one flowing row with a tick where the source changes ------- */
+.sr2e-dice-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+/* Each segment is its own inline-flex unit. Emitting the label as a loose
+   sibling let a run's caption strand itself at the end of one line while its
+   dice wrapped to the next — a die under no label at all. */
+.sr2e-dice-seg  { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.sr2e-dice-bnd {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sr2e-text-muted);
+  border-left: 2px solid var(--sr2e-border);
+  padding: 2px 4px 2px 7px;
+  margin-left: 4px;
+}
+
+/* --- "underline": a coloured bar under each die -------------------------- */
+/* Deliberately NOT cyan: --sr2e-gold is cyan in this theme and already carries
+   the exploded glow, so a cyan bar under an exploded die smeared into it. */
+.sr2e-dice-marked .sr2e-die { position: relative; }
+.sr2e-dice-marked .sr2e-die[class*="src-"]::after {
+  content: "";
+  position: absolute;
+  left: 2px; right: 2px; bottom: -4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--src-colour, transparent);
+}
+.sr2e-dice-marked .src-pool::after  { --src-colour: #b26bff; }  /* violet */
+.sr2e-dice-marked .src-karma::after { --src-colour: #e91e8c; }  /* magenta */
+.sr2e-dice-marked .src-misc::after  { --src-colour: #f0a020; }  /* amber   */
+/* Base dice carry no bar, so the key names them explicitly rather than leaving
+   the reader to infer "unmarked = skill". */
+.sr2e-dice-key {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  margin-top: 9px; font-size: 10px; color: var(--sr2e-text-muted);
+}
+.sr2e-dice-key-item i {
+  display: inline-block; width: 14px; height: 2px;
+  vertical-align: middle; margin-right: 5px; border-radius: 1px;
+  background: var(--sr2e-border);
+}
+.sr2e-dice-key-item i.src-pool  { background: #b26bff; }
+.sr2e-dice-key-item i.src-karma { background: #e91e8c; }
+.sr2e-dice-key-item i.src-misc  { background: #f0a020; }
+
+/* --- "lanes": one row per source ----------------------------------------- */
+.sr2e-dice-lanes {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) 1fr;
+  gap: 5px 10px;
+  align-items: center;
+}
+.sr2e-dice-lane-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sr2e-text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+/* A very narrow chat sidebar cannot afford a label column; stack instead. */
+@media (max-width: 340px) {
+  .sr2e-dice-lanes { grid-template-columns: 1fr; }
+  .sr2e-dice-lane-label { text-align: left; }
+}

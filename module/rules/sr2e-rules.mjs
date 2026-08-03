@@ -2843,3 +2843,108 @@ export function countEngagingFoes(attackerDisposition, others = []) {
     return o.disposition * attackerDisposition < 0;
   }).length;
 }
+
+/* ==========================================================================
+   Dice provenance — which dice on a chat card came from which pool
+   ========================================================================== */
+
+/**
+ * Split a rolled pool into labelled runs, in the order rollSuccessTest composes
+ * it: base skill, then each dice pool used, then karma, then positive misc.
+ *
+ * The dice themselves are indistinguishable — SR2 rolls one undifferentiated
+ * handful — so this attribution is presentational, not mechanical. It is stable
+ * because index survives both Rule-of-Six explosions (which accumulate into
+ * dice[idx]) and karma rerolls (which replace dice[idx] in place).
+ *
+ * A NEGATIVE misc modifier removes dice rather than adding them, so there is no
+ * misc run and some earlier run is short. The penalty is taken off the BASE
+ * first (the character is fumbling their own skill, not their pool spend), and
+ * only once base is exhausted does it eat later runs from the end.
+ *
+ * @param {object} p
+ * @param {number} p.baseDice      - skill/attribute dice before pools.
+ * @param {string} p.baseLabel     - what to call that run ("Firearms").
+ * @param {Array<{key:string,label:string,amount:number}>} [p.poolsUsed]
+ * @param {number} [p.karmaDice]
+ * @param {number} [p.miscDice]    - may be negative.
+ * @param {string} [p.miscLabel]
+ * @returns {Array<{key:string,label:string,count:number}>} runs, none empty.
+ */
+export function diceSourceRuns({ baseDice = 0, baseLabel = "", poolsUsed = [],
+                                 karmaDice = 0, miscDice = 0, miscLabel = "",
+                                 karmaLabel = "Karma" } = {}) {
+  const runs = [{ key: "base", label: baseLabel, count: Math.max(0, baseDice) }];
+  for (const p of poolsUsed) {
+    if (p?.amount > 0) runs.push({ key: `pool:${p.key}`, label: p.label, count: p.amount });
+  }
+  if (karmaDice > 0) runs.push({ key: "karma", label: karmaLabel, count: karmaDice });
+  if (miscDice > 0)  runs.push({ key: "misc",  label: miscLabel || "Misc", count: miscDice });
+
+  // Apply a dice PENALTY: base first, then from the end backwards.
+  let debt = miscDice < 0 ? -miscDice : 0;
+  if (debt) {
+    const take = Math.min(debt, runs[0].count);
+    runs[0].count -= take; debt -= take;
+    for (let i = runs.length - 1; i > 0 && debt > 0; i--) {
+      const t = Math.min(debt, runs[i].count);
+      runs[i].count -= t; debt -= t;
+    }
+  }
+  return runs.filter(r => r.count > 0);
+}
+
+/**
+ * Tag each rolled die with the run it belongs to, by position.
+ * Returns a NEW array; the input dice objects are spread, not mutated.
+ * Any die beyond the described runs (should not happen) is left untagged
+ * rather than silently attributed to the last run.
+ */
+export function attributeDice(dice = [], runs = []) {
+  const out = [];
+  let i = 0;
+  for (const run of runs) {
+    for (let n = 0; n < run.count && i < dice.length; n++, i++) {
+      out.push({ ...dice[i], sourceKey: run.key, sourceLabel: run.label });
+    }
+  }
+  for (; i < dice.length; i++) out.push({ ...dice[i] });
+  return out;
+}
+
+/**
+ * Which Dice Pools may legally augment a given kind of test (SR2E p.84).
+ *
+ * Verified from a 300 dpi render of the printed page:
+ *  - **Combat Pool** — "may be allocated to any offensive or defensive
+ *    combat-related tests, such as Firearm, Projectile Weapon, Throwing Weapon,
+ *    Gunnery, Melee Combat, or similar offensive Combat Skill Tests", and to
+ *    Damage Resistance Tests against normal attacks.
+ *  - **Magic Pool** — "Spell Success Tests and Drain Resistance Tests in
+ *    spellcasting (p.129), in a special manner for ritual sorcery (p.133), and
+ *    for specific or area-effect Spell Defense (p.132). Dice from the Magic
+ *    Pool CANNOT be used to augment Conjuring-related Tests."
+ *  - **Hacking Pool** — "decking-related tests such as Utility Tests (p.174)
+ *    and the MPCP Resistance Test in Matrix combat (p.179)."
+ *  - **Control Pool** — "tests relating to vehicle control, such as Driving or
+ *    Piloting (p.183) and Position Tests (p.105)."
+ *
+ * @param {string} [kind] - combat | spell | drain | conjuring | matrix |
+ *                          vehicle | damage-resist. Anything unrecognised (or
+ *                          omitted) returns null, meaning "cannot tell — offer
+ *                          everything", which preserves the old behaviour for
+ *                          generic skill rolls rather than guessing wrong.
+ * @returns {string[]|null} allowed pool keys, or null for "unconstrained".
+ */
+export function poolsAllowedFor(kind) {
+  switch (kind) {
+    case "combat":
+    case "damage-resist": return ["combat"];
+    case "spell":
+    case "drain":         return ["magic"];
+    case "conjuring":     return [];        // explicitly barred by the book
+    case "matrix":        return ["hacking"];
+    case "vehicle":       return ["control"];
+    default:              return null;
+  }
+}

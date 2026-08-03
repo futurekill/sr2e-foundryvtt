@@ -8,6 +8,32 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.85.0 — 2026-08-02
+
+### Added
+- **Chat cards can now show which dice came from which pool**, with the style
+  chosen by the GM in Settings (*Dice source on chat cards*): grouped captions,
+  inline labels, coloured underlines, one lane per source, or off. The rulebook
+  actually asks for this — p.84: *"Dice from a Dice Pool should be a different
+  color than the other dice used in the test."*
+  - SR2 rolls one undifferentiated handful, so provenance is attributed by
+    position and is presentational. It survives Rule-of-Six explosions and Karma
+    rerolls, and is persisted with the card so a re-render can never drift.
+  - A roll with a single source is always shown plainly, so simple rolls look
+    exactly as before. Cards rolled before this version keep rendering too.
+  - A negative (penalty) misc modifier takes dice off the skill first, then from
+    the end — it never silently eats a pool the player paid for.
+
+### Fixed
+- **Magic Pool was offered on weapon attacks.** A magician firing a pistol could
+  spend Magic Pool dice on the Firearms test. p.84 scopes Magic Pool to spell
+  success, spellcasting drain, ritual sorcery and Spell Defense — and bars it
+  from Conjuring outright — while the Combat Pool is what covers *"Firearm,
+  Projectile Weapon, Throwing Weapon, Gunnery, Melee Combat"*. The attack dialog
+  now offers Combat Pool only.
+- Removed `templates/chat/roll-result.hbs`, which was preloaded but never
+  rendered and had drifted out of sync with the live card.
+
 ## 0.84.0 — 2026-08-01
 
 ### Added
