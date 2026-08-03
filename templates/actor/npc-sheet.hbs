@@ -141,6 +141,65 @@
           <i class="fas fa-plus"></i> Add Weapon
         </button>
       </fieldset>
+
+      {{!-- Spells. Only shown once an NPC actually has one, so ordinary NPCs are
+            unchanged. Awakened NPCs are real in the books (Craft, Stone, Pride in
+            Queen Euphoria) and their spells were previously prepared into context
+            and then never rendered — invisible and uncastable. The sustain toggle
+            is NOT optional: a successful sustained spell calls setSustaining(true)
+            on its own, and setSustaining(false) is the only thing that removes the
+            Active Effects it copied onto the caster. --}}
+      {{#if spells.length}}
+      <fieldset>
+        <legend>Spells</legend>
+        {{#each spells as |spell|}}
+        <div class="npc-spell-row flexrow {{#if spell.system.sustaining}}sustaining{{/if}}" data-item-id="{{spell.id}}">
+          <span data-action="castSpell" title="Cast this spell">
+            <i class="fas fa-magic"></i> {{spell.name}}
+            {{#if spell.system.sustaining}}
+            <span class="sustain-badge" title="Sustained at Force {{spell.system.sustainedForce}}">F{{spell.system.sustainedForce}}</span>
+            {{/if}}
+          </span>
+          <span>F{{spell.system.force}}</span>
+          <span>{{spell.system.drainCode}}</span>
+          <div class="item-controls">
+            {{#ifEquals spell.system.duration "sustained"}}
+            <a data-action="toggleSustain" class="sustain-toggle {{#if spell.system.sustaining}}active{{/if}}"
+               title="{{#if spell.system.sustaining}}Drop spell (Free Action){{else}}Sustain (+2 TN on all other tests, SR2E p.130){{/if}}">
+              <i class="fas fa-hourglass-half"></i>
+            </a>
+            {{/ifEquals}}
+            <a data-action="editItem"><i class="fas fa-edit"></i></a>
+          </div>
+        </div>
+        {{/each}}
+        <button type="button" data-action="addItem" data-type="spell" class="btn-add btn-small">
+          <i class="fas fa-plus"></i> Add Spell
+        </button>
+      </fieldset>
+      {{/if}}
+
+      {{!-- Foci. Read-only summary on purpose: the character magic tab has no
+            active-toggle either, so activation happens on the item sheet via the
+            edit control. A bonded, ACTIVE spell focus adds its Force to every
+            spell the actor casts (FocusData doesn't bind a focus to a category),
+            so the active state is worth showing plainly. --}}
+      {{#if foci.length}}
+      <fieldset>
+        <legend>Foci</legend>
+        {{#each foci as |focus|}}
+        <div class="npc-focus-row flexrow" data-item-id="{{focus.id}}">
+          <span>{{focus.name}}</span>
+          <span>{{focus.system.focusType}}</span>
+          <span>Force: {{focus.system.force}}</span>
+          <span>{{#if focus.system.bonded}}Bonded{{else}}Unbonded{{/if}}{{#if focus.system.active}}, active{{/if}}</span>
+          <div class="item-controls">
+            <a data-action="editItem" title="Edit (bond / activate here)"><i class="fas fa-edit"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </fieldset>
+      {{/if}}
     </div>
   </div>
 

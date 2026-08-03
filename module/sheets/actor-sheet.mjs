@@ -1115,6 +1115,12 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       rollSkill: onRollSkill,
       rollInitiative: onRollInitiative,
       rollWeapon: onRollWeapon,
+      // Awakened NPCs (Craft, Stone and Pride in Queen Euphoria) need to cast and
+      // to drop what they sustain. Both come off SHARED_ACTIONS: castSpell is not
+      // exported under that name, and toggleSustain is an inline function on the
+      // shared map with no standalone binding at all.
+      castSpell: SHARED_ACTIONS.castSpell,
+      toggleSustain: SHARED_ACTIONS.toggleSustain,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
@@ -1135,6 +1141,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.gear = actor.items.filter(i => i.type === "gear");
     context.spells = actor.items.filter(i => i.type === "spell");
+    context.foci = actor.items.filter(i => i.type === "focus");
 
     context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(actor.system.biography || "", {
       secrets: this.document.isOwner,
