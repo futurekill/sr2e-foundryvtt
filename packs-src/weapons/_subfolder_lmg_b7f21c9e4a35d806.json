@@ -1,0 +1,13 @@
+{
+  "_id": "b7f21c9e4a35d806",
+  "name": "Light Machine Guns",
+  "type": "Item",
+  "folder": "2044fc9483242570",
+  "sorting": "a",
+  "color": "#4a4068",
+  "description": "",
+  "sort": 700,
+  "flags": {},
+  "_key": "!folders!b7f21c9e4a35d806",
+  "img": "systems/sr2e/assets/item_icons/weapons/light-machine-gun-generic.webp"
+}
