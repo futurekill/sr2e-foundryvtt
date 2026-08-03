@@ -28,11 +28,27 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   - Never fires when the attacker's success count is unknown (a macro roll, or a
     card posted before this version), rather than assuming zero.
 
+### Changed
+- **The damage card now speaks as the defender**, not the attacker — it is where
+  the target acts, so it reads *"Patch (Rigger) — resisting"* instead of being
+  headed by the shooter. The weapon is attributed in the body
+  (*"Hexen's Browning Max-Power Damage: 9M"*). With no target set it stays with
+  the attacker, explicitly marked *"— no target"*, and says whose token to
+  select rather than guessing a defender. The card names the specific **token**
+  that was shot, so identical guards stay distinguishable.
+
 ### Fixed
 - `rollSuccessTest` returned the raw, untagged dice while the tagged copies only
   reached the chat card. Any caller inspecting dice provenance silently saw
   nothing; it now returns the attributed dice.
 - The remaining hard-coded "Misc" dice-group label is now localised.
+- The dice-group caption for skill dice was the entire card title
+  ("Browning Max-Power [SA] — Medium range TN 6"); weapon attacks now use a
+  short caption.
+- Long chat-card speaker names overflowed the card. Foundry gives
+  `.message-sender` `white-space: nowrap` with no overflow handling, so a name
+  like *"Cindervex, Hexen's Fire Elemental (F6)"* escaped the card entirely;
+  it now ellipsises.
 
 ## 0.85.0 — 2026-08-02
 
