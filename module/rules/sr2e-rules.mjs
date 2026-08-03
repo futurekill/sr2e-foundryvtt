@@ -2873,13 +2873,13 @@ export function countEngagingFoes(attackerDisposition, others = []) {
  */
 export function diceSourceRuns({ baseDice = 0, baseLabel = "", poolsUsed = [],
                                  karmaDice = 0, miscDice = 0, miscLabel = "",
-                                 karmaLabel = "Karma" } = {}) {
+                                 karmaLabel = "Karma", miscDefaultLabel = "Misc" } = {}) {
   const runs = [{ key: "base", label: baseLabel, count: Math.max(0, baseDice) }];
   for (const p of poolsUsed) {
     if (p?.amount > 0) runs.push({ key: `pool:${p.key}`, label: p.label, count: p.amount });
   }
   if (karmaDice > 0) runs.push({ key: "karma", label: karmaLabel, count: karmaDice });
-  if (miscDice > 0)  runs.push({ key: "misc",  label: miscLabel || "Misc", count: miscDice });
+  if (miscDice > 0)  runs.push({ key: "misc",  label: miscLabel || miscDefaultLabel, count: miscDice });
 
   // Apply a dice PENALTY: base first, then from the end backwards.
   let debt = miscDice < 0 ? -miscDice : 0;
@@ -2947,4 +2947,41 @@ export function poolsAllowedFor(kind) {
     case "vehicle":       return ["control"];
     default:              return null;
   }
+}
+
+/**
+ * The "complete miss" defence (SR2E p.91), read from a 300 dpi render:
+ *
+ *   "If the target's Combat Pool dice ALONE are enough to exceed the attacker's
+ *    successes, the attack is a complete miss."
+ *
+ * Note how narrow this is. It is NOT "the defender rolled more successes than
+ * the attacker" — a defender who wins on Body dice merely stages the damage
+ * down in the usual way. Only the successes contributed by COMBAT POOL dice
+ * count towards this, which is why the same page says to "keep track of the
+ * total number of successes, as well as how many of the Combat Pool dice also
+ * succeed", and recommends rolling the pool dice in a different colour.
+ *
+ * Strictly EXCEED: equal successes are not a miss (p.91 gives equal successes
+ * the weapon's base Damage Level).
+ *
+ * @param {number} poolSuccesses     - successes from Combat Pool dice only.
+ * @param {number} attackerSuccesses - the attacker's successes on the attack test.
+ * @returns {boolean}
+ */
+export function isCompleteMiss(poolSuccesses, attackerSuccesses) {
+  if (!Number.isFinite(poolSuccesses) || !Number.isFinite(attackerSuccesses)) return false;
+  return poolSuccesses > attackerSuccesses;
+}
+
+/**
+ * Count successes contributed by dice from a given source, using the provenance
+ * that attributeDice() stamps on each die.
+ *
+ * @param {object[]} dice     - attributed dice (see attributeDice).
+ * @param {string} sourceKey  - e.g. "pool:combat".
+ * @returns {number}
+ */
+export function successesFromSource(dice = [], sourceKey = "") {
+  return dice.filter(d => d?.success && d.sourceKey === sourceKey).length;
 }

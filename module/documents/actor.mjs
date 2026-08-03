@@ -11,7 +11,8 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
          skillRollRating,
-         diceSourceRuns, attributeDice } from "../rules/sr2e-rules.mjs";
+         diceSourceRuns, attributeDice, isCompleteMiss,
+         successesFromSource } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -344,7 +345,8 @@ export class SR2EActor extends Actor {
         // and escaping twice renders visible &amp; entities.
         baseDice: dicePool, baseLabel: options.sourceLabel || options.label || "",
         poolsUsed, karmaDice, miscDice, miscLabel,
-        karmaLabel: game.i18n.localize("SR2E.Roll.Karma")
+        karmaLabel: game.i18n.localize("SR2E.Roll.Karma"),
+        miscDefaultLabel: game.i18n.localize("SR2E.Roll.Misc")
       })),
       rerolls: 0,
       boughtSuccesses: 0,
@@ -375,7 +377,11 @@ export class SR2EActor extends Actor {
     if (karmaDice > 0) updates["system.karma.pool"] = karmaAvail - karmaDice;
     if (Object.keys(updates).length > 0) await this.update(updates);
 
-    return { ...testResult, successes, targetNumber: effectiveTN };
+    // Return the ATTRIBUTED dice, not testResult's raw array — callers that
+    // need to know which dice came from which pool (the p.91 complete-miss
+    // check) would otherwise see untagged dice and silently find nothing.
+    // attributeDice spreads the originals, so this is a strict superset.
+    return { ...testResult, dice: state.dice, successes, targetNumber: effectiveTN };
   }
 
   /**
@@ -1845,6 +1851,31 @@ export class SR2EActor extends Actor {
       isResistance: true,  // Injury Modifier does not apply to resistance (p.112)
       ...this._bodyTestOpts()   // …but this IS a Body test, so overstress applies
     });
+
+    // ── Complete miss (SR2E p.91) ────────────────────────────────────────────
+    // "If the target's Combat Pool dice ALONE are enough to exceed the
+    // attacker's successes, the attack is a complete miss."
+    //
+    // Deliberately narrow: only successes from COMBAT POOL dice count. A
+    // defender who wins on Body dice just stages the damage down as usual. This
+    // is why the same page says to track "how many of the Combat Pool dice also
+    // succeed" — we get that from the per-die provenance stamped at roll time.
+    //
+    // Skipped entirely when the attacker's success count is unknown (a macro
+    // roll, or a card posted before this shipped), rather than assuming 0 —
+    // assuming 0 would turn any single pool success into a miss.
+    const poolHits = successesFromSource(resistResult?.dice ?? [], "pool:combat");
+    if (isCompleteMiss(poolHits, options.attackerSuccesses)) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result">
+          <strong>Complete miss — no damage.</strong>
+          <br><em>${poolHits} Combat Pool success${poolHits === 1 ? "" : "es"} alone beat the
+          attacker's ${options.attackerSuccesses} (SR2E p.91).</em>
+        </div>`
+      });
+      return resistResult;
+    }
 
     // Stage damage down: 2 successes = 1 level reduction
     const reductions = Math.floor((resistResult?.successes ?? 0) / 2);

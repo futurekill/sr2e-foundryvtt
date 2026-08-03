@@ -957,6 +957,7 @@ export class SR2EItem extends Item {
                   data-armor-mod="${ammoMod}"
                   data-ammo-name="${foundry.utils.escapeHTML(ammoName)}"
                   data-target-uuid="${targetUuid}"
+                  data-attacker-successes="${result.successes}"
                   title="Defender rolls Body vs. TN = Power − Armor (SR2E p.116)">
             ${game.i18n.localize("SR2E.Chat.ResistDamage")}
           </button>`;

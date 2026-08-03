@@ -1631,6 +1631,7 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
               data-power="${power}" data-base-power="${basePower}"
               data-level="${stagedLevel}" data-armor-type="impact" data-armor-calc="flechette"
               data-bonus-dice="${intervening}" data-damage-type="${damageType}" data-target-uuid="${tok.actor.uuid}"
+              data-attacker-successes="${attackerSuccesses}"
               title="Body vs. TN = ${power} − flechette armour${intervening ? `, +${intervening} resistance die(s) from intervening targets` : ""}">
         ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${dist} m${intervening ? `, +${intervening}d` : ""})</em>
       </button>
@@ -1715,8 +1716,26 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       }
 
       const bonusDice  = parseInt(btn.dataset.bonusDice) || 0;
+      // Needed for the p.91 complete-miss check. Absent on cards written before
+      // 0.86.0, and deliberately left undefined rather than defaulted to 0 —
+      // a 0 would let any pool success fake a miss.
+      //
+      // Only the two RANGED WEAPON paths set it (the direct attack card and the
+      // shotgun-spread rows). Three other places emit a resist button and omit
+      // it ON PURPOSE, because p.91's complete miss belongs to the ranged
+      // "Determine Outcome of Attack" flow and not to them:
+      //   - blast/grenade rows (sr2e.mjs): the explosive has already landed;
+      //     targets in the radius resist Power, there is no per-target attack
+      //     roll for pool successes to beat.
+      //   - _resolveMeleeHit (actor.mjs): melee is an OPPOSED test (p.100-101)
+      //     where the defender already spent Combat Pool to oppose. Applying
+      //     this too would let the same pool dice defend twice.
+      //   - rollSpiritAttack (actor.mjs): a manifested spirit's attack resists
+      //     against Force, not a Combat Skill Test.
+      const attackerSuccesses = btn.dataset.attackerSuccesses !== undefined
+        ? parseInt(btn.dataset.attackerSuccesses) : undefined;
       return actor.rollDamageResistance(power, level, armorType, damageType,
-        { armorCalc, armorMod, ammoName, basePower, bonusDice });
+        { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses });
     });
   });
 

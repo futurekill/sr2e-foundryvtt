@@ -8,6 +8,32 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.86.0 — 2026-08-02
+
+### Added
+- **The complete-miss defence (SR2E p.91) is now implemented.** *"If the
+  target's Combat Pool dice alone are enough to exceed the attacker's successes,
+  the attack is a complete miss."* Spending Combat Pool on damage resistance can
+  now negate a hit outright instead of only staging it down.
+  - Deliberately narrow, as printed: **only successes from Combat Pool dice
+    count**. A defender who wins on Body dice stages down as before. Equal
+    successes are not a miss.
+  - This was only implementable because of the dice-provenance work in 0.85.0 —
+    the same page tells you to track "how many of the Combat Pool dice also
+    succeed" and to roll them in a different colour.
+  - Applies to the two ranged weapon paths (direct attacks and shotgun spreads).
+    Melee is untouched: it is an opposed test (p.100–101) where Combat Pool has
+    already been spent opposing, so applying this would let the same dice defend
+    twice. Blasts and spirit attacks are likewise out of scope.
+  - Never fires when the attacker's success count is unknown (a macro roll, or a
+    card posted before this version), rather than assuming zero.
+
+### Fixed
+- `rollSuccessTest` returned the raw, untagged dice while the tagged copies only
+  reached the chat card. Any caller inspecting dice provenance silently saw
+  nothing; it now returns the attributed dice.
+- The remaining hard-coded "Misc" dice-group label is now localised.
+
 ## 0.85.0 — 2026-08-02
 
 ### Added
