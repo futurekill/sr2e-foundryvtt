@@ -1734,8 +1734,13 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       //     against Force, not a Combat Skill Test.
       const attackerSuccesses = btn.dataset.attackerSuccesses !== undefined
         ? parseInt(btn.dataset.attackerSuccesses) : undefined;
+      // Melee hits knock back on a different rule (p.103, TN = the striker's
+      // Strength) than ranged ones (p.91, TN = 1/2 Power).
+      const melee = btn.dataset.melee === "1";
+      const attackerStrength = parseInt(btn.dataset.attackerStrength) || 0;
       return actor.rollDamageResistance(power, level, armorType, damageType,
-        { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses });
+        { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses,
+          melee, attackerStrength });
     });
   });
 
@@ -1748,7 +1753,11 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       return actor.rollKnockdown(
         parseInt(btn.dataset.power) || 0,
         btn.dataset.level || "M",
-        btn.dataset.gel === "1"
+        btn.dataset.gel === "1",
+        // Melee knockback (p.103) uses the ATTACKER'S STRENGTH as the TN, not
+        // half Power — carried on the button because only the attack knows it.
+        { melee: btn.dataset.melee === "1",
+          attackerStrength: parseInt(btn.dataset.attackerStrength) || 0 }
       );
     });
   });

@@ -11,7 +11,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
          skillRollRating,
-         diceSourceRuns, attributeDice, isCompleteMiss,
+         diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
          successesFromSource } from "../rules/sr2e-rules.mjs";
 
 /**
@@ -1237,13 +1237,19 @@ export class SR2EActor extends Actor {
         winnerName: this.name, loserName: state.attackerName,
         weaponName: defWeaponName, net,
         power: Math.max(1, dmg.power), level: dmg.level, damageType,
+        // p.103: melee knockback is resisted against the STRIKER's Strength.
+        winnerStrength: this.system.strength?.value ?? 0,
         riposte: true
       });
     } else {
+      const striker = await fromUuid(state.attackerUuid).catch(() => null);
       await this._resolveMeleeHit(message, state, {
         winnerName: state.attackerName, loserName: this.name,
         weaponName: state.weaponName, net: atk - def,
         power: state.power, level: state.level, damageType: state.damageType,
+        // p.103: resisted against the STRIKER's Strength, so it has to come
+        // from the attacker's own sheet, not the defender's.
+        winnerStrength: striker?.system?.strength?.value ?? 0,
         riposte: false
       });
     }
@@ -1278,6 +1284,8 @@ export class SR2EActor extends Actor {
                 data-armor-calc="standard"
                 data-armor-mod="0"
                 data-ammo-name=""
+                data-melee="1"
+                data-attacker-strength="${o.winnerStrength ?? 0}"
                 title="${esc(o.loserName)} rolls Body vs. TN = Power − Impact Armor (SR2E p.100)">
           ${game.i18n.localize("SR2E.Chat.ResistDamage")}
         </button>
@@ -1897,14 +1905,32 @@ export class SR2EActor extends Actor {
     const damageBoxes = boxesForLevel(finalLevel);   // L=1, M=3, S=6, D=10 (SR2E p.113)
     await this.applyDamage(damageType, damageBoxes);
 
-    // Knockdown offer (SR2E p.91) — only for physical/ranged-style hits, not
-    // stray "damage" bookkeeping. Gel rounds (armorCalc "impact") use full Power.
-    const isGel = armorCalc === "impact";
-    const knockBtn = `<br><button class="sr2e-knockdown-btn"
+    // Knockdown offer (SR2E p.91 ranged / p.103 melee). Only offered when the
+    // roll can still change something: a Deadly wound always drops you, and a
+    // character whose monitor is already full is down anyway — prompting there
+    // asks for a test whose outcome is fixed before it is rolled.
+    const isGel   = armorCalc === "impact";
+    const monitor = this.system.conditionMonitor?.[damageType === "stun" ? "stun" : "physical"] ?? {};
+    const kd      = knockdownPrompt(finalLevel, monitor, this.system.overflow ?? 0);
+    let knockBtn  = "";
+    if (kd.offer) {
+      knockBtn = `<br><button class="sr2e-knockdown-btn"
         data-actor-uuid="${this.uuid}" data-power="${power}"
         data-level="${finalLevel}" data-gel="${isGel ? 1 : 0}"
-        title="Body Test vs ½ Power (gel: full Power); fall prone if you can't beat half the damage dealt (SR2E p.91)">
+        data-melee="${options.melee ? 1 : 0}"
+        data-attacker-strength="${options.attackerStrength ?? 0}"
+        title="${options.melee
+          ? "Body Test vs the attacker's Strength; fall prone if you can't beat half the damage dealt (SR2E p.103)"
+          : "Body Test vs ½ Power (gel: full Power); fall prone if you can't beat half the damage dealt (SR2E p.91)"}">
         🤸 Knockdown Test</button>`;
+    } else if (kd.autoProne) {
+      // State the outcome instead of demanding a roll for it.
+      try { await this.getActiveTokens?.()[0]?.actor?.toggleStatusEffect?.("prone", { active: true }); }
+      catch (e) { /* status effect optional */ }
+      knockBtn = `<br><em class="sr2e-hint">${kd.reason === "deadly"
+        ? "Deadly wound — goes down automatically, no Knockdown Test (SR2E p.91)."
+        : "Already down — no Knockdown Test."}</em>`;
+    }
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -1927,10 +1953,13 @@ export class SR2EActor extends Actor {
    * @param {"L"|"M"|"S"|"D"} level
    * @param {boolean} [gel=false]
    */
-  async rollKnockdown(power, level, gel = false) {
-    const tn = knockdownTN(power, gel);
+  async rollKnockdown(power, level, gel = false, opts = {}) {
+    // Ranged (p.91) is ½ Power; MELEE (p.103, "Knockback and Knockdown") is the
+    // opponent's STRENGTH — a different rule, not a variant of the same one.
+    const tn = knockdownTestTN({ power, gel,
+      melee: !!opts.melee, attackerStrength: opts.attackerStrength ?? 0 });
     const roll = await this.rollSuccessTest(this.system.body?.value ?? 1, tn, {
-      label: `Knockdown Test (TN ${tn}${gel ? ", gel" : ""})`,
+      label: `Knockdown Test (TN ${tn}${opts.melee ? ", vs Strength" : gel ? ", gel" : ""})`,
       isResistance: true,  // stopping power is not subject to the Injury Modifier
       ...this._bodyTestOpts()   // …but biosystem overstress still applies (Shadowtech p.7)
     });

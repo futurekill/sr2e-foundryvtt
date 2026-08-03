@@ -2985,3 +2985,53 @@ export function isCompleteMiss(poolSuccesses, attackerSuccesses) {
 export function successesFromSource(dice = [], sourceKey = "") {
   return dice.filter(d => d?.success && d.sourceKey === sourceKey).length;
 }
+
+/**
+ * Should a knockdown test even be offered? (SR2E p.91 / p.103)
+ *
+ * The test exists to find out whether the character stays on their feet. When
+ * the answer is already settled there is nothing to roll:
+ *
+ *  - **A Deadly wound always drops them.** The book's threshold table stops at
+ *    Serious ("1 for a Light Wound, 2 for Moderate, and 3 for Serious") because
+ *    a Deadly wound fills the Condition Monitor — the character is going down
+ *    regardless of the dice. `knockdownOutcome` already returns "prone" for D
+ *    unconditionally, so prompting only asks for a roll that cannot change it.
+ *  - **A character whose monitor is already full** (or overflowing) is down and
+ *    dying; staying upright is not on the table.
+ *
+ * @param {"L"|"M"|"S"|"D"} level - the damage level actually taken.
+ * @param {object} [monitor] - the relevant condition monitor {value, max}.
+ * @param {number} [overflow=0]
+ * @returns {{offer: boolean, autoProne: boolean, reason: string}}
+ */
+export function knockdownPrompt(level, monitor = {}, overflow = 0) {
+  const value = Number(monitor.value) || 0;
+  const max   = Number(monitor.max)   || 0;
+  if (max > 0 && value >= max) {
+    return { offer: false, autoProne: true, reason: "incapacitated" };
+  }
+  if (overflow > 0) return { offer: false, autoProne: true, reason: "incapacitated" };
+  if (level === "D") return { offer: false, autoProne: true, reason: "deadly" };
+  return { offer: true, autoProne: false, reason: "" };
+}
+
+/**
+ * Knockdown target number.
+ *  - **Ranged** (p.91): ½ Power, rounded down — or the FULL Power for gel
+ *    rounds, whose whole point is stopping power.
+ *  - **Melee** (p.103, "Knockback and Knockdown"): the TN is the *opponent's
+ *    Strength*, not a function of Power at all. Two different rules; using the
+ *    ranged one for a melee hit is simply the wrong number.
+ *
+ * @param {object} p
+ * @param {number} [p.power]           - attack Power (ranged).
+ * @param {boolean} [p.gel=false]
+ * @param {boolean} [p.melee=false]
+ * @param {number} [p.attackerStrength] - required when melee.
+ * @returns {number} target number, floored at 2.
+ */
+export function knockdownTestTN({ power = 0, gel = false, melee = false, attackerStrength = 0 } = {}) {
+  if (melee) return Math.max(2, Math.floor(attackerStrength) || 2);
+  return Math.max(2, gel ? Math.floor(power) : Math.floor(power / 2));
+}

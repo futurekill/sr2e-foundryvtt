@@ -8,6 +8,30 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.87.0 — 2026-08-02
+
+### Fixed
+- **Knockdown no longer asks for a test it cannot change.** The button was
+  offered on every hit. It is now suppressed, with the outcome simply stated,
+  when the roll is already decided:
+  - a **Deadly wound** drops you automatically — the book's threshold table
+    stops at Serious ("1 for a Light Wound, 2 for Moderate, and 3 for Serious")
+    because a Deadly wound fills the Condition Monitor;
+  - a target whose monitor is **already full or overflowing** is down anyway.
+- **Melee knockback was using the ranged target number.** These are two
+  different rules: *Stopping and Knockdown* (p.91) is a Body Test against
+  **½ Power**, while *Knockback and Knockdown* (p.103) is against **the
+  opponent's Strength**. A Strength-9 troll was knocking people down on TN 2
+  instead of TN 9. Melee hits now use the striker's Strength — taken from the
+  striker's own sheet, including on a counterstrike, where the defender's
+  Strength is the one that applies.
+
+### Note for GMs
+The clean-miss rule added in 0.86.0 is ranged-only by design. Melee has its own
+version (p.103) but it is gated on the defender declaring **Full Defense** —
+they give up adding Combat Pool to their own attack in exchange. That option is
+not modelled yet, so melee is unchanged.
+
 ## 0.86.0 — 2026-08-02
 
 ### Added
