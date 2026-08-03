@@ -8,6 +8,31 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   powers (14), lifestyles (6)**. Generation is blocked on an external
   image-generation quota, not on anything in this repo.
 
+## 0.88.0 — 2026-08-02
+
+### Added
+- **Full Defense in melee (SR2E p.103).** A checkbox on the melee defence
+  dialog. Declaring it means you *"defend only yourself"*:
+  - you may **not** add Combat Pool to your own roll in the exchange (enforced);
+  - you **may** still spend Combat Pool on your Damage Resistance Test;
+  - if your Combat Pool successes **alone** beat the attacker's, it is a
+    **clean miss** — "regardless of any other dice result or the Damage Code of
+    the weapon";
+  - and you give up the counterstrike. *(Interpretation: the rule opens with
+    "defend only themselves". If your table reads it as still allowing a
+    riposte, say so and it is a one-line change.)*
+
+### Fixed
+- **Melee combat crashed whenever the attacker won the exchange.**
+  `rollMeleeDefense` computed `net: atk - def` using two identifiers that are
+  not declared anywhere in that function — a `ReferenceError` on the most common
+  outcome in melee, so the hit was never resolved. The margin was already
+  available as `net`. Pre-existing; found while adding Full Defense.
+- `.sr2e-attack__check` is reused by the melee dialog, which sits outside the
+  `.sr2e-attack` root where the `--atk-*` spacing variables are defined, so its
+  spacing silently collapsed to zero. Given literal fallbacks. (Same failure
+  mode as the 0.83.0 dropped-root bug.)
+
 ## 0.87.0 — 2026-08-02
 
 ### Fixed

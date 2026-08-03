@@ -3693,7 +3693,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-attack__field:has(> input[type="checkbox"]) {
   flex-direction: row;
   align-items: center;
-  gap: var(--atk-2);
+  gap: var(--atk-2, 8px);
   min-height: 24px;
 }
 .sr2e-attack__field:has(> input[type="checkbox"]) > label { text-transform: none; font-size: 11px; letter-spacing: 0; }
@@ -3704,11 +3704,14 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
    stays on ONE line. The stacked label/control layout above is right for a
    select, but it orphans a checkbox from its text. Sits on the grid's bottom
    edge so it lines up with the control beside it. */
+/* Also used by the melee-defence dialog, which is NOT inside .sr2e-attack, so
+   every custom property here needs a literal fallback — without one the whole
+   declaration is invalid there and silently drops to 0. */
 .sr2e-attack__check {
   display: flex;
   align-items: center;
   align-self: start;
-  gap: var(--atk-2);
+  gap: var(--atk-2, 8px);
   min-height: 24px;              /* match the control height it sits beside */
   font-size: 11px;
   color: var(--sr2e-text-muted);

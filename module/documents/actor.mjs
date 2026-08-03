@@ -1145,6 +1145,11 @@ export class SR2EActor extends Actor {
           <input type="number" name="karma_dice" value="0" min="0" max="${karmaAvail}"
                  style="width:52px;text-align:center;">
         </div>` : ""}
+        ${combatAvail > 0 ? `
+        <label class="sr2e-attack__check" style="margin:5px 0 0;"
+               title="SR2E p.103. Defend only yourself: you may NOT add Combat Pool to this Attack Success Test, but you MAY add it to your Damage Resistance Test — and if your Combat Pool successes alone beat the attacker's, it is a clean miss regardless of the weapon's Damage Code.">
+          <input type="checkbox" name="full_defense"> Full Defense (p.103)
+        </label>` : ""}
         <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           Base TN 4 + modifiers. Most successes hits — if you out-roll the
           attacker, YOU strike THEM (SR2E p.100).</p>
@@ -1159,7 +1164,12 @@ export class SR2EActor extends Actor {
               weaponId:  f.weapon?.value || null,
               reachMod:  parseInt(f.reachMod?.value) || 0,
               otherMod:  parseInt(f.otherMod?.value) || 0,
-              poolDice:  Math.max(0, Math.min(parseInt(f.pool_combat?.value) || 0, combatAvail)),
+              // Full Defense (p.103) bars Combat Pool from this Attack Success
+              // Test — the dice are saved for the Damage Resistance Test, which
+              // is what makes the clean miss possible.
+              fullDefense: !!f.full_defense?.checked,
+              poolDice:  f.full_defense?.checked ? 0
+                : Math.max(0, Math.min(parseInt(f.pool_combat?.value) || 0, combatAvail)),
               karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
               ...readMiscDice(button.form)
             };
@@ -1220,6 +1230,21 @@ export class SR2EActor extends Actor {
     // ── Compare and resolve (ties favour the attacker) ───────────────────────
     const { winner, net } = meleeOutcome(state.successes, defense?.successes ?? 0);
 
+    // Full Defense is "defend only themselves" (p.103) — the defender gives up
+    // the counterstrike, not just the Combat Pool on their roll. Winning the
+    // exchange therefore means the attack simply fails, with no riposte.
+    if (winner === "defender" && choice.fullDefense) {
+      await message.setFlag("sr2e", "melee", { ...state, resolved: true,
+        resolution: `<br><strong>Resolved:</strong> ${foundry.utils.escapeHTML(this.name)} `
+                  + `turned the attack aside on Full Defense — no counterstrike (SR2E p.103).` });
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>Attack turned aside.</strong>
+          <br><em>Full Defense: defending only, so no counterstrike (SR2E p.103).</em></div>`
+      });
+      return defense;
+    }
+
     if (winner === "defender") {
       // Defender wins and strikes back with THEIR weapon. For an unarmed
       // counterstrike, use the actor's own Unarmed Strike so bone lacing's Power
@@ -1236,6 +1261,10 @@ export class SR2EActor extends Actor {
       await this._resolveMeleeHit(message, state, {
         winnerName: this.name, loserName: state.attackerName,
         weaponName: defWeaponName, net,
+        // On a counterstrike the DEFENDER is the one striking, so the attacker
+        // is now the one resisting — Full Defense protects the person who
+        // declared it, and they are not the one taking this hit.
+        fullDefense: false, strikerSuccesses: defense?.successes ?? 0,
         power: Math.max(1, dmg.power), level: dmg.level, damageType,
         // p.103: melee knockback is resisted against the STRIKER's Strength.
         winnerStrength: this.system.strength?.value ?? 0,
@@ -1245,7 +1274,14 @@ export class SR2EActor extends Actor {
       const striker = await fromUuid(state.attackerUuid).catch(() => null);
       await this._resolveMeleeHit(message, state, {
         winnerName: state.attackerName, loserName: this.name,
-        weaponName: state.weaponName, net: atk - def,
+        // `atk - def` here referenced two identifiers that DO NOT EXIST in this
+        // function — a ReferenceError every time the attacker won the exchange,
+        // i.e. the common case. meleeOutcome already returns exactly this
+        // margin as `net`.
+        weaponName: state.weaponName, net,
+        // p.103 clean miss, only under Full Defense: the defender's Combat Pool
+        // successes must beat the STRIKER's success count.
+        fullDefense: !!choice.fullDefense, strikerSuccesses: state.successes ?? 0,
         power: state.power, level: state.level, damageType: state.damageType,
         // p.103: resisted against the STRIKER's Strength, so it has to come
         // from the attacker's own sheet, not the defender's.
@@ -1286,6 +1322,8 @@ export class SR2EActor extends Actor {
                 data-ammo-name=""
                 data-melee="1"
                 data-attacker-strength="${o.winnerStrength ?? 0}"
+                data-full-defense="${o.fullDefense ? 1 : 0}"
+                ${o.fullDefense ? `data-attacker-successes="${o.strikerSuccesses ?? 0}"` : ""}
                 title="${esc(o.loserName)} rolls Body vs. TN = Power − Impact Armor (SR2E p.100)">
           ${game.i18n.localize("SR2E.Chat.ResistDamage")}
         </button>
@@ -1873,13 +1911,15 @@ export class SR2EActor extends Actor {
     // roll, or a card posted before this shipped), rather than assuming 0 —
     // assuming 0 would turn any single pool success into a miss.
     const poolHits = successesFromSource(resistResult?.dice ?? [], "pool:combat");
-    if (isCompleteMiss(poolHits, options.attackerSuccesses)) {
+    if (isCompleteMiss(poolHits, options.attackerSuccesses,
+                       { melee: !!options.melee, fullDefense: !!options.fullDefense })) {
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result">
           <strong>Complete miss — no damage.</strong>
           <br><em>${poolHits} Combat Pool success${poolHits === 1 ? "" : "es"} alone beat the
-          attacker's ${options.attackerSuccesses} (SR2E p.91).</em>
+          attacker's ${options.attackerSuccesses}${options.melee
+            ? " under Full Defense (SR2E p.103)" : " (SR2E p.91)"}.</em>
         </div>`
       });
       return resistResult;

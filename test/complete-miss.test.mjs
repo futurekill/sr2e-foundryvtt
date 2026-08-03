@@ -82,3 +82,28 @@ describe("labels are localisable, not hard-coded English", () => {
     expect(runs.find(r => r.key === "misc").label).toBe("power site");
   });
 });
+
+describe("melee clean miss requires Full Defense (SR2E p.103)", () => {
+  // p.103, verified from a 300dpi render: "Characters may choose, when
+  // attacked, to defend only themselves. When doing so, they may not add any
+  // Combat Pool dice to their Attack Success Test, but may add dice to their
+  // Damage Resistance Test. When using this option, a clean miss occurs if the
+  // target's successes from Combat Pool dice alone exceed the attacker's
+  // successes, regardless of any other dice result or the Damage Code."
+  it("does NOT grant a clean miss in melee without Full Defense", () => {
+    expect(isCompleteMiss(4, 2, { melee: true, fullDefense: false })).toBe(false);
+  });
+
+  it("DOES grant it in melee under Full Defense", () => {
+    expect(isCompleteMiss(4, 2, { melee: true, fullDefense: true })).toBe(true);
+  });
+
+  it("still requires the pool to strictly exceed, even under Full Defense", () => {
+    expect(isCompleteMiss(2, 2, { melee: true, fullDefense: true })).toBe(false);
+  });
+
+  it("leaves ranged unconditional — p.91 has no such precondition", () => {
+    expect(isCompleteMiss(4, 2)).toBe(true);
+    expect(isCompleteMiss(4, 2, { melee: false })).toBe(true);
+  });
+});

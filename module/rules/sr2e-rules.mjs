@@ -2969,8 +2969,12 @@ export function poolsAllowedFor(kind) {
  * @param {number} attackerSuccesses - the attacker's successes on the attack test.
  * @returns {boolean}
  */
-export function isCompleteMiss(poolSuccesses, attackerSuccesses) {
+export function isCompleteMiss(poolSuccesses, attackerSuccesses, opts = {}) {
   if (!Number.isFinite(poolSuccesses) || !Number.isFinite(attackerSuccesses)) return false;
+  // In MELEE the clean miss is not free: p.103 grants it only to a defender who
+  // declared Full Defense, paying for it by forgoing Combat Pool on their own
+  // Attack Success Test. Ranged (p.91) has no such precondition.
+  if (opts.melee && !opts.fullDefense) return false;
   return poolSuccesses > attackerSuccesses;
 }
 

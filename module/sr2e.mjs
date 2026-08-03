@@ -1740,7 +1740,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const attackerStrength = parseInt(btn.dataset.attackerStrength) || 0;
       return actor.rollDamageResistance(power, level, armorType, damageType,
         { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses,
-          melee, attackerStrength });
+          melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1" });
     });
   });
 
