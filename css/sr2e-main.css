@@ -4002,3 +4002,11 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   .sr2e-dice-lanes { grid-template-columns: 1fr; }
   .sr2e-dice-lane-label { text-align: left; }
 }
+
+/* Advisory line on a chat card — present, but never mistaken for a result. */
+.sr2e-hint {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--sr2e-text-muted);
+}

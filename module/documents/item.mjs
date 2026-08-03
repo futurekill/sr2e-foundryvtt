@@ -680,6 +680,9 @@ export class SR2EItem extends Item {
 
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
+      // Short caption for the dice-provenance groups. Without this the group
+      // caption inherits `label`, i.e. the entire card title.
+      sourceLabel: this.name,
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -962,12 +965,33 @@ export class SR2EItem extends Item {
             ${game.i18n.localize("SR2E.Chat.ResistDamage")}
           </button>`;
 
+      // This card is where the DEFENDER acts, so it speaks as the defender when
+      // we know who that is — a card headed by the attacker reads as the
+      // attacker's to resolve. Falls back to the attacker (clearly labelled)
+      // when nothing was targeted, since we genuinely cannot say who resists.
+      const defender = targetTok?.actor ?? null;
+      const attackerName = actor?.name ?? "";
+      // getSpeaker takes `alias` directly (foundry.mjs:43060), and prefers the
+      // TOKEN when given one — which is what we want: it names the specific
+      // token that was shot, not the prototype actor, so four identical guards
+      // stay distinguishable.
+      const speaker = defender
+        ? ChatMessage.getSpeaker({ actor: defender, token: targetTok?.document,
+                                   alias: `${defender.name} — resisting ${attackerName}` })
+        : ChatMessage.getSpeaker({ actor, alias: `${attackerName} — no target selected` });
+      // When the defender is speaking, the weapon has to be attributed or the
+      // line reads as though it were the defender's own gun.
+      const attackerAttrib = defender && attackerName
+        ? `${foundry.utils.escapeHTML(attackerName)}'s ` : "";
+      const noTargetHint = defender ? "" :
+        `<br><em class="sr2e-hint">No target was set — whoever resists should select their token first.</em>`;
+
       await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor }),
+        speaker,
         content: `<div class="sr2e-damage-result">
-          <strong>${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
+          <strong>${attackerAttrib}${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
           <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | Staged up ${stageUps} level(s)</em>
-          ${ammoLine}
+          ${ammoLine}${noTargetHint}
           <br>
           ${buttonHtml}
         </div>`
