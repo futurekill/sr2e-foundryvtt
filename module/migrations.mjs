@@ -48,7 +48,44 @@ export const UNARMED_STRIKE_DATA = {
 };
 
 /** Ordered list of migrations. Append new entries; never reorder. */
+// Spell foci that came through the 0.89.0 migration with no spell bound. Filled
+// during the run and reported once at the end — migrateItem only receives the
+// item's own source, so it cannot name the actor an orphaned focus belongs to.
+const UNBOUND_FOCI = [];
+
 export const MIGRATIONS = [
+  // 0.89.0 — Spell foci become a depleting pool bound to ONE spell (SR2E p.137).
+  // Previously any active focus added its rating to EVERY spell, forever.
+  //
+  // Bindings are deliberately left EMPTY. Auto-binding would invent a mechanical
+  // choice that belongs to the player, and "the first spell" is a guess. The cost
+  // is that an existing focus grants nothing until bound — so this reports every
+  // affected actor, and the sheets carry a persistent unbound warning that does
+  // not disappear the way a notification does.
+  {
+    version: "0.89.0",
+    migrateActor(source) {
+      const foci = (source.items ?? []).filter(
+        i => i.type === "focus" && i.system?.focusType === "spell" && !i.system?.expendable);
+      if (!foci.length) return null;
+      // Report through the run-scoped accumulator; migrateItem cannot do this
+      // because it never sees the parent actor.
+      for (const f of foci) {
+        if (!f.system?.boundSpellId) UNBOUND_FOCI.push({ actor: source.name, focus: f.name });
+      }
+      return null;   // per-item fields are handled by migrateItem below
+    },
+    migrateItem(source) {
+      if (source.type !== "focus") return null;
+      if (source.system?.focusType !== "spell") return null;
+      const u = {};
+      if (source.system.spellSubtype === undefined) u["system.spellSubtype"] = "specific";
+      if (source.system.boundSpellId === undefined) u["system.boundSpellId"] = "";
+      if (source.system.spent === undefined) u["system.spent"] = 0;
+      return Object.keys(u).length ? u : null;
+    }
+  },
+
   // 0.9.8 — PCs must use LINKED prototype tokens. Characters created before the
   // link default was added drop unlinked tokens on the canvas, so karma/damage
   // spent on a dragged-out token never reaches the sidebar actor. Link them.
@@ -369,5 +406,20 @@ export async function migrateWorld() {
     );
   } else {
     ui.notifications.info(`SR2E | World migrated to system version ${game.system.version}.`);
+  }
+
+  // Spell foci that need a spell chosen before they do anything. Permanent on
+  // purpose: a toast that auto-dismisses would leave an unexplained nerf, and the
+  // sheets keep warning regardless of whether this was ever read.
+  if (UNBOUND_FOCI.length) {
+    const lines = UNBOUND_FOCI.map(f => `${f.actor} — ${f.focus}`);
+    console.warn("SR2E | Spell foci awaiting a bound spell:\n  " + lines.join("\n  "));
+    ui.notifications.warn(
+      `SR2E | ${UNBOUND_FOCI.length} spell focus/foci need a spell bound before they `
+      + `grant dice (SR2E p.137). Open each focus and pick its spell — see the console `
+      + `(F12) for the full list. Affected: ${[...new Set(UNBOUND_FOCI.map(f => f.actor))].join(", ")}.`,
+      { permanent: true }
+    );
+    UNBOUND_FOCI.length = 0;
   }
 }

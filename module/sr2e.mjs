@@ -38,7 +38,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen } from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -1054,6 +1054,19 @@ const PURCHASE_DRIVERS = ["rating", "grade", "force", "grantedSkillCategory",
 // Alt-dropped/GM-gifted items, which have none, are left alone). Respects the
 // autoChargePurchases setting and the chargen list-vs-street rule, and folds the new
 // paid total into the same update.
+// A spell focus's `spent` ceiling is its own (dynamic) rating, which a schema
+// NumberField cannot express as `max`. So lowering the rating on a spent focus —
+// Rating 4 with 4 spent, edited down to Rating 2 — writes only `force` and leaves
+// `spent: 4` above its ceiling, making `remaining` negative. Normalise here so
+// the invariant holds however the field is changed, not only on the spend path.
+Hooks.on("preUpdateItem", (item, changes) => {
+  if (item.type !== "focus") return;
+  const nextForce = changes.system?.force ?? item.system.force;
+  const nextSpent = changes.system?.spent ?? item.system.spent;
+  const fixed = normalisedFocusSpent(nextSpent, nextForce);
+  if (fixed !== nextSpent) foundry.utils.setProperty(changes, "system.spent", fixed);
+});
+
 Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   if (game.user.id !== userId || options?.sr2eNoCharge) return;
   // Only react to a driver that ACTUALLY changed. A write that re-sends the same

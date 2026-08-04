@@ -48,6 +48,26 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     context.item = item;
     context.system = item.system;
+
+    // A spell focus binds to ONE spell on its owning actor (SR2E p.137), so the
+    // form needs that actor's spells to choose from. Nothing supplied them before,
+    // so a selector added to the template would have rendered empty.
+    if (item.type === "focus" && item.system.focusType === "spell") {
+      // An UNOWNED focus — sitting in a compendium or the items sidebar — has no
+      // actor and therefore nothing to bind to. Say so rather than showing an
+      // empty dropdown that looks broken.
+      context.focusOwned = !!item.actor;
+      context.focusSpells = item.actor
+        ? item.actor.items.filter(i => i.type === "spell")
+            .map(i => ({ id: i.id, name: i.name }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        : [];
+      // Drives the persistent warning. Expendable fetish foci are out of this
+      // mechanism entirely, so they are never "unbound".
+      context.focusUnbound = context.focusOwned
+        && !item.system.expendable
+        && !item.system.boundSpellId;
+    }
     // Fields the derivation OVERWRITES in place must be EDITED at their authored
     // value, or saving the sheet persists the derived one. Where the transform is
     // relative (base + bonus) that compounds on every save: bone lacing turned

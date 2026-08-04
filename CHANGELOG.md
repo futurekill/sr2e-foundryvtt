@@ -1,3 +1,20 @@
+
+### Fixed
+- **Spell foci now work the way the book says (SR2E p.137).** They were a
+  permanent bonus; they are a **depleting pool bound to one spell**, shared
+  between the casting test and the Drain test.
+  - A focus only fuels **the spell it is bound to**. Previously every active
+    focus added its rating to *every* spell you cast.
+  - The dice **run out** — rating dice per action, refreshing when the Magic Pool
+    does. Previously a Rating 4 focus gave +4 dice on every spell in a turn.
+  - The dice now also serve **Drain resistance**, which the book grants and we
+    never applied.
+  - You choose the split in the cast dialog, per focus, the way you already
+    allocate Magic Pool.
+  - **Existing foci start unbound and grant nothing until you pick their spell.**
+    Auto-binding would make a mechanical choice that is yours. Every focus item
+    and both actor sheets carry a persistent ⚠ until it is set, and the migration
+    lists affected characters.
 # Changelog
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.

@@ -394,7 +394,21 @@ export class SR2EActor extends Actor {
    */
   async refreshDicePools() {
     const updates = dicePoolRefreshUpdates(this.system.dicePools);
-    if (!foundry.utils.isEmpty(updates)) return this.update(updates);
+    if (!foundry.utils.isEmpty(updates)) await this.update(updates);
+
+    // Spell focus dice refresh on exactly this path — the book says to treat them
+    // "exactly like Magic Pool dice for the purposes of when they refresh"
+    // (p.137).
+    //
+    // This deliberately runs AFTER the actor update and is NOT behind the same
+    // early return. `spent` lives on embedded items, not system.dicePools, so
+    // returning when the actor pools happened to be unchanged would skip focus
+    // refresh — presenting as "foci sometimes don't refresh", which is miserable
+    // to diagnose. Bulked into one call.
+    const focusUpdates = this.items
+      .filter(i => i.type === "focus" && (i.system.spent ?? 0) !== 0)
+      .map(i => ({ _id: i.id, "system.spent": 0 }));
+    if (focusUpdates.length) await this.updateEmbeddedDocuments("Item", focusUpdates);
   }
 
   /**

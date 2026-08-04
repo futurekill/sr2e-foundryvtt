@@ -3039,3 +3039,92 @@ export function knockdownTestTN({ power = 0, gel = false, melee = false, attacke
   if (melee) return Math.max(2, Math.floor(attackerStrength) || 2);
   return Math.max(2, gel ? Math.floor(power) : Math.floor(power / 2));
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * SPELL FOCI (SR2E p.137)
+ *
+ * "Both types operate in a similar manner in that they make available an
+ *  additional number of dice equal to their rating. Like Dice Pools, once the
+ *  Spell Focus dice are used, they are gone until the beginning of the
+ *  magician's next action... A specific spell focus provides extra dice equal to
+ *  its rating for the tests to cast and resist Drain associated with one
+ *  specific spell."
+ *
+ * Three things follow, and the system used to get all three wrong: the dice are
+ * a POOL that depletes, the focus is bound to ONE spell, and the dice serve the
+ * cast AND the drain — one allocation split between them, not one each.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Dice a focus still has this action, never negative.
+ *
+ * `spent` cannot carry a schema `max` because its ceiling is the focus's own
+ * (dynamic) rating, so lowering the rating on a spent focus can leave `spent`
+ * above it. Clamping here means every caller is safe even if a document slipped
+ * through in that state.
+ *
+ * @param {{force?:number, spent?:number}} focus
+ * @returns {number}
+ */
+export function focusRemaining(focus = {}) {
+  const rating = Math.max(0, Number(focus.force) || 0);
+  const spent  = Math.max(0, Number(focus.spent) || 0);
+  return Math.max(0, rating - spent);
+}
+
+/**
+ * Is this focus eligible to fuel `spellId` right now?
+ *
+ * Expendable (fetish) foci are deliberately excluded: they are consumed by their
+ * own spend-and-delete flow, and giving them a REFRESHING counter would turn a
+ * single-use item into a permanent one.
+ *
+ * @param {object} focus - A focus item's system data, plus `type`.
+ * @param {string} spellId
+ * @returns {boolean}
+ */
+export function focusEligibleFor(focus = {}, spellId = "") {
+  return focus.focusType === "spell"
+    && !!focus.bonded
+    && !!focus.active
+    && !focus.expendable
+    && focus.spellSubtype === "specific"    // category foci are not implemented
+    && !!focus.boundSpellId
+    && focus.boundSpellId === spellId
+    && focusRemaining(focus) > 0;
+}
+
+/**
+ * Clamp a requested {cast, drain} split to what the focus actually has.
+ *
+ * THE TWO SHARE ONE BUDGET. Capping each independently at `remaining` would let
+ * a Rating 4 focus yield 4 on the cast and 4 more on the drain — eight dice from
+ * a four-die focus, which is precisely the doubling this mechanic is supposed to
+ * prevent. Cast is satisfied first, drain takes what survives, so the result is
+ * deterministic regardless of how the request arrived.
+ *
+ * @param {{force?:number, spent?:number}} focus
+ * @param {number} cast
+ * @param {number} drain
+ * @returns {{cast:number, drain:number, total:number}}
+ */
+export function clampFocusAllocation(focus = {}, cast = 0, drain = 0) {
+  const remaining = focusRemaining(focus);
+  const c = Math.min(Math.max(0, Math.floor(Number(cast) || 0)), remaining);
+  const d = Math.min(Math.max(0, Math.floor(Number(drain) || 0)), remaining - c);
+  return { cast: c, drain: d, total: c + d };
+}
+
+/**
+ * `spent` normalised against a (possibly reduced) rating.
+ * Used by the Item pre-update hook so the invariant holds however the rating
+ * changes, not only on the spend path.
+ *
+ * @param {number} spent
+ * @param {number} force
+ * @returns {number}
+ */
+export function normalisedFocusSpent(spent, force) {
+  const rating = Math.max(0, Number(force) || 0);
+  return Math.min(Math.max(0, Math.floor(Number(spent) || 0)), rating);
+}

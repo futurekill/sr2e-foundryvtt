@@ -214,6 +214,10 @@
           {{else}}
           <span>{{#if focus.system.bonded}}Bonded{{else}}Unbonded{{/if}}</span>
           {{/ifEquals}}
+          {{#if focus.system._unbound}}
+            <span class="focus-bond warn" title="A specific spell focus serves ONE named spell (SR2E p.137). Until one is bound this focus grants no dice at all — open it and choose.">⚠ no spell bound</span>
+          {{/if}}
+
           <div class="item-controls">
             {{#ifEquals focus.system.focusType "weapon"}}<a data-action="bondWeaponFocus" title="Bond / re-bond this focus to a melee weapon"><i class="fas fa-link"></i></a>{{/ifEquals}}
             {{#if focus.system.expendable}}<a data-action="spendFocus" title="Spend (single-use)"><i class="fas fa-bolt"></i></a>{{/if}}

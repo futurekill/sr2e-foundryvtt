@@ -193,6 +193,10 @@
           <span>{{focus.system.focusType}}</span>
           <span>Force: {{focus.system.force}}</span>
           <span>{{#if focus.system.bonded}}Bonded{{else}}Unbonded{{/if}}{{#if focus.system.active}}, active{{/if}}</span>
+          {{#if focus.system._unbound}}
+            <span class="focus-bond warn" title="A specific spell focus serves ONE named spell (SR2E p.137). Until one is bound this focus grants no dice at all — open it and choose.">⚠ no spell bound</span>
+          {{/if}}
+
           <div class="item-controls">
             <a data-action="editItem" title="Edit (bond / activate here)"><i class="fas fa-edit"></i></a>
           </div>

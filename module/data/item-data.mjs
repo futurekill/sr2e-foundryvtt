@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost } from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining} from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -1037,6 +1037,25 @@ export class FocusData extends SR2EDataModel {
       // same actor this focus is bonded to. Its Reach drives the price and it
       // gains the focus's Force in dice; astral attacks manifest it (SR2E p.126).
       bondedWeaponId: new fields.StringField({ initial: "", blank: true }),
+      // ── Spell focus (focusType "spell"), SR2E p.137 ─────────────────────────
+      // The book defines two subtypes. Only "specific" is implemented; the form
+      // does not offer "category", because a value that is selectable but
+      // silently rejected at cast time is a trap — the focus would just stop
+      // working with nothing saying why.
+      spellSubtype: new fields.StringField({ initial: "specific", choices: {
+        specific: "SR2E.Focus.SubtypeSpecific", category: "SR2E.Focus.SubtypeCategory"
+      }}),
+      // "A specific spell focus provides extra dice... associated with ONE
+      // SPECIFIC SPELL." The id of that spell item on the same actor. Empty means
+      // unbound, which grants nothing — the sheets warn until it is set.
+      boundSpellId: new fields.StringField({ initial: "", blank: true }),
+      // Dice used this action. "Like Dice Pools, once the Spell Focus dice are
+      // used, they are gone until the beginning of the magician's next action."
+      // NO `max` here on purpose: the real ceiling is this focus's own `force`,
+      // which is dynamic, and NumberField.max is static. Every write path clamps
+      // instead (see normalisedFocusSpent + the preUpdateItem hook) — a schema
+      // that looks like it validates and doesn't is worse than one that admits it.
+      spent: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
       // Single-use foci (Grimoire fetish foci): a "Spend" button on the magic tab
       // expends the item after enhancing one casting.
       expendable: new fields.BooleanField({ initial: false }),
@@ -1056,6 +1075,19 @@ export class FocusData extends SR2EDataModel {
     if (this.costPerForce > 0) {
       this.cost = derivedItemCost({ type: "focus", force: this.force,
                                     costPerForce: this.costPerForce }) ?? this.cost;
+    }
+
+    // Spell-focus derived state, used by the sheets (SR2E p.137).
+    if (this.focusType === "spell") {
+      // Dice still available this action. Clamped rather than subtracted raw:
+      // `spent` has no schema max (its ceiling is the dynamic rating), so a
+      // document can legitimately arrive with spent > force.
+      this.remainingFocusDice = focusRemaining(this);
+      // Drives the persistent ⚠ on the character magic tab AND the NPC foci
+      // fieldset. An unbound specific focus grants nothing at all, so this must
+      // be visible without opening the item. Expendable fetish foci are outside
+      // this mechanism entirely and are never "unbound".
+      this._unbound = !this.expendable && this.spellSubtype === "specific" && !this.boundSpellId;
     }
   }
 }

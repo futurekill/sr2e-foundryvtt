@@ -1,7 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
-         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating } from "../rules/sr2e-rules.mjs";
+         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation} from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -1145,18 +1145,31 @@ export class SR2EItem extends Item {
       }
     }
 
-    // ── Spell focus ───────────────────────────────────────────────────────────
-    // A bonded, active Spell Focus adds its Force in dice to spellcasting (Spell
-    // Focus, p.137 SRII). FocusData doesn't bind a focus to a category, so the
-    // player activates the one matching the spell; all active bonded spell foci
-    // count. Free dice, like the totem bonus.
-    let focusDice = 0;
+    // ── Spell focus (SR2E p.137) ──────────────────────────────────────────────
+    // A DEPLETING POOL bound to ONE spell, split between this test and the Drain
+    // test — not a permanent bonus. This used to sum every active focus into
+    // every spell and never deplete, which handed a Rating 4 focus +4 dice on
+    // every spell in a turn.
+    //
+    // Enforcement lives HERE rather than in the dialog: item.roll() can be called
+    // directly from a macro or the hotbar, and dialog state goes stale between
+    // render and submit. The dialog only *requests* an allocation.
+    const focusRequests = options.focusDice ?? {};   // { [focusId]: {cast, drain} }
+    let focusDice = 0, drainFocusDice = 0;
+    const focusSpends = [];
     for (const item of actor.items) {
-      if (item.type === "focus" && item.system.focusType === "spell" &&
-          item.system.bonded && item.system.active) {
-        focusDice += Number(item.system.force) || 0;
-      }
+      if (item.type !== "focus") continue;
+      if (!focusEligibleFor(item.system, this.id)) continue;
+      const req = focusRequests[item.id] ?? {};
+      const { cast, drain, total } = clampFocusAllocation(item.system, req.cast, req.drain);
+      if (!total) continue;
+      focusDice      += cast;
+      drainFocusDice += drain;
+      focusSpends.push({ _id: item.id, "system.spent": (item.system.spent ?? 0) + total });
     }
+    // Persist consumption before rolling, so a failure mid-roll cannot leave the
+    // dice both spent and unspent.
+    if (focusSpends.length) await actor.updateEmbeddedDocuments("Item", focusSpends);
 
     // Base dice for the spell test = Force + totem net modifier + active foci.
     // Totem bonus/penalty dice are treated as part of the Magic Pool at the
@@ -1240,9 +1253,14 @@ export class SR2EItem extends Item {
     }
     const willpowerDice  = actor.system.willpower?.value ?? 1;
 
-    const drainResult = await actor.rollSuccessTest(willpowerDice, drainTN, {
-      label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`,
+    const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice, drainTN, {
+      label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})`
+           + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
+           + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`,
       poolDice: options.drainPoolDice,  // separately allocated magic pool dice
+      // The book grants the focus to "the tests to cast AND RESIST DRAIN" for its
+      // spell (p.137). We used to add it to the cast only, so we over-granted on
+      // one test and under-granted on the other.
       isResistance: true                // Injury Modifier does not apply (p.112)
     });
 

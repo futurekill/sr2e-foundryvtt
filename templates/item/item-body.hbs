@@ -927,6 +927,40 @@
 
   {{!-- FOCUS --}}
   {{#ifEquals type "focus"}}
+
+  {{!-- Spell focus binding (SR2E p.137). A specific spell focus serves ONE named
+        spell, for both its casting test and its Drain test, from a pool of dice
+        equal to its rating that refreshes each action. Unbound, it does nothing —
+        hence the warning, which persists rather than being a dismissable toast. --}}
+  {{#ifEquals system.focusType "spell"}}
+    {{#unless system.expendable}}
+    <div class="form-group">
+      <label>Bound Spell:</label>
+      {{#if focusOwned}}
+      <select name="system.boundSpellId">
+        <option value="" {{selected system.boundSpellId ""}}>— not bound —</option>
+        {{#each focusSpells as |sp|}}
+        <option value="{{sp.id}}" {{selected ../system.boundSpellId sp.id}}>{{sp.name}}</option>
+        {{/each}}
+      </select>
+      {{else}}
+      <select disabled><option>— bind once carried by a character —</option></select>
+      {{/if}}
+    </div>
+    {{#if focusUnbound}}
+    <p class="notification warning" style="margin:.25rem 0;">
+      <i class="fas fa-triangle-exclamation"></i>
+      This focus grants no dice until a spell is bound to it (SR2E p.137).
+    </p>
+    {{/if}}
+    <p class="hint" style="margin:.25rem 0;">
+      Rating {{system.force}} — {{system.spent}} used this action.
+      The dice serve the casting test <em>and</em> the Drain test, split between
+      them, and refresh when the Magic Pool does.
+    </p>
+    {{/unless}}
+  {{/ifEquals}}
+
   <div class="form-group">
     <label>Focus Type:</label>
     <select name="system.focusType">

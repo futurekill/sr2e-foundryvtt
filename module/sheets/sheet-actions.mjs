@@ -2,7 +2,7 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance } from "../rules/sr2e-rules.mjs";
+         footprintDistance, focusEligibleFor, focusRemaining} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 
 // ===========================================================================
@@ -1611,6 +1611,37 @@ async function promptSpellOptions(actor, spell) {
     }
   }
 
+  // ── Spell focus allocation (SR2E p.137) ───────────────────────────────────
+  // Deliberately OUTSIDE poolSection: that block is suppressed when Magic Pool
+  // availability is 0, and focus dice can still remain when the Magic Pool is
+  // spent — putting these inside would hide them exactly when they are the only
+  // dice left.
+  //
+  // One row per eligible focus, with a cast field and a drain field, because the
+  // two SHARE one budget. `_rollSpellcast` re-clamps whatever arrives here, so
+  // these maxes are a convenience and never the enforcement point.
+  const eligibleFoci = actor.items.filter(i =>
+    i.type === "focus" && focusEligibleFor(i.system, item.id));
+  const focusSection = eligibleFoci.length ? `
+    <hr style="margin:8px 0 6px;">
+    ${eligibleFoci.map(f => {
+      const rem = focusRemaining(f.system);
+      return `
+      <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">
+        ${foundry.utils.escapeHTML(f.name)}: ${rem} focus die/dice left this action
+        <span style="color:#aaa1c0;font-size:10px;">— shared between both tests</span>
+      </p>
+      <div class="form-group" style="margin:4px 0;">
+        <label style="font-size:12px;flex:1;">Spell test</label>
+        <input type="number" name="focus_cast_${f.id}" value="0" min="0" max="${rem}"
+               style="width:52px;flex:0 0 52px;">
+        <label style="font-size:12px;flex:1;margin-left:8px;">Drain</label>
+        <input type="number" name="focus_drain_${f.id}" value="0" min="0" max="${rem}"
+               style="width:52px;flex:0 0 52px;">
+      </div>`;
+    }).join("")}
+  ` : "";
+
   const poolSection = available > 0 ? `
     <hr style="margin:8px 0 6px;">
     <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">
@@ -1683,6 +1714,7 @@ async function promptSpellOptions(actor, spell) {
       </div>
       ${tnNote ? `<div style="margin:-2px 0 6px;font-size:10px;padding-left:4px;">${tnNote}</div>` : ""}
       ${poolSection}
+      ${focusSection}
       ${karmaDiceSection(actor, magicAttr)}
       ${miscDiceHTML()}
     </form>`,
@@ -1706,6 +1738,12 @@ async function promptSpellOptions(actor, spell) {
             drainSubjectNote,
             poolDice:      spellAlloc > 0 ? { magic: spellAlloc } : {},
             drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {},
+            // { [focusId]: {cast, drain} } — a REQUEST. _rollSpellcast
+            // re-resolves eligibility and re-clamps before spending anything.
+            focusDice: Object.fromEntries(eligibleFoci.map(f => [f.id, {
+              cast:  Number(fd.get(`focus_cast_${f.id}`))  || 0,
+              drain: Number(fd.get(`focus_drain_${f.id}`)) || 0
+            }])),
             // Cap by the chosen Force here; rollSuccessTest re-clamps against
             // the final spell dice (Force + totem) and the live Karma Pool.
             karmaDice:     readKarmaDice(button.form, actor, force),
@@ -1737,7 +1775,7 @@ async function onCastSpell(event, target) {
   if (opts === null) return;
   return item.roll({
     force: opts.force, targetNumber: opts.tn,
-    poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice,
+    poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice, focusDice: opts.focusDice,
     karmaDice: opts.karmaDice,
     resolvedDrainLevel: opts.resolvedDrainLevel,
     drainSubjectNote: opts.drainSubjectNote,
