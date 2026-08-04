@@ -37,3 +37,22 @@ Add a `quench.registerBatch("sr2e.<name>", (ctx) => { … }, { displayName })` i
 the `quenchReady` handler in `module/quench/sr2e-quench.mjs`. Use Chai's `assert`
 from the context. Create temp documents and clean them up in an `after()` hook.
 When you fix a UI/persistence bug, add the batch that would have caught it.
+
+### `sr2e.spell-foci` — Spell Foci (p.137)
+
+Covers what Vitest cannot: that focus dice are actually **persisted** as spent,
+that they **come back** on refresh, and that the derived unbound flag the sheets
+warn on is correct.
+
+The two that matter most:
+
+- **refresh with the actor pools already full.** `refreshDicePools()` returns
+  early when the actor-side update is empty, and `spent` lives on an embedded
+  item — so an early return would skip focus refresh entirely and present as
+  "foci sometimes don't refresh".
+- **a greedy request straight through `item.roll`**, bypassing the dialog: 4 cast
+  + 4 drain from a rating-4 focus must spend **4**, not 8. The dialog is a
+  convenience; enforcement is in `_rollSpellcast`.
+
+Plus the original bug itself — a focus bound to one spell must contribute nothing
+to a different one.

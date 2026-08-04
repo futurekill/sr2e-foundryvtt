@@ -2151,5 +2151,111 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Matrixware (C2)" });
+
+    // ── Spell foci (SR2E p.137) ───────────────────────────────────────────────
+    // Vitest covers the arithmetic; this covers what it cannot reach — that the
+    // dice are actually PERSISTED as spent, that they come back on refresh, and
+    // that the derived unbound flag the sheets warn on is right. Every case here
+    // is a way the old "permanent bonus" behaviour could creep back.
+    quench.registerBatch("sr2e.spell-foci", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+
+      /** A magician with one spell and a focus bound to it. */
+      async function caster({ bind = true, force = 4, expendable = false } = {}) {
+        const actor = await Actor.create({
+          name: "Quench Focus Mage", type: "character",
+          system: { willpower: { base: 5 }, magic: { value: 6, type: "full_magician" } },
+          items: [{ name: "Sleep", type: "spell", system: { force: 4 } }]
+        });
+        made.push(actor);
+        const spell = actor.items.find(i => i.type === "spell");
+        await actor.createEmbeddedDocuments("Item", [{
+          name: "Sleep Focus", type: "focus",
+          system: { focusType: "spell", force, bonded: true, active: true, expendable,
+                    spellSubtype: "specific", boundSpellId: bind ? spell.id : "", spent: 0 }
+        }]);
+        // createEmbeddedDocuments returns items OUT of order — find by type.
+        return { actor, spell, focus: actor.items.find(i => i.type === "focus") };
+      }
+
+      describe("Spell focus dice are a pool, not a bonus", () => {
+        it("an unbound focus is flagged so the sheets can warn", async () => {
+          const { focus } = await caster({ bind: false });
+          assert.isTrue(focus.system._unbound,
+            "an unbound specific focus must flag itself — it grants nothing and the " +
+            "player has no other way to find out");
+        });
+
+        it("a bound focus is not flagged", async () => {
+          const { focus } = await caster();
+          assert.isFalse(focus.system._unbound);
+        });
+
+        it("an expendable fetish focus is never treated as unbound", async () => {
+          // They are outside this mechanism entirely; flagging them would nag
+          // about a binding they must never have.
+          const { focus } = await caster({ bind: false, expendable: true });
+          assert.isFalse(focus.system._unbound);
+        });
+
+        it("remaining dice fall as they are spent", async () => {
+          const { focus } = await caster({ force: 4 });
+          assert.equal(focus.system.remainingFocusDice, 4);
+          await focus.update({ "system.spent": 3 });
+          assert.equal(focus.system.remainingFocusDice, 1);
+        });
+
+        it("lowering the rating re-clamps spent instead of going negative", async () => {
+          // `spent` has no schema max — its ceiling is the dynamic rating.
+          const { focus } = await caster({ force: 4 });
+          await focus.update({ "system.spent": 4 });
+          await focus.update({ "system.force": 2 });
+          assert.equal(focus.system.spent, 2, "spent must be clamped to the new rating");
+          assert.equal(focus.system.remainingFocusDice, 0);
+        });
+
+        it("refreshDicePools resets spent EVEN WHEN the actor pools are unchanged", async () => {
+          // The trap: refreshDicePools returns early when the actor-side update is
+          // empty. `spent` lives on an embedded item, so an early return would skip
+          // it and present as "foci sometimes don't refresh".
+          const { actor, focus } = await caster({ force: 4 });
+          await actor.update({ "system.dicePools.magic.value": actor.system.dicePools.magic.max });
+          await focus.update({ "system.spent": 4 });
+          await actor.refreshDicePools();
+          assert.equal(actor.items.get(focus.id).system.spent, 0,
+            "focus dice must refresh on the same path as the Magic Pool");
+        });
+
+        it("spending persists to the item, not just to the roll", async () => {
+          const { actor, spell, focus } = await caster({ force: 4 });
+          await spell.roll({ force: 3, targetNumber: 4,
+                             focusDice: { [focus.id]: { cast: 2, drain: 1 } } });
+          assert.equal(actor.items.get(focus.id).system.spent, 3,
+            "3 dice were committed, so 3 must be recorded as spent");
+        });
+
+        it("a greedy request cannot exceed the rating", async () => {
+          // Straight through item.roll, bypassing the dialog entirely.
+          const { actor, spell, focus } = await caster({ force: 4 });
+          await spell.roll({ force: 3, targetNumber: 4,
+                             focusDice: { [focus.id]: { cast: 4, drain: 4 } } });
+          assert.equal(actor.items.get(focus.id).system.spent, 4,
+            "cast and drain share one budget — 4+4 from a rating-4 focus must spend 4, not 8");
+        });
+
+        it("a focus bound to a DIFFERENT spell contributes nothing", async () => {
+          const { actor, focus } = await caster({ force: 4 });
+          const [other] = await actor.createEmbeddedDocuments("Item",
+            [{ name: "Mana Bolt", type: "spell", system: { force: 4 } }]);
+          await other.roll({ force: 3, targetNumber: 4,
+                             focusDice: { [focus.id]: { cast: 4, drain: 0 } } });
+          assert.equal(actor.items.get(focus.id).system.spent, 0,
+            "this is the original bug: the focus must not fuel every spell");
+        });
+      });
+    }, { displayName: "SR2E: Spell Foci (p.137)" });
+
   });
 }
