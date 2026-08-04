@@ -95,6 +95,66 @@ round of its own.
 
 ---
 
+## QUESTION ANSWERED — firing at a target who is in melee
+
+futurekill asked whether there is a penalty for shooting at someone engaged in
+melee, what happens on a miss, and whether we handle it.
+
+**There is no such rule in SR2, and that is a finding rather than a gap.**
+
+The full **Ranged Combat Modifiers Table** (book p.89), read from a 300 dpi
+render because a dropped table row is exactly the failure mode a text-layer sweep
+produces:
+
+| Situation | Modifier |
+|---|---|
+| Recoil, Semi-automatic | +1 for second shot that Combat Phase |
+| Recoil, Burst-fire | +3 per burst that Combat Phase |
+| Recoil, Full-auto | +1 per round fired that Combat Phase |
+| Recoil, Heavy weapon | 2 × uncompensated recoil |
+| Blind Fire | +8 |
+| Partial Cover | +4 |
+| Visibility Impaired | see Visibility Table |
+| Multiple Targets | +2 per additional target that Combat Phase |
+| Target Running | +2 |
+| Target Stationary | −1 |
+| **Attacker In Melee Combat** | **+2 per opponent** |
+| Attacker Running | +4 |
+| Attacker Running (difficult ground) | +6 |
+| Attacker Walking | +1 |
+| Attacker Walking (difficult ground) | +2 |
+
+The only melee entry is **Attacker** In Melee Combat. There is **no "Target In
+Melee"** row — SR2 imposes nothing for shooting *into* a melee. And a missed
+firearm attack simply misses: there is no scatter or stray-round rule for
+bullets, unlike grenades, which do scatter (p.116).
+
+So the three answers:
+
+1. **Penalty for firing at a target in melee?** No. Not a modifier we are
+   missing — one the book does not have.
+2. **What happens on a miss?** Nothing. The round is spent, ammo decrements, no
+   stray-fire resolution exists in SR2 core.
+3. **Do we handle it?** We correctly handle the case the book *does* have — the
+   shooter being in melee — via `countEngagingFoes` and `ENGAGED_TN_PER_FOE = 2`,
+   surfaced as an editable field on the attack dialog.
+
+### One nuance worth a GM's attention
+
+The p.90 text is narrower than the table row suggests: the +2 applies if the
+attacker *"is engaged in melee combat with an opponent, **or if he is aware of
+another character attempting to block the attempt** within two meters of him."*
+
+Our auto-count is **any aware, undefeated, opposed token within 2 m** — broader
+than "engaged, or actively trying to block". A hostile who is merely standing
+nearby and doing something else would count for us and arguably should not.
+Defensible, because the field stays editable and the alternative is asking the
+system to infer intent, but a GM should know the box is a suggestion.
+
+**If a GM wants a penalty for shooting into a melee anyway**, the printed hook is
+**Partial Cover +4** — ruling that the other combatant obstructs the shot. That
+is a judgement call, not a rule, and should be labelled as such.
+
 ## Still to audit
 
 Combat: knockdown interactions with called shots, blast falloff vs cover,
