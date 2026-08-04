@@ -2,7 +2,7 @@
   "_id": "9bf2a593eaad85f4",
   "name": "Improved Physical Senses",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/improved-physical-senses.webp",
   "system": {
     "pointCost": 0.25,
     "level": 1,

@@ -2,7 +2,7 @@
   "_id": "484c4074c7e97b93",
   "name": "Improved Physical Attributes (Quickness)",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/improved-physical-attributes-quickness.webp",
   "system": {
     "pointCost": 1,
     "level": 1,

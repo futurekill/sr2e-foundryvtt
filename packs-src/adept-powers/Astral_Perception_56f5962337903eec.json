@@ -2,7 +2,7 @@
   "_id": "56f5962337903eec",
   "name": "Astral Perception",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/astral-perception.webp",
   "system": {
     "pointCost": 2,
     "level": 1,

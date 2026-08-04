@@ -2,7 +2,7 @@
   "_id": "30f5e3493545db6b",
   "name": "Killing Hands (D)",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/killing-hands-d.webp",
   "system": {
     "pointCost": 4,
     "level": 1,

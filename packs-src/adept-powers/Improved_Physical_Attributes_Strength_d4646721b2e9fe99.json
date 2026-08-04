@@ -2,7 +2,7 @@
   "_id": "d4646721b2e9fe99",
   "name": "Improved Physical Attributes (Strength)",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/improved-physical-attributes-strength.webp",
   "system": {
     "pointCost": 1,
     "level": 1,

@@ -2,7 +2,7 @@
   "_id": "7a4b0e85072ce4c6",
   "name": "Improved Ability",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/improved-ability.webp",
   "system": {
     "pointCost": 0.5,
     "level": 1,

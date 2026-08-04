@@ -2,7 +2,7 @@
   "_id": "003f74fef4a1756e",
   "name": "Pain Resistance",
   "type": "adept_power",
-  "img": "icons/svg/aura.svg",
+  "img": "systems/sr2e/assets/item_icons/adept-powers/pain-resistance.webp",
   "system": {
     "pointCost": 0.5,
     "level": 1,
