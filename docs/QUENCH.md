@@ -56,3 +56,22 @@ The two that matter most:
 
 Plus the original bug itself — a focus bound to one spell must contribute nothing
 to a different one.
+
+### `sr2e.damage-karma` — Damage application & Karma spends
+
+The two most consequential mutations in the system, and neither had any coverage.
+`applyDamage` runs on every hit; `applyKarmaToTest` spends Karma Pool, which the
+book makes **permanent** — a bug there costs a player something they cannot get
+back.
+
+The case worth understanding is *"computes overflow from the PRE-hit value"*.
+`applyDamage` captures `const monitor = this.system.conditionMonitor[type]`
+**before** its own `await this.update(...)`, then uses `monitor.value` to work out
+overflow. That is correct only while the data model **rebuilds** `system` on
+update rather than mutating it in place — if that ever changed, `monitor.value`
+would read back already-clamped and overflow would silently compute 0. Nothing
+would error; wounds would just quietly stop being lethal.
+
+Also pins stun→physical conversion, the vehicle/IC flat monitor, refusal to act
+on non-positive amounts, and that a Karma action which cannot be afforded spends
+nothing rather than going negative.

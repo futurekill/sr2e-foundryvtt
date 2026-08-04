@@ -2257,5 +2257,115 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Spell Foci (p.137)" });
 
+    // ── Damage application & Karma spends ─────────────────────────────────────
+    // The two most consequential mutations in the system and neither had any
+    // Quench coverage. applyDamage runs on every hit; applyKarmaToTest spends
+    // Karma Pool, which the book makes PERMANENT — a bug there costs a player
+    // something they cannot get back, so it deserves a test more than most.
+    quench.registerBatch("sr2e.damage-karma", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+
+      async function pc(system = {}) {
+        const actor = await Actor.create({ name: "Quench Damage", type: "character",
+          system: foundry.utils.mergeObject({ body: { base: 6 }, willpower: { base: 6 } }, system) });
+        made.push(actor);
+        return actor;
+      }
+
+      describe("applyDamage", () => {
+        it("fills the physical monitor without exceeding its max", async () => {
+          const a = await pc();
+          const max = a.system.conditionMonitor.physical.max;
+          await a.applyDamage("physical", max + 3);
+          assert.equal(a.system.conditionMonitor.physical.value, max,
+            "the monitor itself must cap — the excess belongs in overflow");
+        });
+
+        it("records physical overflow past the monitor", async () => {
+          const a = await pc();
+          const max = a.system.conditionMonitor.physical.max;
+          await a.applyDamage("physical", max + 3);
+          assert.equal(a.system.conditionMonitor.overflow, 3,
+            "3 boxes past a full monitor is 3 overflow");
+        });
+
+        it("computes overflow from the PRE-hit value, not the clamped one", async () => {
+          // The subtle one: `monitor` is captured before the update. If the data
+          // model ever mutated in place instead of rebuilding, monitor.value would
+          // read back as the clamped value and overflow would silently compute 0.
+          const a = await pc();
+          const max = a.system.conditionMonitor.physical.max;
+          await a.applyDamage("physical", max - 1);   // one short of full
+          await a.applyDamage("physical", 5);         // 4 past
+          assert.equal(a.system.conditionMonitor.physical.value, max);
+          assert.equal(a.system.conditionMonitor.overflow, 4);
+        });
+
+        it("converts stun overflow into physical (p.110)", async () => {
+          const a = await pc();
+          const smax = a.system.conditionMonitor.stun.max;
+          await a.applyDamage("stun", smax + 2);
+          assert.equal(a.system.conditionMonitor.stun.value, smax, "stun caps at its max");
+          assert.equal(a.system.conditionMonitor.physical.value, 2,
+            "the 2 boxes past a full stun monitor become physical");
+        });
+
+        it("ignores non-positive amounts rather than healing", async () => {
+          const a = await pc();
+          await a.applyDamage("physical", 3);
+          await a.applyDamage("physical", 0);
+          await a.applyDamage("physical", -5);
+          assert.equal(a.system.conditionMonitor.physical.value, 3,
+            "a zero or negative hit must not move the monitor in either direction");
+        });
+
+        it("uses the single flat monitor for vehicles", async () => {
+          const v = await Actor.create({ name: "Quench Rig", type: "vehicle",
+            system: { body: 3 } });
+          made.push(v);
+          const max = v.system.conditionMonitor.max;
+          await v.applyDamage("physical", max + 5);
+          assert.equal(v.system.conditionMonitor.value, max);
+        });
+      });
+
+      describe("Karma Pool spends are permanent (p.100)", () => {
+        async function tested(karma = 5) {
+          const a = await pc({ karma: { pool: karma, max: karma } });
+          const msg = await ChatMessage.create({ content: "quench",
+            flags: { sr2e: { test: { dice: [{ result: 2 }, { result: 5 }, { result: 1 }],
+                                     tn: 4, successes: 1, rerolls: 0 } } } });
+          return { actor: a, msg };
+        }
+
+        it("a reroll costs escalating Karma and deducts it", async () => {
+          const { actor, msg } = await tested(5);
+          await actor.applyKarmaToTest(msg, "reroll");
+          assert.equal(actor.system.karma.pool, 4, "first reroll costs 1");
+          await actor.applyKarmaToTest(msg, "reroll");
+          assert.equal(actor.system.karma.pool, 2, "second reroll costs 2 — it escalates");
+          await msg.delete();
+        });
+
+        it("refuses a reroll it cannot afford, and spends nothing", async () => {
+          const { actor, msg } = await tested(0);
+          await actor.applyKarmaToTest(msg, "reroll");
+          assert.equal(actor.system.karma.pool, 0,
+            "a refused action must not leave the pool negative or partially spent");
+          await msg.delete();
+        });
+
+        it("avoiding a glitch costs exactly 1", async () => {
+          const { actor, msg } = await tested(3);
+          await actor.applyKarmaToTest(msg, "avoidGlitch");
+          assert.equal(actor.system.karma.pool, 2);
+          await msg.delete();
+        });
+      });
+    }, { displayName: "SR2E: Damage & Karma" });
+
+
   });
 }
