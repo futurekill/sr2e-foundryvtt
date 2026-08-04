@@ -1,0 +1,171 @@
+# Foundry v14 removal list — extracted from the installed v13.351
+
+Not guesswork about v14's API. Foundry 13.351 marks each of these with
+`until: 14`, meaning **v13 still supports them and v14 removes them**. That
+makes this the authoritative checklist for v14 readiness, available now,
+without v14 being released.
+
+Source: `/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/public/scripts/foundry.mjs`
+Regenerate: see docs/V14-AUDIT.md for the extraction method.
+
+System currently declares `compatibility: {minimum: 13, verified: 13}`.
+
+## The 157 notices
+
+- ${this.constructor.name}#_getAlphaBounds is deprecated without replacement.
+- ${this.constructor.name}#_getTextureCoordinate is deprecated without replacement.
+- ${this.constructor.name}#containsPixel is deprecated. Use ${this.constructor.name}#containsCanvasPoint instead.
+- ${this.constructor.name}#getPixelAlpha is deprecated without replacement.
+- ${this.constructor.name}#overhead is deprecated.
+- (breaking). Use HexagonalGrid#measurePath instead to get the number of steps (cube distance) between the origin and target.
+- AbstractBaseShader#_defaults is deprecated in favor of AbstractBaseShader#initialUniforms.
+- AdaptiveLightingShader#getDarknessPenalty is deprecated without replacement.
+- AmbientLight#source has been deprecated in favor of AmbientLight#lightSource
+- AmbientLight#updateSource has been deprecated in favor of AmbientLight#initializeLightSource
+- AmbientSound#updateSource has been deprecated in favor of AmbientSound#initializeSoundSource
+- AudioContainer#loadState is deprecated in favor of Sound#_state
+- AudioContainer.LOAD_STATES is deprecated in favor of Sound.STATES
+- BaseGrid#getCenter is deprecated. Use BaseGrid#getCenterPoint instead.
+- BaseGrid#getGridPositionFromPixels is deprecated. Use BaseGrid#getOffset instead.
+- BaseGrid#getNeighbors is deprecated. Use BaseGrid#getAdjacentOffsets instead.
+- BaseGrid#getPixelsFromGridPosition is deprecated. Use BaseGrid#getTopLeftPoint instead.
+- BaseGrid#getRect is deprecated. If you need the size of a Token, use Token#getSize instead.
+- BaseGrid#getSnappedPosition is deprecated. Use BaseGrid#getSnappedPoint instead.
+- BaseGrid#getTopLeft is deprecated. Use BaseGrid#getTopLeftPoint instead.
+- BaseGrid#highlightGridPosition is deprecated. Use GridLayer#highlightPosition instead.
+- BaseGrid#measureDistances is deprecated. Use BaseGrid#measurePath instead.
+- BaseGrid#shiftPosition is deprecated. Use BaseGrid#getShiftedPoint instead.
+- BaseGrid.calculatePadding is deprecated in favor of BaseGrid#calculateDimensions.
+- BaseLightSource#isDarkness is now obsolete. Use DarknessSource instead.
+- CONST.CHAT_MESSAGE_STYLES.ROLL is deprecated in favor of defining
+- CONST.CHAT_MESSAGE_STYLES.WHISPER is deprecated in favor of defining
+- CONST.CHAT_MESSAGE_TYPES is deprecated in favor of CONST.CHAT_MESSAGE_STYLES because the
+- Canvas#colorManager is deprecated and replaced by Canvas#environment
+- CanvasIlluminationEffects#globalLight has been deprecated without replacement. Check the
+- CanvasVisibility#vision#base is deprecated in favor of CanvasVisibility#vision#light#preview.
+- CanvasVisibility#vision#fov is deprecated in favor of CanvasVisibility#vision#light.
+- CanvasVisibility#vision#fov#lights is deprecated without replacement.
+- CanvasVisibility#vision#fov#lightsSprite is deprecated in favor of CanvasVisibility#vision#light#cached.
+- CanvasVisibility#vision#los is deprecated in favor of CanvasVisibility#vision#light#mask.
+- CanvasVisibility#vision#tokens is deprecated in favor of CanvasVisibility#vision#light.
+- ChatMessage#type field has been renamed to ChatMessage#style
+- DiceConfig.SETTING is deprecated: use Roll.DICE_CONFIGURATION_SETTING instead.
+- Document.createDocuments API. Use the new Document() constructor instead.
+- EffectsCanvasGroup#globalLightSource has been deprecated and moved to
+- EffectsCanvasGroup#updateGlobalLightSource has been deprecated and is part of
+- EffectsCanvasGroup#visibility has been deprecated and moved to
+- EnvironmentCanvasGroup#darknessPenalty is deprecated without replacement.
+- FormApplication#_activateFilePicker is deprecated without replacement
+- FormApplication#_getFilePickerOptions is deprecated without replacement
+- FormApplication#filepickers is deprecated and replaced by the <file-picker>
+- Game#template is deprecated and will be removed in Version 14.
+- GridLayer#getCenter is deprecated. Use canvas.grid.getCenterPoint instead.
+- GridLayer#getSnappedPosition is deprecated. Use canvas.grid.getSnappedPoint instead.
+- GridLayer#getTopLeft is deprecated. Use canvas.grid.getTopLeftPoint instead.
+- GridLayer#grid is deprecated. Use canvas.grid instead.
+- GridLayer#isHex is deprecated. Use canvas.grid.isHexagonal instead.
+- GridLayer#isNeighbor is deprecated. Use canvas.grid.testAdjacency instead.
+- GridLayer#measureDistance is deprecated.
+- GridLayer#size is deprecated. Use canvas.grid.size instead.
+- GridLayer#type is deprecated. Use canvas.grid.type instead.
+- HexagonalGrid#_adjustPositionForTokenSize is deprecated.
+- HexagonalGrid#_adjustSnapForTokenSize is deprecated.
+- HexagonalGrid#columnar is deprecated in favor of HexagonalGrid#columns.
+- HexagonalGrid#getAStarPath is deprecated without replacement.
+- HexagonalGrid#getBorderPolygon is deprecated.
+- HexagonalGrid#getCenter is deprecated. Use HexagonalGrid#getCenterPoint instead.
+- HexagonalGrid#getGridPositionFromPixels is deprecated. This function is based on the \
+- HexagonalGrid#getPixelsFromGridPosition is deprecated. This function is based on the \
+- HexagonalGrid#getPolygon is deprecated. You can get the shape of the hex with HexagonalGrid#getShape
+- HexagonalGrid#getRect is deprecated. If you need the size of a Token, use Token#getSize instead.
+- HexagonalGrid#getSnappedPosition is deprecated. Use HexagonalGrid#getSnappedPoint instead.
+- HexagonalGrid#hexPoints is deprecated without replacement.
+- HexagonalGrid#measureDistance now returns the same result as GridLayer#measureDistance instead of the cube distance
+- HexagonalGrid#measureDistances is deprecated.
+- HexagonalGrid.FLAT_HEX_BORDERS is deprecated without replacement.
+- HexagonalGrid.POINTY_HEX_BORDERS is deprecated without replacement.
+- HexagonalGrid.computeDimensions is deprecated without replacement.
+- HexagonalGrid.cubeToOffset is deprecated. Use HexagonalGrid#cubeToOffset instead.
+- HexagonalGrid.flatHexPoints is deprecated without replacement.
+- HexagonalGrid.getConfig is deprecated without replacement.
+- HexagonalGrid.offsetToCube is deprecated. Use HexagonalGrid#offsetToCube instead.
+- HexagonalGrid.offsetToPixels is deprecated. Use HexagonalGrid#getTopLeftPoint instead.
+- HexagonalGrid.pixelToCube is deprecated. Use HexagonalGrid#pointToCube instead.
+- HexagonalGrid.pixelsToOffset is deprecated without replacement. This function is based on the \
+- HexagonalGrid.pointyHexPoints is deprecated without replacement.
+- If you need the shape of a Token, use Token#shape/getShape instead.
+- Math.normalizeDegrees(degrees, base) is deprecated.
+- MeasuredTemplate#borderColor has been deprecated. Use MeasuredTemplate#document#borderColor instead.
+- MeasuredTemplate#fillColor has been deprecated. Use MeasuredTemplate#document#fillColor instead.
+- MeasuredTemplate#owner has been deprecated. Use MeasuredTemplate#isOwner instead.
+- Note#size has been deprecated. Use Note#document#iconSize instead.
+- Note#text has been deprecated. Use Note#document#label instead.
+- OutlineOverlayFilter#animate is deprecated in favor of OutlineOverlayFilter#animated.
+- Passing a0 to Token#animate is deprecated without replacement.
+- Passing the initial value of the src field as a string is deprecated. Pass {src} instead.
+- PerceptionManager#refresh is deprecated in favor of assigning granular
+- PlaceablesLayer#gridPrecision is deprecated. Use PlaceablesLayer#getSnappedPoint
+- PlaylistSound#effectiveVolume is deprecated in favor of using
+- Please use the _stats.compendiumSource property instead.
+- PrimaryCanvasGroup#mapElevationAlpha is deprecated.
+- PrimaryCanvasObject#document is deprecated.
+- PrimaryCanvasObject#updateBounds is deprecated and has no effect.
+- Sound#play now takes an object of playback options instead of
+- SquareGrid#getCenter is deprecated. Use SquareGrid#getCenterPoint instead.
+- SquareGrid#getSnappedPosition is deprecated.
+- SquareGrid#measureDistances is deprecated.
+- StatusEffectConfig#${oldKey} has been deprecated in favor of StatusEffectConfig#${newKey}
+- TextureLoader.textureBufferDataMap is deprecated without replacement. Use
+- The Document._onCreateDocuments static method is deprecated in favor of
+- The Document._onDeleteDocuments static method is deprecated in favor of
+- The Document._onUpdateDocuments static method is deprecated in favor of
+- The addFlags option for WorldCompendium#fromCompendium has been removed.
+- The constructor BaseGrid({dimensions, color, alpha}) is deprecated
+- The core.sourceId flag has been deprecated.
+- The refreshTiles flag is deprecated in favor of refreshOcclusion
+- The {{colorPicker}} Handlebars helper is deprecated and replaced by
+- The {{filePicker}} Handlebars helper is deprecated and replaced by
+- The {{select}} handlebars helper is deprecated in favor of using the
+- TilesLayer#depthMask is deprecated without replacement. Use canvas.masks.depth instead
+- TilesLayer#roofs has been deprecated without replacement.
+- Token#_getBorderColor returning null is deprecated.
+- Token#_recoverFromPreview is deprecated without replacement in favor of
+- Token#getCenter(x, y) has been deprecated in favor of Token#getCenterPoint(Point).
+- Token#owner has been deprecated. Use Token#isOwner instead.
+- Token#segmentizeRegionMovement is deprecated
+- Token#toggleVisibility is deprecated without replacement in favor of
+- Token#updateSource has been deprecated in favor of Token#initializeSources
+- TokenDocument#effects is deprecated in favor of using ActiveEffect
+- TokenDocument#effects is deprecated in favor of using ActiveEffect documents on the associated Actor
+- TokenDocument#hexagonalShape is deprecated in favor of TokenDocument#shape.
+- TokenDocument#overlayEffect is deprecated in favor of using
+- TokenDocument#toggleActiveEffect is deprecated in favor of
+- TokenLayer#toggleCombat is deprecated in favor of
+- TokenRingConfig#configNames is deprecated and replaced by TokenRingConfig#configIDs
+- Use BaseGrid#getSnappedPoint instead for non-Euclidean measurements.
+- Use HexagonalGrid#measurePath instead, which returns grid distance (gridSpaces: true) and Euclidean distance (gridSpaces: false).
+- Use SquareGrid#measurePath instead, which returns grid distance (gridSpaces: true) and Euclidean distance (gridSpaces: false).
+- Use canvas.grid.measurePath instead, which returns grid distance (gridSpaces: true) and Euclidean distance (gridSpaces: false).
+- Use canvas.masks.depth.mapElevation(elevation) instead.
+- Use cases for Game#template should be refactored to instead use System#documentTypes or Game#model
+- Wall#hasActiveRoof has been deprecated. There
+- Wall#identifyInteriorState has been deprecated.
+- WallsLayer#identifyInteriorWalls has been deprecated.
+- WallsLayer#identifyWallIntersections is deprecated in favor of
+- WallsLayer#initialize is deprecated in favor of Canvas#edges#initialize
+- are probably trying to load Fog of War exploration data, an operation which has been renamed to
+- canvas.environment.globalLightSource.active instead.
+- canvas.grid.addHighlightLayer is deprecated. Use canvas.interface.grid.addHighlightLayer instead.
+- canvas.grid.clearHighlightLayer is deprecated. Use canvas.interface.grid.clearHighlightLayer instead.
+- canvas.grid.destroyHighlightLayer is deprecated. Use canvas.interface.grid.destroyHighlightLayer instead.
+- canvas.grid.getHighlightLayer is deprecated. Use canvas.interface.grid.getHighlightLayer instead.
+- canvas.grid.grid is deprecated. Use canvas.grid instead.
+- canvas.grid.highlight is deprecated. Use canvas.interface.grid.highlight instead.
+- canvas.grid.highlightLayers is deprecated. Use canvas.interface.grid.highlightLayers instead.
+- canvas.grid.highlightPosition is deprecated. Use canvas.interface.grid.highlightPosition instead.
+- canvas.grid.isHex is deprecated. Use of canvas.grid.isHexagonal instead.
+- canvas.grid.isNeighbor is deprecated. Use canvas.grid.testAdjacency instead.
+- canvas.grid.measureDistance is deprecated.
+- config.darknessLevel parameter into EnvironmentCanvasGroup#initialize is deprecated.
+- is deprecated and will be removed in V14.
+- object: targetArrows and targetPips. targetArrows is returned by the deprecated target property.
