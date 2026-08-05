@@ -1,0 +1,31 @@
+{
+  "_id": "e1bdd5f32f61a88a",
+  "name": "Reset Recoil (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/target.svg",
+  "command": "/* SR2E — hotbar slot 11. Recoil accumulates within a Combat Phase; this zeroes it.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\n// Recoil is per-phase and accrues across bursts (p.89). Clearing it by hand on\n// every shooter is the sort of bookkeeping a pad key exists for.\nfor (const a of actors) await a.update({ \"system.combatRecoil\": 0 });\nui.notifications.info(`Recoil cleared on ${actors.length} actor(s).`);\n",
+  "folder": null,
+  "sort": 11000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 11
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!e1bdd5f32f61a88a"
+}

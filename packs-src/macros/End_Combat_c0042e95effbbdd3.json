@@ -1,0 +1,31 @@
+{
+  "_id": "c0042e95effbbdd3",
+  "name": "End Combat",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/circle.svg",
+  "command": "/* SR2E — hotbar slot 17. Asks first — this deletes the encounter.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nif (!game.combat) return ui.notifications.warn(\"No active combat.\");\n// The one destructive key on the pad, so it is the one that confirms. Ending\n// combat also triggers the end-of-combat pool refresh.\nconst ok = await foundry.applications.api.DialogV2.confirm({\n  window: { title: \"End Combat\" },\n  content: \"<p>End the current encounter?</p>\"\n}).catch(() => false);\nif (ok) await game.combat.delete();\n",
+  "folder": null,
+  "sort": 17000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 17
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!c0042e95effbbdd3"
+}

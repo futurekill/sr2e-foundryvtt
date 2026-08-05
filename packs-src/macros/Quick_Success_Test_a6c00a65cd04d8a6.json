@@ -1,0 +1,31 @@
+{
+  "_id": "a6c00a65cd04d8a6",
+  "name": "Quick Success Test",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/d20.svg",
+  "command": "/* SR2E — hotbar slot 16. Dice + TN, straight off the selected actor. The GM's workhorse roll.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\nconst data = await foundry.applications.api.DialogV2.prompt({\n  window: { title: \"Quick Success Test\" },\n  content: `<div>\n    <div class=\"form-group\"><label>Dice</label>\n      <input type=\"number\" name=\"dice\" value=\"6\" min=\"1\" autofocus></div>\n    <div class=\"form-group\"><label>Target Number</label>\n      <input type=\"number\" name=\"tn\" value=\"4\" min=\"2\"></div>\n  </div>`,\n  ok: { label: \"Roll\", callback: (ev, btn) => new FormDataExtended(btn.form).object }\n}).catch(() => null);\nif (!data) return;\n// Rolls off the FIRST selected actor so the card is attributed to someone.\nawait actors[0].rollSuccessTest(Number(data.dice) || 1, Number(data.tn) || 4,\n  { label: `Quick Test (${data.dice} dice, TN ${data.tn})` });\n",
+  "folder": null,
+  "sort": 16000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 16
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!a6c00a65cd04d8a6"
+}

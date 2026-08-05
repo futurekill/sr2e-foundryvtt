@@ -1,0 +1,31 @@
+{
+  "_id": "0b53f7a098b27208",
+  "name": "Clear All Targets",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/cancel.svg",
+  "command": "/* SR2E — hotbar slot 18. Releases your targeting, not your selection.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// Targets and selection are different things and diverge constantly; this\n// clears TARGETS only, which is the one that silently causes wrong-actor rolls.\nconst targets = Array.from(game.user.targets);\nif (!targets.length) return ui.notifications.info(\"No targets set.\");\ngame.user.updateTokenTargets([]);\nui.notifications.info(`Cleared ${targets.length} target(s).`);\n",
+  "folder": null,
+  "sort": 18000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 18
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!0b53f7a098b27208"
+}

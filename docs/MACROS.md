@@ -1,7 +1,7 @@
 # SR2E macros & the macro pad
 
-The system ships a **SR2E Macros** compendium — ten macros built specifically for
-driving a session from a physical macro pad.
+The system ships a **SR2E Macros** compendium — **twenty** macros built for driving
+a session from a physical macro pad, laid out across two hotbar pages.
 
 ## Import
 
@@ -25,9 +25,52 @@ cursor is in the chat box, pressing `3` types a "3". Click the map first. That i
 Foundry's behaviour, not something a macro can defend against, and it is the most
 likely reason a key "does nothing".
 
-If your pad has more than ten keys, Foundry v13 lets you rebind hotbar pages
-under **Configure Controls**; page-switch keys are the simplest way to reach
-slots 11+ without modifiers.
+## Framework Laptop 16 RGB Macropad (both gens)
+
+24 keys in a 6×4 grid, QMK firmware, VIA-configurable, per-key RGB. Gen 2 is the
+same hardware with a firmware fix for waking in a bag, so the mapping below is
+identical on either.
+
+Twenty-four keys means **one hotbar page wastes most of the pad**, which is why
+there are twenty macros across two pages. The constraint is that every macro
+fires from a *digit*, so only ten are reachable at a time — the pad needs two
+keys to flip pages.
+
+Suggested allocation of the 24:
+
+| Keys | Purpose |
+|---|---|
+| **10** | digits `1`–`0` — fire whichever hotbar page is showing |
+| **2** | hotbar **page prev / next** |
+| **12** | native Foundry controls, or leave dark |
+
+Bind the two page keys in **Configure Controls** (search "hotbar"). Point them at
+something VIA can send and the OS will not eat — **F13–F24 are ideal**, since they
+exist in HID, VIA emits them, and nothing else claims them.
+
+The remaining twelve are yours. Things worth binding, all native Foundry rather
+than macros: toggle the token layer, ruler/measure, target mode, pan to selected,
+toggle fog, undo, and zoom in/out. These also need binding in Configure Controls
+before a pad key can reach them.
+
+### Per-key RGB as a legend
+
+The RGB is genuinely useful here rather than decorative — colour by *consequence*,
+so your hand learns which keys are safe:
+
+| Colour | Meaning | Keys |
+|---|---|---|
+| **Green** | fire freely, idempotent | 1, 2, 3, 5, 6, 8, 19 |
+| **Amber** | opens a dialog, needs a number | 4, 10, 16, 20 |
+| **Blue** | toggles a state | 7, 13, 14 |
+| **Red** | destructive or confirms | 9, 17, 18 |
+
+### QMK layers instead of page keys
+
+If you would rather not spend two keys on paging: a QMK **layer** key can make the
+same ten physical keys send `1`–`0` on layer 0 and your page-next binding plus
+`1`–`0` on layer 1. That is more firmware work for the same result, and it hides
+which page you are on — the two-key version is easier to live with.
 
 ## The layout, and why it is in this order
 
@@ -46,6 +89,23 @@ digits, and the ones with consequences sit further out.
 | **8** | Roll Initiative — All Combatants | no | Re-rolls the whole combat. |
 | **9** | Clear Templates (this scene) | no | Sweeps leftover blast/spell templates. |
 | **10** (`0`) | Award Karma (selected) | **yes** | Adds to spendable and lifetime Karma. |
+
+### Page 2 — second tier
+
+Frequent, but not every round.
+
+| Slot | Macro | Dialog? | Notes |
+|---|---|---|---|
+| **11** | Reset Recoil (selected) | no | Recoil accrues within a Combat Phase (p.89). |
+| **12** | Recover Dump Shock | no | Willpower vs TN 4. No-ops if unshocked. |
+| **13** | Toggle Matrix Mode | no | Flips the decker between meat and Matrix. |
+| **14** | Toggle Astral-Only Token | no | Acts on the **token**, not the actor — two tokens of one actor can differ. |
+| **15** | Consolidate Ammo | no | Merges duplicate stacks. |
+| **16** | Quick Success Test | **yes** | Dice + TN off the first selected actor. The GM workhorse. |
+| **17** | End Combat | **confirms** | The only destructive key, so the only one that asks. |
+| **18** | Clear All Targets | no | Targets only, never your selection. |
+| **19** | Select All Player Tokens | no | Grab the party, then hit 2 / 5 / 6. |
+| **20** | Award Nuyen (selected) | **yes** | Even split; tells you the remainder rather than silently dropping it. |
 
 ## Three rules every macro here follows
 

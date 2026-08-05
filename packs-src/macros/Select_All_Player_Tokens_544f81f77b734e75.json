@@ -1,0 +1,31 @@
+{
+  "_id": "544f81f77b734e75",
+  "name": "Select All Player Tokens",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/mage-shield.svg",
+  "command": "/* SR2E — hotbar slot 19. Grabs the party on this scene — pairs with the heal and refresh keys.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// Pairs with slots 2, 5 and 6: select the party, then act on all of them.\nconst pcs = canvas.tokens?.placeables.filter(t => t.actor?.hasPlayerOwner) ?? [];\nif (!pcs.length) return ui.notifications.warn(\"No player-owned tokens on this scene.\");\ncanvas.tokens.releaseAll();\nfor (const t of pcs) t.control({ releaseOthers: false });\nui.notifications.info(`Selected ${pcs.length} player token(s).`);\n",
+  "folder": null,
+  "sort": 19000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 19
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!544f81f77b734e75"
+}

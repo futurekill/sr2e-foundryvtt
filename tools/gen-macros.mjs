@@ -161,6 +161,124 @@ for (const a of actors) {
   });
 }
 ui.notifications.info(\`Awarded \${amt} Karma to \${actors.length} character(s).\`);`
+  },
+  // ── Hotbar page 2 (slots 11–20) ─────────────────────────────────────────────
+  // The Framework 16 pad has 24 keys, so one page of ten wastes most of it. These
+  // are the second tier: still frequent, but not every-round.
+  {
+    slot: 11, name: "Reset Recoil (selected)", img: "icons/svg/target.svg",
+    tip: "Recoil accumulates within a Combat Phase; this zeroes it.",
+    cmd: `${SEL}
+// Recoil is per-phase and accrues across bursts (p.89). Clearing it by hand on
+// every shooter is the sort of bookkeeping a pad key exists for.
+for (const a of actors) await a.update({ "system.combatRecoil": 0 });
+ui.notifications.info(\`Recoil cleared on \${actors.length} actor(s).\`);`
+  },
+  {
+    slot: 12, name: "Recover Dump Shock (selected)", img: "icons/svg/lightning.svg",
+    tip: "Willpower vs TN 4. No-ops on anyone not shocked.",
+    cmd: `${SEL}
+for (const a of actors) await a.recoverDumpShock();`
+  },
+  {
+    slot: 13, name: "Toggle Matrix Mode (selected)", img: "icons/svg/computer.svg",
+    tip: "Flips the decker between meat and Matrix.",
+    cmd: `${SEL}
+for (const a of actors) {
+  if (a.system.matrixMode === undefined) continue;   // not a decker-capable sheet
+  await a.update({ "system.matrixMode": !a.system.matrixMode });
+}`
+  },
+  {
+    slot: 14, name: "Toggle Astral-Only Token (selected)", img: "icons/svg/aura.svg",
+    tip: "Hides the token from anyone not astrally active.",
+    cmd: `// Operates on TOKEN documents, not actors — the flag lives on the placed token,
+// so two tokens of one actor can differ. Astral-only tokens stay invisible to
+// mundane viewers (p.145, p.148).
+const tokens = canvas.tokens?.controlled ?? [];
+if (!tokens.length) return ui.notifications.warn("Select one or more tokens first.");
+for (const t of tokens) {
+  const on = t.document.getFlag("sr2e", "astralOnly");
+  await t.document.setFlag("sr2e", "astralOnly", !on);
+}
+ui.notifications.info(\`Astral-only toggled on \${tokens.length} token(s).\`);`
+  },
+  {
+    slot: 15, name: "Consolidate Ammo (selected)", img: "icons/svg/chest.svg",
+    tip: "Merges duplicate ammo stacks.",
+    cmd: `${SEL}
+for (const a of actors) await game.sr2e.consolidateAmmo(a);`
+  },
+  {
+    slot: 16, name: "Quick Success Test", img: "icons/svg/d20.svg",
+    tip: "Dice + TN, straight off the selected actor. The GM's workhorse roll.",
+    cmd: `${SEL}
+const data = await foundry.applications.api.DialogV2.prompt({
+  window: { title: "Quick Success Test" },
+  content: \`<div>
+    <div class="form-group"><label>Dice</label>
+      <input type="number" name="dice" value="6" min="1" autofocus></div>
+    <div class="form-group"><label>Target Number</label>
+      <input type="number" name="tn" value="4" min="2"></div>
+  </div>\`,
+  ok: { label: "Roll", callback: (ev, btn) => new FormDataExtended(btn.form).object }
+}).catch(() => null);
+if (!data) return;
+// Rolls off the FIRST selected actor so the card is attributed to someone.
+await actors[0].rollSuccessTest(Number(data.dice) || 1, Number(data.tn) || 4,
+  { label: \`Quick Test (\${data.dice} dice, TN \${data.tn})\` });`
+  },
+  {
+    slot: 17, name: "End Combat", img: "icons/svg/circle.svg",
+    tip: "Asks first — this deletes the encounter.",
+    cmd: `if (!game.combat) return ui.notifications.warn("No active combat.");
+// The one destructive key on the pad, so it is the one that confirms. Ending
+// combat also triggers the end-of-combat pool refresh.
+const ok = await foundry.applications.api.DialogV2.confirm({
+  window: { title: "End Combat" },
+  content: "<p>End the current encounter?</p>"
+}).catch(() => false);
+if (ok) await game.combat.delete();`
+  },
+  {
+    slot: 18, name: "Clear All Targets", img: "icons/svg/cancel.svg",
+    tip: "Releases your targeting, not your selection.",
+    cmd: `// Targets and selection are different things and diverge constantly; this
+// clears TARGETS only, which is the one that silently causes wrong-actor rolls.
+const targets = Array.from(game.user.targets);
+if (!targets.length) return ui.notifications.info("No targets set.");
+game.user.updateTokenTargets([]);
+ui.notifications.info(\`Cleared \${targets.length} target(s).\`);`
+  },
+  {
+    slot: 19, name: "Select All Player Tokens", img: "icons/svg/mage-shield.svg",
+    tip: "Grabs the party on this scene — pairs with the heal and refresh keys.",
+    cmd: `// Pairs with slots 2, 5 and 6: select the party, then act on all of them.
+const pcs = canvas.tokens?.placeables.filter(t => t.actor?.hasPlayerOwner) ?? [];
+if (!pcs.length) return ui.notifications.warn("No player-owned tokens on this scene.");
+canvas.tokens.releaseAll();
+for (const t of pcs) t.control({ releaseOthers: false });
+ui.notifications.info(\`Selected \${pcs.length} player token(s).\`);`
+  },
+  {
+    slot: 20, name: "Award Nuyen (selected)", img: "icons/svg/coins.svg",
+    tip: "Splits a total evenly across the selected characters.",
+    cmd: `${SEL}
+const data = await foundry.applications.api.DialogV2.prompt({
+  window: { title: \`Award Nuyen — split across \${actors.length}\` },
+  content: \`<div class="form-group"><label>Total ¥</label>
+    <input type="number" name="total" value="1000" min="0" autofocus></div>\`,
+  ok: { label: "Split", callback: (ev, btn) => new FormDataExtended(btn.form).object }
+}).catch(() => null);
+if (!data) return;
+const total = Number(data.total) || 0;
+const each = Math.floor(total / actors.length);
+const leftover = total - (each * actors.length);
+for (const a of actors) {
+  if (a.system.nuyen === undefined) continue;
+  await a.update({ "system.nuyen": (a.system.nuyen ?? 0) + each });
+}
+ui.notifications.info(\`\${each}¥ each\${leftover ? \` (\${leftover}¥ left over — hand it out yourself)\` : ""}.\`);`
   }
 ];
 

@@ -1,0 +1,31 @@
+{
+  "_id": "ae444e6bf0cab013",
+  "name": "Award Nuyen (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/coins.svg",
+  "command": "/* SR2E — hotbar slot 20. Splits a total evenly across the selected characters.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\nconst data = await foundry.applications.api.DialogV2.prompt({\n  window: { title: `Award Nuyen — split across ${actors.length}` },\n  content: `<div class=\"form-group\"><label>Total ¥</label>\n    <input type=\"number\" name=\"total\" value=\"1000\" min=\"0\" autofocus></div>`,\n  ok: { label: \"Split\", callback: (ev, btn) => new FormDataExtended(btn.form).object }\n}).catch(() => null);\nif (!data) return;\nconst total = Number(data.total) || 0;\nconst each = Math.floor(total / actors.length);\nconst leftover = total - (each * actors.length);\nfor (const a of actors) {\n  if (a.system.nuyen === undefined) continue;\n  await a.update({ \"system.nuyen\": (a.system.nuyen ?? 0) + each });\n}\nui.notifications.info(`${each}¥ each${leftover ? ` (${leftover}¥ left over — hand it out yourself)` : \"\"}.`);\n",
+  "folder": null,
+  "sort": 20000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 20
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!ae444e6bf0cab013"
+}

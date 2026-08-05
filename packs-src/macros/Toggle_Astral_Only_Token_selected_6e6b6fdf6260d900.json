@@ -1,0 +1,31 @@
+{
+  "_id": "6e6b6fdf6260d900",
+  "name": "Toggle Astral-Only Token (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/aura.svg",
+  "command": "/* SR2E — hotbar slot 14. Hides the token from anyone not astrally active.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// Operates on TOKEN documents, not actors — the flag lives on the placed token,\n// so two tokens of one actor can differ. Astral-only tokens stay invisible to\n// mundane viewers (p.145, p.148).\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nfor (const t of tokens) {\n  const on = t.document.getFlag(\"sr2e\", \"astralOnly\");\n  await t.document.setFlag(\"sr2e\", \"astralOnly\", !on);\n}\nui.notifications.info(`Astral-only toggled on ${tokens.length} token(s).`);\n",
+  "folder": null,
+  "sort": 14000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 14
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!6e6b6fdf6260d900"
+}

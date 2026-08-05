@@ -1,0 +1,31 @@
+{
+  "_id": "dd4f72726f975bb5",
+  "name": "Recover Dump Shock (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/lightning.svg",
+  "command": "/* SR2E — hotbar slot 12. Willpower vs TN 4. No-ops on anyone not shocked.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\nfor (const a of actors) await a.recoverDumpShock();\n",
+  "folder": null,
+  "sort": 12000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 12
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!dd4f72726f975bb5"
+}

@@ -1,0 +1,31 @@
+{
+  "_id": "c30b5523a8225997",
+  "name": "Toggle Matrix Mode (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/computer.svg",
+  "command": "/* SR2E — hotbar slot 13. Flips the decker between meat and Matrix.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\nfor (const a of actors) {\n  if (a.system.matrixMode === undefined) continue;   // not a decker-capable sheet\n  await a.update({ \"system.matrixMode\": !a.system.matrixMode });\n}\n",
+  "folder": null,
+  "sort": 13000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 13
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!c30b5523a8225997"
+}
