@@ -65,6 +65,32 @@ so your hand learns which keys are safe:
 | **Blue** | toggles a state | 7, 13, 14 |
 | **Red** | destructive or confirms | 9, 17, 18 |
 
+### Importing the layout instead of clicking 24 keys
+
+`tools/via-layout.mjs` writes the VIA layout for you:
+
+```bash
+# 1. In VIA: Configure → Save + Load → Save Current Layout → my-pad.json
+node tools/via-layout.mjs my-pad.json > sr2e-pad.json
+# 2. In VIA: Save + Load → Load Saved Layout → sr2e-pad.json
+```
+
+**It works from YOUR export rather than a file shipped in this repo, and that is
+deliberate.** A VIA layout is keyed to the device — it carries `vendorProductId`
+and its `layers` arrays are in the board's own matrix order. A pre-made file
+would mean inventing your VID/PID and guessing that order, and VIA would either
+reject it or, worse, accept it and put every key somewhere unexpected. Starting
+from your own export means the device identity and key count are already right,
+and the script only swaps which keycode sits in each slot.
+
+It refuses rather than guesses: hand it a keyboard *definition* instead of a
+layout, or a pad with a different key count, and it stops with an explanation
+instead of writing something half-correct. **Layer 0 only** — any other layers
+you have set up are left alone, because they are yours.
+
+What it does **not** do is per-key RGB. A VIA layout carries keycodes, not
+lighting; the colours above are applied through VIA's lighting controls by hand.
+
 ### QMK layers instead of page keys
 
 If you would rather not spend two keys on paging: a QMK **layer** key can make the
