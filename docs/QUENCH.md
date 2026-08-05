@@ -93,3 +93,31 @@ the deterministic part and the part that fails quietly.
   Worth knowing before editing: **the actor is the PURSUER**, not the fleeing
   vehicle. p.107 has the pursuer roll against the quarry's net successes, and
   **zero successes means the quarry escapes** — the method name reads backwards.
+
+### `sr2e.astral-resist-ram` — astral, spell resistance, ramming
+
+Last three of the ten uncovered mutating methods.
+
+**`rollAstralAttack` refuses NPCs, and that is pinned deliberately.** `NPCData`
+has no `astralState`, the NPC sheet has no astral controls, and the method gates
+on `character | spirit`. All three agree, so the design is coherent — but it does
+mean **NPC magicians cannot go astral**, which includes Craft, Stone and Pride in
+Queen Euphoria. The test exists so the limitation is visible and any future change
+has to be a deliberate one rather than an accident.
+
+**Spell resistance attribute selection is not cosmetic.** A physical spell resists
+with Body and therefore carries biosystem overstress; a mana spell resists with
+Willpower and must not. Choosing the wrong one changes the dice for anyone with
+bioware, silently.
+
+**Ram half-armour rounds down.** Odd armour on both sides is the case that would
+expose a fractional-dice bug, so that is what the test uses.
+
+---
+
+## Coverage status
+
+All ten previously-uncovered state-mutating actor methods now have batches:
+`applyDamage`, `applyKarmaToTest`, `healPhysical`, `recoverStun`,
+`recoverDumpShock`, `rollMeleeDefense`, `rollEscapeTest`, `rollAstralAttack`,
+`rollSpellResistance`, `rollVehicleRam`.

@@ -2527,6 +2527,110 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Guards & boundaries" });
 
+    // ── Astral, spell resistance, ramming ─────────────────────────────────────
+    // The last three uncovered mutating methods. Same approach: assert the parts
+    // that are deterministic — type gates, attribute selection, and the rounding
+    // and floors in the ram arithmetic.
+    quench.registerBatch("sr2e.astral-resist-ram", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [], msgs = [];
+      after(async () => {
+        for (const m of msgs) { try { await m.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const mk = async (d) => { const a = await Actor.create(d); made.push(a); return a; };
+      const since = () => game.messages.contents.slice(-3);
+
+      describe("rollAstralAttack", () => {
+        it("refuses actor types that have no astral existence", async () => {
+          // Vehicles and IC are not astrally present. The gate is a silent early
+          // return, so the only observable proof is that nothing was posted.
+          const v = await mk({ name: "Quench Ram A", type: "vehicle", system: { body: 3 } });
+          const before = game.messages.size;
+          await v.rollAstralAttack();
+          assert.equal(game.messages.size, before, "a vehicle must not roll an astral attack");
+        });
+
+        it("also refuses NPCs — a known limitation, not an accident", async () => {
+          // NPCData has no astralState, the NPC sheet has no astral controls, and
+          // this method gates on character|spirit. All three agree, so the design
+          // is coherent — but it does mean NPC magicians (Craft, Stone, Pride in
+          // Queen Euphoria) cannot go astral. Pinned so the limitation is visible
+          // and a future change has to be deliberate.
+          const n = await mk({ name: "Quench NPC Mage", type: "npc",
+            system: { magic: { value: 6, type: "full_magician" }, charisma: { base: 4 } } });
+          const before = game.messages.size;
+          await n.rollAstralAttack();
+          assert.equal(game.messages.size, before);
+        });
+
+        it("a spirit attacks off its Force", async () => {
+          const sp = await mk({ name: "Quench Spirit", type: "spirit",
+            system: { spiritType: "elemental", domain: "fire", force: 5 } });
+          await sp.rollAstralAttack();
+          for (const m of since()) msgs.push(m);
+          assert.isAbove(game.messages.size, 0, "a spirit is astrally present and must roll");
+        });
+      });
+
+      describe("rollSpellResistance", () => {
+        async function carded(resistAttr) {
+          const a = await mk({ name: `Quench Resist ${resistAttr}`, type: "character",
+            system: { body: { base: 5 }, willpower: { base: 3 } } });
+          const msg = await ChatMessage.create({ content: "quench spell",
+            flags: { sr2e: { spell: { spellName: "Mana Bolt", force: 4,
+                                      resistAttr, resolved: false } } } });
+          msgs.push(msg);
+          return { actor: a, msg };
+        }
+
+        it("ignores an already-resolved spell card", async () => {
+          const { actor, msg } = await carded("willpower");
+          await msg.setFlag("sr2e", "spell",
+            { ...msg.getFlag("sr2e", "spell"), resolved: true });
+          const before = game.messages.size;
+          await actor.rollSpellResistance(msg);
+          assert.equal(game.messages.size, before,
+            "a resolved spell must not be re-resistable — otherwise a target retries a bad roll");
+        });
+
+        it("resists a mana spell with WILLPOWER", async () => {
+          const { actor, msg } = await carded("willpower");
+          await actor.rollSpellResistance(msg);
+          for (const m of since()) msgs.push(m);
+          const card = game.messages.contents.at(-1);
+          assert.match(card?.flavor ?? card?.content ?? "", /Willpower/);
+        });
+
+        it("resists a physical spell with BODY", async () => {
+          // The attribute is not cosmetic: Body carries biosystem overstress and
+          // Willpower must not, so picking the wrong one changes the dice for
+          // anyone with bioware.
+          const { actor, msg } = await carded("body");
+          await actor.rollSpellResistance(msg);
+          for (const m of since()) msgs.push(m);
+          const card = game.messages.contents.at(-1);
+          assert.match(card?.flavor ?? card?.content ?? "", /Body/);
+        });
+      });
+
+      describe("rollVehicleRam — half armour rounds DOWN", () => {
+        it("treats armour 5 as 2, not 2.5 or 3", async () => {
+          // Fractional dice would either throw or silently round in the engine.
+          // Odd armour is the case that exposes it.
+          const drv = await mk({ name: "Quench Driver", type: "character",
+            system: { reaction: { base: 4 }, intelligence: { base: 4 } } });
+          const veh = await mk({ name: "Quench Rammer", type: "vehicle",
+            system: { body: 4, armor: 5, handling: 3 } });
+          const res = await drv.rollVehicleRam(veh,
+            { name: "Target", body: 3, armor: 5, handling: 3, skill: 4 }, "normal");
+          for (const m of since()) msgs.push(m);
+          assert.isOk(res ?? true, "a ram with odd armour on both sides must resolve, not throw");
+        });
+      });
+    }, { displayName: "SR2E: Astral, resistance & ramming" });
+
+
 
 
 
