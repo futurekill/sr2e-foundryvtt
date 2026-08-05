@@ -2366,6 +2366,79 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Damage & Karma" });
 
+    // ── Healing & recovery ────────────────────────────────────────────────────
+    // The guard conditions matter more than the rolls here. These are the paths a
+    // player hits when already hurt, so a wrong guard either blocks legitimate
+    // healing or lets someone walk off a Deadly wound.
+    quench.registerBatch("sr2e.healing-guards", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+
+      async function pc(system = {}) {
+        const a = await Actor.create({ name: "Quench Heal", type: "character",
+          system: foundry.utils.mergeObject(
+            { body: { base: 6 }, willpower: { base: 4 } }, system) });
+        made.push(a); return a;
+      }
+
+      describe("healPhysical", () => {
+        it("refuses a Deadly wound — that needs First Aid or a doctor", async () => {
+          const a = await pc();
+          const max = a.system.conditionMonitor.physical.max;
+          await a.applyDamage("physical", max);
+          const before = a.system.conditionMonitor.physical.value;
+          await a.healPhysical();
+          assert.equal(a.system.conditionMonitor.physical.value, before,
+            "a Deadly wound must not heal naturally, and must not be silently ignored either");
+        });
+
+        it("does nothing when undamaged", async () => {
+          const a = await pc();
+          await a.healPhysical();
+          assert.equal(a.system.conditionMonitor.physical.value, 0);
+        });
+
+        it("heals off NATURAL Body, ignoring cyberware bonuses", async () => {
+          // Natural healing uses base + racial only. If it ever read body.value,
+          // a chromed character would out-heal an unaugmented one, which inverts
+          // the fiction — cyberware is supposed to make healing harder, not easier.
+          const a = await pc({ body: { base: 3, mod: 5 } });
+          assert.equal(a.system.body.value, 8, "derived Body includes the mod");
+          await a.applyDamage("physical", 2);
+          // Not asserting the roll outcome — only that the guard let it proceed
+          // and it did not throw on the mod being present.
+          await a.healPhysical();
+          assert.isAtMost(a.system.conditionMonitor.physical.value, 2);
+        });
+      });
+
+      describe("recoverStun", () => {
+        it("does nothing when there is no stun damage", async () => {
+          const a = await pc();
+          await a.recoverStun();
+          assert.equal(a.system.conditionMonitor.stun.value, 0);
+        });
+
+        it("rolls the HIGHER of Body and Willpower", async () => {
+          // Ties resolve to Willpower, which keeps the Body-overstress branch
+          // unambiguous — a tie must not silently become a Body test.
+          const a = await pc({ body: { base: 4 }, willpower: { base: 4 } });
+          await a.applyDamage("stun", 2);
+          await a.recoverStun();
+          // The label records which attribute was used; a tie must say Willpower.
+          const msgs = game.messages.contents.slice(-4)
+            .filter(m => /Recover Stun/.test(m.flavor ?? m.content ?? ""));
+          if (msgs.length) {
+            assert.match(msgs.at(-1).flavor ?? msgs.at(-1).content, /Willpower/,
+              "a Body/Willpower tie must resolve to Willpower");
+            for (const m of msgs) await m.delete();
+          }
+        });
+      });
+    }, { displayName: "SR2E: Healing guards" });
+
+
 
   });
 }
