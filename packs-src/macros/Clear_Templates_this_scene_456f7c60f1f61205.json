@@ -1,0 +1,31 @@
+{
+  "_id": "456f7c60f1f61205",
+  "name": "Clear Templates (this scene)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/explosion.svg",
+  "command": "/* SR2E — hotbar slot 9. Sweeps leftover blast and spell templates.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// Blast and area-spell templates pile up fast and clutter the map. Scoped to the\n// CURRENT scene so a stray press cannot wipe templates you left on another one.\nconst ids = canvas.scene?.templates?.map(t => t.id) ?? [];\nif (!ids.length) return ui.notifications.info(\"No templates on this scene.\");\nawait canvas.scene.deleteEmbeddedDocuments(\"MeasuredTemplate\", ids);\nui.notifications.info(`Cleared ${ids.length} template(s).`);\n",
+  "folder": null,
+  "sort": 9000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 9
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!456f7c60f1f61205"
+}

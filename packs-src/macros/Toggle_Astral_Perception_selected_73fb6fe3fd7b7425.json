@@ -1,0 +1,31 @@
+{
+  "_id": "73fb6fe3fd7b7425",
+  "name": "Toggle Astral Perception (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/eye.svg",
+  "command": "/* SR2E — hotbar slot 7. none ⇄ perceiving. Projection stays manual — it is not a hot-key decision.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\n// Only flips between none and PERCEIVING. Projecting leaves your body behind and\n// changes initiative, so it is deliberately not on a key you can hit by accident.\nfor (const a of actors) {\n  if (a.system.astralState === undefined) continue;   // NPCs have no astral state\n  const next = a.system.astralState === \"perceiving\" ? \"none\" : \"perceiving\";\n  await a.update({ \"system.astralState\": next });\n}\n",
+  "folder": null,
+  "sort": 7000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 7
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!73fb6fe3fd7b7425"
+}

@@ -1,0 +1,31 @@
+{
+  "_id": "a846489a1e319232",
+  "name": "Next Initiative Pass",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/clockwork.svg",
+  "command": "/* SR2E — hotbar slot 1. The −10 pass. The most-pressed key in SR2 combat.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// SR2E initiative passes: acting again costs 10 Initiative and play jumps to\n// the highest remaining total (SR2E p.85). SR2ECombat#nextTurn implements it.\nif (!game.combat) return ui.notifications.warn(\"No active combat.\");\nawait game.combat.nextTurn();\n",
+  "folder": null,
+  "sort": 1000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 1
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!a846489a1e319232"
+}

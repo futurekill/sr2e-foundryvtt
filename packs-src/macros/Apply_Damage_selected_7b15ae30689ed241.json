@@ -1,0 +1,31 @@
+{
+  "_id": "7b15ae30689ed241",
+  "name": "Apply Damage (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/blood.svg",
+  "command": "/* SR2E — hotbar slot 4. Prompts for boxes and type. The one macro that must ask.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\n// The only hot key that opens a dialog, because guessing an amount is worse than\n// a keystroke. Stun overflow converts to Physical automatically (p.110).\nconst form = `<div>\n  <div class=\"form-group\"><label>Boxes</label>\n    <input type=\"number\" name=\"amount\" value=\"1\" min=\"1\" autofocus></div>\n  <div class=\"form-group\"><label>Type</label>\n    <select name=\"type\"><option value=\"physical\">Physical</option>\n    <option value=\"stun\">Stun</option></select></div>\n</div>`;\nconst data = await foundry.applications.api.DialogV2.prompt({\n  window: { title: `Apply Damage — ${actors.length} target(s)` },\n  content: form, ok: { label: \"Apply\", callback: (ev, btn) => new FormDataExtended(btn.form).object }\n}).catch(() => null);\nif (!data) return;\nfor (const a of actors) await a.applyDamage(data.type, Number(data.amount) || 0);\n",
+  "folder": null,
+  "sort": 4000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 4
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!7b15ae30689ed241"
+}

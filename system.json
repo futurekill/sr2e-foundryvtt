@@ -359,6 +359,18 @@
         "ASSISTANT": "OWNER"
       },
       "flags": {}
+    },
+    {
+      "name": "macros",
+      "label": "SR2E Macros",
+      "path": "packs/macros",
+      "type": "Macro",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
     }
   ],
   "packFolders": [

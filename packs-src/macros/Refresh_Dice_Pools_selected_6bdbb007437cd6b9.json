@@ -1,0 +1,31 @@
+{
+  "_id": "6bdbb007437cd6b9",
+  "name": "Refresh Dice Pools (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/regen.svg",
+  "command": "/* SR2E — hotbar slot 2. Combat/Magic/Control pools, Spell Defense, Shielding — and spell focus dice.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\n// Also resets spell focus dice, which the book refreshes on the same schedule as\n// the Magic Pool (p.137). Safe to press repeatedly — refreshing a full pool is a\n// no-op.\nfor (const a of actors) await a.refreshDicePools();\nui.notifications.info(`Refreshed pools for ${actors.length} actor(s).`);\n",
+  "folder": null,
+  "sort": 2000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 2
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!6bdbb007437cd6b9"
+}

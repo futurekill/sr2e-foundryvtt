@@ -1,0 +1,31 @@
+{
+  "_id": "34d5679f89ab8d2f",
+  "name": "Roll Initiative — All Combatants",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/d20.svg",
+  "command": "/* SR2E — hotbar slot 8. Re-rolls everyone in the current combat.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nif (!game.combat) return ui.notifications.warn(\"No active combat.\");\nawait game.combat.rollAll();\n",
+  "folder": null,
+  "sort": 8000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 8
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!34d5679f89ab8d2f"
+}

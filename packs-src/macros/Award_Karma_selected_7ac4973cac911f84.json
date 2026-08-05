@@ -1,0 +1,31 @@
+{
+  "_id": "7ac4973cac911f84",
+  "name": "Award Karma (selected)",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/upgrade.svg",
+  "command": "/* SR2E — hotbar slot 10. Adds to spendable and lifetime Karma. Does NOT touch the Karma Pool.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nconst tokens = canvas.tokens?.controlled ?? [];\nif (!tokens.length) return ui.notifications.warn(\"Select one or more tokens first.\");\nconst actors = tokens.map(t => t.actor).filter(Boolean);\nconst data = await foundry.applications.api.DialogV2.prompt({\n  window: { title: `Award Karma — ${actors.length} character(s)` },\n  content: `<div class=\"form-group\"><label>Karma each</label>\n    <input type=\"number\" name=\"amount\" value=\"1\" min=\"0\" autofocus></div>`,\n  ok: { label: \"Award\", callback: (ev, btn) => new FormDataExtended(btn.form).object }\n}).catch(() => null);\nif (!data) return;\nconst amt = Number(data.amount) || 0;\nif (!amt) return;\nfor (const a of actors) {\n  const k = a.system.karma;\n  if (!k) continue;   // only characters carry Karma\n  // current = spendable on improvements, total = lifetime earned.\n  //\n  // Deliberately NOT karma.pool. That is the Karma POOL — the dice resource that\n  // rerolls, buys successes and avoids glitches spend down. Awarding session\n  // karma into it would hand out combat currency every time you paid the group,\n  // and the pool refreshes on its own schedule.\n  await a.update({\n    \"system.karma.current\": (k.current ?? 0) + amt,\n    \"system.karma.total\":   (k.total   ?? 0) + amt\n  });\n}\nui.notifications.info(`Awarded ${amt} Karma to ${actors.length} character(s).`);\n",
+  "folder": null,
+  "sort": 10000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 10
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!7ac4973cac911f84"
+}

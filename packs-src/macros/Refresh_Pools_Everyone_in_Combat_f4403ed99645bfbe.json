@@ -1,0 +1,31 @@
+{
+  "_id": "f4403ed99645bfbe",
+  "name": "Refresh Pools — Everyone in Combat",
+  "type": "script",
+  "scope": "global",
+  "author": null,
+  "img": "icons/svg/upgrade.svg",
+  "command": "/* SR2E — hotbar slot 3. Start-of-round sweep. No selection needed.\n   See docs/MACROS.md for the VIA macro-pad layout. */\nif (!game.combat) return ui.notifications.warn(\"No active combat.\");\n// Deliberately needs no token selection — this is the start-of-round key, and\n// hunting for a select-all first defeats the point of a macro pad.\nlet n = 0;\nfor (const c of game.combat.combatants) {\n  if (!c.actor) continue;\n  await c.actor.refreshDicePools();\n  n++;\n}\nui.notifications.info(`Refreshed pools for ${n} combatant(s).`);\n",
+  "folder": null,
+  "sort": 3000,
+  "ownership": {
+    "default": 2
+  },
+  "flags": {
+    "sr2e": {
+      "suggestedSlot": 3
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": null,
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!macros!f4403ed99645bfbe"
+}
