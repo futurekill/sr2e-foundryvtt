@@ -1126,7 +1126,7 @@ export class SR2EActor extends Actor {
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: `Defend: ${state.attackerName}'s ${state.weaponName} (${state.successes} successes)` },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <div class="form-group" style="margin:2px 0;">
           <label>Defend with:</label>
           <select name="weapon">${weaponOptions}</select>
@@ -1168,7 +1168,7 @@ export class SR2EActor extends Actor {
           Base TN 4 + modifiers. Most successes hits — if you out-roll the
           attacker, YOU strike THEM (SR2E p.100).</p>
         ${miscDiceHTML()}
-      </form>`,
+      </div>`,
       buttons: [
         {
           action: "roll", label: "SR2E.Dialog.Roll", default: true,
@@ -1689,7 +1689,7 @@ export class SR2EActor extends Actor {
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: game.i18n.format("SR2E.Dialog.ResistTitle", { level: startLevel, power }) },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <div style="font-size:11px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;margin-bottom:6px;">
           <table style="width:100%;border-collapse:collapse;">
             <tr><td style="color:#aaa1c0;">Incoming (vs vehicle):</td>
@@ -1703,7 +1703,7 @@ export class SR2EActor extends Actor {
             Damage Level already reduced one step vs vehicles (SR2E p.108).</p>
         </div>
         ${poolHTML}
-      </form>`,
+      </div>`,
       buttons: [
         {
           action: "roll", label: "SR2E.Dialog.Resist", default: true,
@@ -1849,7 +1849,7 @@ export class SR2EActor extends Actor {
     const action   = await foundry.applications.api.DialogV2.wait({
       window: { title: game.i18n.format("SR2E.Dialog.ResistTitle", { level, power }) },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <div style="font-size:11px;background:rgba(0,0,0,0.15);border-radius:4px;
                     padding:6px 8px;margin-bottom:6px;">
           <table style="width:100%;border-collapse:collapse;">
@@ -1882,7 +1882,7 @@ export class SR2EActor extends Actor {
         </div>
         ${poolHTML}
         ${miscDiceHTML()}
-      </form>`,
+      </div>`,
       buttons: [
         {
           action: "roll",

@@ -32,14 +32,21 @@ describe("DialogV2 content roots", () => {
   it("never hangs styling on a <form> root, which the parser drops", () => {
     const offenders = [];
     for (const { path, src } of SOURCES) {
-      // A <form> with any attribute other than plain `>`: class, id, style.
-      for (const m of src.matchAll(/<form\s+(?:class|id|style)=/g)) {
+      // ANY <form> in dialog content, attributed or bare.
+      //
+      // This used to permit a bare <form>, on the grounds that the parser drops
+      // it but nothing is styled off it so nothing breaks. True, and too weak:
+      // 21 dead <form> wrappers accumulated across three files, each one a
+      // one-word edit away from becoming the v0.82.0 bug again. They are gone,
+      // and the rule is now "no <form> at all" — an invariant that is enforced
+      // rather than a hazard that is tolerated.
+      for (const m of src.matchAll(/<form[\s>]/g)) {
         // Skip prose: the explanatory comments above these fixes quote the tag.
         const lineStart = src.lastIndexOf("\n", m.index) + 1;
         if (/^\s*(\/\/|\*)/.test(src.slice(lineStart, m.index))) continue;
         offenders.push(`${path}:${src.slice(0, m.index).split("\n").length}`);
       }
     }
-    expect(offenders, `styled <form> root(s) — DialogV2 drops these:\n${offenders.join("\n")}`).toEqual([]);
+    expect(offenders, `<form> in dialog content — DialogV2 supplies its own and the parser drops yours:\n${offenders.join("\n")}`).toEqual([]);
   });
 });

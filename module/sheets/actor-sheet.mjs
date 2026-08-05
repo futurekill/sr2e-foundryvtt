@@ -603,10 +603,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     await foundry.applications.api.DialogV2.wait({
       window: { title: `Buy ${itemData.name}` },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <p style="margin:0 0 8px;">Choose what ${foundry.utils.escapeHTML(actor.name)} is buying. Price is charged on purchase (street price in play, list in character creation). Alt-drop instead to add it for free.</p>
         ${ratingSel}${catSel}${forceSel}${strMinSel}${gradeSel}
-      </form>`,
+      </div>`,
       buttons: [
         { action: "buy", label: "Buy", default: true, callback: (e, b) => {
           const f = b.form.elements;
@@ -647,13 +647,13 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: `Bond ${itemData.name}` },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <p style="margin:0 0 8px;">A weapon focus bonds to one melee weapon and adds its Force in dice to that weapon's attacks — on the physical and astral planes. Price = <strong>(Reach + 1) × 100,000¥ + Force × 90,000¥</strong>.</p>
         <div class="form-group"><label>Force:</label>
           <input type="number" name="force" value="${force}" min="1" max="6" style="width:60px;"></div>
         <div class="form-group"><label>Bond to:</label>
           <select name="weapon" autofocus style="flex:1;">${opts}</select></div>
-      </form>`,
+      </div>`,
       buttons: [
         { action: "bond", label: "Bond & Activate", default: true, callback: (e, b) => {
           chosen = b.form.elements.weapon.value;

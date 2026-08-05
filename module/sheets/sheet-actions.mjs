@@ -196,7 +196,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
     window: { title: game.i18n.localize("SR2E.Dialog.RollOptions") },
     rejectClose: false,
     content: `
-      <form>
+      <div>
         <div class="form-group">
           <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
           <input type="number" name="tn" value="4" min="2" max="30" autofocus>
@@ -204,7 +204,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
         ${poolHTML}
         ${karmaHTML}
         ${miscDiceHTML()}
-      </form>
+      </div>
     `,
     buttons: [
       {
@@ -343,7 +343,7 @@ async function onDefaultSkill(event, target) {
     window: { title: "Roll a Skill" },
     rejectClose: false,
     content: `
-      <form>
+      <div>
         <div class="form-group">
           <label>Skill:</label>
           <select name="skill" autofocus>${opts}</select>
@@ -354,7 +354,7 @@ async function onDefaultSkill(event, target) {
         </div>
         <p style="font-size:10px;color:#aaa1c0;margin:4px 0 0;">Trained skills roll their rating; if the character doesn't have the skill it defaults through the Skill Web automatically.</p>
         ${miscDiceHTML()}
-      </form>`,
+      </div>`,
     buttons: [
       {
         action: "roll", label: "SR2E.Dialog.Roll", default: true,
@@ -1696,7 +1696,7 @@ async function promptSpellOptions(actor, spell) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: game.i18n.format("SR2E.Dialog.CastTitle", { name: spell.name }) },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div class="form-group">
         <label>${game.i18n.localize("SR2E.Dialog.Force")} <span style="color:#aaa1c0;font-size:10px;">(1–${magicAttr})</span>:</label>
         <input type="number" name="force" id="sr2e-cast-force" value="${defaultForce}" min="1" max="${magicAttr}"
@@ -1717,7 +1717,7 @@ async function promptSpellOptions(actor, spell) {
       ${focusSection}
       ${karmaDiceSection(actor, magicAttr)}
       ${miscDiceHTML()}
-    </form>`,
+    </div>`,
     buttons: [
       {
         action: "roll",
@@ -1829,7 +1829,7 @@ async function promptConjureOptions(actor, elementals) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: elementals ? "Summon Elemental" : "Summon Nature Spirit" },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div class="form-group">
         <label>Force <span style="color:#aaa1c0;font-size:10px;">(drain TN = Force)</span>:</label>
         <input type="number" id="sr2e-conjure-force" name="force" value="1" min="1" max="${Math.max(1, magic * 2)}" autofocus>
@@ -1853,7 +1853,7 @@ async function promptConjureOptions(actor, elementals) {
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
       ${miscDiceHTML()}
-    </form>`,
+    </div>`,
     buttons: [
       {
         action: "conjure", label: "Summon", default: true,
@@ -1922,7 +1922,7 @@ async function promptMatrixAttackOptions(actor) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Matrix Attack" },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       ${isIC ? `
       <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
         Attack dice = IC Rating (${actor.system.effectiveRating ?? actor.system.rating}${actor.system.alert !== "none" ? `, ${actor.system.alert} alert +50%` : ""}). TN = the target persona's Bod.
@@ -1949,7 +1949,7 @@ async function promptMatrixAttackOptions(actor) {
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
       ${miscDiceHTML()}
-    </form>`,
+    </div>`,
     buttons: [
       {
         action: "attack", label: "Attack", default: true,
@@ -2009,7 +2009,7 @@ async function onMatrixPerception(event, target) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Detect Intruder" },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
         The IC rolls its Rating (${actor.system.effectiveRating ?? actor.system.rating}) against the
         intruder's <strong>Masking</strong>. Any success raises the alert.
@@ -2018,7 +2018,7 @@ async function onMatrixPerception(event, target) {
         <label>Target Masking:</label>
         <input type="number" name="masking" value="${prefill}" min="0" style="width:52px;text-align:center;" autofocus>
       </div>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "scan", label: "Scan", default: true,
         callback: (e, b) => { masking = Math.max(0, parseInt(b.form.elements.masking?.value) || 0); } },
@@ -2084,7 +2084,7 @@ async function promptSystemOperationOptions(actor) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "System Operation" },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div class="form-group">
         <label>Target Node:</label>
         <select name="host">${hostOptions}</select>
@@ -2107,7 +2107,7 @@ async function promptSystemOperationOptions(actor) {
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
       ${miscDiceHTML()}
-    </form>`,
+    </div>`,
     buttons: [
       {
         action: "run", label: "Run", default: true,
@@ -2435,7 +2435,7 @@ async function promptRamOptions(actor, myVehicle) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Ram with ${myVehicle.name}` },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       ${tv ? `<p class="hint" style="margin:0 0 4px;">🎯 Target: <strong>${foundry.utils.escapeHTML(oppName)}</strong></p>` : ""}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
         <div class="form-group" style="margin:2px 0;"><label>Opp. Name:</label>
@@ -2459,7 +2459,7 @@ async function promptRamOptions(actor, myVehicle) {
       <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
         Both vehicles roll (Skill + Body + ½ Armor − Handling) vs (opp Body + ½ Armor − terrain).
         Fewer successes crashes (SR2E p.107).</p>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "ram", label: "Ram", default: true, callback: (event, button) => {
         const f = button.form.elements;
@@ -2492,7 +2492,7 @@ async function promptEscapeOptions(actor) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Escape Test (pursuer)" },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
         <div class="form-group" style="margin:2px 0;"><label>Fleeing Position succ.:</label>
           <input type="number" name="flee" value="0" min="0" style="width:52px;text-align:center;"
@@ -2509,7 +2509,7 @@ async function promptEscapeOptions(actor) {
       <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
         If the pursuer matched/beat the fleeing successes, escape auto-fails. Otherwise roll
         Intelligence vs (net + terrain); no success = escape (SR2E p.107).</p>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "go", label: "Resolve", default: true, callback: (event, button) => {
         const f = button.form.elements;
@@ -2594,7 +2594,7 @@ async function promptVehicleTestOptions(actor, vehicle) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Vehicle Test: ${vehicle.name}` },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
         <div class="form-group" style="margin:2px 0;">
           <label>Test:</label>
@@ -2645,7 +2645,7 @@ async function promptVehicleTestOptions(actor, vehicle) {
       ${controlHTML}
       ${karmaDiceSection(actor, baseDice)}
       ${miscDiceHTML()}
-    </form>`,
+    </div>`,
     buttons: [
       {
         action: "roll", label: "SR2E.Dialog.Roll", default: true,
@@ -2717,13 +2717,13 @@ async function onAllocateSpellDefense(event, target) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Allocate Spell Defense" },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <div class="form-group"><label>Dice from Magic Pool (${avail} available):</label>
         <input type="number" name="n" value="0" min="0" max="${avail}" autofocus style="width:60px;text-align:center;"></div>
       <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
         Protects you and chosen allies in line of sight; added to spell-resistance
         tests until the Magic Pool refreshes (SR2E p.132).</p>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "go", label: "Allocate", default: true,
         callback: (event, button) => { n = Math.max(0, Math.min(parseInt(button.form.elements.n?.value) || 0, avail)); } },
@@ -2804,7 +2804,7 @@ async function onFirstAid(event) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `First Aid — ${patient.name}` },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <p class="hint" style="margin:0 0 6px;">
         Patient: <strong>${foundry.utils.escapeHTML(patient.name)}</strong>${patient === medic ? " (self)" : ""}.
         Treats Physical damage only; one attempt per injury (SR2E p.115).
@@ -2821,7 +2821,7 @@ async function onFirstAid(event) {
         <label>No medkit (+4):</label>
         <input type="checkbox" name="noMedkit" style="width:auto;">
       </div>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "go", label: "Treat", default: true, callback: (event, button) => {
         opts = {
@@ -2845,13 +2845,13 @@ async function _promptTeamKarmaAmount(title, hintHtml, max) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <p class="hint" style="margin:0 0 8px;">${hintHtml}</p>
       <div class="form-group">
         <label>Amount:</label>
         <input type="number" name="amt" value="1" min="1" max="${max}" step="1" autofocus style="width:80px;">
       </div>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "go", label: "Confirm", default: true, callback: (event, button) => {
         amount = Math.floor(Number(button.form.elements.amt?.value) || 0);
@@ -2933,11 +2933,11 @@ async function onBondWeaponFocus(event, target) {
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Bond ${focus.name}` },
     rejectClose: false,
-    content: `<form>
+    content: `<div>
       <p style="margin:0 0 8px;">Bond this weapon focus to a melee weapon. Its price updates from that weapon's Reach and the focus's Force.</p>
       <div class="form-group"><label>Force:</label><input type="number" name="force" value="${focus.system.force ?? 1}" min="1" max="6" style="width:60px;"></div>
       <div class="form-group"><label>Bond to:</label><select name="weapon" autofocus style="flex:1;">${opts}</select></div>
-    </form>`,
+    </div>`,
     buttons: [
       { action: "bond", label: "Bond & Activate", default: true, callback: (e, b) => {
         chosen = b.form.elements.weapon.value;
@@ -3278,7 +3278,7 @@ const SHARED_ACTIONS = {
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: `Karma Advancement — ${available} Good Karma available` },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <div class="form-group">
           <label>Advance:</label>
           <select name="advance">
@@ -3293,7 +3293,7 @@ const SHARED_ACTIONS = {
         <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           Costs per SR2E p.190. Reaction, Essence and Magic can never be raised
           directly. Raises above the racial maximum need GM approval.</p>
-      </form>`,
+      </div>`,
       buttons: [
         {
           action: "advance", label: "Advance", default: true,
@@ -3370,14 +3370,14 @@ const SHARED_ACTIONS = {
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: "Astral Attack" },
       rejectClose: false,
-      content: `<form>
+      content: `<div>
         <div class="form-group"><label>Damage:</label>
           <select name="dt"><option value="stun">Stun</option><option value="physical">Physical</option></select></div>
         <div class="form-group"><label>Other Mod:</label>
           <input type="number" name="other" value="0" style="width:52px;text-align:center;"></div>
         <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
           Sorcery vs TN 4; damage (Charisma)L (+weapon focus). Echoes to the physical body (SR2E p.147).</p>
-      </form>`,
+      </div>`,
       buttons: [
         { action: "go", label: "Attack", default: true, callback: (event, button) => {
           opts = { damageType: button.form.elements.dt?.value ?? "stun",
