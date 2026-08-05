@@ -2438,6 +2438,96 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Healing guards" });
 
+    // ── Guards & boundaries: dump shock, melee defense, escape ────────────────
+    // Three more of the uncovered mutating methods. Each is tested at its GUARD
+    // and its BOUNDARY rather than its dice, because those are the parts that are
+    // deterministic and the parts that go wrong quietly.
+    quench.registerBatch("sr2e.guards-boundaries", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [], msgs = [];
+      after(async () => {
+        for (const m of msgs) { try { await m.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+
+      describe("recoverDumpShock", () => {
+        it("does nothing at all when not dump-shocked", async () => {
+          const a = await mk({ name: "Quench Decker", type: "character",
+            system: { willpower: { base: 5 } } });
+          const before = game.messages.size;
+          await a.recoverDumpShock();
+          assert.equal(game.messages.size, before,
+            "no roll, no card — an un-shocked decker pressing the button must be a no-op");
+        });
+
+        it("clears the flag only on a success, and posts either way", async () => {
+          const a = await mk({ name: "Quench Decker 2", type: "character",
+            system: { willpower: { base: 6 }, dumpShock: true } });
+          await a.recoverDumpShock();
+          for (const m of game.messages.contents.slice(-2)) msgs.push(m);
+          // Whichever way the dice fell, the flag and the message must AGREE —
+          // a cleared flag with a "still disoriented" card, or vice versa, is the
+          // failure worth catching.
+          const last = game.messages.contents.at(-1);
+          const said = /shakes off/.test(last?.content ?? "");
+          assert.equal(a.system.dumpShock, !said,
+            "the dumpShock flag must match what the chat card claims happened");
+        });
+      });
+
+      describe("rollMeleeDefense", () => {
+        it("refuses to let the attacker defend against their own attack", async () => {
+          const a = await mk({ name: "Quench Attacker", type: "character", system: {} });
+          const msg = await ChatMessage.create({ content: "quench melee",
+            flags: { sr2e: { melee: { attackerUuid: a.uuid, resolved: false, successes: 2 } } } });
+          msgs.push(msg);
+          await a.rollMeleeDefense(msg);
+          assert.isFalse(msg.getFlag("sr2e", "melee").resolved,
+            "self-defence must be refused without consuming the exchange");
+        });
+
+        it("ignores an exchange that is already resolved", async () => {
+          const atk = await mk({ name: "Quench Atk", type: "character", system: {} });
+          const def = await mk({ name: "Quench Def", type: "character", system: {} });
+          const msg = await ChatMessage.create({ content: "quench melee 2",
+            flags: { sr2e: { melee: { attackerUuid: atk.uuid, resolved: true, successes: 2 } } } });
+          msgs.push(msg);
+          const before = game.messages.size;
+          await def.rollMeleeDefense(msg);
+          assert.equal(game.messages.size, before,
+            "a resolved exchange must not be re-rollable — otherwise a defender can retry a bad result");
+        });
+      });
+
+      describe("rollEscapeTest (p.107)", () => {
+        // NOTE: the actor here is the PURSUING vehicle, not the fleeing one —
+        // p.107 has the pursuer roll, against a TN equal to the fleeing vehicle's
+        // net successes, and ZERO successes means the quarry got away. The method
+        // name reads the other way round, which is worth knowing before editing it.
+        it("fails automatically when the pursuer TIES the fleeing successes", async () => {
+          // The boundary is >=, not >, and the book supports it from both ends:
+          // the escape auto-fails if the pursuer has "more successes", AND the
+          // quarry "may yet get away" only if IT generated "more successes". A tie
+          // satisfies neither, so it falls through to no escape.
+          const v = await mk({ name: "Quench Pursuer", type: "vehicle", system: { body: 3 } });
+          const res = await v.rollEscapeTest({ fleeingSuccesses: 3, pursuerSuccesses: 3 });
+          if (res) msgs.push(res);
+          assert.match(res?.content ?? "", /Escape fails automatically/,
+            "3 vs 3 must fail — the pursuer matching is enough");
+        });
+
+        it("proceeds when the fleeing vehicle is genuinely ahead", async () => {
+          const v = await mk({ name: "Quench Pursuer 2", type: "vehicle", system: { body: 3 } });
+          const res = await v.rollEscapeTest({ fleeingSuccesses: 4, pursuerSuccesses: 3 });
+          if (res) msgs.push(res);
+          assert.notMatch(res?.content ?? "", /fails automatically/,
+            "a net of 1 is still a net — this must roll rather than auto-fail");
+        });
+      });
+    }, { displayName: "SR2E: Guards & boundaries" });
+
+
 
 
   });

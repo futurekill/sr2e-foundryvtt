@@ -75,3 +75,21 @@ would error; wounds would just quietly stop being lethal.
 Also pins stun→physical conversion, the vehicle/IC flat monitor, refusal to act
 on non-positive amounts, and that a Karma action which cannot be afforded spends
 nothing rather than going negative.
+
+### `sr2e.guards-boundaries` — dump shock, melee defense, escape
+
+Tested at their **guards and boundaries** rather than their dice, since that is
+the deterministic part and the part that fails quietly.
+
+- **recoverDumpShock** — a no-op when not shocked (no roll, no card), and the
+  `dumpShock` flag must AGREE with what the chat card claims happened. A cleared
+  flag under a "still disoriented" card is the failure worth catching.
+- **rollMeleeDefense** — the attacker cannot defend against their own attack, and
+  a resolved exchange cannot be re-rolled. Without the second, a defender who
+  dislikes a result can simply click again.
+- **rollEscapeTest** — a TIE auto-fails. The book supports `>=` from both ends:
+  the escape fails if the pursuer has *more*, and the quarry gets away only if it
+  generated *more*, so a tie satisfies neither.
+  Worth knowing before editing: **the actor is the PURSUER**, not the fleeing
+  vehicle. p.107 has the pursuer roll against the quarry's net successes, and
+  **zero successes means the quarry escapes** — the method name reads backwards.
