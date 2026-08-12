@@ -757,6 +757,8 @@ export class SR2EItem extends Item {
         attackerName: actor.name,
         weaponName,
         successes: result.successes,
+        // Lets a later Karma spend find and correct this card.
+        testMessageId: result.testMessageId,
         power,
         level,
         damageType,
@@ -1356,6 +1358,7 @@ export class SR2EItem extends Item {
       const mkState = (targetUuid) => ({
         casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
         targetUuid, force, successes: spellResult.successes,
+        testMessageId: spellResult.testMessageId,
         resistAttr: isMana ? "willpower" : "body", baseLevel, dmgType, resolved: false
       });
       const postCard = (state) => ChatMessage.create({
