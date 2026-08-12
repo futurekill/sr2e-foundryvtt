@@ -4,6 +4,12 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
 
 ## Unreleased
 
+- Art still to come for the last three core packs: **traditions (8), adept
+  powers (14), lifestyles (6)**. Generation is blocked on an external
+  image-generation quota, not on anything in this repo.
+
+## 0.90.0 — 2026-08-11
+
 ### Fixed
 - **A Karma Pool spend now updates the cards posted from that test.** Rerolling
   failures or buying a success rewrote the success-test card and nothing else,
@@ -12,14 +18,15 @@ Keep this current: add to **Unreleased** as work lands, retitle at release.
   same staleness hit the astral, cybercombat and Resist Spell cards. Those cards
   now record which test they came from and are re-rendered when its result
   changes. A card already resolved is left alone.
+- **The curative-spell card follows its casting test too.** It kept its
+  successes in a button attribute with no link back, so a Karma spend on a Heal
+  left the patient offered the pre-Karma number of boxes.
 - **Filed the 0.89.0 release notes.** The spell-focus notes had been prepended
   above the changelog's own title with no version heading at all.
 
-- Art still to come for the last three core packs: **traditions (8), adept
-  powers (14), lifestyles (6)**. Generation is blocked on an external
-  image-generation quota, not on anything in this repo.
-
 ## 0.89.0 — 2026-08-04
+
+_Never tagged; ships inside 0.90.0._
 
 ### Fixed
 - **Spell foci now work the way the book says (SR2E p.137).** They were a
