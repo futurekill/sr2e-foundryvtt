@@ -3,7 +3,8 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
-import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
+import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
+         renderHealingCard } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
@@ -12,7 +13,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
          skillRollRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -125,7 +126,7 @@ export function renderDiceResults(dice = []) {
 
 export function renderSuccessTestCard(state) {
   const natural   = state.dice.filter(d => d.success).length;
-  const successes = natural + (state.boughtSuccesses ?? 0);
+  const successes = testTotalSuccesses(state);
   const failures  = state.dice.length - natural;
   const glitch    = state.criticalGlitch && !state.glitchAvoided;
 
@@ -355,7 +356,9 @@ export class SR2EActor extends Actor {
       hasKarma: this.system.karma?.pool != null
     };
 
-    await ChatMessage.create({
+    // Keep the message: downstream cards (melee, astral, matrix, spell resist)
+    // stamp its id so a later Karma spend can find and re-render them.
+    const testMessage = await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       // Attach the evaluated Roll objects so message.isRoll is true and
       // Dice So Nice can animate the dice.
@@ -381,7 +384,8 @@ export class SR2EActor extends Actor {
     // need to know which dice came from which pool (the p.91 complete-miss
     // check) would otherwise see untagged dice and silently find nothing.
     // attributeDice spreads the originals, so this is a strict superset.
-    return { ...testResult, dice: state.dice, successes, targetNumber: effectiveTN };
+    return { ...testResult, dice: state.dice, successes, targetNumber: effectiveTN,
+             testMessageId: testMessage?.id };
   }
 
   /**
@@ -478,6 +482,54 @@ export class SR2EActor extends Actor {
       updateData.rolls = [...message.rolls, ...newRolls].map(r => JSON.stringify(r));
     }
     await message.update(updateData);
+    await this._syncDependentCards(message.id, state);
+  }
+
+  /**
+   * Re-render any card that was posted FROM a success test after Karma changed
+   * that test's result.
+   *
+   * A melee/astral/matrix/spell-resist card copies the success count into its
+   * own flags at creation time, because the defender resolves against a fixed
+   * number. That copy is correct until the attacker spends Karma — then the
+   * test card says 8 and the Defend card still says 3, and the defender rolls
+   * against the wrong number. The cards carry `testMessageId` so the spend can
+   * find them; an already-resolved card is left alone, since its exchange is
+   * settled and re-opening it would rewrite history.
+   *
+   * @param {string} testMessageId - Id of the success-test message.
+   * @param {object} state - The updated test state.
+   * @private
+   */
+  async _syncDependentCards(testMessageId, state) {
+    if (!testMessageId) return;
+    const successes = testTotalSuccesses(state);
+    // flag key -> renderer for that card type
+    const renderers = {
+      melee:  renderMeleeAttackCard,
+      spell:  renderSpellResistCard,
+      astral: s => this._renderAstralCard(s),
+      matrix: s => this._renderMatrixCard(s),
+      healing: renderHealingCard
+    };
+
+    for (const msg of game.messages ?? []) {
+      const sr2e = msg.flags?.sr2e;
+      if (!sr2e) continue;
+      for (const [key, render] of Object.entries(renderers)) {
+        const card = sr2e[key];
+        if (!card || card.testMessageId !== testMessageId) continue;
+        if (card.resolved || card.successes === successes) continue;
+        if (!msg.canUserModify(game.user, "update")) {
+          // Better a visible complaint than a card that silently disagrees.
+          ui.notifications.warn(
+            `${msg.id}: cannot update the ${key} card — ask the GM to re-post it.`);
+          continue;
+        }
+        const next = { ...card, successes };
+        await msg.update({ content: render(next), [`flags.sr2e.${key}`]: next });
+      }
+    }
   }
 
   /**
@@ -2224,7 +2276,7 @@ export class SR2EActor extends Actor {
       // The attacker's target (T key) resists, regardless of token selection.
       targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
       successes: result.successes, power: Math.max(1, power), level, damageType,
-      resolved: false
+      testMessageId: result.testMessageId, resolved: false
     };
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -2340,7 +2392,8 @@ export class SR2EActor extends Actor {
       attackerUuid: this.uuid, attackerName: this.name,
       // The attacker's target (T key) resists, regardless of token selection.
       targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
-      successes: result.successes, nodeRating: opts.nodeRating ?? 0, resolved: false
+      successes: result.successes, nodeRating: opts.nodeRating ?? 0,
+      testMessageId: result.testMessageId, resolved: false
     };
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),

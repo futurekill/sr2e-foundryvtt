@@ -3128,3 +3128,23 @@ export function normalisedFocusSpent(spent, force) {
   const rating = Math.max(0, Number(force) || 0);
   return Math.min(Math.max(0, Math.floor(Number(spent) || 0)), rating);
 }
+
+/**
+ * Total successes on a success-test card, INCLUDING Karma Pool spends.
+ *
+ * The natural count is recomputed from the dice rather than stored, because a
+ * Karma reroll rewrites entries in `state.dice` in place (SR2E p.190); bought
+ * successes are added on top. A critical glitch needs no special case — it is
+ * all 1s, so the natural count is already 0.
+ *
+ * This is the single definition of "how many successes did that test get". The
+ * card renderer and every downstream card (melee, astral, matrix, spell resist)
+ * read it, so a Karma spend cannot leave them disagreeing.
+ *
+ * @param {{dice?: Array<{success?: boolean}>, boughtSuccesses?: number}} state
+ * @returns {number}
+ */
+export function testTotalSuccesses(state = {}) {
+  const natural = (state.dice ?? []).filter(d => d.success).length;
+  return natural + (state.boughtSuccesses ?? 0);
+}

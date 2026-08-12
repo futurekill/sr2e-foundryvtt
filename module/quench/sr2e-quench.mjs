@@ -13,6 +13,7 @@
  * window (its button sits at the bottom of the sidebar) and run the SR2E batches.
  */
 import { evaluateDamageCode } from "../documents/item.mjs";
+import { testTotalSuccesses } from "../rules/sr2e-rules.mjs";
 
 export function registerSR2EQuenchTests() {
   Hooks.on("quenchReady", (quench) => {
@@ -2629,6 +2630,108 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Astral, resistance & ramming" });
+
+    // A Karma spend used to update ONLY the success-test card. Any card posted
+    // FROM that test — the opposed-melee Defend card above all — kept the
+    // success count it was created with, so the defender rolled against a stale
+    // number. Reported from live play: reroll took the attack from 3 to 8 and
+    // the Defend card still said 3.
+    quench.registerBatch("sr2e.karma-card-sync", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [], msgs = [];
+      after(async () => {
+        for (const m of msgs) { try { await m.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+
+      /** An attacker with Karma Pool and a melee weapon. */
+      async function attacker() {
+        const actor = await Actor.create({
+          name: "Quench Karma Attacker", type: "character",
+          system: {
+            strength: { base: 6 }, quickness: { base: 4 }, intelligence: { base: 4 },
+            karma: { pool: 10, current: 0, total: 0 }
+          },
+          items: [{
+            name: "Quench Blade", type: "weapon",
+            system: { weaponType: "melee", skill: "armed combat", damageCode: "(Str)M",
+                      damageType: "physical" }
+          }]
+        });
+        made.push(actor);
+        return actor;
+      }
+
+      describe("a Karma spend reaches the cards posted from the test", () => {
+        it("buying a success updates the linked melee Defend card", async () => {
+          const actor = await attacker();
+          const before = game.messages.contents.length;
+          await actor.items.find(i => i.type === "weapon").rollAttack?.({});
+          const posted = game.messages.contents.slice(before);
+          for (const m of posted) msgs.push(m);
+
+          const testMsg  = posted.find(m => m.getFlag("sr2e", "test"));
+          const meleeMsg = posted.find(m => m.getFlag("sr2e", "melee"));
+          if (!testMsg || !meleeMsg) return;   // attack missed: no melee card to sync
+
+          assert.equal(meleeMsg.getFlag("sr2e", "melee").testMessageId, testMsg.id,
+            "the melee card must record which test it came from");
+
+          const was = meleeMsg.getFlag("sr2e", "melee").successes;
+          await actor.applyKarmaToTest(testMsg, "buySuccess");
+
+          const after = meleeMsg.getFlag("sr2e", "melee").successes;
+          const expected = testTotalSuccesses(testMsg.getFlag("sr2e", "test"));
+          assert.equal(after, expected,
+            `Defend card should track the test (was ${was}, test now ${expected})`);
+        });
+
+        it("leaves a RESOLVED card alone — that exchange is already settled", async () => {
+          const actor = await attacker();
+          const state = {
+            attackerUuid: actor.uuid, attackerName: actor.name, weaponName: "Quench Blade",
+            successes: 3, power: 6, level: "M", damageType: "physical",
+            testMessageId: "quenchfaketest01", resolved: true
+          };
+          const msg = await ChatMessage.create({
+            content: "resolved melee card", flags: { sr2e: { melee: state } }
+          });
+          msgs.push(msg);
+          await actor._syncDependentCards("quenchfaketest01",
+            { dice: [{ success: true }, { success: true }, { success: true },
+                     { success: true }, { success: true }] });
+          assert.equal(msg.getFlag("sr2e", "melee").successes, 3,
+            "a resolved card must not be rewritten after the fact");
+        });
+
+        it("corrects a curative-spell card too (it carries successes in a button)", async () => {
+          const actor = await attacker();
+          const state = {
+            spellName: "Heal", casterName: actor.name,
+            subjectUuid: actor.uuid, subjectName: actor.name,
+            successes: 2, hurt: true,
+            testMessageId: "quenchhealtest01", resolved: false
+          };
+          const msg = await ChatMessage.create({
+            content: "healing card", flags: { sr2e: { healing: state } }
+          });
+          msgs.push(msg);
+          await actor._syncDependentCards("quenchhealtest01",
+            { dice: [{ success: true }, { success: true }, { success: true },
+                     { success: true }] });
+          assert.equal(msg.getFlag("sr2e", "healing").successes, 4,
+            "the healing offer must follow the casting test");
+          assert.include(msg.content, 'data-successes="4"',
+            "the Apply Healing button must carry the corrected count");
+        });
+
+        it("does nothing when no card points at that test", async () => {
+          const actor = await attacker();
+          await actor._syncDependentCards("quenchnosuchtest", { dice: [{ success: true }] });
+          assert.isOk(true, "syncing with no dependents must not throw");
+        });
+      });
+    }, { displayName: "SR2E: Karma spend syncs dependent cards" });
 
 
 

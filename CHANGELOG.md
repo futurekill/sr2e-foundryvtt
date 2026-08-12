@@ -1,3 +1,25 @@
+# Changelog
+
+Keep this current: add to **Unreleased** as work lands, retitle at release.
+
+## Unreleased
+
+### Fixed
+- **A Karma Pool spend now updates the cards posted from that test.** Rerolling
+  failures or buying a success rewrote the success-test card and nothing else,
+  so an opposed-melee **Defend** card kept the count it was created with — the
+  attack card read 8 successes while the defender was still answering 3. The
+  same staleness hit the astral, cybercombat and Resist Spell cards. Those cards
+  now record which test they came from and are re-rendered when its result
+  changes. A card already resolved is left alone.
+- **Filed the 0.89.0 release notes.** The spell-focus notes had been prepended
+  above the changelog's own title with no version heading at all.
+
+- Art still to come for the last three core packs: **traditions (8), adept
+  powers (14), lifestyles (6)**. Generation is blocked on an external
+  image-generation quota, not on anything in this repo.
+
+## 0.89.0 — 2026-08-04
 
 ### Fixed
 - **Spell foci now work the way the book says (SR2E p.137).** They were a
@@ -15,15 +37,6 @@
     Auto-binding would make a mechanical choice that is yours. Every focus item
     and both actor sheets carry a persistent ⚠ until it is set, and the migration
     lists affected characters.
-# Changelog
-
-Keep this current: add to **Unreleased** as work lands, retitle at release.
-
-## Unreleased
-
-- Art still to come for the last three core packs: **traditions (8), adept
-  powers (14), lifestyles (6)**. Generation is blocked on an external
-  image-generation quota, not on anything in this repo.
 
 ## 0.88.0 — 2026-08-02
 

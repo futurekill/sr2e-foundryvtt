@@ -91,6 +91,36 @@ export function evaluateDamageCode(code, actor = null) {
  * most successes hits, ties favour the attacker, and a winning defender
  * strikes back) or concedes via Undefended.
  */
+/**
+ * Render the curative-spell card (SR2E p.155).
+ *
+ * State persisted in flags.sr2e.healing:
+ *   { spellName, casterName, subjectUuid, subjectName, successes, hurt,
+ *     testMessageId, resolved }
+ *
+ * Boxes healed = successes, but the magician may divert some into reducing the
+ * maintenance time, so the patient's own client resolves the split via the
+ * button rather than this path silently applying boxes. The successes live in
+ * flags as well as the button's dataset so a Karma spend on the casting test
+ * can correct the offer instead of leaving a stale number on the card.
+ */
+export function renderHealingCard(state) {
+  const esc = foundry.utils.escapeHTML;
+  const s = state.successes;
+  return `<div class="sr2e-damage-result">
+    <strong>${esc(state.spellName)} on ${esc(state.subjectName)}</strong>
+    — <strong>${s}</strong> success${s === 1 ? "" : "es"}
+    to spend on boxes healed and/or reducing the maintenance time.
+    ${state.hurt ? `<br><button class="sr2e-apply-healing-btn"
+        data-actor-uuid="${state.subjectUuid}"
+        data-successes="${s}"
+        data-spell-name="${esc(state.spellName)}"
+        data-caster-name="${esc(state.casterName)}"
+        title="Split the successes between healing boxes and reducing the time the spell must be maintained (SR2 p.155)">✚ Apply Healing</button>`
+      : `<br><em>${esc(state.subjectName)} has no Physical damage to heal.</em>`}
+  </div>`;
+}
+
 export function renderMeleeAttackCard(state) {
   const esc = foundry.utils.escapeHTML;
   const buttons = state.resolved ? "" : `
@@ -757,6 +787,8 @@ export class SR2EItem extends Item {
         attackerName: actor.name,
         weaponName,
         successes: result.successes,
+        // Lets a later Karma spend find and correct this card.
+        testMessageId: result.testMessageId,
         power,
         level,
         damageType,
@@ -1324,21 +1356,17 @@ export class SR2EItem extends Item {
     // button rather than this path silently applying boxes.
     if (this.system.healsDamage && (spellResult?.successes ?? 0) > 0) {
       const subject = game.user?.targets?.first?.()?.actor ?? actor;
-      const hurt    = (subject.system?.conditionMonitor?.physical?.value ?? 0) > 0;
+      const healState = {
+        spellName: this.name, casterName: actor.name,
+        subjectUuid: subject.uuid, subjectName: subject.name,
+        successes: spellResult.successes,
+        hurt: (subject.system?.conditionMonitor?.physical?.value ?? 0) > 0,
+        testMessageId: spellResult.testMessageId, resolved: false
+      };
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
-        content: `<div class="sr2e-damage-result">
-          <strong>${foundry.utils.escapeHTML(this.name)} on ${foundry.utils.escapeHTML(subject.name)}</strong>
-          — <strong>${spellResult.successes}</strong> success${spellResult.successes === 1 ? "" : "es"}
-          to spend on boxes healed and/or reducing the maintenance time.
-          ${hurt ? `<br><button class="sr2e-apply-healing-btn"
-              data-actor-uuid="${subject.uuid}"
-              data-successes="${spellResult.successes}"
-              data-spell-name="${foundry.utils.escapeHTML(this.name)}"
-              data-caster-name="${foundry.utils.escapeHTML(actor.name)}"
-              title="Split the successes between healing boxes and reducing the time the spell must be maintained (SR2 p.155)">✚ Apply Healing</button>`
-            : `<br><em>${foundry.utils.escapeHTML(subject.name)} has no Physical damage to heal.</em>`}
-        </div>`
+        content: renderHealingCard(healState),
+        flags: { sr2e: { healing: healState } }
       });
     }
 
@@ -1356,6 +1384,7 @@ export class SR2EItem extends Item {
       const mkState = (targetUuid) => ({
         casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
         targetUuid, force, successes: spellResult.successes,
+        testMessageId: spellResult.testMessageId,
         resistAttr: isMana ? "willpower" : "body", baseLevel, dmgType, resolved: false
       });
       const postCard = (state) => ChatMessage.create({
