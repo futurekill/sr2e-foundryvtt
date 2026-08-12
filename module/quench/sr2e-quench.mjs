@@ -2704,6 +2704,27 @@ export function registerSR2EQuenchTests() {
             "a resolved card must not be rewritten after the fact");
         });
 
+        it("corrects a curative-spell card too (it carries successes in a button)", async () => {
+          const actor = await attacker();
+          const state = {
+            spellName: "Heal", casterName: actor.name,
+            subjectUuid: actor.uuid, subjectName: actor.name,
+            successes: 2, hurt: true,
+            testMessageId: "quenchhealtest01", resolved: false
+          };
+          const msg = await ChatMessage.create({
+            content: "healing card", flags: { sr2e: { healing: state } }
+          });
+          msgs.push(msg);
+          await actor._syncDependentCards("quenchhealtest01",
+            { dice: [{ success: true }, { success: true }, { success: true },
+                     { success: true }] });
+          assert.equal(msg.getFlag("sr2e", "healing").successes, 4,
+            "the healing offer must follow the casting test");
+          assert.include(msg.content, 'data-successes="4"',
+            "the Apply Healing button must carry the corrected count");
+        });
+
         it("does nothing when no card points at that test", async () => {
           const actor = await attacker();
           await actor._syncDependentCards("quenchnosuchtest", { dice: [{ success: true }] });

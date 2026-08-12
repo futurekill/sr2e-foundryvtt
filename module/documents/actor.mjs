@@ -3,7 +3,8 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
-import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard } from "./item.mjs";
+import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
+         renderHealingCard } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
@@ -508,7 +509,8 @@ export class SR2EActor extends Actor {
       melee:  renderMeleeAttackCard,
       spell:  renderSpellResistCard,
       astral: s => this._renderAstralCard(s),
-      matrix: s => this._renderMatrixCard(s)
+      matrix: s => this._renderMatrixCard(s),
+      healing: renderHealingCard
     };
 
     for (const msg of game.messages ?? []) {
