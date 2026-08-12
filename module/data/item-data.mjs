@@ -448,10 +448,15 @@ export class CyberwareData extends SR2EDataModel {
       // p.42): plastic +1, aluminum +2, titanium +3. The highest installed value
       // wins rather than summing; the laces are alternatives, not stackable.
       unarmedPowerBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-      // Muscle Replacement (SR2E p.249) and Muscle Augmentation (Shadowtech)
-      // raise Strength AND Quickness, but "this change does not affect
-      // Reaction". When set, the item's Quickness bonus is excluded from the
-      // Reaction calculation (but still counts for Combat Pool and tests).
+      // Muscle Replacement (SR2E p.249) raises Strength AND Quickness, but
+      // "this change does not affect Reaction". When set, the item's Quickness
+      // bonus is excluded from the Reaction calculation (but still counts for
+      // Combat Pool and tests).
+      //
+      // Muscle AUGMENTATION is the opposite and must leave this false:
+      // "Quickness acquired through muscle augmentation can increase the
+      // calculated Reaction Rating" (Shadowtech p.35, verified against the page
+      // render). The two implants read alike and are easy to conflate — don't.
       noReactionBonus: new fields.BooleanField({ initial: false }),
       // Cyber-implant armor cumulative with worn armor (Bone Lacing aluminum/
       // titanium, Shadowtech p.42; Dermal Plating). Added in _calculateArmor.
