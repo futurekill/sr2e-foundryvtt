@@ -3175,11 +3175,39 @@ export function testTotalSuccesses(state = {}) {
  *   burned Karma be undone, which is the thing this model exists to prevent.
  * @returns {number}
  */
-export function karmaPoolCapacity(total, burned = 0, adjust = 0) {
+/**
+ * The Karma Pool a character simply starts with (SR2E p.47, "Starting Karma"):
+ * "Human characters begin the game with 1 point in their Karma Pool.
+ * Metahumans begin the game with 2 points in their Karma Pool, unless the More
+ * Metahumans optional rule is in use, in which case they only get the standard
+ * 1 point."
+ *
+ * This is a grant, not a function of Karma earned — which is why a freshly
+ * created character has a pool at all, and why deriving from Career Karma alone
+ * produced 0 and looked wrong.
+ *
+ * The More Metahumans variant (metahumans get 1 rather than 2) is NOT modelled.
+ * A table using it needs poolAdjust -1 on each metahuman, which is not editable
+ * from the sheet by design — set it from a macro or the console, or ask for a
+ * world setting if it comes up in play.
+ *
+ * @param {string} race
+ * @returns {number}
+ */
+export function startingKarmaPool(race) {
+  return String(race || "human").toLowerCase() === "human" ? 1 : 2;
+}
+
+export function karmaPoolCapacity(total, burned = 0, adjust = 0, race = "human") {
   const t = Math.max(0, Number(total) || 0);
   const b = Math.max(0, Number(burned) || 0);
   const a = Number(adjust) || 0;              // signed on purpose
-  return Math.max(0, Math.ceil(t / 10) + a - b);
+  // p.191 says one-tenth "(round up)"; p.190 says ten percent of each award,
+  // "always round off in favor of Good Karma" — i.e. round DOWN. The book
+  // contradicts itself and both readings are verified from page renders. The
+  // pool's own section (p.191) wins here, being the rule specifically about the
+  // pool rather than about splitting an award.
+  return Math.max(0, startingKarmaPool(race) + Math.ceil(t / 10) + a - b);
 }
 
 /**

@@ -93,7 +93,11 @@ export const MIGRATIONS = [
           // value, and ignoring it would lose a point.
           const derived = Math.ceil(Math.max(0, Number(k.total) || 0) / 10);
           const burned = Math.max(0, Number(k.burned) || 0);
-          u["system.karma.poolAdjust"] = (Number(k.pool) || 0) - derived + burned;
+          // The starting grant (p.47: 1 human / 2 metahuman) is now supplied by
+          // the derivation, so it must be subtracted here or a migrated
+          // character keeps it twice.
+          const grant = String(source.system?.race || "human").toLowerCase() === "human" ? 1 : 2;
+          u["system.karma.poolAdjust"] = (Number(k.pool) || 0) - grant - derived + burned;
         }
         u["system.karma.-=pool"] = null;
       } else if (k.poolAdjust === undefined) {

@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -365,7 +365,8 @@ export class CharacterData extends SR2EDataModel {
     // fields, which is what keeps a stale `update({"system.karma.pool": n})`
     // from persisting: an undeclared path is dropped by schema validation and
     // excluded from toObject().
-    this.karma.poolMax = karmaPoolCapacity(this.karma.total, this.karma.burned, this.karma.poolAdjust);
+    this.karma.poolMax = karmaPoolCapacity(
+      this.karma.total, this.karma.burned, this.karma.poolAdjust, this.race);
     this.karma.pool = karmaPoolAvailable(this.karma.poolMax, this.karma.spent, this.karma.drawn);
 
     // Calculate Movement

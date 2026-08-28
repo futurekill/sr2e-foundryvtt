@@ -1162,7 +1162,7 @@ export function registerSR2EQuenchTests() {
           const a = await Actor.create({
             name: "Quench Pool SD", type: "character",
             system: { quickness: { base: 6 }, intelligence: { base: 6 }, willpower: { base: 6 },
-                      karma: { total: 30, spent: 2, drawn: 1, burned: 1 },
+                      karma: { total: 30, spent: 2, drawn: 1, burned: 1, poolAdjust: -1 },
                       dicePools: { spellDefense: 2 } }
           });
           made.push(a);
@@ -1171,7 +1171,7 @@ export function registerSR2EQuenchTests() {
           assert.equal(a.system.karma.spent, 0, "this encounter's spending returns");
           assert.equal(a.system.karma.drawn, 0, "unused Team Karma lapses");
           assert.equal(a.system.karma.burned, 1, "but burned Karma is gone for good");
-          assert.equal(a.system.karma.pool, 2, "capacity 3 less 1 burned");
+          assert.equal(a.system.karma.pool, 2, "1 grant + 3 earned - 1 carried - 1 burned");
         });
       });
     }, { displayName: "SR2E: Dice-pool refresh" });
@@ -2351,10 +2351,12 @@ export function registerSR2EQuenchTests() {
         // flag CANNOT live in the shared fixture because the reroll branch bails
         // on an unavoided glitch — which would break the two reroll tests.
         async function tested(karma = 5, extra = {}) {
-          // karma.pool is DERIVED as of 0.91.0 — capacity comes from Career
-          // Karma / 10 rounded up, so seed `total` rather than the old stored
-          // pool. total = karma * 10 gives exactly `karma` points.
-          const a = await pc({ karma: { total: karma * 10 } });
+          // karma.pool is DERIVED as of 0.91.0. Capacity is the p.47 starting
+          // grant (1 for a human) PLUS Career Karma / 10 rounded up, so seeding
+          // total alone overshoots by the grant. total = karma * 10 with
+          // poolAdjust -1 cancels it and yields exactly `karma` points —
+          // including karma = 0, which floors at 0.
+          const a = await pc({ karma: { total: karma * 10, poolAdjust: -1 } });
           const msg = await ChatMessage.create({ content: "quench",
             flags: { sr2e: { test: { dice: [{ result: 2 }, { result: 5 }, { result: 1 }],
                                      tn: 4, successes: 1, rerolls: 0, ...extra } } } });
@@ -2462,21 +2464,28 @@ export function registerSR2EQuenchTests() {
 
       describe("derivation", () => {
         it("is Career Karma / 10 ROUNDED UP", async () => {
-          assert.equal((await pc({ total: 50 })).system.karma.poolMax, 5);
-          assert.equal((await pc({ total: 51 })).system.karma.poolMax, 6, "51 rounds UP to 6");
-          assert.equal((await pc({ total: 1 })).system.karma.poolMax, 1, "1 Karma is still a pool of 1");
-          assert.equal((await pc({ total: 0 })).system.karma.poolMax, 0, "and 0 earns no pool");
+          assert.equal((await pc({ total: 50 })).system.karma.poolMax, 6, "1 grant + 5 earned");
+          assert.equal((await pc({ total: 51 })).system.karma.poolMax, 7, "51 rounds UP to 6, plus the grant");
+          assert.equal((await pc({ total: 1 })).system.karma.poolMax, 2, "1 Karma rounds up, on top of the grant");
+          assert.equal((await pc({ total: 0 })).system.karma.poolMax, 1, "and a fresh human still starts with 1 (p.47)");
         });
 
         it("subtracts permanently burned capacity but not this encounter's spending", async () => {
           const a = await pc({ total: 50, burned: 2, spent: 1 });
-          assert.equal(a.system.karma.poolMax, 3, "capacity drops by what was burned");
-          assert.equal(a.system.karma.pool, 2, "availability also drops by what was spent");
+          assert.equal(a.system.karma.poolMax, 4, "1 + 5 - 2 burned");
+          assert.equal(a.system.karma.pool, 3, "availability also drops by what was spent");
+        });
+
+        it("grants metahumans the larger starting pool (p.47)", async () => {
+          const a = await Actor.create({ name: "Quench Troll Karma", type: "character",
+            system: { race: "troll", karma: { total: 0 } } });
+          made.push(a);
+          assert.equal(a.system.karma.poolMax, 2, "a metahuman starts with 2, not 1");
         });
 
         it("counts held Team Karma on top, which may exceed capacity", async () => {
           const a = await pc({ total: 50, drawn: 2 });
-          assert.equal(a.system.karma.pool, 7, "5 own + 2 borrowed");
+          assert.equal(a.system.karma.pool, 8, "6 own + 2 borrowed");
         });
       });
 
@@ -2495,9 +2504,9 @@ export function registerSR2EQuenchTests() {
 
         it("drops a legacy write to system.karma.pool instead of honouring it", async () => {
           const a = await pc({ total: 50 });
-          assert.equal(a.system.karma.pool, 5);
+          assert.equal(a.system.karma.pool, 6);
           await a.update({ "system.karma.pool": 99 });
-          assert.equal(a.system.karma.pool, 5,
+          assert.equal(a.system.karma.pool, 6,
             "an old macro writing the pool must not change the derived value");
           // Check the DOCUMENT's raw source too, not just the validated model —
           // a field can vanish from the model while surviving in _source, which
@@ -2518,21 +2527,21 @@ export function registerSR2EQuenchTests() {
           // silently gains capacity.
           const a = await pc({ total: 50, poolAdjust: -3 });
           assert.equal(a.system.karma.poolAdjust, -3, "the negative offset must survive");
-          assert.equal(a.system.karma.poolMax, 2, "5 from Karma, less the 3 carried down");
+          assert.equal(a.system.karma.poolMax, 3, "1 grant + 5 earned, less the 3 carried down");
         });
 
         it("survives a refresh untouched", async () => {
           const a = await pc({ total: 50, poolAdjust: 2, spent: 3 });
           await a.refreshDicePools();
           assert.equal(a.system.karma.poolAdjust, 2, "a refresh must not clear the offset");
-          assert.equal(a.system.karma.poolMax, 7);
+          assert.equal(a.system.karma.poolMax, 8);
         });
 
         it("offsets capacity but cannot un-burn Karma", async () => {
           // The adjustment and the burn are separate terms; raising one does not
           // erase the other. This is why the sheet shows it read-only.
           const a = await pc({ total: 50, poolAdjust: 2, burned: 2 });
-          assert.equal(a.system.karma.poolMax, 5, "5 + 2 - 2");
+          assert.equal(a.system.karma.poolMax, 6, "1 + 5 + 2 - 2");
           assert.equal(a.system.karma.burned, 2, "the burn is still recorded");
         });
       });
@@ -2540,19 +2549,19 @@ export function registerSR2EQuenchTests() {
       describe("permanent vs temporary (p.191)", () => {
         it("returns spent points on a refresh but never burned ones", async () => {
           const a = await pc({ total: 50, spent: 2, burned: 1 });
-          assert.equal(a.system.karma.pool, 2, "5 capacity - 1 burned - 2 spent");
+          assert.equal(a.system.karma.pool, 3, "6 capacity - 1 burned - 2 spent");
           await a.refreshDicePools();
-          assert.equal(a.system.karma.pool, 4, "the 2 spent come back");
-          assert.equal(a.system.karma.poolMax, 4, "the burned point does NOT");
+          assert.equal(a.system.karma.pool, 5, "the 2 spent come back");
+          assert.equal(a.system.karma.poolMax, 5, "the burned point does NOT");
           assert.equal(a.system.karma.burned, 1, "burned survives the refresh");
         });
 
         it("lets unused Team Karma loans lapse at the refresh", async () => {
           const a = await pc({ total: 50, drawn: 3 });
-          assert.equal(a.system.karma.pool, 8);
+          assert.equal(a.system.karma.pool, 9);
           await a.refreshDicePools();
           assert.equal(a.system.karma.drawn, 0, "borrowed points do not become the character's");
-          assert.equal(a.system.karma.pool, 5);
+          assert.equal(a.system.karma.pool, 6);
         });
       });
 
@@ -2580,7 +2589,7 @@ export function registerSR2EQuenchTests() {
           assert.equal(a.system.karma.drawn, 1, "the loan absorbs it");
           assert.equal(a.system.karma.burned, 0, "and capacity is NOT permanently reduced");
           await a.refreshDicePools();
-          assert.equal(a.system.karma.poolMax, 5, "so the pool returns in full next encounter");
+          assert.equal(a.system.karma.poolMax, 6, "so the pool returns in full next encounter");
         });
 
         it("burns personal capacity when nothing is borrowed", async () => {
@@ -2588,7 +2597,7 @@ export function registerSR2EQuenchTests() {
           await a._burnKarmaPool(1);
           assert.equal(a.system.karma.burned, 1);
           await a.refreshDicePools();
-          assert.equal(a.system.karma.poolMax, 4, "gone (pffft!) forever");
+          assert.equal(a.system.karma.poolMax, 5, "gone (pffft!) forever");
         });
       });
     }, { displayName: "SR2E: Karma Pool (p.191)" });
@@ -2887,7 +2896,7 @@ export function registerSR2EQuenchTests() {
           name: "Quench Karma Attacker", type: "character",
           system: {
             strength: { base: 6 }, quickness: { base: 4 }, intelligence: { base: 4 },
-            karma: { total: 100, current: 0 }   // derived pool of 10
+            karma: { total: 100, current: 0, poolAdjust: -1 }   // derived pool of 10
           },
           items: [{
             name: "Quench Blade", type: "weapon",

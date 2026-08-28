@@ -20,7 +20,7 @@ describe("karma pool migration", () => {
       "system.karma.burned": 0,
       "system.karma.spent": 0,
       "system.karma.drawn": 0,
-      "system.karma.poolAdjust": 5,      // 9 - 4
+      "system.karma.poolAdjust": 4,      // 9 - 1 grant - 4 earned
       "system.karma.-=pool": null
     });
   });
@@ -29,16 +29,24 @@ describe("karma pool migration", () => {
     // The case that made a signed offset necessary: derive alone and this
     // character silently loses the pool the table has been using.
     const u = migrate({ type: "character", system: { karma: { total: 0, pool: 3 } } });
-    expect(u["system.karma.poolAdjust"]).toBe(3);
+    expect(u["system.karma.poolAdjust"]).toBe(2);   // 3 - 1 grant
   });
 
   it("uses a NEGATIVE offset when the sheet held less than the rule would give", () => {
     const u = migrate({ type: "character", system: { karma: { total: 50, pool: 2 } } });
-    expect(u["system.karma.poolAdjust"]).toBe(-3);   // 2 - 5
+    expect(u["system.karma.poolAdjust"]).toBe(-4);   // 2 - 1 grant - 5 earned
   });
 
   it("needs no offset when the sheet already matched the rule", () => {
-    const u = migrate({ type: "character", system: { karma: { total: 50, pool: 5 } } });
+    // 1 grant + 5 earned = 6, so a sheet reading 6 needs nothing.
+    const u = migrate({ type: "character", system: { karma: { total: 50, pool: 6 } } });
+    expect(u["system.karma.poolAdjust"]).toBe(0);
+  });
+
+  it("gives a metahuman the larger starting grant (p.47)", () => {
+    // A troll's pool of 7 is 2 grant + 5 earned; no offset needed.
+    const u = migrate({ type: "character",
+      system: { race: "troll", karma: { total: 50, pool: 7 } } });
     expect(u["system.karma.poolAdjust"]).toBe(0);
   });
 
@@ -56,7 +64,7 @@ describe("karma pool migration", () => {
 
   it("still deletes a stale pool on an otherwise-migrated character", () => {
     const u = migrate({ type: "character",
-      system: { karma: { total: 50, burned: 0, spent: 0, drawn: 0, pool: 5 } } });
+      system: { karma: { total: 50, burned: 0, spent: 0, drawn: 0, pool: 6 } } });
     expect(u).toEqual({ "system.karma.poolAdjust": 0, "system.karma.-=pool": null });
   });
 
@@ -71,7 +79,8 @@ describe("karma pool migration", () => {
     // Ignoring it would silently cost the character a point.
     const u = migrate({ type: "character",
       system: { karma: { total: 50, pool: 5, burned: 1, spent: 0, drawn: 0 } } });
-    expect(u["system.karma.poolAdjust"]).toBe(1);   // 5 - 5 + 1
+    expect(u["system.karma.poolAdjust"]).toBe(0);   // 5 - 1 grant - 5 earned + 1 burned
+    // and that reproduces the old pool: 1 + 5 + 0 - 1 = 5
   });
 
   // Asserting the update object is not the same as asserting the outcome.
@@ -79,16 +88,19 @@ describe("karma pool migration", () => {
   describe("the pool a character ends up with equals the pool they started with", () => {
     const cases = [
       { name: "no recorded Karma, hand-kept pool", total: 0,  pool: 3 },
-      { name: "pool matching the rule",            total: 50, pool: 5 },
+      { name: "pool matching the rule",            total: 50, pool: 6 },
       { name: "pool above the rule",               total: 37, pool: 9 },
       { name: "pool below the rule",               total: 50, pool: 2 },
-      { name: "rounding up at the boundary",       total: 51, pool: 6 },
-      { name: "already-burned counter present",    total: 50, pool: 5, burned: 1 }
+      { name: "rounding up at the boundary",       total: 51, pool: 7 },
+      { name: "already-burned counter present",    total: 50, pool: 5, burned: 1 },
+      { name: "metahuman, larger starting grant",  total: 50, pool: 7, race: "troll" },
+      { name: "metahuman with no earned Karma",    total: 0,  pool: 2, race: "elf" }
     ];
     for (const c of cases) {
       it(c.name, () => {
         const before = { total: c.total, pool: c.pool, burned: c.burned ?? 0, spent: 0, drawn: 0 };
-        const u = migrate({ type: "character", system: { karma: before } });
+        const u = migrate({ type: "character",
+          system: { race: c.race ?? "human", karma: before } });
         const after = {
           total: before.total,
           burned: u["system.karma.burned"] ?? before.burned,
@@ -96,7 +108,7 @@ describe("karma pool migration", () => {
           drawn: u["system.karma.drawn"] ?? before.drawn,
           poolAdjust: u["system.karma.poolAdjust"] ?? 0
         };
-        const cap = karmaPoolCapacity(after.total, after.burned, after.poolAdjust);
+        const cap = karmaPoolCapacity(after.total, after.burned, after.poolAdjust, c.race ?? "human");
         expect(karmaPoolAvailable(cap, after.spent, after.drawn)).toBe(c.pool);
       });
     }

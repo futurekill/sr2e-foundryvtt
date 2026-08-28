@@ -118,7 +118,7 @@
       "burned": 0,
       "spent": 0,
       "drawn": 0,
-      "poolAdjust": 1
+      "poolAdjust": 0
     },
     "nuyen": 2500,
     "lifestyle": "low",

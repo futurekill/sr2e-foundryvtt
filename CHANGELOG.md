@@ -2,11 +2,17 @@
 
 ## Unreleased
 
-### Fixed — Karma Pool now follows SR2E p.191
+### Fixed — Karma Pool now follows SR2E p.47 and p.191
 
-- **The pool is derived, not typed.** Capacity is Career Karma ÷ 10 **rounded
-  up**, less anything permanently burned. It was previously a stored number that
-  nothing computed and nothing refreshed.
+- **The pool is derived, not typed.** Capacity is the starting grant every
+  character gets — **1 for humans, 2 for metahumans** (p.47) — plus Career Karma
+  ÷ 10 **rounded up**, less anything permanently burned. It was previously a
+  stored number that nothing computed and nothing refreshed.
+- **The starting grant was missing entirely.** Deriving from Career Karma alone
+  gave a freshly created character a pool of 0. p.47 is explicit that they begin
+  play with one, and that metahumans get two. The sample runners had a flat 1
+  regardless of race; the three metahuman ones (Glitch, Patch, Razor) now
+  correctly start with 2.
 - **It returns each encounter**, on the same gesture that refreshes the dice
   pools — so there is one habit to learn, not two.
 - **Permanent and temporary spends are now different things.** Rerolls, avoiding
@@ -20,6 +26,13 @@
 - The standalone Refresh Karma Pool macro computed `floor(total / 10)` with a
   minimum of 1 — rounded the wrong way, and invented a floor the rule does not
   have. The system owns the arithmetic now; the macro just clears the counters.
+
+**A note on the book contradicting itself.** p.191 says one-tenth of Karma
+earned goes to the pool, "(round up)". p.190 says ten percent of each award
+goes to the pool and to "always round off in favor of Good Karma" — i.e. round
+down. Both are verified from page renders. The pool's own section (p.191) is
+implemented, being the rule specifically about the pool rather than about
+splitting an award. Say so if you would rather have p.190's round-down.
 
 **Existing pools are preserved.** Deriving alone would quietly change numbers
 your table is already using — most sharply for a character with no recorded
