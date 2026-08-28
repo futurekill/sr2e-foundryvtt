@@ -35,6 +35,8 @@
  * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
  * characters by the 0.26.0 migration (GitHub #3).
  */
+import { startingKarmaPool } from "./rules/sr2e-rules.mjs";
+
 export const UNARMED_STRIKE_DATA = {
   name: "Unarmed Strike",
   type: "weapon",
@@ -96,7 +98,12 @@ export const MIGRATIONS = [
           // The starting grant (p.47: 1 human / 2 metahuman) is now supplied by
           // the derivation, so it must be subtracted here or a migrated
           // character keeps it twice.
-          const grant = String(source.system?.race || "human").toLowerCase() === "human" ? 1 : 2;
+          // Must use the SAME grant the derivation will use, or a world running
+          // the More Metahumans optional rule preserves every metahuman's pool
+          // one point short.
+          let more = false;
+          try { more = game.settings.get("sr2e", "moreMetahumans"); } catch (e) { /* default off */ }
+          const grant = startingKarmaPool(source.system?.race, more);
           u["system.karma.poolAdjust"] = (Number(k.pool) || 0) - grant - derived + burned;
         }
         u["system.karma.-=pool"] = null;

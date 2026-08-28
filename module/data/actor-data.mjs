@@ -365,8 +365,12 @@ export class CharacterData extends SR2EDataModel {
     // fields, which is what keeps a stale `update({"system.karma.pool": n})`
     // from persisting: an undeclared path is dropped by schema validation and
     // excluded from toObject().
+    // try/catch for the same reason autoEssence needs one: settings are
+    // registered in the init hook, but data prep can run before that.
+    let moreMetahumans = false;
+    try { moreMetahumans = game.settings.get("sr2e", "moreMetahumans"); } catch (e) { /* default */ }
     this.karma.poolMax = karmaPoolCapacity(
-      this.karma.total, this.karma.burned, this.karma.poolAdjust, this.race);
+      this.karma.total, this.karma.burned, this.karma.poolAdjust, this.race, moreMetahumans);
     this.karma.pool = karmaPoolAvailable(this.karma.poolMax, this.karma.spent, this.karma.drawn);
 
     // Calculate Movement

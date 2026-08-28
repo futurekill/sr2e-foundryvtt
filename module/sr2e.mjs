@@ -922,6 +922,42 @@ function _registerSystemSettings() {
     default: true
   });
 
+  // More Metahumans (SR2E p.42, optional). The rule reduces the required
+  // Metahuman Race priority from A to C and shifts the Magic priorities. The
+  // extra Karma Pool point a metahuman normally starts with exists to offset
+  // that expense, so the book withdraws it when the rule is in use: p.47,
+  // "unless the More Metahumans optional rule is in use, in which case they
+  // only get the standard 1 point."
+  //
+  // ONLY the Karma consequence is automated. The priority-table half is left to
+  // the GM deliberately: the rule names the new Magic priorities for A and B
+  // and says nothing about C, and guessing that entry would be inventing a
+  // rule. The setting is honest about this in its hint.
+  game.settings.register("sr2e", "moreMetahumans", {
+    name: "SR2E.Settings.MoreMetahumans",
+    hint: "SR2E.Settings.MoreMetahumansHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => {
+      // Starting Karma Pool is derived, so every metahuman's capacity changes
+      // the moment this flips. Re-prepare and repaint rather than making
+      // players reload. Unlinked token actors are synthetic and are NOT in
+      // game.actors, so they need collecting off the canvas or an open sheet
+      // keeps showing the old pool.
+      const seen = new Set();
+      const touch = (a) => {
+        if (!a || a.type !== "character" || seen.has(a)) return;
+        seen.add(a);
+        a.prepareData();
+        if (a.sheet?.rendered) a.sheet.render(false);
+      };
+      for (const a of game.actors ?? []) touch(a);
+      for (const t of canvas?.tokens?.placeables ?? []) touch(t.actor);
+    }
+  });
+
   game.settings.register("sr2e", "autoEssence", {
     name: "SR2E.Settings.AutoEssence",
     hint: "SR2E.Settings.AutoEssenceHint",

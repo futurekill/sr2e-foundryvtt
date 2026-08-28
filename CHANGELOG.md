@@ -8,6 +8,20 @@
   character gets — **1 for humans, 2 for metahumans** (p.47) — plus Career Karma
   ÷ 10 **rounded up**, less anything permanently burned. It was previously a
   stored number that nothing computed and nothing refreshed.
+- **New world setting: More Metahumans (optional rule).** The extra Karma Pool
+  point a metahuman starts with exists to offset how expensive the Metahuman
+  Race priority is at chargen. The optional rule (p.42) makes that priority
+  cheap, so the book withdraws the compensation — metahumans start with the
+  standard 1 point instead of 2 (p.47). Off by default. Because the pool is
+  derived, flipping it moves every existing metahuman immediately, open sheets
+  and unlinked tokens included.
+
+  **The Karma consequence is all it automates.** The rule's other half — the
+  Metahuman Race priority dropping from A to C, and Magic shifting to A for
+  full magicians and B for adepts — is left to the GM at character creation.
+  That is deliberate rather than lazy: the book names the new Magic priorities
+  for A and B and says nothing about C, and inventing that entry would be
+  making a rule up. The setting says so plainly in its hint.
 - **The starting grant was missing entirely.** Deriving from Career Karma alone
   gave a freshly created character a pool of 0. p.47 is explicit that they begin
   play with one, and that metahumans get two. The sample runners had a flat 1

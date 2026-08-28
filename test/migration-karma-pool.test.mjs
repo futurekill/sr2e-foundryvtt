@@ -43,6 +43,40 @@ describe("karma pool migration", () => {
     expect(u["system.karma.poolAdjust"]).toBe(0);
   });
 
+  it("uses the same grant the derivation will, so the setting cannot desync it", () => {
+    // With the More Metahumans rule OFF (the default, and what the shim
+    // resolves to here) an ork's grant is 2, so a legacy pool of 2 needs no
+    // offset. If the migration hardcoded the grant while the derivation read
+    // the setting, a world running that rule would preserve every metahuman's
+    // pool a point short.
+    const u = migrate({ type: "character",
+      system: { race: "ork", karma: { total: 0, pool: 2 } } });
+    expect(u["system.karma.poolAdjust"]).toBe(0);   // 2 - 2 grant - 0 earned
+  });
+
+  it("preserves a metahuman's pool with the More Metahumans rule ON", () => {
+    // The case that would desync if the migration hardcoded the grant: with the
+    // rule on, the derivation gives an ork 1, so the migration must subtract 1,
+    // not 2, or the preserved pool comes out a point short.
+    const real = globalThis.game?.settings?.get;
+    globalThis.game = globalThis.game ?? {};
+    globalThis.game.settings = globalThis.game.settings ?? {};
+    globalThis.game.settings.get = (ns, key) =>
+      (ns === "sr2e" && key === "moreMetahumans") ? true : real?.call(globalThis.game.settings, ns, key);
+    try {
+      const before = { total: 0, pool: 2, burned: 0, spent: 0, drawn: 0 };
+      const u = migrate({ type: "character", system: { race: "ork", karma: before } });
+      expect(u["system.karma.poolAdjust"]).toBe(1);   // 2 - 1 grant - 0 earned
+      const cap = karmaPoolCapacity(0, 0, u["system.karma.poolAdjust"], "ork", true);
+      expect(karmaPoolAvailable(cap, 0, 0)).toBe(2);  // and it round-trips
+    } finally {
+      // Restore, or remove the stub entirely if there was nothing to restore —
+      // otherwise this test leaks a fake settings.get into later files.
+      if (real) globalThis.game.settings.get = real;
+      else delete globalThis.game.settings.get;
+    }
+  });
+
   it("gives a metahuman the larger starting grant (p.47)", () => {
     // A troll's pool of 7 is 2 grant + 5 earned; no offset needed.
     const u = migrate({ type: "character",

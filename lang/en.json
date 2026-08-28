@@ -388,6 +388,8 @@
   "SR2E.Settings.SpiritPlacementOff": "Off — no token (drag it from the sidebar)",
   "SR2E.Settings.AutoEssence": "Auto-Calculate Essence",
   "SR2E.Settings.AutoEssenceHint": "Automatically reduce Essence when cyberware is added to a character.",
+  "SR2E.Settings.MoreMetahumans": "More Metahumans (optional rule)",
+  "SR2E.Settings.MoreMetahumansHint": "Tells the system your table uses the More Metahumans optional rule (p.42). What this automates is the Karma consequence: metahumans start with the standard 1 Karma Pool point instead of 2 (p.47), because the extra point exists to offset an expensive Metahuman Race priority. It does NOT change the priority table — the rule's other half (Metahuman Race from A to C, Magic shifted to A for full magicians and B for adepts) is applied by you at character creation. Flipping this moves every existing metahuman's Karma Pool immediately.",
   "TYPES.Actor.character": "Character",
   "TYPES.Actor.npc": "NPC",
   "TYPES.Actor.vehicle": "Vehicle",

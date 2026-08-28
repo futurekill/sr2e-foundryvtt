@@ -3186,19 +3186,22 @@ export function testTotalSuccesses(state = {}) {
  * created character has a pool at all, and why deriving from Career Karma alone
  * produced 0 and looked wrong.
  *
- * The More Metahumans variant (metahumans get 1 rather than 2) is NOT modelled.
- * A table using it needs poolAdjust -1 on each metahuman, which is not editable
- * from the sheet by design — set it from a macro or the console, or ask for a
- * world setting if it comes up in play.
+ * The extra point is compensation for how expensive the Metahuman Race priority
+ * is at chargen. The **More Metahumans** optional rule (p.42) makes that
+ * priority cheaper, and withdraws the compensation with it — hence the flag.
  *
  * @param {string} race
+ * @param {boolean} [moreMetahumans] - The optional rule is in use, so
+ *   metahumans get the standard 1 point rather than 2.
  * @returns {number}
  */
-export function startingKarmaPool(race) {
-  return String(race || "human").toLowerCase() === "human" ? 1 : 2;
+export function startingKarmaPool(race, moreMetahumans = false) {
+  if (String(race || "human").toLowerCase() === "human") return 1;
+  return moreMetahumans ? 1 : 2;
 }
 
-export function karmaPoolCapacity(total, burned = 0, adjust = 0, race = "human") {
+export function karmaPoolCapacity(total, burned = 0, adjust = 0, race = "human",
+                                  moreMetahumans = false) {
   const t = Math.max(0, Number(total) || 0);
   const b = Math.max(0, Number(burned) || 0);
   const a = Number(adjust) || 0;              // signed on purpose
@@ -3207,7 +3210,7 @@ export function karmaPoolCapacity(total, burned = 0, adjust = 0, race = "human")
   // contradicts itself and both readings are verified from page renders. The
   // pool's own section (p.191) wins here, being the rule specifically about the
   // pool rather than about splitting an award.
-  return Math.max(0, startingKarmaPool(race) + Math.ceil(t / 10) + a - b);
+  return Math.max(0, startingKarmaPool(race, moreMetahumans) + Math.ceil(t / 10) + a - b);
 }
 
 /**

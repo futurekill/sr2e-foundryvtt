@@ -16,6 +16,30 @@ describe("startingKarmaPool — the grant every character begins with (p.47)", (
     expect(startingKarmaPool()).toBe(1);
     expect(startingKarmaPool("Human")).toBe(1);
   });
+
+  it("drops metahumans to the standard 1 under the More Metahumans rule (p.47)", () => {
+    // The extra point offsets an expensive Metahuman Race priority; that rule
+    // makes the priority cheap, so the book withdraws the compensation.
+    for (const r of ["elf", "dwarf", "ork", "troll"]) {
+      expect(startingKarmaPool(r, true), r).toBe(1);
+    }
+  });
+
+  it("never changes what a human gets, rule or no rule", () => {
+    expect(startingKarmaPool("human", true)).toBe(1);
+    expect(startingKarmaPool("human", false)).toBe(1);
+  });
+});
+
+describe("karmaPoolCapacity honours the More Metahumans flag", () => {
+  it("costs a metahuman their extra starting point", () => {
+    expect(karmaPoolCapacity(50, 0, 0, "troll", false)).toBe(7);   // 2 + 5
+    expect(karmaPoolCapacity(50, 0, 0, "troll", true)).toBe(6);    // 1 + 5
+  });
+
+  it("leaves humans untouched", () => {
+    expect(karmaPoolCapacity(50, 0, 0, "human", true)).toBe(6);
+  });
 });
 
 describe("karmaPoolCapacity — starting grant plus one-tenth, ROUND UP (p.47, p.191)", () => {

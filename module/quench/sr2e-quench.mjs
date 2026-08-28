@@ -2483,6 +2483,23 @@ export function registerSR2EQuenchTests() {
           assert.equal(a.system.karma.poolMax, 2, "a metahuman starts with 2, not 1");
         });
 
+        it("honours the More Metahumans world setting", async () => {
+          // Flipping the setting must move existing metahumans, not just new
+          // ones — the pool is derived, so the change is retroactive by design.
+          const prior = game.settings.get("sr2e", "moreMetahumans");
+          const a = await Actor.create({ name: "Quench Ork Karma", type: "character",
+            system: { race: "ork", karma: { total: 0 } } });
+          made.push(a);
+          try {
+            await game.settings.set("sr2e", "moreMetahumans", false);
+            assert.equal(a.system.karma.poolMax, 2, "off: a metahuman starts with 2");
+            await game.settings.set("sr2e", "moreMetahumans", true);
+            assert.equal(a.system.karma.poolMax, 1, "on: the standard 1 point (p.47)");
+          } finally {
+            await game.settings.set("sr2e", "moreMetahumans", prior);
+          }
+        });
+
         it("counts held Team Karma on top, which may exceed capacity", async () => {
           const a = await pc({ total: 50, drawn: 2 });
           assert.equal(a.system.karma.pool, 8, "6 own + 2 borrowed");
