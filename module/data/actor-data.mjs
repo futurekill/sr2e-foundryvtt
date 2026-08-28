@@ -137,7 +137,11 @@ export class CharacterData extends SR2EDataModel {
         spent: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
         // Team Karma points currently held. Also cleared by a refresh — unused
         // borrowings evaporate rather than becoming the character's own.
-        drawn: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
+        drawn: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        // Signed GM adjustment to capacity. NOT min: 0 — it must be able to go
+        // negative. Set by the 0.91.0 migration so a pool that was maintained by
+        // hand keeps the value the table was actually using.
+        poolAdjust: new fields.NumberField({ required: true, integer: true, initial: 0 })
       }),
 
       // --- NUYEN ---
@@ -361,7 +365,7 @@ export class CharacterData extends SR2EDataModel {
     // fields, which is what keeps a stale `update({"system.karma.pool": n})`
     // from persisting: an undeclared path is dropped by schema validation and
     // excluded from toObject().
-    this.karma.poolMax = karmaPoolCapacity(this.karma.total, this.karma.burned);
+    this.karma.poolMax = karmaPoolCapacity(this.karma.total, this.karma.burned, this.karma.poolAdjust);
     this.karma.pool = karmaPoolAvailable(this.karma.poolMax, this.karma.spent, this.karma.drawn);
 
     // Calculate Movement

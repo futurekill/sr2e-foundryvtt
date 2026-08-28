@@ -2511,6 +2511,32 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("the carried adjustment", () => {
+        it("persists a NEGATIVE value through Foundry validation", async () => {
+          // poolAdjust is deliberately not min:0. If the schema ever regains a
+          // floor, a character migrated down from a smaller hand-kept pool
+          // silently gains capacity.
+          const a = await pc({ total: 50, poolAdjust: -3 });
+          assert.equal(a.system.karma.poolAdjust, -3, "the negative offset must survive");
+          assert.equal(a.system.karma.poolMax, 2, "5 from Karma, less the 3 carried down");
+        });
+
+        it("survives a refresh untouched", async () => {
+          const a = await pc({ total: 50, poolAdjust: 2, spent: 3 });
+          await a.refreshDicePools();
+          assert.equal(a.system.karma.poolAdjust, 2, "a refresh must not clear the offset");
+          assert.equal(a.system.karma.poolMax, 7);
+        });
+
+        it("offsets capacity but cannot un-burn Karma", async () => {
+          // The adjustment and the burn are separate terms; raising one does not
+          // erase the other. This is why the sheet shows it read-only.
+          const a = await pc({ total: 50, poolAdjust: 2, burned: 2 });
+          assert.equal(a.system.karma.poolMax, 5, "5 + 2 - 2");
+          assert.equal(a.system.karma.burned, 2, "the burn is still recorded");
+        });
+      });
+
       describe("permanent vs temporary (p.191)", () => {
         it("returns spent points on a refresh but never burned ones", async () => {
           const a = await pc({ total: 50, spent: 2, burned: 1 });

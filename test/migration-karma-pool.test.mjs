@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MIGRATIONS } from "../module/migrations.mjs";
+import { karmaPoolCapacity, karmaPoolAvailable } from "../module/rules/sr2e-rules.mjs";
 
 /**
  * 0.91.0 — the Karma Pool becomes derived (SR2E p.191).
@@ -11,14 +12,34 @@ import { MIGRATIONS } from "../module/migrations.mjs";
 const migrate = MIGRATIONS.find(m => m.version === "0.91.0").migrateActor;
 
 describe("karma pool migration", () => {
-  it("adds the three counters and deletes the stale stored pool", () => {
+  it("PRESERVES the pool a character already had", () => {
+    // total 37 derives to ceil(3.7) = 4, but this character's sheet said 9.
+    // The offset makes the derived capacity reproduce 9 exactly.
     const u = migrate({ type: "character", system: { karma: { current: 4, total: 37, pool: 9 } } });
     expect(u).toEqual({
       "system.karma.burned": 0,
       "system.karma.spent": 0,
       "system.karma.drawn": 0,
+      "system.karma.poolAdjust": 5,      // 9 - 4
       "system.karma.-=pool": null
     });
+  });
+
+  it("preserves a hand-kept pool on a character with NO recorded Karma", () => {
+    // The case that made a signed offset necessary: derive alone and this
+    // character silently loses the pool the table has been using.
+    const u = migrate({ type: "character", system: { karma: { total: 0, pool: 3 } } });
+    expect(u["system.karma.poolAdjust"]).toBe(3);
+  });
+
+  it("uses a NEGATIVE offset when the sheet held less than the rule would give", () => {
+    const u = migrate({ type: "character", system: { karma: { total: 50, pool: 2 } } });
+    expect(u["system.karma.poolAdjust"]).toBe(-3);   // 2 - 5
+  });
+
+  it("needs no offset when the sheet already matched the rule", () => {
+    const u = migrate({ type: "character", system: { karma: { total: 50, pool: 5 } } });
+    expect(u["system.karma.poolAdjust"]).toBe(0);
   });
 
   it("leaves current and total alone — the pool derives from total", () => {
@@ -29,14 +50,56 @@ describe("karma pool migration", () => {
 
   it("does nothing for an already-migrated character", () => {
     const done = { type: "character",
-      system: { karma: { current: 0, total: 50, burned: 1, spent: 2, drawn: 0 } } };
+      system: { karma: { current: 0, total: 50, burned: 1, spent: 2, drawn: 0, poolAdjust: 0 } } };
     expect(migrate(done)).toBeNull();
   });
 
   it("still deletes a stale pool on an otherwise-migrated character", () => {
     const u = migrate({ type: "character",
       system: { karma: { total: 50, burned: 0, spent: 0, drawn: 0, pool: 5 } } });
+    expect(u).toEqual({ "system.karma.poolAdjust": 0, "system.karma.-=pool": null });
+  });
+
+  it("does not overwrite an offset a GM has already set", () => {
+    const u = migrate({ type: "character",
+      system: { karma: { total: 50, burned: 0, spent: 0, drawn: 0, poolAdjust: 2, pool: 9 } } });
     expect(u).toEqual({ "system.karma.-=pool": null });
+  });
+
+  it("accounts for counters that already exist, not just clean legacy data", () => {
+    // A world part-way through an earlier draft can carry a non-zero `burned`.
+    // Ignoring it would silently cost the character a point.
+    const u = migrate({ type: "character",
+      system: { karma: { total: 50, pool: 5, burned: 1, spent: 0, drawn: 0 } } });
+    expect(u["system.karma.poolAdjust"]).toBe(1);   // 5 - 5 + 1
+  });
+
+  // Asserting the update object is not the same as asserting the outcome.
+  // Apply the migration and check the derived pool really is unchanged.
+  describe("the pool a character ends up with equals the pool they started with", () => {
+    const cases = [
+      { name: "no recorded Karma, hand-kept pool", total: 0,  pool: 3 },
+      { name: "pool matching the rule",            total: 50, pool: 5 },
+      { name: "pool above the rule",               total: 37, pool: 9 },
+      { name: "pool below the rule",               total: 50, pool: 2 },
+      { name: "rounding up at the boundary",       total: 51, pool: 6 },
+      { name: "already-burned counter present",    total: 50, pool: 5, burned: 1 }
+    ];
+    for (const c of cases) {
+      it(c.name, () => {
+        const before = { total: c.total, pool: c.pool, burned: c.burned ?? 0, spent: 0, drawn: 0 };
+        const u = migrate({ type: "character", system: { karma: before } });
+        const after = {
+          total: before.total,
+          burned: u["system.karma.burned"] ?? before.burned,
+          spent: u["system.karma.spent"] ?? before.spent,
+          drawn: u["system.karma.drawn"] ?? before.drawn,
+          poolAdjust: u["system.karma.poolAdjust"] ?? 0
+        };
+        const cap = karmaPoolCapacity(after.total, after.burned, after.poolAdjust);
+        expect(karmaPoolAvailable(cap, after.spent, after.drawn)).toBe(c.pool);
+      });
+    }
   });
 
   it("SKIPS every non-character actor type", () => {
@@ -50,7 +113,8 @@ describe("karma pool migration", () => {
     expect(migrate({ type: "character", system: {} })).toEqual({
       "system.karma.burned": 0,
       "system.karma.spent": 0,
-      "system.karma.drawn": 0
+      "system.karma.drawn": 0,
+      "system.karma.poolAdjust": 0
     });
   });
 });

@@ -60,8 +60,12 @@ export const MIGRATIONS = [
   // dropped: it was never derived, never refreshed, and could not tell a reroll
   // (returns next encounter) from a bought success (gone forever).
   //
-  // Existing hand-entered values are deliberately NOT preserved — the whole
-  // point is that the number now follows the rule instead of whatever was typed.
+  // EXISTING POOLS ARE PRESERVED. Deriving alone would quietly change numbers
+  // the table is already using — most sharply for a character with no recorded
+  // Career Karma and a pool maintained by hand, whose capacity would derive to
+  // zero. So the old value is folded into `poolAdjust` as a signed offset, and
+  // every character comes out of this migration with exactly the pool they had.
+  // From then on, awarding Karma raises capacity per the rule.
   {
     version: "0.91.0",
     migrateActor(source) {
@@ -74,7 +78,27 @@ export const MIGRATIONS = [
       if (k.burned === undefined) u["system.karma.burned"] = 0;
       if (k.spent  === undefined) u["system.karma.spent"]  = 0;
       if (k.drawn  === undefined) u["system.karma.drawn"]  = 0;
-      if (k.pool   !== undefined) u["system.karma.-=pool"] = null;
+
+      if (k.pool !== undefined) {
+        // Preserve the pool this character actually had: choose the offset that
+        // makes the derived capacity reproduce it exactly. Derived capacity is
+        // ceil(total/10) + poolAdjust, and `burned` starts at 0 here because
+        // nothing was tracking permanent spends before this version.
+        if (k.poolAdjust === undefined) {
+          // Solve for the offset that makes derived capacity equal the pool the
+          // character actually had:
+          //   capacity = ceil(total/10) + adjust - burned  ==  oldPool
+          // `burned` is 0 for genuinely legacy data, but a world part-way
+          // through an earlier draft of this migration can carry a non-zero
+          // value, and ignoring it would lose a point.
+          const derived = Math.ceil(Math.max(0, Number(k.total) || 0) / 10);
+          const burned = Math.max(0, Number(k.burned) || 0);
+          u["system.karma.poolAdjust"] = (Number(k.pool) || 0) - derived + burned;
+        }
+        u["system.karma.-=pool"] = null;
+      } else if (k.poolAdjust === undefined) {
+        u["system.karma.poolAdjust"] = 0;
+      }
       return Object.keys(u).length ? u : null;
     }
   },

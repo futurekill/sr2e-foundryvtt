@@ -21,10 +21,17 @@
   minimum of 1 — rounded the wrong way, and invented a floor the rule does not
   have. The system owns the arithmetic now; the macro just clears the counters.
 
+**Existing pools are preserved.** Deriving alone would quietly change numbers
+your table is already using — most sharply for a character with no recorded
+Career Karma, whose capacity would derive to zero. The migration folds each
+character's current pool into a new signed `karma.poolAdjust`, so everyone comes
+out of it with exactly the pool they had, and earning Karma raises it from there.
+The adjustment shows on the Bio tab read-only, so a carried-over capacity is
+explainable without handing anyone a way to undo permanently burned Karma.
+
 **Breaking:** `system.karma.pool` is no longer a stored field. Anything writing
 it — an old macro, a module — has that write dropped rather than persisted.
-Existing hand-entered pool values are not preserved; the number now follows the
-rule. Reads of `system.karma.pool` continue to work.
+Reads of `system.karma.pool` continue to work.
 
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 

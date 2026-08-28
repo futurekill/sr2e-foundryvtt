@@ -26,6 +26,17 @@ describe("karmaPoolCapacity — one-tenth of Karma earned, ROUND UP (p.191)", ()
     expect(karmaPoolCapacity(10, 99)).toBe(0);
   });
 
+  it("applies a signed GM adjustment, which is how legacy pools survive", () => {
+    // A character with no recorded Karma but a pool the table has been using.
+    expect(karmaPoolCapacity(0, 0, 3)).toBe(3);
+    // And one whose sheet held less than the rule would grant.
+    expect(karmaPoolCapacity(50, 0, -3)).toBe(2);
+    // The adjustment is an offset, not a floor: earning Karma still raises it.
+    expect(karmaPoolCapacity(60, 0, 3)).toBe(9);
+    // It cannot drag capacity below zero.
+    expect(karmaPoolCapacity(10, 0, -99)).toBe(0);
+  });
+
   it("treats junk as zero rather than producing NaN", () => {
     expect(karmaPoolCapacity(undefined)).toBe(0);
     expect(karmaPoolCapacity(null, null)).toBe(0);

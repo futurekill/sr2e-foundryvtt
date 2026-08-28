@@ -91,6 +91,12 @@
           <span class="karma-ledger-label" title="Derived from Career Karma; returns each encounter (SR2E p.191)">Karma Pool</span>
           <span class="karma-ledger-input karma-pool" style="display:inline-block;text-align:center;">{{system.karma.pool}} / {{system.karma.poolMax}}</span>
         </div>
+        {{#if system.karma.poolAdjust}}
+        <div class="karma-ledger-row">
+          <span class="karma-ledger-label" title="A carried-over adjustment from before the Karma Pool was derived. Shown so the capacity is explainable; not editable here, because a freely editable offset would let permanently burned Karma be undone.">Carried adjustment</span>
+          <span class="karma-ledger-input" style="display:inline-block;text-align:center;">{{system.karma.poolAdjust}}</span>
+        </div>
+        {{/if}}
 
         <div class="karma-ledger-divider"></div>
 

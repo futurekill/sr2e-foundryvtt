@@ -117,7 +117,8 @@
       "total": 0,
       "burned": 0,
       "spent": 0,
-      "drawn": 0
+      "drawn": 0,
+      "poolAdjust": 1
     },
     "nuyen": 3000,
     "lifestyle": "middle",

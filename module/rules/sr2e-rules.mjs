@@ -3166,12 +3166,20 @@ export function testTotalSuccesses(state = {}) {
  * @param {number} total - Lifetime Karma earned.
  * @param {number} burned - Capacity permanently expended (bought successes,
  *   points gifted to the Team Karma Pool).
+ * @param {number} adjust - Signed GM adjustment. Its reason for existing is
+ *   that a pool typed in by hand cannot otherwise survive the move to a derived
+ *   model: a character with 0 recorded Karma and a hand-entered pool of 3 would
+ *   derive to 0 and lose it. The migration sets this to whatever offset
+ *   preserves the number the table was already using. It is deliberately NOT
+ *   editable on the sheet: a freely adjustable offset would let permanently
+ *   burned Karma be undone, which is the thing this model exists to prevent.
  * @returns {number}
  */
-export function karmaPoolCapacity(total, burned = 0) {
+export function karmaPoolCapacity(total, burned = 0, adjust = 0) {
   const t = Math.max(0, Number(total) || 0);
   const b = Math.max(0, Number(burned) || 0);
-  return Math.max(0, Math.ceil(t / 10) - b);
+  const a = Number(adjust) || 0;              // signed on purpose
+  return Math.max(0, Math.ceil(t / 10) + a - b);
 }
 
 /**
