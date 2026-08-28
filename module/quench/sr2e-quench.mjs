@@ -2352,12 +2352,35 @@ export function registerSR2EQuenchTests() {
         }
 
         it("a reroll costs escalating Karma and deducts it", async () => {
-          const { actor, msg } = await tested(5);
-          await actor.applyKarmaToTest(msg, "reroll");
-          assert.equal(actor.system.karma.pool, 4, "first reroll costs 1");
-          await actor.applyKarmaToTest(msg, "reroll");
-          assert.equal(actor.system.karma.pool, 2, "second reroll costs 2 — it escalates");
-          await msg.delete();
+          // The SECOND reroll only charges if the FIRST one left a failure
+          // behind: applyKarmaToTest replaces state.dice with the rolled
+          // results, and an empty failedIdx correctly returns without spending.
+          // At TN 4 every die is a coin flip, so all three coming up successes
+          // is a 1-in-8 run and the test failed intermittently through no fault
+          // of the rule. Pin every face to 1 — always a failure at TN 4, and no
+          // Rule of Six explosion to complicate it.
+          //
+          // Face 2, NOT face 1. All ones would make the reroll a critical
+          // glitch, and this test would then only reach the second spend
+          // because applyKarmaToTest never copies isCriticalGlitch back into
+          // state.criticalGlitch. That would tie a cost assertion to a separate
+          // and arguable behaviour. A 2 always fails TN 4, never explodes, and
+          // is never a glitch.
+          // mapRandomFace(u) = ceil((1 - u) * 6), so u = 0.75 -> 2.
+          const realRandom = CONFIG.Dice.randomUniform;
+          CONFIG.Dice.randomUniform = () => 0.75;
+          let card;
+          try {
+            const { actor, msg } = await tested(5);
+            card = msg;
+            await actor.applyKarmaToTest(msg, "reroll");
+            assert.equal(actor.system.karma.pool, 4, "first reroll costs 1");
+            await actor.applyKarmaToTest(msg, "reroll");
+            assert.equal(actor.system.karma.pool, 2, "second reroll costs 2 — it escalates");
+          } finally {
+            CONFIG.Dice.randomUniform = realRandom;
+            if (card) { try { await card.delete(); } catch (e) {} }
+          }
         });
 
         it("refuses a reroll it cannot afford, and spends nothing", async () => {
