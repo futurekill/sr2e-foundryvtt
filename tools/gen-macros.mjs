@@ -135,7 +135,7 @@ ui.notifications.info(\`Cleared \${ids.length} template(s).\`);`
   },
   {
     slot: 10, name: "Award Karma (selected)", img: "icons/svg/upgrade.svg",
-    tip: "Adds to spendable and lifetime Karma. Does NOT touch the Karma Pool.",
+    tip: "Adds to spendable and lifetime Karma. The Karma Pool derives from lifetime Karma, so it grows too (p.191).",
     cmd: `${SEL}
 const data = await foundry.applications.api.DialogV2.prompt({
   window: { title: \`Award Karma — \${actors.length} character(s)\` },
@@ -151,10 +151,14 @@ for (const a of actors) {
   if (!k) continue;   // only characters carry Karma
   // current = spendable on improvements, total = lifetime earned.
   //
-  // Deliberately NOT karma.pool. That is the Karma POOL — the dice resource that
-  // rerolls, buys successes and avoids glitches spend down. Awarding session
-  // karma into it would hand out combat currency every time you paid the group,
-  // and the pool refreshes on its own schedule.
+  // Writes current (spendable on advancement) and total (career).
+  //
+  // There is no karma.pool to write any more: as of 0.91.0 the Karma Pool is
+  // DERIVED from total — one-tenth, rounded up, less anything permanently
+  // burned (SR2E p.191). So awarding Karma here does raise the pool's capacity,
+  // automatically and correctly. That is the rule, not a side effect: an earlier
+  // version of this comment said the award deliberately left the pool alone,
+  // which was true of the old stored field and is now wrong.
   await a.update({
     "system.karma.current": (k.current ?? 0) + amt,
     "system.karma.total":   (k.total   ?? 0) + amt

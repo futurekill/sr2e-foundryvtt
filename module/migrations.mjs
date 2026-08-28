@@ -54,6 +54,31 @@ export const UNARMED_STRIKE_DATA = {
 const UNBOUND_FOCI = [];
 
 export const MIGRATIONS = [
+  // 0.91.0 — The Karma Pool is derived, not stored (SR2E p.191). Capacity is
+  // one-tenth of Career Karma ROUND UP less what has been permanently burned;
+  // availability subtracts this encounter's spending. The old stored `pool` is
+  // dropped: it was never derived, never refreshed, and could not tell a reroll
+  // (returns next encounter) from a bought success (gone forever).
+  //
+  // Existing hand-entered values are deliberately NOT preserved — the whole
+  // point is that the number now follows the rule instead of whatever was typed.
+  {
+    version: "0.91.0",
+    migrateActor(source) {
+      // Gate on type: the runner visits every actor and unlinked token, and
+      // these fields live only on CharacterData. Writing system.karma.* to a
+      // vehicle, spirit, host or IC would be invalid.
+      if (source.type !== "character") return null;
+      const k = source.system?.karma ?? {};
+      const u = {};
+      if (k.burned === undefined) u["system.karma.burned"] = 0;
+      if (k.spent  === undefined) u["system.karma.spent"]  = 0;
+      if (k.drawn  === undefined) u["system.karma.drawn"]  = 0;
+      if (k.pool   !== undefined) u["system.karma.-=pool"] = null;
+      return Object.keys(u).length ? u : null;
+    }
+  },
+
   // 0.89.0 — Spell foci become a depleting pool bound to ONE spell (SR2E p.137).
   // Previously any active focus added its rating to EVERY spell, forever.
   //

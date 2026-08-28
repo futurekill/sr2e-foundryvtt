@@ -2871,17 +2871,28 @@ async function _promptTeamKarmaAmount(title, hintHtml, max) {
 async function onContributeTeamKarma(event) {
   event.preventDefault();
   const actor = this.document;
-  const pool = actor.system.karma?.pool ?? 0;
-  if (pool < 1) return ui.notifications.warn("This character has no Karma Pool points to contribute.");
+  // Only the character's OWN unspent capacity may be gifted — `pool` also
+  // includes Team Karma they are currently holding, and you cannot donate
+  // borrowed points back as if they were yours.
+  const k = actor.system.karma ?? {};
+  const own = Math.max(0, (k.poolMax ?? 0) - (k.spent ?? 0));
+  if (own < 1) {
+    return ui.notifications.warn((k.drawn ?? 0) > 0
+      ? "Those are drawn Team Karma points — only a character's own Karma Pool can be contributed."
+      : "This character has no Karma Pool points to contribute.");
+  }
   const amount = await _promptTeamKarmaAmount(
     `Contribute to Team Karma — ${actor.name}`,
-    `Move Karma Pool points into the shared Team Karma Pool. Available: <strong>${pool}</strong>.`,
-    pool
+    `Move Karma Pool points into the shared Team Karma Pool. These are gone for good (SR2E p.191). Available: <strong>${own}</strong>.`,
+    own
   );
   if (!amount) return;
   // Dispatch the team-total change first; abort (without spending) if no GM is connected.
   if (!CONFIG.SR2E.changeTeamKarma(amount)) return;
-  await actor.update({ "system.karma.pool": pool - amount });
+  // p.191: "These points are gone for good, even if the character later leaves
+  // the team" — a permanent burn of the character's OWN capacity. Borrowed Team
+  // Karma cannot be gifted onward; it is already the team's.
+  await actor.update({ "system.karma.burned": (k.burned ?? 0) + amount });
   ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> contributes <strong>${amount}</strong> Karma Pool to the Team Karma Pool.`
@@ -2905,8 +2916,10 @@ async function onDrawTeamKarma(event) {
   );
   if (!amount) return;
   if (!CONFIG.SR2E.changeTeamKarma(-amount)) return;
-  const pool = actor.system.karma?.pool ?? 0;
-  await actor.update({ "system.karma.pool": pool + amount });
+  // Held for this encounter only; a refresh clears them. The shared setting was
+  // already debited above, so nothing else is charged for them later.
+  const k = actor.system.karma ?? {};
+  await actor.update({ "system.karma.drawn": (k.drawn ?? 0) + amount });
   ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> draws <strong>${amount}</strong> from the Team Karma Pool.`

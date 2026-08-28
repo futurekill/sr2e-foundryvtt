@@ -89,9 +89,9 @@
         <span class="hstat-label">Good Karma</span>
         <input type="number" name="system.karma.current" value="{{system.karma.current}}" min="0" class="hstat-input" />
       </div>
-      <div class="header-stat" title="Karma Pool dice — usable on any roll, refresh each session">
+      <div class="header-stat" title="Karma Pool — derived: Career Karma ÷ 10 rounded up, less Karma permanently spent buying successes. Returns each encounter (SR2E p.191).">
         <span class="hstat-label">Karma Pool</span>
-        <input type="number" name="system.karma.pool" value="{{system.karma.pool}}" min="0" class="hstat-input" />
+        <span class="hstat-value karma-pool-value">{{system.karma.pool}} / {{system.karma.poolMax}}</span>
       </div>
       <div class="header-stat" title="Shared Team Karma Pool — contribute/draw on the Bio tab (SR2E p.246)">
         <span class="hstat-label">Team Karma</span>

@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -121,11 +121,23 @@ export class CharacterData extends SR2EDataModel {
         impact: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),
 
-      // --- KARMA ---
+      // --- KARMA (SR2E p.191) ---
+      // `pool` is DELIBERATELY not a field. Capacity is one-tenth of Karma
+      // earned (round up) less what has been permanently burned, and
+      // availability subtracts this encounter's spending — both are computed in
+      // prepareDerivedData. Storing the pool is what let it drift from the rule
+      // and made a refresh indistinguishable from resurrecting spent Karma.
       karma: new fields.SchemaField({
         current: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
         total: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
-        pool: new fields.NumberField({ required: true, integer: true, initial: 1, min: 0 })
+        // Capacity permanently expended: successes bought, and points gifted to
+        // the Team Karma Pool. Never reset by a refresh.
+        burned: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        // Personal points used this encounter. Cleared by refreshDicePools.
+        spent: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        // Team Karma points currently held. Also cleared by a refresh — unused
+        // borrowings evaporate rather than becoming the character's own.
+        drawn: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
       }),
 
       // --- NUYEN ---
@@ -343,6 +355,14 @@ export class CharacterData extends SR2EDataModel {
 
     // Calculate Dice Pools
     this._calculateDicePools();
+
+    // Karma Pool (SR2E p.191). DERIVED, not stored — see the schema comment.
+    // These two are assigned onto the prepared object rather than declared as
+    // fields, which is what keeps a stale `update({"system.karma.pool": n})`
+    // from persisting: an undeclared path is dropped by schema validation and
+    // excluded from toObject().
+    this.karma.poolMax = karmaPoolCapacity(this.karma.total, this.karma.burned);
+    this.karma.pool = karmaPoolAvailable(this.karma.poolMax, this.karma.spent, this.karma.drawn);
 
     // Calculate Movement
     this.movement.walk = this.quickness.value;

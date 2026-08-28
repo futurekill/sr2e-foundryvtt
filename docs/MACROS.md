@@ -149,10 +149,11 @@ Frequent, but not every round.
 - **Astral *projection*** is not on a key. Projecting leaves your body behind and
   changes initiative — not something to trigger by accident. Perception toggles;
   projection stays on the sheet.
-- **Award Karma does not touch the Karma Pool.** `karma.pool` is the *dice*
-  resource that rerolls, buys successes and avoids glitches spend down. Session
-  karma goes to `current` and `total`; putting it in the pool would hand out
-  combat currency every time you paid the group.
+- **Award Karma writes `current` and `total` — and the Karma Pool follows.**
+  Since 0.91.0 the pool is derived from `total` (one-tenth, rounded up, less any
+  Karma permanently burned on bought successes), so paying the group raises
+  their pool capacity automatically. That is SR2E p.191, not a side effect. It
+  is no longer possible — or necessary — to write `karma.pool` directly.
 - **No "damage the targeted token" macro.** Targeting and selection diverge
   constantly in play, and a pad key that damages the wrong actor is worse than
   no key at all.

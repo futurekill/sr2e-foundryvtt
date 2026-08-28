@@ -906,8 +906,12 @@ SR2E.lifestyles = {
 // ---------------------------------------------------------------------------
 // DICE POOL TYPES
 // ---------------------------------------------------------------------------
-// The Karma Pool (system.karma.pool) is intentionally not listed here —
-// it is spent through the karma actions on chat cards, not rolled as a pool.
+// The Karma Pool is not listed here because it is not a dicePools entry — it is
+// spent through the karma actions on chat cards, not allocated like Combat or
+// Magic. It DOES refresh with these, though: SR2EActor#refreshDicePools clears
+// system.karma.spent and .drawn alongside them, so the GM has one gesture
+// rather than two (SR2E p.191, "the full value... returns with the next
+// encounter"). Only the temporary buckets clear; karma.burned never does.
 SR2E.dicePools = {
   combat: "SR2E.DicePools.Combat",
   hacking: "SR2E.DicePools.Hacking",

@@ -3148,3 +3148,61 @@ export function testTotalSuccesses(state = {}) {
   const natural = (state.dice ?? []).filter(d => d.success).length;
   return natural + (state.boughtSuccesses ?? 0);
 }
+
+// ---------------------------------------------------------------------------
+// KARMA POOL (SR2E p.191)
+// ---------------------------------------------------------------------------
+// The pool is not a stored number. Capacity is one-tenth of all Karma ever
+// earned, ROUND UP, less whatever has been permanently expended; availability
+// is that capacity less this encounter's spending, plus any Team Karma the
+// character is currently holding.
+//
+// The permanent/temporary split is the whole point. p.191: Karma spent to buy
+// successes is "gone (pffft!) forever… They do not refresh with the pool in the
+// next scene", while everything else returns "with the next encounter".
+
+/**
+ * Current Karma Pool capacity.
+ * @param {number} total - Lifetime Karma earned.
+ * @param {number} burned - Capacity permanently expended (bought successes,
+ *   points gifted to the Team Karma Pool).
+ * @returns {number}
+ */
+export function karmaPoolCapacity(total, burned = 0) {
+  const t = Math.max(0, Number(total) || 0);
+  const b = Math.max(0, Number(burned) || 0);
+  return Math.max(0, Math.ceil(t / 10) - b);
+}
+
+/**
+ * Points available to spend right now.
+ * @param {number} capacity - From karmaPoolCapacity.
+ * @param {number} spent - Personal points used this encounter.
+ * @param {number} drawn - Team Karma points held this encounter.
+ * @returns {number}
+ */
+export function karmaPoolAvailable(capacity, spent = 0, drawn = 0) {
+  const c = Math.max(0, Number(capacity) || 0);
+  const s = Math.max(0, Number(spent) || 0);
+  const d = Math.max(0, Number(drawn) || 0);
+  return Math.max(0, c - s) + d;
+}
+
+/**
+ * Split a spend across the two buckets. Borrowed Team Karma goes first, so a
+ * player who drew points and did not need them all still returns capacity at
+ * the refresh rather than having burned their own.
+ *
+ * RAW does not fix the order; drawn-first is the only order under which unused
+ * borrowings can evaporate cleanly.
+ *
+ * @param {number} cost
+ * @param {number} drawn - Team points currently held.
+ * @returns {{fromDrawn:number, fromSpent:number}}
+ */
+export function allocateKarmaSpend(cost, drawn = 0) {
+  const c = Math.max(0, Math.floor(Number(cost) || 0));
+  const d = Math.max(0, Number(drawn) || 0);
+  const fromDrawn = Math.min(c, d);
+  return { fromDrawn, fromSpent: c - fromDrawn };
+}

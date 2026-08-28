@@ -13,7 +13,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
          skillRollRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, allocateKarmaSpend } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -388,7 +388,14 @@ export class SR2EActor extends Actor {
       updates[`system.dicePools.${key}.value`] = Math.max(0, pool.value - amount);
       updates[`system.dicePools.${key}.max`]   = pool.max;
     }
-    if (karmaDice > 0) updates["system.karma.pool"] = karmaAvail - karmaDice;
+    if (karmaDice > 0) {
+      // Borrowed Team Karma is spent before the character's own (p.191 does not
+      // fix an order; drawn-first is what lets unused loans evaporate).
+      const k = this.system.karma ?? {};
+      const { fromDrawn, fromSpent } = allocateKarmaSpend(karmaDice, k.drawn ?? 0);
+      if (fromDrawn) updates["system.karma.drawn"] = (k.drawn ?? 0) - fromDrawn;
+      if (fromSpent) updates["system.karma.spent"] = (k.spent ?? 0) + fromSpent;
+    }
     if (Object.keys(updates).length > 0) await this.update(updates);
 
     // Return the ATTRIBUTED dice, not testResult's raw array — callers that
@@ -409,6 +416,17 @@ export class SR2EActor extends Actor {
    */
   async refreshDicePools() {
     const updates = dicePoolRefreshUpdates(this.system.dicePools);
+
+    // Karma Pool returns with the next encounter (SR2E p.191), so it refreshes
+    // on the same gesture as the dice pools — one habit for the GM, not two.
+    // Only the TEMPORARY buckets clear: `burned` is untouched, which is what
+    // makes "gone (pffft!) forever" structurally true rather than remembered.
+    // Unused drawn Team Karma evaporates rather than becoming the character's.
+    const k = this.system.karma;
+    if (k) {
+      if ((k.spent ?? 0) !== 0) updates["system.karma.spent"] = 0;
+      if ((k.drawn ?? 0) !== 0) updates["system.karma.drawn"] = 0;
+    }
     if (!foundry.utils.isEmpty(updates)) await this.update(updates);
 
     // Spell focus dice refresh on exactly this path — the book says to treat them
@@ -424,6 +442,42 @@ export class SR2EActor extends Actor {
       .filter(i => i.type === "focus" && (i.system.spent ?? 0) !== 0)
       .map(i => ({ _id: i.id, "system.spent": 0 }));
     if (focusUpdates.length) await this.updateEmbeddedDocuments("Item", focusUpdates);
+  }
+
+  /**
+   * Spend Karma Pool TEMPORARILY (rerolls, avoiding an Oops, bought dice).
+   * Returns with the next encounter — see refreshDicePools.
+   * Borrowed Team Karma goes first (SR2E p.191).
+   * @param {number} cost
+   * @private
+   */
+  async _spendKarmaPool(cost) {
+    const k = this.system.karma ?? {};
+    const { fromDrawn, fromSpent } = allocateKarmaSpend(cost, k.drawn ?? 0);
+    const update = {};
+    if (fromDrawn) update["system.karma.drawn"] = (k.drawn ?? 0) - fromDrawn;
+    if (fromSpent) update["system.karma.spent"] = (k.spent ?? 0) + fromSpent;
+    if (Object.keys(update).length) await this.update(update);
+  }
+
+  /**
+   * Spend Karma Pool PERMANENTLY (buying successes). p.191: those points are
+   * "gone (pffft!) forever… They do not refresh with the pool in the next
+   * scene."
+   *
+   * A point bought with BORROWED Team Karma burns the loan, not the character's
+   * own capacity — the shared pool was already debited when the points were
+   * drawn, so charging `burned` as well would take the same point twice.
+   * @param {number} cost
+   * @private
+   */
+  async _burnKarmaPool(cost) {
+    const k = this.system.karma ?? {};
+    const { fromDrawn, fromSpent } = allocateKarmaSpend(cost, k.drawn ?? 0);
+    const update = {};
+    if (fromDrawn) update["system.karma.drawn"] = (k.drawn ?? 0) - fromDrawn;
+    if (fromSpent) update["system.karma.burned"] = (k.burned ?? 0) + fromSpent;
+    if (Object.keys(update).length) await this.update(update);
   }
 
   /**
@@ -470,14 +524,14 @@ export class SR2EActor extends Actor {
       });
       state.rerolls = (state.rerolls ?? 0) + 1;
       newRolls = reroll.rolls;
-      await this.update({ "system.karma.pool": karmaAvail - cost });
+      await this._spendKarmaPool(cost);
 
     } else if (action === "avoidGlitch") {
       // All-1s disaster → simple failure for 1 Karma; no further Karma allowed
       if (!state.criticalGlitch || state.glitchAvoided) return;
       if (karmaAvail < 1) return ui.notifications.warn("No Karma Pool available.");
       state.glitchAvoided = true;
-      await this.update({ "system.karma.pool": karmaAvail - 1 });
+      await this._spendKarmaPool(1);
 
     } else if (action === "buySuccess") {
       // 1 Karma per raw success; requires a natural success; PERMANENT spend.
@@ -494,7 +548,7 @@ export class SR2EActor extends Actor {
       }
       if (karmaAvail < 1) return ui.notifications.warn("No Karma Pool available.");
       state.boughtSuccesses = (state.boughtSuccesses ?? 0) + 1;
-      await this.update({ "system.karma.pool": karmaAvail - 1 });
+      await this._burnKarmaPool(1);
 
     } else {
       return;

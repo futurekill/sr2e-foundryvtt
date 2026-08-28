@@ -115,7 +115,9 @@
     "karma": {
       "current": 0,
       "total": 0,
-      "pool": 1
+      "burned": 0,
+      "spent": 0,
+      "drawn": 0
     },
     "nuyen": 2000,
     "lifestyle": "low",

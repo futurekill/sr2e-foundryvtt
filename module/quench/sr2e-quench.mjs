@@ -1154,17 +1154,24 @@ export function registerSR2EQuenchTests() {
           assert.equal(a.system.dicePools.combat.value, max, "the pool should be back to full");
         });
 
-        it("releases committed Spell Defense and never touches Karma", async () => {
+        it("releases committed Spell Defense and returns the Karma Pool with it", async () => {
+          // Until 0.91.0 this asserted the refresh must NOT touch Karma. That
+          // was wrong per p.191 — the pool returns with the next encounter — and
+          // it is now refreshed on the same gesture. What must survive is
+          // `burned`: Karma spent buying successes never comes back.
           const a = await Actor.create({
             name: "Quench Pool SD", type: "character",
             system: { quickness: { base: 6 }, intelligence: { base: 6 }, willpower: { base: 6 },
-                      karma: { pool: 3 }, dicePools: { spellDefense: 2 } }
+                      karma: { total: 30, spent: 2, drawn: 1, burned: 1 },
+                      dicePools: { spellDefense: 2 } }
           });
           made.push(a);
-          const karmaBefore = a.system.karma.pool;
           await a.refreshDicePools();
           assert.equal(a.system.dicePools.spellDefense, 0, "Spell Defense should release on refresh");
-          assert.equal(a.system.karma.pool, karmaBefore, "Karma Pool must be untouched");
+          assert.equal(a.system.karma.spent, 0, "this encounter's spending returns");
+          assert.equal(a.system.karma.drawn, 0, "unused Team Karma lapses");
+          assert.equal(a.system.karma.burned, 1, "but burned Karma is gone for good");
+          assert.equal(a.system.karma.pool, 2, "capacity 3 less 1 burned");
         });
       });
     }, { displayName: "SR2E: Dice-pool refresh" });
@@ -2344,7 +2351,10 @@ export function registerSR2EQuenchTests() {
         // flag CANNOT live in the shared fixture because the reroll branch bails
         // on an unavoided glitch — which would break the two reroll tests.
         async function tested(karma = 5, extra = {}) {
-          const a = await pc({ karma: { pool: karma, max: karma } });
+          // karma.pool is DERIVED as of 0.91.0 — capacity comes from Career
+          // Karma / 10 rounded up, so seed `total` rather than the old stored
+          // pool. total = karma * 10 gives exactly `karma` points.
+          const a = await pc({ karma: { total: karma * 10 } });
           const msg = await ChatMessage.create({ content: "quench",
             flags: { sr2e: { test: { dice: [{ result: 2 }, { result: 5 }, { result: 1 }],
                                      tn: 4, successes: 1, rerolls: 0, ...extra } } } });
@@ -2431,6 +2441,131 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Damage & Karma" });
+
+    // ── Karma Pool: derived capacity, permanent vs temporary ─────────────────
+    // SR2E p.191. The pool is not stored: capacity is Career Karma / 10 ROUND
+    // UP less what has been permanently burned, and a refresh clears only the
+    // temporary buckets. The arithmetic is unit-tested in test/karma-pool.test.mjs;
+    // what needs a live world is the persistence behaviour — that the derived
+    // fields are NOT stored, and that a legacy write cannot resurrect them.
+    quench.registerBatch("sr2e.karma-pool", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+
+      async function pc(karma = {}) {
+        const a = await Actor.create({
+          name: "Quench Karma Pool", type: "character",
+          system: { karma: foundry.utils.mergeObject({ total: 50 }, karma) } });
+        made.push(a); return a;
+      }
+
+      describe("derivation", () => {
+        it("is Career Karma / 10 ROUNDED UP", async () => {
+          assert.equal((await pc({ total: 50 })).system.karma.poolMax, 5);
+          assert.equal((await pc({ total: 51 })).system.karma.poolMax, 6, "51 rounds UP to 6");
+          assert.equal((await pc({ total: 1 })).system.karma.poolMax, 1, "1 Karma is still a pool of 1");
+          assert.equal((await pc({ total: 0 })).system.karma.poolMax, 0, "and 0 earns no pool");
+        });
+
+        it("subtracts permanently burned capacity but not this encounter's spending", async () => {
+          const a = await pc({ total: 50, burned: 2, spent: 1 });
+          assert.equal(a.system.karma.poolMax, 3, "capacity drops by what was burned");
+          assert.equal(a.system.karma.pool, 2, "availability also drops by what was spent");
+        });
+
+        it("counts held Team Karma on top, which may exceed capacity", async () => {
+          const a = await pc({ total: 50, drawn: 2 });
+          assert.equal(a.system.karma.pool, 7, "5 own + 2 borrowed");
+        });
+      });
+
+      // The condition Codex attached to approving the plan: prove the derived
+      // fields are not persisted and that a legacy write cannot take hold.
+      describe("the derived fields are NOT stored", () => {
+        it("keeps pool and poolMax out of the source data", async () => {
+          const a = await pc({ total: 50 });
+          const src = a.system.toObject();
+          assert.notProperty(src.karma, "pool", "pool must not be persisted");
+          assert.notProperty(src.karma, "poolMax", "poolMax must not be persisted");
+          assert.property(src.karma, "burned");
+          assert.property(src.karma, "spent");
+          assert.property(src.karma, "drawn");
+        });
+
+        it("drops a legacy write to system.karma.pool instead of honouring it", async () => {
+          const a = await pc({ total: 50 });
+          assert.equal(a.system.karma.pool, 5);
+          await a.update({ "system.karma.pool": 99 });
+          assert.equal(a.system.karma.pool, 5,
+            "an old macro writing the pool must not change the derived value");
+          // Check the DOCUMENT's raw source too, not just the validated model —
+          // a field can vanish from the model while surviving in _source, which
+          // is exactly how removed fields persist through migrations.
+          assert.notProperty(a.system.toObject().karma, "pool",
+            "must not appear in the prepared model's source");
+          assert.notProperty(a.toObject().system.karma, "pool",
+            "must not appear in the document's serialized source");
+          assert.notProperty(a._source.system.karma, "pool",
+            "and must not be sitting in raw _source either");
+        });
+      });
+
+      describe("permanent vs temporary (p.191)", () => {
+        it("returns spent points on a refresh but never burned ones", async () => {
+          const a = await pc({ total: 50, spent: 2, burned: 1 });
+          assert.equal(a.system.karma.pool, 2, "5 capacity - 1 burned - 2 spent");
+          await a.refreshDicePools();
+          assert.equal(a.system.karma.pool, 4, "the 2 spent come back");
+          assert.equal(a.system.karma.poolMax, 4, "the burned point does NOT");
+          assert.equal(a.system.karma.burned, 1, "burned survives the refresh");
+        });
+
+        it("lets unused Team Karma loans lapse at the refresh", async () => {
+          const a = await pc({ total: 50, drawn: 3 });
+          assert.equal(a.system.karma.pool, 8);
+          await a.refreshDicePools();
+          assert.equal(a.system.karma.drawn, 0, "borrowed points do not become the character's");
+          assert.equal(a.system.karma.pool, 5);
+        });
+      });
+
+      describe("spending order", () => {
+        it("spends borrowed Team Karma before the character's own", async () => {
+          const a = await pc({ total: 50, drawn: 2 });
+          await a._spendKarmaPool(1);
+          assert.equal(a.system.karma.drawn, 1, "the loan is drawn down first");
+          assert.equal(a.system.karma.spent, 0, "personal capacity is untouched");
+        });
+
+        it("splits a spend that outruns the loan", async () => {
+          const a = await pc({ total: 50, drawn: 1 });
+          await a._spendKarmaPool(3);
+          assert.equal(a.system.karma.drawn, 0);
+          assert.equal(a.system.karma.spent, 2, "the remainder falls on personal capacity");
+        });
+
+        it("buying a success with a BORROWED point does not burn personal capacity", async () => {
+          // The sequence that killed the first design: the shared pool was
+          // already debited when the points were drawn, so charging `burned`
+          // as well would take the same point twice.
+          const a = await pc({ total: 50, drawn: 2 });
+          await a._burnKarmaPool(1);
+          assert.equal(a.system.karma.drawn, 1, "the loan absorbs it");
+          assert.equal(a.system.karma.burned, 0, "and capacity is NOT permanently reduced");
+          await a.refreshDicePools();
+          assert.equal(a.system.karma.poolMax, 5, "so the pool returns in full next encounter");
+        });
+
+        it("burns personal capacity when nothing is borrowed", async () => {
+          const a = await pc({ total: 50 });
+          await a._burnKarmaPool(1);
+          assert.equal(a.system.karma.burned, 1);
+          await a.refreshDicePools();
+          assert.equal(a.system.karma.poolMax, 4, "gone (pffft!) forever");
+        });
+      });
+    }, { displayName: "SR2E: Karma Pool (p.191)" });
 
     // ── Healing & recovery ────────────────────────────────────────────────────
     // The guard conditions matter more than the rolls here. These are the paths a
@@ -2726,7 +2861,7 @@ export function registerSR2EQuenchTests() {
           name: "Quench Karma Attacker", type: "character",
           system: {
             strength: { base: 6 }, quickness: { base: 4 }, intelligence: { base: 4 },
-            karma: { pool: 10, current: 0, total: 0 }
+            karma: { total: 100, current: 0 }   // derived pool of 10
           },
           items: [{
             name: "Quench Blade", type: "weapon",

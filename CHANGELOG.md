@@ -1,8 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — Karma Pool now follows SR2E p.191
+
+- **The pool is derived, not typed.** Capacity is Career Karma ÷ 10 **rounded
+  up**, less anything permanently burned. It was previously a stored number that
+  nothing computed and nothing refreshed.
+- **It returns each encounter**, on the same gesture that refreshes the dice
+  pools — so there is one habit to learn, not two.
+- **Permanent and temporary spends are now different things.** Rerolls, avoiding
+  an Oops and bought dice come back; Karma spent buying successes is "gone
+  (pffft!) forever" and a refresh cannot resurrect it.
+- **A success bought with borrowed Team Karma no longer charges the character
+  twice.** The shared pool is debited when points are drawn; it used to be
+  debited again on purchase, and the character's own capacity reduced as well.
+- **Contributing to Team Karma only offers your own points.** Borrowed points
+  can no longer be gifted onward as if they were yours.
+- The standalone Refresh Karma Pool macro computed `floor(total / 10)` with a
+  minimum of 1 — rounded the wrong way, and invented a floor the rule does not
+  have. The system owns the arithmetic now; the macro just clears the counters.
+
+**Breaking:** `system.karma.pool` is no longer a stored field. Anything writing
+it — an old macro, a module — has that write dropped rather than persisted.
+Existing hand-entered pool values are not preserved; the number now follows the
+rule. Reads of `system.karma.pool` continue to work.
+
 Keep this current: add to **Unreleased** as work lands, retitle at release.
 
-## Unreleased
 
 - Art still to come for the last three core packs: **traditions (8), adept
   powers (14), lifestyles (6)**. Generation is blocked on an external
