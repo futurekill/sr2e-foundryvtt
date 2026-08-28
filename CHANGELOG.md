@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.91.0 — 2026-08-28
 
 ### Fixed — Karma Pool now follows SR2E p.47 and p.191
 
