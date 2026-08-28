@@ -228,6 +228,9 @@ export class SR2EActor extends Actor {
    * @param {string} [options.label] - Label for the chat message
    * @param {object} [options.poolDice] - Dice drawn from dice pools ({combat: 2, ...})
    * @param {number} [options.karmaDice] - Extra dice bought with Karma Pool
+   * @param {number} [options.karmaDiceCap] - Ceiling on bought dice when the
+   *   dice pool includes ineligible dice (p.191 excludes other Pool dice).
+   *   Defaults to dicePool.
    *   (SR2E p.190: 1 Karma each, max = base dice in use, pool dice excluded)
    * @returns {Promise<object>} The test result
    */
@@ -284,7 +287,15 @@ export class SR2EActor extends Actor {
     // 1 Karma Pool point per extra die; capped at the base dice in use
     // (pool dice excluded) and at the available Karma Pool.
     const karmaAvail = this.system.karma?.pool ?? 0;
-    const karmaDice  = Math.max(0, Math.min(options.karmaDice ?? 0, karmaAvail, dicePool));
+    // p.191, "Buy Additional Dice": 1 Karma per die, "up to a maximum of however
+    // many skill, Attribute, or rating dice are in use, NOT INCLUDING other Pool
+    // dice". For an ordinary test the dice pool IS the rating dice, so dicePool
+    // is the right ceiling. It is not right everywhere: spellcasting passes
+    // force + totem bonus + focus dice, and neither the totem bonus nor focus
+    // dice are rating dice. Callers whose dicePool is inflated pass an explicit
+    // karmaDiceCap (the casting path passes Force).
+    const karmaCap   = Math.max(0, options.karmaDiceCap ?? dicePool);
+    const karmaDice  = Math.max(0, Math.min(options.karmaDice ?? 0, karmaAvail, karmaCap));
 
     // Situational misc dice the player declares in the roll dialog (SR2 has many
     // one-off bonuses/penalties in dice: Tailored Pheromones vs metahumans,
@@ -429,8 +440,18 @@ export class SR2EActor extends Actor {
     let newRolls = null;
 
     if (action === "reroll") {
-      // Reroll ALL failed dice; cost escalates by 1 per repeat (SR2E p.190)
-      if (state.criticalGlitch && !state.glitchAvoided) return;
+      // Reroll ALL failed dice; cost escalates by 1 per repeat (SR2E p.191,
+      // "Re-rolling Failures": "each time it is done on a single test the Karma
+      // cost goes up by 1, until all the dice are successes or the character
+      // runs out of Karma").
+      //
+      // A Rule of One disaster closes the test to rerolling ENTIRELY, whether
+      // or not it was bought off. p.191, "Avoid an Oops": paying 1 Karma
+      // "does not allow a re-roll, but does turn the disaster into a simple
+      // failure. Additional Karma cannot be spent on the failure." The guard
+      // used to be `criticalGlitch && !glitchAvoided`, which meant paying to
+      // avoid the Oops UNLOCKED rerolling — the opposite of the rule.
+      if (state.criticalGlitch) return;
       const failedIdx = state.dice.map((d, i) => d.success ? -1 : i).filter(i => i >= 0);
       if (failedIdx.length === 0) return;
       const cost = (state.rerolls ?? 0) + 1;
@@ -462,6 +483,11 @@ export class SR2EActor extends Actor {
       // 1 Karma per raw success; requires a natural success; PERMANENT spend.
       // The pool value drops and does not come back on refresh — the GM/player
       // should not restore these points when refreshing the pool per encounter.
+      // Same p.191 closure as above: nothing further may be bought on a Rule of
+      // One failure. An all-ones roll has no natural successes either, so the
+      // condition below would refuse it anyway — but that is a coincidence of
+      // the arithmetic, and the rule deserves to be stated rather than relied on.
+      if (state.criticalGlitch) return;
       const natural = state.dice.filter(d => d.success).length;
       if (natural < 1) {
         return ui.notifications.warn("Buying successes requires at least 1 natural success (SR2E p.190).");

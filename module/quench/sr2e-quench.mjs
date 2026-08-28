@@ -2391,6 +2391,33 @@ export function registerSR2EQuenchTests() {
           await msg.delete();
         });
 
+        // p.191, "Avoid an Oops": paying 1 Karma "does not allow a re-roll, but
+        // does turn the disaster into a simple failure. Additional Karma cannot
+        // be spent on the failure." The test is CLOSED after that — the guard
+        // used to read `criticalGlitch && !glitchAvoided`, so paying to avoid
+        // the disaster unlocked rerolling, which is backwards.
+        it("closes a Rule of One test to further Karma, avoided or not", async () => {
+          const glitch = { dice: [{ result: 1 }, { result: 1 }, { result: 1 }],
+                           successes: 0, criticalGlitch: true };
+
+          const a = await tested(6, glitch);
+          await a.actor.applyKarmaToTest(a.msg, "reroll");
+          assert.equal(a.actor.system.karma.pool, 6,
+            "a Rule of One failure may not be re-rolled at all (p.191)");
+          await a.msg.delete();
+
+          const b = await tested(6, glitch);
+          await b.actor.applyKarmaToTest(b.msg, "avoidGlitch");
+          assert.equal(b.actor.system.karma.pool, 5, "avoiding the Oops costs exactly 1");
+          await b.actor.applyKarmaToTest(b.msg, "reroll");
+          assert.equal(b.actor.system.karma.pool, 5,
+            "no additional Karma may be spent on the failure once it is bought off");
+          await b.actor.applyKarmaToTest(b.msg, "buySuccess");
+          assert.equal(b.actor.system.karma.pool, 5,
+            "and successes cannot be bought on it either");
+          await b.msg.delete();
+        });
+
         it("avoiding a glitch costs exactly 1", async () => {
           // A real critical glitch is all ones and no successes; flagging the
           // 2/5/1 fixture would exercise the guard while modelling a roll that

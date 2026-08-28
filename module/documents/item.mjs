@@ -1252,6 +1252,9 @@ export class SR2EItem extends Item {
 
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
+      // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
+      // in spellDice are not rating dice (p.191).
+      karmaDiceCap: force,
       label: `Cast ${this.name} (Force ${force}${totemNote})`,
       poolDice: options.poolDice,   // magic pool dice pre-allocated by player
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
