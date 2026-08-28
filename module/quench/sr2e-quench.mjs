@@ -311,7 +311,13 @@ export function registerSR2EQuenchTests() {
                         firingModes: { sa: true, bf: true }, ammo: { current: 30, max: 30 } }
             }]);
             const before = game.messages.size;
-            await gun.roll({ firingMode: "bf", rounds: 3, barrierRating: 8, barrierMode: "through" });
+            // barrierTransparent matters: an OPAQUE barrier adds +8 for blind fire
+            // (p.98), which would put the TN at 12 and make the forced 5s miss —
+            // no attack, no barrier card, and nothing learned about Power. Firing
+            // through a window keeps the TN at 4 and still exercises the rule
+            // under test, which is base vs burst-inflated Power.
+            await gun.roll({ firingMode: "bf", rounds: 3, barrierRating: 8,
+                             barrierMode: "through", barrierTransparent: true });
             // Scope to cards THIS roll posted, for the same reason the conjuring
             // tests do: game.messages is the whole world log.
             const cards = game.messages.contents.slice(before);
@@ -2333,11 +2339,15 @@ export function registerSR2EQuenchTests() {
       });
 
       describe("Karma Pool spends are permanent (p.100)", () => {
-        async function tested(karma = 5) {
+        // `extra` is merged into the card state. It exists for the glitch test:
+        // avoidGlitch returns early unless state.criticalGlitch is set, and the
+        // flag CANNOT live in the shared fixture because the reroll branch bails
+        // on an unavoided glitch — which would break the two reroll tests.
+        async function tested(karma = 5, extra = {}) {
           const a = await pc({ karma: { pool: karma, max: karma } });
           const msg = await ChatMessage.create({ content: "quench",
             flags: { sr2e: { test: { dice: [{ result: 2 }, { result: 5 }, { result: 1 }],
-                                     tn: 4, successes: 1, rerolls: 0 } } } });
+                                     tn: 4, successes: 1, rerolls: 0, ...extra } } } });
           return { actor: a, msg };
         }
 
@@ -2359,7 +2369,7 @@ export function registerSR2EQuenchTests() {
         });
 
         it("avoiding a glitch costs exactly 1", async () => {
-          const { actor, msg } = await tested(3);
+          const { actor, msg } = await tested(3, { criticalGlitch: true });
           await actor.applyKarmaToTest(msg, "avoidGlitch");
           assert.equal(actor.system.karma.pool, 2);
           await msg.delete();
@@ -2600,7 +2610,7 @@ export function registerSR2EQuenchTests() {
           await actor.rollSpellResistance(msg);
           for (const m of since()) msgs.push(m);
           const card = game.messages.contents.at(-1);
-          assert.match(card?.flavor ?? card?.content ?? "", /Willpower/);
+          assert.match(card?.flavor || card?.content || "", /Willpower/);
         });
 
         it("resists a physical spell with BODY", async () => {
@@ -2611,7 +2621,7 @@ export function registerSR2EQuenchTests() {
           await actor.rollSpellResistance(msg);
           for (const m of since()) msgs.push(m);
           const card = game.messages.contents.at(-1);
-          assert.match(card?.flavor ?? card?.content ?? "", /Body/);
+          assert.match(card?.flavor || card?.content || "", /Body/);
         });
       });
 
