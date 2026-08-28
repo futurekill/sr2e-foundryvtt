@@ -2369,7 +2369,12 @@ export function registerSR2EQuenchTests() {
         });
 
         it("avoiding a glitch costs exactly 1", async () => {
-          const { actor, msg } = await tested(3, { criticalGlitch: true });
+          // A real critical glitch is all ones and no successes; flagging the
+          // 2/5/1 fixture would exercise the guard while modelling a roll that
+          // could not have glitched.
+          const { actor, msg } = await tested(3, {
+            dice: [{ result: 1 }, { result: 1 }, { result: 1 }],
+            successes: 0, criticalGlitch: true });
           await actor.applyKarmaToTest(msg, "avoidGlitch");
           assert.equal(actor.system.karma.pool, 2);
           await msg.delete();
@@ -2585,11 +2590,16 @@ export function registerSR2EQuenchTests() {
       });
 
       describe("rollSpellResistance", () => {
+        // The state carries successes/baseLevel/dmgType so resolution is
+        // well-defined. Without them `stages.indexOf(undefined)` is -1 and the
+        // damage branch indexes arrays out of bounds — the test would pass while
+        // walking through NaN arithmetic.
         async function carded(resistAttr) {
           const a = await mk({ name: `Quench Resist ${resistAttr}`, type: "character",
             system: { body: { base: 5 }, willpower: { base: 3 } } });
           const msg = await ChatMessage.create({ content: "quench spell",
-            flags: { sr2e: { spell: { spellName: "Mana Bolt", force: 4,
+            flags: { sr2e: { spell: { spellName: "Mana Bolt", force: 4, successes: 2,
+                                      baseLevel: "M", dmgType: "physical",
                                       resistAttr, resolved: false } } } });
           msgs.push(msg);
           return { actor: a, msg };
@@ -2607,10 +2617,13 @@ export function registerSR2EQuenchTests() {
 
         it("resists a mana spell with WILLPOWER", async () => {
           const { actor, msg } = await carded("willpower");
-          await actor.rollSpellResistance(msg);
+          const resist = await actor.rollSpellResistance(msg);
           for (const m of since()) msgs.push(m);
-          const card = game.messages.contents.at(-1);
-          assert.match(card?.flavor || card?.content || "", /Willpower/);
+          // Address the roll card directly. A damage/no-effect card is posted
+          // after it, so the last message is never the one carrying the label.
+          const card = game.messages.get(resist?.testMessageId);
+          assert.ok(card, "the resistance test should have posted a roll card");
+          assert.match(card.content ?? "", /Willpower/);
         });
 
         it("resists a physical spell with BODY", async () => {
@@ -2618,10 +2631,13 @@ export function registerSR2EQuenchTests() {
           // Willpower must not, so picking the wrong one changes the dice for
           // anyone with bioware.
           const { actor, msg } = await carded("body");
-          await actor.rollSpellResistance(msg);
+          const resist = await actor.rollSpellResistance(msg);
           for (const m of since()) msgs.push(m);
-          const card = game.messages.contents.at(-1);
-          assert.match(card?.flavor || card?.content || "", /Body/);
+          // Address the roll card directly. A damage/no-effect card is posted
+          // after it, so the last message is never the one carrying the label.
+          const card = game.messages.get(resist?.testMessageId);
+          assert.ok(card, "the resistance test should have posted a roll card");
+          assert.match(card.content ?? "", /Body/);
         });
       });
 
