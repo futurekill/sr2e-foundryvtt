@@ -110,8 +110,35 @@ actors, world items, and unlinked token actors, then stamps the
 `systemMigrationVersion` world setting. When making a BREAKING schema
 change, append a `{version, migrateActor?, migrateItem?}` entry — they
 receive document SOURCE data (removed fields survive there until next
-save) and return update objects. Never reorder entries. System compendia
-are rebuilt from packs-src instead of runtime-migrated.
+save) and return update objects. Never reorder entries — they are applied
+in ascending version order regardless of array position, and every pending
+entry reads the SAME source, so one cannot see another's update. System
+compendia are rebuilt from packs-src instead of runtime-migrated.
+
+**NEVER guard a migration on `field === undefined`.** "Source data" here is
+`doc.toObject()`, which returns `_source` AFTER `schema.clean()` has filled in
+every `initial`. A field declared `required: true` with an `initial` — which is
+most of them — is therefore ALWAYS defined, so such a guard is always true and
+silently disables the entire migration while still stamping its version, so no
+world ever runs it again. This shipped twice, in 0.91.0 (Karma Pool preservation)
+and 0.92.0 (skill lifecycle); 0.92.1 is the repair. A migration that must be
+idempotent has to detect its own work by VALUE, not by presence — or just be
+written so re-running is harmless, since the runner already guarantees
+once-per-world. Test it with a document carrying the schema defaults, not a
+hand-written legacy object; the test that "proved" 0.92.0 skipped migrated data
+passed for exactly the reason the migration failed.
+
+## Derived state on prepared documents
+`prepareDerivedData` mutates the prepared document IN PLACE, and embedded items
+are NOT re-initialized from source between preparations. Anything written there
+must therefore be CLEARED (or reassigned in both directions) before it is
+rebuilt, or it outlives whatever produced it — un-slotting a skillsoft kept the
+chip's rating forever, `_adeptBonus` used `+=` and compounded on every prepare,
+un-bonding a weapon focus left the weapon holding its Force, and removing a VCR
+left the rig level behind. Restore from AUTHORITATIVE state (`_source`, or a
+value the item re-derives itself), never from a `_nativeRating`-style cache
+written by the previous pass — a second contributor or an edit made in between
+poisons it. A test only catches this on the SECOND preparation.
 
 ## Creating actors from player actions
 Players can't create world Actors without the **"Create New Actors"** permission
