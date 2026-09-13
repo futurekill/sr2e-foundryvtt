@@ -1355,7 +1355,16 @@ Hooks.on("preCreateActor", (actor, data) => {
   // updateSource({items}) would clobber each other — the second one re-maps the
   // ORIGINAL data.items and silently drops whatever the first appended.
   if (actor.type === "character") {
-    let items = data.items ?? [];
+    // Build from the actor's OWN source, not from `data`: constructing the
+    // document assigned an _id to every embedded item, and updateSource merges
+    // an items array BY _id. Entries rebuilt from `data` carry none, so they
+    // are APPENDED as duplicates instead of rewriting the skills they were
+    // meant to fix — which is exactly how the first version of this silently
+    // did nothing. Appending Unarmed Strike works for the same reason: no _id
+    // means "add this one".
+    const src = actor._source.items ?? [];
+    const raw = data.items ?? [];
+    let items = src;
     let touched = false;
 
     // Skills embedded in an Actor.create payload are descendants of the ACTOR's
@@ -1364,10 +1373,14 @@ Hooks.on("preCreateActor", (actor, data) => {
     // finalized while one added a second later did not. `chargen.inProgress`
     // defaults to TRUE, so this is the common path: a bare
     // Actor.create({type: "character", items: [...]}) lands mid-creation.
-    if (actor.system.chargen?.inProgress && items.some(i => i?.type === "skill")) {
-      items = items.map(i => i?.type === "skill"
+    if (actor.system.chargen?.inProgress && src.some(i => i?.type === "skill")) {
+      items = src.map((i, n) => i?.type === "skill"
+        // The _id comes from the cleaned source; the ARITHMETIC reads the raw
+        // payload beside it, because cleaning already filled in `rating`'s
+        // schema default of 1 and a blank skill would be handed a free point.
+        // `src` is built from `data.items` in order, so they align.
         ? foundry.utils.mergeObject(foundry.utils.deepClone(i),
-                                    { system: pendingSkillLifecycle(i.system) })
+            { system: pendingSkillLifecycle(raw[n]?.system ?? i.system) })
         : i);
       touched = true;
     }

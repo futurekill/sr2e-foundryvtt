@@ -2758,6 +2758,11 @@ export function registerSR2EQuenchTests() {
             }]
           });
           made.push(a);
+          // Exactly one: rebuilding the items array without carrying each _id
+          // across makes updateSource APPEND the normalized copies instead of
+          // rewriting them, leaving the original finalized skill in place.
+          assert.equal(a.items.filter(i => i.type === "skill").length, 1,
+            "normalization must rewrite the skill, not add a second one");
           const s2 = a.items.find(i => i.type === "skill").system;
           assert.isFalse(s2.ratingsFinalized, "the destination character is mid-creation");
           assert.equal(s2.allocated, 5, "3 + 2 for the specialization (p.70)");
@@ -2834,6 +2839,85 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("derived markers do not survive the thing that set them", () => {
+        // All three are the same defect: prepareDerivedData mutates the prepared
+        // embedded item, nothing re-initializes it between passes, and the code
+        // that writes the marker never cleared it first.
+        it("an adept bonus does not grow on every preparation", async () => {
+          const a = await pc(false, [
+            firearms({ ratingsFinalized: true, rating: 4 }),
+            { name: "Improved Ability (Firearms)", type: "adept_power",
+              system: { improvedSkill: "Firearms", level: 2 } }
+          ]);
+          const skill = a.items.find(i => i.type === "skill");
+          assert.equal(skill.system._adeptBonus, 2, "+1 die per level (p.125)");
+          for (let n = 0; n < 3; n++) a.prepareData();
+          assert.equal(a.items.find(i => i.type === "skill").system._adeptBonus, 2,
+            "three more preparations must not make it 8");
+        });
+
+        it("an adept bonus disappears with the power that granted it", async () => {
+          const a = await pc(false, [
+            firearms({ ratingsFinalized: true, rating: 4 }),
+            { name: "Improved Ability (Firearms)", type: "adept_power",
+              system: { improvedSkill: "Firearms", level: 2 } }
+          ]);
+          await a.items.find(i => i.type === "adept_power").delete();
+          assert.notOk(a.items.find(i => i.type === "skill").system._adeptBonus,
+            "deleting the power must take its dice with it");
+        });
+
+        it("removing a VCR drops the rig, without eating the manual entry", async () => {
+          // The live one: vehicleControlRig feeds Reaction, Initiative and the
+          // Control Pool. The manual field is the documented fallback for quick
+          // setups, so restoring must land on the AUTHORED value, not on 0.
+          const a = await pc(false, []);
+          await a.update({ "system.vehicleControlRig": 1, "system.rigging": true });
+          const [vcr] = await a.createEmbeddedDocuments("Item", [{
+            name: "Vehicle Control Rig 3", type: "cyberware",
+            system: { installed: true, isVcr: true, rating: 3 }
+          }]);
+          assert.equal(a.system.vehicleControlRig, 3, "installed cyberware is authoritative");
+          await vcr.delete();
+          assert.equal(a.system.vehicleControlRig, 1,
+            "back to the manually entered rig, not stuck on the removed implant's 3");
+          assert.equal(a.system.reaction.mod, 2, "and Reaction follows it down");
+        });
+
+        it("removing bone lacing puts the unarmed Power back", async () => {
+          const a = await pc(false, []);
+          const unarmed = a.items.find(i => i.name === "Unarmed Strike");
+          const authored = unarmed._source.system.damageCode;
+          const [lacing] = await a.createEmbeddedDocuments("Item", [{
+            name: "Bone Lacing (Aluminum)", type: "cyberware",
+            system: { installed: true, unarmedPowerBonus: 2 }
+          }]);
+          assert.notEqual(a.items.get(unarmed.id).system.damageCode, authored,
+            "the lacing should have raised the Power (Shadowtech p.42)");
+          await lacing.delete();
+          assert.equal(a.items.get(unarmed.id).system.damageCode, authored,
+            "and removing it must put the authored code back, not leave it raised");
+          assert.notOk(a.items.get(unarmed.id).system._unarmedPowerBonus);
+        });
+
+        it("un-bonding a weapon focus stops it granting dice", async () => {
+          const a = await pc(false, [
+            { name: "Quench Katana", type: "weapon",
+              system: { weaponType: "melee", reach: 1, damageCode: "(Str+3)M" } }
+          ]);
+          const weapon = a.items.find(i => i.type === "weapon" && i.name === "Quench Katana");
+          const [focus] = await a.createEmbeddedDocuments("Item", [{
+            name: "Quench Weapon Focus", type: "focus",
+            system: { focusType: "weapon", force: 3, bonded: true, active: true,
+                      bondedWeaponId: weapon.id }
+          }]);
+          assert.equal(a.items.get(weapon.id).system._boundFocusForce, 3, "bonded");
+          await focus.update({ "system.bondedWeaponId": "" });
+          assert.notOk(a.items.get(weapon.id).system._boundFocusId,
+            "un-bonding must not leave the weapon holding the focus's Force");
+        });
+      });
+
       describe("a slotted skillsoft suppresses sub-ratings", () => {
         // Built through a REAL ActiveSoft rather than by setting the marker by
         // hand: the marker is only correct if _applySkillsofts actually sets it,
@@ -2864,11 +2948,71 @@ export function registerSR2EQuenchTests() {
             "and the natural rating is NOT destroyed — it is a marker, not a wipe");
         });
 
+        it("two chips for the same skill do not poison the natural rating", async () => {
+          // The first chip captures the natural 3; without a capture-once guard
+          // the second captures the FIRST CHIP's rating as "natural", and
+          // un-slotting both would strand the skill at a chip rating.
+          const a = await pc(false, [
+            firearms({ ratingsFinalized: true, rating: 3 }),
+            { name: "Skillwires 12", type: "cyberware",
+              system: { installed: true, rating: 12 } },
+            { name: "Firearms ActiveSoft 5", type: "gear",
+              system: { category: "skillsoft", slotted: true, rating: 5,
+                        grantedSkill: "Firearms", grantedSkillCategory: "active" } },
+            { name: "Firearms ActiveSoft 6", type: "gear",
+              system: { category: "skillsoft", slotted: true, rating: 6,
+                        grantedSkill: "Firearms", grantedSkillCategory: "active" } }
+          ]);
+          assert.equal(a.items.find(i => i.type === "skill").system._nativeRating, 3,
+            "the natural rating is captured once, from the character");
+          for (const g of a.items.filter(i => i.type === "gear")) {
+            await g.update({ "system.slotted": false });
+          }
+          assert.equal(a.items.find(i => i.type === "skill").system.rating, 3,
+            "un-slotting both must land back on the character's own rating");
+        });
+
+        it("editing a PENDING skill while chipped does not strand a stale rating", async () => {
+          // The pending general re-derives from the allocation every pass, so
+          // restoring a value cached before the edit would put back the old one.
+          const a = await pc(true, [
+            firearms({ allocated: 3, ratingsFinalized: false }),
+            { name: "Skillwires 8", type: "cyberware",
+              system: { installed: true, rating: 8 } },
+            { name: "Firearms ActiveSoft", type: "gear",
+              system: { category: "skillsoft", slotted: true, rating: 6,
+                        grantedSkill: "Firearms", grantedSkillCategory: "active" } }
+          ]);
+          const skill = a.items.find(i => i.type === "skill");
+          assert.equal(skill.system.rating, 6, "the chip supplies the skill");
+          await skill.update({ "system.allocated": 4 });
+          await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
+          assert.equal(a.items.find(i => i.type === "skill").system.rating, 4,
+            "the EDITED allocation is what comes back, not the 3 cached before it");
+        });
+
+        it("raising a FINALIZED skill while chipped is not lost on un-slot", async () => {
+          const a = await pc(false, [
+            firearms({ ratingsFinalized: true, rating: 3 }),
+            { name: "Skillwires 8", type: "cyberware",
+              system: { installed: true, rating: 8 } },
+            { name: "Firearms ActiveSoft", type: "gear",
+              system: { category: "skillsoft", slotted: true, rating: 6,
+                        grantedSkill: "Firearms", grantedSkillCategory: "active" } }
+          ]);
+          // Karma advances the natural skill while the chip is in.
+          await a.items.find(i => i.type === "skill").update({ "system.rating": 5 });
+          await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
+          assert.equal(a.items.find(i => i.type === "skill").system.rating, 5,
+            "restoration reads the authored source, so the Karma purchase survives");
+        });
+
         it("un-slotting restores the character's own ratings", async () => {
           const [a, item] = await chipped(true);
           await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
           const skill = a.items.find(i => i.type === "skill");
           assert.notOk(skill.system._subRatingsSuppressed, "the marker must clear");
+          assert.notOk(skill.system._chipped, "and so must the rest of the chip markers");
           assert.equal(skill.system.rating, 3, "back to the natural rating");
           assert.equal(sr2eEffectiveSkillRating(skill.system, "specialization"), 7);
         });

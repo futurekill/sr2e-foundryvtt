@@ -295,7 +295,14 @@ export class CharacterData extends SR2EDataModel {
     // field on the vehicles tab only applies when no rig item is installed
     // (quick NPC-style setups). Must run before _calculateDicePools
     // (Control Pool requires a VCR).
-    if (mods.vcrLevel > 0) this.vehicleControlRig = mods.vcrLevel;
+    // Assigned in BOTH directions. Writing only in the `> 0` branch left the last
+    // pass's derived rig in place after the cyberware was removed — and this one
+    // is mechanically live, feeding Reaction, Initiative, the Control Pool and
+    // every vehicle test. Falling back to the AUTHORED value rather than to 0
+    // keeps the manual field above working.
+    this.vehicleControlRig = mods.vcrLevel > 0
+      ? mods.vcrLevel
+      : (this.parent?._source?.system?.vehicleControlRig ?? 0);
     this.tacticalComputer = mods.tacComputer;
     this.activeSkillDice = mods.activeSkillDice;
 
@@ -433,6 +440,21 @@ export class CharacterData extends SR2EDataModel {
   _applyWeaponFoci() {
     const items = this.parent?.items;
     if (!items) return;
+    // The focus's own `_bondedWeaponName` was cleared below, but the WEAPON's
+    // markers never were — so un-bonding, deleting or re-targeting a focus left
+    // the old weapon still granting its Force in melee dice, permanently.
+    // Cleared on EVERY focus, not just the weapon foci: re-typing a focus
+    // otherwise stranded the bonded-weapon name on its badge.
+    for (const focus of items) {
+      if (focus.type === "focus") focus.system._bondedWeaponName = "";
+    }
+    for (const weapon of items) {
+      if (weapon.type !== "weapon") continue;
+      delete weapon.system._boundFocusId;
+      delete weapon.system._boundFocusName;
+      delete weapon.system._boundFocusForce;
+      delete weapon.system._boundFocusActive;
+    }
     for (const focus of items) {
       if (focus.type !== "focus" || focus.system.focusType !== "weapon") continue;
       const weapon = focus.system.bondedWeaponId ? items.get(focus.system.bondedWeaponId) : null;
@@ -467,6 +489,15 @@ export class CharacterData extends SR2EDataModel {
     const items = this.parent?.items;
     if (!items) return;
     const norm = (s) => (s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim();
+    // Reset before rebuilding. The `+=` below is deliberate — two powers may name
+    // the same skill — but the prepared item survives from one preparation to the
+    // next, so without this the bonus GROWS on every prepare and outlives the
+    // power that granted it. Same defect as the unarmed damage code in #15.
+    for (const skill of items) {
+      if (skill.type !== "skill") continue;
+      delete skill.system._adeptBonus;
+      delete skill.system._adeptSource;
+    }
     for (const power of items) {
       if (power.type !== "adept_power") continue;
       const target = norm(power.system.improvedSkill);
@@ -488,10 +519,19 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _applyUnarmedPower(bonus) {
-    if (!bonus) return;
     const unarmed = this.parent?.items?.find(
       i => i.type === "weapon" && i.name === "Unarmed Strike");
     if (!unarmed) return;
+    // No early return when the bonus is gone: the code below ALREADY derives from
+    // the authored value, so running it with 0 is what puts the original Power
+    // back. Returning early instead left the last pass's raised code in place
+    // after the bone lacing was removed — the same stale-marker defect as the
+    // chip, adept and focus markers above.
+    if (!bonus) {
+      unarmed.system.damageCode = unarmedDamageCode(unarmed._source.system.damageCode, 0);
+      delete unarmed.system._unarmedPowerBonus;
+      return;
+    }
     // Derive from the AUTHORED code, never the prepared one. This is a relative
     // transform (base + bonus) landing on a field the item sheet also edits, so
     // reading the prepared value re-adds the bonus to a value that already has
@@ -514,6 +554,35 @@ export class CharacterData extends SR2EDataModel {
   _applySkillsofts() {
     this.chippedSkills = [];
     const items = this.parent?.items;
+
+    // Clear LAST pass's chip markers first. prepareDerivedData mutates the
+    // prepared item in place and nothing re-initialises it from source between
+    // passes, so without this an un-slotted chip left the skill permanently
+    // chipped — keeping the chip's rating and its sub-rating suppression
+    // forever. Restoring the native rating is what makes un-slotting work at
+    // all; the markers are cleared with it so the two can never disagree.
+    if (items) {
+      for (const i of items) {
+        if (i.type !== "skill" || !i.system._chipped) continue;
+        // Restore from AUTHORITATIVE state, never from `_nativeRating` — that is
+        // a tooltip value cached by the previous pass, and either a second chip
+        // granting the same skill or an allocation edited while the chip was in
+        // would already have poisoned it.
+        //
+        // A PENDING skill re-derives its general from the allocation on every
+        // pass (SkillData runs before this), so it has already healed itself and
+        // must not be overwritten. Only a FINALIZED skill keeps whatever the
+        // chip wrote, so its authored rating comes back from source.
+        if (i.system.ratingsFinalized && Number.isFinite(i._source?.system?.rating)) {
+          i.system.rating = i._source.system.rating;
+        }
+        delete i.system._chipped;
+        delete i.system._chipSource;
+        delete i.system._nativeRating;
+        delete i.system._subRatingsSuppressed;
+        i.system.applyLanguageRatings?.();
+      }
+    }
     // Capacity from installed cyberware: Skillwires rating is the TOTAL-rating
     // budget for all running ActiveSofts (SR2E p.243); each chipjack accesses one
     // Know/LinguaSoft at a time; headware memory (parsed from its name) stores Mp.
@@ -541,6 +610,14 @@ export class CharacterData extends SR2EDataModel {
       ? items.filter(i => i.type === "gear" && i.system.category === "skillsoft" && i.system.slotted)
       : [];
 
+    // Clear on EVERY skillsoft, not just the slotted ones: un-slotting an
+    // over-budget chip otherwise left its warning badge showing.
+    if (items) {
+      for (const i of items) {
+        if (i.type === "gear" && i.system.category === "skillsoft") i.system._overBudget = false;
+      }
+    }
+
     let activeUsed = 0, memUsed = 0;
     for (const soft of slotted) {
       soft.system._overBudget = false;
@@ -564,9 +641,13 @@ export class CharacterData extends SR2EDataModel {
           && i.name.toLowerCase() === name.toLowerCase()
           && i.system.category === cat);
       if (existing) {
+        // Capture the natural rating ONCE per pass: a second chip granting the
+        // same skill would otherwise record the FIRST chip's rating as the
+        // "natural" one in the badge tooltip. `_chipped` is cleared at the top
+        // of this method, so it can only be set by an earlier chip in this pass.
+        if (!existing.system._chipped) existing.system._nativeRating = existing.system.rating;
         existing.system._chipped = true;
         existing.system._chipSource = soft.name;
-        existing.system._nativeRating = existing.system.rating;
         existing.system.rating = rating;
         // A skillsoft supplies the skill at its own rating. It is NOT a
         // Concentration, so the character's own concentration/specialization do

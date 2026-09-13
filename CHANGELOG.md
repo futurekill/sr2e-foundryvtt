@@ -39,7 +39,33 @@ cause was structural.
   being priced at list with no Street Index markup; gear bought on an imported
   sample runner now costs street price. Re-import them to pick this up.
 
-**Nobody's numbers change.** The migration freezes every existing skill at
+### Fixed — derived markers outliving what set them
+
+One defect, found while testing the above and then everywhere else it had been
+copied: a prepared document is mutated in place and never re-initialized between
+preparations, so code that wrote a derived value without clearing it first left
+that value behind after whatever produced it was gone. Every case below is the
+same shape, and each is now rebuilt from authoritative state on every pass.
+
+- **Un-slotting an ActiveSoft never gave the skill back.** The chip's rating and
+  its sub-rating suppression stuck permanently. Restoration now recomputes from
+  the character's own current state rather than a value cached a pass earlier,
+  so it also survives a second chip for the same skill and an allocation edited
+  while the chip was in.
+- **Improved Ability grew on every preparation.** `+1 die per level` was added to
+  whatever the last pass had already added, so an adept's bonus climbed on its
+  own — and it outlived the power when that was deleted or re-targeted.
+- **Un-bonding a weapon focus left the weapon holding its Force.** The melee
+  attack kept the focus dice after the bond was cleared.
+- **Removing bone lacing left the unarmed Power raised.**
+- **Removing a Vehicle Control Rig left the rig level behind** — and with it the
+  Reaction bonus, the extra Initiative die and the Control Pool. It now falls
+  back to the rig typed on the vehicles tab, which is still the documented way to
+  set one up without the cyberware.
+- A focus re-typed away from "spell" kept the unbound ⚠ it earned as one, and an
+  un-slotted over-budget skillsoft kept its warning badge.
+
+**Nobody's skill numbers change.** The migration freezes every existing skill at
 exactly the ratings it was showing. Characters still *in* character creation are
 left pending so their tiers keep deriving until they finish, and the GM gets a
 list of them — so a stale or imported chargen flag surfaces instead of hiding.

@@ -1110,7 +1110,11 @@ export class FocusData extends SR2EDataModel {
                                     costPerForce: this.costPerForce }) ?? this.cost;
     }
 
-    // Spell-focus derived state, used by the sheets (SR2E p.137).
+    // Spell-focus derived state, used by the sheets (SR2E p.137). Cleared before
+    // the branch: assigning only inside it let a focus re-typed away from "spell"
+    // keep showing the unbound ⚠ it earned as one.
+    this.remainingFocusDice = 0;
+    this._unbound = false;
     if (this.focusType === "spell") {
       // Dice still available this action. Clamped rather than subtracted raw:
       // `spent` has no schema max (its ceiling is the dynamic rating), so a
