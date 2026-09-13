@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.92.0 — 2026-09-13
 
 ### Fixed — Concentrations and Specializations (SR2E p.70, p.191)
 
