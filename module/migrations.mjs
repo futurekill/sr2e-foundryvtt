@@ -35,7 +35,7 @@
  * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
  * characters by the 0.26.0 migration (GitHub #3).
  */
-import { startingKarmaPool, skillTiersFromAllocation, allocationFromLegacyRating } from "./rules/sr2e-rules.mjs";
+import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair } from "./rules/sr2e-rules.mjs";
 
 export const UNARMED_STRIKE_DATA = {
   name: "Unarmed Strike",
@@ -57,8 +57,129 @@ const UNBOUND_FOCI = [];
 // Characters left mid-chargen by the 0.92.0 skill migration, reported to the GM
 // so a stale or imported chargen flag surfaces instead of hiding.
 const PENDING_CHARGEN = [];
+const CANDIDATE_SUBRATINGS = [];
+const REPAIRED_KARMA = [];
+
+/**
+ * The signed offset that makes the derived Karma Pool capacity reproduce the
+ * pool a character was actually using before it became derived (SR2E p.47,
+ * p.191). Shared by 0.91.0 and its 0.92.1 repair so the two cannot disagree.
+ *   capacity = grant + ceil(total / 10) + adjust - burned  ==  oldPool
+ */
+function legacyKarmaPoolAdjust(source, k) {
+  const derived = Math.ceil(Math.max(0, Number(k.total) || 0) / 10);
+  const burned = Math.max(0, Number(k.burned) || 0);
+  let more = false;
+  try { more = game.settings.get("sr2e", "moreMetahumans"); } catch (e) { /* default off */ }
+  const grant = startingKarmaPool(source.system?.race, more);
+  return (Number(k.pool) || 0) - grant - derived + burned;
+}
 
 export const MIGRATIONS = [
+  // 0.92.1 — REPAIR for two migrations that could never do anything.
+  //
+  // 0.91.0 and 0.92.0 both guarded on `x === undefined` to detect "already
+  // migrated". Documents reach a migration as doc.toObject(), which applies
+  // SCHEMA DEFAULTS, and every field those guards tested is `required: true`
+  // with an `initial`. The guards were therefore true for every document ever
+  // written, and both migrations returned null for everything while still
+  // stamping their version — so no world will ever run them again.
+  //
+  // What that cost, and what is recoverable:
+  //
+  //  - Karma: poolAdjust was never computed, so a pool maintained by hand was
+  //    silently replaced by the derived capacity. Recoverable only while the
+  //    legacy `karma.pool` is still in source; it is read defensively because
+  //    whether a removed field survives toObject() is not worth betting on.
+  //
+  //  - Skills: a named Concentration or Specialization was DERIVED on every
+  //    preparation under the old model and displayed at general+2 / general+4.
+  //    0.92.0 stops deriving, so an unfrozen sub-rating now reads whatever
+  //    stale number storage held. Characters lost dice on the skills they had
+  //    specialized in.
+  //
+  // The sub-ratings are REPORTED, not repaired. `stored <= general` is the
+  // signature of a rating that was never frozen — it is not where a purchase
+  // lands, since chargen puts a Concentration at general+2 (p.70) and a later
+  // one at general+1 (p.191, "Firearms 4 ... concentrate with Pistols at 5").
+  // But it is only a signature: finalized tiers advance INDEPENDENTLY, so buying
+  // Pistols 5 on Firearms 4 and then raising Firearms to 5 or 6 leaves a
+  // perfectly legitimate concentration sitting at or below its general, and
+  // nothing in the data tells the two apart. An earlier draft compared against
+  // the chargen freeze and would have promoted every Karma-bought concentration;
+  // this one would promote every advanced one. So the migration proposes and a
+  // GM disposes, via game.sr2e.repairSubRatings().
+  {
+    version: "0.92.1",
+    // Karma is REPORTED, never rewritten. 0.91.0's preservation never ran, so
+    // every pool has been deriving from p.47 + p.191 ever since — which is the
+    // rules-correct value, and is what these tables have actually been playing
+    // with. Quietly restoring a pre-0.91.0 number now would move a pool that
+    // nobody has lost, and a stored 0 means "never filled in" rather than a
+    // deliberate zero: writing it back would hand every sample runner the 0/0
+    // pool that was reported as a bug in the first place. The legacy field is
+    // left in source as the only record of what was there, so a GM who does want
+    // the old number can set poolAdjust themselves.
+    migrateActor(source) {
+      if (source.type !== "character") return null;
+
+      // A world already stamped 0.92.0 never runs THAT entry's migrateActor, so
+      // without this the characters 0.92.1 puts back into pending derivation are
+      // never reported — and a stale or imported chargen flag would silently
+      // reopen a finished character's skills, which is exactly what the report
+      // exists to surface.
+      if (source.system?.chargen?.inProgress === true
+          && (source.items ?? []).some(i => i.type === "skill")) {
+        PENDING_CHARGEN.push(source.name);
+      }
+
+      const k = source.system?.karma;
+      if (!k || k.pool === undefined) return null;
+      const derived = karmaPoolCapacity(k.total, k.burned, 0, source.system?.race,
+        (() => { try { return game.settings.get("sr2e", "moreMetahumans"); }
+                 catch (e) { return false; } })());
+      if (derived !== (Number(k.pool) || 0)) {
+        REPAIRED_KARMA.push(`${source.name} (was ${k.pool}, now ${derived})`);
+      }
+      return null;
+    },
+    migrateItem(source, parent) {
+      if (source.type !== "skill") return null;
+      const sys = source.system ?? {};
+      const hasConc = !!sys.concentration?.name;
+      const hasSpec = !!sys.specialization?.name;
+      const general = Math.max(0, Number(sys.rating) || 0);
+
+      // Stamp the lifecycle 0.92.0 failed to write. Without this a world already
+      // stamped 0.92.0 leaves every mid-chargen character's skills on the schema
+      // default of finalized, so they never derive from an allocation again.
+      const inChargen = parent?.type === "character"
+        && parent?.system?.chargen?.inProgress === true;
+      const u = {};
+      if (inChargen) {
+        u["system.ratingsFinalized"] = false;
+        u["system.allocated"] = allocationFromLegacyRating(general, hasConc, hasSpec);
+        // Pending skills re-derive their tiers every preparation, so there is
+        // nothing stale to repair and nothing to freeze.
+        return u;
+      }
+      u["system.ratingsFinalized"] = true;
+      if (sys.allocated === undefined || sys.allocated === null) u["system.allocated"] = null;
+
+      // Sub-ratings are PROPOSED, never written here. `stored <= general` is the
+      // signature of a rating that was never frozen, but it is not proof:
+      // finalized tiers advance independently, so buying Pistols 5 on Firearms 4
+      // (p.191) and later raising Firearms to 5 produces the same shape
+      // legitimately. Silently promoting that to the chargen 7 would invent a
+      // rating nobody bought, so a GM reads the list and applies it.
+      const proposal = staleSubRatingRepair({ ...sys, ratingsFinalized: true });
+      if (proposal) {
+        CANDIDATE_SUBRATINGS.push(`${parent?.name ? parent.name + " / " : ""}${source.name}`);
+      }
+      return u;
+    }
+  },
+
   // 0.92.0 — Concentrations and Specializations get a lifecycle (SR2E p.70).
   //
   // p.70's +1/-1 and +2/-2 arithmetic is CREATION ONLY; p.191 then buys a
@@ -89,8 +210,15 @@ export const MIGRATIONS = [
     migrateItem(source, parent) {
       if (source.type !== "skill") return null;
       const sys = source.system ?? {};
-      // Already migrated.
-      if (sys.ratingsFinalized !== undefined && sys.allocated !== undefined) return null;
+      // NO "already migrated" guard here. There WAS one, testing whether
+      // ratingsFinalized and allocated were defined, and it disabled this entire
+      // migration: documents arrive as doc.toObject(), which fills in schema
+      // defaults, and those two fields default to `true` and `null`. The
+      // condition was therefore true for every skill ever written, so every
+      // skill was skipped. The runner already guarantees once-per-world through
+      // systemMigrationVersion, and both branches below recompute from `rating`,
+      // which this migration never changes — so re-running is harmless anyway.
+      // See 0.92.1, which repairs the worlds this shipped broken.
 
       const hasConc = !!sys.concentration?.name;
       const hasSpec = !!sys.specialization?.name;
@@ -168,10 +296,8 @@ export const MIGRATIONS = [
           // Must use the SAME grant the derivation will use, or a world running
           // the More Metahumans optional rule preserves every metahuman's pool
           // one point short.
-          let more = false;
-          try { more = game.settings.get("sr2e", "moreMetahumans"); } catch (e) { /* default off */ }
-          const grant = startingKarmaPool(source.system?.race, more);
-          u["system.karma.poolAdjust"] = (Number(k.pool) || 0) - grant - derived + burned;
+          void derived; void burned;   // kept for the comment above; the helper recomputes
+          u["system.karma.poolAdjust"] = legacyKarmaPoolAdjust(source, k);
         }
         u["system.karma.-=pool"] = null;
       } else if (k.poolAdjust === undefined) {
@@ -547,6 +673,42 @@ export async function migrateWorld() {
   // Characters left mid-chargen by the 0.92.0 skill migration. Reported because
   // a stale or imported `chargen.inProgress` would otherwise silently keep a
   // finished character on the old derive-forever behaviour.
+  if (REPAIRED_KARMA.length) {
+    const names = [...new Set(REPAIRED_KARMA)];
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Karma Pool notice (0.92.1)</strong>
+        <p>0.91.0 shipped a guard that stopped its own migration running, so these
+        characters' hand-maintained pools were never preserved as an offset and
+        have been deriving from SR2E p.47 and p.191 instead:
+        ${foundry.utils.escapeHTML(names.join(", "))}.</p>
+        <p><em>Nothing has been changed.</em> The derived value is the rules-correct
+        one and is what you have been playing with. If you want an old number back,
+        set that character's Karma Pool adjustment by hand.</p></div>`
+    });
+    REPAIRED_KARMA.length = 0;
+  }
+
+  if (CANDIDATE_SUBRATINGS.length) {
+    const names = [...new Set(CANDIDATE_SUBRATINGS)];
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Stale sub-ratings (0.92.1)</strong>
+        <p>0.92.0 shipped a guard that stopped its own migration running, so these
+        Concentrations and Specializations were never frozen and are now showing a
+        stale rating instead of the one they used to display:
+        ${foundry.utils.escapeHTML(names.join(", "))}.</p>
+        <p><strong>Nothing has been changed.</strong> Each of these sits at or below
+        its general skill, which usually means it was never set — but it can also
+        happen legitimately, by buying a Concentration under p.191 and later raising
+        the general past it. Only you can tell those apart.</p>
+        <p>Review the list, then run <code>game.sr2e.repairSubRatings()</code> in the
+        console to PREVIEW the exact changes, and
+        <code>game.sr2e.repairSubRatings({ apply: true })</code> to write them.</p></div>`
+    });
+    CANDIDATE_SUBRATINGS.length = 0;
+  }
+
   if (PENDING_CHARGEN.length) {
     const names = [...new Set(PENDING_CHARGEN)];
     console.warn("SR2E | Characters left in character creation:\n  " + names.join("\n  "));

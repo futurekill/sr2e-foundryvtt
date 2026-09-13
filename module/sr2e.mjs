@@ -38,7 +38,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating} from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -60,6 +60,91 @@ async function cleanupQuench() {
   }
   ui.notifications?.info(`cleanupQuench: removed ${total} leftover document(s).`);
   return total;
+}
+
+/**
+ * Re-freeze Concentrations and Specializations that 0.92.0 never froze (p.70).
+ *
+ * 0.92.0's migration was disabled by a guard that could never be false, so it
+ * never wrote the frozen tiers. The old model DERIVED them on every preparation
+ * and displayed general+2 / general+4; with nothing deriving and nothing frozen,
+ * those skills fell back to whatever storage held and characters quietly lost
+ * dice. This restores the numbers that were being displayed.
+ *
+ * Candidates are sub-ratings at or below their general skill. That is not where
+ * a purchase LANDS — chargen puts a Concentration at general+2 and a later one
+ * at general+1 (p.191) — but it can arise legitimately afterwards, because
+ * finalized tiers advance independently: buy Pistols 5 on Firearms 4, then raise
+ * Firearms past it, and the result is indistinguishable from damage. That is
+ * exactly why this is a GM decision and not part of the migration.
+ *
+ * Run `game.sr2e.repairSubRatings()` to preview, then `{ apply: true }`.
+ *
+ * @param {{apply?: boolean}} [options] - apply:false (default) reports only
+ * @returns {Promise<{scanned:number, repaired:number, changes:object[]}>}
+ */
+async function repairSubRatings({ apply = false } = {}) {
+  if (!game.user.isGM) {
+    ui.notifications?.warn(game.i18n.localize("SR2E.Repair.GMOnly"));
+    return { scanned: 0, repaired: 0, changes: [] };
+  }
+  let scanned = 0;
+  const changes = [];
+  // World actors plus unlinked token actors on EVERY scene — their deltas hold
+  // their own copies and are damaged the same way. Scoping this to the viewed
+  // canvas would leave candidates the migration reported permanently
+  // unreachable unless the GM activated each scene in turn.
+  const actors = [...game.actors];
+  for (const scene of game.scenes) {
+    for (const token of scene.tokens) {
+      if (token.actorLink || !token.actor) continue;
+      actors.push(token.actor);
+    }
+  }
+
+  // Record one proposed change and return the update keys for it.
+  const propose = (owner, item, fix) => {
+    const u = {};
+    for (const tier of ["concentration", "specialization"]) {
+      if (fix[tier] === undefined) continue;
+      changes.push({ actor: owner, skill: item.name, tier: item.system[tier].name,
+                     from: item.system[tier].rating, to: fix[tier] });
+      u[`system.${tier}.rating`] = fix[tier];
+    }
+    return u;
+  };
+
+  // World skill items. The migration reports these alongside embedded ones, so
+  // leaving them out would name candidates this command could never reach.
+  for (const item of game.items) {
+    if (item.type !== "skill") continue;
+    scanned++;
+    const fix = staleSubRatingRepair(item.system);
+    if (!fix) continue;
+    const u = propose("(world item)", item, fix);
+    if (apply) await item.update(u);
+  }
+
+  for (const actor of actors) {
+    const updates = [];
+    for (const item of actor.items) {
+      if (item.type !== "skill") continue;
+      scanned++;
+      const fix = staleSubRatingRepair(item.system);
+      if (!fix) continue;
+      updates.push({ _id: item.id, ...propose(actor.name, item, fix) });
+    }
+    if (apply && updates.length) await actor.updateEmbeddedDocuments("Item", updates);
+  }
+
+  const lines = changes.map(c => `  ${c.actor} / ${c.skill} — ${c.tier}: ${c.from} -> ${c.to}`);
+  console.log(`SR2E | repairSubRatings (${apply ? "APPLIED" : "preview"}): `
+    + `${changes.length} of ${scanned} skills\n${lines.join("\n")}`);
+  ui.notifications?.info(apply
+    ? `Re-froze ${changes.length} sub-rating(s) — see the console for the list.`
+    : `${changes.length} sub-rating(s) would change. Console has the list; `
+      + `re-run with { apply: true } to write them.`);
+  return { scanned, repaired: apply ? changes.length : 0, changes };
 }
 
 /**
@@ -344,7 +429,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, allocateNuyen, canCreateActor, createActorViaGM });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();

@@ -3344,6 +3344,35 @@ export function skillChargenSpend(skill = {}) {
 }
 
 /**
+ * Sub-ratings that look like they were never frozen, for the 0.92.1 repair.
+ *
+ * Under the pre-0.92.0 model a named Concentration or Specialization was
+ * re-derived on every preparation and DISPLAYED at general+2 / general+4. When
+ * 0.92.0 failed to freeze them, the sheet fell back to whatever storage held.
+ *
+ * A sub-rating at or below its general is the signature: chargen puts a
+ * Concentration at general+2 (p.70) and a later purchase at general+1 (p.191).
+ * It is NOT proof, though — finalized tiers advance independently, so buying
+ * Pistols 5 on Firearms 4 and then raising Firearms to 5 or 6 produces the same
+ * shape legitimately. That is why this only proposes, and a GM applies it.
+ *
+ * @returns {{concentration?: number, specialization?: number}|null}
+ */
+export function staleSubRatingRepair(system = {}) {
+  const hasConc = !!system.concentration?.name;
+  const hasSpec = !!system.specialization?.name;
+  if (!hasConc && !hasSpec) return null;
+  if (system.ratingsFinalized === false) return null;   // still deriving
+  const general = Math.max(0, Math.floor(Number(system.rating) || 0));
+  const t = skillTiersFromAllocation(
+    allocationFromLegacyRating(general, hasConc, hasSpec), hasConc, hasSpec);
+  const out = {};
+  if (hasConc && (system.concentration.rating ?? 0) <= general) out.concentration = t.concentration;
+  if (hasSpec && (system.specialization.rating ?? 0) <= general) out.specialization = t.specialization;
+  return Object.keys(out).length ? out : null;
+}
+
+/**
  * THE single answer to "which rating applies". Every roll path goes through
  * this, which is what makes skillsoft suppression enforceable — suppressing the
  * visible tags alone would leave weapon-name fallback still finding and rolling

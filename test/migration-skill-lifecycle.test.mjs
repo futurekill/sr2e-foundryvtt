@@ -45,9 +45,18 @@ describe("classification by owner", () => {
     expect(u).toHaveProperty("system.ratingsFinalized");
   });
 
-  it("skips a skill that has already been migrated", () => {
-    expect(migrate(skill({ rating: 5, allocated: null, ratingsFinalized: true }), finished))
-      .toBeNull();
+  it("STILL migrates a skill carrying only the schema's defaults", () => {
+    // The bug that shipped in 0.92.0: documents reach a migration as
+    // doc.toObject(), which fills in schema defaults, so every legacy skill
+    // arrived with ratingsFinalized `true` and allocated `null`. A guard that
+    // read those as "already migrated" skipped every skill in the world, and
+    // named concentrations silently lost the +2 they had been displaying.
+    const u = migrate(skill({
+      rating: 2, allocated: null, ratingsFinalized: true,
+      concentration: { name: "Street", rating: 2 }
+    }), finished);
+    expect(u).not.toBeNull();
+    expect(u["system.concentration.rating"]).toBe(4);
   });
 
   it("ignores non-skill items", () => {

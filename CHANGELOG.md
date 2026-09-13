@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.92.1 — 2026-09-13
+
+### Fixed — 0.91.0 and 0.92.0 never actually ran
+
+Both shipped a guard testing whether a field was `undefined` to decide "already
+migrated". Migrations receive documents as `toObject()`, which fills in schema
+defaults, and every field those guards tested is `required: true` with an
+`initial` — so the condition was true for every document ever written and both
+migrations returned nothing while still stamping their version. No world would
+ever have run them again.
+
+- **Concentrations and Specializations were left holding a stale rating.** Under
+  the old model these were re-derived on every preparation and displayed at
+  general+2 / general+4. 0.92.0 correctly stops deriving — but because it never
+  wrote the frozen values, the sheet fell back to whatever number storage held,
+  and characters silently lost dice on exactly the skills they had specialized
+  in.
+
+  **The migration reports these rather than fixing them**, and the GM applies the
+  fix with `game.sr2e.repairSubRatings()` (preview) then `{ apply: true }`. A
+  sub-rating at or below its general skill is not where a purchase lands —
+  chargen puts a Concentration at general+2 (p.70) and a later one at general+1
+  (p.191) — but that is a signature, not proof: buy Pistols 5 on Firearms 4 and
+  then raise Firearms past it and a perfectly legitimate rating looks identical.
+  Nothing distinguishes them in the data, so the call is yours, not the
+  migration's.
+
+- **Mid-chargen characters were never marked pending**, so their skills sat on
+  the schema default of finalized and stopped deriving from an allocation.
+
+- **Karma Pools are reported, not rewritten.** 0.91.0's preservation of a
+  hand-maintained pool never ran either, so every pool has been deriving from
+  p.47 and p.191 — the rules-correct value, and the one your table has actually
+  been using. Restoring the old numbers now would move pools nobody lost, and a
+  stored `0` means "never filled in", not a deliberate zero. The GM gets a list
+  and the legacy value is left in place for anyone who wants it back by hand.
+
 ## 0.92.0 — 2026-09-13
 
 ### Fixed — Concentrations and Specializations (SR2E p.70, p.191)
