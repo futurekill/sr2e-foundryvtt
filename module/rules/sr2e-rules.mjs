@@ -1623,9 +1623,12 @@ export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuan
  */
 export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, allot = {}) {
   const attrSpent = attributes.reduce((s, a) => s + (a.base ?? 0), 0);
+  // The ALLOCATION, not the reduced general (SR2E p.70). Summing `rating`
+  // refunded 1 skill point for every concentration and 2 for every
+  // specialization, repeatable on every skill.
   const skillSpent = skills
     .filter((k) => k.category === "active" || k.category === "build_repair")
-    .reduce((s, k) => s + (k.rating ?? 0), 0);
+    .reduce((s, k) => s + skillChargenSpend(k), 0);
   // Price each item through chargenItemCost: itemBaseCost × quantity for normal
   // gear, but ammo's `cost` is the price of the WHOLE bundle, so multiplying by
   // quantity (rounds) 10×-counted it.
@@ -3244,4 +3247,119 @@ export function allocateKarmaSpend(cost, drawn = 0) {
   const d = Math.max(0, Number(drawn) || 0);
   const fromDrawn = Math.min(c, d);
   return { fromDrawn, fromSpent: c - fromDrawn };
+}
+
+// ---------------------------------------------------------------------------
+// SKILL CONCENTRATIONS AND SPECIALIZATIONS (SR2E p.70, p.191)
+// ---------------------------------------------------------------------------
+// p.70's arithmetic is CREATION ONLY: "All these numerical gymnastics are
+// relevant only during character creation... Once the game has begun, skill
+// advancement is handled according to the Karma rules on p.190."
+//
+// So a skill has two lifecycle phases. While PENDING (being created) the three
+// tiers derive from the points allocated to it. Once FINALIZED they are
+// independent ratings, bought separately with Karma at p.191's 2x / 1.5x / 1x —
+// and nothing derives them from one another ever again.
+
+/**
+ * The three tiers a chargen skill ends up with, from the points allocated.
+ *
+ * p.70: a Concentration is the general +1 with the general reduced by 1; a
+ * Specialization is the original general +2 with the general reduced by 2, and
+ * "the character gains a Concentration governing the Specialization at a rating
+ * equal to the original general skill rating".
+ *
+ * Worked example from the book, allocation 5:
+ *   plain          → Firearms 5
+ *   concentration  → Firearms 4, SMG 6
+ *   specialization → Firearms 3, SMG 5, Uzi III 7
+ *
+ * @param {number} allocated - points put into the skill at creation
+ * @param {boolean} hasConcentration
+ * @param {boolean} hasSpecialization - implies a concentration (p.70)
+ * @returns {{general:number, concentration:number, specialization:number}}
+ */
+export function skillTiersFromAllocation(allocated, hasConcentration = false, hasSpecialization = false) {
+  const a = Math.max(0, Math.floor(Number(allocated) || 0));
+  if (hasSpecialization) {
+    return { general: a - 2, concentration: a, specialization: a + 2 };
+  }
+  if (hasConcentration) {
+    return { general: a - 1, concentration: a + 1, specialization: 0 };
+  }
+  return { general: a, concentration: 0, specialization: 0 };
+}
+
+/**
+ * Is this a legal chargen allocation? Rejected rather than clamped: silently
+ * flooring a specialization at allocation 1 (general −1) would distort the
+ * allocation the player actually paid for.
+ *
+ * @returns {{ok:boolean, reason?:string}}
+ */
+export function validateSkillAllocation(allocated, hasConcentration = false, hasSpecialization = false) {
+  const a = Number(allocated);
+  if (!Number.isInteger(a)) return { ok: false, reason: "Allocation must be a whole number." };
+  if (a < 1) return { ok: false, reason: "Allocation must be at least 1." };
+  const t = skillTiersFromAllocation(a, hasConcentration, hasSpecialization);
+  if (t.general < 0) {
+    const need = hasSpecialization ? 2 : 1;
+    return { ok: false,
+      reason: `A ${hasSpecialization ? "specialization" : "concentration"} reduces the general skill by ${need} (p.70), so it needs an allocation of at least ${need}.` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Invert p.70 for a LEGACY skill, whose stored `rating` is the already-reduced
+ * general the player worked out by hand. Used once, by the migration, to
+ * recover the allocation a mid-chargen character actually spent.
+ */
+export function allocationFromLegacyRating(rating, hasConcentration = false, hasSpecialization = false) {
+  const r = Math.max(0, Math.floor(Number(rating) || 0));
+  return r + (hasSpecialization ? 2 : hasConcentration ? 1 : 0);
+}
+
+/**
+ * Skill points a chargen skill costs: the allocation. Falls back to inverting
+ * p.70 for a legacy/pending skill that predates the field.
+ *
+ * A FINALIZED skill reports its stored allocation when it has one; without it
+ * the history is unrecoverable — Karma advancement has moved the ratings — and
+ * it reports a deliberately conservative approximation instead. See below.
+ */
+export function skillChargenSpend(skill = {}) {
+  // Finalization RETAINS the allocation as provenance, so a character built in
+  // this system reports its exact historical spend.
+  if (Number.isInteger(skill.allocated)) return Math.max(0, skill.allocated);
+  // No allocation on a finalized skill means the history is genuinely unknown:
+  // a migrated legacy character, or a skill bought with Karma after creation.
+  // Charge the current general as an APPROXIMATION rather than inverting p.70,
+  // which would invent a +2 nobody spent. It drifts high as Karma advances a
+  // skill — deliberate: this panel is display-only and nothing gates on it, and
+  // a visibly over-budget number is safer for a GM reopening creation than a 0
+  // that invites re-spending the whole budget on an already-built character.
+  if (skill.ratingsFinalized) return Math.max(0, Number(skill.rating) || 0);
+  return allocationFromLegacyRating(skill.rating, !!skill.concentration?.name, !!skill.specialization?.name);
+}
+
+/**
+ * THE single answer to "which rating applies". Every roll path goes through
+ * this, which is what makes skillsoft suppression enforceable — suppressing the
+ * visible tags alone would leave weapon-name fallback still finding and rolling
+ * a natural specialization.
+ *
+ * @param {object} system - prepared SkillData
+ * @param {string} [variant] - "", "concentration", "specialization", "family"
+ * @returns {number}
+ */
+export function effectiveSkillRating(system, variant = "") {
+  if (!system) return 0;
+  const sub = variant === "concentration" || variant === "specialization";
+  // A slotted ActiveSoft replaces the skill wholesale; a chip is not a
+  // Concentration, so its sub-ratings do not apply while it is in.
+  if (sub && system._subRatingsSuppressed) return skillRollRating(system);
+  if (sub && system[variant]?.name && system[variant].rating > 0) return system[variant].rating;
+  if (variant === "family" && system.familyRating > 0) return system.familyRating;
+  return skillRollRating(system);
 }

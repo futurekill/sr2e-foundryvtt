@@ -970,7 +970,17 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       .map((k) => ({ base: system[k]?.base ?? 0 }));
     const skillData = actor.items
       .filter((i) => i.type === "skill")
-      .map((i) => ({ category: i.system.category, rating: i.system.rating }));
+      // The lifecycle fields and sub-rating NAMES travel too: chargenSpend
+      // charges the allocation (SR2E p.70), and for a legacy skill with no
+      // `allocated` it has to invert the reduction, which needs the names.
+      .map((i) => ({
+        category: i.system.category,
+        rating: i.system.rating,
+        allocated: i.system.allocated,
+        ratingsFinalized: i.system.ratingsFinalized,
+        concentration: { name: i.system.concentration?.name ?? "" },
+        specialization: { name: i.system.specialization?.name ?? "" }
+      }));
     const itemData = actor.items.map((i) => ({
       type: i.type,
       cost: i.system.cost ?? 0,

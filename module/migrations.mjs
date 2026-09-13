@@ -35,7 +35,7 @@
  * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
  * characters by the 0.26.0 migration (GitHub #3).
  */
-import { startingKarmaPool } from "./rules/sr2e-rules.mjs";
+import { startingKarmaPool, skillTiersFromAllocation, allocationFromLegacyRating } from "./rules/sr2e-rules.mjs";
 
 export const UNARMED_STRIKE_DATA = {
   name: "Unarmed Strike",
@@ -54,8 +54,75 @@ export const UNARMED_STRIKE_DATA = {
 // during the run and reported once at the end — migrateItem only receives the
 // item's own source, so it cannot name the actor an orphaned focus belongs to.
 const UNBOUND_FOCI = [];
+// Characters left mid-chargen by the 0.92.0 skill migration, reported to the GM
+// so a stale or imported chargen flag surfaces instead of hiding.
+const PENDING_CHARGEN = [];
 
 export const MIGRATIONS = [
+  // 0.92.0 — Concentrations and Specializations get a lifecycle (SR2E p.70).
+  //
+  // p.70's +1/-1 and +2/-2 arithmetic is CREATION ONLY; p.191 then buys a
+  // Concentration or Specialization outright at 1.5x / 1x the new rating,
+  // reducing nothing, after which the three ratings advance independently. The
+  // old model derived them from the general forever, so an independently
+  // advanced sub-rating could not exist.
+  //
+  // Every legacy skill needs a lifecycle state — a plain one too, or its flag
+  // falls to a schema default that cannot be right for both a chargen skill and
+  // an NPC's. Classification by owner:
+  //
+  //   NPC / vehicle / anything not a character   -> finalized
+  //   finished character                         -> finalized
+  //   character still in chargen                 -> left PENDING, allocation
+  //                                                 recovered by inverting p.70
+  //
+  // Nobody's numbers change: a finalized skill keeps exactly the ratings it had.
+  {
+    version: "0.92.0",
+    migrateActor(source) {
+      const skills = (source.items ?? []).filter(i => i.type === "skill");
+      if (!skills.length) return null;
+      const pending = source.type === "character" && source.system?.chargen?.inProgress === true;
+      if (pending) PENDING_CHARGEN.push(source.name);
+      return null;   // per-item work happens in migrateItem
+    },
+    migrateItem(source, parent) {
+      if (source.type !== "skill") return null;
+      const sys = source.system ?? {};
+      // Already migrated.
+      if (sys.ratingsFinalized !== undefined && sys.allocated !== undefined) return null;
+
+      const hasConc = !!sys.concentration?.name;
+      const hasSpec = !!sys.specialization?.name;
+      // migrateItem is parent-agnostic in the general case; the runner passes
+      // the owning actor's source where it has one. No parent (a world or
+      // compendium item) means authored data -> finalized.
+      const inChargen = parent?.type === "character"
+        && parent?.system?.chargen?.inProgress === true;
+
+      const u = {};
+      if (inChargen) {
+        // Keep deriving until they finish creation. Recover what they actually
+        // spent by inverting the reduction they applied by hand.
+        u["system.ratingsFinalized"] = false;
+        u["system.allocated"] = allocationFromLegacyRating(sys.rating, hasConc, hasSpec);
+        // Deliberately NOT stamping sub-ratings: that happens at finalization.
+      } else {
+        u["system.ratingsFinalized"] = true;
+        u["system.allocated"] = null;
+        // Freeze the ratings this skill effectively had, computed from SOURCE
+        // rather than copied out of prepared state.
+        if (hasConc || hasSpec) {
+          const t = skillTiersFromAllocation(
+            allocationFromLegacyRating(sys.rating, hasConc, hasSpec), hasConc, hasSpec);
+          if (hasConc) u["system.concentration.rating"] = t.concentration;
+          if (hasSpec) u["system.specialization.rating"] = t.specialization;
+        }
+      }
+      return u;
+    }
+  },
+
   // 0.91.0 — The Karma Pool is derived, not stored (SR2E p.191). Capacity is
   // one-tenth of Career Karma ROUND UP less what has been permanently burned;
   // availability subtracts this encounter's spending. The old stored `pool` is
@@ -355,13 +422,18 @@ export function pendingMigrations(lastMigrated) {
  * @param {"Actor"|"Item"} kind
  * @returns {object|null} Merged update data, or null when nothing to change.
  */
-function migrateDocumentData(migrations, doc, kind) {
+export function migrateDocumentData(migrations, doc, kind, parentSource = null) {
   const source = doc.toObject();
   const update = {};
   for (const m of migrations) {
     const fn = kind === "Actor" ? m.migrateActor : m.migrateItem;
     if (!fn) continue;
-    const changes = fn(source);
+    // migrateItem receives the OWNING ACTOR's source as a second argument when
+    // there is one. Skill lifecycle (0.92.0) needs it: whether a legacy skill
+    // stays pending depends on the owner's chargen state, and an item has no
+    // way to see that. A world or compendium item passes null, which those
+    // migrations must treat as authored data rather than guessing.
+    const changes = kind === "Actor" ? fn(source) : fn(source, parentSource);
     if (changes) foundry.utils.mergeObject(update, changes);
   }
   return foundry.utils.isEmpty(update) ? null : update;
@@ -381,8 +453,9 @@ async function migrateActor(migrations, actor) {
   }
 
   const itemUpdates = [];
+  const actorSource = actor.toObject();
   for (const item of actor.items) {
-    const u = migrateDocumentData(migrations, item, "Item");
+    const u = migrateDocumentData(migrations, item, "Item", actorSource);
     if (u) itemUpdates.push({ _id: item.id, ...u });
   }
   if (itemUpdates.length) {
@@ -471,6 +544,20 @@ export async function migrateWorld() {
   // Spell foci that need a spell chosen before they do anything. Permanent on
   // purpose: a toast that auto-dismisses would leave an unexplained nerf, and the
   // sheets keep warning regardless of whether this was ever read.
+  // Characters left mid-chargen by the 0.92.0 skill migration. Reported because
+  // a stale or imported `chargen.inProgress` would otherwise silently keep a
+  // finished character on the old derive-forever behaviour.
+  if (PENDING_CHARGEN.length) {
+    const names = [...new Set(PENDING_CHARGEN)];
+    console.warn("SR2E | Characters left in character creation:\n  " + names.join("\n  "));
+    ui.notifications.info(
+      `SR2E | ${names.length} character(s) are still in character creation, so their `
+      + `concentrations and specializations keep deriving until you finish it: `
+      + `${names.join(", ")}. Finish creation on each to lock their ratings (SR2E p.70).`,
+      { permanent: true });
+    PENDING_CHARGEN.length = 0;
+  }
+
   if (UNBOUND_FOCI.length) {
     const lines = UNBOUND_FOCI.map(f => `${f.actor} — ${f.focus}`);
     console.warn("SR2E | Spell foci awaiting a bound spell:\n  " + lines.join("\n  "));

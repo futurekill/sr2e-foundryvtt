@@ -18,24 +18,57 @@
       {{/each}}
     </select>
   </div>
+  {{!-- SR2E p.70's arithmetic is CREATION ONLY. A pending skill is edited by its
+        ALLOCATION and the three tiers derive; a finalized skill's ratings are
+        independent and edited directly (p.191). Which fields are writable
+        follows that lifecycle. --}}
+  {{#if system.ratingsFinalized}}
   <div class="form-group">
-    <label>Rating:</label>
+    <label title="The general skill. Independent of the concentration and specialization since creation finished (SR2E p.191).">Rating:</label>
     <input type="number" name="system.rating" value="{{system.rating}}" min="0" max="12" />
   </div>
+  {{else}}
   <div class="form-group">
-    <label title="SR2E p.55/70. Enter the FINAL general rating above (already reduced by −1 for a concentration / −2 for a specialization); the concentration rolls general +2.">Concentration:</label>
+    <label title="Points allocated to this skill at creation. The general, concentration and specialization ratings are worked out from it (SR2E p.70) — you do not subtract anything by hand.">Allocated:</label>
+    <input type="number" name="system.allocated" value="{{system.allocated}}" min="1" max="12" />
+  </div>
+  <div class="form-group">
+    <label>Rating:</label>
+    <span title="Derived: the allocation less 1 for a concentration or 2 for a specialization (SR2E p.70).">{{system.rating}}</span>
+  </div>
+  {{/if}}
+  <div class="form-group">
+    <label title="A narrower form of the skill (SR2E p.70).">Concentration:</label>
     <input type="text" name="system.concentration.name" value="{{system.concentration.name}}" placeholder="e.g., Pistols" />
     {{#if system.concentration.name}}
-    <span title="general + 2 (SR2E p.70)">Rating: {{system.concentration.rating}}</span>
+      {{#if system.ratingsFinalized}}
+      <input type="number" name="system.concentration.rating" value="{{system.concentration.rating}}" min="0" max="16"
+             title="Bought and advanced separately with Karma at 1.5 x the new rating (SR2E p.191)." />
+      {{else}}
+      <span title="allocation + 1, or the allocation itself when a specialization narrows it (SR2E p.70)">Rating: {{system.concentration.rating}}</span>
+      {{/if}}
     {{/if}}
   </div>
   <div class="form-group">
-    <label title="SR2E p.55/70. Enter the FINAL general rating above (already reduced by −2); the specialization rolls general +4, and its concentration general +2. Name the concentration too — a specialization is a narrowing of one.">Specialization:</label>
+    <label title="A single item or activity within the concentration (SR2E p.70).">Specialization:</label>
     <input type="text" name="system.specialization.name" value="{{system.specialization.name}}" placeholder="e.g., Ares Predator" />
     {{#if system.specialization.name}}
-    <span title="general + 4 (SR2E p.70)">Rating: {{system.specialization.rating}}</span>
+      {{#if system.ratingsFinalized}}
+      <input type="number" name="system.specialization.rating" value="{{system.specialization.rating}}" min="0" max="18"
+             title="Bought and advanced separately with Karma at 1 x the new rating (SR2E p.191)." />
+      {{else}}
+      <span title="allocation + 2 (SR2E p.70)">Rating: {{system.specialization.rating}}</span>
+      {{/if}}
     {{/if}}
   </div>
+  {{#unless system.ratingsFinalized}}
+  {{#if system.specialization.name}}{{#unless system.concentration.name}}
+  <p class="notification warning" style="margin:4px 0;font-size:11px;">
+    A specialization narrows a concentration — name the concentration it sits
+    inside, or creation cannot be finished (SR2E p.70).
+  </p>
+  {{/unless}}{{/if}}
+  {{/unless}}
   {{#ifEquals system.category "language"}}
   {{!-- SR2E p.74: a specific language IS a Specialization of a family. --}}
   <div class="form-group">

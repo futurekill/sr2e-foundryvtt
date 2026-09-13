@@ -11,7 +11,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
-         skillRollRating,
+         skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
          successesFromSource, testTotalSuccesses, allocateKarmaSpend } from "../rules/sr2e-rules.mjs";
 
@@ -955,10 +955,15 @@ export class SR2EActor extends Actor {
     // Concentration/Specialization variant (SR2E p.70): roll that rating
     // instead of the general skill's.
     const v = options.variant;
-    if ((v === "concentration" || v === "specialization") &&
-        skill.system[v]?.name && skill.system[v].rating > 0) {
-      dicePool = skill.system[v].rating + bonus;
-      label = `${skill.name} (${skill.system[v].name}) Test${tag}`;
+    if (v === "concentration" || v === "specialization") {
+      // effectiveSkillRating refuses a sub-variant while a skillsoft is
+      // supplying the skill, and falls back to the general — so a chipped skill
+      // cannot roll the character's own specialization.
+      const eff = effectiveSkillRating(skill.system, v);
+      if (skill.system[v]?.name && !skill.system._subRatingsSuppressed && eff > 0) {
+        dicePool = eff + bonus;
+        label = `${skill.name} (${skill.system[v].name}) Test${tag}`;
+      }
     }
     // The language family is the general skill beneath the language (p.74) —
     // what you roll to muddle through a related tongue you never learned.

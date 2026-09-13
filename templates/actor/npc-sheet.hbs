@@ -114,7 +114,7 @@
         <legend>Skills</legend>
         {{#each skills as |skill|}}
         <div class="npc-skill-row flexrow" data-item-id="{{skill.id}}">
-          <span class="rollable" data-action="rollSkill" title="Roll {{skill.name}}">{{skill.name}}</span>
+          <span class="rollable" data-action="rollSkill" title="Roll {{skill.name}}">{{skill.name}}</span>{{#unless skill.system._subRatingsSuppressed}}{{#if skill.system.concentration.name}}<span class="skill-conc-inline" data-action="rollSkill" data-variant="concentration" title="Concentration — roll {{skill.system.concentration.rating}} dice (SR2E p.70)"> ({{skill.system.concentration.name}} {{skill.system.concentration.rating}})</span>{{/if}}{{#if skill.system.specialization.name}}<span class="skill-spec-inline" data-action="rollSkill" data-variant="specialization" title="Specialization — roll {{skill.system.specialization.rating}} dice (SR2E p.70)"> [{{skill.system.specialization.name}} {{skill.system.specialization.rating}}]</span>{{/if}}{{/unless}}
           {{!-- A language rolls its derived rating, not the one bought (SR2E
                 p.74) — show the number the dice will actually use. ponytail: no
                 family chip here; NPC rows have no variant plumbing and a GM

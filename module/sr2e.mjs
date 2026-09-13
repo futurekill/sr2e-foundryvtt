@@ -38,7 +38,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent} from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -1351,10 +1351,34 @@ Hooks.on("preCreateActor", (actor, data) => {
     updates["prototypeToken.actorLink"] = true;
   }
 
-  // Default unarmed attack for characters (skip imports that already carry one)
-  if (actor.type === "character" &&
-      !(data.items ?? []).some(i => i.name === UNARMED_STRIKE_DATA.name)) {
-    updates["items"] = [...(data.items ?? []), UNARMED_STRIKE_DATA];
+  // The embedded-items payload is built ONCE, here. Two hooks each calling
+  // updateSource({items}) would clobber each other — the second one re-maps the
+  // ORIGINAL data.items and silently drops whatever the first appended.
+  if (actor.type === "character") {
+    let items = data.items ?? [];
+    let touched = false;
+
+    // Skills embedded in an Actor.create payload are descendants of the ACTOR's
+    // creation and never see preCreateItem, so the pending-skill rule has to be
+    // applied here too, or a whole character imported mid-creation would arrive
+    // finalized while one added a second later did not. `chargen.inProgress`
+    // defaults to TRUE, so this is the common path: a bare
+    // Actor.create({type: "character", items: [...]}) lands mid-creation.
+    if (actor.system.chargen?.inProgress && items.some(i => i?.type === "skill")) {
+      items = items.map(i => i?.type === "skill"
+        ? foundry.utils.mergeObject(foundry.utils.deepClone(i),
+                                    { system: pendingSkillLifecycle(i.system) })
+        : i);
+      touched = true;
+    }
+
+    // Default unarmed attack (skip imports that already carry one)
+    if (!items.some(i => i.name === UNARMED_STRIKE_DATA.name)) {
+      items = [...items, UNARMED_STRIKE_DATA];
+      touched = true;
+    }
+
+    if (touched) updates["items"] = items;
   }
 
   // Themed default icon for the Matrix singletons (Host server / IC chip).
@@ -1391,6 +1415,81 @@ Hooks.on("preUpdateActor", (actor, changes) => {
 //
 // Vetoing only the off -> on transition leaves every other path alone: turning
 // it off, a GM doing anything, and any update that doesn't touch the flag.
+/**
+ * Finalize a character's pending skills when creation is finished
+ * (SR2E p.70: the Concentration/Specialization arithmetic is creation-only).
+ *
+ * Hooked on the chargen.inProgress true -> false transition, which is how the
+ * sheet's checkbox finishes creation. Foundry has no atomic multi-document
+ * transaction, so the ORDER matters and both failure modes are handled:
+ *
+ *  - skills fail to update  -> veto the flag change; creation stays open.
+ *  - skills update, flag write fails -> a valid, recoverable state. Finalization
+ *    is irreversible, so nothing is rolled back; the GM unchecks the box again
+ *    and this runs a second time.
+ *
+ * That second case is why this must be IDEMPOTENT: re-running it with every
+ * skill already finalized is a no-op that lets the flag write retry.
+ */
+const FINALIZING = new Set();
+
+export async function finalizePendingSkills(actor) {
+  const pending = actor.items.filter(
+    (i) => i.type === "skill" && !i.system.ratingsFinalized);
+  if (!pending.length) return { ok: true, finalized: 0 };
+
+  // Validate everything BEFORE writing anything, so a single bad skill does not
+  // leave half the sheet finalized.
+  const problems = [];
+  const updates = [];
+  for (const item of pending) {
+    const hasConc = !!item.system.concentration?.name;
+    const hasSpec = !!item.system.specialization?.name;
+    const allocated = Number.isInteger(item.system.allocated)
+      ? item.system.allocated
+      // A pending skill that predates the field: invert the manual reduction.
+      : allocationFromLegacyRating(item.system.rating, hasConc, hasSpec);
+
+    if (allocated === 0 && !hasConc && !hasSpec) {
+      // A row the player added and never filled in. Not a rules problem — a
+      // blank skill finalizes at 0 rather than jamming the whole sheet.
+      updates.push({ _id: item.id, "system.allocated": 0,
+                     "system.ratingsFinalized": true, "system.rating": 0 });
+      continue;
+    }
+    const check = validateSkillAllocation(allocated, hasConc, hasSpec);
+    if (!check.ok) { problems.push(`${item.name}: ${check.reason}`); continue; }
+    if (hasSpec && !hasConc) {
+      // p.70 grants a Concentration governing the Specialization. Rather than
+      // invent its name, ask for it — the rating is known, the name is a choice.
+      problems.push(`${item.name}: a specialization needs the concentration it narrows (SR2E p.70).`);
+      continue;
+    }
+
+    const t = skillTiersFromAllocation(allocated, hasConc, hasSpec);
+    const u = {
+      _id: item.id,
+      "system.allocated": allocated,          // retained as provenance
+      "system.ratingsFinalized": true,
+      "system.rating": Math.max(0, t.general)
+    };
+    if (hasConc) u["system.concentration.rating"] = t.concentration;
+    if (hasSpec) u["system.specialization.rating"] = t.specialization;
+    updates.push(u);
+  }
+
+  if (problems.length) return { ok: false, problems };
+
+  const res = await actor.updateEmbeddedDocuments("Item", updates);
+  // Do not ASSERT that all or nothing landed — a hook can accept a subset.
+  const wrote = Array.isArray(res) ? res.length : 0;
+  if (wrote < updates.length) {
+    return { ok: false, partial: true, finalized: wrote,
+      problems: [`Only ${wrote} of ${updates.length} skills finalized. Finish creation again to complete it — skills already finalized are left alone.`] };
+  }
+  return { ok: true, finalized: wrote };
+}
+
 Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
   if (actor.type !== "character") return;
   // Hooks fire on every client; only the one that asked for this should judge it.
@@ -1399,6 +1498,84 @@ Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
     game.user.isGM, actor.system.chargen?.inProgress, changes.system?.chargen?.inProgress);
   if (!blocked) return;
   ui.notifications.warn(game.i18n.localize("SR2E.Chargen.ReopenGMOnly"));
+  return false;
+});
+
+// A skill created on a character still in creation is PENDING: the player types
+// an allocation and p.70's arithmetic derives the tiers from it. Anything created
+// anywhere else — an NPC, a world item, a finished character — is authored data
+// and keeps the schema's finalized default. This sits on the creation hook rather
+// than the Add Skill button so compendium drops and macros get it too.
+//
+// The lifecycle follows the CHARACTER's phase, not the item's provenance. There
+// is deliberately no "but this one was authored" escape hatch: a compendium drop
+// and a copy from another actor both arrive carrying the schema's own
+// `ratingsFinalized: true`, indistinguishable from a deliberate one, so a
+// provenance test would silently leave real drops finalized. While creation is
+// open every skill on the sheet is bought with p.70's arithmetic; a GM who wants
+// to drop authored ratings finishes creation first.
+function pendingSkillLifecycle(raw = {}) {
+  // Read the RAW payload, never a prepared system — `rating` carries a schema
+  // default of 1, which would hand every blank new skill a free point.
+  const allocated = Number.isInteger(raw.allocated)
+    // Already pending (copied from another character mid-creation): its
+    // allocation IS the answer. Inverting the reduced rating again would
+    // double-count the reduction.
+    ? raw.allocated
+    // Otherwise the general on the payload is the number p.70 already reduced,
+    // so invert it to recover what was spent. A blank skill has none: 0.
+    : allocationFromLegacyRating(raw.rating ?? 0,
+        !!raw.concentration?.name, !!raw.specialization?.name);
+  return { ratingsFinalized: false, allocated };
+}
+
+Hooks.on("preCreateItem", (item, data) => {
+  if (item.type !== "skill" || item.parent?.type !== "character") return;
+  if (!item.parent.system.chargen?.inProgress) return;
+  const l = pendingSkillLifecycle(data?.system);
+  item.updateSource({ "system.ratingsFinalized": l.ratingsFinalized,
+                      "system.allocated": l.allocated });
+});
+
+// Finishing creation finalizes the character's pending skills first (SR2E p.70).
+// Vetoing on failure keeps creation open rather than leaving a half-finalized
+// sheet; the action is idempotent, so re-finishing completes a partial run.
+Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
+  if (actor.type !== "character") return;
+  if (game.user.id !== userId) return;
+  const finishing = actor.system.chargen?.inProgress === true
+    && changes.system?.chargen?.inProgress === false;
+  if (!finishing || options.sr2eSkillsFinalized) return;
+
+  // The write has to happen before the flag lands, and hooks cannot await, so
+  // veto this update and re-issue it once the skills are done.
+  // Two finish clicks in flight at once would both see the same pending set and
+  // race each other's writes. One finalization per actor at a time.
+  if (FINALIZING.has(actor.id)) return false;
+  FINALIZING.add(actor.id);
+
+  // Re-issue the CALLER's whole update, not just the flag — a macro or a wider
+  // form submit bundles other fields in, and dropping them would lose them.
+  const reissue = foundry.utils.deepClone(changes);
+  finalizePendingSkills(actor).then((res) => {
+    if (!res.ok) {
+      ui.notifications.error(
+        `Cannot finish creation:<br>${res.problems.join("<br>")}`, { permanent: true });
+      return;
+    }
+    if (res.finalized) {
+      ui.notifications.info(
+        `${res.finalized} skill${res.finalized === 1 ? "" : "s"} finalized — concentrations and specializations now advance separately with Karma (SR2E p.191).`);
+    }
+    return actor.update(reissue, { sr2eSkillsFinalized: true });
+  }).catch((err) => {
+    // The original update is already vetoed, so a silent rejection would leave
+    // the sheet looking unchanged with no idea why. Say so; it is idempotent.
+    console.error("SR2E | finalizing skills failed", err);
+    ui.notifications.error(
+      "Finishing creation failed while finalizing skills — creation is still open. Try again.",
+      { permanent: true });
+  }).finally(() => FINALIZING.delete(actor.id));
   return false;
 });
 

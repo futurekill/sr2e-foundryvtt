@@ -1,7 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
-         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation} from "../rules/sr2e-rules.mjs";
+         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -446,9 +446,12 @@ export class SR2EItem extends Item {
         // Concentration/Specialization pick from the dialog (SR2E p.70)
         const v = options.skillVariant;
         if ((v === "concentration" || v === "specialization") &&
-            item.system[v]?.name && item.system[v].rating > 0) {
-          skillRating = item.system[v].rating + bonus;
-          skillVariantNote = item.system[v].name;
+            item.system[v]?.name && !item.system._subRatingsSuppressed) {
+          const eff = effectiveSkillRating(item.system, v);
+          if (eff > 0) {
+            skillRating = eff + bonus;
+            skillVariantNote = item.system[v].name;
+          }
         }
         break;
       }
@@ -461,11 +464,18 @@ export class SR2EItem extends Item {
       const wname = normalize(this.name);
       for (const item of actor.items) {
         if (item.type !== "skill") continue;
+        // A slotted skillsoft replaces the skill; its sub-ratings do not apply,
+        // and matching by NAME is exactly how a suppressed specialization would
+        // otherwise sneak back into an attack.
+        if (item.system._subRatingsSuppressed) continue;
         for (const v of ["specialization", "concentration"]) {
           const sub = item.system[v];
           if (sub?.name && sub.rating > 0 &&
               (wname.includes(normalize(sub.name)) || normalize(sub.name).includes(wname))) {
-            skillRating = sub.rating;
+            // + bonus, like the dialog path above. Without it an adept lost
+            // Improved Ability precisely when their specialization applied.
+            skillRating = sub.rating
+              + (item.system._adeptBonus ?? 0) + (actor._activeSkillBonus?.(item) ?? 0);
             skillVariantNote = sub.name;
             break;
           }

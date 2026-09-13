@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining} from "../rules/sr2e-rules.mjs";
+import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining} from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -74,6 +74,23 @@ export class SkillData extends SR2EDataModel {
         name: new fields.StringField({ initial: "" }),
         rating: new fields.NumberField({ integer: true, initial: 0, min: 0 })
       }),
+      // --- Concentration/Specialization lifecycle (SR2E p.70, p.191) ---------
+      // p.70's arithmetic is CREATION ONLY. While a skill is PENDING the three
+      // tiers derive from `allocated`; once FINALIZED they are independent
+      // ratings bought with Karma at p.191's 2x / 1.5x / 1x, and nothing derives
+      // them from one another again.
+      //
+      // `allocated` is NULLABLE with no numeric default on purpose: 0 must never
+      // be readable as "missing". It is retained after finalization as
+      // provenance — it explains how the tiers were reached and keeps the
+      // chargen budget readable if finalization half-fails — but is read-only
+      // from that point.
+      allocated: new fields.NumberField({ required: false, nullable: true, integer: true, initial: null }),
+      // Defaults TRUE so that anything created outside the chargen flow — an
+      // NPC skill, a compendium template, an import — is authored data rather
+      // than a half-finished chargen skill. The chargen creation path sets it
+      // false explicitly.
+      ratingsFinalized: new fields.BooleanField({ initial: true }),
       isMagical: new fields.BooleanField({ initial: false }),
       // Language skills only (SR2E p.74): the specific language is a
       // Specialization of a family, and the family is the general skill beneath
@@ -91,14 +108,25 @@ export class SkillData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Concentration/Specialization ratings (SR2E p.55, p.70). The entered
-    // `rating` is the FINAL general rating (already reduced): allocating 5
-    // points with a Specialization yields general 3 / concentration 5 /
-    // specialization 7 — so conc = general + 2 and spec = general + 4.
-    // (A concentration alone: allocated 5 → general 4 / concentration 6.)
-    const sub = skillSubRatings(this.rating);
-    if (this.concentration.name) this.concentration.rating = sub.concentration;
-    if (this.specialization.name) this.specialization.rating = sub.specialization;
+    // PENDING: the p.70 gymnastics run off the allocation, so nobody hand-
+    // computes the reduction and the budget knows what was actually spent.
+    //
+    // FINALIZED: nothing is derived BETWEEN the three purchased ratings. They
+    // are independent from here on, because p.191 buys a Concentration or
+    // Specialization outright without reducing anything, and each advances at
+    // its own Karma cost. Deriving them forever was the bug: it made a
+    // Karma-bought sub-rating impossible to hold.
+    if (!this.ratingsFinalized && Number.isInteger(this.allocated)) {
+      const t = skillTiersFromAllocation(
+        this.allocated, !!this.concentration.name, !!this.specialization.name);
+      this.rating = Math.max(0, t.general);
+      // p.70 grants the concentration governing a specialization even when the
+      // player only named the narrow one.
+      if (this.concentration.name || this.specialization.name) {
+        this.concentration.rating = t.concentration;
+      }
+      if (this.specialization.name) this.specialization.rating = t.specialization;
+    }
     this.applyLanguageRatings();
   }
 

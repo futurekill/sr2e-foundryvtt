@@ -63,5 +63,12 @@ globalThis.Item = class {};
 globalThis.Actor = class {};
 globalThis.foundry = {
   abstract: { TypeDataModel: class {} },
-  utils: { escapeHTML: (s) => String(s ?? "") }
+  utils: {
+    escapeHTML: (s) => String(s ?? ""),
+    // Migrations return FLAT update objects ("system.foo": 1), so merging them
+    // is a plain key-wise assign — no dot expansion, which is what Foundry does
+    // for this shape too.
+    mergeObject: (target, other) => Object.assign(target, other),
+    isEmpty: (o) => !o || Object.keys(o).length === 0
+  }
 };

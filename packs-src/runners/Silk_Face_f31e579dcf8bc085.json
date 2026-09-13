@@ -137,7 +137,8 @@
       "resourcesTotal": 90000,
       "resourcesSpent": 0,
       "forcePointsTotal": 25,
-      "forcePointsSpent": 0
+      "forcePointsSpent": 0,
+      "inProgress": false
     },
     "adeptPowerPoints": {
       "value": 0,

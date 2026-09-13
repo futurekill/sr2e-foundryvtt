@@ -13,7 +13,7 @@
  * window (its button sits at the bottom of the sidebar) and run the SR2E batches.
  */
 import { evaluateDamageCode } from "../documents/item.mjs";
-import { testTotalSuccesses } from "../rules/sr2e-rules.mjs";
+import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating } from "../rules/sr2e-rules.mjs";
 
 export function registerSR2EQuenchTests() {
   Hooks.on("quenchReady", (quench) => {
@@ -2618,6 +2618,262 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Karma Pool (p.191)" });
+
+    // ── Skill Concentrations / Specializations (p.70, p.191) ────────────────
+    // The arithmetic is unit-tested; what needs a live world is the lifecycle:
+    // that a pending skill derives, that finishing creation freezes it, and
+    // that a slotted skillsoft cannot be rolled through a specialization.
+    quench.registerBatch("sr2e.skill-tiers", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+
+      async function pc(chargen = true, skills = []) {
+        const a = await Actor.create({
+          name: "Quench Skill Tiers", type: "character",
+          system: { quickness: { base: 4 }, chargen: { inProgress: chargen } },
+          items: skills
+        });
+        made.push(a); return a;
+      }
+      const firearms = (system) => ({
+        name: "Firearms", type: "skill",
+        system: { category: "active", linkedAttribute: "quickness", ...system }
+      });
+
+      describe("pending: the tiers derive from the allocation (p.70)", () => {
+        it("reproduces the book's worked example", async () => {
+          const a = await pc(true, [firearms({
+            allocated: 5, ratingsFinalized: false,
+            concentration: { name: "SMG" }, specialization: { name: "Uzi III" }
+          })]);
+          const s = a.items.find(i => i.type === "skill").system;
+          assert.equal(s.rating, 3, "Firearms 3");
+          assert.equal(s.concentration.rating, 5, "SMG 5");
+          assert.equal(s.specialization.rating, 7, "Uzi III 7");
+        });
+
+        it("grants the concentration p.70 grants, even if only the spec was named", async () => {
+          const a = await pc(true, [firearms({
+            allocated: 5, ratingsFinalized: false, specialization: { name: "Uzi III" }
+          })]);
+          assert.equal(a.items.find(i => i.type === "skill").system.concentration.rating, 5);
+        });
+
+        it("re-derives when a concentration is added", async () => {
+          const a = await pc(true, [firearms({ allocated: 5, ratingsFinalized: false })]);
+          const it0 = a.items.find(i => i.type === "skill");
+          assert.equal(it0.system.rating, 5, "plain: general is the whole allocation");
+          await it0.update({ "system.concentration.name": "SMG" });
+          assert.equal(it0.system.rating, 4, "general drops by 1");
+          assert.equal(it0.system.concentration.rating, 6);
+        });
+      });
+
+      describe("finalized: the ratings are independent (p.191)", () => {
+        it("stops deriving, so a Karma-bought specialization holds", async () => {
+          const a = await pc(false, [firearms({
+            ratingsFinalized: true, rating: 3,
+            concentration: { name: "SMG", rating: 5 },
+            specialization: { name: "Uzi III", rating: 7 }
+          })]);
+          const item = a.items.find(i => i.type === "skill");
+          await item.update({ "system.specialization.rating": 9 });
+          assert.equal(item.system.specialization.rating, 9,
+            "a Karma-advanced specialization must survive preparation");
+          await item.update({ "system.rating": 6 });
+          assert.equal(item.system.specialization.rating, 9,
+            "and raising the general must NOT drag the specialization with it");
+        });
+      });
+
+      describe("finishing creation finalizes", () => {
+        it("freezes the derived tiers and flips the flag", async () => {
+          const a = await pc(true, [firearms({
+            allocated: 5, ratingsFinalized: false,
+            concentration: { name: "SMG" }, specialization: { name: "Uzi III" }
+          })]);
+          await a.update({ "system.chargen.inProgress": false });
+          // The hook re-issues the update asynchronously; give it a tick.
+          await new Promise(r => setTimeout(r, 250));
+          const s = a.items.find(i => i.type === "skill").system;
+          assert.isTrue(s.ratingsFinalized, "the skill should be finalized");
+          assert.equal(s.rating, 3, "and keep exactly the ratings it had");
+          assert.equal(s.concentration.rating, 5);
+          assert.equal(s.specialization.rating, 7);
+        });
+
+        it("is idempotent — re-running finds everything already finalized", async () => {
+          const a = await pc(false, [firearms({
+            ratingsFinalized: true, rating: 3, concentration: { name: "SMG", rating: 5 }
+          })]);
+          await a.update({ "system.chargen.inProgress": false });
+          await new Promise(r => setTimeout(r, 150));
+          assert.equal(a.items.find(i => i.type === "skill").system.concentration.rating, 5,
+            "a second finish must not move anything");
+        });
+      });
+
+      describe("adding a skill picks the right lifecycle", () => {
+        // Regression: the schema defaults `ratingsFinalized` to TRUE so that
+        // NPCs and compendium skills are authored data. That default is wrong
+        // for a character still in creation, and nothing in the Add Skill
+        // button knew it — a skill added mid-chargen came out finalized and
+        // never derived its tiers.
+        it("a skill added DURING creation is pending, with an allocation", async () => {
+          const a = await pc(true);
+          const [item] = await a.createEmbeddedDocuments("Item", [
+            { name: "Firearms", type: "skill", system: { category: "active" } }]);
+          assert.isFalse(item.system.ratingsFinalized, "should be pending");
+          assert.equal(item.system.allocated, 0, "a blank skill starts at 0, not 1");
+          await item.update({ "system.allocated": 5, "system.concentration.name": "SMG" });
+          assert.equal(item.system.rating, 4, "and p.70 now derives from it");
+          assert.equal(item.system.concentration.rating, 6);
+        });
+
+        it("a skill dropped mid-chargen keeps the rating it was authored with", async () => {
+          const a = await pc(true);
+          const [item] = await a.createEmbeddedDocuments("Item", [
+            { name: "Etiquette", type: "skill", system: { category: "active", rating: 6 } }]);
+          assert.equal(item.system.allocated, 6, "the authored general IS the allocation");
+          assert.equal(item.system.rating, 6, "so the number on the sheet does not move");
+        });
+
+        it("skills embedded in an Actor.create payload are normalized too", async () => {
+          // preCreateItem does NOT fire for items supplied inside an actor's
+          // creation payload — they are descendants of the actor's own create.
+          // Without preCreateActor, a whole character imported mid-creation
+          // would arrive finalized while a skill added a second later did not.
+          const a = await Actor.create({
+            name: "Quench Embedded Skills", type: "character",
+            system: { chargen: { inProgress: true } },
+            items: [{
+              name: "Firearms", type: "skill",
+              system: {
+                category: "active", linkedAttribute: "quickness",
+                rating: 3, ratingsFinalized: true,
+                concentration: { name: "SMG", rating: 5 },
+                specialization: { name: "Uzi III", rating: 7 }
+              }
+            }]
+          });
+          made.push(a);
+          const s2 = a.items.find(i => i.type === "skill").system;
+          assert.isFalse(s2.ratingsFinalized, "the destination character is mid-creation");
+          assert.equal(s2.allocated, 5, "3 + 2 for the specialization (p.70)");
+          assert.equal(s2.rating, 3, "and the tiers re-derive to exactly where they were");
+          assert.equal(s2.specialization.rating, 7);
+          // Two hooks each rebuilding the items array would clobber each other;
+          // the default weapon is the thing that goes missing when they do.
+          assert.equal(a.items.filter(i => i.name === "Unarmed Strike").length, 1,
+            "the default Unarmed Strike must survive skill normalization");
+        });
+
+        it("a FINISHED actor's embedded skills are left alone", async () => {
+          // The sample runners ship this way. Their ratings must not be touched.
+          const a = await pc(false, [firearms({
+            ratingsFinalized: true, rating: 3,
+            concentration: { name: "SMG", rating: 5 }
+          })]);
+          const s2 = a.items.find(i => i.type === "skill").system;
+          assert.isTrue(s2.ratingsFinalized);
+          assert.equal(s2.rating, 3);
+          assert.equal(s2.concentration.rating, 5);
+        });
+
+        it("a FINALIZED skill copied from another actor becomes pending, once", async () => {
+          // The payload of a document-to-document copy carries the schema's own
+          // `ratingsFinalized: true`, which is why provenance cannot be trusted
+          // to decide the lifecycle. p.70 must be inverted exactly once.
+          const src = await pc(false, [firearms({
+            ratingsFinalized: true, rating: 3,
+            concentration: { name: "SMG", rating: 5 },
+            specialization: { name: "Uzi III", rating: 7 }
+          })]);
+          const payload = src.items.find(i => i.type === "skill").toObject();
+          assert.isTrue(payload.system.ratingsFinalized, "the copy really does carry true");
+          const dest = await pc(true);
+          const [item] = await dest.createEmbeddedDocuments("Item", [payload]);
+          assert.isFalse(item.system.ratingsFinalized, "the destination is mid-creation");
+          assert.equal(item.system.allocated, 5, "3 + 2 for the specialization (p.70)");
+          assert.equal(item.system.rating, 3, "and the derived tiers land back where they were");
+          assert.equal(item.system.specialization.rating, 7);
+        });
+
+        it("a PENDING skill copied from another actor is not inverted twice", async () => {
+          const src = await pc(true, [firearms({
+            allocated: 5, ratingsFinalized: false, concentration: { name: "SMG" }
+          })]);
+          const payload = src.items.find(i => i.type === "skill").toObject();
+          const dest = await pc(true);
+          const [item] = await dest.createEmbeddedDocuments("Item", [payload]);
+          // Inversion happens to reconstruct the same number here, so this
+          // proves the allocation SURVIVES the copy, not which branch ran.
+          assert.equal(item.system.allocated, 5, "the allocation carries across");
+          assert.equal(item.system.rating, 4);
+        });
+
+        it("a skill added to a FINISHED character stays authored", async () => {
+          const a = await pc(false);
+          const [item] = await a.createEmbeddedDocuments("Item", [
+            { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } }]);
+          assert.isTrue(item.system.ratingsFinalized);
+          assert.equal(item.system.rating, 4, "a Karma purchase is not chargen arithmetic");
+        });
+
+        it("finishing creation does not choke on a blank row", async () => {
+          // An empty skill the player added and abandoned must not jam the
+          // whole sheet behind a validation error.
+          const a = await pc(true);
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Abandoned", type: "skill", system: { category: "active" } }]);
+          await a.update({ "system.chargen.inProgress": false });
+          await new Promise(r => setTimeout(r, 250));
+          assert.isFalse(a.system.chargen.inProgress, "creation should have finished");
+          assert.isTrue(a.items.find(i => i.name === "Abandoned").system.ratingsFinalized);
+        });
+      });
+
+      describe("a slotted skillsoft suppresses sub-ratings", () => {
+        // Built through a REAL ActiveSoft rather than by setting the marker by
+        // hand: the marker is only correct if _applySkillsofts actually sets it,
+        // and the chip rating has to visibly replace the natural one.
+        async function chipped(slotted) {
+          const a = await pc(false, [
+            firearms({ ratingsFinalized: true, rating: 3,
+                       concentration: { name: "SMG", rating: 5 },
+                       specialization: { name: "Uzi III", rating: 7 } }),
+            { name: "Skillwires 8", type: "cyberware",
+              system: { installed: true, rating: 8 } },
+            { name: "Firearms ActiveSoft", type: "gear",
+              system: { category: "skillsoft", slotted, rating: 6,
+                        grantedSkill: "Firearms", grantedSkillCategory: "active",
+                        grantedSkillAttribute: "quickness" } }
+          ]);
+          return [a, a.items.find(i => i.type === "skill")];
+        }
+
+        it("the chip's rating replaces the skill, and the sub-ratings go with it", async () => {
+          const [, item] = await chipped(true);
+          assert.equal(item.system.rating, 6, "the chip supplies the skill at ITS rating");
+          assert.isTrue(item.system._subRatingsSuppressed, "_applySkillsofts must set the marker");
+          assert.equal(sr2eEffectiveSkillRating(item.system, "specialization"), 6,
+            "the chip's rating applies, not the natural spec");
+          assert.equal(sr2eEffectiveSkillRating(item.system, "concentration"), 6);
+          assert.equal(item.system.specialization.rating, 7,
+            "and the natural rating is NOT destroyed — it is a marker, not a wipe");
+        });
+
+        it("un-slotting restores the character's own ratings", async () => {
+          const [a, item] = await chipped(true);
+          await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
+          const skill = a.items.find(i => i.type === "skill");
+          assert.notOk(skill.system._subRatingsSuppressed, "the marker must clear");
+          assert.equal(skill.system.rating, 3, "back to the natural rating");
+          assert.equal(sr2eEffectiveSkillRating(skill.system, "specialization"), 7);
+        });
+      });
+    }, { displayName: "SR2E: Skill tiers (p.70)" });
 
     // ── Healing & recovery ────────────────────────────────────────────────────
     // The guard conditions matter more than the rolls here. These are the paths a

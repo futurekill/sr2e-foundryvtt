@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — Concentrations and Specializations (SR2E p.70, p.191)
+
+Reported from the table: they "weren't working properly". They weren't, and the
+cause was structural.
+
+- **They now survive character creation.** p.70's +1/−1 and +2/−2 arithmetic is
+  creation-only; p.191 then buys a Concentration or Specialization outright at
+  1.5× / 1× the new rating, reducing nothing, after which the three ratings
+  advance independently. The system applied the creation arithmetic on every
+  data preparation, forever — so a sub-rating was always `general + 2` or `+ 4`
+  and an independently advanced one could not exist. Skills now have a
+  lifecycle: while being created the tiers derive from the points allocated;
+  once creation is finished they are independent ratings.
+- **You no longer subtract by hand.** Enter what you allocated; the general,
+  concentration and specialization are worked out from it. Previously the sheet
+  wanted the already-reduced general and explained it only in a tooltip.
+- **Chargen stops refunding points.** The budget counted the *reduced* general,
+  so every concentration quietly gave back 1 skill point and every
+  specialization 2.
+- **Specializing grants its concentration** (p.70), instead of leaving the
+  middle tier missing.
+- **A slotted ActiveSoft no longer leaves stale sub-ratings.** A skillsoft is
+  not a Concentration, so sub-ratings are suppressed while it is in — and
+  suppressed with a marker rather than by zeroing, so un-slotting restores a
+  Karma-bought specialization untouched.
+- **NPCs can roll concentrations and specializations at all.** The NPC sheet had
+  no variant tags; every NPC skill rolled the general only.
+- **Adepts keep Improved Ability when their specialization applies.** The
+  weapon-name fallback assigned the sub-rating with no bonus, while the dialog
+  path added it.
+
+- **The sample runners now ship with creation finished.** None of them set
+  `chargen.inProgress`, which defaults to *true*, so all seven were nominally
+  mid-creation. Beyond the skill lifecycle this also means their purchases were
+  being priced at list with no Street Index markup; gear bought on an imported
+  sample runner now costs street price. Re-import them to pick this up.
+
+**Nobody's numbers change.** The migration freezes every existing skill at
+exactly the ratings it was showing. Characters still *in* character creation are
+left pending so their tiers keep deriving until they finish, and the GM gets a
+list of them — so a stale or imported chargen flag surfaces instead of hiding.
+
 ## 0.91.0 — 2026-08-28
 
 ### Fixed — Karma Pool now follows SR2E p.47 and p.191

@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating,
+import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, focusEligibleFor, focusRemaining} from "../rules/sr2e-rules.mjs";
@@ -298,9 +298,9 @@ async function onRollSkill(event, target) {
   // The family variant is a flat number, not a {name, rating} sub-object, so it
   // is read separately — and the plain case must use the language's derived
   // rating (SR2E p.74) or the Karma cap would sit 2 below the dice being rolled.
-  let baseDice = (variant === "family" ? skillItem?.system?.familyRating : 0)
-    || (variant && skillItem?.system?.[variant]?.rating)
-    || skillRollRating(skillItem?.system) || 0;
+  // Through the single selector, so the Karma-dice cap matches the dice that
+  // will actually be rolled — including when a skillsoft suppresses sub-ratings.
+  let baseDice = effectiveSkillRating(skillItem?.system, variant) || 0;
   if (baseDice <= 0) {
     const attrKey = skillItem?.system?.linkedAttribute || "quickness";
     baseDice = attrKey === "reaction"
@@ -1430,13 +1430,18 @@ export async function rollWeaponInteractive(actor, item) {
   if (linkedSkill && (linkedSkill.system.rating ?? 0) > 0) {
     skillChoices.push({ key: "", label: `${linkedSkill.name} ${linkedSkill.system.rating}`,
                         rating: linkedSkill.system.rating, selected: true });
+    // A slotted skillsoft replaces the skill outright; its sub-ratings do not
+    // apply, so the dialog must not OFFER them either. `effectiveSkillRating`
+    // is the one selector that knows this — read every rating through it.
     for (const v of ["concentration", "specialization"]) {
       const sub = linkedSkill.system[v];
-      if (sub?.name && sub.rating > 0) {
+      if (!sub?.name || !(sub.rating > 0) || linkedSkill.system._subRatingsSuppressed) continue;
+      const eff = effectiveSkillRating(linkedSkill.system, v);
+      if (eff > 0) {
         const selected = v === "specialization" &&
           normalize(item.name).includes(normalize(sub.name));
         if (selected) skillChoices[0].selected = false;
-        skillChoices.push({ key: v, label: `${sub.name} ${sub.rating}`, rating: sub.rating, selected });
+        skillChoices.push({ key: v, label: `${sub.name} ${eff}`, rating: eff, selected });
       }
     }
   }
@@ -1448,6 +1453,9 @@ export async function rollWeaponInteractive(actor, item) {
     const wname = normalize(item.name);
     outer: for (const sk of actor.items) {
       if (sk.type !== "skill") continue;
+      // Matching by NAME is exactly how a suppressed specialization would
+      // otherwise sneak back in behind a slotted chip.
+      if (sk.system._subRatingsSuppressed) continue;
       for (const v of ["specialization", "concentration"]) {
         const sub = sk.system[v];
         if (sub?.name && sub.rating > 0 &&

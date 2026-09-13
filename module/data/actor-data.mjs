@@ -568,6 +568,18 @@ export class CharacterData extends SR2EDataModel {
         existing.system._chipSource = soft.name;
         existing.system._nativeRating = existing.system.rating;
         existing.system.rating = rating;
+        // A skillsoft supplies the skill at its own rating. It is NOT a
+        // Concentration, so the character's own concentration/specialization do
+        // not apply while it is slotted — and they were derived off the NATIVE
+        // rating anyway, so leaving them would roll numbers from a rating the
+        // character no longer has.
+        //
+        // A MARKER, not zeroed ratings: zeroing could be persisted by a broad
+        // form submission, and the natural ratings would then be unrecoverable
+        // — impossible to reconstruct for a Karma-bought specialization.
+        // effectiveSkillRating() rejects sub-variants while this is set, and
+        // un-slotting simply stops setting it on the next preparation.
+        existing.system._subRatingsSuppressed = true;
         // The item's own prepareDerivedData already ran, off the NATIVE rating.
         // Re-derive the language/family numbers or they describe a rating the
         // character no longer has (SR2E p.74) — and a chip is not a chargen
