@@ -1,0 +1,33 @@
+{
+  "_id": "a7dcbe36e8c7639d",
+  "name": "Fixer",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Fixer",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.207. A fence and/or arranger, a power broker of the streets who always has the latest in software, equipment, or information. All for a price. Full stat block: see the \"Fixer\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!a7dcbe36e8c7639d"
+}

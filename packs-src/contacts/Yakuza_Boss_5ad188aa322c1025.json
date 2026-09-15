@@ -1,0 +1,33 @@
+{
+  "_id": "5ad188aa322c1025",
+  "name": "Yakuza Boss",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Yakuza Boss",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.213. The new men are nothing more than gangsters and ruffians. The old bosses prefer influence-peddling and embarrassment tactics over the crude intimidation and violence favored by the new blood. Still philosophizing and courteous, if always seeking to spread a veneer of culture and gentility over his rough edges. Full stat block: see the \"Yakuza Boss\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5ad188aa322c1025"
+}

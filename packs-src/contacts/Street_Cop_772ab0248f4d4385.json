@@ -1,0 +1,33 @@
+{
+  "_id": "772ab0248f4d4385",
+  "name": "Street Cop",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Street Cop",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.211. A slightly disillusioned, frustrated but still determined servant of the law. Works for an independent corporation rather than the government, which means better benefits but lesser prestige. Some have succumbed to the temptations of their positions and become bad cops, but most remain true to their honor. Full stat block: see the \"Street Cop\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!772ab0248f4d4385"
+}

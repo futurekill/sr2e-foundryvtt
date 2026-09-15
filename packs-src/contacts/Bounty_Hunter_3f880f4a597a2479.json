@@ -1,0 +1,33 @@
+{
+  "_id": "3f880f4a597a2479",
+  "name": "Bounty Hunter",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Bounty Hunter",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.203. A hard woman who tracks the people corporate cops and hitmen have no time for. Very good at what she does. Full stat block: see the \"Bounty Hunter\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!3f880f4a597a2479"
+}

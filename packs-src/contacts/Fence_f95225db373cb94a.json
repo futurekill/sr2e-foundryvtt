@@ -9,7 +9,7 @@
     "loyalty": 1,
     "influence": 2,
     "description": "",
-    "notes": "SR2E p.41. Buys and sells stolen goods, no questions."
+    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Buys and sells stolen goods, no questions."
   },
   "effects": [],
   "flags": {},
@@ -24,7 +24,7 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "0c495a9fa7ca2224",
+  "folder": "45589ec5e8ab55e1",
   "sort": 0,
   "ownership": {
     "default": 0

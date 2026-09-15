@@ -1,0 +1,33 @@
+{
+  "_id": "cb1f9102bc0da313",
+  "name": "City Official",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "City Official",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.204. A typical member of the bureaucracy that runs the metroplex. Concerned about public image and the reactions of voters. Most trustworthy during a campaign, and will gladly sell you out for a political or career advantage. Full stat block: see the \"City Official\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!cb1f9102bc0da313"
+}

@@ -145,6 +145,18 @@
       "flags": {}
     },
     {
+      "name": "contact-npcs",
+      "label": "SR2E Contacts (NPCs)",
+      "path": "packs/contact-npcs",
+      "type": "Actor",
+      "system": "sr2e",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    },
+    {
       "name": "lifestyles",
       "label": "SR2E Lifestyles",
       "path": "packs/lifestyles",

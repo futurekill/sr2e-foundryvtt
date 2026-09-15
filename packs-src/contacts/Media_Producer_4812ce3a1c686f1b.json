@@ -1,0 +1,33 @@
+{
+  "_id": "4812ce3a1c686f1b",
+  "name": "Media Producer",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Media Producer",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.209. An entertainment entrepreneur who draws a very fine line between news information and entertainment. Knows what is newsworthy, and how to present a story in a way that will not leave anybody too upset. Broadcasting is a business, after all. Full stat block: see the \"Media Producer\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!4812ce3a1c686f1b"
+}

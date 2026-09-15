@@ -1,0 +1,33 @@
+{
+  "_id": "e35daf7faa847f4f",
+  "name": "Street Doc",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Street Doc",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.211. May be a quack, or may be a top-flight surgeon, but either way he is an outlaw's best friend. Keeps his mouth shut and will not report any suspicious wounds to the corp-sec or register your augmentations with the manufacturer for full-warranty coverage. He has his own skeletons in the closet. Full stat block: see the \"Street Doc\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!e35daf7faa847f4f"
+}

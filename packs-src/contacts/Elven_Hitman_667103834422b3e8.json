@@ -1,0 +1,33 @@
+{
+  "_id": "667103834422b3e8",
+  "name": "Elven Hitman",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Elven Hitman",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.206. Slick, smooth, and he knows it. The quintessential gentleman-assassin — impeccably dressed, accessories of the finest quality, with just a hint of dangerous arrogance. Unless he loses his temper. Full stat block: see the \"Elven Hitman\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!667103834422b3e8"
+}

@@ -1,0 +1,23 @@
+{
+  "_id": "45589ec5e8ab55e1",
+  "name": "Custom (not in the core book)",
+  "type": "Item",
+  "description": "Archetypes invented for this system, not printed in the SR2E core rulebook. They previously cited p.41, which is a full-page illustration.",
+  "folder": null,
+  "sorting": "a",
+  "sort": 0,
+  "color": null,
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "_key": "!folders!45589ec5e8ab55e1"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "5a1613ba864901f2",
+  "name": "Humanis Policlub Member",
+  "type": "contact",
+  "img": "icons/svg/mystery-man.svg",
+  "system": {
+    "contactType": "contact",
+    "archetype": "Humanis Policlub Member",
+    "loyalty": 1,
+    "influence": 1,
+    "description": "",
+    "notes": "SR2E p.208. Belongs to an organisation that opposes all legal rights for the Awakened, especially metahumans. They have been known to twist and bend existing laws whenever possible in order to further their own aims. NOTE: The individual member will have 1D6 other members he can call on to help him. Humanis members tend to be pack-animals. Full stat block: see the \"Humanis Policlub Member\" actor in the SR2E Contacts (NPCs) compendium."
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.92.1",
+    "createdTime": 1784000000000,
+    "modifiedTime": 1784000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "0c495a9fa7ca2224",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5a1613ba864901f2"
+}
