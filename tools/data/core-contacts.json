@@ -2,135 +2,628 @@
   "$source": "SR2E core rulebook, corrected 11th printing, CONTACTS chapter pp.200-213. Every value below was read from a 220 dpi PAGE RENDER, never the text layer (which mangles digits). Attribute values in parentheses in the book are the cyberware-boosted figure; `boosted` records it.",
   "$professionalRating": "The book prints ranges (e.g. 3-4). The schema field is a single integer 0-6, so the LOW end is stored and the printed range is kept in `ratingPrinted` and repeated in the bio.",
   "contacts": [
-    {"name":"Bartender","page":203,"race":"human","pr":1,"ratingPrinted":"1",
-     "attrs":{"body":4,"quickness":3,"strength":4,"charisma":3,"intelligence":2,"willpower":2,"essence":6,"reaction":2},
-     "skills":{"Firearms":3,"Etiquette (Street)":4,"Unarmed Combat":3},
-     "special":{"Rumormill":5,"Sympathetic Listening":5},
-     "blurb":"A common source of information on current conditions in the streets and on the club circuit. Discreet and reliable, for a price."},
-
-    {"name":"Bounty Hunter","page":203,"race":"human","pr":3,"ratingPrinted":"3-4",
-     "attrs":{"body":6,"quickness":5,"strength":5,"charisma":1,"intelligence":4,"willpower":4,"essence":2.35,"reaction":4},
-     "boosted":{"strength":6,"reaction":8},
-     "skills":{"Bike":5,"Car":5,"Computer":4,"Etiquette (Corporate)":3,"Etiquette (Street)":5,"Firearms":8,"Stealth":4,"Unarmed Combat":6},
-     "special":{"Data Tracing":3,"Tracking":3},
-     "cyber":["Cyberarm (Strength 1)","Cybereyes with Thermographic Imaging","Smartlink","Wired Reflexes (2)"],
-     "blurb":"A hard woman who tracks the people corporate cops and hitmen have no time for. Very good at what she does."},
-
-    {"name":"City Official","page":204,"race":"human","pr":1,"ratingPrinted":"1",
-     "attrs":{"body":2,"quickness":2,"strength":2,"charisma":5,"intelligence":3,"willpower":2,"essence":6,"reaction":2},
-     "skills":{"Etiquette (Corporate)":4,"Etiquette (Tribal)":3,"Negotiate":4},
-     "blurb":"A typical member of the bureaucracy that runs the metroplex. Concerned about public image and the reactions of voters. Most trustworthy during a campaign, and will gladly sell you out for a political or career advantage."},
-
-    {"name":"Company Man","page":204,"race":"human","pr":3,"ratingPrinted":"3",
-     "attrs":{"body":6,"quickness":5,"strength":6,"charisma":2,"intelligence":4,"willpower":5,"essence":3,"reaction":4},
-     "boosted":{"reaction":6},
-     "skills":{"Etiquette (Corporate)":3,"Firearms":7,"Stealth":5,"Unarmed Combat":6,"Vehicle (Gamemaster's discretion for type)":5},
-     "cyber":["Wired Reflexes (1)","Skillwires (5)"],
-     "blurb":"The special executive agent for the corporation. He does his job, no questions asked. Loyal, often unto death — after all, the corporation can even fix that."},
-
-    {"name":"Corporate Secretary","page":205,"race":"human","pr":1,"ratingPrinted":"1",
-     "attrs":{"body":2,"quickness":2,"strength":2,"charisma":4,"intelligence":4,"willpower":2,"essence":4.8,"reaction":3},
-     "skills":{"Computer":3,"Etiquette (Corporate)":4},
-     "special":{"Corporate Rumormill":4},
-     "cyber":["Datajack, 100 Mp of Memory"],
-     "blurb":"Cool, efficient, loyal and discreet. You would want her working for you if you could have her — as much a part of the corporate office as the furniture and telecom."},
-
-    {"name":"Corporate Security Guard","page":205,"race":"human","pr":2,"ratingPrinted":"2",
-     "attrs":{"body":4,"quickness":3,"strength":3,"charisma":2,"intelligence":2,"willpower":2,"essence":6,"reaction":2},
-     "skills":{"Etiquette (Corporate)":2,"Firearms":3,"Interrogation":2,"Unarmed Combat":3},
-     "blurb":"A simple man more interested in his own private life and survival than in dangerous action. Values his position and works in the corporation's best interests, especially when an official is watching."},
-
-    {"name":"Dwarf Technician","page":206,"race":"dwarf","pr":1,"ratingPrinted":"1-2",
-     "attrs":{"body":4,"quickness":2,"strength":3,"charisma":2,"intelligence":6,"willpower":4,"essence":3.8,"reaction":4},
-     "skills":{"Computer Theory":6,"Computers (B/R)":6,"Electronics (B/R)":9,"Electronics":6,"Etiquette (Street or Corporate)":3},
-     "cyber":["Datajack, 200 Mp of Memory"],
-     "blurb":"Nobody appreciates good craftsmanship any more. Works harder than anyone and would never admit that stereotype fits."},
-
-    {"name":"Elven Hitman","page":206,"race":"elf","pr":3,"ratingPrinted":"3-4",
-     "attrs":{"body":5,"quickness":6,"strength":5,"charisma":2,"intelligence":4,"willpower":4,"essence":2.5,"reaction":5},
-     "boosted":{"reaction":9},
-     "skills":{"Bike":4,"Car":4,"Demolition":4,"Etiquette (Corporate)":3,"Etiquette (Street)":3,"Firearms":8,"Hovercraft":4,"Unarmed Combat":4},
-     "cyber":["Wired Reflexes (2)","Smartlink"],
-     "blurb":"Slick, smooth, and he knows it. The quintessential gentleman-assassin — impeccably dressed, accessories of the finest quality, with just a hint of dangerous arrogance. Unless he loses his temper."},
-
-    {"name":"Fixer","page":207,"race":"human","pr":2,"ratingPrinted":"2-3",
-     "attrs":{"body":2,"quickness":3,"strength":2,"charisma":3,"intelligence":5,"willpower":5,"essence":1.8,"reaction":4},
-     "skills":{"Computer":3,"Electronics":3,"Etiquette (Street)":5,"Firearms":3,"Negotiation":7},
-     "special":{"Evaluate Value of Hi-Tech Items":6,"Equipment Acquisition":4},
-     "cyber":["Cybereyes","Datajack, 300 Mp of Memory"],
-     "blurb":"A fence and/or arranger, a power broker of the streets who always has the latest in software, equipment, or information. All for a price."},
-
-    {"name":"Gang Boss","page":207,"race":"human","pr":2,"ratingPrinted":"2-3",
-     "attrs":{"body":3,"quickness":3,"strength":4,"charisma":4,"intelligence":4,"willpower":4,"essence":6,"reaction":3},
-     "skills":{"Armed Combat":4,"Etiquette (Street)":6,"Firearms":4,"Leadership":4,"Unarmed Combat":2},
-     "blurb":"Talks tough, and is tough. Has to be in order to stay on top — but he is not stupid. He learned a lot of hard lessons growing up on the streets. Just being tough does not cut it any more."},
-
-    {"name":"Humanis Policlub Member","page":208,"race":"human","pr":1,"ratingPrinted":"1-3",
-     "attrs":{"body":4,"quickness":4,"strength":4,"charisma":2,"intelligence":2,"willpower":4,"essence":6,"reaction":3},
-     "skills":{"Bike":3,"Car":3,"Demolition":4,"Etiquette (Street)":3,"Firearms":4},
-     "note":"The individual member will have 1D6 other members he can call on to help him. Humanis members tend to be pack-animals.",
-     "blurb":"Belongs to an organisation that opposes all legal rights for the Awakened, especially metahumans. They have been known to twist and bend existing laws whenever possible in order to further their own aims."},
-
-    {"name":"Mechanic","page":208,"race":"human","pr":1,"ratingPrinted":"1-2",
-     "attrs":{"body":2,"quickness":3,"strength":3,"charisma":2,"intelligence":6,"willpower":4,"essence":6,"reaction":4},
-     "skills":{"Aircraft (B/R)":6,"Computer Theory":6,"Computer":3,"Electronics (B/R)":5,"Electronics":3,"Ground Vehicles (B/R)":8},
-     "blurb":"The person to see when your transport is down. She also does custom work."},
-
-    {"name":"Media Producer","page":209,"race":"human","pr":2,"ratingPrinted":"2",
-     "attrs":{"body":2,"quickness":3,"strength":2,"charisma":5,"intelligence":4,"willpower":4,"essence":6,"reaction":3},
-     "skills":{"Computer":3,"Etiquette (Corporate)":4,"Etiquette (Media)":4,"Etiquette (Street)":4,"Negotiation":4,"Stealth":3,"Unarmed Combat":2},
-     "blurb":"An entertainment entrepreneur who draws a very fine line between news information and entertainment. Knows what is newsworthy, and how to present a story in a way that will not leave anybody too upset. Broadcasting is a business, after all."},
-
-    {"name":"Metahuman Rights Activist","page":209,"race":"human","pr":2,"ratingPrinted":"2-3",
-     "attrs":{"body":2,"quickness":2,"strength":2,"charisma":2,"intelligence":2,"willpower":2,"essence":6,"reaction":2},
-     "skills":{"Etiquette (Media)":5,"Interrogation":3,"Leadership":3,"Negotiation":3},
-     "blurb":"Believes in equal justice before the law — and that any unjust law deserves to be broken. A mortal foe of the Humanis cultists."},
-
-    {"name":"Mr. Johnson","page":210,"race":"human","pr":2,"ratingPrinted":"2-3",
-     "attrs":{"body":2,"quickness":2,"strength":2,"charisma":4,"intelligence":6,"willpower":5,"essence":3.8,"reaction":4},
-     "skills":{"Computer Theory":5,"Etiquette (Corporate)":8,"Negotiation":6,"Psychology":8},
-     "special":{"History":4},
-     "cyber":["Datajack, 200 Mp of Memory"],
-     "blurb":"May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him."},
-
-    {"name":"Squatter","page":210,"race":"human","pr":1,"ratingPrinted":"1-2",
-     "attrs":{"body":2,"quickness":2,"strength":1,"charisma":1,"intelligence":2,"willpower":2,"essence":6,"reaction":2},
-     "skills":{"Etiquette (Street)":3},
-     "special":{"Know Neighborhood":6,"Scrounge":6},
-     "blurb":"A rough victim of the underside of the metroplex, hardened and beaten down by life in the slums. A survivor who tries to roll with the punches and still wants to see another day in one piece."},
-
-    {"name":"Street Cop","page":211,"race":"human","pr":2,"ratingPrinted":"2",
-     "attrs":{"body":4,"quickness":4,"strength":4,"charisma":2,"intelligence":3,"willpower":3,"essence":6,"reaction":3},
-     "skills":{"Armed Combat":2,"Etiquette (Corporate)":2,"Etiquette (Street)":4,"Firearms":3,"Unarmed Combat":3},
-     "special":{"Police Procedures":4},
-     "blurb":"A slightly disillusioned, frustrated but still determined servant of the law. Works for an independent corporation rather than the government, which means better benefits but lesser prestige. Some have succumbed to the temptations of their positions and become bad cops, but most remain true to their honor."},
-
-    {"name":"Street Doc","page":211,"race":"human","pr":1,"ratingPrinted":"1-2",
-     "attrs":{"body":2,"quickness":3,"strength":2,"charisma":2,"intelligence":4,"willpower":2,"essence":5.8,"reaction":3},
-     "skills":{"Biological Sciences":6,"Biotech":8,"Etiquette (Street)":3,"Negotiation":4},
-     "cyber":["Datajack"],
-     "blurb":"May be a quack, or may be a top-flight surgeon, but either way he is an outlaw's best friend. Keeps his mouth shut and will not report any suspicious wounds to the corp-sec or register your augmentations with the manufacturer for full-warranty coverage. He has his own skeletons in the closet."},
-
-    {"name":"Talismonger","page":212,"race":"human","pr":1,"ratingPrinted":"1-2","magic":6,
-     "attrs":{"body":2,"quickness":3,"strength":3,"charisma":2,"intelligence":3,"willpower":4,"essence":6,"reaction":3},
-     "skills":{"Etiquette (Street)":4,"Magical Theory":8,"Negotiation":6,"Sorcery":4},
-     "special":{"Evaluate Magical Goods":6,"Woodworking":4,"Metalworking":4},
-     "blurb":"A broker of magical goods and services, sort of an occult middle-woman. Sometimes she will moonlight as a fence for stolen magical materials as well as information."},
-
-    {"name":"Tribal Chief","page":212,"race":"human","pr":1,"ratingPrinted":"1-2",
-     "attrs":{"body":3,"quickness":3,"strength":4,"charisma":4,"intelligence":4,"willpower":4,"essence":6,"reaction":3},
-     "skills":{"Etiquette (Corporate)":4,"Etiquette (Tribal)":8,"Leadership":5,"Negotiation":4,"Projectile Weapons":4,"Psychology":5,"Stealth":5},
-     "blurb":"Strives to uphold the sacred lodge of his people, but must also deal with the wider world and the corporations if he is to guide his tribe well. He therefore makes it a point to know what is going on around him at all times."},
-
-    {"name":"Troll Bouncer","page":213,"race":"troll","pr":2,"ratingPrinted":"2-3",
-     "attrs":{"body":9,"quickness":3,"strength":9,"charisma":1,"intelligence":1,"willpower":2,"essence":6,"reaction":2},
-     "skills":{"Armed Combat":3,"Etiquette (Street)":2,"Firearms":2,"Unarmed Combat":6},
-     "blurb":"Popular in many clubs, and not just the tougher ones. Any club owner would rather see a double-marker leave without causing a commotion, and a troll is just the one to get the job done. Few drunks will argue with a mountain of muscle."},
-
-    {"name":"Yakuza Boss","page":213,"race":"human","pr":3,"ratingPrinted":"3-4",
-     "attrs":{"body":3,"quickness":4,"strength":3,"charisma":5,"intelligence":6,"willpower":5,"essence":3.2,"reaction":5},
-     "skills":{"Etiquette (Corporate)":4,"Etiquette (Street)":5,"Leadership":5,"Negotiation":6},
-     "cyber":["Datajack, with 60 Mp of Memory","Wired Reflexes (1)"],
-     "blurb":"The new men are nothing more than gangsters and ruffians. The old bosses prefer influence-peddling and embarrassment tactics over the crude intimidation and violence favored by the new blood. Still philosophizing and courteous, if always seeking to spread a veneer of culture and gentility over his rough edges."}
+    {
+      "name": "Bartender",
+      "page": 203,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1",
+      "attrs": {
+        "body": 4,
+        "quickness": 3,
+        "strength": 4,
+        "charisma": 3,
+        "intelligence": 2,
+        "willpower": 2,
+        "essence": 6,
+        "reaction": 2
+      },
+      "skills": {
+        "Firearms": 3,
+        "Etiquette (Street)": 4,
+        "Unarmed Combat": 3
+      },
+      "special": {
+        "Rumormill": 5,
+        "Sympathetic Listening": 5
+      },
+      "blurb": "A common source of information on current conditions in the streets and on the club circuit. Discreet and reliable, for a price."
+    },
+    {
+      "name": "Bounty Hunter",
+      "page": 203,
+      "race": "human",
+      "pr": 3,
+      "ratingPrinted": "3-4",
+      "attrs": {
+        "body": 6,
+        "quickness": 5,
+        "strength": 5,
+        "charisma": 1,
+        "intelligence": 4,
+        "willpower": 4,
+        "essence": 2.35,
+        "reaction": 4
+      },
+      "boosted": {
+        "strength": 6,
+        "reaction": 8
+      },
+      "skills": {
+        "Bike": 5,
+        "Car": 5,
+        "Computer": 4,
+        "Etiquette (Corporate)": 3,
+        "Etiquette (Street)": 5,
+        "Firearms": 8,
+        "Stealth": 4,
+        "Unarmed Combat": 6
+      },
+      "special": {
+        "Data Tracing": 3,
+        "Tracking": 3
+      },
+      "cyber": [
+        "Cyberarm (Strength 1)",
+        "Cybereyes with Thermographic Imaging",
+        "Smartlink",
+        "Wired Reflexes (2)"
+      ],
+      "blurb": "A hard woman who tracks the people corporate cops and hitmen have no time for. Very good at what she does."
+    },
+    {
+      "name": "City Official",
+      "page": 204,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1",
+      "attrs": {
+        "body": 2,
+        "quickness": 2,
+        "strength": 2,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 2,
+        "essence": 6,
+        "reaction": 2
+      },
+      "skills": {
+        "Etiquette (Corporate)": 4,
+        "Etiquette (Tribal)": 3,
+        "Negotiate": 4
+      },
+      "blurb": "A typical member of the bureaucracy that runs the metroplex. Concerned about public image and the reactions of voters. Most trustworthy during a campaign, and will gladly sell you out for a political or career advantage."
+    },
+    {
+      "name": "Company Man",
+      "page": 204,
+      "race": "human",
+      "pr": 3,
+      "ratingPrinted": "3",
+      "attrs": {
+        "body": 6,
+        "quickness": 5,
+        "strength": 6,
+        "charisma": 2,
+        "intelligence": 4,
+        "willpower": 5,
+        "essence": 3,
+        "reaction": 4
+      },
+      "boosted": {
+        "reaction": 6
+      },
+      "skills": {
+        "Etiquette (Corporate)": 3,
+        "Firearms": 7,
+        "Stealth": 5,
+        "Unarmed Combat": 6,
+        "Vehicle (Gamemaster's discretion for type)": 5
+      },
+      "cyber": [
+        "Wired Reflexes (1)",
+        "Skillwires (5)"
+      ],
+      "blurb": "The special executive agent for the corporation. He does his job, no questions asked. Loyal, often unto death — after all, the corporation can even fix that."
+    },
+    {
+      "name": "Corporate Secretary",
+      "page": 205,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1",
+      "attrs": {
+        "body": 2,
+        "quickness": 2,
+        "strength": 2,
+        "charisma": 4,
+        "intelligence": 4,
+        "willpower": 2,
+        "essence": 4.8,
+        "reaction": 3
+      },
+      "skills": {
+        "Computer": 3,
+        "Etiquette (Corporate)": 4
+      },
+      "special": {
+        "Corporate Rumormill": 4
+      },
+      "cyber": [
+        "Datajack, 100 Mp of Memory"
+      ],
+      "blurb": "Cool, efficient, loyal and discreet. You would want her working for you if you could have her — as much a part of the corporate office as the furniture and telecom."
+    },
+    {
+      "name": "Corporate Security Guard",
+      "page": 205,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2",
+      "attrs": {
+        "body": 4,
+        "quickness": 3,
+        "strength": 3,
+        "charisma": 2,
+        "intelligence": 2,
+        "willpower": 2,
+        "essence": 6,
+        "reaction": 2
+      },
+      "skills": {
+        "Etiquette (Corporate)": 2,
+        "Firearms": 3,
+        "Interrogation": 2,
+        "Unarmed Combat": 3
+      },
+      "blurb": "A simple man more interested in his own private life and survival than in dangerous action. Values his position and works in the corporation's best interests, especially when an official is watching."
+    },
+    {
+      "name": "Dwarf Technician",
+      "page": 206,
+      "race": "dwarf",
+      "pr": 1,
+      "ratingPrinted": "1-2",
+      "attrs": {
+        "body": 4,
+        "quickness": 2,
+        "strength": 3,
+        "charisma": 2,
+        "intelligence": 6,
+        "willpower": 4,
+        "essence": 3.8,
+        "reaction": 4
+      },
+      "skills": {
+        "Computer Theory": 6,
+        "Computers (B/R)": 6,
+        "Electronics (B/R)": 9,
+        "Electronics": 6,
+        "Etiquette (Street or Corporate)": 3
+      },
+      "cyber": [
+        "Datajack, 200 Mp of Memory"
+      ],
+      "blurb": "Nobody appreciates good craftsmanship any more. Works harder than anyone and would never admit that stereotype fits."
+    },
+    {
+      "name": "Elven Hitman",
+      "page": 206,
+      "race": "elf",
+      "pr": 3,
+      "ratingPrinted": "3-4",
+      "attrs": {
+        "body": 5,
+        "quickness": 6,
+        "strength": 5,
+        "charisma": 2,
+        "intelligence": 4,
+        "willpower": 4,
+        "essence": 2.5,
+        "reaction": 5
+      },
+      "boosted": {
+        "reaction": 9
+      },
+      "skills": {
+        "Bike": 4,
+        "Car": 4,
+        "Demolition": 4,
+        "Etiquette (Corporate)": 3,
+        "Etiquette (Street)": 3,
+        "Firearms": 8,
+        "Hovercraft": 4,
+        "Unarmed Combat": 4
+      },
+      "cyber": [
+        "Wired Reflexes (2)",
+        "Smartlink"
+      ],
+      "blurb": "Slick, smooth, and he knows it. The quintessential gentleman-assassin — impeccably dressed, accessories of the finest quality, with just a hint of dangerous arrogance. Unless he loses his temper."
+    },
+    {
+      "name": "Fixer",
+      "page": 207,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2-3",
+      "attrs": {
+        "body": 2,
+        "quickness": 3,
+        "strength": 2,
+        "charisma": 3,
+        "intelligence": 5,
+        "willpower": 5,
+        "essence": 1.8,
+        "reaction": 4
+      },
+      "skills": {
+        "Computer": 3,
+        "Electronics": 3,
+        "Etiquette (Street)": 5,
+        "Firearms": 3,
+        "Negotiation": 7
+      },
+      "special": {
+        "Evaluate Value of Hi-Tech Items": 6,
+        "Equipment Acquisition": 4
+      },
+      "cyber": [
+        "Cybereyes",
+        "Datajack, 300 Mp of Memory"
+      ],
+      "blurb": "A fence and/or arranger, a power broker of the streets who always has the latest in software, equipment, or information. All for a price."
+    },
+    {
+      "name": "Gang Boss",
+      "page": 207,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2-3",
+      "attrs": {
+        "body": 3,
+        "quickness": 3,
+        "strength": 4,
+        "charisma": 4,
+        "intelligence": 4,
+        "willpower": 4,
+        "essence": 6,
+        "reaction": 3
+      },
+      "skills": {
+        "Armed Combat": 4,
+        "Etiquette (Street)": 6,
+        "Firearms": 4,
+        "Leadership": 4,
+        "Unarmed Combat": 2
+      },
+      "blurb": "Talks tough, and is tough. Has to be in order to stay on top — but he is not stupid. He learned a lot of hard lessons growing up on the streets. Just being tough does not cut it any more."
+    },
+    {
+      "name": "Humanis Policlub Member",
+      "page": 208,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1-3",
+      "attrs": {
+        "body": 4,
+        "quickness": 4,
+        "strength": 4,
+        "charisma": 2,
+        "intelligence": 2,
+        "willpower": 4,
+        "essence": 6,
+        "reaction": 3
+      },
+      "skills": {
+        "Bike": 3,
+        "Car": 3,
+        "Demolition": 4,
+        "Etiquette (Street)": 3,
+        "Firearms": 4
+      },
+      "note": "The individual member will have 1D6 other members he can call on to help him. Humanis members tend to be pack-animals.",
+      "blurb": "Belongs to an organisation that opposes all legal rights for the Awakened, especially metahumans. They have been known to twist and bend existing laws whenever possible in order to further their own aims."
+    },
+    {
+      "name": "Mechanic",
+      "page": 208,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1-2",
+      "attrs": {
+        "body": 2,
+        "quickness": 3,
+        "strength": 3,
+        "charisma": 2,
+        "intelligence": 6,
+        "willpower": 4,
+        "essence": 6,
+        "reaction": 4
+      },
+      "skills": {
+        "Aircraft (B/R)": 6,
+        "Computer Theory": 6,
+        "Computer": 3,
+        "Electronics (B/R)": 5,
+        "Electronics": 3,
+        "Ground Vehicles (B/R)": 8
+      },
+      "blurb": "The person to see when your transport is down. She also does custom work."
+    },
+    {
+      "name": "Media Producer",
+      "page": 209,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2",
+      "attrs": {
+        "body": 2,
+        "quickness": 3,
+        "strength": 2,
+        "charisma": 5,
+        "intelligence": 4,
+        "willpower": 4,
+        "essence": 6,
+        "reaction": 3
+      },
+      "skills": {
+        "Computer": 3,
+        "Etiquette (Corporate)": 4,
+        "Etiquette (Media)": 4,
+        "Etiquette (Street)": 4,
+        "Negotiation": 4,
+        "Stealth": 3,
+        "Unarmed Combat": 2
+      },
+      "blurb": "An entertainment entrepreneur who draws a very fine line between news information and entertainment. Knows what is newsworthy, and how to present a story in a way that will not leave anybody too upset. Broadcasting is a business, after all."
+    },
+    {
+      "name": "Metahuman Rights Activist",
+      "page": 209,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2-3",
+      "attrs": {
+        "body": 2,
+        "quickness": 2,
+        "strength": 2,
+        "charisma": 2,
+        "intelligence": 2,
+        "willpower": 2,
+        "essence": 6,
+        "reaction": 2
+      },
+      "skills": {
+        "Etiquette (Media)": 5,
+        "Interrogation": 3,
+        "Leadership": 3,
+        "Negotiation": 3
+      },
+      "blurb": "Believes in equal justice before the law — and that any unjust law deserves to be broken. A mortal foe of the Humanis cultists."
+    },
+    {
+      "name": "Mr. Johnson",
+      "page": 210,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2-3",
+      "attrs": {
+        "body": 2,
+        "quickness": 2,
+        "strength": 2,
+        "charisma": 4,
+        "intelligence": 6,
+        "willpower": 5,
+        "essence": 3.8,
+        "reaction": 4
+      },
+      "skills": {
+        "Computer Theory": 5,
+        "Etiquette (Corporate)": 8,
+        "Negotiation": 6,
+        "Psychology": 8
+      },
+      "special": {
+        "History": 4
+      },
+      "cyber": [
+        "Datajack, 200 Mp of Memory"
+      ],
+      "blurb": "May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him."
+    },
+    {
+      "name": "Squatter",
+      "page": 210,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1-2",
+      "attrs": {
+        "body": 2,
+        "quickness": 2,
+        "strength": 1,
+        "charisma": 1,
+        "intelligence": 2,
+        "willpower": 2,
+        "essence": 6,
+        "reaction": 2
+      },
+      "skills": {
+        "Etiquette (Street)": 3
+      },
+      "special": {
+        "Know Neighborhood": 6,
+        "Scrounge": 6
+      },
+      "blurb": "A rough victim of the underside of the metroplex, hardened and beaten down by life in the slums. A survivor who tries to roll with the punches and still wants to see another day in one piece."
+    },
+    {
+      "name": "Street Cop",
+      "page": 211,
+      "race": "human",
+      "pr": 2,
+      "ratingPrinted": "2",
+      "attrs": {
+        "body": 4,
+        "quickness": 4,
+        "strength": 4,
+        "charisma": 2,
+        "intelligence": 3,
+        "willpower": 3,
+        "essence": 6,
+        "reaction": 3
+      },
+      "skills": {
+        "Armed Combat": 2,
+        "Etiquette (Corporate)": 2,
+        "Etiquette (Street)": 4,
+        "Firearms": 3,
+        "Unarmed Combat": 3
+      },
+      "special": {
+        "Police Procedures": 4
+      },
+      "blurb": "A slightly disillusioned, frustrated but still determined servant of the law. Works for an independent corporation rather than the government, which means better benefits but lesser prestige. Some have succumbed to the temptations of their positions and become bad cops, but most remain true to their honor."
+    },
+    {
+      "name": "Street Doc",
+      "page": 211,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1-2",
+      "attrs": {
+        "body": 2,
+        "quickness": 3,
+        "strength": 2,
+        "charisma": 2,
+        "intelligence": 4,
+        "willpower": 2,
+        "essence": 5.8,
+        "reaction": 3
+      },
+      "skills": {
+        "Biological Sciences": 6,
+        "Biotech": 8,
+        "Etiquette (Street)": 3,
+        "Negotiation": 4
+      },
+      "cyber": [
+        "Datajack"
+      ],
+      "blurb": "May be a quack, or may be a top-flight surgeon, but either way he is an outlaw's best friend. Keeps his mouth shut and will not report any suspicious wounds to the corp-sec or register your augmentations with the manufacturer for full-warranty coverage. He has his own skeletons in the closet."
+    },
+    {
+      "name": "Talismonger",
+      "page": 212,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1-2",
+      "magic": 6,
+      "attrs": {
+        "body": 2,
+        "quickness": 3,
+        "strength": 3,
+        "charisma": 2,
+        "intelligence": 3,
+        "willpower": 4,
+        "essence": 6,
+        "reaction": 3
+      },
+      "skills": {
+        "Etiquette (Street)": 4,
+        "Magical Theory": 8,
+        "Negotiation": 6,
+        "Sorcery": 4
+      },
+      "special": {
+        "Evaluate Magical Goods": 6,
+        "Woodworking": 4,
+        "Metalworking": 4
+      },
+      "blurb": "A broker of magical goods and services, sort of an occult middle-woman. Sometimes she will moonlight as a fence for stolen magical materials as well as information."
+    },
+    {
+      "name": "Tribal Chief",
+      "page": 212,
+      "race": "human",
+      "pr": 1,
+      "ratingPrinted": "1-2",
+      "attrs": {
+        "body": 3,
+        "quickness": 3,
+        "strength": 4,
+        "charisma": 4,
+        "intelligence": 4,
+        "willpower": 4,
+        "essence": 6,
+        "reaction": 3
+      },
+      "skills": {
+        "Etiquette (Corporate)": 4,
+        "Etiquette (Tribal)": 8,
+        "Leadership": 5,
+        "Negotiation": 4,
+        "Projectile Weapons": 4,
+        "Psychology": 5,
+        "Stealth": 5
+      },
+      "blurb": "Strives to uphold the sacred lodge of his people, but must also deal with the wider world and the corporations if he is to guide his tribe well. He therefore makes it a point to know what is going on around him at all times."
+    },
+    {
+      "name": "Troll Bouncer",
+      "page": 213,
+      "race": "troll",
+      "pr": 2,
+      "ratingPrinted": "2-3",
+      "attrs": {
+        "body": 9,
+        "quickness": 3,
+        "strength": 9,
+        "charisma": 1,
+        "intelligence": 1,
+        "willpower": 2,
+        "essence": 6,
+        "reaction": 2
+      },
+      "skills": {
+        "Armed Combat": 3,
+        "Etiquette (Street)": 2,
+        "Firearms": 2,
+        "Unarmed Combat": 6
+      },
+      "blurb": "Popular in many clubs, and not just the tougher ones. Any club owner would rather see a double-marker leave without causing a commotion, and a troll is just the one to get the job done. Few drunks will argue with a mountain of muscle."
+    },
+    {
+      "name": "Yakuza Boss",
+      "page": 213,
+      "race": "human",
+      "pr": 3,
+      "ratingPrinted": "3-4",
+      "attrs": {
+        "body": 3,
+        "quickness": 4,
+        "strength": 3,
+        "charisma": 5,
+        "intelligence": 6,
+        "willpower": 5,
+        "essence": 3.2,
+        "reaction": 5
+      },
+      "skills": {
+        "Etiquette (Corporate)": 4,
+        "Etiquette (Street)": 5,
+        "Leadership": 5,
+        "Negotiation": 6
+      },
+      "cyber": [
+        "Datajack, with 60 Mp of Memory",
+        "Wired Reflexes (1)"
+      ],
+      "blurb": "The new men are nothing more than gangsters and ruffians. The old bosses prefer influence-peddling and embarrassment tactics over the crude intimidation and violence favored by the new blood. Still philosophizing and courteous, if always seeking to spread a veneer of culture and gentility over his rough edges.",
+      "boosted": {
+        "reaction": 7
+      },
+      "$boostedNote": "The book lists Wired Reflexes (1) but prints Reaction 5 with no augmented figure in parentheses — every other wired contact on these pages prints one. 5 is the unaugmented base ((Quickness 4 + Intelligence 6) / 2), so the parenthetical was omitted. The cyberware is listed, so its effect is applied: +2 Reaction and +1D6 Initiative, the same as the Company Man."
+    }
   ]
 }

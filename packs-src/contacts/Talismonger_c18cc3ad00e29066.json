@@ -1,15 +1,15 @@
 {
-  "_id": "4eedf5d228d5e298",
-  "name": "Mr. Johnson",
+  "_id": "c18cc3ad00e29066",
+  "name": "Talismonger",
   "type": "contact",
   "img": "icons/svg/mystery-man.svg",
   "system": {
     "contactType": "contact",
-    "archetype": "Mr. Johnson",
+    "archetype": "Talismonger",
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.210. May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him. Full stat block: see the \"Mr. Johnson\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.212. A broker of magical goods and services, sort of an occult middle-woman. Sometimes she will moonlight as a fence for stolen magical materials as well as information. Full stat block: see the \"Talismonger\" actor in the SR2E Contacts (NPCs) compendium."
   },
   "effects": [],
   "flags": {},
@@ -29,5 +29,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!4eedf5d228d5e298"
+  "_key": "!items!c18cc3ad00e29066"
 }

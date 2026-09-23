@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "icons/svg/mystery-man.svg",
   "system": {
-    "biography": "<p>The new men are nothing more than gangsters and ruffians. The old bosses prefer influence-peddling and embarrassment tactics over the crude intimidation and violence favored by the new blood. Still philosophizing and courteous, if always seeking to spread a veneer of culture and gentility over his rough edges.</p>\n<p><strong>Cyberware:</strong> Datajack, with 60 Mp of Memory, Wired Reflexes (1)</p>\n<p><strong>Professional Rating:</strong> 3-4 (the sheet stores 3; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.213.</em></p>",
+    "biography": "<p>The new men are nothing more than gangsters and ruffians. The old bosses prefer influence-peddling and embarrassment tactics over the crude intimidation and violence favored by the new blood. Still philosophizing and courteous, if always seeking to spread a veneer of culture and gentility over his rough edges.</p>\n<p><strong>Cyberware:</strong> Datajack, with 60 Mp of Memory, Wired Reflexes (1)</p>\n<p><strong>Augmented:</strong> reaction 7 — the figure the book prints in parentheses.</p>\n<p><strong>Professional Rating:</strong> 3-4 (the sheet stores 3; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.213.</em></p>",
     "race": "human",
     "professionalRating": 3,
     "body": {
@@ -48,6 +48,11 @@
       "max": 6
     },
     "reaction": {
+      "mod": 2
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 2,
       "mod": 0
     }
   },

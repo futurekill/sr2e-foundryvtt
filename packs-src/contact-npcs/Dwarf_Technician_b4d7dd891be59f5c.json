@@ -49,6 +49,11 @@
     },
     "reaction": {
       "mod": 0
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 1,
+      "mod": 0
     }
   },
   "items": [
@@ -76,7 +81,7 @@
         "default": 0
       },
       "system": {
-        "category": "active",
+        "category": "knowledge",
         "rating": 6,
         "linkedAttribute": "intelligence",
         "allocated": null,
@@ -116,7 +121,7 @@
         "default": 0
       },
       "system": {
-        "category": "active",
+        "category": "build_repair",
         "rating": 6,
         "linkedAttribute": "intelligence",
         "allocated": null,
@@ -156,7 +161,7 @@
         "default": 0
       },
       "system": {
-        "category": "active",
+        "category": "build_repair",
         "rating": 9,
         "linkedAttribute": "intelligence",
         "allocated": null,

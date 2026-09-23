@@ -49,6 +49,11 @@
     },
     "reaction": {
       "mod": 0
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 1,
+      "mod": 0
     }
   },
   "items": [
@@ -76,7 +81,7 @@
         "default": 0
       },
       "system": {
-        "category": "active",
+        "category": "knowledge",
         "rating": 5,
         "linkedAttribute": "intelligence",
         "allocated": null,
@@ -196,7 +201,7 @@
         "default": 0
       },
       "system": {
-        "category": "active",
+        "category": "knowledge",
         "rating": 8,
         "linkedAttribute": "intelligence",
         "allocated": null,
@@ -236,7 +241,7 @@
         "default": 0
       },
       "system": {
-        "category": "knowledge",
+        "category": "special",
         "rating": 4,
         "linkedAttribute": "intelligence",
         "allocated": null,

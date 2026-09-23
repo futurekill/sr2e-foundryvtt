@@ -1,15 +1,15 @@
 {
-  "_id": "34015846f42e6614",
-  "name": "Talismonger",
+  "_id": "d9a0b74f1ee862fc",
+  "name": "Street Doc",
   "type": "contact",
   "img": "icons/svg/mystery-man.svg",
   "system": {
     "contactType": "contact",
-    "archetype": "Talismonger",
+    "archetype": "Street Doc",
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.212. A broker of magical goods and services, sort of an occult middle-woman. Sometimes she will moonlight as a fence for stolen magical materials as well as information. Full stat block: see the \"Talismonger\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.211. May be a quack, or may be a top-flight surgeon, but either way he is an outlaw's best friend. Keeps his mouth shut and will not report any suspicious wounds to the corp-sec or register your augmentations with the manufacturer for full-warranty coverage. He has his own skeletons in the closet. Full stat block: see the \"Street Doc\" actor in the SR2E Contacts (NPCs) compendium."
   },
   "effects": [],
   "flags": {},
@@ -29,5 +29,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!34015846f42e6614"
+  "_key": "!items!d9a0b74f1ee862fc"
 }

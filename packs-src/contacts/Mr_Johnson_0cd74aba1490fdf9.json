@@ -1,15 +1,15 @@
 {
-  "_id": "e35daf7faa847f4f",
-  "name": "Street Doc",
+  "_id": "0cd74aba1490fdf9",
+  "name": "Mr. Johnson",
   "type": "contact",
   "img": "icons/svg/mystery-man.svg",
   "system": {
     "contactType": "contact",
-    "archetype": "Street Doc",
+    "archetype": "Mr. Johnson",
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.211. May be a quack, or may be a top-flight surgeon, but either way he is an outlaw's best friend. Keeps his mouth shut and will not report any suspicious wounds to the corp-sec or register your augmentations with the manufacturer for full-warranty coverage. He has his own skeletons in the closet. Full stat block: see the \"Street Doc\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.210. May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him. Full stat block: see the \"Mr. Johnson\" actor in the SR2E Contacts (NPCs) compendium."
   },
   "effects": [],
   "flags": {},
@@ -29,5 +29,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!e35daf7faa847f4f"
+  "_key": "!items!0cd74aba1490fdf9"
 }

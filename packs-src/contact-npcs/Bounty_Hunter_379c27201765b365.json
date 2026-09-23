@@ -21,8 +21,8 @@
     },
     "strength": {
       "base": 5,
-      "mod": 0,
-      "value": 5,
+      "mod": 1,
+      "value": 6,
       "racial": 0
     },
     "charisma": {
@@ -49,6 +49,11 @@
     },
     "reaction": {
       "mod": 4
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 3,
+      "mod": 0
     }
   },
   "items": [
@@ -396,7 +401,7 @@
         "default": 0
       },
       "system": {
-        "category": "knowledge",
+        "category": "special",
         "rating": 3,
         "linkedAttribute": "intelligence",
         "allocated": null,
@@ -436,7 +441,7 @@
         "default": 0
       },
       "system": {
-        "category": "knowledge",
+        "category": "special",
         "rating": 3,
         "linkedAttribute": "intelligence",
         "allocated": null,

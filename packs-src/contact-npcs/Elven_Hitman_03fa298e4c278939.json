@@ -49,6 +49,11 @@
     },
     "reaction": {
       "mod": 4
+    },
+    "initiative": {
+      "base": 0,
+      "dice": 3,
+      "mod": 0
     }
   },
   "items": [
