@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.93.0 — 2026-09-23
+
+### Fixed — spells could not be cast by anyone carrying a focus
+
+Clicking a spell did nothing and the console showed `ReferenceError: item is not
+defined`. The spell dialog named its parameter `spell` but the focus filter read
+`item.id`, and because that check only runs once it finds a focus, any caster
+WITHOUT one cast normally. It shipped in 0.90.0 and survived four releases.
+
+A sweep for undefined names then found a second crash in the same dialog, hidden
+the same way: the Cast button read the focus dice from a variable that was never
+declared. Fixing only the first would have moved the crash one click later. Both
+are fixed.
+
+### Fixed — Improved Ability granted no dice when named for its skill
+
+A physical adept with Improved Ability (Armed Combat) at level 2 and a Force 3
+weapon focus rolled **9** dice with his katana instead of **11**. The power reads
+its skill from the *Improved Skill* field, the compendium item ships with that
+field empty, and the natural thing to do is rename the power the way the book
+writes it — which silently did nothing. The skill is now read from the name when
+the field is empty; the field still wins when set.
+
+- **The Combat Skill cap is enforced (p.125).** "A character with Firearms 4
+  cannot have more than 4 additional dice." Applied to the total, so two powers
+  on one skill cannot split their way past it. Non-combat skills are uncapped.
+- **A slotted skillsoft suppresses it (p.248).** With a chip duplicating a
+  natural skill, the character "uses only the skillsoft's rating. The
+  character's natural ability is lost for the duration." Previously the chip's
+  rating raised the cap instead: natural Firearms 2 with Improved Ability 4 went
+  from 4 dice to 10 when a Firearms 6 chip was slotted. It now rolls 6.
+
+Other Improved Ability powers named for their skill — Athletics, Stealth — start
+working too. A power left as just "Improved Ability" with the field empty still
+grants nothing, as it has no skill to read.
+
+### Added — the core rulebook's Contacts chapter (SR2E p.200-213)
+
+All 22 archetypes, transcribed from page renders, in two forms: **contact items**
+for a player's Contacts list, and **NPC actors** in a new *SR2E Contacts (NPCs)*
+compendium carrying the real stat block — attributes, every skill as an embedded
+skill item, cyberware, Professional Rating. Only 5 of the 22 were present before.
+
+- Augmented figures in parentheses are applied mechanically, and Wired Reflexes
+  gives its Initiative dice: the Bounty Hunter and Elven Hitman roll 3D6, the
+  Company Man and Yakuza Boss 2D6.
+- The **Yakuza Boss** lists Wired Reflexes (1) but prints Reaction 5 with no
+  augmented figure, where every other wired contact prints one. The listed
+  cyberware is applied (Reaction 7, 2D6) and his sheet says why.
+- Skills are filed as Active, Build/Repair, Knowledge, or the book's own
+  **Special Skills** (p.74).
+- Professional Rating is printed as a range; the low end is stored and the
+  printed range is on the sheet.
+
+### Fixed — contacts that cited a page which does not contain them
+
+Eleven archetypes cited "SR2E p.41", a full-page illustration; none of them
+appears anywhere in the core rulebook. They are labelled GM-invented and moved to
+a *Custom (not in the core book)* folder. Nothing was deleted.
+
+**Fixer, Mr. Johnson, Street Doc and Talismonger** were the same archetypes under
+that wrong citation, and keep their original ids with the book's content, so
+existing links to them still resolve. **Bounty Hunter** now appears twice on
+purpose: the core book's *contact*, and the *Shadowrun Companion* enemy of the
+same name, which is kept unchanged in the Enemies folder.
+
 ## 0.92.1 — 2026-09-13
 
 ### Fixed — 0.91.0 and 0.92.0 never actually ran
