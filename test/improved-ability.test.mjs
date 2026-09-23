@@ -33,3 +33,38 @@ describe("improvedAbilitySkill — the skill named in the power's title", () => 
     expect(improvedAbilitySkill(null)).toBe("");
   });
 });
+
+import { cappedImprovedAbilityDice } from "../module/rules/sr2e-rules.mjs";
+
+describe("cappedImprovedAbilityDice — the Combat Skill cap (SR2E p.125)", () => {
+  it("leaves the reported character alone: Armed Combat 6, two dice", () => {
+    expect(cappedImprovedAbilityDice("Armed Combat", 6, 2)).toBe(2);
+  });
+
+  it("uses the book's own example: Firearms 4 cannot have more than 4", () => {
+    expect(cappedImprovedAbilityDice("Firearms", 4, 6)).toBe(4);
+    expect(cappedImprovedAbilityDice("Firearms", 4, 4)).toBe(4);
+  });
+
+  it("caps every combat skill the p.125 table lists", () => {
+    for (const s of ["Armed Combat","Unarmed Combat","Throwing Weapons",
+                     "Projectile Weapons","Firearms","Gunnery"])
+      expect(cappedImprovedAbilityDice(s, 2, 5)).toBe(2);
+  });
+
+  it("does NOT cap a non-combat skill", () => {
+    expect(cappedImprovedAbilityDice("Stealth", 2, 5)).toBe(5);
+    expect(cappedImprovedAbilityDice("Athletics", 1, 4)).toBe(4);
+  });
+
+  it("caps the aggregate, so two powers cannot split their way past it", () => {
+    // Caller sums the powers first; the cap then applies to the total.
+    expect(cappedImprovedAbilityDice("Armed Combat", 3, 2 + 2)).toBe(3);
+  });
+
+  it("never goes negative or fractional", () => {
+    expect(cappedImprovedAbilityDice("Firearms", 0, 3)).toBe(0);
+    expect(cappedImprovedAbilityDice("Firearms", 4, -2)).toBe(0);
+    expect(cappedImprovedAbilityDice("Firearms", 4.9, 5)).toBe(4);
+  });
+});

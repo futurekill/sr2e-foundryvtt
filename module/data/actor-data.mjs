@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool, improvedAbilitySkill } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -505,7 +505,7 @@ export class CharacterData extends SR2EDataModel {
       // players name the power the way the book does, "Improved Ability (Armed
       // Combat)". Without this the power granted nothing, and said nothing about
       // it — a level-2 adept with a weapon focus rolled 9 dice instead of 11.
-      const target = norm(power.system.improvedSkill || improvedAbilitySkill(power.name));
+      const target = norm(power.system.improvedSkill) || norm(improvedAbilitySkill(power.name));
       if (!target) continue;
       const level = Math.max(0, power.system.level ?? 0);
       if (level <= 0) continue;
@@ -513,6 +513,17 @@ export class CharacterData extends SR2EDataModel {
       if (!skill) continue;
       skill.system._adeptBonus = (skill.system._adeptBonus ?? 0) + level;
       skill.system._adeptSource = power.name;
+    }
+    // Combat Skill cap (SR2E p.125): an adept "cannot have more extra dice than
+    // the character's current Combat Skill Rating". Applied to the TOTAL, after
+    // every power has been summed, so two powers on one skill cannot split their
+    // way past it. This predates the name fallback above, but the fallback is
+    // what switched on powers that had been sitting inert at any level.
+    for (const skill of items) {
+      if (skill.type !== "skill" || !skill.system._adeptBonus) continue;
+      const dice = cappedImprovedAbilityDice(skill.name, skill.system.rating, skill.system._adeptBonus);
+      if (dice > 0) skill.system._adeptBonus = dice;
+      else { delete skill.system._adeptBonus; delete skill.system._adeptSource; }
     }
   }
 

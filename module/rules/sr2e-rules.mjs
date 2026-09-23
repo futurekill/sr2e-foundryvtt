@@ -3417,3 +3417,34 @@ export function improvedAbilitySkill(name) {
   const m = /^\s*improved\s+ability\s*\((.+)\)\s*$/i.exec(String(name ?? ""));
   return m ? m[1].trim() : "";
 }
+
+/**
+ * The Combat Skills whose Improved Ability dice are capped (SR2E p.125). The
+ * list is the book's own, from the IMPROVED ABILITY COSTS table.
+ */
+export const IMPROVED_ABILITY_COMBAT_SKILLS = new Set([
+  "armed combat", "unarmed combat", "throwing weapons",
+  "projectile weapons", "firearms", "gunnery"
+]);
+
+/**
+ * Improved Ability dice after the Combat Skill cap (SR2E p.125): "the adept
+ * cannot have more extra dice than the character's current Combat Skill Rating.
+ * Thus, a character with Firearms 4 cannot have more than 4 additional dice."
+ *
+ * Applied to the AGGREGATE, since two powers naming one skill must not dodge the
+ * cap between them. Non-combat skills are uncapped by this rule.
+ *
+ * @param {string} skillName - the skill's name as it appears on the sheet
+ * @param {number} rating    - its current rating
+ * @param {number} dice      - total Improved Ability dice claimed for it
+ * @returns {number}
+ */
+export function cappedImprovedAbilityDice(skillName, rating, dice) {
+  const d = Math.max(0, Math.floor(Number(dice) || 0));
+  const key = String(skillName ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim()
+    // "Throwing" is how the p.125 table writes it; the skill is Throwing Weapons.
+    .replace(/^throwing$/, "throwing weapons");
+  if (!IMPROVED_ABILITY_COMBAT_SKILLS.has(key)) return d;
+  return Math.min(d, Math.max(0, Math.floor(Number(rating) || 0)));
+}
