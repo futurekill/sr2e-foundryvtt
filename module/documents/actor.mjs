@@ -3052,7 +3052,8 @@ export class SR2EActor extends Actor {
           <label>Successes spent reducing the time:</label>
           <input type="number" name="toTime" value="0" min="0" max="${successes}" step="1" autofocus />
         </div>`,
-      ok: { label: "Apply", callback: (ev, btn) => new FormDataExtended(btn.form).object }
+      // The bare global is a V13 deprecation shim, removed in a later generation.
+      ok: { label: "Apply", callback: (ev, btn) => new foundry.applications.ux.FormDataExtended(btn.form).object }
     }).catch(() => null);
     if (!form) return;                                   // cancelled
 

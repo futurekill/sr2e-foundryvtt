@@ -1628,8 +1628,12 @@ async function promptSpellOptions(actor, spell) {
   // One row per eligible focus, with a cast field and a drain field, because the
   // two SHARE one budget. `_rollSpellcast` re-clamps whatever arrives here, so
   // these maxes are a convenience and never the enforcement point.
+  // `spell`, not `item`: this function's parameter is the spell. It read
+  // `item.id` from 0.90.0 to 0.92.1 — undefined here, so every cast threw. The
+  // `&&` short-circuit hid it: the reference only evaluates once a FOCUS is
+  // found, so a caster with no foci never reached it and cast normally.
   const eligibleFoci = actor.items.filter(i =>
-    i.type === "focus" && focusEligibleFor(i.system, item.id));
+    i.type === "focus" && focusEligibleFor(i.system, spell.id));
   const focusSection = eligibleFoci.length ? `
     <hr style="margin:8px 0 6px;">
     ${eligibleFoci.map(f => {
@@ -1748,9 +1752,13 @@ async function promptSpellOptions(actor, spell) {
             drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {},
             // { [focusId]: {cast, drain} } — a REQUEST. _rollSpellcast
             // re-resolves eligibility and re-clamps before spending anything.
+            // `fd` was never declared here — the second crash in this dialog,
+            // hidden the same way as the first: the map body only runs when
+            // there is an eligible focus. Read the form directly, like the
+            // pool fields above it.
             focusDice: Object.fromEntries(eligibleFoci.map(f => [f.id, {
-              cast:  Number(fd.get(`focus_cast_${f.id}`))  || 0,
-              drain: Number(fd.get(`focus_drain_${f.id}`)) || 0
+              cast:  Number(button.form.elements[`focus_cast_${f.id}`]?.value)  || 0,
+              drain: Number(button.form.elements[`focus_drain_${f.id}`]?.value) || 0
             }])),
             // Cap by the chosen Force here; rollSuccessTest re-clamps against
             // the final spell dice (Force + totem) and the live Karma Pool.
