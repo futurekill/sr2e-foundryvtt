@@ -2918,6 +2918,54 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Improved Ability (SR2E p.125, p.248)", () => {
+        // Reported from the table: a physical adept rolled 9 dice with his katana
+        // instead of 11, because his Improved Ability powers named their skill in
+        // the ITEM NAME and left `improvedSkill` empty, so they granted nothing.
+        async function adept(skillRating, level, chip = 0) {
+          const items = [
+            firearms({ ratingsFinalized: true, rating: skillRating }),
+            { name: "Improved Ability (Firearms)", type: "adept_power",
+              system: { improvedSkill: "", level } }
+          ];
+          if (chip) items.push(
+            { name: "Skillwires 8", type: "cyberware", system: { installed: true, rating: 8 } },
+            { name: "Firearms ActiveSoft", type: "gear",
+              system: { category: "skillsoft", slotted: true, rating: chip,
+                        grantedSkill: "Firearms", grantedSkillCategory: "active" } });
+          const a = await pc(false, items);
+          return [a, a.items.find(i => i.type === "skill")];
+        }
+
+        it("reads the skill from the power's name when the field is empty", async () => {
+          const [, skill] = await adept(6, 2);
+          assert.equal(skill.system._adeptBonus, 2, "the named power must grant its dice");
+        });
+
+        it("caps combat-skill dice at the current rating (p.125's own example)", async () => {
+          // "a character with Firearms 4 cannot have more than 4 additional dice"
+          const [, skill] = await adept(4, 6);
+          assert.equal(skill.system._adeptBonus, 4);
+        });
+
+        it("a slotted skillsoft SUPPRESSES the bonus rather than raising the cap", async () => {
+          // p.248: with a chip duplicating a natural skill "he uses only the
+          // skillsoft's rating. The character's natural ability is lost."
+          // Before the fix the cap was read against the CHIP: +2 became +4.
+          const [, skill] = await adept(2, 4, 6);
+          assert.equal(skill.system.rating, 6, "the chip supplies the skill");
+          assert.notOk(skill.system._adeptBonus, "and natural Improved Ability is lost while it is in");
+        });
+
+        it("un-slotting the chip gives the natural bonus back, capped", async () => {
+          const [a] = await adept(2, 4, 6);
+          await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
+          const skill = a.items.find(i => i.type === "skill");
+          assert.equal(skill.system.rating, 2, "back to the natural rating");
+          assert.equal(skill.system._adeptBonus, 2, "and Improved Ability returns, capped at 2");
+        });
+      });
+
       describe("a slotted skillsoft suppresses sub-ratings", () => {
         // Built through a REAL ActiveSoft rather than by setting the marker by
         // hand: the marker is only correct if _applySkillsofts actually sets it,

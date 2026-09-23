@@ -519,8 +519,22 @@ export class CharacterData extends SR2EDataModel {
     // every power has been summed, so two powers on one skill cannot split their
     // way past it. This predates the name fallback above, but the fallback is
     // what switched on powers that had been sitting inert at any level.
+    //
+    // A slotted skillsoft suppresses the bonus outright. SR2E p.248: the skillwire
+    // system "must override the user's own reflexes, abilities, and memories";
+    // with a chip duplicating a natural skill "he uses only the skillsoft's
+    // rating. The character's natural ability is lost for the duration."
+    // Improved Ability is natural ability. Without this, _applySkillsofts (which
+    // runs first) had already swapped in the CHIP's rating, so the cap was read
+    // against the chip — slotting a Firearms 6 chip on a natural Firearms 2 lifted
+    // a capped +2 to +4. Same rule the chip already applies to the character's
+    // own concentrations and specializations (_subRatingsSuppressed).
     for (const skill of items) {
       if (skill.type !== "skill" || !skill.system._adeptBonus) continue;
+      if (skill.system._chipped) {
+        delete skill.system._adeptBonus; delete skill.system._adeptSource;
+        continue;
+      }
       const dice = cappedImprovedAbilityDice(skill.name, skill.system.rating, skill.system._adeptBonus);
       if (dice > 0) skill.system._adeptBonus = dice;
       else { delete skill.system._adeptBonus; delete skill.system._adeptSource; }

@@ -130,9 +130,14 @@ function npcActor(c) {
     `<p>${esc(c.blurb)}</p>`,
     c.note ? `<p><strong>Note:</strong> ${esc(c.note)}</p>` : "",
     c.cyber?.length ? `<p><strong>Cyberware:</strong> ${esc(c.cyber.join(", "))}</p>` : "",
+    // Only claim the book PRINTS a figure when it does. The Yakuza Boss's is
+    // inferred from his listed Wired Reflexes; say so on the sheet, not just in
+    // the data file, or the bio asserts a transcription that never happened.
     Object.keys(boost).length
       ? `<p><strong>Augmented:</strong> ${esc(Object.entries(boost)
-          .map(([k, v]) => `${k} ${v}`).join(", "))} — the figure the book prints in parentheses.</p>`
+          .map(([k, v]) => `${k} ${v}`).join(", "))} — ${c.$boostedNote
+            ? esc(c.$boostedNote)
+            : "the figure the book prints in parentheses."}</p>`
       : "",
     `<p><strong>Professional Rating:</strong> ${esc(c.ratingPrinted)}` +
       (c.ratingPrinted.includes("-")
