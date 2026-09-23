@@ -3392,3 +3392,28 @@ export function effectiveSkillRating(system, variant = "") {
   if (variant === "family" && system.familyRating > 0) return system.familyRating;
   return skillRollRating(system);
 }
+
+/**
+ * The skill an Improved Ability power improves, read from its NAME.
+ *
+ * Improved Ability adds its level in dice to one named skill (SR2E p.125). The
+ * power carries that skill in `system.improvedSkill`, but the compendium item
+ * ships with the field empty, and the natural thing a player does is rename the
+ * item the way the book writes it — "Improved Ability (Armed Combat)". The field
+ * stays blank and the power silently grants nothing. This is the fallback that
+ * makes the player's version work.
+ *
+ * Deliberately limited to Improved Ability. It is the only power that grants
+ * skill dice, and other powers carry parentheses that are NOT skills — "Killing
+ * Hands (M)", "Improved Physical Senses (Thermo Vision)" — so a general
+ * "whatever is in the brackets" rule would be wrong even where it happens to
+ * find nothing. The match is greedy to the LAST bracket so a Build/Repair skill
+ * survives: "Improved Ability (Computers (B/R))" -> "Computers (B/R)".
+ *
+ * @param {string} name - the adept power's item name
+ * @returns {string} the skill name, or "" when the name does not carry one
+ */
+export function improvedAbilitySkill(name) {
+  const m = /^\s*improved\s+ability\s*\((.+)\)\s*$/i.exec(String(name ?? ""));
+  return m ? m[1].trim() : "";
+}

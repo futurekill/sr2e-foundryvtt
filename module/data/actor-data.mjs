@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool, improvedAbilitySkill } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -500,7 +500,12 @@ export class CharacterData extends SR2EDataModel {
     }
     for (const power of items) {
       if (power.type !== "adept_power") continue;
-      const target = norm(power.system.improvedSkill);
+      // The field wins when it is set. When it is not, read the skill from the
+      // power's name: the compendium item ships with `improvedSkill` empty and
+      // players name the power the way the book does, "Improved Ability (Armed
+      // Combat)". Without this the power granted nothing, and said nothing about
+      // it — a level-2 adept with a weapon focus rolled 9 dice instead of 11.
+      const target = norm(power.system.improvedSkill || improvedAbilitySkill(power.name));
       if (!target) continue;
       const level = Math.max(0, power.system.level ?? 0);
       if (level <= 0) continue;
