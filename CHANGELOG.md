@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.95.0 — 2026-09-24
+
+### Added — damaging manipulation spells deal damage (SR2E p.129–131, p.158)
+
+Flamethrower, Spark and Flame Bomb used to roll the cast and the drain, then do
+nothing at all. They now resolve the way the book says. The target's
+resistance "is actually a Damage Resistance Test, as in Ranged Combat" (p.131):
+
+- **Damage.** The code is **(F)M**, and every 2 successes on the cast raise it
+  one level. The cast TN is **4 plus situation modifiers** such as cover and
+  visibility (p.130); the cast dialog says so.
+- **Resisting.** The target rolls **Body** (plus Combat Pool) against Power
+  minus **half their Impact armour**, and the p.91 complete miss applies.
+- **Spark and Flamethrower** hit the targeted token with a damage card, like a
+  gun.
+- **Flame Bomb** is an area spell, cast like the 0.94.0 area spells: click the
+  map, radius Magic Rating. Each person caught gets a whispered damage card at
+  the same staged damage.
+- **Vehicles** use their own damage rules (p.108), so the GM resolves them.
+- **Zero successes.** The spell fizzles and the card has no button. If the
+  caster then rerolls with Karma and succeeds, the card updates and the button
+  appears. Any Karma spend updates the damage on cards nobody has resisted yet.
+- **Spell Defense.** It isn't added automatically, because the book doesn't
+  say whether it applies here. If the GM allows it, add the dice as misc dice
+  in the resist dialog.
+
+The damage code decides whether a spell deals damage, so a homebrew
+manipulation spell with a code like (F)M works too.
+
+Spells already on characters are fixed automatically. Spark and Flame Bomb
+shipped with an empty damage code, and this update fills in (F)M on existing
+copies. Anything you've renamed or given its own code is left alone.
+
+### Changed — Resist Damage buttons check who is clicking
+
+A player can only resist damage for an actor they own; the GM can resist for
+anyone. Before, clicking for someone else's character rolled the dice and then
+failed to apply the damage.
+
+A spell damage card can't be resolved twice. If the caster spends Karma while
+the resist dialog is open, confirming it tells you to click Resist again and
+rolls nothing. A card whose target has since been deleted won't fall back to
+whichever token happens to be selected. Two different players confirming the
+same card at the same moment is still possible, as with every attack card.
+
+### Known gaps
+
+- Ignite (burning over several turns), Poltergeist (Stun L, resisted with
+  Quickness) and Ice Sheet still need the GM.
+
 ## 0.94.0 — 2026-09-24
 
 ### Added — area spells no longer need a targeted token (SR2E p.130)
