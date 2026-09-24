@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.96.0 — 2026-09-24
+
+### Added — elementals help with spells (SR2E p.141–142)
+
+A mage's bound elementals can now provide the two sorcery services the core
+book describes. Each element helps one category of spell: fire with combat,
+water with illusion, air with detection and earth with manipulation. None
+helps with health spells.
+
+- **Aid Sorcery.** The cast dialog's Dice tab has a new "Aid Sorcery" block.
+  Pick one of your elementals and give it dice for the spell test, the drain,
+  or both.
+  - The elemental works like an extra Magic Pool, and its spell-test dice
+    share the Magic Pool's limit.
+  - Every die used lowers its Force by 1. At 0 it vanishes.
+  - Starting the service costs 1 service; carrying on with it costs nothing
+    more.
+  - A vanished elemental can be re-called for 1 service, back at full Force
+    and idle. Starting aid or sustaining again costs another service, as
+    every service does. That second charge is our reading of p.141.
+- **Spell Sustaining.** A sustained spell has a new button on its row that
+  hands it to an elemental of its category for 1 service.
+  - While the elemental holds the spell, you don't pay the +2 TN.
+  - The spell row shows who holds it and how many Combat Turns are left.
+  - Each Combat Turn, press "−1 Combat Turn" on the elemental's sheet.
+    When its Force runs out the spell **ends**, as the book says (p.142).
+  - Take the spell back before then ("Hand spell back") to keep it going
+    with the +2 TN.
+- **Drained Force weakens the elemental everywhere.** Its attributes, attacks
+  and powers all use its current Force (p.141: "its Force is reduced").
+- **One service at a time.** An elemental that is aiding or sustaining can't
+  use its powers or attack until that service ends (p.141). Nature spirits
+  and idle elementals work exactly as before.
+
+**Safeguards:**
+- A spell an elemental holds can't be recast, locked or quickened until you
+  take it back.
+- Banishing an elemental that is sustaining a spell ends the spell.
+- Deleting such an elemental from the Actors list is refused.
+- If ending a spell fails partway, the elemental's sheet offers "Finish ending
+  the spell", and the spell can't be recast until that's done.
+
+### Known gaps
+
+- Combat Turns are counted by hand.
+- Calling an elemental, and whether it is in the mage's line of sight, are
+  left to the GM.
+- Not supported yet: Aid Study, long-term spell binding measured in days,
+  elemental dice for Spell Defense, and more than one elemental per cast.
+- NPC mages can't use this yet: NPCs have no list of bound spirits.
+- Nature spirits don't aid spells; the core book gives them no such service.
+
 ## 0.95.0 — 2026-09-24
 
 ### Added — damaging manipulation spells deal damage (SR2E p.129–131, p.158)
