@@ -3527,3 +3527,48 @@ export function spellCastDice({
   const karma = Math.max(0, Math.min(n(karmaReq), n(karmaAvail), ratingDice));
   return { ratingDice, baseDice, pool, karma, total: Math.max(0, baseDice + pool + karma + n(misc)) };
 }
+
+// ---------------------------------------------------------------------------
+// DAMAGING MANIPULATION SPELLS (SR2E p.129–131, p.158)
+// ---------------------------------------------------------------------------
+// Flamethrower, Spark, Flame Bomb: "(F)M. Every 2 successes increases the
+// Damage Code by one level. The spell is resisted by Body, and one-half the
+// value of Impact Armor reduces the Power (Force) of the attack. Resolve using
+// the ranged combat procedure." The target's Spell Resistance Test "is actually
+// a Damage Resistance Test, as in Ranged Combat" (p.131).
+
+/**
+ * Power and base Damage Level of a damaging manipulation spell's code, with
+ * F = the Force actually cast. "(F)M", "(F+2)S", "(F-1)L", "(F) M".
+ * @returns {{power:number, level:string}|null} null — not a damage code.
+ */
+export function manipulationDamage(damageCode, force) {
+  const m = /^\s*\(\s*F\s*(?:([+-])\s*(\d+)\s*)?\)\s*([LMSD])\s*$/i.exec(String(damageCode ?? ""));
+  if (!m) return null;
+  const f = Number(force);
+  if (!Number.isInteger(f) || f < 1) return null;
+  const mod = m[1] ? (m[1] === "-" ? -1 : 1) * Number(m[2]) : 0;
+  return { power: Math.max(1, f + mod), level: m[3].toUpperCase() };
+}
+
+/**
+ * The armour rating that reduces an incoming Power, per the attack's rule.
+ * @param {object} o
+ * @param {string} [o.armorCalc] standard | half_ballistic (APDS) | impact (gel)
+ *   | flechette | half_impact (damaging manipulation spells, p.158)
+ * @returns {{armor:number, label:string}}
+ */
+export function damageResistArmor({ armorCalc = "standard", armorType = "ballistic",
+                                    ballistic = 0, impact = 0, armorMod = 0 } = {}) {
+  let armor, label;
+  switch (armorCalc) {
+    case "half_ballistic": armor = Math.floor(ballistic / 2); label = "½ Ballistic"; break;
+    case "impact":         armor = impact;                    label = "Impact"; break;
+    case "flechette":      armor = Math.max(2 * impact, ballistic); label = "max(2×Impact, Ballistic)"; break;
+    case "half_impact":    armor = Math.floor(impact / 2);    label = "½ Impact"; break;
+    default:
+      armor = armorType === "impact" ? impact : ballistic;
+      label = armorType === "ballistic" ? "Ballistic" : "Impact";
+  }
+  return { armor: Math.max(0, armor + (Number(armorMod) || 0)), label };
+}

@@ -3660,6 +3660,265 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Area spells (p.130)" });
 
+    // ── Damaging manipulation spells (SR2E p.129–131, p.158): Flamethrower,
+    //    Spark, Flame Bomb resolve as ranged-combat damage. ──────────────────
+    quench.registerBatch("sr2e.manipulation-damage", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = { actors: [], tokens: [], templates: [], messages: [] };
+      let mage, goon, centre;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const cast = async (item, opts) => {
+        // Drain from an earlier case would raise this cast's TN (wounds).
+        await item.parent.update({ "system.conditionMonitor.stun.value": 0, "system.conditionMonitor.physical.value": 0 });
+        const n = game.messages.size;
+        const tplBefore = new Set(canvas.scene.templates.map(t => t.id));
+        const r = await item.roll(opts);
+        await new Promise(res => setTimeout(res, 300));
+        const msgs = game.messages.contents.slice(n);
+        made.messages.push(...msgs.map(x => x.id));
+        made.templates.push(...canvas.scene.templates.filter(t => !tplBefore.has(t.id)).map(t => t.id));
+        return { r, msgs };
+      };
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        const pack = game.packs.get("sr2e.spells");
+        const idx = await pack.getIndex();
+        const doc = async (name) => (await pack.getDocument(idx.find(e => e.name === name)._id)).toObject();
+        const npc = async (name, extra = {}) => {
+          const a = await Actor.create({ name, type: "npc", system: extra }); made.actors.push(a); return a;
+        };
+        mage = await npc("Quench Manip Mage", { magic: { value: 6 }, willpower: { base: 6 } });
+        await mage.createEmbeddedDocuments("Item", [await doc("Flamethrower"), await doc("Flame Bomb"), await doc("Spark")]);
+        // Body 12: twelve resistance dice, so fixed faces can force either outcome.
+        goon = await npc("Quench Manip Goon", { body: { base: 12 } });
+        const goon2 = await npc("Quench Manip Goon2");
+        const hidden = await npc("Quench Manip Hidden");
+        const car = await Actor.create({ name: "Quench Manip Car", type: "vehicle" }); made.actors.push(car);
+        const g = canvas.dimensions.size, m = g / canvas.dimensions.distance;
+        const o = { x: canvas.dimensions.sceneX + 30 * g, y: canvas.dimensions.sceneY + 20 * g };
+        const put = async (a, dx, dy, hidden = false) => {
+          const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
+            ...(await a.getTokenDocument()).toObject(), x: o.x + dx * m, y: o.y + dy * m, hidden }]))[0];
+          made.tokens.push(t.id); return t;
+        };
+        await put(mage, -10, 0);                   // outside the 6 m blast
+        await put(goon, 2, 0); await put(goon2, -2, 0); await put(car, 0, 3); await put(hidden, 1, 1, true);
+        await new Promise(r => setTimeout(r, 300));
+        centre = { x: o.x + g / 2, y: o.y + g / 2, sceneId: canvas.scene.id };
+      });
+
+      after(async function () {
+        this.timeout(15000);   // the wait below outlasts Mocha's 2 s hook default
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        // Let Foundry's floating damage numbers finish first: deleting a token
+        // under one throws an uncaught PIXI error that Quench counts as a failure.
+        await new Promise(r => setTimeout(r, 2500));
+        const tpl = made.templates.filter(id => canvas.scene.templates.has(id));
+        if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl);
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+        for (const a of made.actors) await a.delete();
+      });
+
+      const goonToken = () => canvas.scene.tokens.find(t => t.actor?.name === "Quench Manip Goon");
+
+      describe("Flamethrower / Spark (single target)", () => {
+        it("posts (F)M staged up one level per 2 successes, ½ Impact, complete-miss aware", async function () {
+          if (!canvas?.ready) this.skip();
+          await canvas.tokens.setTargets([goonToken().id]);
+          // Force 5 at TN 4: faces 5,5,5,5,1 → 4 successes → M +2 = D.
+          const { msgs } = await withFaces([5, 5, 5, 5, 1],
+            () => cast(mage.items.getName("Flamethrower"), { force: 5, targetNumber: 4 }));
+          const card = msgs.find(x => x.flags?.sr2e?.manipDamage);
+          assert.ok(card, "a damage card is posted");
+          const st = card.flags.sr2e.manipDamage;
+          assert.include(st, { basePower: 5, baseLevel: "M", successes: 4, targetName: goonToken().name });
+          const btn = new DOMParser().parseFromString(card.content, "text/html").querySelector("button[data-manip]");
+          assert.equal(btn.dataset.level, "D");
+          assert.equal(btn.dataset.power, "5");
+          assert.equal(btn.dataset.armorCalc, "half_impact");
+          assert.equal(btn.dataset.attackerSuccesses, "4");
+          assert.equal(btn.dataset.targetUuid, goonToken().actor.uuid);
+        });
+
+        it("fizzles with no button at 0 successes, and a Karma reroll brings it to life", async function () {
+          if (!canvas?.ready) this.skip();
+          await canvas.tokens.setTargets([goonToken().id]);
+          const { msgs } = await withFaces([1, 2, 3],
+            () => cast(mage.items.getName("Spark"), { force: 3, targetNumber: 4 }));
+          const card = msgs.find(x => x.flags?.sr2e?.manipDamage);
+          assert.ok(card, "the card exists even at 0 successes");
+          assert.notInclude(card.content, "data-manip", "no Resist button on a fizzle");
+          const testMsg = msgs.find(x => x.flags?.sr2e?.test && /Cast Spark/.test(x.flags.sr2e.test.label));
+          const saved = { karma: mage.system.karma, spend: mage._spendKarmaPool };
+          mage.system.karma = { pool: 5 };
+          mage._spendKarmaPool = async () => {};
+          try {
+            await withFaces([5, 4, 6, 2], () => mage.applyKarmaToTest(testMsg, "reroll"));
+          } finally { mage.system.karma = saved.karma; mage._spendKarmaPool = saved.spend; }
+          const live = game.messages.get(card.id);
+          assert.isAbove(live.flags.sr2e.manipDamage.successes, 0, "the card picked up the reroll");
+          assert.include(live.content, "data-manip", "and now has its Resist button");
+        });
+
+        it("hands a vehicle target to the GM instead of a button", async function () {
+          if (!canvas?.ready) this.skip();
+          const carTok = canvas.scene.tokens.find(t => t.actor?.name === "Quench Manip Car");
+          await canvas.tokens.setTargets([carTok.id]);
+          const { msgs } = await withFaces([5, 5, 5],
+            () => cast(mage.items.getName("Spark"), { force: 3, targetNumber: 4 }));
+          assert.notOk(msgs.some(x => x.flags?.sr2e?.manipDamage), "no auto-resolved card");
+          assert.ok(msgs.some(x => /GM resolves it against a vehicle/.test(x.content)));
+          await canvas.tokens.setTargets([]);
+        });
+      });
+
+      describe("Flame Bomb (area)", () => {
+        it("gives everyone caught the same staged code; vehicles to the GM; hidden never", async function () {
+          if (!canvas?.ready) this.skip();
+          await canvas.tokens.setTargets([]);
+          const { msgs } = await withFaces([5, 5, 2, 1],
+            () => cast(mage.items.getName("Flame Bomb"), { force: 4, targetNumber: 4, area: { ...centre, radiusDelta: 0 } }));
+          // Only this batch's tokens: the scene may hold real ones in range.
+          const cards = msgs.filter(x => x.flags?.sr2e?.manipDamage).map(x => x.flags.sr2e.manipDamage)
+            .filter(c => c.targetName.startsWith("Quench "));
+          assert.deepEqual(cards.map(c => c.targetName).sort(), ["Quench Manip Goon", "Quench Manip Goon2"],
+            "a card per goon (car → GM, hidden excluded, mage outside)");
+          for (const c of cards) assert.include(c, { successes: 2, basePower: 4, area: true });
+          const summary = msgs.find(x => x.whisper.length && /Caught in the blast/.test(x.content));
+          assert.include(summary.content, "vehicle: the GM resolves it");
+          assert.notInclude(summary.content, "Quench Manip Hidden");
+        });
+      });
+
+      describe("Reconciling cards posted while Karma or a resolution lands", () => {
+        it("never rewrites a resolved card, and brings the rest to the newest total", async function () {
+          if (!canvas?.ready) this.skip();
+          await canvas.tokens.setTargets([]);
+          const bomb = mage.items.getName("Flame Bomb");
+          const { msgs } = await withFaces([5, 5, 2, 1],
+            () => cast(bomb, { force: 4, targetNumber: 4, area: { ...centre, radiusDelta: 0 } }));
+          const [a, b] = msgs.filter(x => x.flags?.sr2e?.manipDamage?.targetName?.startsWith("Quench "));
+          const testId = a.flags.sr2e.manipDamage.testMessageId;
+          // Someone resolves card A; then the caster's casting test gains 2
+          // successes — the state a batch can find mid-post.
+          const r = await ChatMessage.create({ content: "resolved elsewhere", flags: { sr2e: { resolves: a.id } } });
+          made.messages.push(r.id);
+          const test = game.messages.get(testId);
+          await test.update({ "flags.sr2e.test": { ...test.flags.sr2e.test,
+            boughtSuccesses: (test.flags.sr2e.test.boughtSuccesses ?? 0) + 2 } });
+          await bomb._reconcileManipCards([a, b], { testMessageId: testId, successes: 2 });
+          assert.equal(game.messages.get(a.id).flags.sr2e.manipDamage.successes, 2, "the resolved card keeps its damage");
+          assert.equal(game.messages.get(b.id).flags.sr2e.manipDamage.successes, 4, "the live card takes the newest total");
+        });
+      });
+
+      describe("Resolution guards (the real resist path)", () => {
+        // Resolves with the next DialogV2 once it renders, so a test can act
+        // while the resist dialog is open, then confirm it.
+        const nextDialog = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)));
+        const confirm = (app) => app.element.querySelector('button[data-action="roll"]').click();
+        const resist = (card) => game.sr2e.resistManipDamage(card);
+        const spark = async (faces = [5, 5, 5]) => {
+          await canvas.tokens.setTargets([goonToken().id]);
+          const { msgs } = await withFaces(faces, () => cast(mage.items.getName("Spark"), { force: 3, targetNumber: 4 }));
+          await canvas.tokens.setTargets([]);
+          return msgs.find(x => x.flags?.sr2e?.manipDamage);
+        };
+        const newSince = (n) => { const m = game.messages.contents.slice(n); made.messages.push(...m.map(x => x.id)); return m; };
+
+        it("beforeRoll=false spends nothing and applies nothing", async function () {
+          if (!canvas?.ready) this.skip();
+          const target = goonToken().actor;
+          const phys = target.system.conditionMonitor.physical.value;
+          const n = game.messages.size;
+          nextDialog().then(confirm);
+          const r = await target.rollDamageResistance(5, "M", "impact", "physical",
+            { armorCalc: "half_impact", beforeRoll: async () => false });
+          assert.isNull(r);
+          assert.lengthOf(newSince(n), 0, "no roll, no outcome message");
+          assert.equal(target.system.conditionMonitor.physical.value, phys);
+        });
+
+        it("tags every outcome with the card it resolves (damage taken, fully resisted)", async function () {
+          if (!canvas?.ready) this.skip();
+          const { isManipCardResolved } = await import("../documents/item.mjs");
+          for (const [label, bodyFaces] of [["damage taken", Array(12).fill(2)], ["fully resisted", Array(12).fill(5)]]) {
+            const card = await spark();
+            assert.isFalse(isManipCardResolved(card), `${label}: starts live`);
+            const n = game.messages.size;
+            nextDialog().then(confirm);
+            await withFaces(bodyFaces, () => resist(card));
+            const out = newSince(n);
+            assert.ok(out.some(x => x.flags?.sr2e?.resolves === card.id), `${label}: outcome carries the marker`);
+            assert.isTrue(isManipCardResolved(game.messages.get(card.id)), `${label}: card now reads resolved`);
+          }
+        });
+
+        it("a double click on this client resolves once", async function () {
+          if (!canvas?.ready) this.skip();
+          const card = await spark();
+          const n = game.messages.size;
+          nextDialog().then(confirm);
+          await Promise.all([resist(card), resist(card)]);
+          assert.lengthOf(newSince(n).filter(x => x.flags?.sr2e?.resolves === card.id), 1);
+        });
+
+        it("refuses when the caster spends Karma while the dialog is open", async function () {
+          if (!canvas?.ready) this.skip();
+          const card = await spark();
+          const n = game.messages.size;
+          nextDialog().then(async (app) => {
+            const st = card.flags.sr2e.manipDamage;
+            await card.update({ "flags.sr2e.manipDamage": { ...st, successes: st.successes + 2 } });
+            confirm(app);
+          });
+          const r = await resist(card);
+          assert.isNull(r, "revalidation failed");
+          assert.lengthOf(newSince(n).filter(x => x.flags?.sr2e?.resolves), 0, "nothing resolved");
+        });
+
+        it("refuses when someone else resolves it while the dialog is open", async function () {
+          if (!canvas?.ready) this.skip();
+          const card = await spark();
+          const n = game.messages.size;
+          nextDialog().then(async (app) => {
+            const m = await ChatMessage.create({ content: "elsewhere", flags: { sr2e: { resolves: card.id } } });
+            made.messages.push(m.id);
+            confirm(app);
+          });
+          const r = await resist(card);
+          assert.isNull(r);
+          assert.lengthOf(newSince(n).filter(x => x.flags?.sr2e?.resolves === card.id && x.content !== "elsewhere"), 0);
+        });
+
+        it("never redirects a card whose target is gone, and refuses a vehicle stand-in", async function () {
+          if (!canvas?.ready) this.skip();
+          const card = await spark();
+          const st = card.flags.sr2e.manipDamage;
+          await card.update({ "flags.sr2e.manipDamage": { ...st, targetUuid: "Actor.doesnotexist000" } });
+          const n = game.messages.size;
+          await resist(game.messages.get(card.id));
+          assert.lengthOf(newSince(n), 0, "deleted target: nothing rolled against whoever is selected");
+          // An untargeted card with a VEHICLE selected must not reach the vehicle rules.
+          await card.update({ "flags.sr2e.manipDamage": { ...st, targetUuid: "" } });
+          const carTok = canvas.tokens.placeables.find(t => t.actor?.name === "Quench Manip Car");
+          carTok.control({ releaseOthers: true });
+          const m = game.messages.size;
+          await resist(game.messages.get(card.id));
+          carTok.release();
+          assert.lengthOf(newSince(m), 0, "vehicle refused");
+        });
+      });
+    }, { displayName: "SR2E: Damaging manipulation (p.158)" });
+
 
 
 

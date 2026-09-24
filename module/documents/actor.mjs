@@ -4,9 +4,9 @@
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
-         renderHealingCard } from "./item.mjs";
+         renderHealingCard, renderManipDamageCard, isManipCardResolved } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
-import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps,
+import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
@@ -601,7 +601,8 @@ export class SR2EActor extends Actor {
       spell:  renderSpellResistCard,
       astral: s => this._renderAstralCard(s),
       matrix: s => this._renderMatrixCard(s),
-      healing: renderHealingCard
+      healing: renderHealingCard,
+      manipDamage: renderManipDamageCard
     };
 
     for (const msg of game.messages ?? []) {
@@ -612,6 +613,9 @@ export class SR2EActor extends Actor {
         if (!card || card.testMessageId !== testMessageId) continue;
         // Area resist cards carry per-target successes from an immutable roll.
         if (card.areaCard) continue;
+        // A damaging manipulation card resolved by a non-author leaves only its
+        // marker message behind — honour it.
+        if (key === "manipDamage" && isManipCardResolved(msg)) continue;
         if (card.resolved || card.successes === successes) continue;
         if (!msg.canUserModify(game.user, "update")) {
           // Better a visible complaint than a card that silently disagrees.
@@ -1934,27 +1938,9 @@ export class SR2EActor extends Actor {
     const ballistic = system.armor?.ballistic ?? 0;
     const impact    = system.armor?.impact ?? 0;
 
-    // Armor rating per the loaded ammunition's rules
-    let armor;
-    let armorLabel;
-    switch (armorCalc) {
-      case "half_ballistic":   // APDS (SSC p.63): halve Ballistic armor
-        armor = Math.floor(ballistic / 2);
-        armorLabel = "½ Ballistic";
-        break;
-      case "impact":           // Gel rounds: Impact, not Ballistic, applies
-        armor = impact;
-        armorLabel = "Impact";
-        break;
-      case "flechette":        // Flechette: max(2 × Impact, Ballistic)
-        armor = Math.max(2 * impact, ballistic);
-        armorLabel = "max(2×Impact, Ballistic)";
-        break;
-      default:
-        armor = system.armor?.[armorType] ?? 0;
-        armorLabel = armorType === "ballistic" ? "Ballistic" : "Impact";
-    }
-    armor = Math.max(0, armor + armorMod);
+    // Armor rating per the loaded ammunition's (or spell's) rule
+    const { armor, label: armorLabel } = damageResistArmor({
+      armorCalc, armorType, ballistic, impact, armorMod });
 
     const stages   = ["L", "M", "S", "D"];
     let startIdx = stages.indexOf(level);
@@ -2051,6 +2037,14 @@ export class SR2EActor extends Actor {
     });
 
     if (action !== "roll" || !rollResult) return;
+    // Last check before any dice or pool are spent: the card this resists may
+    // have changed while the dialog was open (a damaging manipulation card is
+    // re-rendered when the caster spends Karma, or resolved by someone else).
+    if (options.beforeRoll && !(await options.beforeRoll())) return null;
+    // Outcome messages carry which card they resolve, so any client can tell
+    // it is done without editing a message it may not own.
+    const resolves = options.resolvesMessageId
+      ? { flags: { sr2e: { resolves: options.resolvesMessageId } } } : {};
 
     // ── Roll ──────────────────────────────────────────────────────────────────
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
@@ -2084,7 +2078,8 @@ export class SR2EActor extends Actor {
           <br><em>${poolHits} Combat Pool success${poolHits === 1 ? "" : "es"} alone beat the
           attacker's ${options.attackerSuccesses}${options.melee
             ? " under Full Defense (SR2E p.103)" : " (SR2E p.91)"}.</em>
-        </div>`
+        </div>`,
+        ...resolves
       });
       return resistResult;
     }
@@ -2099,7 +2094,8 @@ export class SR2EActor extends Actor {
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result">
           <strong>Damage fully resisted — no damage taken.</strong>
-        </div>`
+        </div>`,
+        ...resolves
       });
       return resistResult;
     }
@@ -2142,7 +2138,8 @@ export class SR2EActor extends Actor {
         <strong>Damage Taken: ${finalLevel} ${damageType}</strong>
         <em>(${damageBoxes} box${damageBoxes !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>
         ${knockBtn}
-      </div>`
+      </div>`,
+      ...resolves
     });
 
     return resistResult;

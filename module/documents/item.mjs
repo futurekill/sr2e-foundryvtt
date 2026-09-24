@@ -1,6 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
@@ -175,6 +175,62 @@ export function renderSpellResistCard(state) {
     ${state.resolution ?? ""}
     ${button}
   </div>`;
+}
+
+/**
+ * Damage card for a damaging manipulation spell (Flamethrower, Spark, Flame
+ * Bomb — SR2E p.158): the target's "Spell Resistance Test is actually a Damage
+ * Resistance Test, as in Ranged Combat" (p.131), so the button is an ordinary
+ * Resist Damage button — Body + Combat Pool vs Power − ½ Impact armour, with
+ * the p.91 complete miss. Flag-backed (`flags.sr2e.manipDamage`) so a Karma
+ * spend on the casting test re-renders it: the level and the complete-miss
+ * threshold are derived from `successes` here, never baked in. At 0 successes
+ * the spell fizzles and there is no button — a Karma reroll can bring it back.
+ *
+ * state: { testMessageId, casterName, spellName, targetUuid, targetName,
+ *          basePower, baseLevel, successes, resolved, area }
+ */
+export function renderManipDamageCard(state) {
+  const esc = foundry.utils.escapeHTML;
+  const n = state.successes ?? 0;
+  const level = stageLevel(state.baseLevel, netToSteps(n));
+  const at = state.targetName ? ` at <strong>${esc(state.targetName)}</strong>` : "";
+  const line = n > 0
+    ? `<strong>${state.basePower}${level}</strong> physical <em>(base ${state.basePower}${state.baseLevel},
+       ${n} success${n === 1 ? "" : "es"} — up one level per 2, p.158)</em>`
+    : `<em>The spell fizzles — no successes, no damage.</em>`;
+  const hint = n > 0 && !state.resolved
+    ? (state.targetUuid ? "" : `<br><em class="sr2e-hint">No target was set — whoever resists should select their token first.</em>`)
+      + (state.area ? `<br><em class="sr2e-hint">One TN for the whole blast; cover or visibility that differs per victim is the GM's call.</em>` : "")
+      + `<br><em class="sr2e-hint">Spell Defense dice (p.132), if the GM allows them here: add them as misc dice in the resist dialog.</em>`
+    : "";
+  const button = n > 0 && !state.resolved ? `
+    <div class="sr2e-karma-actions">
+      <button type="button" class="sr2e-resist-btn" data-manip="1"
+              data-power="${state.basePower}" data-base-power="${state.basePower}"
+              data-level="${level}" data-armor-type="impact" data-armor-calc="half_impact"
+              data-armor-mod="0" data-ammo-name="" data-damage-type="physical"
+              data-target-uuid="${state.targetUuid ?? ""}" data-attacker-successes="${n}"
+              title="Body (+ Combat Pool) vs Power − ½ Impact armour (SR2E p.158)">
+        ${game.i18n.localize("SR2E.Chat.ResistDamage")}
+      </button>
+    </div>` : "";
+  return `<div class="sr2e-damage-result">
+    <strong>${esc(state.casterName)}'s ${esc(state.spellName)}</strong>${at} — ${line}
+    ${state.resolved ? `<br><strong>Resolved.</strong>` : ""}${hint}
+    ${button}
+  </div>`;
+}
+
+/**
+ * Whether a damaging manipulation card has been resisted. The resolver may not
+ * own the caster's card, so resolution is proven by the resolver's OWN outcome
+ * message, which carries `flags.sr2e.resolves = <card id>`.
+ * @param {ChatMessage} message
+ */
+export function isManipCardResolved(message) {
+  if (message?.flags?.sr2e?.manipDamage?.resolved) return true;
+  return !!game.messages?.some(m => m.flags?.sr2e?.resolves === message?.id);
 }
 
 /**
@@ -1197,6 +1253,15 @@ export class SR2EItem extends Item {
     // or Body (p.130). The roll's own TN is the lowest of them — the card's
     // success highlighting shows the best case; each target's real count is
     // on its own card.
+    // Damaging manipulation (SR2E p.158): a Force damage code on a manipulation
+    // spell. The single target is captured NOW, before anything is awaited, so
+    // a target change mid-cast cannot redirect an already-rolled spell.
+    const manipDmg = spellCategory === "manipulation"
+      ? manipulationDamage(this.system.damageCode, Number(force)) : null;
+    const manipTarget = (manipDmg && !isArea) ? (() => {
+      const t = game.user?.targets?.first?.();
+      return t?.actor ? { actor: t.actor, uuid: t.actor.uuid, name: t.name, type: t.actor.type } : null;
+    })() : null;
     const resistAttr = this.system.type === "mana" ? "willpower" : "body";
     const cardTargets = (area?.caught ?? []).filter(c => c.eligible === "card");
     const targetNumber = (isAreaCombat && cardTargets.length)
@@ -1434,8 +1499,16 @@ export class SR2EItem extends Item {
     // — armor does not help — plus any Spell Defense dice protecting them.
     // Net (caster − resister) successes stage the spell's damage up one level
     // per 2 net. Resolved by the defender via the card's Resist Spell button.
+    if (spellCategory === "manipulation" && !manipDmg && (this.system.damageCode ?? "").trim()) {
+      // A damage code we cannot read must not fail silently — area or not.
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">
+        <strong>${foundry.utils.escapeHTML(this.name)}</strong>: damage code
+        "${foundry.utils.escapeHTML(this.system.damageCode)}" is not a Force code like (F)M — the GM resolves the damage.</div>` });
+    }
     if (isArea) {
-      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat });
+      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg });
+    } else if (manipDmg) {
+      await this._postManipDamage(manipDmg, spellResult, manipTarget);
     } else if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
       const isMana   = this.system.type === "mana";
       const { baseLevel, dmgType } = this._combatSpellDamage();
@@ -1471,6 +1544,73 @@ export class SR2EItem extends Item {
     }
 
     return spellResult;
+  }
+
+  /**
+   * The casting test's success total as it stands NOW. Karma may have been
+   * spent on it while drain was still resolving, before these cards existed
+   * for _syncDependentCards to find.
+   * @private
+   */
+  _liveSuccesses(spellResult) {
+    const st = game.messages?.get(spellResult?.testMessageId)?.flags?.sr2e?.test;
+    return st ? testTotalSuccesses(st) : (spellResult?.successes ?? 0);
+  }
+
+  /**
+   * Bring freshly posted damage cards up to the casting test's CURRENT total —
+   * a Karma spend may have landed while they were being created, before
+   * _syncDependentCards could find them. Each write re-reads the card and the
+   * total first and skips a resolved card (flag or outcome marker), and passes
+   * repeat (at most 3) until nothing changes. That is bounded reconciliation,
+   * not atomic serialization: it converges on the newest total in practice,
+   * but a Karma spend racing the very last write could still lose.
+   * @private
+   */
+  async _reconcileManipCards(msgs, spellResult) {
+    for (let pass = 0; pass < 3; pass++) {
+      let changed = false;
+      for (const m of msgs) {
+        const live = m && game.messages.get(m.id);
+        if (!live || isManipCardResolved(live)) continue;
+        const st = live.flags?.sr2e?.manipDamage;
+        const now = this._liveSuccesses(spellResult);
+        if (!st || st.successes === now) continue;
+        const next = { ...st, successes: now };
+        await live.update({ content: renderManipDamageCard(next), "flags.sr2e.manipDamage": next });
+        changed = true;
+      }
+      if (!changed) return;
+    }
+  }
+
+  /**
+   * Single-target damaging manipulation (Flamethrower, Spark): one public damage
+   * card for the target captured at cast time, like a weapon's. Vehicles use
+   * their own damage rules (p.108), which ignore ½ Impact and the complete
+   * miss, so the GM resolves them.
+   * @private
+   */
+  async _postManipDamage(manipDmg, spellResult, target) {
+    const actor = this.parent;
+    const speaker = ChatMessage.getSpeaker({ actor });
+    if (target && !["character", "npc", "spirit"].includes(target.type)) {
+      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">
+        <strong>${foundry.utils.escapeHTML(this.name)}</strong> at ${foundry.utils.escapeHTML(target.name)}:
+        ${manipDmg.power}${manipDmg.level}, +1 level per 2 of ${this._liveSuccesses(spellResult)} successes —
+        the GM resolves it against a ${target.type} (p.108).</div>` });
+    }
+    const state = {
+      testMessageId: spellResult?.testMessageId, casterName: actor.name, spellName: this.name,
+      targetUuid: target?.uuid ?? "", targetName: target?.name ?? "",
+      basePower: manipDmg.power, baseLevel: manipDmg.level,
+      successes: this._liveSuccesses(spellResult), resolved: false, area: false
+    };
+    const msg = await ChatMessage.create({
+      speaker, content: renderManipDamageCard(state), flags: { sr2e: { manipDamage: state } }
+    });
+    await this._reconcileManipCards([msg], spellResult);
+    return msg;
   }
 
   /**
@@ -1558,7 +1698,7 @@ export class SR2EItem extends Item {
    * ONE TN and keeps its Karma buttons, so counts here could go stale.
    * @private
    */
-  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat }) {
+  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg = null }) {
     const actor = this.parent;
     const esc = foundry.utils.escapeHTML;
     const speaker = ChatMessage.getSpeaker({ actor });
@@ -1616,12 +1756,36 @@ export class SR2EItem extends Item {
           whisper: [...new Set([...casterIds, ...owners])]
         });
       }
+    } else if (manipDmg) {
+      // Flame Bomb: one TN, one staged code for everyone caught (p.130/p.158).
+      // The total is read per card, then the batch is reconciled: Karma spent
+      // on the casting test while these were being posted must reach them all.
+      const posted = [];
+      for (const { actor: target, uuid, name, eligible } of area.caught) {
+        if (eligible === "gm") {
+          rows.push(`<li>${esc(name)} — vehicle: the GM resolves it (p.108)</li>`);
+          continue;
+        }
+        rows.push(`<li>${esc(name)}</li>`);
+        const state = {
+          testMessageId: spellResult?.testMessageId, casterName: actor.name, spellName: this.name,
+          targetUuid: uuid, targetName: name, basePower: manipDmg.power, baseLevel: manipDmg.level,
+          successes: this._liveSuccesses(spellResult), resolved: false, area: true
+        };
+        const owners = game.users.filter(u => target.testUserPermission(u, "OWNER")).map(u => u.id);
+        posted.push(await ChatMessage.create({
+          speaker, content: renderManipDamageCard(state), flags: { sr2e: { manipDamage: state } },
+          whisper: [...new Set([...casterIds, ...owners])]
+        }));
+      }
+      await this._reconcileManipCards(posted, spellResult);
     } else {
       for (const { name } of area.caught) rows.push(`<li>${esc(name)}</li>`);
     }
 
     const intro = isAreaCombat
       ? `One roll, scored against each target's own ${resistAttr === "willpower" ? "Willpower" : "Body"} (p.130):`
+      : manipDmg ? "Caught in the blast (each has a damage card):"
       : "In the area (successes: see the casting test card):";
     await ChatMessage.create({
       speaker, whisper: casterIds,

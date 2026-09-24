@@ -2,7 +2,7 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice} from "../rules/sr2e-rules.mjs";
+         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 
@@ -1574,6 +1574,10 @@ async function promptSpellOptions(actor, spell) {
     tnNote = `<span style="color:#6a8;">Target ${foundry.utils.escapeHTML(tgtTok.name)}: ${isMana ? "Willpower" : "Body"} ${suggestedTN}</span>`;
   } else if (isCombat) {
     tnNote = `<span style="color:#a86;">No target — TN is the victim's ${isMana ? "Willpower (mana)" : "Body (physical)"}.</span>`;
+  } else if (spell?.system?.category === "manipulation"
+             && manipulationDamage(spell.system.damageCode, defaultForce)) {
+    // Damaging manipulation (SR2E p.130): base TN 4, situation modifiers apply.
+    tnNote = `Base TN 4 plus situation modifiers — cover, visibility (p.89). The target resists with Body against ½ Impact armour (p.158).`;
   } else if (spell?.system?.healsDamage) {
     // Curative spells derive their TN from the SUBJECT's Essence (SR2E p.155) —
     // Treat 8 − Essence, Heal 10 − Essence — so a chromed patient is harder to

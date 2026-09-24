@@ -523,6 +523,23 @@ export const MIGRATIONS = [
       if (/\bchipjack\b/i.test(name)) return { "system.accessPorts": 1 };
       return null;
     }
+  },
+
+  {
+    // 0.95.0 — damaging manipulation spells deal damage (SR2E p.158), detected
+    // by a Force damage code on a manipulation spell. Spark and Flame Bomb
+    // shipped with an EMPTY damageCode, so copies already on characters would
+    // cast and do nothing. Fill the book's "(F)M" — by VALUE (an empty string,
+    // which is also the schema default) and by the exact names we shipped, so a
+    // homebrew spell with its own name or its own code is never touched.
+    version: "0.95.0",
+    migrateItem(source) {
+      if (source.type !== "spell") return null;
+      if (!["Spark", "Flame Bomb", "Flamethrower"].includes(source.name)) return null;
+      if (source.system?.category !== "manipulation") return null;
+      if ((source.system?.damageCode ?? "").trim() !== "") return null;
+      return { "system.damageCode": "(F)M" };
+    }
   }
 ];
 

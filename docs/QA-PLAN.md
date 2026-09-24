@@ -141,6 +141,10 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **One roll, per-target TN:** two goons with Willpower 3 and 5 inside → a whispered summary lists each with its own TN and successes, and Resist cards (whispered to caster, GM, and that target's owner) name their target. The caster is caught too if inside. Hidden tokens are never caught.
 - [ ] **Karma on an area combat roll:** Reroll / Buy Success are replaced by a "GM adjudication" note; Avoid an Oops still works.
 - [ ] **Non-combat area spells** (Confusion, Stink, Detect Life…): same centre + template; the whispered summary lists who is in the area with no counts; Karma buttons behave normally.
+- [ ] **Damaging manipulation (0.95.0, p.158):** target a goon, cast Flamethrower (or Spark) → a damage card "(F)M" staged up one level per 2 successes; Resist Damage rolls Body (+ Combat Pool) vs Power − ½ Impact armour. 0 successes → "fizzles", no button; a Karma reroll that succeeds brings the button back.
+- [ ] **Flame Bomb:** no target needed (area); each goon caught gets a whispered damage card at the same staged code; a vehicle caught is listed for the GM; hidden tokens never.
+- [ ] **Resist guards:** the button can't be resolved twice; if the caster spends Karma while the resist dialog is open, confirming says "click Resist again" and rolls nothing; a player can only resist for actors they own.
+- [ ] **Existing characters:** after updating, Spark / Flame Bomb already on a sheet deal damage without re-dragging (0.95.0 migration fills their (F)M).
 - [ ] **Cast dialog (0.94.0):** two tabs — Spell (Force, TN, area) and Dice (Magic Pool split, foci, Karma, misc); the bottom readout shows dice rolled, TN, Drain and radius and updates live.
 - [ ] **Sustained spells:** +2 TN per sustained spell; **spell locks** exempt; Active Effects apply real stat changes while sustained and drop when released.
 - [ ] **Spell Defense:** allocate Magic Pool dice; they boost spell-resistance and release on pool refresh.

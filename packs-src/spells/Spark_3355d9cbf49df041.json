@@ -11,7 +11,7 @@
     "force": 1,
     "drainCode": "((F / 2) + 1)M",
     "target": "4",
-    "damageCode": "",
+    "damageCode": "(F)M",
     "isAreaEffect": false,
     "isVoluntary": false,
     "notes": "This spell creates a small spark of electricity that springs from the spellcaster to the target. The damage code for this attack is (F)M. Every 2 successes increase the Damage Code by one level. The spell is resisted by Body, and one-half the value of Impact Armor reduces the Power (Force) of the attack. Resolve using the ranged combat procedure."

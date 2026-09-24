@@ -14,6 +14,7 @@ import * as dataModels from "./data/_index.mjs";
 // Document Classes
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
+import { renderManipDamageCard, isManipCardResolved } from "./documents/item.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
 // Sheets
@@ -38,7 +39,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, stageLevel, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -429,7 +430,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -1740,6 +1741,73 @@ async function _deployICOnActiveAlert(host) {
  * selected), then the clicker's controlled token / assigned character.
  * @param {string} [targetUuid] - The defending actor's UUID baked into the card.
  */
+/** Damaging manipulation cards whose resistance is open on THIS client. */
+const MANIP_IN_FLIGHT = new Set();
+
+/**
+ * Resist a damaging manipulation spell's damage card (SR2E p.158: "as in Ranged
+ * Combat", p.131) — Body + Combat Pool vs Power − ½ Impact armour, p.91 complete
+ * miss. Everything is derived from ONE snapshot of the card's flag state taken
+ * before the first await, and the card is locked on this client from the same
+ * moment. Just before any dice, the live card is compared with the snapshot: a
+ * Karma spend or someone else's resolution meanwhile aborts with nothing spent.
+ * Other clients are not locked (no socket relay at this table's host), so two
+ * resolvers confirming inside the same roll-and-apply window remains possible.
+ * @param {ChatMessage} message - the damage card
+ */
+async function resistManipDamage(message) {
+  if (MANIP_IN_FLIGHT.has(message.id)) return;
+  MANIP_IN_FLIGHT.add(message.id);
+  try {
+    const snap = foundry.utils.deepClone(message.getFlag("sr2e", "manipDamage"));
+    if (!snap || !(snap.successes > 0)) return;
+    if (isManipCardResolved(message)) {
+      return ui.notifications.warn("That spell's damage has already been resisted.");
+    }
+    let actor;
+    if (snap.targetUuid) {
+      // A recorded target that no longer exists must NOT fall back to whoever
+      // happens to be selected — that would damage the wrong actor.
+      const t = await fromUuid(snap.targetUuid);
+      actor = t?.documentName === "Actor" ? t : t?.actor;
+      if (!actor) return ui.notifications.warn("The spell's target no longer exists — the GM resolves it.");
+    } else {
+      actor = await resolveCardDefender("");
+      if (!actor) return ui.notifications.warn("Select the defending token (or assign a character) first.");
+    }
+    if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
+    if (!["character", "npc", "spirit"].includes(actor.type)) {
+      return ui.notifications.warn(`The GM resolves spell damage against a ${actor.type} (SR2E p.108).`);
+    }
+    const level = stageLevel(snap.baseLevel, netToSteps(snap.successes));
+    const result = await actor.rollDamageResistance(snap.basePower, level, "impact", "physical", {
+      armorCalc: "half_impact", basePower: snap.basePower, attackerSuccesses: snap.successes,
+      resolvesMessageId: message.id,
+      beforeRoll: async () => {
+        const live = game.messages.get(message.id);
+        if (!live || isManipCardResolved(live)) {
+          ui.notifications.warn("That spell's damage has already been resisted.");
+          return false;
+        }
+        if (live.getFlag("sr2e", "manipDamage")?.successes !== snap.successes) {
+          ui.notifications.warn("The caster spent Karma and the damage changed — click Resist again.");
+          return false;
+        }
+        return true;
+      }
+    });
+    // The author or a GM also closes the card; anyone else's outcome message
+    // (flags.sr2e.resolves) already marks it resolved.
+    if (result && (message.isAuthor || game.user.isGM)) {
+      const next = { ...message.getFlag("sr2e", "manipDamage"), resolved: true };
+      await message.update({ content: renderManipDamageCard(next), "flags.sr2e.manipDamage": next });
+    }
+    return result;
+  } finally {
+    MANIP_IN_FLIGHT.delete(message.id);
+  }
+}
+
 async function resolveCardDefender(targetUuid) {
   if (targetUuid) {
     const t = await fromUuid(targetUuid);
@@ -2019,6 +2087,8 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     if (btn.dataset.power === undefined) return;
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
+      // Damaging manipulation spells (SR2E p.158) have their own guarded path.
+      if (btn.dataset.manip === "1") return resistManipDamage(message);
       const power      = parseInt(btn.dataset.power)   || 0;
       const basePower  = parseInt(btn.dataset.basePower) || power;
       const level      = btn.dataset.level             || "M";
@@ -2037,6 +2107,10 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         return ui.notifications.warn(
           "Select a token (or assign a character) to roll damage resistance."
         );
+      }
+      // Rolling for an actor you cannot update ends in a roll with no damage.
+      if (!actor.isOwner) {
+        return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
       }
 
       const bonusDice  = parseInt(btn.dataset.bonusDice) || 0;
