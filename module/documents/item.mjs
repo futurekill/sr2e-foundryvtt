@@ -433,27 +433,30 @@ export class SR2EItem extends Item {
 
     let skillRating = 0;
     let skillVariantNote = "";
-    for (const item of actor.items) {
-      if (item.type !== "skill") continue;
-      if (skillKeys.includes(normalize(item.name))) {
-        // Improved Ability (adept) adds its levels in dice to the skill (p.125).
-        const adeptBonus = item.system._adeptBonus ?? 0;
-        // Enhanced Articulation (Shadowtech p.34) — a weapon attack IS a Success
-        // Test involving an Active Skill, so the die applies here too, not just
-        // to sheet skill rolls.
-        const bonus = adeptBonus + (actor._activeSkillBonus?.(item) ?? 0);
-        skillRating = item.system.rating + bonus;
-        // Concentration/Specialization pick from the dialog (SR2E p.70)
-        const v = options.skillVariant;
-        if ((v === "concentration" || v === "specialization") &&
-            item.system[v]?.name && !item.system._subRatingsSuppressed) {
-          const eff = effectiveSkillRating(item.system, v);
-          if (eff > 0) {
-            skillRating = eff + bonus;
-            skillVariantNote = item.system[v].name;
-          }
+    // Resolve in PRIORITY order — the weapon's own skill beats the type default.
+    // Walking actor.items instead took whichever matching skill came first, so
+    // an adept's Unarmed Strike rolled his Armed Combat (0.93.1).
+    const linkedSkill = skillKeys
+      .map(k => actor.items.find(i => i.type === "skill" && normalize(i.name) === k))
+      .find(Boolean);
+    if (linkedSkill) {
+      const item = linkedSkill;
+      // Improved Ability (adept) adds its levels in dice to the skill (p.125).
+      const adeptBonus = item.system._adeptBonus ?? 0;
+      // Enhanced Articulation (Shadowtech p.34) — a weapon attack IS a Success
+      // Test involving an Active Skill, so the die applies here too, not just
+      // to sheet skill rolls.
+      const bonus = adeptBonus + (actor._activeSkillBonus?.(item) ?? 0);
+      skillRating = item.system.rating + bonus;
+      // Concentration/Specialization pick from the dialog (SR2E p.70)
+      const v = options.skillVariant;
+      if ((v === "concentration" || v === "specialization") &&
+          item.system[v]?.name && !item.system._subRatingsSuppressed) {
+        const eff = effectiveSkillRating(item.system, v);
+        if (eff > 0) {
+          skillRating = eff + bonus;
+          skillVariantNote = item.system[v].name;
         }
-        break;
       }
     }
     // Fallback: a character who set their skill up AS a concentration/spec (e.g.

@@ -1275,7 +1275,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
         <input type="radio" name="${tabName}" id="${tabName}-tactics" class="sr2e-attack__tab-input">
         <input type="radio" name="${tabName}" id="${tabName}-dice" class="sr2e-attack__tab-input">
         <nav class="sr2e-attack__tablist">
-          <label for="${tabName}-shot"    class="sr2e-attack__tab"><i class="fas fa-crosshairs"></i>Shot</label>
+          <label for="${tabName}-shot"    class="sr2e-attack__tab"><i class="fas fa-crosshairs"></i>Attack</label>
           <label for="${tabName}-tactics" class="sr2e-attack__tab"><i class="fas fa-chess-knight"></i>Tactics</label>
           <label for="${tabName}-dice"    class="sr2e-attack__tab"><i class="fas fa-dice"></i>Dice</label>
         </nav>
@@ -1420,9 +1420,11 @@ export async function rollWeaponInteractive(actor, item) {
   let skillCap = Infinity;
   let baseDice = 1;
   let defaultingPenalty = 0;
-  const linkedSkill = actor.items.find(
-    i => i.type === "skill" && skillKeys.includes(normalize(i.name))
-  );
+  // In priority order, like SR2EItem#roll: first-matching-item picked Armed
+  // Combat for an Unarmed Strike and capped the Combat Pool at its rating.
+  const linkedSkill = skillKeys
+    .map(k => actor.items.find(i => i.type === "skill" && normalize(i.name) === k))
+    .find(Boolean);
 
   // Concentration/Specialization choices (SR2E p.70): offer them in the
   // dialog; a specialization whose name matches the weapon is preselected.
