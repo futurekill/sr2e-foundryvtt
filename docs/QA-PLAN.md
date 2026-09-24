@@ -197,7 +197,8 @@ and any **red console errors**. File them wherever the group tracks issues
 
 ## 15. Other sheets
 - [ ] **NPC sheet:** stat-block fields, skills, threat/professional rating.
-- [ ] **Spirit sheet:** services, powers, manifest attack, banish.
+- [ ] **NPC damage persists (0.93.1):** on an unlinked NPC token, type 5 in Physical, close the sheet, reopen from the TOKEN → still 5 and the wound marker shows. The sidebar actor stays at 0 (correct).
+- [ ] **Spirit sheet:** services, powers, manifest attack, banish. Force and damage typed on the sheet survive a close/reopen.
 - [ ] **IC sheet & Host sheet:** all fields save on blur; selectors disable correctly when an IC is host-linked.
 - [ ] **Vehicle sheet:** linked-actor controls, vehicle weapons.
 

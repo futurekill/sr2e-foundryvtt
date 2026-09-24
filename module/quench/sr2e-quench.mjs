@@ -173,6 +173,33 @@ export function registerSR2EQuenchTests() {
           await new Promise(r => setTimeout(r, 250));
           assert.equal(actor.system.karma.current, 7, "Good Karma did not persist on change (header-save regression)");
         });
+
+        // 0.93.1: the NPC and spirit sheets have no tabs and no header class, so
+        // none of their fields were wired and every edit (damage typed on an NPC)
+        // was gone when the sheet reopened.
+        for (const [type, field, value] of [
+          ["npc",    "system.conditionMonitor.physical.value", 5],
+          ["spirit", "system.conditionMonitor.stun.value",     3],
+          ["ic",     "system.rating",                          4],
+          ["host",   "system.attempts",                        2]
+        ]) {
+          it(`a ${type} sheet saves ${field} on change`, async () => {
+            const a = await Actor.create({ name: `Quench Save ${type}`, type });
+            try {
+              await a.sheet.render(true);
+              await new Promise(r => setTimeout(r, 200));
+              const input = a.sheet.element.querySelector(`[name="${field}"]`);
+              assert.ok(input, `${field} input not found on the ${type} sheet`);
+              input.value = String(value);
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+              assert.ok(await settle(() => foundry.utils.getProperty(a, field) === value),
+                `${type} ${field} did not persist on change`);
+            } finally {
+              try { await a.sheet.close(); } catch (e) {}
+              await a.delete();
+            }
+          });
+        }
       });
     }, { displayName: "SR2E: Sheet Saves" });
 
@@ -890,6 +917,23 @@ export function registerSR2EQuenchTests() {
           // the document level, so assert the guard's identifying condition holds.
           assert.equal(unarmed.name, "Unarmed Strike",
             "delete/sell handlers guard on this exact name");
+        });
+
+        // 0.93.1: the skill lookup took the FIRST matching skill item, not the
+        // first key, so with Armed Combat created before Unarmed Combat a punch
+        // rolled Armed Combat (Heikegani: 8 dice with Unarmed 4).
+        it("rolls Unarmed Combat even when Armed Combat comes first", async () => {
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Armed Combat",   type: "skill", system: { rating: 6, category: "active" } },
+            { name: "Unarmed Combat", type: "skill", system: { rating: 4, category: "active" } }
+          ]);
+          let pool = null;
+          actor.rollSuccessTest = async (dice) => { pool = dice; return null; };
+          try {
+            await actor.items.getName("Unarmed Strike").roll({ targetNumber: 4 });
+          } catch (e) { /* the stub returns no result; only the pool matters */ }
+          finally { delete actor.rollSuccessTest; }
+          assert.equal(pool, 4, "Unarmed Strike must roll Unarmed Combat, not Armed Combat");
         });
       });
     }, { displayName: "SR2E: Unarmed protected" });

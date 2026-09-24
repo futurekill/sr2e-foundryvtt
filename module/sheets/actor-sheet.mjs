@@ -22,7 +22,7 @@ const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globa
  * Shared base class for all SR2E actor sheets.
  *
  * Centralizes the V13 ApplicationV2 boilerplate — part context, drag-drop,
- * prose-mirror auto-save and the submitOnChange workarounds — so every sheet
+ * prose-mirror auto-save and per-field saves — so every sheet
  * (not just the character sheet) gets the same data-loss protections.
  */
 class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -30,9 +30,6 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** @override */
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor"],
-    form: {
-      submitOnChange: true
-    },
     window: {
       resizable: true
     },
@@ -201,8 +198,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * so content typed without an explicit save is silently lost when the sheet
    * closes or re-renders. Fix: save on focusout.
    *
-   * Problem 2: submitOnChange cannot register named fields inside .tab-content
-   * sections that start as display:none. Fix: explicit change listeners.
+   * Problem 2: the form never submits as a whole (see _prepareSubmitData), so
+   * every named field saves itself. Fix: explicit change listeners.
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
@@ -218,20 +215,15 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       });
     }
 
-    // Named inputs/selects inside .tab-content sections — submitOnChange cannot
-    // register these at sheet-render time because all non-default tabs start as
-    // display:none. Wire them up explicitly so any change saves immediately.
-    // Propagation is stopped to prevent a double-save where submitOnChange also
-    // fires. Inputs inside [data-item-id] belong to embedded Items (below).
-    // Also the header stat inputs (Good Karma, Nuyen, Karma Pool): these live
-    // outside .tab-content but submitOnChange does not reliably persist them
-    // (e.g. Enter or a button-click reading the field before the form commits),
-    // which silently dropped Good Karma edits used by Quickening.
-    for (const input of this.element.querySelectorAll(
-      ".tab-content input[name], .tab-content select[name], .tab-content textarea[name], " +
-      ".sr2e-sheet-header input[name], .sr2e-sheet-header select[name]"
-    )) {
+    // Every named Actor field saves itself on change — on EVERY sheet. This once
+    // covered only .tab-content and .sr2e-sheet-header, which left the NPC and
+    // spirit sheets (no tabs, no header class) with nothing that saved: damage
+    // typed on an NPC was gone when the sheet reopened. Inputs inside
+    // [data-item-id] belong to embedded Items (below); names outside the
+    // document (the spirit sheet's `spiritPower` picker) are UI state.
+    for (const input of this.element.querySelectorAll("input[name], select[name], textarea[name]")) {
       if (input.closest("[data-item-id]")) continue;
+      if (input.name !== "name" && !input.name.startsWith("system.")) continue;
       input.addEventListener("change", (event) => {
         event.stopPropagation();
         let value = input.value;
@@ -243,7 +235,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     // Inline embedded-item field changes (e.g. skill rating inputs). These use
     // data-field instead of name because they belong to an embedded Item, not
-    // the Actor, so the actor form's submitOnChange never touches them.
+    // the Actor, so the actor-field wiring above never touches them.
     for (const input of this.element.querySelectorAll("[data-item-id] [data-field]")) {
       input.addEventListener("change", (event) => {
         event.stopPropagation();
@@ -274,22 +266,18 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   /**
    * @override
-   * Safety-net: inject prose-mirror values into form data before any
-   * submitOnChange submission. FormDataExtended may not reliably extract
-   * values from form-associated custom elements in all V13 builds. Without
-   * this, saving ANY other field (e.g. nuyen) could overwrite biography with
-   * an empty string.
+   * The actor form never submits as a whole: every field saves itself
+   * (_onRender), and a whole-form submit would write DISPLAYED values back to
+   * source — an NPC's armor already includes its worn items and an IC's
+   * Security Code comes from its host, so the next prepare would add on top.
+   *
+   * This was an `async _processFormData` override until 0.93.1. Foundry calls
+   * that method synchronously, so it received a Promise and every submit sent
+   * update({}): submitOnChange never saved anything on any actor sheet, and
+   * the per-field wiring above was the only thing that ever did.
    */
-  async _processFormData(event, form, formData) {
-    for (const pm of form.querySelectorAll("prose-mirror[name]")) {
-      const name = pm.getAttribute("name");
-      if (!name) continue;
-      // Only inject if FormDataExtended didn't already capture the value
-      if (!formData.has(name) && typeof pm.value === "string") {
-        formData.set(name, pm.value);
-      }
-    }
-    return super._processFormData(event, form, formData);
+  _prepareSubmitData() {
+    return {};
   }
 }
 
@@ -1152,6 +1140,10 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.gear = actor.items.filter(i => i.type === "gear");
     context.spells = actor.items.filter(i => i.type === "spell");
     context.foci = actor.items.filter(i => i.type === "focus");
+    // The armor inputs edit the stat-block base; system.armor is base + worn.
+    context.armorBase = actor._source.system.armor;
+    context.armorWorn = actor.system.armor.ballistic !== context.armorBase.ballistic
+      || actor.system.armor.impact !== context.armorBase.impact;
 
     context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(actor.system.biography || "", {
       secrets: this.document.isOwner,
@@ -1460,30 +1452,6 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
 /**
  * IC (Intrusion Countermeasures) Sheet.
  */
-/**
- * Wire change → save for top-level named fields on a single-part sheet.
- *
- * The base sheet only wires fields inside `.tab-content` (the tabbed character
- * sheet); simple single-part sheets (IC, Host) keep their inputs at the top
- * level, where ApplicationV2's submitOnChange does not reliably persist them.
- * Propagation is stopped so the form's submit handler doesn't double-save.
- * @param {ApplicationV2} sheet
- */
-function wireTopLevelFields(sheet) {
-  if (!sheet.isEditable || !sheet.element) return;
-  for (const input of sheet.element.querySelectorAll("input[name], select[name], textarea[name]")) {
-    if (input.closest("[data-item-id]")) continue;
-    if (input.name === "name") continue; // handled by ActorSheetV2 itself
-    input.addEventListener("change", (event) => {
-      event.stopPropagation();
-      let value = input.value;
-      if (input.type === "number")   value = parseFloat(value) || 0;
-      if (input.type === "checkbox") value = input.checked;
-      sheet.document.update({ [input.name]: value });
-    });
-  }
-}
-
 export class SR2EICSheet extends SR2EBaseActorSheet {
 
   static DEFAULT_OPTIONS = {
@@ -1514,12 +1482,6 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
     context.linkedHost = host ? { uuid: host.uuid, name: host.name } : null;
     return context;
   }
-
-  /** @override */
-  _onRender(context, options) {
-    super._onRender(context, options);
-    wireTopLevelFields(this);
-  }
 }
 
 /**
@@ -1544,11 +1506,5 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
     const context = await super._prepareContext(options);
     context.successesNeeded = this.document.system.successesNeeded;
     return context;
-  }
-
-  /** @override */
-  _onRender(context, options) {
-    super._onRender(context, options);
-    wireTopLevelFields(this);
   }
 }

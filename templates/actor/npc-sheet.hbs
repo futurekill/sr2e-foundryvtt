@@ -89,12 +89,17 @@
 
       <fieldset>
         <legend>Armor</legend>
+        {{!-- The inputs edit the stat-block BASE; derivation adds worn armor on
+              top, so binding them to the total would re-add it on every edit. --}}
         <div class="flexrow">
           <label>B:</label>
-          <input type="number" name="system.armor.ballistic" value="{{system.armor.ballistic}}" min="0" />
+          <input type="number" name="system.armor.ballistic" value="{{armorBase.ballistic}}" min="0" />
           <label>I:</label>
-          <input type="number" name="system.armor.impact" value="{{system.armor.impact}}" min="0" />
+          <input type="number" name="system.armor.impact" value="{{armorBase.impact}}" min="0" />
         </div>
+        {{#if armorWorn}}
+        <p class="rule-note">With worn armor: {{system.armor.ballistic}}/{{system.armor.impact}}</p>
+        {{/if}}
       </fieldset>
 
       <fieldset>
