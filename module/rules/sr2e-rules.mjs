@@ -3448,3 +3448,82 @@ export function cappedImprovedAbilityDice(skillName, rating, dice) {
   if (!IMPROVED_ABILITY_COMBAT_SKILLS.has(key)) return d;
   return Math.min(d, Math.max(0, Math.floor(Number(rating) || 0)));
 }
+
+// ---------------------------------------------------------------------------
+// AREA-EFFECT SPELLS (SR2E p.130)
+// ---------------------------------------------------------------------------
+// "The base radius of effect for all area-effect spells, regardless of
+// category, is equal to the magician's Magic Rating in meters." Shrinking it
+// withholds dice from the Spell Success Test, 1 m per 2 dice; growing it
+// withholds 1 die per 1 m. The dice removed "may not exceed the Force Rating of
+// the spell". The test is rolled ONCE and compared against each target's own
+// target number, successes counted separately per target.
+
+/**
+ * Validated area geometry for one cast.
+ * @param {{magic:number, force:number, radiusDelta?:number}} o
+ *   radiusDelta — signed whole metres the caster moves the radius by.
+ * @returns {{radius:number, withheld:number, valid:boolean}}
+ */
+export function areaSpellGeometry({ magic, force, radiusDelta = 0 } = {}) {
+  if (![magic, force, radiusDelta].every(Number.isInteger)) {
+    return { radius: 0, withheld: 0, valid: false };
+  }
+  const withheld = radiusDelta >= 0 ? radiusDelta : -radiusDelta * 2;
+  const radius = magic + radiusDelta;
+  return { radius, withheld, valid: magic >= 0 && force >= 1 && withheld <= force && radius >= 0 };
+}
+
+/**
+ * Successes one already-rolled test scores against a DIFFERENT target number.
+ * `die.total` is the compounded Rule-of-Six value (sr2e-roll.mjs), so a
+ * 6-then-2 counts as 8. `die.success` is useless here — it was judged at the
+ * roll's own TN.
+ * @param {Array<{total:number}>} dice
+ * @param {number} tn
+ */
+export function successesAtTN(dice = [], tn) {
+  return dice.filter(d => (Number(d?.total) || 0) >= tn).length;
+}
+
+/**
+ * Who an area spell can affect, by actor type.
+ * @returns {"card"|"gm"|null} "card" — resolves with a Resist Spell card;
+ *   "gm" — caught, but the GM resolves it (a vehicle vs a physical spell uses
+ *   the Object Resistance Table, p.130); null — not affected (Matrix entities;
+ *   anything unliving vs a mana spell, which "affects only living targets",
+ *   p.151).
+ */
+export function areaTargetEligible(actorType, spellType) {
+  if (["character", "npc", "spirit"].includes(actorType)) return "card";
+  if (actorType === "vehicle" && spellType === "physical") return "gm";
+  return null;
+}
+
+/**
+ * The dice one cast actually rolls — the ONE calculation shared by the cast
+ * dialog's preview and SR2EItem#_rollSpellcast, so the two cannot disagree.
+ * Pool, Karma and misc dice are added by rollSuccessTest from its options;
+ * `baseDice` is what goes in its first argument.
+ *
+ * @param {object} o
+ * @param {number} o.force
+ * @param {number} [o.withheld]  dice withheld to reshape an area (p.130)
+ * @param {number} [o.minBase]   floor on baseDice: 1 for an ordinary cast (as
+ *   before), 0 for an area cast whose Force dice may all be withheld — p.130
+ *   still lets Magic Pool dice carry it.
+ * @returns {{ratingDice:number, baseDice:number, pool:number, karma:number, total:number}}
+ */
+export function spellCastDice({
+  force, withheld = 0, totemBonus = 0, totemPenalty = 0, focusCast = 0,
+  poolReq = 0, poolAvail = 0, poolCap = Infinity,
+  karmaReq = 0, karmaAvail = 0, misc = 0, minBase = 1
+} = {}) {
+  const n = v => Number(v) || 0;
+  const ratingDice = Math.max(0, n(force) - n(withheld));
+  const baseDice = Math.max(minBase, ratingDice + n(totemBonus) - n(totemPenalty) + n(focusCast));
+  const pool = Math.max(0, Math.min(n(poolReq), n(poolAvail), poolCap));
+  // p.191: Karma dice up to the rating dice in use — withheld dice are not.
+  const karma = Math.max(0, Math.min(n(karmaReq), n(karmaAvail), ratingDice));
+  return { ratingDice, baseDice, pool, karma, total: Math.max(0, baseDice + pool + karma + n(misc)) };
+}
