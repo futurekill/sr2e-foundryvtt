@@ -98,15 +98,43 @@ function _nearestPoint(caster, fw, fh) {
 }
 
 /**
- * Resolve to the top-left pixel of the clicked cell, or null on cancel. Uses
- * canvas.mousePosition (world coords) rather than raw event coords, and cancels
- * on Escape OR a scene change so the summon promise never hangs.
+ * Resolve to the top-left pixel of the clicked cell, or null on cancel.
  */
 function _promptForPoint(name) {
+  return awaitCanvasClick(`Click the map to place ${name}. (Esc to cancel.)`,
+    `Placement for ${name} timed out — drag it onto the map from the sidebar.`,
+    (m) => {
+      const grid = canvas.grid;
+      return grid.type === CONST.GRID_TYPES.GRIDLESS
+        ? { x: m.x - grid.sizeX / 2, y: m.y - grid.sizeY / 2 }
+        : grid.getTopLeftPoint(grid.getOffset(m));
+    });
+}
+
+/**
+ * Ask the user to click a point on the map — the centre of an area spell.
+ * Resolves to the clicked WORLD point {x, y}, or null on Escape, timeout, a
+ * canvas teardown, or no canvas at all. Callers must treat null as a cancel.
+ * @param {string} label - what is being placed, for the prompt
+ * @returns {Promise<{x:number, y:number}|null>}
+ */
+export function promptForCanvasPoint(label) {
+  if (!canvas?.ready) return Promise.resolve(null);
+  return awaitCanvasClick(`Click the map to centre ${label}. (Esc to cancel.)`,
+    `${label}: no point chosen — cancelled.`,
+    (m) => ({ x: m.x, y: m.y }));
+}
+
+/**
+ * Wait for one click on the canvas and map it through `toPoint` (world
+ * coordinates). Cancels on Escape OR a scene change so the awaiting promise
+ * never hangs.
+ */
+function awaitCanvasClick(prompt, timeoutMsg, toPoint) {
   return new Promise((resolve) => {
     const stage = canvas.stage;
     let settled = false;
-    const note = ui.notifications.info(`Click the map to place ${name}. (Esc to cancel.)`, { permanent: true });
+    const note = ui.notifications.info(prompt, { permanent: true });
     let timer;
     const done = (value) => {
       if (settled) return;
@@ -120,20 +148,18 @@ function _promptForPoint(name) {
     };
     const onClick = (event) => {
       event?.stopPropagation?.();
-      const grid = canvas.grid;
-      const m = canvas.mousePosition ?? event?.getLocalPosition?.(stage);
-      if (!m) return done(null);
-      const tl = grid.type === CONST.GRID_TYPES.GRIDLESS
-        ? { x: m.x - grid.sizeX / 2, y: m.y - grid.sizeY / 2 }
-        : grid.getTopLeftPoint(grid.getOffset(m));
-      done(tl);
+      // The click's OWN position first: canvas.mousePosition only updates on
+      // pointer MOVE, so a tap (touch, pen, or a click with no move before it)
+      // would land wherever the pointer last moved.
+      const m = event?.getLocalPosition?.(stage) ?? canvas.mousePosition;
+      done(m ? toPoint(m) : null);
     };
     const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); done(null); } };
     const onTearDown = () => done(null);
     // Never wait forever: an unanswered prompt (nobody at the keyboard, an
-    // automated caller) must self-cancel so the awaiting summon always settles.
+    // automated caller) must self-cancel so the awaiting caller always settles.
     timer = setTimeout(() => {
-      ui.notifications?.warn(`Placement for ${name} timed out — drag it onto the map from the sidebar.`);
+      ui.notifications?.warn(timeoutMsg);
       done(null);
     }, PROMPT_TIMEOUT);
     stage.on("pointerdown", onClick);

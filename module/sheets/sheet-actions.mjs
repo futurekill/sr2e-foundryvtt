@@ -2,8 +2,9 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, focusEligibleFor, focusRemaining} from "../rules/sr2e-rules.mjs";
+         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
+import { promptForCanvasPoint } from "../placement.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -1603,30 +1604,22 @@ async function promptSpellOptions(actor, spell) {
   // Initial drain readout at the default Force
   const initDrainTN   = Math.max(2, Math.floor(defaultForce / 2) + drainMod);
   const initDrainType = defaultForce > magicAttr ? "Physical" : "Stun";
-  const initTypeColor = defaultForce > magicAttr ? "#c44" : "#888";
 
-  // Totem note for shaman feedback (SR2E p.119). Advisory: the totem's
-  // per-category Magic Pool bonus/penalty is shown so the caster adjusts their
-  // pool allocation by hand. Auto-applying it needs true bonus dice that bypass
-  // the pool-value clamp in rollSuccessTest — tracked as a post-launch item.
-  let totemNote = "";
+  // Totem bonus/penalty dice (SR2E p.119) are APPLIED by the roll
+  // (SR2EItem#_rollSpellcast) — the dialog only shows them, and folds them
+  // into the dice preview.
+  let totemBonus = 0, totemPenalty = 0;
   if (actor.system.magic?.tradition === "shamanic" && actor.system.magic?.totem) {
     const totemData = CONFIG.SR2E.totems[actor.system.magic.totem];
     const cat = spell?.system?.category;
     if (totemData && cat) {
-      const bonus   = totemData.spellBonus?.[cat]   ?? 0;
-      const penalty = totemData.spellPenalty?.[cat] ?? 0;
-      if (bonus > 0)   totemNote += `<p style="margin:2px 0;font-size:10px;color:#6a6;">⬆ Totem bonus +${bonus} dice (${cat}) — add by hand</p>`;
-      if (penalty > 0) totemNote += `<p style="margin:2px 0;font-size:10px;color:#a44;">⬇ Totem penalty −${penalty} dice (${cat}) — subtract by hand</p>`;
+      totemBonus   = totemData.spellBonus?.[cat]   ?? 0;
+      totemPenalty = totemData.spellPenalty?.[cat] ?? 0;
     }
   }
+  const esc = foundry.utils.escapeHTML;
 
   // ── Spell focus allocation (SR2E p.137) ───────────────────────────────────
-  // Deliberately OUTSIDE poolSection: that block is suppressed when Magic Pool
-  // availability is 0, and focus dice can still remain when the Magic Pool is
-  // spent — putting these inside would hide them exactly when they are the only
-  // dice left.
-  //
   // One row per eligible focus, with a cast field and a drain field, because the
   // two SHARE one budget. `_rollSpellcast` re-clamps whatever arrives here, so
   // these maxes are a convenience and never the enforcement point.
@@ -1636,101 +1629,164 @@ async function promptSpellOptions(actor, spell) {
   // found, so a caster with no foci never reached it and cast normally.
   const eligibleFoci = actor.items.filter(i =>
     i.type === "focus" && focusEligibleFor(i.system, spell.id));
-  const focusSection = eligibleFoci.length ? `
-    <hr style="margin:8px 0 6px;">
-    ${eligibleFoci.map(f => {
-      const rem = focusRemaining(f.system);
-      return `
-      <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">
-        ${foundry.utils.escapeHTML(f.name)}: ${rem} focus die/dice left this action
-        <span style="color:#aaa1c0;font-size:10px;">— shared between both tests</span>
-      </p>
-      <div class="form-group" style="margin:4px 0;">
-        <label style="font-size:12px;flex:1;">Spell test</label>
-        <input type="number" name="focus_cast_${f.id}" value="0" min="0" max="${rem}"
-               style="width:52px;flex:0 0 52px;">
-        <label style="font-size:12px;flex:1;margin-left:8px;">Drain</label>
-        <input type="number" name="focus_drain_${f.id}" value="0" min="0" max="${rem}"
-               style="width:52px;flex:0 0 52px;">
-      </div>`;
-    }).join("")}
-  ` : "";
+  const focusSection = eligibleFoci.map(f => {
+    const rem = focusRemaining(f.system);
+    return `
+    <fieldset class="sr2e-attack__group">
+      <legend class="sr2e-attack__legend">${esc(f.name)}
+        <span class="sr2e-attack__hint">${rem} focus ${rem === 1 ? "die" : "dice"} left this action, shared by both tests</span></legend>
+      <div class="sr2e-attack__grid">
+        <div class="sr2e-attack__field"><label>Spell test</label>
+          <input type="number" name="focus_cast_${f.id}" value="0" min="0" max="${rem}"></div>
+        <div class="sr2e-attack__field"><label>Drain</label>
+          <input type="number" name="focus_drain_${f.id}" value="0" min="0" max="${rem}"></div>
+      </div>
+    </fieldset>`;
+  }).join("");
+
+  // ── Area-effect spells (SR2E p.130) ───────────────────────────────────────
+  // Radius = Magic Rating metres; +1 m per die withheld, −1 m per 2 dice, never
+  // more than Force dice. The centre is picked AFTER this dialog (onCastSpell)
+  // and before anything is spent.
+  const isArea       = !!spell?.system?.isAreaEffect;
+  const isAreaCombat = isArea && isCombat;
+  const casterToken  = actor.getActiveTokens?.()?.[0] ?? null;
+  const areaSection = isArea ? `
+    <fieldset class="sr2e-attack__group">
+      <legend class="sr2e-attack__legend">Area effect <span class="sr2e-attack__hint">p.130</span></legend>
+      <div class="sr2e-attack__grid">
+        <div class="sr2e-attack__field"><label>Centre</label>
+          <select name="area_center">
+            ${tgtTok ? `<option value="target" selected>On ${esc(tgtTok.name)}</option>` : ""}
+            <option value="point" ${tgtTok ? "" : "selected"}>Click the map</option>
+            ${casterToken ? `<option value="self">On me</option>` : ""}
+          </select></div>
+        <div class="sr2e-attack__field"><label>Radius ± m</label>
+          <input type="number" name="radius_delta" value="0" step="1"
+                 title="+1 m per die withheld; −1 m per 2 dice withheld; at most Force dice (p.130)"></div>
+      </div>
+      <p class="sr2e-attack__hint" id="sr2e-cast-area-note"></p>
+      <p class="sr2e-attack__hint">Everyone in the area is affected, friend and foe alike${
+        isAreaCombat ? ", each against their own " + (isMana ? "Willpower" : "Body") : ""}.</p>
+    </fieldset>` : "";
 
   const poolSection = available > 0 ? `
-    <hr style="margin:8px 0 6px;">
-    <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">
-      Magic Pool: ${available} available
-    </p>
-    ${totemNote}
-    <div class="form-group" style="margin:4px 0;">
-      <label style="font-size:12px;flex:1;">
-        Spell test
-        <span style="color:#aaa1c0;font-size:10px;">(max ${spellCap})</span>
-      </label>
-      <input type="number" name="spell_pool" value="0" min="0" max="${spellCap}"
-             style="width:52px;text-align:center;">
-    </div>
-    <div class="form-group" style="margin:4px 0;">
-      <label style="font-size:12px;flex:1;">
-        Drain resist
-        <span style="color:#aaa1c0;font-size:10px;">(no limit)</span>
-      </label>
-      <input type="number" name="drain_pool" value="0" min="0" max="${drainCap}"
-             style="width:52px;text-align:center;">
-    </div>
-    <p style="margin:2px 0;font-size:10px;color:#aaa1c0;">
-      Total allocated cannot exceed ${available} available dice.
-    </p>
-  ` : totemNote;
+    <fieldset class="sr2e-attack__group">
+      <legend class="sr2e-attack__legend">Magic Pool <span class="sr2e-attack__hint">${available} available, shared by both tests</span></legend>
+      <div class="sr2e-attack__grid">
+        <div class="sr2e-attack__field"><label>Spell test <span class="sr2e-attack__hint">max ${isArea ? Math.min(spellCap, defaultForce) : spellCap}</span></label>
+          <input type="number" name="spell_pool" value="0" min="0" max="${spellCap}"></div>
+        <div class="sr2e-attack__field"><label>Drain resist</label>
+          <input type="number" name="drain_pool" value="0" min="0" max="${drainCap}"></div>
+      </div>
+    </fieldset>` : "";
 
-  // Wire up live drain TN update via a render hook (avoids CSP issues with
-  // inline event handlers in Foundry's ApplicationV2 rendering pipeline).
-  Hooks.once("renderDialogV2", (_app, html) => {
-    // In some V13 builds the hook passes the ApplicationV2 instance or a
-    // non-Element object as `html`. Fall back to document so querySelector
-    // always has a valid receiver.
-    const root = (html instanceof Element) ? html : document;
-    const forceInput = root.querySelector("#sr2e-cast-force");
-    if (!forceInput) return;
-    const tnSpan   = root.querySelector("#sr2e-cast-drain-tn");
-    const typeSpan = root.querySelector("#sr2e-cast-drain-type");
-    forceInput.addEventListener("input", () => {
-      const f = Math.max(1, Math.min(parseInt(forceInput.value) || 1, magicAttr));
-      const tn = Math.max(2, Math.floor(f / 2) + drainMod);
-      if (tnSpan)   tnSpan.textContent   = tn;
-      if (typeSpan) {
-        const isPhys = f > magicAttr;
-        typeSpan.textContent = isPhys ? "Physical" : "Stun";
-        typeSpan.style.color = isPhys ? "#c44" : "#888";
-      }
+  const totemLine = (totemBonus || totemPenalty) ? `<p class="sr2e-attack__hint">Totem: ${
+    totemBonus ? `+${totemBonus}` : ""}${totemPenalty ? ` −${totemPenalty}` : ""} dice for ${esc(spell.system.category)} spells (applied automatically).</p>` : "";
+
+  // What the preview needs, per input. Same function the roll uses.
+  const readPreview = (form) => {
+    const el = form.elements;
+    const force = Math.max(1, Math.min(parseInt(el.force?.value) || 1, magicAttr));
+    const radiusDelta = isArea ? Number(el.radius_delta?.value || 0) : 0;
+    const geo = isArea ? areaSpellGeometry({ magic: magicAttr, force, radiusDelta }) : null;
+    const focusCast = eligibleFoci.reduce((n, f) => n + (Number(el[`focus_cast_${f.id}`]?.value) || 0), 0);
+    const dice = spellCastDice({
+      force, withheld: geo?.withheld ?? 0, totemBonus, totemPenalty, focusCast,
+      poolReq: parseInt(el.spell_pool?.value) || 0, poolAvail: available,
+      poolCap: isArea ? Math.min(spellCap, force) : spellCap,
+      karmaReq: parseInt(el.karma_dice?.value) || 0, karmaAvail: actor.system.karma?.pool ?? 0,
+      misc: parseInt(el.misc_dice?.value) || 0, minBase: isArea ? 0 : 1
     });
+    return { force, radiusDelta, geo, dice };
+  };
+
+  // Live readout: drain, dice, radius. A render hook, not inline handlers (CSP
+  // in ApplicationV2's pipeline).
+  Hooks.once("renderDialogV2", (_app, html) => {
+    const root = (html instanceof Element) ? html : document;
+    const form = root.querySelector("#sr2e-cast-force")?.form;
+    if (!form) return;
+    const $ = (id) => root.querySelector(`#${id}`);
+    const update = () => {
+      const { force, geo, dice } = readPreview(form);
+      const drainTN = Math.max(2, Math.floor(force / 2) + drainMod);
+      const phys = force > magicAttr;
+      $("sr2e-cast-drain-tn").textContent = drainTN;
+      const typeEl = $("sr2e-cast-drain-type");
+      typeEl.textContent = phys ? "Physical" : "Stun";
+      typeEl.classList.toggle("sr2e-cast__physical", phys);
+      $("sr2e-cast-dice").textContent = dice.total;
+      if (!isAreaCombat) $("sr2e-cast-tn").textContent = parseInt(form.elements.tn?.value) || suggestedTN;
+      const note = $("sr2e-cast-area-note");
+      if (note && geo) {
+        note.textContent = geo.valid
+          ? `Radius ${geo.radius} m${geo.withheld ? ` · withholds ${geo.withheld} of ${force} Force dice` : ""}`
+          : `Withholds ${geo.withheld} dice, more than Force ${force} (p.130).`;
+        note.classList.toggle("sr2e-pool-error", !geo.valid);
+        $("sr2e-cast-radius").textContent = geo.valid ? `${geo.radius} m` : "—";
+      }
+    };
+    form.addEventListener("input", update);
+    update();
   });
 
   let rollResult = null;
+  // Per-dialog tab ids (see the attack dialog): the suffixes -cast / -pools
+  // select the panels in CSS; a random prefix keeps two open dialogs apart.
+  const tabName = `sr2e-cast-${foundry.utils.randomID(8)}`;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: game.i18n.format("SR2E.Dialog.CastTitle", { name: spell.name }) },
+    window: { title: game.i18n.format("SR2E.Dialog.CastTitle", { name: spell.name }), resizable: true },
+    position: { width: 520 },
     rejectClose: false,
-    content: `<div>
-      <div class="form-group">
-        <label>${game.i18n.localize("SR2E.Dialog.Force")} <span style="color:#aaa1c0;font-size:10px;">(1–${magicAttr})</span>:</label>
-        <input type="number" name="force" id="sr2e-cast-force" value="${defaultForce}" min="1" max="${magicAttr}"
-               autofocus>
+    // NOT a <form> — DialogV2 wraps content in its own (see the attack dialog).
+    content: `<div class="sr2e-attack sr2e-attack--spell">
+      <div class="sr2e-attack__tabs">
+        <input type="radio" name="${tabName}" id="${tabName}-cast"  class="sr2e-attack__tab-input" checked>
+        <input type="radio" name="${tabName}" id="${tabName}-pools" class="sr2e-attack__tab-input">
+        <nav class="sr2e-attack__tablist">
+          <label for="${tabName}-cast"  class="sr2e-attack__tab"><i class="fas fa-hat-wizard"></i>Spell</label>
+          <label for="${tabName}-pools" class="sr2e-attack__tab"><i class="fas fa-dice"></i>Dice</label>
+        </nav>
+        <div class="sr2e-attack__panels">
+          <section class="sr2e-attack__panel">
+            <div class="sr2e-attack__grid">
+              <div class="sr2e-attack__field">
+                <label>${game.i18n.localize("SR2E.Dialog.Force")} <span class="sr2e-attack__hint">1–${magicAttr}</span></label>
+                <input type="number" name="force" id="sr2e-cast-force" value="${defaultForce}" min="1" max="${magicAttr}" autofocus>
+              </div>
+              <div class="sr2e-attack__field">
+                <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}${isAreaCombat ? ` <span class="sr2e-attack__hint">per target</span>` : ""}</label>
+                <input type="number" name="tn" value="${suggestedTN}" min="2" max="30" ${isAreaCombat ? "readonly tabindex=\"-1\"" : ""}>
+              </div>
+            </div>
+            ${isAreaCombat
+              ? `<p class="sr2e-attack__hint">Rolled once, then scored against each target's own ${isMana ? "Willpower" : "Body"} (p.130).</p>`
+              : (tnNote ? `<p class="sr2e-attack__hint">${tnNote}</p>` : "")}
+            ${areaSection}
+            ${totemLine}
+          </section>
+          <section class="sr2e-attack__panel">
+            ${poolSection}
+            ${focusSection}
+            ${karmaDiceSection(actor, magicAttr)}
+            ${miscDiceHTML()}
+          </section>
+        </div>
       </div>
-      <div style="margin:2px 0 6px;font-size:11px;color:#aaa1c0;padding-left:4px;">
-        Drain: TN <span id="sr2e-cast-drain-tn">${initDrainTN}</span>
-        · ${drainLevel}
-        <span id="sr2e-cast-drain-type" style="color:${initTypeColor};">${initDrainType}</span>
-        <span style="color:#958ba8;font-size:10px;">${drainFormula}</span>
+      <div class="sr2e-attack__readout">
+        <div class="sr2e-attack__tn">
+          <span class="sr2e-attack__tn-label">Dice</span>
+          <span id="sr2e-cast-dice" class="sr2e-attack__tn-value">—</span>
+        </div>
+        <table class="sr2e-attack__breakdown-table">
+          <tr><td>Target number</td><td id="sr2e-cast-tn">${isAreaCombat ? "each target's" : suggestedTN}</td></tr>
+          <tr><td>Drain</td><td>TN <span id="sr2e-cast-drain-tn">${initDrainTN}</span> · ${drainLevel}
+            <span id="sr2e-cast-drain-type" class="${defaultForce > magicAttr ? "sr2e-cast__physical" : ""}">${initDrainType}</span></td></tr>
+          ${drainSubjectNote ? `<tr><td colspan="2" class="sr2e-attack__hint">${esc(drainFormula)}</td></tr>` : ""}
+          ${isArea ? `<tr><td>Radius</td><td id="sr2e-cast-radius">${magicAttr} m</td></tr>` : ""}
+        </table>
       </div>
-      <div class="form-group">
-        <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
-        <input type="number" name="tn" value="${suggestedTN}" min="2" max="30">
-      </div>
-      ${tnNote ? `<div style="margin:-2px 0 6px;font-size:10px;padding-left:4px;">${tnNote}</div>` : ""}
-      ${poolSection}
-      ${focusSection}
-      ${karmaDiceSection(actor, magicAttr)}
-      ${miscDiceHTML()}
     </div>`,
     buttons: [
       {
@@ -1738,36 +1794,35 @@ async function promptSpellOptions(actor, spell) {
         label: "SR2E.Dialog.Cast",
         default: true,
         callback: (event, button) => {
-          const force = Math.max(1, Math.min(parseInt(button.form.elements.force.value) || 1, magicAttr));
-          const tn = parseInt(button.form.elements.tn.value) || suggestedTN;
-          const rawSpell = parseInt(button.form.elements.spell_pool?.value) || 0;
-          const rawDrain = parseInt(button.form.elements.drain_pool?.value) || 0;
-          // Clamp each allocation; drain is capped by whatever is left
-          const spellAlloc = Math.max(0, Math.min(rawSpell, spellCap));
-          const drainAlloc = Math.max(0, Math.min(rawDrain, Math.max(0, available - spellAlloc)));
+          const el = button.form.elements;
+          const { force, radiusDelta, geo, dice } = readPreview(button.form);
+          if (geo && !geo.valid) {
+            ui.notifications.warn(`${spell.name}: that radius withholds more dice than the spell's Force (p.130).`);
+            return;   // rollResult stays null → treated as cancel
+          }
+          const tn = parseInt(el.tn?.value) || suggestedTN;
+          const rawDrain = parseInt(el.drain_pool?.value) || 0;
+          // Drain is capped by whatever the spell test left of the pool
+          const drainAlloc = Math.max(0, Math.min(rawDrain, Math.max(0, available - dice.pool)));
           rollResult = {
             force,
             tn,
             resolvedDrainLevel: drainLevel,
             drainSubjectNote,
-            poolDice:      spellAlloc > 0 ? { magic: spellAlloc } : {},
+            poolDice:      dice.pool > 0 ? { magic: dice.pool } : {},
             drainPoolDice: drainAlloc > 0 ? { magic: drainAlloc } : {},
             // { [focusId]: {cast, drain} } — a REQUEST. _rollSpellcast
             // re-resolves eligibility and re-clamps before spending anything.
-            // `fd` was never declared here — the second crash in this dialog,
-            // hidden the same way as the first: the map body only runs when
-            // there is an eligible focus. Read the form directly, like the
-            // pool fields above it.
             focusDice: Object.fromEntries(eligibleFoci.map(f => [f.id, {
-              cast:  Number(button.form.elements[`focus_cast_${f.id}`]?.value)  || 0,
-              drain: Number(button.form.elements[`focus_drain_${f.id}`]?.value) || 0
+              cast:  Number(el[`focus_cast_${f.id}`]?.value)  || 0,
+              drain: Number(el[`focus_drain_${f.id}`]?.value) || 0
             }])),
-            // Cap by the chosen Force here; rollSuccessTest re-clamps against
-            // the final spell dice (Force + totem) and the live Karma Pool.
-            karmaDice:     readKarmaDice(button.form, actor, force),
-            // Misc applies to the CASTING test only. onCastSpell routes it through
-            // item.roll → the spell roll, which forwards it; the Drain roll uses
-            // drainPoolDice and never receives misc, so casting misc can't leak.
+            // Capped at the rating dice in use (Force less withheld area dice,
+            // p.191); rollSuccessTest re-clamps against the live Karma Pool.
+            karmaDice:     readKarmaDice(button.form, actor, dice.ratingDice),
+            // Area: the centre is resolved by onCastSpell after this dialog.
+            ...(isArea ? { areaRequest: { center: el.area_center?.value ?? "point", radiusDelta } } : {}),
+            // Misc applies to the CASTING test only; the Drain roll never sees it.
             ...readMiscDice(button.form)
           };
         }
@@ -1791,7 +1846,19 @@ async function onCastSpell(event, target) {
   // Spell-specific dialog: Magic Pool only, split between spell test & drain resist
   const opts = await promptSpellOptions(this.document, item);
   if (opts === null) return;
+  // Area spell (SR2E p.130): pick the centre NOW — after the dialog, before
+  // item.roll spends focus, pool or drain — so Escape costs nothing.
+  let area;
+  if (opts.areaRequest) {
+    // The sheet usually covers the map; tuck it away while the caster clicks.
+    const tuck = opts.areaRequest.center === "point" && this.rendered && !this.minimized;
+    if (tuck) await this.minimize();
+    try { area = await resolveAreaCentre(this.document, item, opts.areaRequest); }
+    finally { if (tuck) await this.maximize(); }
+    if (!area) return;
+  }
   return item.roll({
+    area,
     force: opts.force, targetNumber: opts.tn,
     poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice, focusDice: opts.focusDice,
     karmaDice: opts.karmaDice,
@@ -1799,6 +1866,29 @@ async function onCastSpell(event, target) {
     drainSubjectNote: opts.drainSubjectNote,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
+}
+
+/**
+ * The centre of an area spell as a world point on the current scene, from the
+ * dialog's choice: the targeted token, the caster's own token, or a click on
+ * the map. Null means cancel — nothing has been spent yet.
+ * @returns {Promise<{x:number, y:number, sceneId:string, radiusDelta:number}|null>}
+ */
+async function resolveAreaCentre(actor, spell, { center, radiusDelta }) {
+  if (!canvas?.ready) {
+    ui.notifications.warn(`${spell.name}: open a scene to place an area spell.`);
+    return null;
+  }
+  const sceneId = canvas.scene.id;
+  let point = null;
+  if (center === "target") point = game.user?.targets?.first?.()?.center ?? null;
+  else if (center === "self") point = actor.getActiveTokens?.()?.[0]?.center ?? null;
+  else point = await promptForCanvasPoint(spell.name);
+  if (!point) {
+    if (center !== "point") ui.notifications.warn(`${spell.name}: no token to centre on — cast cancelled.`);
+    return null;
+  }
+  return { x: point.x, y: point.y, sceneId, radiusDelta };
 }
 
 /**

@@ -3918,6 +3918,26 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   outline-offset: -2px;
 }
 
+/* Cast dialog (sr2e-attack--spell): two tabs, ids ending -cast / -pools. Kept
+   apart from the attack dialog's -shot/-tactics/-dice suffixes so neither set
+   of rules can light the other dialog's panels. */
+.sr2e-attack__tab-input[id$="-cast"]:checked  ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(1),
+.sr2e-attack__tab-input[id$="-pools"]:checked ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(2) {
+  color: var(--sr2e-gold);
+  border-bottom-color: var(--sr2e-gold);
+  background: rgba(0, 229, 255, 0.07);
+}
+.sr2e-attack__tab-input[id$="-cast"]:checked  ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(1),
+.sr2e-attack__tab-input[id$="-pools"]:checked ~ .sr2e-attack__panels .sr2e-attack__panel:nth-child(2) { display: flex; }
+.sr2e-attack__tab-input[id$="-cast"]:focus-visible  ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(1),
+.sr2e-attack__tab-input[id$="-pools"]:focus-visible ~ .sr2e-attack__tablist .sr2e-attack__tab:nth-child(2) {
+  outline: 2px solid var(--sr2e-gold);
+  outline-offset: -2px;
+}
+.sr2e-attack--spell .sr2e-attack__field > input[readonly] { opacity: 0.5; }
+.sr2e-attack--spell p.sr2e-attack__hint { margin: 0; }
+.sr2e-cast__physical { color: var(--sr2e-danger, #e44); font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) { .sr2e-attack__tab { transition: none; } }
 
 /* ===========================================================================

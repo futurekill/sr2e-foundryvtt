@@ -3488,6 +3488,178 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Karma spend syncs dependent cards" });
 
+    // ── Area-effect spells (SR2E p.130): no target token needed; one roll,
+    //    scored per target; frozen cards; nothing spent on an abort. ──────────
+    quench.registerBatch("sr2e.area-spells", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = { actors: [], tokens: [], templates: [], messages: [] };
+      let mage, sleep, w3, w5, centre;
+      const newMessages = (n) => game.messages.contents.slice(n);
+      // Deterministic dice: Foundry rolls a face as ceil((1 − u) × 6), so the
+      // uniform (6.5 − f) / 6 yields face f. After the queue, real randomness
+      // (the drain roll does not matter here).
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        const pack = game.packs.get("sr2e.spells");
+        const idx = await pack.getIndex();
+        const doc = async (name) => (await pack.getDocument(idx.find(e => e.name === name)._id)).toObject();
+        const npc = async (name, wil, extra = {}) => {
+          const a = await Actor.create({ name, type: "npc", system: { willpower: { base: wil }, ...extra } });
+          made.actors.push(a); return a;
+        };
+        mage = await npc("Quench Area Mage", 5, { magic: { value: 6 } });
+        await mage.createEmbeddedDocuments("Item", [await doc("Sleep"), await doc("Confusion")]);
+        sleep = mage.items.getName("Sleep");
+        w3 = await npc("Quench Area W3", 3);
+        w5 = await npc("Quench Area W5", 5);
+        const far = await npc("Quench Area Far", 3);
+        const hidden = await npc("Quench Area Hidden", 3);
+        const g = canvas.dimensions.size;                       // px per grid unit
+        const m = g / canvas.dimensions.distance;               // px per metre
+        const o = { x: canvas.dimensions.sceneX + 20 * g, y: canvas.dimensions.sceneY + 20 * g };
+        const put = async (a, dx, dy, hidden = false) => {
+          const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
+            ...(await a.getTokenDocument()).toObject(), x: o.x + dx * m, y: o.y + dy * m, hidden }]))[0];
+          made.tokens.push(t.id);
+        };
+        // Magic 6 → a 6 m radius. The mage stands INSIDE (friend and foe alike).
+        await put(mage, -3, 0); await put(w3, 2, 0); await put(w5, 0, 4);
+        await put(far, 12, 0); await put(hidden, 1, 1, true);
+        await new Promise(r => setTimeout(r, 300));
+        centre = { x: o.x + (g * 1) / 2, y: o.y + (g * 1) / 2, sceneId: canvas.scene.id };
+      });
+
+      after(async () => {
+        if (!canvas?.ready) return;
+        const tpl = canvas.scene.templates.filter(t => String(t.flags?.sr2e?.areaSpell ?? "").length && made.templates.includes(t.id));
+        if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl.map(t => t.id));
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+        for (const a of made.actors) await a.delete();
+      });
+
+      const cast = async (item, opts) => {
+        const n = game.messages.size;
+        const tplBefore = new Set(canvas.scene.templates.map(t => t.id));
+        const r = await item.roll(opts);
+        await new Promise(res => setTimeout(res, 300));
+        const msgs = newMessages(n);
+        made.messages.push(...msgs.map(x => x.id));
+        made.templates.push(...canvas.scene.templates.filter(t => !tplBefore.has(t.id)).map(t => t.id));
+        return { r, msgs };
+      };
+
+      describe("Area combat spell with no targeted token", () => {
+        it("scores ONE roll against each caught target's own Willpower", async function () {
+          if (!canvas?.ready) this.skip();
+          // Force 4 Sleep, faces 5,4,3,1. Caught: W3, W5 and the caster (W5),
+          // who stands inside — p.130, friend and foe alike.
+          const { msgs } = await withFaces([5, 4, 3, 1],
+            () => cast(sleep, { force: 4, area: { ...centre, radiusDelta: 0 } }));
+          const test = msgs.find(x => x.flags?.sr2e?.test?.areaCast)?.flags.sr2e.test;
+          assert.ok(test, "the casting test must be flagged areaCast");
+          assert.deepEqual(test.dice.map(d => d.total), [5, 4, 3, 1]);
+          assert.equal(test.tn, 3, "the roll's own TN is the lowest caught Willpower");
+          const cards = Object.fromEntries(msgs.filter(x => x.flags?.sr2e?.spell?.areaCard)
+            .map(x => [x.flags.sr2e.spell.targetName, x.flags.sr2e.spell]));
+          assert.hasAllKeys(cards, ["Quench Area W3", "Quench Area W5", "Quench Area Mage"],
+            "one card per caught target with successes — never the far or hidden token");
+          assert.include(cards["Quench Area W3"], { targetTN: 3, successes: 3 });
+          assert.include(cards["Quench Area W5"], { targetTN: 5, successes: 1 });
+          assert.include(cards["Quench Area Mage"], { targetTN: 5, successes: 1 });
+          const summary = msgs.find(x => x.whisper.length && /One roll/.test(x.content));
+          assert.ok(summary, "a whispered summary is posted");
+          assert.notInclude(summary.content, "Quench Area Far");
+          assert.notInclude(summary.content, "Quench Area Hidden", "hidden tokens are never caught or named");
+        });
+
+        it("floors the base dice at 0 once, then adds the rest (withheld = Force)", async function () {
+          if (!canvas?.ready) this.skip();
+          // Force 2 with a +2 m radius withholds both Force dice; 2 misc dice
+          // still roll. spellCastDice: base max(0, 0) = 0, total 0 + 2 = 2.
+          const { msgs } = await cast(sleep, { force: 2, miscDice: 2, area: { ...centre, radiusDelta: 2 } });
+          const test = msgs.find(x => x.flags?.sr2e?.test?.areaCast)?.flags.sr2e.test;
+          assert.lengthOf(test.dice, 2, "0 base dice + 2 misc = 2 dice rolled");
+          assert.ok(msgs.some(x => /8 m radius/.test(x.content)), "Magic 6 + 2 = 8 m");
+        });
+
+        it("whispers target-naming cards away from uninvolved players", async function () {
+          if (!canvas?.ready) this.skip();
+          const bystander = game.users.find(u => !u.isGM && u.id !== game.user.id
+            && !w3.testUserPermission(u, "OWNER") && !w5.testUserPermission(u, "OWNER"));
+          if (!bystander) this.skip();
+          const { msgs } = await cast(sleep, { force: 4, area: { ...centre, radiusDelta: 0 } });
+          for (const x of msgs.filter(x => x.flags?.sr2e?.spell?.areaCard || /One roll|no one was caught/.test(x.content))) {
+            assert.ok(x.whisper.length > 0, "target-naming output is whispered");
+            assert.notInclude(x.whisper, bystander.id, "an uninvolved player does not receive it");
+          }
+        });
+
+        it("refuses Karma reroll / buy on the multi-target roll", async function () {
+          if (!canvas?.ready) this.skip();
+          const { msgs } = await cast(sleep, { force: 4, area: { ...centre, radiusDelta: 0 } });
+          const testMsg = msgs.find(x => x.flags?.sr2e?.test?.areaCast);
+          const before = JSON.stringify(testMsg.flags.sr2e.test);
+          await mage.applyKarmaToTest(testMsg, "reroll");
+          await mage.applyKarmaToTest(testMsg, "buySuccess");
+          assert.equal(JSON.stringify(game.messages.get(testMsg.id).flags.sr2e.test), before);
+        });
+
+        it("aborts an invalid radius or a stale scene before spending anything", async function () {
+          if (!canvas?.ready) this.skip();
+          const stun = mage.system.conditionMonitor.stun.value;
+          const a = await cast(sleep, { force: 4, area: { ...centre, radiusDelta: 5 } });   // 5 dice > Force 4
+          const b = await cast(sleep, { force: 4, area: { ...centre, sceneId: "nope", radiusDelta: 0 } });
+          assert.isNull(a.r); assert.isNull(b.r);
+          assert.lengthOf(a.msgs, 0); assert.lengthOf(b.msgs, 0);
+          assert.equal(mage.system.conditionMonitor.stun.value, stun, "no drain was taken");
+        });
+
+        it("still resolves when the caster may not create templates", async function () {
+          if (!canvas?.ready) this.skip();
+          const orig = game.user.can;
+          game.user.can = (p) => p === "TEMPLATE_CREATE" ? false : orig.call(game.user, p);
+          try {
+            const { msgs } = await cast(sleep, { force: 4, area: { ...centre, radiusDelta: 0 } });
+            assert.ok(msgs.some(x => /no template/.test(x.content)), "says why there is no template");
+            assert.ok(msgs.some(x => /One roll/.test(x.content)), "the spell still resolves");
+          } finally { game.user.can = orig; }
+        });
+      });
+
+      describe("Non-combat area spell", () => {
+        it("lists who is in the area without success counts, and keeps normal Karma", async function () {
+          if (!canvas?.ready) this.skip();
+          const { msgs } = await withFaces([2], () => cast(mage.items.getName("Confusion"),
+            { force: 3, targetNumber: 4, area: { ...centre, radiusDelta: -1 } }));   // 5 m, 2 dice withheld
+          const testMsg = msgs.find(x => x.flags?.sr2e?.test);
+          assert.notOk(testMsg.flags.sr2e.test.areaCast, "one TN — Karma stays available");
+          assert.lengthOf(testMsg.flags.sr2e.test.dice, 1, "Force 3 less 2 withheld = 1 die");
+          const summary = msgs.find(x => x.whisper.length && /In the area/.test(x.content));
+          assert.ok(summary, "candidates summary posted");
+          assert.include(summary.content, "Quench Area W3");
+          assert.notMatch(summary.content, /\d+ success/, "no counts that a later reroll could contradict");
+          // Now actually reroll with Karma: the test changes, the summary does not.
+          const before = summary.content;
+          const saved = { karma: mage.system.karma, spend: mage._spendKarmaPool };
+          mage.system.karma = { pool: 5 };
+          mage._spendKarmaPool = async () => {};
+          try {
+            await withFaces([6, 1], () => mage.applyKarmaToTest(testMsg, "reroll"));
+          } finally { mage.system.karma = saved.karma; mage._spendKarmaPool = saved.spend; }
+          assert.equal(game.messages.get(testMsg.id).flags.sr2e.test.rerolls, 1, "the reroll went through");
+          assert.equal(game.messages.get(summary.id).content, before, "the summary is untouched");
+        });
+      });
+    }, { displayName: "SR2E: Area spells (p.130)" });
+
 
 
 

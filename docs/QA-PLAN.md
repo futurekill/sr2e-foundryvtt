@@ -135,7 +135,13 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.
 - [ ] **Combat-spell TN auto-pulls from the target** (SR2E p.130): with a token targeted, the cast dialog shows TN = the victim's **Willpower** (mana spell) or **Body** (physical spell), not a flat 4/6.
 - [ ] **Combat spells** post a **Resist Spell** card; target resists with Willpower/Body + Spell Defense, and **damage is applied** (Power = Force, staged by net successes).
-- [ ] **Area spells** (Manaball, Powerball, Fireball, Sleep…): radius = the **caster's Magic Rating** in metres; everyone inside gets a resist card.
+- [ ] **Area spells need no target (0.94.0, p.130).** Cast Sleep with NO token targeted → the sheet minimizes and you are asked to click the map; a circle of radius = Magic Rating appears there. Escape cancels with nothing spent (no drain, Magic Pool untouched).
+- [ ] **Centre choice:** "On <target>" (when one is targeted), "Click the map", "On me".
+- [ ] **Radius ± m:** +1 m costs 1 die, −1 m costs 2 dice, never more than Force (the dialog warns; the cast refuses). The Dice readout drops accordingly.
+- [ ] **One roll, per-target TN:** two goons with Willpower 3 and 5 inside → a whispered summary lists each with its own TN and successes, and Resist cards (whispered to caster, GM, and that target's owner) name their target. The caster is caught too if inside. Hidden tokens are never caught.
+- [ ] **Karma on an area combat roll:** Reroll / Buy Success are replaced by a "GM adjudication" note; Avoid an Oops still works.
+- [ ] **Non-combat area spells** (Confusion, Stink, Detect Life…): same centre + template; the whispered summary lists who is in the area with no counts; Karma buttons behave normally.
+- [ ] **Cast dialog (0.94.0):** two tabs — Spell (Force, TN, area) and Dice (Magic Pool split, foci, Karma, misc); the bottom readout shows dice rolled, TN, Drain and radius and updates live.
 - [ ] **Sustained spells:** +2 TN per sustained spell; **spell locks** exempt; Active Effects apply real stat changes while sustained and drop when released.
 - [ ] **Spell Defense:** allocate Magic Pool dice; they boost spell-resistance and release on pool refresh.
 

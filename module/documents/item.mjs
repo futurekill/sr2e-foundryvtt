@@ -1,6 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
@@ -153,16 +153,23 @@ export function renderMeleeAttackCard(state) {
 export function renderSpellResistCard(state) {
   const esc = foundry.utils.escapeHTML;
   const attrLabel = state.resistAttr === "willpower" ? "Willpower" : "Body";
+  // The handler resolves a stored targetUuid; only legacy / un-targeted cards
+  // fall back to the selected token.
+  const who = state.targetUuid
+    ? (state.targetName ? `${esc(state.targetName)} resists` : "The target resists")
+    : "Select the defending token, then resist";
   const button = state.resolved ? "" : `
     <div class="sr2e-karma-actions">
       <button type="button" class="sr2e-resist-btn sr2e-spellresist-btn"
-              title="Select the defending token, then resist with ${attrLabel} (+ Spell Defense) vs Force ${state.force}. Armor does not help (SR2E p.131).">
+              title="${who} with ${attrLabel} (+ Spell Defense) vs Force ${state.force}. Armor does not help (SR2E p.131).">
         ✨ Resist Spell
       </button>
     </div>`;
+  const vs = state.targetName ? ` at <strong>${esc(state.targetName)}</strong>` : "";
+  const tnNote = state.targetTN ? `, TN ${state.targetTN}` : "";
   return `<div class="sr2e-damage-result">
-    <strong>${esc(state.casterName)} casts ${esc(state.spellName)}</strong>
-    — ${state.successes} success${state.successes === 1 ? "" : "es"} (Force ${state.force}).
+    <strong>${esc(state.casterName)} casts ${esc(state.spellName)}</strong>${vs}
+    — ${state.successes} success${state.successes === 1 ? "" : "es"} (Force ${state.force}${tnNote}).
     <br><em>Base ${state.force}${state.baseLevel}${state.dmgType === "stun" ? " Stun" : ""}.
     Resist with ${attrLabel} + Spell Defense, no armor (SR2E p.131).</em>
     ${state.resolution ?? ""}
@@ -1175,7 +1182,26 @@ export class SR2EItem extends Item {
     const force = options.force ?? this.system.force;
     const spellCategory = this.system.category; // combat, detection, health, illusion, manipulation
     const magicRating  = actor.system.magic?.value ?? 0;
-    const targetNumber = options.targetNumber ?? 4;
+
+    // ── Area-effect spells (SR2E p.130) ───────────────────────────────────────
+    // Resolved BEFORE anything is spent (focus, pool, Centering, drain): a bad
+    // centre or geometry aborts a cast that has cost nothing yet.
+    const isArea       = !!this.system.isAreaEffect;
+    const isAreaCombat = isArea && spellCategory === "combat";
+    const area = isArea ? this._resolveAreaCast(options.area, force, magicRating) : null;
+    if (area?.abort) {
+      ui.notifications.warn(`${this.name}: ${area.abort} Nothing was spent.`);
+      return null;
+    }
+    // Area combat: the one roll is judged against each target's own Willpower
+    // or Body (p.130). The roll's own TN is the lowest of them — the card's
+    // success highlighting shows the best case; each target's real count is
+    // on its own card.
+    const resistAttr = this.system.type === "mana" ? "willpower" : "body";
+    const cardTargets = (area?.caught ?? []).filter(c => c.eligible === "card");
+    const targetNumber = (isAreaCombat && cardTargets.length)
+      ? Math.min(...cardTargets.map(c => c.baseTN))
+      : (options.targetNumber ?? 4);
 
     // ── Totem modifier ────────────────────────────────────────────────────────
     // Shamans receive bonus or penalty dice from their totem when casting
@@ -1219,13 +1245,28 @@ export class SR2EItem extends Item {
     // Base dice for the spell test = Force + totem net modifier + active foci.
     // Totem bonus/penalty dice are treated as part of the Magic Pool at the
     // moment of casting (SR2E p.119) and are free — not drawn from the pool.
-    const totemNet  = totemBonus - totemPenalty;
-    const spellDice = Math.max(1, force + totemNet + focusDice);
+    // One calculation shared with the cast dialog's preview (spellCastDice), and
+    // re-applied here because item.roll() can be called from a macro with any
+    // allocation. Magic Pool is capped at the Magic Rating, and for an area
+    // cast also at the ORIGINAL Force (p.130).
+    const magicAvail = actor.system.dicePools?.magic?.value ?? 0;
+    const alloc = spellCastDice({
+      force, withheld: area?.withheld ?? 0, totemBonus, totemPenalty, focusCast: focusDice,
+      poolReq: options.poolDice?.magic ?? 0, poolAvail: magicAvail,
+      poolCap: isArea ? Math.min(magicRating, force) : magicRating,
+      karmaReq: options.karmaDice ?? 0, karmaAvail: actor.system.karma?.pool ?? 0,
+      minBase: isArea ? 0 : 1
+    });
+    const spellDice = alloc.baseDice;
+    const castPool  = alloc.pool > 0 ? { magic: alloc.pool } : {};
+    const drainPoolAlloc = Math.max(0, Math.min(options.drainPoolDice?.magic ?? 0, magicAvail - alloc.pool));
+    const drainPool = drainPoolAlloc > 0 ? { magic: drainPoolAlloc } : {};
 
     let totemNote = "";
     if (totemBonus   > 0) totemNote += ` +${totemBonus} totem`;
     if (totemPenalty > 0) totemNote += ` −${totemPenalty} totem`;
     if (focusDice    > 0) totemNote += ` +${focusDice} focus`;
+    if (area?.withheld)    totemNote += ` −${area.withheld} withheld for a ${area.radius} m radius`;
 
     // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
     // An initiate with Centering may roll their Centering skill (vs the modified
@@ -1267,16 +1308,18 @@ export class SR2EItem extends Item {
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
       // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
       // in spellDice are not rating dice (p.191).
-      karmaDiceCap: force,
-      label: `Cast ${this.name} (Force ${force}${totemNote})`,
-      poolDice: options.poolDice,   // magic pool dice pre-allocated by player
+      karmaDiceCap: alloc.ratingDice,
+      label: `Cast ${this.name} (Force ${force}${totemNote})`
+           + (isAreaCombat && cardTargets.length ? " — TN varies by target (p.130)" : ""),
+      poolDice: castPool,           // magic pool dice, re-clamped above
+      areaCast: isAreaCombat && cardTargets.length > 0,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
       centeringReduction,           // Centering vs Penalties (Grimoire p.44)
       extraTN: healingTN, extraTNLabel: healingLabel
     });
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
-    playCombatFx("spell", Array.from(game.user?.targets ?? []));
+    playCombatFx("spell", area ? area.caught.map(c => c.token) : Array.from(game.user?.targets ?? []));
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
     // Parse directly from the raw string field — avoids any DataModel prototype
@@ -1305,7 +1348,7 @@ export class SR2EItem extends Item {
       label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})`
            + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
            + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`,
-      poolDice: options.drainPoolDice,  // separately allocated magic pool dice
+      poolDice: drainPool,              // separately allocated magic pool dice
       // The book grants the focus to "the tests to cast AND RESIST DRAIN" for its
       // spell (p.137). We used to add it to the cast only, so we over-granted on
       // one test and under-granted on the other.
@@ -1391,12 +1434,11 @@ export class SR2EItem extends Item {
     // — armor does not help — plus any Spell Defense dice protecting them.
     // Net (caster − resister) successes stage the spell's damage up one level
     // per 2 net. Resolved by the defender via the card's Resist Spell button.
-    if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
+    if (isArea) {
+      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat });
+    } else if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
       const isMana   = this.system.type === "mana";
-      const baseLevel = (this.system.damageCode || "M").match(/[LMSD]/)?.[0] ?? "M";
-      // Stun-type combat spells (Stunbolt, Stunball, Sleep) deal Stun; others
-      // deal Physical damage.
-      const dmgType  = /stun|sleep/i.test(this.name) ? "stun" : "physical";
+      const { baseLevel, dmgType } = this._combatSpellDamage();
       const mkState = (targetUuid) => ({
         casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
         targetUuid, force, successes: spellResult.successes,
@@ -1408,34 +1450,9 @@ export class SR2EItem extends Item {
         content: renderSpellResistCard(state), flags: { sr2e: { spell: state } }
       });
 
+      // The caster's target (T key) resists, regardless of token selection.
       const targetTok = game.user?.targets?.first?.();
-      if (this.system.isAreaEffect && targetTok && canvas?.ready) {
-        // Area spell (SR2E p.130): the base radius of an area-effect spell is the
-        // magician's Magic Rating in metres (not Force); everyone inside resists
-        // at full Force — no per-metre falloff, and armour doesn't help.
-        const center = targetTok.center;
-        const radiusM = Math.max(1, magicRating);
-        try {
-          await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
-            t: "circle", x: center.x, y: center.y, distance: radiusM,
-            fillColor: "#9b6dff", borderColor: "#6a2dd0", flags: { sr2e: { blast: true } }
-          }]);
-        } catch (e) { /* template optional */ }
-        const caught = canvas.tokens.placeables.filter(t => {
-          if (!t.actor) return false;
-          try { return Math.round(canvas.grid.measurePath([center, t.center]).distance) <= radiusM; }
-          catch (e) { return false; }
-        });
-        const targets = caught.length ? caught : [targetTok];
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor }),
-          content: `<div class="sr2e-damage-result"><strong>✨ ${foundry.utils.escapeHTML(this.name)}</strong> — area spell (Force ${force}); caught <strong>${targets.length}</strong> target${targets.length === 1 ? "" : "s"} within ${radiusM} m. Each resists below:</div>`
-        });
-        for (const t of targets) await postCard(mkState(t.actor.uuid));
-      } else {
-        // The caster's target (T key) resists, regardless of token selection.
-        await postCard(mkState(targetTok?.actor?.uuid ?? ""));
-      }
+      await postCard(mkState(targetTok?.actor?.uuid ?? ""));
     }
 
     // ── Sustained spells (SR2E p.130) ─────────────────────────────────────────
@@ -1454,6 +1471,163 @@ export class SR2EItem extends Item {
     }
 
     return spellResult;
+  }
+
+  /**
+   * Base Damage Level and damage type of a combat spell. Stun-type combat
+   * spells (Stunbolt, Stunball, Sleep) deal Stun; others deal Physical.
+   * @private
+   */
+  _combatSpellDamage() {
+    return {
+      baseLevel: (this.system.damageCode || "M").match(/[LMSD]/)?.[0] ?? "M",
+      dmgType: /stun|sleep/i.test(this.name) ? "stun" : "physical"
+    };
+  }
+
+  /**
+   * Centre, geometry and caught tokens for an area-effect cast (SR2E p.130).
+   *
+   * `req` is what the cast dialog forwards — {x, y, sceneId, radiusDelta}.
+   * Everything is RECOMPUTED here from live Magic and Force, never trusted from
+   * the dialog: item.roll() is reachable from macros, and dialog state goes
+   * stale. With no `req` (a macro), the targeted token is the centre; with no
+   * target either, the cast goes ahead with no centre and the GM places it.
+   *
+   * Caught: every token whose centre is within the radius (straight-line, the
+   * same geometry as the circular template), friend, foe and neutral alike —
+   * the caster too. Hidden tokens are never caught (the GM resolves them by
+   * hand, and naming them would leak them); a player caster must also be able
+   * to see the token. Full line of sight stays a GM call.
+   *
+   * @returns {{abort:string}|{radius, withheld, valid, center, caught}}
+   * @private
+   */
+  _resolveAreaCast(req, force, magic) {
+    let center = null;
+    let radiusDelta = 0;
+    if (req) {
+      const x = Number(req.x), y = Number(req.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return { abort: "the area's centre is not a point on the map." };
+      if (!canvas?.ready || req.sceneId !== canvas.scene?.id) return { abort: "the scene changed before the spell was cast." };
+      center = { x, y };
+      radiusDelta = Number(req.radiusDelta ?? 0);
+    } else {
+      const t = game.user?.targets?.first?.();
+      if (t && canvas?.ready && t.document?.parent?.id === canvas.scene?.id) center = { ...t.center };
+    }
+    const geo = areaSpellGeometry({ magic, force: Number(force), radiusDelta });
+    if (!geo.valid) {
+      return { abort: geo.withheld > force
+        ? `reshaping the area withholds ${geo.withheld} dice, more than the spell's Force ${force} (p.130).`
+        : "that is not a valid area radius." };
+    }
+    if (!center) return { ...geo, center: null, caught: [] };
+
+    // Snapshot everything the results need NOW: the cast awaits several rolls
+    // and updates before posting, and the viewed scene or a target's stats can
+    // change in between. The cast is already paid for by then, so it finishes
+    // against what was true when it was aimed.
+    const attr = this.system.type === "mana" ? "willpower" : "body";
+    const metresPerPixel = canvas.dimensions.distance / canvas.dimensions.size;
+    const caught = [];
+    for (const t of canvas.tokens.placeables) {
+      if (!t.actor || t.document.hidden) continue;
+      if (!game.user.isGM && !t.visible) continue;
+      const eligible = areaTargetEligible(t.actor.type, this.system.type);
+      if (!eligible) continue;
+      const d = Math.hypot(t.center.x - center.x, t.center.y - center.y) * metresPerPixel;
+      if (d > geo.radius + 1e-6) continue;
+      caught.push({ token: t, actor: t.actor, uuid: t.actor.uuid, name: t.name, eligible,
+                    baseTN: t.actor.system?.[attr]?.value ?? 4 });
+    }
+    return { ...geo, center, sceneId: canvas.scene.id, caught };
+  }
+
+  /**
+   * Post what an area cast did (SR2E p.130).
+   *
+   * Public: one line — the spell, its radius — and the template. Everything
+   * that names a target is WHISPERED: the summary to the caster and the GMs,
+   * each Resist Spell card to them plus that target's owners (who must be able
+   * to click it). Combat: one roll, each target scored against its own
+   * Willpower/Body plus the caster-side modifiers the roll carried; a card only
+   * for targets with successes. These cards are frozen (`areaCard`) — Karma
+   * reroll/buy is refused on the roll, so nothing re-syncs them.
+   * Non-combat: the candidates in the area only, never counts — that test has
+   * ONE TN and keeps its Karma buttons, so counts here could go stale.
+   * @private
+   */
+  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat }) {
+    const actor = this.parent;
+    const esc = foundry.utils.escapeHTML;
+    const speaker = ChatMessage.getSpeaker({ actor });
+    const gmIds = game.users.filter(u => u.isGM).map(u => u.id);
+    const casterIds = [...new Set([game.user.id, ...gmIds])];
+    const title = `<strong>✨ ${esc(this.name)}</strong>`;
+
+    if (!area?.center) {
+      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">${title} — area spell
+        (${area?.radius ?? "?"} m radius) cast with no centre: the GM places it (p.130).</div>` });
+    }
+
+    let templateNote = "";
+    const scene = game.scenes.get(area.sceneId);
+    if (!scene) {
+      templateNote = " (the scene is gone — no template)";
+    } else if (game.user.can?.("TEMPLATE_CREATE")) {
+      try {
+        await scene.createEmbeddedDocuments("MeasuredTemplate", [{
+          t: "circle", x: area.center.x, y: area.center.y, distance: area.radius,
+          fillColor: "#9b6dff", borderColor: "#6a2dd0", flags: { sr2e: { areaSpell: this.name } }
+        }]);
+      } catch (e) { templateNote = " (the template could not be placed)"; }
+    } else {
+      templateNote = " (no template — you lack permission to create one)";
+    }
+    await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">${title} — area spell,
+      ${area.radius} m radius (Force ${force}).${templateNote}</div>` });
+
+    const rows = [];
+    if (isAreaCombat) {
+      // Caster-side TN modifiers (wounds, sustaining, …) apply against everyone.
+      const castDelta = (spellResult?.targetNumber ?? targetNumber) - targetNumber;
+      const dice = spellResult?.dice ?? [];
+      const { baseLevel, dmgType } = this._combatSpellDamage();
+      for (const { actor: target, uuid, name, eligible, baseTN } of area.caught) {
+        if (eligible === "gm") {
+          rows.push(`<li>${esc(name)} — GM: Object Resistance Table (p.130)</li>`);
+          continue;
+        }
+        const tn = baseTN + castDelta;
+        const successes = successesAtTN(dice, tn);
+        rows.push(`<li>${esc(name)} — TN ${tn} — ${successes
+          ? `${successes} success${successes === 1 ? "" : "es"}` : "0, unaffected"}</li>`);
+        if (!successes) continue;
+        const state = {
+          casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
+          targetUuid: uuid, targetName: name, targetTN: tn, force, successes,
+          testMessageId: spellResult?.testMessageId, resistAttr, baseLevel, dmgType,
+          resolved: false, areaCard: true
+        };
+        const owners = game.users.filter(u => target.testUserPermission(u, "OWNER")).map(u => u.id);
+        await ChatMessage.create({
+          speaker, content: renderSpellResistCard(state), flags: { sr2e: { spell: state } },
+          whisper: [...new Set([...casterIds, ...owners])]
+        });
+      }
+    } else {
+      for (const { name } of area.caught) rows.push(`<li>${esc(name)}</li>`);
+    }
+
+    const intro = isAreaCombat
+      ? `One roll, scored against each target's own ${resistAttr === "willpower" ? "Willpower" : "Body"} (p.130):`
+      : "In the area (successes: see the casting test card):";
+    await ChatMessage.create({
+      speaker, whisper: casterIds,
+      content: `<div class="sr2e-damage-result">${title} — ${area.caught.length
+        ? `${intro}<ul>${rows.join("")}</ul>` : "no one was caught in the area."}</div>`
+    });
   }
 
   /**

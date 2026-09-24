@@ -153,13 +153,18 @@ export function renderSuccessTestCard(state) {
         title="SR2E p.190: pay 1 Karma Pool to turn an all-1s disaster into a simple failure. No reroll allowed.">
         ${_l("SR2E.Chat.AvoidDisaster")}</button>`);
     } else {
-      if (failures > 0) {
+      // A multi-target area cast (p.130) scores one roll against several TNs,
+      // where p.190's reroll/buy has no single meaning — those are GM rulings.
+      // Avoid an Oops above still applies: all 1s is all 1s at any TN.
+      if (state.areaCast) {
+        buttons.push(`<em class="sr2e-karma-note">Karma rerolls and bought successes on a multi-target area roll are GM adjudication (p.130).</em>`);
+      } else if (failures > 0) {
         const cost = (state.rerolls ?? 0) + 1;
         buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="reroll"
           title="SR2E p.190: reroll all ${failures} failed dice. Cost escalates by 1 each reroll on the same test.">
           ${_l("SR2E.Chat.RerollFailures", { cost })}</button>`);
       }
-      if (natural >= 1) {
+      if (natural >= 1 && !state.areaCast) {
         buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="buySuccess"
           title="SR2E p.190: buy a raw success for 1 Karma. Requires a natural success. This Karma is spent PERMANENTLY.">
           ${_l("SR2E.Chat.BuySuccess")}</button>`);
@@ -364,7 +369,9 @@ export class SR2EActor extends Actor {
       boughtSuccesses: 0,
       glitchAvoided: false,
       criticalGlitch: testResult.isCriticalGlitch,
-      hasKarma: this.system.karma?.pool != null
+      hasKarma: this.system.karma?.pool != null,
+      // Multi-target area cast: reroll/buy are refused (applyKarmaToTest).
+      ...(options.areaCast ? { areaCast: true } : {})
     };
 
     // Keep the message: downstream cards (melee, astral, matrix, spell resist)
@@ -492,6 +499,10 @@ export class SR2EActor extends Actor {
     if (!state) return;
     const karmaAvail = this.system.karma?.pool ?? 0;
     let newRolls = null;
+    // Enforced here, not just hidden on the card: a macro can call this too.
+    if (state.areaCast && (action === "reroll" || action === "buySuccess")) {
+      return ui.notifications.warn("Karma rerolls and bought successes on a multi-target area spell are GM adjudication (SR2E p.130).");
+    }
 
     if (action === "reroll") {
       // Reroll ALL failed dice; cost escalates by 1 per repeat (SR2E p.191,
@@ -599,6 +610,8 @@ export class SR2EActor extends Actor {
       for (const [key, render] of Object.entries(renderers)) {
         const card = sr2e[key];
         if (!card || card.testMessageId !== testMessageId) continue;
+        // Area resist cards carry per-target successes from an immutable roll.
+        if (card.areaCard) continue;
         if (card.resolved || card.successes === successes) continue;
         if (!msg.canUserModify(game.user, "update")) {
           // Better a visible complaint than a card that silently disagrees.
