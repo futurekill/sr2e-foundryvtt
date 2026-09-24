@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.94.0 — 2026-09-24
+
+### Added — area spells no longer need a targeted token (SR2E p.130)
+
+You can cast Sleep, Manaball, Powerball, Fireball, Hellblast and the other
+area-effect spells without targeting anyone. After the cast dialog, click the
+map to choose the centre. You can also centre the spell on a targeted token or
+on yourself. The sheet minimizes while you click, and Escape cancels with
+nothing spent: no drain, no Magic Pool, no focus dice.
+
+The spells now follow the book:
+
+- **Radius.** It is the caster's Magic Rating in metres. The new "Radius ± m"
+  box grows it by 1 m per die withheld from the cast, or shrinks it by 1 m per
+  2 dice withheld. You can't withhold more dice than the spell's Force.
+- **One roll, a TN per target.** Everyone inside the circle is affected:
+  friend, foe, neutral, and the caster too. The roll is scored separately
+  against each target's own Willpower (mana) or Body (physical), plus the
+  caster's own modifiers such as wounds and sustaining. Before this, every
+  target got the same success count, measured against a single TN.
+- **Who sees what.** The public chat shows the roll and the radius. The
+  summary (each target's TN and successes) is whispered to the caster and the
+  GM. Each target's Resist Spell card now names that target and is whispered
+  to the caster, the GM and whoever owns the target. Hidden tokens are never
+  caught. The GM resolves those, and vehicles caught by a physical spell, by
+  hand.
+- **Karma.** Rerolling failures or buying successes on a roll scored against
+  several TNs has no single right answer, so on area combat spells those two
+  buttons are replaced by a note that they are the GM's call. Avoid an Oops
+  still works. Non-combat area spells use one TN and keep all their Karma
+  options.
+
+Non-combat area spells (Confusion, Stink, Detect Life and so on) get the same
+centre and template, plus a whispered list of who is in the area.
+
+### Changed — the cast dialog matches the attack dialog
+
+The cast dialog has two tabs:
+
+- **Spell:** Force, TN and the area controls.
+- **Dice:** the Magic Pool split between the spell and drain, foci, Karma dice
+  and misc dice.
+
+A readout at the bottom shows the exact dice that will be rolled, the TN,
+the Drain and the radius, and it updates as you type. The roll itself uses
+the same calculation, so the preview can't disagree with what happens. The
+old "totem: add by hand" note is gone, because totem dice have been added
+automatically for a while.
+
+Magic Pool limits are now enforced when the spell is rolled, not only in the
+dialog: at most your Magic Rating, and for an area spell at most its Force
+(p.130).
+
+### Fixed
+
+- **Poltergeist and Mana Barrier** are now marked as area spells, as the
+  book describes them (p.157, p.158). Re-drag them from the compendium onto
+  characters that already have them.
+- **Clicking the map to place a summoned spirit** used the pointer's last
+  *movement*. A click with no movement before it, such as a tap on a touch
+  screen or pen, landed wherever the pointer had last been. It now uses the
+  click itself.
+
+### Known gaps
+
+- Damaging manipulation spells (Flamethrower, Spark, Flame Bomb) still post
+  no damage.
+- Grenades and rockets still need a targeted token.
+- Line of sight to each target in the area is left to the GM.
+
 ## 0.93.1 — 2026-09-23
 
 ### Fixed — Unarmed Strike rolled Armed Combat
