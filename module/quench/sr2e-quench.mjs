@@ -3567,7 +3567,9 @@ export function registerSR2EQuenchTests() {
           assert.ok(test, "the casting test must be flagged areaCast");
           assert.deepEqual(test.dice.map(d => d.total), [5, 4, 3, 1]);
           assert.equal(test.tn, 3, "the roll's own TN is the lowest caught Willpower");
+          // Only this batch's tokens: the scene may hold real ones in range.
           const cards = Object.fromEntries(msgs.filter(x => x.flags?.sr2e?.spell?.areaCard)
+            .filter(x => x.flags.sr2e.spell.targetName.startsWith("Quench "))
             .map(x => [x.flags.sr2e.spell.targetName, x.flags.sr2e.spell]));
           assert.hasAllKeys(cards, ["Quench Area W3", "Quench Area W5", "Quench Area Mage"],
             "one card per caught target with successes — never the far or hidden token");
