@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.93.1 — 2026-09-23
+
+### Fixed — Unarmed Strike rolled Armed Combat
+
+Heikegani, with Unarmed Combat 4, punched with **8** dice: his Armed Combat 6
+plus the 2 dice of his Improved Ability (Armed Combat). A weapon looks for its
+own skill first and its type's default second (Unarmed Strike: Unarmed Combat,
+then Armed Combat). But the lookup walked the character's skills in list order
+and took the first one matching EITHER name. Anyone whose Armed Combat was
+listed before Unarmed Combat punched with the wrong skill. The attack dialog
+had the same bug, so it also capped the Combat Pool at the wrong rating. Both
+now check the weapon's own skill first.
+
+### Changed — the attack dialog's first tab reads "Attack", not "Shot"
+
+It holds the melee modifiers too.
+
+### Fixed — damage typed on an NPC was gone when its sheet reopened
+
+Typing 5 into an NPC's Physical box and closing the sheet saved nothing. Nothing
+typed on the NPC or spirit sheets had ever saved: stats, armor, name, damage.
+
+The actor sheets relied on Foundry's submit-on-change, but the system's own
+form-data hook was declared `async`. Foundry calls it synchronously, so it got a
+Promise and every submit sent an empty update. That has been true since 0.3.35.
+The character, vehicle, IC and host sheets worked only because their fields
+were wired to save one at a time, and the NPC and spirit sheets never were.
+
+Every named field on every actor sheet now saves itself. The whole-form submit
+is switched off on purpose, because some fields display derived values (an
+NPC's armor includes worn items, an IC's Security Code comes from its host).
+Writing those back would add them on top again at the next prepare.
+
+An NPC's armor boxes now edit the stat-block base. When the NPC wears armor,
+the total is shown underneath ("With worn armor: 6/3"). Before, the boxes
+showed the total, and saving it would have added the worn armor a second time.
+
+Damage on an unlinked NPC token still belongs to that token only. The actor in
+the sidebar stays at 0, which is correct: every goon keeps its own track.
+
 ## 0.93.0 — 2026-09-23
 
 ### Fixed — spells could not be cast by anyone carrying a focus
