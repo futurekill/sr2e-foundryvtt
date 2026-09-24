@@ -26,6 +26,44 @@
     </div>
   </div>
 
+  {{!-- Elemental sorcery services (SR2E p.141–142) --}}
+  {{#if isElemental}}
+  <fieldset class="spirit-services-box elemental-sorcery">
+    <legend>Sorcery service <span class="hint">p.141–142</span></legend>
+    <div class="flexrow" style="align-items:center;gap:8px;flex-wrap:wrap;">
+      <span title="Aid Sorcery dice and sustained Combat Turns reduce its Force; a re-call restores it.">
+        Force <strong>{{system.effectiveForce}}</strong> / {{system.force}}</span>
+      <span class="hint" style="flex:1;">{{elementalStatus}}</span>
+    </div>
+    <div class="flexrow" style="gap:6px;margin-top:6px;flex-wrap:wrap;">
+      {{#if system.pendingExpireSpellUuid}}
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="finishExpire"
+              title="Finish ending the spell whose sustaining ran out">Finish ending the spell</button>
+      {{else}}
+      {{#ifEquals system.service "sustain"}}
+      {{#if system.depleted}}
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="sustainTurn"
+              title="Its Force is spent — the spell ends (p.142)">Expire now</button>
+      {{else}}
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="sustainTurn"
+              title="One Combat Turn passed: its Force drops by 1; at 0 the spell ends (p.142). One person tracks this.">−1 Combat Turn</button>
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="takeOver"
+              title="The mage takes the spell back — the +2 TN returns">Hand spell back</button>
+      {{/if}}
+      {{/ifEquals}}
+      {{#ifEquals system.service "aid"}}
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="endService"
+              title="End Aid Sorcery (its remaining Force stays)">End Aid Sorcery</button>
+      {{/ifEquals}}
+      {{#if system.depleted}}{{#unless system.service}}
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="recall"
+              title="Call it again: 1 service, back at full Force (p.141)">Re-call (1 service)</button>
+      {{/unless}}{{/if}}
+      {{/if}}
+    </div>
+  </fieldset>
+  {{/if}}
+
   {{!-- Services --}}
   <fieldset class="spirit-services-box">
     <legend>Services</legend>

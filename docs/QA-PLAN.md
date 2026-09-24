@@ -146,6 +146,10 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Resist guards:** the button can't be resolved twice; if the caster spends Karma while the resist dialog is open, confirming says "click Resist again" and rolls nothing; a player can only resist for actors they own.
 - [ ] **Existing characters:** after updating, Spark / Flame Bomb already on a sheet deal damage without re-dragging (0.95.0 migration fills their (F)M).
 - [ ] **Cast dialog (0.94.0):** two tabs — Spell (Force, TN, area) and Dice (Magic Pool split, foci, Karma, misc); the bottom readout shows dice rolled, TN, Drain and radius and updates live.
+- [ ] **Elemental Aid Sorcery (0.96.0, p.141):** a mage with a bound fire elemental casts Mana Bolt → the Dice tab offers "Aid Sorcery"; 3 dice to the spell test add 3 dice and lower the elemental's Force by 3 (its sheet shows Force 1/4). Starting costs 1 service; continuing doesn't. At 0 Force it vanishes; "Re-call (1 service)" brings it back at full Force. A water elemental is not offered for a combat spell; no elemental helps health spells.
+- [ ] **Elemental Spell Sustaining (p.142):** sustain Armor, click ✋✨ on its row → pick an earth elemental (1 service) → the +2 TN disappears, the row shows "✦ Earth · 3". Press "−1 Combat Turn" on the elemental's sheet each turn; at 0 the spell ENDS (its effects go). "Hand spell back" before then returns the +2 TN and keeps the spell.
+- [ ] **Guards:** a held spell can't be recast, locked or quickened until taken back; banishing a sustaining elemental ends its spell; deleting it from the Actors list is refused while it holds a spell.
+- [ ] **Weaker when drained:** an elemental at Force 1/4 attacks and uses powers at Force 1; one busy aiding or sustaining can't use powers until the service ends. Nature spirits unchanged.
 - [ ] **Sustained spells:** +2 TN per sustained spell; **spell locks** exempt; Active Effects apply real stat changes while sustained and drop when released.
 - [ ] **Spell Defense:** allocate Magic Pool dice; they boost spell-resistance and release on pool refresh.
 

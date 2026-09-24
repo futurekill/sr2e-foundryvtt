@@ -1,4 +1,6 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
+import { elementalHolderOf, spellBlockedByElemental, boundElementals } from "../elementals.mjs";
+import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
 import {
@@ -757,6 +759,19 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");
+    // Elemental Spell Sustaining (SR2E p.142): who holds each spell, and for
+    // how many more Combat Turns; or why it is blocked from being recast.
+    context.spellElementals = Object.fromEntries(context.spells.map(sp => {
+      const holder = elementalHolderOf(sp);
+      const blocked = spellBlockedByElemental(sp);
+      return [sp.id, {
+        holderName: holder?.name ?? "", turnsLeft: holder?.system.effectiveForce ?? 0,
+        blocked: blocked ?? "",
+        canHandOff: sp.system.sustaining && !holder && !blocked && !sp.system.spellLocked
+          && !sp.system.quickened && boundElementals(actor).some(e =>
+            elementalAidsCategory(e.system.domain, sp.system.category))
+      }];
+    }));
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
     // Candidate parents for a cyberlimb option's attach dropdown (SR2E p.261) —
     // only actual limbs, and never an option itself.
@@ -1407,6 +1422,12 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
                  ?? target.dataset.power;
         if (key) return this.document.useSpiritPower(key);
       },
+      // Elemental Aid Sorcery / Spell Sustaining transitions (SR2E p.141–142)
+      elementalAction: function(event, target) {
+        event.preventDefault();
+        const kind = target.dataset.kind;
+        return this.document.elementalTransition(kind, kind === "sustainTurn" ? { n: 1 } : {});
+      },
       adjustServices: function(event, target) {
         event.preventDefault();
         const delta = parseInt(target.dataset.delta) || 0;
@@ -1435,6 +1456,18 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
     }));
     context.spiritDomains = CONFIG.SR2E.spiritDomains;
     context.isElemental = this.document.system.spiritType === "elemental";
+    if (context.isElemental) {
+      const sys = this.document.system;
+      const spellName = (u) => { try { return fromUuidSync(u)?.name ?? "a spell that no longer exists"; } catch (e) { return "a spell"; } };
+      context.elementalStatus =
+          sys.pendingExpireSpellUuid ? `Ending ${spellName(sys.pendingExpireSpellUuid)} — press Finish.`
+        : sys.service === "sustain" ? (sys.depleted
+            ? `Its Force is spent — ${spellName(sys.sustainingSpellUuid)} ends. Expire it.`
+            : `Sustaining ${spellName(sys.sustainingSpellUuid)}: ${sys.effectiveForce} Combat Turn(s) left. Hand it back before it runs out, or the spell ends.`)
+        : sys.service === "aid" ? `Aiding sorcery — ${sys.effectiveForce} dice left.`
+        : sys.depleted ? "Vanished (Force spent). Re-call it for 1 service."
+        : "Idle — can aid or sustain spells of its element (1 service to start).";
+    }
     // Resolve the conjurer for a back-link
     const cuid = this.document.system.conjurerUuid;
     if (cuid) {

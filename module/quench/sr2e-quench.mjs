@@ -3921,6 +3921,207 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Damaging manipulation (p.158)" });
 
+    // ── Elementals aiding sorcery (SR2E p.141–142): Aid Sorcery and Spell
+    //    Sustaining through the one transition executor. ──────────────────────
+    quench.registerBatch("sr2e.elemental-aid", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      const msgs = [];
+      afterEach(async function () {
+        this.timeout(10000);
+        await ChatMessage.deleteDocuments(msgs.splice(0).filter(id => game.messages.has(id)));
+        for (const a of made.splice(0)) {
+          try {
+            // Deleting a spirit that holds a spell is refused (preDeleteActor): release it.
+            if (a.type === "spirit") await a.update({ "system.service": "", "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": "" });
+            await a.delete();
+          } catch (e) {}
+        }
+      });
+      const track = (n) => msgs.push(...game.messages.contents.slice(n).map(m => m.id));
+
+      async function setup({ fireServices = 3, earthForce = 3 } = {}) {
+        const mage = await Actor.create({
+          name: "Quench Elemental Mage", type: "character",
+          system: { willpower: { base: 5 }, magic: { value: 6, type: "full_magician", tradition: "hermetic" } },
+          items: [
+            { name: "Mana Bolt", type: "spell", system: { category: "combat", type: "mana", force: 4, duration: "instant", damageCode: "S", drainCode: "(F / 2)S" } },
+            { name: "Armor", type: "spell", system: { category: "manipulation", type: "physical", force: 3, duration: "sustained" },
+              effects: [{ name: "Armor", changes: [{ key: "system.armor.impact", mode: 2, value: "1" }] }] }
+          ]
+        });
+        made.push(mage);
+        const spirit = async (name, domain, force, services) => {
+          const s = await Actor.create({ name, type: "spirit", system: { spiritType: "elemental", domain, force,
+            services, maxServices: services, conjurerUuid: mage.uuid } });
+          made.push(s); return s;
+        };
+        const fire = await spirit("Quench Fire", "fire", 4, fireServices);
+        const earth = await spirit("Quench Earth", "earth", earthForce, 2);
+        const nature = await Actor.create({ name: "Quench Forest", type: "spirit", system: { spiritType: "nature", domain: "forest", force: 3, services: 2 } });
+        made.push(nature);
+        await mage.update({ "system.boundSpirits": [fire.uuid, earth.uuid] });
+        return { mage, fire, earth, nature, bolt: mage.items.getName("Mana Bolt"), armor: mage.items.getName("Armor") };
+      }
+
+      describe("Aid Sorcery (p.141)", () => {
+        it("adds the elemental's dice, lowers its Force, and charges one service to start", async () => {
+          const { mage, fire, bolt } = await setup();
+          const n = game.messages.size;
+          await bolt.roll({ force: 4, targetNumber: 4, elementalAid: { uuid: fire.uuid, cast: 2, drain: 1 } });
+          track(n);
+          const cast = game.messages.contents.slice(n).find(m => /Cast Mana Bolt/.test(m.flags?.sr2e?.test?.label ?? ""));
+          assert.lengthOf(cast.flags.sr2e.test.dice, 6, "Force 4 + 2 aid dice");
+          assert.include(fire.system, { forceUsed: 3, service: "aid", services: 2, effectiveForce: 1 });
+          // Continuing an active Aid Sorcery costs no further service.
+          const m = game.messages.size;
+          await bolt.roll({ force: 4, targetNumber: 4, elementalAid: { uuid: fire.uuid, cast: 1, drain: 0 } });
+          track(m);
+          assert.include(fire.system, { forceUsed: 4, services: 2, depleted: true, service: "" }, "spent → vanished");
+        });
+
+        it("a vanished, wrong-element, or foreign elemental is refused with nothing spent", async () => {
+          const { mage, fire, earth, bolt } = await setup();
+          await fire.update({ "system.forceUsed": 4 });
+          const stun = mage.system.conditionMonitor.stun.value, n = game.messages.size;
+          assert.isNull(await bolt.roll({ force: 4, targetNumber: 4, elementalAid: { uuid: fire.uuid, cast: 1, drain: 0 } }));
+          assert.isNull(await bolt.roll({ force: 4, targetNumber: 4, elementalAid: { uuid: earth.uuid, cast: 1, drain: 0 } }), "earth aids manipulation, not combat");
+          await mage.update({ "system.boundSpirits": [] });
+          await fire.update({ "system.forceUsed": 0 });
+          assert.isNull(await bolt.roll({ force: 4, targetNumber: 4, elementalAid: { uuid: fire.uuid, cast: 1, drain: 0 } }), "unbound");
+          assert.equal(game.messages.size, n, "no messages");
+          assert.equal(mage.system.conditionMonitor.stun.value, stun, "no drain");
+          assert.equal(fire.system.services, 3, "no service charged");
+        });
+
+        it("a duplicate submission on this client is rejected; sequential spends both consume", async () => {
+          const { fire } = await setup();
+          const [a, b] = await Promise.all([fire.elementalTransition("aid", { n: 1 }, { quiet: true }),
+                                            fire.elementalTransition("aid", { n: 1 }, { quiet: true })]);
+          assert.deepEqual([a.ok, b.ok].sort(), [false, true], "exactly one went through");
+          assert.equal(fire.system.forceUsed, 1);
+          assert.isTrue((await fire.elementalTransition("aid", { n: 2 }, { quiet: true })).ok);
+          assert.equal(fire.system.forceUsed, 3);
+          assert.isFalse((await fire.elementalTransition("aid", { n: 2 }, { quiet: true })).ok, "only 1 Force left");
+          assert.equal(fire.system.forceUsed, 3, "a refused spend changes nothing");
+        });
+
+        it("re-calling a vanished elemental costs one service and restores full Force, idle", async () => {
+          const { fire } = await setup();
+          await fire.update({ "system.forceUsed": 4 });
+          assert.isTrue((await fire.elementalTransition("recall", {}, { quiet: true })).ok);
+          assert.include(fire.system, { forceUsed: 0, services: 2, service: "", effectiveForce: 4 });
+        });
+      });
+
+      describe("Spell Sustaining (p.142)", () => {
+        it("lifts the +2 TN while it holds the spell; at 0 Force the spell ENDS", async () => {
+          const { mage, earth, armor } = await setup();
+          await armor.setSustaining(true, 3);
+          assert.equal(mage.system.sustainPenalty, 2);
+          assert.isTrue((await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true })).ok);
+          assert.equal(mage.system.sustainPenalty, 0, "the elemental pays instead");
+          assert.ok(earth._elementalBusyReason(), "busy: no powers or attacks meanwhile");
+          await earth.elementalTransition("sustainTurn", { n: 1 }, { quiet: true });
+          await earth.elementalTransition("sustainTurn", { n: 1 }, { quiet: true });
+          assert.isTrue(armor.system.sustaining);
+          await earth.elementalTransition("sustainTurn", { n: 1 }, { quiet: true });
+          assert.isFalse(armor.system.sustaining, "Force 3 → 0: the spell ends");
+          assert.lengthOf(mage.effects.filter(e => e.origin === armor.uuid), 0, "its effects are gone");
+          assert.equal(earth.system.pendingExpireSpellUuid, "");
+        });
+
+        it("the mage can take it back before the Force runs out, not after", async () => {
+          const { mage, earth, armor } = await setup();
+          await armor.setSustaining(true, 3);
+          await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+          assert.isTrue((await earth.elementalTransition("takeOver", {}, { quiet: true })).ok);
+          assert.isTrue(armor.system.sustaining, "the spell keeps running");
+          assert.equal(mage.system.sustainPenalty, 2, "the mage pays again");
+          await earth.update({ "system.services": 2 });
+          await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+          await earth.update({ "system.force": 1, "system.forceUsed": 1 });   // a Force edit spends it
+          assert.isFalse((await earth.elementalTransition("takeOver", {}, { quiet: true })).ok, "too late (p.142)");
+        });
+
+        it("one holder per spell, one service per elemental", async () => {
+          const { mage, earth, armor } = await setup();
+          const earth2 = await Actor.create({ name: "Quench Earth 2", type: "spirit", system: { spiritType: "elemental",
+            domain: "earth", force: 3, services: 2, conjurerUuid: mage.uuid } });
+          made.push(earth2);
+          await mage.update({ "system.boundSpirits": [...mage.system.boundSpirits, earth2.uuid] });
+          await armor.setSustaining(true, 3);
+          await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+          assert.isFalse((await earth2.elementalTransition("startSustain", { spell: armor }, { quiet: true })).ok, "already held");
+          assert.isFalse((await earth.elementalTransition("aid", { n: 1 }, { quiet: true })).ok, "busy sustaining");
+        });
+
+        it("a spell still ending cannot be recast — even after its elemental is unbound — until Finish", async () => {
+          const { mage, earth, armor } = await setup();
+          await earth.update({ "system.forceUsed": 3, "system.pendingExpireSpellUuid": armor.uuid });
+          await mage.update({ "system.boundSpirits": [] });
+          const n = game.messages.size;
+          assert.isNull(await armor.roll({ force: 3, targetNumber: 4 }), "recast refused");
+          await armor.setSustaining(true, 3);
+          assert.isFalse(armor.system.sustaining, "re-sustain refused");
+          assert.equal(game.messages.size, n);
+          assert.isTrue((await earth.elementalTransition("finishExpire", {}, { quiet: true })).ok);
+          await armor.setSustaining(true, 3);
+          assert.isTrue(armor.system.sustaining, "allowed once the ending finished");
+        });
+
+        it("recasting a spell an elemental holds is refused before anything is spent", async () => {
+          const { mage, earth, armor } = await setup();
+          await armor.setSustaining(true, 3);
+          await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+          const n = game.messages.size;
+          assert.isNull(await armor.roll({ force: 3, targetNumber: 4 }));
+          assert.equal(game.messages.size, n);
+          assert.equal(earth.system.services, 1, "no free re-sustain");
+        });
+
+        it("a sustaining elemental cannot be deleted out from under its spell", async () => {
+          const { earth, armor } = await setup();
+          await armor.setSustaining(true, 3);
+          await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+          await earth.delete();
+          assert.ok(game.actors.get(earth.id), "deletion refused");
+          assert.isTrue(armor.system.sustaining);
+        });
+
+        it("Finish sweeps leftover effects even when the spell no longer reads as sustaining", async () => {
+          const { mage, earth, armor } = await setup();
+          await armor.setSustaining(true, 3);
+          // Simulate a half-finished ending: flag cleared, effect left behind.
+          await armor.update({ "system.sustaining": false });
+          await earth.update({ "system.forceUsed": 3, "system.pendingExpireSpellUuid": armor.uuid });
+          assert.lengthOf(mage.effects.filter(e => e.origin === armor.uuid), 1);
+          assert.isTrue((await earth.elementalTransition("finishExpire", {}, { quiet: true })).ok);
+          assert.lengthOf(mage.effects.filter(e => e.origin === armor.uuid), 0, "swept");
+          assert.equal(earth.system.pendingExpireSpellUuid, "");
+        });
+
+        it("banishing (releasing) a sustaining elemental ends its spell", async () => {
+          const { mage, earth, armor } = await setup();
+          await armor.setSustaining(true, 3);
+          await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+          const { releaseElemental } = await import("../elementals.mjs");
+          assert.isTrue(await releaseElemental(earth));
+          assert.isFalse(armor.system.sustaining);
+          assert.lengthOf(mage.effects.filter(e => e.origin === armor.uuid), 0);
+        });
+      });
+
+      describe("Everything else is unchanged", () => {
+        it("nature spirits and idle elementals keep their powers and attacks", async () => {
+          const { fire, nature } = await setup();
+          assert.isNull(nature._elementalBusyReason());
+          assert.isNull(fire._elementalBusyReason());
+          assert.equal(nature.system.effectiveForce, 3);
+        });
+      });
+    }, { displayName: "SR2E: Elemental aid (p.141–142)" });
+
 
 
 

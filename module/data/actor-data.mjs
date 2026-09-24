@@ -1,4 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { elementalHolderOf } from "../elementals.mjs";
 import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
 
 /**
@@ -1197,7 +1198,8 @@ export class CharacterData extends SR2EDataModel {
   get sustainPenalty() {
     let count = 0;
     for (const item of this.parent?.items ?? []) {
-      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked && !item.system.quickened) count++;
+      if (item.type === "spell" && item.system.sustaining && !item.system.spellLocked && !item.system.quickened
+          && !elementalHolderOf(item)) count++;   // an elemental holding it pays instead (p.142)
     }
     return 2 * count;
   }
@@ -1544,6 +1546,17 @@ export class SpiritData extends SR2EDataModel {
       maxServices: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // UUID of the conjuring character (set when summoned via rollConjuring)
       conjurerUuid: new fields.StringField({ initial: "", blank: true }),
+      // Elemental services (SR2E p.141–142). Only Aid Sorcery and Spell
+      // Sustaining are tracked; "" is idle (physical service stays the manual
+      // service counter). Every change goes through elementalTransition.
+      service: new fields.StringField({ initial: "", blank: true, choices: { "": "", aid: "aid", sustain: "sustain" } }),
+      // Force used up by Aid Sorcery dice or sustained Combat Turns: "its Force
+      // is reduced". `force` stays the full Force a re-call restores.
+      forceUsed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      sustainingSpellUuid: new fields.StringField({ initial: "", blank: true }),
+      // A spell whose ending (the elemental's Force ran out, p.142) has not
+      // finished yet — blocks recasting it until cleanup completes.
+      pendingExpireSpellUuid: new fields.StringField({ initial: "", blank: true }),
 
       // Derived from Force
       body: SR2EDataModel.attributeField(1),
@@ -1592,7 +1605,12 @@ export class SpiritData extends SR2EDataModel {
     // spirits name their element/domain in `domain`, so one lookup serves both;
     // an unknown domain falls back to the fire profile, which is the "average"
     // of the four and matches Of Man.
-    const f = this.force;
+    // An elemental's Force is REDUCED by Aid Sorcery dice and sustained turns
+    // (p.141–142), and Force drives everything it is — so everything derives
+    // from the effective Force. A nature spirit never uses Force this way.
+    this.effectiveForce = Math.max(0, (this.force ?? 0) - (this.forceUsed ?? 0));
+    this.depleted = this.effectiveForce === 0;
+    const f = this.effectiveForce;
     const key = CONFIG.SR2E?.spiritDomainProfile?.[this.domain] ?? "fire";
     const profile = CONFIG.SR2E?.spiritProfiles?.[key];
     const a = spiritAttributes(profile, f);

@@ -1,6 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals } from "../elementals.mjs";
+import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
@@ -1129,6 +1130,8 @@ export class SR2EItem extends Item {
     if (!actor || this.type !== "spell") return;
 
     if (active) {
+      const blocked = spellBlockedByElemental(this);
+      if (blocked) { ui.notifications.warn(blocked); return; }
       // Max simultaneous sustains = Sorcery rating (p.130) — warn, don't block
       const sorcery = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "sorcery");
       const maxSustains = sorcery?.system?.rating ?? 0;
@@ -1157,6 +1160,8 @@ export class SR2EItem extends Item {
       }
 
     } else {
+      // An elemental holding it simply stops (non-recursive — never calls back).
+      await detachElementalHolder(this);
       await this.update({
         "system.sustaining": false,
         "system.sustainedForce": 0,
@@ -1197,6 +1202,8 @@ export class SR2EItem extends Item {
       return;
     }
     if (this.system.quickened) return;
+    const heldBy = spellBlockedByElemental(this) ?? (elementalHolderOf(this) ? `${elementalHolderOf(this).name} sustains ${this.name} — take it over first.` : null);
+    if (heldBy) { ui.notifications.warn(heldBy); return; }
     const force = this.system.sustainedForce || this.system.force;
     const { min, max } = quickeningKarmaRange(force);
     const spend = Math.max(min, Math.min(Number.isFinite(karma) ? karma : min, max));
@@ -1238,6 +1245,18 @@ export class SR2EItem extends Item {
     const force = options.force ?? this.system.force;
     const spellCategory = this.system.category; // combat, detection, health, illusion, manipulation
     const magicRating  = actor.system.magic?.value ?? 0;
+
+    // A spell whose elemental ran out of Force is still ending (p.142): casting
+    // it again now would let the pending cleanup end the NEW casting.
+    // Recasting a spell an elemental holds would hand the NEW casting its
+    // service and countdown for free; take it back or drop it first.
+    const heldBy = elementalHolderOf(this);
+    const blockedWhy = spellBlockedByElemental(this)
+      ?? (heldBy ? `${heldBy.name} is sustaining ${this.name} — take it back or drop it before casting it again.` : null);
+    if (blockedWhy) {
+      ui.notifications.warn(`${blockedWhy} Nothing was spent.`);
+      return null;
+    }
 
     // ── Area-effect spells (SR2E p.130) ───────────────────────────────────────
     // Resolved BEFORE anything is spent (focus, pool, Centering, drain): a bad
@@ -1290,6 +1309,43 @@ export class SR2EItem extends Item {
     // Enforcement lives HERE rather than in the dialog: item.roll() can be called
     // directly from a macro or the hotbar, and dialog state goes stale between
     // render and submit. The dialog only *requests* an allocation.
+    // ── Aid Sorcery (SR2E p.141) ──────────────────────────────────────────────
+    // One bound elemental of the spell's category adds dice "like an auxiliary
+    // Magic Pool", sharing the Magic Pool's ceiling on the spell test; each die
+    // used reduces its Force by 1. Resolved and PAID before any other spend, so
+    // a refusal (not bound, wrong element, not enough Force, no services) costs
+    // nothing.
+    const magicAvail = actor.system.dicePools?.magic?.value ?? 0;
+    const poolCap = isArea ? Math.min(magicRating, force) : magicRating;
+    let aidCast = 0, aidDrain = 0, aidSpirit = null;
+    const aidReq = options.elementalAid;
+    if (aidReq?.uuid && ((Number(aidReq.cast) || 0) + (Number(aidReq.drain) || 0)) > 0) {
+      aidSpirit = await fromUuid(aidReq.uuid);
+      if (!aidSpirit || !boundElementals(actor).some(e => e.uuid === aidSpirit.uuid)
+          || !elementalAidsCategory(aidSpirit.system.domain, spellCategory)) {
+        ui.notifications.warn(`${this.name}: that elemental cannot aid this spell (bound, and of its category — p.141). Nothing was spent.`);
+        return null;
+      }
+      // Can it serve at all (vanished, busy sustaining, owes nothing)? A request
+      // it cannot fill must not silently become an unaided cast.
+      const can = planElementalTransition(aidSpirit.system, "aid", { n: 1 });
+      if (can.refuse) {
+        ui.notifications.warn(`${this.name}: ${aidSpirit.name} cannot aid — ${can.refuse}. Nothing was spent.`);
+        return null;
+      }
+      const avail = aidSpirit.system.effectiveForce ?? 0;
+      aidCast = spellCastDice({ force, poolReq: options.poolDice?.magic ?? 0, poolAvail: magicAvail, poolCap,
+                                aidReq: aidReq.cast, aidAvail: avail }).aid;
+      aidDrain = Math.max(0, Math.min(Math.trunc(Number(aidReq.drain) || 0), avail - aidCast));
+      if (aidCast + aidDrain > 0) {
+        const r = await elementalTransition(aidSpirit, "aid", { n: aidCast + aidDrain });
+        if (!r.ok) {
+          ui.notifications.warn(`${this.name}: cast cancelled — nothing was spent.`);
+          return null;
+        }
+      }
+    }
+
     const focusRequests = options.focusDice ?? {};   // { [focusId]: {cast, drain} }
     let focusDice = 0, drainFocusDice = 0;
     const focusSpends = [];
@@ -1314,11 +1370,10 @@ export class SR2EItem extends Item {
     // re-applied here because item.roll() can be called from a macro with any
     // allocation. Magic Pool is capped at the Magic Rating, and for an area
     // cast also at the ORIGINAL Force (p.130).
-    const magicAvail = actor.system.dicePools?.magic?.value ?? 0;
     const alloc = spellCastDice({
       force, withheld: area?.withheld ?? 0, totemBonus, totemPenalty, focusCast: focusDice,
-      poolReq: options.poolDice?.magic ?? 0, poolAvail: magicAvail,
-      poolCap: isArea ? Math.min(magicRating, force) : magicRating,
+      poolReq: options.poolDice?.magic ?? 0, poolAvail: magicAvail, poolCap,
+      aidReq: aidCast, aidAvail: aidCast,
       karmaReq: options.karmaDice ?? 0, karmaAvail: actor.system.karma?.pool ?? 0,
       minBase: isArea ? 0 : 1
     });
@@ -1332,6 +1387,7 @@ export class SR2EItem extends Item {
     if (totemPenalty > 0) totemNote += ` −${totemPenalty} totem`;
     if (focusDice    > 0) totemNote += ` +${focusDice} focus`;
     if (area?.withheld)    totemNote += ` −${area.withheld} withheld for a ${area.radius} m radius`;
+    if (aidCast > 0)       totemNote += ` +${aidCast} Aid Sorcery (${aidSpirit.name})`;
 
     // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
     // An initiate with Centering may roll their Centering skill (vs the modified
@@ -1409,10 +1465,11 @@ export class SR2EItem extends Item {
     }
     const willpowerDice  = actor.system.willpower?.value ?? 1;
 
-    const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice, drainTN, {
+    const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice + aidDrain, drainTN, {
       label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})`
            + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
-           + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`,
+           + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`
+           + `${aidDrain ? ` — +${aidDrain} Aid Sorcery` : ""}`,
       poolDice: drainPool,              // separately allocated magic pool dice
       // The book grants the focus to "the tests to cast AND RESIST DRAIN" for its
       // spell (p.137). We used to add it to the cast only, so we over-granted on

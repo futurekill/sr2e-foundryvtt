@@ -117,6 +117,14 @@
             {{#if spell.system.sustaining}}
             <span class="sustain-badge" title="Sustained at Force {{spell.system.sustainedForce}}">F{{spell.system.sustainedForce}}</span>
             {{/if}}
+            {{#with (lookup @root.spellElementals spell.id) as |el|}}
+            {{#if el.holderName}}
+            <span class="sustain-badge elemental-held" title="Sustained by {{el.holderName}} — no +2 TN. {{el.turnsLeft}} Combat Turn(s) of Force left; take it back before it runs out or the spell ends (SR2E p.142).">✦ {{el.holderName}} · {{el.turnsLeft}}</span>
+            {{/if}}
+            {{#if el.blocked}}
+            <span class="sustain-badge elemental-blocked" title="{{el.blocked}}">⚠ ending</span>
+            {{/if}}
+            {{/with}}
           </span>
           <span class="spell-col category">{{spell.system.category}}</span>
           <span class="spell-col type">{{spell.system.type}}</span>
@@ -128,6 +136,19 @@
               <i class="fas fa-hourglass-half"></i>
             </a>
             {{#if spell.system.sustaining}}
+            {{#with (lookup @root.spellElementals spell.id) as |el|}}
+            {{#if el.holderName}}
+            <a data-action="elementalTakeOver" class="elemental-toggle active"
+               title="Take the spell back from {{el.holderName}} — the +2 TN returns (SR2E p.142)">
+              <i class="fas fa-hand-sparkles"></i>
+            </a>
+            {{else if el.canHandOff}}
+            <a data-action="elementalSustain" class="elemental-toggle"
+               title="An elemental sustains it — 1 service; one Combat Turn per point of its Force (SR2E p.142)">
+              <i class="fas fa-hand-sparkles"></i>
+            </a>
+            {{/if}}
+            {{/with}}
             <a data-action="toggleSpellLock" class="spell-lock-toggle {{#if spell.system.spellLocked}}active{{/if}}"
                title="{{#if spell.system.spellLocked}}Held by spell lock (no sustain penalty){{else}}Hold with a spell lock (removes the +2 TN penalty){{/if}}">
               <i class="fas fa-lock"></i>

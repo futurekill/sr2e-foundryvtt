@@ -3517,15 +3517,23 @@ export function areaTargetEligible(actorType, spellType) {
 export function spellCastDice({
   force, withheld = 0, totemBonus = 0, totemPenalty = 0, focusCast = 0,
   poolReq = 0, poolAvail = 0, poolCap = Infinity,
+  aidReq = 0, aidAvail = 0,
   karmaReq = 0, karmaAvail = 0, misc = 0, minBase = 1
 } = {}) {
-  const n = v => Number(v) || 0;
+  const n = v => Math.max(0, Math.trunc(Number(v) || 0));
   const ratingDice = Math.max(0, n(force) - n(withheld));
-  const baseDice = Math.max(minBase, ratingDice + n(totemBonus) - n(totemPenalty) + n(focusCast));
   const pool = Math.max(0, Math.min(n(poolReq), n(poolAvail), poolCap));
-  // p.191: Karma dice up to the rating dice in use — withheld dice are not.
+  // An elemental's Aid Sorcery dice act "like an auxiliary Magic Pool" and are
+  // "allocated … in the same manner as Magic Pool dice" (p.141): they share the
+  // Magic Pool's ceiling on the spell test, after the caster's own pool.
+  const aid = Math.max(0, Math.min(n(aidReq), n(aidAvail), poolCap - pool));
+  const baseDice = Math.max(minBase,
+    ratingDice + (Number(totemBonus) || 0) - (Number(totemPenalty) || 0) + n(focusCast) + aid);
+  // p.191: Karma dice up to the rating dice in use — withheld dice are not, and
+  // neither are aid dice (pool dice).
   const karma = Math.max(0, Math.min(n(karmaReq), n(karmaAvail), ratingDice));
-  return { ratingDice, baseDice, pool, karma, total: Math.max(0, baseDice + pool + karma + n(misc)) };
+  return { ratingDice, baseDice, pool, aid, karma,
+           total: Math.max(0, baseDice + pool + karma + (Number(misc) || 0)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -3571,4 +3579,122 @@ export function damageResistArmor({ armorCalc = "standard", armorType = "ballist
       label = armorType === "ballistic" ? "Ballistic" : "Impact";
   }
   return { armor: Math.max(0, armor + (Number(armorMod) || 0)), label };
+}
+
+// ---------------------------------------------------------------------------
+// ELEMENTAL SERVICES — Aid Sorcery and Spell Sustaining (SR2E p.141–142)
+// ---------------------------------------------------------------------------
+// "Each of these costs one of the elemental's services to initiate"; an
+// elemental "can only perform one service at a time". Aid Sorcery: each point
+// of Force is one die, and "its Force is reduced by 1 for each die used"; at 0
+// it vanishes, and can be called again for one service, "back at full Force".
+// Spell Sustaining: one spell of its category, one Combat Turn per point of
+// Force; "once its Force reaches 0, it disappears" — the spell with it, unless
+// the mage took it over first.
+
+const ELEMENT_AIDS = { fire: "combat", water: "illusion", air: "detection", earth: "manipulation" };
+
+/** Whether an elemental of this element can aid or sustain spells of this category. */
+export function elementalAidsCategory(element, category) {
+  return !!category && category !== "health" && ELEMENT_AIDS[element] === category;
+}
+
+/**
+ * The derived picture of an elemental's service state.
+ * @returns {{effectiveForce:number, depleted:boolean, busy:boolean, pending:boolean}}
+ */
+export function elementalState({ force = 1, forceUsed = 0, service = "", pendingExpireSpellUuid = "" } = {}) {
+  const full = Math.max(0, Math.trunc(Number(force) || 0));
+  const used = Math.max(0, Math.trunc(Number(forceUsed) || 0));
+  const effectiveForce = Math.max(0, full - used);
+  return { effectiveForce, depleted: effectiveForce === 0,
+           busy: service === "aid" || service === "sustain", pending: !!pendingExpireSpellUuid };
+}
+
+/**
+ * Plan one elemental service transition — pure. The caller writes `update` in
+ * ONE document update. `expire` names a spell that must now END (p.142).
+ *
+ * kinds: aid {n} | startSustain {spellUuid} | sustainTurn {n} | takeOver |
+ *        endService | recall | finishExpire
+ * @returns {{update:object, expire?:string, message:string}|{refuse:string}}
+ */
+export function planElementalTransition(sys = {}, kind, args = {}) {
+  const st = elementalState(sys);
+  const services = Math.max(0, Math.trunc(Number(sys.services) || 0));
+  const full = Math.max(0, Math.trunc(Number(sys.force) || 0));
+  const used = Math.max(0, Math.trunc(Number(sys.forceUsed) || 0));
+  const intArg = (v) => Number.isInteger(v) && v >= 1;
+  if (st.pending && kind !== "finishExpire") {
+    return { refuse: "it must finish expiring its spell first" };
+  }
+  switch (kind) {
+    case "aid": {
+      if (!intArg(args.n)) return { refuse: "aid dice must be a whole number of at least 1" };
+      if (sys.service === "sustain") return { refuse: "it is sustaining a spell — one service at a time (p.141)" };
+      if (st.depleted) return { refuse: "its Force is spent — re-call it first (1 service)" };
+      if (args.n > st.effectiveForce) return { refuse: `it has only ${st.effectiveForce} Force left` };
+      const starting = sys.service !== "aid";
+      if (starting && services < 1) return { refuse: "it owes no more services" };
+      const nextUsed = used + args.n;
+      const spent = nextUsed >= full;
+      return {
+        update: { "system.forceUsed": nextUsed, "system.service": spent ? "" : "aid",
+                  ...(starting ? { "system.services": services - 1 } : {}) },
+        message: `${starting ? "starts Aid Sorcery (1 service) and " : ""}gives ${args.n} ${args.n === 1 ? "die" : "dice"}: Force ${st.effectiveForce} → ${full - nextUsed}${spent ? " — it vanishes (p.141)" : ""}`
+      };
+    }
+    case "startSustain": {
+      if (!args.spellUuid) return { refuse: "no spell named" };
+      if (sys.service) return { refuse: `it is already performing ${sys.service === "aid" ? "Aid Sorcery" : "Spell Sustaining"} — one service at a time (p.141)` };
+      if (st.depleted) return { refuse: "its Force is spent — re-call it first (1 service)" };
+      if (services < 1) return { refuse: "it owes no more services" };
+      return {
+        update: { "system.service": "sustain", "system.sustainingSpellUuid": args.spellUuid,
+                  "system.services": services - 1 },
+        message: `sustains the spell (1 service) — ${st.effectiveForce} Combat Turn${st.effectiveForce === 1 ? "" : "s"} of Force`
+      };
+    }
+    case "sustainTurn": {
+      const n = args.n ?? 1;
+      if (!intArg(n)) return { refuse: "turns must be a whole number of at least 1" };
+      if (sys.service !== "sustain") return { refuse: "it is not sustaining a spell" };
+      const nextUsed = Math.min(full, used + n);
+      if (nextUsed >= full) {
+        return {
+          update: { "system.forceUsed": full, "system.service": "",
+                    "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": sys.sustainingSpellUuid },
+          expire: sys.sustainingSpellUuid,
+          message: "its Force is spent — it disappears, and the spell ends with it (p.142)"
+        };
+      }
+      return { update: { "system.forceUsed": nextUsed }, message: `${full - nextUsed} Combat Turn${full - nextUsed === 1 ? "" : "s"} of Force left` };
+    }
+    case "takeOver":
+    case "endService": {
+      if (!sys.service) return { refuse: "it is not performing a service" };
+      if (sys.service === "sustain" && st.depleted) {
+        return { refuse: "its Force is already spent — the spell ends; expire it (p.142)" };
+      }
+      return {
+        update: { "system.service": "", "system.sustainingSpellUuid": "" },
+        message: kind === "takeOver" ? "hands the spell back — the mage sustains it again (+2 TN)" : "ends its service"
+      };
+    }
+    case "recall": {
+      if (!st.depleted) return { refuse: "it still has Force — no need to re-call it" };
+      if (sys.service === "sustain") return { refuse: "its spell must expire first" };
+      if (services < 1) return { refuse: "it owes no more services — the binding is exhausted" };
+      return {
+        update: { "system.forceUsed": 0, "system.service": "", "system.services": services - 1 },
+        message: `is re-called at full Force ${full} (1 service, p.141)`
+      };
+    }
+    case "finishExpire": {
+      if (!st.pending) return { refuse: "nothing is expiring" };
+      return { update: { "system.pendingExpireSpellUuid": "" }, message: "its spell has ended" };
+    }
+    default:
+      return { refuse: `unknown service action "${kind}"` };
+  }
 }

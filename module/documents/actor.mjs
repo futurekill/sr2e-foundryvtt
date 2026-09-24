@@ -6,6 +6,7 @@ import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../di
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
+import { elementalTransition } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
@@ -2188,6 +2189,31 @@ export class SR2EActor extends Actor {
   // -------------------------------------------------------------------------
 
   /**
+   * Why an elemental cannot act on its own right now, or null. An elemental
+   * performs one service at a time (p.141), so one busy with Aid Sorcery or
+   * Spell Sustaining cannot also use powers or attack; one whose Force is spent
+   * has vanished. Nature spirits and untouched elementals are never gated.
+   */
+  _elementalBusyReason() {
+    if (this.type !== "spirit" || this.system.spiritType !== "elemental") return null;
+    const s = this.system;
+    if (s.pendingExpireSpellUuid) return `${this.name} must finish expiring its spell first.`;
+    if (s.service === "aid") return `${this.name} is busy with Aid Sorcery — end that service first (one at a time, p.141).`;
+    if (s.service === "sustain") return `${this.name} is sustaining a spell — hand it back first (one service at a time, p.141).`;
+    if (s.depleted) return `${this.name}'s Force is spent — it has vanished; re-call it (1 service).`;
+    return null;
+  }
+
+  /**
+   * Run one elemental service transition — see module/elementals.mjs.
+   * @param {string} kind
+   * @param {object} [args]
+   */
+  elementalTransition(kind, args = {}, opts = {}) {
+    return elementalTransition(this, kind, args, opts);
+  }
+
+  /**
    * Spend one of this spirit's services to use a power. Decrements the
    * service counter and posts a descriptive card. Most spirit powers resolve
    * narratively; the system tracks the expenditure.
@@ -2195,6 +2221,8 @@ export class SR2EActor extends Actor {
    */
   async useSpiritPower(powerKey) {
     if (this.type !== "spirit") return;
+    const busy = this._elementalBusyReason();
+    if (busy) return ui.notifications.warn(busy);
     const services = this.system.services ?? 0;
     if (services <= 0) {
       return ui.notifications.warn(`${this.name} has no services remaining.`);
@@ -2218,7 +2246,10 @@ export class SR2EActor extends Actor {
    */
   async rollSpiritAttack() {
     if (this.type !== "spirit") return;
-    const force = this.system.force ?? 1;
+    const busy = this._elementalBusyReason();
+    if (busy) return ui.notifications.warn(busy);
+    // Effective Force: Aid Sorcery and sustained turns reduce it (p.141–142).
+    const force = this.system.effectiveForce ?? this.system.force ?? 1;
 
     // The attack comes from the spirit's stat profile (SR2E p.234–235), not one
     // blanket rule: earth strikes with Reaction dice for (F)S, fire is a RANGED
@@ -2337,8 +2368,10 @@ export class SR2EActor extends Actor {
     // Sorcery dice (spirits use Force as their astral skill)
     let dice, charisma;
     if (this.type === "spirit") {
-      dice = this.system.force ?? 1;
-      charisma = this.system.force ?? 1;   // spirit astral attack = (Force)M
+      const busy = this._elementalBusyReason();
+      if (busy) return ui.notifications.warn(busy);
+      dice = this.system.effectiveForce ?? this.system.force ?? 1;
+      charisma = dice;   // spirit astral attack = (Force)M, at its current Force
     } else {
       const sorcery = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "sorcery");
       dice = sorcery?.system?.rating ?? Math.max(1, this.system.willpower?.value ?? 1);

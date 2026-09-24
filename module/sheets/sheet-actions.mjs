@@ -2,9 +2,10 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage} from "../rules/sr2e-rules.mjs";
+         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
+import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental } from "../elementals.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -1674,6 +1675,32 @@ async function promptSpellOptions(actor, spell) {
         isAreaCombat ? ", each against their own " + (isMana ? "Willpower" : "Body") : ""}.</p>
     </fieldset>` : "";
 
+  // ── Aid Sorcery (SR2E p.141) ──────────────────────────────────────────────
+  // One of the mage's bound elementals of this spell's category adds dice "like
+  // an auxiliary Magic Pool" — each die used lowers its Force by 1, and
+  // starting the service costs 1. SR2EItem#_rollSpellcast re-validates and pays.
+  const aidElementals = boundElementals(actor).filter(e =>
+    elementalAidsCategory(e.system.domain, spell.system.category)
+    && !e.system.pendingExpireSpellUuid && e.system.service !== "sustain" && !e.system.depleted
+    && (e.system.service === "aid" || (e.system.services ?? 0) >= 1));
+  const aidSection = aidElementals.length ? `
+    <fieldset class="sr2e-attack__group">
+      <legend class="sr2e-attack__legend">Aid Sorcery <span class="sr2e-attack__hint">p.141 — must be within your sight</span></legend>
+      <div class="sr2e-attack__grid">
+        <div class="sr2e-attack__field"><label>Elemental</label>
+          <select name="elem_uuid">
+            <option value="" data-avail="0">— none —</option>
+            ${aidElementals.map(e => `<option value="${e.uuid}" data-avail="${e.system.effectiveForce}">${esc(e.name)}
+              (Force ${e.system.effectiveForce}${e.system.service === "aid" ? ", aiding" : `, starts aid: 1 of ${e.system.services} services`})</option>`).join("")}
+          </select></div>
+        <div class="sr2e-attack__field"><label>Spell test</label>
+          <input type="number" name="elem_cast" value="0" min="0"></div>
+        <div class="sr2e-attack__field"><label>Drain</label>
+          <input type="number" name="elem_drain" value="0" min="0"></div>
+      </div>
+      <p class="sr2e-attack__hint">Each die used lowers the elemental's Force by 1; at 0 it vanishes. Spell-test aid shares the Magic Pool's limit.</p>
+    </fieldset>` : "";
+
   const poolSection = available > 0 ? `
     <fieldset class="sr2e-attack__group">
       <legend class="sr2e-attack__legend">Magic Pool <span class="sr2e-attack__hint">${available} available, shared by both tests</span></legend>
@@ -1694,15 +1721,23 @@ async function promptSpellOptions(actor, spell) {
     const force = Math.max(1, Math.min(parseInt(el.force?.value) || 1, magicAttr));
     const radiusDelta = isArea ? Number(el.radius_delta?.value || 0) : 0;
     const geo = isArea ? areaSpellGeometry({ magic: magicAttr, force, radiusDelta }) : null;
-    const focusCast = eligibleFoci.reduce((n, f) => n + (Number(el[`focus_cast_${f.id}`]?.value) || 0), 0);
+    // The same clamp _rollSpellcast applies (shared budget per focus).
+    const focusCast = eligibleFoci.reduce((n, f) => n + clampFocusAllocation(f.system,
+      el[`focus_cast_${f.id}`]?.value, el[`focus_drain_${f.id}`]?.value).cast, 0);
+    const aidAvail = Number(el.elem_uuid?.selectedOptions?.[0]?.dataset.avail) || 0;
     const dice = spellCastDice({
       force, withheld: geo?.withheld ?? 0, totemBonus, totemPenalty, focusCast,
       poolReq: parseInt(el.spell_pool?.value) || 0, poolAvail: available,
-      poolCap: isArea ? Math.min(spellCap, force) : spellCap,
+      // The ceiling is the Magic Rating (and the original Force for an area
+      // spell) — the SAME cap _rollSpellcast applies. Availability is poolAvail.
+      poolCap: isArea ? Math.min(magicAttr, force) : magicAttr,
+      aidReq: parseInt(el.elem_cast?.value) || 0, aidAvail,
       karmaReq: parseInt(el.karma_dice?.value) || 0, karmaAvail: actor.system.karma?.pool ?? 0,
       misc: parseInt(el.misc_dice?.value) || 0, minBase: isArea ? 0 : 1
     });
-    return { force, radiusDelta, geo, dice };
+    const aidDrain = Math.max(0, Math.min(parseInt(el.elem_drain?.value) || 0, aidAvail - dice.aid));
+    return { force, radiusDelta, geo, dice, aid: el.elem_uuid?.value
+      ? { uuid: el.elem_uuid.value, cast: dice.aid, drain: aidDrain } : null };
   };
 
   // Live readout: drain, dice, radius. A render hook, not inline handlers (CSP
@@ -1772,6 +1807,7 @@ async function promptSpellOptions(actor, spell) {
           </section>
           <section class="sr2e-attack__panel">
             ${poolSection}
+            ${aidSection}
             ${focusSection}
             ${karmaDiceSection(actor, magicAttr)}
             ${miscDiceHTML()}
@@ -1799,7 +1835,7 @@ async function promptSpellOptions(actor, spell) {
         default: true,
         callback: (event, button) => {
           const el = button.form.elements;
-          const { force, radiusDelta, geo, dice } = readPreview(button.form);
+          const { force, radiusDelta, geo, dice, aid } = readPreview(button.form);
           if (geo && !geo.valid) {
             ui.notifications.warn(`${spell.name}: that radius withholds more dice than the spell's Force (p.130).`);
             return;   // rollResult stays null → treated as cancel
@@ -1824,6 +1860,8 @@ async function promptSpellOptions(actor, spell) {
             // Capped at the rating dice in use (Force less withheld area dice,
             // p.191); rollSuccessTest re-clamps against the live Karma Pool.
             karmaDice:     readKarmaDice(button.form, actor, dice.ratingDice),
+            // Aid Sorcery: a REQUEST — the roll re-validates the elemental and pays.
+            ...(aid && (aid.cast + aid.drain) > 0 ? { elementalAid: aid } : {}),
             // Area: the centre is resolved by onCastSpell after this dialog.
             ...(isArea ? { areaRequest: { center: el.area_center?.value ?? "point", radiusDelta } } : {}),
             // Misc applies to the CASTING test only; the Drain roll never sees it.
@@ -1863,6 +1901,7 @@ async function onCastSpell(event, target) {
   }
   return item.roll({
     area,
+    elementalAid: opts.elementalAid,
     force: opts.force, targetNumber: opts.tn,
     poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice, focusDice: opts.focusDice,
     karmaDice: opts.karmaDice,
@@ -3308,6 +3347,10 @@ const SHARED_ACTIONS = {
     const uuid = target.closest("[data-spirit-uuid]")?.dataset.spiritUuid;
     if (!uuid) return;
     const current = this.document.system.boundSpirits ?? [];
+    // A sustaining elemental takes its spell with it (p.142); a pending ending
+    // must finish first. If that cleanup fails, keep the spirit and its record.
+    const pre = await fromUuid(uuid);
+    if (pre && !(await releaseElemental(pre))) return;
     await this.document.update({ "system.boundSpirits": current.filter(s => s !== uuid) });
     const spirit = await fromUuid(uuid);
     if (spirit) {
@@ -3333,6 +3376,50 @@ const SHARED_ACTIONS = {
   },
 
   /**
+   * Hand a sustained spell to one of the mage's bound elementals of its
+   * category (Spell Sustaining, SR2E p.142 — 1 service). The +2 TN is lifted
+   * while it holds the spell; the elemental's Force counts down one per Combat
+   * Turn on its sheet.
+   * @this {ApplicationV2}
+   */
+  elementalSustain: async function(event, target) {
+    event.preventDefault();
+    const spell = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (!spell?.system?.sustaining) return;
+    const eligible = boundElementals(this.document).filter(e =>
+      elementalAidsCategory(e.system.domain, spell.system.category)
+      && !e.system.service && !e.system.depleted && !e.system.pendingExpireSpellUuid
+      && (e.system.services ?? 0) >= 1);
+    if (!eligible.length) {
+      return ui.notifications.warn(`No bound elemental can sustain ${spell.name}: it needs a ${spell.system.category === "health" ? "— no elemental sustains health spells" : "matching element"}, Force left, a service owed, and no other service (p.141–142).`);
+    }
+    const options = eligible.map(e => `<option value="${e.uuid}">${foundry.utils.escapeHTML(e.name)}
+      — Force ${e.system.effectiveForce}, ${e.system.services} service${e.system.services === 1 ? "" : "s"}</option>`).join("");
+    const uuid = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `Elemental sustains ${spell.name}` },
+      content: `<p>Costs 1 service. It sustains the spell for one Combat Turn per point of its Force; when that runs out, the spell ends unless you take it back first (SR2E p.142).</p>
+        <div class="form-group"><select name="spirit">${options}</select></div>`,
+      ok: { label: "Sustain", callback: (ev, button) => button.form.elements.spirit.value },
+      rejectClose: false
+    });
+    if (!uuid) return;
+    const spirit = await fromUuid(uuid);
+    if (spirit) await elementalTransition(spirit, "startSustain", { spell });
+  },
+
+  /**
+   * The mage takes a spell back from the elemental sustaining it (p.142) —
+   * the +2 TN returns. Only before the elemental's Force is spent.
+   * @this {ApplicationV2}
+   */
+  elementalTakeOver: async function(event, target) {
+    event.preventDefault();
+    const spell = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    const holder = spell && elementalHolderOf(spell);
+    if (holder) await elementalTransition(holder, "takeOver");
+  },
+
+  /**
    * Toggle whether a sustained spell is held by a spell lock — locked spells
    * impose no sustain penalty (SR2E p.137).
    * @this {ApplicationV2}
@@ -3342,6 +3429,11 @@ const SHARED_ACTIONS = {
     const itemId = target.closest("[data-item-id]")?.dataset.itemId;
     const item = this.document.items.get(itemId);
     if (!item || !item.system.sustaining) return;
+    if (!item.system.spellLocked) {
+      const why = spellBlockedByElemental(item)
+        ?? (elementalHolderOf(item) ? `${elementalHolderOf(item).name} sustains ${item.name} — take it over first.` : null);
+      if (why) return ui.notifications.warn(why);
+    }
     return item.update({ "system.spellLocked": !item.system.spellLocked });
   },
 

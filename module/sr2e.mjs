@@ -15,6 +15,7 @@ import * as dataModels from "./data/_index.mjs";
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
 import { renderManipDamageCard, isManipCardResolved } from "./documents/item.mjs";
+import { detachElementalHolder } from "./elementals.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
 // Sheets
@@ -1676,6 +1677,35 @@ Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
       { permanent: true });
   }).finally(() => FINALIZING.delete(actor.id));
   return false;
+});
+
+// Elemental sorcery services (SR2E p.141–142): the conjurer's sheet shows who
+// holds each spell and for how long, and its sustain penalty depends on it, so
+// re-render it when one of its elementals changes or goes. Render only — no
+// document writes here.
+function _refreshConjurer(spirit) {
+  if (spirit?.type !== "spirit" || !spirit.system?.conjurerUuid) return;
+  let caster = null;
+  try { caster = fromUuidSync(spirit.system.conjurerUuid); } catch (e) { return; }
+  if (!caster) return;
+  caster.prepareData?.();
+  if (caster.sheet?.rendered) caster.sheet.render(false);
+}
+// Deleting an elemental that holds a spell (or is still ending one) would leave
+// the spell running, or lose the record that blocks recasting it. Banish it
+// from the mage's sheet (which ends the spell first), hand the spell back, or
+// Finish — then delete.
+Hooks.on("preDeleteActor", (actor) => {
+  const s = actor.system;
+  if (actor.type !== "spirit" || !(s?.pendingExpireSpellUuid || (s?.service === "sustain" && s?.sustainingSpellUuid))) return;
+  ui.notifications.warn(`${actor.name} still holds a spell — banish it from its mage's sheet, hand the spell back, or finish expiring it first.`);
+  return false;
+});
+Hooks.on("updateActor", (actor) => _refreshConjurer(actor));
+Hooks.on("deleteActor", (actor) => _refreshConjurer(actor));
+// A deleted spell releases the elemental that held it (non-recursive).
+Hooks.on("deleteItem", (item) => {
+  if (item.type === "spell" && item.isOwner) detachElementalHolder(item);
 });
 
 Hooks.on("updateActor", (actor, changes) => {
