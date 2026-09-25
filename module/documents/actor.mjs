@@ -5,7 +5,8 @@ import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { renderAstralMeleeCard, isCardResolved, isTestClosed, astralAttack } from "../astral-combat.mjs";
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
-         renderHealingCard, renderManipDamageCard, isManipCardResolved } from "./item.mjs";
+         renderHealingCard, renderManipDamageCard, isManipCardResolved,
+         renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
@@ -703,7 +704,10 @@ export class SR2EActor extends Actor {
       healing: renderHealingCard,
       manipDamage: renderManipDamageCard,
       learning: renderLearningCard,
-      astralMelee: renderAstralMeleeCard
+      astralMelee: renderAstralMeleeCard,
+      rangedDamage: renderRangedDamageCard,
+      blastLaunch: renderBlastLauncher,
+      spreadLaunch: renderSpreadLauncher
     };
 
     for (const msg of game.messages ?? []) {
@@ -717,7 +721,8 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
-        if (key === "astralMelee" && isCardResolved(msg, "astralMelee")) continue;
+        if (["astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch"].includes(key)
+            && isCardResolved(msg, key)) continue;
         if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;
         if (!msg.canUserModify(game.user, "update")) {
@@ -1962,9 +1967,14 @@ export class SR2EActor extends Actor {
     const body      = system.body ?? 1;
     const armor     = system.armor ?? 0;
     const basePower = options.basePower ?? power;
+    // Every terminal outcome names the card it resolves (flag-backed ranged
+    // damage), so any client can tell the card is done.
+    const resolves = options.resolvesMessageId
+      ? { flags: { sr2e: { resolves: options.resolvesMessageId } } } : {};
 
     if ((options.damageType ?? "physical") === "stun") {
       return ChatMessage.create({
+        ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
           vehicles are unaffected by Stun damage.</div>`
@@ -1985,6 +1995,7 @@ export class SR2EActor extends Actor {
     const startIdx = Math.min(3, stages.indexOf(level)) - 1;
     if (lightRated || startIdx < 0) {
       return ChatMessage.create({
+        ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
           Light damage cannot affect vehicles (SR2E p.108).</div>`
@@ -1994,6 +2005,7 @@ export class SR2EActor extends Actor {
     // Armored vehicles: armor is a Barrier Rating vs the BASE Power (p.108)
     if (armor > 0 && basePower <= armor) {
       return ChatMessage.create({
+        ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>No penetration:</strong>
           base Power ${basePower} does not exceed vehicle armor ${armor} (SR2E p.108).</div>`
@@ -2055,6 +2067,9 @@ export class SR2EActor extends Actor {
       ]
     });
     if (action !== "roll") return;
+    // Last check before any Control Pool die is spent (Karma may have changed
+    // the attack while the dialog was open).
+    if (options.beforeRoll && !(await options.beforeRoll())) return null;
 
     if (allocated > 0 && rigger) {
       await rigger.update({
@@ -2074,6 +2089,7 @@ export class SR2EActor extends Actor {
       : startIdx - netToSteps(resist?.successes ?? 0);
     if (finalIdx < 0) {
       return ChatMessage.create({
+        ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>Damage fully resisted.</strong></div>`
       });
@@ -2082,6 +2098,7 @@ export class SR2EActor extends Actor {
     const boxes = [1, 3, 6, 10][finalIdx];
     await this.applyDamage("physical", boxes);
     return ChatMessage.create({
+      ...resolves,
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
         <strong>Vehicle takes ${stages[finalIdx]} damage (${boxes} box${boxes === 1 ? "" : "es"})</strong>
@@ -2118,7 +2135,8 @@ export class SR2EActor extends Actor {
     if (this.type === "vehicle") {
       return this.rollVehicleDamageResistance(power, level, {
         basePower: options.basePower, damageType,
-        stageVs: options.stageVs, ratedLevel: options.ratedLevel, calledShot: options.calledShot
+        stageVs: options.stageVs, ratedLevel: options.ratedLevel, calledShot: options.calledShot,
+        beforeRoll: options.beforeRoll, resolvesMessageId: options.resolvesMessageId
       });
     }
     const system    = this.system;

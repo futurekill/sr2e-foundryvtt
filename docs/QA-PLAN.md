@@ -106,6 +106,12 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Phase expiry:** a combatant who stays on top after Next Turn starts with
       recoil 0 and no targets engaged (sheet's recoil counter reads 0).
 
+- [ ] **Karma → damage card:** fire, then Reroll Failures on the attack test → the
+      damage card's success count updates; a miss posts a "Miss" card and a Karma
+      hit gives it a Resist button; spending Karma while the Resist dialog is open
+      makes the roll refuse ("click again"). A grenade launcher follows Karma until
+      Resolve Blast, then shows "Launched" with the count it used.
+
 ## 4a. Weapon accessories (v0.26.0, SR2E p.240–241)
 - [ ] **Attach/detach/transfer:** buy a Bipod, attach it to an HK227 via the gear-tab
       dropdown, then detach it and attach it to a different weapon — both directions

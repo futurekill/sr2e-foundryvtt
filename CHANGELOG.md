@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Fixed — Karma spent on an attack reaches its damage card
+
+A ranged weapon's damage card used to be fixed once posted. If the attacker
+rerolled failures or bought a success with Karma Pool afterwards, the damage
+still staged against the old count. A miss posted no damage card at all, so
+Karma could never turn it into a hit.
+
+- The damage card now **follows the attack test** until it is resisted, just as
+  melee and spell cards do. A miss posts a "Miss" card, and Karma that produces
+  a hit gives it a Resist button.
+- Resisting is guarded like damaging-manipulation spells:
+  - It happens once.
+  - It is refused if the attacker spends Karma while the resist dialog is open
+    ("click Resist again").
+  - Vehicles are covered too, and their outcome marks the card done.
+- **Grenade / rocket and shotgun-spread launchers** follow Karma until they are
+  launched. A launch always uses the attack's live success count. A launch that
+  fails (no scene, no ground zero) can be retried, and a successful one freezes
+  the launcher, showing the count it used.
+- A shot declared through a barrier that missed and is then revived by Karma
+  gets no Resist button; the GM resolves the barrier by hand.
+
 ### Changed — astral combat is fought like melee (SR2E p.147–148)
 
 Astral combat "works exactly like Melee Combat". It used to be one roll: the

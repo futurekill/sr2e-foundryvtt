@@ -14,9 +14,9 @@ import * as dataModels from "./data/_index.mjs";
 // Document Classes
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
-import { renderManipDamageCard, isManipCardResolved } from "./documents/item.mjs";
+import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
-import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack } from "./astral-combat.mjs";
+import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack, isCardResolved } from "./astral-combat.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
 // Sheets
@@ -42,7 +42,7 @@ import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -434,7 +434,7 @@ Hooks.once("init", async () => {
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
   game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
-    astralAttack, astralDefend, astralUndefended, astralResist });
+    astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -1853,6 +1853,100 @@ async function resolveCardDefender(targetUuid) {
 }
 
 /**
+ * Launch a flag-backed blast / spread launcher (`blastLaunch` / `spreadLaunch`).
+ * Guarded per card; refused once launched. The launch uses the LIVE success
+ * total of the attack test (never the displayed count), and only a successful
+ * launch is recorded — its outcome message carries `resolves` + the successes
+ * used, and the launcher's author re-renders it closed (see the hook below).
+ */
+const LAUNCH_IN_FLIGHT = new Set();
+async function launchFromCard(message, key) {
+  if (LAUNCH_IN_FLIGHT.has(message.id)) return;
+  const st = message.getFlag("sr2e", key);
+  if (!st || isCardResolved(message, key)) return ui.notifications.warn("That has already been launched.");
+  LAUNCH_IN_FLIGHT.add(message.id);
+  try {
+    const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
+    const successes = t ? testTotalSuccesses(t) : (st.successes ?? 0);
+    const marker = { resolves: message.id, launchSuccesses: successes };
+    if (key === "blastLaunch") {
+      await resolveBlast({ centerTokenUuid: st.centerTokenUuid, shooterTokenUuid: st.shooterTokenUuid,
+        basePower: st.basePower, baseLevel: st.baseLevel, damageType: st.damageType, blastType: st.blastType,
+        attackerSuccesses: successes, delivery: st.delivery, blastName: st.name,
+        netStaging: true, calledShot: !!st.calledShot, marker });
+    } else {
+      await resolveShotgunSpread({ shooterTokenUuid: st.shooterTokenUuid, targetTokenUuid: st.targetTokenUuid,
+        basePower: st.basePower, baseLevel: st.baseLevel, damageType: st.damageType, choke: st.choke,
+        attackerSuccesses: successes, weaponName: st.name, netStaging: true, calledShot: !!st.calledShot,
+        ratedLevel: st.ratedLevel, marker });
+    }
+  } finally {
+    LAUNCH_IN_FLIGHT.delete(message.id);
+  }
+}
+
+/**
+ * Resist a flag-backed ranged damage card (`rangedDamage`). Guarded exactly like
+ * resistManipDamage: in flight once per card, refused when gone or resolved,
+ * and re-checked in beforeRoll — Karma spent on the attack while the dialog is
+ * open means "click again". Reads the card's flag, never the button.
+ */
+const RANGED_IN_FLIGHT = new Set();
+async function resistRangedDamage(message) {
+  if (RANGED_IN_FLIGHT.has(message.id)) return;
+  RANGED_IN_FLIGHT.add(message.id);
+  try {
+    const snap = foundry.utils.deepClone(message.getFlag("sr2e", "rangedDamage"));
+    if (!snap || !(snap.successes > 0) || snap.barrier) return;
+    if (isCardResolved(message, "rangedDamage")) return ui.notifications.warn("That damage has already been resisted.");
+    const actor = await resolveCardDefender(snap.targetUuid);
+    if (!actor) return ui.notifications.warn("Select a token (or assign a character) to roll damage resistance.");
+    if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
+    return await actor.rollDamageResistance(snap.power, snap.baseLevel, snap.armorType, snap.damageType, {
+      armorCalc: snap.armorCalc, armorMod: snap.armorMod, ammoName: snap.ammoName, basePower: snap.basePower,
+      attackerSuccesses: snap.successes, stageVs: snap.successes,
+      ratedLevel: snap.ratedLevel, calledShot: !!snap.calledShot,
+      resolvesMessageId: message.id,
+      beforeRoll: async () => {
+        const live = game.messages.get(message.id);
+        if (!live || isCardResolved(live, "rangedDamage")) {
+          ui.notifications.warn("That damage has already been resisted.");
+          return false;
+        }
+        if (live.getFlag("sr2e", "rangedDamage")?.successes !== snap.successes) {
+          ui.notifications.warn("The attacker spent Karma and the damage changed — click Resist again.");
+          return false;
+        }
+        return true;
+      }
+    });
+  } finally {
+    RANGED_IN_FLIGHT.delete(message.id);
+  }
+}
+
+/**
+ * Author-side close: when an outcome message claims (`resolves`) a flag-backed
+ * ranged card or launcher, that card's author — or the GM if the author is
+ * away — re-renders it closed, launchers showing the successes the launch used.
+ */
+Hooks.on("createChatMessage", async (outcome) => {
+  const id = outcome.flags?.sr2e?.resolves;
+  const card = id ? game.messages.get(id) : null;
+  if (!card) return;
+  const mine = card.isAuthor || (game.user.isGM && !card.author?.active);
+  if (!mine) return;
+  const renderers = { rangedDamage: renderRangedDamageCard, blastLaunch: renderBlastLauncher, spreadLaunch: renderSpreadLauncher };
+  for (const [key, render] of Object.entries(renderers)) {
+    const st = card.flags?.sr2e?.[key];
+    if (!st || st.resolved) continue;
+    const next = { ...st, resolved: true,
+      ...(outcome.flags.sr2e.launchSuccesses != null ? { launchSuccesses: outcome.flags.sr2e.launchSuccesses } : {}) };
+    await card.update({ content: render(next), [`flags.sr2e.${key}`]: next });
+  }
+});
+
+/**
  * Resolve a blast (grenade / rocket / missile / area spell) on the battle map
  * (core p.96). Places a circular MeasuredTemplate at the blast point, gathers
  * every token whose centre falls inside it, and posts a card giving each token
@@ -1869,13 +1963,17 @@ async function resolveCardDefender(targetUuid) {
  * @param {number} o.attackerSuccesses - Successes from the attack Success Test.
  * @param {string} o.blastName        - Display name.
  */
-async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false }) {
-  if (!canvas?.ready) return ui.notifications.warn("No active scene for the blast.");
+async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false, marker = null }) {
+  if (!canvas?.ready) { ui.notifications.warn("No active scene for the blast."); return false; }
   const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid) : null;
   const centerTok = centerDoc?.object ?? game.user?.targets?.first?.();
   if (!centerTok) {
-    return ui.notifications.warn("Target a token (the blast's ground zero) before resolving the blast.");
+    ui.notifications.warn("Target a token (the blast's ground zero) before resolving the blast.");
+    return false;
   }
+  // A flag-backed launcher's outcome carries its marker (resolves + the
+  // successes the launch used) so any client can tell it has been launched.
+  const markFlags = marker ? { flags: { sr2e: { resolves: marker.resolves, launchSuccesses: marker.launchSuccesses } } } : {};
   const falloff = blastFalloffRate(blastType);
   const radiusM = blastRadius(basePower, falloff);
 
@@ -1943,13 +2041,15 @@ async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower,
   // Smoke does no damage — the cloud (template + auto-applied visibility TN, and
   // the optional darkness light) is the whole effect. Post a note and stop.
   if (blastType === "smoke") {
-    return ChatMessage.create({
+    await ChatMessage.create({
+      ...markFlags,
       content: `<div class="sr2e-damage-result">
         <strong>${foundry.utils.escapeHTML(blastName)}</strong> — smoke cloud deployed
         (radius ${radiusM} m). Attacks to/through it take the Visibility Table
         modifier automatically (SR2E p.89). "Clear Blast Areas" removes it.
       </div>`
     });
+    return true;
   }
 
   const stages = ["L", "M", "S", "D"];
@@ -1993,6 +2093,7 @@ async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower,
     ? rows.join("")
     : `<em>No tokens caught in the ${radiusM} m radius.</em>`;
   await ChatMessage.create({
+    ...markFlags,
     content: `<div class="sr2e-damage-result sr2e-blast-card">
       <strong>💥 ${foundry.utils.escapeHTML(blastName || "Blast")}</strong> — ${basePower}${stagedLevel}${stun ? " Stun" : ""} at ground zero,
       −${falloff}/m falloff (radius ${radiusM} m).${netStaging
@@ -2003,6 +2104,7 @@ async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower,
       <br><button class="sr2e-clear-blast-btn" title="Remove all blast templates from the scene">🧹 Clear blast areas</button>
     </div>`
   });
+  return true;
 }
 
 /**
@@ -2025,12 +2127,13 @@ async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower,
  * @param {number} o.attackerSuccesses
  * @param {string} o.weaponName
  */
-async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName, netStaging = false, calledShot = false, ratedLevel = "" }) {
-  if (!canvas?.ready) return ui.notifications.warn("No active scene for the shot spread.");
+async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName, netStaging = false, calledShot = false, ratedLevel = "", marker = null }) {
+  if (!canvas?.ready) { ui.notifications.warn("No active scene for the shot spread."); return false; }
   const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : canvas.tokens.controlled[0];
   const targetTok  = (targetTokenUuid ? (await fromUuid(targetTokenUuid))?.object : null) ?? game.user?.targets?.first?.();
   if (!shooterTok || !targetTok) {
-    return ui.notifications.warn("Need both the shooter's token and a target token to resolve the spread.");
+    ui.notifications.warn("Need both the shooter's token and a target token to resolve the spread.");
+    return false;
   }
   const c = Math.min(10, Math.max(2, choke || 3));
   const origin = shooterTok.center;
@@ -2095,6 +2198,7 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
 
   const body = rows.length ? rows.join("") : `<em>No targets in the spread cone.</em>`;
   await ChatMessage.create({
+    ...(marker ? { flags: { sr2e: { resolves: marker.resolves, launchSuccesses: marker.launchSuccesses } } } : {}),
     content: `<div class="sr2e-damage-result sr2e-blast-card">
       <strong>🔫 ${foundry.utils.escapeHTML(weaponName || "Shotgun")} — shot spread</strong> (choke ${c}), muzzle ${basePower}${stagedLevel}${stun ? " Stun" : ""}.
       <br><em>Each target resists Body vs. (Power − flechette armour); +1 die per target in front of them:</em>
@@ -2102,6 +2206,7 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
       <br><button class="sr2e-clear-blast-btn" title="Remove all templates this system dropped">🧹 Clear spread cones</button>
     </div>`
   });
+  return true;
 }
 
 Hooks.on("renderChatMessageHTML", (message, html, data) => {
@@ -2150,8 +2255,10 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     if (btn.dataset.power === undefined) return;
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
-      // Damaging manipulation spells (SR2E p.158) have their own guarded path.
+      // Damaging manipulation spells (SR2E p.158) have their own guarded path,
+      // and so does a flag-backed ranged damage card (Karma can change it).
       if (btn.dataset.manip === "1") return resistManipDamage(message);
+      if (btn.dataset.ranged === "1") return resistRangedDamage(message);
       const power      = parseInt(btn.dataset.power)   || 0;
       const basePower  = parseInt(btn.dataset.basePower) || power;
       const level      = btn.dataset.level             || "M";
@@ -2251,6 +2358,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   html.querySelectorAll?.(".sr2e-spread-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
+      if (btn.dataset.launch === "1") return launchFromCard(message, "spreadLaunch");
       await resolveShotgunSpread({
         shooterTokenUuid:  btn.dataset.shooterTokenUuid || "",
         targetTokenUuid:   btn.dataset.targetTokenUuid || "",
@@ -2272,6 +2380,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   html.querySelectorAll?.(".sr2e-blast-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
+      if (btn.dataset.launch === "1") return launchFromCard(message, "blastLaunch");
       await resolveBlast({
         centerTokenUuid:   btn.dataset.centerTokenUuid || "",
         shooterTokenUuid:  btn.dataset.shooterTokenUuid || "",

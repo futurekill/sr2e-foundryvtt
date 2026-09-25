@@ -180,6 +180,102 @@ export function renderSpellResistCard(state) {
 }
 
 /**
+ * A ranged weapon's damage card (SR2E p.91), rendered from its flag state so a
+ * Karma spend on the attack test can re-render it (see _syncDependentCards).
+ * Net staging: the button carries the pre-staging level and the attacker's
+ * successes. At 0 successes it reads "Miss" with no button; a revived shot that
+ * was declared through a barrier is left to the GM (no button).
+ *
+ * state: { testMessageId, successes, resolved, weaponName, attackerName,
+ *   attributed, targetUuid, power, basePower, baseLevel, ratedLevel, calledShot,
+ *   armorType, damageType, armorCalc, armorMod, ammoName, powerNote, codeText, barrier }
+ */
+export function renderRangedDamageCard(state) {
+  const esc = foundry.utils.escapeHTML;
+  const n = state.successes ?? 0;
+  const attrib = state.attributed && state.attackerName ? `${esc(state.attackerName)}'s ` : "";
+  const hint = state.targetUuid ? "" :
+    `<br><em class="sr2e-hint">No target was set — whoever resists should select their token first.</em>`;
+  const ammoLine = state.ammoName ? `<br><em>Loaded: ${esc(state.ammoName)}</em>` : "";
+  let body;
+  if (n <= 0) {
+    body = `<strong>${attrib}${esc(state.weaponName)}: Miss</strong> <em>(no successes — Karma can still turn it into a hit)</em>`;
+  } else if (state.barrier) {
+    body = `<strong>${attrib}${esc(state.weaponName)} Damage:</strong> ${state.power}${state.baseLevel}
+      <br><em>Revived by Karma, but the shot was declared through a barrier (rating ${state.barrier.rating}) that was never resolved —
+      the GM resolves this shot by hand (SR2E p.98).</em>`;
+  } else {
+    body = `<strong>${attrib}${esc(state.weaponName)} Damage:</strong> ${state.power}${state.baseLevel}${state.powerNote ?? ""}
+      <br><em>Base: ${esc(state.codeText)} | ${n} success${n === 1 ? "" : "es"} — staged on the net against the target's resistance roll (p.91)</em>
+      ${ammoLine}${hint}`;
+  }
+  const button = n > 0 && !state.barrier && !state.resolved ? `
+    <br><button class="sr2e-resist-btn" data-ranged="1"
+            data-power="${state.power}" data-base-power="${state.basePower}"
+            data-level="${state.baseLevel}" data-armor-type="${state.armorType}"
+            data-damage-type="${state.damageType}" data-armor-calc="${state.armorCalc}"
+            data-armor-mod="${state.armorMod}" data-ammo-name="${esc(state.ammoName ?? "")}"
+            data-target-uuid="${state.targetUuid ?? ""}" data-attacker-successes="${n}"
+            data-stage="net" data-stage-vs="${n}"
+            data-rated-level="${state.ratedLevel}" data-called-shot="${state.calledShot ? 1 : 0}"
+            title="Defender rolls Body vs. TN = Power − Armor; damage stages on net successes (SR2E p.91)">
+      ${game.i18n.localize("SR2E.Chat.ResistDamage")}
+    </button>` : "";
+  return `<div class="sr2e-damage-result">${body}${state.resolved ? "<br><strong>Resolved.</strong>" : ""}${button}</div>`;
+}
+
+/**
+ * Area-weapon launcher (core p.96): "Resolve Blast" / "Deploy Smoke". Flag
+ * state `blastLaunch`; once launched it shows the successes the launch used.
+ */
+export function renderBlastLauncher(state) {
+  const esc = foundry.utils.escapeHTML;
+  const hits = state.launchSuccesses ?? state.successes ?? 0;
+  const isSmoke = state.blastType === "smoke";
+  const blurb = isSmoke
+    ? `smoke, ${hits > 0 ? "on target" : "<em>off-target — it drifts</em>"}`
+    : `${state.basePower}${state.baseLevel} blast, ${hits > 0 ? `${hits} net hit${hits === 1 ? "" : "s"}` : "<em>off-target — it scatters</em>"}`;
+  return `<div class="sr2e-damage-result">
+    <strong>${esc(state.name)}</strong> — ${blurb}.
+    ${state.resolved ? "<br><strong>Launched.</strong>" : `<br>
+    <button class="sr2e-blast-btn" data-launch="1"
+            title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
+      ${isSmoke ? "💨 Deploy Smoke" : "💥 Resolve Blast"}
+    </button>`}
+  </div>`;
+}
+
+/** Shotgun shot-round spread launcher (SR2E p.95). Flag state `spreadLaunch`. */
+export function renderSpreadLauncher(state) {
+  const esc = foundry.utils.escapeHTML;
+  const hits = state.launchSuccesses ?? state.successes ?? 0;
+  return `<div class="sr2e-damage-result">
+    <strong>${esc(state.name)}</strong> — shot rounds (choke ${state.choke}), ${hits > 0 ? `${hits} success${hits === 1 ? "" : "es"}` : "<em>miss</em>"} at ${state.distance ?? "?"} m.
+    ${state.resolved ? "<br><strong>Resolved.</strong>" : `<br>
+    <button class="sr2e-spread-btn" data-launch="1"
+            title="Drop the spread cone and resolve every target in it (SR2E p.95)">🔫 Resolve Spread</button>`}
+  </div>`;
+}
+
+/**
+ * Bring a freshly posted dependent card up to its test's CURRENT total — Karma
+ * may have landed while it was being created, before _syncDependentCards could
+ * find it. Bounded (3 passes), like _reconcileManipCards.
+ */
+export async function reconcileDependentCard(msg, key, render) {
+  for (let pass = 0; pass < 3; pass++) {
+    const live = msg && game.messages.get(msg.id);
+    const st = live?.flags?.sr2e?.[key];
+    if (!st || st.resolved || !live.canUserModify(game.user, "update")) return;
+    const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
+    const now = t ? testTotalSuccesses(t) : st.successes;
+    if (now === st.successes) return;
+    const next = { ...st, successes: now };
+    await live.update({ content: render(next), [`flags.sr2e.${key}`]: next });
+  }
+}
+
+/**
  * Damage card for a damaging manipulation spell (Flamethrower, Spark, Flame
  * Bomb — SR2E p.158): the target's "Spell Resistance Test is actually a Damage
  * Resistance Test, as in Ranged Combat" (p.131), so the button is an ordinary
@@ -977,7 +1073,6 @@ export class SR2EItem extends Item {
     if (this.system.blastType) {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
       const targetTok = engage?.token?.obj ?? game.user?.targets?.first?.();
-      const safeName = foundry.utils.escapeHTML(this.name);
       // Delivery drives the scatter profile (sr2e.mjs resolveBlast). Grenades
       // scatter standard 1D6/−2, or 2D6/−4 if aerodynamic; launched ordnance
       // (rockets/missiles) uses 3D6/−4. (This branch is already gated on
@@ -985,32 +1080,19 @@ export class SR2EItem extends Item {
       const delivery = this.system.weaponType !== "grenade"
         ? "launcher"
         : (this.system.aerodynamic ? "aerodynamic" : "standard");
-      const hits = result.successes;
-      const isSmoke = this.system.blastType === "smoke";
-      const blurb = isSmoke
-        ? `smoke, ${hits > 0 ? "on target" : "<em>off-target — it drifts</em>"}`
-        : `${dmg.power}${dmg.level} blast, ${hits > 0 ? `${hits} net hit${hits === 1 ? "" : "s"}` : "<em>off-target — it scatters</em>"}`;
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor }),
-        content: `<div class="sr2e-damage-result">
-          <strong>${safeName}</strong> — ${blurb}.
-          <br>
-          <button class="sr2e-blast-btn"
-                  data-base-power="${dmg.power}"
-                  data-base-level="${dmg.level}"
-                  data-damage-type="${this.system.damageType || "physical"}"
-                  data-blast-type="${this.system.blastType}"
-                  data-attacker-successes="${hits}"
-                  data-delivery="${delivery}"
-                  data-stage="net" data-called-shot="${options.calledShot ? 1 : 0}"
-                  data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
-                  data-shooter-token-uuid="${actor.getActiveTokens?.()[0]?.document?.uuid ?? ""}"
-                  data-blast-name="${safeName}"
-                  title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
-            ${isSmoke ? "💨 Deploy Smoke" : "💥 Resolve Blast"}
-          </button>
-        </div>`
-      });
+      // Flag-backed so Karma on the attack re-renders it until it is launched
+      // (the launch reads the live total from the test; see renderBlastLauncher).
+      const state = {
+        testMessageId: result.testMessageId, successes: result.successes, resolved: false,
+        name: this.name, basePower: dmg.power, baseLevel: dmg.level,
+        damageType: this.system.damageType || "physical", blastType: this.system.blastType,
+        delivery, calledShot: !!options.calledShot,
+        centerTokenUuid: targetTok?.document?.uuid ?? "",
+        shooterTokenUuid: actor.getActiveTokens?.()[0]?.document?.uuid ?? ""
+      };
+      const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+        content: renderBlastLauncher(state), flags: { sr2e: { blastLaunch: state } } });
+      await reconcileDependentCard(msg, "blastLaunch", renderBlastLauncher);
       return result;
     }
 
@@ -1019,39 +1101,29 @@ export class SR2EItem extends Item {
     // distance-reduced Power, flechette armour, and intervening-target dice.
     if (isShotSpread) {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
-      const safeName = foundry.utils.escapeHTML(this.name);
-      const hits = result.successes;
       // A burst of shot is still a burst (p.92): +1 Power per round, +1 level per
       // 3 full rounds — including a short one. The printed level is kept apart
       // for the vehicle "rated Light" check (p.108).
       const spreadBurst = isBurst ? burstDamageBonus(rounds) : { powerBonus: 0, levelSteps: 0 };
-      const spreadPower = dmg.power + spreadBurst.powerBonus;
-      const spreadLevel = ["L", "M", "S", "D"][Math.min(3, ["L", "M", "S", "D"].indexOf(dmg.level) + spreadBurst.levelSteps)];
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor }),
-        content: `<div class="sr2e-damage-result">
-          <strong>${safeName}</strong> — shot rounds (choke ${this.system.choke}), ${hits > 0 ? `${hits} success${hits === 1 ? "" : "es"}` : "<em>miss</em>"} at ${spreadDist} m.
-          <br>
-          <button class="sr2e-spread-btn"
-                  data-base-power="${spreadPower}" data-base-level="${spreadLevel}"
-                  data-rated-level="${dmg.level}"
-                  data-damage-type="${this.system.damageType || "physical"}"
-                  data-choke="${this.system.choke}"
-                  data-attacker-successes="${hits}"
-                  data-stage="net" data-called-shot="${options.calledShot ? 1 : 0}"
-                  data-shooter-token-uuid="${spreadShooterTok?.document?.uuid ?? ""}"
-                  data-target-token-uuid="${spreadTargetTok?.document?.uuid ?? ""}"
-                  data-weapon-name="${safeName}"
-                  title="Drop the spread cone and resolve every target in it (SR2E p.95)">
-            🔫 Resolve Spread
-          </button>
-        </div>`
-      });
+      const state = {
+        testMessageId: result.testMessageId, successes: result.successes, resolved: false,
+        name: this.name, choke: this.system.choke, distance: spreadDist,
+        basePower: dmg.power + spreadBurst.powerBonus,
+        baseLevel: ["L", "M", "S", "D"][Math.min(3, ["L", "M", "S", "D"].indexOf(dmg.level) + spreadBurst.levelSteps)],
+        ratedLevel: dmg.level, damageType: this.system.damageType || "physical", calledShot: !!options.calledShot,
+        shooterTokenUuid: spreadShooterTok?.document?.uuid ?? "", targetTokenUuid: spreadTargetTok?.document?.uuid ?? ""
+      };
+      const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+        content: renderSpreadLauncher(state), flags: { sr2e: { spreadLaunch: state } } });
+      await reconcileDependentCard(msg, "spreadLaunch", renderSpreadLauncher);
       return result;
     }
 
-    // Post staged damage + resist button if the attack connected
-    if (result.successes > 0) {
+    // The damage card. Flag-backed (`flags.sr2e.rangedDamage`) so a Karma spend on
+    // the attack test re-renders it — and posted even on a miss, so Karma that
+    // turns 0 successes into a hit brings its Resist button to life.
+    {
+      const hit = result.successes > 0;
       // Evaluate damage code with actor context so formula codes like
       // "(Str+3)S" resolve against the attacker's current attributes.
       const dmg          = evaluateDamageCode(this.system.damageCode, actor);
@@ -1098,8 +1170,6 @@ export class SR2EItem extends Item {
       const finalIdx = Math.min(baseIdx + levelBonus + calledShotSteps, 3);
       if (calledShotSteps) powerNotes.push("called shot: damage +1 level");
       const safeName = foundry.utils.escapeHTML(this.name);
-      const ammoLine = ammoName
-        ? `<br><em>Loaded: ${foundry.utils.escapeHTML(ammoName)}</em>` : "";
       // Base Power of the round: ammunition INCLUDED, burst/full-auto excluded.
       // Used for the vehicle-armor penetration check (SR2E p.108) and for the
       // barrier comparison (p.98: "always use the base Power Rating of the
@@ -1118,7 +1188,7 @@ export class SR2EItem extends Item {
       // `basePower` — not `effectivePower` — is what the barrier is compared
       // against, per p.98's "unmodified for burst or full auto".
       let barrierPowerCut = 0;
-      if (options.barrierRating > 0) {
+      if (hit && options.barrierRating > 0) {
         const bar = resolveBarrier({
           baseRating: options.barrierRating,
           doorType: options.barrierDoor ?? "none",
@@ -1163,58 +1233,31 @@ export class SR2EItem extends Item {
       const targetTok = engage?.token?.obj ?? game.user?.targets?.first?.();
       const targetUuid = targetTok?.actor?.uuid ?? "";
 
-      const buttonHtml = `<button class="sr2e-resist-btn"
-                  data-power="${effectivePower}"
-                  data-base-power="${basePower}"
-                  data-level="${stages[finalIdx]}"
-                  data-armor-type="${armorType}"
-                  data-damage-type="${damageType}"
-                  data-armor-calc="${ammoCalc}"
-                  data-armor-mod="${ammoMod}"
-                  data-ammo-name="${foundry.utils.escapeHTML(ammoName)}"
-                  data-target-uuid="${targetUuid}"
-                  data-attacker-successes="${result.successes}"
-                  data-stage="net" data-stage-vs="${result.successes}"
-                  data-rated-level="${dmg.level}" data-called-shot="${calledShotSteps ? 1 : 0}"
-                  title="Defender rolls Body vs. TN = Power − Armor; damage stages on net successes (SR2E p.91)">
-            ${game.i18n.localize("SR2E.Chat.ResistDamage")}
-          </button>`;
-
-      // This card is where the DEFENDER acts, so it speaks as the defender when
-      // we know who that is — a card headed by the attacker reads as the
-      // attacker's to resolve. Falls back to the attacker (clearly labelled)
-      // when nothing was targeted, since we genuinely cannot say who resists.
       const defender = targetTok?.actor ?? null;
       const attackerName = actor?.name ?? "";
-      // getSpeaker takes `alias` directly (foundry.mjs:43060), and prefers the
-      // TOKEN when given one — which is what we want: it names the specific
-      // token that was shot, not the prototype actor, so four identical guards
-      // stay distinguishable.
-      // Keep the alias SHORT. Foundry gives .message-sender white-space:nowrap
-      // with no ellipsis, so a long name simply runs off the card — and naming
-      // the attacker here is redundant anyway, since the damage line below
-      // already reads "<attacker>'s <weapon> Damage".
+      // The card speaks as the DEFENDER when known (it is where they act), with
+      // a short alias — see renderRangedDamageCard.
       const speaker = defender
         ? ChatMessage.getSpeaker({ actor: defender, token: targetTok?.document,
                                    alias: `${defender.name} — resisting` })
         : ChatMessage.getSpeaker({ actor, alias: `${attackerName} — no target` });
-      // When the defender is speaking, the weapon has to be attributed or the
-      // line reads as though it were the defender's own gun.
-      const attackerAttrib = defender && attackerName
-        ? `${foundry.utils.escapeHTML(attackerName)}'s ` : "";
-      const noTargetHint = defender ? "" :
-        `<br><em class="sr2e-hint">No target was set — whoever resists should select their token first.</em>`;
-
-      await ChatMessage.create({
-        speaker,
-        content: `<div class="sr2e-damage-result">
-          <strong>${attackerAttrib}${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
-          <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | ${result.successes} success${result.successes === 1 ? "" : "es"} — staged on the net against the target's resistance roll (p.91)</em>
-          ${ammoLine}${noTargetHint}
-          <br>
-          ${buttonHtml}
-        </div>`
+      const state = {
+        testMessageId: result.testMessageId, successes: result.successes, resolved: false,
+        weaponName: this.name, attackerName, attributed: !!defender, targetUuid,
+        power: effectivePower, basePower, baseLevel: stages[finalIdx], ratedLevel: dmg.level,
+        calledShot: !!calledShotSteps, armorType, damageType, armorCalc: ammoCalc, armorMod: ammoMod,
+        ammoName, powerNote, codeText: this.system.damageCode,
+        // A shot declared through a barrier that MISSED never ran the barrier
+        // resolution; if Karma revives it, the GM resolves it by hand (no button).
+        barrier: !hit && options.barrierRating > 0
+          ? { rating: options.barrierRating, mode: options.barrierMode ?? "through" } : null
+      };
+      const msg = await ChatMessage.create({
+        speaker, content: renderRangedDamageCard(state), flags: { sr2e: { rangedDamage: state } }
       });
+      // Karma that landed while the card was being created (the manipulation
+      // card's bounded reconciliation).
+      await reconcileDependentCard(msg, "rangedDamage", renderRangedDamageCard);
     }
 
     return result;

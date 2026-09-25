@@ -68,7 +68,7 @@ p.100/102: "The one who generates the most successes has hit… Ties go to the
 attacker." Read literally, a 0–0 exchange is a hit at base damage, which is what
 the code does. Flagged rather than changed.
 
-### C8 — Karma on a ranged attack never reaches its damage card (med)
+### C8 — Karma on a ranged attack never reaches its damage card (med) — ✅ FIXED (PLAN-karma-damage-sync.md)
 The damage card is static: Karma rerolls or bought successes after it posts do
 not change its staging, and an initial miss (0 successes) posts no damage card at
 all, so Karma cannot turn it into a hit. Fix via the dependent-card sync used by

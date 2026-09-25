@@ -4757,7 +4757,7 @@ export function registerSR2EQuenchTests() {
         it("Undefended concedes; Karma on the attack test is refused afterwards", async function () {
           if (!canvas?.ready) this.skip();
           const mage = await mkMage("Quench Astral MageU"), spirit = await mkSpirit("Quench Astral SpiritU");
-          await mage.update({ "system.karma.pool": 3 });
+          await mage.update({ "system.karma.poolAdjust": 3 });   // the pool is derived
           await place(mage, 0); const st = await place(spirit, 2);
           const card = await attack(mage, st, [5, 5, 1, 1, 1], { skillKey: "sorcery" });
           await game.sr2e.astralUndefended(card);
@@ -4780,6 +4780,164 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Astral" });
+
+    // ── Karma reaches ranged damage cards and launchers (RULES-AUDIT-3 C8) ───
+    quench.registerBatch("sr2e.karma-damage-sync", (context) => {
+      const { it, assert, before, after } = context;
+      const made = { tokens: [], messages: [] };
+      let shooter, target, car, shooterTok, targetTok, carTok;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const nextDialog = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)));
+      const confirm = (app) => app.element.querySelector('button[data-action="roll"], button[data-action="resist"]')?.click();
+      const since = (n) => { const m = game.messages.contents.slice(n); made.messages.push(...m.map(x => x.id)); return m; };
+      const settle = () => new Promise(r => setTimeout(r, 400));
+      // Each shot starts a fresh phase: recoil from earlier shots in this batch
+      // would otherwise raise the TN and turn the forced 5s into misses.
+      const freshPhase = async () => shooter.update((await import("../engagement.mjs")).recoilResetUpdate(shooter));
+      const fire = async (gun, faces, opts = { firingMode: "sa" }) => {
+        await freshPhase();
+        await canvas.tokens.setTargets([targetTok.id]);
+        const n = game.messages.size;
+        await withFaces(faces, () => gun.roll(opts));
+        await settle();
+        const msgs = since(n);
+        return { test: msgs.find(m => m.flags?.sr2e?.test), card: msgs.find(m => m.flags?.sr2e?.rangedDamage),
+                 blast: msgs.find(m => m.flags?.sr2e?.blastLaunch) };
+      };
+      const btn = (msg) => new DOMParser().parseFromString(game.messages.get(msg.id).content, "text/html")
+        .querySelector("button.sr2e-resist-btn[data-power]");
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        shooter = await Actor.create({ name: "Quench KS Shooter", type: "character" });
+        await shooter.createEmbeddedDocuments("Item", [{ name: "Firearms", type: "skill", system: { rating: 3, category: "active" } }]);
+        await shooter.update({ "system.karma.poolAdjust": 20 });   // the pool is derived
+        target = await Actor.create({ name: "Quench KS Target", type: "npc", system: { body: { base: 3 } } });
+        car = await Actor.create({ name: "Quench KS Car", type: "vehicle", system: { body: 4, armor: 0 } });
+        const g = canvas.dimensions.size, m = g / canvas.dimensions.distance;
+        const o = { x: canvas.dimensions.sceneX + 20 * g, y: canvas.dimensions.sceneY + 45 * g };
+        const put = async (a, dx) => (await canvas.scene.createEmbeddedDocuments("Token", [{
+          ...(await a.getTokenDocument()).toObject(), actorLink: true, x: o.x + dx * m, y: o.y }]))[0];
+        shooterTok = await put(shooter, -5); targetTok = await put(target, 0); carTok = await put(car, 4);
+        made.tokens.push(shooterTok.id, targetTok.id, carTok.id);
+        await settle();
+      });
+      after(async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        await new Promise(r => setTimeout(r, 2500));
+        const tpl = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")).map(t => t.id);
+        if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl);
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+      });
+      const pistol = async () => (await shooter.createEmbeddedDocuments("Item", [{ name: "Quench KS Pistol", type: "weapon",
+        system: { weaponType: "firearm", skill: "firearms", damageCode: "6M", firingModes: { sa: true }, ammo: { current: 30, max: 30 } } }]))[0];
+
+      it("a Karma reroll after the card posts updates its successes (net staging and complete miss)", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const { test, card } = await fire(await pistol(), [5, 1, 1]);
+        assert.equal(btn(card).dataset.stageVs, "1");
+        await withFaces([5, 5], () => shooter.applyKarmaToTest(test, "reroll"));
+        await settle();
+        assert.equal(btn(card).dataset.stageVs, "3");
+        assert.equal(btn(card).dataset.attackerSuccesses, "3");
+      });
+
+      it("an initial miss posts a Miss card that Karma brings to life", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        // 1,1,2: a miss but not an all-1s glitch (which only allows Avoid Disaster).
+        const { test, card } = await fire(await pistol(), [1, 1, 2]);
+        assert.ok(card, "a miss card is posted");
+        assert.isNull(btn(card), "no Resist button on a miss");
+        await withFaces([5, 1, 1], () => shooter.applyKarmaToTest(test, "reroll"));
+        await settle();
+        assert.ok(btn(card), "Karma turned the miss into a hit");
+      });
+
+      it("a resisted card stays put; Karma during the resist dialog is refused", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const { test, card } = await fire(await pistol(), [5, 5, 1]);
+        await target.update({ "system.conditionMonitor.physical.value": 0 });
+        // Open the resist dialog, spend Karma while it is open, then confirm.
+        const d = nextDialog();
+        const p = game.sr2e.resistRangedDamage(card);
+        const app = await d;
+        await withFaces([5], () => shooter.applyKarmaToTest(test, "reroll"));
+        await settle();
+        await withFaces([1, 1, 1], async () => { confirm(app); await p; });
+        assert.equal(target.system.conditionMonitor.physical.value, 0, "refused by beforeRoll — nothing applied");
+        // Now resist for real, then Karma must not change the resolved card.
+        nextDialog().then(confirm);
+        await withFaces([1, 1, 1], () => game.sr2e.resistRangedDamage(game.messages.get(card.id)));
+        await settle();
+        const { isCardResolved } = await import("../astral-combat.mjs");
+        assert.isTrue(isCardResolved(game.messages.get(card.id), "rangedDamage"));
+        const before = game.messages.get(card.id).flags.sr2e.rangedDamage.successes;
+        await withFaces([5], () => shooter.applyKarmaToTest(test, "reroll"));
+        await settle();
+        assert.equal(game.messages.get(card.id).flags.sr2e.rangedDamage.successes, before, "resolved card unchanged");
+      });
+
+      it("vehicle resistance marks its outcome as resolving the card", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const gun = await pistol();
+        await freshPhase();
+        await canvas.tokens.setTargets([carTok.id]);
+        const n = game.messages.size;
+        await withFaces([5, 5, 5], () => gun.roll({ firingMode: "sa" }));
+        await settle();
+        const card = since(n).find(m => m.flags?.sr2e?.rangedDamage);
+        nextDialog().then(confirm);
+        const m2 = game.messages.size;
+        await withFaces([1, 1, 1, 1], () => game.sr2e.resistRangedDamage(card));
+        await settle();
+        assert.ok(since(m2).some(m => m.flags?.sr2e?.resolves === card.id), "outcome carries the marker");
+      });
+
+      it("a blast launcher follows Karma until launched, a failed launch stays retryable, and a launch freezes it", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const [nade] = await shooter.createEmbeddedDocuments("Item", [{ name: "Quench KS Grenade", type: "weapon",
+          system: { weaponType: "grenade", skill: "throwing weapons", damageCode: "10S", blastType: "offensive", quantity: 5 } }]);
+        await shooter.createEmbeddedDocuments("Item", [{ name: "Throwing Weapons", type: "skill", system: { rating: 3, category: "active" } }]);
+        await freshPhase();
+        await canvas.tokens.setTargets([]);
+        const n = game.messages.size;
+        await withFaces([5, 1, 1], () => nade.roll({}));   // no target: the launch will fail
+        await settle();
+        const msgs = since(n);
+        const blast = msgs.find(m => m.flags?.sr2e?.blastLaunch), test = msgs.find(m => m.flags?.sr2e?.test);
+        assert.ok(blast, "a launcher");
+        await game.sr2e.launchFromCard(blast, "blastLaunch");        // fails: no ground zero
+        await withFaces([5, 5], () => shooter.applyKarmaToTest(test, "reroll"));
+        await settle();
+        assert.equal(game.messages.get(blast.id).flags.sr2e.blastLaunch.successes, 3, "still following Karma");
+        await canvas.tokens.setTargets([targetTok.id]);
+        const m2 = game.messages.size;
+        await withFaces(Array(10).fill(1), () => game.sr2e.launchFromCard(game.messages.get(blast.id), "blastLaunch"));
+        await settle();
+        const rows = since(m2).find(m => m.flags?.sr2e?.resolves === blast.id);
+        assert.ok(rows, "the launch posts its rows, marked");
+        assert.equal(rows.flags.sr2e.launchSuccesses, 3, "the launch used the live total");
+        const st = game.messages.get(blast.id).flags.sr2e.blastLaunch;
+        assert.isTrue(st.resolved);
+        assert.equal(st.launchSuccesses, 3);
+        await withFaces([5], () => shooter.applyKarmaToTest(test, "reroll"));
+        await settle();
+        assert.equal(game.messages.get(blast.id).flags.sr2e.blastLaunch.successes, 3, "frozen once launched");
+      });
+    }, { displayName: "SR2E: Karma → Damage Cards" });
 
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
