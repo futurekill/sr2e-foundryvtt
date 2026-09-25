@@ -948,6 +948,19 @@ export function scatterProfile(deliveryType) {
  * (core p.96): rolled metres minus successes × per-success reduction, floored at
  * 0 (0 = the grenade lands on the target).
  */
+/**
+ * Scatter direction (core p.97 Scatter Diagram): roll 1D6 against the direction
+ * of the throw — 1 carries on past the target, 4 bounces straight back toward the
+ * thrower, and 2/3 and 6/5 are the diagonals either side, 60° apart.
+ * @param {number} throwAngle - radians, thrower → target (canvas coordinates)
+ * @param {number} d6 - the Scatter Diagram roll
+ * @returns {number} radians
+ */
+export function scatterBearing(throwAngle, d6) {
+  const face = Math.min(6, Math.max(1, Math.trunc(d6) || 1));
+  return throwAngle + (face - 1) * (Math.PI / 3);
+}
+
 export function scatterDistance(rolledMeters, successes, perSuccess) {
   return Math.max(0, rolledMeters - Math.max(0, successes) * perSuccess);
 }

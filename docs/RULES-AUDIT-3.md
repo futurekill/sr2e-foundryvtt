@@ -58,7 +58,7 @@ p.102: melee uses the Visibility Table "at half their value, rounding down,
 except for Full Darkness". The melee TN omits visibility entirely. The defender
 also types their own Reach modifier rather than it mirroring the attacker's.
 
-### C6 — Grenade scatter direction is uniform, not the Scatter Diagram (low)
+### C6 — Grenade scatter direction is uniform, not the Scatter Diagram (low) — ✅ FIXED (`scatterBearing`)
 p.97: roll 1D6 on the Scatter Diagram relative to the direction of throw (1 =
 carried on past the target, 4 = bounced back toward the thrower, 2/3/5/6 the
 diagonals). `resolveBlast` picks a uniformly random angle.

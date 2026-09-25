@@ -976,7 +976,7 @@ export class SR2EItem extends Item {
     // just scatters further from the target (core p.96). Resolve as a blast.
     if (this.system.blastType) {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
-      const targetTok = game.user?.targets?.first?.();
+      const targetTok = engage?.token?.obj ?? game.user?.targets?.first?.();
       const safeName = foundry.utils.escapeHTML(this.name);
       // Delivery drives the scatter profile (sr2e.mjs resolveBlast). Grenades
       // scatter standard 1D6/−2, or 2D6/−4 if aerodynamic; launched ordnance
@@ -1004,6 +1004,7 @@ export class SR2EItem extends Item {
                   data-delivery="${delivery}"
                   data-stage="net" data-called-shot="${options.calledShot ? 1 : 0}"
                   data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
+                  data-shooter-token-uuid="${actor.getActiveTokens?.()[0]?.document?.uuid ?? ""}"
                   data-blast-name="${safeName}"
                   title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
             ${isSmoke ? "💨 Deploy Smoke" : "💥 Resolve Blast"}

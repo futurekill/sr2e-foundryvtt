@@ -41,7 +41,7 @@ import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, stageLevel, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -1867,7 +1867,7 @@ async function resolveCardDefender(targetUuid) {
  * @param {number} o.attackerSuccesses - Successes from the attack Success Test.
  * @param {string} o.blastName        - Display name.
  */
-async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false }) {
+async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false }) {
   if (!canvas?.ready) return ui.notifications.warn("No active scene for the blast.");
   const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid) : null;
   const centerTok = centerDoc?.object ?? game.user?.targets?.first?.();
@@ -1886,10 +1886,21 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
   let center = centerTok.center;
   let scatterNote = "lands on target";
   if (scatterM > 0) {
-    const angle = Math.random() * 2 * Math.PI;
+    // Direction from the Scatter Diagram (p.97), relative to the throw: 1 goes
+    // on past the target, 4 bounces back at the thrower. Without a thrower on
+    // the map there is no throw direction, so the diagram is read from north
+    // and the card says so.
+    const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : null;
+    const throwAngle = shooterTok && shooterTok !== centerTok
+      ? Math.atan2(center.y - shooterTok.center.y, center.x - shooterTok.center.x)
+      : -Math.PI / 2;
+    const d6 = (await new Roll("1d6").evaluate()).total;
+    const angle = scatterBearing(throwAngle, d6);
     const ppm = canvas.grid.size / canvas.grid.distance; // canvas pixels per metre
     center = { x: center.x + Math.cos(angle) * scatterM * ppm, y: center.y + Math.sin(angle) * scatterM * ppm };
-    scatterNote = `scatters <strong>${scatterM} m</strong> off-target`;
+    const dir = { 1: "on past the target", 2: "forward-right", 3: "back-right", 4: "back toward the thrower",
+                  5: "back-left", 6: "forward-left" }[d6];
+    scatterNote = `scatters <strong>${scatterM} m</strong> ${dir} (Scatter Diagram ${d6}${shooterTok ? "" : ", no thrower on the map — read from north"})`;
   }
 
   // Drop a template at the (possibly scattered) blast point.
@@ -2261,6 +2272,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       ev.preventDefault();
       await resolveBlast({
         centerTokenUuid:   btn.dataset.centerTokenUuid || "",
+        shooterTokenUuid:  btn.dataset.shooterTokenUuid || "",
         basePower:         parseInt(btn.dataset.basePower) || 0,
         baseLevel:         btn.dataset.baseLevel || "M",
         damageType:        btn.dataset.damageType || "physical",

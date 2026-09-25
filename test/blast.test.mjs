@@ -63,3 +63,20 @@ describe("Thrown-weapon ranges (core p.96–97, Strength-scaled)", () => {
     expect(thrownRange(4, true)).toEqual({ short: 12, medium: 20, long: 80, extreme: 120 });
   });
 });
+
+import { scatterBearing } from "../module/rules/sr2e-rules.mjs";
+describe("scatterBearing — the p.97 Scatter Diagram", () => {
+  const deg = (r) => Math.round((r * 180 / Math.PI + 360) % 360);
+  it("1 carries on in the direction of the throw", () => {
+    expect(deg(scatterBearing(0, 1))).toBe(0);
+  });
+  it("4 bounces straight back toward the thrower", () => {
+    expect(deg(scatterBearing(0, 4))).toBe(180);
+  });
+  it("the six faces are 60° apart, turning 2 → 3 → 4 → 5 → 6", () => {
+    expect([2, 3, 5, 6].map(f => deg(scatterBearing(0, f)))).toEqual([60, 120, 240, 300]);
+  });
+  it("is relative to the throw", () => {
+    expect(deg(scatterBearing(Math.PI / 2, 4))).toBe(270);
+  });
+});

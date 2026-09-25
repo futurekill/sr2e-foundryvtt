@@ -4172,6 +4172,28 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Scatter Diagram (p.97)", () => {
+        it("a 4 bounces the round straight back toward the thrower", async function () {
+          if (!canvas?.ready) this.skip();
+          const before = new Set(canvas.scene.templates.map(t => t.id));
+          // Launcher: 3D6 scatter (2,2,2 = 6 m, no successes), then the diagram's 1D6 = 4.
+          await withFaces([2, 2, 2, 4], () => game.sr2e.resolveBlast({
+            centerTokenUuid: targetTok.uuid, shooterTokenUuid: shooterTok.uuid, basePower: 10, baseLevel: "S",
+            damageType: "physical", blastType: "offensive", attackerSuccesses: 0, delivery: "launcher",
+            blastName: "Quench Net Scatter", netStaging: true }));
+          const tpl = canvas.scene.templates.find(t => !before.has(t.id));
+          assert.ok(tpl, "a blast template was placed");
+          const m = canvas.dimensions.size / canvas.dimensions.distance;
+          const tgt = targetTok.object.center, me = shooterTok.object.center;
+          // The shooter stands 5 m west of the target: 6 m back = 1 m past the shooter.
+          assert.closeTo(tpl.x, tgt.x - 6 * m, 1);
+          assert.closeTo(tpl.y, tgt.y, 1);
+          assert.isBelow(tpl.x, me.x);
+          const msg = game.messages.contents.at(-1); made.messages.push(msg.id);
+          assert.include(msg.content, "back toward the thrower");
+        });
+      });
+
       describe("Resistance stages on the net", () => {
         it("attacker 4 vs target 3 is the base level (M, 3 boxes), not S", async function () {
           if (!canvas?.ready) this.skip();

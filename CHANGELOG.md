@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed — grenades scatter by the Scatter Diagram (SR2E p.97)
+
+A grenade that scatters now rolls 1D6 on the book's Scatter Diagram, relative to
+the direction of the throw: **1** carries on past the target, **4** bounces
+straight back at the thrower, and 2/3/5/6 are the diagonals 60° apart. It used to
+pick any direction at random. The blast card names the result ("scatters 6 m back
+toward the thrower (Scatter Diagram 4)"). With no thrower token on the map the
+diagram is read from north, and the card says so.
+
 ### Added — melee visibility, and the defender starts from the attacker's modifiers (SR2E p.101–102)
 
 - The melee attack dialog has a **Visibility** choice. Melee uses the Visibility
