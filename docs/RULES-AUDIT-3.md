@@ -79,7 +79,7 @@ p.108: special ammunition lets a Light-rated weapon affect vehicles, and
 anti-vehicle rockets/missiles do not have their Damage Level reduced (the Power is
 still cut by armour). Neither is implemented.
 
-**Fixed 2026-09-25.** "Special ammunition" is read as APDS, the one ammunition the
+**Fixed 2026-09-25.** "Special ammunition" is read as APDS (confirmed by the GM: APDS only, not explosive rounds), the one ammunition the
 rules tie to vehicles (Sourcebook Updates p.277: vehicle armour halved against its
 Power and as a Barrier, level −1). A Light APDS hit stays Light; Body is never halved. Anti-vehicle
 rockets and missiles are recognised by the book's names.
