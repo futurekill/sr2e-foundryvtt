@@ -4623,6 +4623,162 @@ export function registerSR2EQuenchTests() {
           assert.include(await castAt("none"), "stun");
         });
       });
+
+      describe("Astral combat — opposed like melee (p.147–148)", () => {
+        let toks = [];
+        const withFaces = async (faces, fn) => {
+          const orig = CONFIG.Dice.randomUniform;
+          const q = [...faces];
+          CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+          try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+        };
+        const place = async (actor, dx) => {
+          const g = canvas.dimensions.size;
+          const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
+            ...(await actor.getTokenDocument()).toObject(), actorLink: true,
+            x: canvas.dimensions.sceneX + (50 + dx) * g, y: canvas.dimensions.sceneY + 40 * g }]))[0];
+          toks.push(t.id); return t;
+        };
+        const cards = (key) => game.messages.contents.slice(msgsBefore).filter(m => m.flags?.sr2e?.[key]);
+        const mkMage = async (name = "Quench Astral Mage") => {
+          const a = await Actor.create({ name, type: "character", system: {
+            intelligence: { base: 5 }, willpower: { base: 5 }, charisma: { base: 4 },
+            magic: { type: "full_magician", value: 6, max: 6 }, astralState: "projecting" } });
+          await a.createEmbeddedDocuments("Item", [{ name: "Sorcery", type: "skill", system: { rating: 5, category: "active" } }]);
+          return a;
+        };
+        const mkSpirit = (name = "Quench Astral Spirit", extra = {}) =>
+          Actor.create({ name, type: "spirit", system: { spiritType: "nature", domain: "forest", force: 4, services: 2, ...extra } });
+        const attack = async (attacker, target, faces, opts = {}) => {
+          await canvas.tokens.setTargets([target.id]);
+          await withFaces(faces, () => game.sr2e.astralAttack(attacker, opts));
+          return cards("astralMelee").at(-1);
+        };
+        afterEach(async function () {
+          this.timeout(10000);
+          if (!canvas?.ready) return;
+          await canvas.tokens.setTargets([]);
+          await new Promise(r => setTimeout(r, 1500));   // floating damage numbers (PIXI)
+          await canvas.scene.deleteEmbeddedDocuments("Token", toks.filter(id => canvas.scene.tokens.has(id)));
+          toks = [];
+        });
+
+        it("mage vs spirit: exchange → defence → the loser resists with Force, and the tests close", async function () {
+          if (!canvas?.ready) this.skip();
+          const mage = await mkMage(), spirit = await mkSpirit();
+          await place(mage, 0); const st = await place(spirit, 2);
+          const card = await attack(mage, st, [5, 5, 5, 5, 5], { skillKey: "sorcery", damageType: "physical" });
+          assert.ok(card, "an opposed exchange card");
+          assert.equal(card.flags.sr2e.astralMelee.targetUuid, spirit.uuid);
+          await withFaces([1, 1, 1, 1], () => game.sr2e.astralDefend(card, { skillKey: "force" }));
+          const res = cards("astralResist").at(-1);
+          const rs = res.flags.sr2e.astralResist;
+          assert.equal(rs.loserUuid, spirit.uuid);
+          assert.equal(rs.level, "S", "(Charisma 4)L, 5 net → up two levels");
+          assert.equal(rs.tn, 4, "Power 4, no armor");
+          assert.equal(rs.resistLabel, "Force");
+          const { isTestClosed } = await import("../astral-combat.mjs");
+          assert.isTrue(isTestClosed(card.flags.sr2e.astralMelee.testMessageId), "attack test closed to Karma");
+          // Spirit resists with Force 4 dice: all miss → S = 6 boxes.
+          await withFaces([1, 1, 1, 1], () => game.sr2e.astralResist(res, {}));
+          assert.equal(spirit.system.conditionMonitor.physical.value, 6);
+          // Resolved: a second click does nothing.
+          await withFaces([1, 1, 1, 1], () => game.sr2e.astralResist(res, {}));
+          assert.equal(spirit.system.conditionMonitor.physical.value, 6, "resolves once");
+          await game.sr2e.astralDefend(card, { skillKey: "force" });
+          assert.lengthOf(cards("astralResist"), 1, "the exchange resolves once");
+        });
+
+        it("a 0-success attack still posts, and a winning defender counterstrikes", async function () {
+          if (!canvas?.ready) this.skip();
+          const mage = await mkMage("Quench Astral Mage0"), spirit = await mkSpirit("Quench Astral Spirit0");
+          await place(mage, 0); const st = await place(spirit, 2);
+          const card = await attack(mage, st, [1, 1, 1, 1, 1], { skillKey: "sorcery" });
+          assert.ok(card, "posted at 0 successes");
+          await withFaces([5, 5, 5, 5], () => game.sr2e.astralDefend(card, { skillKey: "force" }));
+          const rs = cards("astralResist").at(-1).flags.sr2e.astralResist;
+          assert.equal(rs.loserUuid, mage.uuid, "resistance bound to the attacker");
+          assert.isTrue(rs.riposte);
+          assert.equal(rs.power, 4, "the spirit's (Force)M");
+          assert.equal(rs.resistLabel, "Willpower (Astral Body)");
+        });
+
+        it("the Astral Pool spends on resistance, and the spend survives leaving astral space", async function () {
+          if (!canvas?.ready) this.skip();
+          const mage = await mkMage("Quench Astral Pool"), spirit = await mkSpirit("Quench Astral SpiritP");
+          await place(mage, 0); const st = await place(spirit, 2);
+          const card = await attack(mage, st, [1, 1, 1, 1, 1], { skillKey: "sorcery" });
+          await withFaces([5, 5, 5, 5], () => game.sr2e.astralDefend(card, { skillKey: "force" }));
+          const res = cards("astralResist").at(-1);
+          const before = mage.system.dicePools.astral.value;
+          assert.equal(before, 7, "⌊(5+5+4)/2⌋");
+          await withFaces(Array(8).fill(1), () => game.sr2e.astralResist(res, { poolDice: 3 }));
+          assert.equal(mage.system.dicePools.astral.value, 4);
+          await mage.update({ "system.astralState": "none" });
+          await mage.update({ "system.astralState": "projecting" });
+          assert.equal(mage.system.dicePools.astral.value, 4, "not refilled by leaving astral space");
+        });
+
+        it("a dual-natured critter attacks, and its armor lowers the TN when it resists with Body", async function () {
+          if (!canvas?.ready) this.skip();
+          const ghoul = await Actor.create({ name: "Quench Astral Ghoul", type: "npc", system: {
+            dualNatured: true, body: { base: 7 }, willpower: { base: 2 }, strength: { base: 5 }, armor: { impact: 2 } } });
+          const mage = await mkMage("Quench Astral MageG");
+          const gt = await place(ghoul, 2); const mt = await place(mage, 0);
+          const card = await attack(ghoul, mt, [1, 1, 1], {});
+          assert.ok(card, "a dual-natured NPC can attack");
+          await withFaces([1, 1, 1, 1, 1], () => game.sr2e.astralDefend(card, { skillKey: "sorcery" }));   // tie 0-0 → attacker
+          const c2 = await attack(mage, gt, [5, 5, 5, 5, 5], { skillKey: "sorcery" });
+          await withFaces([1], () => game.sr2e.astralDefend(c2, {}));
+          const rs = cards("astralResist").at(-1).flags.sr2e.astralResist;
+          assert.equal(rs.loserUuid, ghoul.uuid);
+          assert.equal(rs.resistLabel, "Body");
+          assert.equal(rs.tn, 2, "Power 4 − armor 2");
+        });
+
+        it("refuses a mundane target and a depleted spirit; a busy spirit can be attacked but not attack", async function () {
+          if (!canvas?.ready) this.skip();
+          const mage = await mkMage("Quench Astral MageR");
+          const joe = await Actor.create({ name: "Quench Astral Mundane", type: "npc" });
+          const gone = await mkSpirit("Quench Astral Gone", { spiritType: "elemental", domain: "fire", forceUsed: 4 });
+          const busy = await mkSpirit("Quench Astral Busy", { spiritType: "elemental", domain: "fire", service: "aid" });
+          await place(mage, 0);
+          const jt = await place(joe, 2), gt = await place(gone, 3), bt = await place(busy, 4);
+          assert.isUndefined(await attack(mage, jt, [5, 5, 5, 5, 5], {}), "mundane refused");
+          assert.isTrue(gone.system.depleted, "fixture: a spent elemental");
+          assert.isUndefined(await attack(mage, gt, [5, 5, 5, 5, 5], {}), "depleted refused");
+          assert.ok(await attack(mage, bt, [5, 5, 5, 5, 5], {}), "busy spirit can be attacked");
+          const n = cards("astralMelee").length;
+          await canvas.tokens.setTargets([toks[0]]);
+          await game.sr2e.astralAttack(busy, {});
+          assert.lengthOf(cards("astralMelee"), n, "busy spirit cannot attack");
+        });
+
+        it("Undefended concedes; Karma on the attack test is refused afterwards", async function () {
+          if (!canvas?.ready) this.skip();
+          const mage = await mkMage("Quench Astral MageU"), spirit = await mkSpirit("Quench Astral SpiritU");
+          await mage.update({ "system.karma.pool": 3 });
+          await place(mage, 0); const st = await place(spirit, 2);
+          const card = await attack(mage, st, [5, 5, 1, 1, 1], { skillKey: "sorcery" });
+          await game.sr2e.astralUndefended(card);
+          const rs = cards("astralResist").at(-1).flags.sr2e.astralResist;
+          assert.equal(rs.net, 2);
+          const test = game.messages.get(card.flags.sr2e.astralMelee.testMessageId);
+          const karmaBefore = mage.system.karma?.pool ?? 0;
+          await mage.applyKarmaToTest(test, "reroll");
+          assert.equal(mage.system.karma?.pool ?? 0, karmaBefore, "closed test: no Karma spent");
+        });
+
+        it("a legacy astral card still resolves the old way", async function () {
+          if (!canvas?.ready) this.skip();
+          const spirit = await mkSpirit("Quench Astral Legacy");
+          const legacy = await ChatMessage.create({ content: "legacy", flags: { sr2e: { astral: {
+            attackerUuid: "", attackerName: "Old", targetUuid: spirit.uuid, successes: 2, power: 3,
+            level: "L", damageType: "stun", resolved: false } } } });
+          await withFaces([1, 1, 1, 1], () => spirit.rollAstralResistance(legacy));
+          assert.isAbove(spirit.system.conditionMonitor.stun.value, 0);
+        });
+      });
     }, { displayName: "SR2E: Astral" });
 
     quench.registerBatch("sr2e.elemental-aid", (context) => {

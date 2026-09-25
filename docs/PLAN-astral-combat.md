@@ -1,90 +1,124 @@
 # Plan: Astral combat as the book runs it (RULES-AUDIT-3 A1–A3)
-_Round 0 — initial draft by Claude_
+_Round 3 — revised after Codex round 3_
 
 ## Goal
-SR2E p.147 (rendered):
-- "Astral combat works exactly like **Melee Combat** (p.100)."
+SR2E p.147–148 (rendered):
+- "Astral combat works exactly like **Melee Combat** (p.100)." TN 4.
 - Skill: armed with an active weapon focus → **Armed Combat**; otherwise **Unarmed
-  Combat**, or **Sorcery** in place of either. TN 4.
-- "Magicians in astral space … have only one dice pool, the **Astral Pool**, …
-  equal to the sum of the magician's Intelligence, Willpower, and Charisma,
-  divided by 2 (round down). This Astral Combat Pool works like the physical
-  Combat Pool in that it can be applied to astral combat."
+  Combat**, or **Sorcery** in place of either (p.138 adds a focus's rating to its
+  Armed Combat dice when the owner wields it).
+- Magicians in astral space have only the **Astral Pool** = ⌊(Int + Wil + Cha)/2⌋,
+  "works like the physical Combat Pool … can be applied to astral combat".
 - Damage (Astral Attack Table): unarmed magician (Astral Strength)L; armed
-  (Astral Strength + Focus Rating/2)M; spirit (Force)M.
-- Damage Resistance with **Astral Body**; dual-natured beings "that have physical
-  armor receive the benefits of that armor in astral space" — the armor reduces
-  the Power. Astral damage is Physical or Stun at the inflicting character's
-  choice; non-sentient astral entities always do Physical.
+  (Astral Strength + ⌊Focus/2⌋)M; spirit (Force)M.
+- Resist with **Astral Body**; dual beings with physical armor apply it (reduces
+  Power). Physical or Stun at the attacker's choice; non-sentient astral entities
+  (barriers, foci) always Physical and can only be hurt Physically.
+- p.148: dual beings keep the same Attributes on both planes; purely astral beings
+  have all Attributes equal to their Force (or Essence).
 - Repercussion: damage lands on the physical body.
 
-Today: the attacker rolls Sorcery (or raw Willpower dice) and the defender rolls
-Willpower against Power, with `attacker − resist` as the net. That is one roll
-where the book has two, and there is no Astral Pool.
+## Combatants (scope)
+| Who | Eligible | Astral attributes | Attack / defence dice | Pool |
+|---|---|---|---|---|
+| Character, `astralState` perceiving/projecting | yes | own Int/Wil/Cha (Astral Strength = Cha) | best of the skills above (+ wielded focus rating for Armed) | Astral Pool |
+| Spirit (summoned and present; a busy one can be attacked but not attack; a depleted/vanished one — Force spent — is not there to target) | yes | all = current effective Force | effective Force | none |
+| NPC with new `dualNatured` flag (critters) | yes | own attributes (p.148) — resists with **Body**, damage = its physical attack (its unarmed/natural weapon item, else (Str)M) | its Unarmed Combat skill item, else defaulting as melee does | none (NPC pools unchanged) |
+| Anyone else (mundane) | **refused** — "immune to direct effects from astral space" | — | — | — |
+NPC **magicians** projecting remain a separate gap (NPCData has no `astralState`);
+listed in RULES-AUDIT-3, not claimed here.
 
 ## Approach
-1. **Pure rules** (`sr2e-rules.mjs`):
-   - `astralCombatPool({ intelligence, willpower, charisma })` = ⌊(I+W+C)/2⌋.
-   - `astralAttackSkill(skills, hasActiveWeaponFocus)` → the candidates
-     (armed+sorcery with a focus; unarmed+sorcery without), each with its rating.
-     The dialog defaults to the highest.
-   - `astralDamageCode({ kind, charisma, force, focusRating })` → `{power, level}`
-     per the table (the code already has these numbers; lifted into one place).
-2. **Astral Pool** — a new `dicePools.astral` resource on CharacterData, derived
-   max = `astralCombatPool` for a character whose `astralState` is perceiving or
-   projecting (0 otherwise), refreshed by the same `dicePoolRefreshUpdates` path
-   as the Combat Pool. The schema edit to the shared `actor-data.mjs` is
-   dual-applied. Spirits get none (the book gives it to magicians).
-3. **The opposed test reuses the melee machinery.** `rollAstralAttack` posts a
-   melee-style card (`flags.sr2e.melee` with `realm: "astral"`), carrying the
-   attacker's astral damage code and chosen damage type. The Defend button runs
-   `rollMeleeDefense`, which branches on `realm`:
-   - the defender must be astrally active (perceiving, projecting, a spirit, or
-     dual-natured). Otherwise it refuses: "mundane characters are immune" (p.147).
-   - dice = the defender's best astral skill (step 1) + Astral Pool dice. No
-     Combat Pool.
-   - `meleeOutcome` decides the winner (ties to the attacker). The winner's
-     astral damage code is staged up one level per 2 net successes (p.102).
-   - The hit party resists with **Astral Body (Willpower)** plus Astral Pool
-     dice. TN = Power − armor, where armor is the physical Impact armor for a
-     dual-natured being and 0 otherwise. The result stages down one level per 2
-     successes and goes on the physical/stun monitor (repercussion).
-   Full Defense and Undefended behave as in melee.
-4. **Damage type**: the attacker's dialog choice. A spirit or other non-sentient
-   entity attacking is always Physical. The defender's riposte uses the
-   defender's own choice (a default of Physical, editable in the Defend dialog).
-5. **Legacy cards**: an old `flags.sr2e.astral` card keeps its current
-   resolution path unchanged.
-6. **Tests**:
-   - Unit: pool, skill choice, damage codes.
-   - Quench:
-     - A projecting mage attacks a spirit: the card carries `realm: "astral"`.
-     - The defender rolls its skill and the winner is decided (ties to the
-       attacker).
-     - The hit party rolls Willpower (+ pool) against Power.
-     - A dual-natured target's armor reduces the TN.
-     - A mundane defender is refused.
-     - Astral Pool dice deplete and refresh.
-     - A legacy astral card still resolves.
-7. CHANGELOG, QA-PLAN, RULES-AUDIT-3.
+1. **Pure rules** (`sr2e-rules.mjs`), one place for all three combatant kinds:
+   `astralProfile({ kind, attrs, force, skills, focus })` →
+   `{ eligible, dice, skillLabel, pool, resistDice, armor, damage: {power, level},
+   forcePhysical }` with `astralCombatPool`, the skill choice (highest; the
+   dialog may pick another eligible one) and the table damage.
+2. **Weapon focus**: a specific focus is chosen — bonded, active, weapon type,
+   and wielded (the linked weapon equipped). No boolean; its rating drives both
+   the Armed Combat bonus dice and the damage, for the attack AND a riposte.
+3. **Dual-natured flag**: `NPCData.dualNatured` (Boolean, editable on the NPC
+   sheet; shared `actor-data.mjs`, dual-applied). The critter pack is populated
+   where the printed entry says dual-natured (the biography text currently
+   records it); `build-packs` run. Existing world actors: default false, the GM
+   ticks it.
+4. **Astral Pool**: `CharacterData.dicePools.astral` (dual-applied). Its max is
+   `astralCombatPool` **always** (not zeroed while inactive — zero would reset the
+   spent count in `applyPool`); it is only *usable* while astrally active. It
+   refreshes at exactly the Combat Pool's refresh points (`dicePoolRefreshUpdates`).
+   Test: spend → leave astral → reload → re-enter keeps the spend.
+5. **Opposed exchange** — a NEW flag-backed card `flags.sr2e.astralMelee`
+   (separate from `melee`, so the melee path and legacy `astral` cards are
+   untouched), with its own renderer registered in `_syncDependentCards`:
+   state `{ testMessageId, attackerUuid, targetUuid (the attacker's T target),
+   successes, damage, damageType, focusUuid, resolved }`. **Exactly one
+   eligible target is required before any dice or pool are spent** (none,
+   several, a mundane one → refused up front). A target deleted later is refused
+   at resolution; damage is never redirected. Posted **even at 0 successes** (a
+   defender can still win and counterstrike).
+   - **Defend** and **Undefended** both resolve against the stored `targetUuid`
+     (not the selected token); the clicker must own it; it must be eligible.
+     Defence dice per the table + Astral Pool. `meleeOutcome` picks the winner
+     (ties to the attacker); the winner's damage is staged up per 2 net.
+   - **Resistance** — a flag-backed `astralResist` card naming the **loser**
+     (counterstrikes included), resolved by `rollAstralDamageResistance`:
+     Astral Body (Willpower for a projecting/perceiving magician; Force for a
+     spirit; **Body** for a dual being, whose attributes are the same on both
+     planes)
+     + Astral Pool (characters) vs TN = Power − (dual being's Impact armor, else
+     0), staged down 1 per 2 successes, onto physical/stun (repercussion).
+     Full Defense keeps melee's semantics with Astral Pool in place of Combat Pool
+     (pool dice saved for resistance; pool successes alone beating the attacker's
+     = clean miss).
+   - **Karma**: the attacker may spend Karma until the exchange is decided; the
+     card re-renders via `_syncDependentCards`. The exchange is **final** when
+     the defence is rolled or Undefended is chosen: from then the attack test's
+     AND the defence test's Karma actions are closed (a closure check honoured by
+     both the card rendering and the Karma spend handler, like
+     `learningClosed`). A resistance test is final on **every committed
+     outcome** — damage applied, staged below Light, or a Full Defense clean
+     miss — its marker is written and its Karma actions close the same way.
+   - **Stale dialogs**: the Defend and resistance dialogs re-read the live card
+     immediately before rolling (a `beforeRoll` guard, as damaging manipulation
+     does) and abort with "the attacker spent Karma — click again" if the
+     successes changed or the card was resolved.
+   - **Resolution records, per card**: the exchange card and each resistance
+     card carry their own `flags.sr2e.resolves` marker check
+     (`isCardResolved(msg, key)`), their own in-flight guard, and their own
+     ownership check (Defend/Undefended: the target's owner; resistance: the
+     loser's owner). A non-author's resolution is honoured without editing
+     someone else's message; the author/GM re-renders it. **Known limit**: two
+     different clients resolving the same card at the same instant can both
+     roll (the documented manipulation limit); every irreversible step re-reads
+     live state first to narrow it.
+6. **Damage type**: attacker's choice; forced Physical only for non-sentient
+   entities (none of the three combatant kinds above are; barriers/foci are out
+   of scope). A riposte uses the defender's choice in the Defend dialog.
+6b. **Entry points**: `rollAstralAttack`'s type guard admits dual-natured NPCs;
+   the NPC sheet shows the Astral Attack action when `dualNatured` is set.
+7. **Legacy**: existing `flags.sr2e.astral` cards keep their current renderer and
+   resolver untouched.
+8. **Tests**: unit — profiles for all three kinds, pool, focus bonus/damage.
+   Quench — a dual-natured NPC initiates an astral attack; a dual being resists
+   with Body (Body ≠ Willpower) and hits with its physical profile (Strength ≠
+   Charisma); a busy spirit can be attacked but cannot attack, a depleted one cannot be targeted; resistance that stages below Light and a clean miss both finalize (repeat click refused, Karma closed); no/two targets
+   refused before spending; Karma on the defence test is closed after
+   resolution; a Defend dialog left open while the attacker spends Karma aborts;
+   a resistance card resolves once (repeat click, non-owner refused);
+   projecting mage vs spirit end-to-end (card → defence → winner →
+   loser's resistance with Willpower + pool); counterstrike binds resistance to
+   the attacker; 0-success attack still posts and a defender win counterstrikes;
+   dual-natured critter's armor lowers the TN; mundane target refused (Defend and
+   Undefended); non-owner click refused; resolved-by-non-author honoured;
+   attacker Karma before defence re-renders, after defence is refused; pool
+   spend survives leaving astral + reload; legacy astral card still resolves.
+9. CHANGELOG, QA-PLAN, RULES-AUDIT-3.
 
 ## Key decisions & tradeoffs
-- **Reuse the melee opposed flow** rather than build a parallel one. The rules
-  are "exactly like melee"; the differences are the skill set, the pool, the
-  resistance attribute and the armor. The cost is one `realm` branch in several
-  functions.
-- **Astral Pool as a schema field** (not a flag): it is a real dice pool that
-  refreshes. That needs the shared `actor-data.mjs` edit, applied with the
-  dual-apply technique.
-- **Whether a creature is dual-natured** is read from existing critter data
-  where present (a `dualNatured` power or flag), else it defaults to false. The
-  GM can still adjust the TN.
-
-## Risks / open questions
-- NPC magicians: NPCData has its own pools. Is the Astral Pool characters-only
-  for now? Should the NPC be refused, or handled by the GM?
-- Astral barriers (hermetic circles, p.147–148) and spell interception are out
-  of scope.
+- A **separate card type** rather than a `realm` branch inside melee: melee's
+  resistance button is Body/Combat Pool/Impact throughout, and branching every
+  step invites leaks. Shared *pure* pieces (`meleeOutcome`, staging) are reused.
+- NPC magicians projecting: deferred and logged, not half-supported.
 
 ## Out of scope
-Astral barriers, intercepting spells in astral space, magical items fighting back.
+Astral barriers, spell interception, magical items fighting back, NPC magicians.

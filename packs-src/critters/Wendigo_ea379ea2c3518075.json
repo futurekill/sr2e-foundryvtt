@@ -99,7 +99,8 @@
     "movement": {
       "walk": 2,
       "run": 10
-    }
+    },
+    "dualNatured": true
   },
   "items": [
     {

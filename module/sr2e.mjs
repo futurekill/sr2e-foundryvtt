@@ -16,6 +16,7 @@ import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
 import { renderManipDamageCard, isManipCardResolved } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
+import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack } from "./astral-combat.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
 // Sheets
@@ -432,7 +433,8 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+    astralAttack, astralDefend, astralUndefended, astralResist });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -2321,6 +2323,36 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const defender = await resolveCardDefender(message.getFlag("sr2e", "astral")?.targetUuid);
       if (!defender) return ui.notifications.warn("Select the defending token first.");
       return defender.rollAstralResistance(message);
+    });
+  });
+
+  // Opposed astral combat (SR2E p.147): the stored target answers; the loser
+  // resists. Ownership, eligibility and resolution are checked in astral-combat.mjs.
+  html.querySelectorAll?.(".sr2e-astral-defend-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const st = message.getFlag("sr2e", "astralMelee");
+      const t = st ? await fromUuid(st.targetUuid).catch(() => null) : null;
+      const defender = t?.documentName === "Actor" ? t : t?.actor;
+      if (!defender) return ui.notifications.warn("The target no longer exists — the GM resolves it.");
+      if (!defender.isOwner) return ui.notifications.warn(`Only ${defender.name}'s owner or the GM can answer this attack.`);
+      const choice = await promptAstralOptions(defender, "defend");
+      if (choice) return astralDefend(message, choice);
+    });
+  });
+  html.querySelectorAll?.(".sr2e-astral-undefended-btn").forEach(btn => {
+    btn.addEventListener("click", (ev) => { ev.preventDefault(); return astralUndefended(message); });
+  });
+  html.querySelectorAll?.(".sr2e-astral-resist-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const st = message.getFlag("sr2e", "astralResist");
+      const t = st ? await fromUuid(st.loserUuid).catch(() => null) : null;
+      const loser = t?.documentName === "Actor" ? t : t?.actor;
+      if (!loser) return ui.notifications.warn("That combatant no longer exists — the GM resolves it.");
+      if (!loser.isOwner) return ui.notifications.warn(`Only ${loser.name}'s owner or the GM can resist for them.`);
+      const choice = await promptAstralOptions(loser, "resist", st);
+      if (choice) return astralResist(message, choice);
     });
   });
 

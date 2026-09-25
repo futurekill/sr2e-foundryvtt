@@ -203,6 +203,14 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Astral combat:** Sorcery attack, Charisma-based damage, resisted by Astral Body (Willpower).
 - [ ] **Repercussion:** astral damage echoes onto the physical monitor.
 
+- [ ] **Astral combat (p.147):** a projecting mage targets a spirit → Astral Attack
+      (skill choice, Astral Pool) posts an exchange card; the spirit's owner clicks
+      Defend → winner decided (ties to attacker), counterstrike if the spirit wins;
+      the loser's Resist card rolls Willpower/Force/Body (dual beings: armor lowers
+      the TN). A mundane target is refused. Karma buttons on the attack/defence tests
+      are closed once decided. Ghoul (critters pack) has "Dual-natured" ticked and an
+      Astral button.
+
 ## 10. Matrix (decking)
 - [ ] On a decker (MPCP > 0) Matrix tab: set cyberdeck stats; load persona programs → persona attrs derive (capped at MPCP).
 - [ ] **Jack In** → roll initiative shows **" — Matrix"** (1d6 + natural Reaction, +response; ignores wired/magic/VCR).

@@ -97,24 +97,28 @@ p.139: a shaman may summon or keep only **one** nature spirit at a time. p.140:
 a mage may have at most **Charisma** elementals bound; the rite takes Force
 hours and consumes 1,000¥ × Force of materials (spent even on failure).
 
-### A1 — Astral combat is not an opposed test (HIGH for astral play)
+### A1 — Astral combat is not an opposed test (HIGH for astral play) — ✅ FIXED (PLAN-astral-combat.md)
 p.147: astral attacks "are like melee combat (see p.100)". So: both sides roll,
 most successes hits (ties to the attacker), the net stages the damage up, and
 the hit party then resists with Astral Body, staging down per 2 successes. The
 code has the attacker roll and the defender resist with Willpower, using
 `attacker − resist` as the net — one roll where the book has two.
 
-### A2 — Astral attack skill (low)
+### A2 — Astral attack skill (low) — ✅ FIXED (PLAN-astral-combat.md)
 p.147: with an active weapon focus, Armed Combat; otherwise Unarmed Combat, *or*
 Sorcery in place of either. The code always uses Sorcery, and falls back to raw
 Willpower dice when there is no Sorcery skill.
 
-### A3 — No Astral Combat Pool (med)
+### A3 — No Astral Combat Pool (med) — ✅ FIXED (PLAN-astral-combat.md)
 p.147: ⌊(Intelligence + Willpower + Charisma) ÷ 2⌋, works like the Combat Pool
 for astral combat. Not modelled.
 
 ### A4 — Spells cast in astral space always drain Physical (low) — ✅ FIXED
 p.148, last line of the Spells section. Not applied.
+
+### A5 — NPC magicians cannot project (low)
+NPCData has no `astralState`, so an NPC mage cannot enter astral combat (dual-
+natured critters can, via the `dualNatured` flag). Deferred from the astral pass.
 
 ## Verified correct
 

@@ -4,6 +4,7 @@ import { burstFired, rangedEngagement, meleeVisibilityMod, MELEE_VISIBILITY, thr
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
+import { promptAstralOptions } from "../astral-combat.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID } from "../elementals.mjs";
@@ -3841,27 +3842,8 @@ const SHARED_ACTIONS = {
   astralAttack: async function(event, target) {
     event.preventDefault();
     const actor = this.document;
-    let opts = null;
-    const action = await foundry.applications.api.DialogV2.wait({
-      window: { title: "Astral Attack" },
-      rejectClose: false,
-      content: `<div>
-        <div class="form-group"><label>Damage:</label>
-          <select name="dt"><option value="stun">Stun</option><option value="physical">Physical</option></select></div>
-        <div class="form-group"><label>Other Mod:</label>
-          <input type="number" name="other" value="0" style="width:52px;text-align:center;"></div>
-        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
-          Sorcery vs TN 4; damage (Charisma)L (+weapon focus). Echoes to the physical body (SR2E p.147).</p>
-      </div>`,
-      buttons: [
-        { action: "go", label: "Attack", default: true, callback: (event, button) => {
-          opts = { damageType: button.form.elements.dt?.value ?? "stun",
-                   otherMod: parseInt(button.form.elements.other?.value) || 0 };
-        }},
-        { action: "cancel", label: "SR2E.Dialog.Cancel" }
-      ]
-    });
-    if (action !== "go" || !opts) return;
+    const opts = await promptAstralOptions(actor, "attack");
+    if (!opts) return;
     return actor.rollAstralAttack(opts);
   },
 

@@ -17,6 +17,11 @@
           <label>Threat Rating:</label>
           <input type="number" name="system.threatRating" value="{{system.threatRating}}" min="0" />
         </div>
+        <div class="form-group">
+          <label title="Present on both planes at once: fights and can be fought in astral space, keeping its Attributes and physical armor (SR2E p.148)">Dual-natured:</label>
+          <input type="checkbox" name="system.dualNatured" {{checked system.dualNatured}} />
+          {{#if system.dualNatured}}<button type="button" class="btn-small" data-action="astralAttack" title="Astral attack (SR2E p.147–148)"><i class="fas fa-hand-fist"></i> Astral</button>{{/if}}
+        </div>
       </div>
     </div>
   </div>

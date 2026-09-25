@@ -2,6 +2,7 @@
  * Extended Actor document for the Shadowrun 2E system.
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
+import { renderAstralMeleeCard, isCardResolved, isTestClosed, astralAttack } from "../astral-combat.mjs";
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved } from "./item.mjs";
@@ -149,7 +150,8 @@ export function renderSuccessTestCard(state) {
 
   // Karma Pool action buttons. After an avoided glitch the test is closed.
   const buttons = [];
-  if (state.hasKarma && !state.glitchAvoided && !learningClosed(state)) {
+  // `closed`: the test decided an opposed exchange that is now final (astral).
+  if (state.hasKarma && !state.glitchAvoided && !learningClosed(state) && !state.closed) {
     if (glitch) {
       buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="avoidGlitch"
         title="SR2E p.190: pay 1 Karma Pool to turn an all-1s disaster into a simple failure. No reroll allowed.">
@@ -362,7 +364,8 @@ export class SR2EActor extends Actor {
       combat:  game.i18n.localize("SR2E.DicePools.Combat"),
       magic:   game.i18n.localize("SR2E.DicePools.Magic"),
       hacking: game.i18n.localize("SR2E.DicePools.Hacking"),
-      control: game.i18n.localize("SR2E.DicePools.Control")
+      control: game.i18n.localize("SR2E.DicePools.Control"),
+      astral:  "Astral Pool"
     };
 
     for (const [key, requested] of Object.entries(poolDice)) {
@@ -591,6 +594,10 @@ export class SR2EActor extends Actor {
     if (learningClosed(state)) {
       return ui.notifications.warn("That learning attempt is already complete — its test is closed.");
     }
+    // A test that decided an astral exchange (or its resistance) is final.
+    if (state.closed || isTestClosed(message.id)) {
+      return ui.notifications.warn("That test decided an exchange that is already resolved — it is closed to Karma.");
+    }
     // Enforced here, not just hidden on the card: a macro can call this too.
     if (state.areaCast && (action === "reroll" || action === "buySuccess")) {
       return ui.notifications.warn("Karma rerolls and bought successes on a multi-target area spell are GM adjudication (SR2E p.130).");
@@ -695,7 +702,8 @@ export class SR2EActor extends Actor {
       matrix: s => this._renderMatrixCard(s),
       healing: renderHealingCard,
       manipDamage: renderManipDamageCard,
-      learning: renderLearningCard
+      learning: renderLearningCard,
+      astralMelee: renderAstralMeleeCard
     };
 
     for (const msg of game.messages ?? []) {
@@ -709,6 +717,7 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
+        if (key === "astralMelee" && isCardResolved(msg, "astralMelee")) continue;
         if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;
         if (!msg.canUserModify(game.user, "update")) {
@@ -2539,70 +2548,17 @@ export class SR2EActor extends Actor {
   // -------------------------------------------------------------------------
 
   /**
-   * Make an astral attack (SR2E p.147). Astral combat is melee-like and uses
-   * the Sorcery Skill. Damage codes:
-   *   Unarmed magician      (Astral Strength = Charisma)L
-   *   With active weapon focus  (Charisma + ⌊Focus Rating ÷ 2⌋)M
-   * Net successes stage the damage up one level per 2. The defender resists
-   * with Astral Body (Willpower) dice — no armor unless dual-natured. Astral
-   * damage echoes onto the physical body (repercussion), so it is applied to
-   * the physical/stun condition monitor; the attacker chooses Physical or Stun.
-   *
-   * Posts a Resist Astral card; the defender resolves it.
-   * @param {object} [options]
-   * @param {string} [options.damageType="stun"] - "physical" or "stun".
-   * @param {number} [options.otherMod=0]
+   * Make an astral attack (SR2E p.147) — "exactly like Melee Combat": an
+   * opposed exchange card the target answers (Defend / Undefended), then a
+   * resistance card for whoever lost. See module/astral-combat.mjs.
+   * @param {object} [options] { skillKey, focusId, poolDice, karmaDice,
+   *   damageType ("physical"|"stun"), otherMod, miscDice, miscLabel }
    */
   async rollAstralAttack(options = {}) {
-    if (this.type !== "character" && this.type !== "spirit") return;
-
-    // Sorcery dice (spirits use Force as their astral skill)
-    let dice, charisma;
-    if (this.type === "spirit") {
-      const busy = this._elementalBusyReason();
-      if (busy) return ui.notifications.warn(busy);
-      dice = this.system.effectiveForce ?? this.system.force ?? 1;
-      charisma = dice;   // spirit astral attack = (Force)M, at its current Force
-    } else {
-      const sorcery = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "sorcery");
-      dice = sorcery?.system?.rating ?? Math.max(1, this.system.willpower?.value ?? 1);
-      charisma = this.system.charisma?.value ?? 1;
-    }
-
-    // Active bonded weapon focus boosts astral damage (Charisma + Focus/2, level M)
-    let power = charisma, level = this.type === "spirit" ? "M" : "L";
-    let focusNote = "";
-    for (const item of this.items ?? []) {
-      if (item.type === "focus" && item.system.focusType === "weapon" &&
-          item.system.bonded && item.system.active) {
-        power = charisma + Math.floor(item.system.force / 2);
-        level = "M";
-        focusNote = ` (+weapon focus)`;
-        break;
-      }
-    }
-
-    const otherMod = options.otherMod ?? 0;
-    const tn = Math.max(2, 4 + otherMod);
-    const result = await this.rollSuccessTest(dice, tn, {
-      label: `Astral Attack — Sorcery${focusNote} (TN ${tn})`
-    });
-    if ((result?.successes ?? 0) <= 0) return result;
-
-    const damageType = options.damageType === "physical" ? "physical" : "stun";
-    const state = {
-      attackerUuid: this.uuid, attackerName: this.name,
-      // The attacker's target (T key) resists, regardless of token selection.
-      targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
-      successes: result.successes, power: Math.max(1, power), level, damageType,
-      testMessageId: result.testMessageId, resolved: false
-    };
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: this._renderAstralCard(state),
-      flags: { sr2e: { astral: state } }
-    });
-    return result;
+    // Opposed, melee-style (p.147) — see module/astral-combat.mjs. Old
+    // `flags.sr2e.astral` cards still resolve through rollAstralResistance.
+    if (!["character", "spirit", "npc"].includes(this.type)) return;
+    return astralAttack(this, options);
   }
 
   /** @private Render the astral attack/resist card. */

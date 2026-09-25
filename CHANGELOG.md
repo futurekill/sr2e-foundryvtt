@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Changed — astral combat is fought like melee (SR2E p.147–148)
+
+Astral combat "works exactly like Melee Combat". It used to be one roll: the
+attacker's Sorcery against the defender's Willpower. It is now the book's
+exchange:
+
+- **The attack** posts an exchange card for exactly one targeted opponent with
+  an astral presence. That means an astrally active magician, a spirit, or a
+  **dual-natured** critter. Mundane beings are immune and refused. The skill is
+  Armed Combat with a wielded weapon focus (plus its rating in dice), otherwise
+  Unarmed Combat, or Sorcery in place of either. TN 4.
+- **The target answers**, with Defend or Undefended. Most successes hits, ties go
+  to the attacker, and a defender who wins **counterstrikes**. Full Defense works
+  as in melee.
+- **The loser resists** from its own card with Astral Body: Willpower for a
+  magician, Force for a spirit, and **Body** for a dual being, whose physical
+  Impact armor also counts. Every 2 successes stage the damage down, and the
+  damage lands on the physical body.
+- **The Astral Combat Pool** is ⌊(Intelligence + Willpower + Charisma) ÷ 2⌋. It
+  can be used in attack, defence and resistance while astrally active, and it
+  refreshes with the Combat Pool.
+- The **dual-natured** checkbox on NPC sheets is ticked on the 20 critters the
+  book lists as dual-natured. Dual beings and spirits get an **Astral Attack**
+  button on their sheets.
+- Once an exchange is decided, the tests that decided it are closed to Karma.
+- Astral cards posted before this update still resolve the old way.
+
+Not covered: NPC magicians projecting, astral barriers, and intercepting spells.
+
 ### Fixed — spells cast in astral space always drain Physical (SR2E p.148)
 
 "When a magician casts spells in astral space, Drain always causes Physical

@@ -1138,6 +1138,8 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       // shared map with no standalone binding at all.
       castSpell: SHARED_ACTIONS.castSpell,
       toggleSustain: SHARED_ACTIONS.toggleSustain,
+      // Dual-natured critters fight in astral space too (SR2E p.148).
+      astralAttack: SHARED_ACTIONS.astralAttack,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
@@ -1420,6 +1422,8 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
       addItem: onAddItem,
       rollInitiative: onRollInitiative,
       spiritAttack: function(event) { event.preventDefault(); return this.document.rollSpiritAttack(); },
+      // Astral combat (SR2E p.147): spirits fight in astral space with their Force.
+      astralAttack: SHARED_ACTIONS.astralAttack,
       useSpiritPower: function(event, target) {
         event.preventDefault();
         const key = target.closest("form, section")?.querySelector("[name='spiritPower']")?.value

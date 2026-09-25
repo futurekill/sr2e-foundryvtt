@@ -379,6 +379,65 @@ export function elementalMaterialsCost(force) {
   return 1000 * Math.max(1, Math.trunc(force) || 1);
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * ASTRAL COMBAT (SR2E p.147–148) — "works exactly like Melee Combat (p.100)"
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Astral Combat Pool (p.147): ⌊(Intelligence + Willpower + Charisma) ÷ 2⌋. */
+export function astralCombatPool({ intelligence = 0, willpower = 0, charisma = 0 } = {}) {
+  return Math.max(0, Math.floor(((+intelligence || 0) + (+willpower || 0) + (+charisma || 0)) / 2));
+}
+
+/**
+ * Who can fight in astral space and with what (p.147–148).
+ *  - "magician": a character astrally perceiving/projecting. Skill: Armed Combat
+ *    with a wielded, active weapon focus (+ its rating in dice, p.138), else
+ *    Unarmed Combat — or Sorcery in place of either. Damage (Charisma)L, or
+ *    (Charisma + ⌊Focus ÷ 2⌋)M armed. Resists with Willpower; Astral Pool.
+ *  - "spirit": all Attributes = its (current) Force; attacks/defends with Force
+ *    dice, (Force)M damage, resists with Force.
+ *  - "dual": a dual-natured being keeps the same Attributes on both planes —
+ *    its Unarmed Combat, its physical attack profile, resists with Body; its
+ *    physical Impact armor counts in astral space.
+ * @param {object} o
+ * @param {"magician"|"spirit"|"dual"} o.kind
+ * @param {object} [o.skills]  - { armed, unarmed, sorcery } ratings
+ * @param {object} [o.attrs]   - { intelligence, willpower, charisma, body }
+ * @param {number} [o.force]
+ * @param {number} [o.focusRating] - a wielded, active, bonded weapon focus (0 = none)
+ * @param {{power:number, level:string}} [o.physicalDamage] - dual beings' attack
+ * @param {number} [o.impactArmor]
+ * @returns {{options:Array<{key:string,label:string,dice:number}>, damage:{power:number,level:string},
+ *            resistDice:number, resistLabel:string, armor:number, pool:number}}
+ */
+export function astralProfile({ kind, skills = {}, attrs = {}, force = 0, focusRating = 0,
+                                physicalDamage = null, impactArmor = 0 } = {}) {
+  const n = (v) => Math.max(0, Math.trunc(+v || 0));
+  if (kind === "spirit") {
+    const f = n(force);
+    return { options: [{ key: "force", label: `Force ${f}`, dice: f }],
+             damage: { power: Math.max(1, f), level: "M" },
+             resistDice: f, resistLabel: "Force", armor: 0, pool: 0 };
+  }
+  if (kind === "dual") {
+    return { options: [{ key: "unarmed", label: "Unarmed Combat", dice: n(skills.unarmed) }],
+             damage: physicalDamage ?? { power: Math.max(1, n(attrs.strength)), level: "M" },
+             resistDice: n(attrs.body), resistLabel: "Body", armor: n(impactArmor), pool: 0 };
+  }
+  const cha = n(attrs.charisma), fr = n(focusRating);
+  const options = fr > 0
+    ? [{ key: "armed", label: `Armed Combat + focus ${fr}`, dice: n(skills.armed) + fr },
+       { key: "sorcery", label: "Sorcery", dice: n(skills.sorcery) }]
+    : [{ key: "unarmed", label: "Unarmed Combat", dice: n(skills.unarmed) },
+       { key: "sorcery", label: "Sorcery", dice: n(skills.sorcery) }];
+  options.sort((a, b) => b.dice - a.dice);
+  return { options,
+           damage: fr > 0 ? { power: Math.max(1, cha + Math.floor(fr / 2)), level: "M" }
+                          : { power: Math.max(1, cha), level: "L" },
+           resistDice: n(attrs.willpower), resistLabel: "Willpower (Astral Body)", armor: 0,
+           pool: astralCombatPool(attrs) };
+}
+
 /** A finite, non-negative integer, or `fallback`. */
 function nonNegInt(v, fallback = 0) {
   const n = Number(v);
@@ -2660,7 +2719,7 @@ export function strengthMinWeaponStats(sys = {}) {
  */
 export function dicePoolRefreshUpdates(pools = {}) {
   const updates = {};
-  for (const key of ["combat", "hacking", "magic", "control"]) {
+  for (const key of ["combat", "hacking", "magic", "control", "astral"]) {
     const p = pools[key];
     if (p && p.value !== p.max) updates[`system.dicePools.${key}.value`] = p.max;
   }

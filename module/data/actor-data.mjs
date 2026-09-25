@@ -1,6 +1,6 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
+import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -95,6 +95,8 @@ export class CharacterData extends SR2EDataModel {
         hacking: SR2EDataModel.resourceField(0, 0),
         magic: SR2EDataModel.resourceField(0, 0),
         control: SR2EDataModel.resourceField(0, 0),
+        // Astral Combat Pool (SR2E p.147): usable only while astrally active.
+        astral: SR2EDataModel.resourceField(0, 0),
         spellDefense: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
         // Shielding (Grimoire p.45): free bonus spell-defense dice = initiate grade,
         // granted alongside any Magic Pool dice and returned to neither on clear.
@@ -1044,6 +1046,14 @@ export class CharacterData extends SR2EDataModel {
     ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor));
     applyPool(this.dicePools.combat, combatPool);
 
+    // Astral Combat Pool = ⌊(Int + Wil + Cha) ÷ 2⌋ (SR2E p.147), for the
+    // Awakened. Derived even while not astrally active — a max of 0 would make
+    // applyPool forget the dice already spent this turn.
+    if (this.magic.type !== "none" && this.dicePools.astral) {
+      applyPool(this.dicePools.astral, astralCombatPool({ intelligence: this.intelligence.value,
+        willpower: this.willpower.value, charisma: this.charisma.value }));
+    }
+
     // Magic Pool = Sorcery Skill Rating + rating of active bonded power foci
     // (SR2E p.84: "equal to his or her Sorcery Skill Rating... plus the rating
     //  of any applicable power foci")
@@ -1299,6 +1309,10 @@ export class NPCData extends SR2EDataModel {
         combat: SR2EDataModel.resourceField(0, 0),
         magic: SR2EDataModel.resourceField(0, 0)
       }),
+
+      // Dual-natured (SR2E p.148): present on both planes at once — can fight and
+      // be fought in astral space, keeping the same Attributes and physical armor.
+      dualNatured: new fields.BooleanField({ initial: false }),
 
       // Initiative
       initiative: new fields.SchemaField({
