@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Added — multiple targets and walking fire (SR2E p.92–93)
+
+Firing at more than one target in the same Combat Phase now costs what the book
+says, automatically:
+
+- **+2 for each earlier target this phase.** Semi-auto and burst fire at a second
+  target is +2; full auto is +2 per new target (Wedge's example: +0, +2, +4).
+  Firing at the same target again adds nothing. The count comes from the targets
+  you actually attacked this phase, hit or miss. The attack dialog shows it
+  as "Targets already engaged this phase", and you can override it, for example
+  when no token is targeted.
+- **Walking full-auto fire** from one target to the next wastes **one round per
+  metre** between them, measured from where the last target stood. It applies
+  only when the same weapon is continuing on full auto. **Smartguns waste none.**
+  Wasted rounds come out of the clip before the burst (so a burst can go short)
+  and add to recoil. If the distance can't be measured (no token on one end),
+  the dialog asks for it. Nothing is guessed.
+
+### Fixed — recoil could carry into your next action
+
+Recoil was cleared when the tracker changed turns. When the same character stayed
+on top of the Initiative order, the turn didn't change and the
+recoil carried over into their next Combat Phase. Recoil and the targets engaged
+now belong to the phase they happened in and expire with it, including after a
+manual tracker edit. The sheet's recoil counter shows what is still in force.
+
 ### Fixed — short bursts fire instead of refusing (SR2E p.92–93)
 
 A burst or full-auto burst the clip could not fill used to be refused ("not

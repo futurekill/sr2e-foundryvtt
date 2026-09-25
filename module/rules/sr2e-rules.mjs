@@ -339,6 +339,66 @@ export function burstFired(firingMode, rounds, available) {
   return { rounds: fired, isBurst: fired > 1, short: fired < rounds };
 }
 
+/** A finite, non-negative integer, or `fallback`. */
+function nonNegInt(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+}
+
+/**
+ * Multiple targets and walking fire in one Combat Phase (SR2E p.92–93):
+ * semi-auto and burst fire at a second target is +2; full auto is "+2 for each
+ * new target engaged during that Combat Phase" (Wedge: +0/+2/+4), and walking
+ * the fire from one target to the next wastes one round per metre unless the
+ * weapon is a smartgun.
+ *
+ * `record` is the gunner's engagement record for the phase whose key is `key`
+ * (a record under another key is stale and reads as empty):
+ *   { key, targets: [tokenUuid], lastFA: { weaponUuid, tokenUuid|null } | null }
+ *
+ * @param {object} o
+ * @param {object|null} o.record
+ * @param {string} o.key            - the current phase key
+ * @param {string|null} o.targetUuid - the aimed token, or null (none targeted)
+ * @param {string} o.mode           - ss | sa | bf | fa
+ * @param {string} o.weaponUuid
+ * @param {boolean} o.smartgun
+ * @param {number|null} o.distanceM - metres from the previous FA endpoint; null = unknown
+ * @param {number} [o.priorOverride] - explicit earlier-target count (dialog edit)
+ * @param {number} [o.walkOverride]  - explicit walking metres (dialog edit)
+ * @returns {{priorTargets:number, tnMod:number, walked:number, walks:boolean, walkUnknown:boolean}}
+ */
+export function rangedEngagement({ record, key, targetUuid, mode, weaponUuid, smartgun,
+                                   distanceM = null, priorOverride, walkOverride } = {}) {
+  const fresh = record && record.key === key ? record : null;
+  const known = Array.isArray(fresh?.targets) ? [...new Set(fresh.targets.filter(Boolean))] : [];
+  // With no target token, distinctness cannot be inferred: 0 unless entered.
+  const auto = targetUuid ? known.filter(u => u !== targetUuid).length : 0;
+  const priorTargets = priorOverride == null ? auto : nonNegInt(priorOverride, auto);
+
+  const last = fresh?.lastFA ?? null;
+  const continues = mode === "fa" && !!last && last.weaponUuid === weaponUuid;
+  // Either endpoint unknown → continuity unknown (even tokenless → tokenless).
+  const endpointUnknown = continues && (!last.tokenUuid || !targetUuid);
+  const walks = continues && !smartgun && (endpointUnknown || last.tokenUuid !== targetUuid);
+  let walked = 0, walkUnknown = false;
+  if (walks) {
+    if (walkOverride != null && Number.isFinite(Number(walkOverride))) walked = nonNegInt(Math.round(Number(walkOverride)));
+    else if (!endpointUnknown && Number.isFinite(distanceM)) walked = nonNegInt(Math.round(distanceM));
+    else walkUnknown = true;
+  }
+  return { priorTargets, tnMod: 2 * priorTargets, walked, walks, walkUnknown };
+}
+
+/**
+ * Recoil still in force: the stored counter belongs to the phase it was
+ * committed under, and reads as 0 once the phase key has moved on (p.93: recoil
+ * accumulates within a Combat Phase). Nothing zeroes it at a boundary.
+ */
+export function effectiveRecoil(recordKey, key, stored) {
+  return recordKey === key ? nonNegInt(stored) : 0;
+}
+
 /**
  * Recoil penalty (SR2E p.93): +1 TN per uncompensated round fired this Action
  * Phase. A burst's own rounds count toward its recoil (firearms/heavy only);

@@ -1,8 +1,9 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { burstRounds, burstFired, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, burstFired, rangedEngagement, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
+import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -414,6 +415,20 @@ export class SR2EItem extends Item {
     const actor = options.gunner ?? this.parent;
     if (!actor) return;
 
+    // Ranged fire is per-phase state (recoil, targets engaged, walking fire —
+    // p.92–93): capture the phase and the aimed token NOW, then run one attack
+    // at a time per gunner so back-to-back shots at A and B see each other.
+    if (!options._engage && !["melee", "throwing"].includes(this.system.weaponType)) {
+      const tok = game.user?.targets?.first?.() ?? null;
+      const _engage = {
+        key: phaseKey(actor, this),
+        token: tok ? { uuid: tok.document.uuid, sceneId: tok.document.parent?.id ?? null,
+                       x: tok.center.x, y: tok.center.y, obj: tok } : null
+      };
+      return enqueueAttack(actor.uuid, () => this._rollWeaponAttack({ ...options, _engage }));
+    }
+    const engage = options._engage ?? null;
+
     const RANGE_TN_MODS = CONFIG.SR2E.rangeTnMods;
     const BASE_TN = 4;
 
@@ -623,6 +638,9 @@ export class SR2EItem extends Item {
     let firingMode = "sa";
     let isBurst    = false;
     let shortBurstNote = "";
+    // Multiple targets / walking fire (p.92–93), resolved in the ranged branch.
+    let eng = { priorTargets: 0, tnMod: 0, walked: 0, walks: false, walkUnknown: false };
+    const tracksTargets = !this.system.blastType;   // area weapons aim at a point
     let rounds     = 1;     // rounds fired by this attack
 
     // Shotgun shot-round spread state (SR2E p.95) — measure shooter→target now,
@@ -631,7 +649,7 @@ export class SR2EItem extends Item {
     let spreadMod = 0, spreadDist = 0, spreadShooterTok = null, spreadTargetTok = null;
     if (isShotSpread && canvas?.ready) {
       spreadShooterTok = actor.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0] ?? null;
-      spreadTargetTok  = game.user?.targets?.first?.() ?? null;
+      spreadTargetTok  = engage?.token?.obj ?? game.user?.targets?.first?.() ?? null;
       if (spreadShooterTok && spreadTargetTok) {
         try { spreadDist = Math.round(canvas.grid.measurePath([spreadShooterTok.center, spreadTargetTok.center]).distance); }
         catch (e) { /* off-canvas */ }
@@ -678,23 +696,6 @@ export class SR2EItem extends Item {
       isBurst = firingMode === "bf" || firingMode === "fa";
       rounds = burstRounds(firingMode, options.rounds);
 
-      // Ammunition check (only when the weapon tracks ammo, i.e. max > 0).
-      // Thrown weapons are consumables (quantity), never ammo-tracked.
-      const ammo = this.system.ammo;
-      if (ammo?.max > 0 && !isThrown) {
-        if (ammo.current <= 0) {
-          return ui.notifications.warn(`${this.name} is out of ammunition.`);
-        }
-        // A clip that runs short fires what is left (p.92 Short Bursts): two
-        // rounds are a short burst, one is resolved as a single shot.
-        const fired = burstFired(firingMode, rounds, ammo.current);
-        if (fired.short) {
-          shortBurstNote = fired.isBurst
-            ? `short burst: ${fired.rounds} of ${rounds} rounds`
-            : `clip ran dry: 1 round, resolved as a single shot`;
-        }
-        ({ rounds, isBurst } = fired);
-      }
 
       // Weapon accessories attached to THIS weapon (SR2E p.240–241): recoil
       // comp, TN mods, smartgun grant, gyro rating. Bipod/tripod compensation
@@ -709,6 +710,55 @@ export class SR2EItem extends Item {
       // system (p.241). Receptor benefit (p.90): smartlink cyberware −2 (the
       // cyberware's combatTnMod), else equipped smart goggles −1.
       const smartCapable = this.system.smartgunCompatible || acc.grantsSmartgun;
+
+      // Multiple targets and walking fire (p.92–93). "Smartguns never waste
+      // rounds." Refused BEFORE anything is spent when the walk can't be sized.
+      if (tracksTargets && engage) {
+        const record = engagedRecord(actor);
+        const last = record?.key === engage.key ? record.lastFA : null;
+        const to = engage.token;
+        let distanceM = null;
+        if (last && to && last.sceneId && last.sceneId === to.sceneId && canvas?.scene?.id === to.sceneId
+            && [last.x, last.y, to.x, to.y].every(Number.isFinite)) {
+          try { distanceM = canvas.grid.measurePath([{ x: last.x, y: last.y }, { x: to.x, y: to.y }]).distance; }
+          catch (e) { distanceM = null; }
+        }
+        // A walking distance typed in the dialog only counts for the exact
+        // transition it was typed for; anything else is recomputed.
+        const ctx = options.walkContext;
+        const walkOverride = options.walkOverride != null && ctx && ctx.key === engage.key
+          && ctx.weaponUuid === this.uuid && ctx.from === (last?.tokenUuid ?? null)
+          && ctx.to === (to?.uuid ?? null) ? options.walkOverride : undefined;
+        eng = rangedEngagement({ record, key: engage.key, targetUuid: to?.uuid ?? null, mode: firingMode,
+          weaponUuid: this.uuid, smartgun: !!smartCapable, distanceM,
+          priorOverride: options.priorTargets, walkOverride });
+        if (eng.walkUnknown) {
+          return ui.notifications.warn(`${this.name}: walking the fire from the last full-auto target costs a round per metre (p.93), but the distance can't be measured — enter it as "walked fire" in the attack dialog.`);
+        }
+      }
+
+      // Ammunition check (only when the weapon tracks ammo, i.e. max > 0).
+      // Thrown weapons are consumables (quantity), never ammo-tracked. Rounds
+      // walked between targets come out of the clip first.
+      const ammo = this.system.ammo;
+      if (ammo?.max > 0 && !isThrown) {
+        if (ammo.current <= 0) {
+          return ui.notifications.warn(`${this.name} is out of ammunition.`);
+        }
+        const left = ammo.current - eng.walked;
+        if (left < 1) {
+          return ui.notifications.warn(`${this.name}: walking the fire wastes ${eng.walked} round${eng.walked === 1 ? "" : "s"} and only ${ammo.current} ${ammo.current === 1 ? "is" : "are"} left (p.93).`);
+        }
+        // A clip that runs short fires what is left (p.92 Short Bursts): two
+        // rounds are a short burst, one is resolved as a single shot.
+        const fired = burstFired(firingMode, rounds, left);
+        if (fired.short) {
+          shortBurstNote = fired.isBurst
+            ? `short burst: ${fired.rounds} of ${rounds} rounds`
+            : `clip ran dry: 1 round, resolved as a single shot`;
+        }
+        ({ rounds, isBurst } = fired);
+      }
       let cyberwareMod = 0;
       if (smartCapable) {
         for (const item of actor.items) {
@@ -732,12 +782,15 @@ export class SR2EItem extends Item {
       // Recoil (SR2E p.93): +1 per round already fired this phase; a burst's
       // own rounds also count toward its recoil (first BF burst = +3).
       // Accessory compensation stacks with the weapon's own (p.90, p.92–93).
-      shotsFired          = actor.system.combatRecoil ?? 0;
+      // Recoil still in force this phase (keyed — see module/engagement.mjs).
+      shotsFired          = engage ? currentRecoil(actor, engage.key) : (actor.system.combatRecoil ?? 0);
       const recoilComp    = (this.system.recoilComp ?? 0) + acc.recoilComp;
       hasRecoil           = ["firearm", "heavy"].includes(this.system.weaponType);
       // Heavy weapons (M/HMGs, shotguns) double uncompensated recoil (p.89-90)
       const heavyRecoil   = this.system.weaponType === "heavy" || (this.system.choke ?? 0) >= 2;
-      let recoilMod       = recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilComp, heavyRecoil });
+      // Rounds walked between targets were fired before this burst (p.93).
+      let recoilMod       = recoilPenalty(shotsFired + (hasRecoil ? eng.walked : 0), rounds,
+                                          { isBurst, hasRecoil, recoilComp, heavyRecoil });
 
       // Gyro mount (p.90): rating eats recoil + attacker movement modifiers,
       // cumulative with recoil comp. Applied to recoil first, remainder to
@@ -770,7 +823,7 @@ export class SR2EItem extends Item {
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
-                + calledShotMod_ - aimCut_
+                + calledShotMod_ - aimCut_ + eng.tnMod
       );
       if (calledShotMod_) modParts.push(`called shot +${calledShotMod_}`);
       if (aimCut_)        modParts.push(`aim −${aimCut_}`);
@@ -792,6 +845,11 @@ export class SR2EItem extends Item {
         modParts.push(`${acc.needsDeployment.join("/")} deployed`);
       if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
       if (shortBurstNote) modParts.unshift(shortBurstNote);
+      if (eng.tnMod)   modParts.push(`multiple targets +${eng.tnMod}`);
+      if (eng.walked)  modParts.push(`walked fire: ${eng.walked} round${eng.walked === 1 ? "" : "s"} wasted`);
+      else if (eng.walks) modParts.push("walked fire: 0 m");
+      if (tracksTargets && engage && !engage.token && options.priorTargets == null)
+        modParts.push("no target token — enter earlier targets by hand");
       const modeLabel = firingMode === "fa"
         ? `FA ${rounds} rounds`
         : firingMode.toUpperCase();
@@ -829,16 +887,31 @@ export class SR2EItem extends Item {
       });
     }
 
-    // Accumulate rounds fired on the recoil counter and decrement ammunition.
-    // The counter is reset automatically at the start of each combat turn/round
-    // (see hooks in sr2e.mjs) or manually via the Reset Recoil button.
+    // Commit recoil and the phase's engagement record in ONE update, under the
+    // key captured when the attack began: a commit that lands after the phase
+    // moved on is written as already stale and changes nothing (engagement.mjs).
+    // Engaging = attacking, hit or miss. Walked rounds are fired too.
     if (isRanged) {
-      if (hasRecoil) {
-        await actor.update({ "system.combatRecoil": shotsFired + rounds });
+      const spent = eng.walked + rounds;
+      if (engage) {
+        const prior = engagedRecord(actor);
+        const cur = prior?.key === engage.key ? prior : { targets: [], lastFA: null };
+        const to = engage.token;
+        const targets = [...new Set([...(cur.targets ?? []), ...(tracksTargets && to ? [to.uuid] : [])])];
+        const lastFA = tracksTargets && firingMode === "fa"
+          ? { weaponUuid: this.uuid, tokenUuid: to?.uuid ?? null, sceneId: to?.sceneId ?? null,
+              x: to?.x ?? null, y: to?.y ?? null }
+          : null;
+        await actor.update({
+          "system.combatRecoil": hasRecoil ? shotsFired + spent : shotsFired,
+          "flags.sr2e.engaged": { key: engage.key, targets, lastFA }
+        });
+      } else if (hasRecoil) {
+        await actor.update({ "system.combatRecoil": shotsFired + spent });
       }
       if (this.system.ammo?.max > 0 && !isThrown) {
         await this.update({
-          "system.ammo.current": Math.max(0, this.system.ammo.current - rounds)
+          "system.ammo.current": Math.max(0, this.system.ammo.current - spent)
         });
       }
     }
@@ -1079,7 +1152,7 @@ export class SR2EItem extends Item {
       // The defender = the attacker's current target (T key), if any, so the
       // Resist button rolls for the target rather than whoever has a token
       // selected. Captured here (attacker's client, target still set).
-      const targetTok = game.user?.targets?.first?.();
+      const targetTok = engage?.token?.obj ?? game.user?.targets?.first?.();
       const targetUuid = targetTok?.actor?.uuid ?? "";
 
       const buttonHtml = `<button class="sr2e-resist-btn"

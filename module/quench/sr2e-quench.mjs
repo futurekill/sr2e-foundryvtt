@@ -4216,6 +4216,211 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Net-Success Staging" });
 
+    // ── Multiple targets and walking fire (SR2E p.92–93) ────────────────────
+    quench.registerBatch("sr2e.multi-target", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = { actors: [], tokens: [], messages: [], combats: [] };
+      let shooter, toks = {};
+      const eng = () => import("../engagement.mjs");
+      const target = async (t) => canvas.tokens.setTargets(t ? [t.id] : []);
+      // Fire and return the attack test's label (the modifiers are named there).
+      const fire = async (gun, opts, t) => {
+        await target(t);
+        const n = game.messages.size;
+        await gun.roll(opts);
+        const msgs = game.messages.contents.slice(n);
+        made.messages.push(...msgs.map(m => m.id));
+        return msgs.find(m => m.flags?.sr2e?.test)?.flags.sr2e.test.label ?? "";
+      };
+      const mkGun = async (name, system = {}) => (await shooter.createEmbeddedDocuments("Item", [{
+        name, type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "6M", recoilComp: 30,
+          firingModes: { sa: true, fa: true }, ammo: { current: 30, max: 30 }, ...system } }]))[0];
+      const fresh = async () => shooter.update((await eng()).recoilResetUpdate(shooter));
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        shooter = await Actor.create({ name: "Quench MT Shooter", type: "character" }); made.actors.push(shooter);
+        await shooter.createEmbeddedDocuments("Item", [
+          { name: "Firearms", type: "skill", system: { rating: 4, category: "active" } }]);
+        const g = canvas.dimensions.size, m = g / canvas.dimensions.distance;
+        const o = { x: canvas.dimensions.sceneX + 30 * g, y: canvas.dimensions.sceneY + 35 * g };
+        const put = async (a, dx, actorLink = false) => {
+          const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
+            ...(await a.getTokenDocument()).toObject(), x: o.x + dx * m, y: o.y, actorLink }]))[0];
+          made.tokens.push(t.id); return t.object;
+        };
+        toks.me = await put(shooter, -8, true);   // linked: the combatant IS the shooter
+        for (const [k, dx] of [["A", 0], ["B", 3], ["C", 6]]) {
+          const a = await Actor.create({ name: `Quench MT ${k}`, type: "npc" }); made.actors.push(a);
+          toks[k] = await put(a, dx);
+        }
+        await new Promise(r => setTimeout(r, 300));
+      });
+
+      after(async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        for (const c of made.combats) { try { await c.delete(); } catch (e) {} }
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+        for (const a of made.actors) await a.delete();
+      });
+
+      describe("Multiple targets (+2 per earlier target this phase)", () => {
+        it("semi-auto at A then B: the second shot is +2", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT Pistol");
+          assert.notInclude(await fire(gun, { firingMode: "sa" }, toks.A), "multiple targets");
+          assert.include(await fire(gun, { firingMode: "sa" }, toks.B), "multiple targets +2");
+        });
+
+        it("Wedge: A, B, C at +0 / +2 / +4 — and macro calls queue in order", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT LMG");
+          const n = game.messages.size;
+          // Not awaited between: each call captures its target synchronously.
+          await target(toks.A); const p1 = gun.roll({ firingMode: "sa" });
+          await target(toks.B); const p2 = gun.roll({ firingMode: "sa" });
+          await target(toks.C); const p3 = gun.roll({ firingMode: "sa" });
+          await Promise.all([p1, p2, p3]);
+          const labels = game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.test).map(m => m.flags.sr2e.test.label);
+          made.messages.push(...game.messages.contents.slice(n).map(m => m.id));
+          assert.lengthOf(labels, 3);
+          assert.notInclude(labels[0], "multiple targets");
+          assert.include(labels[1], "multiple targets +2");
+          assert.include(labels[2], "multiple targets +4");
+        });
+
+        it("no target token: nothing automatic, and a typed count is used", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT Tokenless");
+          await fire(gun, { firingMode: "sa" }, toks.A);
+          assert.include(await fire(gun, { firingMode: "sa" }, null), "enter earlier targets by hand");
+          assert.include(await fire(gun, { firingMode: "sa", priorTargets: 1 }, null), "multiple targets +2");
+        });
+      });
+
+      describe("Walking fire (full auto, p.93)", () => {
+        it("walking 3 m from A to B wastes 3 rounds: ammo and recoil both count them", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT AR");
+          await fire(gun, { firingMode: "fa", rounds: 3 }, toks.A);
+          const label = await fire(gun, { firingMode: "fa", rounds: 3 }, toks.B);
+          assert.include(label, "walked fire: 3 rounds wasted");
+          assert.include(label, "multiple targets +2");
+          assert.equal(gun.system.ammo.current, 30 - 3 - 3 - 3);
+          const { currentRecoil, phaseKey } = await eng();
+          assert.equal(currentRecoil(shooter, phaseKey(shooter, gun)), 9);
+        });
+
+        it("smartguns never waste rounds", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT Smart", { smartgunCompatible: true });
+          await fire(gun, { firingMode: "fa", rounds: 3 }, toks.A);
+          assert.notInclude(await fire(gun, { firingMode: "fa", rounds: 3 }, toks.B), "walked fire");
+          assert.equal(gun.system.ammo.current, 24);
+        });
+
+        it("a different weapon, or semi-auto, does not walk", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const g1 = await mkGun("Quench MT G1"), g2 = await mkGun("Quench MT G2");
+          await fire(g1, { firingMode: "fa", rounds: 3 }, toks.A);
+          assert.notInclude(await fire(g2, { firingMode: "fa", rounds: 3 }, toks.B), "walked fire");
+        });
+
+        it("walking into a short clip: 2 left is a short burst, 0 left is refused with nothing spent", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT Short", { ammo: { current: 8, max: 30 } });
+          await fire(gun, { firingMode: "fa", rounds: 3 }, toks.A);            // 5 left
+          assert.include(await fire(gun, { firingMode: "fa", rounds: 3 }, toks.B), "short burst: 2 of 3");
+          assert.equal(gun.system.ammo.current, 0);
+          await fresh();
+          const g2 = await mkGun("Quench MT Dry", { ammo: { current: 6, max: 30 } });
+          await fire(g2, { firingMode: "fa", rounds: 3 }, toks.A);             // 3 left, walk 3
+          assert.equal(await fire(g2, { firingMode: "fa", rounds: 3 }, toks.B), "", "refused: no test rolled");
+          assert.equal(g2.system.ammo.current, 3, "nothing spent");
+        });
+
+        it("a tokenless endpoint needs a typed distance for the exact transition", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const gun = await mkGun("Quench MT Blind");
+          await fire(gun, { firingMode: "fa", rounds: 3 }, null);
+          assert.equal(await fire(gun, { firingMode: "fa", rounds: 3 }, toks.B), "", "refused without a distance");
+          const { phaseKey } = await eng();
+          const walkContext = { key: phaseKey(shooter, gun), weaponUuid: gun.uuid, from: null, to: toks.B.document.uuid };
+          assert.include(await fire(gun, { firingMode: "fa", rounds: 3, walkOverride: 4, walkContext }, toks.B),
+            "walked fire: 4 rounds wasted");
+          // Tokenless → tokenless is unknown too.
+          await fresh();
+          await fire(gun, { firingMode: "fa", rounds: 3 }, null);
+          assert.equal(await fire(gun, { firingMode: "fa", rounds: 3 }, null), "");
+        });
+      });
+
+      describe("Phase identity", () => {
+        it("nextTurn with the same combatant still on top starts a new phase (recoil and targets expire)", async function () {
+          if (!canvas?.ready) this.skip();
+          await fresh();
+          const combat = await Combat.create({ scene: canvas.scene.id }); made.combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [
+            { tokenId: toks.me.id, sceneId: canvas.scene.id, actorId: shooter.id, initiative: 30 },
+            { tokenId: toks.C.id, sceneId: canvas.scene.id, actorId: toks.C.actor.id, initiative: 5 }]);
+          await combat.startCombat();
+          await combat.update({ turn: combat.turns.findIndex(c => c.actorId === shooter.id) });
+          const gun = await mkGun("Quench MT Phase", { recoilComp: 0 });
+          await fire(gun, { firingMode: "sa" }, toks.A);
+          const { currentRecoil, phaseKey, engagedRecord } = await eng();
+          const k1 = phaseKey(shooter, gun);
+          assert.equal(currentRecoil(shooter, k1), 1);
+          await combat.nextTurn();   // 30 → 20: still on top, same turn index
+          const k2 = phaseKey(shooter, gun);
+          assert.notEqual(k2, k1, "a new phase key");
+          assert.equal(currentRecoil(shooter, k2), 0, "recoil expired");
+          assert.notInclude(await fire(gun, { firingMode: "sa" }, toks.B), "multiple targets", "targets expired");
+          // A manual tracker edit is a new phase too, and a shot right after it
+          // records under the new key.
+          await combat.update({ turn: combat.turns.findIndex(c => c.actorId === shooter.id) === 0 ? 1 : 0 });
+          await combat.update({ turn: combat.turns.findIndex(c => c.actorId === shooter.id) });
+          const k3 = phaseKey(shooter, gun);
+          assert.notEqual(k3, k2);
+          await fire(gun, { firingMode: "sa" }, toks.A);
+          assert.equal(engagedRecord(shooter).key, k3);
+        });
+
+        it("an attack committed under an old key leaves the new phase untouched", async function () {
+          if (!canvas?.ready) this.skip();
+          const combat = made.combats[0];
+          if (!combat) this.skip();
+          const gun = shooter.items.getName("Quench MT Phase");
+          const { currentRecoil, phaseKey } = await eng();
+          const old = phaseKey(shooter, gun);
+          await combat.nextTurn();
+          const now = phaseKey(shooter, gun);
+          await target(toks.A);
+          // As if the attack had been captured before the boundary.
+          await gun._rollWeaponAttack({ firingMode: "sa", _engage: { key: old, token: null } });
+          assert.equal(currentRecoil(shooter, now), 0);
+        });
+
+        it("the Reset Recoil update clears recoil AND targets", async function () {
+          if (!canvas?.ready) this.skip();
+          const gun = await mkGun("Quench MT Reset");
+          await fire(gun, { firingMode: "sa" }, toks.A);
+          await fresh();
+          assert.notInclude(await fire(gun, { firingMode: "sa" }, toks.B), "multiple targets");
+        });
+      });
+    }, { displayName: "SR2E: Multiple Targets & Walking Fire" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

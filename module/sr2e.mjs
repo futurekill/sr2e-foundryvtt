@@ -40,6 +40,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
+import { injectPhaseSeq } from "./engagement.mjs";
 import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, stageLevel, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -1141,23 +1142,21 @@ function applyTheme(name) {
 /* -------------------------------------------- */
 
 /**
- * Recoil accumulates per combat phase (SR2E p.93). Clear every combatant's
- * recoil counter whenever the tracker advances to a new turn or round, so
- * shots fired in a previous phase no longer penalize the current one.
- * GM-gated: players lack permission to update other combatants' actors.
+ * Recoil and targets engaged accumulate per Combat Phase (SR2E p.92–93). They
+ * are not zeroed at a boundary: they carry the phase key they were committed
+ * under and read as empty once it moves on (module/engagement.mjs). Every
+ * turn/round change bumps the combat's phase counter IN THE SAME WRITE, so no
+ * attack can land in the gap — SR2ECombat's methods do it explicitly (they also
+ * cover a turn index that does not change), and this covers manual tracker
+ * edits.
  */
-async function _resetCombatRecoil(combat) {
-  if (!game.user.isGM) return;
-  for (const combatant of combat.combatants) {
-    const actor = combatant.actor;
-    if (actor?.system?.combatRecoil > 0) {
-      await actor.update({ "system.combatRecoil": 0 });
-    }
-  }
-}
-
-Hooks.on("combatTurn",  (combat) => _resetCombatRecoil(combat));
-Hooks.on("combatRound", (combat) => _resetCombatRecoil(combat));
+Hooks.on("preUpdateCombat", (combat, changed) => injectPhaseSeq(combat, changed));
+// The sheets show the recoil still in force, which a phase change alters
+// without touching the actor — re-render the combatants' open sheets.
+Hooks.on("updateCombat", (combat, changed) => {
+  if (!foundry.utils.hasProperty(changed, "flags.sr2e.phaseSeq")) return;
+  for (const c of combat.combatants) if (c.actor?.sheet?.rendered) c.actor.sheet.render();
+});
 
 // Fields whose change IS a purchase decision — "which variant did the character
 // buy?". Changing one charges or refunds the difference.

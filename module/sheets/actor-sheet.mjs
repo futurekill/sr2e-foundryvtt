@@ -1,4 +1,5 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
+import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation } from "../elementals.mjs";
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
@@ -74,6 +75,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.config   = CONFIG.SR2E;
     context.editable = this.isEditable;
     context.attrBreakdown = this._buildAttrBreakdown();
+    // Recoil still in force this Combat Phase (keyed; module/engagement.mjs).
+    context.recoilInForce = currentRecoil(this.document, phaseKey(this.document));
     return context;
   }
 

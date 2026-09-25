@@ -48,7 +48,7 @@ full auto that runs short follows the same rule. `item.mjs` refuses the attack
 ("not enough for a N-round burst"). `burstDamageBonus(2)` already returns the
 right numbers; only the refusal and the 1-round case are missing.
 
-### C4 — Multiple-target modifier missing for ranged fire (med)
+### C4 — Multiple-target modifier missing for ranged fire (med) — ✅ FIXED (PLAN-ranged-multi-target.md; also fixed recoil surviving a same-index turn change)
 p.92: semi-auto and burst fire at a second target in the same Combat Phase is
 +2. p.93: full auto walked between targets is +2 per new target, and wastes one
 round per metre between them. Melee has this (`multiMod`); ranged does not.

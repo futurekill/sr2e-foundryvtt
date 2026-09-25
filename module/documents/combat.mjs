@@ -15,6 +15,7 @@
  */
 import { spendInitiative, nextEligibleTurnIndex, livingCombatantIds } from "../rules/sr2e-rules.mjs";
 import { processCombatBoundary, postCountCards } from "../elementals.mjs";
+import { nextPhaseSeq } from "../engagement.mjs";
 
 export class SR2ECombat extends Combat {
 
@@ -88,7 +89,9 @@ export class SR2ECombat extends Combat {
     // the first combatant above 0 is the next Combat Phase.
     const next = nextEligibleTurnIndex(this.turns);
     if (next === null) return this.nextRound();
-    const result = await this.update({ turn: next });
+    // A new Combat Phase even when the same combatant stays on top and `turn`
+    // does not change — the phase counter is what expires recoil and targets.
+    const result = await this.update({ turn: next, "flags.sr2e.phaseSeq": nextPhaseSeq(this) });
     // RAW (p.84): pools refresh at the START of each character's action, so the
     // combatant now taking the spotlight gets theirs back.
     if (this._poolRefreshMode() === "action") await this._refreshActorPools(this.combatant);
@@ -110,7 +113,7 @@ export class SR2ECombat extends Combat {
     await last.update({ initiative: (last.initiative ?? 0) + 10 });
     await this.unsetFlag("sr2e", "lastActorId");
     const idx = this.turns.findIndex(c => c.id === last.id);
-    return this.update({ turn: Math.max(0, idx) });
+    return this.update({ turn: Math.max(0, idx), "flags.sr2e.phaseSeq": nextPhaseSeq(this) });
   }
 
   /**
@@ -134,7 +137,8 @@ export class SR2ECombat extends Combat {
     const outgoing = this.round;
     const seq = (this.getFlag("sr2e", "boundarySeq") ?? 0) + 1;
     const failures = outgoing >= 1 ? await processCombatBoundary(this, seq, outgoing) : [];
-    await this.update({ round: this.round + 1, turn: null, "flags.sr2e.boundarySeq": seq });
+    await this.update({ round: this.round + 1, turn: null, "flags.sr2e.boundarySeq": seq,
+                        "flags.sr2e.phaseSeq": nextPhaseSeq(this) });
     if (failures.length) await postCountCards(this, seq, outgoing, failures);
     if (live.length) await this.rollInitiative(live, { updateTurn: false });
 

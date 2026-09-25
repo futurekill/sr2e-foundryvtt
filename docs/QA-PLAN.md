@@ -96,6 +96,16 @@ and any **red console errors**. File them wherever the group tracks issues
       resolved as a single shot. A shot-round spread fired in BF carries +3 Power
       and +1 level on its launcher.
 
+- [ ] **Multiple targets (p.92–93):** in one phase fire SA at token A, then B → the
+      second attack dialog pre-fills "Targets already engaged" = 1 and the TN
+      breakdown shows "Multiple targets +2". A third target shows +4.
+- [ ] **Walking fire:** FA at A, then FA with the same gun at B 3 m away → label
+      "walked fire: 3 rounds wasted"; ammo drops by 3 extra; recoil counts them. A
+      smartgun wastes none. Untarget B → the dialog's "Walked fire (m)" is blank
+      and the attack is refused until you fill it.
+- [ ] **Phase expiry:** a combatant who stays on top after Next Turn starts with
+      recoil 0 and no targets engaged (sheet's recoil counter reads 0).
+
 ## 4a. Weapon accessories (v0.26.0, SR2E p.240–241)
 - [ ] **Attach/detach/transfer:** buy a Bipod, attach it to an HK227 via the gear-tab
       dropdown, then detach it and attach it to a different weapon — both directions

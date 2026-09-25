@@ -1,9 +1,10 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstFired, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { burstFired, rangedEngagement, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
+import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID } from "../elementals.mjs";
 
@@ -701,7 +702,26 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   const woundPenalty   = actor.system.woundPenalty ?? 0;
   const sustainPenalty = actor.system.sustainPenalty ?? 0;
-  const shotsFired    = actor.system.combatRecoil  ?? 0;
+  // Recoil still in force THIS phase (keyed; module/engagement.mjs).
+  const phaseK        = phaseKey(actor, weapon);
+  const shotsFired    = recoilInForce(actor, phaseK);
+  // Multiple targets / walking fire (p.92–93). Previewed here; item.roll
+  // recomputes from live state unless a field below was edited.
+  const tracksTargets = isRanged && !weapon.system.blastType;
+  const engTok    = game.user?.targets?.first?.() ?? null;
+  const engRecord = engagedRecord(actor);
+  const engLast   = engRecord?.key === phaseK ? engRecord.lastFA : null;
+  let engDistance = null;
+  if (engLast && engTok && engLast.sceneId === engTok.document.parent?.id && canvas?.scene?.id === engLast.sceneId
+      && [engLast.x, engLast.y].every(Number.isFinite)) {
+    try { engDistance = canvas.grid.measurePath([{ x: engLast.x, y: engLast.y }, engTok.center]).distance; }
+    catch (e) { engDistance = null; }
+  }
+  const smartWeapon = !!(weapon.system.smartgunCompatible || accBase.grantsSmartgun);
+  const engFor = (mode, priorOverride, walkOverride) => rangedEngagement({
+    record: engRecord, key: phaseK, targetUuid: engTok?.document.uuid ?? null, mode,
+    weaponUuid: weapon.uuid, smartgun: smartWeapon, distanceM: engDistance, priorOverride, walkOverride });
+  const engInit = engFor("sa");
   const hasRecoil     = ["firearm", "heavy"].includes(weapon.system.weaponType);
   // Heavy weapons (M/HMGs, shotguns) double uncompensated recoil (p.89-90)
   const heavyRecoil   = weapon.system.weaponType === "heavy" || (weapon.system.choke ?? 0) >= 2;
@@ -827,6 +847,21 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         : recoilComp;
     }
 
+    const priorInput = root.querySelector("#sr2e-prior-targets");
+    const walkInput  = root.querySelector("#sr2e-walk");
+    const walkRow    = root.querySelector("#sr2e-walk-row");
+    // A field counts as an override only once the user has touched it.
+    for (const el of [priorInput, walkInput]) {
+      el?.addEventListener("input", () => { el.dataset.edited = "1"; updateTN(); });
+    }
+    function currentEngagement() {
+      if (!tracksTargets) return { priorTargets: 0, tnMod: 0, walked: 0, walks: false, walkUnknown: false };
+      const mode = modeSelect?.value ?? "sa";
+      const prior = priorInput?.dataset.edited ? parseInt(priorInput.value) : undefined;
+      const walk  = walkInput?.dataset.edited && walkInput.value !== "" ? parseInt(walkInput.value) : undefined;
+      return engFor(mode, prior, walk);
+    }
+
     function currentRecoil() {
       if (!isRanged || !hasRecoil) return 0;
       const mode  = modeSelect?.value ?? "sa";
@@ -835,9 +870,11 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                   : 0;
       // A short clip fires what is left (p.92): 2 rounds recoil +2, 1 is a single shot.
       const ammo  = weapon.system.ammo;
-      const fired = full && ammo?.max > 0 ? burstFired(mode, full, Math.max(1, ammo.current)) : null;
-      const burst = !full ? 0 : fired ? (fired.isBurst ? fired.rounds : 0) : full;
-      const net = Math.max(0, liveShotsFired + burst - currentRecoilComp());
+      const walked = currentEngagement().walked;
+      const left  = ammo?.max > 0 ? Math.max(1, ammo.current - walked) : Infinity;
+      const fired = full ? burstFired(mode, full, left) : null;
+      const burst = !full ? 0 : fired.isBurst ? fired.rounds : 0;
+      const net = Math.max(0, liveShotsFired + walked + burst - currentRecoilComp());
       // Heavy weapons/shotguns double uncompensated recoil (p.89-90)
       return heavyRecoil ? net * 2 : net;
     }
@@ -876,6 +913,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (coverRow)     coverRow.style.display   = cMod !== 0 ? "" : "none";
         if (meleeRow)     meleeRow.style.display   = mMod !== 0 ? "" : "none";
         if (roundsRow)    roundsRow.style.display  = (modeSelect?.value === "fa") ? "" : "none";
+        const engNow = currentEngagement();
+        if (walkRow)      walkRow.style.display    = engNow.walks ? "" : "none";
+        const mtRow = root.querySelector("#sr2e-mt-row");
+        if (mtRow) {
+          mtRow.style.display = engNow.tnMod ? "" : "none";
+          root.querySelector("#sr2e-mt-val").textContent = `+${engNow.tnMod}`;
+        }
         if (recoilRow)    recoilRow.style.display  = recoil > 0 ? "" : "none";
         if (recoilVal)    recoilVal.textContent    = `+${recoil}`;
         if (gyroRow)      gyroRow.style.display    = gyroCut > 0 ? "" : "none";
@@ -889,7 +933,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                                       + calledShotMod() - aimMod()
                                       + cyberwareMod + accessoryTnMod
                                       + woundPenalty + sustainPenalty
-                                      + recoil - gyroCut + defaultingPenalty);
+                                      + recoil - gyroCut + defaultingPenalty
+                                      + engNow.tnMod);
       } else {
         // Opposed melee (SR2E p.100-101): base TN 4 + Melee Modifiers Table
         const rchMod = parseInt(reachInput?.value) || 0;
@@ -965,7 +1010,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     if (resetRecoilBtn) {
       resetRecoilBtn.addEventListener("click", async () => {
         liveShotsFired = 0;
-        await actor.update({ "system.combatRecoil": 0 });
+        // Zero AND a new phase identity, so the targets engaged reset too.
+        await actor.update(recoilResetUpdate(actor));
         updateTN();
       });
     }
@@ -1047,6 +1093,16 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
                title="Rounds in the full-auto burst: +1 Power and +1 recoil per round, +1 Damage Level per 3 rounds (SR2E p.93)">
       </div>
+      ${tracksTargets ? `<div class="sr2e-attack__field">
+        <label>Targets already engaged this phase (+2 ea):${engTok ? ` <span class="sr2e-attack__hint">auto</span>` : ""}</label>
+        <input type="number" id="sr2e-prior-targets" name="priorTargets" value="${engInit.priorTargets}" min="0"
+               title="SR2E p.92–93: a second target in the same Combat Phase is +2; full auto is +2 for each new target. Counted from the targets you have attacked this phase${engTok ? "" : " — no target token is set, so enter it by hand"}. Override freely.">
+      </div>
+      <div class="sr2e-attack__field" id="sr2e-walk-row" style="display:none;">
+        <label>Walked fire (m):</label>
+        <input type="number" id="sr2e-walk" name="walkM" value="${engDistance == null ? "" : Math.round(engDistance)}" min="0"
+               title="Full auto walked from the last target to this one wastes 1 round per metre (SR2E p.93); smartguns waste none. Measured from where the last target stood${engDistance == null ? " — it can't be measured here, so enter it" : ""}.">
+      </div>` : ""}
       <div class="sr2e-attack__field">
         <label>Foes engaging you (+${ENGAGED_TN_PER_FOE} ea):${presets.inMelee
           ? ` <span class="sr2e-attack__hint">auto · ${ENGAGEMENT_RANGE_M} m</span>` : ""}</label>
@@ -1237,6 +1293,11 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
         </button>
       </td>
       <td id="sr2e-recoil-val" style="text-align:right;padding:1px 0;">+${recoilPenalty}</td>
+    </tr>` : ""}
+    ${tracksTargets ? `
+    <tr id="sr2e-mt-row" style="display:none;">
+      <td style="color:#aaa1c0;padding:1px 0;" title="SR2E p.92–93">Multiple targets:</td>
+      <td id="sr2e-mt-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>` : ""}`;
 
   // Auto-detected target banner (from canvas targeting)
@@ -1330,6 +1391,13 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             range:           shiftRangeBracket(f.range?.value ?? "short", accBase.rangeShift),
             firingMode:      f.firingMode?.value    ?? "sa",
             rounds:          Math.min(10, Math.max(3, parseInt(f.rounds?.value) || 3)),
+            // Sent only when edited; otherwise item.roll recomputes from live
+            // state. A walking distance carries the transition it was typed for.
+            ...(f.priorTargets?.dataset.edited ? { priorTargets: Math.max(0, parseInt(f.priorTargets.value) || 0) } : {}),
+            ...(f.walkM?.dataset.edited && f.walkM.value !== "" ? {
+              walkOverride: Math.max(0, parseInt(f.walkM.value) || 0),
+              walkContext: { key: phaseK, weaponUuid: weapon.uuid, from: engLast?.tokenUuid ?? null,
+                             to: engTok?.document.uuid ?? null } } : {}),
             coverMod:        parseInt(f.cover?.value)           || 0,
             visMod:          parseInt(f.visibility?.value)      || 0,
             attackerMod:     parseInt(f.attacker?.value)        || 0,
@@ -2974,7 +3042,8 @@ async function onReloadWeapon(event, target) {
  */
 async function onResetRecoil(event, target) {
   event.preventDefault();
-  return this.document.update({ "system.combatRecoil": 0 });
+  // Zero AND a new phase identity, so the targets engaged this phase reset too.
+  return this.document.update(recoilResetUpdate(this.document));
 }
 
 /**
