@@ -122,8 +122,8 @@ recipe and the `codex exec -i` stdin gotcha.
 
 ## Mechanics not automated (display-only today)
 
-- **Bioware overstress penalty** (+1 TN per Body test) and **magical-healing
-  interference** (+½ Body Index) — indicators exist, no automation.
+- ~~Bioware overstress penalty and magical-healing interference~~ — **automated**
+  (`_bodyTestOpts`, `biowareHealingTnMod`); entry was stale (checked 2026-09-24).
 - **Drug / gene-tech active effects** — Shadowtech catalog items ship as plain
   `gear` with no auto-effects.
 - **Body Index on NPC/critter actors** — scoped to `character` only, consistent
