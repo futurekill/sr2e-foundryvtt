@@ -20,6 +20,7 @@ import { promptForCanvasPoint } from "./placement.mjs";
 import { promptGrant, grantSpellDefense } from "./spell-defense.mjs";
 import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack, isCardResolved } from "./astral-combat.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
+import { registerSpellEffectHooks, wireSpellEffectButtons } from "./spell-effects.mjs";
 
 // Sheets
 import {
@@ -430,6 +431,7 @@ Hooks.once("init", async () => {
 
   // Register in-Foundry integration tests (no-op unless the Quench module is on).
   registerSR2EQuenchTests();
+  registerSpellEffectHooks();
 
   // Store configuration on the global CONFIG object
   CONFIG.SR2E = SR2E;
@@ -2248,6 +2250,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   if (message.isRoll && html instanceof HTMLElement) {
     html.classList.add("sr2e-roll");
   }
+  wireSpellEffectButtons(message, html);
 
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.
@@ -2437,7 +2440,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       if (!canvas?.scene) return;
-      const ids = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")).map(t => t.id);
+      // Ice Sheet goes too (it melts); a sustained spell's area never does.
+      const ids = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")
+        || t.getFlag("sr2e", "spellEffect")?.kind === "iceSheet").map(t => t.id);
       const lightIds = canvas.scene.lights.filter(l => l.getFlag("sr2e", "smoke")).map(l => l.id);
       if (!ids.length && !lightIds.length) return ui.notifications.info("No blast areas to clear.");
       if (ids.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", ids);

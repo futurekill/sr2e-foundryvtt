@@ -2167,9 +2167,17 @@ export class SR2EActor extends Actor {
     const ballistic = system.armor?.ballistic ?? 0;
     const impact    = system.armor?.impact ?? 0;
 
+    // Environmental damage (fire from Ignite, debris from Poltergeist — SR2E
+    // p.157–158): a named attribute, a fraction of Impact armour, staged DOWN
+    // only — no attacker successes, no net staging, no complete miss.
+    const env = options.environmental ?? null;
+    if (env) { delete options.stageVs; delete options.attackerSuccesses; }
+
     // Armor rating per the loaded ammunition's (or spell's) rule
-    const { armor, label: armorLabel } = damageResistArmor({
-      armorCalc, armorType, ballistic, impact, armorMod });
+    const { armor, label: armorLabel } = env
+      ? { armor: Math.floor(impact * (Number(env.armorFraction) || 0)),
+          label: env.armorFraction === 0.5 ? "½ Impact" : "Impact" }
+      : damageResistArmor({ armorCalc, armorType, ballistic, impact, armorMod });
 
     const stages   = ["L", "M", "S", "D"];
     let startIdx = stages.indexOf(level);
@@ -2198,7 +2206,9 @@ export class SR2EActor extends Actor {
     // Extra resistance dice (e.g. +1 per intervening target in a shotgun spread,
     // SR2E p.95): they take the bullet's brunt for the target behind them.
     const bonusDice  = Math.max(0, options.bonusDice ?? 0);
-    const bodyDice   = (system.body?.value ?? 1) + dermalBonus + bonusDice;
+    const bodyDice   = env && env.attr !== "body"
+      ? (system[env.attr]?.value ?? 1) + bonusDice
+      : (system.body?.value ?? 1) + dermalBonus + bonusDice;
     const tn         = Math.max(2, power - armor);
 
     // ── Build dialog ──────────────────────────────────────────────────────────
@@ -2237,7 +2247,7 @@ export class SR2EActor extends Actor {
               <td style="text-align:right;padding:1px 0;">−${armor}</td>
             </tr>
             <tr>
-              <td style="color:#aaa1c0;padding:1px 0;">Body Dice:</td>
+              <td style="color:#aaa1c0;padding:1px 0;">${env && env.attr !== "body" ? `${env.attr.charAt(0).toUpperCase()}${env.attr.slice(1)} Dice` : "Body Dice"}:</td>
               <td style="text-align:right;padding:1px 0;">${bodyDice}</td>
             </tr>
             <tr style="border-top:1px solid rgba(255,255,255,0.15);">
@@ -2285,12 +2295,12 @@ export class SR2EActor extends Actor {
 
     // ── Roll ──────────────────────────────────────────────────────────────────
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
-      label: `Resist Damage: ${level} (Power ${power})`,
+      label: `Resist Damage: ${level} (Power ${power})${env?.source ? ` — ${env.source}` : ""}${env && env.attr !== "body" ? ` (${env.attr})` : ""}`,
       poolDice: rollResult.poolDice,
       miscDice: rollResult.miscDice,
       miscLabel: rollResult.miscLabel,
       isResistance: true,  // Injury Modifier does not apply to resistance (p.112)
-      ...this._bodyTestOpts()   // …but this IS a Body test, so overstress applies
+      ...(env && env.attr !== "body" ? {} : this._bodyTestOpts())   // a Body test: overstress applies
     });
 
     // ── Complete miss (SR2E p.91) ────────────────────────────────────────────
@@ -2354,7 +2364,8 @@ export class SR2EActor extends Actor {
     const monitor = this.system.conditionMonitor?.[damageType === "stun" ? "stun" : "physical"] ?? {};
     const kd      = knockdownPrompt(finalLevel, monitor, this.system.overflow ?? 0);
     let knockBtn  = "";
-    if (kd.offer) {
+    // Fire and flying debris are not a blow from a weapon: no Knockdown Test.
+    if (kd.offer && !env) {
       knockBtn = `<br><button class="sr2e-knockdown-btn"
         data-actor-uuid="${this.uuid}" data-power="${power}"
         data-level="${finalLevel}" data-gel="${isGel ? 1 : 0}"

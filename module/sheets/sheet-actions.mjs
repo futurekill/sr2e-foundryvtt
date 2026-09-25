@@ -8,6 +8,7 @@ import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
+import { visibilityAlong } from "../spell-effects.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID } from "../elementals.mjs";
 
 // ===========================================================================
@@ -503,17 +504,9 @@ function detectAttackTarget(attacker, weapon) {
 
   // Auto-suggest a Visibility Table modifier (p.89) — manually overridable
   // in the dialog. Sources: any template flagged with a visibility value
-  // (smoke-grenade blasts stamp theirs) containing the TARGET's centre, and
-  // the scene's darkness level.
-  let visMod = 0;
-  for (const t of canvas.templates?.placeables ?? []) {
-    const v = t.document.flags?.sr2e?.visibility;
-    if (!v) continue;
-    const dx = targetToken.center.x - t.document.x;
-    const dy = targetToken.center.y - t.document.y;
-    const rPx = (t.document.distance ?? 0) * (canvas.grid.size / canvas.grid.distance);
-    if (Math.hypot(dx, dy) <= rPx) visMod = Math.max(visMod, Number(v) || 0);
-  }
+  // (smoke-grenade clouds, a Poltergeist) around the attacker, the target, or
+  // the line of fire between them, and the scene's darkness level.
+  let visMod = visibilityAlong(originToken.center, targetToken.center, canvas.templates?.placeables ?? []);
   const darkness = canvas.scene?.environment?.darknessLevel ?? canvas.scene?.darkness ?? 0;
   if (darkness >= 0.75)      visMod = Math.max(visMod, 8);  // Full Darkness
   else if (darkness >= 0.4)  visMod = Math.max(visMod, 6);  // Minimal Light

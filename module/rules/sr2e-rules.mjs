@@ -4093,3 +4093,37 @@ export function canonicalSpellName(name) {
 export function defenseAidApplies(element, spellCategory) {
   return elementalAidsCategory(element, spellCategory);
 }
+
+// ── Lasting spell effects (SR2E p.157–158) ──────────────────────────────────
+
+/** Ignite: turns until the target catches fire, 10 ÷ successes rounded up (p.158). */
+export function igniteDelay(successes) {
+  return Math.max(1, Math.ceil(10 / Math.max(1, Math.trunc(Number(successes) || 0))));
+}
+
+/** Ice Sheet: Magic × successes square metres, placed as a square of this side (p.158). */
+export function iceSheetSide(magic, successes) {
+  return Math.sqrt(Math.max(0, (Number(magic) || 0) * (Number(successes) || 0)));
+}
+
+/** Whether segment a→b passes within r of point c (a point segment: a is tested). */
+export function segmentHitsCircle(a, b, c, r) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((c.x - a.x) * dx + (c.y - a.y) * dy) / len2)) : 0;
+  return Math.hypot(a.x + t * dx - c.x, a.y + t * dy - c.y) <= r + 1e-6;
+}
+
+/** Whether segment a→b touches the axis-aligned rectangle {x, y, w, h} (Liang–Barsky). */
+export function segmentHitsRect(a, b, rect) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-dx, a.x - rect.x], [dx, rect.x + rect.w - a.x],
+                        [-dy, a.y - rect.y], [dy, rect.y + rect.h - a.y]]) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+    else       { if (r < t0) return false; if (r < t1) t1 = r; }
+  }
+  return true;
+}

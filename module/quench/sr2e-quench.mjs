@@ -5404,6 +5404,214 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Restricted-Use Spells" });
 
+    // ── Lasting spell effects: Ignite, Poltergeist, Ice Sheet (SR2E p.157–158) ─
+    quench.registerBatch("sr2e.spell-effects", (context) => {
+      const { it, assert, before, afterEach } = context;
+      const made = { actors: [], combats: [] };
+      let msgStart = 0;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const waitFor = async (fn, ms = 3000) => {
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) { if (await fn()) return true; await new Promise(r => setTimeout(r, 50)); }
+        return false;
+      };
+      const since = () => game.messages.contents.slice(msgStart);
+      const flagged = (key) => since().filter(m => m.flags?.sr2e?.[key]);
+      const tests = () => since().filter(m => m.flags?.sr2e?.test).map(m => m.flags.sr2e.test);
+      const nextDialog = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)));
+      const fx = () => import("../spell-effects.mjs");
+      const mkActor = async (name, system, type = "npc") => {
+        const a = await Actor.create({ name, type, system }); made.actors.push(a); return a;
+      };
+      const g = () => canvas.dimensions.size;
+      const origin = () => ({ x: canvas.dimensions.sceneX + 30 * g(), y: canvas.dimensions.sceneY + 20 * g() });
+      const put = async (a, dxCells, dyCells = 0) => {
+        const o = origin();
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{
+          ...(await a.getTokenDocument()).toObject(), x: o.x + dxCells * g(), y: o.y + dyCells * g() }]);
+        return t;
+      };
+
+      before(async () => { msgStart = game.messages.size; });
+      afterEach(async function () {
+        this.timeout(20000);
+        for (const c of made.combats.splice(0)) { try { await c.delete(); } catch (e) {} }
+        const ids = canvas.scene.tokens.filter(t => t.name?.startsWith("Quench FX")).map(t => t.id);
+        if (ids.length) await canvas.scene.deleteEmbeddedDocuments("Token", ids);
+        const tpl = canvas.scene.templates.filter(t => t.flags?.sr2e?.spellEffect).map(t => t.id);
+        if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl);
+        for (const a of made.actors.splice(0)) { try { await a.delete(); } catch (e) {} }
+        await ChatMessage.deleteDocuments(since().map(m => m.id));
+        msgStart = game.messages.size;
+      });
+
+      it("environmental resistance: Quickness dice vs Power − Impact; ½ Impact for fire; no complete miss", async () => {
+        const v = await mkActor("Quench FX Victim", { body: { base: 2 }, quickness: { base: 5 }, armor: { impact: 4 } });
+        nextDialog().then(app => app.element.querySelector('button[data-action="roll"]').click());
+        await withFaces(Array(10).fill(6).map((f, i) => i < 5 ? 1 : f), () => v.rollDamageResistance(6, "L", "impact", "stun",
+          { environmental: { attr: "quickness", armorFraction: 1, source: "Poltergeist" }, attackerSuccesses: 0 }));
+        let [t] = tests();
+        assert.lengthOf(t.dice, 5, "Quickness 5 dice");
+        assert.equal(t.tn, 2, "6 − full Impact 4");
+        assert.include(t.label, "Poltergeist");
+        assert.equal(v.system.conditionMonitor.stun.value, 1, "L Stun taken — no complete miss, no net staging");
+        nextDialog().then(app => app.element.querySelector('button[data-action="roll"]').click());
+        await withFaces(Array(10).fill(1), () => v.rollDamageResistance(6, "M", "impact", "physical",
+          { environmental: { attr: "body", armorFraction: 0.5, source: "Ignite" } }));
+        t = tests()[1];
+        assert.lengthOf(t.dice, 2, "Body 2 dice");
+        assert.equal(t.tn, 4, "6 − ½ Impact 2");
+      });
+
+      it("Ignite: needs MORE successes than Body; the delay is 10 ÷ successes, rounded up", async () => {
+        const { igniteFromCast } = await fx();
+        const mage = await mkActor("Quench FX Mage", {}, "character");
+        const v = await mkActor("Quench FX Burnee", { body: { base: 4 } });
+        await igniteFromCast({ caster: mage, force: 5, successes: 4, target: v });
+        assert.isUndefined(v.getFlag("sr2e", "burning"), "4 = Body: no fire");
+        await igniteFromCast({ caster: mage, force: 5, successes: 5, target: v });
+        const st = v.getFlag("sr2e", "burning");
+        assert.equal(st.status, "pending");
+        assert.equal(st.igniteIn, 2, "10 ÷ 5");
+        assert.isAtLeast(st.burnoutTurns, 1); assert.isAtMost(st.burnoutTurns, 6);
+        assert.equal(st.clock.kind, "manual", "not in combat");
+      });
+
+      it("Ignite in combat: ignites on the Nth boundary, burns F, F+1 …, the last burning turn resisted; round edits add nothing", async function () {
+        this.timeout(20000);
+        const { createBurn } = await fx();
+        const v = await mkActor("Quench FX Torch", { body: { base: 3 } });
+        const combat = await Combat.create({ scene: canvas.scene.id }); made.combats.push(combat);
+        await combat.createEmbeddedDocuments("Combatant", [{ actorId: v.id }]);
+        await combat.startCombat();
+        await withFaces([3], () => createBurn(v, { force: 4, successes: 5 }));   // 1D6 burnout = 3; ignites in 2
+        assert.equal(v.getFlag("sr2e", "burning").clock.kind, "combat");
+        const burns = () => flagged("burn").map(m => m.flags.sr2e.burn.power);
+        await combat.nextRound();
+        await waitFor(() => v.getFlag("sr2e", "burning").igniteIn === 1);
+        assert.deepEqual(burns(), [], "first boundary: still catching");
+        await combat.update({ round: combat.round + 5 });                          // a GM round edit
+        await new Promise(r => setTimeout(r, 300));
+        assert.deepEqual(burns(), [], "editing the round number is no boundary");
+        await combat.nextRound();
+        assert.isTrue(await waitFor(() => burns().length === 1));
+        assert.deepEqual(burns(), [4], "ignites and burns (F)M");
+        await combat.nextRound(); await waitFor(() => burns().length === 2);
+        await combat.nextRound(); await waitFor(() => burns().length === 3);
+        assert.deepEqual(burns(), [4, 5, 6], "Power +1 per turn; the 3rd (last) turn still burns");
+        await waitFor(() => v.getFlag("sr2e", "burning").status === "out");
+        await combat.nextRound(); await new Promise(r => setTimeout(r, 400));
+        assert.lengthOf(burns(), 3, "burnt out");
+      });
+
+      it("an interrupted tick resumes with one card; Extinguish during a pending tick sticks", async () => {
+        const { createBurn, tickBurn, extinguish } = await fx();
+        const v = await mkActor("Quench FX Stubble", { body: { base: 1 } });
+        await withFaces([6], () => createBurn(v, { force: 3, successes: 10 }));
+        // Simulate a crash after step 1: a pendingTick written, no card, no commit.
+        const st = v.getFlag("sr2e", "burning");
+        const next = { ...st, status: "burning", igniteIn: 0, turnsBurned: 1, tickId: 1, version: 2, clock: { kind: "manual", ticks: 1 }, pendingTick: null };
+        await v.setFlag("sr2e", "burning", { ...st, pendingTick: { tickId: 1, basedOnVersion: st.version,
+          card: { actorUuid: v.uuid, actorName: v.name, power: 3, turn: 1, instance: st.instance, tickId: 1, resolved: false }, next } });
+        await tickBurn(v, { manual: true });
+        await tickBurn(v, { manual: true });
+        const keys = flagged("burnTick").map(m => m.flags.sr2e.burnTick);
+        assert.deepEqual(keys, [`${st.instance}:1`, `${st.instance}:2`], "the resumed tick posts once, then the next");
+        assert.equal(v.getFlag("sr2e", "burning").burnoutTurns, 6, "burnout never re-rolled");
+        // A pending tick overtaken by Extinguish is void.
+        const now = v.getFlag("sr2e", "burning");
+        await v.setFlag("sr2e", "burning", { ...now, pendingTick: { tickId: 3, basedOnVersion: now.version, card: null,
+          next: { ...now, tickId: 3, version: now.version + 1, turnsBurned: 3, pendingTick: null } } });
+        await extinguish(v);
+        await tickBurn(v, { manual: true });
+        assert.equal(v.getFlag("sr2e", "burning").status, "out");
+      });
+
+      it("an unlinked token burns on its own, not its base actor", async () => {
+        const { igniteFromCast } = await fx();
+        const mage = await mkActor("Quench FX Mage2", {}, "character");
+        const base = await mkActor("Quench FX Ganger", { body: { base: 2 } });
+        await base.update({ "prototypeToken.actorLink": false });
+        const tok = await put(base, 0);
+        await igniteFromCast({ caster: mage, force: 4, successes: 3, target: tok.actor });
+        assert.ok(tok.actor.getFlag("sr2e", "burning"), "the token's synthetic actor burns");
+        assert.isUndefined(base.getFlag("sr2e", "burning"), "the base does not");
+      });
+
+      it("Poltergeist: a failed cast places nothing; a sustained one hits who is inside now and each Combat Turn", async function () {
+        this.timeout(20000);
+        const mage = await mkActor("Quench FX Polter Mage", { willpower: { base: 6 }, magic: { type: "full_magician", value: 6, max: 6 } }, "character");
+        await mage.createEmbeddedDocuments("Item", [{ name: "Sorcery", type: "skill", system: { rating: 6, category: "active" } }]);
+        const [sp] = await mage.createEmbeddedDocuments("Item", [{ name: "Poltergeist", type: "spell", system: {
+          category: "manipulation", type: "physical", force: 4, drainCode: "(F / 2)L", duration: "sustained", isAreaEffect: true } }]);
+        const inside = await mkActor("Quench FX Inside", { quickness: { base: 3 } });
+        const outside = await mkActor("Quench FX Outside", { quickness: { base: 3 } });
+        const tIn = await put(inside, 0); await put(outside, 20);
+        const o = origin();
+        const area = { sceneId: canvas.scene.id, x: o.x + g() / 2, y: o.y + g() / 2 };
+        await withFaces(Array(30).fill(1), () => sp.roll({ force: 4, targetNumber: 4, area }));
+        assert.lengthOf(canvas.scene.templates.filter(t => t.flags?.sr2e?.spellEffect), 0, "0 successes: nothing placed");
+        assert.lengthOf(flagged("poltergeist"), 0);
+
+        const combat = await Combat.create({ scene: canvas.scene.id }); made.combats.push(combat);
+        await combat.createEmbeddedDocuments("Combatant", [{ actorId: mage.id }]);
+        await combat.startCombat();
+        await withFaces(Array(30).fill(6), () => sp.roll({ force: 4, targetNumber: 4, area }));
+        const tpl = () => canvas.scene.templates.filter(t => t.flags?.sr2e?.spellEffect?.kind === "poltergeist");
+        assert.lengthOf(tpl(), 1, "placed once sustained");
+        const hit = () => flagged("poltergeist").map(m => m.flags.sr2e.poltergeist.actorName).filter(n => n.startsWith("Quench FX"));
+        assert.deepEqual(hit(), ["Quench FX Inside"], "only who is inside, at the cast");
+        assert.equal(flagged("poltergeist")[0].flags.sr2e.poltergeist.level, "L");
+
+        // Recast ends the old instance first.
+        await withFaces(Array(30).fill(6), () => sp.roll({ force: 4, targetNumber: 4, area }));
+        assert.lengthOf(tpl(), 1, "a recast replaces the area");
+
+        await combat.nextRound();
+        assert.isTrue(await waitFor(() => hit().length === 3), "another card on the new Combat Turn");
+        await tIn.update({ x: tIn.x + 30 * g() });                                   // leaves
+        await combat.nextRound(); await new Promise(r => setTimeout(r, 500));
+        assert.lengthOf(hit(), 3, "a leaver is not hit");
+
+        const { visibilityAlong } = await fx();
+        const placeables = canvas.templates.placeables;
+        const a = { x: o.x - 20 * g(), y: o.y + g() / 2 }, b = { x: o.x + 20 * g(), y: o.y + g() / 2 };
+        assert.equal(visibilityAlong(a, b, placeables), 2, "a line of fire through it: +2");
+        assert.equal(visibilityAlong(a, { x: a.x, y: a.y + 40 * g() }, placeables), 0, "elsewhere: none");
+
+        await sp.setSustaining(false);
+        assert.lengthOf(tpl(), 0, "dropping the spell removes the area");
+      });
+
+      it("Ice Sheet: a √(Magic × successes) square; a move across it gets one card, a move elsewhere none", async function () {
+        this.timeout(15000);
+        const { placeIceSheet } = await fx();
+        const mage = await mkActor("Quench FX Ice Mage", { magic: { type: "full_magician", value: 4, max: 4 } }, "character");
+        const [sp] = await mage.createEmbeddedDocuments("Item", [{ name: "Ice Sheet", type: "spell", system: {
+          category: "manipulation", type: "physical", force: 3, duration: "instant" } }]);
+        const o = origin();
+        const center = { x: o.x + 5 * g(), y: o.y + g() / 2 };
+        await placeIceSheet(sp, { side: 4, center, scene: canvas.scene });
+        const [ice] = canvas.scene.templates.filter(t => t.flags?.sr2e?.spellEffect?.kind === "iceSheet");
+        assert.ok(ice); assert.equal(ice.t, "rect");
+        assert.closeTo(ice.distance, 4 * Math.SQRT2, 1e-6);
+
+        const walker = await mkActor("Quench FX Walker", { quickness: { base: 2 } });
+        const tok = await put(walker, 0);
+        await tok.update({ x: tok.x + 10 * g() });                                    // straight across
+        assert.isTrue(await waitFor(() => flagged("iceTest").length === 1), "crossing card");
+        await tok.update({ y: tok.y + 10 * g() });                                    // away from it
+        await new Promise(r => setTimeout(r, 500));
+        assert.lengthOf(flagged("iceTest"), 1, "no card off the ice");
+        assert.equal(flagged("iceTest")[0].flags.sr2e.iceTest.vehicle, false);
+      });
+    }, { displayName: "SR2E: Spell Effects (Ignite, Poltergeist, Ice Sheet)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

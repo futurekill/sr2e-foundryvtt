@@ -204,6 +204,13 @@ and any **red console errors**. File them wherever the group tracks issues
       A reusable-fetish spell refuses to cast without "Fetish in hand"; an expendable one
       uses one gear item per casting (🔗 restocks from gear named as learned).
 
+- [ ] **Ignite / Poltergeist / Ice Sheet (p.157–158):** Ignite a Body-3 NPC in combat
+      with 5 successes → "ignites in 2"; two Next Rounds later a 🔥 burn card at (F)M, then
+      F+1 …; 🧯 Extinguish stops it. Poltergeist (sustained, area) → template + a Quickness
+      Stun card for each token inside, again each Combat Turn; attacks into it preset +2
+      visibility; dropping the spell removes it. Ice Sheet → click the map, a square
+      appears; drag a token across it → one "keep your feet" card; Clear blast areas melts it.
+
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).

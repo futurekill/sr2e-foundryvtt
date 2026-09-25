@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Added — Ignite, Poltergeist and Ice Sheet do what the book says (SR2E p.157–158)
+
+- **Ignite**: target a character and cast. With **more** successes than the
+  target's Body, it catches fire after 10 ÷ successes Combat Turns (rounded up).
+  Then it burns at (Force)M, **+1 Power each Combat Turn**, resisted with Body
+  and **half Impact armour**, and goes out after 1D6 turns unless someone clicks
+  **🧯 Extinguish**. Each turn posts a burn card that the target's owner resolves.
+  Outside combat the GM advances the burn from its card. On an object, the GM
+  compares the successes with its Barrier Rating.
+- **Poltergeist**: a successful, sustained cast places its area.
+  - Anyone attacking into, out of, or through it gets **+2 visibility**
+    suggested in the attack dialog. Smoke clouds now count along the line of
+    fire too, not only at the target.
+  - Everyone inside takes **(Force)L Stun**, resisted with **Quickness** and
+    Impact armour, at the cast and at each new Combat Turn while it's
+    sustained.
+  - Dropping the spell removes the area.
+- **Ice Sheet**: after a successful cast, click the map. A square of
+  Magic × successes m² is placed. A token whose move crosses it gets a card:
+  Quickness (TN 3) or fall prone; vehicles make a Handling or Crash Test (GM).
+  "Clear blast areas" melts it away.
+
+**For the GM**:
+- I read Poltergeist's debris as hitting again each Combat Turn while it is
+  sustained. The book only says it whacks targets with flying debris.
+- A new fire burns the same turn it ignites.
+
+Tell me if you rule either differently.
+
 ### Added — restricted-use spells: exclusive and fetish-required (SR2E p.133)
 
 When you learn a spell you can accept a restriction. It is permanent, and to

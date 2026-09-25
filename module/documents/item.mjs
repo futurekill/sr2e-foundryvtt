@@ -1,11 +1,13 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { normActorUuid } from "../spell-defense.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
+import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
+import { promptForCanvasPoint } from "../placement.mjs";
 
 /** A restricted-use spell's short label (p.133). */
 function restrictionLabel(r) {
@@ -1409,6 +1411,8 @@ export class SR2EItem extends Item {
         "system.quickened": false,
         "system.quickeningKarma": 0
       });
+      // A sustained area (Poltergeist) ends with the spell.
+      await endSpellEffect(this);
       // Remove the effects this spell placed on the caster
       const ids = actor.effects.filter(e => e.origin === this.uuid).map(e => e.id);
       if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
@@ -1540,6 +1544,9 @@ export class SR2EItem extends Item {
       const t = game.user?.targets?.first?.();
       return t?.actor ? { actor: t.actor, uuid: t.actor.uuid, name: t.name, type: t.actor.type } : null;
     })() : null;
+    // Lasting effects (p.157–158): Ignite's target is captured now, like manipTarget.
+    const effectKind = spellEffectKind(this);
+    const igniteTarget = effectKind === "ignite" ? (game.user?.targets?.first?.()?.actor ?? null) : null;
     const resistAttr = this.system.type === "mana" ? "willpower" : "body";
     const cardTargets = (area?.caught ?? []).filter(c => c.eligible === "card");
     const targetNumber = (isAreaCombat && cardTargets.length)
@@ -1832,7 +1839,9 @@ export class SR2EItem extends Item {
         "${foundry.utils.escapeHTML(this.system.damageCode)}" is not a Force code like (F)M — the GM resolves the damage.</div>` });
     }
     if (isArea) {
-      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg });
+      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg,
+        // Poltergeist places its own area, only once it is sustained.
+        template: effectKind !== "poltergeist" });
     } else if (manipDmg) {
       await this._postManipDamage(manipDmg, spellResult, manipTarget);
     } else if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
@@ -1867,6 +1876,19 @@ export class SR2EItem extends Item {
           at Force ${force} <em>(+2 TN on all other tests until dropped — SR2E p.130)</em>.
         </div>`
       });
+    }
+
+    // ── Lasting effects (SR2E p.157–158) ──────────────────────────────────────
+    const liveSuccesses = this._liveSuccesses(spellResult);
+    if (effectKind === "ignite" && liveSuccesses > 0) {
+      await igniteFromCast({ caster: actor, force: Number(force), successes: liveSuccesses, target: igniteTarget });
+    } else if (effectKind === "poltergeist" && this.system.sustaining && area?.center) {
+      await startPoltergeist(this, { area, force });
+    } else if (effectKind === "iceSheet" && liveSuccesses > 0) {
+      const center = options.iceCenter ?? await promptForCanvasPoint("the Ice Sheet");
+      if (center && canvas?.scene) {
+        await placeIceSheet(this, { side: iceSheetSide(magicRating, liveSuccesses), center, scene: canvas.scene });
+      }
     }
 
     return spellResult;
@@ -2024,7 +2046,7 @@ export class SR2EItem extends Item {
    * ONE TN and keeps its Karma buttons, so counts here could go stale.
    * @private
    */
-  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg = null }) {
+  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg = null, template = true }) {
     const actor = this.parent;
     const esc = foundry.utils.escapeHTML;
     const speaker = ChatMessage.getSpeaker({ actor });
@@ -2039,7 +2061,9 @@ export class SR2EItem extends Item {
 
     let templateNote = "";
     const scene = game.scenes.get(area.sceneId);
-    if (!scene) {
+    if (!template) {
+      templateNote = "";
+    } else if (!scene) {
       templateNote = " (the scene is gone — no template)";
     } else if (game.user.can?.("TEMPLATE_CREATE")) {
       try {
