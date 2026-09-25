@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.98.0 — 2026-09-24
+
+### Added — learning spells (SR2E p.132–133)
+
+The Magic tab has a new **Learn** button. Pick any spell from the compendiums
+or world items, choose the Force, and enter your library or lodge rating,
+which must be at least the Force.
+
+- **The test.** You roll Sorcery + Magical Theory against twice the Force.
+  - Wounds and sustaining add to the TN as usual.
+  - A teacher's Teaching successes, entered as a number, lower it.
+  - Shamans get their totem's dice for that category.
+  - You can buy Karma dice up to your Sorcery + Magical Theory.
+- **The learning card.** The roll posts a learning card. If you reroll or
+  buy successes with Karma first, the card updates.
+- **Complete learning.**
+  - On a success it charges Force in Good Karma, adds the spell at that
+    Force, and reports the time: Force days divided by your successes,
+    rounded up, minimum 1.
+  - With no successes, nothing is added, no Karma is spent, and Force days
+    are wasted.
+  - It's safe to click again after a hiccup: you never get a duplicate spell
+    or pay twice.
+  - Once the attempt is paid for, its test is closed to Karma.
+- **A learned spell starts clean.** It's never copied mid-sustain, locked or
+  quickened.
+
+### Added — Aid Study and elemental Spell Defense (SR2E p.141)
+
+- **Aid Study.** In the Learn dialog, a bound elemental of the spell's
+  category adds its Force in dice for 1 service. Its Force isn't reduced. It's
+  once per spell, however the spell is copied.
+- **Spell Defense aid.** "Allocate Spell Defense" can reserve a fire
+  elemental's Aid Sorcery dice.
+  - Reserving costs 1 service if the elemental was idle, but no Force.
+  - When you resist a combat spell, the reserved dice are added and only then
+    is the elemental's Force reduced.
+  - Clearing, refreshing or resetting the Magic Pool drops the reservation at
+    no cost.
+  - Reserved dice aren't offered when casting.
+  - Only fire (combat) is automated, because an elemental defends only
+    against its own category and combat spells are the only ones with an
+    automated resist card.
+
+### Known gaps
+
+- Restricted-use spell options (exclusive or fetish) aren't supported when
+  learning.
+- The teacher's Teaching test is entered by hand.
+- Spell Defense protecting allies isn't automated.
+- NPCs can't learn spells.
+
 ## 0.97.0 — 2026-09-24
 
 ### Added — elementals sustaining spells count their Combat Turns automatically (SR2E p.142)
