@@ -1058,6 +1058,23 @@ export const THROWN_RANGE_MULT = Object.freeze({
   standard:    { short: 3, medium: 5, long: 10, extreme: 20 },
   aerodynamic: { short: 3, medium: 5, long: 20, extreme: 30 }
 });
+/**
+ * Range bracket for a measured distance (SR2E p.88, p.96): the RAW distance is
+ * compared against the brackets — rounding first would let a point just past
+ * Short count as Short.
+ * @param {number} distance - metres, unrounded
+ * @param {{short:number, medium:number, long:number, extreme:number}} r
+ * @returns {{range: "short"|"medium"|"long"|"extreme"|null, outOfRange: boolean}}
+ */
+export function rangeBracketFor(distance, r = {}) {
+  if (!(r.short > 0) || !Number.isFinite(distance)) return { range: null, outOfRange: false };
+  if (distance <= r.short)   return { range: "short", outOfRange: false };
+  if (distance <= r.medium)  return { range: "medium", outOfRange: false };
+  if (distance <= r.long)    return { range: "long", outOfRange: false };
+  if (distance <= r.extreme) return { range: "extreme", outOfRange: false };
+  return { range: "extreme", outOfRange: true };
+}
+
 export function thrownRange(strength, aerodynamic = false) {
   const m = aerodynamic ? THROWN_RANGE_MULT.aerodynamic : THROWN_RANGE_MULT.standard;
   const s = Math.max(0, strength);

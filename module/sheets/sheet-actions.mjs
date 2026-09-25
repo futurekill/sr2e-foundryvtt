@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstFired, rangedEngagement, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { burstFired, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
@@ -527,13 +527,9 @@ function detectAttackTarget(attacker, weapon) {
   const r = (wt === "throwing" || wt === "grenade")
     ? thrownRange(attacker?.system?.strength?.value ?? 1, weapon?.system?.aerodynamic ?? false)
     : (weapon?.system?.ranges ?? {});
-  if (r.short > 0) {
-    if      (distance <= r.short)  presets.range = "short";
-    else if (distance <= r.medium) presets.range = "medium";
-    else if (distance <= r.long)   presets.range = "long";
-    else if (distance <= r.extreme) presets.range = "extreme";
-    else { presets.range = "extreme"; presets.outOfRange = true; }
-  }
+  const b = rangeBracketFor(distance, r);
+  if (b.range) presets.range = b.range;
+  if (b.outOfRange) presets.outOfRange = true;
   return presets;
 }
 
@@ -791,6 +787,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
     // Ranged-only inputs
     const rangeSelect  = root.querySelector("#sr2e-attack-range");
+    // A range the user touched is explicit (see rangeExplicit below).
+    rangeSelect?.addEventListener("change", () => { rangeSelect.dataset.edited = "1"; });
     const coverSelect  = root.querySelector("#sr2e-cover");
     const meleeCheck   = root.querySelector("#sr2e-in-melee");
     const modeSelect   = root.querySelector("#sr2e-firing-mode");
@@ -1061,6 +1059,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ).join("")}
         </select>
       </div>
+      ${weapon.system.blastType ? `<div class="sr2e-attack__field">
+        <label title="SR2E p.96: choose the intended target — a token, or any point on the map (click after Attack). A point's range is measured from your token.">Aim at:</label>
+        <select id="sr2e-aim-at" name="aimAt">
+          <option value="token" ${presets.targetName ? "selected" : ""}>${presets.targetName ? foundry.utils.escapeHTML(presets.targetName) : "the targeted token"}</option>
+          <option value="point" ${presets.targetName ? "" : "selected"}>a point on the map</option>
+        </select>
+      </div>` : ""}
       ${hasRecoil ? `<div class="sr2e-attack__field">
         <label>Firing Mode:</label>
         <select id="sr2e-firing-mode" name="firingMode">${
@@ -1409,6 +1414,10 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             skillVariant:    f.skillVariant?.value ?? "",
             // Effective bracket after any imaging-scope shift (SR2E p.88)
             range:           shiftRangeBracket(f.range?.value ?? "short", accBase.rangeShift),
+            // Only a range the user chose counts when an aim can't be measured;
+            // a token-derived preset never stands in for a point throw.
+            rangeExplicit:   !!f.range?.dataset.edited || !presets.range,
+            aimAt:           f.aimAt?.value ?? null,
             firingMode:      f.firingMode?.value    ?? "sa",
             rounds:          Math.min(10, Math.max(3, parseInt(f.rounds?.value) || 3)),
             // Sent only when edited; otherwise item.roll recomputes from live
@@ -1600,6 +1609,13 @@ export async function rollWeaponInteractive(actor, item) {
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
                                                defaultingPenalty, presets);
   if (!opts) return;
+  // Aiming an area weapon at a point (p.96): pick it after the dialog and before
+  // the roll, so a cancelled click spends nothing.
+  if (item.system.blastType && opts.aimAt === "point") {
+    const pt = await promptForCanvasPoint(item.name);
+    if (!pt) return;
+    opts.blastPoint = { x: pt.x, y: pt.y, sceneId: canvas.scene?.id ?? null };
+  }
   // Forward the dialog result WHOLESALE. This used to re-list every field by
   // hand, which silently dropped `deployed` and `distance` — the dialog
   // collected them and the attack never saw them. Any field added to the prompt

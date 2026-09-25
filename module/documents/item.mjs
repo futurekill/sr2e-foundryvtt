@@ -1,7 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { burstRounds, burstFired, rangedEngagement, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, burstFired, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 
@@ -519,7 +519,15 @@ export class SR2EItem extends Item {
       const _engage = {
         key: phaseKey(actor, this),
         token: tok ? { uuid: tok.document.uuid, sceneId: tok.document.parent?.id ?? null,
-                       x: tok.center.x, y: tok.center.y, obj: tok } : null
+                       x: tok.center.x, y: tok.center.y, obj: tok } : null,
+        // An area weapon's intended target (p.96): a point, a token, or chosen
+        // at launch — fixed NOW, so a later target cannot hijack it.
+        aim: !this.system.blastType ? null
+          : options.blastPoint ? { mode: "point", x: options.blastPoint.x, y: options.blastPoint.y,
+                                   sceneId: options.blastPoint.sceneId ?? null }
+          : tok ? { mode: "token", tokenUuid: tok.document.uuid, sceneId: tok.document.parent?.id ?? null,
+                    x: tok.center.x, y: tok.center.y }
+          : { mode: "deferred" }
       };
       return enqueueAttack(actor.uuid, () => this._rollWeaponAttack({ ...options, _engage }));
     }
@@ -563,6 +571,43 @@ export class SR2EItem extends Item {
     if (options.barrierRating > 0 && (options.shotSpread || this.system.blastType)) {
       ui.notifications.warn("Barrier resolution is not wired for blast or shot-spread attacks yet.");
       return;
+    }
+
+    // Area weapons (p.96): validate the aim and size the range BEFORE the
+    // grenade is spent. A point must be real; a measurable aim picks its own
+    // range bracket (raw distance); an unmeasurable one needs a range the user
+    // chose — never a token-derived preset.
+    let blastRange = null;
+    if (this.system.blastType && engage?.aim) {
+      const aim = engage.aim;
+      if (aim.mode === "point" && !([aim.x, aim.y].every(Number.isFinite) && game.scenes?.get(aim.sceneId))) {
+        ui.notifications.warn(`${this.name}: that aim point is not on a scene.`);
+        return;
+      }
+      const from = actor.getActiveTokens?.()[0];
+      const onScene = aim.mode !== "deferred" && from && canvas?.ready && canvas.scene?.id === aim.sceneId
+        && from.document.parent?.id === aim.sceneId && [aim.x, aim.y].every(Number.isFinite);
+      if (onScene) {
+        let dist = NaN;
+        try { dist = canvas.grid.measurePath([from.center, { x: aim.x, y: aim.y }]).distance; } catch (e) { dist = NaN; }
+        const brackets = ["throwing", "grenade"].includes(this.system.weaponType)
+          ? thrownRange(actor.system?.strength?.value ?? 1, this.system.aerodynamic ?? false)
+          : (this.system.ranges ?? {});
+        const b = rangeBracketFor(dist, brackets);
+        if (b.outOfRange) {
+          ui.notifications.warn(`${this.name}: ${Math.round(dist)} m is beyond extreme range.`);
+          return;
+        }
+        if (b.range) {
+          const attachedAcc = (this.parent?.items ?? []).filter(i =>
+            i.type === "gear" && i.system.weaponAccessory && i.system.linkedWeaponId === this.id);
+          blastRange = shiftRangeBracket(b.range, accessorySummary(attachedAcc, { deployed: !!options.deployed }).rangeShift);
+        }
+      }
+      if (!blastRange && aim.mode !== "deferred" && !(options.rangeExplicit ?? options.range != null)) {
+        ui.notifications.warn(`${this.name}: the range to the aim can't be measured here — pick the range in the attack dialog.`);
+        return;
+      }
     }
 
     const isThrown = ["throwing", "grenade"].includes(this.system.weaponType);
@@ -783,7 +828,7 @@ export class SR2EItem extends Item {
 
     } else {
       // ── Ranged TN (SR2E p.100–110) ─────────────────────────────────────────
-      const range    = options.range      ?? "short";
+      const range    = blastRange ?? options.range ?? "short";
       firingMode     = options.firingMode ?? "sa";
       const coverMod = options.coverMod   ?? 0;
       const visMod   = options.visMod     ?? 0;   // Visibility Table (p.89)
@@ -1087,7 +1132,9 @@ export class SR2EItem extends Item {
         name: this.name, basePower: dmg.power, baseLevel: dmg.level,
         damageType: this.system.damageType || "physical", blastType: this.system.blastType,
         delivery, calledShot: !!options.calledShot,
-        centerTokenUuid: targetTok?.document?.uuid ?? "",
+        // The intended target, fixed when the attack began (p.96).
+        aim: engage?.aim ?? null,
+        centerTokenUuid: engage?.aim ? (engage.aim.tokenUuid ?? "") : (targetTok?.document?.uuid ?? ""),
         shooterTokenUuid: actor.getActiveTokens?.()[0]?.document?.uuid ?? ""
       };
       const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),

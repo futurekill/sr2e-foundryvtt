@@ -4919,13 +4919,23 @@ export function registerSR2EQuenchTests() {
         const msgs = since(n);
         const blast = msgs.find(m => m.flags?.sr2e?.blastLaunch), test = msgs.find(m => m.flags?.sr2e?.test);
         assert.ok(blast, "a launcher");
-        await game.sr2e.launchFromCard(blast, "blastLaunch");        // fails: no ground zero
+        // Thrown at nothing: the launch asks for a point (p.96); Esc cancels and
+        // leaves it retryable.
+        const cancel = game.sr2e.launchFromCard(blast, "blastLaunch");
+        await new Promise(r => setTimeout(r, 200));
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        await cancel;
         await withFaces([5, 5], () => shooter.applyKarmaToTest(test, "reroll"));
         await settle();
         assert.equal(game.messages.get(blast.id).flags.sr2e.blastLaunch.successes, 3, "still following Karma");
-        await canvas.tokens.setTargets([targetTok.id]);
         const m2 = game.messages.size;
-        await withFaces(Array(10).fill(1), () => game.sr2e.launchFromCard(game.messages.get(blast.id), "blastLaunch"));
+        const launch = game.sr2e.launchFromCard(game.messages.get(blast.id), "blastLaunch");
+        await new Promise(r => setTimeout(r, 200));
+        await withFaces(Array(10).fill(1), async () => {
+          const c = targetTok.object.center;
+          canvas.stage.emit("pointerdown", { stopPropagation() {}, getLocalPosition: () => ({ x: c.x, y: c.y }) });
+          await launch;
+        });
         await settle();
         const rows = since(m2).find(m => m.flags?.sr2e?.resolves === blast.id);
         assert.ok(rows, "the launch posts its rows, marked");
@@ -4938,6 +4948,209 @@ export function registerSR2EQuenchTests() {
         assert.equal(game.messages.get(blast.id).flags.sr2e.blastLaunch.successes, 3, "frozen once launched");
       });
     }, { displayName: "SR2E: Karma → Damage Cards" });
+
+    // ── Grenades aimed at a point (SR2E p.96–97) ────────────────────────────
+    quench.registerBatch("sr2e.placed-grenades", (context) => {
+      const { it, assert, before, after } = context;
+      const made = { tokens: [], messages: [] };
+      let thrower, other, target, throwerTok, otherTok, targetTok, m, o;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const settle = () => new Promise(r => setTimeout(r, 400));
+      const since = (n) => { const x = game.messages.contents.slice(n); made.messages.push(...x.map(y => y.id)); return x; };
+      const newTemplates = (before) => canvas.scene.templates.filter(t => !before.has(t.id));
+      const clickAt = (pt) => canvas.stage.emit("pointerdown", { stopPropagation() {}, getLocalPosition: () => pt });
+      const pressEscape = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      const nade = async (who, qty = 5) => (await who.createEmbeddedDocuments("Item", [{ name: "Quench PG Grenade", type: "weapon",
+        system: { weaponType: "grenade", skill: "throwing weapons", damageCode: "10S", blastType: "offensive", quantity: qty } }]))[0];
+      const fresh = async (who) => who.update((await import("../engagement.mjs")).recoilResetUpdate(who));
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        const mk = async (name) => {
+          const a = await Actor.create({ name, type: "character", system: { strength: { base: 4 } } });
+          await a.createEmbeddedDocuments("Item", [{ name: "Throwing Weapons", type: "skill", system: { rating: 4, category: "active" } }]);
+          return a;
+        };
+        thrower = await mk("Quench PG Thrower"); other = await mk("Quench PG Other");
+        target = await Actor.create({ name: "Quench PG Target", type: "npc" });
+        const g = canvas.dimensions.size; m = g / canvas.dimensions.distance;
+        o = { x: canvas.dimensions.sceneX + 60 * g + g / 2, y: canvas.dimensions.sceneY + 30 * g + g / 2 };
+        const put = async (a, dx, dy = 0) => (await canvas.scene.createEmbeddedDocuments("Token", [{
+          ...(await a.getTokenDocument()).toObject(), actorLink: true, x: o.x - g / 2 + dx * m, y: o.y - g / 2 + dy * m }]))[0];
+        throwerTok = await put(thrower, 0); otherTok = await put(other, 20, 10); targetTok = await put(target, 5, 5);
+        made.tokens.push(throwerTok.id, otherTok.id, targetTok.id);
+        await settle();
+      });
+      after(async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        await new Promise(r => setTimeout(r, 2000));
+        const tpl = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")).map(t => t.id);
+        if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl);
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+      });
+
+      // Throw at a point; return the launcher message.
+      const throwAt = async (who, gren, point, faces, extra = {}) => {
+        await fresh(who);
+        await canvas.tokens.setTargets([]);
+        const n = game.messages.size;
+        await withFaces(faces, () => gren.roll({ blastPoint: { ...point, sceneId: canvas.scene.id }, ...extra }));
+        await settle();
+        return { msgs: since(n), launcher: game.messages.contents.slice(n).find(x => x.flags?.sr2e?.blastLaunch) };
+      };
+
+      it("a grenade aimed at an empty point lands there (no scatter)", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower);
+        const pt = { x: o.x + 8 * m, y: o.y };
+        const { launcher } = await throwAt(thrower, g, pt, [5, 5, 5, 5]);
+        assert.deepInclude(launcher.flags.sr2e.blastLaunch.aim, { mode: "point", x: pt.x, y: pt.y });
+        const before = new Set(canvas.scene.templates.map(t => t.id));
+        await withFaces([1], () => game.sr2e.launchFromCard(launcher, "blastLaunch"));   // 1D6 = 1 − 4×2 → 0
+        await settle();
+        const [tpl] = newTemplates(before);
+        assert.closeTo(tpl.x, pt.x, 1); assert.closeTo(tpl.y, pt.y, 1);
+      });
+
+      it("scatter 1 carries on past the point, away from each thrower", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const pt = { x: o.x + 10 * m, y: o.y + 5 * m };
+        for (const [who, tok] of [[thrower, throwerTok], [other, otherTok]]) {
+          const g = await nade(who);
+          const { launcher } = await throwAt(who, g, pt, [1, 1, 1, 2]);     // 0 successes
+          const before = new Set(canvas.scene.templates.map(t => t.id));
+          await withFaces([4, 1], () => game.sr2e.launchFromCard(launcher, "blastLaunch"));  // 4 m, diagram 1
+          await settle();
+          const [tpl] = newTemplates(before);
+          const from = tok.object.center;
+          const away = { x: pt.x - from.x, y: pt.y - from.y };
+          const moved = { x: tpl.x - pt.x, y: tpl.y - pt.y };
+          assert.isAbove(away.x * moved.x + away.y * moved.y, 0, `${who.name}: lands beyond the point`);
+          assert.closeTo(Math.hypot(moved.x, moved.y), 4 * m, 2);
+        }
+      });
+
+      it("the range bracket comes from the raw distance (just past Str×3 is Medium)", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower);
+        const { msgs } = await throwAt(thrower, g, { x: o.x + 12.4 * m, y: o.y }, [5, 5, 5, 5]);
+        const label = msgs.find(x => x.flags?.sr2e?.test)?.flags.sr2e.test.label ?? "";
+        assert.match(label, /Medium/, label);
+      });
+
+      it("a malformed point is refused with the grenade unspent", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower, 3);
+        const n = game.messages.size;
+        await g.roll({ blastPoint: { x: NaN, y: 1, sceneId: canvas.scene.id } });
+        await g.roll({ blastPoint: { x: 1, y: 1, sceneId: "nope" } });
+        since(n);
+        assert.equal(g.system.quantity, 3);
+      });
+
+      it("a queued throw keeps its point even if a token is targeted before it runs", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower);
+        await fresh(thrower);
+        await canvas.tokens.setTargets([]);
+        const pt = { x: o.x + 6 * m, y: o.y, sceneId: canvas.scene.id };
+        const n = game.messages.size;
+        const p = withFaces([5, 5, 5, 5], () => g.roll({ blastPoint: pt }));
+        await canvas.tokens.setTargets([targetTok.id]);
+        await p; await settle();
+        const launcher = since(n).find(x => x.flags?.sr2e?.blastLaunch);
+        assert.equal(launcher.flags.sr2e.blastLaunch.aim.mode, "point");
+      });
+
+      it("a deferred throw asks for the point at launch; Esc leaves it retryable, and Karma during the pick is used", async function () {
+        this.timeout(20000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower);
+        await fresh(thrower);
+        await thrower.update({ "system.karma.poolAdjust": 10 });
+        await canvas.tokens.setTargets([]);
+        const n = game.messages.size;
+        await withFaces([5, 1, 2, 2], () => g.roll({ range: "short" }));
+        await settle();
+        const msgs = since(n);
+        const launcher = msgs.find(x => x.flags?.sr2e?.blastLaunch), test = msgs.find(x => x.flags?.sr2e?.test);
+        assert.equal(launcher.flags.sr2e.blastLaunch.aim.mode, "deferred");
+        // Cancel.
+        let p = game.sr2e.launchFromCard(launcher, "blastLaunch");
+        await new Promise(r => setTimeout(r, 200)); pressEscape(); await p;
+        const { isCardResolved } = await import("../astral-combat.mjs");
+        assert.isFalse(isCardResolved(game.messages.get(launcher.id), "blastLaunch"), "still retryable");
+        // Pick, with a Karma reroll landing while the picker is open.
+        p = game.sr2e.launchFromCard(game.messages.get(launcher.id), "blastLaunch");
+        await new Promise(r => setTimeout(r, 200));
+        await withFaces([5, 5, 5], () => thrower.applyKarmaToTest(test, "reroll"));
+        const m2 = game.messages.size;
+        await withFaces([1], async () => { clickAt({ x: o.x + 7 * m, y: o.y }); await p; });
+        await settle();
+        const rows = since(m2).find(x => x.flags?.sr2e?.resolves === launcher.id);
+        assert.ok(rows, "launched");
+        assert.equal(rows.flags.sr2e.launchSuccesses, 4, "the reroll during the pick counts");
+      });
+
+      it("refuses a point on another scene, and a token aim whose token is gone (no live-target fallback)", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower);
+        const { launcher } = await throwAt(thrower, g, { x: o.x + 5 * m, y: o.y }, [5, 5, 5, 5]);
+        const moved = { ...launcher.flags.sr2e.blastLaunch, aim: { ...launcher.flags.sr2e.blastLaunch.aim, sceneId: "elsewhere" } };
+        await launcher.update({ "flags.sr2e.blastLaunch": moved });
+        await game.sr2e.launchFromCard(game.messages.get(launcher.id), "blastLaunch");
+        const { isCardResolved } = await import("../astral-combat.mjs");
+        assert.isFalse(isCardResolved(game.messages.get(launcher.id), "blastLaunch"));
+        const gone = { ...moved, aim: { mode: "token", tokenUuid: `${canvas.scene.uuid}.Token.missingToken00` } };
+        await launcher.update({ "flags.sr2e.blastLaunch": gone });
+        await canvas.tokens.setTargets([targetTok.id]);
+        await game.sr2e.launchFromCard(game.messages.get(launcher.id), "blastLaunch");
+        assert.isFalse(isCardResolved(game.messages.get(launcher.id), "blastLaunch"), "did not hit the live target");
+      });
+
+      it("an old launcher without aim still launches at its stored token", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const g = await nade(thrower);
+        const { launcher } = await throwAt(thrower, g, { x: o.x + 5 * m, y: o.y }, [5, 5, 5, 5]);
+        const old = { ...launcher.flags.sr2e.blastLaunch, centerTokenUuid: targetTok.uuid };
+        delete old.aim;
+        await launcher.update({ "flags.sr2e.-=blastLaunch": null });
+        await launcher.update({ "flags.sr2e.blastLaunch": old });
+        const before = new Set(canvas.scene.templates.map(t => t.id));
+        await withFaces([1], () => game.sr2e.launchFromCard(game.messages.get(launcher.id), "blastLaunch"));
+        await settle();
+        const [tpl] = newTemplates(before);
+        assert.ok(tpl, "launched");
+        assert.closeTo(tpl.x, targetTok.object.center.x, 1);
+      });
+
+      it("a point with no measurable range and no explicit range is refused", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const loner = await Actor.create({ name: "Quench PG Loner", type: "character" });   // no token on the scene
+        const g = await nade(loner, 2);
+        await g.roll({ blastPoint: { x: o.x, y: o.y, sceneId: canvas.scene.id } });
+        assert.equal(g.system.quantity, 2, "refused before spending");
+        await g.roll({ blastPoint: { x: o.x, y: o.y, sceneId: canvas.scene.id }, range: "short" });
+        assert.equal(g.system.quantity, 1, "an explicit range lets it go");
+        made.messages.push(...game.messages.contents.slice(-6).map(x => x.id));
+      });
+    }, { displayName: "SR2E: Grenades at a Point" });
 
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;

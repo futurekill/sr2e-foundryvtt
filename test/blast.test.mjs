@@ -80,3 +80,19 @@ describe("scatterBearing — the p.97 Scatter Diagram", () => {
     expect(deg(scatterBearing(Math.PI / 2, 4))).toBe(270);
   });
 });
+
+import { rangeBracketFor } from "../module/rules/sr2e-rules.mjs";
+describe("rangeBracketFor — raw distance, not rounded (p.88, p.96)", () => {
+  const r = { short: 12, medium: 20, long: 40, extreme: 80 };
+  it("a hair past Short is Medium", () => {
+    expect(rangeBracketFor(12.4, r).range).toBe("medium");
+    expect(rangeBracketFor(12, r).range).toBe("short");
+  });
+  it("beyond Extreme is flagged out of range", () => {
+    expect(rangeBracketFor(80.1, r)).toEqual({ range: "extreme", outOfRange: true });
+  });
+  it("no brackets or no distance → null", () => {
+    expect(rangeBracketFor(5, {}).range).toBeNull();
+    expect(rangeBracketFor(NaN, r).range).toBeNull();
+  });
+});

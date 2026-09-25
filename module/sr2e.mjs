@@ -16,6 +16,7 @@ import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
 import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
+import { promptForCanvasPoint } from "./placement.mjs";
 import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack, isCardResolved } from "./astral-combat.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
@@ -1866,11 +1867,30 @@ async function launchFromCard(message, key) {
   if (!st || isCardResolved(message, key)) return ui.notifications.warn("That has already been launched.");
   LAUNCH_IN_FLIGHT.add(message.id);
   try {
-    const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
-    const successes = t ? testTotalSuccesses(t) : (st.successes ?? 0);
+    const liveTotal = () => {
+      const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
+      return t ? testTotalSuccesses(t) : (st.successes ?? 0);
+    };
+    let successes = liveTotal();
+    // The blast's intended target (p.96). Cards posted before `aim` existed
+    // fall back to their stored token, else are chosen now.
+    let aim = key === "blastLaunch"
+      ? (st.aim ?? (st.centerTokenUuid ? { mode: "token", tokenUuid: st.centerTokenUuid } : { mode: "deferred" }))
+      : null;
+    if (aim?.mode === "deferred") {
+      const pt = await promptForCanvasPoint(st.name);
+      if (!pt) return;                                   // cancelled: still retryable
+      aim = { mode: "point", x: pt.x, y: pt.y, sceneId: canvas.scene?.id ?? null };
+      // The click took time: re-check and re-read (Karma may have landed).
+      if (isCardResolved(game.messages.get(message.id), key)) return ui.notifications.warn("That has already been launched.");
+      successes = liveTotal();
+    }
     const marker = { resolves: message.id, launchSuccesses: successes };
     if (key === "blastLaunch") {
-      await resolveBlast({ centerTokenUuid: st.centerTokenUuid, shooterTokenUuid: st.shooterTokenUuid,
+      await resolveBlast({
+        centerTokenUuid: aim.mode === "token" ? aim.tokenUuid : "",
+        centerPoint: aim.mode === "point" ? aim : null, strictToken: true,
+        shooterTokenUuid: st.shooterTokenUuid,
         basePower: st.basePower, baseLevel: st.baseLevel, damageType: st.damageType, blastType: st.blastType,
         attackerSuccesses: successes, delivery: st.delivery, blastName: st.name,
         netStaging: true, calledShot: !!st.calledShot, marker });
@@ -1963,13 +1983,26 @@ Hooks.on("createChatMessage", async (outcome) => {
  * @param {number} o.attackerSuccesses - Successes from the attack Success Test.
  * @param {string} o.blastName        - Display name.
  */
-async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false, marker = null }) {
+async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken = false, shooterTokenUuid = "", basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false, marker = null }) {
   if (!canvas?.ready) { ui.notifications.warn("No active scene for the blast."); return false; }
-  const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid) : null;
-  const centerTok = centerDoc?.object ?? game.user?.targets?.first?.();
-  if (!centerTok) {
-    ui.notifications.warn("Target a token (the blast's ground zero) before resolving the blast.");
-    return false;
+  // Ground zero: a point (p.96 — "choose the intended target"), or a token. A
+  // flag-backed launch never falls back to whoever is targeted now.
+  let centerTok = null;
+  if (centerPoint) {
+    if (centerPoint.sceneId !== canvas.scene?.id) {
+      ui.notifications.warn("That blast was aimed on another scene — view it to resolve the blast.");
+      return false;
+    }
+  } else {
+    const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid).catch(() => null) : null;
+    centerTok = centerDoc?.parent?.id === canvas.scene?.id ? (centerDoc?.object ?? null) : null;
+    if (!centerTok && !strictToken) centerTok = game.user?.targets?.first?.() ?? null;
+    if (!centerTok) {
+      ui.notifications.warn(strictToken
+        ? "The blast's target token is not on the viewed scene — the GM resolves it."
+        : "Target a token (the blast's ground zero) before resolving the blast.");
+      return false;
+    }
   }
   // A flag-backed launcher's outcome carries its marker (resolves + the
   // successes the launch used) so any client can tell it has been launched.
@@ -1983,7 +2016,7 @@ async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower,
   const prof = scatterProfile(delivery || "standard");
   const rolledScatter = (await new Roll(`${prof.dice}d6`).evaluate()).total;
   const scatterM = scatterDistance(rolledScatter, attackerSuccesses || 0, prof.perSuccess);
-  let center = centerTok.center;
+  let center = centerPoint ? { x: centerPoint.x, y: centerPoint.y } : centerTok.center;
   let scatterNote = "lands on target";
   if (scatterM > 0) {
     // Direction from the Scatter Diagram (p.97), relative to the throw: 1 goes
@@ -1991,7 +2024,7 @@ async function resolveBlast({ centerTokenUuid, shooterTokenUuid = "", basePower,
     // the map there is no throw direction, so the diagram is read from north
     // and the card says so.
     const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : null;
-    const throwAngle = shooterTok && shooterTok !== centerTok
+    const throwAngle = shooterTok && shooterTok !== centerTok && (shooterTok.center.x !== center.x || shooterTok.center.y !== center.y)
       ? Math.atan2(center.y - shooterTok.center.y, center.x - shooterTok.center.x)
       : -Math.PI / 2;
     const d6 = (await new Roll("1d6").evaluate()).total;

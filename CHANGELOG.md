@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — throw a grenade at a point on the map (SR2E p.96)
+
+"First choose the intended target." That can be a spot on the floor, not just a
+token. The attack dialog for grenades, rockets and missiles has an **Aim at**
+choice, either the targeted token or **a point on the map**. For a point, you
+click the map after Attack, and Esc cancels with nothing spent.
+
+- The range bracket is measured from your token to the point using the **raw**
+  distance: 12.4 m with a Str×3 = 12 m short range is Medium. A throw beyond
+  extreme range is refused before the grenade is spent. If the range can't be
+  measured (no token of yours on the scene), pick the range yourself.
+- The aim is fixed when you throw. Targeting someone else before the throw
+  resolves can't redirect it, and a launcher never falls back to whoever is
+  targeted at launch.
+- Thrown at nothing? The **Resolve Blast** button asks for the point when you
+  click it, and Esc leaves it for later. Karma spent while you pick still
+  counts.
+- Scatter still follows the Scatter Diagram, relative to your throw.
+
 ### Fixed — Karma spent on an attack reaches its damage card
 
 A ranged weapon's damage card used to be fixed once posted. If the attacker

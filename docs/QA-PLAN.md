@@ -334,6 +334,12 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] A custom weapon set to a Blast type on its item sheet behaves the same;
       blank = ordinary single-target weapon.
 
+- [ ] **Aim at a point (p.96):** a grenade's dialog offers "Aim at: a point on the
+      map" → click an empty spot → the launcher's Resolve Blast drops the template
+      there (scatter permitting). Range is measured from your token (12.4 m at Str 4
+      is Medium). With nothing targeted and no point, Resolve Blast asks for the point
+      (Esc leaves it retryable).
+
 ## 17e. Compendium completeness & foldering (v0.20.x)
 - [ ] **Weapons** compendium opens with category folders: **Firearms** (9
       sub-folders: Hold-Out → Shotguns), **Melee**, **Thrown**, **Projectile**
