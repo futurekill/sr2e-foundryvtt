@@ -13,7 +13,8 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
-import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental } from "../elementals.mjs";
+import { natureDepartNote } from "../nature-spirits.mjs";
+import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownOutcome, webDefaultingTN, webNodeForLabel,
@@ -1241,8 +1242,7 @@ export class SR2EActor extends Actor {
     }
 
     // Limits (p.139–140): one nature spirit in service; elementals up to Charisma.
-    const bound = (await Promise.all((this.system.boundSpirits ?? []).map(u => fromUuid(u).catch(() => null))))
-      .filter(a => a?.type === "spirit").map(a => a.system);
+    const bound = liveBoundSpirits(this).filter(a => a.type === "spirit").map(a => a.system);
     const limit = conjuringLimit(kind, bound, charisma);
     if (limit) return ui.notifications.warn(limit);
 
@@ -1392,10 +1392,7 @@ export class SR2EActor extends Actor {
       ui.notifications.error(`Spirit creation failed: ${err?.message ?? "see the console (F12)"}`);
     }
 
-    if (spiritUuid && !uncontrolled) {
-      const bound = this.system.boundSpirits ?? [];
-      await this.update({ "system.boundSpirits": [...bound, spiritUuid] });
-    }
+    if (spiritUuid && !uncontrolled) await mutateBindings(this, live => [...live, spiritUuid]);
 
     // Be honest about the outcome: only claim a summon if the actor exists.
     await ChatMessage.create({
@@ -1412,7 +1409,7 @@ export class SR2EActor extends Actor {
             <strong>${foundry.utils.escapeHTML(name)} summoned</strong> —
             <strong>${services} service${services === 1 ? "" : "s"}</strong>.
             <br><em>Conjuring successes: ${services} (TN ${force}).${
-              kind === "nature" ? " Nature spirits vanish at the next sunrise or sunset."
+              kind === "nature" ? natureDepartNote()
               : ` The rite took ${force} hour${force === 1 ? "" : "s"}${materials ? `; materials ${materials.toLocaleString()}¥` : ""} (SR2E p.140).`}</em>
           </div>`
         : `<div class="sr2e-damage-result">

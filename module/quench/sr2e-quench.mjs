@@ -5612,6 +5612,164 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Spell Effects (Ignite, Poltergeist, Ice Sheet)" });
 
+    // ── Nature spirits depart at sunrise and sunset (SR2E p.139) ──────────────
+    // Every run is SCOPED to "Quench NS" fixtures: the real call sends away
+    // every nature spirit in the world.
+    quench.registerBatch("sr2e.nature-expiry", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      let ns, elementals, placement, msgStart = 0, extraScene = null;
+      const scope = (a) => a?.name?.startsWith("Quench NS");
+      const settingsBefore = {};
+      const waitFor = async (fn, ms = 3000) => {
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) { if (await fn()) return true; await new Promise(r => setTimeout(r, 50)); }
+        return false;
+      };
+      const mkSpirit = (name, system = {}) => Actor.create({ name: `Quench NS ${name}`, type: "spirit",
+        system: { spiritType: "nature", force: 3, services: 2, ...system } });
+      const tokenOn = async (scene, actor, link, x = 200) => (await scene.createEmbeddedDocuments("Token", [{
+        ...(await actor.getTokenDocument()).toObject(), actorLink: link, x, y: 200 }]))[0];
+      const depart = () => ns.natureSpiritsDepart({ reason: "Quench", scope, quiet: true });
+
+      before(async () => {
+        ns = await import("../nature-spirits.mjs");
+        elementals = await import("../elementals.mjs");
+        placement = await import("../placement.mjs");
+        ns.departTesting.scope = scope;
+        for (const k of ["natureSpiritExpiry", "natureSpiritDepartDelete"]) settingsBefore[k] = game.settings.get("sr2e", k);
+        extraScene = await Scene.create({ name: "Quench NS Other Scene", width: 1000, height: 1000 });
+        msgStart = game.messages.size;
+      });
+      after(async () => {
+        ns.departTesting.scope = null;
+        for (const [k, v] of Object.entries(settingsBefore)) await game.settings.set("sr2e", k, v);
+        await extraScene?.delete();
+      });
+      afterEach(async function () {
+        this.timeout(15000);
+        await game.settings.set("sr2e", "natureSpiritDepartDelete", true);
+        for (const s of [canvas.scene, extraScene]) {
+          const ids = s.tokens.filter(t => t.name?.startsWith("Quench NS")).map(t => t.id);
+          if (ids.length) await s.deleteEmbeddedDocuments("Token", ids);
+        }
+        const ids = game.actors.filter(a => a.name.startsWith("Quench NS")).map(a => a.id);
+        if (ids.length) await Actor.deleteDocuments(ids);
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgStart).map(m => m.id));
+        msgStart = game.messages.size;
+      });
+
+      it("a bound nature spirit goes, with its tokens on every scene; the conjurer's list is untouched but reads live", async () => {
+        const mage = await Actor.create({ name: "Quench NS Shaman", type: "character" });
+        const sp = await mkSpirit("City", { conjurerUuid: mage.uuid });
+        await mage.update({ "system.boundSpirits": [sp.uuid] });
+        await tokenOn(canvas.scene, sp, true);
+        await tokenOn(extraScene, sp, true);
+        const gone = await depart();
+        assert.include(gone, sp.name);
+        assert.isFalse(game.actors.has(sp.id), "actor deleted");
+        assert.lengthOf(canvas.scene.tokens.filter(t => t.actorId === sp.id), 0);
+        assert.lengthOf(extraScene.tokens.filter(t => t.actorId === sp.id), 0, "the inactive scene too");
+        assert.deepEqual(mage.system.boundSpirits, [sp.uuid], "the GM never writes the bindings");
+        assert.lengthOf(elementals.liveBoundSpirits(mage), 0, "but no reader sees it");
+        // The conjurer's own next write prunes it.
+        const other = await mkSpirit("Second", { spiritType: "elemental", domain: "fire" });
+        await elementals.mutateBindings(mage, live => [...live, other.uuid]);
+        assert.deepEqual(mage.system.boundSpirits, [other.uuid]);
+      });
+
+      it("orphaned and zero-service spirits go; elementals stay; two unlinked copies both go", async () => {
+        const orphan = await mkSpirit("Orphan");
+        const zero = await mkSpirit("Zero", { services: 0 });
+        const elem = await mkSpirit("Fire", { spiritType: "elemental", domain: "fire" });
+        const t1 = await tokenOn(canvas.scene, orphan, false, 200);
+        const t2 = await tokenOn(canvas.scene, orphan, false, 400);
+        const te = await tokenOn(canvas.scene, elem, true, 600);
+        await depart();
+        assert.isFalse(game.actors.has(orphan.id)); assert.isFalse(game.actors.has(zero.id));
+        assert.isFalse(canvas.scene.tokens.has(t1.id)); assert.isFalse(canvas.scene.tokens.has(t2.id));
+        assert.isTrue(game.actors.has(elem.id), "elemental untouched");
+        assert.isTrue(canvas.scene.tokens.has(te.id));
+      });
+
+      it("an unlinked token its delta made an elemental is detached and survives two runs (a retry reuses the detached actor)", async () => {
+        const base = await mkSpirit("Base");
+        const tok = await tokenOn(canvas.scene, base, false);
+        await canvas.scene.tokens.get(tok.id).update({ "flags.sr2e.summonedSpirit": base.uuid });
+        await tok.actor.update({ name: "Quench NS Turned", "system.spiritType": "elemental", "system.domain": "water" });
+        // A previous run died after creating the detached actor: it is reused.
+        const pre = await Actor.create({ ...tok.actor.toObject(), _id: undefined, flags: { sr2e: { detachedFrom: tok.uuid } } });
+        await depart();
+        const t = canvas.scene.tokens.get(tok.id);
+        assert.ok(t, "the token survives");
+        assert.equal(t.actorId, pre.id, "re-pointed to the one detached actor");
+        assert.lengthOf(game.actors.filter(a => a.getFlag("sr2e", "detachedFrom") === tok.uuid), 1, "not two");
+        assert.equal(t.actor.system.domain, "water");
+        assert.equal(t.flags.sr2e.summonedSpirit, pre.uuid, "its flag follows");
+        assert.isFalse(game.actors.has(base.id), "the nature base expires");
+        await depart();
+        assert.ok(canvas.scene.tokens.get(tok.id), "still there after a second run");
+      });
+
+      it("retention: kept, marked, not reported again; deletion on retries an interrupted actor delete", async () => {
+        await game.settings.set("sr2e", "natureSpiritDepartDelete", false);
+        const kept = await mkSpirit("Kept");
+        const first = await depart();
+        assert.include(first, kept.name);
+        assert.isTrue(kept.getFlag("sr2e", "departed")); assert.equal(kept.system.services, 0);
+        assert.notInclude(await depart(), kept.name, "a complete departure is not reported again");
+        await game.settings.set("sr2e", "natureSpiritDepartDelete", true);
+        await depart();                        // marked, tokenless, deletion on: finished now
+        assert.isFalse(game.actors.has(kept.id));
+      });
+
+      it("a spirit summoned after the snapshot survives; placement refuses a departed spirit; a late token is reconciled", async function () {
+        this.timeout(10000);
+        const old = await mkSpirit("Old");
+        const run = depart();                  // snapshot taken synchronously here
+        const fresh = await mkSpirit("Fresh");
+        await run;
+        assert.isTrue(game.actors.has(fresh.id), "summoned after the event");
+        await game.settings.set("sr2e", "natureSpiritDepartDelete", false);
+        await depart();
+        assert.isTrue(fresh.getFlag("sr2e", "departed"));
+        const caster = await Actor.create({ name: "Quench NS Caster", type: "character" });
+        await tokenOn(canvas.scene, caster, true, 800);
+        const n = canvas.scene.tokens.size;
+        const mode = game.settings.get("sr2e", "spiritPlacement");
+        await game.settings.set("sr2e", "spiritPlacement", "nearest");   // not "prompt": no click to wait for
+        try { await placement.placeSummonedToken(fresh, caster); }
+        finally { await game.settings.set("sr2e", "spiritPlacement", mode); }
+        assert.equal(canvas.scene.tokens.size, n, "no token for a departed spirit");
+        // A token that landed anyway (the check and the create raced): the GM removes it.
+        const late = await tokenOn(canvas.scene, fresh, true, 1000);
+        await late.update({ "flags.sr2e.summonedSpirit": fresh.uuid });
+        await depart();
+        assert.isFalse(canvas.scene.tokens.has(late.id));
+        const [again] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await fresh.getTokenDocument()).toObject(),
+          x: 1200, y: 200, flags: { sr2e: { summonedSpirit: fresh.uuid } } }]);
+        assert.isTrue(await waitFor(() => !canvas.scene.tokens.has(again.id)), "createToken reconcile");
+        assert.isTrue(game.actors.has(old.id) === false);
+      });
+
+      it("the time trigger: off does nothing; on crosses 18:00 once; a rewind does nothing", async () => {
+        const sp = await mkSpirit("Timed");
+        const day = 24 * 3600, t = 50 * day + 18 * 3600;
+        await game.settings.set("sr2e", "natureSpiritExpiry", false);
+        Hooks.callAll("updateWorldTime", t, 3600);
+        await new Promise(r => setTimeout(r, 400));
+        assert.isTrue(game.actors.has(sp.id), "setting off");
+        await game.settings.set("sr2e", "natureSpiritExpiry", true);
+        Hooks.callAll("updateWorldTime", t, -3600);
+        await new Promise(r => setTimeout(r, 400));
+        assert.isTrue(game.actors.has(sp.id), "a rewind");
+        Hooks.callAll("updateWorldTime", t - 3600, 3600);
+        await new Promise(r => setTimeout(r, 400));
+        assert.isTrue(game.actors.has(sp.id), "16:00 → 17:00 crosses nothing");
+        Hooks.callAll("updateWorldTime", t, 3600);
+        assert.isTrue(await waitFor(() => !game.actors.has(sp.id)), "17:00 → 18:00: gone");
+      });
+    }, { displayName: "SR2E: Nature Spirits Depart (p.139)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

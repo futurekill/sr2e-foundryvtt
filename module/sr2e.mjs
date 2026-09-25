@@ -21,6 +21,7 @@ import { promptGrant, grantSpellDefense } from "./spell-defense.mjs";
 import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack, isCardResolved } from "./astral-combat.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 import { registerSpellEffectHooks, wireSpellEffectButtons } from "./spell-effects.mjs";
+import { registerNatureSpiritSettings, registerNatureSpiritHooks, natureSpiritsDepart } from "./nature-spirits.mjs";
 
 // Sheets
 import {
@@ -432,12 +433,14 @@ Hooks.once("init", async () => {
   // Register in-Foundry integration tests (no-op unless the Quench module is on).
   registerSR2EQuenchTests();
   registerSpellEffectHooks();
+  registerNatureSpiritSettings();
+  registerNatureSpiritHooks();
 
   // Store configuration on the global CONFIG object
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { natureSpiritsDepart, rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.

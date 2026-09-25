@@ -51,6 +51,13 @@ export async function placeSummonedToken(spirit, caster) {
 
     proto.x = Math.round(point.x);
     proto.y = Math.round(point.y);
+    // A spirit that departed (sunrise/sunset, p.139) or was deleted while we
+    // waited gets no token. The check and the create aren't atomic, so the
+    // token also names its spirit, and the active GM removes it if the spirit
+    // is gone by the time it lands (nature-spirits.mjs).
+    const live = fromUuidSync(spirit.uuid);
+    if (!live || live.getFlag("sr2e", "departed")) return;
+    foundry.utils.setProperty(proto, "flags.sr2e.summonedSpirit", spirit.uuid);
     await scene.createEmbeddedDocuments("Token", [proto]);
   } catch (err) {
     console.warn("SR2E | could not place the summoned token (the spirit actor still exists — drag it out):", err);

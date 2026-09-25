@@ -9,7 +9,7 @@ import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
-import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID } from "../elementals.mjs";
+import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -3638,12 +3638,11 @@ const SHARED_ACTIONS = {
     event.preventDefault();
     const uuid = target.closest("[data-spirit-uuid]")?.dataset.spiritUuid;
     if (!uuid) return;
-    const current = this.document.system.boundSpirits ?? [];
     // A sustaining elemental takes its spell with it (p.142); a pending ending
     // must finish first. If that cleanup fails, keep the spirit and its record.
     const pre = await fromUuid(uuid);
     if (pre && !(await releaseElemental(pre))) return;
-    await this.document.update({ "system.boundSpirits": current.filter(s => s !== uuid) });
+    await mutateBindings(this.document, live => live.filter(s => s !== uuid));
     const spirit = await fromUuid(uuid);
     if (spirit) {
       await ChatMessage.create({

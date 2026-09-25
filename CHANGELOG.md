@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added — nature spirits vanish at sunrise and sunset (SR2E p.139)
+
+"Nature spirits vanish at sunrise and sunset, no matter what … All services end
+at that time."
+
+- A GM button in the token controls (☀ "Sunrise / Sunset") sends every nature
+  spirit away. Its tokens go from every scene, its services end, and its actor
+  is deleted. Turn off **Delete departed nature spirits** to keep the actor,
+  marked departed with no services.
+- **Automatic** (off by default): turn on **Nature spirits depart at sunrise
+  and sunset**, and advancing world time past sunrise (06:00) or sunset (18:00)
+  does it. Both hours are world settings. The summon card says how long until
+  the spirit goes.
+- A spirit whose unlinked token was turned into something else (say, an
+  elemental) keeps that token, on its own actor.
+- The shaman's sheet and summoning limit stop counting a departed spirit at
+  once, so they can summon another.
+
 ### Added — Ignite, Poltergeist and Ice Sheet do what the book says (SR2E p.157–158)
 
 - **Ignite**: target a character and cast. With **more** successes than the

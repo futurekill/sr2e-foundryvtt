@@ -216,6 +216,12 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).
 - [ ] A linked **Spirit actor** is created; its sheet tracks services, powers, manifest attack, banish.
 
+- [ ] **Nature spirits depart (p.139):** summon a nature spirit (token placed) → the
+      ☀ token-control button → its tokens vanish from every scene, the actor is deleted,
+      and the shaman can summon another nature spirit at once. With "Nature spirits depart
+      at sunrise and sunset" on, advance world time past 18:00 → the same, once. Turn off
+      "Delete departed nature spirits" → the actor stays with 0 services, marked departed.
+
 - [ ] **Limits (p.139–140):** a shaman with a nature spirit still owing services
       cannot summon another; a mage with Charisma-many bound elementals must release
       one. **Materials:** Summon Elemental charges 1,000¥ × Force (untick if on hand),

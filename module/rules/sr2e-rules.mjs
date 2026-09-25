@@ -4127,3 +4127,31 @@ export function segmentHitsRect(a, b, rect) {
   }
   return true;
 }
+
+// ── Nature spirits depart at sunrise and sunset (SR2E p.139) ────────────────
+
+/**
+ * Whether a sunrise or sunset lies in the half-open interval (now − dt, now].
+ * World time counts seconds from a midnight, so a day starts at a multiple of
+ * `dayLength`. Any jump of a full day or more crosses both.
+ */
+export function sunBoundaryCrossed({ now, dt, dayLength, hourLength, sunrise = 6, sunset = 18 }) {
+  if (!(dt > 0) || !(dayLength > 0)) return false;
+  if (dt >= dayLength) return true;
+  const end = ((now % dayLength) + dayLength) % dayLength;
+  const start = end - dt;                       // may reach back into the previous day
+  return [sunrise, sunset].some(h => {
+    const b = h * hourLength;
+    return (b > start && b <= end) || (b - dayLength > start && b - dayLength <= end);
+  });
+}
+
+/** Seconds from `now` until the next sunrise or sunset (0 < result ≤ a day). */
+export function nextSunBoundary({ now, dayLength, hourLength, sunrise = 6, sunset = 18 }) {
+  const t = ((now % dayLength) + dayLength) % dayLength;
+  const waits = [sunrise, sunset].map(h => {
+    const w = h * hourLength - t;
+    return w > 0 ? w : w + dayLength;
+  });
+  return Math.min(...waits);
+}

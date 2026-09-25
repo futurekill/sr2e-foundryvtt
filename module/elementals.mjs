@@ -19,6 +19,7 @@
  */
 import { elementalAidsCategory, planElementalTransition } from "./rules/sr2e-rules.mjs";
 import { exclusiveBlock } from "./restricted-spells.mjs";
+import { enqueueAttack } from "./engagement.mjs";
 
 /** Spirit (and spell) uuids with a transition in flight on THIS client. */
 const IN_FLIGHT = new Set();
@@ -48,12 +49,38 @@ function sync(uuid) {
 }
 
 /**
+ * A conjurer's bound spirits that still exist and have not departed (a nature
+ * spirit at sunrise/sunset, p.139). The ONE reader of `boundSpirits`: nothing
+ * but the conjurer's own flows writes that list, so a dead entry may linger
+ * there until their next write prunes it, and every reader skips it here.
+ */
+export function liveBoundSpirits(conjurer) {
+  return (conjurer?.system?.boundSpirits ?? []).map(sync)
+    .filter(a => a && !a.getFlag?.("sr2e", "departed"));
+}
+
+/**
+ * Change a conjurer's binding list. Queued per conjurer and read fresh inside
+ * the step, after every await, so a banish and a summon on this client cannot
+ * overwrite each other; dead entries are pruned by the same write.
+ */
+export function mutateBindings(conjurer, fn) {
+  return enqueueAttack(`bind:${conjurer.uuid}`, async () => {
+    const live = liveBoundSpirits(conjurer).map(a => a.uuid);
+    const next = fn(live);
+    const cur = conjurer.system.boundSpirits ?? [];
+    if (next.length === cur.length && next.every((u, i) => u === cur[i])) return;
+    await conjurer.update({ "system.boundSpirits": next });
+  });
+}
+
+/**
  * The caster's own bound elementals: listed in its boundSpirits AND pointing
  * back at it (conjurerUuid). Characters only — NPCs have no binding list.
  */
 export function boundElementals(caster) {
   if (caster?.type !== "character") return [];
-  return (caster.system.boundSpirits ?? []).map(sync)
+  return liveBoundSpirits(caster)
     .filter(a => isElemental(a) && a.system.conjurerUuid === caster.uuid);
 }
 
@@ -160,7 +187,7 @@ function sustainRefusal(spirit, spell) {
   if (!spell || spell.type !== "spell") return "that spell no longer exists";
   const caster = spell.parent;
   if (!caster || spirit.system.conjurerUuid !== caster.uuid
-      || !(caster.system.boundSpirits ?? []).includes(spirit.uuid)) return "it is not bound to that spell's caster";
+      || !liveBoundSpirits(caster).some(a => a.uuid === spirit.uuid)) return "it is not bound to that spell's caster";
   if (!spell.isOwner) return "you do not own that spell";
   if (!elementalAidsCategory(spirit.system.domain, spell.system.category)) {
     return `a ${spirit.system.domain} elemental cannot sustain ${spell.system.category} spells (p.141)`;

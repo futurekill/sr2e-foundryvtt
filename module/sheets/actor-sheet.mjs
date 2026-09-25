@@ -1,6 +1,6 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
-import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation } from "../elementals.mjs";
+import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
@@ -825,11 +825,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
 
     // Resolve bound/summoned spirits (Actor UUIDs → spirit actors)
     const spiritActors = [];
-    for (const uuid of system.boundSpirits ?? []) {
-      const sActor = await fromUuid(uuid);
-      if (sActor) {
-        spiritActors.push({ uuid, id: sActor.id, name: sActor.name, img: sActor.img, system: sActor.system });
-      }
+    for (const sActor of liveBoundSpirits(this.document)) {
+      spiritActors.push({ uuid: sActor.uuid, id: sActor.id, name: sActor.name, img: sActor.img, system: sActor.system });
     }
     context.boundSpirits = spiritActors;
 
