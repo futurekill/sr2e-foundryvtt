@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed — neural bioware was charged the cultured ×4 twice (Shadowtech p.7)
+
+"All neural bioware is cultured bioware. Body Cost and monetary factors are
+already figured in to the listed values for neural bioware."
+- Setting a neural implant's grade to Cultured multiplied its price by 4 and
+  its Body Cost by 0.75 **again**. Its grade is now ignored for price, Body
+  Cost, Body Index and the chargen budget, and the Buy dialog doesn't offer a
+  grade for it.
+- Moving an implant into or out of the neural system now re-prices it.
+
+(Cultured ×4 for every other system was already applied, both at purchase and
+when the grade changes.)
+
 ### Changed — skillsofts are bought ready to use (SR2E p.243)
 
 The Buy dialog for an ActiveSoft, KnowSoft or LinguaSoft now asks **which

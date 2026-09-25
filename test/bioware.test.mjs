@@ -146,3 +146,20 @@ describe("bone lacing unarmed damage (Shadowtech p.42)", () => {
     expect(unarmedPhysicalPower(0)).toBe(0);
   });
 });
+
+describe("neural bioware is always cultured (Shadowtech p.7)", async () => {
+  const { effectiveBodyCost, gradeCostMultiplier, itemBaseCost, purchasePromptFields, bodyIndexTotal } =
+    await import("../module/rules/sr2e-rules.mjs");
+  it("its grade never reduces Body Cost or multiplies price again", () => {
+    expect(effectiveBodyCost(0.8, "cultured", "neural")).toBe(0.8);
+    expect(effectiveBodyCost(0.8, "cultured", "circulatory")).toBeCloseTo(0.6, 10);
+    expect(gradeCostMultiplier("bioware", "cultured", "neural")).toBe(1);
+    expect(gradeCostMultiplier("bioware", "cultured", "dermal")).toBe(4);
+    expect(itemBaseCost({ type: "bioware", bodySystem: "neural", grade: "cultured", cost: 55000 })).toBe(55000);
+    expect(bodyIndexTotal([{ installed: true, bodyCost: 0.4, grade: "cultured", bodySystem: "neural" }])).toBe(0.4);
+  });
+  it("the Buy dialog offers no grade for neural bioware", () => {
+    expect(purchasePromptFields({ type: "bioware", bodySystem: "neural" })).not.toContain("grade");
+    expect(purchasePromptFields({ type: "bioware", bodySystem: "dermal" })).toContain("grade");
+  });
+});

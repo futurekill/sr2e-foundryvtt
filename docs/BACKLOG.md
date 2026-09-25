@@ -102,8 +102,10 @@ recipe and the `codex exec -i` stdin gotcha.
   `gear` with no auto-effects.
 - **Body Index on NPC/critter actors** — scoped to `character` only, consistent
   with how cyberware already behaves on NPCs.
-- **Cultured bioware ×4 nuyen** is not auto-applied; a grade flip re-derives
-  Body Cost but not price. GM adjusts.
+- ~~Cultured bioware ×4 nuyen~~: **stale, checked 2026-09-25.** ×4 was
+  already applied at purchase and on a grade change (verified live). The real
+  bug was neural bioware (always cultured, p.7) getting ×4 and ×0.75 again;
+  that is fixed.
 - ~~Summon services tracking~~ — **done 2026-09-25** (PLAN-spirit-services.md):
   services were already spent per power and elemental service; added Fight for
   me (one service per fight), the running-out note and status, and the elemental

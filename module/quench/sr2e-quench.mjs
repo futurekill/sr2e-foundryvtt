@@ -6483,6 +6483,59 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Skillsoft purchase (p.243)" });
 
+    // ── Cultured bioware: ×4 price on a grade change; neural is always cultured ─
+    quench.registerBatch("sr2e.bioware-grades", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      let autoCharge;
+      const made = [];
+      before(async () => {
+        autoCharge = game.settings.get("sr2e", "autoChargePurchases");
+        await game.settings.set("sr2e", "autoChargePurchases", true);
+      });
+      after(async () => { await game.settings.set("sr2e", "autoChargePurchases", autoCharge); });
+      afterEach(async () => {
+        const ids = made.splice(0).filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+      const mk = async (bodySystem) => {
+        const a = await Actor.create({ name: "Quench Bio Buyer", type: "character", system: { nuyen: 100000 } });
+        made.push(a.id);
+        const [b] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Bio", type: "bioware", system: {
+          bodySystem, bodyCost: 0.4, cost: 10000, streetIndex: 1, grade: "standard", installed: true } }]);
+        await b.setFlag("sr2e", "paid", 10000);
+        return { a, b };
+      };
+      const settle = () => new Promise(r => setTimeout(r, 600));
+
+      it("standard → cultured charges the ×4 difference and cuts Body Cost to ×0.75 (Shadowtech p.7)", async () => {
+        const { a, b } = await mk("circulatory");
+        await b.update({ "system.grade": "cultured" });
+        await settle();
+        assert.equal(a.system.nuyen, 70000, "40,000 − 10,000 paid = 30,000 more");
+        assert.equal(b.getFlag("sr2e", "paid"), 40000);
+        assert.closeTo(b.system.actualBodyCost, 0.3, 1e-9);
+        await b.update({ "system.grade": "standard" });
+        await settle();
+        assert.equal(a.system.nuyen, 100000, "refunded back to the standard price");
+      });
+
+      it("neural bioware is always cultured: its grade changes neither price nor Body Cost", async () => {
+        const { a, b } = await mk("neural");
+        await b.update({ "system.grade": "cultured" });
+        await settle();
+        assert.equal(a.system.nuyen, 100000, "no ×4 on top of an already-cultured price");
+        assert.closeTo(b.system.actualBodyCost, 0.4, 1e-9, "no second ×0.75");
+        assert.closeTo(a.system.bodyIndex?.value ?? a.system.bodyIndex, 0.4, 1e-9);
+        // Moving a cultured item OUT of the neural system prices the ×4 again (and back).
+        await b.update({ "system.bodySystem": "circulatory" });
+        await settle();
+        assert.equal(a.system.nuyen, 70000, "now a cultured circulatory implant: ×4");
+        await b.update({ "system.bodySystem": "neural" });
+        await settle();
+        assert.equal(a.system.nuyen, 100000, "refunded");
+      });
+    }, { displayName: "SR2E: Bioware grades (Shadowtech p.7)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

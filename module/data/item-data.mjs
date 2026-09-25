@@ -769,7 +769,7 @@ export class BiowareData extends SR2EDataModel {
    * consume (sheet rounds for display only). Shadowtech p.7.
    */
   get actualBodyCost() {
-    return effectiveBodyCost(this.bodyCost, this.grade);
+    return effectiveBodyCost(this.bodyCost, this.grade, this.bodySystem);
   }
 }
 

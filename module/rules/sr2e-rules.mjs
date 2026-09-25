@@ -2246,14 +2246,17 @@ export const BIOWARE_CULTURED_MULTIPLIER = 0.75;
  * cost by 25%; standard is unchanged. Non-finite/negative costs normalise to 0
  * so bad imported content can't poison Body Index / Essence totals. Unrounded —
  * callers round only the final sum / display (one canonical representation).
+ * Neural bioware is ALWAYS cultured, with that already figured into its listed
+ * Body Cost and price (Shadowtech p.7), so its grade never applies again.
  * @param {number} bodyCost listed (pre-grade) Body Cost
  * @param {string} grade "standard" | "cultured"
+ * @param {string} [bodySystem]
  * @returns {number}
  */
-export function effectiveBodyCost(bodyCost, grade) {
+export function effectiveBodyCost(bodyCost, grade, bodySystem = "") {
   const bc = Number(bodyCost);
   if (!Number.isFinite(bc) || bc < 0) return 0;
-  return grade === "cultured" ? bc * BIOWARE_CULTURED_MULTIPLIER : bc;
+  return grade === "cultured" && bodySystem !== "neural" ? bc * BIOWARE_CULTURED_MULTIPLIER : bc;
 }
 
 /**
@@ -2268,7 +2271,7 @@ export function bodyIndexTotal(rows) {
   let total = 0;
   for (const r of rows ?? []) {
     if (!r?.installed) continue;
-    total += effectiveBodyCost(r.bodyCost, r.grade);
+    total += effectiveBodyCost(r.bodyCost, r.grade, r.bodySystem);
   }
   return total;
 }
@@ -2377,15 +2380,16 @@ export const CYBERWARE_GRADE_ESSENCE_FLOOR = 0.05;
  * Cost multiplier for an item's quality grade — the single source of truth,
  * read by both the purchase hooks and CONFIG.SR2E.
  *
- * (Neural bioware is stored at standard grade with its already-cultured price,
- * so it correctly gets ×1 — see the Shadowtech module notes.)
+ * Neural bioware is always cultured with its price already figured in
+ * (Shadowtech p.7), so it is ×1 whatever its grade says.
  * @param {string} type item type
  * @param {string} grade item grade
+ * @param {string} [bodySystem] bioware body system
  * @returns {number}
  */
-export function gradeCostMultiplier(type, grade) {
+export function gradeCostMultiplier(type, grade, bodySystem = "") {
   if (type === "cyberware") return CYBERWARE_GRADES[grade]?.costMultiplier ?? 1;
-  if (type === "bioware")   return BIOWARE_GRADES[grade]?.costMultiplier ?? 1;
+  if (type === "bioware")   return bodySystem === "neural" ? 1 : (BIOWARE_GRADES[grade]?.costMultiplier ?? 1);
   return 1;
 }
 
@@ -2541,7 +2545,7 @@ export function derivedItemCost(sys, ctx = {}) {
 export function itemBaseCost(sys, ctx = {}) {
   const base = derivedItemCost(sys, ctx)
     ?? ratedCost(sys?.ratingStats, sys?.rating, sys?.cost);
-  return base * gradeCostMultiplier(sys?.type, sys?.grade);
+  return base * gradeCostMultiplier(sys?.type, sys?.grade, sys?.bodySystem);
 }
 
 /**
@@ -2563,7 +2567,8 @@ export function purchasePromptFields(sys = {}) {
   if (skillsoft) out.push("grantedSkillCategory", "grantedSkill");
   if (flatFocus) out.push("force");
   if (sys.type === "weapon" && (sys.costPerStrengthMin ?? 0) > 0) out.push("strengthMinimum");
-  if (sys.type === "cyberware" || sys.type === "bioware") out.push("grade");
+  // Neural bioware has no grade to choose: it is always cultured (Shadowtech p.7).
+  if (sys.type === "cyberware" || (sys.type === "bioware" && sys.bodySystem !== "neural")) out.push("grade");
   return out;
 }
 

@@ -1179,7 +1179,7 @@ Hooks.on("updateCombat", (combat, changed) => {
 // transact against every character who owns the item. They are still READ below —
 // each configuration is priced with its own row and Street Index — they just don't
 // TRIGGER anything.
-const PURCHASE_DRIVERS = ["rating", "grade", "force", "grantedSkillCategory",
+const PURCHASE_DRIVERS = ["rating", "grade", "bodySystem", "force", "grantedSkillCategory",
                           "bondedWeaponId", "category", "focusType", "strengthMinimum"];
 
 // Charge (or refund) the nuyen difference when a purchased item's configuration
@@ -1236,7 +1236,7 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     return w?.type === "weapon" ? (w.system.reach ?? 0) : null;
   };
   const sysFor = (over) => ({
-    type: item.type, grade: item.system.grade, rating: item.system.rating,
+    type: item.type, grade: item.system.grade, rating: item.system.rating, bodySystem: item.system.bodySystem,
     ratingStats: item.system.ratingStats, cost: authoredCost,
     category: item.system.category, grantedSkillCategory: item.system.grantedSkillCategory,
     multiplier: item.system.multiplier, costPerForce: item.system.costPerForce,

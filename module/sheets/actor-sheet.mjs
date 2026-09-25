@@ -1167,6 +1167,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       // itemBaseCost, so rated and alpha/beta/cultured ware count properly.
       rating: i.system.rating ?? 1,
       grade: i.system.grade,
+      bodySystem: i.system.bodySystem,   // neural bioware ignores its grade (Shadowtech p.7)
       ratingStats: i.system.ratingStats,
       quantity: i.system.quantity ?? 1,
       // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
