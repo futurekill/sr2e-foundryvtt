@@ -399,7 +399,7 @@ export async function startPoltergeist(spell, { area, force }) {
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: caster }), content: `<div class="sr2e-damage-result">
     🌪 <strong>Poltergeist</strong> (${area.radius} m): +2 visibility for anyone in or seeing through it; debris does
     ${fx.force}L Stun (Quickness, Impact armour) now and each Combat Turn while sustained
-    <em>(the recurring damage is this system's reading of p.157 — the GM may waive it)</em>.</div>` });
+    <em>(recurring each Combat Turn — SR2E p.157)</em>.</div>` });
   await poltergeistCards(t, "Poltergeist cast");
 }
 
