@@ -73,13 +73,22 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // the same to combatTnMod. A narrow projection rather than all of `_source`,
     // so templates don't grow a dependency on a private Foundry property.
     // `effective` is the prepared value — display only, never an input.
+    // `cost` is here for the same reason: a bow prices off Str Min, a cyberlimb
+    // option off its formula, a soft off the Skill Memory Table and a focus off
+    // Force — all of them OVERWRITE system.cost. With submitOnChange, editing any
+    // other field on the sheet would then persist that derived price as the
+    // authored one, and clearing the formula afterwards would "reveal" a number
+    // nobody typed.
     context.authored = {
       damageCode: item._source.system?.damageCode,
-      combatTnMod: item._source.system?.combatTnMod
+      combatTnMod: item._source.system?.combatTnMod,
+      cost: item._source.system?.cost
     };
-    context.effective = { damageCode: item.system.damageCode, combatTnMod: item.system.combatTnMod };
+    context.effective = { damageCode: item.system.damageCode, combatTnMod: item.system.combatTnMod,
+                          cost: item.system.cost };
     context.damageCodeDerived = context.authored.damageCode !== context.effective.damageCode;
     context.combatTnModDerived = context.authored.combatTnMod !== context.effective.combatTnMod;
+    context.costDerived = context.authored.cost !== context.effective.cost;
     context.effects = item.effects.contents;
     context.config = CONFIG.SR2E;
     context.isOwned = !!item.parent;

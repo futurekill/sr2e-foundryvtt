@@ -189,7 +189,10 @@
 
   <div class="form-group">
     <label>Cost:</label>
-    <input type="number" name="system.cost" value="{{system.cost}}" />
+    {{!-- Authored price, not the prepared one: a bow's cost is derived from its
+          Strength Minimum (p.96) and saving it back would re-author it. --}}
+    <input type="number" name="system.cost" value="{{authored.cost}}" />
+    {{#if costDerived}}<span class="derived-readout" title="Priced from the Strength Minimum. This is what the ledger charges; the field above is the base you author.">Effective: <strong>{{effective.cost}}¥</strong></span>{{/if}}
   </div>
   <div class="form-group">
     <label title="Black-market price multiplier: street price = cost × SI. 1 = list price.">Street Index:</label>
@@ -527,7 +530,10 @@
   </div>
   <div class="form-group">
     <label>Cost (¥):</label>
-    <input type="number" name="system.cost" value="{{system.cost}}" />
+    {{!-- Authored price: a cyberlimb option's cost is derived from its formula
+          (p.261) and saving the prepared value back would re-author it. --}}
+    <input type="number" name="system.cost" value="{{authored.cost}}" />
+    {{#if costDerived}}<span class="derived-readout" title="After the cyberlimb option formula. This is what the ledger charges; the field above is the base you author.">Effective: <strong>{{effective.cost}}¥</strong></span>{{/if}}
   </div>
   <div class="form-group">
     <label>Availability:</label>
@@ -741,7 +747,10 @@
   </div>
   <div class="form-group">
     <label>Cost:</label>
-    <input type="number" name="system.cost" value="{{system.cost}}" />
+    {{!-- Authored price: skillsofts price off the Skill Memory Table and
+          per-Rating gear off costPerRating x Rating. --}}
+    <input type="number" name="system.cost" value="{{authored.cost}}" />
+    {{#if costDerived}}<span class="derived-readout" title="After the rating/soft price formula. This is what the ledger charges; the field above is the base you author.">Effective: <strong>{{effective.cost}}¥</strong></span>{{/if}}
   </div>
   <div class="form-group">
     <label title="Black-market price multiplier: street price = cost × SI. 1 = list price.">Street Index:</label>
@@ -1025,7 +1034,9 @@
     {{#if system.costPerForce}}
     <span>{{system.cost}}¥ <em style="opacity:.6;">(Force × {{system.costPerForce}})</em></span>
     {{else}}
-    <input type="number" name="system.cost" value="{{system.cost}}" />
+    {{!-- Authored price: a bonded weapon focus prices off its weapon's Reach. --}}
+    <input type="number" name="system.cost" value="{{authored.cost}}" />
+    {{#if costDerived}}<span class="derived-readout" title="After the bonded weapon's Reach (p.126). This is what the ledger charges; the field above is the base you author.">Effective: <strong>{{effective.cost}}¥</strong></span>{{/if}}
     {{/if}}
   </div>
   {{/ifEquals}}

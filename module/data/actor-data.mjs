@@ -455,7 +455,20 @@ export class CharacterData extends SR2EDataModel {
     // Cleared on EVERY focus, not just the weapon foci: re-typing a focus
     // otherwise stranded the bonded-weapon name on its badge.
     for (const focus of items) {
-      if (focus.type === "focus") focus.system._bondedWeaponName = "";
+      if (focus.type !== "focus") continue;
+      focus.system._bondedWeaponName = "";
+      // Baseline the PRICE here too, before any bond is applied — and on every
+      // focus, not just the weapon foci. The loop below skips a focus re-typed
+      // away from "weapon", and its `else` only covers a bond that no longer
+      // resolves, so neither path could put back the price of a focus whose
+      // bonded WEAPON was deleted (the one transition no item update
+      // re-initializes). Same shared helper, without the Reach: it takes the
+      // per-Force branch when there is one and falls back to the authored price
+      // otherwise — which is what an unbonded focus is worth.
+      focus.system.cost = derivedItemCost(
+        { type: "focus", force: focus.system.force ?? 0,
+          costPerForce: focus.system.costPerForce ?? 0 })
+        ?? focus._source.system.cost;
     }
     for (const weapon of items) {
       if (weapon.type !== "weapon") continue;

@@ -113,6 +113,26 @@ bioware, silently.
 **Ram half-armour rounds down.** Odd armour on both sides is the case that would
 expose a fractional-dice bug, so that is what the test uses.
 
+### `sr2e.derivation-removed` — a formula that goes away
+
+The companion class to `sr2e.derived-compounding`. There, a derived value was
+written back as authored and compounded; here, the derivation is REMOVED — the
+Str Min cleared off a bow, a rating table emptied, a soft re-typed to ordinary
+gear, a cyberlimb option switched off, or the weapon a focus was bonded to
+deleted — and the field kept its last computed value because the write sits
+inside an `if` testing the formula itself.
+
+Vitest cannot see any of it: the bug is that a prepared document is mutated in
+place and never re-initialized, so the stale value only appears on the SECOND
+preparation and only inside Foundry. The batch pins the decision as well as the
+fix — **clearing a formula reveals the authored value** — including the half that
+makes that promise true: the Cost input on the item sheet binds the authored
+price, so saving the sheet cannot re-author a derived one.
+
+The weapon-focus cases are the load-bearing ones. Deleting the bonded WEAPON is
+the only transition here that no item update re-initializes, so the focus can
+only be repaired by the actor's own preparation pass.
+
 ---
 
 ## Coverage status

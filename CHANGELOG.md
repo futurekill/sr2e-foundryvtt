@@ -430,6 +430,33 @@ reach the card (it never did). Tracked as RULES-AUDIT-3 C8.
 "with 1 or 2 successes, the character staggers." Meeting the threshold used to
 keep you standing; now it staggers you.
 
+### Changed — clearing a formula now reveals what was authored
+
+The companion to 0.92.0's "derived values outliving whatever produced them". That
+release fixed the markers and deferred this group, because it was a decision
+rather than a defect: a price or stat COMPUTED from a formula or a rating table
+kept its last computed value when the formula was cleared, the table emptied, a
+soft re-typed to ordinary gear, or the weapon a focus was bonded to deleted.
+
+That is now explicit, and the answer is **the authored value comes back**. It was
+never really a freeze: prepared items are rebuilt from stored data on the next
+reload, so the computed number survived the session and then quietly reverted —
+the sheet told you one thing today and another tomorrow. It also contradicted the
+ledger, which already re-prices a de-derived item at its authored cost. Affected:
+Strength-Minimum weapons (cost and damage), rating-table cyberware and bioware,
+cyberlimb options, skillsofts and per-Rating gear, and per-Force and bonded
+weapon foci. A re-typed soft now also drops its Mp.
+
+Nothing changes for an item whose formula is intact, which is almost all of them.
+If you had cleared one in a live session, its number moves now instead of at the
+next reload.
+
+**Item sheets edit the authored price.** The Cost field on weapons, cyberware,
+gear and foci now shows the price you typed, with the computed one beside it as
+"Effective", exactly as Damage Code and Combat TN Modifier already did. Saving
+the sheet can no longer bake a derived price into the item as though it had been
+authored.
+
 ## 0.98.0 — 2026-09-24
 
 ### Added — learning spells (SR2E p.132–133)

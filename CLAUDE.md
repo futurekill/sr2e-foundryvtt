@@ -146,6 +146,22 @@ value the item re-derives itself), never from a `_nativeRating`-style cache
 written by the previous pass — a second contributor or an edit made in between
 poisons it. A test only catches this on the SECOND preparation.
 
+The same applies to a field COMPUTED from a formula or a rating table
+(`strengthMinWeaponStats`, `ratingStats`, `costPerRating`/`costPerForce`,
+skillsoft pricing, a bonded weapon focus). Those writes sit inside an `if`
+testing the derivation MECHANISM, so removing the mechanism skipped the
+assignment and left the last computed value behind. **Assign in BOTH
+directions** — the else restores `_source`. This is a decision, not just a fix:
+clearing a formula REVEALS what was authored, it does not convert the computed
+number into authored data. Keeping it was never a real freeze (the next reload
+rebuilds from `_source` anyway) and it contradicted the purchase hook, which
+re-prices a de-derived item at `_source.cost`. A genuine freeze would have to
+WRITE `_source` during the transition; nothing does. Because derivation
+overwrites these fields in place, the item sheet must EDIT them at their authored
+value (`context.authored` / `effective` in `item-sheet.mjs`), or `submitOnChange`
+re-authors the derived price and there is nothing left to reveal. Pure derived
+readouts that are not schema fields (`system.mp`) are `delete`d, not restored.
+
 ## Creating actors from player actions
 Players can't create world Actors without the **"Create New Actors"** permission
 (Settings → Configure Permissions), so a player-triggered flow that spawns an

@@ -1097,6 +1097,165 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Derived compounding" });
 
+    // ── Removing a DERIVATION, not just a marker. Every one of these fields is
+    //    computed from a formula or a rating table by a write that sits inside an
+    //    `if` testing the mechanism itself, so when the mechanism goes away the
+    //    assignment is skipped and the prepared item keeps its last computed
+    //    value — until the next reload rebuilds it from source, which is the half
+    //    that made the old behaviour nondeterministic rather than merely wrong.
+    //    The decision is (a): clearing a formula REVEALS what was authored. See
+    //    CHANGELOG 0.92.x and the derived-state section of CLAUDE.md. ──
+    quench.registerBatch("sr2e.derivation-removed", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d?.sheet?.close(); } catch (e) {} await d?.delete(); } });
+      const mk = async (data) => { const d = await Item.create(data); made.push(d); return d; };
+      // Remove the derivation on the PREPARED item and re-prepare, WITHOUT an
+      // update. This is the only shape that tests anything: `item.update()`
+      // re-initializes the document from source first, so the old one-sided
+      // writes would look correct through that path and every case here would
+      // pass against the bug. The live equivalent is an actor re-preparing its
+      // items after something else changed.
+      const reprepare = (item, changes) => {
+        Object.assign(item.system, changes);
+        item.prepareData();
+        return item;
+      };
+
+      describe("clearing a formula reveals the authored value", () => {
+        it("a bow that stops pricing off Str Min goes back to what was typed", async () => {
+          const bow = await mk({ name: "Quench Bow", type: "weapon",
+            system: { weaponType: "projectile", damageCode: "3M", cost: 100,
+                      strengthMinimum: 4, costPerStrengthMin: 100, strMinDamageBonus: 2 } });
+          assert.equal(bow.system.cost, 400, "100¥ x Str Min 4 (p.96)");
+          assert.equal(bow.system.damageCode, "6M", "(Str Min + 2)M");
+          reprepare(bow, { costPerStrengthMin: 0 });
+          assert.equal(bow.system.cost, 100, "the authored price, not the frozen 400");
+          assert.equal(bow.system.damageCode, "3M", "and the authored damage code");
+        });
+
+        it("and the sheet edits the AUTHORED price while the formula is live", async () => {
+          // The other half of (a): if the cost input bound the prepared value,
+          // submitOnChange would bake 400¥ into source and there would be nothing
+          // authored left to reveal.
+          const bow = await mk({ name: "Quench Bow Sheet", type: "weapon",
+            system: { weaponType: "projectile", damageCode: "3M", cost: 100,
+                      strengthMinimum: 4, costPerStrengthMin: 100, strMinDamageBonus: 2 } });
+          await bow.sheet.render(true);
+          await new Promise(r => setTimeout(r, 200));
+          const input = bow.sheet.element.querySelector('input[name="system.cost"]');
+          assert.ok(input, "cost input not found on the weapon sheet");
+          assert.equal(Number(input.value), 100, "the input must carry the authored 100¥, not the derived 400¥");
+          // And submit an unrelated edit the way the sheet does (submitOnChange
+          // posts the whole form): the authored price must survive it.
+          const other = bow.sheet.element.querySelector('input[name="system.weight"]');
+          assert.ok(other, "weight input not found on the weapon sheet");
+          other.value = "2";
+          other.dispatchEvent(new Event("change", { bubbles: true }));
+          await new Promise(r => setTimeout(r, 250));
+          assert.equal(bow._source.system.cost, 100, "editing another field must not re-author the derived 400¥");
+          assert.equal(bow.system.cost, 400, "and the derived price is still what the ledger sees");
+        });
+
+        it("a focus that stops pricing off Force goes back to what was typed", async () => {
+          const focus = await mk({ name: "Quench Focus", type: "focus",
+            system: { focusType: "power", force: 3, costPerForce: 10000, cost: 1234 } });
+          assert.equal(focus.system.cost, 30000, "Force x 10,000 (p.249)");
+          reprepare(focus, { costPerForce: 0 });
+          assert.equal(focus.system.cost, 1234, "the authored price, not the frozen 30,000");
+        });
+
+        it("gear that stops pricing per Rating goes back to what was typed", async () => {
+          const gear = await mk({ name: "Quench Jammer", type: "gear",
+            system: { category: "general", rating: 4, costPerRating: 500, cost: 500 } });
+          assert.equal(gear.system.cost, 2000, "500¥ x Rating 4");
+          reprepare(gear, { costPerRating: 0 });
+          assert.equal(gear.system.cost, 500, "the authored price, not the frozen 2,000");
+        });
+
+        it("a soft re-typed to ordinary gear drops the Skill Memory price AND the Mp", async () => {
+          const soft = await mk({ name: "Quench ActiveSoft", type: "gear",
+            system: { category: "skillsoft", rating: 4, grantedSkillCategory: "active", cost: 250 } });
+          assert.ok(soft.system.mp > 0, "a soft has Memory off the Skill Memory Table (p.248)");
+          assert.notEqual(soft.system.cost, 250, "and a price derived from it");
+          reprepare(soft, { category: "general" });
+          assert.equal(soft.system.cost, 250, "ordinary gear costs what was authored");
+          assert.notOk(soft.system.mp, "and has no Mp at all — it is not a schema field");
+        });
+
+        it("a cyberlimb option switched off goes back to the base price", async () => {
+          const opt = await mk({ name: "Quench Limb Option", type: "cyberware",
+            system: { cost: 5000, limbOption: true, costMultiplierOfBase: 3 } });
+          assert.equal(opt.system.cost, 15000, "base x 3 (p.261)");
+          reprepare(opt, { limbOption: false });
+          assert.equal(opt.system.cost, 5000, "the authored base, not the frozen 15,000");
+        });
+      });
+
+      describe("emptying a rating table reveals the authored stats", () => {
+        it("cyberware falls back to its authored essence and price", async () => {
+          const ware = await mk({ name: "Quench Rated Ware", type: "cyberware",
+            system: { essenceCost: 0.1, cost: 10000, rating: 3, ratingStats: [
+              { rating: 1, essenceCost: 0.1, cost: 10000, availability: "4/10 days", streetIndex: "" },
+              { rating: 3, essenceCost: 0.3, cost: 30000, availability: "4/10 days", streetIndex: "" }] } });
+          assert.equal(ware.system.cost, 30000, "the Rating 3 row");
+          assert.equal(ware.system.essenceCost, 0.3);
+          reprepare(ware, { ratingStats: [] });
+          assert.equal(ware.system.cost, 10000, "the authored price, not the frozen row");
+          assert.equal(ware.system.essenceCost, 0.1,
+            "and the authored Essence — this is the field the wearer's Essence total sums");
+        });
+
+        it("bioware falls back to its authored Body Cost and price", async () => {
+          const bio = await mk({ name: "Quench Rated Bioware", type: "bioware",
+            system: { bodyCost: 0.2, cost: 15000, rating: 2, ratingStats: [
+              { rating: 1, bodyCost: 0.2, cost: 15000, availability: "6/4 days", streetIndex: "" },
+              { rating: 2, bodyCost: 0.4, cost: 30000, availability: "6/4 days", streetIndex: "" }] } });
+          assert.equal(bio.system.bodyCost, 0.4, "the Rating 2 row");
+          reprepare(bio, { ratingStats: [] });
+          assert.equal(bio.system.cost, 15000, "the authored price");
+          assert.equal(bio.system.bodyCost, 0.2, "and the authored Body Index cost");
+        });
+      });
+
+      describe("a weapon focus whose weapon is gone", () => {
+        // The one transition no item update re-initializes: the price lives on the
+        // FOCUS but is derived from a SIBLING item, so only the actor's pass can
+        // put it back. Asserted after a second preparation, where it actually fails.
+        async function bonded() {
+          const actor = await Actor.create({ name: "Quench Unbond", type: "character" });
+          made.push(actor);
+          const [katana] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Katana", type: "weapon", system: { weaponType: "melee", reach: 1, damageCode: "6M" } }]);
+          const [focus] = await actor.createEmbeddedDocuments("Item", [
+            { name: "Katana Focus", type: "focus",
+              system: { focusType: "weapon", force: 2, cost: 7000, bonded: true, active: true,
+                        bondedWeaponId: katana.id } }]);
+          // (Reach 1 + 1) x 100k + Force 2 x 90k = 380,000 (p.126)
+          assert.equal(actor.items.get(focus.id).system.cost, 380000, "bonded price");
+          return [actor, katana, focus];
+        }
+
+        it("deleting the WEAPON puts the focus back to its authored price", async () => {
+          const [actor, katana, focus] = await bonded();
+          await katana.delete();
+          actor.prepareData();
+          assert.equal(actor.items.get(focus.id).system.cost, 7000,
+            "the weapon-focus price must not outlive the weapon it was priced from");
+        });
+
+        it("re-typing the focus away from 'weapon' does too", async () => {
+          const [actor, , focus] = await bonded();
+          // Prepared-only, as above: an update would re-initialize the focus and
+          // its own prepare would put the price back without the actor's help.
+          actor.items.get(focus.id).system.focusType = "spell";
+          actor.prepareData();
+          assert.equal(actor.items.get(focus.id).system.cost, 7000,
+            "a spell focus must not keep a weapon focus's price");
+        });
+      });
+    }, { displayName: "SR2E: Derivation removed" });
+
     // ── Misc dice: a signed situational modifier threaded through rollSuccessTest.
     //    Vitest can't reach the roll engine, so assert the rolled dice COUNT
     //    (deterministic) and the itemized breakdown on the card. ──

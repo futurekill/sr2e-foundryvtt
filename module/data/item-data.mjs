@@ -283,11 +283,16 @@ export class WeaponData extends SR2EDataModel {
     // A bow's price AND damage both follow the Strength Minimum it was bought
     // at (SR2 p.96), so the sheet, the attack roll and the nuyen ledger all
     // read the same numbers. No-op for every flat-priced weapon.
+    //
+    // Assigned in BOTH directions deliberately. Clearing costPerStrengthMin turns
+    // the bow back into a flat-priced weapon showing what was authored, rather than
+    // freezing the last Str-Min numbers as though a GM had typed them: the prepared
+    // document is never re-initialized between preparations, so a one-sided write
+    // leaves a value that outlives its formula — and only until the next reload,
+    // which rebuilds from `_source` anyway.
     const scaled = strengthMinWeaponStats(this);
-    if (scaled) {
-      this.cost = scaled.cost;
-      this.damageCode = scaled.damageCode;
-    }
+    this.cost       = scaled ? scaled.cost       : this._source.cost;
+    this.damageCode = scaled ? scaled.damageCode : this._source.damageCode;
   }
 
   /**
@@ -585,21 +590,26 @@ export class CyberwareData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // If a rating stats table exists, derive the active stats from the current rating row.
-    if (this.ratingStats?.length > 0) {
-      const row = this.ratingStats.find(r => r.rating === this.rating)
-               ?? this.ratingStats.at(-1);
-      if (row) {
-        this.essenceCost  = row.essenceCost;
-        this.cost         = row.cost;
-        this.availability = row.availability;
-        this.streetIndex  = row.streetIndex;
-      }
-    }
+    // If a rating stats table exists, derive the active stats from the current
+    // rating row; otherwise restore the AUTHORED values. Both directions are
+    // deliberate: a prepared item is never re-initialized between preparations, so
+    // assigning only inside the branch left the last row's stats on the item after
+    // its table was emptied — and only until the next reload, which rebuilds from
+    // `_source` regardless. The flat inputs are hidden while a table exists, so
+    // `_source` is what was typed before the table was added.
+    const row = this.ratingStats?.length > 0
+      ? (this.ratingStats.find(r => r.rating === this.rating) ?? this.ratingStats.at(-1))
+      : null;
+    this.essenceCost  = row ? row.essenceCost  : this._source.essenceCost;
+    this.cost         = row ? row.cost         : this._source.cost;
+    this.availability = row ? row.availability : this._source.availability;
+    this.streetIndex  = row ? row.streetIndex  : this._source.streetIndex;
 
     // Cyberlimb option formula pricing (SR2 p.261). Derive from `_source` so the
     // result never re-multiplies a previously prepared value that got saved back
-    // — the same idempotence trap as combatTnMod below.
+    // — the same idempotence trap as combatTnMod below. Runs AFTER the baseline
+    // above, which is what puts the authored price back when the option is turned
+    // off (this branch has the same one-sided-write shape as the rest).
     if (this.limbOption) {
       this.cost = limbOptionCost({
         rating: this.rating,
@@ -745,22 +755,21 @@ export class BiowareData extends SR2EDataModel {
     // Rated bioware: copy the selected rating row into the flat fields (mirrors
     // CyberwareData). Rows are sorted; on no exact match, clamp to the NEAREST
     // rating rather than blindly using the last row.
+    // Assigned in both directions, as in CyberwareData: emptying the table must
+    // put the authored stats back rather than leave the last row's on the item.
+    let row = null;
     if (this.ratingStats?.length > 0) {
       const rows = [...this.ratingStats].sort((a, b) => a.rating - b.rating);
-      let row = rows.find(r => r.rating === this.rating);
-      if (!row) {
-        row = rows.reduce((best, r) =>
-          Math.abs(r.rating - this.rating) < Math.abs(best.rating - this.rating) ? r : best, rows[0]);
-      }
-      if (row) {
-        this.bodyCost       = row.bodyCost;
-        this.cost           = row.cost;
-        this.availability   = row.availability;
-        this.streetIndex    = row.streetIndex;
-        this.armorBallistic = row.armorBallistic;
-        this.armorImpact    = row.armorImpact;
-      }
+      row = rows.find(r => r.rating === this.rating)
+         ?? rows.reduce((best, r) =>
+              Math.abs(r.rating - this.rating) < Math.abs(best.rating - this.rating) ? r : best, rows[0]);
     }
+    this.bodyCost       = row ? row.bodyCost       : this._source.bodyCost;
+    this.cost           = row ? row.cost           : this._source.cost;
+    this.availability   = row ? row.availability   : this._source.availability;
+    this.streetIndex    = row ? row.streetIndex    : this._source.streetIndex;
+    this.armorBallistic = row ? row.armorBallistic : this._source.armorBallistic;
+    this.armorImpact    = row ? row.armorImpact    : this._source.armorImpact;
   }
 
   /**
@@ -894,7 +903,20 @@ export class GearData extends SR2EDataModel {
       const derived = derivedItemCost({ type: "gear", category: this.category,
                                         costPerRating: this.costPerRating,
                                         rating: this.rating });
-      if (derived !== null) this.cost = derived;
+      this.cost = derived ?? this._source.cost;
+      delete this.mp;
+    }
+    // Neither formula applies: restore what was authored. A prepared item is never
+    // re-initialized between preparations, so without this a soft re-typed to
+    // ordinary gear kept both its Skill Memory Table price AND its Mp — until the
+    // next reload, which rebuilds from `_source` anyway. Re-typing the category is
+    // a PURCHASE_DRIVER, and the hook prices the new configuration off
+    // `_source.cost` too, so this is also what the nuyen ledger just charged.
+    // `mp` is DELETED rather than restored: unlike cost it is not a schema field,
+    // it is a pure derived readout that only a skillsoft has.
+    else {
+      this.cost = this._source.cost;
+      delete this.mp;
     }
   }
 }
@@ -1119,10 +1141,12 @@ export class FocusData extends SR2EDataModel {
     // Shared derivation. No bondedWeaponReach here: a weapon focus prices off its
     // bonded weapon, which lives on the ACTOR — CharacterData._applyWeaponFoci runs
     // after this and supplies the Reach.
-    if (this.costPerForce > 0) {
-      this.cost = derivedItemCost({ type: "focus", force: this.force,
-                                    costPerForce: this.costPerForce }) ?? this.cost;
-    }
+    // `?? this._source.cost`, not `?? this.cost`: clearing costPerForce (a custom
+    // focus going back to a hand-typed price) must reveal the authored price rather
+    // than freeze the last Force × rate as though someone had typed it.
+    this.cost = derivedItemCost({ type: "focus", force: this.force,
+                                  costPerForce: this.costPerForce })
+             ?? this._source.cost;
 
     // Spell-focus derived state, used by the sheets (SR2E p.137). Cleared before
     // the branch: assigning only inside it let a focus re-typed away from "spell"
