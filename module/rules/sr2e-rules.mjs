@@ -438,6 +438,35 @@ export function astralProfile({ kind, skills = {}, attrs = {}, force = 0, focusR
            pool: astralCombatPool(attrs) };
 }
 
+/* ── RESTRICTED-USE SPELLS (SR2E p.133) ── */
+
+/** Force bonus for a restricted-use spell: exclusive +2, reusable fetish +1, expendable +2. */
+export function restrictedForceBonus(restriction) {
+  return { exclusive: 2, fetishReusable: 1, fetishExpendable: 2 }[restriction] ?? 0;
+}
+
+/**
+ * Actual and effective Force of a cast (p.133): the effect runs "as if its
+ * Force Rating were N points higher", Drain "at the normal Force value". A
+ * restricted spell cannot be cast above the Force it was learned at.
+ * @returns {{actual:number, effective:number, bonus:number}}
+ */
+export function spellForces({ learnedForce = 1, actualForce, restriction = "" } = {}) {
+  const bonus = restrictedForceBonus(restriction);
+  let actual = Math.max(1, Math.trunc(Number(actualForce ?? learnedForce) || 1));
+  if (bonus > 0) actual = Math.min(actual, Math.max(1, Math.trunc(Number(learnedForce) || 1)));
+  return { actual, effective: actual + bonus, bonus };
+}
+
+/**
+ * Exclusive conflict (p.133) in a set of spells the magician personally
+ * sustains: an exclusive spell cannot share concentration with any other.
+ * @param {Array<{restriction?:string}>} set
+ */
+export function exclusiveConflict(set = []) {
+  return set.length > 1 && set.some(s => s?.restriction === "exclusive");
+}
+
 /** A finite, non-negative integer, or `fallback`. */
 function nonNegInt(v, fallback = 0) {
   const n = Number(v);

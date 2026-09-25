@@ -4,6 +4,7 @@
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { renderAstralMeleeCard, isCardResolved, isTestClosed, astralAttack } from "../astral-combat.mjs";
 import { defenseQueue, normActorUuid, defenceBalance, defenceSplit, grantsFor } from "../spell-defense.mjs";
+import { magicalSkillBlock } from "../restricted-spells.mjs";
 
 /** Spell Resist cards being resolved on this client (double-click guard). */
 const SPELL_RESIST_IN_FLIGHT = new Set();
@@ -259,8 +260,10 @@ export function cleanSpellDefinition(src) {
   const d = src.toObject ? src.toObject() : foundry.utils.deepClone(src);
   return {
     name: d.name, type: "spell", img: d.img,
-    system: { ...d.system, sustaining: false, sustainedForce: 0, spellLocked: false,
-              quickened: false, quickeningKarma: 0 },
+    system: { ...d.system, sustaining: false, sustainedForce: 0, sustainedEffectiveForce: 0,
+              spellLocked: false, quickened: false, quickeningKarma: 0,
+              // A restriction is chosen when THIS magician learns it (p.133).
+              restriction: "", fetish: { itemId: "", label: "" } },
     effects: (d.effects ?? []).map(e => { const x = { ...e }; delete x._id; return x; }),
     flags: src.uuid ? { core: { sourceId: src.uuid } } : {}
   };
@@ -1073,6 +1076,12 @@ export class SR2EActor extends Actor {
   async rollSkillTest(skillId, targetNumber = 4, options = {}) {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
+    // Sustaining an exclusive spell forbids any other magical skill (p.133).
+    const skey = skill.name.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    if (CONFIG.SR2E.activeSkills?.[skey]?.magical) {
+      const excl = magicalSkillBlock(this);
+      if (excl) return ui.notifications.warn(excl);
+    }
 
     // Improved Ability (adept) adds its levels in dice to the whole skill (p.125).
     const adeptBonus = skill.system._adeptBonus ?? 0;
@@ -1195,6 +1204,8 @@ export class SR2EActor extends Actor {
    * @param {number} [opts.karmaDice=0]
    */
   async rollConjuring(opts) {
+    const excl = magicalSkillBlock(this);
+    if (excl) return ui.notifications.warn(excl);
     const force    = Math.max(1, opts.force ?? 1);
     const kind     = opts.kind ?? "nature";
     const domain   = opts.domain ?? "";
@@ -3046,11 +3057,31 @@ export class SR2EActor extends Actor {
     return (t?.spellBonus?.[category] ?? 0) - (t?.spellPenalty?.[category] ?? 0);
   }
 
-  /** Whether this character already knows a spell of that name. */
-  _knowsSpell(name, exceptAttemptId = "") {
+  /**
+   * Whether this character already knows a spell of that name WITH that
+   * restriction — an exclusive Fireball and a plain one are two spells, "he will
+   * know both versions" (p.133).
+   */
+  _knowsSpell(name, exceptAttemptId = "", restriction = "") {
     const key = canonicalSpellName(name);
     return this.items.some(i => i.type === "spell" && canonicalSpellName(i.name) === key
+      && (i.system.restriction ?? "") === (restriction ?? "")
       && i.getFlag("sr2e", "learnAttempt") !== exceptAttemptId || false);
+  }
+
+  /** Why a reusable fetish choice is not allowed (p.133), or null. */
+  _fetishChoiceProblem(restriction, itemId, label, exceptSpellId = "") {
+    if (restriction === "fetishReusable") {
+      const g = this.items.get(itemId ?? "");
+      if (!g || g.type !== "gear") return "choose the reusable fetish (a gear item you carry).";
+      const taken = this.items.find(i => i.type === "spell" && i.id !== exceptSpellId
+        && i.system.fetish?.itemId === g.id);
+      if (taken) return `${g.name} is already ${taken.name}'s fetish — one fetish, one spell (p.133).`;
+    }
+    if (restriction === "fetishExpendable" && !String(label ?? "").trim()) {
+      return "describe the expendable fetish (for example “eagle-feather tuft”).";
+    }
+    return null;
   }
 
   /**
@@ -3071,6 +3102,8 @@ export class SR2EActor extends Actor {
     if (this.type !== "character") return null;
     // One learning roll per character at a time on this client: the Aid Study
     // history check, the service and its record must not interleave.
+    const excl = magicalSkillBlock(this);
+    if (excl) { ui.notifications.warn(excl); return null; }
     const lockKey = `learn:${this.uuid}`;
     if (LEARNING_LOCK.has(lockKey)) return null;
     LEARNING_LOCK.add(lockKey);
@@ -3091,7 +3124,17 @@ export class SR2EActor extends Actor {
     const warn = (m) => { ui.notifications.warn(`${this.name}: ${m} Nothing was spent.`); return null; };
     if (!def?.name || force < 1) return warn("choose a spell and a Force.");
     if ((this.system.magic?.value ?? 0) <= 0) return warn("only the Awakened learn spells.");
-    if (this._knowsSpell(def.name)) return warn(`already knows ${def.name}.`);
+    // Restricted use is chosen now, permanently (p.133).
+    const restriction = ["exclusive", "fetishReusable", "fetishExpendable"].includes(o.restriction) ? o.restriction : "";
+    const fetishProblem = this._fetishChoiceProblem(restriction, o.fetishItemId, o.fetishLabel);
+    if (fetishProblem) return warn(fetishProblem);
+    def.system = { ...def.system, restriction,
+      fetish: { itemId: restriction === "fetishReusable" ? o.fetishItemId : "",
+                label: restriction === "fetishExpendable" ? String(o.fetishLabel).trim()
+                     : restriction === "fetishReusable" ? (this.items.get(o.fetishItemId)?.name ?? "") : "" } };
+    if (this._knowsSpell(def.name, "", restriction)) {
+      return warn(`already knows ${def.name}${restriction ? ` (${restriction})` : ""}.`);
+    }
     if ((Number(o.libraryRating) || 0) < force) {
       return warn(`needs a library or lodge rated at least ${force} (p.132).`);
     }
@@ -3164,8 +3207,15 @@ export class SR2EActor extends Actor {
       if (live < 1) {
         await this.update({ [`${path}.status`]: "failed" });
       } else {
-        if (this._knowsSpell(rec.spellName, attemptId)) {
+        const restriction = rec.definition?.system?.restriction ?? "";
+        if (this._knowsSpell(rec.spellName, attemptId, restriction)) {
           return ui.notifications.warn(`${this.name} already knows ${rec.spellName} — this attempt stays pending.`);
+        }
+        // The fetish chosen at learning must still be there and unclaimed.
+        const fp = this._fetishChoiceProblem(restriction, rec.definition?.system?.fetish?.itemId,
+          rec.definition?.system?.fetish?.label);
+        if (fp && !rec.karmaPaid) {
+          return ui.notifications.warn(`${rec.spellName}: ${fp} — the attempt stays pending.`);
         }
         if (!rec.karmaPaid) {
           const karma = this.system.karma?.current ?? 0;

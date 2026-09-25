@@ -18,6 +18,7 @@
  * person should drive an elemental at a time.
  */
 import { elementalAidsCategory, planElementalTransition } from "./rules/sr2e-rules.mjs";
+import { exclusiveBlock } from "./restricted-spells.mjs";
 
 /** Spirit (and spell) uuids with a transition in flight on THIS client. */
 const IN_FLIGHT = new Set();
@@ -220,6 +221,15 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
         ?? game.combats?.find(c => c.started && combatHasActor(c, caster));
       planArgs.combatId = combat?.id ?? "";
       planArgs.seq = combat?.getFlag("sr2e", "boundarySeq") ?? 0;
+    }
+    if (kind === "takeOver" || kind === "endService") {
+      // The spell comes back to the magician's own concentration: an exclusive
+      // spell may not end up sharing it (p.133).
+      const held = spirit.system.sustainingSpellUuid ? sync(spirit.system.sustainingSpellUuid) : null;
+      if (held?.system?.sustaining && held.parent) {
+        const why = exclusiveBlock(held.parent, { adding: held });
+        if (why) return refuse(why);
+      }
     }
     if (kind === "combatBoundary" || kind === "consumeFree") {
       // The same check for the automatic step and for a recovery card: whoever

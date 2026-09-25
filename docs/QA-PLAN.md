@@ -198,6 +198,12 @@ and any **red console errors**. File them wherever the group tracks issues
       (A)". A self-resisting magician chooses own dice / unused Magic Pool (keep some →
       they stay). Area spell: the public summary's 🛡 button protects your T targets.
 
+- [ ] **Restricted spells (p.133):** Learn a spell choosing "Exclusive (+2)" → the row
+      shows EXCL; cast at 6 → the test card says "Force 6 as 8, exclusive", 8 dice, Drain
+      at 6. While it is sustained, other spells / Conjuring / Sorcery rolls are refused.
+      A reusable-fetish spell refuses to cast without "Fetish in hand"; an expendable one
+      uses one gear item per casting (🔗 restocks from gear named as learned).
+
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).

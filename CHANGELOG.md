@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Added — restricted-use spells: exclusive and fetish-required (SR2E p.133)
+
+When you learn a spell you can accept a restriction. It is permanent, and to
+know the spell another way you learn it again; both versions then sit on your
+sheet.
+
+- **Exclusive**: the spell works **as if its Force were 2 higher**. Drain stays
+  at the Force you cast it at. While you cast it you cast nothing else, and
+  while you personally sustain it you cast no other spell, sustain no other
+  spell, and use no other magical skill (Conjuring, Sorcery rolls, a Sorcery
+  astral attack, learning). A spell lock or an elemental holding it frees you.
+- **Fetish-required**: +1 Force with a **reusable** fetish (the one gear item
+  you chose when learning; lose it and the spell can't be cast), +2 with an
+  **expendable** one. An expendable fetish is used up by each casting, even a
+  failed one. Restock it with gear of the learned kind (the 🔗 button on the
+  spell row). The cast dialog asks you to confirm the fetish is in hand.
+- A restricted spell can be cast at up to the Force you learned it at, even
+  above your Magic (Drain is then Physical, on the Force you cast at).
+
+**For the GM**: I read "for the purposes of determining the spell's effect" as
+spell dice, resistance TN, damage Power and the area-spell withholding cap. It
+does **not** touch the Magic Pool cap (still your Magic, p.85), the area radius
+(still Magic, p.130) or quickening Karma (the Force you cast at). Tell me if you
+rule it differently.
+
 ### Changed — Spell Defense protects anyone you choose, a few dice at a time (SR2E p.132)
 
 "When protected characters … are attacked by magic, the magician that allocated

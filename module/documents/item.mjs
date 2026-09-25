@@ -1,10 +1,16 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { burstRounds, burstFired, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { normActorUuid } from "../spell-defense.mjs";
+import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
+
+/** A restricted-use spell's short label (p.133). */
+function restrictionLabel(r) {
+  return { exclusive: "exclusive", fetishReusable: "reusable fetish", fetishExpendable: "expendable fetish" }[r] ?? "";
+}
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -348,6 +354,33 @@ export function isManipCardResolved(message) {
  * Extended Item document for the Shadowrun 2E system.
  */
 export class SR2EItem extends Item {
+
+  /**
+   * A restricted-use spell's restriction and fetish are chosen when it is
+   * learned and are permanent (SR2E p.133): only the GM may change them on a
+   * spell someone owns. Learning another version is the in-rules route.
+   * @override
+   */
+  async _preUpdate(changed, options, user) {
+    const allowed = await super._preUpdate(changed, options, user);
+    if (allowed === false) return false;
+    const isGM = typeof user === "string" ? !!game.users.get(user)?.isGM : !!user?.isGM;
+    if (this.type === "spell" && this.parent && !isGM) {
+      const touches = foundry.utils.hasProperty(changed, "system.restriction")
+        || foundry.utils.hasProperty(changed, "system.fetish");
+      const changes = touches && (
+        (foundry.utils.hasProperty(changed, "system.restriction")
+          && foundry.utils.getProperty(changed, "system.restriction") !== this.system.restriction)
+        || (foundry.utils.hasProperty(changed, "system.fetish")
+          && JSON.stringify({ ...this.system.fetish, ...foundry.utils.getProperty(changed, "system.fetish") })
+             !== JSON.stringify(this.system.fetish)));
+      if (changes) {
+        ui.notifications?.warn(`${this.name}: a restricted-use choice is permanent — learn the spell again to know another version (SR2E p.133).`);
+        return false;
+      }
+    }
+    return allowed;
+  }
 
   /**
    * Roll the item (context-dependent based on type).
@@ -1326,13 +1359,16 @@ export class SR2EItem extends Item {
    * @param {boolean} active - Sustain (true) or drop (false).
    * @param {number} [force] - The Force the spell was cast at.
    */
-  async setSustaining(active, force = 0) {
+  async setSustaining(active, force = 0, effectiveForce = 0) {
     const actor = this.parent;
     if (!actor || this.type !== "spell") return;
 
     if (active) {
       const blocked = spellBlockedByElemental(this);
       if (blocked) { ui.notifications.warn(blocked); return; }
+      // An exclusive spell shares concentration with nothing (p.133).
+      const excl = exclusiveBlock(actor, { adding: this });
+      if (excl) { ui.notifications.warn(excl); return; }
       // Max simultaneous sustains = Sorcery rating (p.130) — warn, don't block
       const sorcery = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "sorcery");
       const maxSustains = sorcery?.system?.rating ?? 0;
@@ -1343,9 +1379,11 @@ export class SR2EItem extends Item {
         );
       }
 
+      const actual = force || this.system.force;
       await this.update({
         "system.sustaining": true,
-        "system.sustainedForce": force || this.system.force
+        "system.sustainedForce": actual,
+        "system.sustainedEffectiveForce": effectiveForce || actual
       });
 
       // Apply the spell's Active Effects to the caster for the duration
@@ -1366,6 +1404,7 @@ export class SR2EItem extends Item {
       await this.update({
         "system.sustaining": false,
         "system.sustainedForce": 0,
+        "system.sustainedEffectiveForce": 0,
         "system.spellLocked": false,
         "system.quickened": false,
         "system.quickeningKarma": 0
@@ -1442,8 +1481,14 @@ export class SR2EItem extends Item {
     const actor = this.parent;
     if (!actor) return;
 
-    // Force is provided by the cast dialog; fall back to the item's stored value
-    const force = options.force ?? this.system.force;
+    // Force is provided by the cast dialog; fall back to the item's stored value.
+    // A restricted-use spell (p.133) runs its EFFECT at a higher Force than it
+    // is cast at: `force` below is the effective Force (dice, resistance TN,
+    // damage, the area's withholding cap), `actualForce` the Force Drain and
+    // quickening are figured at. For every other spell the two are equal.
+    const restriction = this.system.restriction ?? "";
+    const { actual: actualForce, effective: force, bonus: restrictedBonus } = spellForces({
+      learnedForce: this.system.force, actualForce: options.force ?? this.system.force, restriction });
     const spellCategory = this.system.category; // combat, detection, health, illusion, manipulation
     const magicRating  = actor.system.magic?.value ?? 0;
 
@@ -1456,6 +1501,19 @@ export class SR2EItem extends Item {
       ?? (heldBy ? `${heldBy.name} is sustaining ${this.name} — take it back or drop it before casting it again.` : null);
     if (blockedWhy) {
       ui.notifications.warn(`${blockedWhy} Nothing was spent.`);
+      return null;
+    }
+    // Exclusive spells (p.133): checked for every cast, whatever its duration.
+    const exclWhy = preCastBlock(actor, this);
+    if (exclWhy) {
+      ui.notifications.warn(`${exclWhy} Nothing was spent.`);
+      return null;
+    }
+    // Fetish-required (p.133): the fetish must be in hand. An expendable one is
+    // used up by the casting itself — before the test, success or not.
+    const fetish = fetishCheck(actor, this, !!options.fetishInHand);
+    if (!fetish.ok) {
+      ui.notifications.warn(`${fetish.reason} Nothing was spent.`);
       return null;
     }
 
@@ -1516,7 +1574,12 @@ export class SR2EItem extends Item {
     // used reduces its Force by 1. Resolved and PAID before any other spend, so
     // a refusal (not bound, wrong element, not enough Force, no services) costs
     // nothing.
+    if (fetish.consume) {
+      await fetish.consume.update({ "system.quantity": Math.max(0, (fetish.consume.system.quantity ?? 1) - 1) });
+    }
     const magicAvail = actor.system.dicePools?.magic?.value ?? 0;
+    // Magic Pool: the Magic Attribute caps it (p.85); an area spell's Force cap
+    // uses the effective Force ("based on the adjusted rating", p.133).
     const poolCap = isArea ? Math.min(magicRating, force) : magicRating;
     let aidCast = 0, aidDrain = 0, aidSpirit = null;
     const aidReq = options.elementalAid;
@@ -1632,7 +1695,7 @@ export class SR2EItem extends Item {
       // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
       // in spellDice are not rating dice (p.191).
       karmaDiceCap: alloc.ratingDice,
-      label: `Cast ${this.name} (Force ${force}${totemNote})`
+      label: `Cast ${this.name} (Force ${actualForce}${restrictedBonus ? ` as ${force}, ${restrictionLabel(restriction)}` : ""}${totemNote})`
            + (isAreaCombat && cardTargets.length ? " — TN varies by target (p.130)" : ""),
       poolDice: castPool,           // magic pool dice, re-clamped above
       areaCast: isAreaCombat && cardTargets.length > 0,
@@ -1650,12 +1713,13 @@ export class SR2EItem extends Item {
     const drain = parseDrainCode(this.system.drainCode);
     // TN = ⌊Force÷2⌋ + drain modifier  (SR2E p.140)
     // e.g. Fireball "((F / 2) + 3)D" at Force 4 → TN = ⌊4÷2⌋+3 = 5, level D
-    const drainTN        = drainTargetNumber(force, drain.modifier);
+    // Drain at the ACTUAL Force, even for a restricted-use spell (p.133).
+    const drainTN        = drainTargetNumber(actualForce, drain.modifier);
     // Physical drain if Force > Magic Rating (SR2E p.138) — and ALWAYS for a
     // spell cast in astral space: "When a magician casts spells in astral space,
     // Drain always causes Physical damage, regardless of the spell's Force" (p.148).
     const inAstral       = actor.system?.astralState === "projecting";
-    const drainType      = force > magicRating || inAstral ? "physical" : "stun";
+    const drainType      = actualForce > magicRating || inAstral ? "physical" : "stun";
     let startLevel = drain.level;
     let drainSubjectNote = options.drainSubjectNote ?? "";
     if (drain.levelFromWound) {
@@ -1671,7 +1735,7 @@ export class SR2EItem extends Item {
     const willpowerDice  = actor.system.willpower?.value ?? 1;
 
     const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice + aidDrain, drainTN, {
-      label: `Drain Resist — ${startLevel} ${drainType}${inAstral && force <= magicRating ? " (cast in astral space, p.148)" : ""} (TN ${drainTN})`
+      label: `Drain Resist — ${startLevel} ${drainType}${inAstral && actualForce <= magicRating ? " (cast in astral space, p.148)" : ""} (TN ${drainTN})`
            + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
            + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`
            + `${aidDrain ? ` — +${aidDrain} Aid Sorcery` : ""}`,
@@ -1795,7 +1859,7 @@ export class SR2EItem extends Item {
     // (after drain, so the new spell doesn't penalize its own Drain Test).
     // +2 TN on all other tests until dropped or held by a spell lock.
     if (this.system.duration === "sustained" && (spellResult?.successes ?? 0) > 0) {
-      await this.setSustaining(true, force);
+      await this.setSustaining(true, actualForce, force);
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-item-card">

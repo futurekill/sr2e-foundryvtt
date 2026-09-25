@@ -17,6 +17,7 @@
  */
 import { astralProfile, meleeOutcome, netToSteps, testTotalSuccesses, successesFromSource } from "./rules/sr2e-rules.mjs";
 import { evaluateDamageCode } from "./documents/item.mjs";
+import { magicalSkillBlock } from "./restricted-spells.mjs";
 
 const STAGES = ["L", "M", "S", "D"];
 const IN_FLIGHT = new Set();
@@ -156,6 +157,11 @@ export async function astralAttack(actor, opts = {}) {
   }
   const prof = actorAstralProfile(actor, opts.focusId ?? "");
   const choice = prof.options.find(o => o.key === opts.skillKey) ?? prof.options[0];
+  // Sorcery is a magical skill: not while sustaining an exclusive spell (p.133).
+  if (choice.key === "sorcery") {
+    const excl = magicalSkillBlock(actor);
+    if (excl) return ui.notifications.warn(excl);
+  }
   const damageType = opts.damageType === "stun" ? "stun" : "physical";
   const pool = kind === "magician" ? Math.max(0, Math.min(opts.poolDice ?? 0, actor.system.dicePools?.astral?.value ?? 0)) : 0;
   const tn = Math.max(2, 4 + (Number(opts.otherMod) || 0));

@@ -1,10 +1,11 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstFired, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { promptAstralOptions } from "../astral-combat.mjs";
+import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID } from "../elementals.mjs";
@@ -1670,7 +1671,12 @@ async function promptSpellOptions(actor, spell) {
 
   // Force defaults to the spell's learned Force (set when the spell is added) —
   // the caster doesn't re-enter it every cast, just adjusts if they want to.
-  const defaultForce = Math.max(1, Math.min(spell?.system?.force ?? 1, Math.max(1, magicAttr)));
+  // A restricted-use spell (p.133) is cast at up to its LEARNED Force (which
+  // may exceed Magic) and works as if higher; every other spell keeps the
+  // Magic Rating bound it always had.
+  const restriction = spell?.system?.restriction ?? "";
+  const forceMax = restriction ? Math.max(1, spell?.system?.force ?? 1) : Math.max(1, magicAttr);
+  const defaultForce = Math.max(1, Math.min(spell?.system?.force ?? 1, forceMax));
 
   // Spell Success Test target number (SR2E p.130): for a living target it is the
   // target's Willpower (mana spell) or Body (physical spell). Auto-pull it from
@@ -1829,25 +1835,27 @@ async function promptSpellOptions(actor, spell) {
   // What the preview needs, per input. Same function the roll uses.
   const readPreview = (form) => {
     const el = form.elements;
-    const force = Math.max(1, Math.min(parseInt(el.force?.value) || 1, magicAttr));
+    // `force` is the ACTUAL Force (Drain); `effective` runs the effect (p.133).
+    const force = Math.max(1, Math.min(parseInt(el.force?.value) || 1, forceMax));
+    const effective = spellForces({ learnedForce: spell?.system?.force ?? 1, actualForce: force, restriction }).effective;
     const radiusDelta = isArea ? Number(el.radius_delta?.value || 0) : 0;
-    const geo = isArea ? areaSpellGeometry({ magic: magicAttr, force, radiusDelta }) : null;
+    const geo = isArea ? areaSpellGeometry({ magic: magicAttr, force: effective, radiusDelta }) : null;
     // The same clamp _rollSpellcast applies (shared budget per focus).
     const focusCast = eligibleFoci.reduce((n, f) => n + clampFocusAllocation(f.system,
       el[`focus_cast_${f.id}`]?.value, el[`focus_drain_${f.id}`]?.value).cast, 0);
     const aidAvail = Number(el.elem_uuid?.selectedOptions?.[0]?.dataset.avail) || 0;
     const dice = spellCastDice({
-      force, withheld: geo?.withheld ?? 0, totemBonus, totemPenalty, focusCast,
+      force: effective, withheld: geo?.withheld ?? 0, totemBonus, totemPenalty, focusCast,
       poolReq: parseInt(el.spell_pool?.value) || 0, poolAvail: available,
       // The ceiling is the Magic Rating (and the original Force for an area
       // spell) — the SAME cap _rollSpellcast applies. Availability is poolAvail.
-      poolCap: isArea ? Math.min(magicAttr, force) : magicAttr,
+      poolCap: isArea ? Math.min(magicAttr, effective) : magicAttr,
       aidReq: parseInt(el.elem_cast?.value) || 0, aidAvail,
       karmaReq: parseInt(el.karma_dice?.value) || 0, karmaAvail: actor.system.karma?.pool ?? 0,
       misc: parseInt(el.misc_dice?.value) || 0, minBase: isArea ? 0 : 1
     });
     const aidDrain = Math.max(0, Math.min(parseInt(el.elem_drain?.value) || 0, aidAvail - dice.aid));
-    return { force, radiusDelta, geo, dice, aid: el.elem_uuid?.value
+    return { force, effective, radiusDelta, geo, dice, aid: el.elem_uuid?.value
       ? { uuid: el.elem_uuid.value, cast: dice.aid, drain: aidDrain } : null };
   };
 
@@ -1902,8 +1910,11 @@ async function promptSpellOptions(actor, spell) {
           <section class="sr2e-attack__panel">
             <div class="sr2e-attack__grid">
               <div class="sr2e-attack__field">
-                <label>${game.i18n.localize("SR2E.Dialog.Force")} <span class="sr2e-attack__hint">1–${magicAttr}</span></label>
-                <input type="number" name="force" id="sr2e-cast-force" value="${defaultForce}" min="1" max="${magicAttr}" autofocus>
+                <label>${game.i18n.localize("SR2E.Dialog.Force")} <span class="sr2e-attack__hint">1–${forceMax}${restriction
+                  ? ` · works as +${spellForces({ learnedForce: forceMax, actualForce: 1, restriction }).bonus} (${restriction === "exclusive" ? "exclusive" : "fetish"})` : ""}</span></label>
+                <input type="number" name="force" id="sr2e-cast-force" value="${defaultForce}" min="1" max="${forceMax}" autofocus>
+                ${restriction.startsWith("fetish") ? `<label class="sr2e-attack__check" title="SR2E p.133: the fetish must be in hand, or worn and touched.">
+                  <input type="checkbox" name="fetishInHand"> ${restriction === "fetishExpendable" ? "Expendable fetish in hand (used up)" : "Fetish in hand"}</label>` : ""}
               </div>
               <div class="sr2e-attack__field">
                 <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}${isAreaCombat ? ` <span class="sr2e-attack__hint">per target</span>` : ""}</label>
@@ -1957,6 +1968,7 @@ async function promptSpellOptions(actor, spell) {
           const drainAlloc = Math.max(0, Math.min(rawDrain, Math.max(0, available - dice.pool)));
           rollResult = {
             force,
+            fetishInHand: !!el.fetishInHand?.checked,
             tn,
             resolvedDrainLevel: drainLevel,
             drainSubjectNote,
@@ -2013,7 +2025,7 @@ async function onCastSpell(event, target) {
   return item.roll({
     area,
     elementalAid: opts.elementalAid,
-    force: opts.force, targetNumber: opts.tn,
+    force: opts.force, targetNumber: opts.tn, fetishInHand: opts.fetishInHand,
     poolDice: opts.poolDice, drainPoolDice: opts.drainPoolDice, focusDice: opts.focusDice,
     karmaDice: opts.karmaDice,
     resolvedDrainLevel: opts.resolvedDrainLevel,
@@ -2073,9 +2085,10 @@ async function onLearnSpell(event) {
                      pack: pack.metadata.label });
     }
   }
-  const known = new Set(actor.items.filter(i => i.type === "spell").map(i => canonicalSpellName(i.name)));
+  // Known spells stay listed: another restricted-use version is a new spell
+  // ("he will know both versions", p.133). learnSpell refuses an exact repeat.
   const seen = new Set();
-  const choices = sources.filter(x => !known.has(canonicalSpellName(x.name)))
+  const choices = sources
     .sort((a, b) => a.name.localeCompare(b.name))
     .filter(x => { const k = canonicalSpellName(x.name) + "|" + (x.pack ?? "world"); if (seen.has(k)) return false; seen.add(k); return true; });
   if (!choices.length) return ui.notifications.info("No spells to learn — every one found is already known.");
@@ -2100,6 +2113,8 @@ async function onLearnSpell(event) {
       + readKarmaDice(form, actor, sorcery + theory));
     const tn = spellLearningTN({ force, teacherSuccesses: el.teacher.value, extraTN: el.extra.value }) + tnMods;
     return { opt, category, force, aidOk, aidUuid: aid?.value ?? "", totem, dice, tn,
+             restriction: el.restriction?.value ?? "", fetishItemId: el.fetishItem?.value ?? "",
+             fetishLabel: el.fetishLabel?.value ?? "",
              library: parseInt(el.library.value) || 0,
              teacher: Math.max(0, parseInt(el.teacher.value) || 0), extra: parseInt(el.extra.value) || 0 };
   };
@@ -2139,6 +2154,14 @@ async function onLearnSpell(event) {
           <input type="number" name="force" value="${Math.min(magic, 3)}" min="1"></div>
         <div class="sr2e-attack__field"><label>Library / lodge rating</label>
           <input type="number" name="library" value="0" min="0"></div>
+        <div class="sr2e-attack__field"><label title="Chosen now and permanent (SR2E p.133): cast as if Force were higher — exclusive +2, reusable fetish +1, expendable fetish +2 — with Drain at the normal Force.">Restricted use</label>
+          <select name="restriction"><option value="">— none —</option><option value="exclusive">Exclusive (+2)</option>
+            <option value="fetishReusable">Fetish, reusable (+1)</option><option value="fetishExpendable">Fetish, expendable (+2)</option></select></div>
+        <div class="sr2e-attack__field"><label title="A reusable fetish is this one item, for good (p.133).">Reusable fetish</label>
+          <select name="fetishItem"><option value="">—</option>${actor.items.filter(i => i.type === "gear")
+            .map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join("")}</select></div>
+        <div class="sr2e-attack__field"><label title="An expendable fetish is used up with each casting; restock it with gear of this exact name (p.133).">Expendable fetish</label>
+          <input type="text" name="fetishLabel" placeholder="e.g. eagle-feather tuft"></div>
         <div class="sr2e-attack__field"><label>Teacher's successes <span class="sr2e-attack__hint">Teaching vs Force − Int ${actor.system.intelligence?.value ?? "?"}</span></label>
           <input type="number" name="teacher" value="0" min="0"></div>
         <div class="sr2e-attack__field"><label>Other TN modifiers</label>
@@ -2170,7 +2193,8 @@ async function onLearnSpell(event) {
   return actor.learnSpell({
     sourceUuid: req.opt.value, force: req.force, libraryRating: req.library,
     teacherSuccesses: req.teacher, extraTN: req.extra,
-    aidSpiritUuid: req.aidOk ? req.aidUuid : "", karmaDice: req.karmaDice
+    aidSpiritUuid: req.aidOk ? req.aidUuid : "", karmaDice: req.karmaDice,
+    restriction: req.restriction, fetishItemId: req.fetishItemId, fetishLabel: req.fetishLabel
   });
 }
 
@@ -3699,6 +3723,22 @@ const SHARED_ACTIONS = {
    * impose no sustain penalty (SR2E p.137).
    * @this {ApplicationV2}
    */
+  /**
+   * Restock an expendable fetish (SR2E p.133): bind gear of the learned kind.
+   * @this {ApplicationV2}
+   */
+  bindFetish: async function(event, target) {
+    event.preventDefault();
+    event.stopPropagation();
+    const spell = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (!spell) return;
+    const label = spell.system.fetish?.label ?? "";
+    const candidates = this.document.items.filter(i => i.type === "gear" && i.name === label
+      && !i.getFlag("sr2e", "fetishFor"));
+    if (!candidates.length) return ui.notifications.info(`No unbound gear named “${label}” — add some, then bind it.`);
+    for (const g of candidates) await bindFetishStock(spell, g);
+  },
+
   toggleSpellLock: async function(event, target) {
     event.preventDefault();
     const itemId = target.closest("[data-item-id]")?.dataset.itemId;
@@ -3708,6 +3748,11 @@ const SHARED_ACTIONS = {
       const why = spellBlockedByElemental(item)
         ?? (elementalHolderOf(item) ? `${elementalHolderOf(item).name} sustains ${item.name} — take it over first.` : null);
       if (why) return ui.notifications.warn(why);
+    } else {
+      // Unlocking hands the spell back to the magician: not alongside an
+      // exclusive spell (p.133).
+      const excl = exclusiveBlock(this.document, { adding: item });
+      if (excl) return ui.notifications.warn(excl);
     }
     return item.update({ "system.spellLocked": !item.system.spellLocked });
   },

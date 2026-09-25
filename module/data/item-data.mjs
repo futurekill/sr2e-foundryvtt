@@ -383,7 +383,21 @@ export class SpellData extends SR2EDataModel {
       // Sustained-spell state (SR2E p.130): while sustaining, the caster takes
       // +2 TN on all other tests per spell — unless a spell lock holds it.
       sustaining: new fields.BooleanField({ initial: false }),
+      // The ACTUAL Force it was cast at (Drain, quickening Karma)…
       sustainedForce: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // …and the Force its EFFECT runs at — higher for a restricted-use spell.
+      sustainedEffectiveForce: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Restricted use (SR2E p.133), chosen when the spell is learned and
+      // permanent: exclusive (+2), or a reusable (+1) / expendable (+2) fetish.
+      restriction: new fields.StringField({ initial: "", blank: true, choices: {
+        "": "—", exclusive: "Exclusive", fetishReusable: "Fetish (reusable)",
+        fetishExpendable: "Fetish (expendable)" } }),
+      // The fetish chosen at learning: a reusable one is THAT gear item; an
+      // expendable one is a stock of gear named `label` (bound per item).
+      fetish: new fields.SchemaField({
+        itemId: new fields.StringField({ initial: "", blank: true }),
+        label: new fields.StringField({ initial: "", blank: true })
+      }),
       spellLocked: new fields.BooleanField({ initial: false }),
       // Quickened (Grimoire p.44): an initiate has paid Karma to make this
       // sustained spell permanent — it keeps running with no sustaining penalty.

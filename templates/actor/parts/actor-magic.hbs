@@ -118,8 +118,12 @@
           <span class="spell-col name" data-action="castSpell">
             <i class="fas fa-magic"></i>
             {{spell.name}}
+            {{#if spell.system.restriction}}
+            <span class="sustain-badge" title="Restricted use (SR2E p.133), chosen when learned: {{spell.system.restriction}}{{#if spell.system.fetish.label}} — fetish: {{spell.system.fetish.label}}{{/if}}">{{#if (eq spell.system.restriction "exclusive")}}EXCL{{else}}FETISH{{/if}}</span>
+            {{#if (eq spell.system.restriction "fetishExpendable")}}<a data-action="bindFetish" title="Restock: bind gear named “{{spell.system.fetish.label}}” as this spell's expendable fetish"><i class="fas fa-link"></i></a>{{/if}}
+            {{/if}}
             {{#if spell.system.sustaining}}
-            <span class="sustain-badge" title="Sustained at Force {{spell.system.sustainedForce}}">F{{spell.system.sustainedForce}}</span>
+            <span class="sustain-badge" title="Sustained at Force {{spell.system.sustainedForce}}{{#if spell.system.restriction}} (works as {{spell.system.sustainedEffectiveForce}}){{/if}}">F{{spell.system.sustainedForce}}</span>
             {{/if}}
             {{#with (lookup @root.spellElementals spell.id) as |el|}}
             {{#if el.holderName}}

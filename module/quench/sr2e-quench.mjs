@@ -5294,6 +5294,116 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Spell Defense for Allies" });
 
+    // ── Restricted-use spells (SR2E p.133) ───────────────────────────────────
+    quench.registerBatch("sr2e.restricted-spells", (context) => {
+      const { it, assert, beforeEach, afterEach } = context;
+      let before, msgsBefore, mage;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const tests = () => game.messages.contents.slice(msgsBefore).filter(m => m.flags?.sr2e?.test).map(m => m.flags.sr2e.test);
+      const mkSpell = async (name, system = {}) => (await mage.createEmbeddedDocuments("Item", [{ name, type: "spell",
+        system: { category: "detection", type: "mana", force: 6, drainCode: "(F / 2)M", duration: "sustained", ...system } }]))[0];
+      beforeEach(async () => {
+        before = new Set(game.actors.map(a => a.id)); msgsBefore = game.messages.size;
+        mage = await Actor.create({ name: "Quench Restricted Mage", type: "character", system: {
+          willpower: { base: 6 }, magic: { type: "full_magician", value: 6, max: 6 } } });
+        await mage.createEmbeddedDocuments("Item", [
+          { name: "Sorcery", type: "skill", system: { rating: 6, category: "active" } },
+          { name: "Conjuring", type: "skill", system: { rating: 4, category: "active" } }]);
+      });
+      afterEach(async () => {
+        for (const a of game.actors.filter(a => !before.has(a.id))) await a.delete();
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgsBefore).map(m => m.id));
+      });
+
+      it("exclusive: cast at learned 6, works as 8 (8 dice), Drain at 6 (Stun at Magic 6)", async () => {
+        const sp = await mkSpell("Quench Excl Detect", { restriction: "exclusive" });
+        await withFaces(Array(20).fill(5), () => sp.roll({ force: 6, targetNumber: 4 }));
+        const [cast, drain] = tests();
+        assert.lengthOf(cast.dice, 8, "Force dice at the effective 8");
+        assert.include(cast.label, "as 8, exclusive");
+        assert.include(drain.label, "stun", "Drain at the actual Force 6 ≤ Magic 6");
+        assert.include(drain.label, "TN 3", "⌊6÷2⌋");
+        assert.equal(sp.system.sustainedForce, 6);
+        assert.equal(sp.system.sustainedEffectiveForce, 8);
+      });
+
+      it("cast below the learned Force: Drain on the lower one; never above the learned Force", async () => {
+        const sp = await mkSpell("Quench Fetish Detect", { restriction: "fetishReusable", fetish: { itemId: "", label: "" } });
+        const [g] = await mage.createEmbeddedDocuments("Item", [{ name: "Quench Rattle", type: "gear", system: { quantity: 1 } }]);
+        await sp.update({ "system.fetish.itemId": g.id });   // GM: allowed
+        await withFaces(Array(20).fill(5), () => sp.roll({ force: 4, targetNumber: 4, fetishInHand: true }));
+        const [cast, drain] = tests();
+        assert.lengthOf(cast.dice, 5, "4 + 1 reusable fetish");
+        assert.include(drain.label, "TN 2", "⌊4÷2⌋");
+      });
+
+      it("fetish: refused without it in hand, and when the reusable fetish is gone", async () => {
+        const [g] = await mage.createEmbeddedDocuments("Item", [{ name: "Quench Wand", type: "gear", system: { quantity: 1 } }]);
+        const sp = await mkSpell("Quench Wand Spell", { restriction: "fetishReusable", fetish: { itemId: g.id, label: "Quench Wand" } });
+        await sp.roll({ force: 6, targetNumber: 4 });
+        assert.lengthOf(tests(), 0, "not in hand: refused");
+        await g.delete();
+        await sp.roll({ force: 6, targetNumber: 4, fetishInHand: true });
+        assert.lengthOf(tests(), 0, "no substitute for a lost fetish");
+      });
+
+      it("expendable fetish: used up before the test, even when the casting fails", async () => {
+        const sp = await mkSpell("Quench Herb Spell", { restriction: "fetishExpendable", fetish: { itemId: "", label: "Quench Herbs" } });
+        const [herbs] = await mage.createEmbeddedDocuments("Item", [{ name: "Quench Herbs", type: "gear", system: { quantity: 2 } }]);
+        const { bindFetishStock } = await import("../restricted-spells.mjs");
+        await bindFetishStock(sp, herbs);
+        const [other] = await mage.createEmbeddedDocuments("Item", [{ name: "Quench Twigs", type: "gear", system: { quantity: 5 } }]);
+        await bindFetishStock(sp, other);
+        assert.isUndefined(other.getFlag("sr2e", "fetishFor"), "only the learned kind binds");
+        await withFaces(Array(20).fill(1).map((v, i) => i === 1 ? 2 : v), () => sp.roll({ force: 3, targetNumber: 4, fetishInHand: true }));
+        assert.equal(herbs.system.quantity, 1, "one used, though the cast failed");
+      });
+
+      it("exclusive vs anything else: both directions refused, and magical skills blocked", async () => {
+        const plain = await mkSpell("Quench Plain Detect");
+        const excl  = await mkSpell("Quench Excl Detect2", { restriction: "exclusive" });
+        await plain.setSustaining(true, 3);
+        await excl.roll({ force: 6, targetNumber: 4 });
+        assert.lengthOf(tests(), 0, "an exclusive spell is not cast while another is sustained");
+        await plain.setSustaining(false);
+        await withFaces(Array(20).fill(5), () => excl.roll({ force: 6, targetNumber: 4 }));
+        assert.isTrue(excl.system.sustaining);
+        const n = tests().length;
+        await plain.roll({ force: 3, targetNumber: 4 });
+        assert.lengthOf(tests(), n, "no other spell while the exclusive one is sustained");
+        await plain.setSustaining(true, 3);
+        assert.isFalse(plain.system.sustaining, "setSustaining refused");
+        await mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire", materials: false });
+        assert.lengthOf(tests(), n, "no conjuring");
+        await mage.rollSkillTest(mage.items.getName("Sorcery").id, 4);
+        assert.lengthOf(tests(), n, "no Sorcery roll");
+        // A spell lock holding it frees the magician.
+        await excl.update({ "system.spellLocked": true });
+        await withFaces(Array(20).fill(5), () => plain.roll({ force: 3, targetNumber: 4 }));
+        assert.isAbove(tests().length, n, "released by the lock");
+        const { exclusiveBlock } = await import("../restricted-spells.mjs");
+        assert.ok(exclusiveBlock(mage, { adding: excl }), "unlocking now would conflict");
+      });
+
+      it("versions and permanence: learning checks name + restriction; a player cannot change it", async () => {
+        const sp = await mkSpell("Quench Fireball", { restriction: "" });
+        assert.isTrue(mage._knowsSpell("Quench Fireball", "", ""));
+        assert.isFalse(mage._knowsSpell("Quench Fireball", "", "exclusive"), "the exclusive version is another spell");
+        const allowed = await sp._preUpdate({ system: { restriction: "exclusive" } }, {}, { isGM: false });
+        assert.isFalse(allowed, "a player's change is refused");
+        const gm = await sp._preUpdate({ system: { restriction: "exclusive" } }, {}, game.user);
+        assert.notStrictEqual(gm, false, "the GM may");
+        await sp.setSustaining(true, 6, 8);
+        await sp.setSustaining(false);
+        assert.equal(sp.system.sustainedEffectiveForce, 0, "dropping clears both");
+      });
+    }, { displayName: "SR2E: Restricted-Use Spells" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];
