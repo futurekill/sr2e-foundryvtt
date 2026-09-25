@@ -42,12 +42,10 @@ at that time."
   Quickness (TN 3) or fall prone; vehicles make a Handling or Crash Test (GM).
   "Clear blast areas" melts it away.
 
-**For the GM**:
-- I read Poltergeist's debris as hitting again each Combat Turn while it is
-  sustained. The book only says it whacks targets with flying debris.
+Rulings confirmed by the GM:
+- Poltergeist's debris hits again each Combat Turn while it is sustained.
+  The book only says it whacks targets with flying debris.
 - A new fire burns the same turn it ignites.
-
-Tell me if you rule either differently.
 
 ### Added — restricted-use spells: exclusive and fetish-required (SR2E p.133)
 
@@ -68,11 +66,10 @@ sheet.
 - A restricted spell can be cast at up to the Force you learned it at, even
   above your Magic (Drain is then Physical, on the Force you cast at).
 
-**For the GM**: I read "for the purposes of determining the spell's effect" as
-spell dice, resistance TN, damage Power and the area-spell withholding cap. It
-does **not** touch the Magic Pool cap (still your Magic, p.85), the area radius
-(still Magic, p.130) or quickening Karma (the Force you cast at). Tell me if you
-rule it differently.
+"For the purposes of determining the spell's effect" (confirmed by the GM)
+covers spell dice, resistance TN, damage Power and the area-spell withholding
+cap. It does **not** touch the Magic Pool cap (still your Magic, p.85), the area
+radius (still Magic, p.130) or quickening Karma (the Force you cast at).
 
 ### Changed — Spell Defense protects anyone you choose, a few dice at a time (SR2E p.132)
 
