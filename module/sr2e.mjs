@@ -22,6 +22,7 @@ import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astr
 import { SR2ECombat } from "./documents/combat.mjs";
 import { registerSpellEffectHooks, wireSpellEffectButtons } from "./spell-effects.mjs";
 import { registerNatureSpiritSettings, registerNatureSpiritHooks, natureSpiritsDepart } from "./nature-spirits.mjs";
+import { wireRitualButtons, startRitual } from "./ritual.mjs";
 
 // Sheets
 import {
@@ -440,7 +441,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { natureSpiritsDepart, rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
@@ -2254,6 +2255,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     html.classList.add("sr2e-roll");
   }
   wireSpellEffectButtons(message, html);
+  wireRitualButtons(message, html);
 
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.

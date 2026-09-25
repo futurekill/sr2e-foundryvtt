@@ -23,7 +23,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, damageUpdateFor, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -331,14 +331,18 @@ export class SR2EActor extends Actor {
     // concentration, SR2E p.130). The Injury Modifier does NOT apply to damage-
     // or drain-resistance tests (SR2E p.112); resistance callers pass
     // options.isResistance. The sustain penalty is not granted that exemption.
-    const woundPenalty = options.isResistance ? 0 : (this.system.woundPenalty ?? 0);
-    const sustainPenalty = this.system.sustainPenalty ?? 0;
+    // A ritual's stages (p.136–137) name exactly which modifiers apply:
+    // `tnPolicy: "table"` (link, sending) takes none; "injury" (the effect)
+    // takes only the leader's Injury Modifier.
+    const policy = options.tnPolicy ?? "";
+    const woundPenalty = options.isResistance || policy === "table" ? 0 : (this.system.woundPenalty ?? 0);
+    const sustainPenalty = policy ? 0 : (this.system.sustainPenalty ?? 0);
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
-    const dumpShock = this.system.dumpShock ? 2 : 0;
+    const dumpShock = !policy && this.system.dumpShock ? 2 : 0;
     // Over-spec'd cranial cyberdeck (Matrixware, Shadowtech p.54): an MPCP above
     // 1.5 × Intelligence costs +4 on EVERY action, "across the board". Like the
     // sustain penalty, resistance tests get no exemption from it.
-    const mpcpOverload = this.system.mpcpOverloadPenalty ?? 0;
+    const mpcpOverload = policy ? 0 : (this.system.mpcpOverloadPenalty ?? 0);
     // Caller-supplied TN modifier that only applies to certain tests (e.g. the
     // biosystem-overstress penalty, which hits Body Success Tests only).
     const extraTN = options.extraTN ?? 0;
@@ -483,7 +487,9 @@ export class SR2EActor extends Actor {
       rolls: testResult.rolls,
       sound: CONFIG.sounds.dice,
       content: renderSuccessTestCard(state),
-      flags: { sr2e: { test: state } }
+      // Callers may tag the test at creation (a ritual stage), so it never
+      // exists untagged.
+      flags: foundry.utils.mergeObject(options.flags ?? {}, { sr2e: { test: state } }, { inplace: false })
     });
 
     // --- Reduce pools / karma that were used ---
@@ -613,6 +619,10 @@ export class SR2EActor extends Actor {
     // A test that decided an astral exchange (or its resistance) is final.
     if (state.closed || isTestClosed(message.id)) {
       return ui.notifications.warn("That test decided an exchange that is already resolved — it is closed to Karma.");
+    }
+    // A ritual's tests are the GM's (p.135): only the client running it spends Karma.
+    if (message.getFlag("sr2e", "ritualTest") && !game.users.activeGM?.isSelf) {
+      return ui.notifications.warn("Karma on a ritual's tests is spent by the GM running the ritual.");
     }
     // Enforced here, not just hidden on the card: a macro can call this too.
     if (state.areaCast && (action === "reroll" || action === "buySuccess")) {
@@ -2567,28 +2577,19 @@ export class SR2EActor extends Actor {
       return this.update({ "system.conditionMonitor.value": newValue });
     }
 
-    const monitor = this.system.conditionMonitor[type];
-    const newValue = Math.min(monitor.value + amount, monitor.max);
+    return this.update(this.damageUpdate(type, amount));
+  }
 
-    const updatePath = `system.conditionMonitor.${type}.value`;
-    await this.update({ [updatePath]: newValue });
-
-    // Check for overflow (physical damage exceeds max)
-    if (type === "physical" && newValue >= monitor.max) {
-      const overflow = (monitor.value + amount) - monitor.max;
-      if (overflow > 0) {
-        await this.update({ "system.conditionMonitor.overflow": this.system.conditionMonitor.overflow + overflow });
-      }
-    }
-
-    // Stun overflow converts to physical
-    if (type === "stun" && newValue >= monitor.max) {
-      const overflow = (monitor.value + amount) - monitor.max;
-      if (overflow > 0) {
-        await this.applyDamage("physical", overflow);
-        await this.update({ [`system.conditionMonitor.stun.value`]: monitor.max });
-      }
-    }
+  /**
+   * The actor update for taking `amount` boxes of `type` damage — Stun past
+   * its track spills into Physical, Physical past its track into overflow —
+   * so a caller can commit it together with its own marker in one update.
+   */
+  damageUpdate(type, amount) {
+    const cm = this.system.conditionMonitor;
+    const r = damageUpdateFor({ physical: cm.physical, stun: cm.stun, overflow: cm.overflow ?? 0 }, type, amount);
+    return { "system.conditionMonitor.physical.value": r.physical, "system.conditionMonitor.stun.value": r.stun,
+             "system.conditionMonitor.overflow": r.overflow };
   }
 
   // -------------------------------------------------------------------------

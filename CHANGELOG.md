@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+### Added — ritual sorcery (SR2E p.133–137)
+
+A team of magicians casts a spell over hours at a target out of sight. The GM
+runs it: a GM-only **🜂 ritual** button on any non-combat spell row opens the
+worksheet.
+
+- **Start** checks the rules:
+  - no combat spells;
+  - every member knows the spell and shares the leader's tradition;
+  - team size ≤ the lowest Sorcery rating;
+  - nobody is sustaining a spell;
+  - each Magic Pool contribution is within that member's pool;
+  - the lodge/circle is rated at least the Force.
+
+  The contributions form the **Ritual Magic Pool**.
+- **Materials** (Detection 100¥, Health 500¥, Illusion 100¥, Manipulation
+  1,000¥ × Force) are charged to the leader, or marked as supplied.
+- A GM-only card tracks the ritual step by step. Each test uses Ritual Pool
+  dice only.
+  - **Material link**: TN from the Material Link Table plus its modifiers.
+    Skipped when the target is in sight or an astral guide spots it.
+  - **Sending**: TN from the Sending Table.
+  - **Effect**: only the leader's Injury and totem apply.
+  - Hours are Force ÷ successes; 0 successes aborts.
+  - **Finalise** takes the result after any Karma and closes the test.
+- The effect posts its damage, healing or Ignite cards. The GM card gives the
+  Spell Resistance TN (the higher of Force and the leader's Ritual Sorcery).
+- **Sustaining** is recorded: leftover dice (leader Magic × dice hours), an
+  elemental (Force days), or a locked-in team (+2 on everyone's Drain).
+- **Drain** for every member, even after an abort. Each member rolls Willpower
+  plus the leftover pool dice the leader assigns, their unused totem dice and
+  any foci or spirit-aid dice the GM confirms. Physical if the Force exceeds
+  their Magic or they are projecting.
+- **Withdraw**: a member's dice leave the pool. If the pool empties, or the
+  astral guide leaves, the ritual aborts.
+
+**Left to the GM**:
+- advancing world time (the card totals the hours);
+- ending ritual sustaining;
+- using up the foci or spirit services counted for Drain;
+- noticing or tracking a sending;
+- Poltergeist and Ice Sheet, which aren't offered for rituals.
+
 ### Added — nature spirits vanish at sunrise and sunset (SR2E p.139)
 
 "Nature spirits vanish at sunrise and sunset, no matter what … All services end

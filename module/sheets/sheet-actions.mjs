@@ -9,6 +9,7 @@ import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
+import { startRitual } from "../ritual.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
@@ -3729,6 +3730,17 @@ const SHARED_ACTIONS = {
       && !i.getFlag("sr2e", "fetishFor"));
     if (!candidates.length) return ui.notifications.info(`No unbound gear named “${label}” — add some, then bind it.`);
     for (const g of candidates) await bindFetishStock(spell, g);
+  },
+
+  /**
+   * Ritual sorcery (SR2E p.133): the GM starts a ritual with this spell.
+   * @this {ApplicationV2}
+   */
+  ritualCast: async function(event, target) {
+    event.preventDefault();
+    event.stopPropagation();
+    const spell = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (spell) return startRitual(spell);
   },
 
   toggleSpellLock: async function(event, target) {

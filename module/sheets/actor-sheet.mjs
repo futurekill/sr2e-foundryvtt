@@ -74,6 +74,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.system   = this.document.system;
     context.config   = CONFIG.SR2E;
     context.editable = this.isEditable;
+    context.isGM     = game.user.isGM;
     context.attrBreakdown = this._buildAttrBreakdown();
     // Recoil still in force this Combat Phase (keyed; module/engagement.mjs).
     context.recoilInForce = currentRecoil(this.document, phaseKey(this.document));

@@ -5770,6 +5770,205 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Nature Spirits Depart (p.139)" });
 
+    // ── Ritual sorcery (SR2E p.133–137) ───────────────────────────────────────
+    quench.registerBatch("sr2e.ritual", (context) => {
+      const { it, assert, before, afterEach } = context;
+      let R, T, msgStart = 0;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const since = () => game.messages.contents.slice(msgStart);
+      const record = (id) => T.recordMsg(id).flags.sr2e.ritual;
+      const mkMage = async (name, { sorcery = 4, tradition = "hermetic", spells = [], extra = {} } = {}) => {
+        const a = await Actor.create({ name: `Quench Ritual ${name}`, type: "character", system: {
+          willpower: { base: 5 }, nuyen: 20000, magic: { type: "full_magician", value: 6, max: 6, tradition }, ...extra } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Sorcery", type: "skill", system: { rating: sorcery, category: "active" } },
+          ...spells.map(sp => ({ type: "spell", ...sp }))]);
+        return a;
+      };
+      const DETECT = { name: "Quench Ritual Sight", system: { category: "detection", type: "mana", force: 4, drainCode: "(F / 2)M", duration: "sustained" } };
+      const team = async (opts = {}) => {
+        const leader = await mkMage("Leader", { spells: [DETECT] });
+        const member = await mkMage("Member", { spells: [DETECT], ...opts.member });
+        const spell = leader.items.getName(DETECT.name);
+        const members = [{ actor: member, contribution: 4, guide: false }];
+        members.leaderContribution = 4;
+        return { leader, member, spell, members };
+      };
+      const start = (t, extra = {}) => R.createRitual({ leader: t.leader, spell: t.spell, force: 4, members: t.members,
+        subject: { kind: "place", name: "the warehouse", type: "place" }, lodgeConfirmed: true, ...extra });
+      const roll = (id, stage, dice, tn, faces) => withFaces(faces, () => T.mutate(id, async (r) => { await T.rollStage(r, stage, dice, tn, `Quench ${stage}`); T.adopt(r); }));
+
+      before(async () => {
+        R = await import("../ritual.mjs"); T = R.ritualTesting;
+        msgStart = game.messages.size;
+      });
+      afterEach(async function () {
+        this.timeout(15000);
+        const ids = game.actors.filter(a => a.name.startsWith("Quench Ritual")).map(a => a.id);
+        if (ids.length) await Actor.deleteDocuments(ids);
+        await ChatMessage.deleteDocuments(since().map(m => m.id));
+        msgStart = game.messages.size;
+      });
+
+      it("Start refuses what p.133/p.135 forbid", async () => {
+        const t = await team();
+        const why = (o) => R.ritualStartProblem({ leader: t.leader, spell: t.spell, force: 4, members: t.members, lodgeConfirmed: true, ...o });
+        assert.isNull(why({}));
+        assert.match(why({ lodgeConfirmed: false }), /circle/);
+        const [bolt] = await t.leader.createEmbeddedDocuments("Item", [{ name: "Quench Ritual Bolt", type: "spell", system: { category: "combat", force: 4, drainCode: "(F / 2)S" } }]);
+        assert.match(why({ spell: bolt }), /combat/);
+        const [polt] = await t.leader.createEmbeddedDocuments("Item", [{ name: "Poltergeist", type: "spell", system: { category: "manipulation", force: 4, drainCode: "(F / 2)L" } }]);
+        assert.match(why({ spell: polt }), /cast it normally/);
+        const stranger = await mkMage("Stranger");
+        const m2 = [{ actor: stranger, contribution: 1 }]; m2.leaderContribution = 1;
+        assert.match(why({ members: m2 }), /does not know/);
+        const shaman = await mkMage("Shaman", { tradition: "shamanic", spells: [DETECT] });
+        const m3 = [{ actor: shaman, contribution: 1 }]; m3.leaderContribution = 1;
+        assert.match(why({ members: m3 }), /tradition/);
+        const weak = await mkMage("Weak", { sorcery: 1, spells: [DETECT] });
+        const m4 = [{ actor: weak, contribution: 1 }]; m4.leaderContribution = 1;
+        assert.match(why({ members: m4 }), /lowest Sorcery/);
+        const m5 = [{ actor: t.member, contribution: 9 }]; m5.leaderContribution = 1;
+        assert.match(why({ members: m5 }), /can put 0–4/);
+        const [other] = await t.member.createEmbeddedDocuments("Item", [{ name: "Quench Ritual Armor", type: "spell", system: { category: "manipulation", force: 3, duration: "sustained" } }]);
+        await other.setSustaining(true, 3);
+        assert.match(why({}), /sustaining/);
+      });
+
+      it("Start: pool from contributions, no Magic Pool spent; materials charged once with a marker", async () => {
+        const t = await team();
+        const before = t.member.system.dicePools.magic.value;
+        const id = await start(t);
+        const r = record(id);
+        assert.equal(r.pool, 8); assert.equal(r.materials, 400);
+        assert.equal(t.member.system.dicePools.magic.value, before, "no member's pool is debited");
+        assert.isTrue(T.recordMsg(id).whisper.length > 0, "the record is whispered");
+        const nuyen = t.leader.system.nuyen;
+        await R.ritualTesting.mutate(id, async () => false);
+        const pay = () => T.mutate(id, async (r) => { if (r.paid) return false;
+          await t.leader.update({ "system.nuyen": t.leader.system.nuyen - r.materials, [`flags.sr2e.ritualPaid.${r.id}`]: true }); r.paid = true; });
+        // Simulate a crash after the charge but before the record saved: the marker is adopted.
+        await t.leader.update({ "system.nuyen": nuyen - 400, [`flags.sr2e.ritualPaid.${id}`]: true });
+        await pay();
+        assert.equal(t.leader.system.nuyen, nuyen - 400, "charged once");
+        assert.isTrue(record(id).paid);
+      });
+
+      it("link: pool dice only, the table TN without Injury; a tagged roll is adopted once; 0 successes aborts for Force hours", async () => {
+        const t = await team();
+        await t.leader.update({ "system.conditionMonitor.stun.value": 3 });          // an Injury Modifier
+        const id = await start(t);
+        await T.mutate(id, (r) => { r.paid = true; });
+        await roll(id, "link", 3, 5, [1, 1, 2]);
+        const r = record(id);
+        assert.equal(r.pool, 5, "3 dice out of the pool");
+        const test = game.messages.get(r.stages.link.testId).flags.sr2e.test;
+        assert.equal(test.tn, 5, "the table TN only — no Injury (p.136)");
+        // A tagged test the record never saw (a crash between roll and save) is adopted, once.
+        await withFaces([6, 6], () => t.leader.rollSuccessTest(2, 5, { flags: { sr2e: { ritualTest: { ritualId: id, stage: "sending", dice: 2, tn: 6 } } } }));
+        await T.mutate(id, () => {});
+        await T.mutate(id, () => {});
+        assert.equal(record(id).pool, 3, "adopted and charged once");
+        await T.finalise(id, "link");
+        const f = record(id);
+        assert.equal(f.stages.link.successes, 0);
+        assert.equal(f.stages.link.hours, 4, "an abort costs Force hours");
+        assert.equal(f.stage, "drain"); assert.match(f.aborted, /material link/);
+        assert.equal(f.drainLevel, "M", "frozen at the abort");
+        const { isTestClosed } = await import("../astral-combat.mjs");
+        assert.isTrue(isTestClosed(f.stages.link.testId), "Finalise closes the test");
+      });
+
+      it("the whole ritual: sending hours with its minimum, effect, publication once, Drain once per member", async function () {
+        this.timeout(15000);
+        const t = await team();
+        const id = await start(t, { inSight: true });
+        await T.mutate(id, (r) => { r.paid = true; });
+        assert.equal(record(id).stage, "sending", "in sight: no link");
+        await roll(id, "sending", 2, 6, [6, 6]);
+        await T.finalise(id, "sending");
+        assert.equal(record(id).stages.sending.hours, 2, "4 ÷ 2");
+        await roll(id, "effect", 3, 4, [5, 5, 1]);
+        assert.equal(record(id).drainLevel, "M", "frozen at the effect roll");
+        await T.finalise(id, "effect");
+        assert.equal(record(id).stage, "publish");
+        await T.publish(id);
+        const n = since().filter(m => m.flags?.sr2e?.ritualCard).length;
+        await T.mutate(id, (r) => { r.stage = "publish"; });                          // a resumed publication
+        await T.publish(id);
+        assert.equal(since().filter(m => m.flags?.sr2e?.ritualCard).length, n, "nothing posted twice");
+        assert.match(since().find(m => m.flags?.sr2e?.ritualCard?.endsWith(":summary-gm:"))?.content ?? "", /TN is <strong>4<\/strong>/,
+          "resistance TN max(Force 4, Ritual Sorcery 4)");
+        assert.equal(record(id).stage, "sustain");
+        await T.mutate(id, (r) => { r.sustain = { mode: "locked", note: "locked" }; r.stage = "drain"; });
+        // Drain: the leader, all 1s → M stun; +2 TN locked in.
+        await withFaces(Array(10).fill(1), () => T.mutate(id, async (r) => {
+          await t.leader.rollSuccessTest(5, r.drainTN, { isResistance: true, extraTN: 2,
+            flags: { sr2e: { ritualTest: { ritualId: r.id, stage: "drain", memberUuid: t.leader.uuid, dice: 0 } } } });
+          T.adopt(r);
+        }));
+        const dt = game.messages.get(record(id).drain[T.dk(t.leader.uuid)].testId).flags.sr2e.test;
+        assert.equal(dt.tn, record(id).drainTN + 2, "locked in: +2");
+        await T.finaliseDrain(id, t.leader.uuid);
+        assert.equal(t.leader.system.conditionMonitor.stun.value, 3, "M Stun");
+        assert.isTrue(t.leader.getFlag("sr2e", "ritualDrain")[id], "marker in the same update");
+        await T.mutate(id, (r) => { r.drain[T.dk(t.leader.uuid)].done = false; });          // a replayed Finalise
+        await T.finaliseDrain(id, t.leader.uuid);
+        assert.equal(t.leader.system.conditionMonitor.stun.value, 3, "Drain applies once");
+      });
+
+      it("withdrawal: the guide aborts; a pool driven to 0 aborts", async () => {
+        const t = await team();
+        const guide = await mkMage("Guide", { spells: [DETECT] });
+        t.members.push({ actor: guide, contribution: 0, guide: true });
+        const id = await start(t);
+        assert.equal(record(id).stage, "sending", "a guide makes the link unnecessary");
+        await T.withdrawMember(id, guide.uuid);
+        assert.match(record(id).aborted, /astral guide/);
+        assert.equal(record(id).stage, "drain");
+        assert.ok(record(id).drain[T.dk(guide.uuid)], "the guide still owes Drain");
+        const t2 = await team();
+        t2.members.leaderContribution = 0;
+        const id2 = await start(t2);
+        await T.withdrawMember(id2, t2.leader.uuid);
+        assert.isNull(record(id2).aborted, "the leader can't withdraw");
+        await T.withdrawMember(id2, t2.member.uuid);
+        assert.equal(record(id2).pool, 0);
+        assert.match(record(id2).aborted, /exhausted/);
+      });
+
+      it("a healing ritual aborted at the link freezes Drain from the patient's wounds then", async () => {
+        const { healingDrainLevel } = await import("../rules/sr2e-rules.mjs");
+        const HEAL = { name: "Quench Ritual Heal", system: { category: "health", type: "mana", force: 4, drainCode: "(F / 2)W",
+          duration: "permanent", healsDamage: true, healingTnBase: 10 } };
+        const leader = await mkMage("Healer", { spells: [HEAL] });
+        const patient = await Actor.create({ name: "Quench Ritual Patient", type: "npc", system: { body: { base: 3 } } });
+        await patient.update({ "system.conditionMonitor.physical.value": 6 });
+        const members = []; members.leaderContribution = 4;
+        const id = await R.createRitual({ leader, spell: leader.items.getName(HEAL.name), force: 4, members,
+          subject: { kind: "actor", uuid: patient.uuid, name: patient.name, type: "metahuman" }, lodgeConfirmed: true });
+        await T.mutate(id, (r) => { r.paid = true; });
+        await roll(id, "link", 2, 5, [1, 2]);
+        await T.finalise(id, "link");
+        assert.equal(record(id).drainLevel, healingDrainLevel(6), "the patient's wound level at the abort");
+        await patient.update({ "system.conditionMonitor.physical.value": 0 });
+        await T.mutate(id, () => {});
+        assert.equal(record(id).drainLevel, healingDrainLevel(6), "healing the patient later changes nothing");
+      });
+
+      it("damageUpdate: Stun past the track spills into Physical in one update", async () => {
+        const a = await mkMage("Sponge");
+        await a.update({ "system.conditionMonitor.stun.value": 8 });
+        await a.update(a.damageUpdate("stun", 6));
+        assert.equal(a.system.conditionMonitor.stun.value, 10);
+        assert.equal(a.system.conditionMonitor.physical.value, 4);
+      });
+    }, { displayName: "SR2E: Ritual Sorcery (p.133–137)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

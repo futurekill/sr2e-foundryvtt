@@ -122,6 +122,7 @@
             <span class="sustain-badge" title="Restricted use (SR2E p.133), chosen when learned: {{spell.system.restriction}}{{#if spell.system.fetish.label}} — fetish: {{spell.system.fetish.label}}{{/if}}">{{#if (eq spell.system.restriction "exclusive")}}EXCL{{else}}FETISH{{/if}}</span>
             {{#if (eq spell.system.restriction "fetishExpendable")}}<a data-action="bindFetish" title="Restock: bind gear named “{{spell.system.fetish.label}}” as this spell's expendable fetish"><i class="fas fa-link"></i></a>{{/if}}
             {{/if}}
+            {{#if @root.isGM}}{{#unless (eq spell.system.category "combat")}}<a data-action="ritualCast" title="Cast by ritual sorcery (GM, SR2E p.133)"><i class="fas fa-circle-nodes"></i></a>{{/unless}}{{/if}}
             {{#if spell.system.sustaining}}
             <span class="sustain-badge" title="Sustained at Force {{spell.system.sustainedForce}}{{#if spell.system.restriction}} (works as {{spell.system.sustainedEffectiveForce}}){{/if}}">F{{spell.system.sustainedForce}}</span>
             {{/if}}

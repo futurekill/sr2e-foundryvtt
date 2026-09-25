@@ -4155,3 +4155,80 @@ export function nextSunBoundary({ now, dayLength, hourLength, sunrise = 6, sunse
   });
   return Math.min(...waits);
 }
+
+// ── Ritual sorcery (SR2E p.133–137) ─────────────────────────────────────────
+
+/** Materials per Force by category (p.133); combat spells can't be ritually cast. */
+export const RITUAL_MATERIALS = { detection: 100, health: 500, illusion: 100, manipulation: 1000 };
+
+/** Materials cost, or null for a category ritual sorcery can't cast (combat). */
+export function ritualMaterialsCost(category, force) {
+  const per = RITUAL_MATERIALS[category];
+  return per ? per * Math.max(1, Math.trunc(Number(force) || 0)) : null;
+}
+
+/** Material Link Table (p.136), by how well the target's location is known. */
+export const MATERIAL_LINK_TN = { city: 5, state: 7, continent: 9, unknown: 11 };
+/** Sending Table (p.136), by target type. */
+export const SENDING_TN = { place: 6, metahuman: 6, object: 8, spirit: 8 };
+
+/** Link TN: the table row + Magic Link Modifiers (p.136). */
+export function ritualLinkTN({ location = "unknown", spirit = false, barrier = 0, lodge = 0, staleTissue = false } = {}) {
+  return (MATERIAL_LINK_TN[location] ?? MATERIAL_LINK_TN.unknown) + (spirit ? 2 : 0)
+    + Math.max(0, Math.trunc(Number(barrier) || 0)) + Math.max(0, Math.trunc(Number(lodge) || 0))
+    + (staleTissue ? 4 : 0);
+}
+
+/** Sending TN (p.136): +2 moving faster than running, −1 for an area spell. */
+export function ritualSendingTN({ targetType = "metahuman", fastMoving = false, area = false } = {}) {
+  return (SENDING_TN[targetType] ?? SENDING_TN.metahuman) + (fastMoving ? 2 : 0) - (area ? 1 : 0);
+}
+
+/**
+ * Hours a link or sending takes (p.136): Force ÷ successes, kept fractional;
+ * the sending takes at least 1 hour. With 0 successes the stage aborts after
+ * its full base time (Force hours).
+ */
+export function ritualStageHours(force, successes, { minimum = 0 } = {}) {
+  const f = Math.max(0, Number(force) || 0);
+  if (!(successes > 0)) return f;
+  return Math.max(minimum, f / successes);
+}
+
+/** Largest team the lowest Sorcery rating allows (p.135). */
+export function ritualTeamMax(sorceryRatings) {
+  return sorceryRatings.length ? Math.min(...sorceryRatings.map(r => Math.max(0, Number(r) || 0))) : 0;
+}
+
+/** Spell Resistance TN against a ritual spell (p.137): the higher of Force and the leader's Ritual Sorcery. */
+export function ritualResistTN(force, ritualSkill) {
+  return Math.max(Number(force) || 0, Number(ritualSkill) || 0);
+}
+
+/** Hours leftover pool dice sustain a ritual spell (p.137): leader Magic × dice. */
+export function ritualSustainHours(leaderMagic, dice) {
+  return Math.max(0, Number(leaderMagic) || 0) * Math.max(0, Math.trunc(Number(dice) || 0));
+}
+
+/**
+ * The whole result of taking `amount` boxes of `type` damage (p.112–113), as
+ * new monitor values: Stun past its track spills into Physical, and Physical
+ * past its track adds to overflow. Pure, so one actor update can carry it.
+ */
+export function damageUpdateFor({ physical, stun, overflow = 0 }, type, amount) {
+  const out = { physical: physical.value, stun: stun.value, overflow };
+  let phys = 0;
+  if (type === "stun") {
+    const raw = stun.value + amount;
+    out.stun = Math.min(raw, stun.max);
+    phys = Math.max(0, raw - stun.max);
+  } else {
+    phys = amount;
+  }
+  if (phys > 0) {
+    const raw = physical.value + phys;
+    out.physical = Math.min(raw, physical.max);
+    out.overflow = overflow + Math.max(0, raw - physical.max);
+  }
+  return out;
+}

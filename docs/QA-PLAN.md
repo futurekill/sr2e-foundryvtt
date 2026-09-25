@@ -211,6 +211,14 @@ and any **red console errors**. File them wherever the group tracks issues
       visibility; dropping the spell removes it. Ice Sheet → click the map, a square
       appears; drag a token across it → one "keep your feet" card; Clear blast areas melts it.
 
+- [ ] **Ritual sorcery (p.133–137):** as GM, the 🜂 button on a detection spell of a mage
+      whose ally also knows it → tick the ally, confirm the circle → a GM-only card with
+      Ritual Magic Pool = both contributions. Charge materials (400¥ at Force 4) → Material
+      link (TN 5 for "city") → Finalise → Sending → Finalise (hours = Force ÷ successes) →
+      Determine the effect → Finalise → Publish → Sustaining → each member's Resist Drain
+      and Finalise (damage once). A combat spell has no 🜂 button; a sending with 0
+      successes aborts straight to Drain.
+
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).
