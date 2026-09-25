@@ -27,13 +27,13 @@ const el = (o = {}) => ({ force: 5, forceUsed: 0, services: 3, service: "", sust
 describe("Aid Sorcery", () => {
   it("starting costs one service; continuing does not", () => {
     const a = planElementalTransition(el(), "aid", { n: 2 });
-    expect(a.update).toEqual({ "system.forceUsed": 2, "system.service": "aid", "system.services": 2 });
-    const b = planElementalTransition(el({ forceUsed: 2, service: "aid", services: 2 }), "aid", { n: 1 });
+    expect(a.update).toMatchObject({ "system.forceUsed": 2, "system.service": "aid", "system.services": 2 });
+    const b = planElementalTransition(el({ forceUsed: 2, service: "aid", services: 2, aidInstanceId: "A" }), "aid", { n: 1 });
     expect(b.update).toEqual({ "system.forceUsed": 3, "system.service": "aid" });
   });
   it("spending the last Force makes it vanish and ends the service", () => {
     const r = planElementalTransition(el({ forceUsed: 3, service: "aid" }), "aid", { n: 2 });
-    expect(r.update).toEqual({ "system.forceUsed": 5, "system.service": "" });
+    expect(r.update).toMatchObject({ "system.forceUsed": 5, "system.service": "", "system.aidInstanceId": "" });
   });
   it("refuses more dice than Force left, no services, sustaining, junk", () => {
     expect(planElementalTransition(el({ forceUsed: 4, service: "aid" }), "aid", { n: 2 }).refuse).toMatch(/only 1/);

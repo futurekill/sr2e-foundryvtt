@@ -2519,6 +2519,13 @@ export function dicePoolRefreshUpdates(pools = {}) {
   if ("shieldingBonus" in pools && pools.shieldingBonus !== 0) {
     updates["system.dicePools.shieldingBonus"] = 0;
   }
+  // An elemental's reserved Spell Defense dice go too — unused, so its Force
+  // is untouched (p.141: reduced only for each die USED).
+  if ("spellDefenseAid" in pools && (pools.spellDefenseAid !== 0 || pools.spellDefenseAidSpirit)) {
+    updates["system.dicePools.spellDefenseAid"] = 0;
+    updates["system.dicePools.spellDefenseAidSpirit"] = "";
+    updates["system.dicePools.spellDefenseAidInstance"] = "";
+  }
   return updates;
 }
 
@@ -3648,7 +3655,11 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
       const spent = nextUsed >= full;
       return {
         update: { "system.forceUsed": nextUsed, "system.service": spent ? "" : "aid",
-                  ...(starting ? { "system.services": services - 1 } : {}) },
+                  ...(starting ? { "system.services": services - 1 } : {}),
+                  // A new aid service gets a fresh identity (Spell Defense
+                  // reservations are tied to it); a spent one loses it.
+                  ...(spent ? { "system.aidInstanceId": "" }
+                            : (starting || !sys.aidInstanceId) ? { "system.aidInstanceId": args.instanceId ?? "" } : {}) },
         message: `${starting ? "starts Aid Sorcery (1 service) and " : ""}gives ${args.n} ${args.n === 1 ? "die" : "dice"}: Force ${st.effectiveForce} → ${full - nextUsed}${spent ? " — it vanishes (p.141)" : ""}`
       };
     }
@@ -3693,7 +3704,7 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
         return { refuse: "its Force is already spent — the spell ends; expire it (p.142)" };
       }
       return {
-        update: { "system.service": "", "system.sustainingSpellUuid": "", ...CLEAR_SUSTAIN_CLOCK },
+        update: { "system.service": "", "system.sustainingSpellUuid": "", "system.aidInstanceId": "", ...CLEAR_SUSTAIN_CLOCK },
         message: kind === "takeOver" ? "hands the spell back — the mage sustains it again (+2 TN)" : "ends its service"
       };
     }
@@ -3702,7 +3713,8 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
       if (sys.service === "sustain") return { refuse: "its spell must expire first" };
       if (services < 1) return { refuse: "it owes no more services — the binding is exhausted" };
       return {
-        update: { "system.forceUsed": 0, "system.service": "", "system.services": services - 1, ...CLEAR_SUSTAIN_CLOCK },
+        update: { "system.forceUsed": 0, "system.service": "", "system.services": services - 1,
+                  "system.aidInstanceId": "", ...CLEAR_SUSTAIN_CLOCK },
         message: `is re-called at full Force ${full} (1 service, p.141)`
       };
     }
@@ -3736,6 +3748,31 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
                outcome: "charged",
                message: `${full - nextUsed} Combat Turn${full - nextUsed === 1 ? "" : "s"} of Force left` };
     }
+    case "startAid": {
+      // Begin Aid Sorcery without spending Force yet (a Spell Defense
+      // reservation, p.141): one service, a fresh aid identity.
+      // Already aiding: no new service. An aid service started before 0.98.0
+      // has no identity yet — give it one, free, so a reservation can bind.
+      if (sys.service === "aid") {
+        return { update: sys.aidInstanceId ? {} : { "system.aidInstanceId": args.instanceId ?? "" },
+                 message: "is already aiding sorcery", outcome: "continue" };
+      }
+      if (sys.service) return { refuse: "it is sustaining a spell — one service at a time (p.141)" };
+      if (st.depleted) return { refuse: "its Force is spent — re-call it first (1 service)" };
+      if (services < 1) return { refuse: "it owes no more services" };
+      return { update: { "system.service": "aid", "system.services": services - 1,
+                         "system.aidInstanceId": args.instanceId ?? "" },
+               message: "starts Aid Sorcery (1 service)" };
+    }
+    case "aidStudy": {
+      // Aid Study (p.141): its Force in dice for one learning attempt, for one
+      // service. No depletion clause — its Force is not reduced.
+      if (sys.service) return { refuse: "it is performing another service — one at a time (p.141)" };
+      if (st.depleted) return { refuse: "its Force is spent — re-call it first (1 service)" };
+      if (services < 1) return { refuse: "it owes no more services" };
+      return { update: { "system.services": services - 1 }, dice: st.effectiveForce,
+               message: `aids study with ${st.effectiveForce} dice (1 service)` };
+    }
     case "consumeFree": {
       if (sys.service !== "sustain" || !sys.sustainFreePending) return { refuse: "no free starting turn is owed" };
       // Also record the combat's latest boundary as processed (when there is
@@ -3755,4 +3792,45 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
     default:
       return { refuse: `unknown service action "${kind}"` };
   }
+}
+
+// ---------------------------------------------------------------------------
+// LEARNING A SPELL (SR2E p.132–133)
+// ---------------------------------------------------------------------------
+// "a Success Test using dice from the character's Sorcery and Magical Theory
+// Skills" (the table's reading: the two added) "The Target Number is twice the
+// desired Force." A teacher's Teaching successes "reduce the magician's target
+// number". Time: Force days ÷ successes, minimum one day (rounded up — the
+// table's call). Costs Force in Karma; a failed attempt costs Force days, no
+// Karma.
+
+/** Learning TN before the caster's own wound/sustain modifiers. */
+export function spellLearningTN({ force, teacherSuccesses = 0, extraTN = 0 } = {}) {
+  const f = Math.max(1, Math.trunc(Number(force) || 1));
+  return Math.max(2, 2 * f - Math.max(0, Math.trunc(Number(teacherSuccesses) || 0)) + Math.trunc(Number(extraTN) || 0));
+}
+
+/** Days of study, or null when the attempt failed (0 successes). */
+export function spellLearningDays(force, successes) {
+  const n = Math.trunc(Number(successes) || 0);
+  if (n < 1) return null;
+  return Math.max(1, Math.ceil(Math.max(1, Math.trunc(Number(force) || 1)) / n));
+}
+
+/** The teacher's Teaching Test TN: Spell Force − pupil's Intelligence, minimum 2. */
+export function teachingTN(force, pupilIntelligence) {
+  return Math.max(2, (Math.trunc(Number(force) || 0)) - (Math.trunc(Number(pupilIntelligence) || 0)));
+}
+
+/** One identity for "a particular spell" across compendium and world copies. */
+export function canonicalSpellName(name) {
+  return String(name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Whether an elemental's Spell Defense dice defend against a spell of this
+ * category — only its own (the table's reading of p.141's category rule).
+ */
+export function defenseAidApplies(element, spellCategory) {
+  return elementalAidsCategory(element, spellCategory);
 }

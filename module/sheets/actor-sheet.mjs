@@ -1,5 +1,5 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
-import { elementalHolderOf, spellBlockedByElemental, boundElementals } from "../elementals.mjs";
+import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation } from "../elementals.mjs";
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
@@ -759,6 +759,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");
+    // Elemental Spell Defense reservation (SR2E p.141), shown with the pool.
+    const res = aidReservation(actor);
+    context.defenseAid = res ? { name: res.spirit?.name ?? "elemental", dice: res.dice, valid: res.valid } : null;
     // Elemental Spell Sustaining (SR2E p.142): who holds each spell, and for
     // how many more Combat Turns; or why it is blocked from being recast.
     context.spellElementals = Object.fromEntries(context.spells.map(sp => {

@@ -85,7 +85,7 @@
     {{#if hasSorcery}}
     <div class="spell-defense-box flexrow" title="Allocate Magic Pool dice as Spell Defense — protects you and allies in line of sight against spells until the Magic Pool refreshes (SR2E p.132)">
       <span class="spell-defense-label"><i class="fas fa-shield-halved"></i> Spell Defense:</span>
-      <span class="spell-defense-value">{{system.dicePools.spellDefense}} dice{{#ifGt system.dicePools.shieldingBonus 0}} <span class="shielding-bonus" title="Free Shielding dice from your initiate grade (Grimoire p.45)">+{{system.dicePools.shieldingBonus}} shielding</span>{{/ifGt}}</span>
+      <span class="spell-defense-value">{{system.dicePools.spellDefense}} dice{{#ifGt system.dicePools.shieldingBonus 0}} <span class="shielding-bonus" title="Free Shielding dice from your initiate grade (Grimoire p.45)">+{{system.dicePools.shieldingBonus}} shielding</span>{{/ifGt}}{{#if defenseAid}} <span class="shielding-bonus" title="Reserved from {{defenseAid.name}}'s Aid Sorcery — used only against combat spells; its Force drops only for dice used (SR2E p.141)">+{{defenseAid.dice}} {{defenseAid.name}}{{#unless defenseAid.valid}} (lapsed){{/unless}}</span>{{/if}}</span>
       <span class="hint" style="flex:1;">(Magic Pool: {{system.dicePools.magic.value}}/{{system.dicePools.magic.max}})</span>
       <button type="button" class="btn-small" data-action="allocateSpellDefense"><i class="fas fa-plus"></i> Allocate</button>
       <button type="button" class="btn-small" data-action="clearSpellDefense"><i class="fas fa-rotate-left"></i> Clear</button>
@@ -97,6 +97,10 @@
     <div class="spells-category">
       <div class="category-header flexrow">
         <h3>Spells</h3>
+        <button type="button" data-action="learnSpell" class="btn-small"
+                title="Learn a new spell: Sorcery + Magical Theory vs twice the Force, Force in Karma (SR2E p.132–133)">
+          <i class="fas fa-book-open"></i> Learn
+        </button>
         <button type="button" data-action="addItem" data-type="spell" class="btn-add">
           <i class="fas fa-plus"></i>
         </button>

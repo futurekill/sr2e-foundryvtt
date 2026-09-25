@@ -98,7 +98,13 @@ export class CharacterData extends SR2EDataModel {
         spellDefense: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
         // Shielding (Grimoire p.45): free bonus spell-defense dice = initiate grade,
         // granted alongside any Magic Pool dice and returned to neither on clear.
-        shieldingBonus: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 })
+        shieldingBonus: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        // An elemental's Aid Sorcery dice held as Spell Defense (SR2E p.141): a
+        // RESERVATION tied to that elemental's current aid service. Force is
+        // spent only when the dice are used; clearing or refreshing drops it free.
+        spellDefenseAid: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
+        spellDefenseAidSpirit: new fields.StringField({ required: true, initial: "", blank: true }),
+        spellDefenseAidInstance: new fields.StringField({ required: true, initial: "", blank: true })
       }),
 
       // --- INITIATIVE ---
@@ -1564,6 +1570,9 @@ export class SpiritData extends SR2EDataModel {
       // The partial Combat Turn a sustain starts in is not charged.
       sustainFreePending: new fields.BooleanField({ initial: false }),
       sustainChargedSeq: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Identity of the current Aid Sorcery service (Spell Defense reservations
+      // are valid only for the service they were made under).
+      aidInstanceId: new fields.StringField({ initial: "", blank: true }),
 
       // Derived from Force
       body: SR2EDataModel.attributeField(1),

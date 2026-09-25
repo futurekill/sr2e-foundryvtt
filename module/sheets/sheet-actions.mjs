@@ -2,10 +2,10 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, aimTnReduction, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation} from "../rules/sr2e-rules.mjs";
+         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
-import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental } from "../elementals.mjs";
+import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, aidReservation } from "../elementals.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -1690,8 +1690,9 @@ async function promptSpellOptions(actor, spell) {
         <div class="sr2e-attack__field"><label>Elemental</label>
           <select name="elem_uuid">
             <option value="" data-avail="0">— none —</option>
-            ${aidElementals.map(e => `<option value="${e.uuid}" data-avail="${e.system.effectiveForce}">${esc(e.name)}
-              (Force ${e.system.effectiveForce}${e.system.service === "aid" ? ", aiding" : `, starts aid: 1 of ${e.system.services} services`})</option>`).join("")}
+            ${aidElementals.map(e => { const av = Math.max(0, e.system.effectiveForce - reservedDiceFor(actor, e));
+              return `<option value="${e.uuid}" data-avail="${av}">${esc(e.name)}
+              (${av} dice${av < e.system.effectiveForce ? `, ${e.system.effectiveForce - av} held as Spell Defense` : ""}${e.system.service === "aid" ? ", aiding" : `, starts aid: 1 of ${e.system.services} services`})</option>`; }).join("")}
           </select></div>
         <div class="sr2e-attack__field"><label>Spell test</label>
           <input type="number" name="elem_cast" value="0" min="0"></div>
@@ -1932,6 +1933,135 @@ async function resolveAreaCentre(actor, spell, { center, radiusDelta }) {
     return null;
   }
   return { x: point.x, y: point.y, sceneId, radiusDelta };
+}
+
+/**
+ * Learn a new spell (SR2E p.132–133): Sorcery + Magical Theory dice vs twice
+ * the desired Force, in a library or lodge rated at least that Force; a
+ * teacher's Teaching successes lower the TN; a bound elemental of the spell's
+ * category may add its Force in dice once (Aid Study, p.141). The outcome is
+ * finalized from the learning card (Karma is spent there).
+ * @this {ApplicationV2}
+ */
+async function onLearnSpell(event) {
+  event.preventDefault();
+  const actor = this.document;
+  if (actor.type !== "character") return;
+  const magic = actor.system.magic?.value ?? 0;
+  if (magic <= 0) return ui.notifications.warn(`${actor.name} is not Awakened.`);
+  const esc = foundry.utils.escapeHTML;
+  // Every spell the table has: world items and every Item compendium.
+  const sources = [];
+  for (const it of game.items ?? []) {
+    if (it.type === "spell") sources.push({ uuid: it.uuid, name: it.name, category: it.system.category, force: it.system.force });
+  }
+  for (const pack of game.packs ?? []) {
+    if (pack.documentName !== "Item") continue;
+    const idx = await pack.getIndex({ fields: ["type", "system.category", "system.force"] });
+    for (const e of idx) if (e.type === "spell") {
+      sources.push({ uuid: e.uuid, name: e.name, category: e.system?.category, force: e.system?.force,
+                     pack: pack.metadata.label });
+    }
+  }
+  const known = new Set(actor.items.filter(i => i.type === "spell").map(i => canonicalSpellName(i.name)));
+  const seen = new Set();
+  const choices = sources.filter(x => !known.has(canonicalSpellName(x.name)))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter(x => { const k = canonicalSpellName(x.name) + "|" + (x.pack ?? "world"); if (seen.has(k)) return false; seen.add(k); return true; });
+  if (!choices.length) return ui.notifications.info("No spells to learn — every one found is already known.");
+  const { sorcery, theory } = actor._learningSkills();
+  const used = actor.getFlag("sr2e", "aidStudyUsed") ?? [];
+  const aiders = boundElementals(actor).filter(e => !e.system.service && !e.system.depleted
+    && !e.system.pendingExpireSpellUuid && (e.system.services ?? 0) >= 1);
+  const tnMods = actor.testTnModifiers().total;
+  const tabName = `sr2e-learn-${foundry.utils.randomID(8)}`;
+
+  const read = (form) => {
+    const el = form.elements;
+    const opt = el.spell.selectedOptions[0];
+    const category = opt?.dataset.category ?? "";
+    const force = Math.max(1, parseInt(el.force.value) || 1);
+    const aid = el.aid?.selectedOptions?.[0];
+    const aidOk = aid?.value && aid.dataset.domain && elementalAidsCategory(aid.dataset.domain, category)
+      && !used.includes(canonicalSpellName(opt?.dataset.name));
+    const totem = actor._totemSpellDice(category);
+    // The same Karma-dice read and cap the roll uses (rating dice only).
+    const dice = Math.max(0, sorcery + theory + totem + (aidOk ? Number(aid.dataset.force) || 0 : 0)
+      + readKarmaDice(form, actor, sorcery + theory));
+    const tn = spellLearningTN({ force, teacherSuccesses: el.teacher.value, extraTN: el.extra.value }) + tnMods;
+    return { opt, category, force, aidOk, aidUuid: aid?.value ?? "", totem, dice, tn,
+             library: parseInt(el.library.value) || 0,
+             teacher: Math.max(0, parseInt(el.teacher.value) || 0), extra: parseInt(el.extra.value) || 0 };
+  };
+  Hooks.once("renderDialogV2", (_app, html) => {
+    const root = (html instanceof Element) ? html : document;
+    const form = root.querySelector(`#${tabName}`)?.closest("form");
+    if (!form) return;
+    const $ = (id) => root.querySelector(`#${tabName}-${id}`);
+    const update = () => {
+      const r = read(form);
+      $("dice").textContent = r.dice;
+      $("tn").textContent = r.tn;
+      $("karma").textContent = r.force;
+      $("days").textContent = [1, 2, 3].map(n => `${n}: ${spellLearningDays(r.force, n)}d`).join(" · ");
+      const warn = [];
+      if (r.library < r.force) warn.push(`needs a library/lodge rated ≥ ${r.force} (p.132)`);
+      if ((actor.system.karma?.current ?? 0) < r.force) warn.push(`needs ${r.force} Good Karma`);
+      if (r.force > magic) warn.push(`Force above Magic ${magic}`);
+      if (form.elements.aid?.value && !r.aidOk) warn.push("that elemental can't aid this spell (category, or already used for it)");
+      $("warn").textContent = warn.join(" · ");
+    };
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    update();
+  });
+
+  let req = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `${actor.name} learns a spell`, resizable: true },
+    position: { width: 520 },
+    rejectClose: false,
+    content: `<div class="sr2e-attack sr2e-attack--spell" id="${tabName}">
+      <div class="sr2e-attack__grid">
+        <div class="sr2e-attack__field" style="grid-column:1/-1;"><label>Spell</label>
+          <select name="spell">${choices.map(c => `<option value="${c.uuid}" data-name="${esc(c.name)}" data-category="${esc(c.category ?? "")}">${esc(c.name)} — ${esc(c.category ?? "?")}${c.pack ? ` (${esc(c.pack)})` : ""}</option>`).join("")}</select></div>
+        <div class="sr2e-attack__field"><label>Force <span class="sr2e-attack__hint">Magic ${magic}</span></label>
+          <input type="number" name="force" value="${Math.min(magic, 3)}" min="1"></div>
+        <div class="sr2e-attack__field"><label>Library / lodge rating</label>
+          <input type="number" name="library" value="0" min="0"></div>
+        <div class="sr2e-attack__field"><label>Teacher's successes <span class="sr2e-attack__hint">Teaching vs Force − Int ${actor.system.intelligence?.value ?? "?"}</span></label>
+          <input type="number" name="teacher" value="0" min="0"></div>
+        <div class="sr2e-attack__field"><label>Other TN modifiers</label>
+          <input type="number" name="extra" value="0"></div>
+        ${aiders.length ? `<div class="sr2e-attack__field" style="grid-column:1/-1;"><label>Aid Study <span class="sr2e-attack__hint">p.141 — once per spell, 1 service</span></label>
+          <select name="aid"><option value="">— none —</option>${aiders.map(e =>
+            `<option value="${e.uuid}" data-domain="${e.system.domain}" data-force="${e.system.effectiveForce}">${esc(e.name)} (+${e.system.effectiveForce} dice, ${e.system.domain})</option>`).join("")}</select></div>` : ""}
+      </div>
+      ${karmaDiceSection(actor, sorcery + theory)}
+      <p class="sr2e-attack__hint sr2e-pool-error" id="${tabName}-warn"></p>
+      <div class="sr2e-attack__readout">
+        <div class="sr2e-attack__tn"><span class="sr2e-attack__tn-label">Dice</span>
+          <span class="sr2e-attack__tn-value" id="${tabName}-dice">${sorcery + theory}</span></div>
+        <table class="sr2e-attack__breakdown-table">
+          <tr><td>Sorcery + Magical Theory</td><td>${sorcery} + ${theory}</td></tr>
+          <tr><td>Target number</td><td id="${tabName}-tn">—</td></tr>
+          <tr><td>Karma on success</td><td id="${tabName}-karma">—</td></tr>
+          <tr><td>Days at 1/2/3 successes</td><td id="${tabName}-days">—</td></tr>
+        </table>
+      </div>
+    </div>`,
+    buttons: [
+      { action: "learn", label: "Learn", default: true,
+        callback: (event, button) => { req = { ...read(button.form), karmaDice: readKarmaDice(button.form, actor, sorcery + theory) }; } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "learn" || !req) return;
+  return actor.learnSpell({
+    sourceUuid: req.opt.value, force: req.force, libraryRating: req.library,
+    teacherSuccesses: req.teacher, extraTN: req.extra,
+    aidSpiritUuid: req.aidOk ? req.aidUuid : "", karmaDice: req.karmaDice
+  });
 }
 
 /**
@@ -2863,7 +2993,21 @@ async function onAllocateSpellDefense(event, target) {
   event.preventDefault();
   const actor = this.document;
   const avail = actor.system.dicePools?.magic?.value ?? 0;
-  if (avail <= 0) return ui.notifications.warn("No Magic Pool dice available to allocate.");
+  // Elemental Aid Sorcery dice may be held as Spell Defense (SR2E p.141) — fire
+  // elementals only for now (the automated resist path is combat spells), and
+  // an elemental defends only against its own category.
+  const aiders = boundElementals(actor).filter(e =>
+    elementalAidsCategory(e.system.domain, "combat") && !e.system.depleted && !e.system.pendingExpireSpellUuid
+    && (e.system.service === "aid" || (!e.system.service && (e.system.services ?? 0) >= 1)));
+  if (avail <= 0 && !aiders.length) return ui.notifications.warn("No Magic Pool dice or elemental aid available to allocate.");
+  const esc = foundry.utils.escapeHTML;
+  const aidRow = aiders.length ? `
+      <div class="form-group"><label>Elemental aid (combat spells only):</label>
+        <select name="aid_uuid"><option value="">— none —</option>${aiders.map(e =>
+          `<option value="${e.uuid}">${esc(e.name)} (Force ${e.system.effectiveForce}${e.system.service === "aid" ? ", aiding" : ", starts aid: 1 service"})</option>`).join("")}</select>
+        <input type="number" name="aid_n" value="0" min="0" style="width:60px;text-align:center;"></div>
+      <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">Reserved, not spent: the elemental's Force drops only for dice actually used against a combat spell (SR2E p.141). Other elements' defense is the GM's call.</p>` : "";
+  let aidUuid = "", aidN = 0;
   let n = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Allocate Spell Defense" },
@@ -2871,18 +3015,24 @@ async function onAllocateSpellDefense(event, target) {
     content: `<div>
       <div class="form-group"><label>Dice from Magic Pool (${avail} available):</label>
         <input type="number" name="n" value="0" min="0" max="${avail}" autofocus style="width:60px;text-align:center;"></div>
+      ${aidRow}
       <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
         Protects you and chosen allies in line of sight; added to spell-resistance
         tests until the Magic Pool refreshes (SR2E p.132).</p>
     </div>`,
     buttons: [
       { action: "go", label: "Allocate", default: true,
-        callback: (event, button) => { n = Math.max(0, Math.min(parseInt(button.form.elements.n?.value) || 0, avail)); } },
+        callback: (event, button) => {
+          const el = button.form.elements;
+          n = Math.max(0, Math.min(parseInt(el.n?.value) || 0, avail));
+          aidUuid = el.aid_uuid?.value ?? "";
+          aidN = Math.max(0, parseInt(el.aid_n?.value) || 0);
+        } },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }
     ]
   });
-  if (action !== "go" || !n) return;
-  return actor.allocateSpellDefense(n);
+  if (action !== "go" || (!n && !(aidUuid && aidN))) return;
+  return actor.allocateSpellDefense(n, { aidSpiritUuid: aidUuid, aidDice: aidN });
 }
 
 /** Return allocated Spell Defense dice to the Magic Pool. @this {ApplicationV2} */
@@ -2901,7 +3051,11 @@ async function onResetPool(event, target) {
   const pool = target.dataset.pool;
   const poolData = this.document.system.dicePools[pool];
   if (!poolData) return;
-  return this.document.update({ [`system.dicePools.${pool}.value`]: poolData.max });
+  // A Magic Pool reset releases Spell Defense exactly as a refresh does —
+  // including an elemental's reservation (dropped unused, its Force intact).
+  const extra = pool === "magic" ? {
+    "system.dicePools.spellDefense": 0, "system.dicePools.shieldingBonus": 0, ...CLEAR_DEFENSE_AID } : {};
+  return this.document.update({ [`system.dicePools.${pool}.value`]: poolData.max, ...extra });
 }
 
 /**
@@ -3159,6 +3313,7 @@ const SHARED_ACTIONS = {
   rollWeapon: onRollWeapon,
   castSpell: onCastSpell,
   allocateSpellDefense: onAllocateSpellDefense,
+  learnSpell: onLearnSpell,
   clearSpellDefense: onClearSpellDefense,
   conjure: onConjure,
   matrixAttack: onMatrixAttack,

@@ -1,6 +1,6 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
-import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals } from "../elementals.mjs";
+import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
 import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 
@@ -1333,7 +1333,8 @@ export class SR2EItem extends Item {
         ui.notifications.warn(`${this.name}: ${aidSpirit.name} cannot aid — ${can.refuse}. Nothing was spent.`);
         return null;
       }
-      const avail = aidSpirit.system.effectiveForce ?? 0;
+      // Dice held for the caster's Spell Defense are not available to cast.
+      const avail = Math.max(0, (aidSpirit.system.effectiveForce ?? 0) - reservedDiceFor(actor, aidSpirit));
       aidCast = spellCastDice({ force, poolReq: options.poolDice?.magic ?? 0, poolAvail: magicAvail, poolCap,
                                 aidReq: aidReq.cast, aidAvail: avail }).aid;
       aidDrain = Math.max(0, Math.min(Math.trunc(Number(aidReq.drain) || 0), avail - aidCast));

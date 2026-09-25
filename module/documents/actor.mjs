@@ -6,12 +6,13 @@ import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../di
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
-import { elementalTransition } from "../elementals.mjs";
+import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
+         spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
          successesFromSource, testTotalSuccesses, allocateKarmaSpend } from "../rules/sr2e-rules.mjs";
@@ -148,7 +149,7 @@ export function renderSuccessTestCard(state) {
 
   // Karma Pool action buttons. After an avoided glitch the test is closed.
   const buttons = [];
-  if (state.hasKarma && !state.glitchAvoided) {
+  if (state.hasKarma && !state.glitchAvoided && !learningClosed(state)) {
     if (glitch) {
       buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="avoidGlitch"
         title="SR2E p.190: pay 1 Karma Pool to turn an all-1s disaster into a simple failure. No reroll allowed.">
@@ -189,6 +190,73 @@ export function renderSuccessTestCard(state) {
       </div>
       ${buttonHtml}
     </div>`;
+}
+
+
+/**
+ * Whether a learning test (SR2E p.132) has been completed or failed — then its
+ * Karma buttons are closed, since the outcome is final (see completeLearning).
+ */
+function learningClosed(state) {
+  if (!state?.learningAttemptId) return false;
+  let actor = null;
+  try { actor = fromUuidSync(state.actorUuid); } catch (e) { return false; }
+  const rec = actor?.getFlag?.("sr2e", "learning")?.[state.learningAttemptId];
+  // Paid counts as closed too: the success count is fixed in the receipt from
+  // that moment, so later Karma would be spent for nothing.
+  return !!rec && (rec.status !== "pending" || !!rec.karmaPaid);
+}
+
+/**
+ * Learning card (SR2E p.132–133). The actor's `flags.sr2e.learning.<id>` record
+ * is the truth; the card shows it with the test's live success total, and
+ * offers Complete while pending. state: { attemptId, actorUuid, testMessageId,
+ * successes, spellName, force }
+ */
+export function renderLearningCard(state) {
+  const esc = foundry.utils.escapeHTML;
+  let actor = null;
+  try { actor = fromUuidSync(state.actorUuid); } catch (e) { /* gone */ }
+  const rec = actor?.getFlag?.("sr2e", "learning")?.[state.attemptId];
+  const n = state.successes ?? 0;
+  const days = spellLearningDays(state.force, n);
+  const status = rec?.status ?? "pending";
+  const body = status === "done"
+    ? `<strong>Learned</strong> at Force ${state.force} — ${rec.days ?? days} day${(rec.days ?? days) === 1 ? "" : "s"} of study, ${state.force} Karma.`
+    : status === "failed"
+      ? `<strong>Failed</strong> — ${state.force} days of study wasted; no Karma spent (p.133).`
+      : n > 0
+        ? `${n} success${n === 1 ? "" : "es"}: ${days} day${days === 1 ? "" : "s"} of study, costing ${state.force} Karma.`
+        : `No successes yet — completing now records a failure (${state.force} days wasted, no Karma).`;
+  const button = status === "pending" ? `
+    <div class="sr2e-karma-actions">
+      <button type="button" class="sr2e-complete-learning-btn" data-actor-uuid="${state.actorUuid}"
+              data-attempt-id="${state.attemptId}"
+              title="Finalize this attempt — spend Karma and add the spell (SR2E p.133)">📖 Complete learning</button>
+    </div>` : "";
+  return `<div class="sr2e-item-card">
+    <strong>${esc(actor?.name ?? "")} studies ${esc(state.spellName)}</strong> (Force ${state.force}) — ${body}
+    ${button}
+  </div>`;
+}
+
+/** Characters with a learning completion in flight on THIS client. */
+const LEARNING_LOCK = new Set();
+
+/**
+ * A clean spell DEFINITION to learn from any source copy: no live sustaining,
+ * lock, quickening or elemental state, no document identity. Keeps the spell's
+ * authored fields and its Active Effect definitions.
+ */
+export function cleanSpellDefinition(src) {
+  const d = src.toObject ? src.toObject() : foundry.utils.deepClone(src);
+  return {
+    name: d.name, type: "spell", img: d.img,
+    system: { ...d.system, sustaining: false, sustainedForce: 0, spellLocked: false,
+              quickened: false, quickeningKarma: 0 },
+    effects: (d.effects ?? []).map(e => { const x = { ...e }; delete x._id; return x; }),
+    flags: src.uuid ? { core: { sourceId: src.uuid } } : {}
+  };
 }
 
 export class SR2EActor extends Actor {
@@ -240,15 +308,18 @@ export class SR2EActor extends Actor {
    *   (SR2E p.190: 1 Karma each, max = base dice in use, pool dice excluded)
    * @returns {Promise<object>} The test result
    */
-  async rollSuccessTest(dicePool, targetNumber, options = {}) {
-    // Apply wound penalty (SR2E Injury Modifier, cumulative across the
-    // physical and stun columns) and the sustained-spell penalty
-    // (+2 per spell sustained by concentration, SR2E p.130).
-    //
-    // The Injury Modifier does NOT apply to damage- or drain-resistance tests
-    // (SR2E p.112: "except those involving attempts to resist damage or avoid
-    // damage"). Resistance callers pass options.isResistance to suppress it.
-    // The sustain penalty is not granted that exemption, so it still applies.
+  /**
+   * The caster-side TN modifiers every success test takes — ONE calculation,
+   * used by rollSuccessTest and by any dialog that previews a TN, so a preview
+   * can never disagree with the roll.
+   * @param {{isResistance?:boolean, extraTN?:number, centeringReduction?:number}} [options]
+   */
+  testTnModifiers(options = {}) {
+    // Wound penalty (SR2E Injury Modifier, cumulative across the physical and
+    // stun columns) and the sustained-spell penalty (+2 per spell sustained by
+    // concentration, SR2E p.130). The Injury Modifier does NOT apply to damage-
+    // or drain-resistance tests (SR2E p.112); resistance callers pass
+    // options.isResistance. The sustain penalty is not granted that exemption.
     const woundPenalty = options.isResistance ? 0 : (this.system.woundPenalty ?? 0);
     const sustainPenalty = this.system.sustainPenalty ?? 0;
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
@@ -264,7 +335,22 @@ export class SR2EActor extends Actor {
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
       woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN);
-    const effectiveTN = targetNumber + woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN - centeringReduction;
+    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN - centeringReduction;
+    return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, centeringReduction, total };
+  }
+
+  async rollSuccessTest(dicePool, targetNumber, options = {}) {
+    // Apply wound penalty (SR2E Injury Modifier, cumulative across the
+    // physical and stun columns) and the sustained-spell penalty
+    // (+2 per spell sustained by concentration, SR2E p.130).
+    //
+    // The Injury Modifier does NOT apply to damage- or drain-resistance tests
+    // (SR2E p.112: "except those involving attempts to resist damage or avoid
+    // damage"). Resistance callers pass options.isResistance to suppress it.
+    // The sustain penalty is not granted that exemption, so it still applies.
+    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, centeringReduction, total }
+      = this.testTnModifiers(options);
+    const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
     // --- Pool dice ---
@@ -371,6 +457,7 @@ export class SR2EActor extends Actor {
       glitchAvoided: false,
       criticalGlitch: testResult.isCriticalGlitch,
       hasKarma: this.system.karma?.pool != null,
+      ...(options.learningAttemptId ? { learningAttemptId: options.learningAttemptId } : {}),
       // Multi-target area cast: reroll/buy are refused (applyKarmaToTest).
       ...(options.areaCast ? { areaCast: true } : {})
     };
@@ -500,6 +587,10 @@ export class SR2EActor extends Actor {
     if (!state) return;
     const karmaAvail = this.system.karma?.pool ?? 0;
     let newRolls = null;
+    // A completed or failed learning attempt is final: no more Karma on it.
+    if (learningClosed(state)) {
+      return ui.notifications.warn("That learning attempt is already complete — its test is closed.");
+    }
     // Enforced here, not just hidden on the card: a macro can call this too.
     if (state.areaCast && (action === "reroll" || action === "buySuccess")) {
       return ui.notifications.warn("Karma rerolls and bought successes on a multi-target area spell are GM adjudication (SR2E p.130).");
@@ -603,7 +694,8 @@ export class SR2EActor extends Actor {
       astral: s => this._renderAstralCard(s),
       matrix: s => this._renderMatrixCard(s),
       healing: renderHealingCard,
-      manipDamage: renderManipDamageCard
+      manipDamage: renderManipDamageCard,
+      learning: renderLearningCard
     };
 
     for (const msg of game.messages ?? []) {
@@ -617,6 +709,7 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
+        if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;
         if (!msg.canUserModify(game.user, "update")) {
           // Better a visible complaint than a card that silently disagrees.
@@ -2807,29 +2900,230 @@ export class SR2EActor extends Actor {
     return shieldingBonusDice(m.initiateGrade);
   }
 
-  async allocateSpellDefense(amount) {
+  async allocateSpellDefense(amount, { aidSpiritUuid = "", aidDice = 0 } = {}) {
     const pool = this.system.dicePools?.magic;
     if (!pool) return;
-    const give = Math.max(0, Math.min(amount, pool.value));
-    if (give <= 0) return;
+    const give = Math.max(0, Math.min(Math.trunc(Number(amount) || 0), pool.value));
+    if (give > 0) {
+      await this.update({
+        "system.dicePools.magic.value": pool.value - give,
+        "system.dicePools.spellDefense": (this.system.dicePools.spellDefense ?? 0) + give,
+        // Grant the free Shielding dice alongside the pool allocation (set, not add).
+        "system.dicePools.shieldingBonus": this.shieldingDice
+      });
+    }
+    // An elemental's Aid Sorcery dice as Spell Defense (SR2E p.141): a
+    // RESERVATION under its current aid service — Force is spent only when the
+    // dice are used. Only fire elementals: the one automated magical-resistance
+    // path is the combat-spell Resist card, and an elemental defends only
+    // against its own category.
+    const want = Math.max(0, Math.trunc(Number(aidDice) || 0));
+    if (!aidSpiritUuid || want <= 0) return;
+    const spirit = await fromUuid(aidSpiritUuid);
+    if (!isElemental(spirit) || !boundElementals(this).some(e => e.uuid === spirit.uuid)) {
+      return ui.notifications.warn("That elemental is not bound to you.");
+    }
+    if (!elementalAidsCategory(spirit.system.domain, "combat")) {
+      return ui.notifications.warn(`${spirit.name} cannot defend against combat spells — only fire elementals' defense is automated.`);
+    }
+    if (!spirit.isOwner || !this.isOwner) return ui.notifications.warn(`You cannot command ${spirit.name}.`);
+    const r = await elementalTransition(spirit, "startAid");
+    if (!r.ok) return;
+    const dice = Math.min(want, spirit.system.effectiveForce ?? 0);
+    if (dice <= 0) return;
     await this.update({
-      "system.dicePools.magic.value": pool.value - give,
-      "system.dicePools.spellDefense": (this.system.dicePools.spellDefense ?? 0) + give,
-      // Grant the free Shielding dice alongside the pool allocation (set, not add).
-      "system.dicePools.shieldingBonus": this.shieldingDice
+      "system.dicePools.spellDefenseAid": dice,
+      "system.dicePools.spellDefenseAidSpirit": spirit.uuid,
+      "system.dicePools.spellDefenseAidInstance": spirit.system.aidInstanceId
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // LEARNING A SPELL (SR2E p.132–133) — with elemental Aid Study (p.141)
+  // -------------------------------------------------------------------------
+
+  /** Ratings of Sorcery and Magical Theory (0 when untrained). */
+  _learningSkills() {
+    const r = (name) => this.items.find(i => i.type === "skill"
+      && i.name.trim().toLowerCase() === name)?.system?.rating ?? 0;
+    return { sorcery: r("sorcery"), theory: r("magical theory") };
+  }
+
+  /** Totem dice for a spell category (shamans; p.119), as when casting. */
+  _totemSpellDice(category) {
+    const m = this.system.magic;
+    if (m?.tradition !== "shamanic" || !m?.totem) return 0;
+    const t = CONFIG.SR2E.totems?.[m.totem];
+    return (t?.spellBonus?.[category] ?? 0) - (t?.spellPenalty?.[category] ?? 0);
+  }
+
+  /** Whether this character already knows a spell of that name. */
+  _knowsSpell(name, exceptAttemptId = "") {
+    const key = canonicalSpellName(name);
+    return this.items.some(i => i.type === "spell" && canonicalSpellName(i.name) === key
+      && i.getFlag("sr2e", "learnAttempt") !== exceptAttemptId || false);
+  }
+
+  /**
+   * Roll to learn a spell and post its learning card. Nothing is spent except
+   * an Aid Study service; the outcome is finalized by completeLearning, so
+   * Karma spent on the test counts.
+   * @param {object} o
+   * @param {object} [o.definition] - cleanSpellDefinition(source), or…
+   * @param {string} [o.sourceUuid] - …the spell to learn from (any copy)
+   * @param {number} o.force
+   * @param {number} o.libraryRating - sorcery library / medicine lodge rating
+   * @param {number} [o.teacherSuccesses]
+   * @param {number} [o.extraTN]
+   * @param {string} [o.aidSpiritUuid] - a bound elemental for Aid Study
+   * @param {number} [o.karmaDice]
+   */
+  async learnSpell(o = {}) {
+    if (this.type !== "character") return null;
+    // One learning roll per character at a time on this client: the Aid Study
+    // history check, the service and its record must not interleave.
+    const lockKey = `learn:${this.uuid}`;
+    if (LEARNING_LOCK.has(lockKey)) return null;
+    LEARNING_LOCK.add(lockKey);
+    try { return await this._learnSpell(o); } finally { LEARNING_LOCK.delete(lockKey); }
+  }
+
+  /** @private — see learnSpell */
+  async _learnSpell(o = {}) {
+    // Always a CLEAN definition, whichever way it arrives (E10).
+    let def = null;
+    if (o.sourceUuid) {
+      const source = await fromUuid(o.sourceUuid);
+      if (source?.type === "spell") def = cleanSpellDefinition(source);
+    } else if (o.definition?.type === "spell") {
+      def = cleanSpellDefinition(o.definition);
+    }
+    const force = Math.trunc(Number(o.force) || 0);
+    const warn = (m) => { ui.notifications.warn(`${this.name}: ${m} Nothing was spent.`); return null; };
+    if (!def?.name || force < 1) return warn("choose a spell and a Force.");
+    if ((this.system.magic?.value ?? 0) <= 0) return warn("only the Awakened learn spells.");
+    if (this._knowsSpell(def.name)) return warn(`already knows ${def.name}.`);
+    if ((Number(o.libraryRating) || 0) < force) {
+      return warn(`needs a library or lodge rated at least ${force} (p.132).`);
+    }
+    if ((this.system.karma?.current ?? 0) < force) return warn(`needs ${force} Good Karma to learn it (p.133).`);
+    const { sorcery, theory } = this._learningSkills();
+    const category = def.system?.category;
+    let dice = sorcery + theory + this._totemSpellDice(category);
+    let aidNote = "";
+    const key = canonicalSpellName(def.name);
+    if (o.aidSpiritUuid) {
+      const spirit = await fromUuid(o.aidSpiritUuid);
+      if (!isElemental(spirit) || !boundElementals(this).some(e => e.uuid === spirit.uuid)
+          || !elementalAidsCategory(spirit.system.domain, category)) {
+        return warn("that elemental cannot aid study of this spell (bound, and of its category — p.141).");
+      }
+      if ((this.getFlag("sr2e", "aidStudyUsed") ?? []).includes(key)) {
+        return warn(`an elemental already aided study of ${def.name} — one spirit, one time (p.141).`);
+      }
+      if (!spirit.isOwner) return warn(`you cannot command ${spirit.name}.`);
+      const r = await elementalTransition(spirit, "aidStudy");
+      if (!r.ok) return null;
+      dice += r.dice ?? 0;
+      aidNote = ` +${r.dice} Aid Study (${spirit.name})`;
+      await this.setFlag("sr2e", "aidStudyUsed", [...(this.getFlag("sr2e", "aidStudyUsed") ?? []), key]);
+    }
+    dice = Math.max(0, dice);
+    const tn = spellLearningTN({ force, teacherSuccesses: o.teacherSuccesses, extraTN: o.extraTN });
+    const attemptId = foundry.utils.randomID();
+    await this.update({ [`flags.sr2e.learning.${attemptId}`]: {
+      status: "pending", spellName: def.name, force, definition: def, karmaPaid: false } });
+    const result = await this.rollSuccessTest(dice, tn, {
+      label: `Learn ${def.name} (Force ${force}) — Sorcery + Magical Theory${aidNote}`,
+      karmaDice: o.karmaDice, karmaDiceCap: sorcery + theory,
+      learningAttemptId: attemptId
+    });
+    await this.update({ [`flags.sr2e.learning.${attemptId}.testMessageId`]: result?.testMessageId ?? "" });
+    const card = { attemptId, actorUuid: this.uuid, testMessageId: result?.testMessageId ?? "",
+                   successes: result?.successes ?? 0, spellName: def.name, force };
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: renderLearningCard(card), flags: { sr2e: { learning: card } } });
+    return { attemptId, result };
+  }
+
+  /**
+   * Finalize a learning attempt exactly once (SR2E p.133). Under a per-actor
+   * lock, in order: a 0-success test fails (no Karma); a spell already known by
+   * another copy stops it; Karma is paid (with its receipt, in one update)
+   * unless already paid; the spell is created unless this attempt's item
+   * exists; then done. Every step is resumable, so a retry after a failure
+   * never charges twice or duplicates the spell.
+   */
+  async completeLearning(attemptId) {
+    const rec = this.getFlag("sr2e", "learning")?.[attemptId];
+    if (!rec) return ui.notifications.warn("That learning attempt no longer exists.");
+    if (rec.status !== "pending") return ui.notifications.info(`${rec.spellName}: already ${rec.status}.`);
+    if (!this.isOwner) return ui.notifications.warn(`Only ${this.name}'s owner or the GM can complete it.`);
+    if (LEARNING_LOCK.has(this.uuid)) return;
+    LEARNING_LOCK.add(this.uuid);
+    try {
+      const test = game.messages.get(rec.testMessageId)?.flags?.sr2e?.test;
+      // The success count comes from the live test — or, once paid, from the
+      // receipt (the test card may since have been deleted). Without either,
+      // nothing can be decided: refuse rather than record a false failure.
+      const live = rec.karmaPaid && Number.isInteger(rec.successes) ? rec.successes
+        : test ? _testTotal(test) : null;
+      if (live === null) {
+        return ui.notifications.warn(`${rec.spellName}: its learning test card is gone — the GM decides this attempt.`);
+      }
+      const path = `flags.sr2e.learning.${attemptId}`;
+      if (live < 1) {
+        await this.update({ [`${path}.status`]: "failed" });
+      } else {
+        if (this._knowsSpell(rec.spellName, attemptId)) {
+          return ui.notifications.warn(`${this.name} already knows ${rec.spellName} — this attempt stays pending.`);
+        }
+        if (!rec.karmaPaid) {
+          const karma = this.system.karma?.current ?? 0;
+          if (karma < rec.force) {
+            return ui.notifications.warn(`${this.name} needs ${rec.force} Good Karma to finish learning ${rec.spellName} (has ${karma}) — it stays pending.`);
+          }
+          await this.update({ "system.karma.current": karma - rec.force, [`${path}.karmaPaid`]: true,
+                              [`${path}.successes`]: live });
+        }
+        if (!this.items.some(i => i.getFlag("sr2e", "learnAttempt") === attemptId)) {
+          const data = foundry.utils.deepClone(rec.definition);
+          data.system = { ...(data.system ?? {}), force: rec.force };
+          data.flags = foundry.utils.mergeObject(data.flags ?? {}, { sr2e: { learnAttempt: attemptId } });
+          await this.createEmbeddedDocuments("Item", [data]);
+        }
+        await this.update({ [`${path}.status`]: "done", [`${path}.days`]: spellLearningDays(rec.force, live) });
+      }
+      // Refresh the card(s) where this client may; the actor record is the truth.
+      for (const msg of game.messages) {
+        const card = msg.flags?.sr2e?.learning;
+        if (card?.attemptId !== attemptId || !msg.canUserModify(game.user, "update")) continue;
+        await msg.update({ content: renderLearningCard({ ...card, successes: live }),
+                           "flags.sr2e.learning.successes": live });
+      }
+      // The test card's Karma buttons close now (re-render if permitted).
+      const tMsg = game.messages.get(rec.testMessageId);
+      if (tMsg?.canUserModify(game.user, "update")) {
+        await tMsg.update({ content: renderSuccessTestCard(tMsg.flags.sr2e.test) });
+      }
+    } finally {
+      LEARNING_LOCK.delete(this.uuid);
+    }
   }
 
   /** Return allocated Spell Defense dice to the Magic Pool (Shielding dice were free — just drop them). */
   async clearSpellDefense() {
     const sd = this.system.dicePools?.spellDefense ?? 0;
     const shield = this.system.dicePools?.shieldingBonus ?? 0;
-    if (sd <= 0 && shield <= 0) return;
+    const aid = this.system.dicePools?.spellDefenseAid ?? 0;
+    if (sd <= 0 && shield <= 0 && aid <= 0 && !this.system.dicePools?.spellDefenseAidSpirit) return;
     const pool = this.system.dicePools.magic;
     await this.update({
       "system.dicePools.magic.value": Math.min(pool.max, pool.value + sd),
       "system.dicePools.spellDefense": 0,
-      "system.dicePools.shieldingBonus": 0
+      "system.dicePools.shieldingBonus": 0,
+      // The elemental's reserved dice were never used: drop them, Force intact.
+      ...CLEAR_DEFENSE_AID
     });
   }
 
@@ -2852,8 +3146,21 @@ export class SR2EActor extends Actor {
     const useDef = Math.min(spellDef + shield, 99);
     dice += useDef;
 
-    const defNote = useDef
+    let defNote = useDef
       ? ` +${useDef} ${shield ? "Shielding" : "Spell Defense"}` : "";
+    // An elemental's reserved Spell Defense dice (p.141): combat spells only
+    // for a fire elemental. Paid (its Force drops) BEFORE any die is added; if
+    // payment fails, the resistance goes ahead without them and the
+    // reservation is kept.
+    let aidUsed = 0;
+    const res = aidReservation(this);
+    if (res?.valid && elementalAidsCategory(res.spirit.system.domain, "combat")) {
+      const n = Math.min(res.dice, res.spirit.system.effectiveForce ?? 0);
+      const paid = n > 0 && res.spirit.isOwner
+        ? await elementalTransition(res.spirit, "aid", { n }, { quiet: true, silent: true }) : { ok: false };
+      if (paid.ok) { aidUsed = n; dice += n; defNote += ` +${n} Aid Sorcery (${res.spirit.name})`; }
+      else defNote += " (elemental aid unavailable)";
+    }
     const resist = await this.rollSuccessTest(dice, state.force, {
       label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${defNote} (TN ${state.force})`,
       isResistance: true,
@@ -2861,11 +3168,12 @@ export class SR2EActor extends Actor {
       // spell is resisted with Willpower and must not take it.
       ...(attr === "body" ? this._bodyTestOpts() : {})
     });
-    if (useDef > 0) {
-      // Spell defense + free shielding dice are spent for the exchange.
+    if (useDef > 0 || aidUsed > 0) {
+      // Spell defense + free shielding dice (and any elemental aid used) are
+      // spent for the exchange.
       await this.update({
-        "system.dicePools.spellDefense": 0,
-        "system.dicePools.shieldingBonus": 0
+        ...(useDef > 0 ? { "system.dicePools.spellDefense": 0, "system.dicePools.shieldingBonus": 0 } : {}),
+        ...(aidUsed > 0 ? CLEAR_DEFENSE_AID : {})
       });
     }
 

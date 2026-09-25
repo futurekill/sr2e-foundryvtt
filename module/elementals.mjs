@@ -199,7 +199,9 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
       return { ok: done };
     }
     const planArgs = { n: args.n, spellUuid: args.spell?.uuid, combatId: args.combatId,
-                       seq: args.seq, round: args.round, timingAlive: args.timingAlive };
+                       seq: args.seq, round: args.round, timingAlive: args.timingAlive,
+                       // Only used when an aid service starts (its new identity).
+                       instanceId: foundry.utils.randomID() };
     if (kind === "startSustain") {
       const why = sustainRefusal(spirit, args.spell);
       if (why) return refuse(why);
@@ -249,7 +251,8 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
       return { ok: false, outcome: "pending", committed: true,
                reason: "the spell could not be ended yet — Finish on its sheet", message: plan.message };
     }
-    return { ok: true, outcome: plan.outcome ?? "done", expired: !!plan.expire, message: plan.message };
+    return { ok: true, outcome: plan.outcome ?? "done", expired: !!plan.expire, message: plan.message,
+             dice: plan.dice };
   } finally {
     keys.forEach(k => IN_FLIGHT.delete(k));
   }
@@ -388,4 +391,38 @@ export async function countTurnFromCard(data) {
     { combatId: data.combatId, seq, round: Number(data.round), timingAlive: false });
   if (r.outcome === "skip") ui.notifications.info("That Combat Turn was already counted.");
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// Spell Defense reservations (SR2E p.141, 0.98.0)
+// ---------------------------------------------------------------------------
+
+/** Update keys that drop a character's elemental Spell Defense reservation. */
+export const CLEAR_DEFENSE_AID = {
+  "system.dicePools.spellDefenseAid": 0,
+  "system.dicePools.spellDefenseAidSpirit": "",
+  "system.dicePools.spellDefenseAidInstance": ""
+};
+
+/**
+ * A character's elemental Spell Defense reservation. `valid` only while the
+ * elemental is still bound, still in the SAME aid service it was reserved
+ * under (its aidInstanceId), and has Force left.
+ * @returns {{spirit:Actor|null, dice:number, valid:boolean}|null}
+ */
+export function aidReservation(caster) {
+  const dp = caster?.system?.dicePools;
+  if (!(dp?.spellDefenseAid > 0)) return null;
+  const spirit = sync(dp.spellDefenseAidSpirit);
+  const s = spirit?.system;
+  const valid = isElemental(spirit) && s.service === "aid" && !!s.aidInstanceId
+    && s.aidInstanceId === dp.spellDefenseAidInstance && !s.depleted
+    && boundElementals(caster).some(e => e.uuid === spirit.uuid);
+  return { spirit, dice: dp.spellDefenseAid, valid };
+}
+
+/** Dice of this elemental held as the caster's Spell Defense — not castable. */
+export function reservedDiceFor(caster, spirit) {
+  const r = aidReservation(caster);
+  return r?.valid && r.spirit.uuid === spirit?.uuid ? r.dice : 0;
 }

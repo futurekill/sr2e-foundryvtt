@@ -4301,6 +4301,285 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Elemental Combat Turn clock (p.142)" });
 
+    // ── Learning spells (SR2E p.132–133) with Aid Study, and elemental Spell
+    //    Defense aid (p.141) — 0.98.0. ─────────────────────────────────────────
+    quench.registerBatch("sr2e.spell-learning", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const actors = [], items = [];
+      let msgStart = 0;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      afterEach(async function () {
+        this.timeout(15000);
+        for (const a of actors.splice(0)) {
+          try {
+            if (a.type === "spirit") await a.update({ "system.service": "", "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": "" });
+            await a.delete();
+          } catch (e) {}
+        }
+        for (const i of items.splice(0)) { try { await i.delete(); } catch (e) {} }
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgStart).map(m => m.id));
+      });
+
+      async function setup({ karma = 20, sorcery = 4, theory = 2, spirit = false } = {}) {
+        msgStart = game.messages.size;
+        const mage = await Actor.create({ name: "Quench Learn Mage", type: "character",
+          system: { intelligence: { base: 5 }, willpower: { base: 5 },
+                    magic: { value: 6, type: "full_magician", tradition: "hermetic" }, karma: { current: karma } },
+          items: [{ name: "Sorcery", type: "skill", system: { rating: sorcery, category: "active" } },
+                  { name: "Magical Theory", type: "skill", system: { rating: theory, category: "knowledge" } }] });
+        actors.push(mage);
+        const src = await Item.create({ name: "Quench Stunbolt", type: "spell",
+          system: { category: "combat", type: "mana", force: 1, duration: "instant", drainCode: "(F / 2)M",
+                    sustaining: true, spellLocked: true } });   // live state that must NOT be copied
+        items.push(src);
+        let fire = null;
+        if (spirit) {
+          fire = await Actor.create({ name: "Quench Learn Fire", type: "spirit", system: { spiritType: "elemental",
+            domain: "fire", force: 4, services: 3, conjurerUuid: mage.uuid } });
+          actors.push(fire);
+          await mage.update({ "system.boundSpirits": [fire.uuid] });
+        }
+        return { mage, src, fire };
+      }
+      const cardOf = (attemptId) => game.messages.contents.find(m => m.flags?.sr2e?.learning?.attemptId === attemptId);
+
+      describe("Learning a spell", () => {
+        it("rolls Sorcery + Magical Theory vs twice the Force; completing spends Force Karma and adds a clean spell", async () => {
+          const { mage, src } = await setup();
+          // Force 3 → TN 6. 6 dice: faces 6,6,6,2,2,2 → the 6s explode (6+x ≥ 6 always) → 3 successes.
+          const r = await withFaces([6, 1, 6, 1, 6, 1, 2, 2, 2], () =>
+            mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 3 }));
+          const test = game.messages.get(r.result.testMessageId).flags.sr2e.test;
+          assert.lengthOf(test.dice, 6, "Sorcery 4 + Magical Theory 2");
+          assert.equal(test.tn, 6, "twice the Force");
+          assert.notOk(mage.items.find(i => i.type === "spell"), "nothing added before Complete");
+          await mage.completeLearning(r.attemptId);
+          const spell = mage.items.find(i => i.type === "spell");
+          assert.ok(spell, "learned");
+          assert.equal(spell.system.force, 3);
+          assert.isFalse(spell.system.sustaining, "no live state copied");
+          assert.isFalse(spell.system.spellLocked);
+          assert.equal(mage.system.karma.current, 17, "Force 3 Karma");
+          assert.equal(mage.getFlag("sr2e", "learning")[r.attemptId].days, 1, "3 successes: ceil(3/3) = 1 day");
+        });
+
+        it("a failed attempt adds nothing and costs no Karma, even with Karma since spent", async () => {
+          const { mage, src } = await setup();
+          const r = await withFaces([1, 2, 1, 2, 1, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 3 }));
+          await mage.update({ "system.karma.current": 0 });
+          await mage.completeLearning(r.attemptId);
+          assert.equal(mage.getFlag("sr2e", "learning")[r.attemptId].status, "failed");
+          assert.notOk(mage.items.find(i => i.type === "spell"));
+          assert.equal(mage.system.karma.current, 0);
+        });
+
+        it("refuses without Karma, a good enough library, or when the spell is known — nothing spent", async () => {
+          const { mage, src } = await setup({ karma: 2 });
+          const n = game.messages.size;
+          assert.isNull(await mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 3 }), "Karma");
+          await mage.update({ "system.karma.current": 20 });
+          assert.isNull(await mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 2 }), "library");
+          await mage.createEmbeddedDocuments("Item", [{ name: "quench  stunbolt", type: "spell", system: { category: "combat" } }]);
+          assert.isNull(await mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 3 }), "already known by name");
+          assert.equal(game.messages.size, n);
+        });
+
+        it("completes once: a double click, and a retry after payment, never charge twice", async () => {
+          const { mage, src } = await setup();
+          const r = await withFaces([6, 1, 6, 1, 2, 2, 2, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2 }));
+          await Promise.all([mage.completeLearning(r.attemptId), mage.completeLearning(r.attemptId)]);
+          assert.lengthOf(mage.items.filter(i => i.type === "spell"), 1);
+          assert.equal(mage.system.karma.current, 18);
+          // Simulate a failure after payment: back to pending, spell removed.
+          await mage.deleteEmbeddedDocuments("Item", mage.items.filter(i => i.type === "spell").map(i => i.id));
+          await mage.update({ [`flags.sr2e.learning.${r.attemptId}.status`]: "pending" });
+          await mage.completeLearning(r.attemptId);
+          assert.lengthOf(mage.items.filter(i => i.type === "spell"), 1, "recreated");
+          assert.equal(mage.system.karma.current, 18, "not charged again");
+        });
+
+        it("two attempts, Karma for one: exactly one spell and one charge", async () => {
+          const { mage, src } = await setup({ karma: 5 });
+          const src2 = await Item.create({ name: "Quench Manadart", type: "spell", system: { category: "combat", type: "mana" } });
+          items.push(src2);
+          const a = await withFaces([6, 1, 6, 1, 2, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 3 }));
+          const b = await withFaces([6, 1, 6, 1, 2, 2], () => mage.learnSpell({ sourceUuid: src2.uuid, force: 3, libraryRating: 3 }));
+          await Promise.all([mage.completeLearning(a.attemptId), mage.completeLearning(b.attemptId)]);
+          const spells = mage.items.filter(i => i.type === "spell");
+          assert.lengthOf(spells, 1, "one spell");
+          assert.equal(mage.system.karma.current, 2, "one charge");
+          const st = mage.getFlag("sr2e", "learning");
+          assert.sameMembers([st[a.attemptId].status, st[b.attemptId].status], ["done", "pending"]);
+        });
+
+        it("Karma on the test updates the card before completion, and is refused after", async () => {
+          const { mage, src } = await setup();
+          const r = await withFaces([1, 2, 1, 2, 1, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 3, libraryRating: 3 }));
+          const testMsg = game.messages.get(r.result.testMessageId);
+          const saved = { karma: mage.system.karma.pool, spend: mage._spendKarmaPool };
+          mage.system.karma.pool = 5; mage._spendKarmaPool = async () => {};
+          try {
+            await withFaces([6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1], () => mage.applyKarmaToTest(testMsg, "reroll"));
+            assert.isAbove(cardOf(r.attemptId).flags.sr2e.learning.successes, 0, "the card picked up the reroll");
+            await mage.completeLearning(r.attemptId);
+            assert.equal(mage.getFlag("sr2e", "learning")[r.attemptId].status, "done");
+            const before = JSON.stringify(game.messages.get(testMsg.id).flags.sr2e.test);
+            await mage.applyKarmaToTest(game.messages.get(testMsg.id), "buySuccess");
+            assert.equal(JSON.stringify(game.messages.get(testMsg.id).flags.sr2e.test), before, "closed after completion");
+          } finally { mage.system.karma.pool = saved.karma; mage._spendKarmaPool = saved.spend; }
+        });
+      });
+
+      describe("Learning — recovery and cleanliness", () => {
+        it("a deleted test card never turns into a false failure; a paid receipt still completes", async () => {
+          const { mage, src } = await setup();
+          const r = await withFaces([6, 1, 6, 1, 2, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2 }));
+          const testId = r.result.testMessageId;
+          // Pay, then lose the spell and the test card, back to pending.
+          await mage.completeLearning(r.attemptId);
+          await mage.deleteEmbeddedDocuments("Item", mage.items.filter(i => i.type === "spell").map(i => i.id));
+          await mage.update({ [`flags.sr2e.learning.${r.attemptId}.status`]: "pending" });
+          await game.messages.get(testId)?.delete();
+          await mage.completeLearning(r.attemptId);
+          assert.equal(mage.getFlag("sr2e", "learning")[r.attemptId].status, "done", "completed from the receipt");
+          assert.lengthOf(mage.items.filter(i => i.type === "spell"), 1);
+          assert.equal(mage.system.karma.current, 18, "charged once");
+          // An unpaid attempt whose card is gone is refused, not failed.
+          const other = await Item.create({ name: "Quench Other", type: "spell", system: { category: "combat" } });
+          items.push(other);
+          const r2 = await withFaces([6, 1, 2, 2, 2, 2], () => mage.learnSpell({ sourceUuid: other.uuid, force: 1, libraryRating: 1 }));
+          await game.messages.get(r2.result.testMessageId)?.delete();
+          await mage.completeLearning(r2.attemptId);
+          assert.equal(mage.getFlag("sr2e", "learning")[r2.attemptId].status, "pending");
+        });
+
+        it("once paid, the test is closed to Karma even while the attempt is still pending", async () => {
+          const { mage, src } = await setup();
+          const r = await withFaces([6, 1, 6, 1, 2, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2 }));
+          // Creation fails after payment: inject it.
+          const orig = mage.createEmbeddedDocuments.bind(mage);
+          mage.createEmbeddedDocuments = async () => { throw new Error("injected"); };
+          try { await mage.completeLearning(r.attemptId); } catch (e) { /* injected */ }
+          finally { delete mage.createEmbeddedDocuments; }
+          const rec = mage.getFlag("sr2e", "learning")[r.attemptId];
+          assert.isTrue(rec.karmaPaid);
+          assert.equal(rec.status, "pending");
+          const testMsg = game.messages.get(r.result.testMessageId);
+          const before = JSON.stringify(testMsg.flags.sr2e.test);
+          const saved = { karma: mage.system.karma.pool, spend: mage._burnKarmaPool };
+          mage.system.karma.pool = 5;
+          try { await mage.applyKarmaToTest(testMsg, "buySuccess"); }
+          finally { mage.system.karma.pool = saved.karma; }
+          assert.equal(JSON.stringify(game.messages.get(testMsg.id).flags.sr2e.test), before, "no Karma after payment");
+          await mage.completeLearning(r.attemptId);
+          assert.lengthOf(mage.items.filter(i => i.type === "spell"), 1, "the retry creates it");
+          assert.equal(mage.system.karma.current, 18, "charged once");
+        });
+
+        it("a raw definition passed in is cleaned before it is stored", async () => {
+          const { mage, src } = await setup();
+          const r = await withFaces([6, 1, 6, 1, 6, 1], () => mage.learnSpell({ definition: src.toObject(), force: 2, libraryRating: 2 }));
+          const def = mage.getFlag("sr2e", "learning")[r.attemptId].definition;
+          assert.isFalse(def.system.sustaining);
+          assert.isFalse(def.system.spellLocked);
+        });
+      });
+
+      describe("Aid Study (p.141)", () => {
+        it("adds the elemental's Force in dice for one service, once per spell", async () => {
+          const { mage, src, fire } = await setup({ spirit: true });
+          const r = await mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2, aidSpiritUuid: fire.uuid });
+          assert.lengthOf(game.messages.get(r.result.testMessageId).flags.sr2e.test.dice, 10, "6 + Force 4");
+          assert.equal(fire.system.services, 2);
+          assert.equal(fire.system.forceUsed, 0, "Aid Study does not deplete Force");
+          await mage.completeLearning(r.attemptId);
+          // Unlearn (delete) and try again with the same spirit → refused (one spirit, one time).
+          await mage.deleteEmbeddedDocuments("Item", mage.items.filter(i => i.type === "spell").map(i => i.id));
+          assert.isNull(await mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2, aidSpiritUuid: fire.uuid }));
+          assert.equal(fire.system.services, 2, "no second service");
+        });
+
+        it("two simultaneous requests with different elementals: only one aids", async () => {
+          const { mage, src, fire } = await setup({ spirit: true });
+          const fire2 = await Actor.create({ name: "Quench Learn Fire 2", type: "spirit", system: { spiritType: "elemental",
+            domain: "fire", force: 3, services: 3, conjurerUuid: mage.uuid } });
+          actors.push(fire2);
+          await mage.update({ "system.boundSpirits": [fire.uuid, fire2.uuid] });
+          await Promise.all([
+            mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2, aidSpiritUuid: fire.uuid }),
+            mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2, aidSpiritUuid: fire2.uuid })
+          ]);
+          assert.equal(fire.system.services + fire2.system.services, 5, "exactly one service spent");
+        });
+      });
+
+      describe("Spell Defense aid (p.141)", () => {
+        it("reserves a fire elemental's dice without spending Force; clearing drops them free", async () => {
+          const { mage, fire } = await setup({ spirit: true });
+          await mage.allocateSpellDefense(0, { aidSpiritUuid: fire.uuid, aidDice: 3 });
+          assert.equal(mage.system.dicePools.spellDefenseAid, 3);
+          assert.equal(fire.system.service, "aid");
+          assert.equal(fire.system.services, 2, "starting aid: 1 service");
+          assert.equal(fire.system.forceUsed, 0, "reserved, not spent");
+          await mage.clearSpellDefense();
+          assert.equal(mage.system.dicePools.spellDefenseAid, 0);
+          assert.equal(fire.system.forceUsed, 0);
+        });
+
+        it("an aid service from before 0.98.0 (no identity) can still reserve dice", async () => {
+          const { mage, fire } = await setup({ spirit: true });
+          await fire.update({ "system.service": "aid", "system.aidInstanceId": "" });
+          await mage.allocateSpellDefense(0, { aidSpiritUuid: fire.uuid, aidDice: 2 });
+          const { aidReservation } = await import("../elementals.mjs");
+          assert.isTrue(aidReservation(mage)?.valid, "the reservation binds");
+          assert.equal(fire.system.services, 3, "no extra service for an active aid");
+        });
+
+        it("the reserved dice cannot also be cast", async () => {
+          const { mage, fire } = await setup({ spirit: true });
+          await mage.createEmbeddedDocuments("Item", [{ name: "Quench Bolt", type: "spell", system: { category: "combat", type: "mana", force: 2, duration: "instant", drainCode: "(F / 2)M" } }]);
+          await mage.allocateSpellDefense(0, { aidSpiritUuid: fire.uuid, aidDice: 3 });
+          const bolt = mage.items.getName("Quench Bolt");
+          const n = game.messages.size;
+          await bolt.roll({ force: 2, targetNumber: 4, elementalAid: { uuid: fire.uuid, cast: 4, drain: 0 } });
+          const cast = game.messages.contents.slice(n).find(m => /Cast Quench Bolt/.test(m.flags?.sr2e?.test?.label ?? ""));
+          assert.lengthOf(cast.flags.sr2e.test.dice, 3, "Force 2 + only the 1 unreserved die");
+          assert.equal(fire.system.forceUsed, 1);
+        });
+
+        it("used against a combat spell: dice added, the elemental's Force drops, reservation spent", async () => {
+          const { mage, fire } = await setup({ spirit: true });
+          await mage.allocateSpellDefense(0, { aidSpiritUuid: fire.uuid, aidDice: 2 });
+          const state = { casterUuid: "x", casterName: "Foe", spellName: "Manabolt", targetUuid: mage.uuid,
+            force: 3, successes: 1, resistAttr: "willpower", baseLevel: "S", dmgType: "physical", resolved: false };
+          const card = await ChatMessage.create({ content: "resist", flags: { sr2e: { spell: state } } });
+          await mage.rollSpellResistance(card);
+          const test = game.messages.contents.filter(m => /Resist Manabolt/.test(m.flags?.sr2e?.test?.label ?? "")).at(-1);
+          assert.lengthOf(test.flags.sr2e.test.dice, 7, "Willpower 5 + 2 aid");
+          assert.equal(fire.system.forceUsed, 2);
+          assert.equal(mage.system.dicePools.spellDefenseAid, 0);
+        });
+
+        it("a Magic Pool reset releases the reservation", async function () {
+          this.timeout(10000);   // renders the sheet
+          const { mage, fire } = await setup({ spirit: true });
+          await mage.allocateSpellDefense(0, { aidSpiritUuid: fire.uuid, aidDice: 2 });
+          await mage.update({ "system.dicePools.magic.value": 0 });
+          const sheet = mage.sheet; await sheet.render({ force: true }); await new Promise(r => setTimeout(r, 400));
+          const btn = sheet.element.querySelector('[data-action="resetPool"][data-pool="magic"]');
+          if (btn) { btn.click(); await new Promise(r => setTimeout(r, 400)); }
+          await sheet.close();
+          assert.ok(btn, "the Magic Pool reset button exists");
+          assert.equal(mage.system.dicePools.spellDefenseAid, 0);
+          assert.equal(fire.system.forceUsed, 0);
+        });
+      });
+    }, { displayName: "SR2E: Learning spells & elemental defense (p.132, p.141)" });
+
 
 
 

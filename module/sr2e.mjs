@@ -2279,6 +2279,16 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Learning card (0.98.0): finalize a learning attempt exactly once.
+  html.querySelectorAll?.(".sr2e-complete-learning-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      const actor = await fromUuid(btn.dataset.actorUuid);
+      if (!actor) return ui.notifications.warn("That character no longer exists.");
+      return actor.completeLearning(btn.dataset.attemptId);
+    });
+  });
+
   // Elemental Combat Turn recovery card (0.97.0) — valid only while current.
   html.querySelectorAll?.(".sr2e-count-turn-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
