@@ -5,7 +5,7 @@ import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, street
          footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
-import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, aidReservation } from "../elementals.mjs";
+import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID } from "../elementals.mjs";
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS

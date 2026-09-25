@@ -20,5 +20,10 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      # Undefined names (no-undef) and other correctness rules fail the build;
+      # unused names are warnings only.
+      - name: Lint
+        run: npm run lint
+
       - name: Run the Node rules test suite
         run: npm test

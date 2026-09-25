@@ -74,6 +74,12 @@ commit the resulting `packs-src/` changes. The release workflow runs
 Never re-track `packs/`.
 
 ## Tests
+`npm run lint` (ESLint 9, `eslint.config.mjs`) runs first in CI: errors fail the
+build — above all `no-undef`, which would have caught the 0.90.0 spell-casting
+crash (`item` used where the parameter was `spell`). Foundry's runtime globals
+are declared in the config; add a new one there rather than disabling the rule.
+Unused names are warnings only.
+
 `npm test` (Vitest, plain Node — no Foundry). Tests live in `test/`; pure
 rules math lives in `module/rules/sr2e-rules.mjs` (no Foundry deps) and is the
 preferred home for any new mechanic's arithmetic so it can be unit-tested.

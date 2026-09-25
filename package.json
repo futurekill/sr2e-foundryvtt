@@ -7,6 +7,7 @@
     "build-packs": "node tools/build-packs.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint module test tools",
     "audit-costs": "node tools/audit-costs.mjs",
     "vehicle-tokens": "node tools/set-vehicle-tokens.mjs",
     "item-icons": "node tools/set-item-icons.mjs",
@@ -16,7 +17,10 @@
     "brighten-spirits": "node tools/brighten-spirit-art.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "classic-level": "^3.0.0",
+    "eslint": "^9.39.5",
+    "globals": "^17.12.0",
     "vitest": "^2.1.0"
   }
 }

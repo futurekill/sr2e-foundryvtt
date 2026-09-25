@@ -96,8 +96,8 @@ describe("a finalized skill keeps exactly the ratings it had", () => {
 describe("a mid-chargen skill recovers the allocation instead", () => {
   it("inverts the reduction the player applied by hand", () => {
     expect(migrate(skill({ rating: 5 }), inChargen)["system.allocated"]).toBe(5);
-    expect(migrate(skill({ rating: 4, concentration: { name: "SMG" } }), inChargen)
-      ["system.allocated"]).toBe(5);
+    const withConcentration = migrate(skill({ rating: 4, concentration: { name: "SMG" } }), inChargen);
+    expect(withConcentration["system.allocated"]).toBe(5);
     expect(migrate(skill({
       rating: 3, concentration: { name: "SMG" }, specialization: { name: "Uzi III" }
     }), inChargen)["system.allocated"]).toBe(5);
