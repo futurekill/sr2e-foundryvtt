@@ -15,7 +15,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, allocateKarmaSpend } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, allocateKarmaSpend, stageByNet } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1889,10 +1889,19 @@ export class SR2EActor extends Actor {
       });
     }
 
-    // Damage Level reduced one step vs vehicles; Light cannot harm them (p.108)
-    const stages   = ["L", "M", "S", "D"];
-    const startIdx = stages.indexOf(level) - 1;
-    if (startIdx < 0) {
+    // Damage Level reduced one step vs vehicles; weapons RATED Light cannot
+    // harm them unless the shot is called (p.108). On a net-staging card
+    // (options.stageVs) `level` is pre-staging — printed + burst + called shot,
+    // capped at D — so the reduction lands before the net, and immunity is
+    // judged on the printed rating (a Light burst is still Light-rated). On an
+    // older card `level` was already staged and is judged as it always was.
+    const stages     = ["L", "M", "S", "D"];
+    const netStaging = Number.isFinite(options.stageVs);
+    const lightRated = netStaging
+      ? options.ratedLevel === "L" && !options.calledShot
+      : level === "L";
+    const startIdx = Math.min(3, stages.indexOf(level)) - 1;
+    if (lightRated || startIdx < 0) {
       return ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
@@ -1976,8 +1985,11 @@ export class SR2EActor extends Actor {
       isResistance: true
     });
 
-    const reductions = netToSteps(resist?.successes ?? 0);
-    const finalIdx   = startIdx - reductions;
+    // "Otherwise, resolving weapon damage is the same" (p.108): net staging on
+    // a new-format card, down 1 level per 2 successes on an older one.
+    const finalIdx = netStaging
+      ? stageByNet(startIdx, options.stageVs, resist?.successes ?? 0).idx
+      : startIdx - netToSteps(resist?.successes ?? 0);
     if (finalIdx < 0) {
       return ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -2023,7 +2035,8 @@ export class SR2EActor extends Actor {
     // Vehicles resolve weapon damage with their own hard-target rules (p.108)
     if (this.type === "vehicle") {
       return this.rollVehicleDamageResistance(power, level, {
-        basePower: options.basePower, damageType
+        basePower: options.basePower, damageType,
+        stageVs: options.stageVs, ratedLevel: options.ratedLevel, calledShot: options.calledShot
       });
     }
     const system    = this.system;
@@ -2042,6 +2055,11 @@ export class SR2EActor extends Actor {
       console.warn("SR2E | rollDamageResistance: invalid damage level", level);
       return;
     }
+    // `level` is PRE-staging when the card carries the attacker's successes
+    // (options.stageVs): ranged, blast and manipulation damage stage on the NET
+    // of attacker vs target (p.91, p.97, p.130). Otherwise (melee, spirit,
+    // older cards) it is already staged and this roll only stages down.
+    const netStaging = Number.isFinite(options.stageVs);
 
     // Flechette vs unarmored target: +1 Damage Level (SR2E p.93)
     let flechetteNote = "";
@@ -2106,7 +2124,10 @@ export class SR2EActor extends Actor {
             </tr>
           </table>
           <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
-            Every 2 successes stages damage down 1 level (SR2E p.116).
+            ${netStaging
+              ? `Staged on the net (SR2E p.91): the attacker's ${options.stageVs} success${options.stageVs === 1 ? "" : "es"}
+                 against yours. Each 2 they win by stages ${level} up; each 2 you win by stages it down; a tie is ${level}.`
+              : "Every 2 successes stages damage down 1 level (SR2E p.116)."}
           </p>
           ${flechetteNote}
         </div>
@@ -2178,16 +2199,20 @@ export class SR2EActor extends Actor {
       return resistResult;
     }
 
-    // Stage damage down: 2 successes = 1 level reduction
-    const reductions = Math.floor((resistResult?.successes ?? 0) / 2);
-    const finalIdx   = startIdx - reductions;
+    // Stage: on the net for a new-format card, else down 1 level per 2 successes.
+    const finalIdx = netStaging
+      ? stageByNet(startIdx, options.stageVs, resistResult?.successes ?? 0).idx
+      : startIdx - Math.floor((resistResult?.successes ?? 0) / 2);
+    const netNote = netStaging
+      ? `<br><em>Net staging (p.91): attacker ${options.stageVs} vs ${resistResult?.successes ?? 0} — base ${level}.</em>`
+      : "";
 
     if (finalIdx < 0) {
       // All damage resisted
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result">
-          <strong>Damage fully resisted — no damage taken.</strong>
+          <strong>Damage fully resisted — no damage taken.</strong>${netNote}
         </div>`,
         ...resolves
       });
@@ -2214,8 +2239,8 @@ export class SR2EActor extends Actor {
         data-melee="${options.melee ? 1 : 0}"
         data-attacker-strength="${options.attackerStrength ?? 0}"
         title="${options.melee
-          ? "Body Test vs the attacker's Strength; fall prone if you can't beat half the damage dealt (SR2E p.103)"
-          : "Body Test vs ½ Power (gel: full Power); fall prone if you can't beat half the damage dealt (SR2E p.91)"}">
+          ? "Body Test vs the attacker's Strength: overcome half the damage dealt to keep your feet; 0 successes = prone (SR2E p.103)"
+          : "Body Test vs ½ Power (gel: full Power): overcome half the damage dealt to keep your feet; 0 successes = prone (SR2E p.91)"}">
         🤸 Knockdown Test</button>`;
     } else if (kd.autoProne) {
       // State the outcome instead of demanding a roll for it.
@@ -2230,7 +2255,7 @@ export class SR2EActor extends Actor {
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
         <strong>Damage Taken: ${finalLevel} ${damageType}</strong>
-        <em>(${damageBoxes} box${damageBoxes !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>
+        <em>(${damageBoxes} box${damageBoxes !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>${netNote}
         ${knockBtn}
       </div>`,
       ...resolves
@@ -2241,7 +2266,7 @@ export class SR2EActor extends Actor {
 
   /**
    * Knockdown / stopping-power Body Test (SR2E p.91). TN = ½ Power (full Power
-   * for gel rounds); beating half the damage dealt keeps you up, 0 successes
+   * for gel rounds); overcoming half the damage dealt keeps you up, 0 successes
    * drops you prone, in between staggers you 1 m. A Deadly wound always drops.
    * Applies the "prone" token status on a knockdown.
    * @param {number} power

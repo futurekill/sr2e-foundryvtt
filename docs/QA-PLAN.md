@@ -121,14 +121,23 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Undefended:** attacker's successes stage damage directly.
 
 ## 6. Damage resistance & staging
-- [ ] An attack card's **Resist Damage** button: defender rolls Body (+ armor), net successes stage damage **down**.
+- [ ] **Net staging (p.91, v0.99):** a ranged attack card shows the weapon's own
+      level (+ burst / called shot) and the attacker's successes, not a final code.
+      Resisting compares the two: attacker 4 vs defender 3 is the **base** level;
+      each 2 the attacker wins by stages up, each 2 the defender wins by stages down.
+      Same for blast rows, shotgun-spread rows, vehicles and damaging manipulation
+      spells. A card posted before the update still resolves the old way.
+- [ ] Vehicles (p.108): a Light-rated weapon does nothing even on a burst unless the
+      shot is called; otherwise the level drops one before the net is applied.
+- [ ] Melee / spirit attack **Resist Damage**: net successes of the opposed test are
+      already in the level; the Body roll stages **down** 1 per 2 successes.
 - [ ] Damage boxes apply L=1 / M=3 / S=6 / D=10; filling Physical → unconscious/dead overlays; Stun → unconscious.
 - [ ] Stun weapons deal Stun only; armor types (ballistic vs impact) apply correctly.
 - [ ] Wound **status markers** appear on the token at each level.
 - [ ] **Knockdown (p.91):** after damage applies, the card shows a "Knockdown Test"
-      button → Body Test vs ½ Power (full Power for gel rounds); beating half the
-      wound level keeps you up, 0 successes / a Deadly wound sets the token **prone**,
-      in between reports a 1 m stagger.
+      button → Body Test vs ½ Power (full Power for gel rounds); you must EXCEED half
+      the wound level to keep your feet (Moderate: 3+ successes), 0 successes / a
+      Deadly wound sets the token **prone**, 1..threshold reports a 1 m stagger.
 
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).

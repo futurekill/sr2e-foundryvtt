@@ -40,7 +40,7 @@ import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, stageLevel, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
+import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, stageLevel, scatterProfile, scatterDistance, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -431,7 +431,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -1809,9 +1809,13 @@ async function resistManipDamage(message) {
     if (!["character", "npc", "spirit"].includes(actor.type)) {
       return ui.notifications.warn(`The GM resolves spell damage against a ${actor.type} (SR2E p.108).`);
     }
-    const level = stageLevel(snap.baseLevel, netToSteps(snap.successes));
+    // Net staging (p.91 via p.130) on cards that carry the base level; an
+    // older card pre-staged the caster's successes and keeps doing so.
+    const netStaging = snap.staging === "net";
+    const level = netStaging ? snap.baseLevel : stageLevel(snap.baseLevel, netToSteps(snap.successes));
     const result = await actor.rollDamageResistance(snap.basePower, level, "impact", "physical", {
       armorCalc: "half_impact", basePower: snap.basePower, attackerSuccesses: snap.successes,
+      ...(netStaging ? { stageVs: snap.successes } : {}),
       resolvesMessageId: message.id,
       beforeRoll: async () => {
         const live = game.messages.get(message.id);
@@ -1864,7 +1868,7 @@ async function resolveCardDefender(targetUuid) {
  * @param {number} o.attackerSuccesses - Successes from the attack Success Test.
  * @param {string} o.blastName        - Display name.
  */
-async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName }) {
+async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType, blastType, attackerSuccesses, delivery, blastName, netStaging = false, calledShot = false }) {
   if (!canvas?.ready) return ui.notifications.warn("No active scene for the blast.");
   const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid) : null;
   const centerTok = centerDoc?.object ?? game.user?.targets?.first?.();
@@ -1938,7 +1942,17 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
 
   const stages = ["L", "M", "S", "D"];
   const baseIdx = Math.max(0, stages.indexOf(baseLevel || "M"));
-  const stagedLevel = stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
+  // New launchers (data-stage="net") hand each row the PRE-staging level plus
+  // the attacker's successes, and the resistance roll stages on the net
+  // (p.97: "Compare the defender's successes against those from the attacker's
+  // Success Test"). A called shot already paid +4 TN, so it lifts the base one
+  // level (p.92). An old launcher pre-stages, as it always did.
+  const stagedLevel = netStaging
+    ? stages[Math.min(baseIdx + (calledShot ? CALLED_SHOT_STEPS : 0), 3)]
+    : stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
+  const netAttrs = netStaging
+    ? `data-stage="net" data-stage-vs="${attackerSuccesses || 0}" data-rated-level="${baseLevel || "M"}" data-called-shot="${calledShot ? 1 : 0}"`
+    : "";
   const stun = damageType === "stun";
 
   const rows = [];
@@ -1956,7 +1970,7 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
       <button class="sr2e-resist-btn"
               data-power="${power}" data-base-power="${basePower}"
               data-level="${stagedLevel}" data-armor-type="impact"
-              data-damage-type="${damageType}" data-target-uuid="${actor.uuid}"
+              data-damage-type="${damageType}" data-target-uuid="${actor.uuid}" ${netAttrs}
               title="Body vs. TN = ${power} − Impact armour (core p.96)">
         ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${dist} m)</em>
       </button>
@@ -1969,7 +1983,8 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
   await ChatMessage.create({
     content: `<div class="sr2e-damage-result sr2e-blast-card">
       <strong>💥 ${foundry.utils.escapeHTML(blastName || "Blast")}</strong> — ${basePower}${stagedLevel}${stun ? " Stun" : ""} at ground zero,
-      −${falloff}/m falloff (radius ${radiusM} m).
+      −${falloff}/m falloff (radius ${radiusM} m).${netStaging
+        ? `<br><em>${attackerSuccesses || 0} attack success${attackerSuccesses === 1 ? "" : "es"} — each target stages on the net against its own roll (p.97).</em>` : ""}
       <br><em>Scatter:</em> ${scatterNote}.
       <br><em>Each target resists with Body vs. (Power − Impact armour):</em>
       ${body}
@@ -1998,7 +2013,7 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
  * @param {number} o.attackerSuccesses
  * @param {string} o.weaponName
  */
-async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName }) {
+async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName, netStaging = false, calledShot = false }) {
   if (!canvas?.ready) return ui.notifications.warn("No active scene for the shot spread.");
   const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : canvas.tokens.controlled[0];
   const targetTok  = (targetTokenUuid ? (await fromUuid(targetTokenUuid))?.object : null) ?? game.user?.targets?.first?.();
@@ -2025,7 +2040,14 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
 
   const stages = ["L", "M", "S", "D"];
   const baseIdx = Math.max(0, stages.indexOf(baseLevel || "M"));
-  const stagedLevel = stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
+  // Same split as resolveBlast: a new launcher hands rows the pre-staging level
+  // (called shot included) and the resistance roll stages on the net (p.91).
+  const stagedLevel = netStaging
+    ? stages[Math.min(baseIdx + (calledShot ? CALLED_SHOT_STEPS : 0), 3)]
+    : stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
+  const netAttrs = netStaging
+    ? `data-stage="net" data-stage-vs="${attackerSuccesses || 0}" data-rated-level="${baseLevel || "M"}" data-called-shot="${calledShot ? 1 : 0}"`
+    : "";
   const stun = damageType === "stun";
   const norm = (deg) => ((deg % 360) + 540) % 360 - 180; // → [-180,180]
 
@@ -2052,7 +2074,7 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
               data-power="${power}" data-base-power="${basePower}"
               data-level="${stagedLevel}" data-armor-type="impact" data-armor-calc="flechette"
               data-bonus-dice="${intervening}" data-damage-type="${damageType}" data-target-uuid="${tok.actor.uuid}"
-              data-attacker-successes="${attackerSuccesses}"
+              data-attacker-successes="${attackerSuccesses}" ${netAttrs}
               title="Body vs. TN = ${power} − flechette armour${intervening ? `, +${intervening} resistance die(s) from intervening targets` : ""}">
         ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${dist} m${intervening ? `, +${intervening}d` : ""})</em>
       </button>
@@ -2165,9 +2187,17 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       // Strength) than ranged ones (p.91, TN = 1/2 Power).
       const melee = btn.dataset.melee === "1";
       const attackerStrength = parseInt(btn.dataset.attackerStrength) || 0;
+      // Net staging (p.91): new-format buttons carry the PRE-staging level and
+      // the attacker's successes to stage against. Unmarked (older) buttons
+      // were pre-staged and resolve exactly as they always did.
+      const net = btn.dataset.stage === "net"
+        ? { stageVs: parseInt(btn.dataset.stageVs) || 0,
+            ratedLevel: btn.dataset.ratedLevel || level,
+            calledShot: btn.dataset.calledShot === "1" }
+        : {};
       return actor.rollDamageResistance(power, level, armorType, damageType,
         { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses,
-          melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1" });
+          melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1", ...net });
     });
   });
 
@@ -2217,7 +2247,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         damageType:        btn.dataset.damageType || "physical",
         choke:             parseInt(btn.dataset.choke) || 3,
         attackerSuccesses: parseInt(btn.dataset.attackerSuccesses) || 0,
-        weaponName:        btn.dataset.weaponName || "Shotgun"
+        weaponName:        btn.dataset.weaponName || "Shotgun",
+        netStaging:        btn.dataset.stage === "net",
+        calledShot:        btn.dataset.calledShot === "1"
       });
     });
   });
@@ -2235,7 +2267,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         blastType:         btn.dataset.blastType || "offensive",
         attackerSuccesses: parseInt(btn.dataset.attackerSuccesses) || 0,
         delivery:          btn.dataset.delivery || "standard",
-        blastName:         btn.dataset.blastName || "Blast"
+        blastName:         btn.dataset.blastName || "Blast",
+        netStaging:        btn.dataset.stage === "net",
+        calledShot:        btn.dataset.calledShot === "1"
       });
     });
   });

@@ -69,8 +69,8 @@ describe("knockdownTestTN — ranged vs melee are different rules", () => {
 
 describe("knockdownOutcome thresholds (p.91 / p.103)", () => {
   it("uses 1 / 2 / 3 for Light / Moderate / Serious", () => {
-    expect(knockdownOutcome("M", 3)).toBe("none");     // beats threshold 2
-    expect(knockdownOutcome("M", 2)).toBe("none");     // meets it
+    expect(knockdownOutcome("M", 3)).toBe("none");     // overcomes threshold 2
+    expect(knockdownOutcome("M", 2)).toBe("stagger");  // meets it: "1 or 2 successes" staggers (p.92, p.103)
     expect(knockdownOutcome("M", 1)).toBe("stagger");
     expect(knockdownOutcome("M", 0)).toBe("prone");
   });

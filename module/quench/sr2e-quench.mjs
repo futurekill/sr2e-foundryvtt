@@ -3772,7 +3772,7 @@ export function registerSR2EQuenchTests() {
       const goonToken = () => canvas.scene.tokens.find(t => t.actor?.name === "Quench Manip Goon");
 
       describe("Flamethrower / Spark (single target)", () => {
-        it("posts (F)M staged up one level per 2 successes, ½ Impact, complete-miss aware", async function () {
+        it("posts (F)M with the successes to stage on the net, ½ Impact, complete-miss aware", async function () {
           if (!canvas?.ready) this.skip();
           await canvas.tokens.setTargets([goonToken().id]);
           // Force 5 at TN 4: faces 5,5,5,5,1 → 4 successes → M +2 = D.
@@ -3783,7 +3783,12 @@ export function registerSR2EQuenchTests() {
           const st = card.flags.sr2e.manipDamage;
           assert.include(st, { basePower: 5, baseLevel: "M", successes: 4, targetName: goonToken().name });
           const btn = new DOMParser().parseFromString(card.content, "text/html").querySelector("button[data-manip]");
-          assert.equal(btn.dataset.level, "D");
+          // Net staging (p.91 via p.130): the button carries the BASE level and
+          // the caster's successes; the target's roll decides the net.
+          assert.equal(btn.dataset.level, "M");
+          assert.equal(btn.dataset.stage, "net");
+          assert.equal(btn.dataset.stageVs, "4");
+          assert.equal(st.staging, "net");
           assert.equal(btn.dataset.power, "5");
           assert.equal(btn.dataset.armorCalc, "half_impact");
           assert.equal(btn.dataset.attackerSuccesses, "4");
@@ -3963,6 +3968,214 @@ export function registerSR2EQuenchTests() {
 
     // ── Elementals aiding sorcery (SR2E p.141–142): Aid Sorcery and Spell
     //    Sustaining through the one transition executor. ──────────────────────
+    // ── Net-success damage staging (SR2E p.91, p.97, p.108, p.130) ───────────
+    // Ranged, blast, spread, vehicle and manipulation damage stage on attacker
+    // vs target successes, not up-then-down on each side's gross.
+    quench.registerBatch("sr2e.net-staging", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = { actors: [], tokens: [], messages: [], templates: [] };
+      let shooter, target, car, shooterTok, targetTok;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const nextDialog = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)));
+      const confirm = (app) => app.element.querySelector('button[data-action="roll"]').click();
+      const since = (n) => { const m = game.messages.contents.slice(n); made.messages.push(...m.map(x => x.id)); return m; };
+      const heal = (a) => a.update({ "system.conditionMonitor.physical.value": 0, "system.conditionMonitor.stun.value": 0 });
+      const phys = (a) => a.system.conditionMonitor.physical.value;
+      const btnOf = (msg, sel = "button.sr2e-resist-btn") =>
+        new DOMParser().parseFromString(msg.content, "text/html").querySelector(sel);
+      // A blast/spread card has one row per caught token; find the target's.
+      const rowFor = (msgs, uuid) => msgs.flatMap(m => [...new DOMParser()
+        .parseFromString(m.content, "text/html").querySelectorAll("button.sr2e-resist-btn")])
+        .find(b => b.dataset.targetUuid === uuid);
+      // Resist with fixed faces, confirming the dialog (and a pool, if asked).
+      const resist = async (actor, power, level, faces, opts = {}, pool = 0) => {
+        const n = game.messages.size;
+        nextDialog().then(app => {
+          const inp = app.element.querySelector('input[name="pool_combat"]');
+          if (inp) inp.value = String(pool);
+          confirm(app);
+        });
+        await withFaces(faces, () => actor.rollDamageResistance(power, level, "ballistic", "physical", opts));
+        return since(n);
+      };
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        shooter = await Actor.create({ name: "Quench Net Shooter", type: "character" }); made.actors.push(shooter);
+        await shooter.createEmbeddedDocuments("Item", [
+          { name: "Firearms", type: "skill", system: { rating: 6, category: "active" } }]);
+        // Body 3, no armour: TN = Power − 0, and three dice so faces fix the count.
+        // Q/I/W 2 give a Combat Pool of 3 for the complete-miss case.
+        target = await Actor.create({ name: "Quench Net Target", type: "npc", system: {
+          body: { base: 3 }, quickness: { base: 2 }, intelligence: { base: 2 }, willpower: { base: 2 } } });
+        made.actors.push(target);
+        car = await Actor.create({ name: "Quench Net Car", type: "vehicle", system: { body: 4, armor: 0 } });
+        made.actors.push(car);
+        const g = canvas.dimensions.size, m = g / canvas.dimensions.distance;
+        const o = { x: canvas.dimensions.sceneX + 40 * g, y: canvas.dimensions.sceneY + 25 * g };
+        const put = async (a, dx) => {
+          const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
+            ...(await a.getTokenDocument()).toObject(), x: o.x + dx * m, y: o.y }]))[0];
+          made.tokens.push(t.id); return t;
+        };
+        shooterTok = await put(shooter, -5);
+        targetTok = await put(target, 0);
+        await new Promise(r => setTimeout(r, 300));
+      });
+
+      after(async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        await new Promise(r => setTimeout(r, 2500));   // floating damage text (PIXI) must finish first
+        const tpl = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")).map(t => t.id);
+        if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl);
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+        for (const a of made.actors) await a.delete();
+      });
+
+      describe("Producers carry the pre-staging level", () => {
+        it("a direct shot posts the weapon's level and the successes, not a pre-staged code", async function () {
+          if (!canvas?.ready) this.skip();
+          const [gun] = await shooter.createEmbeddedDocuments("Item", [{ name: "Quench Net Pistol", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "5M", firingModes: { sa: true },
+                      ammo: { current: 10, max: 10 } } }]);
+          await canvas.tokens.setTargets([targetTok.id]);
+          const n = game.messages.size;
+          await withFaces(Array(6).fill(5), () => gun.roll({ firingMode: "sa" }));
+          const btn = since(n).map(m => btnOf(m)).find(b => b?.dataset.power);
+          assert.ok(btn, "a resist button was posted");
+          assert.include(btn.dataset, { stage: "net", level: "M", stageVs: "6", ratedLevel: "M", calledShot: "0" });
+        });
+
+        it("a burst + called shot past D is capped at D, and remembers the printed rating", async function () {
+          if (!canvas?.ready) this.skip();
+          const [gun] = await shooter.createEmbeddedDocuments("Item", [{ name: "Quench Net SMG", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "6S", recoilComp: 3,
+                      firingModes: { sa: true, bf: true }, ammo: { current: 30, max: 30 } } }]);
+          await canvas.tokens.setTargets([targetTok.id]);
+          const n = game.messages.size;
+          // otherMod −4 cancels the called shot's +4 so forced 5s still hit TN 4.
+          await withFaces(Array(6).fill(5), () => gun.roll({ firingMode: "bf", rounds: 3, calledShot: true, otherMod: -4 }));
+          const btn = since(n).map(m => btnOf(m)).find(b => b?.dataset.power);
+          assert.ok(btn, "a resist button was posted");
+          assert.include(btn.dataset, { stage: "net", level: "D", ratedLevel: "S", calledShot: "1" });
+        });
+
+        it("blast rows stage on the net; an old launcher still pre-stages", async function () {
+          if (!canvas?.ready) this.skip();
+          const args = { centerTokenUuid: targetTok.uuid, basePower: 10, baseLevel: "S", damageType: "physical",
+            blastType: "offensive", attackerSuccesses: 5, delivery: "launcher", blastName: "Quench Net Nade" };
+          // 5 successes × 4 m ≥ 3D6: the round lands on the target.
+          let n = game.messages.size;
+          await game.sr2e.resolveBlast({ ...args, netStaging: true });
+          const row = rowFor(since(n), targetTok.actor.uuid);
+          assert.include(row.dataset, { stage: "net", level: "S", stageVs: "5", ratedLevel: "S", calledShot: "0" });
+          assert.isUndefined(row.dataset.attackerSuccesses, "a blast is never a complete miss");
+          n = game.messages.size;
+          await game.sr2e.resolveBlast(args);
+          const old = rowFor(since(n), targetTok.actor.uuid);
+          assert.equal(old.dataset.level, "D", "legacy: S + ⌊5/2⌋ pre-staged");
+          assert.isUndefined(old.dataset.stage);
+        });
+
+        it("spread rows stage on the net and keep complete-miss; an old launcher pre-stages", async function () {
+          if (!canvas?.ready) this.skip();
+          const args = { shooterTokenUuid: shooterTok.uuid, targetTokenUuid: targetTok.uuid, basePower: 10,
+            baseLevel: "S", damageType: "physical", choke: 3, attackerSuccesses: 2, weaponName: "Quench Net Shotgun" };
+          let n = game.messages.size;
+          await game.sr2e.resolveShotgunSpread({ ...args, netStaging: true, calledShot: true });
+          const row = rowFor(since(n), targetTok.actor.uuid);
+          assert.include(row.dataset, { stage: "net", level: "D", stageVs: "2", attackerSuccesses: "2", calledShot: "1" },
+            "called shot lifts S to D; complete-miss eligibility kept");
+          n = game.messages.size;
+          await game.sr2e.resolveShotgunSpread(args);
+          const old = rowFor(since(n), targetTok.actor.uuid);
+          assert.equal(old.dataset.level, "D", "legacy: S + ⌊2/2⌋ pre-staged");
+          assert.isUndefined(old.dataset.stage);
+        });
+      });
+
+      describe("Resistance stages on the net", () => {
+        it("attacker 4 vs target 3 is the base level (M, 3 boxes), not S", async function () {
+          if (!canvas?.ready) this.skip();
+          await heal(target);
+          await resist(target, 5, "M", [5, 5, 5], { attackerSuccesses: 4, stageVs: 4 });
+          assert.equal(phys(target), 3);
+        });
+
+        it("an unmarked (older) button still stages down per 2 successes", async function () {
+          if (!canvas?.ready) this.skip();
+          await heal(target);
+          await resist(target, 5, "S", [5, 5, 1], {});   // 2 successes: S → M
+          assert.equal(phys(target), 3);
+        });
+
+        it("the same pool result is a complete miss on a spread but net staging on a blast", async function () {
+          if (!canvas?.ready) this.skip();
+          await target.update({ "system.dicePools.combat.value": target.system.dicePools.combat.max });
+          await heal(target);
+          // 3 Body + 2 pool, all successes; the pool's 2 beat the attacker's 1.
+          await resist(target, 5, "D", Array(5).fill(5), { attackerSuccesses: 1, stageVs: 1 }, 2);
+          assert.equal(phys(target), 0, "spread: complete miss");
+          await target.update({ "system.dicePools.combat.value": target.system.dicePools.combat.max });
+          await resist(target, 5, "D", Array(5).fill(5), { stageVs: 1 }, 2);
+          assert.equal(phys(target), 3, "blast: 1 vs 5 → D − 2 = M");
+        });
+      });
+
+      describe("Vehicles (p.108)", () => {
+        it("forwards the net: base M → L on the vehicle, attacker 4 vs 3 → L (1 box)", async function () {
+          if (!canvas?.ready) this.skip();
+          await car.update({ "system.conditionMonitor.value": 0 });
+          const n = game.messages.size;
+          nextDialog().then(confirm);
+          // Body 4 dice vs TN 8 − 4 = 4; three 5s. Legacy staging would fully resist.
+          await withFaces([5, 5, 5, 1], () => car.rollDamageResistance(8, "M", "ballistic", "physical",
+            { stageVs: 4, ratedLevel: "M", calledShot: false }));
+          since(n);
+          assert.equal(car.system.conditionMonitor.value, 1);
+        });
+
+        it("a Light-rated burst cannot hurt a vehicle, even though the burst lifted it to M", async function () {
+          if (!canvas?.ready) this.skip();
+          await car.update({ "system.conditionMonitor.value": 0 });
+          const n = game.messages.size;
+          await car.rollDamageResistance(8, "M", "ballistic", "physical", { stageVs: 4, ratedLevel: "L", calledShot: false });
+          assert.ok(since(n).some(m => /Light damage cannot affect vehicles/.test(m.content)));
+          assert.equal(car.system.conditionMonitor.value, 0);
+        });
+
+        it("an over-D called burst is capped at D, then reduced to S before the net (tie → S, 6 boxes)", async function () {
+          if (!canvas?.ready) this.skip();
+          await car.update({ "system.conditionMonitor.value": 0 });
+          const n = game.messages.size;
+          nextDialog().then(confirm);
+          await withFaces([5, 5, 1, 1], () => car.rollDamageResistance(8, "D", "ballistic", "physical",
+            { stageVs: 2, ratedLevel: "S", calledShot: true }));
+          since(n);
+          assert.equal(car.system.conditionMonitor.value, 6);
+        });
+      });
+
+      describe("Damaging manipulation cards", () => {
+        it("an unversioned card still renders and resolves pre-staged", async function () {
+          const { renderManipDamageCard } = await import("../documents/item.mjs");
+          const html = renderManipDamageCard({ casterName: "X", spellName: "Spark", basePower: 3, baseLevel: "M",
+            successes: 4, resolved: false });
+          const btn = new DOMParser().parseFromString(html, "text/html").querySelector("button[data-manip]");
+          assert.equal(btn.dataset.level, "D");
+          assert.isUndefined(btn.dataset.stage);
+        });
+      });
+    }, { displayName: "SR2E: Net-Success Staging" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

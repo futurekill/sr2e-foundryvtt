@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — damage stages on NET successes (SR2E p.91, p.97, p.108, p.130)
+
+Ranged damage was staged twice, independently: the attack card raised the level
+one step per 2 of the **attacker's** successes, and the Body roll lowered it one
+step per 2 of the **defender's**. The book compares the two: the side with more
+successes stages the damage one level per 2 it wins by, and a tie does the
+weapon's base damage. The two methods disagree whenever the rounding splits:
+attacker 4 vs defender 3 is **base damage** by the book, but was one level higher
+here. And because the up-staging capped at Deadly first, it could also UNDER-state
+damage (base M, 6 vs 6: the book says M, this said L).
+
+- Direct fire, **grenade/rocket blast rows**, **shotgun spread rows** and
+  **damaging manipulation spells** (Flamethrower, Spark, Flame Bomb) now stage on
+  the net. The attack card shows the weapon's own level (plus burst and called
+  shot) and the attacker's successes; the resist dialog and the outcome say what
+  the net came to.
+- **Vehicles** (p.108) use the same net, after the one-level hard-target
+  reduction. The "Light weapons cannot hurt vehicles" check now reads the
+  weapon's *printed* rating, so a Light weapon firing a burst is still Light;
+  a called shot still gets through.
+- Called shots now lift blast and spread rows too (the +4 TN was already paid).
+- Melee, spirit and astral attacks are unchanged: melee's opposed test already
+  produces a net.
+- Cards posted before this update still resolve exactly as they display.
+
+Known limit: Karma spent on an attack *after* its damage card posts still does not
+reach the card (it never did). Tracked as RULES-AUDIT-3 C8.
+
+### Fixed — knockdown needs to EXCEED the threshold (SR2E p.91, p.103)
+
+"A character who has taken a Moderate wound must generate more than 2 successes";
+"with 1 or 2 successes, the character staggers." Meeting the threshold used to
+keep you standing; now it staggers you.
+
 ## 0.98.0 — 2026-09-24
 
 ### Added — learning spells (SR2E p.132–133)

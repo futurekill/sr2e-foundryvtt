@@ -682,12 +682,14 @@ describe("knockdown (SR2E p.91)", () => {
     expect(knockdownThreshold("D")).toBe(Infinity);
   });
   it("outcome: meet threshold = none, 0 = prone, between = stagger, Deadly = prone", () => {
-    expect(knockdownOutcome("M", 2)).toBe("none");
+    expect(knockdownOutcome("M", 3)).toBe("none");
+    expect(knockdownOutcome("M", 2)).toBe("stagger");   // must EXCEED the threshold
     expect(knockdownOutcome("M", 1)).toBe("stagger");
     expect(knockdownOutcome("M", 0)).toBe("prone");
     expect(knockdownOutcome("S", 2)).toBe("stagger");
     expect(knockdownOutcome("D", 5)).toBe("prone");
-    expect(knockdownOutcome("L", 1)).toBe("none");
+    expect(knockdownOutcome("L", 1)).toBe("stagger");
+    expect(knockdownOutcome("L", 2)).toBe("none");
   });
 });
 

@@ -70,6 +70,27 @@ export function stageLevel(level, steps) {
 }
 
 /**
+ * Net-success staging for ranged, blast and damaging-manipulation damage
+ * (SR2E p.91, p.97, p.110): compare the attacker's and the target's successes.
+ * The attacker raises the base damage one level per 2 full successes OVER the
+ * target's total; the target lowers it one level per 2 full successes over the
+ * attacker's; a tie does base damage. Two independent stagings (up on the
+ * attacker's gross, down on the defender's gross) disagree whenever the
+ * rounding splits — 4 vs 3 is base damage here, not +1 −1.
+ * @param {number} baseIdx - pre-staging level index (0 L … 3 D); clamped to [0, 3]
+ * @param {number} attackerSuccesses
+ * @param {number} defenderSuccesses
+ * @returns {{idx:number, net:number}} idx < 0 = staged below Light, no damage
+ */
+export function stageByNet(baseIdx, attackerSuccesses, defenderSuccesses) {
+  const base = Math.min(3, Math.max(0, Math.trunc(baseIdx) || 0));
+  const net = (attackerSuccesses || 0) - (defenderSuccesses || 0);
+  if (net > 0) return { idx: Math.min(3, base + Math.floor(net / 2)), net };
+  if (net < 0) return { idx: base - Math.floor(-net / 2), net };
+  return { idx: base, net };
+}
+
+/**
  * Injury Modifier for a single condition column (SR2E p.112). Thresholds:
  * 1 box = Light (+1), 3 = Moderate (+2), 6 = Serious (+3); a full 10 (Deadly)
  * means unconscious/down rather than an additional TN step.
@@ -1346,9 +1367,10 @@ export function knockdownTN(power, gel = false) {
 }
 
 /**
- * Successes needed to stay firmly on your feet (SR2E p.91): half the damage
- * done, i.e. Light 1 / Moderate 2 / Serious 3. Deadly always knocks down
- * (Infinity — unreachable).
+ * Knockdown Threshold (SR2E p.91, p.103): half the damage done, i.e. Light 1 /
+ * Moderate 2 / Serious 3. The character must OVERCOME it — "a character who has
+ * taken a Moderate wound must generate more than 2 successes". Deadly always
+ * knocks down (Infinity — unreachable).
  * @param {"L"|"M"|"S"|"D"} level
  * @returns {number}
  */
@@ -1358,8 +1380,8 @@ export function knockdownThreshold(level) {
 
 /**
  * Resolve a knockdown Body Test (SR2E p.91). A Deadly wound always drops the
- * target; otherwise: successes ≥ threshold = no effect, 0 successes = prone,
- * anything between = a 1-metre stagger (still standing).
+ * target; otherwise: successes > threshold = no effect, 0 successes = prone,
+ * anything between (1..threshold) = a 1-metre stagger (still standing).
  * @param {"L"|"M"|"S"|"D"} level - the damage level actually dealt
  * @param {number} successes - Body Test successes
  * @returns {"none"|"stagger"|"prone"}
@@ -1368,7 +1390,7 @@ export function knockdownOutcome(level, successes) {
   if (level === "D") return "prone";
   const s = Math.max(0, successes || 0);
   if (s === 0) return "prone";
-  if (s >= knockdownThreshold(level)) return "none";
+  if (s > knockdownThreshold(level)) return "none";
   return "stagger";
 }
 

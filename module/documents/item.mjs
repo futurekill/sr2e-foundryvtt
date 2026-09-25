@@ -194,12 +194,19 @@ export function renderSpellResistCard(state) {
 export function renderManipDamageCard(state) {
   const esc = foundry.utils.escapeHTML;
   const n = state.successes ?? 0;
-  const level = stageLevel(state.baseLevel, netToSteps(n));
+  // Cards written since net staging (staging:"net") carry the BASE level and
+  // stage on caster vs target successes at resist time (p.91 via p.130). An
+  // older card pre-staged the caster's successes and resolves as it displays.
+  const net = state.staging === "net";
+  const level = net ? state.baseLevel : stageLevel(state.baseLevel, netToSteps(n));
   const at = state.targetName ? ` at <strong>${esc(state.targetName)}</strong>` : "";
-  const line = n > 0
-    ? `<strong>${state.basePower}${level}</strong> physical <em>(base ${state.basePower}${state.baseLevel},
-       ${n} success${n === 1 ? "" : "es"} — up one level per 2, p.158)</em>`
-    : `<em>The spell fizzles — no successes, no damage.</em>`;
+  const line = n <= 0
+    ? `<em>The spell fizzles — no successes, no damage.</em>`
+    : net
+    ? `<strong>${state.basePower}${level}</strong> physical <em>(${n} success${n === 1 ? "" : "es"} —
+       staged on the net against the target's resistance roll, p.91/p.130)</em>`
+    : `<strong>${state.basePower}${level}</strong> physical <em>(base ${state.basePower}${state.baseLevel},
+       ${n} success${n === 1 ? "" : "es"} — up one level per 2, p.158)</em>`;
   const hint = n > 0 && !state.resolved
     ? (state.targetUuid ? "" : `<br><em class="sr2e-hint">No target was set — whoever resists should select their token first.</em>`)
       + (state.area ? `<br><em class="sr2e-hint">One TN for the whole blast; cover or visibility that differs per victim is the GM's call.</em>` : "")
@@ -212,6 +219,7 @@ export function renderManipDamageCard(state) {
               data-level="${level}" data-armor-type="impact" data-armor-calc="half_impact"
               data-armor-mod="0" data-ammo-name="" data-damage-type="physical"
               data-target-uuid="${state.targetUuid ?? ""}" data-attacker-successes="${n}"
+              ${net ? `data-stage="net" data-stage-vs="${n}"` : ""}
               title="Body (+ Combat Pool) vs Power − ½ Impact armour (SR2E p.158)">
         ${game.i18n.localize("SR2E.Chat.ResistDamage")}
       </button>
@@ -909,6 +917,7 @@ export class SR2EItem extends Item {
                   data-blast-type="${this.system.blastType}"
                   data-attacker-successes="${hits}"
                   data-delivery="${delivery}"
+                  data-stage="net" data-called-shot="${options.calledShot ? 1 : 0}"
                   data-center-token-uuid="${targetTok?.document?.uuid ?? ""}"
                   data-blast-name="${safeName}"
                   title="Roll scatter, drop the template at ground zero, and resolve every token in the area (core p.96)">
@@ -936,6 +945,7 @@ export class SR2EItem extends Item {
                   data-damage-type="${this.system.damageType || "physical"}"
                   data-choke="${this.system.choke}"
                   data-attacker-successes="${hits}"
+                  data-stage="net" data-called-shot="${options.calledShot ? 1 : 0}"
                   data-shooter-token-uuid="${spreadShooterTok?.document?.uuid ?? ""}"
                   data-target-token-uuid="${spreadTargetTok?.document?.uuid ?? ""}"
                   data-weapon-name="${safeName}"
@@ -984,14 +994,15 @@ export class SR2EItem extends Item {
       let powerNote = powerNotes.length
         ? ` <em>(base ${dmg.power}, ${foundry.utils.escapeHTML(powerNotes.join(", "))})</em>` : "";
 
-      const stageUps = netToSteps(result.successes);
       const stages   = ["L", "M", "S", "D"];
       const baseIdx  = stages.indexOf(dmg.level);
-      // Called shot stages damage up one level (p.92). Kept as its own counter
-      // and summed into the SINGLE existing cap — capping each contribution
-      // separately would silently lose stages.
+      // Called shot stages damage up one level (p.92). Summed with the burst
+      // levels into ONE cap — capping each separately would lose stages.
+      // The attacker's successes are NOT staged in here: SR2 stages on the NET
+      // of attacker vs target (p.91), which only the resistance roll can know.
+      // This is the pre-staging level; the resist button carries the successes.
       const calledShotSteps = options.calledShot ? CALLED_SHOT_STEPS : 0;
-      const finalIdx = Math.min(baseIdx + levelBonus + calledShotSteps + stageUps, 3);
+      const finalIdx = Math.min(baseIdx + levelBonus + calledShotSteps, 3);
       if (calledShotSteps) powerNotes.push("called shot: damage +1 level");
       const safeName = foundry.utils.escapeHTML(this.name);
       const ammoLine = ammoName
@@ -1070,7 +1081,9 @@ export class SR2EItem extends Item {
                   data-ammo-name="${foundry.utils.escapeHTML(ammoName)}"
                   data-target-uuid="${targetUuid}"
                   data-attacker-successes="${result.successes}"
-                  title="Defender rolls Body vs. TN = Power − Armor (SR2E p.116)">
+                  data-stage="net" data-stage-vs="${result.successes}"
+                  data-rated-level="${dmg.level}" data-called-shot="${calledShotSteps ? 1 : 0}"
+                  title="Defender rolls Body vs. TN = Power − Armor; damage stages on net successes (SR2E p.91)">
             ${game.i18n.localize("SR2E.Chat.ResistDamage")}
           </button>`;
 
@@ -1103,7 +1116,7 @@ export class SR2EItem extends Item {
         speaker,
         content: `<div class="sr2e-damage-result">
           <strong>${attackerAttrib}${safeName} Damage:</strong> ${effectivePower}${stages[finalIdx]}${powerNote}
-          <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | Staged up ${stageUps} level(s)</em>
+          <br><em>Base: ${foundry.utils.escapeHTML(this.system.damageCode)} | ${result.successes} success${result.successes === 1 ? "" : "es"} — staged on the net against the target's resistance roll (p.91)</em>
           ${ammoLine}${noTargetHint}
           <br>
           ${buttonHtml}
@@ -1655,14 +1668,14 @@ export class SR2EItem extends Item {
     if (target && !["character", "npc", "spirit"].includes(target.type)) {
       return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">
         <strong>${foundry.utils.escapeHTML(this.name)}</strong> at ${foundry.utils.escapeHTML(target.name)}:
-        ${manipDmg.power}${manipDmg.level}, +1 level per 2 of ${this._liveSuccesses(spellResult)} successes —
+        ${manipDmg.power}${manipDmg.level}, ${this._liveSuccesses(spellResult)} successes to stage on the net —
         the GM resolves it against a ${target.type} (p.108).</div>` });
     }
     const state = {
       testMessageId: spellResult?.testMessageId, casterName: actor.name, spellName: this.name,
       targetUuid: target?.uuid ?? "", targetName: target?.name ?? "",
       basePower: manipDmg.power, baseLevel: manipDmg.level,
-      successes: this._liveSuccesses(spellResult), resolved: false, area: false
+      successes: this._liveSuccesses(spellResult), resolved: false, area: false, staging: "net"
     };
     const msg = await ChatMessage.create({
       speaker, content: renderManipDamageCard(state), flags: { sr2e: { manipDamage: state } }
@@ -1828,7 +1841,7 @@ export class SR2EItem extends Item {
         const state = {
           testMessageId: spellResult?.testMessageId, casterName: actor.name, spellName: this.name,
           targetUuid: uuid, targetName: name, basePower: manipDmg.power, baseLevel: manipDmg.level,
-          successes: this._liveSuccesses(spellResult), resolved: false, area: true
+          successes: this._liveSuccesses(spellResult), resolved: false, area: true, staging: "net"
         };
         const owners = game.users.filter(u => target.testUserPermission(u, "OWNER")).map(u => u.id);
         posted.push(await ChatMessage.create({
