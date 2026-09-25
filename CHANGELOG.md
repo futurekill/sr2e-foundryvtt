@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.97.0 — 2026-09-24
+
+### Added — elementals sustaining spells count their Combat Turns automatically (SR2E p.142)
+
+When the mage is in a running combat, pressing **Next Round** now counts down
+every elemental sustaining one of that mage's spells. The elemental doesn't
+need to be in the combat itself.
+
+- **The first Combat Turn is free.** The turn in which the elemental took the
+  spell over isn't charged, so a Force-3 elemental holds the spell for 3 full
+  Combat Turns. That's our reading of p.142, which doesn't say how a partial
+  turn counts.
+- **Each Combat Turn after that costs 1 Force.** The count happens when the
+  turn ends, and you get a whispered note of how many turns are left.
+- **At 0 Force the spell ends** before the new Combat Turn's initiative is
+  rolled.
+- **What doesn't count:** starting a combat, editing the round number, or
+  running a combat the mage isn't in. Retrying a Next Round that failed
+  partway doesn't charge twice.
+- **If a turn couldn't be counted** (for example, the player advancing the
+  round doesn't own that elemental), a whispered "Count this Combat Turn"
+  button appears once the new round has started. It works until the next
+  Combat Turn ends; after that, correct by hand with "−1 Combat Turn" on the
+  elemental's sheet, or "Starting turn already passed" for the free turn.
+- **The "−1 Combat Turn" button** is still there for time outside combat and
+  for corrections.
+
+It's best effort. Two people advancing the same combat at the same instant,
+or a manual −1 pressed at the same moment on another computer, can lose or
+double one charge. Preventing that would need a server relay this table
+doesn't have.
+
 ## 0.96.0 — 2026-09-24
 
 ### Added — elementals help with spells (SR2E p.141–142)
