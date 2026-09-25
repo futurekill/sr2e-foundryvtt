@@ -91,6 +91,9 @@ if (looseUpdates.length) {
   itemCount += looseUpdates.length;
 }
 
-ui.notifications.info(itemCount
-  ? `Refreshed art on ${itemCount} item(s) across ${ownerCount} actor(s)${looseUpdates.length ? ` and ${looseUpdates.length} world item(s)` : ""}.`
-  : "All item art is already up to date.");
+// itemCount includes the loose world items; report the two groups separately.
+const ownedCount = itemCount - looseUpdates.length;
+const parts = [];
+if (ownedCount) parts.push(`${ownedCount} item(s) on ${ownerCount} actor(s)`);
+if (looseUpdates.length) parts.push(`${looseUpdates.length} world item(s)`);
+ui.notifications.info(parts.length ? `Refreshed art on ${parts.join(" and ")}.` : "All item art is already up to date.");

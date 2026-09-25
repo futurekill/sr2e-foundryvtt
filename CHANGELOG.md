@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed — Refresh Item Art's summary no longer counts world items twice
+
+It said "3 item(s) across 2 actor(s) and 1 world item(s)" when it had
+refreshed 2 items on actors and 1 world item. It now reports the two groups
+separately.
+
 ### Added — spirit services: fighting, running out, and the 24-hour rule (SR2E p.139–142)
 
 - **Fight for me** (spirit sheet): fighting on the summoner's behalf is **one
