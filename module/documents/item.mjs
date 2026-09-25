@@ -1556,8 +1556,11 @@ export class SR2EItem extends Item {
     // TN = ⌊Force÷2⌋ + drain modifier  (SR2E p.140)
     // e.g. Fireball "((F / 2) + 3)D" at Force 4 → TN = ⌊4÷2⌋+3 = 5, level D
     const drainTN        = drainTargetNumber(force, drain.modifier);
-    // Physical drain if Force > Magic Rating (SR2E p.138)
-    const drainType      = force > magicRating ? "physical" : "stun";
+    // Physical drain if Force > Magic Rating (SR2E p.138) — and ALWAYS for a
+    // spell cast in astral space: "When a magician casts spells in astral space,
+    // Drain always causes Physical damage, regardless of the spell's Force" (p.148).
+    const inAstral       = actor.system?.astralState === "projecting";
+    const drainType      = force > magicRating || inAstral ? "physical" : "stun";
     let startLevel = drain.level;
     let drainSubjectNote = options.drainSubjectNote ?? "";
     if (drain.levelFromWound) {
@@ -1573,7 +1576,7 @@ export class SR2EItem extends Item {
     const willpowerDice  = actor.system.willpower?.value ?? 1;
 
     const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice + aidDrain, drainTN, {
-      label: `Drain Resist — ${startLevel} ${drainType} (TN ${drainTN})`
+      label: `Drain Resist — ${startLevel} ${drainType}${inAstral && force <= magicRating ? " (cast in astral space, p.148)" : ""} (TN ${drainTN})`
            + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
            + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`
            + `${aidDrain ? ` — +${aidDrain} Aid Sorcery` : ""}`,

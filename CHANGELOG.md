@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed — spells cast in astral space always drain Physical (SR2E p.148)
+
+"When a magician casts spells in astral space, Drain always causes Physical
+damage, regardless of the spell's Force." A projecting magician's Drain is now
+Physical even when the Force does not exceed Magic, and the Drain test says why.
+
 ### Fixed — conjuring follows p.139–140 more closely
 
 - **Totem modifiers now count toward Conjuring Drain.** The Drain test is

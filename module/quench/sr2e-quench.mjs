@@ -4592,6 +4592,39 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Conjuring Limits & Drain" });
 
+    // ── Astral space (SR2E p.147–148) ────────────────────────────────────────
+    quench.registerBatch("sr2e.astral", (context) => {
+      const { describe, it, assert, beforeEach, afterEach } = context;
+      let before, msgsBefore;
+      beforeEach(() => { before = new Set(game.actors.map(a => a.id)); msgsBefore = game.messages.size; });
+      afterEach(async () => {
+        for (const a of game.actors.filter(a => !before.has(a.id))) await a.delete();
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgsBefore).map(m => m.id));
+      });
+      const drainLabel = () => game.messages.contents.slice(msgsBefore)
+        .map(m => m.flags?.sr2e?.test?.label ?? "").find(l => /^Drain Resist/.test(l)) ?? "";
+
+      describe("Spells cast in astral space (p.148)", () => {
+        const castAt = async (astralState) => {
+          const mage = await Actor.create({ name: `Quench Astral Caster ${astralState}`, type: "character",
+            system: { willpower: { base: 6 }, magic: { type: "full_magician", value: 6, max: 6 }, astralState } });
+          const pack = game.packs.get("sr2e.spells");
+          const idx = await pack.getIndex();
+          const spell = (await pack.getDocument(idx.find(e => e.name === "Detect Enemies")._id)).toObject();
+          const [sp] = await mage.createEmbeddedDocuments("Item", [spell,
+            { name: "Sorcery", type: "skill", system: { rating: 6, category: "active" } }]).then(r => r.filter(i => i.type === "spell"));
+          await sp.roll({ force: 2, targetNumber: 4 });
+          return drainLabel();
+        };
+        it("always drains Physical while projecting, even at Force ≤ Magic", async () => {
+          assert.include(await castAt("projecting"), "physical (cast in astral space, p.148)");
+        });
+        it("drains Stun in the physical world at Force ≤ Magic", async () => {
+          assert.include(await castAt("none"), "stun");
+        });
+      });
+    }, { displayName: "SR2E: Astral" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

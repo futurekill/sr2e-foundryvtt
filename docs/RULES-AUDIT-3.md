@@ -113,7 +113,7 @@ Willpower dice when there is no Sorcery skill.
 p.147: ⌊(Intelligence + Willpower + Charisma) ÷ 2⌋, works like the Combat Pool
 for astral combat. Not modelled.
 
-### A4 — Spells cast in astral space always drain Physical (low)
+### A4 — Spells cast in astral space always drain Physical (low) — ✅ FIXED
 p.148, last line of the Spells section. Not applied.
 
 ## Verified correct
