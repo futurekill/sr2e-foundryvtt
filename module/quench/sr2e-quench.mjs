@@ -16,7 +16,38 @@ import { evaluateDamageCode } from "../documents/item.mjs";
 import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating } from "../rules/sr2e-rules.mjs";
 
 export function registerSR2EQuenchTests() {
-  Hooks.on("quenchReady", (quench) => {
+  Hooks.on("quenchReady", (quenchApi) => {
+    // Every SR2E batch is wrapped so it can never leak documents: whatever
+    // world Actors / Items named "Quench…" appeared while the batch ran are
+    // deleted when it ends, after the batch's own teardown. Many batches keep
+    // one `let actor` across several tests and delete only the last, which
+    // left ~12 actors per run behind. Release a spirit's service first — the
+    // preDeleteActor guard refuses to delete one still holding a spell.
+    const sweepAfterBatch = (fn) => (context) => {
+      let before;
+      context.before(() => {
+        before = new Set([...game.actors.map(d => d.uuid), ...game.items.map(d => d.uuid)]);
+      });
+      const result = fn(context);
+      context.after(async function () {
+        this.timeout(30000);
+        const leaked = (coll) => coll.filter(d => (d.name ?? "").startsWith("Quench") && !before?.has(d.uuid));
+        for (const a of leaked(game.actors)) {
+          try {
+            if (a.type === "spirit" && (a.system?.service || a.system?.pendingExpireSpellUuid)) {
+              await a.update({ "system.service": "", "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": "" });
+            }
+            await a.delete();
+          } catch (e) { console.warn("SR2E Quench | could not remove", a.name, e); }
+        }
+        const items = leaked(game.items).map(i => i.id);
+        if (items.length) { try { await Item.deleteDocuments(items); } catch (e) { /* already gone */ } }
+      });
+      return result;
+    };
+    const quench = {
+      registerBatch: (key, fn, options) => quenchApi.registerBatch(key, sweepAfterBatch(fn), options)
+    };
     const ACTOR_TYPES = ["character", "npc", "vehicle", "spirit", "ic", "host"];
 
     /**
@@ -39,7 +70,12 @@ export function registerSR2EQuenchTests() {
     quench.registerBatch("sr2e.sheets", (context) => {
       const { describe, it, assert, after } = context;
       const made = [];
-      after(async () => { for (const a of made) { try { await a.sheet?.close(); } catch (e) {} await a.delete(); } });
+      // Closing six rendered sheets and deleting their actors outlasts Mocha's
+      // 2 s hook default — the intermittent unattributed "1 failed".
+      after(async function () {
+        this.timeout(20000);
+        for (const a of made) { try { await a.sheet?.close(); } catch (e) {} await a.delete(); }
+      });
 
       describe("Actor sheets render tabs + body", () => {
         for (const type of ACTOR_TYPES) {
@@ -3536,8 +3572,12 @@ export function registerSR2EQuenchTests() {
         centre = { x: o.x + (g * 1) / 2, y: o.y + (g * 1) / 2, sceneId: canvas.scene.id };
       });
 
-      after(async () => {
+      after(async function () {
+        this.timeout(15000);
         if (!canvas?.ready) return;
+        // Let Foundry's floating damage numbers (drain on the mage) finish:
+        // deleting a token under one throws an uncaught PIXI error.
+        await new Promise(r => setTimeout(r, 2500));
         const tpl = canvas.scene.templates.filter(t => String(t.flags?.sr2e?.areaSpell ?? "").length && made.templates.includes(t.id));
         if (tpl.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", tpl.map(t => t.id));
         await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
