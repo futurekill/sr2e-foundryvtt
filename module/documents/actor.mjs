@@ -14,6 +14,7 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
 import { natureDepartNote } from "../nature-spirits.mjs";
+import { usePowerService, statusOf } from "../spirit-services.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
@@ -1420,7 +1421,8 @@ export class SR2EActor extends Actor {
             <strong>${services} service${services === 1 ? "" : "s"}</strong>.
             <br><em>Conjuring successes: ${services} (TN ${force}).${
               kind === "nature" ? natureDepartNote()
-              : ` The rite took ${force} hour${force === 1 ? "" : "s"}${materials ? `; materials ${materials.toLocaleString()}¥` : ""} (SR2E p.140).`}</em>
+              : ` The rite took ${force} hour${force === 1 ? "" : "s"}${materials ? `; materials ${materials.toLocaleString()}¥` : ""} (SR2E p.140).`
+                + " It departs through astral space until called — use Call on its sheet (p.141)."}</em>
           </div>`
         : `<div class="sr2e-damage-result">
             <strong>${foundry.utils.escapeHTML(name)} — summoning incomplete.</strong>
@@ -1438,7 +1440,9 @@ export class SR2EActor extends Actor {
     // where nobody ever clicks.) Best-effort and detached: placeSummonedToken
     // already swallows its own failures; .catch() covers the rest so a detached
     // rejection can never surface as an unhandled promise.
-    if (spiritUuid) {
+    // A bound elemental "then departs, through astral space … until called to
+    // serve" (p.141): no token until its mage Calls it.
+    if (spiritUuid && !(kind === "elemental" && !uncontrolled)) {
       fromUuid(spiritUuid)
         .then(spiritActor => spiritActor && placeSummonedToken(spiritActor, this))
         .catch(err => console.error("SR2E | Spirit token placement failed:", err));
@@ -2467,20 +2471,37 @@ export class SR2EActor extends Actor {
     if (this.type !== "spirit") return;
     const busy = this._elementalBusyReason();
     if (busy) return ui.notifications.warn(busy);
-    const services = this.system.services ?? 0;
-    if (services <= 0) {
-      return ui.notifications.warn(`${this.name} has no services remaining.`);
-    }
+    if (!this.isOwner) return ui.notifications.warn(`You do not own ${this.name}.`);
+    if (this.getFlag("sr2e", "departed")) return ui.notifications.warn(`${this.name} has departed.`);
     const label = game.i18n.localize(CONFIG.SR2E.spiritPowers[powerKey] ?? powerKey);
-    await this.update({ "system.services": services - 1 });
-    return ChatMessage.create({
+    const card = (note) => ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-item-card">
         <strong>${foundry.utils.escapeHTML(this.name)}</strong> uses
-        <strong>${foundry.utils.escapeHTML(label)}</strong>
-        <em>(1 service spent — ${services - 1} remaining)</em>
+        <strong>${foundry.utils.escapeHTML(label)}</strong> <em>(${note})</em>
       </div>`
     });
+    // While fighting for its summoner, a combat power is part of the paid fight
+    // (p.140) — the GM's call which powers count. An elemental performs one
+    // service at a time, so a new service means Stand down first.
+    if (this.getFlag("sr2e", "fighting")) {
+      const elemental = this.system.spiritType === "elemental";
+      const choice = await foundry.applications.api.DialogV2.wait({
+        window: { title: `${this.name} — ${label}` }, rejectClose: false,
+        content: `<p>${foundry.utils.escapeHTML(this.name)} is fighting for its summoner (one service, p.140).</p>`,
+        buttons: [{ action: "fight", label: "Part of the fight (no new service)", default: true },
+                  ...(elemental ? [] : [{ action: "new", label: "A new service (1)" }]),
+                  { action: "cancel", label: "Cancel" }]
+      });
+      if (choice === "fight") {
+        const r = await usePowerService(this, { asFight: true });   // revalidated after the dialog
+        return r?.ok ? card("part of the fight — no new service") : undefined;
+      }
+      if (choice !== "new") return;
+    }
+    const r = await usePowerService(this, { asFight: false });
+    if (!r?.ok) return;
+    return card(`1 service spent — ${r.after} remaining`);
   }
 
   /**
@@ -2490,6 +2511,7 @@ export class SR2EActor extends Actor {
    */
   async rollSpiritAttack() {
     if (this.type !== "spirit") return;
+    if (!this.isOwner) return ui.notifications.warn(`You do not own ${this.name}.`);
     const busy = this._elementalBusyReason();
     if (busy) return ui.notifications.warn(busy);
     // Effective Force: Aid Sorcery and sustained turns reduce it (p.141–142).
@@ -2508,6 +2530,14 @@ export class SR2EActor extends Actor {
           <br><em>Its attacks are its Powers (SR2 p.234) — use those instead.</em>
         </div>`
       });
+    }
+
+    // Fighting for the summoner is ONE service for the whole fight (p.140):
+    // a bound spirit attacks only after Fight for me — then freely, even at 0.
+    const status = statusOf(this);
+    if (status === "departed") return ui.notifications.warn(`${this.name} has departed.`);
+    if (status !== "uncontrolled" && !this.getFlag("sr2e", "fighting")) {
+      return ui.notifications.warn(`${this.name}: order it to Fight for you first — one service for the whole fight (SR2E p.140).`);
     }
 
     const level = atk.level;

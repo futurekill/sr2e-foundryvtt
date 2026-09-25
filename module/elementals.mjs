@@ -20,6 +20,7 @@
 import { elementalAidsCategory, planElementalTransition } from "./rules/sr2e-rules.mjs";
 import { exclusiveBlock } from "./restricted-spells.mjs";
 import { enqueueAttack } from "./engagement.mjs";
+import { serviceQueue, chargeDaysUpdate, afterSpend } from "./spirit-services.mjs";
 
 /** Spirit (and spell) uuids with a transition in flight on THIS client. */
 const IN_FLIGHT = new Set();
@@ -217,14 +218,31 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
   };
   if (!isElemental(spirit)) return refuse("only an elemental performs this service");
   if (!spirit.isOwner) return refuse("you do not own it");
+  // A duplicate submission on this client is still rejected (the in-flight
+  // guard), and the step runs on the ONE services queue it shares with
+  // spendService (spirit-services.mjs), so it is ordered against every spend.
   const keys = [spirit.uuid, args.spell?.uuid].filter(Boolean);
   if (keys.some(k => IN_FLIGHT.has(k))) return { ok: false, outcome: "failed", reason: "busy" };
   keys.forEach(k => IN_FLIGHT.add(k));
   try {
+    return await serviceQueue(spirit, () => runTransition(spirit, kind, args, opts, refuse));
+  } finally {
+    keys.forEach(k => IN_FLIGHT.delete(k));
+  }
+}
+
+/** Service-starting transitions: blocked while the elemental fights (one at a time, p.141). */
+const STARTS_SERVICE = new Set(["aid", "startAid", "aidStudy", "startSustain", "recall"]);
+
+async function runTransition(spirit, kind, args, opts, refuse) {
+  {
     if (kind === "finishExpire") {
       if (!spirit.system.pendingExpireSpellUuid) return refuse("nothing is expiring");
       const done = await completeExpiry(spirit);
       return { ok: done };
+    }
+    if (STARTS_SERVICE.has(kind) && spirit.getFlag("sr2e", "fighting")) {
+      return refuse("it is fighting — Stand down first (one service at a time, p.141)");
     }
     const planArgs = { n: args.n, spellUuid: args.spell?.uuid, combatId: args.combatId,
                        seq: args.seq, round: args.round, timingAlive: args.timingAlive,
@@ -267,8 +285,25 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
     const plan = planElementalTransition(spirit.system, kind, planArgs);
     if (plan.skip) return { ok: true, outcome: "skip" };
     if (plan.refuse) return refuse(plan.refuse);
+    // Presence (p.141's 24-hour rule): starting a service means it is here.
+    // A depletion (Force used up — it vanishes) first charges the owed days,
+    // then stops the clock, in the same update.
+    const update = { ...plan.update };
+    const servicesBefore = spirit.system.services ?? 0;
+    const since = spirit.getFlag("sr2e", "presentSince");
+    const usedAfter = update["system.forceUsed"] ?? spirit.system.forceUsed ?? 0;
+    const depleting = kind !== "recall" && (spirit.system.force ?? 0) - usedAfter <= 0;
+    // Any service action shows it is here — a legacy elemental already busy
+    // before presence was tracked picks up its clock on its next transition.
+    if (!Number.isFinite(since) && !depleting && kind !== "finishExpire") update["flags.sr2e.presentSince"] = game.time.worldTime;
+    if (Number.isFinite(since) && depleting) {
+      const charge = chargeDaysUpdate(spirit, update["system.services"] ?? servicesBefore);
+      if (charge) update["system.services"] = charge.plan.services;
+      delete update["flags.sr2e.presentSince"];
+      update["flags.sr2e.-=presentSince"] = null;
+    }
     try {
-      await spirit.update(plan.update);
+      await spirit.update(update);
     } catch (err) {
       console.error("SR2E | elemental update failed", err);
       return { ok: false, outcome: "failed", committed: false, reason: "the update was rejected" };
@@ -284,14 +319,13 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
         });
       } catch (err) { console.warn("SR2E | elemental notice failed", err); }
     }
+    await afterSpend(spirit, servicesBefore, spirit.system.services ?? 0);
     if (!expiredOk) {
       return { ok: false, outcome: "pending", committed: true,
                reason: "the spell could not be ended yet — Finish on its sheet", message: plan.message };
     }
     return { ok: true, outcome: plan.outcome ?? "done", expired: !!plan.expire, message: plan.message,
              dice: plan.dice };
-  } finally {
-    keys.forEach(k => IN_FLIGHT.delete(k));
   }
 }
 

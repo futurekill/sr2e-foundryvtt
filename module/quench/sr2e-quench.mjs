@@ -6054,6 +6054,215 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Vehicle exceptions & NPC astral (Audit 3 C9, A5)" });
 
+    // ── Spirit services: fighting, running out, the 24-hour rule (p.139–142) ─
+    quench.registerBatch("sr2e.spirit-services", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      let S, msgStart = 0;
+      const since = () => game.messages.contents.slice(msgStart);
+      const H = 3600;
+      const mk = async (name, system = {}, conj = true) => {
+        const mage = conj ? await Actor.create({ name: "Quench Svc Mage", type: "character" }) : null;
+        const sp = await Actor.create({ name: `Quench Svc ${name}`, type: "spirit", system: {
+          spiritType: "elemental", domain: "earth", force: 4, services: 2, maxServices: 2,
+          conjurerUuid: mage?.uuid ?? "", ...system } });
+        return { mage, sp };
+      };
+      const attacks = () => since().filter(m => m.flags?.sr2e?.test && /Manifest Attack/.test(m.flags.sr2e.test.label)).length;
+      let placementMode;
+      before(async () => {
+        S = await import("../spirit-services.mjs"); msgStart = game.messages.size;
+        // No click-to-place prompts in these tests (the placement test opts in).
+        placementMode = game.settings.get("sr2e", "spiritPlacement");
+        await game.settings.set("sr2e", "spiritPlacement", "off");
+      });
+      after(async () => { await game.settings.set("sr2e", "spiritPlacement", placementMode); });
+      afterEach(async () => {
+        const ids = game.actors.filter(a => a.name.startsWith("Quench Svc")).map(a => a.id);
+        if (ids.length) await Actor.deleteDocuments(ids);
+        await ChatMessage.deleteDocuments(since().map(m => m.id));
+        msgStart = game.messages.size;
+      });
+
+      it("Fight for me: 1 service for the whole fight, idempotent; attacks free even at 0; Stand down ends it", async () => {
+        const { sp } = await mk("Earth", { services: 1 });
+        await sp.rollSpiritAttack();
+        assert.equal(attacks(), 0, "a bound spirit won't attack before Fight for me");
+        await S.startFight(sp);
+        await S.startFight(sp);
+        assert.equal(sp.system.services, 0, "one service, charged once");
+        assert.isTrue(sp.getFlag("sr2e", "fighting"));
+        await sp.rollSpiritAttack(); await sp.rollSpiritAttack(); await sp.rollSpiritAttack();
+        assert.equal(attacks(), 3, "the paid fight continues at 0 services");
+        assert.equal(sp.system.services, 0);
+        assert.equal(since().filter(m => /owes no more services/.test(m.content)).length, 1, "the running-out note, once");
+        await S.standDown(sp);
+        await sp.rollSpiritAttack();
+        assert.equal(attacks(), 3, "no fight, no attack");
+        assert.isFalse((await S.startFight(sp)).ok, "a new fight needs a service");
+      });
+
+      it("uncontrolled spirits attack freely; departed ones never", async () => {
+        const { sp } = await mk("Wild", { services: 0 }, false);
+        await sp.rollSpiritAttack();
+        assert.equal(attacks(), 1);
+        const { sp: gone } = await mk("Gone");
+        await gone.setFlag("sr2e", "departed", true);
+        await gone.rollSpiritAttack();
+        assert.equal(attacks(), 1);
+      });
+
+      it("fighting blocks starting aid or sustain until Stand down (one service at a time, p.141)", async () => {
+        const { sp } = await mk("Busy", { services: 3 });
+        await S.startFight(sp);
+        const r = await sp.elementalTransition("aid", { n: 1 }, { quiet: true });
+        assert.isFalse(r.ok);
+        assert.match(r.reason, /Stand down/);
+        await S.standDown(sp);
+        const r2 = await sp.elementalTransition("aid", { n: 1 }, { quiet: true });
+        assert.isTrue(r2.ok);
+        assert.ok(Number.isFinite(sp.getFlag("sr2e", "presentSince")), "starting a service makes it present");
+      });
+
+      it("every service-starting transition is refused while fighting", async () => {
+        const { sp } = await mk("Guarded", { services: 4 });
+        await S.startFight(sp);
+        for (const kind of ["aid", "startAid", "aidStudy", "startSustain", "recall"]) {
+          const r = await sp.elementalTransition(kind, { n: 1 }, { quiet: true, silent: true });
+          assert.isFalse(r.ok, kind);
+        }
+        assert.equal(sp.system.services, 3, "nothing but the fight was charged");
+      });
+
+      it("a stale 'part of the fight' is refused after Stand down; a depleted elemental can't Fight", async () => {
+        const { sp } = await mk("Stale", { services: 2 });
+        await S.startFight(sp);
+        await S.standDown(sp);
+        assert.isFalse((await S.usePowerService(sp, { asFight: true })).ok);
+        const { sp: dep } = await mk("Vanished", { forceUsed: 4 });
+        assert.isFalse((await S.startFight(dep)).ok);
+        assert.equal(dep.system.services, 2);
+      });
+
+      it("a transition and a spend queued together both land, in order", async () => {
+        const { sp } = await mk("Mixed", { services: 3 });
+        await Promise.all([sp.elementalTransition("aid", { n: 1 }, { quiet: true }), S.spendService(sp, 1)]);
+        assert.equal(sp.system.services, 1, "aid (1) + a manual spend (1)");
+      });
+
+      it("a bound elemental summons away (no token, caster on the map); Call places it; Send away removes it", async function () {
+        this.timeout(15000);
+        const mage = await Actor.create({ name: "Quench Svc Summoner", type: "character", system: {
+          charisma: { base: 6 }, magic: { type: "full_magician", rating: 6 } } });
+        await mage.createEmbeddedDocuments("Item", [{ name: "Conjuring", type: "skill", system: { rating: 6, category: "active" } }]);
+        const o = { x: canvas.dimensions.sceneX + 12 * canvas.grid.size, y: canvas.dimensions.sceneY + 12 * canvas.grid.size };
+        const [casterTok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await mage.getTokenDocument()).toObject(), actorLink: true, ...o }]);
+        await game.settings.set("sr2e", "spiritPlacement", "nearest");
+        const waitFor = async (fn, ms = 3000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await new Promise(r => setTimeout(r, 50)); } return false; };
+        let el;
+        try {
+          const orig = CONFIG.Dice.randomUniform;
+          CONFIG.Dice.randomUniform = () => 1.5 / 6;                       // all 5s
+          try { await mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire", materials: false }); }
+          finally { CONFIG.Dice.randomUniform = orig; }
+          el = game.actors.find(a => a.type === "spirit" && a.system.conjurerUuid === mage.uuid);
+          assert.ok(el, "summoned and bound");
+          await el.update({ name: "Quench Svc Summoned" });
+          await new Promise(r => setTimeout(r, 800));
+          const toks = () => canvas.scene.tokens.filter(t => t.actorId === el.id);
+          assert.lengthOf(toks(), 0, "away until called, even with its mage on the map");
+          await S.callElemental(el);
+          assert.isTrue(await waitFor(() => toks().length === 1), "Call places it");
+          await S.callElemental(el);
+          await new Promise(r => setTimeout(r, 500));
+          assert.lengthOf(toks(), 1, "a second Call doesn't place a second token");
+          await S.sendAway(el);
+          assert.lengthOf(toks(), 0, "Send away removes it");
+          // A diverged unlinked copy on the map doesn't stop the world elemental being placed.
+          const [copy] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await el.getTokenDocument()).toObject(),
+            actorLink: false, x: o.x + 5 * canvas.grid.size, y: o.y }]);
+          await copy.actor.update({ "system.services": 0 });
+          await S.callElemental(el);
+          assert.isTrue(await waitFor(() => toks().length === 2), "placed beside the independent copy");
+        } finally {
+          await game.settings.set("sr2e", "spiritPlacement", "off");
+          const ids = canvas.scene.tokens.filter(t => t.id === casterTok.id || (el && t.actorId === el.id)).map(t => t.id);
+          if (ids.length) await canvas.scene.deleteEmbeddedDocuments("Token", ids);
+        }
+      });
+
+      it("Send away removes only this spirit's tokens, on every scene — not an unlinked copy with its own state", async () => {
+        const { sp } = await mk("Scattered", { services: 3 });
+        const other = await Scene.create({ name: "Quench Svc Scene", width: 1000, height: 1000 });
+        try {
+          const base = (await sp.getTokenDocument()).toObject();
+          const [pristine] = await other.createEmbeddedDocuments("Token", [{ ...base, actorLink: false, x: 100, y: 100 }]);
+          const [copy] = await other.createEmbeddedDocuments("Token", [{ ...base, actorLink: false, x: 300, y: 100 }]);
+          await copy.actor.update({ "system.services": 1 });                   // an independent instance
+          await S.callElemental(sp);
+          await S.sendAway(sp);
+          assert.isFalse(other.tokens.has(pristine.id), "the world spirit's copy on another scene goes");
+          assert.isTrue(other.tokens.has(copy.id), "the diverged instance stays");
+        } finally { await other.delete(); }
+      });
+
+      it("a combat power while fighting can be part of the fight (no service)", async () => {
+        const { sp } = await mk("Powers", { services: 1, spiritType: "nature", domain: "city" });
+        await S.startFight(sp);
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="fight"]').click(), 50));
+        await sp.useSpiritPower("accident");
+        assert.equal(sp.system.services, 0);
+        assert.match(since().at(-1).content, /part of the fight/);
+      });
+
+      it("the 24-hour rule: Call starts the clock once; the sheet count; Charge saturates and moves the clock; Send away charges first", async () => {
+        const { sp } = await mk("Clock", { services: 3 });
+        await S.callElemental(sp);
+        const t0 = sp.getFlag("sr2e", "presentSince");
+        assert.ok(Number.isFinite(t0));
+        await S.callElemental(sp);
+        assert.equal(sp.getFlag("sr2e", "presentSince"), t0, "a second Call doesn't reset it");
+        await sp.setFlag("sr2e", "presentSince", game.time.worldTime - 49 * H);
+        assert.equal(S.presentDays(sp), 2);
+        await Promise.all([S.chargeDays(sp), S.chargeDays(sp)]);            // a double click
+        assert.equal(sp.system.services, 1, "2 days charged, once");
+        assert.equal(S.presentDays(sp), 0, "the clock moved with the charge");
+        await sp.setFlag("sr2e", "presentSince", game.time.worldTime - 73 * H);
+        await S.sendAway(sp);
+        assert.equal(sp.system.services, 0, "3 days owed, 1 service left: saturates at 0");
+        assert.isUndefined(sp.getFlag("sr2e", "presentSince"), "away: the clock stopped");
+        const { sp: sust } = await mk("Holder", { services: 2, service: "sustain" });
+        assert.isFalse((await S.sendAway(sust)).ok, "not while it performs a service");
+        await sust.setFlag("sr2e", "presentSince", game.time.worldTime + 10 * H);
+        assert.equal(S.presentDays(sust), 0, "a rewind shows 0");
+      });
+
+      it("Call refuses depleted (Re-call), bond-ended and departed elementals", async () => {
+        const { sp: dep } = await mk("Spent", { forceUsed: 4 });
+        assert.isFalse((await S.callElemental(dep)).ok);
+        const { sp: done } = await mk("Done", { services: 0 });
+        assert.isFalse((await S.callElemental(done)).ok);
+        const { sp: gone } = await mk("Gone2");
+        await gone.setFlag("sr2e", "departed", true);
+        assert.isFalse((await S.callElemental(gone)).ok);
+      });
+
+      it("depletion charges owed days before clearing presence", async () => {
+        const { sp } = await mk("Drain", { services: 3 });
+        await sp.setFlag("sr2e", "presentSince", game.time.worldTime - 49 * H);
+        await sp.elementalTransition("aid", { n: 4 }, { quiet: true });       // all its Force: it vanishes
+        assert.equal(sp.system.services, 0, "aid (1) + 2 days owed");
+        assert.isUndefined(sp.getFlag("sr2e", "presentSince"));
+      });
+
+      it("the sheet ± goes through the queue; two spends on one client both land", async () => {
+        const { sp } = await mk("Queue", { services: 3 });
+        await Promise.all([S.spendService(sp, 1), S.spendService(sp, 1)]);
+        assert.equal(sp.system.services, 1);
+        await S.spendService(sp, -1);
+        assert.equal(sp.system.services, 2, "+ refunds");
+      });
+    }, { displayName: "SR2E: Spirit Services (p.139–142)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

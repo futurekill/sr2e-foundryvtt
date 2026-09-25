@@ -4272,3 +4272,35 @@ export function vehicleHit({ body = 1, armor = 0, power, basePower = power, leve
   return { none: null, level: stages[idx], dice: armor > 0 ? body + Math.floor(armor / 2) : body,
            tn: Math.max(2, power - soak), armorUsed };
 }
+
+// ── Spirit services (SR2E p.139–142) ────────────────────────────────────────
+
+/** Whole 24-hour periods an elemental has been present (p.141); 0 when away or after a rewind. */
+export function daysPresent(presentSince, now, dayLength = 86400) {
+  if (!Number.isFinite(presentSince) || !(dayLength > 0)) return 0;
+  return Math.max(0, Math.floor((now - presentSince) / dayLength));
+}
+
+/**
+ * Charging the owed days (saturating): at most the services left, and the
+ * clock moves past ALL elapsed days, so nothing is billed twice.
+ */
+export function chargeDaysPlan({ services, presentSince, now, dayLength = 86400 }) {
+  const days = daysPresent(presentSince, now, dayLength);
+  const charged = Math.min(days, Math.max(0, services));
+  return { days, charged, services: services - charged, presentSince: days ? presentSince + days * dayLength : presentSince };
+}
+
+/**
+ * A spirit's service status, first match wins: departed (nature expiry),
+ * uncontrolled (no summoner), engaged (a paid service still running: a
+ * fight, aid, sustain or an expiry), bondEnded (owes nothing, p.141), bound.
+ */
+export function spiritServiceStatus({ departed = false, conjurerUuid = "", fighting = false, service = "",
+                                      pendingExpire = false, services = 0 }) {
+  if (departed) return "departed";
+  if (!conjurerUuid) return "uncontrolled";
+  if (fighting || service || pendingExpire) return "engaged";
+  if (!(services > 0)) return "bondEnded";
+  return "bound";
+}

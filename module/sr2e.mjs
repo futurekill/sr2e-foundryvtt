@@ -23,6 +23,7 @@ import { SR2ECombat } from "./documents/combat.mjs";
 import { registerSpellEffectHooks, wireSpellEffectButtons } from "./spell-effects.mjs";
 import { registerNatureSpiritSettings, registerNatureSpiritHooks, natureSpiritsDepart } from "./nature-spirits.mjs";
 import { wireRitualButtons, startRitual } from "./ritual.mjs";
+import { registerSpiritServiceHooks } from "./spirit-services.mjs";
 
 // Sheets
 import {
@@ -434,6 +435,7 @@ Hooks.once("init", async () => {
   // Register in-Foundry integration tests (no-op unless the Quench module is on).
   registerSR2EQuenchTests();
   registerSpellEffectHooks();
+  registerSpiritServiceHooks();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 

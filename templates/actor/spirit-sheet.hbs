@@ -76,8 +76,30 @@
       <span class="services-value" style="font-size:18px;font-weight:bold;">{{system.services}}</span>
       <span class="hint">/ {{system.maxServices}}</span>
       <button type="button" class="monitor-btn" data-action="adjustServices" data-delta="1">+</button>
-      <span class="hint" style="flex:1;text-align:right;">Each power use costs 1 service</span>
+      <span class="hint" style="flex:1;text-align:right;" title="Continuing one power, or one fight for the summoner, is a single service (p.140); + refunds a service when you rule so.">Each new use of a power costs 1 service</span>
     </div>
+    <div class="flexrow spirit-service-status" style="align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;">
+      <span class="hint" style="flex:1;"><strong>{{svc.label}}</strong>{{#if svc.fighting}} · fighting for its summoner{{/if}}</span>
+      {{#if svc.controlled}}
+      {{#if svc.fighting}}
+      <button type="button" class="btn-small" data-action="standDown" title="The fight is over (free)">Stand down</button>
+      {{else}}
+      <button type="button" class="btn-small" data-action="fightForMe" title="Fight for its summoner: one service for the whole fight, however many foes (p.140)">Fight for me (1 service)</button>
+      {{/if}}
+      {{/if}}
+    </div>
+    {{#if isElemental}}{{#if svc.controlled}}
+    <div class="flexrow" style="align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;">
+      {{#if svc.present}}
+      <span class="hint" style="flex:1;" title="Each 24 hours it hangs around or serves uses up a service (p.141)">Present {{svc.days}} full day(s) — each costs a service</span>
+      {{#if svc.days}}<button type="button" class="btn-small" data-action="chargeDays">Charge day(s)</button>{{/if}}
+      {{#unless (eq svc.status "engaged")}}<button type="button" class="btn-small" data-action="sendAway" title="Back to astral space, on notice (free); owed days are charged first">Send away</button>{{/unless}}
+      {{else}}
+      <span class="hint" style="flex:1;">{{#if svc.unknownPresence}}Present since unknown — send it away and call it to start the clock.{{else}}Away, on notice{{/if}}</span>
+      {{#unless svc.unknownPresence}}<button type="button" class="btn-small" data-action="callElemental" title="Call it to serve (free, p.141): its 24-hour clock starts">Call</button>{{/unless}}
+      {{/if}}
+    </div>
+    {{/if}}{{/if}}
     <div class="flexrow" style="align-items:center;gap:6px;margin-top:6px;">
       {{#if spiritPowers.length}}
       <select name="spiritPower" style="flex:1;">

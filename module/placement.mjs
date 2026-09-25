@@ -13,6 +13,21 @@
  */
 import { nearestFreeCell } from "./rules/sr2e-rules.mjs";
 
+/**
+ * This spirit's tokens on a scene. A token's own (synthetic) actor is exactly
+ * its token; a world actor is its linked tokens plus unlinked copies that have
+ * not diverged (an empty delta) — an unlinked copy with its own state is an
+ * independent instance and is left alone.
+ */
+export function tokensOf(spirit, scene) {
+  if (spirit.isToken) return scene.tokens.filter(t => t.actor?.uuid === spirit.uuid);
+  const pristine = (t) => {
+    const d = t.delta?._source ?? {};
+    return foundry.utils.isEmpty(d.system ?? {}) && foundry.utils.isEmpty(d.flags ?? {}) && !(d.items?.length) && !(d.effects?.length);
+  };
+  return scene.tokens.filter(t => t.actorId === spirit.id && (t.actorLink || pristine(t)));
+}
+
 /** How long click-to-place waits for a click before giving up (ms). */
 const PROMPT_TIMEOUT = 60000;
 
@@ -57,6 +72,10 @@ export async function placeSummonedToken(spirit, caster) {
     // is gone by the time it lands (nature-spirits.mjs).
     const live = fromUuidSync(spirit.uuid);
     if (!live || live.getFlag("sr2e", "departed")) return;
+    // A bound elemental placed by Call must still be present (a Send away wins).
+    if (live.system?.spiritType === "elemental" && live.system.conjurerUuid
+        && !Number.isFinite(live.getFlag("sr2e", "presentSince"))) return;
+    if (tokensOf(live, scene).length) return;                         // already on the map
     foundry.utils.setProperty(proto, "flags.sr2e.summonedSpirit", spirit.uuid);
     await scene.createEmbeddedDocuments("Token", [proto]);
   } catch (err) {

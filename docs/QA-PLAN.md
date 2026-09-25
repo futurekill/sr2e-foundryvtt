@@ -244,6 +244,13 @@ and any **red console errors**. File them wherever the group tracks issues
       nature spirit depart; an elemental rolls Force vs 4 — flees, or turns up hostile
       and unbound. **Totem:** a Bear shaman's forest spirit Drain rolls Charisma + 2.
 
+- [ ] **Spirit services (p.139–142):** a bound spirit's manifest attack is refused until
+      **Fight for me** (−1 service); then any number of attacks cost nothing, even at 0;
+      **Stand down** ends it. Spend the last service → a whispered "owes no more services"
+      note. Summon an elemental → no token appears; **Call** places it and the sheet shows
+      "Present 0 full day(s)"; advance world time 2 days → "2" and **Charge day(s)** takes 2;
+      **Send away** removes its token. While it fights, Aid Sorcery is refused until Stand down.
+
 ## 9. Astral
 - [ ] **Perceive / project** astrally; while projecting, initiative uses **Astral Reaction +15**.
 - [ ] **Astral combat:** Sorcery attack, Charisma-based damage, resisted by Astral Body (Willpower).

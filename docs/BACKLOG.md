@@ -45,10 +45,9 @@ Last reviewed 2026-07-26 (system 0.64.0).
   throws a readable message otherwise. Player summoning works as soon as the GM
   enables Settings → Configure Permissions → **"Create New Actors"** for the
   Player role. No code to write.
-- **Summoned-spirit token placement is unwired on the canvas side.**
-  `nearestFreeCell` is pure and unit-tested; the scene write is not done, so
-  placement still prompts the GM for a click. See
-  `PLAN-summon-placement-movement.md` §1.
+- ~~Summoned-spirit token placement is unwired~~ — stale: `placeSummonedToken`
+  places nature spirits and uncontrolled elementals at summoning, and bound
+  elementals when Called (setting `spiritPlacement`).
 - **Movement limiter: live true-drag verify.** The cumulative-path enforcement
   was reworked and Quench-covered, but nobody has watched a real drag across a
   bent path in a live world. ~2 min check.
@@ -130,10 +129,11 @@ recipe and the `codex exec -i` stdin gotcha.
   with how cyberware already behaves on NPCs.
 - **Cultured bioware ×4 nuyen** is not auto-applied; a grade flip re-derives
   Body Cost but not price. GM adjusts.
-- **Summon services tracking** — services are set at summoning but never
-  decremented, and nothing prompts a dismissal when a spirit is spent. Nature
-  spirits also expire at the next sunrise/sunset (separate condition). Verify
-  the rules against the corrected 11th printing before implementing.
+- ~~Summon services tracking~~ — **done 2026-09-25** (PLAN-spirit-services.md):
+  services were already spent per power and elemental service; added Fight for
+  me (one service per fight), the running-out note and status, and the elemental
+  Call / Send away / 24-hour rule. Nature spirits depart at sunrise/sunset
+  (nature-spirits.mjs).
 
 ## UI / polish
 

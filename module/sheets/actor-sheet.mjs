@@ -1,6 +1,7 @@
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
+import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
@@ -1439,9 +1440,14 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
       adjustServices: function(event, target) {
         event.preventDefault();
         const delta = parseInt(target.dataset.delta) || 0;
-        const cur = this.document.system.services ?? 0;
-        return this.document.update({ "system.services": Math.max(0, cur + delta) });
-      }
+        // −1 spends, +1 refunds (a GM ruling) — both through the services queue.
+        return spendService(this.document, -delta, { reason: "adjusting by hand" });
+      },
+      fightForMe: function(event) { event.preventDefault(); return startFight(this.document); },
+      standDown: function(event) { event.preventDefault(); return standDown(this.document); },
+      callElemental: function(event) { event.preventDefault(); return callElemental(this.document); },
+      sendAway: function(event) { event.preventDefault(); return sendAway(this.document); },
+      chargeDays: function(event) { event.preventDefault(); return chargeDays(this.document); }
     }
   };
 
@@ -1464,6 +1470,20 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
     }));
     context.spiritDomains = CONFIG.SR2E.spiritDomains;
     context.isElemental = this.document.system.spiritType === "elemental";
+    // Service status (SR2E p.139–142): see module/spirit-services.mjs.
+    {
+      const doc = this.document;
+      const status = statusOf(doc);
+      const since = doc.getFlag("sr2e", "presentSince");
+      context.svc = {
+        status, fighting: !!doc.getFlag("sr2e", "fighting"),
+        controlled: status !== "uncontrolled" && status !== "departed",
+        present: Number.isFinite(since), days: presentDays(doc),
+        unknownPresence: context.isElemental && status === "engaged" && !Number.isFinite(since),
+        label: { departed: "Departed", uncontrolled: "Uncontrolled — answers to no one", engaged: "Performing a service",
+                 bondEnded: "Owes no more services — no longer bound; it departs (p.141)", bound: "Bound" }[status]
+      };
+    }
     if (context.isElemental) {
       const sys = this.document.system;
       const spellName = (u) => { try { return fromUuidSync(u)?.name ?? "a spell that no longer exists"; } catch (e) { return "a spell"; } };

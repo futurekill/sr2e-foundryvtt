@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Added — spirit services: fighting, running out, and the 24-hour rule (SR2E p.139–142)
+
+- **Fight for me** (spirit sheet): fighting on the summoner's behalf is **one
+  service for the whole fight**, however many foes (p.140).
+  - A bound spirit's manifest attack now needs it. Once paid, the attacks are
+    free, even after the last service went into the fight. **Stand down**
+    ends it.
+  - While fighting, using a power asks whether it is part of the fight (free)
+    or a new service.
+  - Uncontrolled spirits attack freely.
+- **Running out**: when a spend uses the last service, the owner and the GM
+  get a note. The spirit owes nothing more, so it is no longer bound and
+  departs (p.141), after any service it is still performing. The sheet shows
+  the status: Bound / Performing a service / Owes no more services /
+  Uncontrolled / Departed. Nothing is deleted automatically.
+- **Elementals are called and sent away** (p.141):
+  - A bound elemental now starts **away**, with no token on the map; the
+    summon card says to Call it.
+  - **Call** (free) brings it to the map and starts its clock.
+  - Each **24 hours** it hangs around, or keeps serving, uses up a service.
+    The sheet counts the full days, and **Charge day(s)** takes them (never
+    below 0).
+  - **Send away** (free) charges any owed days, then removes it from the map.
+  - An elemental whose Force runs out also gets its owed days charged as it
+    vanishes.
+- An elemental fighting for you can't start Aid Sorcery, Aid Study or Spell
+  Sustaining until it stands down: one service at a time.
+- The sheet's − and + now go through the same accounting, so + is a clean
+  refund.
+
 ### Added — weapons against vehicles: APDS and anti-vehicle warheads (SR2E p.108)
 
 - **Anti-vehicle rockets and missiles** keep their Damage Level against
