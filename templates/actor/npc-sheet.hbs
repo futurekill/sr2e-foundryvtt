@@ -22,6 +22,13 @@
           <input type="checkbox" name="system.dualNatured" {{checked system.dualNatured}} />
           {{#if system.dualNatured}}<button type="button" class="btn-small" data-action="astralAttack" title="Astral attack (SR2E p.147–148)"><i class="fas fa-hand-fist"></i> Astral</button>{{/if}}
         </div>
+        {{#if system.awakened}}
+        <div class="form-group">
+          <label title="Physical → Perceiving → Projecting (SR2E p.145–147)">Astral:</label>
+          <button type="button" class="btn-small astral-state {{system.astralState}}" data-action="toggleAstral">{{#ifEquals system.astralState "projecting"}}Projecting{{else}}{{#ifEquals system.astralState "perceiving"}}Perceiving{{else}}Physical{{/ifEquals}}{{/ifEquals}}</button>
+          {{#unless (eq system.astralState "none")}}{{#unless system.dualNatured}}<button type="button" class="btn-small" data-action="astralAttack" title="Astral attack (SR2E p.147)"><i class="fas fa-hand-fist"></i> Astral</button>{{/unless}}{{/unless}}
+        </div>
+        {{/if}}
       </div>
     </div>
   </div>

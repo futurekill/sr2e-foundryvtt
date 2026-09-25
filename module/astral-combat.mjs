@@ -27,8 +27,9 @@ const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 export function astralKind(actor) {
   if (!actor) return null;
   if (actor.type === "spirit") return actor.system.depleted ? null : "spirit";
-  if (actor.type === "npc") return actor.system.dualNatured ? "dual" : null;
-  if (actor.type === "character")
+  if (actor.type === "npc" && actor.system.dualNatured) return "dual";
+  // Characters, and Awakened NPCs perceiving or projecting (p.145–147).
+  if (actor.type === "character" || (actor.type === "npc" && actor.system.awakened))
     return ["perceiving", "projecting"].includes(actor.system.astralState) ? "magician" : null;
   return null;
 }

@@ -74,10 +74,15 @@ not change its staging, and an initial miss (0 successes) posts no damage card a
 all, so Karma cannot turn it into a hit. Fix via the dependent-card sync used by
 manipulation spells. Deferred from the net-staging pass.
 
-### C9 — Vehicle-damage exceptions not modelled (low)
+### C9 — Vehicle-damage exceptions not modelled (low) — ✅ FIXED (`vehicleHit`)
 p.108: special ammunition lets a Light-rated weapon affect vehicles, and
 anti-vehicle rockets/missiles do not have their Damage Level reduced (the Power is
 still cut by armour). Neither is implemented.
+
+**Fixed 2026-09-25.** "Special ammunition" is read as APDS, the one ammunition the
+rules tie to vehicles (Sourcebook Updates p.277: vehicle armour halved against its
+Power and as a Barrier, level −1). A Light APDS hit stays Light; Body is never halved. Anti-vehicle
+rockets and missiles are recognised by the book's names.
 
 ## Magic
 
@@ -116,9 +121,14 @@ for astral combat. Not modelled.
 ### A4 — Spells cast in astral space always drain Physical (low) — ✅ FIXED
 p.148, last line of the Spells section. Not applied.
 
-### A5 — NPC magicians cannot project (low)
+### A5 — NPC magicians cannot project (low) — ✅ FIXED
 NPCData has no `astralState`, so an NPC mage cannot enter astral combat (dual-
 natured critters can, via the `dualNatured` flag). Deferred from the astral pass.
+
+**Fixed 2026-09-25.** NPCData has `astralState` and an Astral Combat Pool. An NPC
+is Awakened when it has a magic type, a Magic rating or any spell (stat-block
+magicians carry spells with magic type "none"). The NPC sheet cycles
+Physical → Perceiving → Projecting, with Astral Initiative while projecting.
 
 ## Verified correct
 

@@ -1307,12 +1307,18 @@ export class NPCData extends SR2EDataModel {
       // Dice Pools
       dicePools: new fields.SchemaField({
         combat: SR2EDataModel.resourceField(0, 0),
-        magic: SR2EDataModel.resourceField(0, 0)
+        magic: SR2EDataModel.resourceField(0, 0),
+        astral: SR2EDataModel.resourceField(0, 0)
       }),
 
       // Dual-natured (SR2E p.148): present on both planes at once — can fight and
       // be fought in astral space, keeping the same Attributes and physical armor.
       dualNatured: new fields.BooleanField({ initial: false }),
+
+      // An Awakened NPC perceives and projects like a character (p.145–147).
+      astralState: new fields.StringField({ initial: "none", choices: {
+        none: "SR2E.Astral.None", perceiving: "SR2E.Astral.Perceiving", projecting: "SR2E.Astral.Projecting"
+      }}),
 
       // Initiative
       initiative: new fields.SchemaField({
@@ -1368,6 +1374,33 @@ export class NPCData extends SR2EDataModel {
     this.dicePools.combat.max   = combatPool;
     this.dicePools.combat.value = Math.max(0, combatPool - npcSpent);
 
+    // Awakened: the NPC sheet has no Magic field, and stat-block magicians
+    // carry spells with magic.type "none", so any of the three marks it.
+    // Assigned on every preparation (derived state, never left stale).
+    this.awakened = this.magic.type !== "none" || (this.magic.value ?? 0) > 0
+      || (this.parent?.items ?? []).some(i => i.type === "spell");
+    // Astral Combat Pool for the Awakened (p.147), spent dice preserved the
+    // same way; and while projecting, Astral Initiative (p.147).
+    if (this.awakened) {
+      const astralMax = astralCombatPool({ intelligence: this.intelligence.value,
+        willpower: this.willpower.value, charisma: this.charisma.value });
+      const astralSpent = this.dicePools.astral.max > 0
+        ? Math.max(0, this.dicePools.astral.max - this.dicePools.astral.value) : 0;
+      this.dicePools.astral.max   = astralMax;
+      this.dicePools.astral.value = Math.max(0, astralMax - astralSpent);
+      if (this.astralState === "projecting") {
+        this.initiative.base = this.astralReaction + 15;
+        this.initiative.value = this.initiative.base;
+        this.initiative.dice = 1;
+      }
+    } else {
+      // Mundane (or no longer Awakened): nothing astral survives from a
+      // previous preparation.
+      this.astralState = "none";
+      this.dicePools.astral.max = 0;
+      this.dicePools.astral.value = 0;
+    }
+
     // Movement
     this.movement.walk = this.quickness.value;
     this.movement.run = this.quickness.value * 3;
@@ -1383,6 +1416,22 @@ export class NPCData extends SR2EDataModel {
     );
     this.armor.ballistic += npcWorn.ballistic;
     this.armor.impact    += npcWorn.impact;
+  }
+
+  /**
+   * Initiative dice from the authored stat block, re-set BEFORE Active Effects
+   * apply, so the projecting override (1 die) never outlives the projection
+   * and an effect's bonus dice still land on top.
+   * @override
+   */
+  prepareBaseData() {
+    super.prepareBaseData?.();
+    this.initiative.dice = this.parent?._source?.system?.initiative?.dice ?? this.initiative.dice;
+  }
+
+  /** Astral Reaction (SR2E p.147) — as for characters. */
+  get astralReaction() {
+    return astralReaction(this.intelligence.value);
   }
 
   /**

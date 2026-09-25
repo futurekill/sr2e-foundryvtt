@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added — weapons against vehicles: APDS and anti-vehicle warheads (SR2E p.108)
+
+- **Anti-vehicle rockets and missiles** keep their Damage Level against
+  vehicles; the vehicle's armour still cuts their Power.
+- **APDS** is the "special ammunition" p.108 mentions (the Sourcebook Updates,
+  p.277):
+  - vehicle armour counts at half its rating, both as the Barrier and against
+    the Power, and the Damage Level still drops a step;
+  - a Light-rated gun firing APDS can hurt a vehicle, and its hit stays Light.
+
+### Added — NPC magicians perceive and project (SR2E p.145–147)
+
+An NPC with spells (or a Magic rating) now has an **Astral** button on its sheet,
+cycling Physical → Perceiving → Projecting, just like a character's. While
+astral it gets the Astral Combat Pool and can make astral attacks. While
+projecting it rolls Astral Initiative. Before, only dual-natured critters could
+fight in astral space.
+
 ### Added — ritual sorcery (SR2E p.133–137)
 
 A team of magicians casts a spell over hours at a target out of sight. The GM

@@ -5969,6 +5969,91 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Ritual Sorcery (p.133–137)" });
 
+    // ── Vehicle-damage exceptions (p.108) and NPC magicians in astral space ──
+    quench.registerBatch("sr2e.audit3-c9-a5", (context) => {
+      const { it, assert, before, afterEach } = context;
+      let msgStart = 0;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const since = () => game.messages.contents.slice(msgStart);
+      const lastTest = () => since().filter(m => m.flags?.sr2e?.test).at(-1)?.flags.sr2e.test;
+      const resist = async (actor, power, level, opts) => {
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="roll"]')?.click(), 50));
+        return withFaces(Array(20).fill(1), () => actor.rollDamageResistance(power, level, "ballistic", "physical", opts));
+      };
+      before(() => { msgStart = game.messages.size; });
+      afterEach(async () => {
+        const ids = game.actors.filter(a => a.name.startsWith("Quench C9A5")).map(a => a.id);
+        if (ids.length) await Actor.deleteDocuments(ids);
+        await ChatMessage.deleteDocuments(since().map(m => m.id));
+        msgStart = game.messages.size;
+      });
+
+      it("APDS vs an armoured vehicle: half armour against Power and as a Barrier; level −1", async () => {
+        const car = await Actor.create({ name: "Quench C9A5 Car", type: "vehicle", system: { body: 4, armor: 6 } });
+        await resist(car, 8, "M", { armorCalc: "half_ballistic", basePower: 8 });
+        const t = lastTest();
+        assert.include(t.label, "Resist 8L", "M → L");
+        assert.equal(t.tn, 2, "8 − (4 + ⌊6÷2⌋) = 1 → minimum 2");
+        await car.rollDamageResistance(3, "M", "ballistic", "physical", { armorCalc: "half_ballistic", basePower: 3 });
+        assert.match(since().at(-1).content, /No penetration.*halved for APDS/s);
+        await car.rollDamageResistance(5, "M", "ballistic", "physical", { basePower: 5 });
+        assert.match(since().at(-1).content, /No penetration/, "ordinary ammo: 5 ≤ armour 6");
+      });
+
+      it("anti-vehicle rockets keep their Damage Level; armour still cuts Power", async () => {
+        const tank = await Actor.create({ name: "Quench C9A5 Tank", type: "vehicle", system: { body: 4, armor: 6 } });
+        await resist(tank, 16, "D", { antiVehicle: true, basePower: 16 });
+        const t = lastTest();
+        assert.include(t.label, "Resist 16D");
+        assert.equal(t.tn, 6, "16 − (4 + 6)");
+      });
+
+      it("a Light-rated APDS shot affects a vehicle and stays Light; without APDS it does nothing", async () => {
+        const van = await Actor.create({ name: "Quench C9A5 Van", type: "vehicle", system: { body: 3, armor: 0 } });
+        await van.rollDamageResistance(6, "L", "ballistic", "physical", {});
+        assert.match(since().at(-1).content, /Light damage cannot affect vehicles/);
+        await resist(van, 6, "L", { armorCalc: "half_ballistic" });
+        const t = lastTest();
+        assert.include(t.label, "Resist 6L");
+        assert.equal(t.tn, 3, "6 − Body 3 (APDS has no armour to halve)");
+      });
+
+      it("an NPC with spells is Awakened: it projects with Astral Initiative and fights in astral space", async () => {
+        const mage = await Actor.create({ name: "Quench C9A5 Wagemage", type: "npc", system: {
+          intelligence: { base: 5 }, willpower: { base: 5 }, charisma: { base: 4 } } });
+        assert.isFalse(mage.system.awakened);
+        const { astralKind } = await import("../astral-combat.mjs");
+        await mage.update({ "system.astralState": "projecting" });
+        assert.equal(mage.system.astralState, "none", "the mundane can't project");
+        assert.isNull(astralKind(mage));
+        await mage.createEmbeddedDocuments("Item", [{ name: "Quench C9A5 Bolt", type: "spell", system: { category: "combat", force: 4 } }]);
+        assert.isTrue(mage.system.awakened);
+        await mage.update({ "system.astralState": "projecting" });
+        assert.equal(astralKind(mage), "magician");
+        assert.equal(mage.system.initiative.base, mage.system.astralReaction + 15);
+        assert.equal(mage.system.initiative.dice, 1);
+        const { astralCombatPool } = await import("../rules/sr2e-rules.mjs");
+        assert.equal(mage.system.dicePools.astral.max, astralCombatPool({ intelligence: 5, willpower: 5, charisma: 4 }));
+        // Losing the last spell clears it all again (derived state never outlives its source).
+        await mage.update({ "system.initiative.dice": 3 });
+        await mage.deleteEmbeddedDocuments("Item", mage.items.filter(i => i.type === "spell").map(i => i.id));
+        assert.isFalse(mage.system.awakened);
+        assert.isNull(astralKind(mage));
+        assert.equal(mage.system.initiative.dice, 3, "authored initiative dice are back");
+        assert.equal(mage.system.initiative.base, mage.system.reaction.value);
+        assert.equal(mage.system.dicePools.astral.max, 0);
+        // An Active Effect's extra initiative die still lands on top of the authored dice.
+        await mage.createEmbeddedDocuments("ActiveEffect", [{ name: "Quench C9A5 Wired", changes: [
+          { key: "system.initiative.dice", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: "1" }] }]);
+        assert.equal(mage.system.initiative.dice, 4, "3 authored + 1 from the effect");
+      });
+    }, { displayName: "SR2E: Vehicle exceptions & NPC astral (Audit 3 C9, A5)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

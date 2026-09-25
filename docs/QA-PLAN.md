@@ -154,6 +154,9 @@ and any **red console errors**. File them wherever the group tracks issues
       spells. A card posted before the update still resolves the old way.
 - [ ] Vehicles (p.108): a Light-rated weapon does nothing even on a burst unless the
       shot is called; otherwise the level drops one before the net is applied.
+- [ ] Vehicles (p.108) with APDS loaded: a Light pistol now hurts a car and stays Light;
+      vs an armoured car the Barrier and the TN use half the armour. An Anti-Vehicle Rocket
+      blast on a vehicle keeps its D.
 - [ ] Melee / spirit attack **Resist Damage**: net successes of the opposed test are
       already in the level; the Body roll stages **down** 1 per 2 successes.
 - [ ] Damage boxes apply L=1 / M=3 / S=6 / D=10; filling Physical → unconscious/dead overlays; Stun → unconscious.
@@ -218,6 +221,10 @@ and any **red console errors**. File them wherever the group tracks issues
       Determine the effect → Finalise → Publish → Sustaining → each member's Resist Drain
       and Finalise (damage once). A combat spell has no 🜂 button; a sending with 0
       successes aborts straight to Drain.
+
+- [ ] **NPC magicians in astral space (p.145–147):** an NPC with a spell shows
+      "Astral: Physical"; click → Perceiving (Astral attack button appears) → Projecting
+      (Initiative = 2×Int + 15, one die). An NPC with no spells shows no Astral button.
 
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.

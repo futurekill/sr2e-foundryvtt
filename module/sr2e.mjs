@@ -47,7 +47,7 @@ import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
-import { blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
+import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -1931,6 +1931,7 @@ async function resistRangedDamage(message) {
     if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
     return await actor.rollDamageResistance(snap.power, snap.baseLevel, snap.armorType, snap.damageType, {
       armorCalc: snap.armorCalc, armorMod: snap.armorMod, ammoName: snap.ammoName, basePower: snap.basePower,
+      antiVehicle: !!snap.antiVehicle,
       attackerSuccesses: snap.successes, stageVs: snap.successes,
       ratedLevel: snap.ratedLevel, calledShot: !!snap.calledShot,
       resolvesMessageId: message.id,
@@ -2123,6 +2124,7 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
               data-power="${power}" data-base-power="${basePower}"
               data-level="${stagedLevel}" data-armor-type="impact"
               data-damage-type="${damageType}" data-target-uuid="${actor.uuid}" ${netAttrs}
+              ${isAntiVehicleOrdnance(blastName) ? 'data-anti-vehicle="1"' : ""}
               title="Body vs. TN = ${power} − Impact armour (core p.96)">
         ${foundry.utils.escapeHTML(tok.name)} — ${power}${stagedLevel}${stun ? " Stun" : ""} <em>(${dist} m)</em>
       </button>
@@ -2358,6 +2360,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         : {};
       return actor.rollDamageResistance(power, level, armorType, damageType,
         { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses,
+          antiVehicle: btn.dataset.antiVehicle === "1",
           melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1", ...net });
     });
   });

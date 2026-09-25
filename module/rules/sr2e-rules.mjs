@@ -4232,3 +4232,43 @@ export function damageUpdateFor({ physical, stun, overflow = 0 }, type, amount) 
   }
   return out;
 }
+
+// ── Weapons against vehicles (SR2E p.108; APDS: Sourcebook Updates p.277) ────
+
+/** Anti-vehicle rockets and missiles (p.108) — the book's names (AVR, AVM). */
+export function isAntiVehicleOrdnance(name) {
+  return /anti-?\s?vehicle|\bAV[RM]\b/i.test(String(name ?? ""));
+}
+
+/**
+ * How a hit resolves against a vehicle (p.108).
+ *  - The Damage Level drops one step (D→S, S→M, M→L). A weapon RATED Light
+ *    can't affect a vehicle unless the shot is called or it fires special
+ *    ammunition (APDS, the one ammunition the rules tie to vehicles); a Light
+ *    APDS hit stays Light rather than vanishing.
+ *  - Vehicle armour is a Barrier Rating against the BASE Power, and the
+ *    vehicle resists with Body + ½ armour dice vs Power − (Body + armour).
+ *    Unarmoured, Body counts as composite armour.
+ *  - Anti-vehicle rockets and missiles keep their Damage Level; their Power is
+ *    still reduced by the armour.
+ *  - APDS: vehicle armour counts at half its rating (round down) against the
+ *    Power, and as a Barrier; the Damage Level still drops one step. Body is
+ *    never halved: with no vehicle armour there is nothing for APDS to halve.
+ * @returns {{ none: "stun"|"light"|"barrier"|null, level?, dice?, tn?, armorUsed? }}
+ */
+export function vehicleHit({ body = 1, armor = 0, power, basePower = power, level, lightRated = false,
+                             damageType = "physical", apds = false, antiVehicle = false }) {
+  if (damageType === "stun") return { none: "stun" };
+  const stages = ["L", "M", "S", "D"];
+  if (lightRated && !apds) return { none: "light" };
+  let idx = Math.min(3, stages.indexOf(level)) - (antiVehicle ? 0 : 1);
+  if (idx < 0) {
+    if (!apds) return { none: "light" };
+    idx = 0;
+  }
+  const armorUsed = apds ? Math.floor(armor / 2) : armor;
+  if (armor > 0 && basePower <= armorUsed) return { none: "barrier", armorUsed };
+  const soak = body + armorUsed;
+  return { none: null, level: stages[idx], dice: armor > 0 ? body + Math.floor(armor / 2) : body,
+           tn: Math.max(2, power - soak), armorUsed };
+}

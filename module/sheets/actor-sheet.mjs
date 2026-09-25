@@ -1136,8 +1136,10 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       // shared map with no standalone binding at all.
       castSpell: SHARED_ACTIONS.castSpell,
       toggleSustain: SHARED_ACTIONS.toggleSustain,
-      // Dual-natured critters fight in astral space too (SR2E p.148).
+      // Dual-natured critters fight in astral space too (SR2E p.148), and
+      // Awakened NPCs perceive and project (p.145–147).
       astralAttack: SHARED_ACTIONS.astralAttack,
+      toggleAstral: SHARED_ACTIONS.toggleAstral,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem

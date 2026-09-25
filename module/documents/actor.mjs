@@ -23,7 +23,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, damageUpdateFor, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, damageUpdateFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -2001,49 +2001,34 @@ export class SR2EActor extends Actor {
     const resolves = options.resolvesMessageId
       ? { flags: { sr2e: { resolves: options.resolvesMessageId } } } : {};
 
-    if ((options.damageType ?? "physical") === "stun") {
-      return ChatMessage.create({
-        ...resolves,
-        speaker: ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
-          vehicles are unaffected by Stun damage.</div>`
-      });
-    }
-
-    // Damage Level reduced one step vs vehicles; weapons RATED Light cannot
-    // harm them unless the shot is called (p.108). On a net-staging card
-    // (options.stageVs) `level` is pre-staging — printed + burst + called shot,
-    // capped at D — so the reduction lands before the net, and immunity is
-    // judged on the printed rating (a Light burst is still Light-rated). On an
-    // older card `level` was already staged and is judged as it always was.
-    const stages     = ["L", "M", "S", "D"];
+    // p.108 (and APDS, Sourcebook Updates p.277) — see vehicleHit.
     const netStaging = Number.isFinite(options.stageVs);
-    const lightRated = netStaging
-      ? options.ratedLevel === "L" && !options.calledShot
-      : level === "L";
-    const startIdx = Math.min(3, stages.indexOf(level)) - 1;
-    if (lightRated || startIdx < 0) {
+    const hit = vehicleHit({
+      body, armor, power, basePower, level, damageType: options.damageType ?? "physical",
+      // On a net-staging card `level` is pre-staging, and immunity is judged on
+      // the printed rating (a Light burst is still Light-rated) unless called.
+      lightRated: netStaging ? options.ratedLevel === "L" && !options.calledShot : level === "L",
+      apds: !!options.apds, antiVehicle: !!options.antiVehicle
+    });
+    const noEffect = {
+      stun: "<strong>No effect:</strong> vehicles are unaffected by Stun damage.",
+      light: "<strong>No effect:</strong> Light damage cannot affect vehicles (SR2E p.108).",
+      barrier: `<strong>No penetration:</strong> base Power ${basePower} does not exceed vehicle armor ${hit.armorUsed}${options.apds ? ` (${armor}, halved for APDS)` : ""} (SR2E p.108).`
+    };
+    if (hit.none) {
       return ChatMessage.create({
         ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="sr2e-damage-result"><strong>No effect:</strong>
-          Light damage cannot affect vehicles (SR2E p.108).</div>`
+        content: `<div class="sr2e-damage-result">${noEffect[hit.none]}</div>`
       });
     }
-
-    // Armored vehicles: armor is a Barrier Rating vs the BASE Power (p.108)
-    if (armor > 0 && basePower <= armor) {
-      return ChatMessage.create({
-        ...resolves,
-        speaker: ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="sr2e-damage-result"><strong>No penetration:</strong>
-          base Power ${basePower} does not exceed vehicle armor ${armor} (SR2E p.108).</div>`
-      });
-    }
-
-    const dice = armor > 0 ? body + Math.floor(armor / 2) : body;
-    const tn   = Math.max(2, power - (body + armor));
-    const startLevel = stages[startIdx];
+    const { dice, tn } = hit;
+    const startLevel = hit.level;
+    const stages = ["L", "M", "S", "D"];
+    const startIdx = stages.indexOf(startLevel);
+    const levelNote = options.antiVehicle
+      ? "Anti-vehicle warhead: Damage Level not reduced; armour still cuts Power (SR2E p.108)."
+      : `Damage Level already reduced one step vs vehicles (SR2E p.108)${options.apds ? "; APDS: armour counts at half (Sourcebook Updates p.277)" : ""}.`;
 
     // Controlling rigger may add Control Pool dice — drawn from the user's
     // character when this vehicle is linked to them.
@@ -2080,7 +2065,7 @@ export class SR2EActor extends Actor {
                 <td style="text-align:right;font-weight:bold;">TN ${tn}</td></tr>
           </table>
           <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
-            Damage Level already reduced one step vs vehicles (SR2E p.108).</p>
+            ${levelNote}</p>
         </div>
         ${poolHTML}
       </div>`,
@@ -2165,7 +2150,8 @@ export class SR2EActor extends Actor {
       return this.rollVehicleDamageResistance(power, level, {
         basePower: options.basePower, damageType,
         stageVs: options.stageVs, ratedLevel: options.ratedLevel, calledShot: options.calledShot,
-        beforeRoll: options.beforeRoll, resolvesMessageId: options.resolvesMessageId
+        beforeRoll: options.beforeRoll, resolvesMessageId: options.resolvesMessageId,
+        apds: options.armorCalc === "half_ballistic", antiVehicle: !!options.antiVehicle
       });
     }
     const system    = this.system;
