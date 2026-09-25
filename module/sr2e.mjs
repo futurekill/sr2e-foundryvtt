@@ -17,6 +17,7 @@ import { SR2ECombatant } from "./documents/combatant.mjs";
 import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
+import { promptGrant, grantSpellDefense } from "./spell-defense.mjs";
 import { promptAstralOptions, astralDefend, astralUndefended, astralResist, astralAttack, isCardResolved } from "./astral-combat.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
@@ -435,7 +436,7 @@ Hooks.once("init", async () => {
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
   game.sr2e = Object.assign(game.sr2e ?? {}, { rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
-    astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard });
+    astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
   registerMovementLimit();
@@ -2513,6 +2514,17 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       return countTurnFromCard(btn.dataset);
+    });
+  });
+
+  // Spell Defense for anyone (SR2E p.132): a magician grants dice to this
+  // card's target, or — from the public area summary — to their T targets.
+  html.querySelectorAll?.(".sr2e-grant-defense-btn").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const st = message.getFlag("sr2e", "spell");
+      if (st) return promptGrant({ castTestId: st.testMessageId, targetUuid: st.targetUuid, targetName: st.targetName });
+      return promptGrant({ castTestId: btn.dataset.castTestId });
     });
   });
 

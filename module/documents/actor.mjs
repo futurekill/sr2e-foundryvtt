@@ -3,6 +3,10 @@
  */
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { renderAstralMeleeCard, isCardResolved, isTestClosed, astralAttack } from "../astral-combat.mjs";
+import { defenseQueue, normActorUuid, defenceBalance, defenceSplit, grantsFor } from "../spell-defense.mjs";
+
+/** Spell Resist cards being resolved on this client (double-click guard). */
+const SPELL_RESIST_IN_FLIGHT = new Set();
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
@@ -514,6 +518,13 @@ export class SR2EActor extends Actor {
    * @returns {Promise<Actor|undefined>}
    */
   async refreshDicePools() {
+    // In the Spell Defense queue: the refresh clears committed Spell Defense,
+    // which must not interleave with a grant or a resistance spend (p.132).
+    return defenseQueue(this.uuid, () => this._refreshDicePools());
+  }
+
+  /** @private */
+  async _refreshDicePools() {
     const updates = dicePoolRefreshUpdates(this.system.dicePools);
 
     // Karma Pool returns with the next encounter (SR2E p.191), so it refreshes
@@ -721,7 +732,7 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
-        if (["astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch"].includes(key)
+        if (["astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell"].includes(key)
             && isCardResolved(msg, key)) continue;
         if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;
@@ -2972,7 +2983,13 @@ export class SR2EActor extends Actor {
     return shieldingBonusDice(m.initiateGrade);
   }
 
-  async allocateSpellDefense(amount, { aidSpiritUuid = "", aidDice = 0 } = {}) {
+  async allocateSpellDefense(amount, opts = {}) {
+    // One queue for every Spell Defense mutation of this magician (grants too).
+    return defenseQueue(this.uuid, () => this._allocateSpellDefense(amount, opts));
+  }
+
+  /** @private */
+  async _allocateSpellDefense(amount, { aidSpiritUuid = "", aidDice = 0 } = {}) {
     const pool = this.system.dicePools?.magic;
     if (!pool) return;
     const give = Math.max(0, Math.min(Math.trunc(Number(amount) || 0), pool.value));
@@ -3185,6 +3202,11 @@ export class SR2EActor extends Actor {
 
   /** Return allocated Spell Defense dice to the Magic Pool (Shielding dice were free — just drop them). */
   async clearSpellDefense() {
+    return defenseQueue(this.uuid, () => this._clearSpellDefense());
+  }
+
+  /** @private */
+  async _clearSpellDefense() {
     const sd = this.system.dicePools?.spellDefense ?? 0;
     const shield = this.system.dicePools?.shieldingBonus ?? 0;
     const aid = this.system.dicePools?.spellDefenseAid ?? 0;
@@ -3209,52 +3231,119 @@ export class SR2EActor extends Actor {
    */
   async rollSpellResistance(message) {
     const state = message.getFlag("sr2e", "spell");
-    if (!state || state.resolved) return;
+    if (!state || state.resolved || isCardResolved(message, "spell")) {
+      return ui.notifications.warn("That spell has already been resisted.");
+    }
+    if (SPELL_RESIST_IN_FLIGHT.has(message.id)) return;
+    SPELL_RESIST_IN_FLIGHT.add(message.id);
+    try {
+      return await this._rollSpellResistance(message, state);
+    } finally {
+      SPELL_RESIST_IN_FLIGHT.delete(message.id);
+    }
+  }
 
+  /** @private The body of rollSpellResistance (guarded, in flight once). */
+  async _rollSpellResistance(message, state) {
     const attr = state.resistAttr === "willpower" ? "willpower" : "body";
-    let dice = this.system[attr]?.value ?? 1;
-    const spellDef = this.system.dicePools?.spellDefense ?? 0;
-    const shield   = this.system.dicePools?.shieldingBonus ?? 0;
-    const useDef = Math.min(spellDef + shield, 99);
-    dice += useDef;
+    const castTestId = state.testMessageId ?? "";
+    const targetKey = normActorUuid(this.uuid);
+    const isMagician = !["none", "physical_adept"].includes(this.system.magic?.type ?? "none")
+      && this.type === "character";
 
-    let defNote = useDef
-      ? ` +${useDef} ${shield ? "Shielding" : "Spell Defense"}` : "";
-    // An elemental's reserved Spell Defense dice (p.141): combat spells only
-    // for a fire elemental. Paid (its Force drops) BEFORE any die is added; if
-    // payment fails, the resistance goes ahead without them and the
-    // reservation is kept.
-    let aidUsed = 0;
-    const res = aidReservation(this);
-    if (res?.valid && elementalAidsCategory(res.spirit.system.domain, "combat")) {
-      const n = Math.min(res.dice, res.spirit.system.effectiveForce ?? 0);
-      const paid = n > 0 && res.spirit.isOwner
-        ? await elementalTransition(res.spirit, "aid", { n }, { quiet: true, silent: true }) : { ok: false };
-      if (paid.ok) { aidUsed = n; dice += n; defNote += ` +${n} Aid Sorcery (${res.spirit.name})`; }
-      else defNote += " (elemental aid unavailable)";
-    }
-    const resist = await this.rollSuccessTest(dice, state.force, {
-      label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${defNote} (TN ${state.force})`,
-      isResistance: true,
-      // A physical spell is resisted with BODY, so overstress applies; a mana
-      // spell is resisted with Willpower and must not take it.
-      ...(attr === "body" ? this._bodyTestOpts() : {})
-    });
-    if (useDef > 0 || aidUsed > 0) {
-      // Spell defense + free shielding dice (and any elemental aid used) are
-      // spent for the exchange.
-      await this.update({
-        ...(useDef > 0 ? { "system.dicePools.spellDefense": 0, "system.dicePools.shieldingBonus": 0 } : {}),
-        ...(aidUsed > 0 ? CLEAR_DEFENSE_AID : {})
+    // Choose first, spend nothing until confirmed (p.132: dice you hold back
+    // stay in reserve; p.129: unused Magic Pool may be added).
+    const ownAvail = defenceBalance(this);
+    const mpAvail  = isMagician ? (this.system.dicePools?.magic?.value ?? 0) : 0;
+    const grantsNow = castTestId ? grantsFor(castTestId, targetKey) : [];
+    let choice = { own: 0, mp: 0 };
+    if (ownAvail > 0 || mpAvail > 0 || grantsNow.length) {
+      const esc = foundry.utils.escapeHTML;
+      let picked = null;
+      const action = await foundry.applications.api.DialogV2.wait({
+        window: { title: `Resist ${state.spellName}` },
+        rejectClose: false,
+        content: `<div>
+          ${ownAvail > 0 ? `<div class="form-group"><label>Your Spell Defense (${ownAvail}):</label>
+            <input type="number" name="own" value="${ownAvail}" min="0" max="${ownAvail}" style="width:52px;text-align:center;"></div>` : ""}
+          ${mpAvail > 0 ? `<div class="form-group"><label>Unused Magic Pool (${mpAvail}):</label>
+            <input type="number" name="mp" value="0" min="0" max="${mpAvail}" style="width:52px;text-align:center;"></div>` : ""}
+          <p style="margin:4px 0 0;font-size:11px;">${grantsNow.length
+            ? `Allies protecting you: ${grantsNow.map(g => `${esc(g.magicianName)} +${g.n}`).join(", ")}.`
+            : "No ally has spent Spell Defense on you (yet)."}</p>
+          <p style="margin:2px 0 0;font-size:10px;color:#aaa1c0;">Spell Defense dice you keep stay in reserve (SR2E p.132).</p>
+        </div>`,
+        buttons: [
+          { action: "roll", label: "SR2E.Dialog.Resist", default: true, callback: (ev, b) => {
+            picked = { own: parseInt(b.form.elements.own?.value) || 0, mp: parseInt(b.form.elements.mp?.value) || 0 }; } },
+          { action: "cancel", label: "SR2E.Dialog.Cancel" }
+        ]
       });
+      if (action !== "roll" || !picked) return null;
+      choice = picked;
     }
 
+    return defenseQueue(this.uuid, async () => {
+      // Re-read everything now that the dialog is closed.
+      const live = game.messages.get(message.id);
+      if (!live || isCardResolved(live, "spell")) {
+        ui.notifications.warn("That spell has already been resisted.");
+        return null;
+      }
+      const own = Math.max(0, Math.min(choice.own, defenceBalance(this)));
+      const mp  = isMagician ? Math.max(0, Math.min(choice.mp, this.system.dicePools?.magic?.value ?? 0)) : 0;
+      const grants = castTestId ? grantsFor(castTestId, targetKey) : [];
+      const granted = grants.reduce((t, g) => t + (g.n ?? 0), 0);
+      const split = defenceSplit(this, own);
+      if (own > 0 || mp > 0) {
+        const p = this.system.dicePools;
+        await this.update({
+          ...(own > 0 ? { "system.dicePools.spellDefense": p.spellDefense - split.sd,
+                          "system.dicePools.shieldingBonus": p.shieldingBonus - split.shield } : {}),
+          ...(mp > 0 ? { "system.dicePools.magic.value": p.magic.value - mp } : {})
+        });
+      }
+      let dice = (this.system[attr]?.value ?? 1) + own + mp + granted;
+      let defNote = (own ? ` +${own} Spell Defense` : "") + (mp ? ` +${mp} Magic Pool` : "")
+        + grants.map(g => ` +${g.n} Spell Defense (${g.magicianName})`).join("");
+      // An elemental's reserved Spell Defense dice (p.141): combat spells only
+      // for a fire elemental. Paid (its Force drops) BEFORE any die is added; if
+      // payment fails, the resistance goes ahead without them and the
+      // reservation is kept.
+      let aidUsed = 0;
+      const res = aidReservation(this);
+      if (res?.valid && elementalAidsCategory(res.spirit.system.domain, "combat")) {
+        const n = Math.min(res.dice, res.spirit.system.effectiveForce ?? 0);
+        const paid = n > 0 && res.spirit.isOwner
+          ? await elementalTransition(res.spirit, "aid", { n }, { quiet: true, silent: true }) : { ok: false };
+        if (paid.ok) { aidUsed = n; dice += n; defNote += ` +${n} Aid Sorcery (${res.spirit.name})`; }
+        else defNote += " (elemental aid unavailable)";
+      }
+      const resist = await this.rollSuccessTest(dice, state.force, {
+        label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${defNote} (TN ${state.force})`,
+        isResistance: true,
+        // A physical spell is resisted with BODY, so overstress applies; a mana
+        // spell is resisted with Willpower and must not take it.
+        ...(attr === "body" ? this._bodyTestOpts() : {})
+      });
+      if (aidUsed > 0) await this.update(CLEAR_DEFENSE_AID);
+      // Every outcome claims this card AND the attack on this target (public),
+      // naming the grants it used.
+      const marks = { flags: { sr2e: { resolves: message.id,
+        resolvesAttack: { castTestId, targetActorUuid: targetKey }, usedGrants: grants.map(g => g.id) } } };
+      return this._finishSpellResistance(message, state, resist, marks);
+    });
+  }
+
+  /** @private Apply a spell's net result and close the card. */
+  async _finishSpellResistance(message, state, resist, marks) {
     const net = state.successes - (resist?.successes ?? 0);
     const stages = ["L", "M", "S", "D"];
     const baseIdx = stages.indexOf(state.baseLevel);
 
     if (net <= 0) {
       await ChatMessage.create({
+        ...marks,
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>${this.name} resists ${foundry.utils.escapeHTML(state.spellName)}</strong>
           <em>— no net successes; no effect.</em></div>`
@@ -3264,6 +3353,7 @@ export class SR2EActor extends Actor {
       const boxes = [1, 3, 6, 10][finalIdx];
       await this.applyDamage(state.dmgType, boxes);
       await ChatMessage.create({
+        ...marks,
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result">
           <strong>${this.name} takes ${state.force}${stages[finalIdx]}${state.dmgType === "stun" ? " Stun" : ""}</strong>

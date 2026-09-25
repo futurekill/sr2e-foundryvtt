@@ -192,6 +192,12 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Sustained spells:** +2 TN per sustained spell; **spell locks** exempt; Active Effects apply real stat changes while sustained and drop when released.
 - [ ] **Spell Defense:** allocate Magic Pool dice; they boost spell-resistance and release on pool refresh.
 
+- [ ] **Spell Defense for allies (p.132):** mage A allocates 5 Spell Defense; a foe
+      casts Mana Bolt at B → A's player clicks 🛡 Spell Defense on the card, gives 2 →
+      A has 3 left; B's Resist dialog lists "A +2" and the roll shows "+2 Spell Defense
+      (A)". A self-resisting magician chooses own dice / unused Magic Pool (keep some →
+      they stay). Area spell: the public summary's 🛡 button protects your T targets.
+
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).

@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Changed — Spell Defense protects anyone you choose, a few dice at a time (SR2E p.132)
+
+"When protected characters … are attacked by magic, the magician that allocated
+the Spell Defense dice … can choose to use those dice to protect that target."
+Neddy spends 2 on each of two chummers and keeps 2 in reserve.
+
+- Every spell's Resist card (and the public summary of an area spell) has a
+  **🛡 Spell Defense** button. A magician's player picks their magician and how
+  many dice, and protects the card's target, or for an area spell the
+  characters they have targeted (T). The dice leave the magician's pool at
+  once. Line of sight is the GM's call.
+- Resisting a spell no longer throws in **all** your own Spell Defense dice
+  automatically. The Resist dialog asks how many of your own Spell Defense dice
+  (Shielding included) to use, and how many **unused Magic Pool** dice (p.129).
+  It also lists the allies who have protected you. Dice you keep stay in reserve.
+- A grant that lands after the target has already resisted is refused (or, in
+  the same instant, simply spent). The outcome shows which grants counted.
+- Area spells now give each actor one Resist card, even with two linked tokens.
+
 ### Added — throw a grenade at a point on the map (SR2E p.96)
 
 "First choose the intended target." That can be a spot on the floor, not just a

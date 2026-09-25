@@ -4,6 +4,7 @@ import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elem
 import { burstRounds, burstFired, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
+import { normActorUuid } from "../spell-defense.mjs";
 
 // ---------------------------------------------------------------------------
 // DAMAGE CODE EVALUATION
@@ -166,6 +167,10 @@ export function renderSpellResistCard(state) {
               title="${who} with ${attrLabel} (+ Spell Defense) vs Force ${state.force}. Armor does not help (SR2E p.131).">
         ✨ Resist Spell
       </button>
+      ${state.testMessageId ? `<button type="button" class="sr2e-resist-btn sr2e-grant-defense-btn"
+              title="A magician protects this target with Spell Defense dice (SR2E p.132) — before it resists.">
+        🛡 Spell Defense
+      </button>` : ""}
     </div>`;
   const vs = state.targetName ? ` at <strong>${esc(state.targetName)}</strong>` : "";
   const tnNote = state.targetTN ? `, TN ${state.targetTN}` : "";
@@ -1982,8 +1987,15 @@ export class SR2EItem extends Item {
     } else {
       templateNote = " (no template — you lack permission to create one)";
     }
+    // Public summary. For a combat spell it carries the Spell Defense button:
+    // allies protect whom they choose (their T targets) without this card
+    // naming who was caught — that stays in the whispered cards (p.132).
+    const defenseBtn = isAreaCombat && spellResult?.testMessageId ? `
+      <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-grant-defense-btn"
+        data-cast-test-id="${spellResult.testMessageId}"
+        title="Spend your magician's Spell Defense dice on the characters you target (T) (SR2E p.132)">🛡 Spell Defense</button></div>` : "";
     await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">${title} — area spell,
-      ${area.radius} m radius (Force ${force}).${templateNote}</div>` });
+      ${area.radius} m radius (Force ${force}).${templateNote}${defenseBtn}</div>` });
 
     const rows = [];
     if (isAreaCombat) {
@@ -1991,7 +2003,13 @@ export class SR2EItem extends Item {
       const castDelta = (spellResult?.targetNumber ?? targetNumber) - targetNumber;
       const dice = spellResult?.dice ?? [];
       const { baseLevel, dmgType } = this._combatSpellDamage();
+      // One card per ACTOR: two linked tokens of one actor would otherwise give
+      // one attack two resistances sharing a single Spell Defense key.
+      const seenActors = new Set();
       for (const { actor: target, uuid, name, eligible, baseTN } of area.caught) {
+        const key = normActorUuid(uuid);
+        if (seenActors.has(key)) continue;
+        seenActors.add(key);
         if (eligible === "gm") {
           rows.push(`<li>${esc(name)} — GM: Object Resistance Table (p.130)</li>`);
           continue;

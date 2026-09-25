@@ -5152,6 +5152,148 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Grenades at a Point" });
 
+    // ── Spell Defense for anyone the magician protects (SR2E p.132) ─────────
+    quench.registerBatch("sr2e.spell-defense-allies", (context) => {
+      const { it, assert, before, after } = context;
+      const made = { tokens: [], messages: [] };
+      let caster, ally, victim, victimTok, spell;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const settle = () => new Promise(r => setTimeout(r, 300));
+      const since = (n) => { const x = game.messages.contents.slice(n); made.messages.push(...x.map(y => y.id)); return x; };
+      const nextDialog = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)));
+      const cast = async () => {
+        // Drain from earlier casts would raise the TN (wounds) and miss.
+        await caster.update({ "system.conditionMonitor.stun.value": 0, "system.conditionMonitor.physical.value": 0 });
+        await canvas.tokens.setTargets([victimTok.id]);
+        const n = game.messages.size;
+        await withFaces([5, 5, 5, 5], () => spell.roll({ force: 4, targetNumber: 4 }));
+        await settle();
+        return since(n).find(m => m.flags?.sr2e?.spell);
+      };
+      const resist = async (card, faces, dialog = null) => {
+        if (dialog) nextDialog().then(dialog);
+        const n = game.messages.size;
+        await withFaces(faces, () => victim.rollSpellResistance(card));
+        await settle();
+        return since(n);
+      };
+      const label = (msgs) => msgs.find(m => m.flags?.sr2e?.test)?.flags.sr2e.test.label ?? "";
+      const setDefense = (a, sd, shield = 0) => a.update({ "system.dicePools.spellDefense": sd, "system.dicePools.shieldingBonus": shield });
+
+      before(async () => {
+        if (!canvas?.ready) return;
+        const mk = (name) => Actor.create({ name, type: "character", system: {
+          willpower: { base: 5 }, magic: { type: "full_magician", value: 6, max: 6 } } });
+        caster = await mk("Quench SD Caster"); ally = await mk("Quench SD Ally");
+        victim = await Actor.create({ name: "Quench SD Victim", type: "npc", system: { willpower: { base: 3 } } });
+        const pack = game.packs.get("sr2e.spells");
+        const idx = await pack.getIndex();
+        const doc = (await pack.getDocument(idx.find(e => e.name === "Mana Bolt")._id)).toObject();
+        [spell] = await caster.createEmbeddedDocuments("Item", [doc]);
+        await caster.createEmbeddedDocuments("Item", [{ name: "Sorcery", type: "skill", system: { rating: 6, category: "active" } }]);
+        const g = canvas.dimensions.size;
+        victimTok = (await canvas.scene.createEmbeddedDocuments("Token", [{
+          ...(await victim.getTokenDocument()).toObject(), actorLink: true,
+          x: canvas.dimensions.sceneX + 70 * g, y: canvas.dimensions.sceneY + 20 * g }]))[0];
+        made.tokens.push(victimTok.id);
+        await settle();
+      });
+      after(async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        await new Promise(r => setTimeout(r, 1500));
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));
+      });
+
+      it("an ally grants 2 of 5: the ally keeps 3, and the victim rolls +2 in the ally's name", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        await setDefense(ally, 5);
+        const card = await cast();
+        const castTestId = card.flags.sr2e.spell.testMessageId;
+        const n0 = game.messages.size;
+        assert.isTrue(await game.sr2e.grantSpellDefense(ally, { castTestId, targetActorUuid: victim.uuid, targetName: victim.name, n: 2 }));
+        since(n0);
+        assert.equal(ally.system.dicePools.spellDefense, 3, "the rest stays in reserve");
+        const out = await resist(card, [1, 1, 1, 1, 1], app => app.element.querySelector('button[data-action="roll"]').click());
+        assert.include(label(out), "+2 Spell Defense (Quench SD Ally)");
+        const marker = out.find(m => m.flags?.sr2e?.resolvesAttack);
+        assert.ok(marker, "a public resolution record");
+        assert.lengthOf(marker.flags.sr2e.usedGrants, 1);
+        // Too late now.
+        assert.isFalse(await game.sr2e.grantSpellDefense(ally, { castTestId, targetActorUuid: victim.uuid, n: 1 }));
+        assert.equal(ally.system.dicePools.spellDefense, 3, "a refused grant spends nothing");
+      });
+
+      it("a grant for another attack or another target is ignored", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        await setDefense(ally, 4);
+        const card = await cast();
+        const n0 = game.messages.size;
+        await game.sr2e.grantSpellDefense(ally, { castTestId: "someOtherCast", targetActorUuid: victim.uuid, n: 1 });
+        await game.sr2e.grantSpellDefense(ally, { castTestId: card.flags.sr2e.spell.testMessageId, targetActorUuid: caster.uuid, n: 1 });
+        since(n0);
+        const out = await resist(card, [1, 1, 1]);
+        assert.notInclude(label(out), "Spell Defense");
+      });
+
+      it("Shielding-only dice can be granted; parallel grants never exceed the balance", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        await setDefense(ally, 0, 3);
+        const card = await cast();
+        const castTestId = card.flags.sr2e.spell.testMessageId;
+        const n0 = game.messages.size;
+        await Promise.all([
+          game.sr2e.grantSpellDefense(ally, { castTestId, targetActorUuid: victim.uuid, n: 2 }),
+          game.sr2e.grantSpellDefense(ally, { castTestId, targetActorUuid: victim.uuid, n: 2 })]);
+        const grants = since(n0).filter(m => m.flags?.sr2e?.spellDefenseGrant);
+        const total = grants.reduce((t, m) => t + m.flags.sr2e.spellDefenseGrant.n, 0);
+        assert.equal(total, 3, "2 + the 1 left, never 4");
+        assert.equal(ally.system.dicePools.shieldingBonus, 0);
+      });
+
+      it("a magician's own dice are no longer auto-spent, and a cancelled resist spends nothing", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const card = await cast();
+        const selfCard = { ...card.flags.sr2e.spell, targetUuid: ally.uuid };
+        const m2 = await ChatMessage.create({ content: "Quench SD self", flags: { sr2e: { spell: selfCard } } });
+        made.messages.push(m2.id);
+        await setDefense(ally, 3);
+        // Cancel.
+        nextDialog().then(app => app.element.querySelector('button[data-action="cancel"]').click());
+        await ally.rollSpellResistance(m2);
+        assert.equal(ally.system.dicePools.spellDefense, 3, "cancelled: nothing spent");
+        // Resist keeping all of it in reserve.
+        nextDialog().then(app => { app.element.querySelector('input[name="own"]').value = "0";
+          app.element.querySelector('button[data-action="roll"]').click(); });
+        const n = game.messages.size;
+        await withFaces([1, 1, 1, 1, 1], () => ally.rollSpellResistance(m2));
+        await settle();
+        since(n);
+        assert.equal(ally.system.dicePools.spellDefense, 3, "held in reserve (p.132)");
+      });
+
+      it("a card resolved by anyone (marker) cannot be resisted again", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const card = await cast();
+        const mk = await ChatMessage.create({ content: "Quench SD marker", flags: { sr2e: { resolves: card.id } } });
+        made.messages.push(mk.id);
+        const out = await resist(card, [1, 1, 1]);
+        assert.lengthOf(out.filter(m => m.flags?.sr2e?.test), 0, "refused");
+      });
+    }, { displayName: "SR2E: Spell Defense for Allies" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];
@@ -5784,6 +5926,8 @@ export function registerSR2EQuenchTests() {
           const state = { casterUuid: "x", casterName: "Foe", spellName: "Manabolt", targetUuid: mage.uuid,
             force: 3, successes: 1, resistAttr: "willpower", baseLevel: "S", dmgType: "physical", resolved: false };
           const card = await ChatMessage.create({ content: "resist", flags: { sr2e: { spell: state } } });
+          // A magician resisting now chooses what to spend (p.132): take the defaults.
+          Hooks.once("renderDialogV2", app => setTimeout(() => app.element.querySelector('button[data-action="roll"]')?.click(), 50));
           await mage.rollSpellResistance(card);
           const test = game.messages.contents.filter(m => /Resist Manabolt/.test(m.flags?.sr2e?.test?.label ?? "")).at(-1);
           assert.lengthOf(test.flags.sr2e.test.dice, 7, "Willpower 5 + 2 aid");
