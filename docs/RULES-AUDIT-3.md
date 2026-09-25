@@ -63,10 +63,10 @@ p.97: roll 1D6 on the Scatter Diagram relative to the direction of throw (1 =
 carried on past the target, 4 = bounced back toward the thrower, 2/3/5/6 the
 diagonals). `resolveBlast` picks a uniformly random angle.
 
-### C7 — Melee 0 vs 0 (question for the GM)
+### C7 — Melee 0 vs 0 — ✅ CONFIRMED by the GM (2026-09-25): the attacker wins at base damage
 p.100/102: "The one who generates the most successes has hit… Ties go to the
 attacker." Read literally, a 0–0 exchange is a hit at base damage, which is what
-the code does. Flagged rather than changed.
+the code does. The GM confirmed that reading; no change.
 
 ### C8 — Karma on a ranged attack never reaches its damage card (med) — ✅ FIXED (PLAN-karma-damage-sync.md)
 The damage card is static: Karma rerolls or bought successes after it posts do
