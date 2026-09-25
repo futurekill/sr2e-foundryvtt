@@ -41,7 +41,7 @@ taken a Moderate wound must generate **more than 2** successes"; "with 1 or 2
 successes, the character staggers". `knockdownOutcome` passes on
 `successes >= threshold`. Should be `>`.
 
-### C3 — Short bursts refuse instead of resolving (med)
+### C3 — Short bursts refuse instead of resolving (med) — ✅ FIXED (`burstFired`; spreads now get burst bonuses too)
 p.92: a burst one round short gets +2 Power, no Damage Level increase, and the
 +2 recoil still applies; a one-round burst resolves as a single shot. p.93:
 full auto that runs short follows the same rule. `item.mjs` refuses the attack

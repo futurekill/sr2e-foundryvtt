@@ -321,6 +321,25 @@ export function burstRounds(firingMode, declared) {
 }
 
 /**
+ * What a burst actually fires when the clip runs short (SR2E p.92 "Short
+ * Bursts"; p.93 sends a short full-auto burst to the same rule). Every round
+ * left goes out: a 2-round burst gets +2 Power, no Damage Level step
+ * (`burstDamageBonus(2)` already gives exactly that) and +2 recoil; a lone
+ * round "resolves just as for a single-shot attack". Tracked ammo only — pass
+ * `available = Infinity` for weapons that do not count rounds.
+ * @param {"ss"|"sa"|"bf"|"fa"} firingMode
+ * @param {number} rounds    - rounds the full burst would fire (burstRounds)
+ * @param {number} available - rounds left in the weapon (> 0)
+ * @returns {{rounds:number, isBurst:boolean, short:boolean}}
+ */
+export function burstFired(firingMode, rounds, available) {
+  const isBurst = firingMode === "bf" || firingMode === "fa";
+  if (!isBurst) return { rounds, isBurst: false, short: false };
+  const fired = Math.max(1, Math.min(rounds, available));
+  return { rounds: fired, isBurst: fired > 1, short: fired < rounds };
+}
+
+/**
  * Recoil penalty (SR2E p.93): +1 TN per uncompensated round fired this Action
  * Phase. A burst's own rounds count toward its recoil (firearms/heavy only);
  * recoil compensation cancels rounds one-for-one.

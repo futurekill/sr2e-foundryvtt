@@ -91,6 +91,11 @@ and any **red console errors**. File them wherever the group tracks issues
       difficult ground); target Stationary −1 / Running +2; firing while engaged
       in melee +2 **per opponent**.
 
+- [ ] **Short bursts (p.92):** load 2 rounds, fire BF → fires both, card shows
+      Power +2 and no level step, recoil +2, label says "short burst". Load 1 →
+      resolved as a single shot. A shot-round spread fired in BF carries +3 Power
+      and +1 level on its launcher.
+
 ## 4a. Weapon accessories (v0.26.0, SR2E p.240–241)
 - [ ] **Attach/detach/transfer:** buy a Bipod, attach it to an HK227 via the gear-tab
       dropdown, then detach it and attach it to a different weapon — both directions

@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { burstFired, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
@@ -830,9 +830,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     function currentRecoil() {
       if (!isRanged || !hasRecoil) return 0;
       const mode  = modeSelect?.value ?? "sa";
-      const burst = mode === "bf" ? 3
+      const full  = mode === "bf" ? 3
                   : mode === "fa" ? Math.min(10, Math.max(3, parseInt(roundsInput?.value) || 3))
                   : 0;
+      // A short clip fires what is left (p.92): 2 rounds recoil +2, 1 is a single shot.
+      const ammo  = weapon.system.ammo;
+      const fired = full && ammo?.max > 0 ? burstFired(mode, full, Math.max(1, ammo.current)) : null;
+      const burst = !full ? 0 : fired ? (fired.isBurst ? fired.rounds : 0) : full;
       const net = Math.max(0, liveShotsFired + burst - currentRecoilComp());
       // Heavy weapons/shotguns double uncompensated recoil (p.89-90)
       return heavyRecoil ? net * 2 : net;

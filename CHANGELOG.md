@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed — short bursts fire instead of refusing (SR2E p.92–93)
+
+A burst or full-auto burst the clip could not fill used to be refused ("not
+enough for a 3-round burst"). It now fires whatever is left: **two rounds** are
+a short burst (+2 Power, no Damage Level step, +2 recoil), and **one round** is
+resolved as a single shot. The attack dialog's recoil preview follows the clip,
+and the test card names the short burst.
+
+Shotgun **shot-round spreads** fired in burst now get the burst's Power and Damage
+Level bonuses too. The spread card used to drop them, full burst or short.
+
 ### Fixed — damage stages on NET successes (SR2E p.91, p.97, p.108, p.130)
 
 Ranged damage was staged twice, independently: the attack card raised the level

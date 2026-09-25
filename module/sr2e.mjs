@@ -2013,7 +2013,7 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
  * @param {number} o.attackerSuccesses
  * @param {string} o.weaponName
  */
-async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName, netStaging = false, calledShot = false }) {
+async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName, netStaging = false, calledShot = false, ratedLevel = "" }) {
   if (!canvas?.ready) return ui.notifications.warn("No active scene for the shot spread.");
   const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : canvas.tokens.controlled[0];
   const targetTok  = (targetTokenUuid ? (await fromUuid(targetTokenUuid))?.object : null) ?? game.user?.targets?.first?.();
@@ -2046,7 +2046,7 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
     ? stages[Math.min(baseIdx + (calledShot ? CALLED_SHOT_STEPS : 0), 3)]
     : stages[Math.min(baseIdx + netToSteps(attackerSuccesses || 0), 3)];
   const netAttrs = netStaging
-    ? `data-stage="net" data-stage-vs="${attackerSuccesses || 0}" data-rated-level="${baseLevel || "M"}" data-called-shot="${calledShot ? 1 : 0}"`
+    ? `data-stage="net" data-stage-vs="${attackerSuccesses || 0}" data-rated-level="${ratedLevel || baseLevel || "M"}" data-called-shot="${calledShot ? 1 : 0}"`
     : "";
   const stun = damageType === "stun";
   const norm = (deg) => ((deg % 360) + 540) % 360 - 180; // → [-180,180]
@@ -2249,7 +2249,8 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         attackerSuccesses: parseInt(btn.dataset.attackerSuccesses) || 0,
         weaponName:        btn.dataset.weaponName || "Shotgun",
         netStaging:        btn.dataset.stage === "net",
-        calledShot:        btn.dataset.calledShot === "1"
+        calledShot:        btn.dataset.calledShot === "1",
+        ratedLevel:        btn.dataset.ratedLevel || ""
       });
     });
   });

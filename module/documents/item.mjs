@@ -1,7 +1,7 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { burstRounds, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, burstFired, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 
 // ---------------------------------------------------------------------------
@@ -622,6 +622,7 @@ export class SR2EItem extends Item {
     let hasRecoil  = false;
     let firingMode = "sa";
     let isBurst    = false;
+    let shortBurstNote = "";
     let rounds     = 1;     // rounds fired by this attack
 
     // Shotgun shot-round spread state (SR2E p.95) — measure shooter→target now,
@@ -684,12 +685,15 @@ export class SR2EItem extends Item {
         if (ammo.current <= 0) {
           return ui.notifications.warn(`${this.name} is out of ammunition.`);
         }
-        if (isBurst && ammo.current < rounds) {
-          // SR2E short-burst rules (p.93) are not automated — require a full burst.
-          return ui.notifications.warn(
-            `${this.name} has only ${ammo.current} round${ammo.current === 1 ? "" : "s"} left — not enough for a ${rounds}-round burst.`
-          );
+        // A clip that runs short fires what is left (p.92 Short Bursts): two
+        // rounds are a short burst, one is resolved as a single shot.
+        const fired = burstFired(firingMode, rounds, ammo.current);
+        if (fired.short) {
+          shortBurstNote = fired.isBurst
+            ? `short burst: ${fired.rounds} of ${rounds} rounds`
+            : `clip ran dry: 1 round, resolved as a single shot`;
         }
+        ({ rounds, isBurst } = fired);
       }
 
       // Weapon accessories attached to THIS weapon (SR2E p.240–241): recoil
@@ -787,6 +791,7 @@ export class SR2EItem extends Item {
       if (options.deployed && acc.needsDeployment.length)
         modParts.push(`${acc.needsDeployment.join("/")} deployed`);
       if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
+      if (shortBurstNote) modParts.unshift(shortBurstNote);
       const modeLabel = firingMode === "fa"
         ? `FA ${rounds} rounds`
         : firingMode.toUpperCase();
@@ -935,13 +940,20 @@ export class SR2EItem extends Item {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
       const safeName = foundry.utils.escapeHTML(this.name);
       const hits = result.successes;
+      // A burst of shot is still a burst (p.92): +1 Power per round, +1 level per
+      // 3 full rounds — including a short one. The printed level is kept apart
+      // for the vehicle "rated Light" check (p.108).
+      const spreadBurst = isBurst ? burstDamageBonus(rounds) : { powerBonus: 0, levelSteps: 0 };
+      const spreadPower = dmg.power + spreadBurst.powerBonus;
+      const spreadLevel = ["L", "M", "S", "D"][Math.min(3, ["L", "M", "S", "D"].indexOf(dmg.level) + spreadBurst.levelSteps)];
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result">
           <strong>${safeName}</strong> — shot rounds (choke ${this.system.choke}), ${hits > 0 ? `${hits} success${hits === 1 ? "" : "es"}` : "<em>miss</em>"} at ${spreadDist} m.
           <br>
           <button class="sr2e-spread-btn"
-                  data-base-power="${dmg.power}" data-base-level="${dmg.level}"
+                  data-base-power="${spreadPower}" data-base-level="${spreadLevel}"
+                  data-rated-level="${dmg.level}"
                   data-damage-type="${this.system.damageType || "physical"}"
                   data-choke="${this.system.choke}"
                   data-attacker-successes="${hits}"

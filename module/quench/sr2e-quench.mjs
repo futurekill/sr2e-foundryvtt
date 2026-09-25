@@ -305,6 +305,46 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Short bursts (SR2E p.92)", () => {
+        // Forced 5s beat TN 4; recoilComp 3 cancels the burst's own recoil.
+        const fire = async (name, current) => {
+          actor = await mkActor(name);
+          await actor.createEmbeddedDocuments("Item", [
+            { name: "Firearms", type: "skill", system: { rating: 6, category: "active" } }]);
+          const [gun] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test SMG", type: "weapon",
+            system: { weaponType: "firearm", skill: "firearms", damageCode: "5M", recoilComp: 3,
+                      firingModes: { sa: true, bf: true }, ammo: { current, max: 30 } } }]);
+          const n = game.messages.size;
+          const orig = CONFIG.Dice.randomUniform;
+          CONFIG.Dice.randomUniform = () => 0.2;   // every die a 5
+          try { await gun.roll({ firingMode: "bf", rounds: 3 }); }
+          finally { CONFIG.Dice.randomUniform = orig; }
+          const msgs = game.messages.contents.slice(n);
+          const btn = msgs.map(m => new DOMParser().parseFromString(m.content, "text/html")
+            .querySelector("button.sr2e-resist-btn[data-power]")).find(Boolean);
+          const test = msgs.find(m => m.flags?.sr2e?.test);
+          await ChatMessage.deleteDocuments(msgs.map(m => m.id));
+          return { gun, btn, test };
+        };
+
+        it("fires the two rounds left: +2 Power, no level step", async () => {
+          const { gun, btn, test } = await fire("Quench ShortBurst2", 2);
+          assert.equal(gun.system.ammo.current, 0, "both rounds went out");
+          assert.ok(btn, "the burst was resolved, not refused");
+          assert.equal(btn.dataset.power, "7", "5 + 2 for a 2-round short burst");
+          assert.equal(btn.dataset.level, "M", "a short burst does not raise the Damage Level");
+          assert.include(test.flags.sr2e.test.label, "short burst");
+        });
+
+        it("resolves a lone round as a single shot", async () => {
+          const { gun, btn } = await fire("Quench ShortBurst1", 1);
+          assert.equal(gun.system.ammo.current, 0);
+          assert.equal(btn.dataset.power, "5", "no burst bonus on one round");
+          assert.equal(btn.dataset.level, "M");
+        });
+      });
+
       describe("Take Aim (SR2E p.82)", () => {
         it("aborts a multi-phase aim that also asks for pool dice", async () => {
           actor = await mkActor("Quench Aim");
