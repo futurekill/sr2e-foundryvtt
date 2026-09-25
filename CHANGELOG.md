@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added — melee visibility, and the defender starts from the attacker's modifiers (SR2E p.101–102)
+
+- The melee attack dialog has a **Visibility** choice. Melee uses the Visibility
+  Table "at half their value, rounding down, except for Full Darkness": +1, +2, +3,
+  or a full +8 in the dark. A smoke cloud's automatic visibility is pre-selected
+  at the halved value.
+- The defender makes their test "with the same situation modifiers". Their
+  Defend dialog now starts with the attacker's visibility and the **mirror** of
+  the attacker's reach modifier: if your sword out-reaches their knife by one,
+  you are −1 and they are +1. Both stay editable.
+
 ### Added — multiple targets and walking fire (SR2E p.92–93)
 
 Firing at more than one target in the same Combat Phase now costs what the book

@@ -901,3 +901,13 @@ describe("Skill Web defaulting algorithm (SR2E p.68–69)", () => {
     expect(webDefaultingTN(web, "unreachable", ["firearms"])).toBeNull();
   });
 });
+
+import { meleeVisibilityMod } from "../module/rules/sr2e-rules.mjs";
+describe("meleeVisibilityMod (SR2E p.102)", () => {
+  it("halves the Visibility Table, rounding down", () => {
+    expect([0, 2, 4, 6].map(meleeVisibilityMod)).toEqual([0, 1, 2, 3]);
+  });
+  it("except Full Darkness, which stays +8", () => {
+    expect(meleeVisibilityMod(8)).toBe(8);
+  });
+});

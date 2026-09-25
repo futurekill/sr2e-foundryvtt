@@ -666,9 +666,11 @@ export class SR2EItem extends Item {
       const friendsMod  = options.friendsMod  ?? 0;   // −1/ally, +1/enemy ally (±4)
       const positionMod = options.positionMod ?? 0;   // superior position −1, prone foe −2
       const multiMod    = options.multiMod    ?? 0;   // +2 per additional target
+      // Visibility at half value, rounded down, except Full Darkness (p.102).
+      const meleeVisMod = [0, 1, 2, 3, 8].includes(options.meleeVisMod) ? options.meleeVisMod : 0;
 
       targetNumber = Math.max(2,
-        BASE_TN + reachMod + friendsMod + positionMod + multiMod + otherMod
+        BASE_TN + reachMod + friendsMod + positionMod + multiMod + meleeVisMod + otherMod
                 + defaultingPenalty
       );
 
@@ -679,6 +681,7 @@ export class SR2EItem extends Item {
       if (friendsMod)      modParts.push(`friends ${friendsMod > 0 ? "+" : ""}${friendsMod}`);
       if (positionMod)     modParts.push(`position ${positionMod}`);
       if (multiMod)        modParts.push(`multiple targets +${multiMod}`);
+      if (meleeVisMod)     modParts.push(`visibility +${meleeVisMod}`);
       if (otherMod)        modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
       label = `${this.name} [Melee Attack]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
 
@@ -952,6 +955,10 @@ export class SR2EItem extends Item {
         successes: result.successes,
         // Lets a later Karma spend find and correct this card.
         testMessageId: result.testMessageId,
+        // The defender's test uses "the same situation modifiers" (p.102):
+        // their dialog is pre-filled from these (reach mirrored, p.101).
+        reachMod: options.reachMod ?? 0,
+        meleeVisMod: [0, 1, 2, 3, 8].includes(options.meleeVisMod) ? options.meleeVisMod : 0,
         power,
         level,
         damageType,

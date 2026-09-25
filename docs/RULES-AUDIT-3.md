@@ -53,7 +53,7 @@ p.92: semi-auto and burst fire at a second target in the same Combat Phase is
 +2. p.93: full auto walked between targets is +2 per new target, and wastes one
 round per metre between them. Melee has this (`multiMod`); ranged does not.
 
-### C5 — Melee dialog has no visibility modifier (low)
+### C5 — Melee dialog has no visibility modifier (low) — ✅ FIXED (visibility select, halved; defender pre-filled)
 p.102: melee uses the Visibility Table "at half their value, rounding down,
 except for Full Darkness". The melee TN omits visibility entirely. The defender
 also types their own Reach modifier rather than it mirroring the attacker's.

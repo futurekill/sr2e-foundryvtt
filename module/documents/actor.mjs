@@ -15,7 +15,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, allocateKarmaSpend, stageByNet } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1382,13 +1382,20 @@ export class SR2EActor extends Actor {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
           <div class="form-group" style="margin:2px 0;">
             <label>Reach Mod:</label>
-            <input type="number" name="reachMod" value="0" style="width:52px;text-align:center;"
-                   title="Your weapon longer: −1/point. Shorter: +1/point. (SR2E p.101)">
+            <input type="number" name="reachMod" value="${-(Number(state.reachMod) || 0)}" style="width:52px;text-align:center;"
+                   title="Your weapon longer: −1/point. Shorter: +1/point. (SR2E p.101) Pre-filled as the mirror of the attacker's reach modifier.">
+          </div>
+          <div class="form-group" style="margin:2px 0;">
+            <label>Visibility:</label>
+            <select name="meleeVis" title="Same visibility as the attacker, at half value except Full Darkness (SR2E p.102)">
+              ${MELEE_VISIBILITY.map(([v, l]) =>
+                `<option value="${v}" ${v === (Number(state.meleeVisMod) || 0) ? "selected" : ""}>${l}</option>`).join("")}
+            </select>
           </div>
           <div class="form-group" style="margin:2px 0;">
             <label>Other Mod:</label>
             <input type="number" name="otherMod" value="0" style="width:52px;text-align:center;"
-                   title="Friends in melee −1 each (max −4), foe's friends +1 each, superior position −1, visibility, etc.">
+                   title="Friends in melee −1 each (max −4), foe's friends +1 each, superior position −1, etc.">
           </div>
         </div>
         ${combatAvail > 0 ? `
@@ -1425,6 +1432,7 @@ export class SR2EActor extends Actor {
             choice = {
               weaponId:  f.weapon?.value || null,
               reachMod:  parseInt(f.reachMod?.value) || 0,
+              meleeVis:  MELEE_VISIBILITY.some(([v]) => v === parseInt(f.meleeVis?.value)) ? parseInt(f.meleeVis.value) : 0,
               otherMod:  parseInt(f.otherMod?.value) || 0,
               // Full Defense (p.103) bars Combat Pool from this Attack Success
               // Test — the dice are saved for the Damage Resistance Test, which
@@ -1479,11 +1487,11 @@ export class SR2EActor extends Actor {
       }
     }
 
-    const tn = Math.max(2, 4 + choice.reachMod + choice.otherMod + defaultingPenalty);
+    const tn = Math.max(2, 4 + choice.reachMod + choice.meleeVis + choice.otherMod + defaultingPenalty);
     const defWeaponName = weapon ? weapon.name : "Unarmed";
 
     const defense = await this.rollSuccessTest(dice, tn, {
-      label: `Defend vs ${state.attackerName} — ${defWeaponName}${defaultingNote} TN ${tn}`,
+      label: `Defend vs ${state.attackerName} — ${defWeaponName}${defaultingNote}${choice.meleeVis ? `, visibility +${choice.meleeVis}` : ""} TN ${tn}`,
       poolDice: choice.poolDice > 0 ? { combat: choice.poolDice } : {},
       karmaDice: choice.karmaDice,
       miscDice: choice.miscDice, miscLabel: choice.miscLabel

@@ -1,5 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
-import { burstFired, rangedEngagement, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { burstFired, rangedEngagement, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
@@ -828,6 +828,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     const friendsRow  = root.querySelector("#sr2e-friends-row");
     const positionRow = root.querySelector("#sr2e-position-row");
     const multiRow    = root.querySelector("#sr2e-multi-row");
+    const meleeVisSelect = root.querySelector("#sr2e-melee-vis");
+    const meleeVisRow    = root.querySelector("#sr2e-melee-vis-row");
+    const meleeVisVal    = root.querySelector("#sr2e-melee-vis-val");
     const finalTnSpan = root.querySelector("#sr2e-final-tn");
 
     // Live recoil state — rounds already fired this phase (zeroed by the
@@ -943,6 +946,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         const frMod  = foes - allies;
         const posMod = (supPosCheck?.checked ? -1 : 0) + (proneCheck?.checked ? -2 : 0);
         const muMod  = 2 * Math.max(0, parseInt(multiInput?.value) || 0);
+        const mvMod  = parseInt(meleeVisSelect?.value) || 0;   // already halved (p.102)
+        if (meleeVisRow) meleeVisRow.style.display = mvMod !== 0 ? "" : "none";
+        if (meleeVisVal) meleeVisVal.textContent   = fmt(mvMod);
         if (reachModSpan)    reachModSpan.textContent    = fmt(rchMod);
         if (friendsModSpan)  friendsModSpan.textContent  = fmt(frMod);
         if (positionModSpan) positionModSpan.textContent = fmt(posMod);
@@ -951,7 +957,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (friendsRow)  friendsRow.style.display  = frMod  !== 0 ? "" : "none";
         if (positionRow) positionRow.style.display = posMod !== 0 ? "" : "none";
         if (multiRow)    multiRow.style.display    = muMod  !== 0 ? "" : "none";
-        finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + oMod
+        finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + mvMod + oMod
                                       + woundPenalty + sustainPenalty + defaultingPenalty);
       }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
@@ -1018,7 +1024,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
     const allInputs = [rangeSelect, coverSelect, meleeCheck, modeSelect, roundsInput,
                        attackerSelect, targetSelect, otherInput, reachInput,
-                       alliesInput, foesInput, supPosCheck, proneCheck, multiInput,
+                       alliesInput, foesInput, supPosCheck, proneCheck, multiInput, meleeVisSelect,
                        deployedCheck, root.querySelector("#sr2e-visibility")].filter(Boolean);
     for (const el of allInputs) {
       el.addEventListener(el.type === "checkbox" ? "change" : "input", updateTN);
@@ -1128,6 +1134,15 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
         <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical">
       </div>` : ""}
       <div class="sr2e-attack__field">
+        <label title="Visibility Table (p.89) at HALF value, rounded down, except Full Darkness (SR2E p.102)">Visibility:</label>
+        <select id="sr2e-melee-vis" name="meleeVis">
+          ${MELEE_VISIBILITY.map(([v, l]) => {
+            const auto = meleeVisibilityMod(presets.visMod ?? 0);
+            return `<option value="${v}" ${auto === v ? "selected" : ""}>${l}${auto === v && v ? " — auto" : ""}</option>`;
+          }).join("")}
+        </select>
+      </div>
+      <div class="sr2e-attack__field">
         <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
                value="0"
@@ -1226,6 +1241,10 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
     <tr id="sr2e-position-row" style="display:none;">
       <td style="color:#aaa1c0;padding:1px 0;">Position:</td>
       <td id="sr2e-position-mod-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
+    <tr id="sr2e-melee-vis-row" style="display:none;">
+      <td style="color:#aaa1c0;padding:1px 0;" title="SR2E p.102: half value, except Full Darkness">Visibility (melee):</td>
+      <td id="sr2e-melee-vis-val" style="text-align:right;padding:1px 0;">+0</td>
     </tr>
     <tr id="sr2e-multi-row" style="display:none;">
       <td style="color:#aaa1c0;padding:1px 0;">Multiple targets:</td>
@@ -1426,6 +1445,8 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
                            - Math.min(4, Math.max(0, parseInt(f.allies?.value) || 0)),
             positionMod:     (f.supPos?.checked ? -1 : 0) + (f.prone?.checked ? -2 : 0),
             multiMod:        2 * Math.max(0, parseInt(f.multiTargets?.value) || 0),
+            // The select's values ARE the melee modifiers (halved, p.102).
+            meleeVisMod:     MELEE_VISIBILITY.some(([v]) => v === parseInt(f.meleeVis?.value)) ? parseInt(f.meleeVis.value) : 0,
             killingHands:    f.killingHands?.checked ? killingHands : "",
             boneLacingPhysical: !!f.boneLacingPhysical?.checked,
             shotSpread:      !!f.shotSpread?.checked,

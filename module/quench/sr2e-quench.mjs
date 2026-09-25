@@ -345,6 +345,36 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Melee visibility and the defender's modifiers (SR2E p.101–102)", () => {
+        it("adds half-value visibility to the attack and hands reach + visibility to the defender", async () => {
+          actor = await mkActor("Quench MeleeVis");
+          const [blade] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Sword", type: "weapon",
+            system: { weaponType: "melee", skill: "armed combat", damageCode: "(Str+2)M", equipped: true } }]);
+          const n = game.messages.size;
+          await blade.roll({ meleeVisMod: 3, reachMod: -1 });
+          const msgs = game.messages.contents.slice(n);
+          const test = msgs.find(m => m.flags?.sr2e?.test);
+          const card = msgs.find(m => m.flags?.sr2e?.melee);
+          await ChatMessage.deleteDocuments(msgs.map(m => m.id));
+          assert.include(test.flags.sr2e.test.label, "visibility +3");
+          assert.include(card.flags.sr2e.melee, { reachMod: -1, meleeVisMod: 3 });
+        });
+
+        it("ignores a visibility value that is not on the halved table", async () => {
+          actor = await mkActor("Quench MeleeVisBad");
+          const [blade] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Test Sword", type: "weapon",
+            system: { weaponType: "melee", skill: "armed combat", damageCode: "(Str+2)M", equipped: true } }]);
+          const n = game.messages.size;
+          await blade.roll({ meleeVisMod: 6 });   // a RANGED value — not a melee one
+          const msgs = game.messages.contents.slice(n);
+          const test = msgs.find(m => m.flags?.sr2e?.test);
+          await ChatMessage.deleteDocuments(msgs.map(m => m.id));
+          assert.notInclude(test.flags.sr2e.test.label, "visibility");
+        });
+      });
+
       describe("Take Aim (SR2E p.82)", () => {
         it("aborts a multi-phase aim that also asks for pool dice", async () => {
           actor = await mkActor("Quench Aim");

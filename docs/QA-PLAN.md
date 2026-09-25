@@ -135,6 +135,10 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] A winning defender **strikes back** (riposte) with their own weapon.
 - [ ] **Undefended:** attacker's successes stage damage directly.
 
+- [ ] **Melee visibility (p.102):** pick "Minimal Light" in the melee dialog → TN +3
+      (half of +6); "Full Darkness" → +8. The defender's Defend dialog opens with the
+      same visibility and the mirrored reach (attacker −1 → defender +1).
+
 ## 6. Damage resistance & staging
 - [ ] **Net staging (p.91, v0.99):** a ranged attack card shows the weapon's own
       level (+ burst / called shot) and the attacker's successes, not a final code.

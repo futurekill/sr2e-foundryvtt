@@ -339,6 +339,22 @@ export function burstFired(firingMode, rounds, available) {
   return { rounds: fired, isBurst: fired > 1, short: fired < rounds };
 }
 
+/**
+ * Melee visibility (SR2E p.102): the Visibility Table (p.89) "at half their value,
+ * rounding down, except for Full Darkness" — which stays +8. Takes the ranged
+ * table's normal-vision value (0/2/4/6/8, where 8 is Full Darkness).
+ */
+export function meleeVisibilityMod(rangedValue) {
+  const v = Math.max(0, Math.floor(Number(rangedValue) || 0));
+  return v >= 8 ? 8 : Math.floor(v / 2);
+}
+
+/** Melee visibility choices, value = the melee modifier (p.102). */
+export const MELEE_VISIBILITY = Object.freeze([
+  [0, "Clear"], [1, "Partial Light / Glare / Mist (+1, half)"], [2, "Light Smoke/Fog/Rain (+2, half)"],
+  [3, "Minimal Light / Heavy Smoke (+3, half)"], [8, "Full Darkness (+8, not halved)"]
+]);
+
 /** A finite, non-negative integer, or `fallback`. */
 function nonNegInt(v, fallback = 0) {
   const n = Number(v);
