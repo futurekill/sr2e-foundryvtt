@@ -212,7 +212,7 @@ export async function startRitual(spell) {
   const rows = candidates.map(a => `<tr><td><label><input type="checkbox" name="m_${a.id}"> ${esc(a.name)}</label></td>
     <td><input type="number" name="c_${a.id}" value="${magicPool(a)}" min="0" max="${magicPool(a)}" style="width:4em"></td>
     <td><input type="radio" name="guide" value="${a.id}"></td></tr>`).join("");
-  const content = `<form class="sr2e-ritual-start">
+  const content = `<div class="sr2e-ritual-start">
     <p><strong>${esc(spell.name)}</strong> led by ${esc(leader.name)} (Ritual Sorcery ${ritualSkill(leader)}).</p>
     <label>Force <input type="number" name="force" value="${learned}" min="1" style="width:4em"></label>
     <label>Leader's Magic Pool dice <input type="number" name="leaderC" value="${magicPool(leader)}" min="0" max="${magicPool(leader)}" style="width:4em"></label>
@@ -226,7 +226,7 @@ export async function startRitual(spell) {
     <br><label><input type="checkbox" name="inSight"> Target in sight or astrally observed (no link, p.136)</label>
     <br><label><input type="checkbox" name="lodge"> ${leader.system.magic?.tradition === "shamanic" ? "Medicine lodge" : "Hermetic circle"} rated at least the Force is ready (p.133)</label>
     <p><em>Materials: ${esc(spell.system.category)} costs ${(ritualMaterialsCost(spell.system.category, 1) ?? 0).toLocaleString()}¥ × Force, used up whatever happens.</em></p>
-  </form>`;
+  </div>`;
   const data = await foundry.applications.api.DialogV2.prompt({
     window: { title: "Ritual Sorcery (SR2E p.133)" }, content, rejectClose: false,
     ok: { label: "Start", callback: (ev, button) => new foundry.applications.ux.FormDataExtended(button.form).object }
@@ -286,7 +286,7 @@ export async function createRitual({ leader, spell, force, members, subject, inS
 // ── Actions ────────────────────────────────────────────────────────────────
 
 async function form(title, content, label = "Roll") {
-  return foundry.applications.api.DialogV2.prompt({ window: { title }, content: `<form>${content}</form>`, rejectClose: false,
+  return foundry.applications.api.DialogV2.prompt({ window: { title }, content, rejectClose: false,
     ok: { label, callback: (ev, b) => new foundry.applications.ux.FormDataExtended(b.form).object } });
 }
 
