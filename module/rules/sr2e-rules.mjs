@@ -1827,7 +1827,8 @@ export function attributeEdgeViolations(qualities = []) {
  * @returns {number}
  */
 export function chargenItemCost(i, ctx = {}) {
-  if (i?.type === "ammo") {
+  // Ammo and drug packs (a six-dose inhaler) are priced per package, not per unit.
+  if (i?.type === "ammo" || i?.drug) {
     return (typeof i.acquiredListValue === "number") ? i.acquiredListValue : itemBaseCost(i, ctx);
   }
   return itemBaseCost(i, ctx) * (i?.quantity ?? 1);
@@ -4309,4 +4310,29 @@ export function spiritServiceStatus({ departed = false, conjurerUuid = "", fight
   if (fighting || service || pendingExpire) return "engaged";
   if (!(services > 0)) return "bondEnded";
   return "bound";
+}
+
+// ── Drugs and toxins (Shadowtech p.85–100) ──────────────────────────────────
+
+/**
+ * A drug's duration after its roll: `{minutes: "10*1d6"}` is rolled by the
+ * caller (`rolled`); `{minutes|turns: base, bodyReducesBy}` loses that much per
+ * Body success, never below 0. Returns `{minutes}`, `{turns}` or null.
+ */
+export function drugDuration(spec, { rolled = null, successes = 0 } = {}) {
+  if (!spec) return null;
+  if (typeof spec.minutes === "string") return { minutes: Math.max(0, Number(rolled) || 0) };
+  const cut = (Number(spec.bodyReducesBy) || 0) * Math.max(0, Number(successes) || 0);
+  if (Number.isFinite(spec.minutes)) return { minutes: Math.max(0, spec.minutes - cut) };
+  if (Number.isFinite(spec.turns)) return { turns: Math.max(0, spec.turns - cut) };
+  return null;
+}
+
+/**
+ * A toxin resisted by Body: every 2 successes stage the level down one (SR2E
+ * p.112). Returns the final level, or null when fully resisted.
+ */
+export function toxinLevel(level, successes) {
+  const idx = DAMAGE_LEVELS.indexOf(level) - Math.floor(Math.max(0, successes) / 2);
+  return idx >= 0 ? DAMAGE_LEVELS[idx] : null;
 }

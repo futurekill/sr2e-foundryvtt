@@ -173,6 +173,7 @@
               <i class="fas {{#if g.system.deck.active}}fa-bolt{{else}}fa-power-off{{/if}}"></i>
             </a>
             {{/ifEquals}}
+            {{#if g.flags.sr2e.drug}}<a data-action="useDose" title="Use a dose (Shadowtech)"><i class="fas fa-syringe"></i></a>{{/if}}
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="Equip/Unequip">
               <i class="fas {{#if g.system.equipped}}fa-check-circle{{else}}fa-circle{{/if}}"></i>
@@ -184,6 +185,24 @@
         {{/each}}
       </div>
     </div>
+
+    {{#if activeDrugs.length}}
+    <div class="gear-category sr2e-active-drugs">
+      <div class="category-header flexrow"><h3>Active drugs</h3></div>
+      <div class="item-list">
+        {{#each activeDrugs as |d|}}
+        <div class="item-row flexrow" data-effect-id="{{d.id}}">
+          <span class="item-name">{{d.name}}</span>
+          <span class="hint {{#if d.expired}}drug-expired{{/if}}">{{d.label}}</span>
+          <div class="item-controls">
+            <a data-action="repostDrugCard" title="Re-post its card (if it isn't in chat)"><i class="fas fa-comment-medical"></i></a>
+            <a data-action="endDrug" title="It has worn off — end its effects"><i class="fas fa-circle-xmark"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
 
     {{!-- Lifestyles --}}
     <div class="gear-category">

@@ -10,6 +10,7 @@ import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpd
 import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
 import { startRitual } from "../ritual.mjs";
+import { useDose, endDrug, repostCard } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
@@ -2758,9 +2759,10 @@ async function onSellItem(event, target) {
   // emptied box refunds nothing (no more selling a fired-out box for full price).
   // Everything else refunds the price paid, or street price if untracked.
   let price, note;
-  if (item.type === "ammo" && acquiredQuantity != null) {
+  const isDrug = item.type === "gear" && !!item.flags?.sr2e?.drug;
+  if ((item.type === "ammo" || isDrug) && acquiredQuantity != null) {
     price = proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: item.system.quantity ?? 0 });
-    note = ` (${item.system.quantity ?? 0}/${acquiredQuantity} rounds left — proportional refund)`;
+    note = ` (${item.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)`;
   } else {
     price = paid ?? streetPrice(Number(item.system.cost) || 0, item.system.streetIndex);
     note = paid != null ? " (refund of the price paid)" : " (street price)";
@@ -3465,6 +3467,22 @@ const SHARED_ACTIONS = {
   editItem: onEditItem,
   deleteItem: onDeleteItem,
   sellItem: onSellItem,
+  // Drugs and toxins (Shadowtech p.85–100): see module/drugs.mjs.
+  useDose: function(event, target) {
+    event.preventDefault();
+    const id = target.closest("[data-item-id]")?.dataset.itemId;
+    if (id) return useDose(this.document, id);
+  },
+  endDrug: function(event, target) {
+    event.preventDefault();
+    const id = target.closest("[data-effect-id]")?.dataset.effectId;
+    if (id) return endDrug(this.document, id);
+  },
+  repostDrugCard: function(event, target) {
+    event.preventDefault();
+    const id = target.closest("[data-effect-id]")?.dataset.effectId;
+    if (id) return repostCard(this.document, id);
+  },
   usePower: onUsePower,
   activateDeck: onActivateDeck,
   spendFocus: onSpendFocus,

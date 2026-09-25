@@ -24,6 +24,7 @@ import { registerSpellEffectHooks, wireSpellEffectButtons } from "./spell-effect
 import { registerNatureSpiritSettings, registerNatureSpiritHooks, natureSpiritsDepart } from "./nature-spirits.mjs";
 import { wireRitualButtons, startRitual } from "./ritual.mjs";
 import { registerSpiritServiceHooks } from "./spirit-services.mjs";
+import { registerDrugHooks, wireDrugButtons } from "./drugs.mjs";
 
 // Sheets
 import {
@@ -436,6 +437,7 @@ Hooks.once("init", async () => {
   registerSR2EQuenchTests();
   registerSpellEffectHooks();
   registerSpiritServiceHooks();
+  registerDrugHooks();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 
@@ -2260,6 +2262,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   }
   wireSpellEffectButtons(message, html);
   wireRitualButtons(message, html);
+  wireDrugButtons(message, html);
 
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.

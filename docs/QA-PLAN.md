@@ -233,6 +233,11 @@ and any **red console errors**. File them wherever the group tracks issues
       again. DataSoft → no skill field. Drop some garbage text on a sheet → a warning, not
       silence.
 
+- [ ] **Drugs (Shadowtech module):** Kamikaze → the gear-row syringe spends a dose and
+      raises Body/Quickness/Strength/Willpower and the Initiative dice; Active drugs lists it
+      with the time left, and End removes it. Atropine's card: Resist (Body) once; GM "15
+      minutes pass" → the next card. After it wears off → Addiction/Tolerance tests.
+
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).

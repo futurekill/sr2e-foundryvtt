@@ -98,8 +98,11 @@ recipe and the `codex exec -i` stdin gotcha.
 
 - ~~Bioware overstress penalty and magical-healing interference~~ — **automated**
   (`_bodyTestOpts`, `biowareHealingTnMod`); entry was stale (checked 2026-09-24).
-- **Drug / gene-tech active effects** — Shadowtech catalog items ship as plain
-  `gear` with no auto-effects.
+- ~~Drug / gene-tech active effects~~: **done 2026-09-25 (lean core,
+  PLAN-drugs.md)**: Use a dose, attribute effects, toxin damage, and the
+  addiction tests. Gene-tech has no stat effects in the book. Still manual (card
+  notes): Kamikaze absorption and wasting, Hyper overload and TNs, Atropine
+  skill TNs, overuse, and the adrenal pump.
 - **Body Index on NPC/critter actors** — scoped to `character` only, consistent
   with how cyberware already behaves on NPCs.
 - ~~Cultured bioware ×4 nuyen~~: **stale, checked 2026-09-25.** ×4 was

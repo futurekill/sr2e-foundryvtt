@@ -2,6 +2,7 @@ import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice,
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
+import { activeDrugs, drugOf } from "../drugs.mjs";
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
@@ -547,7 +548,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
           // counts the bundle value — not `cost × rounds` (see proportionalRefund
           // / chargenItemCost).
           const flags = { paid: price };
-          if (created.type === "ammo") {
+          if (created.type === "ammo" || drugOf(created)) {
             flags.acquiredQuantity = created.system.quantity ?? 0;
             flags.acquiredListValue = base;
           }
@@ -965,6 +966,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.bodyIndexOver = (actor.system.bodyIndex?.value ?? 0) > (actor.system.bodyIndex?.max ?? 0);
     context.bodyIndexOverstress = overstressPenalty(actor.system.bodyIndex?.value, actor.system.bodyIndex?.max);
     context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");
+    context.activeDrugs = activeDrugs(actor);
     context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
     context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, accessPorts: 0, knowAccess: false, memCapacity: 0, memUsed: 0 };
     context.programs = actor.items.filter(i => i.type === "program");
@@ -1173,6 +1175,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
       // ammo by this, not cost × rounds.
       acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
+      drug: !!drugOf(i),
       force: i.system.force ?? 0,
       bondingCost: i.system.bondingCost ?? 0
     }));
@@ -1315,6 +1318,9 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       // Awakened NPCs perceive and project (p.145–147).
       astralAttack: SHARED_ACTIONS.astralAttack,
       toggleAstral: SHARED_ACTIONS.toggleAstral,
+      useDose: SHARED_ACTIONS.useDose,
+      endDrug: SHARED_ACTIONS.endDrug,
+      repostDrugCard: SHARED_ACTIONS.repostDrugCard,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
@@ -1334,6 +1340,9 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.skills = actor.items.filter(i => i.type === "skill");
     context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.gear = actor.items.filter(i => i.type === "gear");
+    context.drugs = context.gear.filter(i => drugOf(i));
+    context.activeDrugs = activeDrugs(actor);
+    context.showDrugs = context.drugs.length > 0 || context.activeDrugs.length > 0;
     context.spells = actor.items.filter(i => i.type === "spell");
     context.foci = actor.items.filter(i => i.type === "focus");
     // The armor inputs edit the stat-block base; system.armor is base + worn.

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added — drugs and toxins: Use a dose (Shadowtech p.85–100)
+
+For drug items that carry their data (the sr2e-shadowtech module's Kamikaze,
+MAO, Hyper, Atropine, Cyanide and ACTH):
+- **Use a dose** (the syringe on the gear row; NPCs get a Drugs section)
+  spends one dose. It rolls the duration (Kamikaze 10 × 1D6 minutes; Hyper and
+  MAO lose time per Body success) and applies the drug's attribute effects,
+  e.g. Kamikaze +1 Body, +1 Quickness, +2 Strength, +1 Willpower, +1
+  Initiative die.
+- A toxin's card has **Resist (Body)**: Body only, no Combat Pool or armour,
+  resolved once. For Atropine the GM posts the next 15 minutes' damage.
+- **Addiction / Tolerance** tests after it wears off (p.87), with the ratings
+  adjustable for doses taken.
+- **Active drugs** on the sheet shows the time left and ends each effect.
+  Nothing expires by itself; you end it when it wears off.
+- Packs are priced per package: a six-dose inhaler charges once, sells back
+  for the doses left, and counts once in character creation.
+- NPCs now get extra Initiative dice from effects, as characters do.
+- Left to the GM (on the card): Kamikaze's 4-box absorption and long-term
+  wasting, Hyper's overload damage and TN penalties, Atropine's skill
+  penalties, a second dose's overuse, and the adrenal pump interplay.
+
 ### Fixed — neural bioware was charged the cultured ×4 twice (Shadowtech p.7)
 
 "All neural bioware is cultured bioware. Body Cost and monetary factors are

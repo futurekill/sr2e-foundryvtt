@@ -1383,6 +1383,9 @@ export class NPCData extends SR2EDataModel {
       || (this.parent?.items ?? []).some(i => i.type === "spell");
     // Astral Combat Pool for the Awakened (p.147), spent dice preserved the
     // same way; and while projecting, Astral Initiative (p.147).
+    // Extra Initiative dice from Active Effects (a drug, a spell), as for
+    // characters: initiative.mod is the effect hook (it was unused on NPCs).
+    this.initiative.dice = Math.max(1, (this.initiative.dice ?? 1) + (this.initiative.mod ?? 0));
     if (this.awakened) {
       const astralMax = astralCombatPool({ intelligence: this.intelligence.value,
         willpower: this.willpower.value, charisma: this.charisma.value });

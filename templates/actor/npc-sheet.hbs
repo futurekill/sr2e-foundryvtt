@@ -196,6 +196,35 @@
       </fieldset>
       {{/if}}
 
+      {{#if showDrugs}}
+      <fieldset class="npc-drugs">
+        <legend>Drugs</legend>
+        {{#each drugs as |g|}}
+        <div class="item-row flexrow" data-item-id="{{g.id}}">
+          <span class="item-name">{{g.name}}</span><span>Doses: {{g.system.quantity}}</span>
+          <div class="item-controls"><a data-action="useDose" title="Use a dose (Shadowtech)"><i class="fas fa-syringe"></i></a></div>
+        </div>
+        {{/each}}
+        {{#if activeDrugs.length}}
+    <div class="sr2e-active-drugs">
+      <div class="category-header flexrow"><h3>Active drugs</h3></div>
+      <div class="item-list">
+        {{#each activeDrugs as |d|}}
+        <div class="item-row flexrow" data-effect-id="{{d.id}}">
+          <span class="item-name">{{d.name}}</span>
+          <span class="hint {{#if d.expired}}drug-expired{{/if}}">{{d.label}}</span>
+          <div class="item-controls">
+            <a data-action="repostDrugCard" title="Re-post its card (if it isn't in chat)"><i class="fas fa-comment-medical"></i></a>
+            <a data-action="endDrug" title="It has worn off — end its effects"><i class="fas fa-circle-xmark"></i></a>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+      </fieldset>
+      {{/if}}
+
       {{!-- Foci. Read-only summary on purpose: the character magic tab has no
             active-toggle either, so activation happens on the item sheet via the
             edit control. A bonded, ACTIVE spell focus adds its Force to every

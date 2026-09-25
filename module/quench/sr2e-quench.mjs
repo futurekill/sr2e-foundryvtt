@@ -6536,6 +6536,228 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Bioware grades (Shadowtech p.7)" });
 
+    // ── Drugs and toxins, lean core (Shadowtech p.85–100) ─────────────────────
+    quench.registerBatch("sr2e.drugs", (context) => {
+      const { it, assert, afterEach } = context;
+      let D;
+      const made = { actors: [], tokens: [] };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const cards = (exposureId) => game.messages.filter(m => m.flags?.sr2e?.drugCard?.exposureId === exposureId);
+      const KAMIKAZE = { name: "Quench Drug Kamikaze", type: "gear", system: { category: "drug", quantity: 3, cost: 50 },
+        effects: [{ name: "Kamikaze", transfer: false, changes: [
+          { key: "system.body.mod", mode: 2, value: "1" }, { key: "system.quickness.mod", mode: 2, value: "1" },
+          { key: "system.strength.mod", mode: 2, value: "2" }, { key: "system.willpower.mod", mode: 2, value: "1" },
+          { key: "system.initiative.mod", mode: 2, value: "1" }] }],
+        flags: { sr2e: { drug: { key: "kamikaze", duration: { minutes: "10*1d6" }, addiction: { rating: 4, P: true, M: false },
+          tolerance: 2, strength: 4, notes: "absorbs 4 boxes (GM)" } } } };
+      const ATROPINE = { name: "Quench Drug Atropine", type: "gear", system: { category: "drug", quantity: 2, cost: 600 },
+        flags: { sr2e: { drug: { key: "atropine", damage: { power: 5, level: "D", type: "physical" }, repeatMinutes: 15 } } } };
+      const MAO = { name: "Quench Drug MAO", type: "gear", system: { category: "drug", quantity: 1, cost: 280 },
+        effects: [{ name: "MAO", transfer: false, changes: [
+          { key: "system.reaction.mod", mode: 2, value: "-1" }, { key: "system.initiative.mod", mode: 2, value: "-1" }] }],
+        flags: { sr2e: { drug: { key: "mao", duration: { turns: 10, bodyReducesBy: 1 } } } } };
+      const mk = async (type = "character", items = []) => {
+        const a = await Actor.create({ name: "Quench Drug User", type, system: {
+          body: { base: 3 }, quickness: { base: 3 }, strength: { base: 3 }, willpower: { base: 3 }, intelligence: { base: 3 }, nuyen: 5000 } });
+        made.actors.push(a.id);
+        if (items.length) await a.createEmbeddedDocuments("Item", items);
+        return a;
+      };
+      afterEach(async () => {
+        if (made.tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
+        const ids = made.actors.splice(0).filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+      const load = async () => { D ??= await import("../drugs.mjs"); return D; };
+
+      it("Kamikaze: a dose applies +1 Body/Quickness/Willpower, +2 Strength, +1 Initiative die; End restores", async () => {
+        const { useDose, activeDrugs, endDrug } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        const item = a.items.getName(KAMIKAZE.name);
+        const before = { b: a.system.body.value, s: a.system.strength.value, dice: a.system.initiative.dice };
+        await withFaces([4], () => useDose(a, item.id));
+        assert.equal(item.system.quantity, 2, "a dose spent");
+        assert.equal(a.system.body.value, before.b + 1);
+        assert.equal(a.system.strength.value, before.s + 2);
+        assert.equal(a.system.initiative.dice, before.dice + 1);
+        const [d] = activeDrugs(a);
+        assert.ok(d, "listed as active");
+        const eff = a.effects.get(d.id);
+        assert.equal(eff.duration.seconds, 40 * 60, "10 × 1D6 = 40 minutes");
+        const card = cards(d.exposureId)[0];
+        assert.ok(card, "a card");
+        await endDrug(a, d.id);
+        assert.equal(a.system.body.value, before.b);
+        assert.equal(a.system.initiative.dice, before.dice);
+      });
+
+      it("a second dose while active warns (overuse); quantity 0 is refused", async () => {
+        const { useDose } = await load();
+        const a = await mk("character", [{ ...KAMIKAZE, system: { ...KAMIKAZE.system, quantity: 2 } }]);
+        const item = a.items.getName(KAMIKAZE.name);
+        await withFaces([2], () => useDose(a, item.id));
+        await withFaces([2], () => useDose(a, item.id));
+        const overuse = game.messages.filter(m => m.flags?.sr2e?.drugCard?.actorUuid === a.uuid && m.flags.sr2e.drugCard.overuse);
+        assert.lengthOf(overuse, 1);
+        assert.equal(item.system.quantity, 0);
+        const n = a.effects.size;
+        await useDose(a, item.id);
+        assert.equal(a.effects.size, n, "no dose left: nothing happens");
+      });
+
+      it("works on an NPC and on an unlinked token's own actor (Initiative dice too)", async () => {
+        const { useDose } = await load();
+        const npc = await mk("npc", [KAMIKAZE]);
+        const dice = npc.system.initiative.dice;
+        await withFaces([3], () => useDose(npc, npc.items.getName(KAMIKAZE.name).id));
+        assert.equal(npc.system.initiative.dice, dice + 1, "NPC initiative.mod is extra dice");
+        await npc.update({ "prototypeToken.actorLink": false });
+        const [tok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await npc.getTokenDocument()).toObject(), actorLink: false, x: 100, y: 100 }]);
+        made.tokens.push(tok.id);
+        const ta = tok.actor;
+        const n = ta.effects.size;
+        await withFaces([3], () => useDose(ta, ta.items.getName(KAMIKAZE.name).id));
+        assert.equal(ta.effects.size, n + 1, "the token's own actor");
+      });
+
+      it("MAO: −1 Reaction, −1 Initiative die; duration 10 turns − Body successes", async () => {
+        const { useDose, activeDrugs } = await load();
+        const a = await mk("character", [MAO]);
+        const react = a.system.reaction.value, dice = a.system.initiative.dice;
+        await withFaces([5, 5, 1], () => useDose(a, a.items.getName(MAO.name).id));   // 2 Body successes at TN 4
+        assert.equal(a.system.reaction.value, react - 1);
+        assert.equal(a.system.initiative.dice, Math.max(1, dice - 1));
+        const eff = a.effects.get(activeDrugs(a)[0].id);
+        // This actor is in no combat (another running combat doesn't count): 3 seconds a turn.
+        assert.equal(eff.duration.seconds, 8 * 3, "8 Combat Turns, out of combat");
+      });
+
+      it("Atropine: Body-only resist applies once; the repeat makes exactly one successor", async () => {
+        const { useDose, resistToxin, nextToxin } = await load();
+        const a = await mk("character", [ATROPINE]);
+        await useDose(a, a.items.getName(ATROPINE.name).id);
+        const exposureId = a.effects.find(e => e.flags?.sr2e?.drugEffect)?.flags.sr2e.drugEffect.exposureId;
+        const [card] = cards(exposureId);
+        await withFaces([5, 5, 5], () => resistToxin(card));             // 3 successes at TN 5 → D → S
+        assert.equal(a.system.conditionMonitor.physical.value, 6, "Serious: 6 boxes");
+        await resistToxin(game.messages.get(card.id));
+        assert.equal(a.system.conditionMonitor.physical.value, 6, "resolved once");
+        await Promise.all([nextToxin(card), nextToxin(card)]);
+        assert.lengthOf(cards(exposureId).filter(m => m.flags.sr2e.drugCard.seq === 1), 1, "one successor");
+        const succ = cards(exposureId).find(m => m.flags.sr2e.drugCard.seq === 1);
+        await withFaces(Array(10).fill(5), () => resistToxin(succ));      // enough to shrug it off? 3 dice → S again
+        assert.isTrue(!!a.getFlag("sr2e", "toxinDone")?.[`${exposureId}_1`], "the successor's done-flag");
+      });
+
+      it("the addiction and tolerance tests roll Body vs the (adjustable) ratings and report", async () => {
+        const { useDose, drugTests, activeDrugs } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        await withFaces([1], () => useDose(a, a.items.getName(KAMIKAZE.name).id));
+        const [card] = cards(activeDrugs(a)[0].exposureId);
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+          app.element.querySelector('[name="addiction"]').value = "5";            // the GM raised it for doses taken
+          app.element.querySelector('button[data-action="ok"]').click();
+        }, 60));
+        const n = game.messages.size;
+        await withFaces(Array(12).fill(1), () => drugTests(card));              // 0 successes: addicted and immune
+        const report = game.messages.contents.slice(n).find(m => /Shadowtech p\.87/.test(m.content));
+        assert.match(report?.content ?? "", /physically addicted/);
+        assert.match(report?.content ?? "", /immune/);
+        const tests = game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.test).map(m => m.flags.sr2e.test);
+        assert.equal(tests[0]?.tn, 5, "the adjusted Addiction Rating");
+      });
+
+      it("Re-post card is idempotent; a partly used pack sells for the doses left", async () => {
+        const { useDose, repostCard, activeDrugs } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        const item = a.items.getName(KAMIKAZE.name);
+        await withFaces([1], () => useDose(a, item.id));
+        const d = activeDrugs(a)[0];
+        await ChatMessage.deleteDocuments(cards(d.exposureId).map(m => m.id));
+        await repostCard(a, d.id);
+        await repostCard(a, d.id);
+        assert.lengthOf(cards(d.exposureId), 1, "re-posted once");
+        // Sell-back by doses: bought 3 for 150, 2 left → 100.
+        await item.update({ "flags.sr2e": { paid: 150, acquiredQuantity: 3, acquiredListValue: 150 } });
+        const nuyen = a.system.nuyen;
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="yes"]')?.click(), 60));
+        await a.sheet.options.actions.sellItem.call(a.sheet, { preventDefault() {} }, { closest: () => ({ dataset: { itemId: item.id } }) });
+        assert.equal(a.system.nuyen, nuyen + 100);
+      });
+      it("failure paths: zero-duration MAO applies nothing; fully resisted writes the flag; a failed card is recoverable; an empty pack refunds 0", async () => {
+        const { useDose, resistToxin, repostCard, activeDrugs } = await load();
+        // MAO shrugged off (10 Body successes): no penalty, listed as expired.
+        const SHORT = foundry.utils.mergeObject(foundry.utils.deepClone(MAO), { name: "Quench Drug MAO Short",
+          flags: { sr2e: { drug: { duration: { turns: 3, bodyReducesBy: 1 } } } } });
+        const a = await mk("character", [SHORT]);
+        const react = a.system.reaction.value;
+        await withFaces(Array(10).fill(5), () => useDose(a, a.items.getName(SHORT.name).id));   // 3 successes → 0 turns
+        assert.equal(a.system.reaction.value, react, "no Reaction loss at a zero duration");
+        assert.isTrue(activeDrugs(a)[0].expired);
+        // Fully resisted Atropine still records its done-flag.
+        const WEAK = foundry.utils.mergeObject(foundry.utils.deepClone(ATROPINE), { name: "Quench Drug Weak Toxin",
+          flags: { sr2e: { drug: { key: "weak", damage: { power: 2, level: "L", type: "physical" }, repeatMinutes: 0 } } } });
+        const b = await mk("character", [WEAK]);
+        await useDose(b, b.items.getName(WEAK.name).id);
+        const ex = b.effects.find(e => e.flags?.sr2e?.drugEffect).flags.sr2e.drugEffect.exposureId;
+        await withFaces(Array(10).fill(5), () => resistToxin(cards(ex)[0]));
+        assert.equal(b.system.conditionMonitor.physical.value, 0);
+        assert.isTrue(!!b.getFlag("sr2e", "toxinDone")?.[`${ex}_0`]);
+        // The card fails to post: the effect stands, and Re-post recovers it.
+        const c = await mk("character", [KAMIKAZE]);
+        const orig = ChatMessage.create;
+        let failed = false;
+        ChatMessage.create = function (...args) {
+          if (!failed && args[0]?.flags?.sr2e?.drugCard) { failed = true; return Promise.reject(new Error("Quench card failure")); }
+          return orig.apply(this, args);
+        };
+        try { await withFaces([2], () => useDose(c, c.items.getName(KAMIKAZE.name).id)); }
+        finally { ChatMessage.create = orig; }
+        const d = activeDrugs(c)[0];
+        assert.ok(d, "the effect stands");
+        assert.lengthOf(cards(d.exposureId), 0);
+        await repostCard(c, d.id);
+        assert.lengthOf(cards(d.exposureId), 1, "recovered");
+        // Empty pack: 0¥.
+        const item = c.items.getName(KAMIKAZE.name);
+        await item.update({ "system.quantity": 0, "flags.sr2e": { paid: 150, acquiredQuantity: 3, acquiredListValue: 150 } });
+        const nuyen = c.system.nuyen;
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="yes"]')?.click(), 60));
+        await c.sheet.options.actions.sellItem.call(c.sheet, { preventDefault() {} }, { closest: () => ({ dataset: { itemId: item.id } }) });
+        assert.equal(c.system.nuyen, nuyen, "an empty pack refunds nothing");
+      });
+
+      it("a token copied from a dosed actor re-posts its OWN card; buying a six-dose pack records it by doses", async () => {
+        const { useDose, repostCard, activeDrugs } = await load();
+        const npc = await mk("npc", [KAMIKAZE]);
+        await withFaces([2], () => useDose(npc, npc.items.getName(KAMIKAZE.name).id));
+        await npc.update({ "prototypeToken.actorLink": false });
+        const [tok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await npc.getTokenDocument()).toObject(), actorLink: false, x: 150, y: 150 }]);
+        made.tokens.push(tok.id);
+        const d = activeDrugs(tok.actor)[0];
+        await repostCard(tok.actor, d.id);
+        const own = game.messages.filter(m => m.flags?.sr2e?.drugCard?.actorUuid === tok.actor.uuid);
+        assert.lengthOf(own, 1, "bound to the token's actor, not the base");
+        // Purchase: a six-dose pack is charged once and recorded by doses.
+        const buyer = await mk("character");
+        await buyer.update({ "system.nuyen": 1000 });
+        const world = await Item.create({ ...KAMIKAZE, name: "Quench Drug Six Pack", system: { ...KAMIKAZE.system, quantity: 6, cost: 100, streetIndex: 1 } });
+        try {
+          const auto = game.settings.get("sr2e", "autoChargePurchases");
+          await game.settings.set("sr2e", "autoChargePurchases", true);
+          const got = await buyer.sheet._onDropItem({ altKey: false }, { type: "Item", uuid: world.uuid });
+          await game.settings.set("sr2e", "autoChargePurchases", auto);
+          assert.equal(buyer.system.nuyen, 900, "charged once for the pack");
+          assert.equal(got.getFlag("sr2e", "acquiredQuantity"), 6);
+        } finally { await world.delete(); }
+      });
+    }, { displayName: "SR2E: Drugs & toxins (Shadowtech)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];
