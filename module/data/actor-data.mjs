@@ -670,7 +670,9 @@ export class CharacterData extends SR2EDataModel {
       if (!fits) { soft.system._overBudget = true; continue; }
       if (cat === "active") activeUsed += rating;
       memUsed += skillsoftMemory(cat, rating);
-      if (!name || rating <= 0) continue;
+      // A DataSoft is a data library and grants no skill (p.243), whatever a
+      // stale grantedSkill says.
+      if (cat === "data" || !name || rating <= 0) continue;
 
       // Match on category too: a soft declares what KIND of skill it grants, and
         // matching on name alone let a LinguaSoft named after an Active skill

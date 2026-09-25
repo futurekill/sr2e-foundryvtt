@@ -21,6 +21,22 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 // =========================================================================
 
 /**
+ * Read a drop's JSON. Malformed JSON warns (it used to vanish); a drop with no
+ * text payload (a file, a foreign drag) is ignored quietly.
+ * @returns {object|null}
+ */
+function readDrop(event) {
+  const raw = event?.dataTransfer?.getData("text/plain") ?? "";
+  if (!raw) return null;
+  try { return JSON.parse(raw); }
+  catch (e) {
+    console.warn(`SR2E | unreadable drop payload (${raw.length} chars)`);
+    ui.notifications.warn("That drop couldn't be read — drag an item or actor from a sheet, the sidebar or a compendium.");
+    return null;
+  }
+}
+
+/**
  * Shared base class for all SR2E actor sheets.
  *
  * Centralizes the V13 ApplicationV2 boilerplate — part context, drag-drop,
@@ -167,9 +183,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** @override */
   async _onDrop(event) {
     event.preventDefault();
-    let data;
-    try { data = JSON.parse(event.dataTransfer.getData("text/plain")); }
-    catch(e) { return; }
+    const data = readDrop(event);
     if (data?.type === "Item") return this._onDropItem(event, data);
   }
 
@@ -364,9 +378,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const zone = this.element?.querySelector(".race-drop-zone");
     if (zone) zone.classList.remove("drag-over");
 
-    let data;
-    try { data = JSON.parse(event.dataTransfer.getData("text/plain")); }
-    catch(e) { return; }
+    const data = readDrop(event);
     if (!data?.type) return;
     if (data.type === "Item") return this._onDropItem(event, data);
     if (data.type === "Actor") return this._onDropActor(event, data);
@@ -415,6 +427,25 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
    * @override
    */
   async _onDropItem(event, data) {
+    // ONE error boundary around the whole drop: a failure anywhere (resolving
+    // the item, the Buy dialog, creating, charging) is shown, never swallowed.
+    const progress = { created: null };
+    try {
+      return await this._dropItemWorkflow(event, data, progress);
+    } catch (err) {
+      console.error("SR2E | item drop failed", err);
+      const esc = foundry.utils.escapeHTML;
+      const name = progress.created?.name;
+      const why = esc(String(err?.message ?? err));
+      ui.notifications.error(name
+        ? `${esc(name)} was added, but the purchase didn't finish (${why}) — check its price and ${esc(this.document.name)}'s nuyen.`
+        : `That item couldn't be added: ${why} — see the console (F12).`);
+      return null;
+    }
+  }
+
+  /** @private The drop, inside _onDropItem's error boundary. */
+  async _dropItemWorkflow(event, data, progress) {
     if (!this.document.isOwner) return false;
     let itemData;
     if (data.uuid) {
@@ -447,8 +478,23 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     let autoCharge = true;
     try { autoCharge = game.settings.get("sr2e", "autoChargePurchases"); } catch (e) { /* default on */ }
     if (isCharacter && autoCharge && !event?.altKey && this.constructor._hasPurchaseOptions(itemData)) {
-      const chosen = await this.constructor._promptPurchaseOptions(itemData, this.document);
+      const isSoft = itemData.type === "gear" && itemData.system?.category === "skillsoft";
+      const srcSkill = String(itemData.system?.grantedSkill ?? "").trim();
+      const srcCat = itemData.system?.grantedSkillCategory ?? "active";
+      const opts = isSoft ? {
+        suggestions: await this.constructor._skillsoftSuggestions(this.document),
+        // A configured chip keeps its slot state; a blank one defaults to slotted.
+        prefill: { skill: srcSkill, slotted: srcSkill ? !!itemData.system.slotted : true,
+                   // A configured chip's slot state is the seller's choice: no auto-default.
+                   slotTouched: !!srcSkill }
+      } : {};
+      let chosen = await this.constructor._promptPurchaseOptions(itemData, this.document, opts);
+      while (chosen?.retry) {                           // Buy with no skill: ask again, prefilled
+        if (chosen.prefill.rating != null) itemData.system.rating = chosen.prefill.rating;
+        chosen = await this.constructor._promptPurchaseOptions(itemData, this.document, { ...opts, prefill: chosen.prefill });
+      }
       if (chosen === null) return null;                 // cancelled the purchase
+      if (isSoft) this._applySkillsoftChoice(itemData, chosen, { srcSkill, srcCat, suggestions: opts.suggestions });
       if (chosen.rating != null) itemData.system.rating = chosen.rating;
       if (chosen.grade != null) itemData.system.grade = chosen.grade;
       if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
@@ -464,6 +510,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     }
 
     const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
+    progress.created = created;
 
     // Auto-charge purchases: characters pay the street price (base cost × Street
     // Index) for dropped items, where base cost accounts for the chosen Rating AND
@@ -483,7 +530,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         { type: created.type, ...created.system },
         { authoredCost: created._source.system?.cost ?? 0, vr2, bondedWeaponReach: bondedReach });
       if (event?.altKey) {
-        if (base > 0) ui.notifications.info(`${created.name} added to ${this.document.name} for free (Alt-drop — no charge).`);
+        if (base > 0) ui.notifications.info(`${foundry.utils.escapeHTML(created.name)} added to ${foundry.utils.escapeHTML(this.document.name)} for free (Alt-drop — no charge).`);
       } else if (base > 0) {
         // During character creation, gear is bought at LIST price — the
         // Street Index markup only applies to in-play purchases.
@@ -505,10 +552,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
             flags.acquiredListValue = base;
           }
           await created.update({ "flags.sr2e": flags });
-          ui.notifications.info(`${this.document.name} buys ${created.name} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${nuyen - price}¥ left.`);
+          ui.notifications.info(`${foundry.utils.escapeHTML(this.document.name)} buys ${foundry.utils.escapeHTML(created.name)} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${nuyen - price}¥ left.`);
         } else {
           await created.delete();
-          ui.notifications.warn(`${this.document.name} can't afford ${created.name} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);
+          ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);
           return null;
         }
       }
@@ -530,6 +577,30 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     return created;
   }
 
+  /**
+   * Apply the Buy dialog's skillsoft choice to the item data (p.243): the
+   * skill, slot state, linked attribute (an owned skill before the compendium;
+   * changed only when the skill or type changed, or the chip was blank) and a
+   * generic name made readable ("Firearms ActiveSoft").
+   * @private
+   */
+  _applySkillsoftChoice(itemData, chosen, { srcSkill, srcCat, suggestions }) {
+    const sys = itemData.system;
+    const cat = chosen.grantedSkillCategory ?? sys.grantedSkillCategory ?? "active";
+    const skill = cat === "data" ? "" : String(chosen.grantedSkill ?? "").trim();
+    sys.grantedSkill = skill;
+    sys.slotted = !!chosen.slotted;
+    const changed = !srcSkill || skill.toLowerCase() !== srcSkill.toLowerCase() || cat !== srcCat;
+    if (skill && changed) {
+      const hit = (suggestions?.[cat] ?? []).find(e => e.name.toLowerCase() === skill.toLowerCase());
+      if (hit?.attribute) sys.grantedSkillAttribute = hit.attribute;
+    }
+    const label = { active: "ActiveSoft", knowledge: "KnowSoft", language: "LinguaSoft", data: "DataSoft" }[cat] ?? "Skillsoft";
+    if (/^(New Gear|New Item|ActiveSoft|KnowSoft|LinguaSoft|DataSoft)$/.test((itemData.name ?? "").trim())) {
+      itemData.name = skill ? `${skill} ${label}` : label;
+    }
+  }
+
   /** True if a dropped item has any cost-driving field worth prompting for. */
   static _hasPurchaseOptions(itemData) {
     return purchasePromptFields({ type: itemData.type, ...itemData.system }).length > 0;
@@ -539,10 +610,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
    * Ask the buyer which Rating and Grade to purchase. Returns `{rating, grade}`
    * (either may be undefined if not applicable) or `null` if cancelled.
    */
-  static async _promptPurchaseOptions(itemData, actor) {
+  static async _promptPurchaseOptions(itemData, actor, opts = {}) {
     const sys = itemData.system ?? {};
     const fields = purchasePromptFields({ type: itemData.type, ...sys });
     if (!fields.length) return {};
+    const soft = fields.includes("grantedSkill");
+    const pre = opts.prefill ?? {};
     const rows = [...(sys.ratingStats ?? [])].sort((a, b) => a.rating - b.rating);
     // Built from the shared grade tables rather than restated here — this dialog
     // used to carry its own hand-written copy of the multipliers, which is how it
@@ -578,9 +651,19 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
           <input type="number" name="rating" value="${sys.rating ?? 1}" min="1" max="${max}" style="width:70px;"></div>`;
       }
     }
+    const startCat = pre.category ?? sys.grantedSkillCategory ?? "active";
     const catSel = fields.includes("grantedSkillCategory") ? `<div class="form-group"><label>Skill Type:</label>
       <select name="grantedSkillCategory" style="flex:1;">${["active", "knowledge", "language", "data"].map(c =>
-        `<option value="${c}"${c === (sys.grantedSkillCategory ?? "active") ? " selected" : ""}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join("")}</select></div>` : "";
+        `<option value="${c}"${c === startCat ? " selected" : ""}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join("")}</select></div>` : "";
+    // The skill the chip grants (p.243). Names are set through the DOM in the
+    // render callback, never interpolated into this HTML.
+    const listId = `sr2e-soft-skills-${foundry.utils.randomID()}`;
+    const skillSel = soft ? `<div class="form-group sr2e-soft-skill"><label>Skill:</label>
+        <input type="text" name="grantedSkill" list="${listId}" style="flex:1;" placeholder="Firearms, English, Corporate Politics…"></div>
+      <datalist id="${listId}"></datalist>
+      <div class="form-group sr2e-soft-slot"><label><input type="checkbox" name="slotNow"> Slot it now</label>
+        <span class="hint sr2e-soft-dupe" style="margin-left:6px;"></span></div>
+      ${pre.warning ? `<p class="sr2e-soft-warn" style="color:#c84;margin:4px 0;"></p>` : ""}` : "";
     const forceSel = fields.includes("force") ? `<div class="form-group"><label>Force:</label>
       <input type="number" name="force" value="${sys.force ?? 1}" min="1" max="6" style="width:70px;"></div>` : "";
     // Bows are bought at a chosen Strength Minimum, which sets price AND damage
@@ -592,30 +675,120 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       <select name="grade" style="flex:1;">${Object.entries(gradeChoices).map(([k, lbl]) =>
         `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>` : "";
 
-    let result = null;
+    let result = null, failure = null;
     await foundry.applications.api.DialogV2.wait({
       window: { title: `Buy ${itemData.name}` },
       rejectClose: false,
       content: `<div>
         <p style="margin:0 0 8px;">Choose what ${foundry.utils.escapeHTML(actor.name)} is buying. Price is charged on purchase (street price in play, list in character creation). Alt-drop instead to add it for free.</p>
-        ${ratingSel}${catSel}${forceSel}${strMinSel}${gradeSel}
+        ${ratingSel}${catSel}${skillSel}${forceSel}${strMinSel}${gradeSel}
       </div>`,
+      render: soft ? (event, dialog) => {
+        try { this._wireSkillsoftFields(dialog.element, actor, opts); }
+        catch (err) { failure = err; dialog.close(); }
+      } : undefined,
       buttons: [
         { action: "buy", label: "Buy", default: true, callback: (e, b) => {
-          const f = b.form.elements;
-          const intOr = (el, d) => { const n = parseInt(el?.value); return Number.isFinite(n) ? Math.max(1, n) : d; };
-          result = {
-            rating: f.rating ? intOr(f.rating, sys.rating ?? 1) : undefined,
-            grade: f.grade ? f.grade.value : undefined,
-            grantedSkillCategory: f.grantedSkillCategory ? f.grantedSkillCategory.value : undefined,
-            force: f.force ? intOr(f.force, sys.force ?? 1) : undefined,
-            strengthMinimum: f.strengthMinimum ? intOr(f.strengthMinimum, sys.strengthMinimum || 1) : undefined
-          };
+          // Caught here and rethrown after the dialog closes: an exception in a
+          // button callback must never read as Cancel.
+          try {
+            const f = b.form.elements;
+            const intOr = (el, d) => { const n = parseInt(el?.value); return Number.isFinite(n) ? Math.max(1, n) : d; };
+            result = {
+              rating: f.rating ? intOr(f.rating, sys.rating ?? 1) : undefined,
+              grade: f.grade ? f.grade.value : undefined,
+              grantedSkillCategory: f.grantedSkillCategory ? f.grantedSkillCategory.value : undefined,
+              force: f.force ? intOr(f.force, sys.force ?? 1) : undefined,
+              strengthMinimum: f.strengthMinimum ? intOr(f.strengthMinimum, sys.strengthMinimum || 1) : undefined
+            };
+            if (soft) {
+              const cat = result.grantedSkillCategory ?? startCat;
+              const skill = String(f.grantedSkill?.value ?? "").trim();
+              result.grantedSkill = cat === "data" ? "" : skill;
+              result.slotted = !!f.slotNow?.checked;
+              // An empty skill (whitespace counts) re-opens the dialog, prefilled.
+              if (cat !== "data" && !skill) {
+                result = { retry: true, prefill: { category: cat, skill: "", slotted: result.slotted, rating: result.rating,
+                                                    slotTouched: b.form.dataset.slotTouched === "1",
+                                                    warning: "Choose the skill this chip grants." } };
+              }
+            }
+          } catch (err) { failure = err; result = null; }
         } },
         { action: "cancel", label: "Cancel" }
       ]
     });
+    if (failure) throw failure;
     return result;
+  }
+
+  /**
+   * Skillsoft fields in the Buy dialog: the suggestion list follows the Skill
+   * Type (actor-owned skills first, then the skills compendium), a DataSoft
+   * hides the skill, and a chip that duplicates a running one defaults to
+   * unslotted — unless the buyer already chose. All names go through the DOM.
+   * @private
+   */
+  static _wireSkillsoftFields(root, actor, opts) {
+    const pre = opts.prefill ?? {};
+    const form = root.querySelector("form") ?? root;
+    const cat = form.querySelector('[name="grantedSkillCategory"]');
+    const skill = form.querySelector('[name="grantedSkill"]');
+    const slot = form.querySelector('[name="slotNow"]');
+    const note = form.querySelector(".sr2e-soft-dupe");
+    const list = form.querySelector("datalist");
+    const box = form.querySelector(".sr2e-soft-skill");
+    const warn = form.querySelector(".sr2e-soft-warn");
+    if (!skill || !slot || !list) return;
+    skill.value = pre.skill ?? "";
+    slot.checked = pre.slotted ?? true;
+    if (pre.slotTouched) form.dataset.slotTouched = "1";
+    if (warn) warn.textContent = pre.warning ?? "";
+    slot.addEventListener("change", () => { form.dataset.slotTouched = "1"; });
+    const running = (c, name) => actor.items.some(i => i.type === "gear" && i.system.category === "skillsoft"
+      && i.system.slotted && (i.system.grantedSkillCategory || "active") === c
+      && (i.system.grantedSkill ?? "").trim().toLowerCase() === name.toLowerCase());
+    const refresh = () => {
+      const c = cat?.value ?? "active";
+      const data = c === "data";
+      if (box) box.style.display = data ? "none" : "";
+      list.replaceChildren(...(opts.suggestions?.[c] ?? []).map(s => {
+        const o = document.createElement("option"); o.value = s.name; return o;
+      }));
+      const name = skill.value.trim();
+      const dupe = !data && name && running(c, name);
+      note.textContent = dupe ? `${actor.name} already runs a ${name} chip.` : "";
+      if (form.dataset.slotTouched !== "1") slot.checked = dupe ? false : (pre.slotted ?? true);
+    };
+    cat?.addEventListener("change", refresh);
+    skill.addEventListener("input", refresh);
+    refresh();
+  }
+
+  /**
+   * Suggestions for a skillsoft's skill, per chip category: the actor's own
+   * skills first (they also supply the linked attribute), then the skills
+   * compendium. ActiveSofts list active skills only — the chip's category has
+   * no build_repair, and matching is exact.
+   * @private
+   */
+  static async _skillsoftSuggestions(actor) {
+    const { SR2EItemSheet } = await import("./item-sheet.mjs");
+    const out = {};
+    for (const c of ["active", "knowledge", "language"]) {
+      const seen = new Set();
+      const add = (name, attribute) => {
+        const key = String(name ?? "").trim().toLowerCase();
+        if (!key || seen.has(key)) return null;
+        seen.add(key);
+        return { name: String(name).trim(), attribute };
+      };
+      const own = actor.items.filter(i => i.type === "skill" && i.system.category === c)
+        .map(i => add(i.name, i.system.linkedAttribute)).filter(Boolean);
+      const cat = (await SR2EItemSheet._skillCatalog([c])).map(e => add(e.name, e.attribute)).filter(Boolean);
+      out[c] = [...own, ...cat];
+    }
+    return out;
   }
 
   /**

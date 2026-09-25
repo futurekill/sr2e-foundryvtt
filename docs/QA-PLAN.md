@@ -226,6 +226,13 @@ and any **red console errors**. File them wherever the group tracks issues
       "Astral: Physical"; click → Perceiving (Astral attack button appears) → Projecting
       (Initiative = 2×Int + 15, one die). An NPC with no spells shows no Astral button.
 
+- [ ] **Skillsoft purchase (p.243):** drop the compendium ActiveSoft on a character with
+      Skillwires → the Buy dialog has **Skill** (suggestions) and **Slot it now**; type
+      Firearms → it arrives as "Firearms ActiveSoft", slotted, and Firearms shows the chip
+      rating. Switch the type to Language → English suggested. Buy with an empty skill → asked
+      again. DataSoft → no skill field. Drop some garbage text on a sheet → a warning, not
+      silence.
+
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).

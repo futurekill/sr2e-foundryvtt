@@ -32,13 +32,12 @@ Last reviewed 2026-07-26 (system 0.64.0).
   validates + creates the compendium item directly, and one that wraps
   `sheet._onDropItem` with error capture and reports what the prompt returned.
 
-- **Skillsofts ship as blank chips.** A dropped LinguaSoft/ActiveSoft cannot
-  grant a skill until the GM types a skill name on the item sheet AND toggles
-  the slot AND the character has an access port. The purchase prompt asks for
-  rating and skill *category* but never the skill *name*, so the one field that
-  makes the chip functional is the one it does not ask for. Reproducible; a
-  design change, not a bug.
-
+- ~~Skillsofts ship as blank chips~~ — **done 2026-09-25**
+  (PLAN-skillsoft-purchase.md): the Buy dialog asks for the skill, sets its
+  attribute, and slots it. The two error-swallowing spots below are fixed too
+  (unreadable drops warn, and dialog failures are errors, not Cancel). Still
+  open: the item sheet's skill picker lists Build/Repair skills for an
+  ActiveSoft, which the chip's category can't represent.
 - ~~Player-triggered summoning does not work.~~ **Not a bug — resolved
   2026-07-27.** The socket relay was removed deliberately; `canCreateActor()`
   now gates on the `ACTOR_CREATE` permission *before* the roll and drain, and

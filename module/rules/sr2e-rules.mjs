@@ -2559,7 +2559,8 @@ export function purchasePromptFields(sys = {}) {
   const program   = sys.type === "program";
   const flatFocus = sys.type === "focus" && sys.focusType !== "weapon" && (sys.costPerForce ?? 0) > 0;
   if (rows.length > 1 || skillsoft || program) out.push("rating");
-  if (skillsoft) out.push("grantedSkillCategory");
+  // The skill a chip grants is what makes it work at all (p.243).
+  if (skillsoft) out.push("grantedSkillCategory", "grantedSkill");
   if (flatFocus) out.push("force");
   if (sys.type === "weapon" && (sys.costPerStrengthMin ?? 0) > 0) out.push("strengthMinimum");
   if (sys.type === "cyberware" || sys.type === "bioware") out.push("grade");

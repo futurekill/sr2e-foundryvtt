@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Changed — skillsofts are bought ready to use (SR2E p.243)
+
+The Buy dialog for an ActiveSoft, KnowSoft or LinguaSoft now asks **which
+skill the chip holds**.
+- The suggestions follow the Skill Type: your own skills first, then the
+  skills compendium.
+- It offers **Slot it now**, which defaults on. It starts off if you already
+  run a chip for that skill; a chip that was already set up keeps its own
+  choice.
+- The chip is named "Firearms ActiveSoft" and takes the skill's linked
+  attribute, so it works the moment it's dropped (with Skillwires or an
+  access port).
+- Buying with no skill asks again. A DataSoft has no skill field and never
+  grants a skill.
+
+### Fixed — drops that fail now say so
+
+- A drag that couldn't be read used to vanish; it now shows a warning.
+- A failure inside the Buy dialog used to look exactly like clicking Cancel.
+  It now shows an error, and says so if the item was added but not paid for.
+
+This is what made the player-reported "dropping a skillsoft does nothing"
+impossible to diagnose. The next time it happens, the player will see why.
+
 ### Fixed — Refresh Item Art's summary no longer counts world items twice
 
 It said "3 item(s) across 2 actor(s) and 1 world item(s)" when it had

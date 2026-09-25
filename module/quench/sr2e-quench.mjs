@@ -6263,6 +6263,226 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Spirit Services (p.139–142)" });
 
+    // ── Skillsofts bought ready to use; drop failures that say so ────────────
+    quench.registerBatch("sr2e.skillsoft-purchase", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      let autoCharge;
+      const made = { actors: [], items: [] };
+      const U = (pack, id) => `Compendium.sr2e.${pack}.Item.${id}`;
+      const ACTIVE = U("gear", "fe96d596caee1303"), DATA = U("gear", "916070281c806746");
+      const nextDialog = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 80)));
+      const click = (app, action) => app.element.querySelector(`button[data-action="${action}"]`).click();
+      const fill = (app, { cat, skill, slot } = {}) => {
+        const f = app.element.querySelector("form");
+        if (cat) { const c = f.querySelector('[name="grantedSkillCategory"]'); c.value = cat; c.dispatchEvent(new Event("change")); }
+        if (skill != null) { const i = f.querySelector('[name="grantedSkill"]'); i.value = skill; i.dispatchEvent(new Event("input")); }
+        if (slot != null) { const b = f.querySelector('[name="slotNow"]'); b.checked = slot; b.dispatchEvent(new Event("change")); }
+        return f;
+      };
+      const mkBuyer = async () => {
+        const a = await Actor.create({ name: "Quench Soft Buyer", type: "character", system: { nuyen: 100000, intelligence: { base: 4 } } });
+        made.actors.push(a.id);
+        await a.createEmbeddedDocuments("Item", [
+          { name: "Skillwires", type: "cyberware", system: { rating: 3, installed: true } },
+          { name: "Chipjack", type: "cyberware", system: { installed: true } }]);
+        return a;
+      };
+      const drop = (a, uuid, ev = {}) => a.sheet._onDropItem({ altKey: false, ...ev }, { type: "Item", uuid });
+      before(async () => {
+        autoCharge = game.settings.get("sr2e", "autoChargePurchases");
+        await game.settings.set("sr2e", "autoChargePurchases", true);
+      });
+      after(async () => { await game.settings.set("sr2e", "autoChargePurchases", autoCharge); });
+      afterEach(async () => {
+        // Only what this batch created (purchases notify; they post no chat).
+        const actors = made.actors.splice(0).filter(id => game.actors.has(id));
+        if (actors.length) await Actor.deleteDocuments(actors);
+        const items = made.items.splice(0).filter(id => game.items.has(id));
+        if (items.length) await Item.deleteDocuments(items);
+      });
+
+      it("an ActiveSoft bought as Firearms is named, attributed, slotted and grants the skill", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        nextDialog().then(app => {
+          const opts = [...app.element.querySelectorAll("datalist option")].map(o => o.value);
+          app._sr2eOpts = opts;
+          fill(app, { skill: "  Firearms " });
+          click(app, "buy");
+        });
+        const item = await drop(a, ACTIVE);
+        assert.equal(item.name, "Firearms ActiveSoft");
+        assert.equal(item.system.grantedSkill, "Firearms", "trimmed");
+        assert.equal(item.system.grantedSkillAttribute, "quickness", "from the catalog");
+        assert.isTrue(item.system.slotted);
+        const firearms = a.system.chippedSkills?.find(s => s.name === "Firearms")
+          ?? a.items.find(i => i.type === "skill" && i.name === "Firearms");
+        assert.ok(firearms, "the chip grants Firearms");
+      });
+
+      it("a LinguaSoft (type switched in the dialog) gets its family; the list follows the type", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        let offered;
+        nextDialog().then(app => {
+          fill(app, { cat: "language" });
+          offered = [...app.element.querySelectorAll("datalist option")].map(o => o.value);
+          fill(app, { skill: "English" });
+          click(app, "buy");
+        });
+        const item = await drop(a, ACTIVE);
+        assert.include(offered, "English");
+        assert.equal(item.name, "English LinguaSoft", "labelled from the SELECTED type");
+        const eng = a.system.chippedSkills.find(s => s.name === "English");
+        assert.equal(eng?.system.languageFamily, "Germanic");
+      });
+
+      it("a DataSoft hides the skill, and a stale name never grants a skill", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        let hidden;
+        nextDialog().then(app => { hidden = app.element.querySelector(".sr2e-soft-skill").style.display === "none"; click(app, "buy"); });
+        const item = await drop(a, DATA);
+        assert.isTrue(hidden);
+        assert.equal(item.system.grantedSkill, "");
+        await item.update({ "system.grantedSkill": "Firearms", "system.slotted": true });
+        assert.isUndefined(a.system.chippedSkills.find(s => s.name === "Firearms"), "a DataSoft grants nothing");
+      });
+
+      it("Buy with a blank skill re-opens the dialog; Cancel then creates and charges nothing", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        const nuyen = a.system.nuyen;
+        let warned = "";
+        nextDialog().then(app => {
+          fill(app, { skill: "   " });
+          click(app, "buy");
+          return nextDialog();
+        }).then(app => { warned = app.element.querySelector(".sr2e-soft-warn")?.textContent ?? ""; click(app, "cancel"); });
+        const r = await drop(a, ACTIVE);
+        assert.isNull(r);
+        assert.match(warned, /Choose the skill/);
+        assert.equal(a.items.filter(i => i.system?.category === "skillsoft").length, 0);
+        assert.equal(a.system.nuyen, nuyen);
+      });
+
+      it("a second chip for a running skill defaults to unslotted (unless the buyer chooses)", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        await a.createEmbeddedDocuments("Item", [{ name: "Firearms ActiveSoft", type: "gear",
+          system: { category: "skillsoft", grantedSkillCategory: "active", grantedSkill: "Firearms", rating: 1, slotted: true } }]);
+        // A CONFIGURED chip for the same skill keeps its own slot state (no auto-default).
+        const cfg = await Item.create({ name: "Quench Soft Firearms Chip", type: "gear", system: { category: "skillsoft",
+          grantedSkillCategory: "active", grantedSkill: "Firearms", rating: 1, slotted: true } });
+        made.items.push(cfg.id);
+        let cfgChecked;
+        nextDialog().then(app => { cfgChecked = app.element.querySelector('[name="slotNow"]').checked; click(app, "buy"); });
+        const cfgItem = await drop(a, cfg.uuid);
+        assert.isTrue(cfgChecked, "the configured chip's slot state survives the duplicate check");
+        assert.isTrue(cfgItem.system.slotted);
+        let checked, note;
+        nextDialog().then(app => {
+          const f = fill(app, { skill: "firearms" });
+          checked = f.querySelector('[name="slotNow"]').checked;
+          note = f.querySelector(".sr2e-soft-dupe").textContent;
+          click(app, "buy");
+        });
+        const item = await drop(a, ACTIVE);
+        assert.isFalse(checked);
+        assert.match(note, /already runs/);
+        assert.isFalse(item.system.slotted);
+      });
+
+      it("a failure inside the dialog is an error, not a cancel; a malformed drop warns", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        const cls = a.sheet.constructor;
+        const orig = cls._wireSkillsoftFields;
+        const errors = [], warns = [];
+        const oe = ui.notifications.error.bind(ui.notifications), ow = ui.notifications.warn.bind(ui.notifications);
+        ui.notifications.error = (m, o) => { errors.push(String(m)); return oe(m, o); };
+        ui.notifications.warn = (m, o) => { warns.push(String(m)); return ow(m, o); };
+        cls._wireSkillsoftFields = () => { throw new Error("Quench forced failure"); };
+        try {
+          const r = await drop(a, ACTIVE);
+          assert.isNull(r);
+          assert.match(errors.join(" "), /forced failure/, "a render-time failure");
+          cls._wireSkillsoftFields = orig;
+          // A failure inside the Buy callback itself: reading the skill throws.
+          nextDialog().then(app => {
+            const input = app.element.querySelector('[name="grantedSkill"]');
+            Object.defineProperty(input, "value", { get() { throw new Error("Quench callback failure"); }, configurable: true });
+            click(app, "buy");
+          });
+          const r2 = await drop(a, ACTIVE);
+          assert.isNull(r2);
+          assert.match(errors.join(" "), /callback failure/, "the Buy callback's failure is an error, not a cancel");
+          assert.equal(a.items.filter(i => i.system?.category === "skillsoft").length, 0);
+          await a.sheet._onDrop({ preventDefault() {}, dataTransfer: { getData: () => "{not json" } });
+          assert.match(warns.join(" "), /couldn't be read/);
+          const n = warns.length;
+          await a.sheet._onDrop({ preventDefault() {}, dataTransfer: { getData: () => JSON.stringify({ type: "ActiveEffect", uuid: "x" }) } });
+          assert.equal(warns.length, n, "an unsupported drag is ignored quietly");
+        } finally {
+          cls._wireSkillsoftFields = orig;
+          ui.notifications.error = oe; ui.notifications.warn = ow;
+        }
+      });
+
+      it("a configured world chip keeps its skill and slot state; Alt-drop adds a blank chip free", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        const world = await Item.create({ name: "Quench Soft Pistols Chip", type: "gear", system: { category: "skillsoft",
+          grantedSkillCategory: "active", grantedSkill: "Pistols", grantedSkillAttribute: "strength", rating: 2, slotted: false } });
+        made.items.push(world.id);
+        let prefilled, slotBox;
+        nextDialog().then(app => {
+          prefilled = app.element.querySelector('[name="grantedSkill"]').value;
+          slotBox = app.element.querySelector('[name="slotNow"]').checked;
+          click(app, "buy");
+        });
+        const item = await drop(a, world.uuid);
+        assert.equal(prefilled, "Pistols");
+        assert.isFalse(slotBox, "its slot state is preserved");
+        assert.equal(item.name, "Quench Soft Pistols Chip", "a custom name is kept");
+        assert.equal(item.system.grantedSkillAttribute, "strength", "the configured attribute is kept");
+        const nuyen = a.system.nuyen;
+        const free = await drop(a, ACTIVE, { altKey: true });
+        assert.equal(free.system.grantedSkill ?? "", "");
+        assert.equal(a.system.nuyen, nuyen, "Alt-drop is free");
+      });
+
+      it("escaping: a hostile skill name stays text; other purchases (a program) still work", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        const evil = `<img src=x onerror="window.__sr2eXss=1">`;
+        await a.createEmbeddedDocuments("Item", [{ name: evil, type: "skill", system: { category: "active", rating: 1 } }]);
+        let optionValues, imgs;
+        nextDialog().then(app => {
+          optionValues = [...app.element.querySelectorAll("datalist option")].map(o => o.value);
+          imgs = app.element.querySelectorAll("img").length;
+          fill(app, { skill: evil }); click(app, "buy");
+        });
+        const item = await drop(a, ACTIVE);
+        assert.include(optionValues, evil, "a hostile owned skill is offered as literal text");
+        assert.equal(imgs, 0, "and never becomes markup");
+        assert.equal(item.system.grantedSkill, evil);
+        assert.isUndefined(window.__sr2eXss);
+        nextDialog().then(app => click(app, "buy"));
+        const prog = await drop(a, U("programs", "5d295e057c5fa879"));
+        assert.equal(prog?.type, "program");
+        const cy = U("cyberware", "rqi6nq367egwqwcc");
+        nextDialog().then(app => click(app, "cancel"));
+        assert.isNull(await drop(a, cy), "cyberware Cancel");
+        nextDialog().then(app => click(app, "buy"));
+        assert.equal((await drop(a, cy))?.type, "cyberware", "cyberware Buy");
+        nextDialog().then(app => { fill(app, { cat: "language", skill: "Quenchish" }); click(app, "buy"); });
+        await drop(a, ACTIVE);
+        const custom = a.system.chippedSkills.find(s => s.name === "Quenchish");
+        assert.equal(custom?.system.languageFamily ?? "", "", "a custom language gets no family (a stated limit)");
+      });
+    }, { displayName: "SR2E: Skillsoft purchase (p.243)" });
+
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [];

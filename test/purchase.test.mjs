@@ -227,9 +227,9 @@ describe("itemBaseCost prices a HYPOTHETICAL configuration (the exploit)", () =>
 });
 
 describe("purchasePromptFields — which cost drivers the buy dialog asks for", () => {
-  it("skillsoft → rating + skill category", () => {
+  it("skillsoft → rating + skill category + the skill itself", () => {
     expect(purchasePromptFields({ type: "gear", category: "skillsoft" }))
-      .toEqual(["rating", "grantedSkillCategory"]);
+      .toEqual(["rating", "grantedSkillCategory", "grantedSkill"]);
   });
   it("program → rating", () => {
     expect(purchasePromptFields({ type: "program" })).toEqual(["rating"]);
