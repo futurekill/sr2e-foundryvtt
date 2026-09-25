@@ -3594,6 +3594,12 @@ export function damageResistArmor({ armorCalc = "standard", armorType = "ballist
 
 const ELEMENT_AIDS = { fire: "combat", water: "illusion", air: "detection", earth: "manipulation" };
 
+/** Automatic Combat Turn bookkeeping a sustain carries; cleared when it ends. */
+const CLEAR_SUSTAIN_CLOCK = {
+  "system.sustainInstanceId": "", "system.sustainCombatId": "",
+  "system.sustainFreePending": false, "system.sustainChargedSeq": 0
+};
+
 /** Whether an elemental of this element can aid or sustain spells of this category. */
 export function elementalAidsCategory(element, category) {
   return !!category && category !== "health" && ELEMENT_AIDS[element] === category;
@@ -3626,6 +3632,8 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
   const used = Math.max(0, Math.trunc(Number(sys.forceUsed) || 0));
   const intArg = (v) => Number.isInteger(v) && v >= 1;
   if (st.pending && kind !== "finishExpire") {
+    // A spell mid-ending has no sustain left to count: a boundary passes it by.
+    if (kind === "combatBoundary") return { skip: true };
     return { refuse: "it must finish expiring its spell first" };
   }
   switch (kind) {
@@ -3651,7 +3659,14 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
       if (services < 1) return { refuse: "it owes no more services" };
       return {
         update: { "system.service": "sustain", "system.sustainingSpellUuid": args.spellUuid,
-                  "system.services": services - 1 },
+                  "system.services": services - 1,
+                  // The Combat Turn clock (automatic countdown): a fresh instance,
+                  // and the partial turn it starts in is free when the mage is in
+                  // a running combat.
+                  "system.sustainInstanceId": args.instanceId ?? "",
+                  "system.sustainCombatId": args.combatId ?? "",
+                  "system.sustainFreePending": !!args.combatId,
+                  "system.sustainChargedSeq": 0 },
         message: `sustains the spell (1 service) — ${st.effectiveForce} Combat Turn${st.effectiveForce === 1 ? "" : "s"} of Force`
       };
     }
@@ -3663,7 +3678,8 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
       if (nextUsed >= full) {
         return {
           update: { "system.forceUsed": full, "system.service": "",
-                    "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": sys.sustainingSpellUuid },
+                    "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": sys.sustainingSpellUuid,
+                    ...CLEAR_SUSTAIN_CLOCK },
           expire: sys.sustainingSpellUuid,
           message: "its Force is spent — it disappears, and the spell ends with it (p.142)"
         };
@@ -3677,7 +3693,7 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
         return { refuse: "its Force is already spent — the spell ends; expire it (p.142)" };
       }
       return {
-        update: { "system.service": "", "system.sustainingSpellUuid": "" },
+        update: { "system.service": "", "system.sustainingSpellUuid": "", ...CLEAR_SUSTAIN_CLOCK },
         message: kind === "takeOver" ? "hands the spell back — the mage sustains it again (+2 TN)" : "ends its service"
       };
     }
@@ -3686,9 +3702,51 @@ export function planElementalTransition(sys = {}, kind, args = {}) {
       if (sys.service === "sustain") return { refuse: "its spell must expire first" };
       if (services < 1) return { refuse: "it owes no more services — the binding is exhausted" };
       return {
-        update: { "system.forceUsed": 0, "system.service": "", "system.services": services - 1 },
+        update: { "system.forceUsed": 0, "system.service": "", "system.services": services - 1, ...CLEAR_SUSTAIN_CLOCK },
         message: `is re-called at full Force ${full} (1 service, p.141)`
       };
+    }
+    case "combatBoundary": {
+      // One Combat Turn ended in a combat (SR2ECombat#nextRound). `seq` is the
+      // combat's monotonic boundary counter, `round` the OUTGOING round, and
+      // `timingAlive` whether the sustain's recorded combat still runs with the
+      // mage in it. A skip writes nothing.
+      const seq = Math.trunc(Number(args.seq) || 0);
+      if (sys.service !== "sustain" || !(Number(args.round) >= 1) || seq < 1) return { skip: true };
+      if (sys.sustainCombatId && sys.sustainCombatId !== args.combatId && args.timingAlive) return { skip: true };
+      const adopting = sys.sustainCombatId !== args.combatId;
+      const chargedSeq = adopting ? 0 : Math.trunc(Number(sys.sustainChargedSeq) || 0);
+      if (!adopting && chargedSeq >= seq) return { skip: true };   // this boundary was processed
+      const clock = { "system.sustainCombatId": args.combatId, "system.sustainChargedSeq": seq };
+      if (sys.sustainFreePending && !adopting) {
+        return { update: { ...clock, "system.sustainFreePending": false }, outcome: "free",
+                 message: "the Combat Turn it took the spell over in is free" };
+      }
+      if (st.depleted) return { refuse: "its Force is already spent — expire it" };
+      const nextUsed = used + 1;
+      if (nextUsed >= full) {
+        return {
+          update: { "system.forceUsed": full, "system.service": "", "system.sustainingSpellUuid": "",
+                    "system.pendingExpireSpellUuid": sys.sustainingSpellUuid, ...CLEAR_SUSTAIN_CLOCK },
+          expire: sys.sustainingSpellUuid, outcome: "charged",
+          message: "its Force is spent — it disappears, and the spell ends with it (p.142)"
+        };
+      }
+      return { update: { ...clock, "system.sustainFreePending": false, "system.forceUsed": nextUsed },
+               outcome: "charged",
+               message: `${full - nextUsed} Combat Turn${full - nextUsed === 1 ? "" : "s"} of Force left` };
+    }
+    case "consumeFree": {
+      if (sys.service !== "sustain" || !sys.sustainFreePending) return { refuse: "no free starting turn is owed" };
+      // Also record the combat's latest boundary as processed (when there is
+      // one): a still-current recovery card for it must not charge Force.
+      const seq = Math.trunc(Number(args.seq) || 0);
+      const update = { "system.sustainFreePending": false };
+      if (args.combatId && seq > 0) {
+        update["system.sustainCombatId"] = args.combatId;
+        update["system.sustainChargedSeq"] = Math.max(seq, Math.trunc(Number(sys.sustainChargedSeq) || 0));
+      }
+      return { update, message: "its free starting turn is marked as passed" };
     }
     case "finishExpire": {
       if (!st.pending) return { refuse: "nothing is expiring" };

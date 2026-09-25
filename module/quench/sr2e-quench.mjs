@@ -4122,6 +4122,185 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Elemental aid (p.141–142)" });
 
+    // ── Automatic Combat Turn countdown for sustaining elementals (0.97.0):
+    //    charged inside SR2ECombat#nextRound, idempotent per boundary. ────────
+    quench.registerBatch("sr2e.elemental-clock", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const actors = [], combats = [];
+      let msgStart = 0;
+      afterEach(async function () {
+        this.timeout(15000);
+        for (const c of combats.splice(0)) { try { await c.delete(); } catch (e) {} }
+        for (const a of actors.splice(0)) {
+          try {
+            if (a.type === "spirit") await a.update({ "system.service": "", "system.sustainingSpellUuid": "", "system.pendingExpireSpellUuid": "" });
+            await a.delete();
+          } catch (e) {}
+        }
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgStart).map(m => m.id));
+      });
+
+      async function setup({ force = 3, inCombat = true, sustainFirst = false } = {}) {
+        msgStart = game.messages.size;
+        const mage = await Actor.create({ name: "Quench Clock Mage", type: "character",
+          system: { willpower: { base: 5 }, magic: { value: 6, type: "full_magician", tradition: "hermetic" } },
+          items: [{ name: "Armor", type: "spell", system: { category: "manipulation", type: "physical", force: 3, duration: "sustained" } }] });
+        const earth = await Actor.create({ name: "Quench Clock Earth", type: "spirit", system: { spiritType: "elemental",
+          domain: "earth", force, services: 3, conjurerUuid: mage.uuid } });
+        actors.push(mage, earth);
+        await mage.update({ "system.boundSpirits": [earth.uuid] });
+        const armor = mage.items.getName("Armor");
+        const combat = await Combat.create({ scene: canvas?.scene?.id ?? null });
+        combats.push(combat);
+        if (inCombat) await combat.createEmbeddedDocuments("Combatant", [{ actorId: mage.id }]);
+        const hold = async () => {
+          await armor.setSustaining(true, 3);
+          return earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
+        };
+        if (sustainFirst) await hold();
+        await combat.startCombat();
+        if (!sustainFirst) await hold();
+        return { mage, earth, armor, combat };
+      }
+
+      it("starting a combat charges nothing; the turn a sustain begins in is free; then 1 per Combat Turn", async () => {
+        const { earth, combat } = await setup();
+        assert.equal(earth.system.forceUsed, 0);
+        assert.isTrue(earth.system.sustainFreePending, "started mid-combat");
+        await combat.nextRound();
+        assert.equal(earth.system.forceUsed, 0, "the starting turn is free");
+        await combat.nextRound();
+        assert.equal(earth.system.forceUsed, 1);
+      });
+
+      it("a sustain from before the combat is charged at the first boundary", async () => {
+        const { earth, combat } = await setup({ sustainFirst: true });
+        assert.isFalse(earth.system.sustainFreePending);
+        await combat.nextRound();
+        assert.equal(earth.system.forceUsed, 1);
+      });
+
+      it("at 0 Force the spell ends before the new Combat Turn", async () => {
+        const { earth, armor, combat } = await setup({ force: 1, sustainFirst: true });
+        await combat.nextRound();
+        assert.isFalse(armor.system.sustaining, "Force 1 → 0: the spell ended");
+        assert.equal(combat.round, 2);
+      });
+
+      it("editing the round number charges nothing; the free turn is still free", async () => {
+        const { earth, combat } = await setup();
+        await combat.update({ round: 9 });
+        assert.equal(earth.system.forceUsed, 0);
+        await combat.nextRound();
+        assert.equal(earth.system.forceUsed, 0, "free boundary unaffected by the label");
+        await combat.nextRound();
+        assert.equal(earth.system.forceUsed, 1);
+      });
+
+      it("a retried Next Round after a failed round update does not charge twice", async () => {
+        const { earth, combat } = await setup({ sustainFirst: true });
+        const orig = combat.update.bind(combat);
+        let fail = true;
+        combat.update = async (data, o) => {
+          if (fail && "round" in data) { fail = false; throw new Error("injected"); }
+          return orig(data, o);
+        };
+        try {
+          try { await combat.nextRound(); } catch (e) { /* injected */ }
+          assert.equal(earth.system.forceUsed, 1, "charged before the failure");
+          await combat.nextRound();
+          assert.equal(earth.system.forceUsed, 1, "the retry of the same boundary skips it");
+          await combat.nextRound();
+          assert.equal(earth.system.forceUsed, 2, "the next boundary charges");
+        } finally { delete combat.update; }
+      });
+
+      it("a combat without the mage charges nothing", async () => {
+        const { earth, combat } = await setup({ inCombat: false, sustainFirst: true });
+        await combat.nextRound();
+        assert.equal(earth.system.forceUsed, 0);
+      });
+
+      it("a turn it could not count gets a card; the card works once, while current", async () => {
+        const { earth, combat } = await setup({ sustainFirst: true });
+        const orig = earth.update.bind(earth);
+        earth.update = async () => { throw new Error("injected"); };
+        const n = game.messages.size;
+        try { await combat.nextRound(); } finally { delete earth.update; }
+        assert.equal(combat.round, 2, "the round still advanced");
+        assert.equal(earth.system.forceUsed, 0);
+        const card = game.messages.contents.slice(n).find(m => m.content.includes("sr2e-count-turn-btn"));
+        assert.ok(card, "a recovery card was posted");
+        const btn = new DOMParser().parseFromString(card.content, "text/html").querySelector(".sr2e-count-turn-btn");
+        const { countTurnFromCard } = await import("../elementals.mjs");
+        await countTurnFromCard({ ...btn.dataset });
+        assert.equal(earth.system.forceUsed, 1, "counted once");
+        await countTurnFromCard({ ...btn.dataset });
+        assert.equal(earth.system.forceUsed, 1, "a second click does nothing");
+      });
+
+      it("a card after a later boundary has expired", async () => {
+        const { earth, combat } = await setup({ sustainFirst: true });
+        earth.update = async () => { throw new Error("injected"); };
+        const n = game.messages.size;
+        try { await combat.nextRound(); } finally { delete earth.update; }
+        const card = game.messages.contents.slice(n).find(m => m.content.includes("sr2e-count-turn-btn"));
+        const btn = new DOMParser().parseFromString(card.content, "text/html").querySelector(".sr2e-count-turn-btn");
+        await combat.nextRound();                 // the next boundary counts normally
+        assert.equal(earth.system.forceUsed, 1);
+        const { countTurnFromCard } = await import("../elementals.mjs");
+        await countTurnFromCard({ ...btn.dataset });
+        assert.equal(earth.system.forceUsed, 1, "expired: no replay");
+      });
+
+      it("a missed free turn can be marked passed without spending Force", async () => {
+        const { earth } = await setup();
+        assert.isTrue((await earth.elementalTransition("consumeFree", {}, { quiet: true })).ok);
+        assert.isFalse(earth.system.sustainFreePending);
+        assert.equal(earth.system.forceUsed, 0);
+      });
+
+      it("marking a missed free turn passed also retires its recovery card", async () => {
+        const { earth, combat } = await setup();              // free turn owed
+        earth.update = async () => { throw new Error("injected"); };
+        const n = game.messages.size;
+        try { await combat.nextRound(); } finally { delete earth.update; }
+        const card = game.messages.contents.slice(n).find(m => m.content.includes("sr2e-count-turn-btn"));
+        const btn = new DOMParser().parseFromString(card.content, "text/html").querySelector(".sr2e-count-turn-btn");
+        await earth.elementalTransition("consumeFree", {}, { quiet: true });
+        const { countTurnFromCard } = await import("../elementals.mjs");
+        await countTurnFromCard({ ...btn.dataset });
+        assert.equal(earth.system.forceUsed, 0, "the corrected boundary is not charged again");
+      });
+
+      it("a chat failure on a card click still ends the spell", async () => {
+        const { earth, armor, combat } = await setup({ force: 1, sustainFirst: true });
+        earth.update = async () => { throw new Error("injected"); };
+        const n = game.messages.size;
+        try { await combat.nextRound(); } finally { delete earth.update; }
+        const card = game.messages.contents.slice(n).find(m => m.content.includes("sr2e-count-turn-btn"));
+        const btn = new DOMParser().parseFromString(card.content, "text/html").querySelector(".sr2e-count-turn-btn");
+        const { countTurnFromCard } = await import("../elementals.mjs");
+        const orig = ChatMessage.create;
+        ChatMessage.create = async () => { throw new Error("injected chat"); };
+        try { await countTurnFromCard({ ...btn.dataset }); } finally { ChatMessage.create = orig; }
+        assert.isFalse(armor.system.sustaining, "expired despite the chat failure");
+        assert.equal(earth.system.pendingExpireSpellUuid, "");
+      });
+
+      it("the mage moving to another combat hands it the clock", async () => {
+        const { mage, earth, combat } = await setup();
+        const b = await Combat.create({ scene: canvas?.scene?.id ?? null });
+        combats.push(b);
+        await b.createEmbeddedDocuments("Combatant", [{ actorId: mage.id }]);
+        await b.startCombat();
+        await combat.deleteEmbeddedDocuments("Combatant", combat.combatants.map(c => c.id));
+        await b.nextRound();
+        assert.equal(earth.system.sustainCombatId, b.id, "adopted");
+        assert.equal(earth.system.forceUsed, 1, "no free turn on adoption");
+      });
+    }, { displayName: "SR2E: Elemental Combat Turn clock (p.142)" });
+
 
 
 

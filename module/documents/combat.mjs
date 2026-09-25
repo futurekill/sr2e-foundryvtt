@@ -14,6 +14,7 @@
  * descending sort keeps the visible order correct as totals fall.
  */
 import { spendInitiative, nextEligibleTurnIndex, livingCombatantIds } from "../rules/sr2e-rules.mjs";
+import { processCombatBoundary, postCountCards } from "../elementals.mjs";
 
 export class SR2ECombat extends Combat {
 
@@ -124,7 +125,17 @@ export class SR2ECombat extends Combat {
     // that jumped it to the top of the tracker.
     await this._clearDefeatedInitiative();
     const live = livingCombatantIds(this.combatants);
-    await this.update({ round: this.round + 1, turn: null });
+    // A Combat Turn is ending: elementals sustaining spells for mages in this
+    // combat spend a point of Force (SR2E p.142) — BEFORE the new Turn begins,
+    // so a spell that runs out ends first. Boundaries are counted by a monotonic
+    // counter committed with the round, so a retried Next Round cannot charge
+    // twice and editing the round number charges nothing. Best effort: turns it
+    // could not count get a recovery card once the new round is committed.
+    const outgoing = this.round;
+    const seq = (this.getFlag("sr2e", "boundarySeq") ?? 0) + 1;
+    const failures = outgoing >= 1 ? await processCombatBoundary(this, seq, outgoing) : [];
+    await this.update({ round: this.round + 1, turn: null, "flags.sr2e.boundarySeq": seq });
+    if (failures.length) await postCountCards(this, seq, outgoing, failures);
     if (live.length) await this.rollInitiative(live, { updateTurn: false });
 
     await ChatMessage.create({

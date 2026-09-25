@@ -1557,6 +1557,13 @@ export class SpiritData extends SR2EDataModel {
       // A spell whose ending (the elemental's Force ran out, p.142) has not
       // finished yet — blocks recasting it until cleanup completes.
       pendingExpireSpellUuid: new fields.StringField({ initial: "", blank: true }),
+      // Automatic Combat Turn countdown for a sustain (0.97.0). The clock is the
+      // combat's monotonic boundary counter, never its editable round label.
+      sustainInstanceId: new fields.StringField({ initial: "", blank: true }),
+      sustainCombatId: new fields.StringField({ initial: "", blank: true }),
+      // The partial Combat Turn a sustain starts in is not charged.
+      sustainFreePending: new fields.BooleanField({ initial: false }),
+      sustainChargedSeq: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
       // Derived from Force
       body: SR2EDataModel.attributeField(1),

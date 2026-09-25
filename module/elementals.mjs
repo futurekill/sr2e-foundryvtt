@@ -22,6 +22,17 @@ import { elementalAidsCategory, planElementalTransition } from "./rules/sr2e-rul
 /** Spirit (and spell) uuids with a transition in flight on THIS client. */
 const IN_FLIGHT = new Set();
 
+/** The automatic Combat Turn clock of a sustain — cleared when it ends. */
+const CLOCK_CLEAR = {
+  "system.sustainInstanceId": "", "system.sustainCombatId": "",
+  "system.sustainFreePending": false, "system.sustainChargedSeq": 0
+};
+
+/** Whether this combat has a combatant whose actor IS this exact document. */
+function combatHasActor(combat, actor) {
+  return !!actor && !!combat?.combatants?.some(c => c.actor?.uuid === actor.uuid);
+}
+
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 
 /** A spirit actor that is an elemental. */
@@ -102,7 +113,7 @@ export async function detachElementalHolder(spell) {
   for (const sp of allSpirits()) {
     const s = sp.system;
     if (s.service === "sustain" && s.sustainingSpellUuid === spell.uuid && !s.pendingExpireSpellUuid && sp.isOwner) {
-      await sp.update({ "system.service": "", "system.sustainingSpellUuid": "" });
+      await sp.update({ "system.service": "", "system.sustainingSpellUuid": "", ...CLOCK_CLEAR });
     }
   }
 }
@@ -119,7 +130,15 @@ async function completeExpiry(spirit) {
   if (!uuid) return true;
   try {
     const spell = await fromUuid(uuid);
-    if (spell?.system?.sustaining) await spell.setSustaining(false);
+    if (spell?.system?.sustaining) {
+      try { await spell.setSustaining(false); }
+      catch (err) {
+        // setSustaining ends the spell, then posts a chat line; judge by the
+        // spell's state, not by whether that notice went out.
+        if (spell.system?.sustaining) throw err;
+        console.warn("SR2E | spell ended, but its notice failed", err);
+      }
+    }
     // ALWAYS sweep the effects too: setSustaining clears its flag before it
     // deletes them, so a failure there would otherwise leave effects behind
     // that a retry — seeing "not sustaining" — would never look for again.
@@ -164,13 +183,14 @@ function sustainRefusal(spirit, spell) {
  */
 export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
   const refuse = (reason) => {
-    ui.notifications.warn(`${spirit?.name ?? "Elemental"}: ${reason}`);
-    return { ok: false, reason };
+    // The automatic countdown reports through its own recovery card instead.
+    if (!opts.silent) ui.notifications.warn(`${spirit?.name ?? "Elemental"}: ${reason}`);
+    return { ok: false, outcome: "failed", reason };
   };
   if (!isElemental(spirit)) return refuse("only an elemental performs this service");
   if (!spirit.isOwner) return refuse("you do not own it");
   const keys = [spirit.uuid, args.spell?.uuid].filter(Boolean);
-  if (keys.some(k => IN_FLIGHT.has(k))) return { ok: false, reason: "busy" };
+  if (keys.some(k => IN_FLIGHT.has(k))) return { ok: false, outcome: "failed", reason: "busy" };
   keys.forEach(k => IN_FLIGHT.add(k));
   try {
     if (kind === "finishExpire") {
@@ -178,24 +198,58 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
       const done = await completeExpiry(spirit);
       return { ok: done };
     }
+    const planArgs = { n: args.n, spellUuid: args.spell?.uuid, combatId: args.combatId,
+                       seq: args.seq, round: args.round, timingAlive: args.timingAlive };
     if (kind === "startSustain") {
       const why = sustainRefusal(spirit, args.spell);
       if (why) return refuse(why);
+      // A fresh Combat Turn clock; the combat is the one the mage is fighting
+      // in right now, if any (its first boundary is then free).
+      const caster = args.spell.parent;
+      const combat = game.combats?.find(c => c.started && combatHasActor(c, caster));
+      planArgs.instanceId = foundry.utils.randomID();
+      planArgs.combatId = combat?.id ?? "";
     }
-    const plan = planElementalTransition(spirit.system, kind,
-      { n: args.n, spellUuid: args.spell?.uuid });
+    if (kind === "consumeFree") {
+      // Mark the free turn passed AND the latest boundary of its combat as
+      // processed, so that boundary's recovery card cannot charge it again.
+      const caster = sync(spirit.system.conjurerUuid);
+      const combat = game.combats?.get(spirit.system.sustainCombatId)
+        ?? game.combats?.find(c => c.started && combatHasActor(c, caster));
+      planArgs.combatId = combat?.id ?? "";
+      planArgs.seq = combat?.getFlag("sr2e", "boundarySeq") ?? 0;
+    }
+    if (kind === "combatBoundary" || kind === "consumeFree") {
+      // The same check for the automatic step and for a recovery card: whoever
+      // runs it must be able to finish an expiry on the caster too.
+      const caster = sync(spirit.system.conjurerUuid);
+      if (!caster?.isOwner) return { ok: false, outcome: "failed", reason: "cannot update the mage" };
+    }
+    const plan = planElementalTransition(spirit.system, kind, planArgs);
+    if (plan.skip) return { ok: true, outcome: "skip" };
     if (plan.refuse) return refuse(plan.refuse);
-    await spirit.update(plan.update);
+    try {
+      await spirit.update(plan.update);
+    } catch (err) {
+      console.error("SR2E | elemental update failed", err);
+      return { ok: false, outcome: "failed", committed: false, reason: "the update was rejected" };
+    }
+    // The expiry completes BEFORE any chat: a failed notice must never leave a
+    // spell running on an elemental whose Force is spent.
+    const expiredOk = plan.expire ? await completeExpiry(spirit) : true;
     if (!opts.quiet) {
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: spirit }),
-        content: `<div class="sr2e-item-card"><strong>${esc(spirit.name)}</strong> ${esc(plan.message)}.</div>`
-      });
+      try {
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: spirit }),
+          content: `<div class="sr2e-item-card"><strong>${esc(spirit.name)}</strong> ${esc(plan.message)}.</div>`
+        });
+      } catch (err) { console.warn("SR2E | elemental notice failed", err); }
     }
-    if (plan.expire && !(await completeExpiry(spirit))) {
-      return { ok: false, reason: "the spell could not be ended yet — Finish on its sheet", message: plan.message };
+    if (!expiredOk) {
+      return { ok: false, outcome: "pending", committed: true,
+               reason: "the spell could not be ended yet — Finish on its sheet", message: plan.message };
     }
-    return { ok: true, message: plan.message };
+    return { ok: true, outcome: plan.outcome ?? "done", expired: !!plan.expire, message: plan.message };
   } finally {
     keys.forEach(k => IN_FLIGHT.delete(k));
   }
@@ -211,7 +265,127 @@ export async function releaseElemental(spirit) {
   const s = spirit.system;
   if (s.service === "sustain" && s.sustainingSpellUuid) {
     await spirit.update({ "system.service": "", "system.sustainingSpellUuid": "",
-                          "system.pendingExpireSpellUuid": s.sustainingSpellUuid });
+                          "system.pendingExpireSpellUuid": s.sustainingSpellUuid, ...CLOCK_CLEAR });
   }
   return completeExpiry(spirit);
+}
+
+// ---------------------------------------------------------------------------
+// Automatic Combat Turn countdown (0.97.0) — best effort, with recovery
+// ---------------------------------------------------------------------------
+// SR2ECombat#nextRound calls processCombatBoundary BEFORE it commits the new
+// round, on the client advancing it (no election, no hook replay). Each
+// sustaining elemental of a mage in the combat is charged once per boundary;
+// its sustainChargedSeq makes a retried Next Round skip it. There is no
+// cross-client coordination: two people advancing the same combat at the same
+// instant, or a manual −1 racing it, can lose or duplicate one charge.
+
+/** GM + owner user ids for a spirit's whispers. */
+function audience(spirit) {
+  return game.users.filter(u => u.isGM || spirit.testUserPermission(u, "OWNER")).map(u => u.id);
+}
+
+async function whisper(spirit, html) {
+  try {
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: spirit }), whisper: audience(spirit),
+      content: `<div class="sr2e-item-card">${html}</div>` });
+  } catch (err) { console.warn("SR2E | elemental notice failed", err); }
+}
+
+/** Whether a sustain's recorded timing combat still runs with its mage in it. */
+function timingAlive(spirit, combatId) {
+  const rec = spirit.system.sustainCombatId;
+  if (!rec || rec === combatId) return false;
+  const c = game.combats?.get(rec);
+  return !!c?.started && combatHasActor(c, sync(spirit.system.conjurerUuid));
+}
+
+/**
+ * Charge every sustaining elemental of every mage in this combat for the
+ * Combat Turn that is ending. Never throws: per-spirit failures are returned
+ * so the caller can post recovery cards AFTER the round update commits.
+ * @param {Combat} combat
+ * @param {number} seq   - the boundary being processed (boundarySeq + 1)
+ * @param {number} round - the OUTGOING round
+ * @returns {Promise<Array<{spirit:Actor, reason:string}>>}
+ */
+export async function processCombatBoundary(combat, seq, round) {
+  const failures = [];
+  if (!(round >= 1)) return failures;
+  const seen = new Set();
+  for (const cb of combat.combatants ?? []) {
+    const mage = cb.actor;
+    if (mage?.type !== "character") continue;
+    for (const spirit of boundElementals(mage)) {
+      if (seen.has(spirit.uuid)) continue;
+      seen.add(spirit.uuid);
+      const s = spirit.system;
+      if (s.service !== "sustain") continue;
+      const spell = sync(s.sustainingSpellUuid);
+      if (spell?.parent !== mage) continue;
+      try {
+        const r = await elementalTransition(spirit, "combatBoundary",
+          { combatId: combat.id, seq, round, timingAlive: timingAlive(spirit, combat.id) },
+          { quiet: true, silent: true });
+        if (r.outcome === "skip" || r.outcome === "free") continue;
+        if (r.outcome === "charged") {
+          await whisper(spirit, r.expired
+            ? `<strong>${esc(spirit.name)}</strong>'s Force is spent — <strong>${esc(spell.name)}</strong> ends (SR2E p.142).`
+            : `<strong>${esc(spirit.name)}</strong>: ${esc(r.message)} sustaining ${esc(spell.name)}.`);
+        } else if (r.outcome === "pending") {
+          await whisper(spirit, `<strong>${esc(spirit.name)}</strong>'s Force is spent and <strong>${esc(spell.name)}</strong> must end — press <em>Finish ending the spell</em> on its sheet.`);
+        } else {
+          failures.push({ spirit, reason: r.reason ?? "failed" });
+        }
+      } catch (err) {
+        console.error("SR2E | Combat Turn countdown failed for", spirit.name, err);
+        failures.push({ spirit, reason: "error" });
+      }
+    }
+  }
+  return failures;
+}
+
+/**
+ * After the round update committed: one recovery card per spirit whose turn
+ * could not be counted. The card works only while that boundary is still the
+ * latest and the sustain is the same one; after that it expires.
+ */
+export async function postCountCards(combat, seq, round, failures) {
+  for (const { spirit } of failures) {
+    const s = spirit.system;
+    const free = !!s.sustainFreePending && s.sustainCombatId === combat.id;
+    await whisper(spirit, `<strong>${esc(spirit.name)}</strong>: Combat Turn ${round} ended but could not be counted
+      automatically${free ? " (it is the free starting turn)" : ""}.
+      <br><button type="button" class="sr2e-count-turn-btn"
+        data-spirit-uuid="${spirit.uuid}" data-instance-id="${s.sustainInstanceId}"
+        data-combat-id="${combat.id}" data-seq="${seq}" data-round="${round}">Count this Combat Turn</button>
+      <br><em class="sr2e-hint">One person, once. It works until the next Combat Turn ends.</em>`);
+  }
+}
+
+/**
+ * The "Count this Combat Turn" card. Valid only while its boundary is still
+ * current and the sustain is the same one; otherwise it expires and says how
+ * to correct by hand (−1 Combat Turn, or "Starting turn already passed").
+ */
+export async function countTurnFromCard(data) {
+  const spirit = await fromUuid(data.spiritUuid);
+  if (!isElemental(spirit)) return ui.notifications.warn("That elemental no longer exists.");
+  const s = spirit.system;
+  const combat = game.combats?.get(data.combatId);
+  const seq = Number(data.seq);
+  const current = s.service === "sustain" && s.sustainInstanceId === data.instanceId
+    // "" = no timing combat yet (the sustain began outside combat): the failed
+    // step would have adopted this combat, so the card may too.
+    && (s.sustainCombatId === data.combatId || s.sustainCombatId === "") && combat
+    && (combat.getFlag("sr2e", "boundarySeq") ?? 0) === seq && (s.sustainChargedSeq ?? 0) < seq;
+  if (!current) {
+    return ui.notifications.warn(`This Combat Turn can no longer be counted automatically. If ${spirit.name} still owes it, press ${
+      s.sustainFreePending ? "“Starting turn already passed” (if it was the free turn) or " : ""}“−1 Combat Turn” on its sheet.`);
+  }
+  const r = await elementalTransition(spirit, "combatBoundary",
+    { combatId: data.combatId, seq, round: Number(data.round), timingAlive: false });
+  if (r.outcome === "skip") ui.notifications.info("That Combat Turn was already counted.");
+  return r;
 }

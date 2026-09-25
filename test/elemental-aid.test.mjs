@@ -47,7 +47,7 @@ describe("Aid Sorcery", () => {
 describe("Re-call — one service, back at full Force, idle (p.141)", () => {
   it("resets a depleted elemental", () => {
     const r = planElementalTransition(el({ forceUsed: 5, services: 1 }), "recall");
-    expect(r.update).toEqual({ "system.forceUsed": 0, "system.service": "", "system.services": 0 });
+    expect(r.update).toMatchObject({ "system.forceUsed": 0, "system.service": "", "system.services": 0 });
   });
   it("refuses when it still has Force or the binding is exhausted", () => {
     expect(planElementalTransition(el({ forceUsed: 2 }), "recall").refuse).toBeTruthy();
@@ -58,7 +58,7 @@ describe("Re-call — one service, back at full Force, idle (p.141)", () => {
 describe("Spell Sustaining — one Combat Turn per point of Force (p.142)", () => {
   it("starts for one service and counts down", () => {
     expect(planElementalTransition(el(), "startSustain", { spellUuid: "S" }).update)
-      .toEqual({ "system.service": "sustain", "system.sustainingSpellUuid": "S", "system.services": 2 });
+      .toMatchObject({ "system.service": "sustain", "system.sustainingSpellUuid": "S", "system.services": 2 });
     expect(planElementalTransition(el({ service: "sustain", sustainingSpellUuid: "S" }), "sustainTurn").update)
       .toEqual({ "system.forceUsed": 1 });
   });
@@ -69,7 +69,7 @@ describe("Spell Sustaining — one Combat Turn per point of Force (p.142)", () =
   });
   it("the mage can take over only BEFORE the Force is spent", () => {
     expect(planElementalTransition(el({ service: "sustain", sustainingSpellUuid: "S", forceUsed: 3 }), "takeOver").update)
-      .toEqual({ "system.service": "", "system.sustainingSpellUuid": "" });
+      .toMatchObject({ "system.service": "", "system.sustainingSpellUuid": "" });
     expect(planElementalTransition(el({ service: "sustain", sustainingSpellUuid: "S", forceUsed: 5 }), "takeOver").refuse)
       .toMatch(/spell ends/);
   });
@@ -95,5 +95,53 @@ describe("spellCastDice with Aid Sorcery", () => {
   });
   it("aid is capped by the elemental's Force", () => {
     expect(spellCastDice({ force: 6, aidReq: 5, aidAvail: 2 }).aid).toBe(2);
+  });
+});
+
+// Automatic Combat Turn countdown (0.97.0). A boundary = one ended Combat Turn,
+// identified by the combat's monotonic `seq`, never the editable round label.
+describe("combatBoundary — the automatic Combat Turn countdown", () => {
+  const sus = (o = {}) => el({ service: "sustain", sustainingSpellUuid: "S", force: 3,
+    sustainCombatId: "C", sustainFreePending: true, sustainChargedSeq: 0, sustainInstanceId: "I", ...o });
+  const b = (s, a) => planElementalTransition(s, "combatBoundary", { combatId: "C", seq: 1, round: 1, ...a });
+  it("the turn it took the spell over in is free", () => {
+    const r = b(sus());
+    expect(r.outcome).toBe("free");
+    expect(r.update).toEqual({ "system.sustainCombatId": "C", "system.sustainChargedSeq": 1, "system.sustainFreePending": false });
+  });
+  it("then each boundary charges one point of Force, once", () => {
+    const s = sus({ sustainFreePending: false, sustainChargedSeq: 1 });
+    expect(b(s, { seq: 1 }).skip).toBe(true);                         // retry of a processed boundary
+    expect(b(s, { seq: 2, round: 2 }).update["system.forceUsed"]).toBe(1);
+  });
+  it("at 0 Force the spell ends and the clock is cleared", () => {
+    const r = b(sus({ forceUsed: 2, sustainFreePending: false, sustainChargedSeq: 4 }), { seq: 5, round: 5 });
+    expect(r.expire).toBe("S");
+    expect(r.update).toMatchObject({ "system.forceUsed": 3, "system.service": "", "system.sustainInstanceId": "",
+      "system.sustainCombatId": "", "system.sustainChargedSeq": 0, "system.pendingExpireSpellUuid": "S" });
+  });
+  it("round 0, no sustain, and a spell mid-ending are skipped", () => {
+    expect(b(sus(), { round: 0 }).skip).toBe(true);
+    expect(b(el()).skip).toBe(true);
+    expect(b(sus({ pendingExpireSpellUuid: "S" })).skip).toBe(true);
+  });
+  it("another combat is ignored while the recorded one still runs with the mage; otherwise it adopts (no free turn)", () => {
+    expect(b(sus(), { combatId: "D", timingAlive: true }).skip).toBe(true);
+    const r = b(sus(), { combatId: "D", seq: 7, round: 3, timingAlive: false });
+    expect(r.outcome).toBe("charged");
+    expect(r.update).toMatchObject({ "system.sustainCombatId": "D", "system.sustainChargedSeq": 7, "system.forceUsed": 1 });
+  });
+  it("startSustain starts a fresh clock; every ending clears it", () => {
+    expect(planElementalTransition(el(), "startSustain", { spellUuid: "S", instanceId: "I", combatId: "C" }).update)
+      .toMatchObject({ "system.sustainInstanceId": "I", "system.sustainCombatId": "C", "system.sustainFreePending": true });
+    expect(planElementalTransition(el(), "startSustain", { spellUuid: "S", instanceId: "I" }).update["system.sustainFreePending"]).toBe(false);
+    expect(planElementalTransition(sus(), "takeOver").update).toMatchObject({ "system.sustainInstanceId": "", "system.sustainCombatId": "" });
+  });
+  it("consumeFree marks a missed free turn passed without spending Force", () => {
+    expect(planElementalTransition(sus(), "consumeFree").update).toEqual({ "system.sustainFreePending": false });
+    // With the combat's latest boundary: recorded as processed, so its card cannot charge.
+    expect(planElementalTransition(sus(), "consumeFree", { combatId: "C", seq: 3 }).update)
+      .toEqual({ "system.sustainFreePending": false, "system.sustainCombatId": "C", "system.sustainChargedSeq": 3 });
+    expect(planElementalTransition(sus({ sustainFreePending: false }), "consumeFree").refuse).toBeTruthy();
   });
 });

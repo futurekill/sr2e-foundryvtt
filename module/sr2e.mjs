@@ -15,7 +15,7 @@ import * as dataModels from "./data/_index.mjs";
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
 import { renderManipDamageCard, isManipCardResolved } from "./documents/item.mjs";
-import { detachElementalHolder } from "./elementals.mjs";
+import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
 import { SR2ECombat } from "./documents/combat.mjs";
 
 // Sheets
@@ -2276,6 +2276,14 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const defender = await resolveCardDefender(message.getFlag("sr2e", "astral")?.targetUuid);
       if (!defender) return ui.notifications.warn("Select the defending token first.");
       return defender.rollAstralResistance(message);
+    });
+  });
+
+  // Elemental Combat Turn recovery card (0.97.0) — valid only while current.
+  html.querySelectorAll?.(".sr2e-count-turn-btn").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      return countTurnFromCard(btn.dataset);
     });
   });
 

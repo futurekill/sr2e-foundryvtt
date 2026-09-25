@@ -46,7 +46,11 @@
               title="Its Force is spent — the spell ends (p.142)">Expire now</button>
       {{else}}
       <button type="button" class="btn-small" data-action="elementalAction" data-kind="sustainTurn"
-              title="One Combat Turn passed: its Force drops by 1; at 0 the spell ends (p.142). One person tracks this.">−1 Combat Turn</button>
+              title="Counted automatically when its mage's combat moves to the next Combat Turn. Use this for time outside combat, or to correct a turn that was missed: its Force drops by 1; at 0 the spell ends (p.142).">−1 Combat Turn</button>
+      {{#if system.sustainFreePending}}
+      <button type="button" class="btn-small" data-action="elementalAction" data-kind="consumeFree"
+              title="The Combat Turn it took the spell over in is free; mark it passed if it was missed">Starting turn already passed</button>
+      {{/if}}
       <button type="button" class="btn-small" data-action="elementalAction" data-kind="takeOver"
               title="The mage takes the spell back — the +2 TN returns">Hand spell back</button>
       {{/if}}
