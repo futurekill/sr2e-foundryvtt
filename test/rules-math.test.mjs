@@ -911,3 +911,23 @@ describe("meleeVisibilityMod (SR2E p.102)", () => {
     expect(meleeVisibilityMod(8)).toBe(8);
   });
 });
+
+import { conjuringLimit, elementalMaterialsCost } from "../module/rules/sr2e-rules.mjs";
+describe("conjuringLimit (SR2E p.139–140)", () => {
+  it("one nature spirit in service at a time", () => {
+    expect(conjuringLimit("nature", [], 5)).toBeNull();
+    expect(conjuringLimit("nature", [{ spiritType: "nature", services: 1 }], 5)).toMatch(/only one nature spirit/);
+    expect(conjuringLimit("nature", [{ spiritType: "nature", services: 0 }], 5)).toBeNull();
+  });
+  it("elementals up to Charisma; nature spirits do not count against it", () => {
+    const e = { spiritType: "elemental", services: 2 };
+    expect(conjuringLimit("elemental", [e], 2)).toBeNull();
+    expect(conjuringLimit("elemental", [e, e], 2)).toMatch(/Charisma/);
+    expect(conjuringLimit("elemental", [{ spiritType: "nature", services: 3 }], 1)).toBeNull();
+  });
+});
+describe("elementalMaterialsCost (SR2E p.140)", () => {
+  it("is 1,000¥ per point of Force", () => {
+    expect(elementalMaterialsCost(4)).toBe(4000);
+  });
+});

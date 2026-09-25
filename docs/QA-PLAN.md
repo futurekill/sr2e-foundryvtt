@@ -191,6 +191,13 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Drain** per the Conjuring Drain Table (Force = ½ Charisma is Moderate).
 - [ ] A linked **Spirit actor** is created; its sheet tracks services, powers, manifest attack, banish.
 
+- [ ] **Limits (p.139–140):** a shaman with a nature spirit still owing services
+      cannot summon another; a mage with Charisma-many bound elementals must release
+      one. **Materials:** Summon Elemental charges 1,000¥ × Force (untick if on hand),
+      spent even on 0 successes. **Knock-out:** Drain that fills the Stun track makes a
+      nature spirit depart; an elemental rolls Force vs 4 — flees, or turns up hostile
+      and unbound. **Totem:** a Bear shaman's forest spirit Drain rolls Charisma + 2.
+
 ## 9. Astral
 - [ ] **Perceive / project** astrally; while projecting, initiative uses **Astral Reaction +15**.
 - [ ] **Astral combat:** Sorcery attack, Charisma-based damage, resisted by Astral Body (Willpower).

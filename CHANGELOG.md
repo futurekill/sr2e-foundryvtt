@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — conjuring follows p.139–140 more closely
+
+- **Totem modifiers now count toward Conjuring Drain.** The Drain test is
+  "Charisma… adjusted by totem modifiers and spirit foci". A shaman's totem bonus
+  for the spirit's domain used to help only the Conjuring Test.
+- **Drain that knocks the conjurer out has consequences.** A nature spirit
+  departs. An elemental escapes free and uncontrolled: it rolls its Force against
+  TN 4, and flees on any success. On none it attacks the mage. It is created
+  hostile, bound to no one and owing no services.
+- **Limits are enforced before any dice are rolled.** A shaman can have only
+  one nature spirit in service at a time. A mage can bind only as many
+  elementals as their Charisma. Spirits whose services are used up don't count.
+- **Elemental rite materials cost 1,000¥ × Force** and are used up whether or
+  not an elemental comes. The Summon Elemental dialog charges them, and you can
+  untick the box when the materials are already on hand. The summon card notes
+  that the rite took Force hours.
+
 ### Fixed — grenades scatter by the Scatter Diagram (SR2E p.97)
 
 A grenade that scatters now rolls 1D6 on the book's Scatter Diagram, relative to

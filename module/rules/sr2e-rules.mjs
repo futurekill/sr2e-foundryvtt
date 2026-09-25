@@ -355,6 +355,30 @@ export const MELEE_VISIBILITY = Object.freeze([
   [3, "Minimal Light / Heavy Smoke (+3, half)"], [8, "Full Darkness (+8, not halved)"]
 ]);
 
+/**
+ * Conjuring limits (SR2E p.139–140), judged on the conjurer's bound spirits that
+ * still owe services. A shaman "can summon only one nature spirit or have one in
+ * service to him at one time"; a mage "can bind, at any one time, a number of
+ * elementals equal to his Charisma" and must release one to conjure another.
+ * @param {"nature"|"elemental"} kind
+ * @param {Array<{spiritType:string, services:number}>} bound - existing bound spirits
+ * @param {number} charisma
+ * @returns {string|null} why the summoning is refused, or null
+ */
+export function conjuringLimit(kind, bound, charisma) {
+  const serving = (bound ?? []).filter(b => b && b.spiritType === kind && (Number(b.services) || 0) > 0);
+  if (kind === "nature" && serving.length >= 1)
+    return "A shaman can have only one nature spirit in service at a time (SR2E p.139) — its services must be used up or it must be dismissed first.";
+  if (kind === "elemental" && serving.length >= Math.max(0, Number(charisma) || 0))
+    return `A mage can bind only as many elementals as their Charisma (${charisma}) (SR2E p.140) — release one first.`;
+  return null;
+}
+
+/** Elemental conjuring materials (SR2E p.140): 1,000¥ per point of Force, used up either way. */
+export function elementalMaterialsCost(force) {
+  return 1000 * Math.max(1, Math.trunc(force) || 1);
+}
+
 /** A finite, non-negative integer, or `fallback`. */
 function nonNegInt(v, fallback = 0) {
   const n = Number(v);

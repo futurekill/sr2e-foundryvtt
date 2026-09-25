@@ -2,7 +2,7 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { burstFired, rangedEngagement, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
+         footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
@@ -2185,9 +2185,11 @@ async function promptConjureOptions(actor, elementals) {
     if (!forceInput) return;
     Hooks.off("renderDialogV2", hookId);
     const drainSpan = root.querySelector("#sr2e-conjure-drain");
+    const costSpan  = root.querySelector("#sr2e-conjure-cost");
     const update = () => {
       const f = Math.max(1, parseInt(forceInput.value) || 1);
       const d = CONFIG.SR2E.conjuringDrain(f, charisma);
+      if (costSpan) costSpan.textContent = `${elementalMaterialsCost(f).toLocaleString()}¥`;
       if (drainSpan) {
         drainSpan.textContent = `${d.level} ${d.type}`;
         drainSpan.style.color = d.type === "physical" ? "#c44" : "#aaa1c0";
@@ -2212,6 +2214,11 @@ async function promptConjureOptions(actor, elementals) {
         <label>${elementals ? "Element" : "Domain"}:</label>
         <select name="domain">${domainOptions}</select>
       </div>
+      ${elementals ? `<div class="form-group">
+        <label title="SR2E p.140: the rite needs special materials at 1,000¥ per point of Force, used up whether or not an elemental comes. The rite takes Force hours and a conjuring library and hermetic circle rated at least the Force.">
+          Pay materials (<span id="sr2e-conjure-cost">1,000¥</span>):</label>
+        <input type="checkbox" name="materials" checked>
+      </div>` : ""}
       <div class="form-group">
         <label>Spirit Focus dice:</label>
         <input type="number" name="fociDice" value="0" min="0" style="width:52px;text-align:center;"
@@ -2239,6 +2246,8 @@ async function promptConjureOptions(actor, elementals) {
             domain:    f.domain?.value ?? "",
             fociDice:  Math.max(0, parseInt(f.fociDice?.value) || 0),
             karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+            // Unticked = the materials are already on hand (p.140).
+            materials: elementals ? !!f.materials?.checked : false,
             // Misc applies to the Conjuring test only, not the Charisma Drain roll.
             ...readMiscDice(button.form)
           };

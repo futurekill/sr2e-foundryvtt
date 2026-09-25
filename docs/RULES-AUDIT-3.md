@@ -81,18 +81,18 @@ still cut by armour). Neither is implemented.
 
 ## Magic
 
-### M1 — Conjuring Drain ignores totem modifiers (med)
+### M1 — Conjuring Drain ignores totem modifiers (med) — ✅ FIXED
 p.139: the Drain Resistance Test uses "Charisma (not Willpower) dice… **adjusted
 by totem modifiers** and spirit foci". `rollConjuring` adds foci dice to drain
 but not the totem bonus (it adds the totem only to the Conjuring Test).
 Elementals (p.140) name only the spirit focus, so this is shaman-only.
 
-### M2 — Drain that knocks the conjurer out does nothing to the spirit (med)
+### M2 — Drain that knocks the conjurer out does nothing to the spirit (med) — ✅ FIXED
 p.139: a nature spirit departs. p.140: an elemental "escapes free and
 uncontrolled"; roll its Force vs TN 4 — 1+ success it flees, 0 it attacks the
 mage. The spirit is always created.
 
-### M3 — Summoning limits not enforced (low)
+### M3 — Summoning limits not enforced (low) — ✅ FIXED
 p.139: a shaman may summon or keep only **one** nature spirit at a time. p.140:
 a mage may have at most **Charisma** elementals bound; the rite takes Force
 hours and consumes 1,000¥ × Force of materials (spent even on failure).

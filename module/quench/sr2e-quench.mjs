@@ -1165,7 +1165,7 @@ export function registerSR2EQuenchTests() {
           // quench run) that predates this roll — which is exactly how this
           // assertion failed while the code was correct.
           const before = game.messages.size;
-          await actor.rollConjuring({ force: 2, kind: "elemental", domain: "fire", miscDice: 2, miscLabel: "ally" });
+          await actor.rollConjuring({ force: 2, kind: "elemental", domain: "fire", miscDice: 2, miscLabel: "ally", materials: false });
           const cards = game.messages.contents.slice(before);
           const summon = cards.find(m => /Conjure/.test(m.content ?? ""));
           const drain  = cards.find(m => /Conjuring Drain/.test(m.content ?? ""));
@@ -1535,7 +1535,7 @@ export function registerSR2EQuenchTests() {
             { name: "Conjuring", type: "skill", system: { rating: 6, category: "active" } }
           ]);
           // Force 1 → TN 1, so the Conjuring Test essentially always nets successes.
-          await mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire" });
+          await mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire", materials: false });
           assert.equal(mage.system.boundSpirits?.length ?? 0, 1, "the summoned spirit should be bound");
           const spirit = await fromUuid(mage.system.boundSpirits[0]);
           assert.ok(spirit && spirit.type === "spirit", "a spirit actor exists at the bound uuid");
@@ -4472,6 +4472,125 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Multiple Targets & Walking Fire" });
+
+    // ── Conjuring limits, materials and a knocked-out conjurer (SR2E p.139–140) ──
+    quench.registerBatch("sr2e.conjuring-limits", (context) => {
+      const { describe, it, assert, beforeEach, afterEach } = context;
+      let before, msgsBefore;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      beforeEach(() => { before = new Set(game.actors.map(a => a.id)); msgsBefore = game.messages.size; });
+      afterEach(async () => {
+        // Spirits are named randomly, so sweep every actor this test created.
+        for (const a of game.actors.filter(a => !before.has(a.id))) await a.delete();
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgsBefore).map(m => m.id));
+      });
+      const conjurer = async (name, system, rating = 6) => {
+        const a = await Actor.create({ name, type: "character", system });
+        await a.createEmbeddedDocuments("Item", [
+          { name: "Conjuring", type: "skill", system: { rating, category: "active" } }]);
+        return a;
+      };
+      const newSpirits = () => game.actors.filter(a => !before.has(a.id) && a.type === "spirit");
+      const posted = () => game.messages.contents.slice(msgsBefore).map(m => m.content ?? "").join("\n");
+
+      describe("Limits", () => {
+        it("a shaman with a nature spirit still in service cannot summon another", async () => {
+          const shaman = await conjurer("Quench Limit Shaman", { charisma: { base: 5 }, magic: { type: "full_magician", rating: 6, tradition: "shamanic" } });
+          const old = await Actor.create({ name: "Quench Old Spirit", type: "spirit", system: { spiritType: "nature", force: 2, services: 1 } });
+          await shaman.update({ "system.boundSpirits": [old.uuid] });
+          await shaman.rollConjuring({ force: 2, kind: "nature", domain: "forest" });
+          assert.lengthOf(newSpirits().filter(a => a.id !== old.id), 0);
+          assert.notInclude(posted(), "Conjuring Drain", "refused before any roll");
+        });
+
+        it("a mage at Charisma bound elementals must release one first", async () => {
+          const mage = await conjurer("Quench Limit Mage", { charisma: { base: 1 }, magic: { type: "full_magician", rating: 6 } });
+          const old = await Actor.create({ name: "Quench Old Elemental", type: "spirit", system: { spiritType: "elemental", force: 2, services: 2 } });
+          await mage.update({ "system.boundSpirits": [old.uuid] });
+          await mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire", materials: false });
+          assert.lengthOf(newSpirits().filter(a => a.id !== old.id), 0);
+        });
+
+        it("a spent spirit (0 services) no longer counts", async () => {
+          const mage = await conjurer("Quench Limit Spent", { charisma: { base: 1 }, magic: { type: "full_magician", rating: 6 } });
+          const old = await Actor.create({ name: "Quench Spent Elemental", type: "spirit", system: { spiritType: "elemental", force: 2, services: 0 } });
+          await mage.update({ "system.boundSpirits": [old.uuid] });
+          await withFaces(Array(12).fill(5), () => mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire", materials: false }));
+          assert.lengthOf(newSpirits().filter(a => a.id !== old.id), 1);
+        });
+      });
+
+      describe("Elemental materials (1,000¥ × Force)", () => {
+        it("refuses without the nuyen, and spends nothing", async () => {
+          const mage = await conjurer("Quench Poor Mage", { charisma: { base: 6 }, nuyen: 1500, magic: { type: "full_magician", rating: 6 } });
+          await mage.rollConjuring({ force: 2, kind: "elemental", domain: "fire" });
+          assert.equal(mage.system.nuyen, 1500);
+          assert.notInclude(posted(), "Conjuring Drain");
+        });
+
+        it("charges them even when no elemental comes", async () => {
+          const mage = await conjurer("Quench Unlucky Mage", { charisma: { base: 6 }, nuyen: 5000, magic: { type: "full_magician", rating: 6 } });
+          // Conjuring 6 dice all 1s (no successes), then Charisma 6 for Drain.
+          await withFaces([...Array(6).fill(1), ...Array(6).fill(5)],
+            () => mage.rollConjuring({ force: 2, kind: "elemental", domain: "fire" }));
+          assert.equal(mage.system.nuyen, 3000);
+          assert.include(posted(), "used up all the same");
+        });
+      });
+
+      describe("Drain knocks the conjurer out", () => {
+        it("a nature spirit simply departs", async () => {
+          const shaman = await conjurer("Quench KO Shaman", { charisma: { base: 5 }, magic: { type: "full_magician", rating: 6, tradition: "shamanic" } });
+          await shaman.update({ "system.conditionMonitor.stun.value": 9 });
+          // Force 2 < ½ Charisma 5: (L)Stun. Stun 9 is Serious (+3), so the Conjuring
+          // TN is 5: six 5s hit; Drain (TN 2, no wound modifier) 5 × 1 miss → 10 stun → out.
+          await withFaces([...Array(6).fill(5), 1, 1, 1, 1, 1],
+            () => shaman.rollConjuring({ force: 2, kind: "nature", domain: "forest" }));
+          assert.lengthOf(newSpirits(), 0);
+          assert.lengthOf(shaman.system.boundSpirits ?? [], 0);
+          assert.include(posted(), "the spirit departs");
+        });
+
+        it("an elemental that fails its Force test attacks — hostile and bound to no one", async () => {
+          const mage = await conjurer("Quench KO Mage", { charisma: { base: 2 }, magic: { type: "full_magician", rating: 6 } });
+          await mage.update({ "system.conditionMonitor.stun.value": 8 });
+          // Force 2 ≤ Charisma 2: (M)Stun. Conjuring hits, Drain misses, escape test 1,1 → 0 successes.
+          await withFaces([...Array(6).fill(5), 1, 1, 1, 1],
+            () => mage.rollConjuring({ force: 2, kind: "elemental", domain: "fire", materials: false }));
+          const [free] = newSpirits();
+          assert.ok(free, "the free elemental is on the loose");
+          assert.equal(free.system.conjurerUuid, "");
+          assert.equal(free.system.services, 0);
+          assert.equal(free.prototypeToken.disposition, CONST.TOKEN_DISPOSITIONS.HOSTILE);
+          assert.lengthOf(mage.system.boundSpirits ?? [], 0);
+        });
+
+        it("an elemental that makes its Force test flees", async () => {
+          const mage = await conjurer("Quench KO Mage2", { charisma: { base: 2 }, magic: { type: "full_magician", rating: 6 } });
+          await mage.update({ "system.conditionMonitor.stun.value": 8 });
+          await withFaces([...Array(6).fill(5), 1, 1, 5, 1],
+            () => mage.rollConjuring({ force: 2, kind: "elemental", domain: "fire", materials: false }));
+          assert.lengthOf(newSpirits(), 0);
+          assert.include(posted(), "and flees");
+        });
+      });
+
+      describe("Totem modifiers in Drain (p.139)", () => {
+        it("a shaman's totem bonus for the domain adds Drain dice", async () => {
+          const shaman = await conjurer("Quench Totem Shaman", { charisma: { base: 3 }, magic: { type: "full_magician", rating: 6, tradition: "shamanic", totem: "bear" } });
+          const bonus = CONFIG.SR2E.totems.bear?.conjuringBonus?.forest ?? 0;
+          await withFaces(Array(20).fill(5), () => shaman.rollConjuring({ force: 1, kind: "nature", domain: "forest" }));
+          const drain = game.messages.contents.slice(msgsBefore).find(m => /Conjuring Drain/.test(m.flags?.sr2e?.test?.label ?? ""));
+          assert.ok(drain, "a drain test was rolled");
+          assert.equal(drain.flags.sr2e.test.dice?.length ?? drain.flags.sr2e.test.pool, 3 + bonus);
+        });
+      });
+    }, { displayName: "SR2E: Conjuring Limits & Drain" });
 
     quench.registerBatch("sr2e.elemental-aid", (context) => {
       const { describe, it, assert, afterEach } = context;

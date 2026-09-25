@@ -15,7 +15,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -1204,6 +1204,24 @@ export class SR2EActor extends Actor {
       return ui.notifications.warn("No Conjuring skill — a magician needs the Conjuring skill to summon spirits.");
     }
 
+    // Limits (p.139–140): one nature spirit in service; elementals up to Charisma.
+    const bound = (await Promise.all((this.system.boundSpirits ?? []).map(u => fromUuid(u).catch(() => null))))
+      .filter(a => a?.type === "spirit").map(a => a.system);
+    const limit = conjuringLimit(kind, bound, charisma);
+    if (limit) return ui.notifications.warn(limit);
+
+    // Elemental rite materials (p.140): 1,000¥ × Force, "used up" whether or not
+    // an elemental comes — so they are paid before the test. The dialog can mark
+    // them as already bought (a GM-supplied rite, materials on hand).
+    const materials = kind === "elemental" && opts.materials !== false ? elementalMaterialsCost(force) : 0;
+    if (materials > 0) {
+      const nuyen = this.system.nuyen ?? 0;
+      if (nuyen < materials) {
+        return ui.notifications.warn(`The rite's materials cost ${materials.toLocaleString()}¥ (1,000¥ × Force, SR2E p.140); ${this.name} has ${nuyen.toLocaleString()}¥.`);
+      }
+      await this.update({ "system.nuyen": nuyen - materials });
+    }
+
     const totemNote = totemBonus > 0 ? ` +${totemBonus} totem` : "";
     const fociNote  = fociDice   > 0 ? ` +${fociDice} focus`   : "";
 
@@ -1217,9 +1235,12 @@ export class SR2EActor extends Actor {
     const services = conjureResult?.successes ?? 0;
 
     // ── Conjuring Drain (Charisma, p.139) ─────────────────────────────────────
+    // p.139: "Charisma (not Willpower) dice are used, adjusted by totem
+    // modifiers and spirit foci". The totem bonus is the one for this spirit's
+    // domain (a shaman's; elementals, p.140, name only the focus).
     const drain = CONFIG.SR2E.conjuringDrain(force, charisma);
-    const drainResult = await this.rollSuccessTest(charisma + fociDice, force, {
-      label: `Conjuring Drain — ${drain.level} ${drain.type} (TN ${force})`,
+    const drainResult = await this.rollSuccessTest(charisma + fociDice + totemBonus, force, {
+      label: `Conjuring Drain — ${drain.level} ${drain.type} (TN ${force}${totemNote}${fociNote})`,
       isResistance: true
     });
     const stages     = ["L", "M", "S", "D"];
@@ -1240,12 +1261,43 @@ export class SR2EActor extends Actor {
       });
     }
 
+    // ── Drain knocked the conjurer out (p.139–140) ────────────────────────────
+    // A nature spirit simply departs. An elemental "escapes free and
+    // uncontrolled": Force vs TN 4 — any success and it flees; none and it
+    // attacks the summoning mage.
+    const cm = this.system.conditionMonitor ?? {};
+    const knockedOut = (cm.stun?.value ?? 0) >= (cm.stun?.max ?? 10)
+                    || (cm.physical?.value ?? 0) >= (cm.physical?.max ?? 10);
+    let uncontrolled = false;
+    if (services > 0 && knockedOut) {
+      if (kind === "nature") {
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: this }),
+          content: `<div class="sr2e-damage-result"><strong>The Drain knocks ${foundry.utils.escapeHTML(this.name)} out — the spirit departs</strong>
+            <em>(SR2E p.139).</em></div>`
+        });
+        return conjureResult;
+      }
+      const escape = await new Roll(`${force}d6cs>=4`).evaluate();
+      await escape.toMessage({ speaker: ChatMessage.getSpeaker({ actor: this }),
+        flavor: `Free elemental — Force ${force} vs TN 4 (SR2E p.140)` });
+      if (escape.total >= 1) {
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: this }),
+          content: `<div class="sr2e-damage-result"><strong>The elemental escapes free and uncontrolled — and flees.</strong>
+            <em>The Drain knocked ${foundry.utils.escapeHTML(this.name)} out; ${escape.total} success${escape.total === 1 ? "" : "es"} on its Force test (SR2E p.140). The materials are spent.</em></div>`
+        });
+        return conjureResult;
+      }
+      uncontrolled = true;   // 0 successes: it attacks the mage — created hostile, unbound
+    }
+
     // ── Result: no successes = no spirit ──────────────────────────────────────
     if (services <= 0) {
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>No spirit answers the call</strong>
-          <em>(no successes on the Conjuring Test).</em></div>`
+          <em>(no successes on the Conjuring Test)${materials ? ` — the rite's materials (${materials.toLocaleString()}¥) are used up all the same (SR2E p.140)` : ""}.</em></div>`
       });
       return conjureResult;
     }
@@ -1257,7 +1309,9 @@ export class SR2EActor extends Actor {
     // A random moniker tells multiple summons of the same type apart, and the
     // conjurer's name marks who it belongs to: "Cindervex, Hexen's Fire Elemental (F1)".
     const typeLabel = kind === "elemental" ? `${domainLabel} Elemental` : `${domainLabel} Spirit`;
-    const name = `${randomSpiritName(domain)}, ${this.name}'s ${typeLabel} (F${force})`;
+    const name = uncontrolled
+      ? `${randomSpiritName(domain)}, free ${typeLabel} (F${force})`
+      : `${randomSpiritName(domain)}, ${this.name}'s ${typeLabel} (F${force})`;
 
     // Random portrait per type when art ships for this domain (config count),
     // else the default SVG. Token gets the same image, rotation locked.
@@ -1274,8 +1328,10 @@ export class SR2EActor extends Actor {
       spiritUuid = await game.sr2e.createActorViaGM({
         name, type: "spirit", img,
         system: {
-          spiritType: kind, force, domain, services, maxServices: services,
-          conjurerUuid: this.uuid,
+          // An uncontrolled elemental owes nothing and answers to no one (p.140).
+          spiritType: kind, force, domain,
+          services: uncontrolled ? 0 : services, maxServices: uncontrolled ? 0 : services,
+          conjurerUuid: uncontrolled ? "" : this.uuid,
           // The powers this spirit actually has, per its printed entry
           // (SR2E p.234–235) — a Storm Spirit projects lightning, a Field Spirit
           // does not. Editable on the sheet afterwards.
@@ -1286,7 +1342,8 @@ export class SR2EActor extends Actor {
         // mirrors a GM-only conjurer's disposition (an enemy mage's spirit stays
         // hostile → hidden from the party, not exposed by the friendly rule).
         prototypeToken: {
-          disposition: this.hasPlayerOwner
+          disposition: uncontrolled ? CONST.TOKEN_DISPOSITIONS.HOSTILE
+            : this.hasPlayerOwner
             ? CONST.TOKEN_DISPOSITIONS.FRIENDLY
             : (this.prototypeToken?.disposition ?? CONST.TOKEN_DISPOSITIONS.HOSTILE),
           // Show the portrait on the token too (square art, rotation locked);
@@ -1299,7 +1356,7 @@ export class SR2EActor extends Actor {
       ui.notifications.error(`Spirit creation failed: ${err?.message ?? "see the console (F12)"}`);
     }
 
-    if (spiritUuid) {
+    if (spiritUuid && !uncontrolled) {
       const bound = this.system.boundSpirits ?? [];
       await this.update({ "system.boundSpirits": [...bound, spiritUuid] });
     }
@@ -1307,12 +1364,20 @@ export class SR2EActor extends Actor {
     // Be honest about the outcome: only claim a summon if the actor exists.
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: spiritUuid
+      content: spiritUuid && uncontrolled
+        ? `<div class="sr2e-damage-result">
+            <strong>${foundry.utils.escapeHTML(name)} breaks free and attacks ${foundry.utils.escapeHTML(this.name)}!</strong>
+            <br><em>The Drain knocked the mage out and the elemental failed its Force test to flee: "the
+            elemental acts like the dim-brain it is and attempts to attack the summoning mage" (SR2E p.140).
+            It is hostile and bound to no one.</em>
+          </div>`
+        : spiritUuid
         ? `<div class="sr2e-damage-result">
             <strong>${foundry.utils.escapeHTML(name)} summoned</strong> —
             <strong>${services} service${services === 1 ? "" : "s"}</strong>.
             <br><em>Conjuring successes: ${services} (TN ${force}).${
-              kind === "nature" ? " Nature spirits vanish at the next sunrise or sunset." : ""}</em>
+              kind === "nature" ? " Nature spirits vanish at the next sunrise or sunset."
+              : ` The rite took ${force} hour${force === 1 ? "" : "s"}${materials ? `; materials ${materials.toLocaleString()}¥` : ""} (SR2E p.140).`}</em>
           </div>`
         : `<div class="sr2e-damage-result">
             <strong>${foundry.utils.escapeHTML(name)} — summoning incomplete.</strong>
