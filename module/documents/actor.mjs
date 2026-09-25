@@ -9,7 +9,7 @@ import { placeSummonedToken } from "../placement.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
-         knockdownTN, knockdownOutcome, webDefaultingTN, webNodeForLabel,
+         knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses,
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
@@ -840,7 +840,7 @@ export class SR2EActor extends Actor {
    */
   async rollSR2Initiative() {
     const parts = this._getInitiativeParts();
-    const { base, dice, rigged, astral, matrix, notes } = parts;
+    const { dice, rigged, astral, matrix, notes } = parts;
 
     const roll = new Roll(this._initiativeFormula(parts));
     await roll.evaluate();

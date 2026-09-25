@@ -28,7 +28,6 @@ import { movementRates, runMultiplierForRace, movementPhase, movementColorBand }
   from "./rules/sr2e-rules.mjs";
 
 const SETTING = "movementLimit";
-const EPS = 1e-6;
 // green (walk) → amber (run) → red (over max)
 const BAND_COLOR = [0x2f9e44, 0xe8a91e, 0xe03131];
 

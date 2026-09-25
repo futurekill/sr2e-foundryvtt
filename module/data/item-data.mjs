@@ -1,5 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, programCost, programCostVR2, focusCost, skillsoftMemory, skillsoftCost, skillSubRatings, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining} from "../rules/sr2e-rules.mjs";
+import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining} from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.

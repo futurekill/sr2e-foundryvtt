@@ -20,7 +20,7 @@
  *  - Gamma is solved per image from its own median, not a fixed factor, so a
  *    file already at or above target is left completely alone.
  */
-import { readdirSync, existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { readdirSync, existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join } from "node:path";

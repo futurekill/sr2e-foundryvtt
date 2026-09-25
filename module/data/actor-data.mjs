@@ -1,6 +1,6 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
-import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillsoftCost, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, weaponFocusCost, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, startingKarmaPool, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
+import { totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.

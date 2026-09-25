@@ -1172,7 +1172,7 @@ export function registerSR2EQuenchTests() {
             system: { ammoType: "regular", quantity: 10, cost: 15, streetIndex: 1,
                       damageModifier: 0, armorModifier: 0, damageType: "", armorCalc: "standard" }
           });
-          const [tracked, free] = await actor.createEmbeddedDocuments("Item", [mk(), mk()]);
+          const [tracked] = await actor.createEmbeddedDocuments("Item", [mk(), mk()]);   // the second stays untracked
           await tracked.setFlag("sr2e", "acquiredQuantity", 10);   // a purchased box
           await tracked.setFlag("sr2e", "acquiredListValue", 15);
           await tracked.setFlag("sr2e", "paid", 15);
@@ -3136,7 +3136,7 @@ export function registerSR2EQuenchTests() {
         });
 
         it("un-slotting restores the character's own ratings", async () => {
-          const [a, item] = await chipped(true);
+          const [a] = await chipped(true);
           await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
           const skill = a.items.find(i => i.type === "skill");
           assert.notOk(skill.system._subRatingsSuppressed, "the marker must clear");
@@ -4006,7 +4006,7 @@ export function registerSR2EQuenchTests() {
 
       describe("Aid Sorcery (p.141)", () => {
         it("adds the elemental's dice, lowers its Force, and charges one service to start", async () => {
-          const { mage, fire, bolt } = await setup();
+          const { fire, bolt } = await setup();
           const n = game.messages.size;
           await bolt.roll({ force: 4, targetNumber: 4, elementalAid: { uuid: fire.uuid, cast: 2, drain: 1 } });
           track(n);
@@ -4111,7 +4111,7 @@ export function registerSR2EQuenchTests() {
         });
 
         it("recasting a spell an elemental holds is refused before anything is spent", async () => {
-          const { mage, earth, armor } = await setup();
+          const { earth, armor } = await setup();
           await armor.setSustaining(true, 3);
           await earth.elementalTransition("startSustain", { spell: armor }, { quiet: true });
           const n = game.messages.size;
@@ -4165,7 +4165,7 @@ export function registerSR2EQuenchTests() {
     // ── Automatic Combat Turn countdown for sustaining elementals (0.97.0):
     //    charged inside SR2ECombat#nextRound, idempotent per boundary. ────────
     quench.registerBatch("sr2e.elemental-clock", (context) => {
-      const { describe, it, assert, afterEach } = context;
+      const { it, assert, afterEach } = context;
       const actors = [], combats = [];
       let msgStart = 0;
       afterEach(async function () {
@@ -4221,7 +4221,7 @@ export function registerSR2EQuenchTests() {
       });
 
       it("at 0 Force the spell ends before the new Combat Turn", async () => {
-        const { earth, armor, combat } = await setup({ force: 1, sustainFirst: true });
+        const { armor, combat } = await setup({ force: 1, sustainFirst: true });
         await combat.nextRound();
         assert.isFalse(armor.system.sustaining, "Force 1 → 0: the spell ended");
         assert.equal(combat.round, 2);
@@ -4263,7 +4263,6 @@ export function registerSR2EQuenchTests() {
 
       it("a turn it could not count gets a card; the card works once, while current", async () => {
         const { earth, combat } = await setup({ sustainFirst: true });
-        const orig = earth.update.bind(earth);
         earth.update = async () => { throw new Error("injected"); };
         const n = game.messages.size;
         try { await combat.nextRound(); } finally { delete earth.update; }
@@ -4501,7 +4500,6 @@ export function registerSR2EQuenchTests() {
           const { mage, src } = await setup();
           const r = await withFaces([6, 1, 6, 1, 2, 2], () => mage.learnSpell({ sourceUuid: src.uuid, force: 2, libraryRating: 2 }));
           // Creation fails after payment: inject it.
-          const orig = mage.createEmbeddedDocuments.bind(mage);
           mage.createEmbeddedDocuments = async () => { throw new Error("injected"); };
           try { await mage.completeLearning(r.attemptId); } catch (e) { /* injected */ }
           finally { delete mage.createEmbeddedDocuments; }

@@ -13,8 +13,6 @@ import {
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
-// V13: TextEditor is namespaced; shim for backwards compat
-const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
 
 // =========================================================================
 // BASE ACTOR SHEET

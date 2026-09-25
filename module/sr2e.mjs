@@ -1911,7 +1911,6 @@ async function resolveBlast({ centerTokenUuid, basePower, baseLevel, damageType,
     // it). Heavier smoke → dimmer.
     if (smokeVis && game.settings.get("sr2e", "smokeDarkness")) {
       try {
-        const rPx = radiusM * (canvas.grid.size / canvas.grid.distance);
         await canvas.scene.createEmbeddedDocuments("AmbientLight", [{
           x: center.x, y: center.y, rotation: 0,
           config: {

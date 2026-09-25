@@ -3,8 +3,6 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 
-// V13: TextEditor is namespaced; shim for backwards compat
-const TextEditor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
 
 /**
  * Base Item Sheet for the Shadowrun 2E system.
