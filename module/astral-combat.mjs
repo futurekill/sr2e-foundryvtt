@@ -21,6 +21,9 @@ import { magicalSkillBlock } from "./restricted-spells.mjs";
 
 const STAGES = ["L", "M", "S", "D"];
 const IN_FLIGHT = new Set();
+/** Drug TN context (drugTnFor): Sorcery is a Magic skill, armed/unarmed an Active melee skill, a spirit's Force no skill. */
+const astralCtx = (key) => key === "sorcery" ? { kind: "skill", key, magic: true }
+  : key === "force" ? { kind: "other" } : { kind: "attack", skillCategory: "active", melee: true };
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 
 /** "magician" | "spirit" | "dual", or null when the actor is not in astral space. */
@@ -167,6 +170,7 @@ export async function astralAttack(actor, opts = {}) {
   const pool = kind === "magician" ? Math.max(0, Math.min(opts.poolDice ?? 0, actor.system.dicePools?.astral?.value ?? 0)) : 0;
   const tn = Math.max(2, 4 + (Number(opts.otherMod) || 0));
   const result = await actor.rollSuccessTest(choice.dice, tn, {
+    tnContext: astralCtx(choice.key),
     label: `Astral Attack — ${choice.label} (TN ${tn})`,
     poolDice: pool > 0 ? { astral: pool } : {},
     karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel
@@ -274,6 +278,7 @@ export async function astralDefend(message, choice = {}) {
     if (!live || isCardResolved(live, "astralMelee")) return ui.notifications.warn("That astral exchange was resolved meanwhile.");
     const tn = Math.max(2, 4 + (Number(choice.otherMod) || 0));
     const defense = await defender.rollSuccessTest(opt.dice, tn, {
+      tnContext: astralCtx(opt.key),
       label: `Defend (astral) vs ${state.attackerName} — ${opt.label}${choice.fullDefense ? ", Full Defense" : ""} (TN ${tn})`,
       poolDice: pool > 0 ? { astral: pool } : {},
       karmaDice: choice.karmaDice

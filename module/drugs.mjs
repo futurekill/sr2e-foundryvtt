@@ -10,7 +10,7 @@
  * every mutation runs in a per-actor local queue and re-reads state there.
  */
 import { enqueueAttack } from "./engagement.mjs";
-import { drugDuration, toxinLevel } from "./rules/sr2e-rules.mjs";
+import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus } from "./rules/sr2e-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const BOXES = { L: 1, M: 3, S: 6, D: 10 };
@@ -34,6 +34,64 @@ export function activeDrugs(actor) {
   });
 }
 
+/**
+ * Drug effects IN FORCE: not disabled (they last until ended by hand, like the
+ * attributes — expiry only labels the row), and not a zero-duration tracking
+ * entry (shrugged off, or a toxin with no lasting effect). Oldest first.
+ */
+export function drugsInForce(actor) {
+  return (actor?.effects ?? [])
+    .filter(e => e.flags?.sr2e?.drugEffect && !e.disabled && e._source?.duration?.seconds !== 0)
+    .sort((a, b) => (a._stats?.createdTime ?? 0) - (b._stats?.createdTime ?? 0))
+    .map(e => ({ id: e.id, ...e.flags.sr2e.drugEffect }));
+}
+
+/**
+ * THE damage commit for characters, NPCs and spirits: Kamikaze absorption and
+ * Hyper overload (Shadowtech p.98–99), the monitors, the spent absorption and
+ * the caller's own marker (`extra`), all in ONE update inside a per-actor queue
+ * that re-reads the monitors and counters. Returns what actually happened.
+ * @param {Actor} actor
+ * @param {"physical"|"stun"} type
+ * @param {number} amount
+ * @param {{extra?:object, report?:boolean}} [opts] report:false when the caller's own card says it
+ * @returns {Promise<{landedBoxes:number, absorbed:number, overloadStun:number}>}
+ */
+export function commitDamage(actor, type, amount, { extra = {}, report = true } = {}) {
+  return enqueueAttack(`damage:${actor.uuid}`, async () => {
+    const inForce = drugsInForce(actor);
+    const counters = actor.getFlag("sr2e", "drugAbsorb") ?? {};
+    const absorbers = inForce.filter(e => (counters[e.exposureId] ?? 0) > 0)
+      .map(e => ({ id: e.exposureId, left: counters[e.exposureId] }));
+    const r = drugDamage({ amount, absorbers, overload: inForce.some(e => e.overload) });
+    const cm = actor.system.conditionMonitor;
+    let mon = { physical: { ...cm.physical }, stun: { ...cm.stun }, overflow: cm.overflow ?? 0 };
+    const hit = (t, n) => {
+      const o = damageUpdateFor(mon, t, n);
+      mon = { physical: { ...mon.physical, value: o.physical }, stun: { ...mon.stun, value: o.stun }, overflow: o.overflow };
+    };
+    if (r.landed) hit(type === "stun" ? "stun" : "physical", r.landed);
+    if (r.overloadStun) hit("stun", r.overloadStun);
+    const update = { ...extra };
+    if (r.landed || r.overloadStun) Object.assign(update, {
+      "system.conditionMonitor.physical.value": mon.physical.value, "system.conditionMonitor.stun.value": mon.stun.value,
+      "system.conditionMonitor.overflow": mon.overflow });
+    for (const [id, used] of Object.entries(r.absorbUsed)) update[`flags.sr2e.drugAbsorb.${id}`] = counters[id] - used;
+    if (Object.keys(update).length) await actor.update(update);
+    const out = { landedBoxes: r.landed, absorbed: r.absorbed, overloadStun: r.overloadStun };
+    if (report && (r.absorbed || r.overloadStun)) {
+      try { await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">💊 ${drugDamageNote(out)}</div>` }); }
+      catch (err) { console.error("SR2E | drug damage note failed", err); }
+    }
+    return out;
+  });
+}
+
+/** "Kamikaze absorbs 3; Hyper adds 1 Stun" — for any damage card. */
+export const drugDamageNote = ({ absorbed, overloadStun }) => [
+  absorbed ? `Kamikaze absorbs ${absorbed} box${absorbed === 1 ? "" : "es"}` : "",
+  overloadStun ? `Hyper adds ${overloadStun} Stun (Shadowtech p.98)` : ""].filter(Boolean).join("; ");
+
 // ── Cards ──────────────────────────────────────────────────────────────────
 
 function renderDoseCard(st) {
@@ -46,7 +104,8 @@ function renderDoseCard(st) {
   if (st.tests) buttons.push(btn("sr2e-drug-tests-btn", "After it wears off: Addiction / Tolerance", "SR2E Shadowtech p.87"));
   return `<div class="sr2e-damage-result sr2e-drug-card"><strong>💊 ${esc(st.actorName)}: ${esc(st.name)}${st.seq ? ` (damage ${st.seq + 1})` : ""}</strong>
     ${st.duration ? `<br>Effects last <strong>${esc(st.duration)}</strong> — end them from the sheet's active drugs.` : ""}
-    ${st.overuse ? `<br><em>A second dose before the first wore off: a Light Stun wound and half effect (p.85) — the GM applies it.</em>` : ""}
+    ${st.overuse ? `<br><em>${st.stimulant ? "A second dose before the first wore off: a Light Stun wound, and this dose's bonuses are halved (p.85)."
+      : "The same drug is already active."}</em>` : ""}
     ${st.resolved ? `<br><strong>${esc(st.resolved)}</strong>` : ""}
     ${st.notes ? `<br><em>${esc(st.notes)}</em>` : ""}
     ${buttons.length ? `<div class="sr2e-karma-actions">${buttons.join("")}</div>` : ""}</div>`;
@@ -105,34 +164,45 @@ export function useDose(actor, itemId) {
       dur = drugDuration(drug.duration, { successes: t?.successes ?? 0 });
     } else dur = drugDuration(drug.duration);
 
-    const overuse = activeDrugs(actor).some(e => e.key === drug.key && !e.expired);
+    const overuse = drugsInForce(actor).some(e => e.key === drug.key);
+    const halve = overuse && !!drug.stimulant;
     // Shrugged off entirely (a zero duration): only the damage applies.
     const zero = !!dur && ((dur.minutes ?? dur.turns) === 0);
     const changes = zero ? [] : item.effects.contents.flatMap(e => e.changes)
-      .filter(c => c.mode === CONST.ACTIVE_EFFECT_MODES.ADD && Number.isFinite(Number(c.value)));
+      .filter(c => c.mode === CONST.ACTIVE_EFFECT_MODES.ADD && Number.isFinite(Number(c.value)))
+      .map(c => halve ? { ...c, value: String(halveBonus(Number(c.value))) } : c);
+    const absorb = zero ? 0 : halve ? halveBonus(Number(drug.absorb) || 0) : (Number(drug.absorb) || 0);
     const card = {
       actorUuid: actor.uuid, actorName: actor.name, name: item.name, exposureId, seq: 0,
-      duration: zero ? "" : durationText(dur), overuse, notes: (zero ? "Shrugged off: no lasting effect. " : "") + (drug.notes ?? ""),
+      duration: zero ? "" : durationText(dur), overuse, stimulant: !!drug.stimulant, notes: (zero ? "Shrugged off: no lasting effect. " : "") + (drug.notes ?? ""),
       damage: drug.damage ?? null, repeatMinutes: drug.repeatMinutes ?? 0, repeatUsed: false,
       tests: !!(drug.addiction?.rating || drug.tolerance), addiction: drug.addiction ?? null, tolerance: drug.tolerance ?? 0,
       resolved: ""
     };
 
-    // 2. The effect (a tracking entry even with no changes, so the card can be re-posted).
+    // 2. Stimulant overuse (p.85): the Light Stun wound lands BEFORE the new
+    // effect, as ordinary damage — the first dose's absorption can still soak it.
+    if (halve) await commitDamage(actor, "stun", 1);
+    // The new dose's absorption counter exists before its effect; it counts only
+    // once that effect is in force, so a failed create leaves it inert.
+    if (absorb > 0) await actor.update({ [`flags.sr2e.drugAbsorb.${exposureId}`]: absorb });
+
+    // 3. The effect (a tracking entry even with no changes, so the card can be re-posted).
     const [eff] = await actor.createEmbeddedDocuments("ActiveEffect", [{
       name: item.name, img: item.img, origin: item.uuid, changes, disabled: false, transfer: false,
       duration: zero ? { seconds: 0, startTime: game.time.worldTime } : effectDuration(dur, actor),
-      flags: { sr2e: { drugEffect: { key: drug.key, exposureId, card } } }
+      flags: { sr2e: { drugEffect: { key: drug.key, exposureId, card,
+        overload: !!drug.overload, tn: drug.tn ?? null, absorb } } }
     }]);
 
-    // 3. The dose.
+    // 4. The dose.
     try { await item.update({ "system.quantity": Math.max(0, (item.system.quantity ?? 1) - 1) }); }
     catch (err) {
       console.error("SR2E | spending the dose failed", err);
       ui.notifications.warn(`${item.name} took effect, but the dose couldn't be taken off (${esc(err?.message ?? err)}).`);
     }
 
-    // 4. The card.
+    // 5. The card.
     try { await postCard(actor, card); }
     catch (err) {
       console.error("SR2E | drug card failed", err);
@@ -157,9 +227,12 @@ export function repostCard(actor, effectId) {
   });
 }
 
-export function endDrug(actor, effectId) {
+export async function endDrug(actor, effectId) {
   if (!actor?.isOwner) return;
-  return actor.effects.get(effectId)?.delete();
+  const eff = actor.effects.get(effectId);
+  const id = eff?.flags?.sr2e?.drugEffect?.exposureId;
+  await eff?.delete();
+  if (id && actor.getFlag("sr2e", "drugAbsorb")?.[id] != null) await actor.update({ [`flags.sr2e.drugAbsorb.-=${id}`]: null });
 }
 
 // ── Toxin damage ───────────────────────────────────────────────────────────
@@ -180,8 +253,10 @@ export function resistToxin(message) {
     if (!t) return;
     const final = toxinLevel(level, t.successes ?? 0);
     const flag = { [`flags.sr2e.toxinDone.${key}`]: true };
-    await actor.update(final ? { ...actor.damageUpdate(type === "stun" ? "stun" : "physical", BOXES[final]), ...flag } : flag);
-    const resolved = final ? `${final} ${type === "stun" ? "Stun" : "Physical"} taken (${BOXES[final]} box${BOXES[final] === 1 ? "" : "es"}).` : "Fully resisted.";
+    const out = await commitDamage(actor, type === "stun" ? "stun" : "physical", final ? BOXES[final] : 0, { extra: flag, report: false });
+    const note = drugDamageNote(out);
+    const resolved = (final ? `${final} ${type === "stun" ? "Stun" : "Physical"} (${BOXES[final]} box${BOXES[final] === 1 ? "" : "es"}).` : "Fully resisted.")
+      + (note ? ` ${note}.` : "");
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), flags: { sr2e: { resolves: message.id } },
       content: `<div class="sr2e-damage-result">💊 ${esc(actor.name)} — ${esc(st.name)}: ${resolved}</div>` });
     await updateCard(message, { ...st, resolved });

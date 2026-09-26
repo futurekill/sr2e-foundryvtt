@@ -2091,7 +2091,8 @@ async function onLearnSpell(event) {
   const used = actor.getFlag("sr2e", "aidStudyUsed") ?? [];
   const aiders = boundElementals(actor).filter(e => !e.system.service && !e.system.depleted
     && !e.system.pendingExpireSpellUuid && (e.system.services ?? 0) >= 1);
-  const tnMods = actor.testTnModifiers().total;
+  // The same context the learning roll passes (Sorcery: Atropine's Magic +2).
+  const tnMods = actor.testTnModifiers({ tnContext: { kind: "skill", key: "sorcery", magic: true } }).total;
   const tabName = `sr2e-learn-${foundry.utils.randomID(8)}`;
 
   const read = (form) => {

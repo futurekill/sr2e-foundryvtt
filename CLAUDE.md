@@ -210,3 +210,12 @@ winning defender strikes back with their own weapon).
 Initiative passes are implemented in `module/documents/combat.mjs`
 (SR2ECombat): "next turn" costs the current actor 10 Initiative and jumps
 to the highest remaining total; new rounds re-roll everyone.
+
+## Damage and drugs
+All character, NPC and spirit damage is committed by `commitDamage` in
+`module/drugs.mjs` (`applyDamage` calls it): Kamikaze absorption, Hyper
+overload, the monitors and a caller's own marker (`extra`) land in ONE update,
+in a `damage:<uuid>` queue. Never call `applyDamage` from inside that queue.
+Drug TN penalties come from `options.tnContext` on `rollSuccessTest`
+(`rollSkillTest` derives it); a new skill or attack roll that calls
+`rollSuccessTest` directly must pass one. See docs/PLAN-drugs-full.md.

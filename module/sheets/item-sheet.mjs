@@ -167,12 +167,12 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       case "gear":
         // Skillsoft: offer a dropdown of standard skills (from the skills
         // compendium) matching the soft's type, so the granted skill is picked
-        // rather than typed. ActiveSofts cover Active + Build/Repair (technical)
-        // skills; Know/LinguaSofts cover their own categories (SR2E p.248).
+        // rather than typed. Only the chip's own category: a chip has no
+        // build_repair category, and _applySkillsofts matches categories
+        // exactly, so a Build/Repair pick would grant a separate Active skill
+        // (the Buy dialog lists the same way).
         if (item.system.category === "skillsoft") {
-          const cats = item.system.grantedSkillCategory === "active"
-            ? ["active", "build_repair"]
-            : [item.system.grantedSkillCategory];
+          const cats = [item.system.grantedSkillCategory];
           context.skillCatalog = await SR2EItemSheet._skillCatalog(cats);
         }
         break;

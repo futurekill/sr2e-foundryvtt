@@ -22,6 +22,7 @@ import { renderHealingCard, renderManipDamageCard } from "./documents/item.mjs";
 import { preCastBlock, fetishCheck, personallySustaining } from "./restricted-spells.mjs";
 import { spellEffectKind, igniteFromCast } from "./spell-effects.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
+import { commitDamage } from "./drugs.mjs";
 import {
   ritualMaterialsCost, ritualLinkTN, ritualSendingTN, ritualStageHours, ritualTeamMax, ritualResistTN,
   ritualSustainHours, MATERIAL_LINK_TN, SENDING_TN, spellForces, canonicalSpellName, drainTargetNumber,
@@ -553,7 +554,7 @@ async function finaliseDrain(id, memberUuid) {
     const idx = STAGES.indexOf(r.drainLevel) - Math.floor(succ / 2);
     const type = r.force > (m?.system.magic?.value ?? 0) || m?.system.astralState === "projecting" ? "physical" : "stun";
     if (m && !m.getFlag("sr2e", "ritualDrain")?.[r.id]) {
-      await m.update(idx >= 0 ? { ...m.damageUpdate(type, BOXES[idx]), [marker]: true } : { [marker]: true });
+      await commitDamage(m, type, idx >= 0 ? BOXES[idx] : 0, { extra: { [marker]: true } });
     }
     d.done = true;
     d.result = idx >= 0 ? `${STAGES[idx]} ${type} (${BOXES[idx]} box${BOXES[idx] === 1 ? "" : "es"})` : "fully resisted";

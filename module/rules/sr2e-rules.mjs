@@ -1612,8 +1612,17 @@ export function knockdownTN(power, gel = false) {
  * @returns {number}
  */
 export function knockdownThreshold(level) {
-  return { L: 1, M: 2, S: 3, D: Infinity }[level] ?? 1;
+  const boxes = kdBoxes(level);
+  return boxes >= 10 ? Infinity : Math.max(1, Math.ceil(boxes / 2));
 }
+
+/**
+ * Knockdown works on the damage actually DEALT: a level letter (L/M/S/D = 1/3/6/10
+ * boxes) or a landed box count, e.g. what's left after Kamikaze absorbs some
+ * (Shadowtech p.99). "Half the damage" is ⌈boxes ÷ 2⌉, which is exactly the
+ * book's 1/2/3 for Light/Moderate/Serious; only a full 10 boxes is Deadly.
+ */
+const kdBoxes = (x) => typeof x === "number" ? x : ({ L: 1, M: 3, S: 6, D: 10 }[x] ?? 1);
 
 /**
  * Resolve a knockdown Body Test (SR2E p.91). A Deadly wound always drops the
@@ -1624,7 +1633,7 @@ export function knockdownThreshold(level) {
  * @returns {"none"|"stagger"|"prone"}
  */
 export function knockdownOutcome(level, successes) {
-  if (level === "D") return "prone";
+  if (kdBoxes(level) >= 10) return "prone";
   const s = Math.max(0, successes || 0);
   if (s === 0) return "prone";
   if (s > knockdownThreshold(level)) return "none";
@@ -3292,7 +3301,7 @@ export function knockdownPrompt(level, monitor = {}, overflow = 0) {
     return { offer: false, autoProne: true, reason: "incapacitated" };
   }
   if (overflow > 0) return { offer: false, autoProne: true, reason: "incapacitated" };
-  if (level === "D") return { offer: false, autoProne: true, reason: "deadly" };
+  if (kdBoxes(level) >= 10) return { offer: false, autoProne: true, reason: "deadly" };
   return { offer: true, autoProne: false, reason: "" };
 }
 
@@ -4336,3 +4345,61 @@ export function toxinLevel(level, successes) {
   const idx = DAMAGE_LEVELS.indexOf(level) - Math.floor(Math.max(0, successes) / 2);
   return idx >= 0 ? DAMAGE_LEVELS[idx] : null;
 }
+
+/**
+ * Damage on a drugged character (Shadowtech p.98–99), one hit:
+ *  - Kamikaze negates "the first four boxes of damage received" after the dose,
+ *    Physical or Mental alike: absorbers are used oldest first.
+ *  - Hyper then adds half the damage that LANDED, rounded up, as Stun. That
+ *    extra Stun is a consequence, not a new hit: it is not absorbed and never
+ *    overloads again (the caller applies it without calling this).
+ * @param {{amount:number, absorbers?:{id:string,left:number}[], overload?:boolean}} p
+ * @returns {{landed:number, absorbed:number, absorbUsed:Object<string,number>, overloadStun:number}}
+ */
+export function drugDamage({ amount, absorbers = [], overload = false }) {
+  let landed = Math.max(0, Math.trunc(Number(amount) || 0));
+  const absorbUsed = {};
+  for (const a of absorbers) {
+    const use = Math.min(landed, Math.max(0, Number(a.left) || 0));
+    if (use > 0) { absorbUsed[a.id] = use; landed -= use; }
+  }
+  const absorbed = Math.max(0, Math.trunc(Number(amount) || 0)) - landed;
+  return { landed, absorbed, absorbUsed, overloadStun: overload && landed > 0 ? Math.ceil(landed / 2) : 0 };
+}
+
+/** Technical Skills (core p.71): "all types of machines". */
+export const TECHNICAL_SKILLS = new Set(["biotech", "computer", "electronics"]);
+
+/**
+ * The TN penalty from drugs in force on one test.
+ *  - `all`: every test (Hyper's vertigo, +1 — "all target numbers", p.98).
+ *  - `spell`: spellcasting, Hyper's +4 concentration penalty.
+ *  - Skill penalties (Atropine, p.96) apply to skill, attack and spell tests
+ *    only: Magic skills and spells take `magic`, Technical skills `technical`,
+ *    Knowledge / Language / Build-Repair their own, every other Active skill
+ *    `active` plus `meleeClose` in melee or a close-range firearm shot.
+ * Overuse halves bonuses only, never penalties (p.85), so no halving here.
+ * @param {object[]} specs  - each drug's `tn` map
+ * @param {{kind?:string, skillCategory?:string, key?:string, magic?:boolean,
+ *          technical?:boolean, melee?:boolean, closeRange?:boolean}} [ctx]
+ */
+export function drugTnFor(specs, ctx = {}) {
+  const kind = ctx.kind ?? "other";
+  const skilled = ["skill", "attack", "spell"].includes(kind);
+  const cat = ctx.magic || kind === "spell" ? "magic"
+    : ctx.technical || TECHNICAL_SKILLS.has(ctx.key) ? "technical"
+    : ctx.skillCategory === "special" ? "active" : (ctx.skillCategory ?? "active");
+  let t = 0;
+  for (const tn of specs) {
+    if (!tn) continue;
+    t += Number(tn.all) || 0;
+    if (kind === "spell") t += Number(tn.spell) || 0;
+    if (!skilled) continue;
+    t += Number(tn[cat]) || 0;
+    if (cat === "active" && (ctx.melee || ctx.closeRange)) t += Number(tn.meleeClose) || 0;
+  }
+  return t;
+}
+
+/** A stimulant's second dose runs at half effect: bonuses halved (round down), penalties kept (p.85). */
+export const halveBonus = (v) => v > 0 ? Math.floor(v / 2) : v;

@@ -20,9 +20,31 @@ MAO, Hyper, Atropine, Cyanide and ACTH):
 - Packs are priced per package: a six-dose inhaler charges once, sells back
   for the doses left, and counts once in character creation.
 - NPCs now get extra Initiative dice from effects, as characters do.
-- Left to the GM (on the card): Kamikaze's 4-box absorption and long-term
-  wasting, Hyper's overload damage and TN penalties, Atropine's skill
-  penalties, a second dose's overuse, and the adrenal pump interplay.
+- **Kamikaze** negates the first 4 boxes of damage taken after the dose,
+  Physical or Stun, across as many hits as it takes (p.99). The damage card
+  says "Kamikaze absorbs N", and a Knockdown Test works on what landed.
+- **Hyper** adds half of any damage taken, rounded up, as Stun, and +1 to
+  every target number (+5 on spellcasting; p.98).
+- **Atropine** adds its TN penalties by skill (p.96): +1 on Active Skills
+  (+2 in melee or a short-range Firearms shot), +2 on Knowledge, Language,
+  Build/Repair, Technical (Biotech, Computer, Electronics) and Magic skills
+  and spells. Damage resistance tests take none.
+- The breakdown shows them as "+N drugs". Centering can buy them down like
+  any other penalty; ritual stages don't take them.
+- **A second dose of a stimulant** (Kamikaze) while the first is active
+  deals a Light Stun wound (the first dose's absorption can soak it), and the
+  new dose's bonuses and absorption are halved, rounded down (p.85).
+- Effects count until ended, even past their listed time; a dose shrugged
+  off to zero duration does nothing.
+- Drug items dragged in before this update lack the new data: drag them
+  again from the Shadowtech compendium. Doses already running stay as they
+  were.
+- Left to the GM (on the card): Kamikaze's long-term wasting, the adrenal
+  pump interplay, concentration tasks other than spellcasting, and dose
+  counting.
+- A Knockdown Test is no longer offered when either monitor is already full
+  (Hyper's extra Stun can fill the other one). This also fixes the overflow
+  check, which read the wrong field.
 
 ### Fixed — neural bioware was charged the cultured ×4 twice (Shadowtech p.7)
 
@@ -38,6 +60,9 @@ already figured in to the listed values for neural bioware."
 when the grade changes.)
 
 ### Changed — skillsofts are bought ready to use (SR2E p.243)
+
+- The item sheet's skill picker for a chip lists only the chip's own
+  category. It no longer offers Build/Repair skills to an ActiveSoft.
 
 The Buy dialog for an ActiveSoft, KnowSoft or LinguaSoft now asks **which
 skill the chip holds**.

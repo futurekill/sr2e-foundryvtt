@@ -8,11 +8,18 @@ import { magicalSkillBlock } from "../restricted-spells.mjs";
 
 /** Spell Resist cards being resolved on this client (double-click guard). */
 const SPELL_RESIST_IN_FLIGHT = new Set();
+
+/** A skill name as its CONFIG key ("Build/Repair (Car)" → "build_repair_car"). */
+const skillKeyOf = (name) => String(name ?? "").toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+/** What a skill test is, for drug TN penalties (drugTnFor). */
+const skillTnContext = (key, category = "active") =>
+  ({ kind: "skill", key, skillCategory: category, magic: !!CONFIG.SR2E.activeSkills?.[key]?.magical });
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
+import { commitDamage, drugsInForce, drugDamageNote } from "../drugs.mjs";
 import { natureDepartNote } from "../nature-spirits.mjs";
 import { usePowerService, statusOf } from "../spirit-services.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
@@ -24,7 +31,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, damageUpdateFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Render a success-test chat card from its persisted state.
@@ -347,12 +354,16 @@ export class SR2EActor extends Actor {
     // Caller-supplied TN modifier that only applies to certain tests (e.g. the
     // biosystem-overstress penalty, which hits Body Success Tests only).
     const extraTN = options.extraTN ?? 0;
+    // Drugs in force (Hyper, Atropine; Shadowtech p.96, p.98), by what the test
+    // is: `options.tnContext` (rollSkillTest derives it). Not on ritual stages,
+    // whose policy names every modifier they take.
+    const drugTN = policy ? 0 : drugTnFor(drugsInForce(this).map(e => e.tn), options.tnContext);
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN);
-    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN - centeringReduction;
-    return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, centeringReduction, total };
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN);
+    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN - centeringReduction;
+    return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, centeringReduction, total };
   }
 
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
@@ -364,7 +375,7 @@ export class SR2EActor extends Actor {
     // (SR2E p.112: "except those involving attempts to resist damage or avoid
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
-    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, centeringReduction, total }
+    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, centeringReduction, total }
       = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
@@ -429,6 +440,7 @@ export class SR2EActor extends Actor {
     if (mpcpOverload > 0) tnParts.push(`+${mpcpOverload} MPCP overload`);
     if (extraTN > 0) tnParts.push(`+${extraTN} ${options.extraTNLabel ?? "modifier"}`);
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
+    if (drugTN > 0)         tnParts.push(`+${drugTN} drugs`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
@@ -1082,7 +1094,8 @@ export class SR2EActor extends Actor {
       const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
       label = `${skillName} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
     }
-    return this.rollSuccessTest(dicePool, targetNumber, { ...options, label });
+    const key = skillKeyOf(skillName);
+    return this.rollSuccessTest(dicePool, targetNumber, { tnContext: skillTnContext(key, CONFIG.SR2E.activeSkills?.[key] ? "active" : "knowledge"), ...options, label });
   }
 
   async rollSkillTest(skillId, targetNumber = 4, options = {}) {
@@ -1153,6 +1166,7 @@ export class SR2EActor extends Actor {
 
     return this.rollSuccessTest(dicePool, targetNumber, {
       label,
+      tnContext: options.tnContext ?? skillTnContext(skey, skill.system.category),
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -1190,6 +1204,7 @@ export class SR2EActor extends Actor {
     // NOT forwarded here, even if the roll dialog offered them.
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
       label: `${family ? (chip.system.languageFamily || "Language family") : (soft.system.grantedSkill || soft.name)} Test (chipped)${artBonus ? ` (+${artBonus} articulation)` : ""}`,
+      tnContext: skillTnContext(skillKeyOf(soft.system.grantedSkill || soft.name), chip?.system.category ?? soft.system.grantedSkillCategory ?? "active"),
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }
@@ -1274,6 +1289,7 @@ export class SR2EActor extends Actor {
 
     // ── Conjuring Test (no Magic Pool) ────────────────────────────────────────
     const conjureResult = await this.rollSuccessTest(conjuringDice, force, {
+      tnContext: skillTnContext("conjuring"),
       label: `Conjure ${kind === "elemental" ? "Elemental" : "Nature Spirit"} ` +
              `(Force ${force}, ${domain}${totemNote}${fociNote})`,
       karmaDice: opts.karmaDice,
@@ -1603,6 +1619,7 @@ export class SR2EActor extends Actor {
     const defWeaponName = weapon ? weapon.name : "Unarmed";
 
     const defense = await this.rollSuccessTest(dice, tn, {
+      tnContext: { kind: "attack", skillCategory: "active", melee: true },
       label: `Defend vs ${state.attackerName} — ${defWeaponName}${defaultingNote}${choice.meleeVis ? `, visibility +${choice.meleeVis}` : ""} TN ${tn}`,
       poolDice: choice.poolDice > 0 ? { combat: choice.poolDice } : {},
       karmaDice: choice.karmaDice,
@@ -1783,7 +1800,7 @@ export class SR2EActor extends Actor {
     const label = `${vehicle.name} — ${typeLabel} [${terrain}${defaultingNote}] TN ${tn}`;
 
     const result = await this.rollSuccessTest(dice, tn, {
-      label,
+      label, tnContext: skillTnContext(skillKey),
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -1889,6 +1906,7 @@ export class SR2EActor extends Actor {
 
     // My ram test (Control Pool / karma may assist)
     const myResult = await this.rollSuccessTest(myDice, myTN, {
+      tnContext: skillTnContext(skillKey),
       label: `Ram: ${myVehicle.name} → ${oppName} (TN ${myTN})`,
       poolDice: options.poolDice, karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -2351,21 +2369,30 @@ export class SR2EActor extends Actor {
     // Apply remaining damage
     const finalLevel  = stages[finalIdx];
     const damageBoxes = boxesForLevel(finalLevel);   // L=1, M=3, S=6, D=10 (SR2E p.113)
-    await this.applyDamage(damageType, damageBoxes);
+    // Knockdown and the card use what LANDED (Kamikaze may absorb some, p.99).
+    const dealt = await this.applyDamage(damageType, damageBoxes, { report: false })
+      ?? { landedBoxes: damageBoxes, absorbed: 0, overloadStun: 0 };
+    const landed = dealt.landedBoxes;
+    const drugNote = drugDamageNote(dealt);
 
     // Knockdown offer (SR2E p.91 ranged / p.103 melee). Only offered when the
     // roll can still change something: a Deadly wound always drops you, and a
     // character whose monitor is already full is down anyway — prompting there
     // asks for a test whose outcome is fixed before it is rolled.
     const isGel   = armorCalc === "impact";
-    const monitor = this.system.conditionMonitor?.[damageType === "stun" ? "stun" : "physical"] ?? {};
-    const kd      = knockdownPrompt(finalLevel, monitor, this.system.overflow ?? 0);
+    // Either monitor full (Hyper's extra Stun can fill the other one) or
+    // overflowing: already down.
+    const cmNow   = this.system.conditionMonitor ?? {};
+    const down    = ["physical", "stun"].some(k => (cmNow[k]?.max ?? 0) > 0 && cmNow[k].value >= cmNow[k].max);
+    const kd      = knockdownPrompt(landed, down ? { value: 1, max: 1 } : {}, cmNow.overflow ?? 0);
     let knockBtn  = "";
     // Fire and flying debris are not a blow from a weapon: no Knockdown Test.
-    if (kd.offer && !env) {
+    // Nothing landed (all absorbed): nothing to knock them down.
+    if (landed <= 0) knockBtn = "";
+    else if (kd.offer && !env) {
       knockBtn = `<br><button class="sr2e-knockdown-btn"
         data-actor-uuid="${this.uuid}" data-power="${power}"
-        data-level="${finalLevel}" data-gel="${isGel ? 1 : 0}"
+        data-level="${finalLevel}" data-boxes="${landed}" data-gel="${isGel ? 1 : 0}"
         data-melee="${options.melee ? 1 : 0}"
         data-attacker-strength="${options.attackerStrength ?? 0}"
         title="${options.melee
@@ -2385,7 +2412,7 @@ export class SR2EActor extends Actor {
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
         <strong>Damage Taken: ${finalLevel} ${damageType}</strong>
-        <em>(${damageBoxes} box${damageBoxes !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>${netNote}
+        <em>(${landed} box${landed !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>${netNote}${drugNote ? `<br>💊 ${drugNote}.` : ""}
         ${knockBtn}
       </div>`,
       ...resolves
@@ -2400,7 +2427,7 @@ export class SR2EActor extends Actor {
    * drops you prone, in between staggers you 1 m. A Deadly wound always drops.
    * Applies the "prone" token status on a knockdown.
    * @param {number} power
-   * @param {"L"|"M"|"S"|"D"} level
+   * @param {"L"|"M"|"S"|"D"|number} level - the level dealt, or the boxes that landed
    * @param {boolean} [gel=false]
    */
   async rollKnockdown(power, level, gel = false, opts = {}) {
@@ -2583,7 +2610,7 @@ export class SR2EActor extends Actor {
    * @param {string} type - "physical" or "stun"
    * @param {number} amount - Number of boxes to fill
    */
-  async applyDamage(type = "physical", amount = 0) {
+  async applyDamage(type = "physical", amount = 0, options = {}) {
     if (amount <= 0) return;
 
     // Vehicles and IC use a single flat condition monitor
@@ -2593,7 +2620,8 @@ export class SR2EActor extends Actor {
       return this.update({ "system.conditionMonitor.value": newValue });
     }
 
-    return this.update(this.damageUpdate(type, amount));
+    // Kamikaze absorption and Hyper overload (Shadowtech p.98–99) live here.
+    return commitDamage(this, type, amount, options);
   }
 
   /**
@@ -2904,7 +2932,7 @@ export class SR2EActor extends Actor {
     const opLabel = game.i18n.localize(CONFIG.SR2E.systemOperations[operation]?.label ?? operation);
 
     const result = await this.rollSuccessTest(Math.max(1, dice), Math.max(2, tn), {
-      label: `${opLabel} — Computer (TN ${tn})`,
+      label: `${opLabel} — Computer (TN ${tn})`, tnContext: skillTnContext("computer"),
       poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
       karmaDice: opts.karmaDice ?? 0,
       miscDice: opts.miscDice, miscLabel: opts.miscLabel
@@ -3191,7 +3219,7 @@ export class SR2EActor extends Actor {
     await this.update({ [`flags.sr2e.learning.${attemptId}`]: {
       status: "pending", spellName: def.name, force, definition: def, karmaPaid: false } });
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `Learn ${def.name} (Force ${force}) — Sorcery + Magical Theory${aidNote}`,
+      label: `Learn ${def.name} (Force ${force}) — Sorcery + Magical Theory${aidNote}`, tnContext: skillTnContext("sorcery"),
       karmaDice: o.karmaDice, karmaDiceCap: sorcery + theory,
       learningAttemptId: attemptId
     });
@@ -3580,7 +3608,8 @@ export class SR2EActor extends Actor {
     // First Aid is an action by the medic, so the medic's own injury modifier
     // applies (rollSuccessTest adds it) — do NOT pass isResistance here.
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `First Aid: ${patient.name} (${level})${parts.length ? " — " + parts.join(", ") : ""} TN ${tn}`
+      label: `First Aid: ${patient.name} (${level})${parts.length ? " — " + parts.join(", ") : ""} TN ${tn}`,
+      tnContext: skillTnContext("biotech")   // First Aid is a Biotech test: a Technical Skill (p.71)
     });
     const succ = result?.successes ?? 0;
     if (succ <= 0) {

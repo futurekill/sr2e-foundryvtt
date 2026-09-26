@@ -6640,6 +6640,19 @@ export function registerSR2EQuenchTests() {
         const custom = a.system.chippedSkills.find(s => s.name === "Quenchish");
         assert.equal(custom?.system.languageFamily ?? "", "", "a custom language gets no family (a stated limit)");
       });
+      it("the item sheet's picker offers only the chip's own category (no Build/Repair for an ActiveSoft)", async function () {
+        this.timeout(10000);
+        const a = await mkBuyer();
+        const [chip] = await a.createEmbeddedDocuments("Item", [{ name: "ActiveSoft", type: "gear",
+          system: { category: "skillsoft", grantedSkillCategory: "active", rating: 1 } }]);
+        const ctx = await chip.sheet._prepareContext({});
+        const names = (ctx.skillCatalog ?? []).map(e => e.name);
+        const pack = game.packs.get("sr2e.skills");
+        const idx = await pack.getIndex({ fields: ["system.category"] });
+        const br = idx.filter(e => e.system?.category === "build_repair").map(e => e.name);
+        assert.isAbove(names.length, 0);
+        assert.isFalse(names.some(n => br.includes(n)), "no Build/Repair skill offered");
+      });
     }, { displayName: "SR2E: Skillsoft purchase (p.243)" });
 
     // ── Cultured bioware: ×4 price on a grade change; neural is always cultured ─
@@ -6889,6 +6902,177 @@ export function registerSR2EQuenchTests() {
         Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="yes"]')?.click(), 60));
         await c.sheet.options.actions.sellItem.call(c.sheet, { preventDefault() {} }, { closest: () => ({ dataset: { itemId: item.id } }) });
         assert.equal(c.system.nuyen, nuyen, "an empty pack refunds nothing");
+      });
+
+      // ── The full rules: absorption, overload, TN penalties, overuse (Shadowtech p.85–99) ──
+      const KAMI = foundry.utils.mergeObject(foundry.utils.deepClone(KAMIKAZE), { name: "Quench Drug Kamikaze Full",
+        flags: { sr2e: { drug: { absorb: 4, stimulant: true } } } });
+      const HYPER = { name: "Quench Drug Hyper", type: "gear", system: { category: "drug", quantity: 2, cost: 180 },
+        flags: { sr2e: { drug: { key: "hyper", duration: { minutes: 60, bodyReducesBy: 5 }, overload: true, tn: { all: 1, spell: 4 } } } } };
+      const ATRO = { name: "Quench Drug Atropine Full", type: "gear", system: { category: "drug", quantity: 1, cost: 600 },
+        flags: { sr2e: { drug: { key: "atropine", tn: { active: 1, meleeClose: 1, knowledge: 2, language: 2, build_repair: 2, technical: 2, magic: 2 } } } } };
+      const mon = (a) => [a.system.conditionMonitor.physical.value, a.system.conditionMonitor.stun.value];
+
+      it("Kamikaze absorbs the next 4 boxes across hits, Physical or Stun, then damage lands; End clears it", async () => {
+        const { useDose, activeDrugs, endDrug } = await load();
+        const a = await mk("character", [KAMI]);
+        await withFaces([2], () => useDose(a, a.items.getName(KAMI.name).id));
+        const out = await a.applyDamage("physical", 3);
+        assert.deepEqual(mon(a), [0, 0], "3 absorbed");
+        assert.equal(out.absorbed, 3);
+        await a.applyDamage("stun", 3);
+        assert.deepEqual(mon(a), [0, 2], "the last box absorbed, 2 Stun land");
+        await a.applyDamage("physical", 1);
+        assert.deepEqual(mon(a), [1, 2], "exhausted");
+        const b = await mk("character", [KAMI]);
+        await withFaces([2], () => useDose(b, b.items.getName(KAMI.name).id));
+        await endDrug(b, activeDrugs(b)[0].id);
+        await b.applyDamage("physical", 2);
+        assert.deepEqual(mon(b), [2, 0], "ended: nothing absorbed");
+        assert.isEmpty(Object.keys(b.getFlag("sr2e", "drugAbsorb") ?? {}), "counter removed");
+      });
+
+      it("Hyper: a Moderate hit adds 2 Stun; +1 on tests, +5 on a spell; expired-but-enabled still counts, zero-duration doesn't", async () => {
+        const { useDose, activeDrugs } = await load();
+        const a = await mk("character", [HYPER]);
+        await withFaces([1, 1, 1], () => useDose(a, a.items.getName(HYPER.name).id));   // 0 Body successes: 60 minutes
+        await a.applyDamage("physical", 3);
+        assert.deepEqual(mon(a), [3, 2], "⌈3 ÷ 2⌉ = 2 Stun");
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "skill", skillCategory: "active" } }).drugTN, 1);
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "spell", magic: true } }).drugTN, 5);
+        assert.equal(a.testTnModifiers({}).drugTN, 1, "all target numbers");
+        assert.equal(a.testTnModifiers({ tnPolicy: "table" }).drugTN, 0, "not on ritual stages");
+        const eff = a.effects.get(activeDrugs(a)[0].id);
+        await eff.update({ "duration.startTime": game.time.worldTime - 7200 });
+        assert.isTrue(activeDrugs(a)[0].expired, "expired");
+        assert.equal(a.testTnModifiers({}).drugTN, 1, "…but in force until ended");
+        await eff.update({ "duration.seconds": 0 });
+        assert.equal(a.testTnModifiers({}).drugTN, 0, "a zero-duration exposure is tracking only");
+        await a.applyDamage("physical", 2);
+        assert.deepEqual(mon(a), [5, 2], "no overload");
+      });
+
+      it("Atropine: skill and attack TN penalties by category; a roll shows them", async () => {
+        const { useDose } = await load();
+        const a = await mk("character", [ATRO, { name: "Quench Lore", type: "skill", system: { category: "knowledge", rating: 3 } }]);
+        await useDose(a, a.items.getName(ATRO.name).id);
+        const tn = (ctx) => a.testTnModifiers({ tnContext: ctx }).drugTN;
+        assert.equal(tn({ kind: "attack", skillCategory: "active", key: "firearms", closeRange: true }), 2, "short-range firearm");
+        assert.equal(tn({ kind: "attack", skillCategory: "active", key: "firearms" }), 1, "long range");
+        assert.equal(tn({ kind: "skill", key: "sorcery", magic: true }), 2, "Sorcery");
+        assert.equal(tn({ kind: "skill", key: "computer", skillCategory: "active" }), 2, "Technical");
+        assert.equal(tn({ kind: "resist" }), 0, "damage resistance");
+        const n = game.messages.size;
+        await withFaces([1, 1, 1], () => a.rollSkillTest(a.items.getName("Quench Lore").id, 4));
+        const test = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.test)?.flags.sr2e.test;
+        assert.equal(test?.tn, 6, "Knowledge +2");
+      });
+
+      it("Kamikaze overuse: the Light Stun is soaked by the first dose's absorption, the second dose is half strength", async () => {
+        const { useDose } = await load();
+        const a = await mk("character", [{ ...KAMI, system: { ...KAMI.system, quantity: 3 } }]);
+        const item = a.items.getName(KAMI.name);
+        const base = { b: a.system.body.value, s: a.system.strength.value, dice: a.system.initiative.dice };
+        await withFaces([2], () => useDose(a, item.id));
+        await withFaces([2], () => useDose(a, item.id));
+        assert.deepEqual(mon(a), [0, 0], "the overuse wound absorbed by the first dose");
+        const left = Object.values(a.getFlag("sr2e", "drugAbsorb"));
+        assert.sameMembers(left, [3, 2], "first 4−1, second ½ of 4");
+        assert.equal(a.system.body.value, base.b + 1, "½ of +1 = +0 on the second");
+        assert.equal(a.system.strength.value, base.s + 3, "+2 then +1");
+        assert.equal(a.system.initiative.dice, base.dice + 1, "½ of 1 die = 0 on the second");
+        // Exhausted absorption: the next overuse wound lands.
+        for (const id of Object.keys(a.getFlag("sr2e", "drugAbsorb"))) await a.setFlag("sr2e", `drugAbsorb.${id}`, 0);
+        await withFaces([2], () => useDose(a, item.id));
+        assert.deepEqual(mon(a), [0, 1], "Light Stun");
+      });
+
+      it("commitDamage writes damage, absorption and the caller's marker in ONE update", async () => {
+        const { useDose, commitDamage } = await load();
+        const a = await mk("character", [KAMI]);
+        await withFaces([2], () => useDose(a, a.items.getName(KAMI.name).id));
+        let updates = 0;
+        const h = Hooks.on("updateActor", (doc) => { if (doc === a) updates++; });
+        try { await commitDamage(a, "stun", 6, { extra: { "flags.sr2e.ritualDrain.q": true } }); }
+        finally { Hooks.off("updateActor", h); }
+        assert.equal(updates, 1);
+        assert.deepEqual(mon(a), [0, 2]);
+        assert.isTrue(a.getFlag("sr2e", "ritualDrain").q);
+      });
+
+      it("Hyper overload spills Stun into Physical; a disabled Kamikaze absorbs nothing; a failed chat note still commits", async () => {
+        const { useDose, activeDrugs, commitDamage } = await load();
+        const a = await mk("character", [HYPER]);
+        await withFaces([1, 1, 1], () => useDose(a, a.items.getName(HYPER.name).id));
+        const sMax = a.system.conditionMonitor.stun.max;
+        await a.update({ "system.conditionMonitor.stun.value": sMax - 1 });
+        await a.applyDamage("physical", 3);                       // 3 land, 2 Stun: 1 fills Stun, 1 spills
+        assert.deepEqual(mon(a), [4, sMax]);
+        const b = await mk("character", [KAMI]);
+        await withFaces([2], () => useDose(b, b.items.getName(KAMI.name).id));
+        await b.effects.get(activeDrugs(b)[0].id).update({ disabled: true });
+        await b.applyDamage("physical", 2);
+        assert.deepEqual(mon(b), [2, 0], "disabled: not in force");
+        await b.effects.get(activeDrugs(b)[0].id).update({ disabled: false });
+        const orig = ChatMessage.create;
+        ChatMessage.create = () => Promise.reject(new Error("Quench chat failure"));
+        let out;
+        try { out = await commitDamage(b, "physical", 5); } finally { ChatMessage.create = orig; }
+        assert.deepEqual(out, { landedBoxes: 1, absorbed: 4, overloadStun: 0 }, "the committed outcome");
+        assert.deepEqual(mon(b), [3, 0]);
+      });
+
+      it("an unlinked token's absorption is its own; knockdown is offered on the boxes that landed", async () => {
+        const { useDose } = await load();
+        const npc = await mk("npc", [KAMI]);
+        await npc.update({ "prototypeToken.actorLink": false });
+        const [tok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await npc.getTokenDocument()).toObject(), actorLink: false, x: 200, y: 200 }]);
+        made.tokens.push(tok.id);
+        await withFaces([2], () => useDose(tok.actor, tok.actor.items.getName(KAMI.name).id));
+        await npc.applyDamage("physical", 2);
+        assert.equal(npc.system.conditionMonitor.physical.value, 2, "the base actor has no absorption");
+        // A Serious hit (6) on a Kamikaze'd character: 4 absorbed, 2 land → knockdown on 2 boxes.
+        const a = await mk("character", [KAMI]);
+        await withFaces([2], () => useDose(a, a.items.getName(KAMI.name).id));
+        const n = game.messages.size;
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="roll"]').click(), 50));
+        await withFaces([1, 1, 1], () => a.rollDamageResistance(8, "S", "ballistic", "physical", {}));
+        assert.equal(a.system.conditionMonitor.physical.value, 2);
+        const card = game.messages.contents.slice(n).find(m => /sr2e-knockdown-btn/.test(m.content));
+        const btn = new DOMParser().parseFromString(card?.content ?? "", "text/html").querySelector(".sr2e-knockdown-btn");
+        assert.equal(btn?.dataset.boxes, "2", "the landed boxes");
+        assert.match(card.content, /Kamikaze absorbs 4/);
+      });
+
+      it("Centering buys down drug and bioware-healing penalties, and its own TN counts them once", async () => {
+        const { useDose } = await load();
+        const mage = async (extra = []) => {
+          const a = await Actor.create({ name: "Quench Drug Centering", type: "character", system: {
+            charisma: { base: 4 }, willpower: { base: 5 },
+            magic: { type: "full_magician", rating: 5, initiateGrade: 1, metamagic: ["centering"], centeringSkill: "Singing" } } });
+          made.actors.push(a.id);
+          await a.createEmbeddedDocuments("Item", [{ name: "Singing", type: "skill", system: { category: "active", rating: 4 } }, ...extra]);
+          return a;
+        };
+        const tests = (n) => game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.test).map(m => m.flags.sr2e.test);
+        // Hyper: +5 on the cast. Centering TN = 4 + 5 − grade 1 = 8, rolled as is.
+        const a = await mage([HYPER, { name: "Quench Stunbolt", type: "spell", system: { category: "combat", drainCode: "[(F÷2)+1]M", force: 3 } }]);
+        await withFaces([1, 1, 1], () => useDose(a, a.items.getName(HYPER.name).id));
+        let n = game.messages.size;
+        // 4 dice, then the two 6s re-roll: 6+2, 6+2 = two successes at TN 8 → −1.
+        await withFaces([6, 6, 1, 1, 2, 2], () => a.items.getName("Quench Stunbolt").roll({ force: 3, targetNumber: 4 }));
+        let [c, cast] = tests(n);
+        assert.equal(c?.tn, 8, "Centering TN: the penalties once");
+        assert.equal(cast?.tn, 8, "cast: 4 + 5 drugs − 1 centred");
+        // Bioware interference (+2 at Body Index 4) alone makes a heal eligible.
+        const b = await mage([{ name: "Quench Bio", type: "bioware", system: { bodyCost: 4 } },
+          { name: "Quench Heal", type: "spell", system: { category: "health", type: "mana", force: 3, drainCode: "(F÷2)L", healsDamage: true } }]);
+        assert.equal(b.system.bodyIndex.value, 4);
+        n = game.messages.size;
+        await withFaces([5, 5, 1, 1], () => b.items.getName("Quench Heal").roll({ force: 3, targetNumber: 4 }));
+        [c, cast] = tests(n);
+        assert.equal(c?.tn, 5, "Centering TN: 4 + 2 − 1");
+        assert.equal(cast?.tn, 5, "cast: 4 + 2 bioware − 1 centred");
       });
 
       it("a token copied from a dosed actor re-posts its OWN card; buying a six-dose pack records it by doses", async () => {

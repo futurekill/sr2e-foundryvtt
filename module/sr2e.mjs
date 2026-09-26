@@ -2378,7 +2378,8 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       if (!actor) return ui.notifications.warn("Can't find the actor for this knockdown test.");
       return actor.rollKnockdown(
         parseInt(btn.dataset.power) || 0,
-        btn.dataset.level || "M",
+        // The landed boxes (after Kamikaze); an older card carries only the level.
+        btn.dataset.boxes != null ? (parseInt(btn.dataset.boxes) || 0) : (btn.dataset.level || "M"),
         btn.dataset.gel === "1",
         // Melee knockback (p.103) uses the ATTACKER'S STRENGTH as the TN, not
         // half Power — carried on the button because only the attack knows it.

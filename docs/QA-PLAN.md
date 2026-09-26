@@ -237,6 +237,12 @@ and any **red console errors**. File them wherever the group tracks issues
       raises Body/Quickness/Strength/Willpower and the Initiative dice; Active drugs lists it
       with the time left, and End removes it. Atropine's card: Resist (Body) once; GM "15
       minutes pass" → the next card. After it wears off → Addiction/Tolerance tests.
+- [ ] **Drug automation:** on Kamikaze, take a 3-box and then a 3-box hit → 3 absorbed, then
+      1 absorbed and 2 land; a card says "Kamikaze absorbs N". A second Kamikaze while the
+      first is active → a Light Stun (absorbed if the first has boxes left), half bonuses.
+      Hyper → a Moderate hit adds 2 Stun; any roll shows "+1 drugs", a spell "+5 drugs".
+      Atropine → a short-range Firearms attack "+2 drugs", long range "+1", a Knowledge
+      test "+2", damage resistance none.
 
 ## 8. Conjuring
 - [ ] Summon a spirit (shaman nature spirit / mage elemental) — Conjuring + totem vs Force; **no Magic Pool**.

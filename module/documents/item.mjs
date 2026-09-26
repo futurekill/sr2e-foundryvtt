@@ -9,6 +9,8 @@ import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 
+const SPELL_TN_CONTEXT = { kind: "spell", magic: true };
+
 /** A restricted-use spell's short label (p.133). */
 function restrictionLabel(r) {
   return { exclusive: "exclusive", fetishReusable: "reusable fetish", fetishExpendable: "expendable fetish" }[r] ?? "";
@@ -578,6 +580,9 @@ export class SR2EItem extends Item {
 
     const isMelee  = ["melee", "throwing"].includes(this.system.weaponType);
     const isRanged = !isMelee;
+    // Drug TN context (Atropine, Shadowtech p.96): +1 more in melee or a
+    // close-range FIREARM shot — the resolved short bracket, nothing else.
+    const tnContext = { kind: "attack", skillCategory: "active", melee: this.system.weaponType === "melee" };
 
     // Thrown weapons (grenades, knives, shuriken) are consumed on use: they stack
     // by quantity instead of reloading. Block an empty stack; spend one otherwise.
@@ -698,6 +703,7 @@ export class SR2EItem extends Item {
       normalize(this.system.skill ?? ""),
       normalize(typeFallback)
     ].filter(k => k !== "");
+    tnContext.key = skillKeys[0] ?? "";    // the skill this attack rolls (mounted: Gunnery)
 
     let skillRating = 0;
     let skillVariantNote = "";
@@ -875,6 +881,7 @@ export class SR2EItem extends Item {
       const meleeMod = options.meleeMod   ?? 0;
       const rangeMod = RANGE_TN_MODS[range] ?? 0;
       const rangeLabel = range.charAt(0).toUpperCase() + range.slice(1);
+      tnContext.closeRange = tnContext.key === "firearms" && range === "short";
 
       // Rounds fired: BF is a fixed 3-round burst; FA fires 3–10 declared rounds.
       isBurst = firingMode === "bf" || firingMode === "fa";
@@ -1044,7 +1051,7 @@ export class SR2EItem extends Item {
       label,
       // Short caption for the dice-provenance groups. Without this the group
       // caption inherits `label`, i.e. the entire card title.
-      sourceLabel: this.name,
+      sourceLabel: this.name, tnContext,
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -1662,28 +1669,6 @@ export class SR2EItem extends Item {
     if (area?.withheld)    totemNote += ` −${area.withheld} withheld for a ${area.radius} m radius`;
     if (aidCast > 0)       totemNote += ` +${aidCast} Aid Sorcery (${aidSpirit.name})`;
 
-    // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
-    // An initiate with Centering may roll their Centering skill (vs the modified
-    // magic TN minus grade) to buy down the wound/sustain penalties on this cast;
-    // every 2 successes removes 1 point (never below the base TN).
-    let centeringReduction = 0;
-    const mgC = actor.system.magic;
-    const woundP = actor.system.woundPenalty ?? 0;
-    const sustainP = actor.system.sustainPenalty ?? 0;
-    if ((mgC?.initiateGrade ?? 0) >= 1 && mgC?.metamagic?.includes?.("centering")
-        && mgC?.centeringSkill && (woundP + sustainP) > 0) {
-      const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-      const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mgC.centeringSkill));
-      const cDice = cSkill?.system?.rating ?? 0;
-      if (cDice > 0) {
-        const cTN = centeringTestTN(targetNumber + woundP + sustainP, mgC.initiateGrade);
-        const cResult = await actor.rollSuccessTest(cDice, cTN, {
-          label: `Centering — ${cSkill.name} vs penalties (TN ${cTN})`, isResistance: true
-        });
-        centeringReduction = centeringPenaltyReduction(cResult?.successes ?? 0, woundP + sustainP);
-      }
-    }
-
     // ── Bioware interference with magical healing (Shadowtech p.6) ────────────
     // "For magical healing on subjects with bioware, increase the target numbers
     // by one-half the character's current Body Index, rounding down." The mod is
@@ -1698,6 +1683,32 @@ export class SR2EItem extends Item {
       if (healingTN > 0) healingLabel = `bioware interference (${subject.name})`;
     }
 
+    // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
+    // An initiate with Centering may roll their Centering skill (vs the modified
+    // magic TN minus grade) to buy down the wound/sustain penalties on this cast;
+    // every 2 successes removes 1 point (never below the base TN).
+    let centeringReduction = 0;
+    const mgC = actor.system.magic;
+    // The SAME penalty set the cast will take (wounds, sustaining, dump shock,
+    // MPCP overload, drugs — Hyper's +5 is a penalty like the others — and
+    // bioware interference on a healing spell).
+    const penaltyC = actor.testTnModifiers({ tnContext: SPELL_TN_CONTEXT, extraTN: healingTN }).total;
+    if ((mgC?.initiateGrade ?? 0) >= 1 && mgC?.metamagic?.includes?.("centering")
+        && mgC?.centeringSkill && penaltyC > 0) {
+      const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+      const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mgC.centeringSkill));
+      const cDice = cSkill?.system?.rating ?? 0;
+      if (cDice > 0) {
+        const cTN = centeringTestTN(targetNumber + penaltyC, mgC.initiateGrade);
+        // cTN already carries the penalties: roll it as is (policy "table"
+        // adds no caster modifiers), or they would count twice.
+        const cResult = await actor.rollSuccessTest(cDice, cTN, {
+          label: `Centering — ${cSkill.name} vs penalties (TN ${cTN})`, isResistance: true, tnPolicy: "table"
+        });
+        centeringReduction = centeringPenaltyReduction(cResult?.successes ?? 0, penaltyC);
+      }
+    }
+
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
       // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
@@ -1709,6 +1720,7 @@ export class SR2EItem extends Item {
       areaCast: isAreaCombat && cardTargets.length > 0,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
       centeringReduction,           // Centering vs Penalties (Grimoire p.44)
+      tnContext: SPELL_TN_CONTEXT,
       extraTN: healingTN, extraTNLabel: healingLabel
     });
 
