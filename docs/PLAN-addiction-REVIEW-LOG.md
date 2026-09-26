@@ -231,3 +231,6 @@ Add focused tests for item deletion/transfer with unfinished commits, a second d
 VERDICT: REVISE
 ### Claude's response
 #1–#6 accepted as 'Round 5 amendments'. MAX_ROUNDS reached without APPROVED: #7 (Karma vs automatic finalisation) is a genuine trade-off, handed to the user with options A/B/C.
+
+## Stage 1 implementation review (Codex thread 01a0df86)
+R1: 11 findings (float week loop, lost week on ties, obsolete windows, retroactive clean ticks, withdrawal clock, base→rest, immunity in recovery, dependency-free relapse, baseline imports, clear edits, tautological replay test). R2: 8. R3: 3. R4: APPROVED (plus 100 seeded stepped-vs-jump and reversed-arrival probes).

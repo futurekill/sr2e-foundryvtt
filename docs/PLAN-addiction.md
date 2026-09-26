@@ -1,5 +1,5 @@
 # Plan: Substance use and abuse — the full lifecycle (Shadowtech p.85–88, p.95, p.99, p.100)
-_Round 5 — event ledger (R1) plus the Round 2–5 amendments at the end; a later round wins. MAX_ROUNDS reached: one open decision (R5 #7) awaits the user._
+_Round 5 — event ledger (R1) plus the Round 2–5 amendments at the end; a later round wins. MAX_ROUNDS reached; the open decision (R5 #7) was settled by the user: option A._
 
 Builds on docs/PLAN-drugs.md (lean core) and docs/PLAN-drugs-full.md
 (absorption, overload, TNs, overuse). All rules read from rendered pages.
@@ -460,17 +460,33 @@ numbers); Resist Pain's relief (GM); the psychological side of recovery
    labelled adjudication prompt with the numbers, whatever the damage is now.
    Only a current total Essence ≤ 0 is shown at once.
 
-## OPEN — R5 #7, for the user: when does a substance roll stop taking Karma?
-The conflict: Karma may buy successes on these rolls (p.87), but results must
-be settled before time advances, or bought successes rewrite weeks of past
-losses. An automatic GM finalise at time advance can race an owner's Karma
-spend on another client. Options:
-- **A. Karma closes when time moves (Claude's pick).** No finalise write at
-  all: a roll counts at its own time with its card total, and the Karma buttons
-  refuse once `substanceClock` has passed the roll. Residual risk: only a spend
-  sent within the network-latency instant of the GM's time advance.
-- **B. Explicit finalise.** The roller must press Finalise (or take another
-  substance action) before the GM can advance substance time. No race, but the
-  GM's time advance is blocked on players' open rolls.
-- **C. No Karma on substance rolls.** Simplest and race-free, but drops the
-  printed allowance.
+## DECIDED — R5 #7: Karma closes when substance time moves (user: option A, 2026-09-26)
+No finalise write: a substance roll counts at its own `t`/`seq` with its card
+total (reconciled into the event by the card's owner on each Karma change).
+Every Karma path on a substance card refuses once the actor's
+`substanceClock` has passed the roll's `t`. The GM's clock advance doesn't
+touch cards. Residual risk (stated): a spend sent within the network-latency
+instant of the GM's advance. This replaces R4 #4's finalise step.
+
+## Optional Calendaria integration (user request, 2026-09-26)
+Soft dependency: everything works without it; nothing imports it. Detected
+with `game.modules.get("calendaria")?.active` and `globalThis.CALENDARIA?.api`
+(probed in Calendaria 1.0.17: `createNote`, `updateNote`, `deleteNote`,
+`timestampToDate`, `formatDate`; its timestamps ARE Foundry world time).
+- **Dates in the calendar's terms.** Substance deadlines on the sheet and in
+  reports use `formatDate(timestampToDate(t))` ("dose due 14 Frostmoon, 03:00")
+  instead of "in 3 h", with the relative time kept in the tooltip.
+- **Deadlines as calendar notes.** A world setting (default on when Calendaria
+  is active): the active GM keeps ONE Calendaria note per actor and drug for its
+  next milestone (dose due, withdrawal −1 at 24 h, next recovery drop, rest
+  ends, clean-period drop), updating it when the fold's next milestone changes
+  and deleting it when there's none. Visibility "hidden" (GM only) by default,
+  with a setting to make them visible. The note id lives in
+  `flags.sr2e.substanceNotes[drug]` on the actor (GM-written, best-effort; a
+  missing or foreign note is recreated, never trusted).
+- **Time.** Calendaria advances Foundry world time, so the existing
+  `updateWorldTime` path covers its time controls; no Calendaria hooks needed.
+- Tests: Quench, run only when Calendaria is active (skipped otherwise):
+  dates render; a dose creates the note at the deadline; a later dose moves it;
+  cure deletes it; with the module off, nothing is attempted.
+- Delivered as its own stage, after the core stages.
