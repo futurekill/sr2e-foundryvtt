@@ -237,6 +237,10 @@ and any **red console errors**. File them wherever the group tracks issues
       raises Body/Quickness/Strength/Willpower and the Initiative dice; Active drugs lists it
       with the time left, and End removes it. Atropine's card: Resist (Body) once; GM "15
       minutes pass" → the next card. After it wears off → Addiction/Tolerance tests.
+- [ ] **Substance tracking:** use a Kamikaze dose; the Addiction/Tolerance button refuses while it's
+      active; End it, roll the tests (TN = the current ratings), and the same button won't roll again.
+      ACTH on a character with an installed Adrenal Pump → the pump switches on. A second MAO while
+      one is active → no new effect.
 - [ ] **Drug automation:** on Kamikaze, take a 3-box and then a 3-box hit → 3 absorbed, then
       1 absorbed and 2 land; a card says "Kamikaze absorbs N". A second Kamikaze while the
       first is active → a Light Stun (absorbed if the first has boxes left), half bonuses.

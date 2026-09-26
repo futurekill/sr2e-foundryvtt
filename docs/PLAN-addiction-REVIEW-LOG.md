@@ -234,3 +234,6 @@ VERDICT: REVISE
 
 ## Stage 1 implementation review (Codex thread 01a0df86)
 R1: 11 findings (float week loop, lost week on ties, obsolete windows, retroactive clean ticks, withdrawal clock, base→rest, immunity in recovery, dependency-free relapse, baseline imports, clear edits, tautological replay test). R2: 8. R3: 3. R4: APPROVED (plus 100 seeded stepped-vs-jump and reversed-arrival probes).
+
+## Stage 2 implementation review (Codex thread 01a0df86)
+R1: 12 findings (drains, one elected driver + in-queue overuse recheck, durable effect plan + GM Re-apply, sync tombstone, ledger+counter one update, revalidated tests, durable roll claims, testMessageId, ACTH vs failed implants, token recovery, interruption matrix); Karma deferred to stage 3 by design. R2: 4. R3: 1 (tests). R4: APPROVED.

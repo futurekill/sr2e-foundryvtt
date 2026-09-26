@@ -6839,22 +6839,280 @@ export function registerSR2EQuenchTests() {
         assert.isTrue(!!a.getFlag("sr2e", "toxinDone")?.[`${exposureId}_1`], "the successor's done-flag");
       });
 
-      it("the addiction and tolerance tests roll Body vs the (adjustable) ratings and report", async () => {
-        const { useDose, drugTests, activeDrugs } = await load();
+      it("the addiction and tolerance tests: after it wears off, from the ledger, recorded once", async () => {
+        const { useDose, drugTests, activeDrugs, endDrug, substancesOf } = await load();
         const a = await mk("character", [KAMIKAZE]);
         await withFaces([1], () => useDose(a, a.items.getName(KAMIKAZE.name).id));
-        const [card] = cards(activeDrugs(a)[0].exposureId);
+        const d = activeDrugs(a)[0];
+        const [card] = cards(d.exposureId);
+        let n = game.messages.size;
+        await drugTests(card);                                                  // still in force: refused
+        assert.equal(game.messages.size, n, "nothing rolled while it's in effect");
+        await endDrug(a, d.id);
         Hooks.once("renderDialogV2", (app) => setTimeout(() => {
-          app.element.querySelector('[name="addiction"]').value = "5";            // the GM raised it for doses taken
+          app.element.querySelector('[name="P"]').value = "5";                  // the GM edits the TN
           app.element.querySelector('button[data-action="ok"]').click();
         }, 60));
-        const n = game.messages.size;
+        n = game.messages.size;
         await withFaces(Array(12).fill(1), () => drugTests(card));              // 0 successes: addicted and immune
         const report = game.messages.contents.slice(n).find(m => /Shadowtech p\.87/.test(m.content));
         assert.match(report?.content ?? "", /physically addicted/);
         assert.match(report?.content ?? "", /immune/);
         const tests = game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.test).map(m => m.flags.sr2e.test);
-        assert.equal(tests[0]?.tn, 5, "the adjusted Addiction Rating");
+        assert.equal(tests[0]?.tn, 5, "the GM's TN");
+        const k = substancesOf(a).drugs.kamikaze;
+        assert.isTrue(k.addicted.P);
+        assert.isTrue(k.immune);
+        assert.equal(k.state, "withdrawal", "addicted and immune → withdrawal");
+        n = game.messages.size;
+        await drugTests(card);
+        assert.equal(game.messages.size, n, "no re-roll");
+      });
+
+      // ── Stage 2: the dose commit and its resumable steps (docs/PLAN-addiction.md) ──
+      const PUMP = { name: "Quench Adrenal Pump", type: "bioware", flags: { sr2e: { adrenalPump: true } },
+        system: { installed: true, triggered: true, active: false, rating: 1, bodyCost: 1.25,
+          attributeMods: { quickness: 1, strength: 1, willpower: 1, reaction: 2 } } };
+      const ACTH = { name: "Quench Drug ACTH", type: "gear", system: { category: "drug", quantity: 6, cost: 100 },
+        flags: { sr2e: { drug: { key: "acth", tolerance: 2, strength: 25, activatesPump: true } } } };
+
+      it("a dose is one commit: spent, recorded in the ledger, every step receipted, the commit cleared", async () => {
+        const { useDose, ledgerOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        const item = a.items.getName(KAMIKAZE.name);
+        await withFaces([2], () => useDose(a, item.id));
+        const [ev] = ledgerOf(a);
+        assert.equal(ev.type, "dose");
+        assert.equal(ev.drug, "kamikaze");
+        assert.deepInclude(ev.snapshot, { addiction: 4, tolerance: 2, strength: 4, P: true });
+        assert.deepEqual(Object.keys(ev.receipts).sort(), ["absorb", "card", "effect"]);
+        assert.equal(ev.receipts.effect, "done");
+        assert.ok(a.effects.get(ev.id), "the effect's id is the exposure id");
+        assert.isEmpty(Object.keys(item.flags?.sr2e?.doseCommits ?? {}), "commit cleared");
+        assert.equal(item.system.quantity, 2);
+      });
+
+      it("an interrupted dose resumes from its plan, once; an ended effect is never recreated", async () => {
+        const { useDose, resumeDoses, ledgerOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        const item = a.items.getName(KAMIKAZE.name);
+        const orig = a.createEmbeddedDocuments;
+        a.createEmbeddedDocuments = function (type, ...rest) {
+          if (type === "ActiveEffect") return Promise.reject(new Error("Quench effect failure"));
+          return orig.call(this, type, ...rest);
+        };
+        try { await withFaces([2], () => useDose(a, item.id)); } finally { delete a.createEmbeddedDocuments; }
+        const id = ledgerOf(a)[0].id;
+        assert.equal(item.system.quantity, 2, "spent at the commit");
+        assert.ok(item.flags.sr2e.doseCommits[id], "commit kept while unfinished");
+        assert.isNotOk(a.effects.get(id));
+        await resumeDoses(a);
+        assert.ok(a.effects.get(id), "recreated in the same session");
+        assert.isEmpty(Object.keys(item.flags.sr2e.doseCommits ?? {}));
+        await resumeDoses(a);
+        assert.equal(a.effects.filter(e => e.flags?.sr2e?.drugEffect?.exposureId === id).length, 1, "once");
+        // Ended before its receipt landed: the tombstone stops a resurrection.
+        const b = await mk("character", [KAMIKAZE]);
+        const bi = b.items.getName(KAMIKAZE.name);
+        const upd = b.update;
+        b.update = function (data, ...rest) {
+          if (Object.keys(foundry.utils.flattenObject(data)).some(k => k.endsWith("receipts.effect"))) return Promise.reject(new Error("Quench receipt failure"));
+          return upd.call(this, data, ...rest);
+        };
+        try { await withFaces([2], () => useDose(b, bi.id)); } finally { delete b.update; }
+        const bid = ledgerOf(b)[0].id;
+        await b.effects.get(bid).delete();                                      // ended by hand
+        await new Promise(r => setTimeout(r, 200));
+        assert.equal(b.flags.sr2e.substanceLog[bid].receipts.effect, "ended", "tombstone");
+        await resumeDoses(b);
+        assert.isNotOk(b.effects.get(bid), "not resurrected");
+      });
+
+      it("interrupted after EACH step, a resumed dose lands exactly once", async () => {
+        const { useDose, resumeDoses, ledgerOf, _newDoseSessionForTests } = await load();
+        const KAMI2 = foundry.utils.mergeObject(foundry.utils.deepClone(KAMIKAZE), { system: { quantity: 3 },
+          flags: { sr2e: { drug: { absorb: 4, stimulant: true } } } });
+        const failOnce = (obj, method, pred) => {
+          const orig = obj[method]; let done = false;
+          obj[method] = function (...args) {
+            if (!done && pred(...args)) { done = true; return Promise.reject(new Error(`Quench ${method} failure`)); }
+            return orig.apply(this, args);
+          };
+          return () => { delete obj[method]; if (obj[method] !== orig) obj[method] = orig; };
+        };
+        const keys = (d) => Object.keys(foundry.utils.flattenObject(d ?? {}));
+        const steps = {
+          ledger: (a) => failOnce(a, "update", (d) => keys(d).some(k => /substanceLog\.[^.]+\.type$/.test(k))),
+          overuse: (a) => failOnce(a, "update", (d) => keys(d).some(k => k.endsWith("receipts.overuse"))),
+          effect: (a) => failOnce(a, "createEmbeddedDocuments", (type) => type === "ActiveEffect"),
+          card: () => failOnce(ChatMessage, "create", (d) => !!d?.flags?.sr2e?.drugCard),
+          cleanup: (a, item) => failOnce(item, "update", (d) => keys(d).some(k => k.includes("doseCommits.-="))) };
+        for (const [name, arm] of Object.entries(steps)) {
+          const a = await mk("character", [KAMI2]);
+          const item = a.items.getName(KAMI2.name);
+          await withFaces([2], () => useDose(a, item.id));                   // first dose, clean
+          const undo = arm(a, item);
+          try { await withFaces([2], () => useDose(a, item.id)); } finally { undo(); }
+          await resumeDoses(a);
+          await resumeDoses(a);
+          const doses = ledgerOf(a).filter(e => e.type === "dose");
+          const second = doses.find(e => e.receipts?.overuse);
+          assert.lengthOf(doses, 2, `${name}: two doses in the ledger`);
+          assert.equal(item.system.quantity, 1, `${name}: spent twice, no more`);
+          assert.equal(a.system.conditionMonitor.stun.value, 0, `${name}: the overuse wound soaked by the first dose`);
+          assert.equal(a.getFlag("sr2e", "drugAbsorb")[doses[0].id], 3, `${name}: the first counter paid exactly once`);
+          assert.ok(second && a.effects.get(second.id), `${name}: the second effect exists`);
+          assert.lengthOf(cards(second.id), 1, `${name}: one card`);
+          assert.isEmpty(Object.keys(item.flags?.sr2e?.doseCommits ?? {}), `${name}: commit cleared`);
+        }
+        // A new session with the effect missing: marked lost; the GM re-applies it.
+        const b = await mk("character", [KAMI2]);
+        const bi = b.items.getName(KAMI2.name);
+        const undo = failOnce(b, "createEmbeddedDocuments", (type) => type === "ActiveEffect");
+        try { await withFaces([2], () => useDose(b, bi.id)); } finally { undo(); }
+        _newDoseSessionForTests();
+        await resumeDoses(b);
+        const id = ledgerOf(b)[0].id;
+        assert.equal(b.flags.sr2e.substanceLog[id].receipts.effect, "lost");
+        const [card] = cards(id);
+        assert.isTrue(card.flags.sr2e.drugCard.lost, "the card offers Re-apply");
+        const { reapplyEffect } = await load();
+        await reapplyEffect(card);
+        assert.ok(b.effects.get(id), "re-applied");
+        assert.equal(b.flags.sr2e.substanceLog[id].receipts.effect, "done");
+      });
+
+      it("ACTH's pump step resumes once; an unlinked token's unfinished dose is found on another scene", async () => {
+        const { useDose, resumeAllDoses, doseDriverOf } = await load();
+        const a = await mk("character", [ACTH, PUMP]);
+        const pump = a.items.getName(PUMP.name);
+        const orig = pump.update; let failed = false;
+        pump.update = function (...args) { if (!failed) { failed = true; return Promise.reject(new Error("Quench pump failure")); } return orig.apply(this, args); };
+        try { await useDose(a, a.items.getName(ACTH.name).id); } finally { delete pump.update; }
+        assert.isFalse(a.items.getName(PUMP.name).system.active, "not yet");
+        await resumeAllDoses();
+        assert.isTrue(a.items.getName(PUMP.name).system.active, "resumed");
+        assert.equal(doseDriverOf(a)?.id, game.user.id, "this client drives it");
+        // A token on a scene that isn't viewed.
+        const npc = await mk("npc", [KAMIKAZE]);
+        await npc.update({ "prototypeToken.actorLink": false });
+        const other = game.scenes.find(sc => sc.id !== canvas.scene?.id);
+        if (!other) return;
+        const [tok] = await other.createEmbeddedDocuments("Token", [{ ...(await npc.getTokenDocument()).toObject(), actorLink: false, x: 50, y: 50 }]);
+        try {
+          const ta = tok.actor, ti = ta.items.getName(KAMIKAZE.name);
+          const undo = ((o) => { const f = o.createEmbeddedDocuments; o.createEmbeddedDocuments = function (t, ...r) {
+            if (t === "ActiveEffect") return Promise.reject(new Error("Quench")); return f.call(this, t, ...r); }; return () => delete o.createEmbeddedDocuments; })(ta);
+          try { await withFaces([2], () => useDose(ta, ti.id)); } finally { undo(); }
+          await resumeAllDoses();
+          assert.isEmpty(Object.keys(ta.items.getName(KAMIKAZE.name).flags?.sr2e?.doseCommits ?? {}), "finished on the unviewed scene");
+        } finally { await other.deleteEmbeddedDocuments("Token", [tok.id]); }
+      });
+
+      it("interrupted AFTER the action: a test card is reused, the pump isn't re-fired, Re-apply won't resurrect", async () => {
+        const { useDose, drugTests, activeDrugs, endDrug, resumeDoses, substancesOf, reapplyEffect, ledgerOf, _newDoseSessionForTests } = await load();
+        const afterOnce = (obj, method, pred) => {
+          const orig = obj[method]; let done = false; let calls = 0;
+          obj[method] = async function (...args) {
+            calls++;
+            const r = await orig.apply(this, args);
+            if (!done && pred(...args)) { done = true; throw new Error(`Quench after-${method} failure`); }
+            return r;
+          };
+          return { undo: () => { delete obj[method]; }, calls: () => calls };
+        };
+        // Fails BEFORE the write persists (the earlier action has already happened).
+        const beforeOnce = (obj, method, pred) => {
+          const orig = obj[method]; let done = false;
+          obj[method] = function (...args) {
+            if (!done && pred(...args)) { done = true; return Promise.reject(new Error(`Quench before-${method} failure`)); }
+            return orig.apply(this, args);
+          };
+          return { undo: () => { delete obj[method]; } };
+        };
+        const keys = (d) => Object.keys(foundry.utils.flattenObject(d ?? {}));
+        // (a) The test card is posted, then saving its result fails: the retry reuses the card.
+        const a = await mk("character", [KAMIKAZE]);
+        await withFaces([1], () => useDose(a, a.items.getName(KAMIKAZE.name).id));
+        const d = activeDrugs(a)[0];
+        const [card] = cards(d.exposureId);
+        await endDrug(a, d.id);
+        const okDialog = () => Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="ok"]').click(), 60));
+        // The RESULT write (successes set), not the claim (successes null).
+        const h = beforeOnce(a, "update", (u) => foundry.utils.flattenObject(u ?? {})[`flags.sr2e.substanceLog.${d.exposureId}_P.successes`] != null);
+        okDialog();
+        try { await withFaces(Array(12).fill(5), () => drugTests(card)).catch(() => {}); } finally { h.undo(); }
+        const rolled = game.messages.filter(m => m.flags?.sr2e?.substanceTest?.eventId === `${d.exposureId}_P`).length;
+        assert.equal(rolled, 1, "rolled before the failure");
+        assert.isTrue(a.flags.sr2e.substanceLog[`${d.exposureId}_P`].pending, "the result never saved");
+        okDialog();
+        await withFaces(Array(12).fill(5), () => drugTests(card));
+        assert.equal(game.messages.filter(m => m.flags?.sr2e?.substanceTest?.eventId === `${d.exposureId}_P`).length, rolled, "no second P roll");
+        assert.isFalse(substancesOf(a).drugs.kamikaze.addicted.P, "the card's success counted");
+        // (b) The pump fires, then its receipt fails: the resume doesn't fire it again.
+        const b = await mk("character", [ACTH, PUMP]);
+        const pump = b.items.getName(PUMP.name);
+        const p = afterOnce(pump, "update", (u) => keys(u).some(k => k.includes("acthExposure")));
+        const r = afterOnce(b, "update", (u) => keys(u).some(k => k.endsWith("receipts.pump")));
+        try { await useDose(b, b.items.getName(ACTH.name).id); } finally { r.undo(); }
+        await resumeDoses(b);
+        p.undo();
+        assert.equal(p.calls(), 1, "activated once");
+        assert.isTrue(b.items.getName(PUMP.name).system.active);
+        // (c) Re-apply creates the effect, its receipt fails, the player deletes it: no resurrection.
+        const c = await mk("character", [KAMIKAZE]);
+        const f = c.createEmbeddedDocuments; let failed = false;
+        c.createEmbeddedDocuments = function (t, ...rest) { if (t === "ActiveEffect" && !failed) { failed = true; return Promise.reject(new Error("Quench")); } return f.call(this, t, ...rest); };
+        try { await withFaces([2], () => useDose(c, c.items.getName(KAMIKAZE.name).id)); } finally { delete c.createEmbeddedDocuments; }
+        _newDoseSessionForTests();
+        await resumeDoses(c);
+        const id = ledgerOf(c)[0].id;
+        const [cc] = cards(id);
+        const rr = beforeOnce(c, "update", (u) => keys(u).some(k => k.endsWith("receipts.effect")));
+        try { await reapplyEffect(cc).catch(() => {}); } finally { rr.undo(); }
+        assert.ok(c.effects.get(id), "created");
+        assert.equal(c.flags.sr2e.substanceLog[id].receipts.effect, "lost", "its receipt never saved");
+        await c.effects.get(id).delete();                                       // at once: the retry races the tombstone
+        await reapplyEffect(game.messages.get(cc.id));
+        assert.isNotOk(c.effects.get(id), "a deleted effect stays deleted");
+      });
+
+      it("a copied drug item drops its commits; a drug item with an unfinished dose can't be deleted", async () => {
+        const a = await mk("character", [{ ...KAMIKAZE, flags: foundry.utils.mergeObject(foundry.utils.deepClone(KAMIKAZE.flags),
+          { sr2e: { doseCommits: { abc: { actorUuid: "Actor.elsewhere" } } } }) }]);
+        assert.isNotOk(a.items.getName(KAMIKAZE.name).flags?.sr2e?.doseCommits, "stripped on create");
+        const item = a.items.getName(KAMIKAZE.name);
+        await item.update({ "flags.sr2e.doseCommits.zzz": { actorUuid: a.uuid } });
+        const ok = await item.delete().catch(() => null);
+        assert.ok(a.items.get(item.id) || !ok, "delete refused while a commit is open");
+      });
+
+      it("ACTH switches on an installed pump; MAO does nothing while one is active; an immune dose has no effect", async () => {
+        const { useDose, substancesOf } = await load();
+        const a = await mk("character", [ACTH, PUMP, MAO]);
+        const q = a.system.quickness.value;
+        await useDose(a, a.items.getName(ACTH.name).id);
+        const pump = a.items.getName(PUMP.name);
+        assert.isTrue(pump.system.active, "the pump fired");
+        assert.equal(a.system.quickness.value, q + 1);
+        const mao = a.items.getName(MAO.name);
+        await mao.update({ "system.quantity": 2, "flags.sr2e.drug.noRepeat": true });
+        await withFaces([1, 1, 1], () => useDose(a, mao.id));
+        const before = a.effects.filter(e => e.flags?.sr2e?.drugEffect?.key === "mao").length;
+        await withFaces([1, 1, 1], () => useDose(a, mao.id));
+        assert.equal(a.effects.filter(e => e.flags?.sr2e?.drugEffect?.key === "mao").length, before, "no second MAO effect");
+        // Immunity from the ledger: the dose is spent but does nothing.
+        const b = await mk("character", [KAMIKAZE]);
+        const bi = b.items.getName(KAMIKAZE.name);
+        await withFaces([2], () => useDose(b, bi.id));
+        const ex = Object.keys(b.flags.sr2e.substanceLog)[0];
+        await b.update({ [`flags.sr2e.substanceLog.${ex}_tolerance`]: { v: 1, t: game.time.worldTime, seq: 99, at: Date.now(),
+          type: "test", drug: "kamikaze", exposureId: ex, kind: "tolerance", tn: 2, successes: 0 } });
+        assert.isTrue(substancesOf(b).drugs.kamikaze.immune);
+        const n = b.effects.size;
+        await withFaces([2], () => useDose(b, bi.id));
+        assert.equal(b.effects.size, n, "no new effect");
+        assert.equal(bi.system.quantity, 1, "but the dose is spent");
       });
 
       it("Re-post card is idempotent; a partly used pack sells for the doses left", async () => {

@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added — substance tracking, part 1 (Shadowtech p.85–88, p.95, p.100)
+
+The groundwork for the full addiction rules (docs/PLAN-addiction.md). Each
+character now keeps a record of every dose and every Addiction/Tolerance test.
+- **A dose can't be half-applied.** Using a dose spends it and records it in
+  one step. If the session drops mid-way, the rest (the effect, the overuse
+  wound, the card) finishes on the next load, exactly once. An effect that was
+  lost that way gets a **Re-apply (GM)** button on its card. An effect you
+  ended is never brought back.
+- **Addiction / Tolerance tests** now roll against the character's current
+  ratings for that drug, which the GM can still edit. They wait until the
+  drug's effect has ended, and each test can only be rolled once per dose.
+- **Immunity:** once a character is immune, a dose is spent but does nothing.
+- **ACTH** switches on an installed, inactive adrenal pump.
+- **MAO**: a second dose while one is active has no further effect (p.100).
+- Drug items given to another character don't carry the first character's
+  unfinished doses.
+
 ## 0.99.0 — 2026-09-25
 
 ### Added — drugs and toxins: Use a dose (Shadowtech p.85–100)

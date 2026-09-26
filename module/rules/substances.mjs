@@ -203,6 +203,7 @@ export function substanceState(events = [], now = 0) {
   // ── Events ──
   for (const e of orderEvents(events)) {
     if (e.v !== EVENT_VERSION || !(e.type in TYPE_RANK) || !e.drug && e.type !== "death" && e.type !== "edit") { skipped++; continue; }
+    if (e.pending) { skipped++; continue; }              // a claimed roll with no result yet
     const t = Math.max(clock === -Infinity ? (e.t ?? 0) : clock, e.t ?? 0);   // monotonic (R3 #4)
     advance(t);
     const r = e.drug ? rec(e.drug) : null;
