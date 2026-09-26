@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.99.0 — 2026-09-25
 
 ### Added — drugs and toxins: Use a dose (Shadowtech p.85–100)
 
