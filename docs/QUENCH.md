@@ -141,3 +141,20 @@ All ten previously-uncovered state-mutating actor methods now have batches:
 `applyDamage`, `applyKarmaToTest`, `healPhysical`, `recoverStun`,
 `recoverDumpShock`, `rollMeleeDefense`, `rollEscapeTest`, `rollAstralAttack`,
 `rollSpellResistance`, `rollVehicleRam`.
+
+## Timeouts and cleanup (the batch wrapper)
+Every batch is registered through `sweepAfterBatch`, which:
+- gives every test a **10 s** default timeout. Mocha's 2 s default sat just
+  above the slowest tests (a cold resist path takes ~1.1 s), so full runs
+  flaked on timing alone. A test that sets its own longer timeout keeps it.
+- deletes, when the batch ends, the "Quench…" actors and items it leaked and
+  **every chat card this user created during the batch**. Leftover cards stay
+  rendered in the chat log and made each later batch slower.
+
+When the Quench window runs in a hidden browser pane, deleted cards' rows can
+linger in the chat log (Foundry removes a row when its slide-out animation
+ends, and hidden pages don't animate). The documents are gone; the rows stay
+until a reload.
+If the page itself reloads mid-run (the log shows "Logged user … out" then
+"Created client session"), that's the host, not a test: nothing in the suite
+navigates or changes a reload-requiring setting.

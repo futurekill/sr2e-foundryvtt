@@ -24,9 +24,17 @@ export function registerSR2EQuenchTests() {
     // left ~12 actors per run behind. Release a spirit's service first — the
     // preDeleteActor guard refuses to delete one still holding a spell.
     const sweepAfterBatch = (fn) => (context) => {
-      let before;
+      let before, messagesBefore;
       context.before(() => {
         before = new Set([...game.actors.map(d => d.uuid), ...game.items.map(d => d.uuid)]);
+        messagesBefore = new Set(game.messages.keys());
+      });
+      // Mocha's 2 s default sits right under the slowest tests (a cold resist
+      // path takes ~1.1 s), so a full run flaked on timing alone. 10 s still
+      // fails a real hang; a test that sets its own, longer timeout keeps it.
+      context.beforeEach(function () {
+        const t = this.currentTest?.timeout();
+        if (t > 0 && t < 10000) this.currentTest.timeout(10000);    // 0 = disabled: leave it
       });
       const result = fn(context);
       context.after(async function () {
@@ -42,6 +50,11 @@ export function registerSR2EQuenchTests() {
         }
         const items = leaked(game.items).map(i => i.id);
         if (items.length) { try { await Item.deleteDocuments(items); } catch (e) { /* already gone */ } }
+        // And this batch's chat cards: every one left behind stays rendered in
+        // the chat log, so a full run grew the page by thousands of nodes and
+        // slowed each later batch. Only messages this user made during the batch.
+        const cards = game.messages.filter(m => !messagesBefore?.has(m.id) && m.author?.id === game.user.id).map(m => m.id);
+        if (cards.length) { try { await ChatMessage.deleteDocuments(cards); } catch (e) { console.warn("SR2E Quench | chat cleanup failed", e); } }
       });
       return result;
     };
