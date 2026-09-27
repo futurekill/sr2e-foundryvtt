@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.100.0 — 2026-09-26
 
 ### Added — substance tracking, part 1 (Shadowtech p.85–88, p.95, p.100)
 
