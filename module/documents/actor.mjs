@@ -19,7 +19,8 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
-import { commitDamage, drugsInForce, drugDamageNote } from "../drugs.mjs";
+import { commitDamage, drugsInForce, drugDamageNote, substanceKarmaClosed, reconcileSubstanceTest, substancesOf } from "../drugs.mjs";
+import { addictionTnFor } from "../rules/substances.mjs";
 import { natureDepartNote } from "../nature-spirits.mjs";
 import { usePowerService, statusOf } from "../spirit-services.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
@@ -358,12 +359,17 @@ export class SR2EActor extends Actor {
     // is: `options.tnContext` (rollSkillTest derives it). Not on ritual stages,
     // whose policy names every modifier they take.
     const drugTN = policy ? 0 : drugTnFor(drugsInForce(this).map(e => e.tn), options.tnContext);
+    // Withdrawal +3, recovery +2, rest +1 (doubled on spellcasting; p.87–88):
+    // the worst state across drugs. Not on ritual stages.
+    const addictionPenalty = substancesOf(this).penalty;
+    const addictionTN = policy ? 0 : addictionTnFor(addictionPenalty, options.tnContext?.kind);
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN);
-    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN - centeringReduction;
-    return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, centeringReduction, total };
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN);
+    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN - centeringReduction;
+    return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
+             centeringReduction, total };
   }
 
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
@@ -375,8 +381,8 @@ export class SR2EActor extends Actor {
     // (SR2E p.112: "except those involving attempts to resist damage or avoid
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
-    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, centeringReduction, total }
-      = this.testTnModifiers(options);
+    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
+            centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
@@ -441,6 +447,7 @@ export class SR2EActor extends Actor {
     if (extraTN > 0) tnParts.push(`+${extraTN} ${options.extraTNLabel ?? "modifier"}`);
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
     if (drugTN > 0)         tnParts.push(`+${drugTN} drugs`);
+    if (addictionTN > 0)    tnParts.push(`+${addictionTN} ${addictionPenalty}`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
@@ -633,6 +640,12 @@ export class SR2EActor extends Actor {
     if (state.closed || isTestClosed(message.id)) {
       return ui.notifications.warn("That test decided an exchange that is already resolved — it is closed to Karma.");
     }
+    // A substance roll counts at its own time; once substance time has moved
+    // past it, its result is settled (docs/PLAN-addiction.md, option A).
+    const sub = message.getFlag("sr2e", "substanceTest");
+    if (sub && substanceKarmaClosed(this, sub.eventId)) {
+      return ui.notifications.warn("Time has moved on since that test — its result is settled; Karma no longer applies.");
+    }
     // A ritual's tests are the GM's (p.135): only the client running it spends Karma.
     if (message.getFlag("sr2e", "ritualTest") && !game.users.activeGM?.isSelf) {
       return ui.notifications.warn("Karma on a ritual's tests is spent by the GM running the ritual.");
@@ -711,6 +724,9 @@ export class SR2EActor extends Actor {
       updateData.rolls = [...message.rolls, ...newRolls].map(r => JSON.stringify(r));
     }
     await message.update(updateData);
+    // The ledger first: a dependent-card failure mustn't stop it (and the next
+    // settle re-reads the card anyway, Codex 3–6 #2).
+    if (sub) await reconcileSubstanceTest(this, sub.eventId, state, sub.gen).catch(err => console.error("SR2E | substance Karma sync", err));
     await this._syncDependentCards(message.id, state);
   }
 

@@ -1,0 +1,31 @@
+{{!-- Substance use and abuse (Shadowtech p.85–88, p.99): docs/PLAN-addiction.md. --}}
+{{#if (or substances.rows.length isGM)}}
+<div class="gear-category sr2e-substances">
+  <div class="category-header flexrow"><h3>Substances</h3>
+    {{#if isGM}}<a class="item-control" data-action="importSubstance" title="GM: import this character's history with a drug from before tracking"><i class="fas fa-file-import"></i> Import history</a>{{/if}}</div>
+  {{#if substances.dead}}<p class="sr2e-substance-alert"><strong>Dead</strong> — {{substances.dead.reason}} (confirmed by the GM).</p>{{/if}}
+  {{#if substances.essenceZero}}<p class="sr2e-substance-alert"><strong>Essence 0</strong> — the character dies (Shadowtech p.87).</p>{{/if}}
+  {{#if substances.essenceManual}}<p class="hint">Essence is kept by hand here: take {{substances.essenceLost}} off it for substance abuse.</p>{{/if}}
+  {{#if substances.implantsFailed}}<p class="sr2e-substance-alert">Cyberware and bioware no longer work (Kamikaze, p.99).</p>{{/if}}
+  {{#if substances.monitorLoss}}<p class="hint">Monitors lose {{substances.monitorLoss}} box(es){{#if substances.wasting}} ({{substances.wasting}} to Kamikaze wasting){{/if}}{{#if substances.essenceLost}}; {{substances.essenceLost}} Essence lost{{/if}}.</p>{{/if}}
+  {{#if substances.waiting}}<p class="hint">Substance time waits for a GM to connect.</p>{{/if}}
+  <div class="item-list">
+    {{#each substances.rows as |r|}}
+    <div class="item-row flexrow sr2e-substance-row" data-drug="{{r.drug}}">
+      <span class="item-name">{{r.name}}</span>
+      <span class="hint">×{{r.uses}} · Addiction {{r.addiction}}{{#if r.baseAddiction}} ({{r.baseAddiction}}){{/if}} · Tolerance {{r.tolerance}} ({{r.baseTolerance}}){{#if r.immune}} · <strong>immune</strong>{{/if}}</span>
+      <span class="sr2e-substance-state">{{#if r.state}}<strong>{{r.state}}</strong>{{#if r.deps}} ({{r.deps}}){{/if}}{{/if}}{{#if r.next}} · {{r.next}}{{#if r.nextDate}} ({{r.nextDate}}){{/if}}{{/if}}</span>
+      <div class="item-controls">
+        {{#each r.extendable as |dep|}}<a data-action="extendDose" data-dep="{{dep}}" title="Hold out longer: {{#if (eq dep 'P')}}Body{{else}}Willpower{{/if}} vs Addiction, once per dose (p.87)"><i class="fas fa-hourglass-half"></i></a>{{/each}}
+        {{#if @root.isGM}}
+          {{#if r.canRecover}}<a data-action="beginRecovery" title="GM: begin recovery — Willpower vs Addiction +1/+3/+4 (p.87)"><i class="fas fa-person-walking-arrow-right"></i></a>{{/if}}
+          {{#if r.canCleanse}}<a data-action="cleanseSubstance" data-kind="cleansePhysical" title="GM: cleansing therapy — clears physical addiction, returns lost boxes (p.88)"><i class="fas fa-hand-holding-medical"></i></a>{{/if}}
+          {{#if r.immune}}<a data-action="cleanseSubstance" data-kind="geneCleanse" title="GM: gene cleansing — clears immunity (p.87)"><i class="fas fa-dna"></i></a>{{/if}}
+          <a data-action="editSubstance" title="GM: correct by hand (recorded, nothing deleted)"><i class="fas fa-pen-to-square"></i></a>
+        {{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}

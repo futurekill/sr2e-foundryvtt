@@ -2,7 +2,15 @@ import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice,
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
-import { activeDrugs, drugOf } from "../drugs.mjs";
+import { activeDrugs, drugOf, substanceRows } from "../drugs.mjs";
+import { calendarDate } from "../calendaria.mjs";
+
+/** The sheet's substance rows, with calendar dates when Calendaria is active. */
+function substanceContext(actor) {
+  const s = substanceRows(actor);
+  for (const r of s.rows) r.nextDate = calendarDate(r.nextT);
+  return s;
+}
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
@@ -967,6 +975,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.bodyIndexOverstress = overstressPenalty(actor.system.bodyIndex?.value, actor.system.bodyIndex?.max);
     context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");
     context.activeDrugs = activeDrugs(actor);
+    context.substances = substanceContext(actor);
+    context.isGM = game.user.isGM;
     context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
     context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, accessPorts: 0, knowAccess: false, memCapacity: 0, memUsed: 0 };
     context.programs = actor.items.filter(i => i.type === "program");
@@ -1321,6 +1331,11 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       useDose: SHARED_ACTIONS.useDose,
       endDrug: SHARED_ACTIONS.endDrug,
       repostDrugCard: SHARED_ACTIONS.repostDrugCard,
+      extendDose: SHARED_ACTIONS.extendDose,
+      beginRecovery: SHARED_ACTIONS.beginRecovery,
+      cleanseSubstance: SHARED_ACTIONS.cleanseSubstance,
+      editSubstance: SHARED_ACTIONS.editSubstance,
+      importSubstance: SHARED_ACTIONS.importSubstance,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem
@@ -1342,7 +1357,9 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.gear = actor.items.filter(i => i.type === "gear");
     context.drugs = context.gear.filter(i => drugOf(i));
     context.activeDrugs = activeDrugs(actor);
-    context.showDrugs = context.drugs.length > 0 || context.activeDrugs.length > 0;
+    context.substances = substanceContext(actor);
+    context.isGM = game.user.isGM;
+    context.showDrugs = context.drugs.length > 0 || context.activeDrugs.length > 0 || context.substances.rows.length > 0;
     context.spells = actor.items.filter(i => i.type === "spell");
     context.foci = actor.items.filter(i => i.type === "focus");
     // The armor inputs edit the stat-block base; system.armor is base + worn.

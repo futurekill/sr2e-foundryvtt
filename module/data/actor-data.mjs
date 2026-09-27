@@ -1,10 +1,21 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
+import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
 import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * Data model for Shadowrun 2E Player Characters.
  */
+/**
+ * Forced withdrawal behaves as "a persistent Moderate mental wound … his/her
+ * minimum Damage Level" (Shadowtech p.88): the Stun column counts as at least
+ * 3 boxes for the Injury Modifier (and so Initiative) while any drug is in it.
+ */
+function withdrawalStun(system) {
+  const stun = system.conditionMonitor.stun.value;
+  return substancesOf(system.parent).penalty === "withdrawal" ? Math.max(stun, 3) : stun;
+}
+
 export class CharacterData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
@@ -287,6 +298,9 @@ export class CharacterData extends SR2EDataModel {
     // so consulting it here would be circular (Shadowtech bioware Essence rule).
     const isAwakened = this.magic.type !== "none";
     const mods = this._collectItemModifiers({ isAwakened });
+    // Substance abuse (Shadowtech p.87): ½ Essence per week addicted, permanent.
+    const substances = substancesOf(this.parent);
+    mods.essenceLoss += substances.essenceLost;
 
     // Calculate final attribute values (base + racial clamped to racial max,
     // then cyberware/adept modifiers applied on top)
@@ -369,9 +383,11 @@ export class CharacterData extends SR2EDataModel {
       }
     }
 
-    // Condition monitors are fixed 10-box tracks in SR2E
-    this.conditionMonitor.physical.max = 10;
-    this.conditionMonitor.stun.max = 10;
+    // Condition monitors are fixed 10-box tracks in SR2E — less the boxes lost
+    // to addiction and Kamikaze wasting (Shadowtech p.87, p.99). Assigned every
+    // prepare, so a cure or a GM edit restores them.
+    this.conditionMonitor.physical.max = Math.max(0, 10 - substances.monitorLoss);
+    this.conditionMonitor.stun.max = Math.max(0, 10 - substances.monitorLoss);
 
     // Calculate Dice Pools
     this._calculateDicePools();
@@ -641,7 +657,7 @@ export class CharacterData extends SR2EDataModel {
     let chipjacks = 0, datajacks = 0, skillwires = 0, memCapacity = 0;
     if (items) {
       for (const i of items) {
-        if (i.type !== "cyberware" || !i.system.installed) continue;
+        if (i.type !== "cyberware" || !workingImplant(this.parent, i)) continue;
         const n = i.name.toLowerCase();
         // Declared ports first: an implant that says it reads chips is one,
         // whatever it's called. The name check stays as a fallback so items
@@ -770,14 +786,18 @@ export class CharacterData extends SR2EDataModel {
     // carries the same deck block: "C2 decks operate exactly like regular
     // cyberdecks", so it snapshots through this identical path and the whole
     // Matrix tab / persona / cybercombat stack works on it unchanged.
+    const keys = ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response"];
+    // Both directions (CLAUDE.md, derived state): start from the AUTHORED
+    // fallback every prepare, so a deck that stops working (Kamikaze) or is
+    // switched off doesn't leave its stats behind.
+    const authored = this.parent?._source?.system?.cyberdeck ?? {};
+    for (const k of keys) this.cyberdeck[k] = authored[k] ?? 0;
     const deck = this.parent?.items?.find(i =>
       (i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active) ||
-      (i.type === "cyberware" && i.system.cranialDeck && i.system.installed && i.system.deck?.active));
+      (i.type === "cyberware" && i.system.cranialDeck && workingImplant(this.parent, i) && i.system.deck?.active));
     if (!deck) return;
     const d = deck.system.deck;
-    for (const k of ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response"]) {
-      this.cyberdeck[k] = d[k] ?? 0;
-    }
+    for (const k of keys) this.cyberdeck[k] = d[k] ?? 0;
   }
 
   /**
@@ -841,8 +861,14 @@ export class CharacterData extends SR2EDataModel {
     // Raw (unrounded) bioware Body Cost, summed then rounded ONCE below so this
     // matches the pure `bodyIndexTotal` helper exactly (one canonical value).
     let biowareRaw = 0;
+    // Kamikaze (p.99): failed implants still cost Essence and Body Index, and do
+    // nothing else. MAO (p.100) limits an active adrenal pump.
+    const working = !substancesOf(this.parent).implantsFailed;
+    const maoInForce = drugsInForce(this.parent).some(e => e.limitsPump);
     for (const item of this.parent?.items ?? []) {
-      if (item.type === "cyberware" && item.system.installed) {
+      if (item.type === "cyberware" && item.system.installed && !working) {
+        mods.essenceLoss += item.system.actualEssenceCost;
+      } else if (item.type === "cyberware" && item.system.installed) {
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
           if (key in mods) mods[key] += val;
           if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val });
@@ -872,16 +898,20 @@ export class CharacterData extends SR2EDataModel {
         // Attribute mods are PER-LEVEL — scale by Rating (all rated attribute
         // bioware in Shadowtech is linear). Triggered implants (Adrenal Pump,
         // Pain Editor) only apply their mods while `active`.
-        if (!sys.triggered || sys.active) {
+        if (working && (!sys.triggered || sys.active)) {
           const rating = Math.max(1, sys.rating ?? 1);
+          // MAO on an active pump (p.100): Level 1 keeps only its Reaction bonus;
+          // Level 2 keeps its Reaction bonus, other attributes as Level 1.
+          const limited = maoInForce && item.flags?.sr2e?.adrenalPump;
+          const scale = (key) => !limited || key === "reaction" ? rating : rating >= 2 ? 1 : 0;
           for (const [key, val] of Object.entries(sys.attributeMods ?? {})) {
-            if (key in mods) mods[key] += val * rating;
-            if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val * rating });
+            if (key in mods) mods[key] += val * scale(key);
+            if (val && scale(key) && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val * scale(key) });
           }
           // Explicit flag only (no name heuristic): e.g. Adrenal Pump's Quickness
           // does not feed Reaction, but Muscle Augmentation's / Suprathyroid's does.
           if (sys.noReactionBonus) {
-            mods.reactionExemptQuickness += (sys.attributeMods?.quickness || 0) * rating;
+            mods.reactionExemptQuickness += (sys.attributeMods?.quickness || 0) * scale("quickness");
           }
           // Enhanced Articulation's +1 die (Shadowtech p.34) — per-Level like the
           // attribute mods, and gated by the same triggered/active check.
@@ -1139,7 +1169,7 @@ export class CharacterData extends SR2EDataModel {
     // both add on top of worn armor while installed (Shadowtech p.17, p.42).
     let implantBallistic = 0, implantImpact = 0;
     for (const i of this.parent?.items ?? []) {
-      if ((i.type === "bioware" || i.type === "cyberware") && i.system.installed) {
+      if ((i.type === "bioware" || i.type === "cyberware") && workingImplant(this.parent, i)) {
         implantBallistic += i.system.armorBallistic ?? 0;
         implantImpact    += i.system.armorImpact ?? 0;
       }
@@ -1165,13 +1195,13 @@ export class CharacterData extends SR2EDataModel {
     let compensator = 0, ignoreStun = false;
     for (const i of this.parent?.items ?? []) {
       const s = i.system;
-      if (i.type !== "bioware" || !s?.installed) continue;
+      if (i.type !== "bioware" || !workingImplant(this.parent, i)) continue;
       if (s.damageCompensator) compensator = Math.max(compensator, s.rating || 0);
       if (s.ignoresStunPenalty && (!s.triggered || s.active)) ignoreStun = true;
     }
     return compensatedWoundPenalty(
       this.conditionMonitor.physical.value,
-      this.conditionMonitor.stun.value,
+      withdrawalStun(this),
       { compensator, ignoreStun }
     );
   }
@@ -1213,7 +1243,7 @@ export class CharacterData extends SR2EDataModel {
   get mpcpOverloadPenalty() {
     let mpcp = 0;
     for (const i of this.parent?.items ?? []) {
-      if (i.type === "cyberware" && i.system.cranialDeck && i.system.installed) {
+      if (i.type === "cyberware" && i.system.cranialDeck && workingImplant(this.parent, i)) {
         mpcp = Math.max(mpcp, i.system.deck?.mpcp ?? 0);
       }
     }
@@ -1423,9 +1453,11 @@ export class NPCData extends SR2EDataModel {
     this.movement.walk = this.quickness.value;
     this.movement.run = this.quickness.value * 3;
 
-    // Condition monitors
-    this.conditionMonitor.physical.max = 10;
-    this.conditionMonitor.stun.max = 10;
+    // Condition monitors, less the boxes lost to substances (Shadowtech p.87, p.99).
+    // NPC Essence is a stat-block number: its drug loss is reported, not derived.
+    const npcLoss = substancesOf(this.parent).monitorLoss;
+    this.conditionMonitor.physical.max = Math.max(0, 10 - npcLoss);
+    this.conditionMonitor.stun.max = Math.max(0, 10 - npcLoss);
 
     // Armor = the stat-block base + equipped armor items (highest worn rating
     // + layered pieces, SR2E p.242), so a GM can swap armor on the fly.
@@ -1460,7 +1492,7 @@ export class NPCData extends SR2EDataModel {
   get woundPenalty() {
     return totalWoundPenalty(
       this.conditionMonitor.physical.value,
-      this.conditionMonitor.stun.value
+      withdrawalStun(this)
     );
   }
 

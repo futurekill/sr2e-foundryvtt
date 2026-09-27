@@ -6871,7 +6871,7 @@ export function registerSR2EQuenchTests() {
 
       // ── Stage 2: the dose commit and its resumable steps (docs/PLAN-addiction.md) ──
       const PUMP = { name: "Quench Adrenal Pump", type: "bioware", flags: { sr2e: { adrenalPump: true } },
-        system: { installed: true, triggered: true, active: false, rating: 1, bodyCost: 1.25,
+        system: { installed: true, triggered: true, active: false, rating: 1, bodyCost: 1.25, noReactionBonus: true,   // as the real pump (p.19)
           attributeMods: { quickness: 1, strength: 1, willpower: 1, reaction: 2 } } };
       const ACTH = { name: "Quench Drug ACTH", type: "gear", system: { category: "drug", quantity: 6, cost: 100 },
         flags: { sr2e: { drug: { key: "acth", tolerance: 2, strength: 25, activatesPump: true } } } };
@@ -7075,6 +7075,425 @@ export function registerSR2EQuenchTests() {
         await c.effects.get(id).delete();                                       // at once: the retry races the tombstone
         await reapplyEffect(game.messages.get(cc.id));
         assert.isNotOk(c.effects.get(id), "a deleted effect stays deleted");
+      });
+
+      // ── Stage 3: substance time, reports, death checks, Karma (option A) ──
+      const addict = async (a, item) => {                          // dose + a failed P test, time untouched
+        const { useDose, activeDrugs, endDrug, drugTests } = await load();
+        await withFaces([2], () => useDose(a, item.id));
+        const d = activeDrugs(a)[0];
+        await endDrug(a, d.id);
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="ok"]').click(), 60));
+        // P fails (Body 3: three 1s), Tolerance passes (not immune — that would mean withdrawal at once).
+        await withFaces([1, 1, 1, 5, 5, 5, 5], () => drugTests(cards(d.exposureId)[0]));
+        return d.exposureId;
+      };
+      // Scoped to the test's own actors: never move a real ledger's clock.
+      let ticking = [];
+      const tick = async (t) => { const { advanceSubstanceClock } = await load(); await advanceSubstanceClock(t, { only: ticking }); };
+
+      it("the GM's clock drives withdrawal and the weekly losses; each step is reported once", async () => {
+        const { substancesOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        const t0 = Number(a.flags.sr2e.substanceClock) || game.time.worldTime;
+        assert.equal(substancesOf(a).drugs.kamikaze.state, "addicted");
+        const reports = () => game.messages.filter(m => m.flags?.sr2e?.substanceReport?.actorUuid === a.uuid);
+        await tick(game.time.worldTime + 2 * 24 * 3600);
+        assert.equal(substancesOf(a).drugs.kamikaze.state, "withdrawal", "the clock moved it on");
+        assert.match(reports().at(-1)?.content ?? "", /forced withdrawal/);
+        const n = reports().length;
+        await tick(game.time.worldTime + 2 * 24 * 3600);            // same time again: nothing new
+        assert.equal(reports().length, n, "reported once");
+        await tick(game.time.worldTime + 8 * 24 * 3600);            // past a week
+        const last = reports().at(-1);
+        assert.match(last.content, /a week addicted/);
+        assert.match(last.content, /Confirm death/, "a death check with the loss");
+        // Rewinding never moves substance time back.
+        await tick(game.time.worldTime);
+        assert.equal(substancesOf(a).drugs.kamikaze.weeks, 1);
+        assert.isAtLeast(Number(a.flags.sr2e.substanceClock), t0);
+        // The GM confirms: a death event, the check closed.
+        const btn = document.createElement("div"); btn.innerHTML = last.content;
+        const { wireDrugButtons } = await load();
+        wireDrugButtons(last, btn);
+        btn.querySelector(".sr2e-substance-death-btn").click();
+        await new Promise(r => setTimeout(r, 500));
+        assert.ok(substancesOf(a).dead, "death recorded");
+        assert.isFalse(game.messages.get(last.id).flags.sr2e.substanceReport.open);
+      });
+
+      it("a reported step that no longer applies gets a correction", async () => {
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        await a.update({ "flags.sr2e.substanceReported.kamikaze:bogus:1:x": "an old step" });
+        await tick(game.time.worldTime + 3600);
+        const r = game.messages.filter(m => m.flags?.sr2e?.substanceReport?.actorUuid === a.uuid).at(-1);
+        assert.match(r?.content ?? "", /Correction: no longer applies — an old step/);
+        assert.isTrue(a.flags.sr2e.substanceReported["kamikaze:bogus:1:x"].corrected, "kept, marked corrected");
+        const n = game.messages.size;
+        await tick(game.time.worldTime + 3600);
+        assert.notMatch(game.messages.contents.slice(n).map(m => m.content).join(""), /bogus|old step/, "not corrected twice");
+      });
+
+      it("Karma on a substance roll flows into the ledger until substance time moves, then it's refused", async () => {
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await a.update({ "system.karma.pool": 5 });
+        const { useDose, activeDrugs, endDrug, drugTests } = await load();
+        await withFaces([2], () => useDose(a, a.items.getName(KAMIKAZE.name).id));
+        const d = activeDrugs(a)[0];
+        await endDrug(a, d.id);
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="ok"]').click(), 60));
+        await withFaces([5, 1, 1, 1, 5, 1, 1, 1], () => drugTests(cards(d.exposureId)[0]));   // 1 success each
+        const id = `${d.exposureId}_P`;
+        const card = game.messages.find(m => m.flags?.sr2e?.substanceTest?.eventId === id);
+        await a.applyKarmaToTest(card, "buySuccess");
+        assert.equal(a.flags.sr2e.substanceLog[id].successes, 2, "reconciled into the ledger");
+        await tick(game.time.worldTime + 3600);
+        const pool = a.system.karma.pool;
+        await a.applyKarmaToTest(game.messages.get(card.id), "buySuccess");
+        assert.equal(a.system.karma.pool, pool, "refused once time moved");
+        assert.equal(a.flags.sr2e.substanceLog[id].successes, 2);
+      });
+
+      // ── Stage 4: penalties, derived losses, the Substances section and its actions ──
+      it("withdrawal: +3 TNs (+6 spells), a Moderate Stun minimum, weekly losses off monitors and Essence", async () => {
+        const { substancesOf } = await load();
+        const { totalWoundPenalty } = await import("../rules/sr2e-rules.mjs");
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        const ess = a.system.essence.value;
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "skill" } }).addictionTN, 0, "addicted, not yet in withdrawal");
+        await tick(game.time.worldTime + 2 * 24 * 3600);
+        assert.equal(substancesOf(a).penalty, "withdrawal");
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "skill" } }).addictionTN, 3);
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "spell" } }).addictionTN, 6);
+        assert.equal(a.testTnModifiers({ tnPolicy: "table" }).addictionTN, 0, "not on ritual stages");
+        assert.equal(a.system.woundPenalty, totalWoundPenalty(0, 3), "the Moderate Stun minimum");
+        const n = game.messages.size;
+        await withFaces([1, 1, 1], () => a.rollSuccessTest(3, 4, { label: "Quench probe" }));
+        const probe = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.test);
+        assert.match(probe?.content ?? "", /\+3 withdrawal/, "named in the breakdown");
+        await tick(game.time.worldTime + 16 * 24 * 3600);                       // two weeks
+        assert.equal(a.system.conditionMonitor.physical.max, 8);
+        assert.equal(a.system.conditionMonitor.stun.max, 8);
+        assert.closeTo(a.system.essence.value, ess - 1, 1e-9);
+      });
+
+      it("the Substances section; extend once; GM recovery → rest; cleansing returns the boxes; a GM edit", async () => {
+        const { substancesOf, extendDose, beginRecovery, cleanseSubstance, editSubstance } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        await a.sheet.render(true);
+        await new Promise(r => setTimeout(r, 300));
+        const row = a.sheet.element.querySelector('.sr2e-substances [data-drug="kamikaze"]');
+        assert.ok(row, "the section renders");
+        assert.ok(row.querySelector('[data-action="extendDose"]'), "extend offered");
+        assert.ok(row.querySelector('[data-action="beginRecovery"]'), "GM recovery offered");
+        await a.sheet.close();
+        const before = substancesOf(a).drugs.kamikaze.window.P.deadline;
+        await withFaces([5, 5, 5], () => extendDose(a, "kamikaze", "P"));
+        assert.equal(substancesOf(a).drugs.kamikaze.window.P.deadline, before + 3 * 3600, "+ Body hours");
+        const n = game.messages.size;
+        await extendDose(a, "kamikaze", "P");
+        assert.equal(game.messages.size, n, "once per window");
+        // Weeks addicted, then GM recovery at base → rest (+1).
+        await tick(game.time.worldTime + 15 * 24 * 3600);
+        // TN 4 + 3, and the roll itself takes withdrawal's +3 and the Moderate
+        // Stun minimum (p.88): sixes that re-roll into sixes clear it.
+        await withFaces(Array(9).fill(6), () => beginRecovery(a, "kamikaze"));
+        const k = substancesOf(a).drugs.kamikaze;
+        assert.equal(k.state, "rest");
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "skill" } }).addictionTN, 1);
+        assert.equal(a.system.conditionMonitor.physical.max, 8, "losses kept until restored");
+        await cleanseSubstance(a, "kamikaze", "cleansePhysical");
+        assert.equal(a.system.conditionMonitor.physical.max, 10, "cleansing returns the boxes");
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+          app.element.querySelector('[name="addiction"]').value = "7";
+          app.element.querySelector('button[data-action="ok"]').click();
+        }, 60));
+        await editSubstance(a, "kamikaze");
+        assert.equal(substancesOf(a).drugs.kamikaze.addiction, 7, "the GM's correction");
+      });
+
+      // ── Stage 5: implant failure and MAO × the adrenal pump ──
+      it("Kamikaze at ⌊Body ÷ 2⌋ uses: implants stop working everywhere, keep their Essence; a GM edit restores them", async () => {
+        const { useDose, activeDrugs, endDrug, substancesOf } = await load();
+        const WIRED = { name: "Quench Wired", type: "cyberware", system: { installed: true, essenceCost: 2,
+          attributeMods: { reaction: 2 }, armorBallistic: 1, combatTnMod: -2 } };
+        const MUSCLE = { name: "Quench Muscle", type: "bioware", system: { installed: true, rating: 1, bodyCost: 0.5,
+          attributeMods: { strength: 1 } } };
+        const a = await mk("character", [KAMIKAZE, WIRED, MUSCLE, PUMP]);
+        const ok = { r: a.system.reaction.value, s: a.system.strength.value, arm: a.system.armor.ballistic, e: a.system.essence.value, bi: a.system.bodyIndex.value };
+        await withFaces([2], () => useDose(a, a.items.getName(KAMIKAZE.name).id));   // Body 3 → 1 use
+        await endDrug(a, activeDrugs(a)[0].id);
+        assert.isTrue(substancesOf(a).implantsFailed);
+        assert.equal(a.system.reaction.value, ok.r - 2, "wired reflexes off");
+        assert.equal(a.system.strength.value, ok.s - 1, "muscle bioware off");
+        assert.equal(a.system.armor.ballistic, ok.arm - 1, "implant armour off");
+        assert.equal(a.system.essence.value, ok.e, "still costs Essence");
+        assert.equal(a.system.bodyIndex.value, ok.bi, "still counts to the Body Index");
+        const pump = a.items.getName(PUMP.name);
+        await a.sheet.options.actions.toggleBioActive.call(a.sheet, { preventDefault() {} }, { closest: () => ({ dataset: { itemId: pump.id } }) });
+        assert.isFalse(a.items.get(pump.id).system.active, "a dead pump won't fire");
+        // The GM's correction brings them back on the SAME documents.
+        await a.update({ [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { v: 1, t: game.time.worldTime + 60, seq: 999,
+          at: Date.now(), type: "edit", drug: null, patch: { restoreImplants: true } } });
+        assert.isFalse(substancesOf(a).implantsFailed);
+        assert.equal(a.system.reaction.value, ok.r);
+        assert.equal(a.system.strength.value, ok.s);
+        assert.equal(a.system.armor.ballistic, ok.arm);
+      });
+
+      it("MAO on an active pump: Level 1 keeps only +2 Reaction; Level 2 keeps +4 Reaction, the rest as Level 1", async () => {
+        const { useDose, activeDrugs, endDrug } = await load();
+        const LIM = foundry.utils.mergeObject(foundry.utils.deepClone(MAO), { name: "Quench Drug MAO Pump",
+          flags: { sr2e: { drug: { limitsPump: true, noRepeat: true } } } });
+        for (const level of [1, 2]) {
+          const a = await mk("character", [LIM, { ...PUMP, system: { ...PUMP.system, rating: level, active: true } }]);
+          const base = { q: a.system.quickness.base, s: a.system.strength.value, w: a.system.willpower.value, r: a.system.reaction.value };
+          await withFaces([1, 1, 1], () => useDose(a, a.items.getName(LIM.name).id));   // 10 turns
+          const q = a.system.quickness.value, s = a.system.strength.value, w = a.system.willpower.value, r = a.system.reaction.value;
+          const want = level === 1 ? 0 : 1;
+          assert.equal(s - (base.s - level), want, `L${level}: Strength`);
+          assert.equal(w - (base.w - level), want, `L${level}: Willpower`);
+          assert.equal(r, base.r - 1, `L${level}: Reaction keeps the pump's bonus, then MAO's −1`);
+          await endDrug(a, activeDrugs(a)[0].id);
+          assert.equal(a.system.strength.value, base.s, `L${level}: full pump once MAO is gone`);
+          assert.isAtLeast(q, 1);
+        }
+      });
+
+      // ── Stage 6: optional Calendaria notes (skipped without the module) ──
+      it("Calendaria: one GM note per drug at its next milestone; it moves, and goes with the actor", async function () {
+        const C = await import("../calendaria.mjs");
+        const api = C.calendaria();
+        if (!api) this.skip();
+        const { syncSubstanceNotes } = C;
+        const { substancesOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        await syncSubstanceNotes(a);
+        const flag = () => a.flags.sr2e.substanceNotes?.kamikaze;
+        const note = () => api.getNote(flag()?.id);
+        assert.ok(note(), "a note for the dose deadline");
+        assert.match(flag().name, /dose due/);
+        const due = substancesOf(a).drugs.kamikaze.next.t;
+        const want = api.timestampToDate(due);
+        const got = note().flagData.startDate;                       // getNote's summary: 1-based, like timestampToDate
+        assert.deepInclude(got, { year: want.year, month: want.month, day: want.day, hour: want.hour }, "on the deadline");
+        assert.equal(note().flagData.visibility, "hidden", "GM-only by default");
+        assert.ok(C.calendarDate(due), "the sheet gets a calendar date");
+        // The clock passes the deadline: the note moves to withdrawal's next step, same note.
+        const id = flag().id;
+        await tick(game.time.worldTime + 2 * 24 * 3600);
+        await syncSubstanceNotes(a);
+        assert.equal(flag().id, id, "the same note, moved");
+        assert.notMatch(flag().name, /dose due/);
+        // The actor goes: so does its note.
+        await a.delete();
+        await new Promise(r => setTimeout(r, 400));
+        assert.isNotOk(api.getNote(id), "deleted with the actor");
+      });
+
+      // ── Codex review of stages 3–6 ──
+      it("time only moves after the ledger settles: a rolled claim gets its card's result, an unrolled one is withdrawn", async () => {
+        const { substancesOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        const { useDose, activeDrugs, endDrug } = await load();
+        await withFaces([2], () => useDose(a, a.items.getName(KAMIKAZE.name).id));
+        const d = activeDrugs(a)[0];
+        await endDrug(a, d.id);
+        const t = Number(a.flags.sr2e.substanceLog[d.exposureId].t);
+        // A claim whose roll happened (its card exists, 0 successes) and one whose never did.
+        await a.update({ [`flags.sr2e.substanceLog.${d.exposureId}_P`]: { v: 1, t, seq: 50, at: Date.now(), type: "test", drug: "kamikaze",
+          exposureId: d.exposureId, kind: "P", tn: 4, pending: true, successes: null, messageId: null },
+          [`flags.sr2e.substanceLog.${d.exposureId}_tolerance`]: { v: 1, t, seq: 51, at: Date.now() - 5 * 60 * 1000, type: "test", drug: "kamikaze",   // abandoned
+          exposureId: d.exposureId, kind: "tolerance", tn: 2, pending: true, successes: null, messageId: null } });
+        await withFaces([1, 1, 1], () => a.rollSuccessTest(3, 4, { label: "Quench claim card",
+          flags: { sr2e: { substanceTest: { actorUuid: a.uuid, eventId: `${d.exposureId}_P` } } } }));
+        await tick(game.time.worldTime + 8 * 24 * 3600);
+        const log = a.flags.sr2e.substanceLog;
+        assert.isFalse(log[`${d.exposureId}_P`].pending, "the rolled claim settled");
+        assert.isUndefined(log[`${d.exposureId}_tolerance`], "the unrolled claim withdrawn");
+        assert.isTrue(substancesOf(a).drugs.kamikaze.addicted.P, "its failure counted before the week passed");
+        assert.equal(substancesOf(a).drugs.kamikaze.weeks, 1);
+      });
+
+      it("a retried recovery reuses its claim; a death confirmed twice records once; Kamikaze wasting triggers the review", async () => {
+        const { beginRecovery, useDose, activeDrugs, endDrug, substancesOf, ledgerOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        // A recovery claim whose roll landed (its card exists) but whose result never saved.
+        await a.update({ "flags.sr2e.substanceLog.recovery_open": { v: 1, t: Number(a.flags.sr2e.substanceClock) || game.time.worldTime,
+          seq: 90, at: Date.now(), type: "recovery", drug: "kamikaze", tn: 7, pending: true, successes: null, messageId: null } });
+        await withFaces(Array(6).fill(6), () => a.rollSuccessTest(3, 7, { label: "Quench recovery card",
+          flags: { sr2e: { substanceTest: { actorUuid: a.uuid, eventId: "recovery_open" } } } }));
+        const rolls = () => game.messages.filter(m => m.flags?.sr2e?.test && m.speaker?.actor === a.id).length;
+        const n = rolls();
+        await beginRecovery(a, "kamikaze");
+        assert.equal(rolls(), n, "no second roll");
+        assert.lengthOf(ledgerOf(a).filter(e => e.type === "recovery"), 1, "one recovery event");
+        assert.isFalse(a.flags.sr2e.substanceLog.recovery_open.pending, "the card's result recorded");
+        assert.include(["recovery", "rest"], substancesOf(a).drugs.kamikaze.state);
+        // Wasting: 4 uses (the fixture has 3 doses; top it up).
+        const b = await mk("character", [{ ...KAMIKAZE, system: { ...KAMIKAZE.system, quantity: 4 } }]);
+        ticking = [b];
+        for (let i = 0; i < 4; i++) {
+          await withFaces([1], () => useDose(b, b.items.getName(KAMIKAZE.name).id));
+          for (const x of activeDrugs(b)) await endDrug(b, x.id);
+        }
+        await tick(game.time.worldTime + 60);
+        const rep = game.messages.filter(m => m.flags?.sr2e?.substanceReport?.actorUuid === b.uuid).at(-1);
+        assert.match(rep?.content ?? "", /one more box off both monitors/);
+        assert.match(rep.content, /monitors fell to 9 boxes at their lowest/);
+        const div = document.createElement("div"); div.innerHTML = rep.content;
+        const { wireDrugButtons } = await load();
+        wireDrugButtons(rep, div);
+        div.querySelector(".sr2e-substance-death-btn").click();
+        div.querySelector(".sr2e-substance-death-btn").click();
+        await new Promise(r => setTimeout(r, 800));
+        assert.lengthOf(ledgerOf(b).filter(e => e.type === "death"), 1, "recorded once");
+        assert.ok(substancesOf(b).dead);
+      });
+
+      it("the GM imports a running addiction; a burnt-out cranial deck gives its authored deck stats back", async () => {
+        const { importSubstance, substancesOf } = await load();
+        const a = await mk("character", [KAMIKAZE, { name: "Quench C2", type: "cyberware",
+          system: { installed: true, cranialDeck: true, deck: { active: true, mpcp: 6, hardening: 2 } } }]);
+        await a.update({ "system.cyberdeck.mpcp": 1 });                        // the authored fallback
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+          const el = app.element;
+          el.querySelector('[name="uses"]').value = "8";
+          el.querySelector('[name="hoursAgo"]').value = "2";
+          el.querySelector('[name="P"]').checked = true;
+          el.querySelector('button[data-action="ok"]').click();
+        }, 60));
+        await importSubstance(a);
+        const k = substancesOf(a).drugs.kamikaze;
+        assert.equal(k.state, "addicted");
+        assert.equal(k.uses, 8);
+        assert.equal(k.addiction, 6, "4 + one per 4 doses");
+        assert.isTrue(substancesOf(a).implantsFailed === false || substancesOf(a).implantsFailed === true);
+        assert.equal(a.system.cyberdeck.mpcp, 6, "the C2 running");
+        await a.update({ [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { v: 1, t: game.time.worldTime + 60, seq: 999, at: Date.now(),
+          type: "dose", drug: "kamikaze", snapshot: { addiction: 4, tolerance: 2, strength: 4, P: true, M: false }, body: 2, willpower: 3, receipts: {} } });
+        assert.isTrue(substancesOf(a).implantsFailed);
+        assert.equal(a.system.cyberdeck.mpcp, 1, "back to the authored value, not the dead deck's");
+      });
+
+      it("Calendaria: a foreign note is never touched; overlapping syncs make one note; turning notes off removes them", async function () {
+        const C = await import("../calendaria.mjs");
+        const api = C.calendaria();
+        if (!api) this.skip();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await addict(a, a.items.getName(KAMIKAZE.name));
+        const foreign = await api.createNote({ name: "Quench foreign note", startDate: api.timestampToDate(game.time.worldTime + 86400), openSheet: false, visibility: "hidden" });
+        try {
+          await a.update({ "flags.sr2e.substanceNotes.kamikaze": { id: foreign.id, t: 0, name: "x", visibility: "hidden" } });
+          await Promise.all([C.syncSubstanceNotes(a), C.syncSubstanceNotes(a), C.syncSubstanceNotes(a)]);
+          assert.equal(api.getNote(foreign.id)?.name, "Quench foreign note", "the foreign note untouched");
+          const mine = a.flags.sr2e.substanceNotes.kamikaze.id;
+          assert.notEqual(mine, foreign.id);
+          const ours = game.journal.contents.flatMap(j => j.pages.contents).filter(p => p.getFlag?.("sr2e", "substanceNote")?.actorUuid === a.uuid);
+          assert.lengthOf(ours, 1, "one note, however many syncs overlapped");
+          await game.settings.set("sr2e", "substanceCalendarNotes", false);
+          await new Promise(r => setTimeout(r, 400));
+          assert.isNotOk(api.getNote(mine), "gone when turned off");
+          await game.settings.set("sr2e", "substanceCalendarNotes", true);
+          await new Promise(r => setTimeout(r, 400));
+          assert.ok(api.getNote(a.flags.sr2e.substanceNotes?.kamikaze?.id), "back when turned on");
+        } finally {
+          await game.settings.set("sr2e", "substanceCalendarNotes", true);
+          await api.deleteNote(foreign.id);
+        }
+      });
+
+      it("a dose right after an interrupted result write uses that result; a live claim holds time, an old one doesn't", async () => {
+        const { useDose, activeDrugs, endDrug, substancesOf } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        const item = a.items.getName(KAMIKAZE.name);
+        await withFaces([2], () => useDose(a, item.id));
+        const d = activeDrugs(a)[0];
+        await endDrug(a, d.id);
+        const t = Number(a.flags.sr2e.substanceLog[d.exposureId].t);
+        // The Tolerance roll landed (0 successes) but its result never saved.
+        const id = `${d.exposureId}_tolerance`;
+        await a.update({ [`flags.sr2e.substanceLog.${id}`]: { v: 1, t, seq: 60, at: Date.now(), type: "test", drug: "kamikaze",
+          exposureId: d.exposureId, kind: "tolerance", tn: 2, pending: true, successes: null, messageId: null } });
+        await withFaces([1, 1, 1], () => a.rollSuccessTest(3, 2, { label: "Quench tolerance card",
+          flags: { sr2e: { substanceTest: { actorUuid: a.uuid, eventId: id } } } }));
+        const n = a.effects.size;
+        await withFaces([2], () => useDose(a, item.id));
+        assert.isTrue(substancesOf(a).drugs.kamikaze.immune, "the landed result counted first");
+        assert.equal(a.effects.size, n, "so the new dose is inert");
+        // A fresh claim with no card may still be rolling elsewhere: time waits.
+        const b = await mk("character", [KAMIKAZE]);
+        ticking = [b];
+        await withFaces([2], () => useDose(b, b.items.getName(KAMIKAZE.name).id));
+        const bx = activeDrugs(b)[0].exposureId;
+        const clock0 = Number(b.flags.sr2e.substanceClock) || 0;
+        await b.update({ [`flags.sr2e.substanceLog.${bx}_P`]: { v: 1, t: game.time.worldTime, seq: 70, at: Date.now(), type: "test",
+          drug: "kamikaze", exposureId: bx, kind: "P", tn: 4, pending: true, successes: null, messageId: null } });
+        await tick(game.time.worldTime + 3600);
+        assert.equal(Number(b.flags.sr2e.substanceClock) || 0, clock0, "held for a live claim");
+        await b.update({ [`flags.sr2e.substanceLog.${bx}_P.at`]: Date.now() - 5 * 60 * 1000 });
+        await tick(game.time.worldTime + 3600);
+        assert.isUndefined(b.flags.sr2e.substanceLog[`${bx}_P`], "an old one is withdrawn");
+        assert.isAbove(Number(b.flags.sr2e.substanceClock), clock0, "and time moves");
+        // The original roller comes back late (0 successes): it counts from NOW, not its old time.
+        const t1 = Number(b.flags.sr2e.substanceClock);
+        const claim = { v: 1, t: clock0, seq: 70, at: Date.now() - 5 * 60 * 1000, type: "test", drug: "kamikaze",
+          exposureId: bx, kind: "P", tn: 4, gen: "old", pending: true, successes: null, messageId: null };
+        const { _completeClaimForTests } = await load();
+        await _completeClaimForTests(b, `${bx}_P`, claim, 0, null);
+        const late = b.flags.sr2e.substanceLog[`${bx}_P`];
+        assert.isTrue(late.late);
+        assert.isAtLeast(late.t, t1, "re-stamped at the current substance time");
+        const others = Object.entries(b.flags.sr2e.substanceLog).filter(([k]) => k !== `${bx}_P`).map(([, e]) => e.seq ?? 0);
+        assert.isAbove(late.seq, Math.max(...others), "sorts after everything already there");
+        // Expiry → a retry (new generation) completes → the old roller returns: it can't overwrite.
+        const retry = { ...claim, gen: "new", t: late.t + 1, seq: late.seq + 1, pending: true };
+        await b.update({ [`flags.sr2e.substanceLog.${bx}_P`]: retry });
+        await _completeClaimForTests(b, `${bx}_P`, retry, 1, null);
+        await _completeClaimForTests(b, `${bx}_P`, claim, 0, null);                  // the stale one
+        assert.equal(b.flags.sr2e.substanceLog[`${bx}_P`].successes, 1, "the newer attempt stands");
+        assert.equal(b.flags.sr2e.substanceLog[`${bx}_P`].gen, "new");
+        // …and the old attempt's CARD (0 successes, gen "old") can't feed the new claim either.
+        await b.update({ [`flags.sr2e.substanceLog.${bx}_P.pending`]: true, [`flags.sr2e.substanceLog.${bx}_P.successes`]: null,
+                         [`flags.sr2e.substanceLog.${bx}_P.messageId`]: null });
+        await withFaces([1, 1, 1], () => b.rollSuccessTest(3, 4, { label: "Quench stale card",
+          flags: { sr2e: { substanceTest: { actorUuid: b.uuid, eventId: `${bx}_P`, gen: "old" } } } }));
+        const { settleSubstances } = await load();
+        await b.update({ [`flags.sr2e.substanceLog.${bx}_P.at`]: Date.now() });   // live: no own card yet
+        await settleSubstances(b);
+        assert.isTrue(b.flags.sr2e.substanceLog[`${bx}_P`].pending, "the stale card wasn't applied");
+      });
+
+      it("an imported loss is reported with the death review; Essence 0 on a hand-kept stat block alerts", async () => {
+        const { substanceRows } = await load();
+        const a = await mk("character", [KAMIKAZE]);
+        ticking = [a];
+        await a.update({ [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { v: 1, t: game.time.worldTime, seq: 1, at: Date.now(),
+          type: "edit", drug: "kamikaze", patch: { baseline: { addiction: 4, tolerance: 2, strength: 4, P: true, uses: 2, boxesLost: 4 } } } });
+        await tick(game.time.worldTime + 60);
+        const rep = game.messages.filter(m => m.flags?.sr2e?.substanceReport?.actorUuid === a.uuid).at(-1);
+        assert.match(rep?.content ?? "", /GM correction recorded \(substance losses now 4 boxes/);
+        assert.match(rep.content, /monitors fell to 6 boxes/);
+        const npc = await mk("npc", [KAMIKAZE]);
+        await npc.update({ "system.essence.value": 0, [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { v: 1, t: game.time.worldTime, seq: 1,
+          at: Date.now(), type: "edit", drug: "kamikaze", patch: { baseline: { addiction: 4, tolerance: 2, strength: 4, P: true, uses: 2, essenceLost: 1 } } } });
+        assert.isTrue(substanceRows(npc).essenceZero, "alerted though Essence is kept by hand");
       });
 
       it("a copied drug item drops its commits; a drug item with an unfinished dose can't be deleted", async () => {

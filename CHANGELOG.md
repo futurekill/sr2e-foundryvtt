@@ -20,6 +20,62 @@ character now keeps a record of every dose and every Addiction/Tolerance test.
 - Drug items given to another character don't carry the first character's
   unfinished doses.
 
+### Added — substance tracking, part 2: the full addiction rules (Shadowtech p.87–88, p.99, p.100)
+
+- **Substance time follows the GM's clock.** Each time the GM advances world
+  time, the rules catch up:
+  - a missed dose becomes **forced withdrawal**: +3 to every TN (+6 on
+    spellcasting), and at least a Moderate Stun wound's Injury Modifier, which
+    Initiative feels too. Every 24 hours without a dose lowers the Addiction
+    Rating.
+  - each **week addicted** costs ½ Essence (permanently) and a box off both
+    condition monitors.
+  - the ratings rise every Strength-th dose and fall after each clean period.
+
+  Winding the clock back never undoes any of it.
+- **Reports**: the GM and the owners get one whispered card per character
+  listing what happened, each step once. A step that later stops applying
+  (after a correction) is reported as a correction.
+- **Death is the GM's call.** A week's loss adds a check with *Confirm death* /
+  *They survived*. Essence at 0 is stated outright.
+- **Karma** can be spent on a substance roll until the GM next advances time;
+  after that the result is settled.
+- A **Substances** section on the gear tab (NPCs: Drugs) shows each drug's
+  uses, current Addiction and Tolerance (base), dependencies, state and next
+  milestone. It also offers:
+  - **Hold out longer** (owner): once per dose, Body or Willpower vs Addiction.
+  - **Begin recovery** (GM): Willpower vs Addiction +1 / +3 / +4. Recovery is
+    +2 TNs (+4 on spells), with Addiction −1 every three days. At base the
+    character is no longer addicted and **rests for Addiction-many weeks** at
+    +1 TN (+2 on spells), getting a box back every three days, and is then
+    cured. The book gives no unit for the rest; weeks is the table's ruling.
+  - **Cleansing therapy** (GM): removes a physical addiction and returns the
+    lost boxes (no help for a mental one). **Gene cleansing** (GM) clears
+    immunity.
+  - A GM **correction**, recorded in the history.
+- **Kamikaze** (p.99): every four uses take a box off both monitors for good.
+  After uses equal to half the natural Body (rounded down), **cyberware and
+  bioware stop working**: no attribute, Reaction, armour, smartlink, skillwire
+  or cranial-deck benefit, and triggered bioware can't fire. They still cost
+  Essence and count to the Body Index. A GM correction can restore them.
+- **MAO** (p.100) limits an active adrenal pump: Level 1 keeps only its
+  Reaction bonus; Level 2 keeps its Reaction bonus and gives +1
+  Quickness/Strength/Willpower (Level 1's).
+- NPC Essence is a stat-block number, so an NPC's Essence loss is reported
+  rather than applied.
+
+### Added — optional Calendaria integration for substance deadlines
+
+With the **Calendaria** module active (nothing changes without it):
+- The Substances section shows each next milestone as a calendar date and
+  time, e.g. "dose due in 12 h (4 Jan, 05:30)".
+- The GM's calendar gets **one note per character and drug** at its next
+  milestone: dose due, withdrawal, a recovery or rest step, a clean-period drop.
+  It moves as things change and goes away when there's nothing left to track
+  or the character is deleted.
+- Two world settings: **Substance deadlines on the calendar** (on by default)
+  and **Players see substance notes** (off: the notes are GM-only).
+
 ## 0.99.0 — 2026-09-25
 
 ### Added — drugs and toxins: Use a dose (Shadowtech p.85–100)

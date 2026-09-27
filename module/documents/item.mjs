@@ -8,6 +8,7 @@ import { normActorUuid } from "../spell-defense.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
+import { workingImplant } from "../drugs.mjs";
 
 const SPELL_TN_CONTEXT = { kind: "spell", magic: true };
 
@@ -953,7 +954,7 @@ export class SR2EItem extends Item {
       let cyberwareMod = 0;
       if (smartCapable) {
         for (const item of actor.items) {
-          if (item.type === "cyberware" && item.system.installed && item.system.combatTnMod !== 0) {
+          if (item.type === "cyberware" && workingImplant(actor, item) && item.system.combatTnMod !== 0) {
             cyberwareMod += item.system.combatTnMod;
           }
         }

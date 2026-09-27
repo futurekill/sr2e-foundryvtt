@@ -25,6 +25,10 @@ describe("doses and ratings (p.87)", () => {
     expect([r(26).addiction, r(26).tolerance]).toEqual([4, 2]);
     expect(r(200).addiction).toBe(4);                        // floored at base
   });
+  it("the next milestone skips no-op ticks (a clean boundary at base)", () => {
+    expect(S([dose(0)], DAY).drugs.kamikaze.next).toBeNull();                       // at base, not addicted
+    expect(S([1, 2, 3, 4].map(i => dose(i)), DAY).drugs.kamikaze.next?.kind).toBe("clean");   // above base
+  });
   it("Strength ≥ 30 has no clean period", () => {
     const e = [dose(0, { snapshot: { ...KAMI, strength: 30 } })];
     expect(S(e, 1000 * DAY).drugs.kamikaze.next).toBeNull();
@@ -205,6 +209,7 @@ describe("penalties and report ids", () => {
     const a = stepId({ drug: "k", type: "week", t: 5, boxesLost: 1 });
     expect(stepId({ drug: "k", type: "week", t: 5, boxesLost: 1 })).toBe(a);
     expect(stepId({ drug: "k", type: "week", t: 5, boxesLost: 2 })).not.toBe(a);
+    expect(stepId({ drug: "k", type: "week", t: 5.25 })).not.toContain(".");
   });
 });
 

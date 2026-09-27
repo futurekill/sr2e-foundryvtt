@@ -10,7 +10,7 @@ import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpd
 import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
 import { startRitual } from "../ritual.mjs";
-import { useDose, endDrug, repostCard } from "../drugs.mjs";
+import { useDose, endDrug, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
@@ -603,7 +603,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   let cywareName = "";
   if (smartCapable) {
     for (const item of actor.items) {
-      if (item.type === "cyberware" && item.system.installed && item.system.combatTnMod !== 0) {
+      if (item.type === "cyberware" && workingImplant(actor, item) && item.system.combatTnMod !== 0) {
         cyberwareMod += item.system.combatTnMod;
         if (cywareName) cywareName += ", ";
         cywareName += item.name;
@@ -2614,6 +2614,9 @@ async function onToggleBioActive(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item || item.type !== "bioware") return;
+  if (!item.system.active && !implantsWork(this.document)) {
+    return ui.notifications.warn("Kamikaze has burned out this character's implants — they no longer function (Shadowtech p.99).");
+  }
   return item.update({ "system.active": !item.system.active });
 }
 
@@ -2734,7 +2737,7 @@ async function onActivateDeck(event, target) {
   // an uninstalled C2, so letting one "activate" would silently switch off the
   // decker's real deck and leave the Matrix tab dead.
   const isDeck = (i) => (i.type === "gear" && i.system.category === "cyberdeck") ||
-                        (i.type === "cyberware" && i.system.cranialDeck && i.system.installed);
+                        (i.type === "cyberware" && i.system.cranialDeck && workingImplant(actor, i));
   if (!deck || !isDeck(deck)) return;
   const makeActive = !deck.system.deck?.active;
   const updates = actor.items.filter(isDeck)
@@ -3483,6 +3486,31 @@ const SHARED_ACTIONS = {
     event.preventDefault();
     const id = target.closest("[data-effect-id]")?.dataset.effectId;
     if (id) return repostCard(this.document, id);
+  },
+  // Substances (Shadowtech p.87–88): docs/PLAN-addiction.md.
+  extendDose: function(event, target) {
+    event.preventDefault();
+    const drug = target.closest("[data-drug]")?.dataset.drug;
+    if (drug) return extendDose(this.document, drug, target.dataset.dep);
+  },
+  beginRecovery: function(event, target) {
+    event.preventDefault();
+    const drug = target.closest("[data-drug]")?.dataset.drug;
+    if (drug) return beginRecovery(this.document, drug);
+  },
+  cleanseSubstance: function(event, target) {
+    event.preventDefault();
+    const drug = target.closest("[data-drug]")?.dataset.drug;
+    if (drug) return cleanseSubstance(this.document, drug, target.dataset.kind);
+  },
+  importSubstance: function(event) {
+    event.preventDefault();
+    return importSubstance(this.document);
+  },
+  editSubstance: function(event, target) {
+    event.preventDefault();
+    const drug = target.closest("[data-drug]")?.dataset.drug;
+    if (drug) return editSubstance(this.document, drug);
   },
   usePower: onUsePower,
   activateDeck: onActivateDeck,

@@ -24,7 +24,8 @@ import { registerSpellEffectHooks, wireSpellEffectButtons } from "./spell-effect
 import { registerNatureSpiritSettings, registerNatureSpiritHooks, natureSpiritsDepart } from "./nature-spirits.mjs";
 import { wireRitualButtons, startRitual } from "./ritual.mjs";
 import { registerSpiritServiceHooks } from "./spirit-services.mjs";
-import { registerDrugHooks, wireDrugButtons } from "./drugs.mjs";
+import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs";
+import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 
 // Sheets
 import {
@@ -438,6 +439,7 @@ Hooks.once("init", async () => {
   registerSpellEffectHooks();
   registerSpiritServiceHooks();
   registerDrugHooks();
+  registerCalendariaHooks();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 
@@ -1060,6 +1062,8 @@ function _registerSystemSettings() {
     }
   });
 
+  registerCalendariaSettings();
+
   game.settings.register("sr2e", "autoEssence", {
     name: "SR2E.Settings.AutoEssence",
     hint: "SR2E.Settings.AutoEssenceHint",
@@ -1357,7 +1361,7 @@ Hooks.on("updateItem", async (item, changes, options, userId) => {
   // Both kinds of deck compete for the single active slot: a gear cyberdeck and
   // an INSTALLED cranial deck ("C2", Matrixware — Shadowtech p.54).
   const isDeck = (i) => (i.type === "gear" && i.system.category === "cyberdeck") ||
-                        (i.type === "cyberware" && i.system.cranialDeck && i.system.installed);
+                        (i.type === "cyberware" && i.system.cranialDeck && workingImplant(i.parent, i));
   if (changes.system?.deck?.active !== true) return;
   // A C2 that isn't in your head can never be the active deck — a direct item
   // edit could still try, so force it back off rather than let it hold the slot

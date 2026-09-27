@@ -241,6 +241,14 @@ and any **red console errors**. File them wherever the group tracks issues
       active; End it, roll the tests (TN = the current ratings), and the same button won't roll again.
       ACTH on a character with an installed Adrenal Pump → the pump switches on. A second MAO while
       one is active → no new effect.
+- [ ] **Addiction lifecycle:** addict a character (Kamikaze, fail the Physical test). As GM advance
+      world time 2 days → a whispered report says forced withdrawal; the sheet shows it; any roll
+      shows "+3 withdrawal". Advance 8 more days → "a week addicted", monitors 9/9, Essence −½, and a
+      Confirm death / They survived check. Begin recovery (GM) → rest → advance weeks → boxes back →
+      cured. Rewind time → nothing undone. Kamikaze until ⌊Body ÷ 2⌋ uses → implants stop working.
+- [ ] **Calendaria (with the module active):** addict a character → a GM-only calendar note
+      "…— dose due" on the deadline, and the sheet shows the date; advance time past it → the same
+      note moves to the next step; delete the character → the note goes.
 - [ ] **Drug automation:** on Kamikaze, take a 3-box and then a 3-box hit → 3 absorbed, then
       1 absorbed and 2 land; a card says "Kamikaze absorbs N". A second Kamikaze while the
       first is active → a Light Stun (absorbed if the first has boxes left), half bonuses.

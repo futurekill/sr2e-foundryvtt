@@ -4043,3 +4043,8 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Substances (Shadowtech p.85–88): state and alerts on the gear tab / NPC Drugs. */
+.sr2e .sr2e-substances .sr2e-substance-row { gap: 0.5em; align-items: baseline; }
+.sr2e .sr2e-substances .sr2e-substance-state { flex: 2; }
+.sr2e .sr2e-substances .sr2e-substance-alert { margin: 0.25em 0; font-weight: 600; color: var(--sr2e-danger); }

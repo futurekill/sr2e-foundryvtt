@@ -66,7 +66,18 @@ export function substanceState(events = [], now = 0) {
   const doses = new Map();                     // dose id → event (tests/extends anchor to it)
   let implantsFailed = false, dead = null, skipped = 0, clock = -Infinity;
   const rec = (d) => (drugs[d] ??= blank(d));
-  const step = (r, type, t, payload = {}) => steps.push({ drug: r.drug, type, t, ...payload });
+  // Actor-wide capacity after a step, for the GM's death review (Codex 3–6 #4).
+  const totals = () => {
+    let loss = 0, essence = 0;
+    for (const o of Object.values(drugs)) {
+      loss += o.boxesLost + (o.drug === "kamikaze" ? Math.floor(o.uses / 4) : 0);
+      essence += o.essenceLost;
+    }
+    return { lossTotal: loss, essenceTotal: essence };
+  };
+  const CAPACITY = new Set(["week", "wasting", "restore", "cleansed", "edit"]);
+  const step = (r, type, t, payload = {}) =>
+    steps.push({ drug: r.drug, type, t, ...payload, ...(CAPACITY.has(type) ? totals() : {}) });
   let cur = -Infinity;                         // the time being processed: no tick is dated before it
   const busyRecovering = (except) => Object.values(drugs)
     .some(o => o.drug !== except && (o.state === "recovery" || o.state === "rest"));
@@ -118,7 +129,10 @@ export function substanceState(events = [], now = 0) {
   };
 
   // ── The timed rules: the earliest pending tick for one drug, if ≤ limit ──
-  const nextTick = (r) => {
+  // `meaningful`: only ticks that change something (for the sheet / calendar),
+  // not the bookkeeping boundaries (a clean period at base, a rest box with
+  // nothing lost) that the replay must still consume.
+  const nextTick = (r, meaningful = false) => {
     const c = [];
     if (r.state === "addicted" && r.window) {
       for (const dep of ["P", "M"]) if (r.addicted[dep]) c.push({ t: r.window[dep].deadline, kind: "missed", dep });
@@ -131,13 +145,14 @@ export function substanceState(events = [], now = 0) {
     if (r.state === "rest") {
       // Restoration boundaries pass even with nothing to restore, so a later
       // baseline edit only gets future restoration.
-      c.push({ t: r.restSince + (r.restRestored + 1) * 3 * DAY, kind: "restore" });
+      if (!meaningful || r.boxesLost > 0) c.push({ t: r.restSince + (r.restRestored + 1) * 3 * DAY, kind: "restore" });
       c.push({ t: r.restUntil, kind: "cured" });
     }
     const iv = cleanInterval(r);
     // Clean boundaries are consumed even at base, so a later edit can't collect
     // reductions dated before it.
-    if (iv && r.cleanFrom != null) c.push({ t: r.cleanFrom + iv, kind: "clean" });
+    const atBase = r.addiction <= r.base.addiction && r.tolerance <= r.base.tolerance;
+    if (iv && r.cleanFrom != null && !(meaningful && atBase)) c.push({ t: r.cleanFrom + iv, kind: "clean" });
     for (const k of c) k.t = Math.max(k.t, cur);               // overdue → now, never in the past
     const order = ["week", "missed", "withdrawalDrop", "recoveryDrop", "restore", "cured", "clean"];
     c.sort((a, b) => a.t - b.t || order.indexOf(a.kind) - order.indexOf(b.kind));
@@ -227,6 +242,8 @@ export function substanceState(events = [], now = 0) {
         if (r.state === "withdrawal") r.dropCursor = t;          // any dose resets the no-dose clock
         openWindow(r, dose);                                      // the latest dose sets the window, always
         if (!r.immune && (r.state === "withdrawal" || r.state === "recovery" || r.state === "rest")) relapse(r, t, dose);
+        // Kamikaze (p.99): every fourth use takes a box off both monitors for good.
+        if (e.drug === "kamikaze" && r.uses % 4 === 0) step(r, "wasting", t, { uses: r.uses });
         // Kamikaze (p.99): implants fail after ⌊Body ÷ 2⌋ uses — latched (R1 #12).
         if (e.drug === "kamikaze" && r.uses >= Math.max(1, Math.floor((e.body ?? 1) / 2)) && !implantsFailed) {
           implantsFailed = true; step(r, "implantsFailed", t, { uses: r.uses });
@@ -286,6 +303,7 @@ export function substanceState(events = [], now = 0) {
       }
       case "edit": {
         const p = e.patch ?? {};
+        const before = totals();
         if (r) {
           if (p.baseline && !r.base) {
             const b = p.baseline;
@@ -303,6 +321,15 @@ export function substanceState(events = [], now = 0) {
             // Kamikaze's own history wins for Kamikaze (it drives wasting and the implant latch).
             const uses = r.drug === "kamikaze" && b.kamikazeUses != null ? b.kamikazeUses : b.uses;
             if (Number.isInteger(uses) && uses >= 0) r.uses = uses;
+            // An imported, still-running addiction: addicted from now, the dose
+            // window from the recorded last dose (Codex 3–6 #8).
+            if (b.addicted && r.base && r.state === "none") {
+              r.addicted = { P: !!b.addicted.P && r.base.P, M: !!b.addicted.M && r.base.M };
+              if (r.addicted.P || r.addicted.M) {
+                if (r.lastDose != null) openWindow(r, { id: e.id, t: r.lastDose, body: b.body ?? 1, willpower: b.willpower ?? 1 });
+                setState(r, "addicted", t);
+              }
+            }
             if (Number.isInteger(b.boxesLost) && b.boxesLost >= 0) r.boxesLost = b.boxesLost;
             if (Number.isFinite(b.essenceLost) && b.essenceLost >= 0) r.essenceLost = b.essenceLost;
           }
@@ -321,7 +348,7 @@ export function substanceState(events = [], now = 0) {
         }
         if (p.restoreImplants) implantsFailed = false;
         if (p.clearDeath) dead = null;
-        step(r ?? { drug: null }, "edit", t);
+        step(r ?? { drug: null }, "edit", t, { lossBefore: before.lossTotal, essenceBefore: before.essenceTotal });
         break;
       }
       case "death":
@@ -340,7 +367,7 @@ export function substanceState(events = [], now = 0) {
     if (r.drug === "kamikaze") kamikazeUses = r.uses;
     const s = r.state === "addicted" ? "none" : r.state;
     if (rank[s] > rank[penalty]) penalty = s;
-    r.next = nextTick(r);                      // the next milestone, for the sheet/Calendaria
+    r.next = nextTick(r, true);                // the next milestone that changes something (sheet/Calendaria)
   }
   const wasting = Math.floor(kamikazeUses / 4);  // p.99: permanent, not an addiction loss
   return { drugs, steps, implantsFailed, kamikazeUses, wasting, monitorLoss: monitorLoss + wasting,
@@ -360,5 +387,6 @@ export function stepId(s) {
   const body = JSON.stringify(payload, Object.keys(payload).sort());
   let h = 0;
   for (let i = 0; i < body.length; i++) h = (h * 31 + body.charCodeAt(i)) | 0;
-  return `${drug}:${type}:${t}:${(h >>> 0).toString(36)}`;
+  // Dot-free: the id is used as a flag key, and a dot would split the path.
+  return `${drug}:${type}:${String(t).replace(/\./g, "_")}:${(h >>> 0).toString(36)}`;
 }

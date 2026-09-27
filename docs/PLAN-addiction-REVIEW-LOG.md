@@ -237,3 +237,6 @@ R1: 11 findings (float week loop, lost week on ties, obsolete windows, retroacti
 
 ## Stage 2 implementation review (Codex thread 01a0df86)
 R1: 12 findings (drains, one elected driver + in-queue overuse recheck, durable effect plan + GM Re-apply, sync tombstone, ledger+counter one update, revalidated tests, durable roll claims, testMessageId, ACTH vs failed implants, token recovery, interruption matrix); Karma deferred to stage 3 by design. R2: 4. R3: 1 (tests). R4: APPROVED.
+
+## Stages 3–6 implementation review (Codex thread 01a0df86)
+R1: 12 findings (settle before time moves, Karma sync durability, recovery claim reuse, historical death review + Kamikaze wasting, Essence alerts, correction history, queued GM actions, import UI, deck snapshot both directions, Calendaria ownership/serialisation/setting cleanup). R2: 6. R3: 1 (late rolls re-stamped). R4: 1 (claim generations). R5: 1 (generation on cards). R6: APPROVED.

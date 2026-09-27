@@ -158,3 +158,10 @@ until a reload.
 If the page itself reloads mid-run (the log shows "Logged user … out" then
 "Created client session"), that's the host, not a test: nothing in the suite
 navigates or changes a reload-requiring setting.
+
+## Run only the SR2E batches
+Other active modules can register Quench batches too — **Calendaria** does
+(~200 tests in `calendaria.integration.*` that create notes, switch calendars,
+advance time and generate weather in the live world). From the console use
+`quench.runBatches("sr2e.**")`, never `"**"`; in the Quench window, tick only
+the SR2E batches.
