@@ -10,6 +10,7 @@ import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpd
 import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
 import { startRitual } from "../ritual.mjs";
+import { matrixQueue, sessionHost } from "../jackpoints.mjs";
 import { useDose, endDrug, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
@@ -2455,7 +2456,10 @@ async function onMatrixPerception(event, target) {
  */
 async function onToggleMatrixMode(event, target) {
   event.preventDefault();
-  return this.document.update({ "system.matrixMode": !this.document.system.matrixMode });
+  // Through the actor's Matrix queue, so it can't interleave with a jackpoint
+  // jack-in on this client (docs/PLAN-matrix-jackpoints.md R3 #1).
+  const actor = this.document;
+  return matrixQueue(actor, () => actor.update({ "system.matrixMode": !actor.system.matrixMode }));
 }
 
 /**
@@ -2484,7 +2488,9 @@ async function onResetHostTally(event, target) {
 async function promptSystemOperationOptions(actor) {
   // Candidate hosts: a targeted host token first, then all host actors.
   const targeted = Array.from(game.user?.targets ?? []).map(t => t.actor).filter(a => a?.type === "host");
-  const hosts = [...new Set([...targeted, ...game.actors.filter(a => a.type === "host")])];
+  // The host a jackpoint session points at comes first (docs/PLAN-matrix-jackpoints.md).
+  const viaJackpoint = sessionHost(actor);
+  const hosts = [...new Set([...(viaJackpoint ? [viaJackpoint] : []), ...targeted, ...game.actors.filter(a => a.type === "host")])];
   if (!hosts.length) {
     ui.notifications.warn("No host/node actors exist. Create a Host actor (the GM maps the system).");
     return null;

@@ -513,3 +513,20 @@ If those five all work, the core loop is healthy.
 - [ ] **Conc/Spec rolls:** clicking a skill's (Concentration) or [Specialization]
       tag rolls that rating; the attack dialog's "Skill used" select works and
       the chat card notes the variant.
+
+
+## Matrix jackpoints (two clients: a GM and a player login)
+- [ ] GM: draw a Region over a terminal, add the **Matrix jackpoint** behaviour pointing
+      at an entry Region on a separate Matrix scene; the player can view that scene
+      (Limited). Drag the decker onto the Matrix scene and mark it **Matrix persona**.
+- [ ] Player: move the decker into the region → the HUD shows **Jack in: <name>**; outside
+      it, no button. With no persona placed, the button says to ask the GM.
+- [ ] Player clicks it → only the PLAYER's screen moves to the Matrix scene, centred on the
+      persona; the GM and a second player stay put. The body shows a cyan outline.
+- [ ] Player reloads → back on the Matrix scene. Player navigates back to meat space
+      by hand → stays there.
+- [ ] Jack out (persona HUD) → the player's screen returns; the outline goes. Repeat with
+      the sheet toggle, and with a dump (crash the persona with IC).
+- [ ] GM disables the jackpoint mid-session → the player returns.
+- [ ] The sheet's plain Jack In on a character with no jackpoint → Matrix mode on, no
+      screen change.

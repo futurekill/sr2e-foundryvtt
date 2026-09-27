@@ -443,5 +443,10 @@
   "SR2E.Settings.DiceSourceInline": "Inline — one row, labelled at each change",
   "SR2E.Settings.DiceSourceUnderline": "Underlined — coloured bar beneath each die",
   "SR2E.Settings.DiceSourceLanes": "Lanes — one row per source",
-  "SR2E.Settings.DiceSourceNone": "Off — a single plain row"
+  "SR2E.Settings.DiceSourceNone": "Off — a single plain row",
+  "TYPES": {
+    "RegionBehavior": {
+      "jackpoint": "Matrix jackpoint"
+    }
+  }
 }

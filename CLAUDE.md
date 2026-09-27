@@ -231,3 +231,14 @@ check `workingImplant(actor, item)` (Kamikaze can burn them out), never just
 `system.installed`. Tests must scope clock advances (`advanceSubstanceClock(t,
 {only})`), never fire `updateWorldTime` with invented times at every ledger.
 See docs/PLAN-addiction.md.
+
+## Matrix jackpoints
+`module/jackpoints.mjs` (+ pure decisions in `module/rules/jackpoint-rules.mjs`):
+a `jackpoint` Region Behaviour (declared in system.json `documentTypes` — adding
+a type there needs a Foundry SERVER restart), sessions as keyed records in
+`flags.sr2e.matrixSessions` (a client deletes only its own key; the active GM the
+rest), and a per-TAB view record in sessionStorage. EVERY `matrixMode` change on
+the driving client goes through `matrixQueue(actor, …)` — the sheet toggle and
+dump shock do; any new path must too. Reconciliation runs via
+`scheduleReconcile`, never directly. Never `await canvas.animatePan` (it never
+resolves in a hidden tab). See docs/PLAN-matrix-jackpoints.md.

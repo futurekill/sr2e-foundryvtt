@@ -21,6 +21,7 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
 import { placeSummonedToken } from "../placement.mjs";
 import { commitDamage, drugsInForce, drugDamageNote, substanceKarmaClosed, reconcileSubstanceTest, substancesOf } from "../drugs.mjs";
 import { addictionTnFor } from "../rules/substances.mjs";
+import { matrixQueue } from "../jackpoints.mjs";
 import { natureDepartNote } from "../nature-spirits.mjs";
 import { usePowerService, statusOf } from "../spirit-services.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
@@ -2865,7 +2866,8 @@ export class SR2EActor extends Actor {
         msg += ` — <strong>CRASHED!</strong>`;
         if (this.type === "character") {
           // Dumped: leave the Matrix and suffer dump shock (p.180)
-          await this.update({ "system.matrixMode": false, "system.dumpShock": true });
+          // Through the Matrix queue: a jackpoint session ends in order (docs/PLAN-matrix-jackpoints.md R3 #1).
+          await matrixQueue(this, () => this.update({ "system.matrixMode": false, "system.dumpShock": true }));
           msg += ` <em>${this.name} is dumped from the Matrix (dump shock: +2 to all TNs until shaken — Willpower(4) to recover, SR2E p.180).</em>`;
         } else {
           msg += ` <em>The IC is crashed and out of the fight.</em>`;

@@ -8448,6 +8448,169 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Learning spells & elemental defense (p.132, p.141)" });
 
+    // ── Matrix jackpoints: shifting a decker's perception (docs/PLAN-matrix-jackpoints.md) ──
+    quench.registerBatch("sr2e.jackpoints", (context) => {
+      const { it, assert, before, after } = context;
+      let J, meat, matrix, entry, jackRegion, behavior, startScene;
+      const made = { actors: [] };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      before(async function () {
+        this.timeout(30000);
+        J = await import("../jackpoints.mjs");
+        startScene = canvas.scene?.id;
+        [meat, matrix] = await Scene.createDocuments([
+          { name: "Quench Jackpoint Meat", width: 1000, height: 800, grid: { size: 100, distance: 1, units: "m" }, navigation: false },
+          { name: "Quench Jackpoint Matrix", width: 1000, height: 800, grid: { size: 100, distance: 1, units: "m" }, navigation: false }]);
+        [entry] = await matrix.createEmbeddedDocuments("Region", [{ name: "Quench entry",
+          shapes: [{ type: "rectangle", x: 300, y: 300, width: 200, height: 200 }] }]);
+        [jackRegion] = await meat.createEmbeddedDocuments("Region", [{ name: "Quench terminal",
+          shapes: [{ type: "rectangle", x: 100, y: 100, width: 200, height: 200 }],
+          behaviors: [{ type: "jackpoint", name: "Jackpoint", system: { destination: entry.uuid, label: "Quench mainframe" } }] }]);
+        behavior = jackRegion.behaviors.contents[0];
+        await meat.view(); await wait(800);
+      });
+      after(async function () {
+        this.timeout(30000);
+        try { sessionStorage.removeItem(`sr2e.${game.world.id}.${game.user.id}.matrixView`); } catch (e) { /* */ }
+        const back = game.scenes.get(startScene);
+        if (back) await back.view();
+        await Scene.deleteDocuments([meat?.id, matrix?.id].filter(id => id && game.scenes.has(id)));
+        const ids = made.actors.filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+      const decker = async ({ persona = true } = {}) => {
+        const a = await Actor.create({ name: "Quench Decker", type: "character",
+          system: { cyberdeck: { mpcp: 4 } }, prototypeToken: { actorLink: true } });
+        made.actors.push(a.id);
+        const [body] = await meat.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x: 150, y: 150, actorLink: true }]);
+        if (persona) await matrix.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x: 350, y: 350,
+          actorLink: true, sight: { enabled: true }, flags: { sr2e: { persona: true } } }]);
+        await wait(300);
+        return { a, body: meat.tokens.get(body.id) };
+      };
+
+      it("the behaviour registers, and a body standing in it may jack in only with a usable persona", async () => {
+        assert.equal(behavior.type, "jackpoint");
+        const { a, body } = await decker({ persona: false });
+        assert.include(J.jackpointsAt(body).map(b => b.id), behavior.id, "the token stands in the jackpoint");
+        assert.isFalse(J.canJackIn(body, behavior).ok, "no persona yet");
+        await matrix.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x: 350, y: 350, actorLink: true, sight: { enabled: true }, flags: { sr2e: { persona: true } } }]);
+        assert.isTrue(J.canJackIn(body, behavior).ok);
+      });
+
+      it("jacking in: one session, Matrix mode on, the view moves; Jack out ends it and brings the view back", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await wait(500);
+        const keys = Object.keys(a.flags.sr2e?.matrixSessions ?? {});
+        assert.lengthOf(keys, 1);
+        assert.isTrue(a.system.matrixMode);
+        assert.equal(a.flags.sr2e.matrixSessions[keys[0]].destScene, matrix.id, "the destination is snapshotted");
+        assert.equal(canvas.scene.id, matrix.id, "this tab is in the Matrix");
+        assert.equal(J.readTab()?.phase, "entered");
+        await J.jackOut(a);
+        await wait(1500);
+        assert.isFalse(a.system.matrixMode);
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0, "session gone");
+        assert.equal(canvas.scene.id, meat.id, "back in meat space");
+        assert.isNull(J.readTab());
+      });
+
+      it("the sheet's plain Jack In never creates a session or moves the view", async () => {
+        const { a } = await decker();
+        const scene = canvas.scene.id;
+        await a.sheet.options.actions.toggleMatrixMode.call(a.sheet, { preventDefault() {} });
+        await wait(300);
+        assert.isTrue(a.system.matrixMode);
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0);
+        assert.equal(canvas.scene.id, scene);
+        await a.update({ "system.matrixMode": false });
+      });
+
+      it("dump shock ends a session; a losing concurrent key cancels; the GM deletes leftovers", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await wait(500);
+        // A dump (through the Matrix queue, as actor.mjs does it).
+        await J.matrixQueue(a, () => a.update({ "system.matrixMode": false, "system.dumpShock": true }));
+        await wait(1500);
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0);
+        assert.equal(canvas.scene.id, meat.id);
+        // Two keys at once: the later one loses; the GM tidies it.
+        await a.update({ "system.matrixMode": true, "flags.sr2e.matrixSessions": {
+          early: { jackpoint: behavior.uuid, originToken: body.uuid, destScene: matrix.id, user: game.user.id, since: 1 },
+          late: { jackpoint: behavior.uuid, originToken: body.uuid, destScene: matrix.id, user: game.user.id, since: 2 } } });
+        await wait(800);
+        assert.deepEqual(Object.keys(a.flags.sr2e.matrixSessions), ["early"], "the loser was removed");
+        await a.update({ "system.matrixMode": false });
+        await wait(600);
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0, "all keys go with Matrix mode");
+      });
+
+      it("a disabled jackpoint ends a live session; the body carries the marker only while it's live", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await wait(500);
+        const { bodyMarked } = await import("../rules/jackpoint-rules.mjs");
+        assert.isTrue(bodyMarked({ tokenUuid: body.uuid, sessions: a.flags.sr2e.matrixSessions, matrixMode: a.system.matrixMode }));
+        await behavior.update({ disabled: true });
+        await wait(1500);
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0, "ended");
+        assert.equal(canvas.scene.id, meat.id, "and the view came back");
+        await behavior.update({ disabled: false });
+        await a.update({ "system.matrixMode": false });
+      });
+      it("the action checks the token stands at the jackpoint, and one window follows one decker", async () => {
+        const { a, body } = await decker();
+        await body.update({ x: 700, y: 600 });                   // walked away from the terminal
+        await wait(400);
+        assert.isFalse(J.canJackIn(meat.tokens.get(body.id), behavior).ok, "not standing at it");
+        await body.update({ x: 150, y: 150 });
+        await wait(400);
+        const other = await decker();
+        sessionStorage.setItem(`sr2e.${game.world.id}.${game.user.id}.matrixView`,
+          JSON.stringify({ actorUuid: other.a.uuid, session: "x", phase: "entered", originScene: meat.id, destScene: matrix.id }));
+        assert.match(J.canJackIn(meat.tokens.get(body.id), behavior).reason ?? "", /already following/);
+        sessionStorage.removeItem(`sr2e.${game.world.id}.${game.user.id}.matrixView`);
+        assert.isTrue(J.canJackIn(meat.tokens.get(body.id), behavior).ok);
+        void a;
+      });
+
+      it("an ordinary check leaves a player who navigated away where they are; the destination going away returns them", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await wait(500);
+        await meat.view(); await wait(800);                      // the decker looks back at meat space
+        await J.scheduleReconcile(a);
+        await wait(500);
+        assert.equal(canvas.scene.id, meat.id, "not yanked back into the Matrix");
+        await matrix.view(); await wait(800);
+        await behavior.update({ disabled: true });
+        await wait(1500);
+        assert.equal(canvas.scene.id, meat.id, "returned when the jackpoint went away");
+        assert.isNull(J.readTab());
+        await behavior.update({ disabled: false });
+        await a.update({ "system.matrixMode": false });
+      });
+      it("the jackpoint going away WHILE the view switches still brings the tab back", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        const view = matrix.view;
+        matrix.view = async function (...args) { await behavior.update({ disabled: true }); return view.apply(this, args); };
+        try { await J.jackIn(body, behavior); } finally { delete matrix.view; }
+        await wait(1800);
+        assert.equal(canvas.scene.id, meat.id, "back at the origin");
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0, "session removed");
+        assert.isNull(J.readTab(), "record cleared after the return");
+        await behavior.update({ disabled: false });
+        await a.update({ "system.matrixMode": false });
+      });
+    }, { displayName: "SR2E: Matrix jackpoints (perception shift)" });
+
 
 
 

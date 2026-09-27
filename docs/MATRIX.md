@@ -160,3 +160,15 @@ and multi-node host maps.
 ## 6. Page index (core book)
 Matrix chapter p.160–185. Key: System Operations p.166; Utilities p.174–177; IC p.169–170;
 Matrix Combat p.178–179; Dump Shock p.180; Hacking Pool p.84.
+
+
+## Jackpoints — putting the decker on a Matrix map
+See docs/PLAN-matrix-jackpoints.md for the design. GM setup:
+1. Build the system's Matrix map as its own scene; draw a Region on it where
+   personas arrive (the entry area). Give the players Limited (or Observer) on it.
+2. On the meat-space map, draw a Region over the terminal or port and add the
+   **Matrix jackpoint** behaviour: entry area = that Region; optional label and Host.
+3. Drag each decker onto the Matrix scene once and use the token HUD's
+   **Matrix persona** toggle on it.
+The decker stands in the jackpoint and clicks **Jack in** on their token HUD;
+jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.

@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Added — Matrix jackpoints: jacking in moves the decker's view to a Matrix map
+
+A decker can now "go into" the Matrix on the map while everyone else carries on
+in meat space.
+- **The GM sets it up once per location**: draw a Region over the terminal or
+  data port and add the new **Matrix jackpoint** behaviour. Point it at an
+  entry area on a separate Matrix scene; optionally name it and link the Host the
+  decker will face. Then drag each decker onto the Matrix scene once and mark that
+  token **Matrix persona** from its token HUD, which also switches its sight on.
+- **The decker stands in the jackpoint and clicks Jack in** on their token HUD.
+  Matrix mode goes on, and *only their* screen switches to the Matrix scene,
+  centred on their persona. Their body stays on the map with a cyan outline so
+  everyone can see who's helpless.
+- **Coming back**: Jack out (on the persona or the body), the sheet's Jack In
+  toggle, being dumped, or the GM turning Matrix mode off all end it. The
+  decker's screen returns to where they jacked in. A reload puts them back where
+  they were.
+- **Nothing leaks**: the button only appears at a jackpoint the GM placed, so
+  there's no poking the sheet to find out whether a location has a Matrix map.
+  The sheet's plain Jack In still works everywhere for quick tests, with no map.
+- A persona is dimmed while its decker is logged off.
+- System operations list the jackpoint's Host first.
+- The GM is warned when a jackpoint has no entry area, points at its own scene,
+  or leads to a scene no player can see.
+- Player characters with linked tokens only; NPC deckers keep the sheet toggle.
+
 ## 0.100.0 — 2026-09-26
 
 ### Added — substance tracking, part 1 (Shadowtech p.85–88, p.95, p.100)
