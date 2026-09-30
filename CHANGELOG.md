@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.101.0 — 2026-09-30
 
 ### Added — Matrix jackpoints: jacking in moves the decker's view to a Matrix map
 
