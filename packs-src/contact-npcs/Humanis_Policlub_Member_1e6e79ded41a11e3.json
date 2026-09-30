@@ -2,7 +2,7 @@
   "_id": "1e6e79ded41a11e3",
   "name": "Humanis Policlub Member",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/humanis-policlub-member.webp",
   "system": {
     "biography": "<p>Belongs to an organisation that opposes all legal rights for the Awakened, especially metahumans. They have been known to twist and bend existing laws whenever possible in order to further their own aims.</p>\n<p><strong>Note:</strong> The individual member will have 1D6 other members he can call on to help him. Humanis members tend to be pack-animals.</p>\n<p><strong>Professional Rating:</strong> 1-3 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.208.</em></p>",
     "race": "human",
@@ -278,7 +278,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/humanis-policlub-member.webp"
     },
     "lockRotation": true
   },

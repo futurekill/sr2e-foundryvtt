@@ -469,6 +469,7 @@
           "name": "Actors",
           "sorting": "a",
           "packs": [
+            "contact-npcs",
             "critters",
             "runners",
             "vehicles",

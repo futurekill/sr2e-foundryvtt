@@ -2,7 +2,7 @@
   "_id": "b108ff3a420b26fc",
   "name": "Bartender",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/bartender.webp",
   "system": {
     "biography": "<p>A common source of information on current conditions in the streets and on the club circuit. Discreet and reliable, for a price.</p>\n<p><strong>Professional Rating:</strong> 1</p>\n<p><em>Shadowrun, Second Edition, p.203.</em></p>",
     "race": "human",
@@ -278,7 +278,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/bartender.webp"
     },
     "lockRotation": true
   },

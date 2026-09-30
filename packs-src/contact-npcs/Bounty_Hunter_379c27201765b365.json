@@ -2,7 +2,7 @@
   "_id": "379c27201765b365",
   "name": "Bounty Hunter",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/bounty-hunter.webp",
   "system": {
     "biography": "<p>A hard woman who tracks the people corporate cops and hitmen have no time for. Very good at what she does.</p>\n<p><strong>Cyberware:</strong> Cyberarm (Strength 1), Cybereyes with Thermographic Imaging, Smartlink, Wired Reflexes (2)</p>\n<p><strong>Augmented:</strong> strength 6, reaction 8 — the figure the book prints in parentheses.</p>\n<p><strong>Professional Rating:</strong> 3-4 (the sheet stores 3; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.203.</em></p>",
     "race": "human",
@@ -478,7 +478,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/bounty-hunter.webp"
     },
     "lockRotation": true
   },

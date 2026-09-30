@@ -2,7 +2,7 @@
   "_id": "03fa298e4c278939",
   "name": "Elven Hitman",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/elven-hitman.webp",
   "system": {
     "biography": "<p>Slick, smooth, and he knows it. The quintessential gentleman-assassin — impeccably dressed, accessories of the finest quality, with just a hint of dangerous arrogance. Unless he loses his temper.</p>\n<p><strong>Cyberware:</strong> Wired Reflexes (2), Smartlink</p>\n<p><strong>Augmented:</strong> reaction 9 — the figure the book prints in parentheses.</p>\n<p><strong>Professional Rating:</strong> 3-4 (the sheet stores 3; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.206.</em></p>",
     "race": "elf",
@@ -398,7 +398,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/elven-hitman.webp"
     },
     "lockRotation": true
   },

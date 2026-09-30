@@ -2,7 +2,7 @@
   "_id": "41aefd8460e8ed46",
   "name": "Corporate Security Guard",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/corporate-security-guard.webp",
   "system": {
     "biography": "<p>A simple man more interested in his own private life and survival than in dangerous action. Values his position and works in the corporation's best interests, especially when an official is watching.</p>\n<p><strong>Professional Rating:</strong> 2</p>\n<p><em>Shadowrun, Second Edition, p.205.</em></p>",
     "race": "human",
@@ -238,7 +238,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/corporate-security-guard.webp"
     },
     "lockRotation": true
   },

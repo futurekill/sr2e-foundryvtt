@@ -2,7 +2,7 @@
   "_id": "0ed49f5f47b22d1d",
   "name": "Mechanic",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/mechanic.webp",
   "system": {
     "biography": "<p>The person to see when your transport is down. She also does custom work.</p>\n<p><strong>Professional Rating:</strong> 1-2 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.208.</em></p>",
     "race": "human",
@@ -318,7 +318,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/mechanic.webp"
     },
     "lockRotation": true
   },

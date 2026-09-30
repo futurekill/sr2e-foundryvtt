@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added — portraits for the 22 core contacts
+- Every contact in **SR2E Contacts (NPCs)** has a painted portrait and token, based
+  on its illustration in the core book (p.203–213), each in a setting of its own:
+  the Bartender behind his bar, the Talismonger in her shop, and so on.
+- The pack now sits in the **Core Rules → Actors** compendium folder.
+
 ## 0.101.0 — 2026-09-30
 
 ### Added — Matrix jackpoints: jacking in moves the decker's view to a Matrix map

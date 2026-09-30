@@ -2,7 +2,7 @@
   "_id": "0622b3d0d53978b1",
   "name": "Street Cop",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/street-cop.webp",
   "system": {
     "biography": "<p>A slightly disillusioned, frustrated but still determined servant of the law. Works for an independent corporation rather than the government, which means better benefits but lesser prestige. Some have succumbed to the temptations of their positions and become bad cops, but most remain true to their honor.</p>\n<p><strong>Professional Rating:</strong> 2</p>\n<p><em>Shadowrun, Second Edition, p.211.</em></p>",
     "race": "human",
@@ -318,7 +318,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/street-cop.webp"
     },
     "lockRotation": true
   },

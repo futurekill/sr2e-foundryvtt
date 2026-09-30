@@ -2,7 +2,7 @@
   "_id": "8f26212ba70d978d",
   "name": "Company Man",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/company-man.webp",
   "system": {
     "biography": "<p>The special executive agent for the corporation. He does his job, no questions asked. Loyal, often unto death — after all, the corporation can even fix that.</p>\n<p><strong>Cyberware:</strong> Wired Reflexes (1), Skillwires (5)</p>\n<p><strong>Augmented:</strong> reaction 6 — the figure the book prints in parentheses.</p>\n<p><strong>Professional Rating:</strong> 3</p>\n<p><em>Shadowrun, Second Edition, p.204.</em></p>",
     "race": "human",
@@ -278,7 +278,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/company-man.webp"
     },
     "lockRotation": true
   },

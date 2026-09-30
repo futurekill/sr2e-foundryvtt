@@ -154,7 +154,7 @@ function npcActor(c) {
   for (const [n, r] of Object.entries(c.special ?? {})) items.push(skillItem(c.name, n, r, skillCategory(n, true)));
 
   return {
-    _id: aid, name: c.name, type: "npc", img: "icons/svg/mystery-man.svg",
+    _id: aid, name: c.name, type: "npc", img: portrait(c.name),
     system: {
       biography: bioBits, race: c.race, professionalRating: c.pr,
       // The book's figure in parentheses is applied as a MOD on the printed base, for
@@ -177,9 +177,18 @@ function npcActor(c) {
     },
     items, effects: [], flags: {}, _stats: stats(), folder: null, sort: 0,
     prototypeToken: { name: c.name, actorLink: false, disposition: 0,
-                      texture: { src: "icons/svg/mystery-man.svg" }, lockRotation: true },
+                      texture: { src: portrait(c.name) }, lockRotation: true },
     ownership: { default: 0 }, _key: `!actors!${aid}`
   };
+}
+
+// Portraits (tools/gen-contact-portraits.sh, based on the book's contact art,
+// p.203-213) are picked up by FILE, so re-running this generator keeps them —
+// hardcoding the silhouette here would silently un-wire every portrait.
+function portrait(name) {
+  const slug = name.toLowerCase().replace(/['’.]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const rel = `assets/contact_portraits/${slug}.webp`;
+  return existsSync(rel) ? `systems/sr2e/${rel}` : "icons/svg/mystery-man.svg";
 }
 
 // ── write ──────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
   "_id": "1a5b55cacb4816db",
   "name": "Street Doc",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/street-doc.webp",
   "system": {
     "biography": "<p>May be a quack, or may be a top-flight surgeon, but either way he is an outlaw's best friend. Keeps his mouth shut and will not report any suspicious wounds to the corp-sec or register your augmentations with the manufacturer for full-warranty coverage. He has his own skeletons in the closet.</p>\n<p><strong>Cyberware:</strong> Datajack</p>\n<p><strong>Professional Rating:</strong> 1-2 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.211.</em></p>",
     "race": "human",
@@ -238,7 +238,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/street-doc.webp"
     },
     "lockRotation": true
   },

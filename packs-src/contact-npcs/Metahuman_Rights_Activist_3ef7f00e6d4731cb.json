@@ -2,7 +2,7 @@
   "_id": "3ef7f00e6d4731cb",
   "name": "Metahuman Rights Activist",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/metahuman-rights-activist.webp",
   "system": {
     "biography": "<p>Believes in equal justice before the law — and that any unjust law deserves to be broken. A mortal foe of the Humanis cultists.</p>\n<p><strong>Professional Rating:</strong> 2-3 (the sheet stores 2; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.209.</em></p>",
     "race": "human",
@@ -238,7 +238,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/metahuman-rights-activist.webp"
     },
     "lockRotation": true
   },

@@ -2,7 +2,7 @@
   "_id": "5f577a5da0fcdb18",
   "name": "Mr. Johnson",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/mr-johnson.webp",
   "system": {
     "biography": "<p>May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him.</p>\n<p><strong>Cyberware:</strong> Datajack, 200 Mp of Memory</p>\n<p><strong>Professional Rating:</strong> 2-3 (the sheet stores 2; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.210.</em></p>",
     "race": "human",
@@ -278,7 +278,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/mr-johnson.webp"
     },
     "lockRotation": true
   },

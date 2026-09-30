@@ -2,7 +2,7 @@
   "_id": "0e0d2cabcfca3200",
   "name": "Talismonger",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/talismonger.webp",
   "system": {
     "biography": "<p>A broker of magical goods and services, sort of an occult middle-woman. Sometimes she will moonlight as a fence for stolen magical materials as well as information.</p>\n<p><strong>Professional Rating:</strong> 1-2 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.212.</em></p>",
     "race": "human",
@@ -364,7 +364,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/talismonger.webp"
     },
     "lockRotation": true
   },

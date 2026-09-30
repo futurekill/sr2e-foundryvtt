@@ -2,7 +2,7 @@
   "_id": "673d756364e1d9cf",
   "name": "Tribal Chief",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/tribal-chief.webp",
   "system": {
     "biography": "<p>Strives to uphold the sacred lodge of his people, but must also deal with the wider world and the corporations if he is to guide his tribe well. He therefore makes it a point to know what is going on around him at all times.</p>\n<p><strong>Professional Rating:</strong> 1-2 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.212.</em></p>",
     "race": "human",
@@ -358,7 +358,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/tribal-chief.webp"
     },
     "lockRotation": true
   },

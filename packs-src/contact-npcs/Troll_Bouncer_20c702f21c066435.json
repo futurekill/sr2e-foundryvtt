@@ -2,7 +2,7 @@
   "_id": "20c702f21c066435",
   "name": "Troll Bouncer",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/troll-bouncer.webp",
   "system": {
     "biography": "<p>Popular in many clubs, and not just the tougher ones. Any club owner would rather see a double-marker leave without causing a commotion, and a troll is just the one to get the job done. Few drunks will argue with a mountain of muscle.</p>\n<p><strong>Professional Rating:</strong> 2-3 (the sheet stores 2; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.213.</em></p>",
     "race": "troll",
@@ -238,7 +238,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/troll-bouncer.webp"
     },
     "lockRotation": true
   },

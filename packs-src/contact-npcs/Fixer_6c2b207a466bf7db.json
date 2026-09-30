@@ -2,7 +2,7 @@
   "_id": "6c2b207a466bf7db",
   "name": "Fixer",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/fixer.webp",
   "system": {
     "biography": "<p>A fence and/or arranger, a power broker of the streets who always has the latest in software, equipment, or information. All for a price.</p>\n<p><strong>Cyberware:</strong> Cybereyes, Datajack, 300 Mp of Memory</p>\n<p><strong>Professional Rating:</strong> 2-3 (the sheet stores 2; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.207.</em></p>",
     "race": "human",
@@ -358,7 +358,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/fixer.webp"
     },
     "lockRotation": true
   },

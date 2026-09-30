@@ -2,7 +2,7 @@
   "_id": "b4d7dd891be59f5c",
   "name": "Dwarf Technician",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/dwarf-technician.webp",
   "system": {
     "biography": "<p>Nobody appreciates good craftsmanship any more. Works harder than anyone and would never admit that stereotype fits.</p>\n<p><strong>Cyberware:</strong> Datajack, 200 Mp of Memory</p>\n<p><strong>Professional Rating:</strong> 1-2 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.206.</em></p>",
     "race": "dwarf",
@@ -278,7 +278,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/dwarf-technician.webp"
     },
     "lockRotation": true
   },

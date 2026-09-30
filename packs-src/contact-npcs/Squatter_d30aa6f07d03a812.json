@@ -2,7 +2,7 @@
   "_id": "d30aa6f07d03a812",
   "name": "Squatter",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/squatter.webp",
   "system": {
     "biography": "<p>A rough victim of the underside of the metroplex, hardened and beaten down by life in the slums. A survivor who tries to roll with the punches and still wants to see another day in one piece.</p>\n<p><strong>Professional Rating:</strong> 1-2 (the sheet stores 1; the book prints a range)</p>\n<p><em>Shadowrun, Second Edition, p.210.</em></p>",
     "race": "human",
@@ -198,7 +198,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/squatter.webp"
     },
     "lockRotation": true
   },

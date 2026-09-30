@@ -2,7 +2,7 @@
   "_id": "042772dd080758db",
   "name": "Media Producer",
   "type": "npc",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/media-producer.webp",
   "system": {
     "biography": "<p>An entertainment entrepreneur who draws a very fine line between news information and entertainment. Knows what is newsworthy, and how to present a story in a way that will not leave anybody too upset. Broadcasting is a business, after all.</p>\n<p><strong>Professional Rating:</strong> 2</p>\n<p><em>Shadowrun, Second Edition, p.209.</em></p>",
     "race": "human",
@@ -358,7 +358,7 @@
     "actorLink": false,
     "disposition": 0,
     "texture": {
-      "src": "icons/svg/mystery-man.svg"
+      "src": "systems/sr2e/assets/contact_portraits/media-producer.webp"
     },
     "lockRotation": true
   },
