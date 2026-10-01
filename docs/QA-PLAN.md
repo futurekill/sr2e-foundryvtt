@@ -294,6 +294,25 @@ and any **red console errors**. File them wherever the group tracks issues
       are closed once decided. Ghoul (critters pack) has "Dual-natured" ticked and an
       Astral button.
 
+- [ ] **Astral movement through walls (p.145)** (`sr2e.astral-walls` batch):
+      - An astral-only token drags straight through an ordinary wall and a closed
+        door, and its vision is still blocked by the wall.
+      - The same character's physical token is stopped.
+      - Wall config → "Astral barrier":
+        - Living wall stops both tokens, and its doors open and close normally.
+        - Ward / circle (drawn with movement None) stops only the astral token.
+        - Barrier walls show green on the Walls layer for the GM.
+      - Scene config → "Astral forms pass walls" set to Off: everything blocks again.
+- [ ] **Projection leaves the body (p.146)** (`sr2e.astral-forms` batch):
+      - With a GM connected, a player sets their linked character to Projecting.
+        A translucent "(astral)" token appears on the body, and the body gets a
+        violet ring.
+      - Moving the form leaves the body behind.
+      - Setting None removes the form.
+      - If the body was moved meanwhile, the GM gets a whisper about the 6-hour search.
+      - With no GM connected, the player gets a warning; the form appears once the
+        GM logs in.
+
 ## 10. Matrix (decking)
 - [ ] On a decker (MPCP > 0) Matrix tab: set cyberdeck stats; load persona programs → persona attrs derive (capped at MPCP).
 - [ ] **Jack In** → roll initiative shows **" — Matrix"** (1d6 + natural Reaction, +response; ignores wired/magic/VCR).

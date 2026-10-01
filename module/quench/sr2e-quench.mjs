@@ -8611,6 +8611,182 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Matrix jackpoints (perception shift)" });
 
+    // ── Astral movement through walls (docs/PLAN-astral-barriers.md, Stage 1) ──
+    quench.registerBatch("sr2e.astral-walls", (context) => {
+      const { it, assert, before, after } = context;
+      let scene, astral, body, startScene;
+      const made = { actors: [] };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      // One test row per wall, 200 px apart; every wall is vertical at x = 400.
+      const ROWS = { plain: 150, living: 350, ward: 550, plainDoor: 750, livingDoorOpen: 950, livingDoorShut: 1150 };
+      const W = (row, extra = {}) => ({ c: [400, ROWS[row] - 90, 400, ROWS[row] + 90], ...extra });
+      before(async function () {
+        this.timeout(30000);
+        startScene = canvas.scene?.id;
+        [scene] = await Scene.createDocuments([{ name: "Quench Astral Walls", width: 1000, height: 1300,
+          grid: { size: 100, distance: 1, units: "m" }, navigation: false }]);
+        const NONE = CONST.WALL_SENSE_TYPES.NONE, DOOR = CONST.WALL_DOOR_TYPES.DOOR, S = CONST.WALL_DOOR_STATES;
+        await scene.createEmbeddedDocuments("Wall", [
+          W("plain"),
+          W("living", { flags: { sr2e: { astralBarrier: "living" } } }),
+          W("ward", { move: NONE, sight: NONE, light: NONE, sound: NONE, flags: { sr2e: { astralBarrier: "ward" } } }),
+          W("plainDoor", { door: DOOR, ds: S.CLOSED }),
+          W("livingDoorOpen", { door: DOOR, ds: S.OPEN, flags: { sr2e: { astralBarrier: "living" } } }),
+          W("livingDoorShut", { door: DOOR, ds: S.CLOSED, flags: { sr2e: { astralBarrier: "living" } } })]);
+        const a = await Actor.create({ name: "Quench Astral Mage", type: "character", prototypeToken: { actorLink: true } });
+        made.actors.push(a.id);
+        const proto = (await a.getTokenDocument()).toObject();
+        await scene.createEmbeddedDocuments("Token", [
+          { ...proto, name: "astral", x: 100, y: 100, flags: { sr2e: { astralOnly: true } } },
+          { ...proto, name: "body", x: 100, y: 100 }]);
+        await scene.view(); await wait(1000);
+        astral = scene.tokens.find(t => t.name === "astral");
+        body = scene.tokens.find(t => t.name === "body");
+      });
+      after(async function () {
+        this.timeout(30000);
+        const back = game.scenes.get(startScene);
+        if (back) await back.view();
+        if (scene && game.scenes.has(scene.id)) await scene.delete();
+        const ids = made.actors.filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+      /** Does `tok` collide crossing the wall on `row` (left of x=400 to the right of it)? */
+      const blocked = async (tok, row) => {
+        await tok.update({ x: 100, y: ROWS[row] - 50 }, { animate: false, sr2eBypassMovement: true });
+        await wait(50);
+        return !!tok.object.checkCollision({ x: 650, y: ROWS[row] }, { origin: { x: 150, y: ROWS[row] } });
+      };
+
+      it("a token on the astral plane walks through an ordinary wall and a closed door; a body does not", async () => {
+        assert.isFalse(await blocked(astral, "plain"), "astral passes a plain wall");
+        assert.isFalse(await blocked(astral, "plainDoor"), "astral passes a closed plain door");
+        assert.isTrue(await blocked(body, "plain"), "the body is blocked");
+        assert.isTrue(await blocked(body, "plainDoor"));
+      });
+      it("living walls stop both; their doors work normally", async () => {
+        assert.isTrue(await blocked(astral, "living"));
+        assert.isTrue(await blocked(body, "living"));
+        assert.isFalse(await blocked(astral, "livingDoorOpen"), "an open living-wall door lets the astral form through");
+        assert.isTrue(await blocked(astral, "livingDoorShut"), "a shut one doesn't");
+      });
+      it("a ward stops only astral movement", async () => {
+        assert.isTrue(await blocked(astral, "ward"));
+        assert.isFalse(await blocked(body, "ward"));
+      });
+      it("the scene switch turns it off: everything blocks again", async () => {
+        await scene.setFlag("sr2e", "astralWalls", "off");
+        try {
+          assert.isTrue(await blocked(astral, "plain"));
+        } finally { await scene.unsetFlag("sr2e", "astralWalls"); }
+        assert.isFalse(await blocked(astral, "plain"), "back on with the world default");
+      });
+      it("a plain boolean scene flag is honoured too", async () => {
+        await scene.setFlag("sr2e", "astralWalls", false);
+        try { assert.isTrue(await blocked(astral, "plain")); }
+        finally { await scene.unsetFlag("sr2e", "astralWalls"); }
+      });
+      it("the GM tint follows the flag, including unsetFlag", async () => {
+        const wall = scene.walls.find(w => w.getFlag("sr2e", "astralBarrier") === "living");
+        // Walls only redraw while their layer is shown — the cue is an editing aid.
+        canvas.walls.activate();
+        wall.object.renderFlags.set({ refreshLine: true });
+        await wait(400); wall.object.applyRenderFlags();  // the ticker may be paused in a hidden tab
+        assert.equal(wall.object.line.tint, 0x3fbf5f);
+        await wall.unsetFlag("sr2e", "astralBarrier");
+        await wait(300); wall.object.applyRenderFlags();
+        assert.equal(wall.object.line.tint, 0xFFFFFF, "cleared");
+        await wall.setFlag("sr2e", "astralBarrier", "living");
+        await wait(300); wall.object.applyRenderFlags();
+        assert.equal(wall.object.line.tint, 0x3fbf5f);
+        canvas.tokens.activate();
+      });
+    }, { displayName: "SR2E: Astral movement through walls (p.145)" });
+
+    // ── Projection leaves the body (docs/PLAN-astral-barriers.md, Stage 2) ──
+    quench.registerBatch("sr2e.astral-forms", (context) => {
+      const { it, assert, before, after } = context;
+      let F, scene, startScene;
+      const made = { actors: [] };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      before(async function () {
+        this.timeout(30000);
+        F = await import("../astral-forms.mjs");
+        startScene = canvas.scene?.id;
+        [scene] = await Scene.createDocuments([{ name: "Quench Astral Forms", width: 1000, height: 800,
+          grid: { size: 100, distance: 1, units: "m" }, navigation: false }]);
+        await scene.view(); await wait(800);
+      });
+      after(async function () {
+        this.timeout(30000);
+        const back = game.scenes.get(startScene);
+        if (back) await back.view();
+        if (scene && game.scenes.has(scene.id)) await scene.delete();
+        const ids = made.actors.filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+      const mage = async (extra = {}) => {
+        const a = await Actor.create({ name: "Quench Projector", type: "character", prototypeToken: { actorLink: true } });
+        made.actors.push(a.id);
+        const [body] = await scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x: 200, y: 200, actorLink: true, ...extra }]);
+        await F.astralReconcileIdle();
+        return { a, body: scene.tokens.get(body.id) };
+      };
+      const formsOf = (body) => scene.tokens.filter(t => t.getFlag("sr2e", "astralForm") === body.uuid);
+
+      it("projecting makes exactly one astral form on the body's spot; returning removes it", async function () {
+        this.timeout(20000);
+        const { a, body } = await mage();
+        assert.lengthOf(formsOf(body), 0);
+        await a.update({ "system.astralState": "projecting" });
+        await F.astralReconcileIdle();
+        const forms = formsOf(body);
+        assert.lengthOf(forms, 1);
+        assert.isTrue(!!forms[0].getFlag("sr2e", "astralOnly"));
+        assert.deepEqual([forms[0].x, forms[0].y], [body.x, body.y]);
+        assert.isTrue(F.isBodyToken(body), "the body is marked");
+        assert.isFalse(F.isBodyToken(forms[0]), "the form is not a body");
+        await a.update({ "system.astralState": "none" });
+        await F.astralReconcileIdle();
+        assert.lengthOf(formsOf(body), 0);
+      });
+
+      it("a duplicate form is removed (lowest id survives); a lost form is rebuilt on handoff", async function () {
+        this.timeout(20000);
+        const { a, body } = await mage();
+        await a.update({ "system.astralState": "projecting" });
+        await F.astralReconcileIdle();
+        const [first] = formsOf(body);
+        const [dup] = await scene.createEmbeddedDocuments("Token", [{ ...first.toObject(), _id: undefined }]);
+        const lowest = [first.id, dup.id].sort()[0];
+        await F.astralReconcileIdle();
+        const left = formsOf(body);
+        assert.lengthOf(left, 1);
+        assert.equal(left[0].id, lowest, "the lowest id survives");
+        await left[0].delete();
+        await F.astralReconcileIdle();          // deleteToken itself reschedules
+        assert.lengthOf(formsOf(body), 1, "rebuilt");
+        await a.update({ "system.astralState": "none" });
+        await F.astralReconcileIdle();
+      });
+
+      it("deleting the body removes its form; a persona token gets none", async function () {
+        this.timeout(20000);
+        const { a, body } = await mage();
+        const [persona] = await scene.createEmbeddedDocuments("Token", [{ ...body.toObject(), _id: undefined, x: 600, y: 600,
+          flags: { sr2e: { persona: true } } }]);
+        await a.update({ "system.astralState": "projecting" });
+        await F.astralReconcileIdle();
+        assert.lengthOf(formsOf(scene.tokens.get(persona.id)), 0, "no form for the persona");
+        assert.lengthOf(formsOf(body), 1);
+        const bodyUuid = body.uuid;
+        await body.delete();
+        await F.astralReconcileIdle();
+        assert.lengthOf(scene.tokens.filter(t => t.getFlag("sr2e", "astralForm") === bodyUuid), 0);
+        await a.update({ "system.astralState": "none" });
+      });
+    }, { displayName: "SR2E: Astral projection leaves the body (p.146)" });
+
 
 
 

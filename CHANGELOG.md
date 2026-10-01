@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Added — astral forms walk through walls; projection leaves the body
+- **On the astral plane, walls don't stop you** (SR2E p.145):
+  - An astral form or an unmanifested spirit moves through ordinary walls and
+    closed doors.
+  - Walls still block its sight, and physical bodies are unaffected (including a
+    mage who is only perceiving).
+  - **Existing unmanifested spirit tokens now pass walls too**, which is the rule.
+- **Astral barriers:** a new "Astral barrier" option in the wall config.
+  - A **living wall** or **fat-bacteria** wall stops everyone, and its doors work.
+  - A **ward / circle** stops only astral forms.
+  - The GM sees barrier walls in green on the Walls layer.
+  - Each scene can turn the feature off (Scene config), and there's a world
+    default.
+- **Projection leaves the body** (p.146):
+  - When a linked character starts projecting, an "(astral)" form token appears
+    where they stand, and the body stays behind with a violet ring.
+  - Ending projection removes the form.
+  - If someone moved the body meanwhile, the GM is reminded of the search for it.
+  - The GM's client creates the form (players can't create tokens by default), so
+    a GM must be connected.
+  - Unlinked NPC mages are handled as before: mark a token astral-only.
+
+
 ### Added — portraits for the 22 core contacts
 - Every contact in **SR2E Contacts (NPCs)** has a painted portrait and token, based
   on its illustration in the core book (p.203–213), each in a setting of its own:

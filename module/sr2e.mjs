@@ -27,6 +27,8 @@ import { registerSpiritServiceHooks } from "./spirit-services.mjs";
 import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs";
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
+import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
+import { registerAstralFormHooks } from "./astral-forms.mjs";
 
 // Sheets
 import {
@@ -443,6 +445,9 @@ Hooks.once("init", async () => {
   registerCalendariaHooks();
   registerJackpointBehavior();
   registerJackpointHooks();
+  registerAstralWalls();
+  registerAstralWallHooks();
+  registerAstralFormHooks();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 

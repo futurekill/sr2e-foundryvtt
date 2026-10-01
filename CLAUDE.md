@@ -232,6 +232,20 @@ check `workingImplant(actor, item)` (Kamikaze can burn them out), never just
 {only})`), never fire `updateWorldTime` with invented times at every ledger.
 See docs/PLAN-addiction.md.
 
+## Astral walls and forms
+`module/astral-walls.mjs` subclasses the registered MOVE polygon backend
+(`CONFIG.Canvas.polygonBackends.move`): tokens on the astral plane
+(`isOnAstralPlane`: `flags.sr2e.astralForm` or `astralOnly`, NEVER the actor's
+astralState) skip ordinary walls. They're stopped by walls flagged
+`flags.sr2e.astralBarrier` (living / fab via core rules; ward regardless of its
+physical move). Pure decisions are in `module/rules/astral-rules.mjs`.
+`module/astral-forms.mjs` creates and removes projection forms on the ACTIVE GM
+only (players lack TOKEN_CREATE; no socket), via a debounced per-scene
+desired-state reconcile (`desiredForms`). Duplicates converge on the lowest id.
+Walls only redraw while their layer is shown, and nothing redraws in a hidden
+tab: Quench tests call `applyRenderFlags()` themselves.
+See docs/PLAN-astral-barriers.md.
+
 ## Matrix jackpoints
 `module/jackpoints.mjs` (+ pure decisions in `module/rules/jackpoint-rules.mjs`):
 a `jackpoint` Region Behaviour (declared in system.json `documentTypes` — adding
