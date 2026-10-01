@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.102.0 — 2026-10-01
 
 ### Added — astral forms walk through walls; projection leaves the body
 - **On the astral plane, walls don't stop you** (SR2E p.145):
