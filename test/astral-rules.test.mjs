@@ -2,7 +2,8 @@
 // Corporate Security Handbook p.37–39, p.103).
 import { describe, it, expect } from "vitest";
 import { isOnAstralPlane, astralBarrierKind, astralEdgeDecision, sceneAstralWalls,
-  isProjectingBody, desiredForms, bodyMovedWhileOut } from "../module/rules/astral-rules.mjs";
+  isProjectingBody, desiredForms, bodyMovedWhileOut,
+  fabSearchTN, fabSearchResult, fabRevealValid, astralCaps, chargeAstralMove, astralMoveDecision } from "../module/rules/astral-rules.mjs";
 
 describe("who is on the astral plane", () => {
   it("an astral form or an astral-only token is; a body is not", () => {
@@ -78,5 +79,63 @@ describe("projection: which tokens are bodies", () => {
     expect(bodyMovedWhileOut({ x: 1, y: 2 }, { x: 1, y: 2 })).toBe(false);
     expect(bodyMovedWhileOut({ x: 1, y: 2 }, { x: 5, y: 2 })).toBe(true);
     expect(bodyMovedWhileOut(null, { x: 5, y: 2 })).toBe(false);
+  });
+});
+
+describe("FAB-UV search (CSH p.103)", () => {
+  it("TN 6, +1 per 50 m² or part, −1 per two searchers, minimum 2", () => {
+    expect(fabSearchTN(0, 1)).toBe(6);
+    expect(fabSearchTN(50, 1)).toBe(7);
+    expect(fabSearchTN(51, 1)).toBe(8);
+    expect(fabSearchTN(100, 4)).toBe(6);
+    expect(fabSearchTN(0, 20)).toBe(2);
+  });
+  it("attack penalty for net successes 0 through 6", () => {
+    const p = n => fabSearchResult(n).penalty;
+    expect([0, 1, 2, 3, 4, 5, 6].map(p)).toEqual([null, 4, 3, 2, 1, 0, 0]);
+    expect(fabSearchResult(0).spotted).toBe(false);
+  });
+  it("an aware intruder's Stealth successes cancel searcher successes", () => {
+    expect(fabSearchResult(3, 2)).toEqual({ net: 1, spotted: true, penalty: 4 });
+    expect(fabSearchResult(2, 3)).toEqual({ net: 0, spotted: false, penalty: null });
+  });
+});
+
+describe("FAB-UV reveal validity", () => {
+  const behavior = { strain: "fabuv", uvLit: true, uvEpoch: 2, disabled: false };
+  const record = { extra: 1, epoch: 2, gen: 0 };
+  it("live only with UV on, the same epoch and exit generation, inside", () => {
+    expect(fabRevealValid({ record, behavior, exitGen: 0, inside: true })).toBe(true);
+    expect(fabRevealValid({ record, behavior: { ...behavior, uvLit: false }, inside: true })).toBe(false);
+    expect(fabRevealValid({ record, behavior: { ...behavior, disabled: true }, inside: true })).toBe(false);
+    expect(fabRevealValid({ record, behavior: { ...behavior, strain: "fab1" }, inside: true })).toBe(false);
+    expect(fabRevealValid({ record, behavior: { ...behavior, uvEpoch: 3 }, inside: true })).toBe(false, "UV cycled");
+    expect(fabRevealValid({ record, behavior, exitGen: 1, inside: true })).toBe(false, "left and came back");
+    expect(fabRevealValid({ record, behavior, inside: false })).toBe(false);
+    expect(fabRevealValid({ record, behavior: null, inside: true })).toBe(false);
+  });
+});
+
+describe("astral speed (SR2 p.146) and FAB (CSH p.103)", () => {
+  const caps = astralCaps({ astralQuickness: 6, magic: 5 });
+  it("normal = Astral Quickness × 4; fast = Magic × 1000", () => {
+    expect(caps).toEqual({ normal: 24, fast: 5000 });
+  });
+  it("fast 100 m outside, then 1 m into FAB, is legal; normal metres inside FAB over 24 are not", () => {
+    let l = astralMoveDecision({}, chargeAstralMove({ metres: 100, fast: true }), caps);
+    expect(l.allowed).toBe(true);
+    l = astralMoveDecision(l, chargeAstralMove({ metres: 1, fabMetres: 1, fast: true }), caps);
+    expect(l).toMatchObject({ allowed: true, normal: 1, fast: 100 });
+    expect(astralMoveDecision({}, chargeAstralMove({ metres: 30, fabMetres: 30, fast: true }), caps).over).toBe("normal");
+  });
+  it("slowing down never re-charges earlier fast travel", () => {
+    const l = astralMoveDecision({ normal: 0, fast: 100 }, chargeAstralMove({ metres: 1, fast: false }), caps);
+    expect(l).toMatchObject({ allowed: true, normal: 1, fast: 100 });
+  });
+  it("a split route costs the same as the unsplit one", () => {
+    const one = astralMoveDecision({}, chargeAstralMove({ metres: 20, fabMetres: 8, fast: true }), caps);
+    let two = astralMoveDecision({}, chargeAstralMove({ metres: 12, fabMetres: 0, fast: true }), caps);
+    two = astralMoveDecision(two, chargeAstralMove({ metres: 8, fabMetres: 8, fast: true }), caps);
+    expect([two.normal, two.fast]).toEqual([one.normal, one.fast]);
   });
 });

@@ -113,7 +113,8 @@
       }
     },
     "RegionBehavior": {
-      "jackpoint": {}
+      "jackpoint": {},
+      "fatBacteria": {}
     }
   },
   "grid": {

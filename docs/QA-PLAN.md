@@ -313,6 +313,18 @@ and any **red console errors**. File them wherever the group tracks issues
       - With no GM connected, the player gets a warning; the form appears once the
         GM logs in.
 
+- [ ] **Fat bacteria zones (CSH p.103)** (`sr2e.fab` batch; server restart after
+      updating, for the new behaviour type):
+      - Add a "Fat bacteria zone" behaviour to a region.
+      - In combat with the movement limit on, a projecting mage's form can't move
+        more than Intelligence × 4 m inside the zone in one phase.
+      - The HUD fast toggle lets it cross the open map, but the zone still charges
+        normal speed.
+      - The HUD Assense button rolls Sorcery or Conjuring, +4 inside the zone.
+      - FAB-UV with UV on: select guards, then "Search for astral intruders" in
+        the behaviour's sheet. The rolls are whispered to the GM; a spotted
+        astral-only token appears for players and disappears when UV goes off.
+
 ## 10. Matrix (decking)
 - [ ] On a decker (MPCP > 0) Matrix tab: set cyberdeck stats; load persona programs → persona attrs derive (capped at MPCP).
 - [ ] **Jack In** → roll initiative shows **" — Matrix"** (1d6 + natural Reaction, +response; ignores wired/magic/VCR).

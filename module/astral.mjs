@@ -13,6 +13,7 @@
  */
 
 import { astralAllowsView } from "./rules/sr2e-rules.mjs";
+import { fabRevealed } from "./fab.mjs";
 
 /** Whether an actor is astrally active (perceiving or projecting). */
 function isAstralActive(actor) {
@@ -69,7 +70,8 @@ globalThis.Hooks?.once("init", () => {
         ownsToken: !!this.actor?.isOwner,
         friendly: this.document?.disposition === CONST.TOKEN_DISPOSITIONS.FRIENDLY,
         isSummoner: ownsConjurerOf(this),
-        viewerAstralActive: viewerAstralActive()
+        viewerAstralActive: viewerAstralActive(),
+        revealed: fabRevealed(this.document)
       })) return false;
       return super.isVisible;
     }

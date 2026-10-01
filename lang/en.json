@@ -446,7 +446,8 @@
   "SR2E.Settings.DiceSourceNone": "Off — a single plain row",
   "TYPES": {
     "RegionBehavior": {
-      "jackpoint": "Matrix jackpoint"
+      "jackpoint": "Matrix jackpoint",
+      "fatBacteria": "Fat bacteria zone"
     }
   }
 }

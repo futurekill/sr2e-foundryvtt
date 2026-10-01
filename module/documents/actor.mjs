@@ -510,7 +510,9 @@ export class SR2EActor extends Actor {
       content: renderSuccessTestCard(state),
       // Callers may tag the test at creation (a ritual stage), so it never
       // exists untagged.
-      flags: foundry.utils.mergeObject(options.flags ?? {}, { sr2e: { test: state } }, { inplace: false })
+      flags: foundry.utils.mergeObject(options.flags ?? {}, { sr2e: { test: state } }, { inplace: false }),
+      // A GM-only roll (e.g. an unseen intruder's Stealth during a FAB-UV search).
+      ...(options.whisperGM ? { whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id) } : {})
     });
 
     // --- Reduce pools / karma that were used ---
@@ -979,6 +981,7 @@ export class SR2EActor extends Actor {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // Centering (Grimoire p.44) was being dropped here — pass it through.
       centeringReduction: options.centeringReduction,
+      ...(options.whisperGM ? { whisperGM: true } : {}),
       ...(attribute === "body" ? this._bodyTestOpts() : {})
     });
   }
@@ -1185,7 +1188,10 @@ export class SR2EActor extends Actor {
       label,
       tnContext: options.tnContext ?? skillTnContext(skey, skill.system.category),
       poolDice: options.poolDice,
-      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
+      // A caller's situational TN (e.g. +4 assensing inside fat bacteria, CSH p.103).
+      ...(options.extraTN ? { extraTN: options.extraTN, extraTNLabel: options.extraTNLabel } : {}),
+      ...(options.whisperGM ? { whisperGM: true } : {})
     });
   }
 

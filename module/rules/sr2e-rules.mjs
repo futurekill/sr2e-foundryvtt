@@ -629,9 +629,10 @@ export function focusCost(force, costPerForce) {
  * @param {{astralOnly:boolean, isGM:boolean, viewerAstralActive:boolean, ownsToken:boolean, friendly?:boolean, isSummoner?:boolean}} p
  * @returns {boolean} whether the astral rule allows the view
  */
-export function astralAllowsView({ astralOnly, isGM, viewerAstralActive, ownsToken, friendly, isSummoner }) {
+export function astralAllowsView({ astralOnly, isGM, viewerAstralActive, ownsToken, friendly, isSummoner, revealed }) {
   if (!astralOnly) return true;
-  return !!(isGM || ownsToken || isSummoner || friendly || viewerAstralActive);
+  // `revealed`: spotted by a still-valid FAB-UV search (Corporate Security Handbook p.103).
+  return !!(isGM || ownsToken || isSummoner || friendly || viewerAstralActive || revealed);
 }
 
 /**

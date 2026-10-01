@@ -244,6 +244,13 @@ only (players lack TOKEN_CREATE; no socket), via a debounced per-scene
 desired-state reconcile (`desiredForms`). Duplicates converge on the lowest id.
 Walls only redraw while their layer is shown, and nothing redraws in a hidden
 tab: Quench tests call `applyRenderFlags()` themselves.
+Fat bacteria (`module/fab.mjs`) is a `fatBacteria` RegionBehavior. Its reveal
+records are validated live, against the behaviour's UV epoch and the token's exit
+generation.
+**Movement limiter contract:** charge `movement.passed` (what this update
+travels), validate `passed + pending`. Foundry splits a move at regions whose
+behaviours listen for enter/exit, and each resumed stretch fires preMoveToken
+again.
 See docs/PLAN-astral-barriers.md.
 
 ## Matrix jackpoints

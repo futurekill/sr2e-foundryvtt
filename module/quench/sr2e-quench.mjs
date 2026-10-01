@@ -1599,11 +1599,13 @@ export function registerSR2EQuenchTests() {
 
       /** Fire the hooks for a move of `metres`. Returns whether it was allowed;
        *  persists the ledger flag on accept so the next call sees it (cumulative). */
-      async function move(token, metres, { method = "dragging", persist = true } = {}) {
+      // A real unsplit V13 move has everything in `passed`; a move split at a
+      // region checkpoint carries the rest in `pending` until it resumes.
+      async function move(token, metres, { method = "dragging", persist = true, pendingMetres = 0 } = {}) {
         const dest = { x: token.x + metres * 100, y: token.y };
         const movement = {
           id: foundry.utils.randomID(), method,
-          passed: { distance: 0 }, pending: { distance: metres },
+          passed: { distance: metres }, pending: { distance: pendingMetres },
           origin: { x: token.x, y: token.y }, destination: dest
         };
         const allowed = Hooks.call("preMoveToken", token, movement, { user: game.user.id }) !== false;
@@ -1636,6 +1638,19 @@ export function registerSR2EQuenchTests() {
 
         it("beyond the running maximum (20 m) is blocked", async () => {
           assert.notOk(await move(env.tok, 20), "20 m exceeds run 15 → blocked");
+        });
+
+        it("a move split at a region checkpoint is charged once per stretch, and the plan is checked up front", async () => {
+          assert.ok(await move(env.tok, 6, { pendingMetres: 4 }), "6 m now, 4 m still to go");
+          assert.equal(spent(), 6, "only the stretch travelled is charged");
+          assert.ok(await move(env.tok, 4), "the resumed 4 m");
+          assert.equal(spent(), 10, "the whole move, counted once");
+          await env.tok.unsetFlag("sr2e", "moveLedger");
+          assert.notOk(await move(env.tok, 10, { pendingMetres: 10 }), "a 20 m plan is refused before the first stretch");
+          assert.ok(await move(env.tok, 2, { pendingMetres: 8 }), "2 m now of a 10 m plan");
+          assert.notOk(ran(), "only 2 m travelled — not running yet");
+          assert.ok(await move(env.tok, 8), "the resumed 8 m");
+          assert.ok(ran(), "now it has run");
         });
 
         it("cumulative: an out-and-back (10 m + 10 m) is blocked on the second leg", async () => {
@@ -8786,6 +8801,165 @@ export function registerSR2EQuenchTests() {
         await a.update({ "system.astralState": "none" });
       });
     }, { displayName: "SR2E: Astral projection leaves the body (p.146)" });
+
+    // ── Fat bacteria zones (docs/PLAN-astral-barriers.md, Stage 3; CSH p.103) ──
+    quench.registerBatch("sr2e.fab", (context) => {
+      const { it, assert, before, after, beforeEach } = context;
+      let FAB, AF, scene, region, behavior, mage, body, form, intruder, combat, startScene, prevLimit;
+      const made = { actors: [] };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      before(async function () {
+        this.timeout(40000);
+        FAB = await import("../fab.mjs"); AF = await import("../astral-forms.mjs");
+        startScene = canvas.scene?.id;
+        prevLimit = game.settings.get("sr2e", "movementLimit");
+        await game.settings.set("sr2e", "movementLimit", true);
+        // 30 m × 10 m; the FAB zone is the 5 m strip x = 10–15 m (50 m²).
+        [scene] = await Scene.createDocuments([{ name: "Quench FAB", width: 3000, height: 1000,
+          grid: { type: CONST.GRID_TYPES.SQUARE, size: 100, distance: 1, units: "m" }, navigation: false }]);
+        [region] = await scene.createEmbeddedDocuments("Region", [{ name: "Quench FAB zone",
+          shapes: [{ type: "rectangle", x: 1000, y: 0, width: 500, height: 1000 }],
+          behaviors: [{ type: "fatBacteria", name: "FAB", system: { strain: "fabuv", uvLit: false } }] }]);
+        behavior = region.behaviors.contents[0];
+        mage = await Actor.create({ name: "Quench FAB Mage", type: "character", prototypeToken: { actorLink: true },
+          system: { intelligence: { base: 6 }, magic: { value: 5, type: "full_magician", tradition: "hermetic" } } });
+        const spook = await Actor.create({ name: "Quench FAB Intruder", type: "character" });
+        made.actors.push(mage.id, spook.id);
+        await scene.view(); await wait(800);
+        const [b] = await scene.createEmbeddedDocuments("Token", [{ ...(await mage.getTokenDocument()).toObject(), x: 100, y: 400, actorLink: true }]);
+        body = scene.tokens.get(b.id);
+        await mage.update({ "system.astralState": "projecting" });
+        await AF.astralReconcileIdle();
+        form = scene.tokens.find(t => t.getFlag("sr2e", "astralForm") === body.uuid);
+        const [i] = await scene.createEmbeddedDocuments("Token", [{ ...(await spook.getTokenDocument()).toObject(), x: 1200, y: 100,
+          flags: { sr2e: { astralOnly: true } } }]);
+        intruder = scene.tokens.get(i.id);
+        combat = await Combat.create({ scene: scene.id });
+        await combat.createEmbeddedDocuments("Combatant", [{ tokenId: body.id, sceneId: scene.id, actorId: mage.id, initiative: 20 }]);
+        await combat.activate(); await combat.startCombat();
+        await combat.update({ turn: 0 });
+        await wait(300);
+      });
+      after(async function () {
+        this.timeout(40000);
+        try { await combat?.delete(); } catch (e) { /* */ }
+        try { await mage?.update({ "system.astralState": "none" }); } catch (e) { /* */ }
+        try { await game.settings.set("sr2e", "movementLimit", prevLimit); } catch (e) { /* */ }
+        const back = game.scenes.get(startScene);
+        if (back) await back.view();
+        if (scene && game.scenes.has(scene.id)) await scene.delete();
+        const ids = made.actors.filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+
+      /** Fire the real limiter hooks for a straight move of `metres` to the right. */
+      async function move(token, metres) {
+        const dest = { x: token.x + metres * 100, y: token.y };
+        const movement = { id: foundry.utils.randomID(), method: "dragging",
+          passed: { distance: metres, waypoints: [dest] }, pending: { distance: 0, waypoints: [] },
+          origin: { x: token.x, y: token.y }, destination: dest };
+        const allowed = Hooks.call("preMoveToken", token, movement, { user: game.user.id }) !== false;
+        if (allowed) {
+          const changes = { x: dest.x, y: dest.y };
+          Hooks.call("preUpdateToken", token, changes, {}, game.user.id);
+          if (changes.flags) await token.update({ flags: changes.flags });
+        }
+        return allowed;
+      }
+      // A move out of the zone pauses at its edge (a TOKEN_EXIT checkpoint) and then
+      // resumes on its own — wait for the token to arrive.
+      const place = async (tok, x) => {
+        await tok.update({ x }, { animate: false, sr2eBypassMovement: true });
+        for (let i = 0; i < 40 && tok.x !== x; i++) await wait(100);
+        assert.equal(tok.x, x, "the token reached its spot");
+      };
+      const ledger = () => form.getFlag("sr2e", "astralLedger") ?? {};
+      beforeEach(async () => { await form.unsetFlag("sr2e", "astralLedger"); await form.unsetFlag("sr2e", "astralFast"); });
+
+      it("the zone registers, its area is 50 m², and the search TN follows", () => {
+        assert.equal(behavior.type, "fatBacteria");
+        assert.closeTo(FAB.regionAreaM2(region), 50, 0.01);
+        assert.isTrue(FAB.tokenInFab(intruder));
+        assert.isFalse(FAB.tokenInFab(body));
+      });
+
+      it("UV on and re-enabling each raise the epoch in the same update", async () => {
+        const e0 = behavior.system.uvEpoch;
+        await behavior.update({ "system.uvLit": true });
+        assert.equal(behavior.system.uvEpoch, e0 + 1);
+        await behavior.update({ disabled: true });
+        await behavior.update({ disabled: false });
+        assert.equal(behavior.system.uvEpoch, e0 + 2);
+      });
+
+      it("an astral form moving fast pays normal speed only for the metres inside FAB", async () => {
+        await place(form, 100);
+        await form.setFlag("sr2e", "astralFast", true);
+        assert.isTrue(await move(form, 25), "25 m fast, 5 of them through the zone");
+        assert.closeTo(ledger().normal, 5, 0.3);
+        assert.closeTo(ledger().fast, 20, 0.3);
+      });
+
+      it("normal speed inside FAB is capped at Astral Quickness × 4 (24 m)", async () => {
+        await place(form, 1000);
+        assert.isFalse(await move(form, 30), "30 m at normal speed is over 24");
+        assert.isTrue(await move(form, 4));
+      });
+
+      it("slowing down never re-charges earlier fast metres", async () => {
+        await place(form, 100);
+        await form.setFlag("sr2e", "astralFast", true);
+        assert.isTrue(await move(form, 8));                 // 8 m fast, all outside
+        await form.setFlag("sr2e", "astralFast", false);
+        assert.isTrue(await move(form, 3));                 // 3 m normal
+        assert.closeTo(ledger().fast, 8, 0.3);
+        assert.closeTo(ledger().normal, 3, 0.3);
+      });
+
+      it("a reveal shows the intruder; UV off, or cycling UV, voids it", async () => {
+        if (!behavior.system.uvLit) await behavior.update({ "system.uvLit": true });
+        const rec = () => ({ extra: 1, epoch: behavior.system.uvEpoch, gen: intruder.getFlag("sr2e", `fabExitGen.${behavior.id}`) ?? 0 });
+        await intruder.update({ [`flags.sr2e.fabReveal.${behavior.id}`]: rec() });
+        assert.isTrue(FAB.fabRevealed(intruder));
+        await behavior.update({ "system.uvLit": false });
+        await wait(300);
+        assert.isFalse(FAB.fabRevealed(intruder), "UV off");
+        await intruder.update({ [`flags.sr2e.fabReveal.${behavior.id}`]: { ...rec(), epoch: behavior.system.uvEpoch } });
+        await behavior.update({ "system.uvLit": true });
+        assert.isFalse(FAB.fabRevealed(intruder), "UV back on is a new epoch");
+      });
+
+      it("leaving the zone ends a reveal and bumps the exit generation; a stale search can't revive it", async function () {
+        this.timeout(15000);
+        if (!behavior.system.uvLit) await behavior.update({ "system.uvLit": true });
+        const gen0 = intruder.getFlag("sr2e", `fabExitGen.${behavior.id}`) ?? 0;
+        await intruder.update({ [`flags.sr2e.fabReveal.${behavior.id}`]: { extra: 1, epoch: behavior.system.uvEpoch, gen: gen0 } });
+        await place(intruder, 2200);                        // out
+        await wait(800);
+        assert.equal(intruder.getFlag("sr2e", `fabExitGen.${behavior.id}`), gen0 + 1);
+        assert.isUndefined(intruder.flags.sr2e?.fabReveal?.[behavior.id], "record removed");
+        await place(intruder, 1200);                        // back in
+        await wait(300);
+        // A search that started before the exit commits with what it captured:
+        await intruder.update({ [`flags.sr2e.fabReveal.${behavior.id}`]: { extra: 1, epoch: behavior.system.uvEpoch, gen: gen0 } });
+        assert.isFalse(FAB.fabRevealed(intruder), "old generation");
+      });
+
+      it("assensing in the zone is at +4", async () => {
+        const plain = await mage.rollNamedSkill("Sorcery", 5, {});
+        const fab = await mage.rollNamedSkill("Sorcery", 5, { extraTN: 4, extraTNLabel: "fat bacteria" });
+        assert.equal(fab.targetNumber - plain.targetNumber, 4);
+      });
+
+      it("the search's rolls are whispered to the GM (an unseen intruder's Stealth mustn't announce it)", async () => {
+        const before = game.messages.size;
+        await mage.rollNamedSkill("Stealth", 4, { whisperGM: true });
+        const msg = game.messages.contents.at(-1);
+        assert.isAbove(game.messages.size, before);
+        assert.isAbove(msg.whisper.length, 0, "whispered");
+        assert.isTrue(msg.whisper.every(id => game.users.get(id)?.isGM));
+      });
+    }, { displayName: "SR2E: Fat bacteria zones (CSH p.103)" });
 
 
 

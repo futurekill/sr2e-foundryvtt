@@ -333,6 +333,7 @@ describe("Derived costs (SR2E p.174, p.249)", () => {
     expect(v({ ownsToken: true })).toBe(true);          // owner sees their own
     expect(v({ isSummoner: true })).toBe(true);         // a mage always sees their bound spirit
     expect(v({ friendly: true })).toBe(true);           // allied astral beings are visible to all
+    expect(v({ revealed: true })).toBe(true);           // spotted by a live FAB-UV search (CSH p.103)
     // A normal (non-astral) token is unaffected by this rule
     expect(astralAllowsView({ astralOnly: false, isGM: false, viewerAstralActive: false, ownsToken: false })).toBe(true);
   });

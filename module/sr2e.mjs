@@ -29,6 +29,7 @@ import { registerCalendariaSettings, registerCalendariaHooks } from "./calendari
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
+import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 
 // Sheets
 import {
@@ -448,6 +449,8 @@ Hooks.once("init", async () => {
   registerAstralWalls();
   registerAstralWallHooks();
   registerAstralFormHooks();
+  registerFabBehavior();
+  registerFabHooks();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 

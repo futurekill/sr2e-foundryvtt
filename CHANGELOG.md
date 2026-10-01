@@ -24,6 +24,30 @@
     a GM must be connected.
   - Unlinked NPC mages are handled as before: mark a token astral-only.
 
+### Added — fat bacteria zones (Corporate Security Handbook p.103)
+- Draw a region and add the **Fat bacteria zone** behaviour, strain FAB-1 or
+  FAB-UV.
+- **Speed:** in combat, with the movement limit on, an astral form moving inside
+  the zone is held to normal astral speed (Astral Quickness × 4 per phase).
+  - Outside a zone, a projection form can switch to **fast movement** from its
+    token HUD.
+  - Only the metres inside the zone are charged at normal speed.
+- **Assense:** a new token-HUD roll for astrally active tokens (SR2E p.146). It
+  takes +4 when made from inside a zone.
+- **FAB-UV search:** with the zone's UV lights on, the GM selects the searchers
+  and clicks **Search for astral intruders** in the behaviour's settings.
+  - One Perception test at TN 6, +1 per 50 m², −1 per two searchers.
+  - An aware intruder rolls Stealth against it. All rolls are GM-only.
+  - A spotted intruder is visible to everyone while it stays in the lit zone,
+    and the card gives the attack penalty.
+  - Turning the UV off, or the intruder leaving, ends the reveal.
+
+### Fixed — movement limit and region checkpoints
+- A move that Foundry splits at a region edge (teleport regions, fat bacteria)
+  was charged twice for the stretch after the edge. Each stretch is now charged
+  once.
+- A short first stretch of a long move no longer counts as running.
+
 
 ### Added — portraits for the 22 core contacts
 - Every contact in **SR2E Contacts (NPCs)** has a painted portrait and token, based
