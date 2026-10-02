@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.102.1 — 2026-10-02
 
 ### Fixed
 - **Sheet titles read "TYPES.Actor.npc: Bartender"** instead of "NPC: Bartender" (since
