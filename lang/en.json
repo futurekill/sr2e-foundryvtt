@@ -411,6 +411,8 @@
   "TYPES.Item.vehicle_mod": "Vehicle Modification",
   "TYPES.Item.race": "Metatype",
   "TYPES.Item.quality": "Edge / Flaw",
+  "TYPES.Item.bioware": "Bioware",
+  "TYPES.Item.tradition": "Tradition",
   "SR2E.Ammo.ConsolidateNoActor": "Select a token (or assign yourself a character) whose ammo you want to consolidate.",
   "SR2E.Ammo.ConsolidateNotOwner": "You don't own that character, so its ammo can't be consolidated.",
   "SR2E.Ammo.ConsolidateNothing": "No duplicate ammo piles to consolidate.",
@@ -444,10 +446,6 @@
   "SR2E.Settings.DiceSourceUnderline": "Underlined — coloured bar beneath each die",
   "SR2E.Settings.DiceSourceLanes": "Lanes — one row per source",
   "SR2E.Settings.DiceSourceNone": "Off — a single plain row",
-  "TYPES": {
-    "RegionBehavior": {
-      "jackpoint": "Matrix jackpoint",
-      "fatBacteria": "Fat bacteria zone"
-    }
-  }
+  "TYPES.RegionBehavior.jackpoint": "Matrix jackpoint",
+  "TYPES.RegionBehavior.fatBacteria": "Fat bacteria zone"
 }

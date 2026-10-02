@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Sheet titles read "TYPES.Actor.npc: Bartender"** instead of "NPC: Bartender" (since
+  0.101.0): a nested `TYPES` entry added for the region behaviours replaced every
+  Actor and Item type name in the language file. Flattened it; Bioware and Tradition
+  items, which never had a type name, now have one. A test guards both.
+- Releases now take their notes from the CHANGELOG, and fail if the version has none.
+
 ## 0.102.0 — 2026-10-01
 
 ### Added — astral forms walk through walls; projection leaves the body

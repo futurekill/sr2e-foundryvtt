@@ -136,21 +136,21 @@ jobs:
           echo "📁 Contents:"
           unzip -l ${{ env.SYSTEM_ID }}.zip | head -30
 
-      # ---------------------------------------------------------------
-      # 5. Extract commit message body for use as release notes
-      # ---------------------------------------------------------------
-      - name: Extract release notes from commit message
+      # Release notes come from this version's CHANGELOG section ("## X.Y.Z …"),
+      # not the tag commit's message — a release commit has no body, which is how
+      # releases went out with empty notes. A missing or empty section FAILS the
+      # release: every release has notes.
+      - name: Extract release notes from CHANGELOG.md
         id: notes
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          # Subject line (first line of commit message)
-          SUBJECT=$(git log -1 --format="%s" "${TAG}")
-          # Body (everything after the first blank line)
-          BODY=$(git log -1 --format="%b" "${TAG}")
-          echo "subject=${SUBJECT}" >> "$GITHUB_OUTPUT"
-          # Write body to a file so newlines are preserved
-          printf '%s' "${BODY}" > /tmp/release_notes.txt
-          echo "📝 Release notes:"
+          VER="${{ steps.version.outputs.version }}"
+          HEAD=$(grep -m1 -E "^## v?${VER//./\\.}([^0-9.]|$)" CHANGELOG.md || true)
+          if [ -z "$HEAD" ]; then echo "::error::CHANGELOG.md has no '## ${VER}' section"; exit 1; fi
+          awk -v h="$HEAD" '$0==h {on=1; next} on && /^## / {exit} on {print}' CHANGELOG.md \
+            | sed -e '/./,$!d' > /tmp/release_notes.txt
+          if ! grep -q '[^[:space:]]' /tmp/release_notes.txt; then echo "::error::the ${VER} section of CHANGELOG.md is empty"; exit 1; fi
+          TITLE=$(printf '%s' "$HEAD" | sed -E 's/^## v?[0-9.]+ *(—|-)? *//')
+          echo "subject=v${VER}${TITLE:+ — ${TITLE}}" >> "$GITHUB_OUTPUT"
           cat /tmp/release_notes.txt
 
       # ---------------------------------------------------------------
