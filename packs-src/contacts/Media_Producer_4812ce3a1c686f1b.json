@@ -2,7 +2,7 @@
   "_id": "4812ce3a1c686f1b",
   "name": "Media Producer",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/media-producer.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Media Producer",

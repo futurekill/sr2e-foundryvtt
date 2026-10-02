@@ -2,7 +2,7 @@
   "_id": "f5564b69ec149347",
   "name": "Gang Boss",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/gang-boss.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Gang Boss",

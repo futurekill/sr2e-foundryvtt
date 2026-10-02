@@ -89,7 +89,7 @@ function contactItem(c) {
   ].filter(Boolean).join(" ");
   return {
     _id: itemId(c.name), name: c.name, type: "contact",
-    img: "icons/svg/mystery-man.svg",
+    img: portrait(c.name),   // the NPC actor's portrait, so the two packs match
     system: {
       contactType: "contact", archetype: c.name,
       // Loyalty and Influence are PLAYER-side relationship values the book does

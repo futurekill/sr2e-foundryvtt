@@ -2,7 +2,7 @@
   "_id": "5ad188aa322c1025",
   "name": "Yakuza Boss",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/yakuza-boss.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Yakuza Boss",

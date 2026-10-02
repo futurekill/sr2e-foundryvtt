@@ -2,7 +2,7 @@
   "_id": "19a1412b53c23856",
   "name": "Dwarf Technician",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/dwarf-technician.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Dwarf Technician",

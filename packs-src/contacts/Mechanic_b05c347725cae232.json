@@ -2,7 +2,7 @@
   "_id": "b05c347725cae232",
   "name": "Mechanic",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/mechanic.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Mechanic",

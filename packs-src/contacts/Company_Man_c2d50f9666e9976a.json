@@ -2,7 +2,7 @@
   "_id": "c2d50f9666e9976a",
   "name": "Company Man",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/company-man.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Company Man",

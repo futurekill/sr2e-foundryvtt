@@ -2,7 +2,7 @@
   "_id": "f7702acf2f982ba0",
   "name": "Tribal Chief",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/tribal-chief.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Tribal Chief",

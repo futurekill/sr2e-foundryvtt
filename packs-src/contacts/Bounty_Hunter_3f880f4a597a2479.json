@@ -2,7 +2,7 @@
   "_id": "3f880f4a597a2479",
   "name": "Bounty Hunter",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/bounty-hunter.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Bounty Hunter",

@@ -2,7 +2,7 @@
   "_id": "120b4590622624e8",
   "name": "Troll Bouncer",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/troll-bouncer.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Troll Bouncer",

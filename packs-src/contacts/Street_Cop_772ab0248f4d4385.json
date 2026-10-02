@@ -2,7 +2,7 @@
   "_id": "772ab0248f4d4385",
   "name": "Street Cop",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/street-cop.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Street Cop",

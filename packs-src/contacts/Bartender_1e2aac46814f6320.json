@@ -2,7 +2,7 @@
   "_id": "1e2aac46814f6320",
   "name": "Bartender",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/bartender.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Bartender",

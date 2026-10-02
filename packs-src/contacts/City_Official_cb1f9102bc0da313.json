@@ -2,7 +2,7 @@
   "_id": "cb1f9102bc0da313",
   "name": "City Official",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/city-official.webp",
   "system": {
     "contactType": "contact",
     "archetype": "City Official",

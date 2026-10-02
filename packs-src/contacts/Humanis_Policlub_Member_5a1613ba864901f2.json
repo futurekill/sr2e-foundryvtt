@@ -2,7 +2,7 @@
   "_id": "5a1613ba864901f2",
   "name": "Humanis Policlub Member",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/humanis-policlub-member.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Humanis Policlub Member",

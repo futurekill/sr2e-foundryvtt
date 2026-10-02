@@ -2,7 +2,7 @@
   "_id": "a64d53fa62a4a3d3",
   "name": "Corporate Security Guard",
   "type": "contact",
-  "img": "icons/svg/mystery-man.svg",
+  "img": "systems/sr2e/assets/contact_portraits/corporate-security-guard.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Corporate Security Guard",

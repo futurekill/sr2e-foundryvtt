@@ -8,6 +8,7 @@
   Actor and Item type name in the language file. Flattened it; Bioware and Tradition
   items, which never had a type name, now have one. A test guards both.
 - Releases now take their notes from the CHANGELOG, and fail if the version has none.
+- The 22 core contact **items** (SR2E Contacts) now use the same portraits as their NPC actors.
 
 ## 0.102.0 — 2026-10-01
 
