@@ -1,5 +1,5 @@
 # Plan: mobile companion mode
-_Round 0 — initial draft by Claude_
+_Round 0 — initial draft by Claude (revised 2026-10-02 for shared targets)_
 
 ## Goal
 Let a player drive their character from a phone or tablet while the map stays on
@@ -31,7 +31,13 @@ exactly as from the desktop sheet.
 - Attacks and spells read their target from `game.user.targets` (a Set of Token
   PLACEABLES) and measure with `canvas.grid` (item.mjs ~13 sites, sheet-actions.mjs
   ~16). With no canvas there are no placeables, so nothing can be targeted today.
-- The same user can be logged in on two devices at once (Foundry allows it).
+- The same user can be logged in on two devices at once (Foundry allows it): the
+  phone as the sheet, the computer showing the map.
+- **Foundry does not share targets between one user's own devices.** Its
+  `userActivity` handler drops messages from the same user (`if (user.isSelf)
+  return`, `documents/collections/users.mjs`). Tested: a target broadcast from one
+  login of a user never reached that user's other login. Other users (the GM) do
+  receive it.
 
 ## Approach
 
@@ -92,12 +98,25 @@ exactly as from the desktop sheet.
     touch and are listed as untested.
 
 ### Stage 3 — targeting and range without a canvas
-13. **`module/targeting.mjs`:** one place that answers "who is this user targeting"
-    as a **TokenDocument**:
-    `currentTargetDocs()` = the companion's chosen targets if companion mode is on,
-    else `[...game.user.targets].map(t => t.document)`.
-    The companion's choice is a per-client list of token UUIDs (sessionStorage),
-    cleared when the viewed character's scene changes.
+13. **Shared targets across a player's devices.** The player's current targets live
+    on their own User document: `flags.sr2e.targets = {sceneId, tokenIds, seq}`
+    (players may update their own User). This is the single source of truth, and it
+    syncs both ways:
+    - **Computer → phone:** a `targetToken` hook on a canvas client writes the
+      user's current `game.user.targets` to the flag (debounced; skipped when the
+      change came from applying the flag, see below).
+    - **Phone → computer:** the companion writes the flag when the player picks;
+      every canvas client of that user, on `updateUser`, applies it with
+      `Token#setTarget` (which also broadcasts the reticle to the GM as usual).
+    - **No ping-pong:** each write carries a `seq` and the writing client's id
+      (`game.socket.id`); a client ignores its own writes, and applying the flag
+      sets a guard so the resulting `targetToken` hooks don't write it back.
+    - Ordinary document updates, not a socket relay: the system's `system.*`
+      relay is known to drop messages behind some hosts (system CLAUDE.md).
+    `module/targeting.mjs` then answers "who is this user targeting" as
+    **TokenDocuments**: `currentTargetDocs()` = the flag's tokens on its scene (both
+    devices read the same list), falling back to `game.user.targets` if the flag is
+    unset. Tokens that no longer exist are dropped.
 14. **Refactor the call sites** in `item.mjs` and `sheet-actions.mjs` from Token
     placeables to TokenDocuments through that helper. Geometry moves from
     `canvas.grid` to the token's own scene: `scene.grid.measurePath([centerA,
@@ -114,8 +133,10 @@ exactly as from the desktop sheet.
     `astralAllowsView` rule); current combatants first, then by distance. Each row
     shows name, disposition colour and distance. Tap toggles; multi-target for
     weapons that allow it.
-16. **Telling the table:** `game.user.broadcastActivity({targets: [ids]})`, so the
-    GM and other players see the target reticle on the map as if it were clicked.
+16. **Telling the table:** the player's computer applies the shared targets with
+    `Token#setTarget`, which shows the reticle there and broadcasts it to the GM and
+    other players. If the player has no canvas client open, the companion also
+    calls `game.user.broadcastActivity({targets})` so the GM still sees it.
 17. **What the picker can't know:** line of sight. It lists every non-hidden token
     on the scene. That's stated in the UI ("the GM adjudicates line of sight") and
     in the docs.
@@ -163,12 +184,14 @@ exactly as from the desktop sheet.
   device.
 
 ## Tests
-- Vitest: `companionMode` (override wins; narrow + fine pointer stays desktop);
+- Vitest: the shared-target merge (own writes ignored, stale `seq` ignored, unknown
+  tokens dropped); `companionMode` (override wins; narrow + fine pointer stays desktop);
   target filter and order (hidden, self, astral-only, combatants first); document
   distance.
 - Quench `sr2e.companion` (desktop client, canvas present): the app opens for a test
   actor; every exposed action runs without a sheet; `currentTargetDocs` returns the
-  companion's choice in companion mode and `game.user.targets` otherwise; a ranged
+  shared flag's tokens; two logins of one user — targeting on one updates the
+  other's target set, with no write loop; a ranged
   attack against a document target pre-fills the same range as against the
   placeable; blast placement is refused cleanly.
 - Manual (QA-PLAN): a real phone and tablet; the first-entry reload; leaving and
