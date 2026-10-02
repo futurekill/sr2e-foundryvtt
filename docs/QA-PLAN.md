@@ -558,6 +558,15 @@ If those five all work, the core loop is healthy.
 - [ ] **Leaving:** "Open full Foundry on this device" reloads into the normal
       interface with the map back. A phone that had "Disable Game Canvas" on before
       gets that value back.
+- [ ] **The character screen** (`sr2e.companion` batch): Status, Skills, Combat and
+      Chat tabs along the bottom, plus Magic for an Awakened character.
+      - The + / − buttons change the monitors, and the computer's sheet follows.
+      - Tapping an attribute or skill opens the roll dialog, sized to the phone; the
+        card appears in the Chat tab and on the computer.
+      - Tapping a weapon opens the attack dialog; firing spends ammo; Reload works.
+      - Tapping a spell opens the cast dialog; Sustain / Drop toggles.
+      - Karma buttons on a card in the Chat tab work.
+      - A tablet shows two columns.
 - [ ] **Desktops are untouched:** a narrow desktop browser window stays desktop.
 - [ ] **Address override:** `?companion=1` forces it on a desktop; `?companion=auto`
       returns to automatic.

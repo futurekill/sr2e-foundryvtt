@@ -4,7 +4,7 @@
       <img class="companion-portrait" src="{{actor.img}}" alt="">
       <div class="companion-id">
         <h1>{{actor.name}}</h1>
-        <p>{{user}}</p>
+        <p>{{user}}{{#if woundPenalty}} · wound penalty +{{woundPenalty}}{{/if}}</p>
       </div>
     {{else}}
       <div class="companion-id">
@@ -15,11 +15,137 @@
   </header>
 
   <main class="companion-body">
-    <p class="companion-note">Companion mode is on for this device. The character screen is coming in the next stage.</p>
+  {{#if actor}}
+
+    {{#if tab.status}}
+    <section class="c-card">
+      <h2>Condition</h2>
+      {{#each monitors as |m|}}
+      <div class="c-monitor">
+        <span class="c-label">{{m.label}}</span>
+        <button type="button" data-action="decrementMonitor" data-monitor="{{m.key}}" aria-label="Heal one {{m.label}} box">−</button>
+        <span class="c-value">{{m.value}} / {{m.max}}</span>
+        <button type="button" data-action="incrementMonitor" data-monitor="{{m.key}}" aria-label="Take one {{m.label}} box">+</button>
+      </div>
+      {{/each}}
+    </section>
+
+    <section class="c-card">
+      <h2>Attributes <small>tap to roll</small></h2>
+      <div class="c-grid">
+        {{#each attributes as |a|}}
+        <button type="button" class="c-stat" data-action="rollAttribute" data-attribute="{{a.key}}"><span>{{a.label}}</span><b>{{a.value}}</b></button>
+        {{/each}}
+        <div class="c-stat"><span>Reaction</span><b>{{reaction}}</b></div>
+        <div class="c-stat"><span>Essence</span><b>{{essence}}</b></div>
+        {{#if magic}}<div class="c-stat"><span>Magic</span><b>{{magic}}</b></div>{{/if}}
+      </div>
+      <button type="button" class="c-wide" data-action="rollInitiative">Roll Initiative ({{initiative}})</button>
+    </section>
+
+    <section class="c-card">
+      <h2>Pools</h2>
+      <div class="c-grid">
+        {{#each pools as |p|}}<div class="c-stat"><span>{{p.label}}</span><b>{{p.value}}<small> / {{p.max}}</small></b></div>{{/each}}
+        <div class="c-stat"><span>Karma Pool</span><b>{{karmaPool}}</b></div>
+        <div class="c-stat"><span>Armor B / I</span><b>{{armor.ballistic}} / {{armor.impact}}</b></div>
+      </div>
+      <button type="button" class="c-wide" data-action="resetPools">Refresh dice pools</button>
+    </section>
+
+    <section class="c-card c-menu">
+      {{#if canSwitch}}<button type="button" data-action="switchCharacter">Switch character</button>{{/if}}
+      <button type="button" data-action="fullFoundry">Open full Foundry on this device</button>
+    </section>
+    {{/if}}
+
+    {{#if tab.skills}}
+    {{#each skillGroups as |g|}}
+    <section class="c-card">
+      <h2>{{g.label}}</h2>
+      {{#each g.list as |skill|}}
+      <div class="c-row" data-item-id="{{skill.id}}">
+        <button type="button" class="c-row-main" data-action="rollSkill">
+          <span>{{skill.name}}</span><b>{{skill.system.rating}}</b>
+        </button>
+        {{#unless skill.system._subRatingsSuppressed}}
+        {{#if skill.system.concentration.name}}<button type="button" class="c-chip" data-action="rollSkill" data-variant="concentration">{{skill.system.concentration.name}} {{skill.system.concentration.rating}}</button>{{/if}}
+        {{#if skill.system.specialization.name}}<button type="button" class="c-chip" data-action="rollSkill" data-variant="specialization">{{skill.system.specialization.name}} {{skill.system.specialization.rating}}</button>{{/if}}
+        {{/unless}}
+      </div>
+      {{/each}}
+    </section>
+    {{else}}
+    <p class="companion-note">No skills yet.</p>
+    {{/each}}
+    {{/if}}
+
+    {{#if tab.combat}}
+    <section class="c-card">
+      <h2>Weapons</h2>
+      {{#each weapons as |w|}}
+      <div class="c-weapon" data-item-id="{{w.id}}">
+        <button type="button" class="c-row-main" data-action="rollWeapon">
+          <span>{{w.name}}{{#if w.modes}} <small>{{w.modes}}</small>{{/if}}</span><b>{{w.damage}}</b>
+        </button>
+        {{#if w.hasAmmo}}
+        <div class="c-ammo">
+          <span class="c-value">{{w.ammo.current}} / {{w.ammo.max}}</span>
+          <select data-field="system.ammo.sourceId" aria-label="Reload from">
+            <option value="">reload from…</option>
+            {{#each ../ammo as |r|}}<option value="{{r.id}}" {{selected w.ammo.sourceId r.id}}>{{r.name}} ({{r.system.quantity}})</option>{{/each}}
+          </select>
+          <button type="button" data-action="reloadWeapon">Reload</button>
+        </div>
+        {{/if}}
+      </div>
+      {{else}}
+      <p class="companion-note">No weapons.</p>
+      {{/each}}
+      <button type="button" class="c-wide" data-action="resetRecoil">Reset recoil (new phase)</button>
+    </section>
+    {{/if}}
+
+    {{#if tab.magic}}
+    <section class="c-card">
+      <h2>Spells <small>tap to cast</small></h2>
+      {{#each spells as |sp|}}
+      <div class="c-row {{#if sp.sustaining}}c-on{{/if}}" data-item-id="{{sp.id}}">
+        <button type="button" class="c-row-main" data-action="castSpell">
+          <span>{{sp.name}} <small>{{sp.drain}}</small></span><b>F{{sp.force}}</b>
+        </button>
+        <button type="button" class="c-chip" data-action="toggleSustain">{{#if sp.sustaining}}Drop{{else}}Sustain{{/if}}</button>
+      </div>
+      {{else}}
+      <p class="companion-note">No spells.</p>
+      {{/each}}
+    </section>
+    {{#if conjures}}
+    <section class="c-card">
+      <h2>Conjuring</h2>
+      <button type="button" class="c-wide" data-action="conjure" data-kind="{{conjureKind}}">Conjure a spirit</button>
+    </section>
+    {{/if}}
+    {{/if}}
+
+    {{#if tab.chat}}
+    <ol class="companion-chat chat-log plain"></ol>
+    {{/if}}
+
+  {{/if}}
   </main>
 
-  <footer class="companion-menu">
-    {{#if canSwitch}}<button type="button" data-action="switchCharacter">Switch character</button>{{/if}}
+  {{#if actor}}
+  <nav class="companion-tabs">
+    {{#each tabs as |t|}}
+    <button type="button" data-action="companionTab" data-tab="{{t.id}}" class="{{#if t.active}}active{{/if}}">
+      <i class="fa-solid {{t.icon}}"></i><span>{{t.label}}</span>
+    </button>
+    {{/each}}
+  </nav>
+  {{else}}
+  <footer class="c-menu companion-menu">
     <button type="button" data-action="fullFoundry">Open full Foundry on this device</button>
   </footer>
+  {{/if}}
 </div>

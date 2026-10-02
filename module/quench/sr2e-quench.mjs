@@ -8961,6 +8961,78 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Fat bacteria zones (CSH p.103)" });
 
+    // ── Mobile companion screen (docs/PLAN-companion.md, Stage 2) ──
+    // Runs on a desktop client: the screen is opened directly for a test character.
+    quench.registerBatch("sr2e.companion", (context) => {
+      const { it, assert, before, after } = context;
+      let app, actor;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const tab = async (id) => { app.tab = id; await app.render(); await wait(150); };
+      const closeDialogs = async () => {
+        for (const d of document.querySelectorAll("dialog.application")) d.querySelector('[data-action="close"]')?.click();
+        await wait(300);
+      };
+      before(async function () {
+        this.timeout(20000);
+        const { SR2ECompanionApp } = await import("../companion/app.mjs");
+        actor = await Actor.create({ name: "Quench Companion", type: "character",
+          system: { body: { base: 4 }, quickness: { base: 4 }, intelligence: { base: 4 }, willpower: { base: 4 },
+            magic: { value: 6, type: "full_magician", tradition: "hermetic" } } });
+        await actor.createEmbeddedDocuments("Item", [
+          { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } },
+          { name: "Sorcery", type: "skill", system: { category: "active", rating: 5 } },
+          { name: "Quench Pistol", type: "weapon", system: { damageCode: "9M", ammo: { current: 5, max: 10 }, firingModes: { sa: true } } },
+          { name: "Quench Bolt", type: "spell", system: { category: "combat", force: 3, drainCode: "(F / 2)M" } }]);
+        app = new SR2ECompanionApp({ actor });
+        await app.render(true); await wait(300);
+      });
+      after(async function () {
+        this.timeout(20000);
+        await closeDialogs();
+        try { await app?.close(); } catch (e) { /* */ }
+        if (actor && game.actors.has(actor.id)) await actor.delete();
+      });
+
+      it("opens for the character and shows every tab an Awakened character gets", async () => {
+        assert.equal(app.document, actor, "the shared handlers read the actor from `document`");
+        const tabs = [...app.element.querySelectorAll(".companion-tabs button")].map(b => b.dataset.tab);
+        assert.deepEqual(tabs, ["status", "skills", "combat", "magic", "chat"]);
+        for (const id of tabs) { await tab(id); assert.ok(app.element.querySelector(".companion-body").children.length, `${id} renders`); }
+      });
+
+      it("the monitor buttons are the sheet's own actions", async () => {
+        await tab("status");
+        app.element.querySelector('[data-action="incrementMonitor"][data-monitor="stun"]').click();
+        await wait(500);
+        assert.equal(actor.system.conditionMonitor.stun.value, 1);
+        assert.include(app.element.querySelector('.c-monitor:nth-of-type(2) .c-value, .c-monitor + .c-monitor .c-value').textContent, "1 /", "the screen follows the actor");
+        await actor.update({ "system.conditionMonitor.stun.value": 0 });
+      });
+
+      it("tapping an attribute, a skill, a weapon and a spell each opens the system's own dialog", async function () {
+        this.timeout(20000);
+        const opens = async (tabId, selector, title) => {
+          await tab(tabId);
+          app.element.querySelector(selector).click();
+          await wait(900);
+          const got = [...document.querySelectorAll("dialog.application .window-title")].map(e => e.textContent);
+          await closeDialogs();
+          assert.ok(got.some(g => title.test(g)), `${selector}: got ${JSON.stringify(got)}`);
+        };
+        await opens("status", '[data-action="rollAttribute"][data-attribute="body"]', /Roll Options/);
+        await opens("skills", '.c-row-main[data-action="rollSkill"]', /Roll Options/);
+        await opens("combat", '.c-row-main[data-action="rollWeapon"]', /Attack: Quench Pistol/);
+        await opens("magic", '.c-row-main[data-action="castSpell"]', /Cast: Quench Bolt/);
+      });
+
+      it("the chat tab shows rendered cards", async function () {
+        this.timeout(15000);
+        await actor.rollAttributeTest("body", 4, {});
+        await tab("chat"); await wait(1200);
+        assert.isAbove(app.element.querySelectorAll(".companion-chat .chat-message").length, 0);
+      });
+    }, { displayName: "SR2E: Mobile companion screen" });
+
 
 
 

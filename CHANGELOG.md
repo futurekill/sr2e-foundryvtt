@@ -2,11 +2,20 @@
 
 ## Unreleased
 
-### Added — mobile companion mode, stage 1 (the shell)
-A phone or tablet that logs into the normal Foundry address now gets a companion
-screen instead of the desktop interface, so a player can keep the map on their
-computer and use the phone for their character. This first stage is only the
-shell; the character screen itself (stats, rolls, attacks, spells) comes next.
+### Added — mobile companion mode (stages 1–2)
+A phone or tablet that logs into the normal Foundry address now gets a touch-first
+character screen instead of the desktop interface, so a player can keep the map on
+their computer and use the phone for their character. Every button runs the same
+code as the desktop sheet, and the roll dialogs are the system's own, resized for
+touch.
+- **Status:** condition monitors (+ / −), attributes (tap to roll), Initiative,
+  dice pools, Karma Pool and armor.
+- **Skills:** tap a skill, or its concentration or specialization, to roll.
+- **Combat:** weapons with ammo, reload-from and Reload; tap a weapon to attack.
+  There is no target picker yet, so the range is set by hand in the attack dialog.
+- **Magic** (Awakened characters): tap a spell to cast, Sustain / Drop, and Conjure.
+- **Chat:** the latest cards with their buttons (Karma rerolls and the rest).
+- Phones get one column, tablets two.
 - **Automatic on touch devices** smaller than Foundry's 1024 × 768 minimum. A
   desktop window dragged narrow is not affected.
 - **The map is switched off on that device** (Foundry's own "Disable Game Canvas"),

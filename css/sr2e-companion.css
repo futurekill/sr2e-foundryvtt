@@ -38,6 +38,51 @@ body.sr2e-companion { overflow: hidden; background: #0d0a18; touch-action: manip
 }
 .sr2e-companion-app button:active { background: #2a2150; }
 
+/* Tabs along the bottom, in thumb reach. */
+.sr2e-companion-app .companion-tabs { display: flex; border-top: 1px solid #3b3260; background: #120e22; flex: none; }
+.sr2e-companion-app .companion-tabs button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: 56px; padding: 6px 2px; border: 0; border-radius: 0; background: none; color: #a9a4c4; font-size: 0.72rem;
+}
+.sr2e-companion-app .companion-tabs button i { font-size: 1.15rem; }
+.sr2e-companion-app .companion-tabs button.active { color: #fff; box-shadow: inset 0 3px 0 #d81b78; }
+
+.sr2e-companion-app .c-card { background: #151029; border: 1px solid #2b2350; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.sr2e-companion-app .c-card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: #2aa7c9; border: 0; }
+.sr2e-companion-app .c-card h2 small { color: #7d78a0; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.sr2e-companion-app .c-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sr2e-companion-app .c-stat {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 60px; padding: 6px; border-radius: 8px; background: #1c1633; border: 1px solid #3b3260; color: #e8e6f0; text-align: center;
+}
+.sr2e-companion-app .c-stat span { font-size: 0.72rem; color: #a9a4c4; }
+.sr2e-companion-app .c-stat b { font-size: 1.3rem; }
+.sr2e-companion-app .c-stat b small { font-size: 0.8rem; color: #a9a4c4; font-weight: normal; }
+.sr2e-companion-app .c-wide { width: 100%; margin-top: 10px; }
+.sr2e-companion-app .c-monitor { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sr2e-companion-app .c-monitor .c-label { flex: 1; }
+.sr2e-companion-app .c-monitor button { width: 52px; font-size: 1.3rem; }
+.sr2e-companion-app .c-value { min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+.sr2e-companion-app .c-row, .sr2e-companion-app .c-weapon { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.sr2e-companion-app .c-row-main { flex: 1 1 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; }
+.sr2e-companion-app .c-row-main small { color: #a9a4c4; }
+.sr2e-companion-app .c-row .c-row-main { flex: 1 1 60%; }
+.sr2e-companion-app .c-chip { flex: 0 1 auto; font-size: 0.85rem; background: #241a45; }
+.sr2e-companion-app .c-on .c-row-main { border-color: #d81b78; }
+.sr2e-companion-app .c-ammo { flex: 1 1 100%; display: flex; align-items: center; gap: 6px; }
+.sr2e-companion-app .c-ammo select { flex: 1; min-width: 0; min-height: 44px; font-size: 16px; background: #1c1633; color: #e8e6f0; border: 1px solid #3b3260; border-radius: 8px; }
+.sr2e-companion-app .c-menu { display: flex; flex-direction: column; gap: 8px; }
+.sr2e-companion-app .companion-chat { list-style: none; margin: 0; padding: 0; }
+.sr2e-companion-app .companion-chat .chat-message { margin-bottom: 8px; font-size: 0.95rem; }
+.sr2e-companion-app .companion-chat button { min-height: 44px; }
+
+@media (min-width: 700px) {
+  .sr2e-companion-app .companion-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start; }
+  .sr2e-companion-app .companion-body > .companion-chat, .sr2e-companion-app .companion-body > .companion-note { grid-column: 1 / -1; }
+  .sr2e-companion-app .c-card { margin-bottom: 0; }
+  .sr2e-companion-app .c-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
 /* Foundry's dialogs (the system's roll dialogs) fit the screen and scroll. */
 body.sr2e-companion .application.dialog,
 body.sr2e-companion dialog.application {

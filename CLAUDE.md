@@ -261,7 +261,10 @@ guarded reload, and `SR2ECompanionApp` instead of the desktop interface. The cho
 per device in localStorage (`sr2e.companion*`), never a world setting. Everything is
 scoped to `body.sr2e-companion`; the CSS hides every direct child of `<body>` except
 the app, dialogs and notifications, because other modules add floating panels there.
-A template part must render ONE root element. Same-user devices never see each other's
+`SR2ECompanionApp` registers the sheets' `SHARED_ACTIONS` and exposes `document`, so
+its buttons run the desktop handlers unchanged: give a row `data-item-id` and the
+button the same `data-action` as the sheet. Never re-implement a roll for the
+companion. A template part must render ONE root element. Same-user devices never see each other's
 targets (Foundry drops a user's own `userActivity`), so targets are shared through
 the User document. See docs/PLAN-companion.md.
 
