@@ -253,6 +253,18 @@ behaviours listen for enter/exit, and each resumed stretch fires preMoveToken
 again.
 See docs/PLAN-astral-barriers.md.
 
+## Mobile companion mode
+`module/companion/` (+ pure decisions in `module/rules/companion-rules.mjs`): a touch
+device below Foundry's 1024×768 minimum gets `body.sr2e-companion`, `core.noCanvas`
+switched on at `setup` (settings exist from there; the canvas starts after it), one
+guarded reload, and `SR2ECompanionApp` instead of the desktop interface. The choice is
+per device in localStorage (`sr2e.companion*`), never a world setting. Everything is
+scoped to `body.sr2e-companion`; the CSS hides every direct child of `<body>` except
+the app, dialogs and notifications, because other modules add floating panels there.
+A template part must render ONE root element. Same-user devices never see each other's
+targets (Foundry drops a user's own `userActivity`), so targets are shared through
+the User document. See docs/PLAN-companion.md.
+
 ## Matrix jackpoints
 `module/jackpoints.mjs` (+ pure decisions in `module/rules/jackpoint-rules.mjs`):
 a `jackpoint` Region Behaviour (declared in system.json `documentTypes` — adding

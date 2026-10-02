@@ -1,0 +1,25 @@
+<div class="companion-shell">
+  <header class="companion-header">
+    {{#if actor}}
+      <img class="companion-portrait" src="{{actor.img}}" alt="">
+      <div class="companion-id">
+        <h1>{{actor.name}}</h1>
+        <p>{{user}}</p>
+      </div>
+    {{else}}
+      <div class="companion-id">
+        <h1>No character</h1>
+        <p>{{user}} doesn't own a character yet. Ask your GM to assign one.</p>
+      </div>
+    {{/if}}
+  </header>
+
+  <main class="companion-body">
+    <p class="companion-note">Companion mode is on for this device. The character screen is coming in the next stage.</p>
+  </main>
+
+  <footer class="companion-menu">
+    {{#if canSwitch}}<button type="button" data-action="switchCharacter">Switch character</button>{{/if}}
+    <button type="button" data-action="fullFoundry">Open full Foundry on this device</button>
+  </footer>
+</div>

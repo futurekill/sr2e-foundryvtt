@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added — mobile companion mode, stage 1 (the shell)
+A phone or tablet that logs into the normal Foundry address now gets a companion
+screen instead of the desktop interface, so a player can keep the map on their
+computer and use the phone for their character. This first stage is only the
+shell; the character screen itself (stats, rolls, attacks, spells) comes next.
+- **Automatic on touch devices** smaller than Foundry's 1024 × 768 minimum. A
+  desktop window dragged narrow is not affected.
+- **The map is switched off on that device** (Foundry's own "Disable Game Canvas"),
+  and the "requires 1024 × 768" banner is removed.
+- **"Open full Foundry on this device"** switches it back and restores the device's
+  previous canvas setting. The choice is remembered per device; `?companion=1`,
+  `?companion=0` or `?companion=auto` in the address also sets it.
+- **Which character:** the player's assigned character, or a picker if they own
+  several.
+
 ## 0.102.1 — 2026-10-02
 
 ### Fixed

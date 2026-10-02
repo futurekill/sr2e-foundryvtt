@@ -546,6 +546,22 @@ If those five all work, the core loop is healthy.
       the chat card notes the variant.
 
 
+## Mobile companion (a phone or tablet, plus a computer, same player login)
+- [ ] **Entering:** log in on a phone. After one automatic reload the companion
+      screen shows the character's name and portrait; there is no map, no desktop
+      interface, no "requires 1024 × 768" banner and no floating panels from other
+      modules.
+- [ ] **Two devices:** the same player stays logged in on their computer with the
+      map working normally.
+- [ ] **Which character:** a player with one character goes straight in; with
+      several, a picker appears, and "Switch character" reopens it.
+- [ ] **Leaving:** "Open full Foundry on this device" reloads into the normal
+      interface with the map back. A phone that had "Disable Game Canvas" on before
+      gets that value back.
+- [ ] **Desktops are untouched:** a narrow desktop browser window stays desktop.
+- [ ] **Address override:** `?companion=1` forces it on a desktop; `?companion=auto`
+      returns to automatic.
+
 ## Matrix jackpoints (two clients: a GM and a player login)
 - [ ] GM: draw a Region over a terminal, add the **Matrix jackpoint** behaviour pointing
       at an entry Region on a separate Matrix scene; the player can view that scene

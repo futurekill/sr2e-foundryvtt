@@ -30,6 +30,7 @@ import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
+import { registerCompanion } from "./companion/boot.mjs";
 
 // Sheets
 import {
@@ -451,6 +452,7 @@ Hooks.once("init", async () => {
   registerAstralFormHooks();
   registerFabBehavior();
   registerFabHooks();
+  registerCompanion();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 

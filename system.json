@@ -25,6 +25,9 @@
   "styles": [
     {
       "src": "css/sr2e-main.css"
+    },
+    {
+      "src": "css/sr2e-companion.css"
     }
   ],
   "languages": [
