@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Added — mobile companion mode (stages 1–2)
+### Added — mobile companion mode
 A phone or tablet that logs into the normal Foundry address now gets a touch-first
 character screen instead of the desktop interface, so a player can keep the map on
 their computer and use the phone for their character. Every button runs the same
@@ -23,6 +23,20 @@ touch.
 - **Magic** (Awakened characters): tap a spell to cast, Sustain / Drop, and Conjure.
 - **Chat:** the latest cards with their buttons (Karma rerolls and the rest).
 - Phones get one column, tablets two.
+- **Things that need a map** are refused on the phone before anything is spent, with
+  a message saying so: aiming a grenade or other blast weapon at a point (aiming at
+  a target still works), and placing an area spell. A spirit conjured from the
+  phone is summoned and bound as usual; its token is placed from a device with the
+  map.
+- **Automatic on touch devices** smaller than Foundry's 1024 × 768 minimum. A
+  desktop window dragged narrow is not affected.
+- **The map is switched off on that device** (Foundry's own "Disable Game Canvas"),
+  and the "requires 1024 × 768" banner is removed.
+- **"Open full Foundry on this device"** switches it back and restores the device's
+  previous canvas setting. The choice is remembered per device; `?companion=1`,
+  `?companion=0` or `?companion=auto` in the address also sets it.
+- **Which character:** the player's assigned character, or a picker if they own
+  several.
 
 ### Changed
 - Every attack, spell and card finds its target through one helper. On a client
@@ -33,15 +47,6 @@ touch.
 ### Fixed
 - The spell-effects tests (Poltergeist, Ice Sheet) failed whenever a small scene was
   open: they now run on a scene of their own.
-- **Automatic on touch devices** smaller than Foundry's 1024 × 768 minimum. A
-  desktop window dragged narrow is not affected.
-- **The map is switched off on that device** (Foundry's own "Disable Game Canvas"),
-  and the "requires 1024 × 768" banner is removed.
-- **"Open full Foundry on this device"** switches it back and restores the device's
-  previous canvas setting. The choice is remembered per device; `?companion=1`,
-  `?companion=0` or `?companion=auto` in the address also sets it.
-- **Which character:** the player's assigned character, or a picker if they own
-  several.
 
 ## 0.102.1 — 2026-10-02
 

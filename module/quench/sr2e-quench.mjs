@@ -9070,6 +9070,34 @@ export function registerSR2EQuenchTests() {
         }
       });
 
+      it("with no map, a blast weapon with no target is refused before any ammo is spent", async function () {
+        this.timeout(20000);
+        const { rollWeaponInteractive } = await import("../sheets/sheet-actions.mjs");
+        const { placeSummonedToken } = await import("../placement.mjs");
+        const [gren] = await actor.createEmbeddedDocuments("Item", [{ name: "Quench Grenade", type: "weapon",
+          system: { damageCode: "10S", blastType: "offensive", ammo: { current: 3, max: 3 }, firingModes: { ss: true } } }]);
+        const warned = [];
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = (m, ...r) => { warned.push(m); return warn.call(ui.notifications, m, ...r); };
+        Object.defineProperty(canvas, "ready", { value: false, configurable: true });
+        try {
+          const run = rollWeaponInteractive(actor, gren);
+          await wait(900);
+          const dlg = document.querySelector("dialog.application");
+          assert.notOk(dlg?.querySelector('#sr2e-aim-at option[value="point"]'), "no map point to aim at");
+          dlg?.querySelector('[data-action="roll"]')?.click();
+          await run;
+          assert.ok(warned.some(m => /Quench Grenade: pick a target/.test(m)), JSON.stringify(warned));
+          assert.equal(actor.items.get(gren.id).system.ammo.current, 3, "nothing spent");
+          await placeSummonedToken(actor, actor);   // no canvas: returns without a token
+        } finally {
+          delete canvas.ready;
+          ui.notifications.warn = warn;
+          await closeDialogs();
+          await gren.delete();
+        }
+      });
+
       it("the chat tab shows rendered cards", async function () {
         this.timeout(15000);
         await actor.rollAttributeTest("body", 4, {});

@@ -575,6 +575,14 @@ If those five all work, the core loop is healthy.
       - Targeting a token on the computer marks it on the phone.
       - An attack from the phone names the target, with the range pre-selected, and
         the damage card is addressed to the target.
+- [ ] **Needs a map** (phone only):
+      - A grenade's attack dialog offers no "point on the map"; with no target it
+        warns and keeps its ammo. With a target, it fires and the GM resolves the
+        blast on the map.
+      - An area spell warns that it's placed from a device with the map, with no
+        drain taken.
+      - Conjuring creates and binds the spirit and says to place its token from the
+        map device.
 - [ ] **Desktops are untouched:** a narrow desktop browser window stays desktop.
 - [ ] **Address override:** `?companion=1` forces it on a desktop; `?companion=auto`
       returns to automatic.

@@ -38,7 +38,13 @@ const PROMPT_TIMEOUT = 60000;
  */
 export async function placeSummonedToken(spirit, caster) {
   try {
-    if (!spirit || !canvas?.ready || !canvas.scene) return;
+    if (!spirit) return;
+    if (!canvas?.ready || !canvas.scene) {
+      // A device with no map (the mobile companion): the spirit exists and is
+      // bound; only its token waits for someone at the map.
+      if (game.settings.get("core", "noCanvas")) ui.notifications.info(`${spirit.name} is summoned. Place its token from a device with the map.`);
+      return;
+    }
     let mode = "nearest";
     try { mode = game.settings.get("sr2e", "spiritPlacement"); } catch (e) { /* default */ }
     if (mode === "off") return;

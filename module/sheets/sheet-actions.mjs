@@ -1068,7 +1068,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <label title="SR2E p.96: choose the intended target — a token, or any point on the map (click after Attack). A point's range is measured from your token.">Aim at:</label>
         <select id="sr2e-aim-at" name="aimAt">
           <option value="token" ${presets.targetName ? "selected" : ""}>${presets.targetName ? foundry.utils.escapeHTML(presets.targetName) : "the targeted token"}</option>
-          <option value="point" ${presets.targetName ? "" : "selected"}>a point on the map</option>
+          ${canvas?.ready ? `<option value="point" ${presets.targetName ? "" : "selected"}>a point on the map</option>` : ""}
         </select>
       </div>` : ""}
       ${hasRecoil ? `<div class="sr2e-attack__field">
@@ -1614,6 +1614,12 @@ export async function rollWeaponInteractive(actor, item) {
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
                                                defaultingPenalty, presets);
   if (!opts) return;
+  // No map on this device (the mobile companion): a point can't be clicked, and a
+  // token aim needs a target. Stop here, before any ammo is spent.
+  if (item.system.blastType && !canvas?.ready && (opts.aimAt === "point" || !firstTarget())) {
+    ui.notifications.warn(`${item.name}: pick a target first, or aim at a point from a device with the map.`);
+    return;
+  }
   // Aiming an area weapon at a point (p.96): pick it after the dialog and before
   // the roll, so a cancelled click spends nothing.
   if (item.system.blastType && opts.aimAt === "point") {
@@ -2046,7 +2052,9 @@ async function onCastSpell(event, target) {
  */
 async function resolveAreaCentre(actor, spell, { center, radiusDelta }) {
   if (!canvas?.ready) {
-    ui.notifications.warn(`${spell.name}: open a scene to place an area spell.`);
+    ui.notifications.warn(game.settings.get("core", "noCanvas")
+      ? `${spell.name}: area spells are placed from a device with the map. Nothing was spent.`
+      : `${spell.name}: open a scene to place an area spell.`);
     return null;
   }
   const sceneId = canvas.scene.id;

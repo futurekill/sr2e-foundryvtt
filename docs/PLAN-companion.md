@@ -147,6 +147,11 @@ exactly as from the desktop sheet.
     In companion mode these are refused before any irreversible step (ammo, drain)
     with a clear message: "place this from a device with the map". Conjuring still
     creates and binds the spirit; only the token placement is left to a map device.
+    _Built:_ the attack dialog drops "a point on the map" when there's no canvas, and
+    `rollWeaponInteractive` stops a blast weapon with a point aim or no target;
+    `resolveAreaCentre` says area spells need the map; `placeSummonedToken` tells the
+    player the token waits for a map device. Ritual areas and shotgun spread are
+    GM-card buttons that already warn without a canvas.
 
 ## Key decisions & tradeoffs
 - **A mode inside the Foundry client, not an app or a separate page.** It's the only
