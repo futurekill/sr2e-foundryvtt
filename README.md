@@ -6,6 +6,8 @@ A comprehensive game system for **Shadowrun Second Edition** (FASA 7901) built f
 
 This system implements the core rules from Shadowrun 2nd Edition, bringing the cyberpunk-meets-magic world of 2053 to your virtual tabletop. It supports the full range of character types from street samurai to deckers, magicians to riggers.
 
+**How-to guides for players and GMs are in the [wiki](https://github.com/futurekill/sr2e-foundryvtt/wiki).**
+
 ## Features
 
 ### Actor Types
