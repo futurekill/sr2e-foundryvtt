@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.103.0 — 2026-10-03
 
 ### Added — mobile companion mode
 A phone or tablet that logs into the normal Foundry address now gets a touch-first
