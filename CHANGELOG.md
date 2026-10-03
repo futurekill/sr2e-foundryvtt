@@ -11,11 +11,28 @@ touch.
 - **Status:** condition monitors (+ / −), attributes (tap to roll), Initiative,
   dice pools, Karma Pool and armor.
 - **Skills:** tap a skill, or its concentration or specialization, to roll.
-- **Combat:** weapons with ammo, reload-from and Reload; tap a weapon to attack.
-  There is no target picker yet, so the range is set by hand in the attack dialog.
+- **Combat:** a target list, then weapons with ammo, reload-from and Reload; tap a
+  weapon to attack.
+- **Targets, shared between the player's devices:** the Combat and Magic tabs list
+  the tokens on the character's scene (combatants first, then nearest, with the
+  distance). Picking one targets it on the player's computer map as well, with the
+  usual reticle for the GM. Targeting on the computer updates the phone. The attack
+  then knows its target and measures the range. Hidden tokens are never listed, and
+  astral-only ones only for an astrally active character. Line of sight is the GM's
+  call.
 - **Magic** (Awakened characters): tap a spell to cast, Sustain / Drop, and Conjure.
 - **Chat:** the latest cards with their buttons (Karma rerolls and the rest).
 - Phones get one column, tablets two.
+
+### Changed
+- Every attack, spell and card finds its target through one helper. On a client
+  with a map nothing changes; without one, the target and its range come from the
+  token's document. Foundry doesn't share targets between one user's own devices, so
+  a player's targets are kept on their user record and mirrored both ways.
+
+### Fixed
+- The spell-effects tests (Poltergeist, Ice Sheet) failed whenever a small scene was
+  open: they now run on a scene of their own.
 - **Automatic on touch devices** smaller than Foundry's 1024 × 768 minimum. A
   desktop window dragged narrow is not affected.
 - **The map is switched off on that device** (Foundry's own "Disable Game Canvas"),

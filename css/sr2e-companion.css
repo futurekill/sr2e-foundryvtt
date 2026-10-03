@@ -83,6 +83,16 @@ body.sr2e-companion { overflow: hidden; background: #0d0a18; touch-action: manip
   .sr2e-companion-app .c-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
+/* The target list. */
+.sr2e-companion-app .c-target { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 6px; text-align: left; }
+.sr2e-companion-app .c-target span { flex: 1; }
+.sr2e-companion-app .c-target b { color: #a9a4c4; font-weight: normal; font-variant-numeric: tabular-nums; }
+.sr2e-companion-app .c-target.hostile i { color: #e0475b; }
+.sr2e-companion-app .c-target.friendly i { color: #3fbf5f; }
+.sr2e-companion-app .c-target.neutral i { color: #e8c547; }
+.sr2e-companion-app .c-target.picked { border-color: #e0475b; background: #2a1328; }
+.sr2e-companion-app .c-small { font-size: 0.8rem; margin: 6px 0 0; }
+
 /* Foundry's dialogs (the system's roll dialogs) fit the screen and scroll. */
 body.sr2e-companion .application.dialog,
 body.sr2e-companion dialog.application {

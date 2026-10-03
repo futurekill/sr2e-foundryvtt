@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { firstTarget, targetTokens } from "../targeting.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
 import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
@@ -558,7 +559,7 @@ export class SR2EItem extends Item {
     // p.92–93): capture the phase and the aimed token NOW, then run one attack
     // at a time per gunner so back-to-back shots at A and B see each other.
     if (!options._engage && !["melee", "throwing"].includes(this.system.weaponType)) {
-      const tok = game.user?.targets?.first?.() ?? null;
+      const tok = firstTarget() ?? null;
       const _engage = {
         key: phaseKey(actor, this),
         token: tok ? { uuid: tok.document.uuid, sceneId: tok.document.parent?.id ?? null,
@@ -837,7 +838,7 @@ export class SR2EItem extends Item {
     let spreadMod = 0, spreadDist = 0, spreadShooterTok = null, spreadTargetTok = null;
     if (isShotSpread && canvas?.ready) {
       spreadShooterTok = actor.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0] ?? null;
-      spreadTargetTok  = engage?.token?.obj ?? game.user?.targets?.first?.() ?? null;
+      spreadTargetTok  = engage?.token?.obj ?? firstTarget() ?? null;
       if (spreadShooterTok && spreadTargetTok) {
         try { spreadDist = Math.round(canvas.grid.measurePath([spreadShooterTok.center, spreadTargetTok.center]).distance); }
         catch (e) { /* off-canvas */ }
@@ -1059,7 +1060,7 @@ export class SR2EItem extends Item {
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
     if (isRanged && ["firearm", "heavy"].includes(this.system.weaponType)) {
-      playCombatFx("gunshot", Array.from(game.user?.targets ?? []));
+      playCombatFx("gunshot", (canvas?.ready ? targetTokens() : []));
     }
 
     // Explosive-round misfire (p.93): when EVERY attack die comes up 1 with
@@ -1165,7 +1166,7 @@ export class SR2EItem extends Item {
     // just scatters further from the target (core p.96). Resolve as a blast.
     if (this.system.blastType) {
       const dmg = evaluateDamageCode(this.system.damageCode, actor);
-      const targetTok = engage?.token?.obj ?? game.user?.targets?.first?.();
+      const targetTok = engage?.token?.obj ?? firstTarget();
       // Delivery drives the scatter profile (sr2e.mjs resolveBlast). Grenades
       // scatter standard 1D6/−2, or 2D6/−4 if aerodynamic; launched ordnance
       // (rockets/missiles) uses 3D6/−4. (This branch is already gated on
@@ -1325,7 +1326,7 @@ export class SR2EItem extends Item {
       // The defender = the attacker's current target (T key), if any, so the
       // Resist button rolls for the target rather than whoever has a token
       // selected. Captured here (attacker's client, target still set).
-      const targetTok = engage?.token?.obj ?? game.user?.targets?.first?.();
+      const targetTok = engage?.token?.obj ?? firstTarget();
       const targetUuid = targetTok?.actor?.uuid ?? "";
 
       const defender = targetTok?.actor ?? null;
@@ -1550,12 +1551,12 @@ export class SR2EItem extends Item {
     const manipDmg = spellCategory === "manipulation"
       ? manipulationDamage(this.system.damageCode, Number(force)) : null;
     const manipTarget = (manipDmg && !isArea) ? (() => {
-      const t = game.user?.targets?.first?.();
+      const t = firstTarget();
       return t?.actor ? { actor: t.actor, uuid: t.actor.uuid, name: t.name, type: t.actor.type } : null;
     })() : null;
     // Lasting effects (p.157–158): Ignite's target is captured now, like manipTarget.
     const effectKind = spellEffectKind(this);
-    const igniteTarget = effectKind === "ignite" ? (game.user?.targets?.first?.()?.actor ?? null) : null;
+    const igniteTarget = effectKind === "ignite" ? (firstTarget()?.actor ?? null) : null;
     const resistAttr = this.system.type === "mana" ? "willpower" : "body";
     const cardTargets = (area?.caught ?? []).filter(c => c.eligible === "card");
     const targetNumber = (isAreaCombat && cardTargets.length)
@@ -1679,7 +1680,7 @@ export class SR2EItem extends Item {
     // combat-spell TNs.
     let healingTN = 0, healingLabel = "";
     if (this.system.healsDamage) {
-      const subject = game.user?.targets?.first?.()?.actor ?? actor;
+      const subject = firstTarget()?.actor ?? actor;
       healingTN = biowareHealingTnMod(subject.system?.bodyIndex?.value ?? 0);
       if (healingTN > 0) healingLabel = `bioware interference (${subject.name})`;
     }
@@ -1726,7 +1727,7 @@ export class SR2EItem extends Item {
     });
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
-    playCombatFx("spell", area ? area.caught.map(c => c.token) : Array.from(game.user?.targets ?? []));
+    playCombatFx("spell", area ? area.caught.map(c => c.token) : (canvas?.ready ? targetTokens() : []));
 
     // ── Drain Resistance Test ─────────────────────────────────────────────────
     // Parse directly from the raw string field — avoids any DataModel prototype
@@ -1744,7 +1745,7 @@ export class SR2EItem extends Item {
     let startLevel = drain.level;
     let drainSubjectNote = options.drainSubjectNote ?? "";
     if (drain.levelFromWound) {
-      const subject = game.user?.targets?.first?.()?.actor ?? actor;
+      const subject = firstTarget()?.actor ?? actor;
       const physicalBoxes = subject.system?.conditionMonitor?.physical?.value ?? 0;
       startLevel = options.resolvedDrainLevel
         ?? healingDrainLevel(physicalBoxes);
@@ -1826,7 +1827,7 @@ export class SR2EItem extends Item {
     // maintenance time, so the patient's own client resolves the split via a
     // button rather than this path silently applying boxes.
     if (this.system.healsDamage && (spellResult?.successes ?? 0) > 0) {
-      const subject = game.user?.targets?.first?.()?.actor ?? actor;
+      const subject = firstTarget()?.actor ?? actor;
       const healState = {
         spellName: this.name, casterName: actor.name,
         subjectUuid: subject.uuid, subjectName: subject.name,
@@ -1873,7 +1874,7 @@ export class SR2EItem extends Item {
       });
 
       // The caster's target (T key) resists, regardless of token selection.
-      const targetTok = game.user?.targets?.first?.();
+      const targetTok = firstTarget();
       await postCard(mkState(targetTok?.actor?.uuid ?? ""));
     }
 
@@ -2015,7 +2016,7 @@ export class SR2EItem extends Item {
       center = { x, y };
       radiusDelta = Number(req.radiusDelta ?? 0);
     } else {
-      const t = game.user?.targets?.first?.();
+      const t = firstTarget();
       if (t && canvas?.ready && t.document?.parent?.id === canvas.scene?.id) center = { ...t.center };
     }
     const geo = areaSpellGeometry({ magic, force: Number(force), radiusDelta });

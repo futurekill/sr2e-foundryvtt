@@ -5593,7 +5593,10 @@ export function registerSR2EQuenchTests() {
 
     // ── Lasting spell effects: Ignite, Poltergeist, Ice Sheet (SR2E p.157–158) ─
     quench.registerBatch("sr2e.spell-effects", (context) => {
-      const { it, assert, before, afterEach } = context;
+      const { it, assert, before, after, afterEach } = context;
+      // Its own scene: the tests place tokens 30 squares in, so on whatever happened
+      // to be viewed (a 17 m shop with walls) they landed outside it and failed.
+      let fxScene, startScene;
       const made = { actors: [], combats: [] };
       let msgStart = 0;
       const withFaces = async (faces, fn) => {
@@ -5624,7 +5627,19 @@ export function registerSR2EQuenchTests() {
         return t;
       };
 
-      before(async () => { msgStart = game.messages.size; });
+      before(async function () {
+        this.timeout(20000);
+        startScene = canvas.scene?.id;
+        [fxScene] = await Scene.createDocuments([{ name: "Quench FX", width: 6000, height: 4000,
+          grid: { size: 100, distance: 1, units: "m" }, navigation: false }]);
+        await fxScene.view(); await new Promise(r => setTimeout(r, 1200));
+        msgStart = game.messages.size;
+      });
+      after(async function () {
+        this.timeout(20000);
+        const back = game.scenes.get(startScene); if (back) await back.view();
+        if (fxScene && game.scenes.has(fxScene.id)) await fxScene.delete();
+      });
       afterEach(async function () {
         this.timeout(20000);
         for (const c of made.combats.splice(0)) { try { await c.delete(); } catch (e) {} }
@@ -5761,7 +5776,9 @@ export function registerSR2EQuenchTests() {
 
         await combat.nextRound();
         assert.isTrue(await waitFor(() => hit().length === 3), "another card on the new Combat Turn");
-        await tIn.update({ x: tIn.x + 30 * g() });                                   // leaves
+        // animate:false — an animated move leaves the document's position behind in a
+        // hidden tab (V13 advances it with the animation), and the next step reads it.
+        await tIn.update({ x: tIn.x + 30 * g() }, { animate: false });               // leaves
         await combat.nextRound(); await new Promise(r => setTimeout(r, 500));
         assert.lengthOf(hit(), 3, "a leaver is not hit");
 
@@ -5790,9 +5807,9 @@ export function registerSR2EQuenchTests() {
 
         const walker = await mkActor("Quench FX Walker", { quickness: { base: 2 } });
         const tok = await put(walker, 0);
-        await tok.update({ x: tok.x + 10 * g() });                                    // straight across
+        await tok.update({ x: tok.x + 10 * g() }, { animate: false });                // straight across
         assert.isTrue(await waitFor(() => flagged("iceTest").length === 1), "crossing card");
-        await tok.update({ y: tok.y + 10 * g() });                                    // away from it
+        await tok.update({ y: tok.y + 10 * g() }, { animate: false });                // away from it
         await new Promise(r => setTimeout(r, 500));
         assert.lengthOf(flagged("iceTest"), 1, "no card off the ice");
         assert.equal(flagged("iceTest")[0].flags.sr2e.iceTest.vehicle, false);
@@ -9023,6 +9040,34 @@ export function registerSR2EQuenchTests() {
         await opens("skills", '.c-row-main[data-action="rollSkill"]', /Roll Options/);
         await opens("combat", '.c-row-main[data-action="rollWeapon"]', /Attack: Quench Pistol/);
         await opens("magic", '.c-row-main[data-action="castSpell"]', /Cast: Quench Bolt/);
+      });
+
+      it("shared targets: another device's pick targets the token on this map, and a map target is shared back", async function () {
+        this.timeout(20000);
+        const T = await import("../targeting.mjs");
+        const startScene = canvas.scene?.id;
+        const [sc] = await Scene.createDocuments([{ name: "Quench Targets", width: 1000, height: 600,
+          grid: { size: 100, distance: 1, units: "m" }, navigation: false }]);
+        const foe = await Actor.create({ name: "Quench Foe", type: "npc" });
+        try {
+          await sc.createEmbeddedDocuments("Token", [{ ...(await foe.getTokenDocument()).toObject(), x: 500, y: 200 }]);
+          await sc.view(); await wait(1200);
+          const tok = canvas.tokens.placeables.find(t => t.name === "Quench Foe");
+          // As if the player's phone had picked it: a write from another socket.
+          await game.user.update({ "flags.sr2e.targets": { sceneId: sc.id, ids: [tok.id], seq: Date.now(), by: "another-device" } });
+          await wait(500);
+          assert.isTrue(tok.isTargeted, "applied to this map");
+          assert.equal(T.firstTarget()?.id, tok.id, "and every attack sees it");
+          tok.setTarget(false, { releaseOthers: true });
+          await wait(600);
+          assert.deepEqual(game.user.getFlag("sr2e", "targets")?.ids, [], "clearing on the map is shared back");
+          const handle = T.handleFor({ object: null, id: "x", name: "Stand-in", actor: null, getCenterPoint: () => ({ x: 1, y: 2 }) });
+          assert.deepEqual([handle.name, handle.center.x, handle.isStandIn], ["Stand-in", 1, true], "a map-less stand-in");
+        } finally {
+          await game.user.unsetFlag("sr2e", "targets");
+          const back = game.scenes.get(startScene); if (back) await back.view();
+          await sc.delete(); await foe.delete();
+        }
       });
 
       it("the chat tab shows rendered cards", async function () {

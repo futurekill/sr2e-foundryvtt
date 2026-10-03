@@ -15,6 +15,7 @@
  * posted. Tests that decided an exchange are closed to Karma via
  * `flags.sr2e.closesTests`. Legacy `flags.sr2e.astral` cards are untouched.
  */
+import { targetTokens } from "./targeting.mjs";
 import { astralProfile, meleeOutcome, netToSteps, testTotalSuccesses, successesFromSource } from "./rules/sr2e-rules.mjs";
 import { evaluateDamageCode } from "./documents/item.mjs";
 import { magicalSkillBlock } from "./restricted-spells.mjs";
@@ -153,7 +154,7 @@ export async function astralAttack(actor, opts = {}) {
   if (!kind) return ui.notifications.warn(`${actor.name} is not in astral space (perceive or project first — SR2E p.147).`);
   const busy = actor._elementalBusyReason?.();
   if (busy) return ui.notifications.warn(busy);
-  const targets = [...(game.user?.targets ?? [])];
+  const targets = targetTokens();
   if (targets.length !== 1) return ui.notifications.warn("Target exactly one astral opponent (T) before attacking.");
   const target = targets[0].actor;
   if (!astralKind(target)) {

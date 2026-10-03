@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
 import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
@@ -489,28 +490,35 @@ function detectEngagingFoes(attacker) {
 
 function detectAttackTarget(attacker, weapon) {
   const presets = {};
-  const targetToken = game.user?.targets?.first?.();
-  if (!targetToken || !canvas?.ready) return presets;
+  const targetToken = firstTarget();
+  if (!targetToken) return presets;
 
   presets.targetName = targetToken.name;
 
-  const originToken = attacker?.getActiveTokens?.()[0]
-                   ?? canvas.tokens?.controlled?.[0];
-  if (!originToken || originToken === targetToken) return presets;
+  // With no map on this device (the mobile companion) the target is a stand-in
+  // built from its token document: measure on that token's own scene instead.
+  const scene = canvas?.ready ? canvas.scene : targetToken.document?.parent;
+  const grid  = canvas?.ready ? canvas.grid : scene?.grid;
+  if (!scene || !grid) return presets;
+  const originToken = canvas?.ready
+    ? (attacker?.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0])
+    : handleFor(scene.tokens.find(t => t.actor === attacker || t.actorId === attacker?.id));
+  if (!originToken || originToken === targetToken || originToken.id === targetToken.id) return presets;
 
   // Measured distance in scene units (the system grid is metres)
   let distance;
   try {
-    distance = canvas.grid.measurePath([originToken.center, targetToken.center]).distance;
+    distance = grid.measurePath([originToken.center, targetToken.center]).distance;
   } catch (e) { return presets; }
   presets.distance = Math.round(distance);
 
   // Auto-suggest a Visibility Table modifier (p.89) — manually overridable
   // in the dialog. Sources: any template flagged with a visibility value
   // (smoke-grenade clouds, a Poltergeist) around the attacker, the target, or
-  // the line of fire between them, and the scene's darkness level.
-  let visMod = visibilityAlong(originToken.center, targetToken.center, canvas.templates?.placeables ?? []);
-  const darkness = canvas.scene?.environment?.darknessLevel ?? canvas.scene?.darkness ?? 0;
+  // the line of fire between them (only where templates are drawn), and the
+  // scene's darkness level (a document value, so it works without a map too).
+  let visMod = canvas?.ready ? visibilityAlong(originToken.center, targetToken.center, canvas.templates?.placeables ?? []) : 0;
+  const darkness = scene?.environment?.darknessLevel ?? scene?.darkness ?? 0;
   if (darkness >= 0.75)      visMod = Math.max(visMod, 8);  // Full Darkness
   else if (darkness >= 0.4)  visMod = Math.max(visMod, 6);  // Minimal Light
   else if (darkness >= 0.15) visMod = Math.max(visMod, 2);  // Partial Light
@@ -702,7 +710,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // Multiple targets / walking fire (p.92–93). Previewed here; item.roll
   // recomputes from live state unless a field below was edited.
   const tracksTargets = isRanged && !weapon.system.blastType;
-  const engTok    = game.user?.targets?.first?.() ?? null;
+  const engTok    = firstTarget() ?? null;
   const engRecord = engagedRecord(actor);
   const engLast   = engRecord?.key === phaseK ? engRecord.lastFA : null;
   let engDistance = null;
@@ -1642,7 +1650,7 @@ async function promptSpellOptions(actor, spell) {
   const magicAttr  = actor.system.magic?.value ?? 0;
   const spellCap   = Math.min(available, magicAttr);     // cap for spell test
   const drainCap   = available;                          // no cap for drain resist
-  const tgtTok     = game.user?.targets?.first?.();
+  const tgtTok     = firstTarget();
   const tgtActor   = tgtTok?.actor;
 
   // Parse drain code directly from the raw string — avoids DataModel prototype
@@ -2043,7 +2051,7 @@ async function resolveAreaCentre(actor, spell, { center, radiusDelta }) {
   }
   const sceneId = canvas.scene.id;
   let point = null;
-  if (center === "target") point = game.user?.targets?.first?.()?.center ?? null;
+  if (center === "target") point = firstTarget()?.center ?? null;
   else if (center === "self") point = actor.getActiveTokens?.()?.[0]?.center ?? null;
   else point = await promptForCanvasPoint(spell.name);
   if (!point) {
@@ -2422,7 +2430,7 @@ async function onMatrixAttack(event, target) {
 async function onMatrixPerception(event, target) {
   event.preventDefault();
   const actor = this.document;
-  const targeted = Array.from(game.user?.targets ?? [])
+  const targeted = targetTokens()
     .map(t => t.actor).find(a => a?.type === "character" && (a.system.cyberdeck?.mpcp ?? 0) > 0);
   const prefill = targeted?.system.matrixPersona?.masking ?? 4;
 
@@ -2487,7 +2495,7 @@ async function onResetHostTally(event, target) {
  */
 async function promptSystemOperationOptions(actor) {
   // Candidate hosts: a targeted host token first, then all host actors.
-  const targeted = Array.from(game.user?.targets ?? []).map(t => t.actor).filter(a => a?.type === "host");
+  const targeted = targetTokens().map(t => t.actor).filter(a => a?.type === "host");
   // The host a jackpoint session points at comes first (docs/PLAN-matrix-jackpoints.md).
   const viaJackpoint = sessionHost(actor);
   const hosts = [...new Set([...(viaJackpoint ? [viaJackpoint] : []), ...targeted, ...game.actors.filter(a => a.type === "host")])];
@@ -2852,7 +2860,7 @@ function terrainOptions(selected = "normal") {
  */
 async function promptRamOptions(actor, myVehicle) {
   // Pre-fill from a targeted token whose actor is a vehicle
-  const targetActor = game.user?.targets?.first?.()?.actor;
+  const targetActor = firstTarget()?.actor;
   const tv = targetActor?.type === "vehicle" ? targetActor : null;
   const oppName = tv?.name ?? "";
   const oBody = tv?.system?.body ?? 2;
@@ -3252,7 +3260,7 @@ async function onHealPhysical(event) {
 async function onFirstAid(event) {
   event.preventDefault();
   const medic = this.document;
-  const targetActor = game.user?.targets?.first?.()?.actor;
+  const targetActor = firstTarget()?.actor;
   const patient = (targetActor && targetActor !== medic) ? targetActor : medic;
 
   let opts = null;

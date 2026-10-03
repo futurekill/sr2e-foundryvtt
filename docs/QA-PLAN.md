@@ -567,6 +567,14 @@ If those five all work, the core loop is healthy.
       - Tapping a spell opens the cast dialog; Sustain / Drop toggles.
       - Karma buttons on a card in the Chat tab work.
       - A tablet shows two columns.
+- [ ] **Targets across devices** (phone and computer, same player):
+      - The phone's Combat tab lists the other tokens on the character's scene with
+        distances, and no hidden tokens.
+      - Tapping one on the phone puts the reticle on it on the computer's map (and
+        on the GM's).
+      - Targeting a token on the computer marks it on the phone.
+      - An attack from the phone names the target, with the range pre-selected, and
+        the damage card is addressed to the target.
 - [ ] **Desktops are untouched:** a narrow desktop browser window stays desktop.
 - [ ] **Address override:** `?companion=1` forces it on a desktop; `?companion=auto`
       returns to automatic.

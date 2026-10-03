@@ -1,6 +1,7 @@
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
+import { firstTarget } from "../targeting.mjs";
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { renderAstralMeleeCard, isCardResolved, isTestClosed, astralAttack } from "../astral-combat.mjs";
 import { defenseQueue, normActorUuid, defenceBalance, defenceSplit, grantsFor } from "../spell-defense.mjs";
@@ -2782,7 +2783,7 @@ export class SR2EActor extends Actor {
     const state = {
       attackerUuid: this.uuid, attackerName: this.name,
       // The attacker's target (T key) resists, regardless of token selection.
-      targetUuid: game.user?.targets?.first?.()?.actor?.uuid ?? "",
+      targetUuid: firstTarget()?.actor?.uuid ?? "",
       successes: result.successes, nodeRating: opts.nodeRating ?? 0,
       testMessageId: result.testMessageId, resolved: false
     };

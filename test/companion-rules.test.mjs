@@ -51,3 +51,32 @@ describe("which character", () => {
     expect(companionActor({ ownedIds: [] })).toBeNull();
   });
 });
+
+import { shouldApplyTargets, targetChoices } from "../module/rules/companion-rules.mjs";
+
+describe("shared targets between a player's devices", () => {
+  it("ignores this device's own writes and anything older than what it has", () => {
+    const rec = { seq: 10, by: "phone" };
+    expect(shouldApplyTargets({ record: rec, mySocketId: "computer", lastSeq: 5 })).toBe(true);
+    expect(shouldApplyTargets({ record: rec, mySocketId: "phone", lastSeq: 5 })).toBe(false);
+    expect(shouldApplyTargets({ record: rec, mySocketId: "computer", lastSeq: 10 })).toBe(false);
+    expect(shouldApplyTargets({ record: null, mySocketId: "computer" })).toBe(false);
+  });
+});
+
+describe("the target list", () => {
+  const rows = [
+    { id: "me", name: "Me", own: true },
+    { id: "h", name: "Hidden", hidden: true },
+    { id: "s", name: "Spirit", astralOnly: true, distance: 2 },
+    { id: "far", name: "Far ganger", distance: 30, inCombat: true },
+    { id: "near", name: "Near ganger", distance: 5, inCombat: true },
+    { id: "by", name: "Bystander", distance: 3 }
+  ];
+  it("drops self, hidden and astral-only; combatants first, then nearest", () => {
+    expect(targetChoices(rows).map(r => r.id)).toEqual(["near", "far", "by"]);
+  });
+  it("an astrally active character also sees astral-only tokens", () => {
+    expect(targetChoices(rows, { astralActive: true }).map(r => r.id)).toEqual(["near", "far", "s", "by"]);
+  });
+});

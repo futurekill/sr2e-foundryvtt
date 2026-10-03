@@ -16,6 +16,7 @@
  * The GM adjudicates what the book leaves to them: the link table row, time,
  * sustaining expiry, foci and spirit aid used for Drain, astral interception.
  */
+import { firstTarget } from "./targeting.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { parseDrainCode } from "./data/item-data.mjs";
 import { renderHealingCard, renderManipDamageCard } from "./documents/item.mjs";
@@ -209,7 +210,7 @@ export async function startRitual(spell) {
   if (!leader) return;
   const { actual: learned } = spellForces({ learnedForce: spell.system.force, actualForce: spell.system.force, restriction: spell.system.restriction ?? "" });
   const candidates = game.actors.filter(a => a.type === "character" && a.id !== leader.id && knowsSpell(a, spell));
-  const target = game.user.targets?.first?.();
+  const target = firstTarget();
   const rows = candidates.map(a => `<tr><td><label><input type="checkbox" name="m_${a.id}"> ${esc(a.name)}</label></td>
     <td><input type="number" name="c_${a.id}" value="${magicPool(a)}" min="0" max="${magicPool(a)}" style="width:4em"></td>
     <td><input type="radio" name="guide" value="${a.id}"></td></tr>`).join("");

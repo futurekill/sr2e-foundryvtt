@@ -198,6 +198,14 @@ exactly as from the desktop sheet.
   re-entering; rolling each of the four action kinds; the target reticle appearing on
   the GM's map.
 
+## Implementation notes (Stage 3, as built)
+- The helper is `module/targeting.mjs`. It returns real placeables on a map client
+  (so the desktop is unchanged) and stand-ins (`handleFor`) without one.
+  `firstTarget()` / `targetTokens()` replace every `game.user.targets` read.
+- Verified with two logins of one user, one in companion mode: phone→map and
+  map→phone both sync with no loop; an attack from the phone pre-filled 12 m /
+  medium range, and the damage card was addressed to the target.
+
 ## Out of scope (first version)
 Designed touch flows for responding to cards; Matrix actions and jackpoints; vehicles
 and rigging; inventory management, purchases and character editing; astral

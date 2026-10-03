@@ -10,6 +10,8 @@
 
 import { setCompanion, chooseActor } from "./boot.mjs";
 import { SHARED_ACTIONS } from "../sheets/sheet-actions.mjs";
+import { targetDocs, shareTargets } from "../targeting.mjs";
+import { targetChoices } from "../rules/companion-rules.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const TABS = [
@@ -39,6 +41,15 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
     actions: {
       ...ACTIONS,
       companionTab: function (event, target) { this.tab = target.dataset.tab; this.render(); },
+      // Tap a token in the list to target or un-target it; shared with the player's map.
+      toggleTarget: async function (event, target) {
+        const scene = this.targetScene(); if (!scene) return;
+        const id = target.dataset.tokenId;
+        const now = new Set(targetDocs().filter(d => d.parent === scene).map(d => d.id));
+        now.has(id) ? now.delete(id) : now.add(id);
+        await shareTargets(scene.id, now);
+      },
+      clearTargets: async function () { await shareTargets(this.targetScene()?.id ?? null, []); },
       fullFoundry: () => setCompanion(false),
       switchCharacter: async function () {
         const actor = await chooseActor({ ask: true });
@@ -48,6 +59,29 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
   };
 
   static PARTS = { main: { template: "systems/sr2e/templates/companion/shell.hbs" } };
+
+  /** The scene the character is on: the active scene if their token is there, else any scene that has it. */
+  targetScene() {
+    const a = this.actor; if (!a) return null;
+    const has = (s) => s?.tokens.some(t => t.actorId === a.id);
+    return has(game.scenes.active) ? game.scenes.active : game.scenes.find(has) ?? null;
+  }
+
+  /** The target list for the Combat and Magic tabs. */
+  targetContext() {
+    const scene = this.targetScene();
+    if (!scene) return { scene: null, choices: [], picked: [] };
+    const own = scene.tokens.find(t => t.actorId === this.actor.id);
+    const combat = game.combats.find(c => c.scene?.id === scene.id && c.started);
+    const picked = new Set(targetDocs().filter(d => d.parent === scene).map(d => d.id));
+    const dist = (t) => { try { return Math.round(scene.grid.measurePath([own.getCenterPoint(own), t.getCenterPoint(t)]).distance); } catch (e) { return null; } };
+    const astral = ["perceiving", "projecting"].includes(this.actor.system.astralState);
+    const rows = scene.tokens.map(t => ({ id: t.id, name: t.name, hidden: t.hidden, own: t.id === own?.id || t.actorId === this.actor.id,
+      astralOnly: !!t.getFlag("sr2e", "astralOnly"), inCombat: !!combat?.combatants.some(c => c.tokenId === t.id),
+      distance: own ? dist(t) : null, disposition: ["hostile", "neutral", "friendly", "secret"][t.disposition + 1] ?? "neutral",
+      picked: picked.has(t.id) }));
+    return { scene: scene.name, choices: targetChoices(rows, { astralActive: astral }), picked: rows.filter(r => r.picked) };
+  }
 
   /** The handlers shared with the sheets read the actor from `document`. */
   get document() { return this.actor; }
@@ -89,6 +123,7 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
       ammo: items("ammo"),
       spells: items("spell").map(sp => ({ id: sp.id, name: sp.name, force: sp.system.force, drain: sp.system.drainCode,
         category: sp.system.category, sustaining: !!sp.system.sustaining })),
+      targets: (this.tab === "combat" || this.tab === "magic") ? this.targetContext() : null,
       conjures: awakened && s.magic?.type !== "physical_adept",
       conjureKind: s.magic?.tradition === "hermetic" ? "elemental" : "nature"
     });
@@ -142,6 +177,9 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
       ...["createItem", "updateItem", "deleteItem", "createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]
         .map(h => on(h, (d) => { if (mine(d)) refresh(); })),
       on("updateCombat", refresh),
+      // Targets picked on the player's other device, and tokens moving (distances).
+      on("updateUser", (u, ch) => { if (u === game.user && foundry.utils.hasProperty(ch, "flags.sr2e.targets")) refresh(); }),
+      ...["createToken", "updateToken", "deleteToken"].map(h => on(h, () => { if (this.tab === "combat" || this.tab === "magic") refresh(); })),
       ...["createChatMessage", "updateChatMessage", "deleteChatMessage"].map(h => on(h, () => { if (this.tab === "chat") refresh(); }))
     ];
   }

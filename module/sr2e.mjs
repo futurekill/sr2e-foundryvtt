@@ -6,6 +6,7 @@
  */
 
 // Configuration
+import { firstTarget, registerTargetSync } from "./targeting.mjs";
 import { SR2E } from "./config.mjs";
 
 // Data Models
@@ -453,6 +454,7 @@ Hooks.once("init", async () => {
   registerFabBehavior();
   registerFabHooks();
   registerCompanion();
+  registerTargetSync();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();
 
@@ -2025,7 +2027,7 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
   } else {
     const centerDoc = centerTokenUuid ? await fromUuid(centerTokenUuid).catch(() => null) : null;
     centerTok = centerDoc?.parent?.id === canvas.scene?.id ? (centerDoc?.object ?? null) : null;
-    if (!centerTok && !strictToken) centerTok = game.user?.targets?.first?.() ?? null;
+    if (!centerTok && !strictToken) centerTok = firstTarget() ?? null;
     if (!centerTok) {
       ui.notifications.warn(strictToken
         ? "The blast's target token is not on the viewed scene — the GM resolves it."
@@ -2193,7 +2195,7 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
 async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePower, baseLevel, damageType, choke, attackerSuccesses, weaponName, netStaging = false, calledShot = false, ratedLevel = "", marker = null }) {
   if (!canvas?.ready) { ui.notifications.warn("No active scene for the shot spread."); return false; }
   const shooterTok = shooterTokenUuid ? (await fromUuid(shooterTokenUuid))?.object : canvas.tokens.controlled[0];
-  const targetTok  = (targetTokenUuid ? (await fromUuid(targetTokenUuid))?.object : null) ?? game.user?.targets?.first?.();
+  const targetTok  = (targetTokenUuid ? (await fromUuid(targetTokenUuid))?.object : null) ?? firstTarget();
   if (!shooterTok || !targetTok) {
     ui.notifications.warn("Need both the shooter's token and a target token to resolve the spread.");
     return false;

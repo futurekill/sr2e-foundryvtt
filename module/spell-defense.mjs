@@ -16,6 +16,7 @@
  * All Spell Defense mutations of one magician on a client run through one
  * queue (grant + rollback, own resistance spend, allocate, clear, refresh).
  */
+import { targetTokens } from "./targeting.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -111,7 +112,7 @@ export async function promptGrant({ castTestId, targetUuid = "", targetName = ""
   if (!mine.length) return ui.notifications.warn("None of your magicians has Spell Defense dice allocated.");
   const targets = targetUuid
     ? [{ uuid: normActorUuid(targetUuid), name: targetName || "the target" }]
-    : [...(game.user?.targets ?? [])].map(t => ({ uuid: normActorUuid(t.document.uuid), name: t.name }));
+    : targetTokens().map(t => ({ uuid: normActorUuid(t.document.uuid), name: t.name }));
   if (!targets.length) return ui.notifications.warn("Target (T) the character(s) you want to protect first.");
   let out = null;
   const action = await foundry.applications.api.DialogV2.wait({

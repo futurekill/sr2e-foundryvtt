@@ -81,6 +81,27 @@
     {{/if}}
 
     {{#if tab.combat}}
+    {{#if targets}}
+    <section class="c-card c-targets">
+      <h2>Target{{#if targets.scene}} <small>{{targets.scene}}</small>{{/if}}</h2>
+      {{#if targets.scene}}
+        {{#each targets.choices as |c|}}
+        <button type="button" class="c-target {{c.disposition}} {{#if c.picked}}picked{{/if}}" data-action="toggleTarget" data-token-id="{{c.id}}" aria-pressed="{{#if c.picked}}true{{else}}false{{/if}}">
+          <i class="fa-solid {{#if c.picked}}fa-crosshairs{{else}}fa-circle{{/if}}"></i>
+          <span>{{c.name}}</span>
+          <b>{{#if c.distance}}{{c.distance}} m{{/if}}</b>
+        </button>
+        {{else}}
+        <p class="companion-note">Nobody else is on this scene.</p>
+        {{/each}}
+        {{#if targets.picked.length}}<button type="button" class="c-wide" data-action="clearTargets">Clear target</button>{{/if}}
+        <p class="companion-note c-small">Line of sight is the GM's call. Your target also shows on your map.</p>
+      {{else}}
+        <p class="companion-note">Your character has no token on a scene, so there's nobody to target. Set the range by hand in the attack.</p>
+      {{/if}}
+    </section>
+    {{/if}}
+
     <section class="c-card">
       <h2>Weapons</h2>
       {{#each weapons as |w|}}
@@ -107,6 +128,27 @@
     {{/if}}
 
     {{#if tab.magic}}
+    {{#if targets}}
+    <section class="c-card c-targets">
+      <h2>Target{{#if targets.scene}} <small>{{targets.scene}}</small>{{/if}}</h2>
+      {{#if targets.scene}}
+        {{#each targets.choices as |c|}}
+        <button type="button" class="c-target {{c.disposition}} {{#if c.picked}}picked{{/if}}" data-action="toggleTarget" data-token-id="{{c.id}}" aria-pressed="{{#if c.picked}}true{{else}}false{{/if}}">
+          <i class="fa-solid {{#if c.picked}}fa-crosshairs{{else}}fa-circle{{/if}}"></i>
+          <span>{{c.name}}</span>
+          <b>{{#if c.distance}}{{c.distance}} m{{/if}}</b>
+        </button>
+        {{else}}
+        <p class="companion-note">Nobody else is on this scene.</p>
+        {{/each}}
+        {{#if targets.picked.length}}<button type="button" class="c-wide" data-action="clearTargets">Clear target</button>{{/if}}
+        <p class="companion-note c-small">Line of sight is the GM's call. Your target also shows on your map.</p>
+      {{else}}
+        <p class="companion-note">Your character has no token on a scene, so there's nobody to target. Set the range by hand in the attack.</p>
+      {{/if}}
+    </section>
+    {{/if}}
+
     <section class="c-card">
       <h2>Spells <small>tap to cast</small></h2>
       {{#each spells as |sp|}}

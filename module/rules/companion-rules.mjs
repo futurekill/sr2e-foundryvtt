@@ -62,3 +62,33 @@ export function companionActor({ storedId = null, assignedId = null, ownedIds = 
   if (assignedId && ownedIds.includes(assignedId)) return assignedId;
   return ownedIds.length === 1 ? ownedIds[0] : null;
 }
+
+/* ── Stage 3: shared targets ────────────────────────────────────────────────── */
+
+/**
+ * Should this client apply a shared-targets record it just received?
+ * Its own writes are ignored (they came from here), and so is anything older than
+ * what it already applied (writes can arrive out of order).
+ * @param {{record?: {seq:number, by:string}|null, mySocketId: string, lastSeq: number}} p
+ */
+export function shouldApplyTargets({ record, mySocketId, lastSeq = 0 }) {
+  if (!record || typeof record.seq !== "number") return false;
+  if (record.by && record.by === mySocketId) return false;
+  return record.seq > lastSeq;
+}
+
+/**
+ * The target picker's list: the tokens on the character's scene that a player may
+ * aim at, combatants first, then nearest. Pure: the caller supplies plain rows.
+ * Excludes the character's own token, GM-hidden tokens, and astral-only tokens
+ * unless the character is astrally active (the same rule as astralAllowsView).
+ * @param {{id, name, hidden?, astralOnly?, inCombat?, distance?, own?}[]} rows
+ * @param {{astralActive?: boolean}} viewer
+ */
+export function targetChoices(rows = [], { astralActive = false } = {}) {
+  return rows
+    .filter(r => !r.own && !r.hidden && (!r.astralOnly || astralActive))
+    .sort((a, b) => (Number(!!b.inCombat) - Number(!!a.inCombat))
+      || ((a.distance ?? Infinity) - (b.distance ?? Infinity))
+      || String(a.name).localeCompare(String(b.name)));
+}
