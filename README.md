@@ -14,6 +14,7 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Vehicles** — Complete vehicle stat blocks with handling, speed, body, armor, and condition monitors
 - **Spirits/Elementals** — Force-based spirit sheets for nature spirits and elementals
 - **IC (Intrusion Countermeasures)** — Matrix IC stat blocks for decking encounters
+- **Hosts** — Matrix systems with Security Code and ratings; IC link to their host
 - **Critters** — Stat blocks for the core book's normal animals and paranormal beings (powers and weaknesses noted; descriptions are original)
 - **Sample Runners** — Five original ready-to-play characters: street samurai, combat mage, decker, rigger, and dog shaman
 - **Vehicles & Drones** — All 32 vehicles and drones from the core rulebook table (cars, bikes, boats, aircraft, rotorcraft, military, and drones) with handling, speed, body, armor, signature, and pilot stats
@@ -23,7 +24,11 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Weapons** — Melee, projectile, throwing, firearms (with firing modes and ammo tracking), heavy weapons, and grenades
 - **Armor** — Ballistic and impact armor with equip/unequip tracking
 - **Spells** — All five spell categories (Combat, Detection, Health, Illusion, Manipulation) with force, drain codes, and type/range/duration
-- **Cyberware** — Headware, bodyware, and cyberlimbs with essence costs, grades (standard/alpha), and attribute modifiers
+- **Cyberware** — Headware, bodyware, and cyberlimbs with essence costs, grades (Standard/Alpha/Beta, Street Samurai Catalog p.98), and attribute modifiers
+- **Bioware** — Body Index costs, cultured bioware, and the Body Index limit (Shadowtech)
+- **Edges & Flaws** — Qualities that change attributes, skills and costs
+- **Metatypes & Traditions** — Race and magical-tradition items that set a character up when dropped on the sheet
+- **Vehicle Modifications** — Options and weapon mounts for vehicles and drones
 - **Programs** — Matrix programs with ratings, memory sizes, and categories
 - **Adept Powers** — Physical adept powers with power point costs and levels
 - **Gear** — General equipment with ratings, quantities, and costs
@@ -55,20 +60,41 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Target Detection** — Target a token (T) before attacking: the dialog pre-selects the range bracket from measured distance and the weapon's range data, pre-fills melee target Quickness, and warns beyond Extreme range
 - **Vehicle Combat & Rigging** — Handling/Position/Crash Tests with terrain modifiers and Control Pool, automatic crash damage, ramming and escape-test resolution, hard-target damage resistance (armor penetration, Body+½ armor, level step-down), vehicle damage levels (TN/Initiative/speed effects), Gunnery from linked vehicle weapons, and a jacked-in toggle that switches initiative to VCR bonuses (Reaction +2 and +1d6 per level)
 - **Essence/Magic Link** — Cyberware automatically reduces Essence, which reduces Magic rating for magicians
+- **Ranged Combat in Depth** — Burst and full-auto with recoil, multiple targets and walking fire (p.92–93), called shots, grenades thrown at a point on the map with the Scatter Diagram (p.96–97), APDS and anti-vehicle warheads (p.108), and damage that stages on net successes
+- **Spellcasting in Depth** — Area spells placed on the map, Spell Defense for anyone you choose (p.132), learning spells (p.132–133), exclusive and fetish-required spells (p.133), ritual sorcery (p.133–137), damaging manipulation spells (p.129–131), and Ignite, Poltergeist and Ice Sheet doing what the book says
+- **Spirits in Depth** — Spirit services, fighting and running out, the 24-hour rule (p.139–142), elementals aiding spells and sustaining them, Aid Study, and nature spirits that vanish at sunrise and sunset (p.139)
+- **Astral Space** — NPC magicians perceive and project; a projecting character's astral form is its own token that walks through ordinary walls but is stopped by living, warded and fat-bacteria barriers (p.145); astral-only tokens are hidden from mundane viewers
+- **Fat Bacteria Zones** — A Region behaviour that slows and reveals astral forms (Corporate Security Handbook p.103)
+- **Matrix Jackpoints** — A Region behaviour on a terminal: jacking in moves the decker's view to a Matrix map with their persona (see docs/MATRIX.md)
+- **Drugs, Toxins & Addiction** — Use a dose, onset and duration, crash, and the full Shadowtech addiction rules (p.85–100), tracked per character; optional Calendaria integration for deadlines
+- **Purchasing** — Dropping gear onto a character offers a buy dialog with rating and grade pricing, charges nuyen, and refunds on removal (optional)
+- **Vehicle Design** — A Design tab that builds a vehicle from scratch with the design engine (tables supplied by the Rigger 2 module)
+- **Movement Limit** — Optionally caps each token's move in combat at its SR2 walk/run rate (p.83)
+- **Mobile Companion** — On a phone or tablet, players get a touch-first character screen instead of the map: rolls, attacks, spells, conjuring, chat, and targets shared with their computer (see "Playing on a phone" below)
+- **Integrations** — Dice So Nice dice textures, Token Magic FX combat effects, Calendaria
 
 ### System Settings
-- Rule of Six toggle
-- Auto-calculate Essence from cyberware
-- Item-deletion confirmation (per player)
-- Shadownet terminal theme (per player)
-- Shadowtalk banter frequency (off / rare / chatty)
+World settings (GM):
+- Rule of Six; auto-calculate Essence from cyberware
 - Matrix ruleset (core book / Virtual Realities 2.0)
+- More Metahumans (optional rule); Team Karma
+- Limit movement in combat
+- Charge for purchases automatically; communal nuyen pot
+- Spirit token placement and astral-by-default; nature spirits' sunrise/sunset hours and expiry
+- Smoke darkness; Combat FX (Token Magic FX)
+- Substance notes in Calendaria; play-area background image
+
+Per player:
+- Interface theme and Shadownet terminal theme
+- Shadowtalk banter frequency (off / rare / chatty)
+- How dice sources are shown on roll cards
+- Item-deletion confirmation
 
 ### GM Tools
 These GM-only macros install themselves into the world's **Macro Directory** on
 load (and re-sync when the system updates). Each previews what it will do and
 asks before changing anything. In Foundry, see the **GM Tools & Utility Macros**
-journal in the *SR2E Guides* compendium.
+journal in the *SR2E Player Guides* compendium.
 
 - **Award Karma / Award Nuyen / Team Karma Pool / Refresh Karma Pool / Reset
   Condition Monitors / Request a Skill Roll** — the everyday GM helpers.
@@ -83,6 +109,20 @@ journal in the *SR2E Guides* compendium.
 Each is a wrapper over the scripting API, also callable from the console:
 `game.sr2e.consolidateAmmo(actor, { dryRun: true })` and
 `game.sr2e.repairStaleImplants()` (add `{ apply: true }` to write).
+
+## Playing on a phone
+A phone or tablet smaller than 1024 × 768 that opens your Foundry address gets the
+**mobile companion**: the player's character as a touch screen, with no map. Keep
+the map on a computer and roll from the phone. Picking a target on either device
+targets it on both. Things that need a map (aiming a grenade at a point, placing an
+area spell, placing a conjured spirit's token) are done from the computer.
+"Open full Foundry on this device" switches back; `?companion=1` in the address
+forces it on.
+
+**Known limit:** Foundry's join page won't let a user log in on a second device
+while they're online on the first. A fix is planned (docs/PLAN-companion-join.md).
+Until then, give the player a second Foundry user that owns the same character
+and log the phone in as that user (targets then don't sync between the two).
 
 ## Installation
 
@@ -125,14 +165,27 @@ npm run build-packs cyberware    # rebuild a single pack
 ```
 
 Edit compendium content either inside Foundry (then extract) or directly in
-the JSON sources (then build). Commit both `packs/` and `packs-src/`.
+the JSON sources (then build). Commit `packs-src/` only: `packs/` is gitignored,
+and the release workflow builds it.
+
+## Tests
+
+```bash
+npm run lint    # ESLint; runs first in CI
+npm test        # Vitest: the rules math, no Foundry needed
+```
+
+UI, sheet and chat-card behaviour is covered by [Quench](https://github.com/Ethaks/FVTT-Quench)
+batches inside Foundry (docs/QUENCH.md); run them as `sr2e.**`. The manual
+checklist is docs/QA-PLAN.md.
 
 ## Releasing a New Version
 
 This project uses GitHub Actions for automated releases:
 
-1. Update the `version` field in `system.json`
-2. Commit your changes
+1. Retitle `## Unreleased` in `CHANGELOG.md` to `## X.Y.Z — date` (the release
+   notes come from that section; the release fails without one)
+2. Update the `version` field in `system.json` and commit
 3. Create and push a version tag:
    ```bash
    git tag v0.1.0
@@ -153,62 +206,50 @@ This project uses GitHub Actions for automated releases:
 
 ```
 sr2e/
-├── system.json              # System manifest
+├── system.json         # System manifest
 ├── module/
-│   ├── sr2e.mjs             # Main entry point
-│   ├── config.mjs           # System configuration constants
-│   ├── data/                # TypeDataModel definitions
-│   │   ├── base-data.mjs    # Base data model
-│   │   ├── actor-data.mjs   # Character, NPC, Vehicle, Spirit, IC
-│   │   ├── item-data.mjs    # All item type data models
-│   │   └── _index.mjs       # Barrel export
-│   ├── documents/           # Document class overrides
-│   │   ├── actor.mjs        # SR2EActor
-│   │   ├── item.mjs         # SR2EItem
-│   │   └── _index.mjs
-│   ├── sheets/              # ApplicationV2 sheet classes
-│   │   ├── actor-sheet.mjs  # Character, NPC, Vehicle, Spirit, IC sheets
-│   │   └── item-sheet.mjs   # Universal item sheet
-│   ├── dice/                # Custom dice/roll classes
-│   │   └── sr2e-roll.mjs    # SR2E Success Test roll
-│   └── helpers/             # Utilities
-│       ├── templates.mjs    # Template preloading
-│       └── handlebars.mjs   # Custom Handlebars helpers
-├── templates/               # Handlebars templates
-│   ├── actor/               # Actor sheet templates
-│   │   ├── parts/           # Character sheet tab partials
-│   │   ├── npc-sheet.hbs
-│   │   ├── vehicle-sheet.hbs
-│   │   ├── spirit-sheet.hbs
-│   │   └── ic-sheet.hbs
-│   ├── item/                # Item sheet templates
-│   │   ├── parts/
-│   │   └── item-body.hbs
-│   └── chat/                # Chat message templates
-│       └── roll-result.hbs
-├── css/
-│   └── sr2e-main.css        # System stylesheet
-├── lang/
-│   └── en.json              # English localization
-├── packs/                   # Compendium packs (future)
-└── assets/                  # Images and static assets
+│   ├── sr2e.mjs        # Entry point: hooks, settings, registration
+│   ├── data/           # TypeDataModels; ALL derived data lives here
+│   ├── documents/      # SR2EActor, SR2EItem, SR2ECombat
+│   ├── sheets/         # ApplicationV2 sheets and their shared actions
+│   ├── rules/          # Pure rules math (unit-tested, no Foundry deps)
+│   ├── companion/      # Mobile companion mode
+│   ├── quench/         # In-Foundry test batches
+│   └── *.mjs           # Feature modules: astral, drugs, jackpoints, ritual, …
+├── templates/          # Handlebars templates
+├── css/  lang/  assets/
+├── packs-src/          # Compendium source (JSON); packs/ is built from it
+├── test/               # Vitest
+├── tools/              # Pack build/extract and data generators
+└── docs/               # Plans, audits, QA plan, Matrix and macro guides
 ```
+
+## Sourcebook Modules
+
+Optional content modules, each its own repository and install:
+
+| Module | Contents |
+|---|---|
+| [The Grimoire](https://github.com/futurekill/sr2e-grimoire) | Totems, foci and physical adept powers |
+| [Street Samurai Catalog](https://github.com/futurekill/sr2e-street-samurai-catalog) | Gear, weapons, armor and cyberware |
+| [Shadowtech](https://github.com/futurekill/sr2e-shadowtech) | Bioware, expanded cyberware, gene-tech, drugs and toxins |
+| [Rigger Black Book](https://github.com/futurekill/sr2e-rigger-black-book) | The vehicle and drone catalog (SR1, converted) |
+| [Rigger 2](https://github.com/futurekill/sr2e-rigger-2) | Vehicles, drones, modifications, vehicle weapons, rigger cyberware and sensors |
+| [Fields of Fire](https://github.com/futurekill/sr2e-fields-of-fire) | Mercenary weapons, ammunition, armor, gear and vehicles |
+| [Shadowrun Companion](https://github.com/futurekill/sr2e-shadowrun-companion) | The Edges & Flaws catalog and other character options |
+| [Neo-Anarchists' Guide to Real Life](https://github.com/futurekill/sr2e-neo-anarchists) | Holdout weapons, armor clothing, surveillance gear, transport and lifestyles |
+| [Corporate Security Handbook](https://github.com/futurekill/sr2e-corporate-security) | Security gear, fat bacteria, VTOLs and drones, personnel, the Goose totem |
+| [Paranormal Animals of Europe](https://github.com/futurekill/sr2e-paranormal-animals) | The Awakened animals, as critter actors |
+| [Double Exposure](https://github.com/futurekill/sr2e-double-exposure) | Adventure: scenes, NPCs, maps and GM journals |
+| [Queen Euphoria](https://github.com/futurekill/sr2e-queen-euphoria) | Adventure, modernized from 1st edition, with battle maps |
+| [Missions](https://github.com/futurekill/sr2e-missions) | Adventures to drop between Double Exposure's runs |
+| [Pink Fohawk](https://github.com/futurekill/sr2e-pink-fohawk) | Player characters and cast for one table |
 
 ## Roadmap
 
-### Planned System Work
-- **Foundry VTT V14 compatibility** — verify and support V14 when it releases
-
-### Planned Compendium Modules
-- **Archetypes Pack** — Additional pre-built characters (a starter set of five
-  original sample runners ships in the Sample Runners pack)
-
-### Planned Sourcebook Modules
-- **The Grimoire (FASA 7903)** — Additional spells and magical rules
-- **Virtual Realities 2.0 (FASA 7904)** — Expanded Matrix rules
-- **Rigger 2 (FASA 7906)** — Expanded vehicle and drone rules
-- **Street Samurai Catalog (FASA 7104a)** — Additional weapons and gear
-- **The Neo-Anarchist's Guide to Real Life (FASA 7208)** — Additional sourcebook content
+- **Foundry VTT V14 compatibility** when it releases
+- **Virtual Realities 2.0** as a full ruleset (the core Matrix is implemented; a VR2.0 toggle exists)
+- Phone login while the computer is logged in (see "Playing on a phone")
 
 ## Credits
 
