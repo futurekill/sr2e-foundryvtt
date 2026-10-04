@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Added — a phone can join while the computer is logged in
+Foundry's join page won't let you pick a user who is already online, so a player
+logged in on their computer couldn't open the companion on their phone.
+- **Open on phone** in the Settings sidebar shows a QR code. Scan it with the phone
+  and type your Foundry password (if you have one). The phone gets its own login
+  and opens straight into the companion; the computer stays logged in.
+- The dialog's address can be edited: a computer on `localhost` says so and asks for
+  the address the phone can reach (e.g. `http://192.168.1.20:30000`).
+- No password or session goes into the link, only your user's id and name.
+- Logging out on one device doesn't log out the other.
+
+### Fixed — mobile companion (found in Codex's review of 0.103.0)
+- **"Open full Foundry on this device" didn't stick** after opening Foundry with
+  `?companion=1`: the address switched it straight back on. The parameter now
+  applies once.
+- **A phone and a computer could disagree about the target.** Picks were ordered
+  by each device's clock, so a computer running a little fast ignored the phone.
+  Every map now shows whatever the server stored last.
+- A target clicked on the map just after a phone pick could be lost, and a map
+  click waiting to be shared could overwrite a newer phone pick.
+- Two quick taps on the phone's target list could keep only one of them.
+- A device switching back from the companion could be left without its map after
+  an interrupted reload.
+- **Shotgun spreads** from the phone spent ammo with the wrong cone. The phone now
+  doesn't offer a spread and says to fire it from the map.
+
 ## 0.103.0 — 2026-10-03
 
 ### Added — mobile companion mode

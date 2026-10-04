@@ -32,6 +32,7 @@ import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
+import { registerPhoneLink } from "./companion/phone-link.mjs";
 
 // Sheets
 import {
@@ -454,6 +455,7 @@ Hooks.once("init", async () => {
   registerFabBehavior();
   registerFabHooks();
   registerCompanion();
+  registerPhoneLink();
   registerTargetSync();
   registerNatureSpiritSettings();
   registerNatureSpiritHooks();

@@ -110,3 +110,11 @@ body.sr2e-companion #notifications { z-index: 70; }
 @media (min-width: 700px) {
   .sr2e-companion-app .companion-menu { flex-direction: row; justify-content: flex-end; }
 }
+
+/* "Open on phone" dialog on the computer (module/companion/phone-link.mjs). */
+.sr2e-phone-link .sr2e-phone-qr { display: flex; justify-content: center; margin: 0.5rem 0; }
+.sr2e-phone-link .sr2e-phone-qr svg { width: 240px; height: 240px; border-radius: 4px; }
+.sr2e-phone-link .sr2e-phone-note:empty { display: none; }
+.sr2e-phone-link .sr2e-phone-note.warning { color: var(--color-level-warning, #ee9b3a); }
+.sr2e-phone-link .sr2e-phone-url { flex: 1; min-width: 0; font-size: var(--font-size-12, 12px); }
+.sr2e-phone-link .sr2e-phone-copy { flex: 0 0 auto; width: auto; }

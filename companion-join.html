@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Join from your phone</title>
+<!--
+  Shadowrun 2E: sign a phone in as a user who is already online on another device
+  (docs/PLAN-companion-join.md). Foundry's join page disables that user; its /join
+  route doesn't. Opened from the "Open on phone" QR code on the player's computer.
+  Untrusted input (the URL fragment) is only ever shown with textContent.
+-->
+<style>
+  :root { color-scheme: dark; --bg: #0d0a18; --panel: #1a1430; --ink: #ece8f6; --muted: #a79fc0; --accent: #b388ff; --err: #ff8a80; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; display: grid; place-items: center; padding: 16px; }
+  main { width: 100%; max-width: 380px; background: var(--panel); border-radius: 12px; padding: 24px 20px; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; text-wrap: balance; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  input { width: 100%; font-size: 16px; padding: 12px; border-radius: 8px; border: 1px solid #4a4068; background: #0f0b1d; color: var(--ink); }
+  button { width: 100%; margin-top: 16px; min-height: 48px; font-size: 1rem; font-weight: 600; border: 0; border-radius: 8px;
+    background: var(--accent); color: #160f2a; }
+  button:disabled { opacity: 0.6; }
+  .error { color: var(--err); margin: 12px 0 0; min-height: 1.45em; }
+  .small { font-size: 0.875rem; margin-top: 16px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section id="bad" hidden>
+    <h1>Open this from your computer</h1>
+    <p>On the computer you play on, open Foundry's <b>Settings</b> sidebar, click <b>Open on phone</b>, and scan the QR code.</p>
+  </section>
+  <form id="join" hidden autocomplete="on">
+    <h1>Sign in as <span id="who"></span></h1>
+    <p>Your phone becomes your character sheet while your computer keeps the map.</p>
+    <input type="text" name="username" id="username" autocomplete="username" hidden>
+    <label for="password">Foundry password</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" placeholder="Leave blank if you have none">
+    <button type="submit" id="go">Join</button>
+    <p class="error" id="error" role="alert"></p>
+    <p class="small">This replaces any Foundry login this browser already has.</p>
+  </form>
+</main>
+<script type="module">
+  import { parseJoinFragment, pagePrefix, joinResult } from "./module/rules/companion-rules.mjs";
+
+  const who = parseJoinFragment(location.hash);
+  const prefix = pagePrefix(location.pathname);
+  const form = document.getElementById("join");
+  if (!who || prefix === null) {
+    document.getElementById("bad").hidden = false;
+  } else {
+    document.getElementById("who").textContent = who.name || "your user";
+    document.getElementById("username").value = who.name;
+    form.hidden = false;
+    const go = document.getElementById("go"), error = document.getElementById("error");
+    let inFlight = false;
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (inFlight) return;
+      inFlight = true;
+      go.disabled = true;
+      go.textContent = "Joining…";
+      error.textContent = "";
+      let res = { status: 0, contentType: "", body: "" };
+      try {
+        const r = await fetch(`${prefix}/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "join", userid: who.userId, password: document.getElementById("password").value }),
+          credentials: "same-origin",
+          signal: AbortSignal.timeout(15000)
+        });
+        res = { status: r.status, contentType: r.headers.get("content-type") ?? "", body: await r.text() };
+      } catch (e) { /* network failure or timeout: status 0 */ }
+      const result = joinResult(res);
+      if (result.ok) { location.assign(`${prefix}/game?companion=1`); return; }
+      error.textContent = result.message;
+      inFlight = false;
+      go.disabled = false;
+      go.textContent = "Join";
+    });
+  }
+</script>
+</body>
+</html>

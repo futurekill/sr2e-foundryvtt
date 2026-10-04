@@ -15,7 +15,7 @@ const foundryGlobals = Object.fromEntries([
 ].map(k => [k, "readonly"]));
 
 export default [
-  { ignores: ["node_modules/**", "packs/**", "**/_work/**", "dist/**"] },
+  { ignores: ["node_modules/**", "packs/**", "**/_work/**", "dist/**", "module/vendor/**"] },
   js.configs.recommended,
   {
     // System code runs in the browser inside Foundry.

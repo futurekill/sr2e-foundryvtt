@@ -9,18 +9,20 @@
  * own User document, `flags.sr2e.targets = {sceneId, ids, seq, by}`:
  *   - a map client writes it when the player targets on the map;
  *   - the companion writes it when the player picks from its list;
- *   - a map client that receives a write from another device applies it with
- *     Token#setTarget (which also shows the GM the reticle, as a click would).
+ *   - every map client applies whatever the record now says, with Token#setTarget
+ *     (which also shows the GM the reticle, as a click would).
+ * Ordering comes from the server, never from device clocks: Foundry delivers a
+ * User's updates to all of its clients in one order, and each map applies the
+ * stored record, its OWN echoes included, changing only what differs. So when
+ * two devices write at once, both end on whichever write the server stored last.
  *
  * Callers get TARGET HANDLES: the real placeable when this client has a map (so the
  * desktop behaves exactly as before), otherwise a stand-in built from the token
  * document with the fields callers read: name, id, actor, document, center.
  */
 
-import { shouldApplyTargets } from "./rules/companion-rules.mjs";
-
 const SCOPE = "sr2e", FLAG = "targets";
-let lastSeq = 0, applying = false, writeTimer = null;
+let applying = false, writeTimer = null, queue = Promise.resolve();
 
 /** A canvas-free stand-in for a Token placeable. */
 function handleFor(doc) {
@@ -55,11 +57,24 @@ export function targetDocs() { return sharedTargetDocs(); }
 
 /** Write this user's targets to their User document (any device). */
 export async function shareTargets(sceneId, ids) {
-  const seq = Date.now();
-  lastSeq = Math.max(lastSeq, seq);
-  await game.user.update({ [`flags.${SCOPE}.${FLAG}`]: { sceneId: sceneId ?? null, ids: [...ids], seq, by: game.socket?.id ?? "" } });
+  await game.user.update({ [`flags.${SCOPE}.${FLAG}`]: { sceneId: sceneId ?? null, ids: [...ids], by: game.socket?.id ?? "" } });
   // No map on this device: tell the table directly, so the GM still sees the reticle.
   if (!globalThis.canvas?.ready) game.user.broadcastActivity({ sceneId, targets: [...ids] });
+}
+
+/**
+ * Change the shared targets one step at a time: `fn(current ids on sceneId)` returns
+ * the new ids. Steps run in order, each reading the record the previous one stored,
+ * so quick taps on the phone's list never overwrite each other.
+ */
+export function updateSharedTargets(sceneId, fn) {
+  const step = queue.then(async () => {
+    const rec = game.user.getFlag(SCOPE, FLAG);
+    const now = new Set(rec?.sceneId === sceneId ? (rec.ids ?? []) : []);
+    await shareTargets(sceneId, fn(now));
+  });
+  queue = step.catch(() => {});
+  return step;
 }
 
 /** A map client: mirror the user's targets out (debounced). */
@@ -74,10 +89,13 @@ function writeFromCanvas() {
   }, 120);
 }
 
-/** A map client: apply targets another device of this user chose. */
+/** A map client: make the map show the stored record (a no-op when it already does). */
 function applyToCanvas(rec) {
-  if (!canvas?.ready) return;
-  applying = true;
+  if (!canvas?.ready || !rec) return;
+  // The record supersedes a map click still waiting to be written.
+  clearTimeout(writeTimer);
+  const was = applying;
+  applying = true;   // Token#setTarget fires targetToken synchronously: don't echo it back
   try {
     const want = new Set(rec.sceneId === canvas.scene?.id ? (rec.ids ?? []) : []);
     for (const t of [...game.user.targets]) if (!want.has(t.id)) t.setTarget(false, { releaseOthers: false, groupSelection: true });
@@ -85,21 +103,17 @@ function applyToCanvas(rec) {
       const t = canvas.tokens.get(id);
       if (t && !t.isTargeted) t.setTarget(true, { releaseOthers: false, groupSelection: true });
     }
-  } finally { setTimeout(() => { applying = false; }, 200); }
+  } finally { applying = was; }
 }
 
 export function registerTargetSync() {
   Hooks.on("targetToken", (user) => { if (user === game.user) writeFromCanvas(); });
   Hooks.on("updateUser", (user, changes) => {
     if (user !== game.user || !foundry.utils.hasProperty(changes, `flags.${SCOPE}.${FLAG}`)) return;
-    const rec = user.getFlag(SCOPE, FLAG);
-    if (!shouldApplyTargets({ record: rec, mySocketId: game.socket?.id ?? "", lastSeq })) return;
-    lastSeq = rec.seq;
-    applyToCanvas(rec);
+    applyToCanvas(user.getFlag(SCOPE, FLAG));
   });
   // A map client that loads after the phone picked: start from the shared record.
   Hooks.on("canvasReady", () => {
-    const rec = game.user.getFlag(SCOPE, FLAG);
-    if (rec?.seq) { lastSeq = Math.max(lastSeq, rec.seq); applyToCanvas(rec); }
+    applyToCanvas(game.user.getFlag(SCOPE, FLAG));
   });
 }

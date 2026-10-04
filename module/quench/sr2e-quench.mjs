@@ -9098,6 +9098,47 @@ export function registerSR2EQuenchTests() {
         }
       });
 
+      it("shared targets follow the server's order, not device clocks (Codex review)", async function () {
+        this.timeout(25000);
+        const T = await import("../targeting.mjs");
+        const startScene = canvas.scene?.id;
+        const [sc] = await Scene.createDocuments([{ name: "Quench Target Races", width: 1000, height: 600,
+          grid: { size: 100, distance: 1, units: "m" }, navigation: false }]);
+        const foe = await Actor.create({ name: "Quench Race Foe", type: "npc" });
+        try {
+          const base = (await foe.getTokenDocument()).toObject();
+          await sc.createEmbeddedDocuments("Token", [{ ...base, name: "RA", x: 300, y: 200 }, { ...base, name: "RB", x: 600, y: 200 }]);
+          await sc.view(); await wait(1200);
+          const a = canvas.tokens.placeables.find(t => t.name === "RA"), b = canvas.tokens.placeables.find(t => t.name === "RB");
+          const mine = () => [...game.user.targets].map(t => t.name).sort();
+          // 1. A write stored last, even one this device made, is what the map shows.
+          a.setTarget(true, { releaseOthers: true });
+          await wait(50);
+          await game.user.update({ "flags.sr2e.targets": { sceneId: sc.id, ids: [b.id], by: game.socket.id } });
+          await wait(500);
+          assert.deepEqual(mine(), ["RB"], "the stored record wins over a pending map click");
+          assert.deepEqual(game.user.getFlag("sr2e", "targets").ids, [b.id], "and the pending click didn't overwrite it");
+          // 2. A map click right after a phone pick is not swallowed.
+          await game.user.update({ "flags.sr2e.targets": { sceneId: sc.id, ids: [a.id], by: "another-device" } });
+          await wait(20);
+          b.setTarget(true, { releaseOthers: false });
+          await wait(600);
+          assert.sameMembers(game.user.getFlag("sr2e", "targets").ids, [a.id, b.id], "the click reached the shared record");
+          // 3. Two quick taps on the phone's list both count.
+          await T.updateSharedTargets(sc.id, () => []);
+          await Promise.all([
+            T.updateSharedTargets(sc.id, now => now.add(a.id)),
+            T.updateSharedTargets(sc.id, now => now.add(b.id))
+          ]);
+          assert.sameMembers(game.user.getFlag("sr2e", "targets").ids, [a.id, b.id], "neither tap was lost");
+        } finally {
+          for (const t of [...game.user.targets]) t.setTarget(false, { releaseOthers: false });
+          await game.user.unsetFlag("sr2e", "targets");
+          const back = game.scenes.get(startScene); if (back) await back.view();
+          await sc.delete(); await foe.delete();
+        }
+      });
+
       it("the chat tab shows rendered cards", async function () {
         this.timeout(15000);
         await actor.rollAttributeTest("body", 4, {});
@@ -9105,6 +9146,89 @@ export function registerSR2EQuenchTests() {
         assert.isAbove(app.element.querySelectorAll(".companion-chat .chat-message").length, 0);
       });
     }, { displayName: "SR2E: Mobile companion screen" });
+
+    quench.registerBatch("sr2e.companion-join", (context) => {
+      const { it, assert } = context;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const page = () => foundry.utils.getRoute("systems/sr2e/companion-join.html");
+      const frame = async (hash) => {
+        const f = document.createElement("iframe");
+        f.style.cssText = "position:fixed;left:-2000px;width:400px;height:700px";
+        f.src = page() + hash;
+        document.body.append(f);
+        await new Promise(r => f.addEventListener("load", r, { once: true }));
+        await wait(400);   // the page's module script
+        return f;
+      };
+
+      it("Settings has Open on phone; its dialog shows a QR code of the join page for this user", async function () {
+        this.timeout(10000);
+        await ui.sidebar.changeTab("settings", "primary"); await wait(300);
+        const btn = document.querySelector("#settings .sr2e-open-on-phone");
+        assert.ok(btn, "button in the Settings sidebar");
+        btn.click(); await wait(600);
+        const dlg = [...document.querySelectorAll("dialog.application")].find(d => d.querySelector(".sr2e-phone-link"));
+        try {
+          assert.ok(dlg?.querySelector(".sr2e-phone-qr svg"), "a QR code");
+          const url = new URL(dlg.querySelector(".sr2e-phone-url").value);
+          assert.equal(url.origin, location.origin);
+          assert.equal(url.pathname, page());
+          const p = new URLSearchParams(url.hash.slice(1));
+          assert.deepEqual([p.get("u"), p.get("n")], [game.user.id, game.user.name]);
+          const addr = dlg.querySelector('[name="address"]');
+          addr.value = "http://192.168.1.20:30000"; addr.dispatchEvent(new Event("input"));
+          assert.isTrue(dlg.querySelector(".sr2e-phone-url").value.startsWith("http://192.168.1.20:30000/"), "editing the address re-links");
+          assert.ok(dlg.querySelector(".sr2e-phone-qr svg"), "and redraws");
+          addr.value = "http://host/join"; addr.dispatchEvent(new Event("input"));
+          assert.notOk(dlg.querySelector(".sr2e-phone-qr svg"), "a bad address gets no QR");
+          assert.match(dlg.querySelector(".sr2e-phone-note").textContent, /nothing after it/);
+        } finally {
+          dlg?.querySelector('[data-action="close"]')?.click(); await wait(200);
+        }
+      });
+
+      it("the join page shows a hostile name as text and runs nothing", async function () {
+        this.timeout(10000);
+        window.__sr2eJoinXss = false;
+        const evil = `<img src=x onerror="parent.__sr2eJoinXss=true">`;
+        const f = await frame("#" + new URLSearchParams({ u: game.user.id, n: evil }));
+        try {
+          const d = f.contentDocument;
+          assert.equal(d.getElementById("who").textContent, evil, "shown literally");
+          assert.equal(d.querySelectorAll("img").length, 0, "no element was created");
+          assert.isFalse(window.__sr2eJoinXss);
+          assert.isFalse(d.getElementById("join").hidden);
+        } finally { f.remove(); delete window.__sr2eJoinXss; }
+      });
+
+      it("the join page refuses a malformed id", async function () {
+        this.timeout(10000);
+        const f = await frame("#u=../../etc&n=Bob");
+        try {
+          assert.isFalse(f.contentDocument.getElementById("bad").hidden);
+          assert.isTrue(f.contentDocument.getElementById("join").hidden);
+        } finally { f.remove(); }
+      });
+
+      it("two submits send one request, and a wrong password re-enables the form", async function () {
+        this.timeout(10000);
+        const f = await frame("#" + new URLSearchParams({ u: game.user.id, n: game.user.name }));
+        try {
+          const w = f.contentWindow, d = f.contentDocument;
+          let calls = 0, release;
+          w.fetch = () => { calls++; return new Promise(r => { release = () => r(new w.Response("JOIN.ErrorInvalidPassword", { status: 401 })); }); };
+          const form = d.getElementById("join");
+          form.dispatchEvent(new w.Event("submit", { cancelable: true }));
+          form.dispatchEvent(new w.Event("submit", { cancelable: true }));
+          await wait(50);
+          assert.equal(calls, 1, "one request in flight");
+          assert.isTrue(d.getElementById("go").disabled);
+          release(); await wait(100);
+          assert.equal(d.getElementById("error").textContent, "Wrong password.");
+          assert.isFalse(d.getElementById("go").disabled, "usable again");
+        } finally { f.remove(); }
+      });
+    }, { displayName: "SR2E: Phone join page" });
 
 
 

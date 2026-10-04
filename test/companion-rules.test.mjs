@@ -32,7 +32,8 @@ describe("the canvas switch", () => {
   });
   it("never loops: a second pass in the same tab carries on", () => {
     expect(canvasPlan({ companion: true, noCanvas: false, remembered: null, reloaded: true })).toEqual({ reload: false });
-    expect(canvasPlan({ companion: false, noCanvas: true, remembered: false, reloaded: true })).toEqual({ forget: true, reload: false });
+    // A failed restore keeps the remembered value, so a fresh tab can try again.
+    expect(canvasPlan({ companion: false, noCanvas: true, remembered: false, reloaded: true })).toEqual({ reload: false });
   });
   it("leaving: restores what the device had, and leaves a device we never touched alone", () => {
     expect(canvasPlan({ companion: false, noCanvas: true, remembered: false, reloaded: false }))
@@ -52,17 +53,7 @@ describe("which character", () => {
   });
 });
 
-import { shouldApplyTargets, targetChoices } from "../module/rules/companion-rules.mjs";
-
-describe("shared targets between a player's devices", () => {
-  it("ignores this device's own writes and anything older than what it has", () => {
-    const rec = { seq: 10, by: "phone" };
-    expect(shouldApplyTargets({ record: rec, mySocketId: "computer", lastSeq: 5 })).toBe(true);
-    expect(shouldApplyTargets({ record: rec, mySocketId: "phone", lastSeq: 5 })).toBe(false);
-    expect(shouldApplyTargets({ record: rec, mySocketId: "computer", lastSeq: 10 })).toBe(false);
-    expect(shouldApplyTargets({ record: null, mySocketId: "computer" })).toBe(false);
-  });
-});
+import { targetChoices } from "../module/rules/companion-rules.mjs";
 
 describe("the target list", () => {
   const rows = [
@@ -78,5 +69,49 @@ describe("the target list", () => {
   });
   it("an astrally active character also sees astral-only tokens", () => {
     expect(targetChoices(rows, { astralActive: true }).map(r => r.id)).toEqual(["near", "far", "s", "by"]);
+  });
+});
+
+describe("phone join (docs/PLAN-companion-join.md)", async () => {
+  const R = await import("../module/rules/companion-rules.mjs");
+  it("strips ?companion= once, keeping everything else", () => {
+    expect(R.stripCompanionParam("http://h:30000/game?companion=1")).toBe("/game");
+    expect(R.stripCompanionParam("http://h/pre/game?x=2&companion=on#y")).toBe("/pre/game?x=2#y");
+    expect(R.stripCompanionParam("http://h/game?x=2")).toBeNull();
+  });
+  it("finds the route prefix from the page's exact path", () => {
+    expect(R.pagePrefix("/systems/sr2e/companion-join.html")).toBe("");
+    expect(R.pagePrefix("/foundry/systems/sr2e/companion-join.html")).toBe("/foundry");
+    expect(R.pagePrefix("/systems/sr2e/other.html")).toBeNull();
+  });
+  it("accepts only a Foundry id, and keeps a hostile name as literal text", () => {
+    expect(R.parseJoinFragment("#u=AbCdEfGh12345678&n=Alice")).toEqual({ userId: "AbCdEfGh12345678", name: "Alice" });
+    expect(R.parseJoinFragment("#u=../../x&n=A")).toBeNull();
+    expect(R.parseJoinFragment("#n=A")).toBeNull();
+    const evil = "<img src=x onerror=alert(1)>";
+    expect(R.parseJoinFragment("#" + new URLSearchParams({ u: "AbCdEfGh12345678", n: evil })).name).toBe(evil);
+  });
+  it("normalises the phone's address and refuses anything but an http(s) origin", () => {
+    expect(R.normalizeAddress("http://192.168.1.20:30000/")).toEqual({ origin: "http://192.168.1.20:30000" });
+    expect(R.normalizeAddress("https://vtt.example.com")).toEqual({ origin: "https://vtt.example.com" });
+    expect(R.normalizeAddress("http://localhost:30000").warning).toMatch(/can't reach/);
+    expect(R.normalizeAddress("http://127.0.0.1:30000").warning).toMatch(/can't reach/);
+    expect(R.normalizeAddress("http://mac.local:30000").warning).toMatch(/may need/);
+    for (const bad of ["ftp://h", "javascript:alert(1)", "http://u:p@h", "http://h/join", "http://h?x=1", "http://h#f", "nonsense"]) {
+      expect(R.normalizeAddress(bad).error, bad).toBeTruthy();
+    }
+  });
+  it("builds the link with the route prefix and an encoded fragment", () => {
+    const link = R.joinLink({ origin: "http://h:30000", route: "/foundry/systems/sr2e/companion-join.html", userId: "AbCdEfGh12345678", name: "Mel & Co" });
+    expect(link).toBe("http://h:30000/foundry/systems/sr2e/companion-join.html#u=AbCdEfGh12345678&n=Mel+%26+Co");
+    expect(R.parseJoinFragment(new URL(link).hash).name).toBe("Mel & Co");
+  });
+  it("reads a join response strictly", () => {
+    expect(R.joinResult({ status: 200, contentType: "application/json", body: '{"status":"success"}' })).toEqual({ ok: true });
+    expect(R.joinResult({ status: 200, contentType: "text/html", body: "<html>" }).ok).toBe(false);
+    expect(R.joinResult({ status: 200, contentType: "application/json", body: "{" }).ok).toBe(false);
+    expect(R.joinResult({ status: 401, body: "JOIN.ErrorInvalidPassword" }).message).toBe("Wrong password.");
+    expect(R.joinResult({ status: 401, body: "who knows" }).message).toMatch(/HTTP 401/);
+    expect(R.joinResult({ status: 0 }).message).toBe("Couldn't reach the game. Is it running?");
   });
 });

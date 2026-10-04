@@ -266,7 +266,13 @@ its buttons run the desktop handlers unchanged: give a row `data-item-id` and th
 button the same `data-action` as the sheet. Never re-implement a roll for the
 companion. A template part must render ONE root element. Same-user devices never see each other's
 targets (Foundry drops a user's own `userActivity`), so targets are shared through
-the User document. See docs/PLAN-companion.md.
+the User document. Order comes from the SERVER: every map applies the stored record,
+its own echoes included, and never compares device clocks. Phone picks go through
+`updateSharedTargets` (a queue). See docs/PLAN-companion.md.
+A user already online can't pick themselves on Foundry's join page (only the page
+blocks it, not the server), so `companion-join.html` in the system root posts to
+`/join` itself; the computer's Settings → **Open on phone** QR links to it. Treat the
+page's URL fragment as hostile (textContent only). See docs/PLAN-companion-join.md.
 
 ## Matrix jackpoints
 `module/jackpoints.mjs` (+ pure decisions in `module/rules/jackpoint-rules.mjs`):

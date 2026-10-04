@@ -11,13 +11,13 @@
  *   sr2e.companion            "on" | "off" (absent = automatic)
  *   sr2e.companion.noCanvas   the device's noCanvas value before we changed it
  *   sr2e.companion.actor      the character picked on this device
- * `?companion=1|0|auto` in the address sets the first.
+ * `?companion=1|0|auto` in the address sets the first, and is then removed from it.
  */
 
-import { companionMode, overrideFromQuery, canvasPlan, companionActor } from "../rules/companion-rules.mjs";
+import { companionMode, overrideFromQuery, canvasPlan, companionActor, stripCompanionParam } from "../rules/companion-rules.mjs";
 
 const KEY = "sr2e.companion", KEY_CANVAS = "sr2e.companion.noCanvas", KEY_ACTOR = "sr2e.companion.actor";
-const RELOADED = "sr2e.companion.reloaded";   // sessionStorage: one reload per tab, never a loop
+const RELOADED = "sr2e.companion.reloaded";   // sessionStorage: "on"/"off", one reload per tab per direction
 
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -32,6 +32,12 @@ function decide() {
   const q = overrideFromQuery(globalThis.location?.search ?? "");
   if (q === "auto") store.set(KEY, null);
   else if (q) store.set(KEY, q);
+  // Apply it once: otherwise leaving the companion reloads ?companion=1 and is
+  // switched straight back on.
+  try {
+    const clean = stripCompanionParam(globalThis.location.href);
+    if (clean !== null) globalThis.history.replaceState(globalThis.history.state, "", clean);
+  } catch (e) { /* no history API */ }
   const override = store.get(KEY);
   return companionMode({
     override: override === "on" || override === "off" ? override : null,
@@ -91,12 +97,12 @@ export function registerCompanion() {
     const plan = canvasPlan({
       companion: isCompanion, noCanvas: !!game.settings.get("core", "noCanvas"),
       remembered: rememberedRaw === null ? null : rememberedRaw === "true",
-      reloaded: session.get(RELOADED) === "1"
+      reloaded: session.get(RELOADED) === (isCompanion ? "on" : "off")
     });
     if (plan.remember) store.set(KEY_CANVAS, String(!!game.settings.get("core", "noCanvas")));
     if (plan.forget) store.set(KEY_CANVAS, null);
     if (plan.set !== undefined) await game.settings.set("core", "noCanvas", plan.set);
-    if (plan.reload) { session.set(RELOADED, "1"); globalThis.location.reload(); }
+    if (plan.reload) { session.set(RELOADED, isCompanion ? "on" : "off"); globalThis.location.reload(); }
   });
 
   if (!isCompanion) return;

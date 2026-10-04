@@ -121,10 +121,9 @@ area spell, placing a conjured spirit's token) are done from the computer.
 "Open full Foundry on this device" switches back; `?companion=1` in the address
 forces it on.
 
-**Known limit:** Foundry's join page won't let a user log in on a second device
-while they're online on the first. A fix is planned (docs/PLAN-companion-join.md).
-Until then, give the player a second Foundry user that owns the same character
-and log the phone in as that user (targets then don't sync between the two).
+**Already logged in on the computer?** Foundry's join page won't offer your user
+twice, so use **Open on phone** in the Settings sidebar: scan its QR code with the
+phone and enter your password. The phone gets its own login.
 
 ## Installation
 
@@ -251,7 +250,6 @@ Optional content modules, each its own repository and install:
 
 - **Foundry VTT V14 compatibility** when it releases
 - **Virtual Realities 2.0** as a full ruleset (the core Matrix is implemented; a VR2.0 toggle exists)
-- Phone login while the computer is logged in (see "Playing on a phone")
 
 ## Credits
 

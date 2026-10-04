@@ -10,7 +10,7 @@
 
 import { setCompanion, chooseActor } from "./boot.mjs";
 import { SHARED_ACTIONS } from "../sheets/sheet-actions.mjs";
-import { targetDocs, shareTargets } from "../targeting.mjs";
+import { targetDocs, updateSharedTargets } from "../targeting.mjs";
 import { targetChoices } from "../rules/companion-rules.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -45,11 +45,9 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
       toggleTarget: async function (event, target) {
         const scene = this.targetScene(); if (!scene) return;
         const id = target.dataset.tokenId;
-        const now = new Set(targetDocs().filter(d => d.parent === scene).map(d => d.id));
-        now.has(id) ? now.delete(id) : now.add(id);
-        await shareTargets(scene.id, now);
+        await updateSharedTargets(scene.id, now => { now.has(id) ? now.delete(id) : now.add(id); return now; });
       },
-      clearTargets: async function () { await shareTargets(this.targetScene()?.id ?? null, []); },
+      clearTargets: async function () { await updateSharedTargets(this.targetScene()?.id ?? null, () => []); },
       fullFoundry: () => setCompanion(false),
       switchCharacter: async function () {
         const actor = await chooseActor({ ask: true });

@@ -1099,7 +1099,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
           ).join("")}
         </select>
       </div>
-      ${(weapon.system.choke ?? 0) >= 2 ? `<div class="sr2e-attack__field">
+      ${(weapon.system.choke ?? 0) >= 2 && canvas?.ready ? `<div class="sr2e-attack__field">
         <label title="Fire shot rounds in a spreading cone (SR2E p.95): a wider spread lowers your TN but reduces Power, and hits everyone in the cone.">Shot (spread):</label>
         <input type="checkbox" id="sr2e-shot-spread" name="shotSpread">
         <span class="sr2e-attack__hint">choke ${weapon.system.choke}</span>
@@ -1614,6 +1614,12 @@ export async function rollWeaponInteractive(actor, item) {
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
                                                defaultingPenalty, presets);
   if (!opts) return;
+  // No map on this device (the mobile companion): a shot spread's cone is measured
+  // on the map, so it's fired from a device with one. Stop before any ammo is spent.
+  if (opts.shotSpread && !canvas?.ready) {
+    ui.notifications.warn(`${item.name}: fire a shot spread from a device with the map.`);
+    return;
+  }
   // No map on this device (the mobile companion): a point can't be clicked, and a
   // token aim needs a target. Stop here, before any ammo is spent.
   if (item.system.blastType && !canvas?.ready && (opts.aimAt === "point" || !firstTarget())) {

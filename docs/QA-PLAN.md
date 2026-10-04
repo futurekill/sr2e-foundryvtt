@@ -583,6 +583,17 @@ If those five all work, the core loop is healthy.
         drain taken.
       - Conjuring creates and binds the spirit and says to place its token from the
         map device.
+- [ ] **Joining from a phone while the computer is logged in** (`sr2e.companion-join` batch):
+      - Computer: Settings sidebar → **Open on phone** shows a QR code and link. On
+        `localhost` it warns; type the LAN address and the QR changes.
+      - Phone: scan → "Sign in as <name>" → password (or blank) → the companion opens.
+        The computer stays logged in and online.
+      - A wrong password says "Wrong password." and the form works again.
+      - "Open full Foundry on this device" on the phone sticks after a reload.
+      - Log out on the phone: the computer stays online, and reloads without signing in.
+- [ ] **Targets under pressure:** tap two tokens quickly on the phone; both are
+      targeted on the computer. Target on the computer right after a phone pick;
+      the phone shows it.
 - [ ] **Desktops are untouched:** a narrow desktop browser window stays desktop.
 - [ ] **Address override:** `?companion=1` forces it on a desktop; `?companion=auto`
       returns to automatic.
