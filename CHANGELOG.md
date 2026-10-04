@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.103.1 — 2026-10-04
 
 ### Added — a phone can join while the computer is logged in
 Foundry's join page won't let you pick a user who is already online, so a player
