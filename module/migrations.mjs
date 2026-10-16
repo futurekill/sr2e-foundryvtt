@@ -35,7 +35,7 @@
  * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
  * characters by the 0.26.0 migration (GitHub #3).
  */
-import { RANGE_FIXES, rangesFor } from "./rules/weapon-ranges.mjs";
+import { RANGE_FIXES, rangesFor, ALL_RANGE_FIXES } from "./rules/weapon-ranges.mjs";
 import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair } from "./rules/sr2e-rules.mjs";
 
 export const UNARMED_STRIKE_DATA = {
@@ -556,6 +556,23 @@ export const MIGRATIONS = [
       if ([r.short, r.medium, r.long, r.extreme].join() !== fix.was.join()) return null;
       const right = rangesFor(fix.cls);
       return Object.fromEntries(Object.entries(right).map(([k, v]) => [`system.ranges.${k}`, v]));
+    }
+  },
+  {
+    // 0.104.2: the same fix for content-module weapons (Street Samurai Catalog,
+    // Corporate Security Handbook, Neo-Anarchists' Guide, Rigger 2), and the core list
+    // again, for copies imported into a world after 0.103.2 had already run (a
+    // compendium actor's weapons are never migrated). By name and exact old value: a
+    // hand-edited range stays the GM's.
+    version: "0.104.2",
+    migrateItem(source) {
+      if (source.type !== "weapon") return null;
+      const r = source.system?.ranges ?? {};
+      const now = [r.short, r.medium, r.long, r.extreme].join();
+      const fix = ALL_RANGE_FIXES.find(f => f.name === source.name && f.was.join() === now);
+      if (!fix) return null;
+      const [short, medium, long, extreme] = fix.to;
+      return { "system.ranges.short": short, "system.ranges.medium": medium, "system.ranges.long": long, "system.ranges.extreme": extreme };
     }
   }
 ];

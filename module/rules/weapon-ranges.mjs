@@ -49,3 +49,45 @@ export const RANGE_FIXES = {
   "Generic Under-Barrel Grenade Launcher": { was: [5, 50, 100, 200],   cls: "grenadeLauncher" },
   "Panther Assault Cannon":                { was: [20, 100, 300, 600], cls: "assaultCannon" }
 };
+
+/**
+ * Content-module weapons that shipped with brackets from no row of the table
+ * (Street Samurai Catalog, Corporate Security Handbook, Neo-Anarchists' Guide,
+ * Rigger 2), fixed in those modules and, for copies already in worlds, by migration
+ * 0.104.2. `was` is the exact wrong value each shipped with; `to` the right one. Each
+ * module's CHANGELOG cites the book for the class.
+ */
+const R = (cls) => RANGE_TABLE[cls];
+export const MODULE_RANGE_FIXES = [
+  // Street Samurai Catalog (SSC Type / core Sourcebook Updates p.279)
+  { name: "Ares MP-LMG",                  was: [50, 150, 350, 550],   to: R("lmg") },
+  { name: "GE Vindicator Minigun",        was: [50, 150, 350, 550],   to: R("lmg") },
+  { name: "Steyr AUG-CSL LMG",            was: [50, 150, 350, 550],   to: R("lmg") },
+  { name: "FN MAG-5 MMG",                 was: [50, 150, 350, 550],   to: R("mmg") },
+  { name: "Stoner-Ares M107",             was: [50, 150, 350, 550],   to: R("hmg") },
+  { name: "Ares MP Laser",                was: [50, 150, 350, 550],   to: R("sniperRifle") },
+  { name: "Panther Assault Cannon",       was: [50, 150, 350, 550],   to: R("assaultCannon") },
+  { name: "Ruger 100",                    was: [50, 150, 350, 550],   to: R("sportingRifle") },
+  { name: "Steyr AUG-CSL Carbine",        was: [50, 150, 350, 550],   to: R("sportingRifle") },
+  { name: "Walther MA-2100",              was: [50, 350, 800, 1500],  to: R("sniperRifle") },
+  { name: "H&K G12A3",                    was: [25, 100, 250, 500],   to: R("assaultRifle") },
+  { name: "Sakal vz 88V",                 was: [25, 100, 250, 500],   to: R("assaultRifle") },
+  { name: "Steyr AUG-CSL Assault Rifle",  was: [25, 100, 250, 500],   to: R("assaultRifle") },
+  { name: "Steyr AUG-CSL SMG",            was: [25, 100, 250, 500],   to: R("smg") },
+  { name: "Narcoject Rifle",              was: [25, 100, 250, 500],   to: R("shotgun") },
+  { name: "Mossberg SM-CMDT",             was: [10, 20, 40, 60],      to: R("shotgun") },
+  { name: "Surface-to-Air Missile (SAM)", was: [0, 0, 0, 0],          to: [70, 150, 450, 5000] },   // SSC p.59
+  // Corporate Security Handbook
+  { name: "Ares ELD-AR Assault Rifle",    was: [25, 100, 250, 500],   to: R("assaultRifle") },
+  // Neo-Anarchists' Guide (typed Taser, p.33)
+  { name: "Yamaha Pulsar",                was: [5, 10, 15, 20],       to: R("taser") },
+  // Rigger 2 (no minigun row in its own table, p.107)
+  { name: "Ares Vengeance Minigun",       was: [50, 150, 350, 550],   to: R("mmg") },
+  { name: "Ares Vanquisher Minigun",      was: [50, 150, 350, 550],   to: R("hmg") }
+];
+
+/** Every correction, core and module, as {name, was, to}: what migration 0.104.2 applies. */
+export const ALL_RANGE_FIXES = [
+  ...Object.entries(RANGE_FIXES).map(([name, f]) => ({ name, was: f.was, to: RANGE_TABLE[f.cls] })),
+  ...MODULE_RANGE_FIXES
+];

@@ -1,7 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.104.2 — 2026-10-16
 
+### Fixed — weapons already on characters get the corrected range brackets
+- **Content-module weapons:** when a world loads, copies of the module weapons whose
+  range brackets were fixed this week (21 across the Street Samurai Catalog, Corporate
+  Security Handbook, Neo-Anarchists' Guide and Rigger 2) are corrected on every
+  character, token and loose item. Update those modules too.
+- **Core weapons imported after 0.103.2:** a character imported from a compendium after
+  that update kept its old brackets (an actor in a compendium is never migrated).
+  They're corrected now as well.
+- Only a weapon that still has the exact brackets it shipped with is changed: a range
+  you edited by hand stays yours.
 ### Fixed
 - **Whisper's Walther Palm Pistol** (Sample Runners) still had the old range brackets:
   0.103.2 fixed the weapons compendium and the copies in your world, but not copies
