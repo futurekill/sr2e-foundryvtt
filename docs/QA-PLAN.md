@@ -613,3 +613,18 @@ If those five all work, the core loop is healthy.
 - [ ] GM disables the jackpoint mid-session → the player returns.
 - [ ] The sheet's plain Jack In on a character with no jackpoint → Matrix mode on, no
       screen change.
+
+## Combat sounds (`sr2e.combat-sounds` batch)
+- [ ] Two clients: fire an SMG on full auto on one; both hear one burst, once.
+- [ ] A rifle shot, a 3-round burst, and a burst on a 1-round clip sound like a shot,
+      a burst and a shot.
+- [ ] An empty gun clicks for the shooter only, and nothing fires.
+- [ ] A Karma reroll on the attack card plays nothing more.
+- [ ] A spell plays its category's sound once; its drain test is silent.
+- [ ] A grenade: the throw, then the blast when Resolve Blast succeeds; cancelling the
+      point placement keeps the throw's sound and plays no blast. Smoke hisses.
+- [ ] A whispered or blind roll is silent for players who can't see it.
+- [ ] Combat sounds off: silence, even with an override set. An override set: gun
+      attacks play it, bows and swords don't.
+- [ ] The Environment volume slider controls the level.
+

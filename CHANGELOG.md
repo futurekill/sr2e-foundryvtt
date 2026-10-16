@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Added — combat sounds
+A short sound plays for everyone at the table when a character attacks, casts,
+reloads, dry-fires, or sets off a blast. One sound per kind of weapon and how it
+fired, not per weapon: every SMG on full auto sounds alike.
+- **Guns** by class (pistol, heavy pistol, SMG, shotgun, rifle, sniper rifle, machine
+  gun, taser, assault cannon, launcher), taken from the weapon's range brackets
+  (p.88), and by what was actually fired: one round, a burst, or full auto. A burst
+  cut short by an emptying clip sounds like the single shot it was. A weapon whose
+  brackets match no class gets a generic gunshot, never silence.
+- **Melee, unarmed, bows, crossbows, thrown weapons**; **grenade blasts and smoke**
+  when the blast resolves; **one sound per spell category**; **reload** and the
+  **empty-gun click** (heard only by the shooter).
+- Each attack or cast plays once: Karma rerolls, drain and resistance tests and
+  follow-up cards stay silent, and whispered or blind rolls are silent for anyone who
+  can't see them.
+- **Combat sounds** (world setting, on by default) turns them all off. Each player's
+  Environment volume slider sets how loud they are.
+- The two old sound settings now replace the built-in gun and spell sounds when set.
+  Before, they played as a broadcast alongside everything else.
+
 ## 0.103.2 — 2026-10-16
 
 ### Fixed — 15 weapons had the wrong range brackets (SR2E p.88)

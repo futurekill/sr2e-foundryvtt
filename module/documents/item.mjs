@@ -1,6 +1,9 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { firstTarget, targetTokens } from "../targeting.mjs";
 import { playCombatFx } from "../integrations.mjs";
+import { sfxFlags, playSfx } from "../sfx.mjs";
+import { SFX_KEYS } from "../sfx-manifest.mjs";
+import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
 import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
@@ -520,7 +523,8 @@ export class SR2EItem extends Item {
         <strong>${foundry.utils.escapeHTML(source.name)}</strong>
         <em>(${remaining} left in reserve)</em>
         ${ejectNote}
-      </div>`
+      </div>`,
+      flags: take > 0 ? sfxFlags("reload") : {}   // after the updates committed; no rounds, no sound
     });
   }
 
@@ -936,6 +940,7 @@ export class SR2EItem extends Item {
       const ammo = this.system.ammo;
       if (ammo?.max > 0 && !isThrown) {
         if (ammo.current <= 0) {
+          playSfx({ key: "dry-fire" });   // only the shooter hears the click
           return ui.notifications.warn(`${this.name} is out of ammunition.`);
         }
         const left = ammo.current - eng.walked;
@@ -1049,8 +1054,13 @@ export class SR2EItem extends Item {
       label = `${this.name} [${modeLabel}]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
     }
 
+    // One sound for the attack, on this, its initial test: the class from the range
+    // brackets (p.88), the cadence from the rounds actually fired.
+    const attackSfx = attackSound({ weaponType: this.system.weaponType, ranges: this.system.ranges,
+      skillKey: tnContext.key, name: this.name, rounds }, SFX_KEYS);
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
+      flags: sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null),
       // Short caption for the dice-provenance groups. Without this the group
       // caption inherits `label`, i.e. the entire card title.
       sourceLabel: this.name, tnContext,
@@ -1713,6 +1723,7 @@ export class SR2EItem extends Item {
 
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
+      flags: sfxFlags(spellSound(spellCategory, SFX_KEYS), "spell"),   // the cast's one sound
       // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
       // in spellDice are not rating dice (p.191).
       karmaDiceCap: alloc.ratingDice,

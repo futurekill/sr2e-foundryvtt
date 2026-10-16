@@ -73,6 +73,7 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Vehicle Design** — A Design tab that builds a vehicle from scratch with the design engine (tables supplied by the Rigger 2 module)
 - **Movement Limit** — Optionally caps each token's move in combat at its SR2 walk/run rate (p.83)
 - **Mobile Companion** — On a phone or tablet, players get a touch-first character screen instead of the map: rolls, attacks, spells, conjuring, chat, and targets shared with their computer (see "Playing on a phone" below)
+- **Combat Sounds** — Gunfire by weapon class and burst/auto, melee, bows, blasts, spells by category, reloads and the empty-gun click; one sound per action for the whole table (world setting)
 - **Integrations** — Dice So Nice dice textures, Token Magic FX combat effects, Calendaria
 
 ### System Settings

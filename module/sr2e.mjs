@@ -53,6 +53,9 @@ import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 // Migrations
 import { migrateWorld, UNARMED_STRIKE_DATA } from "./migrations.mjs";
 import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
+import { sfxFlags } from "./sfx.mjs";   // combat sounds on chat messages
+import { SFX_KEYS } from "./sfx-manifest.mjs";
+import { blastSound } from "./rules/combat-sound-rules.mjs";
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
@@ -2107,8 +2110,9 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
   // Smoke does no damage — the cloud (template + auto-applied visibility TN, and
   // the optional darkness light) is the whole effect. Post a note and stop.
   if (blastType === "smoke") {
+    // The outcome carries the blast's sound: one sound per created outcome.
     await ChatMessage.create({
-      ...markFlags,
+      ...foundry.utils.mergeObject(markFlags, { flags: sfxFlags(blastSound("smoke", SFX_KEYS)) }, { inplace: false }),
       content: `<div class="sr2e-damage-result">
         <strong>${foundry.utils.escapeHTML(blastName)}</strong> — smoke cloud deployed
         (radius ${radiusM} m). Attacks to/through it take the Visibility Table
@@ -2160,7 +2164,7 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
     ? rows.join("")
     : `<em>No tokens caught in the ${radiusM} m radius.</em>`;
   await ChatMessage.create({
-    ...markFlags,
+    ...foundry.utils.mergeObject(markFlags, { flags: sfxFlags(blastSound(blastType, SFX_KEYS)) }, { inplace: false }),
     content: `<div class="sr2e-damage-result sr2e-blast-card">
       <strong>💥 ${foundry.utils.escapeHTML(blastName || "Blast")}</strong> — ${basePower}${stagedLevel}${stun ? " Stun" : ""} at ground zero,
       −${falloff}/m falloff (radius ${radiusM} m).${netStaging

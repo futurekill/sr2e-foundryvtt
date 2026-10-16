@@ -114,19 +114,19 @@ globalThis.Hooks?.once("init", () => {
   });
   game.settings.register("sr2e", "fxSoundGunshot", {
     name: "Sound: ranged attack",
-    hint: "Audio file path played on ranged attacks (empty = none).",
+    hint: "Your own sound for firearm and heavy-weapon attacks, replacing the built-in combat sounds (empty = built-in).",
     scope: "world", config: true, type: String, default: "", filePicker: "audio"
   });
   game.settings.register("sr2e", "fxSoundSpell", {
     name: "Sound: spellcast",
-    hint: "Audio file path played on spellcasts (empty = none).",
+    hint: "Your own sound for spellcasting, replacing the built-in combat sounds (empty = built-in).",
     scope: "world", config: true, type: String, default: "", filePicker: "audio"
   });
 });
 
 /**
  * Play combat FX for an attack or spell: a short-lived Token Magic FX preset
- * on each target token, plus the configured sound. Silently does nothing
+ * on each target token. (Sound: module/sfx.mjs.) Silently does nothing
  * when TMFX is missing, the preset name is unknown, or the client toggle is
  * off. Fire-and-forget — never blocks the roll.
  *
@@ -137,10 +137,8 @@ export async function playCombatFx(kind, targets = []) {
   try {
     if (!game.settings.get("sr2e", "combatFx")) return;
 
-    // Sound (independent of TMFX)
-    const soundKey = kind === "spell" ? "fxSoundSpell" : "fxSoundGunshot";
-    const src = game.settings.get("sr2e", soundKey);
-    if (src) foundry.audio.AudioHelper.play({ src, volume: 0.6 }, true);
+    // Sound lives in sfx.mjs now (it rides on the attack's chat message); this
+    // function is only the Token Magic FX visual, so nothing plays twice.
 
     // Visual (needs Token Magic FX)
     if (!game.modules.get("tokenmagic")?.active || !globalThis.TokenMagic) return;

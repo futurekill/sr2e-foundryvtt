@@ -9230,6 +9230,105 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Phone join page" });
 
+    quench.registerBatch("sr2e.combat-sounds", (context) => {
+      const { it, assert, before, after, beforeEach } = context;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      let actor, calls = [], realPlay, saved = {};
+      const W = (cls) => ({ assaultRifle: { short: 15, medium: 40, long: 100, extreme: 250 },
+                            smg: { short: 10, medium: 40, long: 80, extreme: 150 } })[cls];
+      const keys = () => calls.map(c => c.src.split("/").pop().replace(".mp3", ""));
+      before(async function () {
+        this.timeout(15000);
+        for (const k of ["combatSounds", "fxSoundGunshot", "fxSoundSpell"]) saved[k] = game.settings.get("sr2e", k);
+        await game.settings.set("sr2e", "combatSounds", true);
+        await game.settings.set("sr2e", "fxSoundGunshot", "");
+        await game.settings.set("sr2e", "fxSoundSpell", "");
+        realPlay = foundry.audio.AudioHelper.play;
+        foundry.audio.AudioHelper.play = (data, socket) => { calls.push({ ...data, socket }); return Promise.resolve(); };
+        actor = await Actor.create({ name: "Quench Sounds", type: "character",
+          system: { quickness: { base: 5 }, strength: { base: 4 }, willpower: { base: 5 },
+            magic: { value: 6, type: "full_magician", tradition: "hermetic" } } });
+        await actor.createEmbeddedDocuments("Item", [
+          { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } },
+          { name: "Sorcery", type: "skill", system: { category: "active", rating: 5 } },
+          { name: "Armed Combat", type: "skill", system: { category: "active", rating: 3 } },
+          { name: "Snd AR", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "8M",
+              ranges: W("assaultRifle"), firingModes: { ss: false, sa: true, bf: true, fa: true }, ammo: { current: 30, max: 30 } } },
+          { name: "Snd SMG", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "6M",
+              ranges: W("smg"), firingModes: { ss: false, sa: true, bf: true, fa: true }, ammo: { current: 30, max: 30 } } },
+          { name: "Snd Sword", type: "weapon", system: { weaponType: "melee", skill: "armed_combat", damageCode: "(STR+3)M" } },
+          { name: "Snd Rounds", type: "ammo", system: { quantity: 40 } },
+          { name: "Snd Bolt", type: "spell", system: { category: "combat", force: 3, drainCode: "(F / 2)M" } }]);
+      });
+      beforeEach(() => { calls = []; });
+      after(async function () {
+        this.timeout(15000);
+        foundry.audio.AudioHelper.play = realPlay;
+        for (const [k, v] of Object.entries(saved)) await game.settings.set("sr2e", k, v);
+        if (actor && game.actors.has(actor.id)) await actor.delete();
+      });
+      const item = (n) => actor.items.getName(n);
+
+      it("a single shot, a burst and full auto each play once, locally, on the environment channel", async function () {
+        this.timeout(20000);
+        await item("Snd AR").roll({ firingMode: "sa" }); await wait(300);
+        await item("Snd AR").roll({ firingMode: "bf", rounds: 3 }); await wait(300);
+        await item("Snd SMG").roll({ firingMode: "fa", rounds: 10 }); await wait(300);
+        assert.deepEqual(keys(), ["rifle-single", "rifle-burst", "smg-auto"]);
+        assert.isTrue(calls.every(c => c.channel === "environment" && c.socket === false), "local only, environment channel");
+      });
+
+      it("a burst cut short by the clip sounds like what was fired", async function () {
+        this.timeout(10000);
+        await item("Snd AR").update({ "system.ammo.current": 1 });
+        await item("Snd AR").roll({ firingMode: "bf", rounds: 3 }); await wait(300);
+        assert.deepEqual(keys(), ["rifle-single"]);
+      });
+
+      it("an empty gun clicks for the shooter and fires nothing", async function () {
+        this.timeout(10000);
+        await item("Snd AR").update({ "system.ammo.current": 0 });
+        await item("Snd AR").roll({ firingMode: "sa" }); await wait(300);
+        assert.deepEqual(keys(), ["dry-fire"]);
+      });
+
+      it("updating the attack card (as a Karma reroll does) plays nothing more", async function () {
+        this.timeout(10000);
+        await item("Snd SMG").roll({ firingMode: "sa" }); await wait(300);
+        const msg = game.messages.contents.at(-1);
+        await msg.update({ "flags.sr2e.quenchTouched": true }); await wait(300);
+        assert.deepEqual(keys(), ["smg-single"]);
+      });
+
+      it("melee, a spell (its drain silent), and reloads", async function () {
+        this.timeout(20000);
+        await item("Snd Sword").roll({}); await wait(300);
+        await item("Snd Bolt").roll({ force: 3, targetNumber: 4 }); await wait(500);
+        const ar = item("Snd AR");
+        await ar.update({ "system.ammo.current": 0, "system.ammo.sourceId": item("Snd Rounds").id });
+        await ar.reloadWeapon(); await wait(300);
+        await item("Snd Rounds").update({ "system.quantity": 0 });
+        await ar.update({ "system.ammo.current": 0 });
+        await ar.reloadWeapon(); await wait(300);   // nothing left to load: no sound
+        assert.deepEqual(keys(), ["melee", "spell-combat", "reload"]);
+      });
+
+      it("the world switch silences everything, overrides included; an override replaces only gun sounds", async function () {
+        this.timeout(20000);
+        await item("Snd AR").update({ "system.ammo.current": 30 });
+        await game.settings.set("sr2e", "fxSoundGunshot", "sounds/quench-override.ogg");
+        await game.settings.set("sr2e", "combatSounds", false);
+        await item("Snd AR").roll({ firingMode: "sa" }); await wait(300);
+        assert.deepEqual(calls, [], "off means off");
+        await game.settings.set("sr2e", "combatSounds", true);
+        await item("Snd AR").roll({ firingMode: "sa" }); await wait(300);
+        await item("Snd Sword").roll({}); await wait(300);
+        assert.deepEqual(calls.map(c => c.src), ["sounds/quench-override.ogg", "systems/sr2e/assets/sfx/melee.mp3"]);
+        assert.equal(calls[0].socket, false, "an override plays once, locally");
+        await game.settings.set("sr2e", "fxSoundGunshot", "");
+      });
+    }, { displayName: "SR2E: Combat sounds" });
+
 
 
 
