@@ -4274,7 +4274,9 @@ export function registerSR2EQuenchTests() {
         car = await Actor.create({ name: "Quench Net Car", type: "vehicle", system: { body: 4, armor: 0 } });
         made.actors.push(car);
         const g = canvas.dimensions.size, m = g / canvas.dimensions.distance;
-        const o = { x: canvas.dimensions.sceneX + 40 * g, y: canvas.dimensions.sceneY + 25 * g };
+        // Mid-scene: V14 pushes a token placed past a small scene's edge onto the canvas border.
+        const d = canvas.dimensions;
+        const o = { x: d.sceneX + Math.floor(d.sceneWidth / g / 2) * g, y: d.sceneY + Math.floor(d.sceneHeight / g / 2) * g };
         const put = async (a, dx) => {
           const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
             ...(await a.getTokenDocument()).toObject(), x: o.x + dx * m, y: o.y }]))[0];

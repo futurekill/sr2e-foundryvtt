@@ -55,7 +55,8 @@ export function registerAstralWalls() {
       const astral = this._sr2eAstral;
       const decision = astralEdgeDecision({
         astral, wallEdge: edge.type === "wall",
-        kind: astral ? astralBarrierKind(edge.object?.document?.flags?.sr2e) : null
+        // V13 hands the edge the Wall placeable; V14 builds it from the WallDocument itself.
+        kind: astral ? astralBarrierKind((edge.object?.document ?? edge.object)?.flags?.sr2e) : null
       });
       if (decision === "exclude") return false;
       if (decision === "include") {
