@@ -44,15 +44,20 @@ describe("0.104.2 — module weapon range brackets", () => {
       const d = JSON.parse(readFileSync(`${repo}/packs-src/${pack}/${f}`, "utf8"));
       if (d.type === "weapon") files.set(d.name, [repo, `packs-src/${pack}/${f}`, d]);
     }
+    // Renamed since (the fix list keeps the old name: copies in worlds carry it).
+    const RENAMED = { "Sakal vz 88V": "Samopal vz 88V" };
     for (const f of MODULE_RANGE_FIXES) {
-      const [repo, path, doc] = files.get(f.name) ?? [];
+      const [repo, path, doc] = files.get(RENAMED[f.name] ?? f.name) ?? [];
       expect(doc, f.name).toBeTruthy();
       expect(key(doc.system.ranges), f.name).toBe(f.to.join());
       const tags = execFileSync("git", ["-C", repo, "tag", "--list", "v*"], { encoding: "utf8" }).split("\n").filter(Boolean);
-      const shipped = tags.some(tag => {
-        try { return key(JSON.parse(execFileSync("git", ["-C", repo, "show", `${tag}:${path}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })).system.ranges) === f.was.join(); }
+      // A renamed weapon's older releases stored it under the old name's filename.
+      const slug = (s) => s.replace(/[^A-Za-z0-9]+/g, "_");
+      const paths = RENAMED[f.name] ? [path, path.replace(slug(RENAMED[f.name]), slug(f.name))] : [path];
+      const shipped = tags.some(tag => paths.some(p => {
+        try { return key(JSON.parse(execFileSync("git", ["-C", repo, "show", `${tag}:${p}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })).system.ranges) === f.was.join(); }
         catch { return false; }
-      });
+      }));
       expect(shipped, `${f.name}: no release shipped ${f.was.join("/")}`).toBe(true);
     }
   });

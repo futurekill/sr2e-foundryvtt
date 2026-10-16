@@ -71,7 +71,7 @@ export const MODULE_RANGE_FIXES = [
   { name: "Steyr AUG-CSL Carbine",        was: [50, 150, 350, 550],   to: R("sportingRifle") },
   { name: "Walther MA-2100",              was: [50, 350, 800, 1500],  to: R("sniperRifle") },
   { name: "H&K G12A3",                    was: [25, 100, 250, 500],   to: R("assaultRifle") },
-  { name: "Sakal vz 88V",                 was: [25, 100, 250, 500],   to: R("assaultRifle") },
+  { name: "Sakal vz 88V",                 was: [25, 100, 250, 500],   to: R("assaultRifle") },   // since renamed Samopal vz 88V; copies keep the old name
   { name: "Steyr AUG-CSL Assault Rifle",  was: [25, 100, 250, 500],   to: R("assaultRifle") },
   { name: "Steyr AUG-CSL SMG",            was: [25, 100, 250, 500],   to: R("smg") },
   { name: "Narcoject Rifle",              was: [25, 100, 250, 500],   to: R("shotgun") },
