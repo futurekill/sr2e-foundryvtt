@@ -24,38 +24,38 @@ Medium Crossbow	projectile	2	4	6M	p	3	5/36 hrs	500	1	254
 Heavy Crossbow	projectile	99	5	8S	p	4	6/36 hrs	750	1	254
 Throwing Knife	throwing	9	0	(Str)L	p	.25	2/24 hrs	20	1	254
 Shuriken	throwing	8	0	(Str)L	p	.25	2/24 hrs	30	2	254
-Ares Predator	firearm	5	0	9M	p	2.25	3/24 hrs	450	.5	255
-Ares Viper Slivergun	firearm	6	0	9S	p	2	3/48 hrs	600	1	255
-Browning Max-Power	firearm	6	0	9M	p	2	3/24 hrs	450	1	255
-Remington Roomsweeper	firearm	8	0	9S	p	2.5	3/24 hrs	300	1	255
-Ruger Super Warhawk	firearm	4	0	10M	p	2.5	3/24 hrs	300	1	255
-Defiance Super Shock	firearm	4	0	10S	s	2	5/24 hrs	1000	1	255
-AK-97 SMG/Carbine	firearm	4	0	6M	p	4	5/3 days	800	1	255
-Heckler & Koch HK227	firearm	4	0	7M	p	4	4/24 hrs	1500	.75	255
-HK227-S	firearm	5	0	7M	p	3	10/7 days	1200	2	255
-Uzi III	firearm	5	0	6M	p	2	4/24 hrs	600	.75	255
-Remington 750	firearm	3	0	7S	p	3	3/24 hrs	600	1	255
-Remington 950	firearm	2	0	9S	p	4	3/24 hrs	800	1	255
-Ranger Arms SM-3	firearm	99	0	14S	p	4	12/7 days	4000	4	255
-Defiance T-250	firearm	4	0	10S	p	3	3/24 hrs	500	1	255
-Enfield AS-7	firearm	3	0	8S	p	4	8/8 days	1000	1	255
-Streetline Special	firearm	8	0	4L	p	0	2/12 hrs	100	.75	255
-Walther Palm Pistol	firearm	9	0	4L	p	0	3/12 hrs	200	.75	255
-Beretta Model 101T	firearm	5	0	6L	p	0	3/12 hrs	350	.8	255
-Fichetti Security 500	firearm	7	0	6L	p	1	3/12 hrs	400	.8	254
-Fichetti Security 500a	firearm	6	0	6L	p	1.25	3/12 hrs	450	.8	254
-Colt America L36	firearm	6	0	6L	p	1	3/12 hrs	350	.8	254
+Ares Predator	firearm	5	0	9M	p	2.25	3/24 hrs	450	.5	255	ammo=15;modes=SA
+Ares Viper Slivergun	firearm	6	0	9S	p	2	3/48 hrs	600	1	255	ammo=30;modes=SA/BF
+Browning Max-Power	firearm	6	0	9M	p	2	3/24 hrs	450	1	255	ammo=10;modes=SA
+Remington Roomsweeper	firearm	8	0	9S	p	2.5	3/24 hrs	300	1	255	ammo=8;modes=SA
+Ruger Super Warhawk	firearm	4	0	10M	p	2.5	3/24 hrs	300	1	255	ammo=6;modes=SS
+Defiance Super Shock	firearm	4	0	10S	s	2	5/24 hrs	1000	1	255	ammo=4;modes=SA
+AK-97 SMG/Carbine	firearm	4	0	6M	p	4	5/3 days	800	1	255	ammo=30;modes=SA/BF/FA
+Heckler & Koch HK227	firearm	4	0	7M	p	4	4/24 hrs	1500	.75	255	ammo=28;modes=SA/BF/FA
+HK227-S	firearm	5	0	7M	p	3	10/7 days	1200	2	255	ammo=28;modes=SA/BF
+Uzi III	firearm	5	0	6M	p	2	4/24 hrs	600	.75	255	ammo=24;modes=BF
+Remington 750	firearm	3	0	7S	p	3	3/24 hrs	600	1	255	ammo=5;modes=SA
+Remington 950	firearm	2	0	9S	p	4	3/24 hrs	800	1	255	ammo=5;modes=SA
+Ranger Arms SM-3	firearm	99	0	14S	p	4	12/7 days	4000	4	255	ammo=6;modes=SA
+Defiance T-250	firearm	4	0	10S	p	3	3/24 hrs	500	1	255	ammo=5;modes=SA
+Enfield AS-7	firearm	3	0	8S	p	4	8/8 days	1000	1	255	ammo=10;modes=SA/BF
+Streetline Special	firearm	8	0	4L	p	.5	2/12 hrs	100	.75	254	ammo=6;modes=SS
+Walther Palm Pistol	firearm	9	0	4L	p	.25	3/12 hrs	200	.75	254	ammo=2;modes=SS
+Beretta Model 101T	firearm	5	0	6L	p	1	3/12 hrs	350	.8	254	ammo=12;modes=SA
+Fichetti Security 500	firearm	7	0	6L	p	1	3/12 hrs	400	.8	254	ammo=12;modes=SA
+Fichetti Security 500a	firearm	6	0	6L	p	1.25	3/12 hrs	450	.8	254	ammo=25;modes=SA
+Colt America L36	firearm	6	0	6L	p	1	3/12 hrs	350	.8	254	ammo=11;modes=SA
 # Assault rifles / heavy weapons (book p.255). Names are OURS where they differ from
 # the printed row: Panther Assault Cannon = "Assault Cannon", Light Machine Gun
 # (Generic) = "Ingram Valiant", Missile/Rocket Launcher = "Multi-Launcher".
-AK-97	firearm	3	0	8M	p	4.5	3/36 hrs	700	2	255
-AK-98	firearm	2	0	8M	p	6	8/4 days	2500	4	255
-FN HAR	firearm	2	0	8M	p	4.5	4/48 hrs	1200	2	255
-Generic Under-Barrel Grenade Launcher	heavy		0		p	2	8/4 days	1700	3	255
-Generic MMG	heavy	99	0	9S	p	12	14/14 days	2500	2	255
-Generic HMG	heavy	99	0	10S	p	15	18/18 days	4000	2	255
-Panther Assault Cannon	heavy	99	0	18D	p	20	16/14 days	6500	2	255
-Missile/Rocket Launcher	heavy	99	0		p	8	12/14 days	8000	2	255
+AK-97	firearm	3	0	8M	p	4.5	3/36 hrs	700	2	255	ammo=38;modes=SA/BF/FA
+AK-98	firearm	2	0	8M	p	6	8/4 days	2500	4	255	ammo=38;modes=SA/BF/FA
+FN HAR	firearm	2	0	8M	p	4.5	4/48 hrs	1200	2	255	ammo=35;modes=SA/BF/FA
+Generic Under-Barrel Grenade Launcher	heavy		0		p	2	8/4 days	1700	3	255	ammo=6;modes=SS
+Generic MMG	heavy	99	0	9S	p	12	14/14 days	2500	2	255	ammo=40;modes=FA
+Generic HMG	heavy	99	0	10S	p	15	18/18 days	4000	2	255	ammo=40;modes=FA
+Panther Assault Cannon	heavy	99	0	18D	p	20	16/14 days	6500	2	255	ammo=20;modes=SS
+Missile/Rocket Launcher	heavy	99	0		p	8	12/14 days	8000	2	255	ammo=4;modes=SS
 # Clothing & armor + commercial explosives (book p.257). `extra` carries the
 # per-category fields: ballistic/impact for armor.
 Armor Clothing	armor	10	0		p	2	2/36 hrs	500	1	257	ballistic=3;impact=0
@@ -155,7 +155,7 @@ Binoculars (Low-Light)	gear	5				1	4/48 hrs	300	1.25	257
 Binoculars (Thermographic)	gear	5				1	4/48 hrs	350	1.25	257
 Goggles (Low-Light)	gear	6				0	6/48 hrs	2000	2	257
 Goggles (Thermographic)	gear	6				0	6/48 hrs	2200	2	257
-Ingram Valiant	firearm		0	7S	p	9	6/5 days	1500	2	255
+Ingram Valiant	firearm		0	7S	p	9	6/5 days	1500	2	255	ammo=50;modes=BF/FA
 Shotgun Microphone	gear							1000*rating		258
 Voice Mask	gear							3000*rating		258
 Thumbprint Scanner	gear							200*rating		258
@@ -179,3 +179,6 @@ Spell Focus	focus						4/48 hrs	45000*force	2	254
 Spirit Focus	focus						4/48 hrs	60000*force	2	254
 Power Focus	focus						6/72 hrs	105000*force	2	254
 Spell Lock	focus						2/48 hrs	45000	2	254
+Colt M22A2	firearm	3	0	8M	p	4.75	4/3 days	1600	2	279	ammo=40;modes=SA/BF/FA
+HK G12A3Z	firearm	2	0	8M	p	5.25	8/4 days	2200	3	279	ammo=32;modes=SA/BF/FA
+Mossberg CMDT	firearm	2	0	9S	p	4.25	8/8 days	1400	1	279	ammo=8;modes=SA/BF

@@ -6,9 +6,9 @@
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "8S",
+    "damageCode": "8M",
     "damageType": "physical",
-    "concealability": 99,
+    "concealability": 2,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -17,8 +17,8 @@
       "fa": true
     },
     "ammo": {
-      "current": 33,
-      "max": 33,
+      "current": 32,
+      "max": 32,
       "type": "rifle"
     },
     "recoilComp": 2,
@@ -29,9 +29,9 @@
       "extreme": 250
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 2500,
-    "availability": "10/7 days",
+    "weight": 5.25,
+    "cost": 2200,
+    "availability": "8/4 days",
     "legality": "Restricted",
     "equipped": false,
     "accessories": [],

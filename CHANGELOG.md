@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — weapon stats checked against the Street Gear list (book p.254–255, p.279)
+Concealability, damage, cost, availability and Street Index were already checked;
+ammunition, firing modes, weight and reach now are too, for every core weapon. Every
+difference was confirmed on a high-resolution render.
+- **Three Sourcebook Updates guns (p.279) had pre-conversion stats:**
+  - **H&K G12A3z** did 8S instead of **8M**, was unconcealable instead of
+    concealability **2**, and had 33 rounds instead of **32**.
+  - **Mossberg CMDT** did 8S instead of **9S** and couldn't fire **bursts**.
+  - **Colt M22A2** couldn't fire **full auto**.
+  - Their cost, availability and weight were also off (1,600¥, 2,200¥ and 1,400¥).
+  Copies already in your world get the combat stats when it loads, unless you changed
+  that stat yourself.
+- **Weights** (shown on the sheet): every melee weapon, the crossbows, throwing knife
+  and shuriken had none or the wrong one, and so did the Streetline Special, Defiance
+  Super Shock, Uzi III (4 kg; it's 2), Defiance T-250 and FN HAR.
+- All other ammunition and firing modes already matched the book.
+
 ## 0.104.2 — 2026-10-16
 
 ### Fixed — weapons already on characters get the corrected range brackets

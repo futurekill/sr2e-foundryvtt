@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Diff compendium prices against the printed Street Gear table.
+ * Diff compendium prices (and weapon stats) against the printed Street Gear table.
  *
  * The core book prints most gear TWICE and the two tables disagree in places
  * (see CLAUDE.md). An early import mixed them and invented a few values, which
@@ -18,6 +18,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const FIX = process.argv.includes("--fix");
+const MODE_ORDER = ["SS", "SA", "BF", "FA"];
 const REF = "tools/data/street-gear-prices.tsv";
 const PACKS = "packs-src";
 
@@ -97,11 +98,20 @@ for (const r of rows) {
       && normAvail(r.avail) !== normAvail(sys.availability)) {
     checks.push(["availability", r.avail, sys.availability]);
   }
+  // Weapons: weight and reach are printed columns too ("—" is transcribed as 0).
+  if (hit.doc.type === "weapon") {
+    if (num(r.weight) !== null) checks.push(["weight", num(r.weight), sys.weight ?? 0]);
+    if (num(r.reach) !== null && sys.weaponType === "melee") checks.push(["reach", num(r.reach), sys.reach ?? 0]);
+  }
+
   // Per-category fields the fixed columns cannot express — "ballistic=3;impact=0"
-  // for armor, "essenceCost=.2" for cyberware, "rating=3" for electronics.
+  // for armor, "essenceCost=.2" for cyberware, "rating=3" for electronics,
+  // "ammo=15;modes=SA/BF" for firearms (clip size and the printed firing modes).
   for (const pair of (r.extra ?? "").split(";").filter(Boolean)) {
-    const [k, v] = pair.split("=");
-    checks.push([k.trim(), Number(v), sys[k.trim()]]);
+    const [k, v] = pair.split("=").map(s => s.trim());
+    if (k === "ammo") checks.push(["ammo.max", Number(v), sys.ammo?.max]);
+    else if (k === "modes") checks.push(["firingModes", v.toUpperCase(), MODE_ORDER.filter(m => sys.firingModes?.[m.toLowerCase()]).join("/")]);
+    else checks.push([k, Number(v), sys[k]]);
   }
 
   for (const [field, want, got] of checks) {
@@ -109,7 +119,9 @@ for (const r of rows) {
     if (String(want) === String(got)) continue;
     drift.push({ name: r.name, field, want, got, page: r.bookPage, path: hit.path });
     if (FIX) {
-      hit.doc.system[field] = (field === "streetIndex" && SI_IS_STRING.has(hit.doc.type))
+      if (field === "ammo.max") { hit.doc.system.ammo = { ...hit.doc.system.ammo, max: want, current: Math.min(hit.doc.system.ammo?.current ?? want, want) }; }
+      else if (field === "firingModes") { hit.doc.system.firingModes = Object.fromEntries(MODE_ORDER.map(m => [m.toLowerCase(), want.split("/").includes(m)])); }
+      else hit.doc.system[field] = (field === "streetIndex" && SI_IS_STRING.has(hit.doc.type))
         ? String(want) : want;
       writeFileSync(hit.path, JSON.stringify(hit.doc, null, 2) + "\n");
     }

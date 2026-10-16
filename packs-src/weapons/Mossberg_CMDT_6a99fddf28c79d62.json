@@ -6,14 +6,14 @@
   "system": {
     "weaponType": "firearm",
     "skill": "firearms",
-    "damageCode": "8S",
+    "damageCode": "9S",
     "damageType": "physical",
     "concealability": 2,
     "reach": 0,
     "firingModes": {
       "ss": false,
       "sa": true,
-      "bf": false,
+      "bf": true,
       "fa": false
     },
     "ammo": {
@@ -29,9 +29,9 @@
       "extreme": 100
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 600,
-    "availability": "4/72hrs",
+    "weight": 4.25,
+    "cost": 1400,
+    "availability": "8/8 days",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],

@@ -574,8 +574,31 @@ export const MIGRATIONS = [
       const [short, medium, long, extreme] = fix.to;
       return { "system.ranges.short": short, "system.ranges.medium": medium, "system.ranges.long": long, "system.ranges.extreme": extreme };
     }
+  },
+  {
+    // 0.104.3: three Sourcebook Updates guns (core p.279) shipped with pre-conversion
+    // combat stats. Each field is corrected only while it still holds the exact value
+    // it shipped with, so a GM's edit to any one of them stays.
+    version: "0.104.3",
+    migrateItem(source) {
+      if (source.type !== "weapon") return null;
+      const fixes = WEAPON_STAT_FIXES[source.name];
+      if (!fixes) return null;
+      const update = {};
+      for (const [path, [was, to]] of Object.entries(fixes)) {
+        if (foundry.utils.getProperty(source, path) === was) update[path] = to;
+      }
+      return Object.keys(update).length ? update : null;
+    }
   }
 ];
+
+/** 0.104.3: field → [shipped value, printed value] (core Sourcebook Updates p.279). */
+const WEAPON_STAT_FIXES = {
+  "Colt M22A2":    { "system.firingModes.fa": [false, true] },
+  "HK G12A3Z":     { "system.damageCode": ["8S", "8M"], "system.concealability": [99, 2], "system.ammo.max": [33, 32] },
+  "Mossberg CMDT": { "system.damageCode": ["8S", "9S"], "system.firingModes.bf": [false, true] }
+};
 
 /* -------------------------------------------- */
 

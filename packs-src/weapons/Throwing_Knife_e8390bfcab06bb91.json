@@ -29,7 +29,7 @@
       "extreme": 20
     },
     "strengthMin": 0,
-    "weight": 0,
+    "weight": 0.25,
     "cost": 20,
     "availability": "2/24 hrs",
     "legality": "Legal",
