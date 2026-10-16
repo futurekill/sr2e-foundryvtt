@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.103.2 — 2026-10-16
+
+### Fixed — 15 weapons had the wrong range brackets (SR2E p.88)
+Every ranged weapon's brackets come from the Weapon Range Table, but 15 core weapons
+shipped with numbers from no row of it, so shots at range took the wrong target
+number. An AK-97 at 30 m was at short range (TN 4) instead of medium (TN 5).
+- **Assault rifles** (AK-97, AK-98, FN HAR, Colt M22A2, H&K G12A3z): 15/40/100/250 m.
+- **Shotguns** (Defiance T-250, Enfield AS-7, Mossberg CMDT): 10/20/50/100 m.
+- **Sport rifles** (Remington 750, 950): 30/60/150/300 m.
+- **Sniper rifle** (Ranger Arms SM-3): 40/80/200/400 m.
+- **Hold-out pistols** (Streetline Special, Walther Palm Pistol): 5/15/30/50 m.
+- **Grenade launcher** (Generic Under-Barrel): 50/100/150/300 m.
+- **Assault cannon** (Panther): 50/150/450/1,300 m.
+
+Copies already on characters are corrected when the world loads, but only while they
+still hold the exact brackets they shipped with: a range a GM edited by hand stays.
+
 ## 0.103.1 — 2026-10-04
 
 ### Added — a phone can join while the computer is logged in

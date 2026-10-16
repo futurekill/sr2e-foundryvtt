@@ -35,6 +35,7 @@
  * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
  * characters by the 0.26.0 migration (GitHub #3).
  */
+import { RANGE_FIXES, rangesFor } from "./rules/weapon-ranges.mjs";
 import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair } from "./rules/sr2e-rules.mjs";
 
 export const UNARMED_STRIKE_DATA = {
@@ -539,6 +540,22 @@ export const MIGRATIONS = [
       if (source.system?.category !== "manipulation") return null;
       if ((source.system?.damageCode ?? "").trim() !== "") return null;
       return { "system.damageCode": "(F)M" };
+    }
+  },
+  {
+    // 0.103.2: 15 core weapons shipped with range brackets from no row of the Weapon
+    // Range Table (p.88), so shots at range took the wrong target number. Copies on
+    // characters are fixed only while they still hold the exact wrong brackets they
+    // shipped with: a hand-edited range is the GM's and stays.
+    version: "0.103.2",
+    migrateItem(source) {
+      if (source.type !== "weapon") return null;
+      const fix = RANGE_FIXES[source.name];
+      if (!fix) return null;
+      const r = source.system?.ranges ?? {};
+      if ([r.short, r.medium, r.long, r.extreme].join() !== fix.was.join()) return null;
+      const right = rangesFor(fix.cls);
+      return Object.fromEntries(Object.entries(right).map(([k, v]) => [`system.ranges.${k}`, v]));
     }
   }
 ];

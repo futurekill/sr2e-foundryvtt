@@ -23,10 +23,10 @@
     },
     "recoilComp": 0,
     "ranges": {
-      "short": 5,
-      "medium": 50,
-      "long": 100,
-      "extreme": 200
+      "short": 50,
+      "medium": 100,
+      "long": 150,
+      "extreme": 300
     },
     "strengthMin": 0,
     "weight": 2,

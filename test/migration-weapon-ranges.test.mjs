@@ -1,0 +1,43 @@
+// 0.103.2: 15 core weapons shipped with range brackets from no row of the Weapon
+// Range Table (core p.88). Copies on characters are corrected by value, by our exact
+// names, and only while they still hold the brackets they shipped with.
+import { describe, it, expect } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { MIGRATIONS } from "../module/migrations.mjs";
+import { RANGE_TABLE, RANGE_FIXES } from "../module/rules/weapon-ranges.mjs";
+
+const migrate = MIGRATIONS.find(m => m.version === "0.103.2").migrateItem;
+const weapon = (name, [short, medium, long, extreme]) => ({ type: "weapon", name,
+  system: { weaponType: "firearm", ranges: { short, medium, long, extreme }, damageCode: "8M" } });
+
+describe("0.103.2 — weapon range brackets follow the p.88 table", () => {
+  it("corrects a shipped copy to its class's brackets", () => {
+    expect(migrate(weapon("AK-97", [25, 100, 250, 500]))).toEqual({
+      "system.ranges.short": 15, "system.ranges.medium": 40, "system.ranges.long": 100, "system.ranges.extreme": 250 });
+    expect(migrate(weapon("Defiance T-250", [10, 20, 40, 60]))).toEqual({
+      "system.ranges.short": 10, "system.ranges.medium": 20, "system.ranges.long": 50, "system.ranges.extreme": 100 });
+  });
+  it("leaves a hand-edited range alone, and re-running is harmless", () => {
+    expect(migrate(weapon("AK-97", [20, 80, 200, 400]))).toBe(null);
+    expect(migrate(weapon("AK-97", [15, 40, 100, 250]))).toBe(null);
+  });
+  it("never touches other names or item types", () => {
+    expect(migrate(weapon("AK-97 (custom)", [25, 100, 250, 500]))).toBe(null);
+    expect(migrate({ type: "gear", name: "AK-97", system: {} })).toBe(null);
+  });
+  it("every core firearm and heavy weapon now matches a row of the table", () => {
+    const rows = new Set(Object.values(RANGE_TABLE).map(r => r.join()));
+    const dir = "packs-src/weapons";
+    // The three entries the book doesn't print are not in RANGE_FIXES and are flagged separately.
+    const notInBook = new Set(["FN FAL", "Remington 990", "Ares Antioch-2"]);
+    const off = [];
+    for (const f of readdirSync(dir).filter(f => f.endsWith(".json"))) {
+      const d = JSON.parse(readFileSync(`${dir}/${f}`, "utf8"));
+      if (!d.system || !["firearm", "heavy"].includes(d.system.weaponType) || notInBook.has(d.name)) continue;
+      const r = d.system.ranges ?? {};
+      if (!rows.has([r.short, r.medium, r.long, r.extreme].join())) off.push(d.name);
+    }
+    expect(off).toEqual([]);
+    for (const name of Object.keys(RANGE_FIXES)) expect(notInBook.has(name)).toBe(false);
+  });
+});
