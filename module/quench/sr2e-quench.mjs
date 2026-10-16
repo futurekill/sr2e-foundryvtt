@@ -9329,6 +9329,181 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Combat sounds" });
 
+    // ── 2026-10-16 audit: melee closure by marker, single sale, Team Karma queue, purchase rollback ──
+    quench.registerBatch("sr2e.audit-fixes", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [], msgs = [];
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const mk = async (data) => { const a = await Actor.create({ type: "character", ...data }); made.push(a); return a; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const since = (n) => game.messages.contents.slice(n);
+      afterEach(async function () {
+        this.timeout(10000);
+        await ChatMessage.deleteDocuments(msgs.splice(0).map(m => m.id ?? m).filter(id => game.messages.has(id)));
+        for (const a of made.splice(0)) { try { await a.delete(); } catch (e) {} }
+      });
+
+      describe("melee: the outcome message closes the attack card", () => {
+        const card = async (atk) => {
+          const state = { attackerUuid: atk.uuid, attackerName: atk.name, weaponName: "Quench Blade",
+            successes: 0, power: 5, level: "M", damageType: "physical", resolved: false };
+          const { renderMeleeAttackCard } = await import("../documents/item.mjs");
+          const m = await ChatMessage.create({ content: renderMeleeAttackCard(state), flags: { sr2e: { melee: state } } });
+          msgs.push(m); return m;
+        };
+
+        it("a marker from the defender's client resolves the card on the author's", async () => {
+          const atk = await mk({ name: "Quench Audit Atk" });
+          const c = await card(atk);
+          msgs.push(await ChatMessage.create({ content: "outcome",
+            flags: { sr2e: { resolves: c.id, meleeResolution: "<br>Quench resolution text" } } }));
+          await wait(300);
+          assert.isTrue(c.getFlag("sr2e", "melee").resolved);
+          assert.include(c.content, "Quench resolution text");
+          assert.notInclude(c.content, "sr2e-defend-btn", "no Defend button left");
+        });
+
+        it("a marker alone refuses Defend and Undefended, even if the card never closed", async () => {
+          const atk = await mk({ name: "Quench Audit Atk 2" });
+          const def = await mk({ name: "Quench Audit Def 2" });
+          const c = await card(atk);
+          msgs.push(await ChatMessage.create({ content: "outcome", flags: { sr2e: { resolves: c.id } } }));
+          await wait(300);
+          await c.update({ "flags.sr2e.melee.resolved": false });   // the close failed or never ran
+          const n = game.messages.size;
+          await def.rollMeleeDefense(c);
+          await c.update({ content: `${c.content}<button class="sr2e-undefended-btn">x</button>` });
+          await wait(200);
+          ui.chat.element?.querySelector(`[data-message-id="${c.id}"] .sr2e-undefended-btn`)?.click();
+          await wait(300);
+          assert.equal(game.messages.size, n, "neither path posted a second outcome");
+        });
+
+        it("a Full Defense win posts the outcome marker instead of writing the card", async function () {
+          this.timeout(10000);
+          const atk = await mk({ name: "Quench Audit Atk 3" });
+          const def = await mk({ name: "Quench Audit Def 3",
+            system: { quickness: { base: 6 }, intelligence: { base: 6 }, willpower: { base: 6 }, strength: { base: 3 } } });
+          const c = await card(atk);
+          const n = game.messages.size;
+          Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+            const fd = app.element.querySelector('[name="full_defense"]');
+            if (fd) fd.checked = true;
+            app.element.querySelector('button[data-action="roll"]')?.click();
+          }, 80));
+          await withFaces(Array(12).fill(6), () => def.rollMeleeDefense(c));
+          await wait(300);
+          for (const m of since(n)) msgs.push(m);
+          const out = since(n).find(m => m.flags?.sr2e?.resolves === c.id);
+          assert.ok(out, "the outcome carries the marker");
+          assert.match(out.flags.sr2e.meleeResolution, /Full Defense/);
+          assert.isTrue(c.getFlag("sr2e", "melee").resolved, "closed by the hook");
+        });
+      });
+
+      describe("selling pays once", () => {
+        const sell = (a, id) => a.sheet.options.actions.sellItem.call(a.sheet, { preventDefault() {} }, { closest: () => ({ dataset: { itemId: id } }) });
+
+        it("two confirmed sales of one item refund once and post one sale", async () => {
+          const a = await mk({ name: "Quench Audit Seller", system: { nuyen: 1000 } });
+          const [it2] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Audit Widget", type: "gear", system: { cost: 100 }, flags: { sr2e: { paid: 100 } } }]);
+          const confirm = foundry.applications.api.DialogV2.confirm;
+          foundry.applications.api.DialogV2.confirm = async () => true;
+          const n = game.messages.size;
+          try { await Promise.all([sell(a, it2.id), sell(a, it2.id)]); }
+          finally { foundry.applications.api.DialogV2.confirm = confirm; }
+          await wait(200);
+          for (const m of since(n)) msgs.push(m);
+          assert.equal(a.system.nuyen, 1100, "one refund");
+          assert.lengthOf(since(n).filter(m => /sells/.test(m.content)), 1, "one sale message");
+          assert.isFalse(a.items.has(it2.id));
+        });
+
+        it("a credit that fails puts the item back", async () => {
+          const a = await mk({ name: "Quench Audit Seller 2", system: { nuyen: 1000 } });
+          const [it2] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Audit Widget 2", type: "gear", system: { cost: 100 }, flags: { sr2e: { paid: 100 } } }]);
+          const confirm = foundry.applications.api.DialogV2.confirm;
+          foundry.applications.api.DialogV2.confirm = async () => true;
+          const orig = a.update;
+          a.update = function (data, ...rest) { return data?.["system.nuyen"] != null ? Promise.resolve(undefined) : orig.call(this, data, ...rest); };
+          try { await sell(a, it2.id); }
+          finally { foundry.applications.api.DialogV2.confirm = confirm; delete a.update; }
+          assert.equal(a.system.nuyen, 1000, "nothing paid");
+          assert.isTrue(a.items.has(it2.id), "restored with its id");
+          assert.equal(a.items.get(it2.id).getFlag("sr2e", "paid"), 100, "and its purchase record");
+        });
+      });
+
+      describe("Team Karma writes queue", () => {
+        it("two quick spends both land; a non-number is refused", async () => {
+          await CONFIG.SR2E._teamKarmaSettled();
+          const saved = game.settings.get("sr2e", "teamKarma");
+          try {
+            await game.settings.set("sr2e", "teamKarma", 5);
+            CONFIG.SR2E.changeTeamKarma(-1);
+            CONFIG.SR2E.changeTeamKarma(-1);
+            await CONFIG.SR2E._teamKarmaSettled();
+            assert.equal(game.settings.get("sr2e", "teamKarma"), 3);
+            assert.isFalse(CONFIG.SR2E.changeTeamKarma(NaN));
+            await CONFIG.SR2E._teamKarmaSettled();
+            assert.equal(game.settings.get("sr2e", "teamKarma"), 3);
+          } finally {
+            await CONFIG.SR2E._teamKarmaSettled();
+            await game.settings.set("sr2e", "teamKarma", saved);
+          }
+        });
+      });
+
+      describe("a drop purchase never keeps an unpaid item", () => {
+        const ItemCls = CONFIG.Item.documentClass;
+        const run = async (label, { flagFails, chargeFails, cleanupFails }) => {
+          const a = await mk({ name: `Quench Audit Buyer ${label}`, system: { nuyen: 1000 } });
+          const world = await Item.create({ name: `Quench Audit Gizmo ${label}`, type: "gear", system: { cost: 100, streetIndex: 1 } });
+          const auto = game.settings.get("sr2e", "autoChargePurchases");
+          const upd = ItemCls.prototype.update, del = ItemCls.prototype.delete, aUpd = a.update;
+          const fail = (how) => how === "throws" ? Promise.reject(new Error("Quench write failure")) : Promise.resolve(undefined);
+          if (flagFails) ItemCls.prototype.update = function (d, ...r) { return this.parent === a && d?.["flags.sr2e"] ? fail(flagFails) : upd.call(this, d, ...r); };
+          if (chargeFails) a.update = function (d, ...r) { return d?.["system.nuyen"] != null ? fail(chargeFails) : aUpd.call(this, d, ...r); };
+          if (cleanupFails) ItemCls.prototype.delete = function (...r) { return this.parent === a ? Promise.reject(new Error("Quench delete failure")) : del.apply(this, r); };
+          const errors = [];
+          const notify = ui.notifications.error;
+          ui.notifications.error = (m, o) => { errors.push(m); return notify.call(ui.notifications, m, o); };
+          try {
+            await game.settings.set("sr2e", "autoChargePurchases", true);
+            const got = await a.sheet._onDropItem({ altKey: false }, { type: "Item", uuid: world.uuid });
+            assert.isNull(got, `${label}: the drop reports failure`);
+          } finally {
+            ItemCls.prototype.update = upd; ItemCls.prototype.delete = del; delete a.update;
+            ui.notifications.error = notify;
+            await game.settings.set("sr2e", "autoChargePurchases", auto);
+            await world.delete();
+          }
+          assert.equal(a.system.nuyen, 1000, `${label}: nothing charged`);
+          return { a, errors };
+        };
+
+        for (const how of ["throws", "undefined"]) {
+          it(`the flag write ${how}: no item, no charge`, async () => {
+            const { a } = await run(`flag-${how}`, { flagFails: how });
+            assert.equal(a.items.filter(i => i.name.startsWith("Quench Audit Gizmo")).length, 0);
+          });
+          it(`the charge ${how}: no item, no charge`, async () => {
+            const { a } = await run(`charge-${how}`, { chargeFails: how });
+            assert.equal(a.items.filter(i => i.name.startsWith("Quench Audit Gizmo")).length, 0);
+          });
+        }
+        it("the charge fails and so does the cleanup: a loud error names it", async () => {
+          const { errors } = await run("cleanup", { chargeFails: "throws", cleanupFails: true });
+          assert.isTrue(errors.some(e => /not paid for/.test(e)), "the GM is told");
+        });
+      });
+    }, { displayName: "SR2E: Audit fixes (2026-10-16)" });
+
 
 
 

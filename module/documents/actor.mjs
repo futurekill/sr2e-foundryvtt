@@ -779,7 +779,7 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
-        if (["astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell"].includes(key)
+        if (["melee", "astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell"].includes(key)
             && isCardResolved(msg, key)) continue;
         if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;
@@ -1504,7 +1504,8 @@ export class SR2EActor extends Actor {
    */
   async rollMeleeDefense(message) {
     const state = message.getFlag("sr2e", "melee");
-    if (!state || state.resolved) return;
+    // The outcome marker counts even when this client couldn't close the card.
+    if (!state || isCardResolved(message, "melee")) return;
     if (this.uuid === state.attackerUuid) {
       return ui.notifications.warn("The attacker cannot defend against their own attack.");
     }
@@ -1657,11 +1658,11 @@ export class SR2EActor extends Actor {
     // the counterstrike, not just the Combat Pool on their roll. Winning the
     // exchange therefore means the attack simply fails, with no riposte.
     if (winner === "defender" && choice.fullDefense) {
-      await message.setFlag("sr2e", "melee", { ...state, resolved: true,
-        resolution: `<br><strong>Resolved:</strong> ${foundry.utils.escapeHTML(this.name)} `
-                  + `turned the attack aside on Full Defense — no counterstrike (SR2E p.103).` });
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
+        // The card's author (or a GM) closes it from this marker; see sr2e.mjs.
+        flags: { sr2e: { resolves: message.id, meleeResolution: `<br><strong>Resolved:</strong> `
+          + `${foundry.utils.escapeHTML(this.name)} turned the attack aside on Full Defense — no counterstrike (SR2E p.103).` } },
         content: `<div class="sr2e-damage-result"><strong>Attack turned aside.</strong>
           <br><em>Full Defense: defending only, so no counterstrike (SR2E p.103).</em></div>`
       });
@@ -1715,8 +1716,8 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Post the melee outcome: staged damage + Resist button for the loser,
-   * and mark the attack card resolved (when this client may update it).
+   * Post the melee outcome: staged damage + Resist button for the loser. The
+   * message marks the attack card resolved; its author's client closes it.
    * @private
    */
   async _resolveMeleeHit(message, state, o) {
@@ -1728,6 +1729,8 @@ export class SR2EActor extends Actor {
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
+      flags: { sr2e: { resolves: message.id,
+        meleeResolution: `<br><strong>Resolved:</strong> ${esc(o.winnerName)} hit ${esc(o.loserName)} (${o.power}${finalLevel}).` } },
       content: `<div class="sr2e-damage-result">
         <strong>${esc(o.winnerName)} hits ${esc(o.loserName)}</strong>
         ${o.riposte ? "<em>(counterstrike!)</em>" : ""}
@@ -1752,18 +1755,6 @@ export class SR2EActor extends Actor {
         </button>
       </div>`
     });
-
-    // Mark the attack card resolved where permissions allow (author or GM)
-    if (message.isAuthor || game.user.isGM) {
-      const newState = foundry.utils.mergeObject(foundry.utils.deepClone(state), {
-        resolved: true,
-        resolution: `<br><strong>Resolved:</strong> ${esc(o.winnerName)} hit ${esc(o.loserName)} (${o.power}${finalLevel}).`
-      });
-      await message.update({
-        content: renderMeleeAttackCard(newState),
-        "flags.sr2e.melee": newState
-      });
-    }
   }
 
   /**

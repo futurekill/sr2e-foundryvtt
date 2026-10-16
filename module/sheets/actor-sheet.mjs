@@ -547,7 +547,6 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         const price = Math.round(inChargen ? base : streetPrice(base, created.system.streetIndex));
         const nuyen = this.document.system.nuyen ?? 0;
         if (nuyen >= price) {
-          await this.document.update({ "system.nuyen": nuyen - price });
           // Write the purchase flags in ONE update so they can't partially land —
           // ammo left with `paid` but no basis would fall back to the old
           // full-refund. Ammo depletes as it's fired, so it also records the
@@ -560,8 +559,26 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
             flags.acquiredQuantity = created.system.quantity ?? 0;
             flags.acquiredListValue = base;
           }
-          await created.update({ "flags.sr2e": flags });
-          ui.notifications.info(`${foundry.utils.escapeHTML(this.document.name)} buys ${foundry.utils.escapeHTML(created.name)} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${nuyen - price}¥ left.`);
+          // Flags first, then the money: if either write fails (throws, or resolves to
+          // nothing) the item goes, so nothing is ever kept unpaid or paid-for-but-unrecorded.
+          const ok = (p) => p.then(r => !!r, err => { console.error("sr2e | purchase", err); return false; });
+          let failed = !(await ok(created.update({ "flags.sr2e": flags })));
+          const fresh = this.document.system.nuyen ?? 0;   // re-read: the flag write was a round trip
+          if (!failed && fresh < price) {
+            await created.delete();
+            ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${fresh}¥) — not added.`);
+            return null;
+          }
+          if (!failed) failed = !(await ok(this.document.update({ "system.nuyen": fresh - price })));
+          if (failed) {
+            if (await ok(created.delete())) {
+              ui.notifications.warn(`Couldn't buy ${foundry.utils.escapeHTML(created.name)} — nothing was charged and it wasn't added.`);
+            } else {
+              ui.notifications.error(`${foundry.utils.escapeHTML(created.name)} was added to ${foundry.utils.escapeHTML(this.document.name)} but not paid for — remove it or charge ${price}¥ by hand.`, { permanent: true });
+            }
+            return null;
+          }
+          ui.notifications.info(`${foundry.utils.escapeHTML(this.document.name)} buys ${foundry.utils.escapeHTML(created.name)} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${fresh - price}¥ left.`);
         } else {
           await created.delete();
           ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);

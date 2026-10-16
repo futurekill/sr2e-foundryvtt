@@ -78,6 +78,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] A player can **spend/draw** from the team pool; it decrements for everyone.
 - [ ] As a **player** (not GM), donate/spend routes through the socket to the active GM and updates for all clients (no "only a GM can modify settings" error).
 - [ ] With no GM connected, the player action fails gracefully (clear message, no corruption).
+- [ ] Two players donate 1 each at the same moment → the total rises by **2**, not 1.
 
 ## 4. Ranged combat
 - [ ] Fire a weapon — dialog shows TN breakdown (base 4 + range + cover + recoil + …).
@@ -140,6 +141,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Defend:** the defender (selected token) rolls; most successes wins, **ties favour the attacker**.
 - [ ] A winning defender **strikes back** (riposte) with their own weapon.
 - [ ] **Undefended:** attacker's successes stage damage directly.
+- [ ] **Two clients:** the GM's NPC attacks; the PLAYER clicks Defend (also try Full Defense and win) → the GM's attack card closes (buttons gone, "Resolved" line) and clicking Defend/Undefended again does nothing.
 
 - [ ] **Melee visibility (p.102):** pick "Minimal Light" in the melee dialog → TN +3
       (half of +6); "Full Darkness" → +8. The defender's Defend dialog opens with the
@@ -369,6 +371,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Rated templates are **single entries** (one Power Focus, one Commlink, one Attack program) — editable rating.
 - [ ] Drag a rated template onto a sheet → it lands at the default rating (**known: no rating prompt — set it on the item sheet**; see the drop-rating proposal).
 - [ ] Drop a weapon/armor/gear → appears with correct stats; icons render (no broken images).
+- [ ] **Sell twice (phone + computer):** open the Sell confirm for one item on both devices, accept both → exactly **one** refund and **one** "sells" message.
 - [ ] **Critters / Runners / Vehicles / IC** compendium actors import with their items intact and proper token art.
 
 ## 15. Other sheets

@@ -2785,31 +2785,56 @@ async function onSellItem(event, target) {
     return ui.notifications.info("Unarmed Strike is innate and can't be sold.");
   }
 
-  const paid = item.getFlag("sr2e", "paid");
-  const acquiredQuantity = item.getFlag("sr2e", "acquiredQuantity");
   // Ammo depletes as it's fired: refund proportionally to what's left, so an
   // emptied box refunds nothing (no more selling a fired-out box for full price).
   // Everything else refunds the price paid, or street price if untracked.
-  let price, note;
-  const isDrug = item.type === "gear" && !!item.flags?.sr2e?.drug;
-  if ((item.type === "ammo" || isDrug) && acquiredQuantity != null) {
-    price = proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: item.system.quantity ?? 0 });
-    note = ` (${item.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)`;
-  } else {
-    price = paid ?? streetPrice(Number(item.system.cost) || 0, item.system.streetIndex);
-    note = paid != null ? " (refund of the price paid)" : " (street price)";
-  }
+  const quote = (it) => {
+    const paid = it.getFlag("sr2e", "paid");
+    const acquiredQuantity = it.getFlag("sr2e", "acquiredQuantity");
+    const isDrug = it.type === "gear" && !!it.flags?.sr2e?.drug;
+    if ((it.type === "ammo" || isDrug) && acquiredQuantity != null) return {
+      price: proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: it.system.quantity ?? 0 }),
+      note: ` (${it.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)` };
+    return { price: paid ?? streetPrice(Number(it.system.cost) || 0, it.system.streetIndex),
+      note: paid != null ? " (refund of the price paid)" : " (street price)" };
+  };
+  const { price, note } = quote(item);
   const confirmed = await foundry.applications.api.DialogV2.confirm({
     window: { title: `Sell ${item.name}?` },
     content: `<p>Sell <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>${note}? The item will be removed.</p>`
   });
   if (!confirmed) return;
 
-  await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + price });
-  await item.delete();
+  // A second dialog (double tap, or phone + computer) must not pay again: re-read the
+  // item, and pay only once THIS delete has really removed it.
+  const live = actor.items.get(itemId);
+  if (!live) return;
+  if (quote(live).price !== price) {
+    return ui.notifications.warn(`${live.name} changed while you were deciding — sell it again to see the new price.`);
+  }
+  const backup = live.toObject();
+  let gone = null;
+  try { gone = await live.delete(); } catch (err) { console.error("sr2e | sell: delete failed", err); }
+  if (!gone) {
+    if (actor.items.has(itemId)) ui.notifications.warn(`Couldn't sell ${live.name} — it is still on ${actor.name}.`);
+    return;
+  }
+  let credited = null;
+  try { credited = await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + price }); }
+  catch (err) { console.error("sr2e | sell: credit failed", err); }
+  if (!credited) {
+    try {
+      await actor.createEmbeddedDocuments("Item", [backup], { keepId: true });
+      ui.notifications.warn(`Couldn't pay for ${backup.name}, so it was put back on ${actor.name}.`);
+    } catch (err) {
+      console.error("sr2e | sell: restore failed", err);
+      ui.notifications.error(`${backup.name} was removed but the ${price}¥ wasn't paid, and it couldn't be put back. Add ${price}¥ to ${actor.name} by hand.`, { permanent: true });
+    }
+    return;
+  }
   ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> sells <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>.`
+    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> sells <strong>${foundry.utils.escapeHTML(backup.name)}</strong> for <strong>${price}¥</strong>.`
   });
 }
 

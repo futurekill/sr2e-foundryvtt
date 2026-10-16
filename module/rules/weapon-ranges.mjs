@@ -58,6 +58,7 @@ export const RANGE_FIXES = {
  * module's CHANGELOG cites the book for the class.
  */
 const R = (cls) => RANGE_TABLE[cls];
+// Released (0.104.2): never edit. A new fix goes in a new migration (test pins this).
 export const MODULE_RANGE_FIXES = [
   // Street Samurai Catalog (SSC Type / core Sourcebook Updates p.279)
   { name: "Ares MP-LMG",                  was: [50, 150, 350, 550],   to: R("lmg") },
@@ -81,7 +82,6 @@ export const MODULE_RANGE_FIXES = [
   { name: "Ares ELD-AR Assault Rifle",    was: [25, 100, 250, 500],   to: R("assaultRifle") },
   // Neo-Anarchists' Guide (typed Taser, p.33)
   { name: "Yamaha Pulsar",                was: [5, 10, 15, 20],       to: R("taser") },
-  { name: "Eichiro Hatamoto II",          was: [5, 15, 30, 50],       to: R("shotgun") },   // typed Shotgun, p.32
   // Rigger 2 (no minigun row in its own table, p.107)
   { name: "Ares Vengeance Minigun",       was: [50, 150, 350, 550],   to: R("mmg") },
   { name: "Ares Vanquisher Minigun",      was: [50, 150, 350, 550],   to: R("hmg") }

@@ -15,7 +15,7 @@ import * as dataModels from "./data/_index.mjs";
 // Document Classes
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
-import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
+import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderMeleeAttackCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
 import { promptGrant, grantSpellDefense } from "./spell-defense.mjs";
@@ -667,9 +667,20 @@ Hooks.once("ready", async () => {
  * @param {number} delta - points to add (negative to draw)
  * @private
  */
-async function _applyTeamKarmaDelta(delta) {
-  const current = game.settings.get("sr2e", "teamKarma") ?? 0;
-  await game.settings.set("sr2e", "teamKarma", Math.max(0, current + delta));
+let _teamKarmaChain = Promise.resolve();
+function _applyTeamKarmaDelta(delta) {
+  // One write at a time, so each reads the total the previous one committed:
+  // two quick spends from 5 must leave 3, not 4.
+  // shortcut: two players drawing the LAST point at once both get it (the draw credits
+  // the actor before the GM applies it); needs a request/reply over a reliable socket.
+  _teamKarmaChain = _teamKarmaChain.then(async () => {
+    const current = game.settings.get("sr2e", "teamKarma") ?? 0;
+    await game.settings.set("sr2e", "teamKarma", Math.max(0, current + delta));
+  }).catch(err => {
+    console.error("SR2E | Team Karma update failed:", err);
+    ui.notifications.error(`Team Karma Pool update (${delta > 0 ? "+" : ""}${delta}) failed — see the console.`);
+  });
+  return _teamKarmaChain;
 }
 
 /**
@@ -682,6 +693,7 @@ function _onSocketMessage(data) {
   switch (data?.type) {
     case "teamKarmaDelta":
       // Exactly one client (the designated active GM) performs the write.
+      if (!Number.isFinite(data.delta)) return;
       if (game.user === game.users.activeGM) _applyTeamKarmaDelta(data.delta);
       break;
   }
@@ -745,6 +757,7 @@ async function createActorViaGM(actorData) {
  * @returns {boolean} whether the request was applied/dispatched
  */
 SR2E.changeTeamKarma = function changeTeamKarma(delta) {
+  if (!Number.isFinite(delta)) return false;
   if (game.user.isGM) {
     _applyTeamKarmaDelta(delta);
     return true;
@@ -756,6 +769,8 @@ SR2E.changeTeamKarma = function changeTeamKarma(delta) {
   game.socket.emit("system.sr2e", { type: "teamKarmaDelta", delta, userId: game.user.id });
   return true;
 };
+/** Resolves once every queued Team Karma write on this client has landed (tests). */
+SR2E._teamKarmaSettled = () => _teamKarmaChain;
 
 /**
  * Create SR2E system macros for the GM if they don't already exist.
@@ -2000,6 +2015,12 @@ Hooks.on("createChatMessage", async (outcome) => {
       ...(outcome.flags.sr2e.launchSuccesses != null ? { launchSuccesses: outcome.flags.sr2e.launchSuccesses } : {}) };
     await card.update({ content: render(next), [`flags.sr2e.${key}`]: next });
   }
+  // Melee: the defender may not own the attack card, so its outcome carries the text.
+  const melee = card.flags?.sr2e?.melee;
+  if (melee && !melee.resolved) {
+    const next = { ...melee, resolved: true, resolution: outcome.flags.sr2e.meleeResolution ?? "" };
+    await card.update({ content: renderMeleeAttackCard(next), "flags.sr2e.melee": next });
+  }
 });
 
 /**
@@ -2599,7 +2620,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       const state = message.getFlag("sr2e", "melee");
-      if (!state || state.resolved) return;
+      if (!state || isCardResolved(message, "melee")) return;
       const attacker = await fromUuid(state.attackerUuid);
       if (!attacker) return;
       return attacker._resolveMeleeHit(message, state, {

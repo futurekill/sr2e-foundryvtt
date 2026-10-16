@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed — from a code audit
+- **Melee Defend could be used again.** When the GM's NPC attacked a player, the
+  player's defense didn't close the attack card, so Defend or Undefended could be clicked
+  again and the exchange re-rolled. A Full Defense win errored and never posted its
+  result. The result message now closes the card from whoever's client owns it, and a
+  card with a result refuses a second defense.
+- **Selling could pay twice** (a double tap, or the sheet open on phone and computer).
+  The item is removed first and paid for only once; if the payment fails it's put back.
+  A price that changed while the dialog was open asks you to sell again.
+- **Team Karma Pool:** two donations or draws at the same moment no longer overwrite
+  each other.
+- **Buying by drop** records what was paid before charging, and a failed write removes
+  the item, so nothing is ever kept unpaid or charged without a record.
+
 ### Fixed — weapon stats checked against the Street Gear list (book p.254–255, p.279)
 Concealability, damage, cost, availability and Street Index were already checked;
 ammunition, firing modes, weight and reach now are too, for every core weapon. Every
@@ -26,7 +40,7 @@ difference was confirmed on a high-resolution render.
   carried copy against the core weapon.
 - **Neo-Anarchists' Guide weapons already in your world** get the module's corrected
   damage codes, the Eichiro Hatamoto II's stats and its shotgun ranges when the world
-  loads (update that module too).
+  loads (update that module too). Worlds already on 0.104.2 get the Hatamoto's ranges too.
 
 ## 0.104.2 — 2026-10-16
 

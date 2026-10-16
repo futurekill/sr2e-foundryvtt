@@ -36,8 +36,10 @@ describe("0.104.3 — Sourcebook Updates gun stats", () => {
   });
   it("uses the Neo-Anarchists' SR2 damage codes", () => {
     expect(migrate(gun("Morrissey Elite", { damageCode: "6M" }))).toEqual({ "system.damageCode": "9M" });
-    expect(migrate(gun("Eichiro Hatamoto II", { damageCode: "3M", concealability: 5, ammo: { max: 5 } })))
-      .toEqual({ "system.damageCode": "8S", "system.concealability": 6, "system.ammo.max": 1 });
+    expect(migrate(gun("Eichiro Hatamoto II", { damageCode: "3M", concealability: 5, ammo: { max: 5 },
+      ranges: { short: 5, medium: 15, long: 30, extreme: 50 } })))
+      .toEqual({ "system.damageCode": "8S", "system.concealability": 6, "system.ammo.max": 1,
+        "system.ranges.short": 10, "system.ranges.medium": 20, "system.ranges.long": 50, "system.ranges.extreme": 100 });
   });
   it("never touches other weapons", () => {
     expect(migrate(gun("AK-97", { damageCode: "8S" }))).toBe(null);

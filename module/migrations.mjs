@@ -611,7 +611,9 @@ const WEAPON_STAT_FIXES = {
   "Morrissey Élan":           { "system.damageCode": ["4L", "5L"] },
   "Morrissey Elite":          { "system.damageCode": ["6M", "9M"] },
   "Morrissey Alta":           { "system.damageCode": ["6M", "9M"] },
-  "Eichiro Hatamoto II":      { "system.damageCode": ["3M", "8S"], "system.concealability": [5, 6], "system.ammo.max": [5, 1] }
+  "Eichiro Hatamoto II":      { "system.damageCode": ["3M", "8S"], "system.concealability": [5, 6], "system.ammo.max": [5, 1],
+    // Typed Shotgun (p.32): the shotgun row of core p.88.
+    "system.ranges.short": [5, 10], "system.ranges.medium": [15, 20], "system.ranges.long": [30, 50], "system.ranges.extreme": [50, 100] }
 };
 
 /* -------------------------------------------- */

@@ -4,8 +4,11 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { MIGRATIONS } from "../module/migrations.mjs";
-import { MODULE_RANGE_FIXES, ALL_RANGE_FIXES } from "../module/rules/weapon-ranges.mjs";
+import { RANGE_FIXES, MODULE_RANGE_FIXES, ALL_RANGE_FIXES } from "../module/rules/weapon-ranges.mjs";
 
 const migrate = MIGRATIONS.find(m => m.version === "0.104.2").migrateItem;
 const weapon = (name, r) => ({ type: "weapon", name, system: { weaponType: "heavy",
@@ -60,5 +63,16 @@ describe("0.104.2 — module weapon range brackets", () => {
       }));
       expect(shipped, `${f.name}: no release shipped ${f.was.join("/")}`).toBe(true);
     }
+  });
+
+  // Released data: a world stamped 0.104.2 never re-runs it, so a fix added to these lists
+  // later silently never applies there (the Hatamoto II did). New fixes need a new migration.
+  const tagged = (() => { try { return execFileSync("git", ["show", "v0.104.2:module/rules/weapon-ranges.mjs"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; } })();
+  it.skipIf(!tagged)("the released 0.104.2 lists are unchanged since the tag", async () => {
+    const file = join(tmpdir(), `sr2e-weapon-ranges-v0.104.2-${process.pid}.mjs`);
+    (await import("node:fs")).writeFileSync(file, tagged);
+    const released = await import(pathToFileURL(file).href);
+    expect(RANGE_FIXES).toEqual(released.RANGE_FIXES);
+    expect(MODULE_RANGE_FIXES).toEqual(released.MODULE_RANGE_FIXES);
   });
 });
