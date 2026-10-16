@@ -134,6 +134,14 @@ once-per-world. Test it with a document carrying the schema defaults, not a
 hand-written legacy object; the test that "proved" 0.92.0 skipped migrated data
 passed for exactly the reason the migration failed.
 
+**Migrations never reach a document that fails validation.** Foundry keeps it out of
+`game.actors`/`game.items` (it's in `invalidDocumentIds`), so a migration "fixing" the
+value that makes a document invalid fixes nothing (0.29.15 shipped that way). Such
+documents are reported by `reportInvalidDocuments()` on every active-GM load; repair is
+the GM's. Don't add automatic repair: old migrations aren't safe to replay on old raw
+data, and V13 keeps a repaired document out of the collection until reload.
+See docs/PLAN-migrate-invalid-documents.md.
+
 ## Derived state on prepared documents
 `prepareDerivedData` mutates the prepared document IN PLACE, and embedded items
 are NOT re-initialized from source between preparations. Anything written there

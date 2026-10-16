@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — documents that fail to load are no longer silently skipped
+- **An actor or item Foundry can't load is hidden from the world, and migrations never
+  reached it,** so a migration written to repair exactly that value didn't. Example:
+  imported pregens from before 0.29.15 kept a magic type the system no longer accepts
+  and have been missing ever since. Each time the world loads, the GM now gets one
+  warning naming every document that failed to load (items on a character included),
+  with the reason in the console (F12). Nothing is changed automatically: check the
+  document, and if it's an unchanged compendium copy, import the entry again (that makes
+  a new copy; delete the old one yourself once you're happy).
+- **Only the active GM runs migrations,** so two GMs loading the world together no longer
+  both migrate it.
+
 ## 0.104.3 — 2026-10-16
 
 ### Fixed — from a code audit

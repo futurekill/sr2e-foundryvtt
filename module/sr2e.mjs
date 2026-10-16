@@ -51,7 +51,7 @@ import { preloadTemplates } from "./helpers/templates.mjs";
 import { registerHandlebarsHelpers } from "./helpers/handlebars.mjs";
 
 // Migrations
-import { migrateWorld, UNARMED_STRIKE_DATA } from "./migrations.mjs";
+import { migrateAndReport, UNARMED_STRIKE_DATA } from "./migrations.mjs";
 import "./integrations.mjs";  // Dice So Nice + Token Magic FX (optional)
 import { sfxFlags } from "./sfx.mjs";   // combat sounds on chat messages
 import { SFX_KEYS } from "./sfx-manifest.mjs";
@@ -621,11 +621,11 @@ Hooks.once("ready", async () => {
   game.socket.on("system.sr2e", _onSocketMessage);
 
   // Run any pending world migrations before anything else can re-save
-  // documents (which would discard removed-field source data). GM only.
-  if (game.user.isGM) {
-    try { await migrateWorld(); }
-    catch (err) { console.error("SR2E | World migration failed:", err); }
-  }
+  // documents (which would discard removed-field source data), then name any document
+  // that failed to load. Active GM only, so two GMs don't both migrate.
+  // shortcut: an election, not a lock — a higher-priority GM joining mid-migration can
+  // start a second run; needs a world-setting lease if tables with several GMs hit it.
+  if (game.user.isActiveGM) await migrateAndReport();
 
   // IC that defend a Host derive their Security Code + alert live from it, but
   // at world load the IC may be prepared before its host exists in the

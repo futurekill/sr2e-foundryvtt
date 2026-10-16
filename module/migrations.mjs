@@ -825,3 +825,70 @@ export async function migrateWorld() {
     UNBOUND_FOCI.length = 0;
   }
 }
+
+/* -------------------------------------------- */
+/*  Documents that failed to load               */
+/* -------------------------------------------- */
+
+/**
+ * Foundry keeps a document that fails to load OUT of game.actors / game.items, so no
+ * migration ever reaches it (0.29.15 was written for "Tiger"'s legacy magic.type and
+ * never saw it). Repairing automatically isn't safe: old migrations can't be replayed on
+ * old data, and V13 keeps a repaired document out until reload. So say which ones.
+ * @param {{kind: string, id: string, name: string, parent?: string, error?: string}[]} records
+ * @returns {{notice: string, lines: string[]}|null}
+ */
+export function invalidDocumentsReport(records) {
+  if (!records.length) return null;
+  const n = records.length, one = n === 1;
+  const label = (r) => r.parent ? `${r.name} (on ${r.parent})` : r.name;
+  const shown = records.slice(0, 5).map(label).join(", ") + (n > 5 ? ` and ${n - 5} more` : "");
+  const notice = `SR2E | ${n} document${one ? "" : "s"} failed to load and ${one ? "is" : "are"} hidden `
+    + `from the world: ${shown}. Migrations can't reach ${one ? "it" : "them"}. Keep `
+    + `${one ? "it" : "them"} until you've checked why: see the console (F12)`
+    + `${records.some(r => r.error) ? " and Support → Document Issues" : ""}. Importing the `
+    + `entry again from its compendium makes a new copy; the original stays.`;
+  const lines = records.map(r => `${r.kind} ${r.id}${r.parent ? ` on "${r.parent}"` : ""} "${r.name}": `
+    + (r.error ?? "no validation error recorded — see the startup console"));
+  return { notice, lines };
+}
+
+/** Every world actor/item, and item on a world actor, that failed to load. Read-only. */
+export function collectInvalidDocuments() {
+  const out = [];
+  const oneLine = (e) => e?.message?.replace(/\s+/g, " ").trim();
+  for (const [kind, coll, raw] of [["Actor", game.actors, game.data?.actors], ["Item", game.items, game.data?.items]]) {
+    const fails = game.issues?.validationFailures?.[kind] ?? {};
+    for (const id of coll?.invalidDocumentIds ?? []) {
+      const f = fails[id];
+      out.push({ kind, id, name: f?.name ?? raw?.find(d => d._id === id)?.name ?? "(unnamed)", error: oneLine(f?.error) });
+    }
+  }
+  // Embedded failures aren't in validationFailures. Names come from the parent's source:
+  // getInvalid() would construct the item, and that can throw too.
+  for (const actor of game.actors ?? []) {
+    try {
+      for (const id of actor.items.invalidDocumentIds) {
+        out.push({ kind: "Item", id, parent: actor.name,
+          name: actor._source.items?.find(i => i._id === id)?.name ?? "(unnamed)" });
+      }
+    } catch (err) { console.error(`SR2E | Couldn't check "${actor.name}"'s items:`, err); }
+  }
+  return out;
+}
+
+/** Warn the GM, once per load, about documents that failed to load. */
+export function reportInvalidDocuments() {
+  const r = invalidDocumentsReport(collectInvalidDocuments());
+  if (!r) return;
+  console.warn("SR2E | Documents that failed to load:\n  " + r.lines.join("\n  "));
+  ui.notifications.warn(r.notice, { permanent: true });
+}
+
+/** Ready-time GM work: migrate, then report, each in its own boundary so one failing can't skip the other. */
+export async function migrateAndReport(migrate = migrateWorld, report = reportInvalidDocuments) {
+  try { await migrate(); }
+  catch (err) { console.error("SR2E | World migration failed:", err); }
+  try { report(); }
+  catch (err) { console.error("SR2E | Couldn't report documents that failed to load:", err); }
+}
