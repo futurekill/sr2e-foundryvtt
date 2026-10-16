@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.104.4 — 2026-10-16
 
 ### Fixed — documents that fail to load are no longer silently skipped
 - **An actor or item Foundry can't load is hidden from the world, and migrations never
