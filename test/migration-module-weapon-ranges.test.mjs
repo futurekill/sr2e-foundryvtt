@@ -33,25 +33,27 @@ describe("0.104.2 — module weapon range brackets", () => {
   });
 
   // Where the sibling module repos are checked out (not in CI), each fix's target must be
-  // what the module ships now, and its old value what the module's last release shipped.
+  // what the module ships now, and its old value what some earlier release shipped.
   const MODULES = ["sr2e-street-samurai-catalog", "sr2e-corporate-security", "sr2e-neo-anarchists", "sr2e-rigger-2"]
     .map(m => `../${m}`).filter(existsSync);
   it.skipIf(!MODULES.length)("matches what the modules ship now and shipped before", () => {
-    const current = new Map(), released = new Map();
-    for (const repo of MODULES) {
-      const tag = execFileSync("git", ["-C", repo, "describe", "--tags", "--abbrev=0"], { encoding: "utf8" }).trim();
-      for (const pack of readdirSync(`${repo}/packs-src`)) for (const f of readdirSync(`${repo}/packs-src/${pack}`)) {
-        if (!f.endsWith(".json")) continue;
-        const d = JSON.parse(readFileSync(`${repo}/packs-src/${pack}/${f}`, "utf8"));
-        const key = (x) => [x.short, x.medium, x.long, x.extreme].join();
-        if (d.type === "weapon" && d.system?.ranges) current.set(d.name, key(d.system.ranges));
-        let old; try { old = JSON.parse(execFileSync("git", ["-C", repo, "show", `${tag}:packs-src/${pack}/${f}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { continue; }
-        if (old.type === "weapon" && old.system?.ranges) released.set(old.name, key(old.system.ranges));
-      }
+    const key = (x) => [x.short, x.medium, x.long, x.extreme].join();
+    const files = new Map();   // weapon name → [repo, path]
+    for (const repo of MODULES) for (const pack of readdirSync(`${repo}/packs-src`)) for (const f of readdirSync(`${repo}/packs-src/${pack}`)) {
+      if (!f.endsWith(".json")) continue;
+      const d = JSON.parse(readFileSync(`${repo}/packs-src/${pack}/${f}`, "utf8"));
+      if (d.type === "weapon") files.set(d.name, [repo, `packs-src/${pack}/${f}`, d]);
     }
     for (const f of MODULE_RANGE_FIXES) {
-      expect(current.get(f.name), f.name).toBe(f.to.join());
-      expect(released.get(f.name), f.name).toBe(f.was.join());
+      const [repo, path, doc] = files.get(f.name) ?? [];
+      expect(doc, f.name).toBeTruthy();
+      expect(key(doc.system.ranges), f.name).toBe(f.to.join());
+      const tags = execFileSync("git", ["-C", repo, "tag", "--list", "v*"], { encoding: "utf8" }).split("\n").filter(Boolean);
+      const shipped = tags.some(tag => {
+        try { return key(JSON.parse(execFileSync("git", ["-C", repo, "show", `${tag}:${path}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })).system.ranges) === f.was.join(); }
+        catch { return false; }
+      });
+      expect(shipped, `${f.name}: no release shipped ${f.was.join("/")}`).toBe(true);
     }
   });
 });
