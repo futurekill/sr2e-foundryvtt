@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.104.1 — 2026-10-16
+
+### Removed
+- **Three weapons the core book doesn't print:** the FN FAL, Remington 990 and Ares
+  Antioch-2. They cited pages (p.233–234) that don't contain them, and their stats
+  came from an early import, not the book. The FN FAL's own note said it was "better
+  classified as the FN HAR", which is in the compendium. Copies already on characters
+  stay as they are. (Fields of Fire's Remington 990 Shotgun is a different, sourced
+  weapon and is unaffected.)
+
 ## 0.104.0 — 2026-10-16
 
 ### Added — combat sounds

@@ -28,7 +28,8 @@ describe("0.103.2 — weapon range brackets follow the p.88 table", () => {
   it("every core firearm and heavy weapon now matches a row of the table", () => {
     const rows = new Set(Object.values(RANGE_TABLE).map(r => r.join()));
     const dir = "packs-src/weapons";
-    // The three entries the book doesn't print are not in RANGE_FIXES and are flagged separately.
+    // Three entries the book doesn't print (FN FAL, Remington 990, Ares Antioch-2) were
+    // removed in 0.104.1; none may come back.
     const notInBook = new Set(["FN FAL", "Remington 990", "Ares Antioch-2"]);
     const off = [];
     for (const f of readdirSync(dir).filter(f => f.endsWith(".json"))) {
@@ -38,6 +39,8 @@ describe("0.103.2 — weapon range brackets follow the p.88 table", () => {
       if (!rows.has([r.short, r.medium, r.long, r.extreme].join())) off.push(d.name);
     }
     expect(off).toEqual([]);
+    const names = readdirSync(dir).map(f => JSON.parse(readFileSync(`${dir}/${f}`, "utf8")).name);
+    expect(names.filter(n => notInBook.has(n))).toEqual([]);
     for (const name of Object.keys(RANGE_FIXES)) expect(notInBook.has(name)).toBe(false);
   });
 });
