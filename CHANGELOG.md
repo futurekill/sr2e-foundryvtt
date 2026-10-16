@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.104.0 — 2026-10-16
 
 ### Added — combat sounds
 A short sound plays for everyone at the table when a character attacks, casts,
