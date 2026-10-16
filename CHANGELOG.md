@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — Foundry v14
+- **On Foundry v14, living walls and wards didn't stop astral forms:** v14 links a wall's
+  edge to the wall document instead of its canvas object, so the astral-barrier flag
+  was never read and astral tokens walked through every wall. Reads both now (still
+  works on v13).
+
 ## 0.104.4 — 2026-10-16
 
 ### Fixed — documents that fail to load are no longer silently skipped
