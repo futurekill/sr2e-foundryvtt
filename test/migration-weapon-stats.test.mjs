@@ -27,6 +27,13 @@ describe("0.104.3 — Sourcebook Updates gun stats", () => {
       .toEqual({ "system.concealability": 2, "system.ammo.max": 32 });
     expect(migrate(gun("Mossberg CMDT", { damageCode: "9S", firingModes: { ss: false, sa: true, bf: true, fa: false } }))).toBe(null);
   });
+  it("fixes the sample runners' carried copies the same way", () => {
+    expect(migrate(gun("Katana", { damageCode: "(Str+3)S", concealability: 99 })))
+      .toEqual({ "system.damageCode": "(Str+3)M", "system.concealability": 3 });
+    expect(migrate(gun("Heckler & Koch HK227", { firingModes: { ss: false, sa: true, bf: true, fa: false } })))
+      .toEqual({ "system.firingModes.fa": true });
+    expect(migrate(gun("Katana", { damageCode: "(Str+4)M", concealability: 3 }))).toBe(null);   // a GM's katana
+  });
   it("never touches other weapons", () => {
     expect(migrate(gun("AK-97", { damageCode: "8S" }))).toBe(null);
     expect(migrate({ type: "gear", name: "HK G12A3Z", system: { damageCode: "8S" } })).toBe(null);

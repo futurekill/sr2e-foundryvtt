@@ -18,6 +18,12 @@ difference was confirmed on a high-resolution render.
   and shuriken had none or the wrong one, and so did the Streetline Special, Defiance
   Super Shock, Uzi III (4 kg; it's 2), Defiance T-250 and FN HAR.
 - All other ammunition and firing modes already matched the book.
+- **Sample Runners carried weapons that didn't match the book:** Razor's and Tiger's
+  katanas did (STR+3)S and couldn't be concealed (it's **(STR+3)M**, concealability 3),
+  Razor's HK227 had no full auto, and Glitch's Fichetti, Hexen's Browning and Whisper's
+  Walther had the wrong concealability. Fixed in the compendium, and in copies already in
+  your world when it loads (unless you changed that stat). A test now checks every
+  carried copy against the core weapon.
 
 ## 0.104.2 — 2026-10-16
 

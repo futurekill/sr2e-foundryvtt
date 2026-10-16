@@ -668,7 +668,7 @@
         "skill": "firearms",
         "damageCode": "4L",
         "damageType": "physical",
-        "concealability": 12,
+        "concealability": 9,
         "reach": 0,
         "firingModes": {
           "ss": true,

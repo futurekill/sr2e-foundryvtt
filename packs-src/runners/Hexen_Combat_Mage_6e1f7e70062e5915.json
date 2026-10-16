@@ -747,7 +747,7 @@
         "skill": "firearms",
         "damageCode": "9M",
         "damageType": "physical",
-        "concealability": 5,
+        "concealability": 6,
         "reach": 0,
         "firingModes": {
           "ss": false,

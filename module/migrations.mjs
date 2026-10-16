@@ -593,11 +593,17 @@ export const MIGRATIONS = [
   }
 ];
 
-/** 0.104.3: field → [shipped value, printed value] (core Sourcebook Updates p.279). */
+/** 0.104.3: field → [shipped value, printed value] (core p.279 and the Street Gear list). */
 const WEAPON_STAT_FIXES = {
   "Colt M22A2":    { "system.firingModes.fa": [false, true] },
   "HK G12A3Z":     { "system.damageCode": ["8S", "8M"], "system.concealability": [99, 2], "system.ammo.max": [33, 32] },
-  "Mossberg CMDT": { "system.damageCode": ["8S", "9S"], "system.firingModes.bf": [false, true] }
+  "Mossberg CMDT": { "system.damageCode": ["8S", "9S"], "system.firingModes.bf": [false, true] },
+  // Copies the Sample Runners carried with the wrong stats (Street Gear p.254–255).
+  "Katana":                { "system.damageCode": ["(Str+3)S", "(Str+3)M"], "system.concealability": [99, 3] },
+  "Heckler & Koch HK227":  { "system.firingModes.fa": [false, true] },
+  "Fichetti Security 500": { "system.concealability": [8, 7] },
+  "Browning Max-Power":    { "system.concealability": [5, 6] },
+  "Walther Palm Pistol":   { "system.concealability": [12, 9] }
 };
 
 /* -------------------------------------------- */

@@ -557,9 +557,9 @@
       "system": {
         "weaponType": "melee",
         "skill": "armed_combat",
-        "damageCode": "(Str+3)S",
+        "damageCode": "(Str+3)M",
         "damageType": "physical",
-        "concealability": 99,
+        "concealability": 3,
         "reach": 1,
         "firingModes": {
           "ss": false,

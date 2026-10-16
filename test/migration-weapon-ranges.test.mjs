@@ -60,4 +60,29 @@ describe("0.103.2 — weapon range brackets follow the p.88 table", () => {
     }
     expect(stale).toEqual([]);
   });
+  it("copies of core weapons carried by compendium actors match the core entry", () => {
+    // The sample runners were hand-built and had drifted (a katana at (Str+3)S, an HK227
+    // without full auto). A carried copy of a core weapon must fight like it.
+    const core = new Map();
+    for (const f of readdirSync("packs-src/weapons").filter(f => f.endsWith(".json"))) {
+      const d = JSON.parse(readFileSync(`packs-src/weapons/${f}`, "utf8"));
+      if (d.system) core.set(d.name, d.system);
+    }
+    const modes = (s) => ["ss", "sa", "bf", "fa"].filter(m => s.firingModes?.[m]).join("/");
+    const off = [];
+    for (const pack of readdirSync("packs-src")) {
+      if (pack === "weapons") continue;
+      for (const f of readdirSync(`packs-src/${pack}`).filter(f => f.endsWith(".json"))) {
+        const d = JSON.parse(readFileSync(`packs-src/${pack}/${f}`, "utf8"));
+        for (const it of d.items ?? []) {
+          const c = it.type === "weapon" && core.get(it.name);
+          if (!c) continue;
+          const s = it.system ?? {};
+          if (s.damageCode !== c.damageCode || s.concealability !== c.concealability || modes(s) !== modes(c)
+              || (c.ammo?.max ?? 0) !== (s.ammo?.max ?? 0)) off.push(`${d.name}: ${it.name}`);
+        }
+      }
+    }
+    expect(off).toEqual([]);
+  });
 });
