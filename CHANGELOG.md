@@ -24,6 +24,9 @@ difference was confirmed on a high-resolution render.
   Walther had the wrong concealability. Fixed in the compendium, and in copies already in
   your world when it loads (unless you changed that stat). A test now checks every
   carried copy against the core weapon.
+- **Neo-Anarchists' Guide weapons already in your world** get the module's corrected
+  damage codes, the Eichiro Hatamoto II's stats and its shotgun ranges when the world
+  loads (update that module too).
 
 ## 0.104.2 — 2026-10-16
 

@@ -81,6 +81,7 @@ export const MODULE_RANGE_FIXES = [
   { name: "Ares ELD-AR Assault Rifle",    was: [25, 100, 250, 500],   to: R("assaultRifle") },
   // Neo-Anarchists' Guide (typed Taser, p.33)
   { name: "Yamaha Pulsar",                was: [5, 10, 15, 20],       to: R("taser") },
+  { name: "Eichiro Hatamoto II",          was: [5, 15, 30, 50],       to: R("shotgun") },   // typed Shotgun, p.32
   // Rigger 2 (no minigun row in its own table, p.107)
   { name: "Ares Vengeance Minigun",       was: [50, 150, 350, 550],   to: R("mmg") },
   { name: "Ares Vanquisher Minigun",      was: [50, 150, 350, 550],   to: R("hmg") }

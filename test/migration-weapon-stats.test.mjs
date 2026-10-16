@@ -34,6 +34,11 @@ describe("0.104.3 — Sourcebook Updates gun stats", () => {
       .toEqual({ "system.firingModes.fa": true });
     expect(migrate(gun("Katana", { damageCode: "(Str+4)M", concealability: 3 }))).toBe(null);   // a GM's katana
   });
+  it("uses the Neo-Anarchists' SR2 damage codes", () => {
+    expect(migrate(gun("Morrissey Elite", { damageCode: "6M" }))).toEqual({ "system.damageCode": "9M" });
+    expect(migrate(gun("Eichiro Hatamoto II", { damageCode: "3M", concealability: 5, ammo: { max: 5 } })))
+      .toEqual({ "system.damageCode": "8S", "system.concealability": 6, "system.ammo.max": 1 });
+  });
   it("never touches other weapons", () => {
     expect(migrate(gun("AK-97", { damageCode: "8S" }))).toBe(null);
     expect(migrate({ type: "gear", name: "HK G12A3Z", system: { damageCode: "8S" } })).toBe(null);

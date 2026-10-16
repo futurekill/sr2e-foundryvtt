@@ -603,7 +603,15 @@ const WEAPON_STAT_FIXES = {
   "Heckler & Koch HK227":  { "system.firingModes.fa": [false, true] },
   "Fichetti Security 500": { "system.concealability": [8, 7] },
   "Browning Max-Power":    { "system.concealability": [5, 6] },
-  "Walther Palm Pistol":   { "system.concealability": [12, 9] }
+  "Walther Palm Pistol":   { "system.concealability": [12, 9] },
+  // Neo-Anarchists' Guide pp.30–33: the SR2 code is the bracketed one ("4L1 (5L)").
+  "Fichetti Tiffani Needler": { "system.damageCode": ["4L", "5L"] },
+  "Barton Arms Bracer":       { "system.damageCode": ["3M", "6L"], "system.concealability": [2, 7] },
+  "Barton Arms Gun Cane":     { "system.damageCode": ["3M", "6L"] },
+  "Morrissey Élan":           { "system.damageCode": ["4L", "5L"] },
+  "Morrissey Elite":          { "system.damageCode": ["6M", "9M"] },
+  "Morrissey Alta":           { "system.damageCode": ["6M", "9M"] },
+  "Eichiro Hatamoto II":      { "system.damageCode": ["3M", "8S"], "system.concealability": [5, 6], "system.ammo.max": [5, 1] }
 };
 
 /* -------------------------------------------- */
