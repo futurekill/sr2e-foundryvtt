@@ -2,7 +2,7 @@
   "_id": "babb4ebd9ecc8d8c",
   "name": "Taser Dart",
   "type": "ammo",
-  "img": "icons/svg/target.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/taser-dart.webp",
   "system": {
     "ammoType": "taser",
     "quantity": 10,

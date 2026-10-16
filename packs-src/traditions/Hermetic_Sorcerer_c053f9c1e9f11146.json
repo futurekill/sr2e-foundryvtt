@@ -2,7 +2,7 @@
   "_id": "c053f9c1e9f11146",
   "name": "Hermetic Sorcerer",
   "type": "tradition",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/traditions/hermetic-sorcerer.webp",
   "system": {
     "magicType": "magical_adept",
     "tradition": "hermetic",

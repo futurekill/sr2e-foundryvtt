@@ -2,7 +2,7 @@
   "_id": "175331573e4e0d95",
   "name": "Corp Security Chief",
   "type": "contact",
-  "img": "systems/sr2e/assets/item_icons/contacts/corp-security-chief.webp",
+  "img": "systems/sr2e/assets/contact_portraits/corp-security-chief.webp",
   "system": {
     "contactType": "enemy",
     "archetype": "Security Specialist",

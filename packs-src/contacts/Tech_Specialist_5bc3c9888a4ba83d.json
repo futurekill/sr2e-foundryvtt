@@ -2,7 +2,7 @@
   "_id": "5bc3c9888a4ba83d",
   "name": "Tech Specialist",
   "type": "contact",
-  "img": "systems/sr2e/assets/item_icons/contacts/tech-specialist.webp",
+  "img": "systems/sr2e/assets/contact_portraits/tech-specialist.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Mechanic/Rigger",

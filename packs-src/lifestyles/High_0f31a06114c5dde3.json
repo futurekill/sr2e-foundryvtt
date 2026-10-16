@@ -2,7 +2,7 @@
   "_id": "0f31a06114c5dde3",
   "name": "High",
   "type": "lifestyle",
-  "img": "icons/environment/settlement/castle.webp",
+  "img": "systems/sr2e/assets/item_icons/lifestyles/high.webp",
   "system": {
     "level": "high",
     "monthlyCost": 10000,

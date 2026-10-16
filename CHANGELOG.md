@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added — art
+- **17 contacts get painted portraits** in place of small icons: the GM archetypes the
+  book never illustrated (Arms Dealer, Corp Contact, Decker, DocWagon Contact, Fence,
+  Gang Member, Info Broker, Lone Star Contact, Shadowrunner, Shaman, Tech Specialist)
+  and the Enemies (Corp Security Chief, Gang Lieutenant, Jilted Fixer, Rival
+  Shadowrunner, Vengeful Ex-Employer, and the Bounty Hunter, who shares the core
+  bounty hunter's portrait). Whisper's Shaman contact uses the new portrait too.
+- **Icons for the last 16 items on stock art:** the six lifestyles, the eight magical
+  traditions, the Assault Cannon Belt (100) and Taser Darts. Every compendium item now
+  has its own art.
+
 ### Fixed — damage can't be resisted twice
 - **A melee hit, a blast row or a shotgun-spread row could be resisted again,** landing
   the damage twice (a double tap on a phone did it). Each Resist button now resolves

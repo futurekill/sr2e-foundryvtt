@@ -2,7 +2,7 @@
   "_id": "8cda90db862c86b1",
   "name": "Gang Member",
   "type": "contact",
-  "img": "systems/sr2e/assets/item_icons/contacts/gang-member.webp",
+  "img": "systems/sr2e/assets/contact_portraits/gang-member.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Gang Member",

@@ -2,7 +2,7 @@
   "_id": "86a41f27bfef9aa8",
   "name": "Decker",
   "type": "contact",
-  "img": "systems/sr2e/assets/item_icons/contacts/decker.webp",
+  "img": "systems/sr2e/assets/contact_portraits/decker.webp",
   "system": {
     "contactType": "contact",
     "archetype": "Decker",

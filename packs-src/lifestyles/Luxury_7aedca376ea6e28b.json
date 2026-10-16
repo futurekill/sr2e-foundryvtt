@@ -2,7 +2,7 @@
   "_id": "7aedca376ea6e28b",
   "name": "Luxury",
   "type": "lifestyle",
-  "img": "icons/environment/settlement/castle.webp",
+  "img": "systems/sr2e/assets/item_icons/lifestyles/luxury.webp",
   "system": {
     "level": "luxury",
     "monthlyCost": 100000,

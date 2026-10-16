@@ -630,7 +630,7 @@
       "_id": "d4e3a77195919632",
       "name": "Shaman",
       "type": "contact",
-      "img": "systems/sr2e/assets/item_icons/contacts/shaman.webp",
+      "img": "systems/sr2e/assets/contact_portraits/shaman.webp",
       "system": {
         "contactType": "contact",
         "archetype": "Shaman/Mage",

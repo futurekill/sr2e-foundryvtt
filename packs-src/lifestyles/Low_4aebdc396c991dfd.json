@@ -2,7 +2,7 @@
   "_id": "4aebdc396c991dfd",
   "name": "Low",
   "type": "lifestyle",
-  "img": "icons/environment/settlement/house-two-stories-small.webp",
+  "img": "systems/sr2e/assets/item_icons/lifestyles/low.webp",
   "system": {
     "level": "low",
     "monthlyCost": 1000,

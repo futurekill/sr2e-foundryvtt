@@ -2,7 +2,7 @@
   "_id": "09ef11fa622e2100",
   "name": "Rival Shadowrunner",
   "type": "contact",
-  "img": "systems/sr2e/assets/item_icons/contacts/rival-shadowrunner.webp",
+  "img": "systems/sr2e/assets/contact_portraits/rival-shadowrunner.webp",
   "system": {
     "contactType": "enemy",
     "archetype": "Shadowrunner",

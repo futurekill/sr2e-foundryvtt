@@ -2,7 +2,7 @@
   "_id": "706f878b2cff630e",
   "name": "Shamanic Conjurer",
   "type": "tradition",
-  "img": "icons/magic/nature/leaf-glow-maple-green.webp",
+  "img": "systems/sr2e/assets/item_icons/traditions/shamanic-conjurer.webp",
   "system": {
     "magicType": "magical_adept",
     "tradition": "shamanic",

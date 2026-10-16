@@ -2,7 +2,7 @@
   "_id": "5e9127b6e528792f",
   "name": "Hermetic Conjurer",
   "type": "tradition",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/traditions/hermetic-conjurer.webp",
   "system": {
     "magicType": "magical_adept",
     "tradition": "hermetic",

@@ -2,7 +2,7 @@
   "_id": "846649c27ee04eac",
   "name": "Shamanic Adept",
   "type": "tradition",
-  "img": "icons/magic/nature/leaf-glow-maple-green.webp",
+  "img": "systems/sr2e/assets/item_icons/traditions/shamanic-adept.webp",
   "system": {
     "magicType": "shamanic_adept",
     "tradition": "shamanic",

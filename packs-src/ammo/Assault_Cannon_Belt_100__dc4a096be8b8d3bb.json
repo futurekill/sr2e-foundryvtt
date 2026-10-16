@@ -2,7 +2,7 @@
   "_id": "dc4a096be8b8d3bb",
   "name": "Assault Cannon Belt (100)",
   "type": "ammo",
-  "img": "icons/svg/target.svg",
+  "img": "systems/sr2e/assets/item_icons/ammo/assault-cannon-belt-100.webp",
   "system": {
     "ammoType": "belt",
     "quantity": 10,

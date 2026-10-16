@@ -2,7 +2,7 @@
   "_id": "c329810e9814aa4e",
   "name": "Hermetic Magician",
   "type": "tradition",
-  "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+  "img": "systems/sr2e/assets/item_icons/traditions/hermetic-magician.webp",
   "system": {
     "magicType": "full_magician",
     "tradition": "hermetic",
