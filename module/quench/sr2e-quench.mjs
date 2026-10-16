@@ -9517,6 +9517,133 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Audit fixes (2026-10-16)" });
 
+    // ── A Resist button resolves once; a melee attack is defended once (docs/PLAN-resist-once.md) ──
+    quench.registerBatch("sr2e.resist-once", (context) => {
+      const { describe, it, assert, afterEach } = context;
+      const made = [], msgs = [];
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const mk = async (name, system = {}) => { const a = await Actor.create({ name, type: "character", system }); made.push(a); return a; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      // Confirm every dialog that opens while `fn` runs (Resist / Defend).
+      const autoConfirm = async (fn) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() =>
+          app.element?.querySelector('button[data-action="roll"]')?.click(), 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const stun = (a) => a.system.conditionMonitor.stun.value;
+      const since = (n) => { const m = game.messages.contents.slice(n); msgs.push(...m); return m; };
+      // The card's buttons with this system's listeners attached.
+      const buttons = async (card) => [...(await card.renderHTML()).querySelectorAll(".sr2e-resist-btn[data-power]")];
+      const row = (a) => `<div class="sr2e-blast-row"><button class="sr2e-resist-btn" data-power="3" data-base-power="3"
+        data-level="L" data-armor-type="impact" data-damage-type="stun" data-armor-calc="standard" data-armor-mod="0"
+        data-ammo-name="" data-target-uuid="${a.uuid}">Resist</button></div>`;
+      const blastCard = async (a, b) => {
+        const m = await ChatMessage.create({ content: `<div class="sr2e-damage-result sr2e-blast-card">Quench blast${row(a)}${row(b)}</div>` });
+        msgs.push(m); return m;
+      };
+      afterEach(async function () {
+        this.timeout(10000);
+        await ChatMessage.deleteDocuments(msgs.splice(0).map(m => m.id).filter(id => game.messages.has(id)));
+        for (const a of made.splice(0)) { try { await a.delete(); } catch (e) {} }
+      });
+
+      describe("generic Resist buttons", () => {
+        it("a row resolves once; the other row still resolves; deleting the result doesn't reopen it", async function () {
+          this.timeout(15000);
+          const a = await mk("Quench Once A"), b = await mk("Quench Once B");
+          const card = await blastCard(a, b);
+          let n = game.messages.size;
+          await autoConfirm(() => withFaces([1, 1, 1], async () => { (await buttons(card))[0].click(); await wait(1200); }));
+          await wait(300);
+          const first = since(n).filter(m => m.flags?.sr2e?.resolvesRow === `${card.id}#0`);
+          assert.lengthOf(first, 1, "row 0 resolved, tagged");
+          const hurt = stun(a);
+          assert.isAbove(hurt, 0, "row 0 took its damage");
+          n = game.messages.size;
+          await autoConfirm(async () => { (await buttons(card))[0].click(); await wait(1200); }); await wait(300);
+          assert.equal(game.messages.size, n, "a second click posts nothing");
+          assert.equal(stun(a), hurt, "and lands nothing");
+          await autoConfirm(() => withFaces([1, 1, 1], async () => { (await buttons(card))[1].click(); await wait(1200); })); await wait(300);
+          assert.isAbove(stun(b), 0, "row 1 is its own hit");
+          assert.isTrue(!!game.messages.get(card.id).flags?.sr2e?.resolvedRows?.[0], "the card remembers row 0");
+          await first[0].delete(); await wait(200);
+          n = game.messages.size;
+          await autoConfirm(async () => { (await buttons(card))[0].click(); await wait(1200); }); await wait(300);
+          assert.equal(game.messages.size, n, "still refused after the result is deleted");
+        });
+
+        it("a double tap resolves once; two rows finishing together both stay closed", async function () {
+          this.timeout(15000);
+          const a = await mk("Quench Once C"), b = await mk("Quench Once D");
+          const card = await blastCard(a, b);
+          const n = game.messages.size;
+          await autoConfirm(() => withFaces(Array(12).fill(1), async () => {
+            const [r0, r1] = await buttons(card);
+            r0.click(); r0.click(); r1.click();
+            await wait(1500);
+          }));
+          await wait(500);
+          const out = since(n).filter(m => m.flags?.sr2e?.resolvesRow);
+          assert.lengthOf(out.filter(m => m.flags.sr2e.resolvesRow === `${card.id}#0`), 1, "row 0 once");
+          assert.lengthOf(out.filter(m => m.flags.sr2e.resolvesRow === `${card.id}#1`), 1, "row 1 once");
+          const rows = game.messages.get(card.id).flags?.sr2e?.resolvedRows ?? {};
+          assert.isTrue(!!rows[0] && !!rows[1], "both rows recorded, neither overwrote the other");
+        });
+
+        it("a cancelled resist leaves the row open", async function () {
+          this.timeout(10000);
+          const a = await mk("Quench Once E"), b = await mk("Quench Once F");
+          const card = await blastCard(a, b);
+          const id = Hooks.on("renderDialogV2", (app) => setTimeout(() =>
+            app.element?.querySelector('button[data-action="cancel"]')?.click(), 50));
+          try { (await buttons(card))[0].click(); await wait(800); } finally { Hooks.off("renderDialogV2", id); }
+          const n = game.messages.size;
+          await autoConfirm(() => withFaces([1, 1, 1], async () => { (await buttons(card))[0].click(); await wait(1200); })); await wait(300);
+          assert.isAbove(game.messages.size, n, "it can still be resisted");
+        });
+      });
+
+      describe("melee", () => {
+        const meleeCard = async (atk) => {
+          const { renderMeleeAttackCard } = await import("../documents/item.mjs");
+          const state = { attackerUuid: atk.uuid, attackerName: atk.name, weaponName: "Quench Club",
+            successes: 3, power: 4, level: "M", damageType: "stun", resolved: false };
+          const m = await ChatMessage.create({ content: renderMeleeAttackCard(state), flags: { sr2e: { melee: state } } });
+          msgs.push(m); return m;
+        };
+
+        it("two Defend dialogs resolve one exchange, and the hit names the defender", async function () {
+          this.timeout(15000);
+          const atk = await mk("Quench Melee Atk"), def = await mk("Quench Melee Def");
+          const card = await meleeCard(atk);
+          const n = game.messages.size;
+          await autoConfirm(() => withFaces(Array(20).fill(1), () => Promise.all([def.rollMeleeDefense(card), def.rollMeleeDefense(card)])));
+          await wait(500);
+          const hits = since(n).filter(m => m.flags?.sr2e?.resolves === card.id);
+          assert.lengthOf(hits, 1, "one outcome");
+          const btn = new DOMParser().parseFromString(hits[0].content, "text/html").querySelector(".sr2e-resist-btn[data-power]");
+          assert.equal(btn?.dataset.targetUuid, def.uuid, "the hit card names who resists");
+        });
+
+        it("Undefended twice, or with a Defend at once, resolves one exchange", async function () {
+          this.timeout(15000);
+          const { meleeUndefended } = await import("../documents/actor.mjs");
+          const atk = await mk("Quench Melee Atk 2"), def = await mk("Quench Melee Def 2");
+          let card = await meleeCard(atk), n = game.messages.size;
+          await Promise.all([meleeUndefended(card), meleeUndefended(card)]); await wait(400);
+          assert.lengthOf(since(n).filter(m => m.flags?.sr2e?.resolves === card.id), 1, "Undefended twice: one");
+          card = await meleeCard(atk); n = game.messages.size;
+          await autoConfirm(() => withFaces(Array(20).fill(1), () => Promise.all([def.rollMeleeDefense(card), meleeUndefended(card)])));
+          await wait(400);
+          assert.lengthOf(since(n).filter(m => m.flags?.sr2e?.resolves === card.id), 1, "Defend + Undefended: one");
+        });
+      });
+    }, { displayName: "SR2E: Resist once" });
+
 
 
 

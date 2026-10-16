@@ -98,6 +98,40 @@ function diceRuns(dice) {
  * @param {object[]} dice - from flags.sr2e.test.dice, tagged by attributeDice()
  * @returns {string} HTML
  */
+/**
+ * Flags for a resistance outcome: the card it resolves (`resolves`), and for a row of a
+ * multi-target card or a button that carries its own damage, that one button
+ * (`resolvesRow = "<cardId>#<index>"`), so it can't be resisted twice.
+ */
+function outcomeMarks({ resolvesMessageId, resolvesRow } = {}) {
+  const sr2e = {};
+  if (resolvesMessageId) sr2e.resolves = resolvesMessageId;
+  if (resolvesRow) sr2e.resolvesRow = resolvesRow;
+  return Object.keys(sr2e).length ? { flags: { sr2e } } : {};
+}
+
+/** Attack cards whose melee exchange is being resolved on this client (Defend and Undefended share it). */
+const MELEE_IN_FLIGHT = new Set();
+
+/** Undefended: the attack resolves against 0 defense successes, once (shares the Defend guard). */
+export async function meleeUndefended(message) {
+  if (MELEE_IN_FLIGHT.has(message.id)) return;
+  MELEE_IN_FLIGHT.add(message.id);
+  try {
+    const state = message.getFlag("sr2e", "melee");
+    if (!state || isCardResolved(message, "melee")) return;
+    const attacker = await fromUuid(state.attackerUuid);
+    if (!attacker) return;
+    if (isCardResolved(game.messages.get(message.id), "melee")) return;
+    return await attacker._resolveMeleeHit(message, state, {
+      winnerName: state.attackerName, loserName: "the undefended target",
+      weaponName: state.weaponName, net: state.successes,
+      power: state.power, level: state.level, damageType: state.damageType,
+      riposte: false
+    });
+  } finally { MELEE_IN_FLIGHT.delete(message.id); }
+}
+
 export function renderDiceResults(dice = []) {
   let style = "groups";
   try { style = game.settings.get("sr2e", "diceSourceStyle") || "groups"; }
@@ -1503,6 +1537,16 @@ export class SR2EActor extends Actor {
    * @param {ChatMessage} message - The melee attack card.
    */
   async rollMeleeDefense(message) {
+    // One resolution per exchange on this client, shared with Undefended (a double tap
+    // opens two dialogs; both used to roll and resolve).
+    if (MELEE_IN_FLIGHT.has(message.id)) return;
+    MELEE_IN_FLIGHT.add(message.id);
+    try { return await this._rollMeleeDefense(message); }
+    finally { MELEE_IN_FLIGHT.delete(message.id); }
+  }
+
+  /** @private The defense itself; see rollMeleeDefense. */
+  async _rollMeleeDefense(message) {
     const state = message.getFlag("sr2e", "melee");
     // The outcome marker counts even when this client couldn't close the card.
     if (!state || isCardResolved(message, "melee")) return;
@@ -1602,6 +1646,10 @@ export class SR2EActor extends Actor {
       ]
     });
     if (action !== "roll" || !choice) return;
+    // Resolved (or deleted) on any client while the dialog was open.
+    if (isCardResolved(game.messages.get(message.id), "melee")) {
+      return ui.notifications.warn("That attack has already been resolved.");
+    }
 
     // ── Defender's skill and dice ─────────────────────────────────────────────
     const weapon = choice.weaponId ? this.items.get(choice.weaponId) : null;
@@ -1692,6 +1740,7 @@ export class SR2EActor extends Actor {
         power: Math.max(1, dmg.power), level: dmg.level, damageType,
         // p.103: melee knockback is resisted against the STRIKER's Strength.
         winnerStrength: this.system.strength?.value ?? 0,
+        loserUuid: state.attackerUuid,
         riposte: true
       });
     } else {
@@ -1710,6 +1759,7 @@ export class SR2EActor extends Actor {
         // p.103: resisted against the STRIKER's Strength, so it has to come
         // from the attacker's own sheet, not the defender's.
         winnerStrength: striker?.system?.strength?.value ?? 0,
+        loserUuid: this.uuid,
         riposte: false
       });
     }
@@ -1748,6 +1798,7 @@ export class SR2EActor extends Actor {
                 data-ammo-name=""
                 data-melee="1"
                 data-attacker-strength="${o.winnerStrength ?? 0}"
+                ${o.loserUuid ? `data-target-uuid="${esc(o.loserUuid)}"` : ""}
                 data-full-defense="${o.fullDefense ? 1 : 0}"
                 ${o.fullDefense ? `data-attacker-successes="${o.strikerSuccesses ?? 0}"` : ""}
                 title="${esc(o.loserName)} rolls Body vs. TN = Power − Impact Armor (SR2E p.100)">
@@ -2035,8 +2086,7 @@ export class SR2EActor extends Actor {
     const basePower = options.basePower ?? power;
     // Every terminal outcome names the card it resolves (flag-backed ranged
     // damage), so any client can tell the card is done.
-    const resolves = options.resolvesMessageId
-      ? { flags: { sr2e: { resolves: options.resolvesMessageId } } } : {};
+    const resolves = outcomeMarks(options);
 
     // p.108 (and APDS, Sourcebook Updates p.277) — see vehicleHit.
     const netStaging = Number.isFinite(options.stageVs);
@@ -2053,6 +2103,8 @@ export class SR2EActor extends Actor {
       barrier: `<strong>No penetration:</strong> base Power ${basePower} does not exceed vehicle armor ${hit.armorUsed}${options.apds ? ` (${armor}, halved for APDS)` : ""} (SR2E p.108).`
     };
     if (hit.none) {
+      // An immune vehicle still resolves the card once: re-check before posting.
+      if (options.beforeRoll && !(await options.beforeRoll())) return null;
       return ChatMessage.create({
         ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -2188,6 +2240,7 @@ export class SR2EActor extends Actor {
         basePower: options.basePower, damageType,
         stageVs: options.stageVs, ratedLevel: options.ratedLevel, calledShot: options.calledShot,
         beforeRoll: options.beforeRoll, resolvesMessageId: options.resolvesMessageId,
+        resolvesRow: options.resolvesRow,
         apds: options.armorCalc === "half_ballistic", antiVehicle: !!options.antiVehicle
       });
     }
@@ -2320,8 +2373,7 @@ export class SR2EActor extends Actor {
     if (options.beforeRoll && !(await options.beforeRoll())) return null;
     // Outcome messages carry which card they resolve, so any client can tell
     // it is done without editing a message it may not own.
-    const resolves = options.resolvesMessageId
-      ? { flags: { sr2e: { resolves: options.resolvesMessageId } } } : {};
+    const resolves = outcomeMarks(options);
 
     // ── Roll ──────────────────────────────────────────────────────────────────
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
@@ -2586,6 +2638,9 @@ export class SR2EActor extends Actor {
     const dice  = atk.dice === "reaction" ? (this.system.reaction?.value ?? force) : force;
     const diceLabel = atk.dice === "reaction" ? "Reaction" : "Force";
 
+    // Who it's aimed at, captured before any await: the Resist button names them, so
+    // whoever happens to be selected can't take (and use up) someone else's hit.
+    const targetUuid = firstTarget()?.actor?.uuid ?? "";
     const result = await this.rollSuccessTest(dice, 4, {
       label: `${this.name} — Manifest Attack (${diceLabel} ${dice})`
     });
@@ -2612,7 +2667,9 @@ export class SR2EActor extends Actor {
                 data-power="${force}" data-base-power="${force}"
                 data-level="${stages[finalIdx]}" data-armor-type="impact"
                 data-damage-type="${isStun ? "stun" : "physical"}" data-armor-calc="standard"
-                data-armor-mod="0" data-ammo-name="">
+                data-armor-mod="0" data-ammo-name=""
+                ${targetUuid ? `data-target-uuid="${foundry.utils.escapeHTML(targetUuid)}"`
+                  : `title="No target was picked: the selected token (or your character) resists."`}>
           ${game.i18n.localize("SR2E.Chat.ResistDamage")}
         </button>
       </div>`

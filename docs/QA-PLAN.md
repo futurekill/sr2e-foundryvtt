@@ -141,6 +141,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Defend:** the defender (selected token) rolls; most successes wins, **ties favour the attacker**.
 - [ ] A winning defender **strikes back** (riposte) with their own weapon.
 - [ ] **Undefended:** attacker's successes stage damage directly.
+- [ ] **Double tap Resist** on a melee hit and on one blast row (phone): one resistance, one set of boxes; the other blast rows still resist.
 - [ ] **Two clients:** the GM's NPC attacks; the PLAYER clicks Defend (also try Full Defense and win) → the GM's attack card closes (buttons gone, "Resolved" line) and clicking Defend/Undefended again does nothing.
 
 - [ ] **Melee visibility (p.102):** pick "Minimal Light" in the melee dialog → TN +3

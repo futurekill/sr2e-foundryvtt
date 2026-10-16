@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — damage can't be resisted twice
+- **A melee hit, a blast row or a shotgun-spread row could be resisted again,** landing
+  the damage twice (a double tap on a phone did it). Each Resist button now resolves
+  once: a second click says it's already been resisted, even from another device, and
+  even if the result message is deleted. A cancelled Resist can still be tried again.
+- **Two Defend dialogs (or Defend and Undefended together) could both resolve one melee
+  attack.** Only the first now counts.
+- **A melee hit and a manifested spirit's attack now name who resists,** so whoever
+  happens to have a token selected can't roll (and use up) someone else's hit. A spirit
+  attack with no target picked works as before.
+
 ## 0.104.5 — 2026-10-16
 
 ### Fixed — Foundry v14

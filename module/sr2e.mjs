@@ -15,6 +15,7 @@ import * as dataModels from "./data/_index.mjs";
 // Document Classes
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
+import { meleeUndefended } from "./documents/actor.mjs";
 import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderMeleeAttackCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
@@ -1962,6 +1963,18 @@ async function launchFromCard(message, key) {
  * open means "click again". Reads the card's flag, never the button.
  */
 const RANGED_IN_FLIGHT = new Set();
+/** Damage-resist buttons being resolved on this client, by "<cardId>#<index>". */
+const RESIST_IN_FLIGHT = new Set();
+
+/** Has this button's hit been resisted (or its card deleted)? Any client's result counts. */
+function resistRowResolved(rowKey) {
+  const [cardId, i] = rowKey.split("#");
+  const card = game.messages.get(cardId);
+  if (!card) return true;
+  if (card.flags?.sr2e?.resolvedRows?.[i]) return true;
+  return game.messages.some(m => m.flags?.sr2e?.resolvesRow === rowKey);
+}
+
 async function resistRangedDamage(message) {
   if (RANGED_IN_FLIGHT.has(message.id)) return;
   RANGED_IN_FLIGHT.add(message.id);
@@ -2002,6 +2015,16 @@ async function resistRangedDamage(message) {
  * away — re-renders it closed, launchers showing the successes the launch used.
  */
 Hooks.on("createChatMessage", async (outcome) => {
+  // A resisted row: its card remembers it too, so deleting the result can't reopen it.
+  // One dotted key per row, so two rows finishing together don't overwrite each other.
+  const row = outcome.flags?.sr2e?.resolvesRow;
+  if (row) {
+    const [cardId, i] = row.split("#");
+    const src = game.messages.get(cardId);
+    if (src && (src.isAuthor || (game.user.isGM && !src.author?.active))) {
+      await src.update({ [`flags.sr2e.resolvedRows.${i}`]: true });
+    }
+  }
   const id = outcome.flags?.sr2e?.resolves;
   const card = id ? game.messages.get(id) : null;
   if (!card) return;
@@ -2341,6 +2364,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     });
   });
 
+  // Every damage-resist button on this card, in content order: a button's index is its
+  // key, so a row of a multi-target card (or a melee hit) is resisted once.
+  const resistBtns = [...(html.querySelectorAll?.(".sr2e-resist-btn") ?? [])].filter(b => b.dataset.power !== undefined);
   html.querySelectorAll?.(".sr2e-resist-btn").forEach(btn => {
     // `sr2e-resist-btn` is ALSO a shared styling class on the Defend / Undefended
     // / Resist Spell / Resist Astral action buttons, which have their own
@@ -2354,6 +2380,17 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       // and so does a flag-backed ranged damage card (Karma can change it).
       if (btn.dataset.manip === "1") return resistManipDamage(message);
       if (btn.dataset.ranged === "1") return resistRangedDamage(message);
+      // Taken before the first await, so a double tap can't slip in between.
+      const rowKey = `${message.id}#${resistBtns.indexOf(btn)}`;
+      if (RESIST_IN_FLIGHT.has(rowKey)) return;
+      if (resistRowResolved(rowKey)) return ui.notifications.warn("That damage has already been resisted.");
+      RESIST_IN_FLIGHT.add(rowKey);
+      try { return await resistRow(btn, rowKey); }
+      finally { RESIST_IN_FLIGHT.delete(rowKey); }
+    });
+  });
+  /** Resolve one generic damage-resist button (its damage rides on the button). */
+  async function resistRow(btn, rowKey) {
       const power      = parseInt(btn.dataset.power)   || 0;
       const basePower  = parseInt(btn.dataset.basePower) || power;
       const level      = btn.dataset.level             || "M";
@@ -2412,9 +2449,15 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       return actor.rollDamageResistance(power, level, armorType, damageType,
         { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses,
           antiVehicle: btn.dataset.antiVehicle === "1",
-          melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1", ...net });
-    });
-  });
+          melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1", ...net,
+          resolvesRow: rowKey,
+          // Resolved (or the card deleted) on any client while the dialog was open.
+          beforeRoll: async () => {
+            if (!resistRowResolved(rowKey)) return true;
+            ui.notifications.warn("That damage has already been resisted.");
+            return false;
+          } });
+  }
 
   // Wire up "Knockdown Test" buttons on damage-taken cards (SR2E p.91).
   html.querySelectorAll?.(".sr2e-knockdown-btn").forEach(btn => {
@@ -2619,16 +2662,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   html.querySelectorAll?.(".sr2e-undefended-btn").forEach(btn => {
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
-      const state = message.getFlag("sr2e", "melee");
-      if (!state || isCardResolved(message, "melee")) return;
-      const attacker = await fromUuid(state.attackerUuid);
-      if (!attacker) return;
-      return attacker._resolveMeleeHit(message, state, {
-        winnerName: state.attackerName, loserName: "the undefended target",
-        weaponName: state.weaponName, net: state.successes,
-        power: state.power, level: state.level, damageType: state.damageType,
-        riposte: false
-      });
+      return meleeUndefended(message);
     });
   });
 
