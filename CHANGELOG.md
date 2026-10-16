@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.104.3 — 2026-10-16
 
 ### Fixed — from a code audit
 - **Melee Defend could be used again.** When the GM's NPC attacked a player, the
