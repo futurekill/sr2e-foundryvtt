@@ -594,6 +594,9 @@ If those five all work, the core loop is healthy.
       - A wrong password says "Wrong password." and the form works again.
       - "Open full Foundry on this device" on the phone sticks after a reload.
       - Log out on the phone: the computer stays online, and reloads without signing in.
+      - **On Foundry V14:** the dialog's QR opens Foundry's own join page and the hint
+        explains the separate phone user ("<name> (phone)", Owner on the character).
+        Join as that user on the phone; the companion opens.
 - [ ] **Targets under pressure:** tap two tokens quickly on the phone; both are
       targeted on the computer. Target on the computer right after a phone pick;
       the phone shows it.

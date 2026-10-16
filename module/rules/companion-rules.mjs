@@ -89,6 +89,19 @@ export function targetChoices(rows = [], { astralActive = false } = {}) {
 export const JOIN_PAGE = "systems/sr2e/companion-join.html";
 
 /**
+ * How "Open on phone" signs the phone in. Foundry v14 serves every package .html as
+ * text/plain, so the system's join page can't load there: the phone uses Foundry's own
+ * join page as a second user instead. Earlier generations use the system's page.
+ * shortcut: a separate phone user doesn't share the computer user's targets; revisit if
+ * Foundry gets a supported way to host a page (the user wants other options later).
+ * @param {number} generation  game.release.generation
+ * @returns {"page"|"phoneUser"}
+ */
+export function phoneJoinMode(generation) {
+  return generation >= 14 ? "phoneUser" : "page";
+}
+
+/**
  * The address with `companion=` removed, so the choice applies once: leaving the
  * companion reloads the cleaned address instead of re-applying `?companion=1`.
  * Returns null when there is nothing to remove.

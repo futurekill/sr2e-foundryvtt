@@ -115,3 +115,12 @@ describe("phone join (docs/PLAN-companion-join.md)", async () => {
     expect(R.joinResult({ status: 0 }).message).toBe("Couldn't reach the game. Is it running?");
   });
 });
+
+describe("phoneJoinMode", async () => {
+  const R = await import("../module/rules/companion-rules.mjs");
+  it("uses the system's join page before v14, and a separate phone user from v14 (package .html is served as text)", () => {
+    expect(R.phoneJoinMode(13)).toBe("page");
+    expect(R.phoneJoinMode(14)).toBe("phoneUser");
+    expect(R.phoneJoinMode(15)).toBe("phoneUser");
+  });
+});

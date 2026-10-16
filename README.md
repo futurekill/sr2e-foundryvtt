@@ -1,6 +1,6 @@
 # Shadowrun 2nd Edition - FoundryVTT Game System
 
-A comprehensive game system for **Shadowrun Second Edition** (FASA 7901) built for [Foundry Virtual Tabletop](https://foundryvtt.com/) V13.
+A comprehensive game system for **Shadowrun Second Edition** (FASA 7901) built for [Foundry Virtual Tabletop](https://foundryvtt.com/) V13 and V14.
 
 ## Overview
 
@@ -201,7 +201,8 @@ This project uses GitHub Actions for automated releases:
 
 ## Compatibility
 
-- **FoundryVTT Version:** V13 (minimum and verified; V14 support is planned)
+- **FoundryVTT Version:** V13 minimum, verified on V14. On V14, **Open on phone** needs a
+  separate Foundry user for the phone (V14 won't serve the system's own sign-in page).
 - **Browser:** Any modern browser supported by FoundryVTT
 
 ## Project Structure
@@ -249,7 +250,6 @@ Optional content modules, each its own repository and install:
 
 ## Roadmap
 
-- **Foundry VTT V14 compatibility** when it releases
 - **Virtual Realities 2.0** as a full ruleset (the core Matrix is implemented; a VR2.0 toggle exists)
 
 ## Credits

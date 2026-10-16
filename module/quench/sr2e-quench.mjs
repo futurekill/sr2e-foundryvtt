@@ -9153,6 +9153,8 @@ export function registerSR2EQuenchTests() {
       const { it, assert } = context;
       const wait = (ms) => new Promise(r => setTimeout(r, ms));
       const page = () => foundry.utils.getRoute("systems/sr2e/companion-join.html");
+      // v14 serves package .html as text/plain, so the page itself only runs before v14.
+      const v14 = game.release.generation >= 14;
       const frame = async (hash) => {
         const f = document.createElement("iframe");
         f.style.cssText = "position:fixed;left:-2000px;width:400px;height:700px";
@@ -9174,9 +9176,15 @@ export function registerSR2EQuenchTests() {
           assert.ok(dlg?.querySelector(".sr2e-phone-qr svg"), "a QR code");
           const url = new URL(dlg.querySelector(".sr2e-phone-url").value);
           assert.equal(url.origin, location.origin);
-          assert.equal(url.pathname, page());
-          const p = new URLSearchParams(url.hash.slice(1));
-          assert.deepEqual([p.get("u"), p.get("n")], [game.user.id, game.user.name]);
+          if (v14) {
+            // v14 can't load the system's page: Foundry's own join page, and a phone user.
+            assert.equal(url.pathname, foundry.utils.getRoute("join"));
+            assert.match(dlg.querySelector(".sr2e-phone-link .hint").textContent, /own user/);
+          } else {
+            assert.equal(url.pathname, page());
+            const p = new URLSearchParams(url.hash.slice(1));
+            assert.deepEqual([p.get("u"), p.get("n")], [game.user.id, game.user.name]);
+          }
           const addr = dlg.querySelector('[name="address"]');
           addr.value = "http://192.168.1.20:30000"; addr.dispatchEvent(new Event("input"));
           assert.isTrue(dlg.querySelector(".sr2e-phone-url").value.startsWith("http://192.168.1.20:30000/"), "editing the address re-links");
@@ -9191,6 +9199,7 @@ export function registerSR2EQuenchTests() {
 
       it("the join page shows a hostile name as text and runs nothing", async function () {
         this.timeout(10000);
+        if (v14) this.skip();
         window.__sr2eJoinXss = false;
         const evil = `<img src=x onerror="parent.__sr2eJoinXss=true">`;
         const f = await frame("#" + new URLSearchParams({ u: game.user.id, n: evil }));
@@ -9205,6 +9214,7 @@ export function registerSR2EQuenchTests() {
 
       it("the join page refuses a malformed id", async function () {
         this.timeout(10000);
+        if (v14) this.skip();
         const f = await frame("#u=../../etc&n=Bob");
         try {
           assert.isFalse(f.contentDocument.getElementById("bad").hidden);
@@ -9214,6 +9224,7 @@ export function registerSR2EQuenchTests() {
 
       it("two submits send one request, and a wrong password re-enables the form", async function () {
         this.timeout(10000);
+        if (v14) this.skip();
         const f = await frame("#" + new URLSearchParams({ u: game.user.id, n: game.user.name }));
         try {
           const w = f.contentWindow, d = f.contentDocument;

@@ -7,6 +7,13 @@
   edge to the wall document instead of its canvas object, so the astral-barrier flag
   was never read and astral tokens walked through every wall. Reads both now (still
   works on v13).
+- **Verified on Foundry v14** (14.369): the full in-Foundry test suite passes there.
+- **Open on phone on v14:** v14 serves every add-on's `.html` file as plain text on
+  purpose, so the system's own phone sign-in page can't load there. On v14 the QR code
+  opens Foundry's normal join page instead, and the dialog explains the catch: the phone
+  needs its own Foundry user (ask the GM for "<name> (phone)" with Owner on your
+  character). Targets picked on the phone then belong to that user, not the computer's.
+  v13 works as before.
 
 ## 0.104.4 — 2026-10-16
 

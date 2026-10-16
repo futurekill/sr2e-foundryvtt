@@ -3,10 +3,12 @@
  * user who is already online, so the computer shows a QR code of the system's own
  * join page (companion-join.html), which signs the phone in with the player's
  * password through Foundry's normal /join route. No secret goes into the link.
+ * On v14 the page can't load (see phoneJoinMode), so the QR opens Foundry's own join
+ * page and the dialog explains the separate phone user.
  */
 
 import qrcode from "../vendor/qrcode.mjs";
-import { JOIN_PAGE, joinLink, normalizeAddress } from "../rules/companion-rules.mjs";
+import { JOIN_PAGE, joinLink, normalizeAddress, phoneJoinMode } from "../rules/companion-rules.mjs";
 import { isCompanion } from "./boot.mjs";
 
 /** The QR code for `text`, as an SVG element. */
@@ -22,6 +24,7 @@ function qrSvg(text) {
 /** Open the dialog for the current user. */
 export async function openPhoneLink() {
   const esc = foundry.utils.escapeHTML;
+  const phoneUser = phoneJoinMode(game.release.generation) === "phoneUser";
   const content = `
     <div class="sr2e-phone-link">
       <div class="form-group">
@@ -34,7 +37,12 @@ export async function openPhoneLink() {
         <input type="text" class="sr2e-phone-url" readonly aria-label="Link">
         <button type="button" class="sr2e-phone-copy"><i class="fa-solid fa-copy" inert></i> Copy</button>
       </div>
-      <p class="hint">Scan with your phone's camera. You'll be asked for your Foundry password, if you have one.</p>
+      <p class="hint">${phoneUser
+        ? `Foundry ${game.release.generation} can't sign one user in on two devices at once, so your phone needs its own `
+          + `user: ask your GM to create one (for example "${esc(game.user.name)} (phone)") and give it Owner on your `
+          + `character. Then scan this with your phone and join as that user. Targets you pick on the phone show for `
+          + `that user, not on this computer.`
+        : "Scan with your phone's camera. You'll be asked for your Foundry password, if you have one."}</p>
     </div>`;
   const update = (root) => {
     const res = normalizeAddress(root.querySelector('[name="address"]').value);
@@ -45,8 +53,8 @@ export async function openPhoneLink() {
     box.replaceChildren();
     out.value = "";
     if (res.error) return;
-    const link = joinLink({ origin: res.origin, route: foundry.utils.getRoute(JOIN_PAGE),
-      userId: game.user.id, name: game.user.name });
+    const link = phoneUser ? res.origin + foundry.utils.getRoute("join")
+      : joinLink({ origin: res.origin, route: foundry.utils.getRoute(JOIN_PAGE), userId: game.user.id, name: game.user.name });
     out.value = link;
     box.append(qrSvg(link));
   };
