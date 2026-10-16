@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.104.5 — 2026-10-16
 
 ### Fixed — Foundry v14
 - **On Foundry v14, living walls and wards didn't stop astral forms:** v14 links a wall's
