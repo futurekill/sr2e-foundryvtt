@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Whisper's Walther Palm Pistol** (Sample Runners) still had the old range brackets:
+  0.103.2 fixed the weapons compendium and the copies in your world, but not copies
+  carried by compendium actors, and an actor imported after the update is never
+  corrected. It now has the hold-out brackets, 5/15/30/50 m (p.88). A test checks every
+  compendium actor's copies.
+
 ## 0.104.1 — 2026-10-16
 
 ### Removed

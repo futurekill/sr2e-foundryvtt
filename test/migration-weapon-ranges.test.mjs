@@ -43,4 +43,21 @@ describe("0.103.2 — weapon range brackets follow the p.88 table", () => {
     expect(names.filter(n => notInBook.has(n))).toEqual([]);
     for (const name of Object.keys(RANGE_FIXES)) expect(notInBook.has(name)).toBe(false);
   });
+  it("copies carried by compendium actors use the corrected brackets too", () => {
+    // The world migration never touches compendium actors, and an actor imported
+    // after it ran is never migrated, so the shipped copies must be right at source.
+    const stale = [];
+    for (const pack of readdirSync("packs-src")) {
+      for (const f of readdirSync(`packs-src/${pack}`).filter(f => f.endsWith(".json"))) {
+        const d = JSON.parse(readFileSync(`packs-src/${pack}/${f}`, "utf8"));
+        for (const it of d.items ?? []) {
+          const fix = it.type === "weapon" && RANGE_FIXES[it.name];
+          if (!fix) continue;
+          const r = it.system?.ranges ?? {};
+          if ([r.short, r.medium, r.long, r.extreme].join() !== RANGE_TABLE[fix.cls].join()) stale.push(`${d.name}: ${it.name}`);
+        }
+      }
+    }
+    expect(stale).toEqual([]);
+  });
 });
