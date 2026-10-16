@@ -45,4 +45,9 @@ describe("0.104.3 — Sourcebook Updates gun stats", () => {
     expect(migrate(gun("AK-97", { damageCode: "8S" }))).toBe(null);
     expect(migrate({ type: "gear", name: "HK G12A3Z", system: { damageCode: "8S" } })).toBe(null);
   });
+  it("uses Fields of Fire's printed Street Index and Concealability", () => {
+    expect(migrate(gun("Barret Model 121 Heavy Sniper Rifle", { streetIndex: 4 }))).toEqual({ "system.streetIndex": 5 });
+    expect(migrate(gun("Cougar Fine Blade (Long)", { concealability: 6 }))).toEqual({ "system.concealability": 5 });
+    expect(migrate(gun("Cougar Fine Blade (Long)", { concealability: 7 }))).toBe(null);
+  });
 });

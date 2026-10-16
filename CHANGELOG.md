@@ -41,6 +41,8 @@ difference was confirmed on a high-resolution render.
 - **Neo-Anarchists' Guide weapons already in your world** get the module's corrected
   damage codes, the Eichiro Hatamoto II's stats and its shotgun ranges when the world
   loads (update that module too). Worlds already on 0.104.2 get the Hatamoto's ranges too.
+- **Fields of Fire weapons already in your world:** the Barret Model 121 gets its printed
+  Street Index (5) and the long Cougar Fine Blade its Concealability (5).
 
 ## 0.104.2 — 2026-10-16
 

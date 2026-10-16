@@ -613,7 +613,10 @@ const WEAPON_STAT_FIXES = {
   "Morrissey Alta":           { "system.damageCode": ["6M", "9M"] },
   "Eichiro Hatamoto II":      { "system.damageCode": ["3M", "8S"], "system.concealability": [5, 6], "system.ammo.max": [5, 1],
     // Typed Shotgun (p.32): the shotgun row of core p.88.
-    "system.ranges.short": [5, 10], "system.ranges.medium": [15, 20], "system.ranges.long": [30, 50], "system.ranges.extreme": [50, 100] }
+    "system.ranges.short": [5, 10], "system.ranges.medium": [15, 20], "system.ranges.long": [30, 50], "system.ranges.extreme": [50, 100] },
+  // Fields of Fire pp.35, 55.
+  "Barret Model 121 Heavy Sniper Rifle": { "system.streetIndex": [4, 5] },
+  "Cougar Fine Blade (Long)":            { "system.concealability": [6, 5] }
 };
 
 /* -------------------------------------------- */
