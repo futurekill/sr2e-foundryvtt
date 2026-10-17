@@ -38,7 +38,8 @@ function formData(body) {
   const data = body.toObject();
   delete data._id;
   const sr2e = { ...(data.flags?.sr2e ?? {}) };
-  for (const k of ["moveLedger", "fabReveal", "fabExitGen", "astralFast", "persona"]) delete sr2e[k];
+  // A netted body doesn't make a netted form (docs/PLAN-netguns.md).
+  for (const k of ["moveLedger", "fabReveal", "fabExitGen", "astralFast", "persona", "net"]) delete sr2e[k];
   Object.assign(sr2e, { astralForm: body.uuid, astralOnly: true, astralFormOrigin: { x: body.x, y: body.y } });
   data.flags = { ...(data.flags ?? {}), sr2e };
   data.name = `${body.name} (astral)`;

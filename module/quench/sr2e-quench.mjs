@@ -9644,6 +9644,104 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Resist once" });
 
+    // ── Netguns (SSC p.72, CSH p.103; docs/PLAN-netguns.md) ──────────────────
+    quench.registerBatch("sr2e.netguns", (context) => {
+      const { it, assert, before, after } = context;
+      const made = { actors: [], tokens: [], msgs: [] };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const autoConfirm = async (fn) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() =>
+          app.element?.querySelector('button[data-action="roll"]')?.click(), 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const since = (n) => { const m = game.messages.contents.slice(n); made.msgs.push(...m); return m; };
+      let shooter, target, shooterTok, targetTok;
+      const card = async (successes = 1) => {
+        const { renderNetCard } = await import("../nets.mjs");
+        const st = { testMessageId: "quenchNoTest00000", successes, resolved: false, weaponName: "Quench Net Gun",
+          net: "standard", astral: false, targetTokenUuid: targetTok.uuid, targetName: targetTok.name };
+        const m = await ChatMessage.create({ content: renderNetCard(st), flags: { sr2e: { netHit: st } } });
+        made.msgs.push(m); return m;
+      };
+
+      before(async function () {
+        this.timeout(20000);
+        if (!canvas?.ready) return;
+        shooter = await Actor.create({ name: "Quench Netter", type: "character" }); made.actors.push(shooter);
+        await shooter.createEmbeddedDocuments("Item", [
+          { name: "Firearms", type: "skill", system: { rating: 6, category: "active" } },
+          { name: "Quench Net Gun", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "Special",
+            firingModes: { sa: true }, ammo: { current: 4, max: 4, type: "net" } } }]);
+        target = await Actor.create({ name: "Quench Netted", type: "npc", system: { strength: { base: 6 } } }); made.actors.push(target);
+        const d = canvas.dimensions, g = d.size;
+        const o = { x: d.sceneX + Math.floor(d.sceneWidth / g / 2) * g, y: d.sceneY + Math.floor(d.sceneHeight / g / 2) * g };
+        [shooterTok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await shooter.getTokenDocument()).toObject(), x: o.x - 2 * g, y: o.y }]);
+        [targetTok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await target.getTokenDocument()).toObject(), x: o.x, y: o.y }]);
+        made.tokens.push(shooterTok.id, targetTok.id);
+        await wait(300);
+      });
+      after(async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) return;
+        await canvas.tokens.setTargets([]);
+        await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
+        await ChatMessage.deleteDocuments(made.msgs.map(m => m.id).filter(id => game.messages.has(id)));
+        for (const a of made.actors) { try { await a.delete(); } catch (e) {} }
+      });
+
+      it("a net gun's hit posts a net card, not a damage card", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        await canvas.tokens.setTargets([targetTok.id]);
+        const n = game.messages.size;
+        await withFaces(Array(12).fill(6), () => shooter.items.getName("Quench Net Gun").roll({ firingMode: "sa" }));
+        await wait(300);
+        const out = since(n);
+        const net = out.find(m => m.flags?.sr2e?.netHit);
+        assert.ok(net, "a net card");
+        assert.equal(net.flags.sr2e.netHit.targetTokenUuid, targetTok.uuid, "it names the token");
+        assert.notOk(out.find(m => m.flags?.sr2e?.rangedDamage), "no damage card");
+      });
+
+      it("a failed resist entangles the token; it can't move; the card is closed", async function () {
+        this.timeout(15000);
+        if (!canvas?.ready) this.skip();
+        const c = await card(1);
+        await autoConfirm(() => withFaces(Array(6).fill(1), async () => {
+          (await c.renderHTML()).querySelector(".sr2e-net-resist-btn").click(); await wait(1500);
+        }));
+        await wait(400);
+        const net = targetTok.flags?.sr2e?.net;
+        assert.ok(net, "the token is netted");
+        assert.equal(net.cardId, c.id);
+        assert.isTrue(!!game.messages.get(c.id).flags.sr2e.netHit.resolved, "the card is closed");
+        const x = targetTok.x;
+        await targetTok.update({ x: x + canvas.dimensions.size });
+        assert.equal(targetTok.x, x, "a netted token doesn't move");
+      });
+
+      it("an old card can't escape a newer net; a good escape clears it", async function () {
+        this.timeout(20000);
+        if (!canvas?.ready) this.skip();
+        const { escapeNet } = await import("../nets.mjs");
+        const old = targetTok.flags.sr2e.net;
+        await targetTok.update({ "flags.sr2e.net": { ...old, id: "quenchNewerNet0", cardId: "someOtherCard00" } });
+        let n = game.messages.size;
+        await autoConfirm(async () => { await escapeNet(targetTok.uuid, old.cardId); await wait(500); });
+        assert.equal(game.messages.size, n, "the old card does nothing");
+        n = game.messages.size;
+        await autoConfirm(() => withFaces(Array(6).fill(6), async () => { await escapeNet(targetTok.uuid); await wait(800); }));
+        await wait(300);
+        assert.notOk(targetTok.flags?.sr2e?.net, "free");
+        assert.ok(since(n).some(m => /breaks free/.test(m.content)));
+      });
+    }, { displayName: "SR2E: Netguns" });
+
 
 
 

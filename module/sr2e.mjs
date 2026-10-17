@@ -30,6 +30,7 @@ import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs"
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
+import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
@@ -455,6 +456,7 @@ Hooks.once("init", async () => {
   registerJackpointHooks();
   registerAstralWalls();
   registerAstralWallHooks();
+  registerNetHooks();
   registerAstralFormHooks();
   registerFabBehavior();
   registerFabHooks();
@@ -2038,6 +2040,12 @@ Hooks.on("createChatMessage", async (outcome) => {
       ...(outcome.flags.sr2e.launchSuccesses != null ? { launchSuccesses: outcome.flags.sr2e.launchSuccesses } : {}) };
     await card.update({ content: render(next), [`flags.sr2e.${key}`]: next });
   }
+  // A net card: its resolver may not own it either; the outcome carries the text.
+  const netHit = card.flags?.sr2e?.netHit;
+  if (netHit && !netHit.resolved) {
+    const next = { ...netHit, resolved: true, resolution: outcome.flags.sr2e.netResolution ?? "" };
+    await card.update({ content: renderNetCard(next), "flags.sr2e.netHit": next });
+  }
   // Melee: the defender may not own the attack card, so its outcome carries the text.
   const melee = card.flags?.sr2e?.melee;
   if (melee && !melee.resolved) {
@@ -2332,6 +2340,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   wireSpellEffectButtons(message, html);
   wireRitualButtons(message, html);
   wireDrugButtons(message, html);
+  wireNetButtons(message, html);
 
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.

@@ -22,6 +22,7 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
 import { placeSummonedToken } from "../placement.mjs";
 import { commitDamage, drugsInForce, drugDamageNote, substanceKarmaClosed, reconcileSubstanceTest, substancesOf } from "../drugs.mjs";
 import { addictionTnFor } from "../rules/substances.mjs";
+import { renderNetCard } from "../nets.mjs";
 import { matrixQueue } from "../jackpoints.mjs";
 import { natureDepartNote } from "../nature-spirits.mjs";
 import { usePowerService, statusOf } from "../spirit-services.mjs";
@@ -531,7 +532,9 @@ export class SR2EActor extends Actor {
       hasKarma: this.system.karma?.pool != null,
       ...(options.learningAttemptId ? { learningAttemptId: options.learningAttemptId } : {}),
       // Multi-target area cast: reroll/buy are refused (applyKarmaToTest).
-      ...(options.areaCast ? { areaCast: true } : {})
+      ...(options.areaCast ? { areaCast: true } : {}),
+      // Applied the moment it's rolled (a net resist or escape): no Karma afterwards.
+      ...(options.closed ? { closed: true } : {})
     };
 
     // Keep the message: downstream cards (melee, astral, matrix, spell resist)
@@ -799,7 +802,8 @@ export class SR2EActor extends Actor {
       astralMelee: renderAstralMeleeCard,
       rangedDamage: renderRangedDamageCard,
       blastLaunch: renderBlastLauncher,
-      spreadLaunch: renderSpreadLauncher
+      spreadLaunch: renderSpreadLauncher,
+      netHit: renderNetCard
     };
 
     for (const msg of game.messages ?? []) {
@@ -813,7 +817,7 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
-        if (["melee", "astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell"].includes(key)
+        if (["melee", "astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell", "netHit"].includes(key)
             && isCardResolved(msg, key)) continue;
         if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;

@@ -141,6 +141,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Defend:** the defender (selected token) rolls; most successes wins, **ties favour the attacker**.
 - [ ] A winning defender **strikes back** (riposte) with their own weapon.
 - [ ] **Undefended:** attacker's successes stage damage directly.
+- [ ] **Net gun (SSC, sr2e 0.105):** shoot a token with a Net Gun → a net card, no damage card. Resist with low dice → the token shows a net and won't move; HUD escape works once per Combat Turn and the TN drops each turn. A FAB-NG on an astral form holds only the form, and the player can't end the projection.
 - [ ] **Double tap Resist** on a melee hit and on one blast row (phone): one resistance, one set of boxes; the other blast rows still resist.
 - [ ] **Two clients:** the GM's NPC attacks; the PLAYER clicks Defend (also try Full Defense and win) → the GM's attack card closes (buttons gone, "Resolved" line) and clicking Defend/Undefended again does nothing.
 

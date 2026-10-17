@@ -28,6 +28,7 @@ import { movementRates, runMultiplierForRace, movementPhase, movementColorBand }
   from "./rules/sr2e-rules.mjs";
 import { isOnAstralPlane, astralCaps, chargeAstralMove, astralMoveDecision } from "./rules/astral-rules.mjs";
 import { fabRegions } from "./fab.mjs";
+import { netted } from "./nets.mjs";
 
 const SETTING = "movementLimit";
 // green (walk) → amber (run) → red (over max)
@@ -341,9 +342,17 @@ function announce(tokenDoc, d) {
 // `{ledger}` when an accepted tactical move must persist — so the fallback below
 // never re-touches a move preMoveToken already cleared. A blocked move returns
 // false (cancels the update) and needs no stash.
+/** A netted token doesn't move (SSC p.72, CSH p.103); only a GM's bypass passes. */
+function netBlocks(tokenDoc, operation) {
+  if (!netted(tokenDoc) || (operation?.sr2eBypassMovement && game.user.isGM)) return false;
+  ui.notifications.warn(`${tokenDoc.name} is caught in a net: try to escape first.`);
+  return true;
+}
+
 Hooks.on("preMoveToken", (document, movement, operation) => {
   const uid = operation?.user?.id ?? operation?.user;
   if (uid && uid !== game.user.id) return;                   // only the mover evaluates
+  if (netBlocks(document, operation)) return false;            // before every skip below
   const stash = (v) => { if (document.uuid) _pendingLedger.set(document.uuid, { ...v, t: _now() }); };
 
   if (operation?.sr2eBypassMovement) return stash({ skip: true });
@@ -376,6 +385,7 @@ Hooks.on("preMoveToken", (document, movement, operation) => {
 Hooks.on("preUpdateToken", (tokenDoc, changes, options, userId) => {
   if (game.user.id !== userId) return;
   if (changes.x === undefined && changes.y === undefined) return;
+  if (netBlocks(tokenDoc, options)) return false;              // a direct coordinate update too
 
   const stashed = tokenDoc.uuid ? _pendingLedger.get(tokenDoc.uuid) : null;
   if (stashed) {

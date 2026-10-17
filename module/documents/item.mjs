@@ -13,6 +13,9 @@ import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { workingImplant } from "../drugs.mjs";
+import { renderNetCard } from "../nets.mjs";
+import { netKind } from "../rules/net-rules.mjs";
+import { isCardResolved } from "../astral-combat.mjs";
 
 const SPELL_TN_CONTEXT = { kind: "spell", magic: true };
 
@@ -286,7 +289,7 @@ export async function reconcileDependentCard(msg, key, render) {
   for (let pass = 0; pass < 3; pass++) {
     const live = msg && game.messages.get(msg.id);
     const st = live?.flags?.sr2e?.[key];
-    if (!st || st.resolved || !live.canUserModify(game.user, "update")) return;
+    if (!st || st.resolved || isCardResolved(live, key) || !live.canUserModify(game.user, "update")) return;
     const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
     const now = t ? testTotalSuccesses(t) : st.successes;
     if (now === st.successes) return;
@@ -1169,6 +1172,22 @@ export class SR2EItem extends Item {
         content: renderMeleeAttackCard(meleeState),
         flags: { sr2e: { melee: meleeState } }
       });
+      return result;
+    }
+
+    // Nets (SSC p.72, CSH p.103) fire a net, not damage: a net card the target resists,
+    // routed ahead of the blast and spread branches (docs/PLAN-netguns.md).
+    if (isRanged && this.system.ammo?.type === "net") {
+      const targetTok = engage?.token?.obj ?? firstTarget();
+      const kind = netKind(this, this.system.ammo?.loadedName ?? "");
+      const state = {
+        testMessageId: result.testMessageId, successes: result.successes, resolved: false,
+        weaponName: this.name, net: kind.size, astral: kind.astral,
+        targetTokenUuid: targetTok?.document?.uuid ?? "", targetName: targetTok?.name ?? ""
+      };
+      const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+        content: renderNetCard(state), flags: { sr2e: { netHit: state } } });
+      await reconcileDependentCard(msg, "netHit", renderNetCard);
       return result;
     }
 

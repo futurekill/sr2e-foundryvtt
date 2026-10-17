@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added — netguns
+- **Net guns fire nets** (Street Samurai Catalog p.72; the astral FAB-NG, Corporate
+  Security Handbook p.103). A hit posts a **net card** instead of a damage card. The
+  target clicks *Resist the net*: Strength (or Astral Reaction for an astral net) plus
+  pool dice, against TN 5 (normal net), 8 (large net) or 3 (a normal net on a large
+  target), and needs more than twice the attacker's successes.
+- A net that holds pins **that token**: it can't move, and a net shows over it. An
+  astral net holds only the astral form, never the body, and the player can't end the
+  projection under it. **Escape** from the token HUD or the card, once per Combat Turn,
+  the TN falling by 1 for every turn entangled. When escape is impossible (twice the
+  attacker's successes is more than every die the victim has), the dialog says so.
+- Karma on the attack keeps the net card current until it's resisted; the resist and
+  escape rolls are applied at once, so they're closed to Karma.
+
 ### Added — art
 - **17 contacts get painted portraits** in place of small icons: the GM archetypes the
   book never illustrated (Arms Dealer, Corp Contact, Decker, DocWagon Contact, Fence,
