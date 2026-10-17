@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.105.0 — 2026-10-16
 
 ### Added — netguns
 - **Net guns fire nets** (Street Samurai Catalog p.72; the astral FAB-NG, Corporate
