@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Added — the VR2.0 Matrix, part 2
+In the Virtual Realities 2.0 ruleset (Settings → Matrix ruleset). The core Matrix is
+unchanged.
+- **Combat maneuvers (p.121–122).** *Maneuver* on the decker's Matrix tab and the IC
+  sheet: evade detection, parry or position against the targeted icon. It's Evasion
+  against Sensor, opposed; IC uses its host's Security Value; Cloak and Lock-On lower
+  the TNs. A decker opponent gets an *Oppose* card.
+  - A parry adds to the opponent's TN until its next attack.
+  - A position attack gives the winner −TN or +Power on its next attack (picked in the
+    attack dialog).
+  - Evaded IC can't attack until enough turns pass (the decker's tally gains count as
+    turns). A decker who lost an icon re-detects it with *Re-detect*.
+- **Improvised attacks (p.123):** *Improvise* turns Bod and Evasion points into a
+  one-shot attack. The points stay down until the attack is used.
+- **Program wear (p.99–100).** Armor loses a point each time a hit gets through; Shield
+  and Medic lose one per use. *Swap Memory* (on the program row) loads a fresh copy.
+  The ratings shown are what's left.
+- **Shield (p.100):** offered when a decker resists. Its successes cancel the attack's,
+  against TN = the attacker's Computer skill (IC: Security Value). **Medic (p.100):**
+  repairs icon boxes, at TN 4/5/6 for 1/2/3+ boxes filled.
+- **Attribute attacks.** Crippler IC (acid, binder, jammer, marker; p.41) and the
+  Poison, Restrict and Reveal utilities (p.98–99) lower a persona's Bod, Evasion,
+  Sensor or Masking. A crippler never goes below 1. The damage lasts until the decker
+  leaves the Matrix.
+- **IC programs and defenses (p.41, p.50).** An IC's program (killer, the four cripplers)
+  sets its class, so killer IC is white and triggers simsense overload. Shield or shift
+  defense is +2 TN to hit it; armor is −2 Power against it.
+- **Crashing IC feeds the tally (p.40).** The crash card asks the decker: *Suppress* (−1
+  Detection Factor while on that system) or *Let it register* (+the IC's rating).
+  Suppressed IC can be released from the Matrix tab, and its rating goes on the tally
+  then.
+- **Probe IC (p.42):** a host's probe rating rolls against the Detection Factor on every
+  System Test, onto the tally.
+- **Security sheaf (p.150).** Hosts list trigger steps (the host sheet's *Add step*).
+  When a decker's tally crosses one, the GM gets a whisper, and an alert step raises
+  the host's alert (never lowers it).
+
 ### Fixed
 - **Increase Attribute is four spells, and Increase Cybered Attribute exists** (p.154–155).
   The compendium had one "Increase [Attribute]" with a +0(L) Drain. It is now
@@ -9,6 +46,12 @@
   Cybered [Attribute] +1 to +4, Drain ((F / 2) + 3) at L/M/S/D (physical). Each sets
   its bonus on its effect, and the notes give the Reaction versions. A copy already on
   a character keeps the old Drain; drag in the new one.
+- **A black-IC kill no longer disconnects the decker** in VR2.0 (p.124: the connection
+  stays, and the IC's rating is +2 while the icon is down). Other crashes still dump.
+- **Decker sheet: the deck and persona fields show what you typed.** They used to show
+  the values derived from the active deck and loaded programs, so editing anything else
+  on the sheet saved those as your own. The effective value is shown beside the field
+  when it differs.
 - **Team Karma can't be overdrawn.** Two players drawing the last point at once each
   got it. The active GM now debits the pool and credits the character in one step,
   so they get one between them, and the other player is told the pool was empty.

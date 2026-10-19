@@ -942,6 +942,14 @@ export class ProgramData extends SR2EDataModel {
       multiplier: new fields.NumberField({ initial: 1, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       loaded: new fields.BooleanField({ initial: false }),
+      // VR2.0 wear (PLAN-vr2-part2 §4): `<loadGen>:<cardId>` receipts, never cleared;
+      // only the current load generation counts. Swap Memory bumps loadGen.
+      wearEvents: new fields.ArrayField(new fields.StringField()),
+      loadGen: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      crashed: new fields.BooleanField({ initial: false }),
+      // VR2.0 attribute-attack utilities (p.98–99) when the name doesn't say.
+      offense: new fields.StringField({ initial: "", blank: true, choices: { "": "—", poison: "Poison",
+        restrict: "Restrict", reveal: "Reveal" } }),
       // VR2.0 attack utility Damage Level (p.98); "" = none / not an attack.
       // blank: true — a StringField with choices refuses "" otherwise, and every program fails validation.
       damageLevel: new fields.StringField({ initial: "", blank: true, choices: { "": "—", L: "L", M: "M", S: "S", D: "D" } }),
@@ -956,6 +964,9 @@ export class ProgramData extends SR2EDataModel {
     // Both directions: otherwise the authored multiplier (CLAUDE.md, derived state).
     const levelMult = vr2 ? attackMultiplier(this.damageLevel) : null;
     this.multiplier = levelMult ?? this.parent?._source?.system?.multiplier ?? this.multiplier;
+    // Rating left on the loaded copy (VR2.0 only; core ignores wear entirely).
+    const worn = vr2 ? (this.wearEvents ?? []).filter(e => e.startsWith(`${this.loadGen}:`)).length : 0;
+    this.effectiveRating = Math.max(0, this.rating - worn);
     // Program memory size = Rating² × Multiplier (same in both rulesets).
     this.size = programSize(this.rating, this.multiplier);
     // Cost: core book is a flat Size × 100 (p.174–177); VR2.0 tiers the price

@@ -532,6 +532,15 @@ ruleset → Virtual Realities 2.0** to opt in.
   monitor, the host ACIFS UI and the persona budget warning. Code in `module/vr2.mjs`;
   Quench batch `sr2e.vr2-core`.
 
+- **Part 2** (docs/PLAN-vr2-part2.md, Codex-reviewed): combat maneuvers, improvised
+  attacks, program wear and Swap Memory, Shield and Medic, attribute attacks
+  (cripplers; poison/restrict/reveal), IC programs and defensive options, crashed-IC
+  tally and suppression, probe, the security sheaf, and the black-IC kill rule.
+  Quench batch `sr2e.vr2-part2`.
+
 ### Still out of scope (own plans)
-Combat maneuvers (p.121–122), special offensive utilities, IC special abilities, deck
-building/SOTA, frames/SKs, otaku, Matrix topology, automated tally triggers.
+Part 3 (see docs/PLAN-vr2-part2.md "Deferred"): black IC's damage to the decker, trace,
+hog, slow, tar baby/pit, rippers, blaster/sparky, data bombs, psychotropic IC, black
+hammer/killjoy, Restore, steamroller, scramble, and every optional rule (utility options,
+cascading/expert IC, constructs, party IC). Also: deck building/SOTA, frames/SKs, otaku,
+Matrix topology.

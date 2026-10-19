@@ -52,3 +52,43 @@ describe("HeadCrash logs on (VR2.0 p.19)", () => {
     expect(systemTestVerdict(0, 0).success).toBe(false);
   });
 });
+
+import { icClass, maneuverTNs, maneuverOutcome, improvisedLevel, medicTN, sheafCrossed, attributeLoss } from "../module/rules/sr2e-rules.mjs";
+
+describe("VR2.0 part 2 helpers", () => {
+  it("IC class: killer and cripplers are white; otherwise the authored type", () => {
+    expect(icClass("killer", "gray")).toBe("white");
+    expect(icClass("crippler-acid", "black")).toBe("white");
+    expect(icClass("", "black")).toBe("black");
+  });
+  it("maneuver TNs (p.122–123): Sushi vs Orange-8 IC; Sushi vs a corp decker", () => {
+    expect(maneuverTNs({ evasion: 6, sensor: 8, cloak: 4 }).maneuverer).toBe(4);
+    expect(maneuverTNs({ evasion: 6, sensor: 8, cloak: 4 }).opponent).toBe(6);
+    expect(maneuverTNs({ evasion: 6, sensor: 5, cloak: 2, lockOn: 3 })).toEqual({ maneuverer: 3, opponent: 3 });
+  });
+  it("maneuver outcomes: evade 3 vs 1 is 2 turns; ties and zero fail; position goes to the winner", () => {
+    expect(maneuverOutcome("evade", 3, 1)).toEqual({ beneficiary: "maneuverer", net: 2 });
+    expect(maneuverOutcome("parry", 2, 2)).toBeNull();
+    expect(maneuverOutcome("evade", 0, 0)).toBeNull();
+    expect(maneuverOutcome("parry", 1, 3)).toBeNull();
+    expect(maneuverOutcome("position", 4, 5)).toEqual({ beneficiary: "opponent", net: 1 });
+    expect(maneuverOutcome("position", 0, 2)).toEqual({ beneficiary: "opponent", net: 2 });
+    expect(maneuverOutcome("position", 3, 3)).toBeNull();
+  });
+  it("improvised level and Medic TN", () => {
+    expect([0, 1, 2, 3, 4, 7].map(improvisedLevel)).toEqual([null, "L", "M", "S", "D", "D"]);
+    expect([0, 1, 2, 3, 9].map(medicTN)).toEqual([null, 4, 5, 6, 6]);
+  });
+  it("sheaf: crossed rows in order, shared steps included", () => {
+    const rows = [{ id: "a", step: 6 }, { id: "b", step: 11 }, { id: "c", step: 11 }, { id: "d", step: 16 }];
+    expect(sheafCrossed(rows, 5, 11).map(r => r.id)).toEqual(["a", "b", "c"]);
+    expect(sheafCrossed(rows, 11, 15)).toEqual([]);
+  });
+  it("attribute loss: Selena Bod 6 loses 1; crippler floor 1; poison takes 1 to 0", () => {
+    expect(attributeLoss(6, 1, 1)).toBe(1);
+    expect(attributeLoss(6, 10, 1)).toBe(5);
+    expect(attributeLoss(1, 3, 1)).toBe(0);
+    expect(attributeLoss(1, 1, 0)).toBe(1);
+    expect(attributeLoss(4, -2, 0)).toBe(0);
+  });
+});

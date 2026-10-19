@@ -2,7 +2,7 @@ import { SR2EDataModel } from "./base-data.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice } from "../rules/sr2e-rules.mjs";
+import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -828,24 +828,53 @@ export class CharacterData extends SR2EDataModel {
    */
   _derivePersona() {
     this.matrixPersona.condition.max = 10;
+    delete this.matrixPersona.preImprovised;   // derived below in VR2.0; never outlives its source
     // Start from the AUTHORED values every prepare (CLAUDE.md, derived state), or an
     // unloaded program's rating outlives it.
     const authored = this.parent?._source?.system?.matrixPersona ?? {};
     for (const attr of ["bod", "evasion", "masking", "sensor"]) this.matrixPersona[attr] = authored[attr] ?? 0;
     const mpcp = this.cyberdeck?.mpcp ?? 0;
-    if (mpcp <= 0 || !this.parent?.items) return;
-
-    const best = { bod: 0, evasion: 0, masking: 0, sensor: 0 };
-    for (const item of this.parent.items) {
-      if (item.type !== "program" || !item.system.loaded) continue;
-      const name = item.name.toLowerCase();
+    const vr2 = isVR2();
+    if (mpcp > 0 && this.parent?.items) {
+      const best = { bod: 0, evasion: 0, masking: 0, sensor: 0 };
+      const present = {};
+      for (const item of this.parent.items) {
+        if (item.type !== "program" || !item.system.loaded) continue;
+        // VR2.0: a worn or crashed copy counts at what it has left, so a crashed persona
+        // program means 0, never a fall-back to the authored value (PLAN-vr2-part2 §4).
+        const rating = vr2 ? (item.system.crashed ? 0 : (item.system.effectiveRating ?? 0)) : (item.system.rating ?? 0);
+        const name = item.name.toLowerCase();
+        for (const attr of ["bod", "evasion", "masking", "sensor"]) {
+          if (name.startsWith(attr)) { present[attr] = true; best[attr] = Math.max(best[attr], rating); }
+        }
+      }
       for (const attr of ["bod", "evasion", "masking", "sensor"]) {
-        if (name.startsWith(attr)) best[attr] = Math.max(best[attr], item.system.rating ?? 0);
+        // Core keeps its rule (a program counts only with a rating); VR2.0 counts an
+        // unusable loaded program as 0 rather than falling back to the authored value.
+        if (best[attr] > 0) this.matrixPersona[attr] = personaAttribute(best[attr], mpcp);
+        else if (vr2 && present[attr]) this.matrixPersona[attr] = 0;
       }
     }
-    for (const attr of ["bod", "evasion", "masking", "sensor"]) {
-      if (best[attr] > 0) this.matrixPersona[attr] = personaAttribute(best[attr], mpcp);
+    if (vr2) this._applyIconState();
+  }
+
+  /**
+   * VR2.0 online-icon state, always after the programs (manual personas too): attribute
+   * damage as it actually landed, in commit order, then an improvised attack's sacrifice
+   * last (docs/PLAN-vr2-part2.md §5, §7). Both live in the session, so they end with it.
+   * @private
+   */
+  _applyIconState() {
+    const s = this.parent?.flags?.sr2e?.vr2Session;
+    if (!s?.id) return;
+    const p = this.matrixPersona;
+    for (const e of Object.values(s.iconDamage ?? {}).sort((a, b) => a.seq - b.seq)) {
+      if (e.attr in p && e.lost > 0) p[e.attr] = Math.max(0, p[e.attr] - e.lost);
     }
+    // Before the sacrifice: what attribute attacks and a new build measure against.
+    p.preImprovised = { bod: p.bod, evasion: p.evasion, masking: p.masking, sensor: p.sensor };
+    const imp = s.improvised;
+    if (imp) for (const attr of ["bod", "evasion"]) p[attr] = Math.max(0, p[attr] - (imp[attr] ?? 0));
   }
 
   /**
@@ -1840,12 +1869,23 @@ export class ICData extends SR2EDataModel {
       }),
 
       specialAbilities: new fields.ArrayField(new fields.StringField()),
-      notes: new fields.HTMLField({ initial: "" })
+      notes: new fields.HTMLField({ initial: "" }),
+
+      // VR2.0 (docs/PLAN-vr2-part2.md §3): the IC program, which sets its class; its
+      // defensive options (p.50); and a generation bumped on every crash, so a reset IC
+      // starts with no maneuver records.
+      program: new fields.StringField({ initial: "", blank: true, choices: { "": "—", killer: "Killer",
+        "crippler-acid": "Crippler: acid", "crippler-binder": "Crippler: binder",
+        "crippler-jammer": "Crippler: jammer", "crippler-marker": "Crippler: marker" } }),
+      defense: new fields.StringField({ initial: "", blank: true, choices: { "": "—", shield: "Shield", shift: "Shift" } }),
+      armorDefense: new fields.BooleanField({ initial: false }),
+      generation: new fields.NumberField({ integer: true, initial: 0, min: 0 })
     };
   }
 
   /** @override */
   prepareDerivedData() {
+    this.icClass = icClass(this.program, this.icType);
     // When this IC defends a Host, the host is the single source of truth for
     // the Security Code and alert — derive them live so the two can never drift
     // (set them once on the host; see the IC-refresh hook in sr2e.mjs).
@@ -1914,6 +1954,15 @@ export class HostData extends SR2EDataModel {
         slave:   new fields.NumberField({ integer: true, initial: 2, min: 0 })
       }),
       securityValueOverride: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // VR2.0: probe IC on the host (p.42) and its security sheaf (p.150; PLAN-vr2-part2 §10).
+      probe: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      sheaf: new fields.ArrayField(new fields.SchemaField({
+        id: new fields.StringField({ initial: "" }),
+        step: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+        event: new fields.StringField({ initial: "", blank: true, choices: { "": "—", ic: "IC activates",
+          passive: "Passive alert", active: "Active alert", shutdown: "Shutdown", other: "Other" } }),
+        note: new fields.StringField({ initial: "" })
+      })),
 
       notes: new fields.HTMLField({ initial: "" })
     };

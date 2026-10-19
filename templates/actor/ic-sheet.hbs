@@ -65,6 +65,28 @@
     {{/ifEquals}}{{/if}}
   </fieldset>
 
+  {{#if vr2}}
+  <fieldset>
+    <legend>VR2.0 program (p.41, p.50)</legend>
+    <div class="field-grid">
+      <label class="field"><span>Program</span>
+        <select name="system.program">
+          <option value="" {{selected system.program ""}}>— (class as set)</option>
+          {{#each config.icPrograms as |label key|}}<option value="{{key}}" {{selected ../system.program key}}>{{label}}</option>{{/each}}
+        </select></label>
+      <label class="field"><span>Defense</span>
+        <select name="system.defense">
+          <option value="" {{selected system.defense ""}}>—</option>
+          <option value="shield" {{selected system.defense "shield"}}>Shield (+2 TN to hit)</option>
+          <option value="shift" {{selected system.defense "shift"}}>Shift (+2 TN to hit)</option>
+        </select></label>
+      <label class="field"><span>Armor (−2 Power)</span>
+        <input type="checkbox" name="system.armorDefense" {{checked system.armorDefense}} /></label>
+    </div>
+    <p class="rule-note">Class: <strong>{{system.icClass}}</strong>{{#if system.program}} (from the program){{/if}}.</p>
+  </fieldset>
+  {{/if}}
+
   <fieldset>
     <legend>Persona Attributes</legend>
     <div class="attr-grid">
@@ -94,6 +116,14 @@
     <button type="button" class="matrix-attack-btn" data-action="matrixAttack" title="Attack a persona in the Matrix (IC Rating dice vs the target's Bod, SR2E p.178).">
       <i class="fas fa-bolt"></i> Matrix Attack
     </button>
+    {{#if vr2}}
+    <button type="button" class="matrix-attack-btn" data-action="vr2Maneuver" title="Evade, parry or position against the targeted persona: the host's Security Value, opposed by its Sensor (VR2.0 p.122).">
+      <i class="fas fa-shuffle"></i> Maneuver
+    </button>
+    <button type="button" class="matrix-attack-btn" data-action="vr2Redetect" title="Find the icons that evaded this IC again (the GM's call, e.g. out of combat; VR2.0 p.122).">
+      <i class="fas fa-eye"></i> Re-detect
+    </button>
+    {{/if}}
     {{#unless vr2}}
     <button type="button" class="matrix-attack-btn" data-action="matrixPerception" title="Scan for an intruder: IC Rating vs the persona's Masking; any success raises the alert (SR2E p.169).">
       <i class="fas fa-magnifying-glass"></i> Detect Intruder

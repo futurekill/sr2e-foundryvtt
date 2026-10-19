@@ -12,7 +12,10 @@
  *   shock unless the decker completed a Graceful Logoff.
  */
 import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixCombatOutcome,
-         simsenseOverloadTN, systemTestVerdict, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
+         simsenseOverloadTN, systemTestVerdict, testTotalSuccesses, MATRIX_MONITOR_MAX,
+         sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
+         improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
+import { isVR2 } from "./vr2-mode.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { matrixQueue, sessionHost } from "./jackpoints.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -30,12 +33,53 @@ const codeLabel = (code) => game.i18n.localize(CONFIG.SR2E.securityCodes[code]?.
 const RESIST_IN_FLIGHT = new Set();
 const sessionQueue = (actor, fn) => enqueueAttack(`vr2session:${actor.uuid}`, fn);
 
-/** Highest rating among the actor's LOADED programs whose name starts with `name` (0 if none). */
-export function loadedUtility(actor, name) {
-  const key = String(name).toLowerCase();
-  return Math.max(0, ...actor.items.filter(i => i.type === "program" && i.system.loaded
-    && i.name.toLowerCase().startsWith(key)).map(i => i.system.rating ?? 0));
+/**
+ * The ONE rule for which programs count (docs/PLAN-vr2-part2.md §4). Core: every loaded
+ * program at its rating. VR2.0: loaded, not crashed, with rating left after wear.
+ */
+export function usablePrograms(actor) {
+  const vr2 = isVR2();
+  return actor.items.filter(i => i.type === "program" && i.system.loaded
+    && (!vr2 || (!i.system.crashed && (i.system.effectiveRating ?? 0) > 0)));
 }
+
+/** A program's rating as it counts now (VR2.0: what wear has left). */
+export const programRating = (item) => isVR2() ? (item.system.effectiveRating ?? 0) : (item.system.rating ?? 0);
+
+/** The best usable program whose name starts with `name`, or null. */
+export function bestUtility(actor, name) {
+  const key = String(name).toLowerCase();
+  return usablePrograms(actor).filter(i => i.name.toLowerCase().startsWith(key))
+    .sort((a, b) => programRating(b) - programRating(a))[0] ?? null;
+}
+
+/** Rating of the best usable program whose name starts with `name` (0 if none). */
+export function loadedUtility(actor, name) {
+  const u = bestUtility(actor, name);
+  return u ? programRating(u) : 0;
+}
+
+/** A flag-path-safe key for a uuid (uuids contain dots). */
+const keyOf = (uuid) => String(uuid ?? "").replaceAll(".", "~");
+
+/**
+ * Wear one copy of a utility (Armor, Shield, Medic lose a point per use; p.99–100).
+ * `ref` is what was captured when it was USED, so a Swap Memory meanwhile wears the old
+ * copy (no longer counted), never the fresh one. Receipted by `cardId` across reloads.
+ */
+export function addWear(actor, ref, cardId) {
+  const item = ref ? actor.items.get(ref.itemId) : null;
+  if (!item) return Promise.resolve();
+  return enqueueAttack(`program:${item.uuid}`, async () => {
+    const live = actor.items.get(ref.itemId);
+    const events = live?.system.wearEvents ?? [];
+    if (!live || events.some(e => e.endsWith(`:${cardId}`))) return;
+    await live.update({ "system.wearEvents": [...events, `${ref.loadGen}:${cardId}`] });
+  });
+}
+
+/** What to capture when a utility is used. */
+const useRef = (item) => item ? { itemId: item.id, loadGen: item.system.loadGen ?? 0, rating: programRating(item), name: item.name } : null;
 
 const hostSnap = (host) => ({ hostUuid: host.uuid, hostName: host.name,
   securityCode: host.system.securityCode, securityValue: host.system.securityValue });
@@ -95,27 +139,155 @@ export function sessionFor(actor, host) {
   });
 }
 
-/** Add a System Test card's host successes to its session, once. Only the card's author (the decker's own client) writes. */
-export function addTally(actor, message) {
-  const st = message?.flags?.sr2e?.vr2SystemTest;
-  if (!st || !actor?.isOwner || !message.isAuthor) return Promise.resolve(false);
+/**
+ * The tally update for `base` more host successes, with its receipt and every sheaf row it
+ * crosses, as ONE update (docs/PLAN-vr2-part2.md §1). Call inside the session queue.
+ */
+function tallyUpdate(actor, s, base, eventId) {
+  const add = Math.max(0, Number(base) || 0);
+  const tally = (s.tally ?? 0) + add;
+  const update = { "flags.sr2e.vr2Session.tally": tally, [`flags.sr2e.vr2Session.receipts.${eventId}`]: add };
+  const host = sync(s.hostUuid);
+  for (const row of sheafCrossed(host?.system?.sheaf, s.tally ?? 0, tally)) {
+    // Outside the session records, so no session change can drop it before delivery.
+    const key = `${host.id}_${s.id}_${row.id}`;
+    update[`flags.sr2e.vr2SheafPending.${key}`] = { key, hostUuid: host.uuid, sessionId: s.id,
+      deckerName: actor.name, step: row.step, event: row.event, note: row.note, tally };
+  }
+  return update;
+}
+
+/** The tally event a message carries (part-1 System Test cards included). */
+function eventOf(m) {
+  const e = m?.flags?.sr2e?.vr2TallyEvent;
+  if (e) return e;
+  const st = m?.flags?.sr2e?.vr2SystemTest;
+  return st ? { eventId: m.id, actorUuid: st.actorUuid, sessionId: st.sessionId, base: st.hostSuccesses } : null;
+}
+
+/** Apply a message's tally event to its session, once. Only the message's author writes. */
+export function applyTallyEvent(message) {
+  const ev = eventOf(message);
+  const actor = ev ? sync(ev.actorUuid) : null;
+  if (!ev || !actor?.isOwner || !message.isAuthor) return Promise.resolve(false);
   return sessionQueue(actor, async () => {
     const s = liveSession(actor);
-    if (!s || s.id !== st.sessionId || s.receipts?.[message.id] != null) return false;
-    await actor.update({ "flags.sr2e.vr2Session.tally": (s.tally ?? 0) + st.hostSuccesses,
-      [`flags.sr2e.vr2Session.receipts.${message.id}`]: st.hostSuccesses });
+    if (!s || s.id !== ev.sessionId || s.receipts?.[ev.eventId] != null) return false;
+    await actor.update(tallyUpdate(actor, s, ev.base, ev.eventId));
+    return true;
+  });
+}
+/** Part-1 name, kept for callers and tests. */
+export const addTally = (actor, message) => applyTallyEvent(message);
+
+/** On load: this client's own tally events that never reached their (still live) session. */
+export async function reconcileTallies() {
+  for (const m of game.messages ?? []) {
+    const ev = eventOf(m);
+    if (!ev || !m.isAuthor) continue;
+    const actor = sync(ev.actorUuid);
+    if (actor && liveSession(actor)?.id === ev.sessionId) await applyTallyEvent(m);
+  }
+}
+
+// ── Security sheaf delivery (p.150; PLAN-vr2-part2 §1) ───────────────────────
+
+const ALERT_RANK = { none: 0, passive: 1, active: 2 };
+const SHEAF_IN_FLIGHT = new Set();
+
+/** The active GM delivers a decker's pending sheaf steps: the alert exactly once, the whisper at least once. */
+export async function deliverSheaf(actor) {
+  if (!game.user.isGM || game.user !== game.users.activeGM) return;
+  for (const [key, e] of Object.entries(actor?.flags?.sr2e?.vr2SheafPending ?? {})) {
+    if (!e || SHEAF_IN_FLIGHT.has(key)) continue;
+    SHEAF_IN_FLIGHT.add(key);
+    try {
+      const host = sync(e.hostUuid);
+      if (host) await enqueueAttack(`host:${host.uuid}`, async () => {
+        if (host.flags?.sr2e?.sheafApplied?.[key]) return;
+        const update = { [`flags.sr2e.sheafApplied.${key}`]: true };
+        const want = e.event === "active" || e.event === "passive" ? e.event : null;
+        if (want && ALERT_RANK[want] > (ALERT_RANK[host.system.alert] ?? 0)) update["system.alert"] = want;
+        await host.update(update);
+      });
+      const what = CONFIG.SR2E.vr2SheafEvents?.[e.event] ?? e.event ?? "";
+      await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+        content: `<div class="sr2e-item-card"><strong>Security sheaf — ${esc(host?.name ?? "host")}</strong>
+          <br>${esc(e.deckerName)}'s tally reached ${e.tally}: step ${e.step}${what ? ` — <strong>${esc(what)}</strong>` : ""}${e.note ? `: ${esc(e.note)}` : ""} (VR2.0 p.150).</div>` });
+      await actor.update({ [`flags.sr2e.vr2SheafPending.-=${key}`]: null });
+    } catch (err) {
+      console.error("SR2E | sheaf delivery", err);
+    } finally { SHEAF_IN_FLIGHT.delete(key); }
+  }
+}
+
+Hooks.on("updateActor", (actor, changes) => {
+  if (changes?.flags?.sr2e?.vr2SheafPending) deliverSheaf(actor);
+});
+
+// ── IC crashes: suppress or let it register (p.40; PLAN-vr2-part2 §2) ─────────
+
+const CHOICE_IN_FLIGHT = new Set();
+
+/** The decker's choice for an IC their attack crashed: one atomic session update. */
+export async function crashChoice(message, choice) {
+  const c = message?.flags?.sr2e?.vr2Crash;
+  const actor = sync(c?.deckerUuid);
+  if (!c || !actor) return;
+  if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can choose.`);
+  if (CHOICE_IN_FLIGHT.has(c.cardId)) return;
+  CHOICE_IN_FLIGHT.add(c.cardId);
+  try {
+    return await sessionQueue(actor, async () => {
+      const s = liveSession(actor);
+      if (!s || s.id !== c.sessionId) return ui.notifications.warn("That crash belongs to an earlier session.");
+      const k = c.cardId;
+      if (s.receipts?.[`crash:${k}`] != null || s.suppressed?.[k] || s.released?.[k]) {
+        return ui.notifications.warn("That crash has already been decided.");
+      }
+      if (choice === "suppress") {
+        await actor.update({ [`flags.sr2e.vr2Session.suppressed.${k}`]: { icUuid: c.icUuid, name: c.icName, rating: c.rating } });
+      } else {
+        await actor.update(tallyUpdate(actor, s, c.rating, `crash:${k}`));
+      }
+      ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
+        ${choice === "suppress" ? `suppresses ${esc(c.icName)} (Detection Factor −1 while on this system)` : `lets ${esc(c.icName)}'s crash register: +${c.rating} to the tally`} (VR2.0 p.40).</div>` });
+      return true;
+    });
+  } finally { CHOICE_IN_FLIGHT.delete(c.cardId); }
+}
+
+/** Release a suppressed IC: its point of Detection Factor back, its rating onto the tally. */
+export function releaseSuppressed(actor, key) {
+  return sessionQueue(actor, async () => {
+    const s = liveSession(actor);
+    const e = s?.suppressed?.[key];
+    if (!e) return false;
+    await actor.update({ ...tallyUpdate(actor, s, e.rating, `release:${key}`),
+      [`flags.sr2e.vr2Session.suppressed.-=${key}`]: null, [`flags.sr2e.vr2Session.released.${key}`]: true });
     return true;
   });
 }
 
-/** On load: this client's own System Test cards that never reached their (still live) session. */
-export async function reconcileTallies() {
-  for (const m of game.messages ?? []) {
-    const st = m.flags?.sr2e?.vr2SystemTest;
-    if (!st || !m.isAuthor) continue;
-    const actor = sync(st.actorUuid);
-    if (actor && liveSession(actor)?.id === st.sessionId) await addTally(actor, m);
-  }
+/** Detection Factor (p.17–18), less one per suppressed IC (p.40); TN floor 2. */
+export function vr2DetectionFactor(actor) {
+  const suppressed = Object.keys(liveSession(actor)?.suppressed ?? {}).length;
+  return Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")) - suppressed);
+}
+
+// ── Action boundary (improvised builds, PLAN-vr2-part2 §7) ────────────────────
+
+/**
+ * After an action's test is ROLLED: a failed improvised build that existed when the
+ * action started is spent (its ratings stay down only "until his next action", p.123).
+ * The build's own action passes null, so it never clears itself.
+ */
+export function commitAction(actor, startedWithBuildId) {
+  if (!startedWithBuildId || actor?.type !== "character") return Promise.resolve();
+  return sessionQueue(actor, async () => {
+    const imp = liveSession(actor)?.improvised;
+    if (imp?.id === startedWithBuildId && imp.level == null) await actor.update({ "flags.sr2e.vr2Session.-=improvised": null });
+  });
 }
 
 // ── System Tests (p.19) ──────────────────────────────────────────────────────
@@ -150,70 +322,137 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const tn = Math.max(2, subsystem - utility) + (trained ? 0 : 4);
   const subsystemLabel = CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? op.subsystem;
   const session = await sessionFor(actor, host);
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(1, dice), tn, {
     label: `${op.label} — Computer vs ${subsystemLabel} (TN ${tn})`, tnContext: skillTnContext("computer"),
     poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
     karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
   if (!res) return;
-  const df = Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")));
+  await commitAction(actor, startedBuild);
+  const df = vr2DetectionFactor(actor);
   const securityValue = host.system.securityValue;
   const hostRoll = await SR2ESuccessRoll.successTest(securityValue, df);
   const st = { actorUuid: actor.uuid, actorName: actor.name, operation, opLabel: op.label, hostName: host.name,
     subsystemLabel, subsystem, utilityName: op.utility, utility, tn, df, securityValue,
     successes: res.successes, hostSuccesses: hostRoll.successes, sessionId: session.id, testMessageId: res.testMessageId };
+  const ev = { eventId: `st-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: session.id,
+    base: hostRoll.successes, source: "system-test" };
   const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderSystemTestCard(st),
-    rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st } } });
-  await addTally(actor, msg);
+    rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st, vr2TallyEvent: ev } } });
+  await applyTallyEvent(msg);
+  // Probe IC (p.42): its own roll against the Detection Factor, its own event; never the verdict.
+  const probe = host.system.probe ?? 0;
+  if (probe > 0) {
+    const pr = await SR2ESuccessRoll.successTest(probe, df);
+    const pm = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: pr.rolls,
+      content: `<div class="sr2e-item-card">Probe-${probe} on ${esc(host.name)} vs Detection Factor ${df}:
+        ${plural(pr.successes, "success")} onto ${esc(actor.name)}'s tally (VR2.0 p.42).</div>`,
+      flags: { sr2e: { vr2TallyEvent: { eventId: `probe-${foundry.utils.randomID()}`, actorUuid: actor.uuid,
+        sessionId: session.id, base: pr.successes, source: "probe" } } } });
+    await applyTallyEvent(pm);
+  }
   return res;
 }
 
 // ── Cybercombat (p.123–124) ──────────────────────────────────────────────────
 
+/** Who an icon is right now, for maneuver records: a decker's session, or an IC's generation. */
+export const sessionKey = (a) => a?.type === "ic" ? `${a.uuid}:${a.system.generation ?? 0}` : (liveSession(a)?.id ?? "");
+
+const ATTR_LABEL = { bod: "Bod", evasion: "Evasion", masking: "Masking", sensor: "Sensor" };
+const OFFENSE_ATTRIBUTE = { poison: "bod", restrict: "evasion", reveal: "masking" };
+
+/** A utility's attribute attack (p.98–99), from its field or its name; "" for none. */
+function offenseOf(item) {
+  if (item.system.offense) return item.system.offense;
+  const n = item.name.toLowerCase();
+  return Object.keys(OFFENSE_ATTRIBUTE).find(k => n.startsWith(k)) ?? "";
+}
+
 /** The VR2.0 attack card (state in flags.sr2e.matrix, ruleset "vr2"). */
 export function renderVR2MatrixCard(st) {
   const hit = (st.successes ?? 0) > 0;
+  const attr = st.effect === "attribute";
   const button = !st.resolved && hit ? `
     <div class="sr2e-karma-actions">
       <button type="button" class="sr2e-matrixresist-btn"
-              title="The target resists: IC rolls the host's Security Value, a persona its Bod, against TN = the Power (an Armor utility lowers it).">
+              title="${attr ? `The target tests its ${ATTR_LABEL[st.attr]} against TN ${st.rating}.`
+                : "The target resists: IC rolls the host's Security Value, a persona its Bod, against TN = the Power (an Armor utility lowers it)."}">
         🖧 Resist (Matrix)
       </button>
     </div>` : "";
+  const what = attr ? `${esc(st.effectName)} against ${ATTR_LABEL[st.attr]}` : `${st.power}${st.level}`;
+  const rule = attr
+    ? `<br><em>The target tests ${ATTR_LABEL[st.attr]} against TN ${st.rating}; it loses 1 point per 2 net successes${st.floor ? ", never below 1" : ""} (VR2.0 ${st.floor ? "p.41" : "p.98–99"}).</em>`
+    : `<br><em>Stages up 1 level per 2 successes; the target resists against TN ${st.power}, staging down 1 per 2.
+      10 boxes crash the icon (VR2.0 p.123–124).</em>`;
   return `<div class="sr2e-damage-result">
-    <strong>${esc(st.attackerName)} attacks in the Matrix</strong> — ${plural(st.successes ?? 0, "success")}
-    <br>${st.power}${st.level} on ${esc(st.hostName)} (${esc(codeLabel(st.securityCode))}, Security Value ${st.securityValue}); target ${st.status === "legitimate" ? "legitimate" : "intruding"}.
-    ${hit ? `<br><em>Stages up 1 level per 2 successes; the target resists against TN ${st.power}, staging down 1 per 2.
-      10 boxes crash the icon (VR2.0 p.123–124).</em>` : "<br><em>The attack misses.</em>"}
+    <strong>${esc(st.attackerName)} attacks ${esc(st.targetName ?? "")} in the Matrix</strong> — ${plural(st.successes ?? 0, "success")}
+    <br>${what} on ${esc(st.hostName)} (${esc(codeLabel(st.securityCode))}, Security Value ${st.securityValue}); target ${st.status === "legitimate" ? "legitimate" : "intruding"}.
+    ${hit ? rule : "<br><em>The attack misses.</em>"}
     ${st.resolution ?? ""}
     ${button}
   </div>`;
 }
 
-async function promptAttack(actor) {
+/**
+ * The attacker's maneuver records against `target` (PLAN-vr2-part2 §6): they live on the
+ * attacker, are valid only while both sides are the same connections, and an IC
+ * observer's lost sight expires lazily (rounds in that combat + tally gained since).
+ */
+function maneuverState(attacker, target) {
+  const mv = attacker.flags?.sr2e?.vr2Maneuvers ?? {};
+  const mine = sessionKey(attacker), theirs = sessionKey(target), k = keyOf(target.uuid);
+  const valid = (r) => !!r && r.mySession === mine && r.theirSession === theirs;
+  let blind = false, expired = false;
+  const lost = mv.lostSight?.[k];
+  if (valid(lost)) {
+    if (lost.observer === "ic") {
+      const combat = lost.combatId ? game.combats?.get(lost.combatId) : null;
+      const rounds = combat ? Math.max(0, combat.round - lost.roundAtStart) : 0;
+      const tally = Math.max(0, (liveSession(target)?.tally ?? 0) - (lost.tallyAtStart ?? 0));
+      if (rounds + tally >= lost.turns) expired = true; else blind = true;
+    } else blind = true;
+  }
+  const parry = valid(mv.parriedBy?.[k]) ? (mv.parriedBy[k].net ?? 0) : 0;
+  const p = mv.position;
+  const pos = p && p.vs === target.uuid && p.mySession === mine && p.theirSession === theirs ? (p.net ?? 0) : 0;
+  return { blind, expired, parry, pos, k };
+}
+
+async function promptAttack(actor, target, ms) {
   const isIC = actor.type === "ic";
   const hosts = game.actors.filter(a => a.type === "host");
   if (!hosts.length) { ui.notifications.warn("Create a Host actor first: VR2.0 cybercombat runs on its Security Code and Value."); return null; }
-  const target = firstTarget()?.actor ?? null;
   const preHost = isIC ? sync(actor.system.hostUuid) : (sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor));
   let programs = "";
   if (!isIC) {
-    const list = actor.items.filter(i => i.type === "program" && i.system.loaded
-      && (i.system.damageLevel || /attack|blaster/i.test(i.name))).sort((a, b) => b.system.rating - a.system.rating);
-    if (!list.length) { ui.notifications.warn("Load an attack utility (e.g. Attack) to attack in the Matrix."); return null; }
-    programs = list.map(p => `<option value="${p.id}">${esc(p.name)} (Rating ${p.system.rating}${p.system.damageLevel ? `, ${p.system.damageLevel}` : ", no level"})</option>`).join("");
+    const list = usablePrograms(actor).filter(i => i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name))
+      .sort((a, b) => programRating(b) - programRating(a));
+    const imp = liveSession(actor)?.improvised;
+    const improv = imp?.level ? `<option value="improv">Improvised attack (Power ${imp.power}, ${imp.level})</option>` : "";
+    if (!list.length && !improv) {
+      ui.notifications.warn("Load an attack utility, or build an improvised attack (VR2.0 p.123).");
+      return null;
+    }
+    programs = improv + list.map(p => `<option value="${p.id}">${esc(p.name)} (Rating ${programRating(p)}${offenseOf(p) ? `, against ${ATTR_LABEL[OFFENSE_ATTRIBUTE[offenseOf(p)]]}`
+      : p.system.damageLevel ? `, ${p.system.damageLevel}` : ", no level"})</option>`).join("");
   }
   const hackingMax = actor.system.dicePools?.hacking?.value ?? 0;
   const karma = actor.system.karma?.pool ?? 0;
-  const legit = target?.type === "ic";
+  const legit = target.type === "ic";
   let pick = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: "Matrix Attack (VR2.0)" }, rejectClose: false,
+    window: { title: `Matrix Attack on ${target.name} (VR2.0)` }, rejectClose: false,
     content: `<div>
       <div class="form-group"><label>Host:</label><select name="host">${hostOptions(hosts, preHost)}</select></div>
       <div class="form-group"><label>Target icon:</label><select name="status">
         <option value="intruding" ${legit ? "" : "selected"}>Intruding</option>
         <option value="legitimate" ${legit ? "selected" : ""}>Legitimate (IC, or a valid passcode)</option></select></div>
+      ${ms.parry ? `<p style="font-size:11px;color:#c99;">${esc(target.name)} parried you: +${ms.parry} TN (p.122).</p>` : ""}
+      ${ms.pos ? `<div class="form-group"><label>Position bonus (+${ms.pos}, p.122):</label><select name="position">
+        <option value="tn">−${ms.pos} TN</option><option value="power">+${ms.pos} Power</option></select></div>` : ""}
       ${isIC ? `<p style="font-size:11px;color:#aaa1c0;">The IC rolls the host's Security Value; Power ${actor.system.rating}, Level by Security Code (VR2.0 p.40, p.124).</p>` : `
       <div class="form-group"><label>Attack utility:</label><select name="program">${programs}</select></div>
       <div class="form-group"><label>Level if unset <span style="font-size:10px;color:#958ba8;">(saved to it, p.98)</span>:</label>
@@ -229,6 +468,7 @@ async function promptAttack(actor) {
       { action: "attack", label: "Attack", default: true, callback: (ev, b) => {
         const f = b.form.elements;
         pick = { hostId: f.host.value, status: f.status.value, programId: f.program?.value ?? null, level: f.level?.value ?? "",
+          position: f.position?.value ?? "",
           hacking: Math.max(0, Math.min(hackingMax, parseInt(f.hacking?.value) || 0)),
           karmaDice: Math.max(0, Math.min(karma, parseInt(f.karma_dice?.value) || 0)), ...readMiscDice(b.form) };
       } },
@@ -238,61 +478,155 @@ async function promptAttack(actor) {
   return action === "attack" ? pick : null;
 }
 
-/** A VR2.0 Matrix attack by a decker (attack utility) or IC (the host's Security Value). */
+/** The decker's Computer skill rating (0 untrained), as an attack's Shield TN (p.100). */
+const computerOf = (actor) => actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
+
+/**
+ * A VR2.0 Matrix attack by a decker (attack utility, attribute utility or improvised) or
+ * IC (the host's Security Value). Needs a target: maneuvers and defenses apply to it.
+ */
+const ATTACK_IN_FLIGHT = new Set();
 export async function vr2MatrixAttack(actor) {
-  const o = await promptAttack(actor);
+  // One attack at a time per actor: a one-shot build or a position bonus is used once.
+  if (ATTACK_IN_FLIGHT.has(actor.uuid)) return ui.notifications.warn(`${actor.name} is already attacking.`);
+  ATTACK_IN_FLIGHT.add(actor.uuid);
+  try { return await attackOnce(actor); } finally { ATTACK_IN_FLIGHT.delete(actor.uuid); }
+}
+
+async function attackOnce(actor) {
+  const target = firstTarget()?.actor ?? null;
+  if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you attack first.");
+  if (!["ic", "character"].includes(target.type)) return ui.notifications.warn("Only IC or a decker's persona can be attacked in the Matrix.");
+  const ms = maneuverState(actor, target);
+  if (ms.blind) return ui.notifications.warn(`${actor.name} has lost ${target.name} (evade detection, VR2.0 p.122): re-detect it first.`);
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
+  const o = await promptAttack(actor, target, ms);
   if (!o) return;
+  // Re-read: the target may have evaded or parried while the dialog was open.
+  const ms2 = maneuverState(actor, target);
+  if (ms2.blind) return ui.notifications.warn(`${actor.name} has lost ${target.name} (evade detection, VR2.0 p.122).`);
+  if (ms2.pos !== ms.pos) o.position = "";
+  Object.assign(ms, ms2);
   const host = game.actors.get(o.hostId);
   if (!host) return;
   const isIC = actor.type === "ic";
   const code = host.system.securityCode;
-  const tn = cybercombatTN(code, o.status);
-  let dice, power, level, tnContext;
+  // Shield and shift defenses make IC harder to hit (p.50).
+  let tn = cybercombatTN(code, o.status) + ms.parry
+    + (target.type === "ic" && ["shield", "shift"].includes(target.system.defense) ? 2 : 0);
+  let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer;
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
     if (!actor.system.hostUuid && actor.isOwner) await actor.update({ "system.hostUuid": host.uuid });
     dice = host.system.securityValue; power = actor.system.rating; level = icDamageLevel(code);
-    tnContext = { kind: "other" };
+    tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
+    const attr = CRIPPLER_ATTRIBUTE[actor.system.program];
+    if (attr) {
+      if (target.type !== "character") return ui.notifications.warn("A crippler attacks a decker's persona.");
+      effect = { effect: "attribute", attr, floor: 1, rating: actor.system.rating,
+        effectName: `${CONFIG.SR2E.icPrograms?.[actor.system.program] ?? actor.system.program}-${actor.system.rating}` };
+    }
   } else {
-    const prog = actor.items.get(o.programId);
-    if (!prog) return;
-    level = prog.system.damageLevel || o.level;
-    if (!level) return ui.notifications.warn(`${prog.name} has no Damage Level: pick one (VR2.0 p.98).`);
-    if (!prog.system.damageLevel && prog.isOwner) await prog.update({ "system.damageLevel": level });
-    dice = prog.system.rating; power = prog.system.rating;
+    attackerComputer = computerOf(actor);
+    // Log on to the chosen host FIRST: a build made on another host ends with that session.
+    await sessionFor(actor, host);
+    if (o.programId === "improv") {
+      const imp = liveSession(actor)?.improvised;
+      if (!imp?.level) return ui.notifications.warn("No improvised attack is ready on this host.");
+      dice = power = imp.power; level = imp.level; usedBuild = imp.id;
+    } else {
+      const prog = actor.items.get(o.programId);
+      if (!prog || !usablePrograms(actor).includes(prog)) return ui.notifications.warn("That utility isn't loaded and usable any more.");
+      const offense = offenseOf(prog);
+      if (offense) {
+        if (target.type !== "character") return ui.notifications.warn(`${prog.name} attacks a persona, not IC.`);
+        dice = programRating(prog);
+        effect = { effect: "attribute", attr: OFFENSE_ATTRIBUTE[offense], floor: 0, rating: programRating(prog), effectName: prog.name };
+      } else {
+        level = prog.system.damageLevel || o.level;
+        if (!level) return ui.notifications.warn(`${prog.name} has no Damage Level: pick one (VR2.0 p.98).`);
+        if (!prog.system.damageLevel && prog.isOwner) await prog.update({ "system.damageLevel": level });
+        dice = power = programRating(prog);
+      }
+    }
     tnContext = { ...skillTnContext("computer"), kind: "attack" };
-    await sessionFor(actor, host);              // fighting on a host = logged on to it
   }
-  const res = await actor.rollSuccessTest(Math.max(1, dice), tn, {
-    label: `Matrix Attack ${power}${level} (TN ${tn}, ${codeLabel(code)} vs ${o.status})`,
+  if (ms.pos && o.position === "power" && power != null) power += ms.pos;
+  else if (ms.pos) tn -= ms.pos;
+  tn = Math.max(2, tn);
+  const res = await actor.rollSuccessTest(Math.max(0, dice), tn, {
+    label: `Matrix Attack ${effect.effect ? effect.effectName : `${power}${level}`} (TN ${tn}, ${codeLabel(code)} vs ${o.status})`,
     poolDice: !isIC && o.hacking ? { hacking: o.hacking } : undefined,
     karmaDice: o.karmaDice ?? 0, miscDice: o.miscDice, miscLabel: o.miscLabel, tnContext
   });
   if (!res) return;
+  // Rolled = committed: the position bonus was "the next attack", a parry lasts "until the
+  // next attack by the opposing icon" (p.122), an improvised attack is a one-shot (p.123).
+  await spendAttackState(actor, ms, usedBuild);
+  await commitAction(actor, startedBuild);
   // Posted even at 0 successes (inert), so Karma can still bring it to life.
   const state = { ruleset: "vr2", attackerUuid: actor.uuid, attackerName: actor.name, attackerType: actor.type,
-    icType: isIC ? actor.system.icType : "", targetUuid: firstTarget()?.actor?.uuid ?? "",
-    ...hostSnap(host), status: o.status, power, level,
+    icType: isIC ? actor.system.icType : "", icClass: isIC ? actor.system.icClass : "", program: isIC ? actor.system.program : "",
+    targetUuid: target.uuid, targetName: target.name, targetSession: sessionKey(target), attackerSession: sessionKey(actor),
+    targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
+    ...hostSnap(host), status: o.status, power, level, ...effect,
     successes: res.successes, testMessageId: res.testMessageId, resolved: false };
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
     flags: { sr2e: { matrix: state } } });
   return res;
 }
 
-/** Fill Matrix boxes in a per-actor queue that re-reads the live value. Returns the new value. */
+/** After an attack is rolled: spend the maneuver bonuses and a used improvised attack. */
+async function spendAttackState(actor, ms, usedBuild) {
+  const mv = actor.flags?.sr2e?.vr2Maneuvers ?? {};
+  const update = {};
+  if (mv.position) update["flags.sr2e.vr2Maneuvers.-=position"] = null;
+  if (mv.parriedBy && Object.keys(mv.parriedBy).length) update["flags.sr2e.vr2Maneuvers.-=parriedBy"] = null;
+  if (ms.expired) update[`flags.sr2e.vr2Maneuvers.lostSight.-=${ms.k}`] = null;
+  if (Object.keys(update).length) await actor.update(update);
+  if (usedBuild) await sessionQueue(actor, async () => {
+    if (liveSession(actor)?.improvised?.id === usedBuild) await actor.update({ "flags.sr2e.vr2Session.-=improvised": null });
+  });
+}
+
+/** Fill Matrix boxes in a per-actor queue that re-reads the live value. A crash is the crossing (§2). */
 function matrixDamage(actor, boxes) {
   return enqueueAttack(`matrixmon:${actor.uuid}`, async () => {
     const path = actor.type === "ic" ? "system.conditionMonitor.value" : "system.matrixPersona.condition.value";
-    const v = Math.min(MATRIX_MONITOR_MAX, (foundry.utils.getProperty(actor, path) ?? 0) + boxes);
-    await actor.update({ [path]: v });
-    return v;
+    const before = foundry.utils.getProperty(actor, path) ?? 0;
+    const after = Math.min(MATRIX_MONITOR_MAX, before + boxes);
+    const update = { [path]: after };
+    // A crashed IC is a new incarnation: maneuver records against the old one lapse.
+    if (actor.type === "ic" && before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX) {
+      update["system.generation"] = (actor.system.generation ?? 0) + 1;
+    }
+    await actor.update(update);
+    return { before, after };
   });
+}
+
+/** Offer the defender's Shield (p.100): rolled against the attacker's Computer (IC: Security Value). */
+async function askShield(defender, st) {
+  const item = defender.type === "character" ? bestUtility(defender, "shield") : null;
+  if (!item) return null;
+  const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: `Shield — ${defender.name}` },
+    content: `<p>Use ${esc(item.name)} (rating ${programRating(item)})? It loses a point whether it works or not (VR2.0 p.100).</p>`,
+    rejectClose: false });
+  if (!ok) return null;
+  const live = defender.items.get(item.id);
+  if (!live || !usablePrograms(defender).includes(live)) return null;   // unloaded or crashed meanwhile
+  const ref = useRef(live);
+  const tn = Math.max(2, st.attackerComputer ?? 4);
+  const r = await defender.rollSuccessTest(Math.max(0, ref.rating), tn, {
+    label: `Shield ${ref.rating} (TN ${tn})`, closed: true, tnContext: { kind: "other" } });
+  return r ? { ref, successes: r.successes, testMessageId: r.testMessageId } : null;
 }
 
 /**
  * Resist a VR2.0 Matrix attack card, once (p.124). IC: the card's Security Value dice;
- * a persona: Bod; both against TN = Power (less a loaded Armor utility). Simsense
- * overload for a decker hit by white or gray IC on a hot deck; a crash dumps the decker.
+ * a persona: Bod; both against TN = Power (less a loaded Armor utility, or IC armor).
+ * Simsense overload for a decker hit by white or gray IC on a hot deck; a crash dumps the
+ * decker, unless black IC killed the icon (p.124).
  */
 export async function vr2MatrixResist(defender, message) {
   if (RESIST_IN_FLIGHT.has(message.id)) return;
@@ -302,49 +636,70 @@ export async function vr2MatrixResist(defender, message) {
     const st = live?.flags?.sr2e?.matrix;
     if (!st || isCardResolved(live, "matrix")) return ui.notifications.warn("That attack has already been resisted.");
     if (!defender.isOwner) return ui.notifications.warn(`Only ${defender.name}'s owner or the GM can resist for them.`);
+    if (st.targetUuid && defender.uuid !== st.targetUuid && !game.user.isGM) {
+      return ui.notifications.warn(`That attack is on ${st.targetName ?? "another icon"}.`);
+    }
     const liveAtk = () => { const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : (st.successes ?? 0); };
     if (liveAtk() <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
-    let dice, tn, what;
+    if (st.effect === "attribute") return await resistAttribute(defender, message, st, liveAtk);
+    // A persona hit belongs to the connection it hit: a reconnect doesn't take it.
+    const sameSession = () => defender.type !== "character" || !st.targetSession || liveSession(defender)?.id === st.targetSession;
+    if (!sameSession()) return ui.notifications.warn("That attack hit an earlier session.");
+    let dice, tn, what, armorRef = null;
     if (defender.type === "ic") {
-      dice = st.securityValue; tn = st.power; what = "host Security Value";
+      dice = st.securityValue; tn = st.power - (st.targetArmorDefense ? 2 : 0);
+      what = `host Security Value${st.targetArmorDefense ? ", IC armor" : ""}`;
     } else if (defender.type === "character") {
-      const armor = loadedUtility(defender, "armor");
-      dice = defender.system.matrixPersona?.bod ?? 0; tn = st.power - armor;
-      what = `persona Bod${armor ? `, Armor ${armor}` : ""}`;
+      armorRef = useRef(bestUtility(defender, "armor"));
+      dice = defender.system.matrixPersona?.bod ?? 0; tn = st.power - (armorRef?.rating ?? 0);
+      what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
     } else {
       return ui.notifications.warn("Only IC or a decker persona can resist a Matrix attack.");
     }
     tn = Math.max(2, tn);
-    // Who and which session, captured as the defender resolves (the card may be untargeted).
+    // Which session, captured as the defender resolves; a crash ends only that one.
     const sessionId = defender.type === "character" ? (liveSession(defender)?.id ?? null) : null;
-    const res = await defender.rollSuccessTest(Math.max(1, dice), tn, {
+    const shield = await askShield(defender, st);
+    const res = await defender.rollSuccessTest(Math.max(0, dice), tn, {
       label: `Resist Matrix damage — ${what} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" }
     });
     if (!res) return;
     // The attack's CURRENT successes, from its own test (Karma may have moved them).
-    const atkS = liveAtk();
-    if (atkS <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
+    const rawAtk = liveAtk();
+    if (rawAtk <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
     if (isCardResolved(game.messages.get(message.id), "matrix")) {
       return ui.notifications.warn("That attack was resolved on another device while you rolled.");
     }
+    if (!sameSession()) return ui.notifications.warn("That attack hit an earlier session.");
+    const atkS = Math.max(0, rawAtk - (shield?.successes ?? 0));
     const out = matrixCombatOutcome(st.level, atkS, res.successes);
-    const closes = [st.testMessageId, res.testMessageId];
+    const closes = [st.testMessageId, res.testMessageId, shield?.testMessageId].filter(Boolean);
     const lines = [];
-    let crashed = false, text;
+    if (shield) { lines.push(`Shield: −${shield.successes} attack success${shield.successes === 1 ? "" : "es"}.`); await addWear(defender, shield.ref, message.id); }
+    const cls = st.icClass || st.icType;
+    let crashed = false, text, crashChoiceFlag = null;
     if (!out.level) {
       text = `${defender.name} resists the Matrix attack.`;
     } else {
-      const filled = await matrixDamage(defender, out.boxes);
-      crashed = filled >= MATRIX_MONITOR_MAX;
-      text = `${defender.name} takes ${LEVEL_NAMES[out.level]} Matrix damage: ${out.boxes} box${out.boxes === 1 ? "" : "es"} (${filled}/${MATRIX_MONITOR_MAX}).`;
+      // Committed in the defender's session queue (serialized with session changes), and
+      // only while it's still the connection that was hit.
+      const hit = defender.type === "character"
+        ? await sessionQueue(defender, () => sameSession() ? matrixDamage(defender, out.boxes) : null)
+        : await matrixDamage(defender, out.boxes);
+      if (!hit) return ui.notifications.warn("That attack hit an earlier session: nothing applied.");
+      const { before, after } = hit;
+      crashed = before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX;
+      text = `${defender.name} takes ${LEVEL_NAMES[out.level]} Matrix damage: ${out.boxes} box${out.boxes === 1 ? "" : "es"} (${after}/${MATRIX_MONITOR_MAX}).`;
+      // The Armor utility loses a point each time it fails to absorb a hit completely (p.99).
+      if (armorRef) { await addWear(defender, armorRef, message.id); lines.push(`${armorRef.name} loses a point.`); }
       const deck = defender.system.cyberdeck ?? {};
-      if (defender.type === "character" && ["white", "gray"].includes(st.icType) && (deck.deckMode ?? "hot") === "hot") {
+      if (defender.type === "character" && ["white", "gray"].includes(cls) && (deck.deckMode ?? "hot") === "hot") {
         if (out.level === "D") {
           crashed = true;
           lines.push("Deadly damage from white or gray IC on a hot deck: simsense overload crashes the persona (VR2.0 p.124).");
         } else {
           const otn = Math.max(2, simsenseOverloadTN(out.level) + (deck.dniOnly ? 2 : 0) - (deck.iccm ? 2 : 0));
-          const ov = await defender.rollSuccessTest(Math.max(1, defender.system.willpower?.value ?? 1), otn, {
+          const ov = await defender.rollSuccessTest(Math.max(0, defender.system.willpower?.value ?? 0), otn, {
             label: `Simsense overload — Willpower (TN ${otn})`, isResistance: true, closed: true, tnContext: { kind: "other" }
           });
           if (ov?.testMessageId) closes.push(ov.testMessageId);
@@ -352,21 +707,347 @@ export async function vr2MatrixResist(defender, message) {
           else { await commitDamage(defender, "stun", 1); lines.push("Simsense overload: 1 box of Stun (VR2.0 p.124)."); }
         }
       }
-      if (crashed) lines.push(defender.type === "ic" ? "The IC crashes, out of the fight." : `${defender.name}'s persona crashes: dumped from the Matrix.`);
+      if (crashed && defender.type === "ic") {
+        lines.push("The IC crashes, out of the fight.");
+        if (st.attackerType === "character" && st.attackerSession) {
+          crashChoiceFlag = { cardId: message.id, deckerUuid: st.attackerUuid, sessionId: st.attackerSession,
+            icUuid: defender.uuid, icName: defender.name, rating: defender.system.rating ?? 0 };
+        }
+      } else if (crashed && cls === "black") {
+        lines.push(`${defender.name}'s icon is down, but black IC doesn't disconnect the decker: the connection stays, and the IC's rating is +2 while the icon is down (VR2.0 p.48, p.124).`);
+      } else if (crashed) {
+        lines.push(`${defender.name}'s persona crashes: dumped from the Matrix.`);
+      }
     }
+    const choice = crashChoiceFlag ? `<div class="sr2e-karma-actions">
+        <button type="button" class="sr2e-vr2-crashchoice" data-choice="suppress" title="−1 Detection Factor while ${esc(st.attackerName)} stays on this system (VR2.0 p.40)">Suppress</button>
+        <button type="button" class="sr2e-vr2-crashchoice" data-choice="register" title="+${crashChoiceFlag.rating} to ${esc(st.attackerName)}'s security tally (p.40)">Let it register (+${crashChoiceFlag.rating})</button></div>` : "";
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: defender }),
       content: `<div class="sr2e-damage-result"><strong>${esc(text)}</strong>
         <br><em>${plural(atkS, "attack success")} vs ${plural(res.successes, "resistance success")}.</em>
-        ${lines.map(l => `<br>${esc(l)}`).join("")}</div>`,
-      flags: { sr2e: { resolves: message.id, closesTests: closes, matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}` } }
+        ${lines.map(l => `<br>${esc(l)}`).join("")}${choice}</div>`,
+      flags: { sr2e: { resolves: message.id, closesTests: closes, matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}`,
+        ...(crashChoiceFlag ? { vr2Crash: crashChoiceFlag } : {}) } }
     });
-    if (crashed && defender.type === "character") {
+    if (crashed && defender.type === "character" && cls !== "black") {
       await vr2LeaveMatrix(defender, { crash: { securityCode: st.securityCode, securityValue: st.securityValue,
         hostName: st.hostName, sessionId } });
     }
     return res;
   } finally { RESIST_IN_FLIGHT.delete(message.id); }
+}
+
+/**
+ * An attribute attack (crippler p.41; poison/restrict/reveal p.98–99): the persona tests
+ * the attribute against the program's rating; 1 point per 2 net successes, as it actually
+ * lands, committed once per card in the defender's session (PLAN-vr2-part2 §5, §9).
+ */
+async function resistAttribute(defender, message, st, liveAtk) {
+  if (defender.type !== "character") return ui.notifications.warn("Only a decker's persona can be attacked that way.");
+  const s0 = liveSession(defender);
+  if (!s0) return ui.notifications.warn(`${defender.name} isn't in a VR2.0 session.`);
+  if (st.targetSession && s0.id !== st.targetSession) return ui.notifications.warn("That attack hit an earlier session.");
+  const value = defender.system.matrixPersona?.[st.attr] ?? 0;
+  const shield = await askShield(defender, st);
+  const tn = Math.max(2, st.rating ?? 2);
+  const res = await defender.rollSuccessTest(Math.max(0, value), tn, {
+    label: `Resist ${st.effectName} — ${ATTR_LABEL[st.attr]} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+  if (!res) return;
+  const atkS = liveAtk();
+  if (atkS <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
+  if (isCardResolved(game.messages.get(message.id), "matrix")) {
+    return ui.notifications.warn("That attack was resolved on another device while you rolled.");
+  }
+  const defS = res.successes + (shield?.successes ?? 0);
+  const points = Math.max(0, Math.floor((atkS - defS) / 2));
+  const lost = await sessionQueue(defender, async () => {
+    const s = liveSession(defender);
+    if (!s || s.id !== s0.id) return null;
+    const prior = s.iconDamage?.[message.id];
+    if (prior) return prior.lost;                         // an immutable receipt: a retry changes nothing
+    // Measured before an improvised sacrifice, which derivation applies last.
+    const mp = defender.system.matrixPersona ?? {};
+    const v = mp.preImprovised?.[st.attr] ?? mp[st.attr] ?? 0;
+    const l = attributeLoss(v, points, st.floor ?? 0);
+    const seq = (s.damageSeq ?? 0) + 1;
+    await defender.update({ [`flags.sr2e.vr2Session.iconDamage.${message.id}`]: { attr: st.attr, lost: l, seq, source: st.effectName },
+      "flags.sr2e.vr2Session.damageSeq": seq });
+    return l;
+  });
+  if (shield) await addWear(defender, shield.ref, message.id);
+  const text = lost == null ? `${defender.name}'s session changed: nothing applied.`
+    : lost > 0 ? `${defender.name}'s ${ATTR_LABEL[st.attr]} drops by ${lost}.` : `${defender.name}'s ${ATTR_LABEL[st.attr]} holds.`;
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: defender }),
+    content: `<div class="sr2e-damage-result"><strong>${esc(text)}</strong>
+      <br><em>${plural(atkS, "attack success")} vs ${plural(defS, "success")}${shield ? ` (Shield ${shield.successes})` : ""}.</em></div>`,
+    flags: { sr2e: { resolves: message.id, closesTests: [st.testMessageId, res.testMessageId, shield?.testMessageId].filter(Boolean),
+      matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}` } }
+  });
+  return res;
+}
+
+// ── Combat maneuvers (p.121–122; PLAN-vr2-part2 §6) ───────────────────────────
+
+const MANEUVERS = { evade: "Evade detection", parry: "Parry attack", position: "Position attack" };
+const MANEUVER_IN_FLIGHT = new Set();
+
+/** ONE client writes an actor's maneuver record: its lowest-id active non-GM owner, else the active GM. */
+function designatedWriter(actor) {
+  const owners = game.users.filter(u => u.active && !u.isGM && actor.testUserPermission(u, "OWNER"))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return owners.length ? owners[0].isSelf : game.user === game.users.activeGM;
+}
+
+/** The Oppose card for a decker opponent. */
+export function renderManeuverCard(st) {
+  const button = st.resolved ? "" : `<div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-vr2-oppose-btn"
+    title="${esc(st.opponentName)} rolls Sensor against TN ${st.oppTN}">Oppose (Sensor, TN ${st.oppTN})</button></div>`;
+  return `<div class="sr2e-damage-result"><strong>${esc(st.maneuvererName)}: ${esc(MANEUVERS[st.kind])} against ${esc(st.opponentName)}</strong>
+    — ${plural(st.mS, "success")}.
+    <br><em>${esc(st.opponentName)} opposes with Sensor against TN ${st.oppTN} (VR2.0 p.122).</em>${st.resolution ?? ""}${button}</div>`;
+}
+
+/** Perform a combat maneuver (a Simple Action) against the targeted icon. */
+export async function vr2Maneuver(actor) {
+  const target = firstTarget()?.actor ?? null;
+  if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you maneuver against first.");
+  if (!["ic", "character"].includes(target.type)) return ui.notifications.warn("Only IC or a decker's persona can maneuver.");
+  if (actor.type === "character" && !liveSession(actor)) return ui.notifications.warn(`${actor.name} isn't jacked in.`);
+  const icSide = actor.type === "ic" ? actor : target.type === "ic" ? target : null;
+  const hosts = game.actors.filter(a => a.type === "host");
+  if (icSide && !hosts.length) return ui.notifications.warn("IC maneuvers on its host's Security Value: create a Host actor first.");
+  const preHost = icSide ? sync(icSide.system.hostUuid) : null;
+  let pick = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Combat maneuver — ${actor.name} vs ${target.name}` }, rejectClose: false,
+    content: `<div><div class="form-group"><label>Maneuver:</label><select name="kind">
+      ${Object.entries(MANEUVERS).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
+      ${icSide ? `<div class="form-group"><label>Host:</label><select name="host">${hostOptions(hosts, preHost)}</select></div>` : ""}
+      <p style="font-size:11px;color:#aaa1c0;">Evasion against the opponent's Sensor, opposed (VR2.0 p.122). Cloak lowers your TN; their Lock-On lowers theirs.</p></div>`,
+    buttons: [
+      { action: "go", label: "SR2E.Dialog.Roll", default: true, callback: (ev, b) => {
+        pick = { kind: b.form.elements.kind.value, hostId: b.form.elements.host?.value ?? "" }; } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "go" || !pick) return;
+  const host = icSide ? game.actors.get(pick.hostId) : null;
+  const sv = host?.system.securityValue ?? 0;
+  const evasion = actor.type === "ic" ? sv : (actor.system.matrixPersona?.evasion ?? 0);
+  const sensor = target.type === "ic" ? sv : (target.system.matrixPersona?.sensor ?? 0);
+  const cloak = actor.type === "character" ? loadedUtility(actor, "cloak") : 0;
+  const lockOn = target.type === "character" ? loadedUtility(target, "lock") : 0;
+  const tns = maneuverTNs({ evasion, sensor, cloak, lockOn });
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
+  const res = await actor.rollSuccessTest(Math.max(0, evasion), tns.maneuverer, {
+    label: `${MANEUVERS[pick.kind]} — ${actor.type === "ic" ? "Security Value" : "Evasion"} (TN ${tns.maneuverer})`,
+    closed: true, tnContext: { kind: "other" } });
+  if (!res) return;
+  await commitAction(actor, startedBuild);
+  const st = { kind: pick.kind, maneuvererUuid: actor.uuid, maneuvererName: actor.name, opponentUuid: target.uuid,
+    opponentName: target.name, mS: res.successes, oppTN: tns.opponent, mSession: sessionKey(actor),
+    oSession: sessionKey(target), testMessageId: res.testMessageId };
+  if (target.type === "ic") {
+    const or = await SR2ESuccessRoll.successTest(sv, tns.opponent);
+    return postManeuverResult(st, or.successes, { rolls: or.rolls });
+  }
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderManeuverCard(st),
+    flags: { sr2e: { vr2Maneuver: { ...st, resolved: false } } } });
+  return res;
+}
+
+/** The decker opponent's Sensor test, once per card. */
+export async function opposeManeuver(message) {
+  if (MANEUVER_IN_FLIGHT.has(message.id)) return;
+  MANEUVER_IN_FLIGHT.add(message.id);
+  try {
+    const live = game.messages.get(message.id);
+    const st = live?.flags?.sr2e?.vr2Maneuver;
+    if (!st || isCardResolved(live, "vr2Maneuver")) return ui.notifications.warn("That maneuver has already been opposed.");
+    const opp = sync(st.opponentUuid);
+    if (!opp?.isOwner) return ui.notifications.warn(`Only ${st.opponentName}'s owner or the GM can oppose.`);
+    const res = await opp.rollSuccessTest(Math.max(0, opp.system.matrixPersona?.sensor ?? 0), st.oppTN, {
+      label: `Oppose ${MANEUVERS[st.kind]} — Sensor (TN ${st.oppTN})`, closed: true, tnContext: { kind: "other" } });
+    if (!res) return;
+    if (isCardResolved(game.messages.get(message.id), "vr2Maneuver")) return ui.notifications.warn("Opposed on another device meanwhile.");
+    return postManeuverResult(st, res.successes, { resolves: message.id, oppTestId: res.testMessageId });
+  } finally { MANEUVER_IN_FLIGHT.delete(message.id); }
+}
+
+/** Post a maneuver's outcome; the records ride on it for the designated writers to apply. */
+async function postManeuverResult(st, oS, { rolls = [], resolves = null, oppTestId = null } = {}) {
+  const out = maneuverOutcome(st.kind, st.mS, oS);
+  const kM = keyOf(st.maneuvererUuid), kO = keyOf(st.opponentUuid);
+  const writes = [];
+  let text;
+  if (!out) {
+    text = `${st.maneuvererName}'s ${MANEUVERS[st.kind].toLowerCase()} fails.`;
+  } else if (st.kind === "evade") {
+    const combat = game.combat;
+    const observer = sync(st.opponentUuid);
+    writes.push({ actorUuid: st.opponentUuid, set: {
+      [`flags.sr2e.vr2Maneuvers.lostSight.${kM}`]: { turns: out.net, tallyAtStart: liveSession(sync(st.maneuvererUuid))?.tally ?? 0,
+        combatId: combat?.id ?? "", roundAtStart: combat?.round ?? 0, mySession: st.oSession, theirSession: st.mSession,
+        observer: observer?.type === "ic" ? "ic" : "decker" },
+      [`flags.sr2e.vr2Maneuvers.parriedBy.-=${kM}`]: null } });
+    writes.push({ actorUuid: st.maneuvererUuid, set: { [`flags.sr2e.vr2Maneuvers.parriedBy.-=${kO}`]: null } });
+    text = observer?.type === "ic"
+      ? `${st.maneuvererName} evades ${st.opponentName} for ${out.net} Combat Turn${out.net === 1 ? "" : "s"} (fewer as the tally rises).`
+      : `${st.maneuvererName} evades ${st.opponentName}, who must Locate Decker or Analyze Icon to find them again.`;
+  } else if (st.kind === "parry") {
+    writes.push({ actorUuid: st.opponentUuid, set: { [`flags.sr2e.vr2Maneuvers.parriedBy.${kM}`]: { net: out.net,
+      mySession: st.oSession, theirSession: st.mSession } } });
+    text = `${st.maneuvererName} parries: ${st.opponentName}'s attacks on them are +${out.net} TN until their next attack.`;
+  } else {
+    const winM = out.beneficiary === "maneuverer";
+    writes.push({ actorUuid: winM ? st.maneuvererUuid : st.opponentUuid, set: { "flags.sr2e.vr2Maneuvers.position": {
+      vs: winM ? st.opponentUuid : st.maneuvererUuid, net: out.net,
+      mySession: winM ? st.mSession : st.oSession, theirSession: winM ? st.oSession : st.mSession } } });
+    text = `${winM ? st.maneuvererName : st.opponentName} wins the position: −${out.net} TN or +${out.net} Power on their next attack.`;
+  }
+  await ChatMessage.create({ rolls, content: `<div class="sr2e-damage-result"><strong>${esc(text)}</strong>
+      <br><em>${plural(st.mS, "success")} against ${plural(oS, "success")} (VR2.0 p.122).</em></div>`,
+    flags: { sr2e: { ...(resolves ? { resolves } : {}), closesTests: [st.testMessageId, oppTestId].filter(Boolean),
+      vr2ManeuverResolution: `<br><strong>Resolved:</strong> ${esc(text)}`,
+      vr2ManeuverResult: { resultId: foundry.utils.randomID(), writes, maneuvererUuid: st.maneuvererUuid,
+        opponentUuid: st.opponentUuid, mSession: st.mSession, oSession: st.oSession } } } });
+}
+
+/** Apply a maneuver outcome's records, once per actor (an `applied` receipt in the same update). */
+export async function applyManeuverResult(msg) {
+  const r = msg?.flags?.sr2e?.vr2ManeuverResult;
+  if (!r?.writes?.length) return;
+  // Applied only while both icons are still the connections that maneuvered, so a late
+  // outcome can't overwrite a newer, valid record.
+  if (r.mSession != null && (sessionKey(sync(r.maneuvererUuid)) !== r.mSession || sessionKey(sync(r.opponentUuid)) !== r.oSession)) return;
+  for (const w of r.writes) {
+    const actor = sync(w.actorUuid);
+    if (!actor || !designatedWriter(actor)) continue;
+    if (actor.flags?.sr2e?.vr2Maneuvers?.applied?.[r.resultId]) continue;
+    await actor.update({ ...w.set, [`flags.sr2e.vr2Maneuvers.applied.${r.resultId}`]: true });
+  }
+}
+Hooks.on("createChatMessage", (msg) => { applyManeuverResult(msg).catch(err => console.error("SR2E | maneuver result", err)); });
+
+/**
+ * Find an evader again (after a successful Analyze Icon / Locate Decker): the TARGETED
+ * icon only. With nothing targeted, the GM may clear every record (an explicit call).
+ */
+export function vr2Redetect(actor) {
+  const target = firstTarget()?.actor ?? null;
+  if (target) return actor.update({ [`flags.sr2e.vr2Maneuvers.lostSight.-=${keyOf(target.uuid)}`]: null });
+  if (!game.user.isGM) return ui.notifications.warn("Target the icon you found again.");
+  return actor.update({ "flags.sr2e.vr2Maneuvers.-=lostSight": null });
+}
+
+// ── Improvised attacks (p.123; PLAN-vr2-part2 §7) ─────────────────────────────
+
+/** Build a one-shot attack program from Evasion and Bod points (a Simple Action). */
+export async function vr2BuildImprovised(actor) {
+  const s = liveSession(actor);
+  if (!s) return ui.notifications.warn(`${actor.name} isn't jacked in.`);
+  if (s.improvised) return ui.notifications.warn("An improvised attack is already built: use it first (it's a one-shot).");
+  const mpcp = actor.system.cyberdeck?.mpcp ?? 0;
+  const bod = actor.system.matrixPersona?.bod ?? 0, evasion = actor.system.matrixPersona?.evasion ?? 0;
+  let pick = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Improvised attack — ${actor.name}` }, rejectClose: false,
+    content: `<div><p>Points from Evasion and Bod become the attack's Power (at most MPCP ${mpcp}). They stay down until
+      the attack is used. Then a Computer test against TN = Power: 1 success Light, 2 Moderate, 3 Serious, 4+ Deadly (VR2.0 p.123).</p>
+      <div class="form-group"><label>From Bod <span>(${bod})</span>:</label><input type="number" name="bod" value="0" min="0" max="${bod}" style="width:52px;text-align:center;"></div>
+      <div class="form-group"><label>From Evasion <span>(${evasion})</span>:</label><input type="number" name="evasion" value="0" min="0" max="${evasion}" style="width:52px;text-align:center;"></div></div>`,
+    buttons: [
+      { action: "go", label: "SR2E.Dialog.Roll", default: true, callback: (ev, b) => {
+        pick = { bod: parseInt(b.form.elements.bod.value) || 0, evasion: parseInt(b.form.elements.evasion.value) || 0 }; } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "go" || !pick) return;
+  const power = pick.bod + pick.evasion;
+  if (pick.bod < 0 || pick.evasion < 0 || pick.bod > bod || pick.evasion > evasion || power < 1 || power > mpcp) {
+    return ui.notifications.warn(`Take 1 to ${mpcp} points in all, no more than each rating has.`);
+  }
+  const computer = computerOf(actor);
+  const res = await actor.rollSuccessTest(computer > 0 ? computer : (actor.system.intelligence?.value ?? 0),
+    power + (computer > 0 ? 0 : 4), {
+      label: `Improvised attack — Computer (TN ${power}${computer > 0 ? "" : " +4 untrained"})`,
+      closed: true, tnContext: skillTnContext("computer") });
+  if (!res) return;
+  const level = improvisedLevel(res.successes);
+  const built = await sessionQueue(actor, async () => {
+    const live = liveSession(actor);
+    if (live?.id !== s.id || live.improvised) return false;
+    // Re-checked live: an attribute attack while the dialog or the roll was open.
+    const now = actor.system.matrixPersona?.preImprovised ?? actor.system.matrixPersona ?? {};
+    if (pick.bod > (now.bod ?? 0) || pick.evasion > (now.evasion ?? 0) || power > (actor.system.cyberdeck?.mpcp ?? 0)) {
+      ui.notifications.warn("The persona changed while you built it: the points aren't there any more.");
+      return false;
+    }
+    await actor.update({ "flags.sr2e.vr2Session.improvised": { id: foundry.utils.randomID(), bod: pick.bod, evasion: pick.evasion, power, level } });
+    return true;
+  });
+  if (!built) return;
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
+    ${level ? `writes an attack program on the fly: Power ${power}, ${LEVEL_NAMES[level]}. It's a one-shot.` : "fails to finish the attack program; the points stay spent until their next action."}
+    (Bod −${pick.bod}, Evasion −${pick.evasion}; VR2.0 p.123)</div>` });
+  return res;
+}
+
+// ── Medic and Swap Memory (p.99–100; PLAN-vr2-part2 §4, §8) ───────────────────
+
+/** Medic (a Complex Action): rating dice against 4/5/6 by the icon's wound level; a box per success. */
+export async function vr2Medic(actor, item) {
+  if (!/^medic/i.test(item?.name ?? "")) return ui.notifications.warn("That isn't a Medic utility.");
+  if (!usablePrograms(actor).includes(item)) return ui.notifications.warn(`${item.name} isn't usable: load it, or Swap Memory a fresh copy.`);
+  const boxes = actor.system.matrixPersona?.condition?.value ?? 0;
+  const tn = medicTN(boxes);
+  if (!tn) return ui.notifications.info(`${actor.name}'s icon has no damage.`);
+  const ref = useRef(item);
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
+  const res = await actor.rollSuccessTest(Math.max(0, ref.rating), tn, {
+    label: `${item.name} (TN ${tn})`, closed: true, tnContext: { kind: "other" } });
+  if (!res) return;
+  await commitAction(actor, startedBuild);
+  const repaired = await enqueueAttack(`matrixmon:${actor.uuid}`, async () => {
+    const v = actor.system.matrixPersona?.condition?.value ?? 0;
+    const n = Math.min(v, res.successes);
+    if (n > 0) await actor.update({ "system.matrixPersona.condition.value": v - n });
+    return n;
+  });
+  await addWear(actor, ref, res.testMessageId);
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}
+    repairs ${repaired} box${repaired === 1 ? "" : "es"} of ${esc(actor.name)}'s icon, and loses a point (VR2.0 p.100).</div>` });
+  return res;
+}
+
+/** Swap Memory: reload a fresh copy (worn utilities back to full; a crashed one runs again). */
+export async function vr2SwapMemory(actor, item) {
+  if (!item || item.type !== "program") return;
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
+  await enqueueAttack(`program:${item.uuid}`, () => item.update({ "system.loadGen": (item.system.loadGen ?? 0) + 1, "system.crashed": false }));
+  await commitAction(actor, startedBuild);
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
+    swaps in a fresh copy of ${esc(item.name)} (rating ${item.system.rating}).</div>` });
+}
+
+/** Card buttons (wired from renderChatMessageHTML). */
+export function wireVR2Buttons(message, html) {
+  html.querySelectorAll?.(".sr2e-vr2-crashchoice").forEach(btn => btn.addEventListener("click", (ev) => {
+    ev.preventDefault(); return crashChoice(message, btn.dataset.choice);
+  }));
+  html.querySelectorAll?.(".sr2e-vr2-oppose-btn").forEach(btn => btn.addEventListener("click", (ev) => {
+    ev.preventDefault(); return opposeManeuver(message);
+  }));
+}
+
+/** On load (each client): its own tally events; the GM's sheaf deliveries and maneuver results. */
+export async function vr2Ready() {
+  if (!isVR2()) return;
+  await reconcileTallies();
+  for (const m of game.messages ?? []) if (m.flags?.sr2e?.vr2ManeuverResult) await applyManeuverResult(m);
+  for (const a of game.actors ?? []) if (a.flags?.sr2e?.vr2SheafPending) await deliverSheaf(a);
 }
 
 // ── Leaving the Matrix (p.124) ───────────────────────────────────────────────

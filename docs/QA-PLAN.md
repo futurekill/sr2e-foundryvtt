@@ -353,6 +353,16 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 - [ ] Persona programs over MPCP × 3: the warning shows.
 - [ ] IC initiative in the tracker: (code)D6 + Rating; switch back to core: code base + Rating + 1D6.
 
+### 10b. VR2.0 part 2 (`sr2e.vr2-part2` batch)
+- [ ] Target an IC token and **Maneuver → Parry**; the IC's next attack on you shows +TN, then it's gone.
+- [ ] **Evade** IC: its attack on you is refused until your tally rises by the turns shown; **Re-detect** clears a decker's lost sight.
+- [ ] A player decker maneuvers against another player's decker: the **Oppose** card resolves once, on either device.
+- [ ] **Improvise** 1 Bod + 2 Evasion: the persona shows the reduction; the attack dialog offers the improvised attack; after it, the points are back. Saving the sheet in between doesn't change your typed Bod.
+- [ ] Armor wears after a hit; Shield prompt on resist; Medic repairs; Swap Memory restores.
+- [ ] Acid crippler IC: Bod drops by 1 per 2 net, never below 1; it's gone after jacking out.
+- [ ] Crash IC with a decker's attack: Suppress / Let it register (once); Release from the Matrix tab.
+- [ ] Host sheaf: add steps; a System Test crossing a step whispers the GM; a passive/active step raises the alert.
+
 ## 11. Vehicles & rigging
 - [ ] Vehicle sheet: handling/speed/body/armor/condition.
 - [ ] **Handling / Crash / Position** tests with terrain modifiers and Control Pool.

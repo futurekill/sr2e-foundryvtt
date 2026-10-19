@@ -31,7 +31,7 @@ import { registerCalendariaSettings, registerCalendariaHooks } from "./calendari
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
-import { renderVR2MatrixCard, reconcileTallies } from "./vr2.mjs";
+import { renderVR2MatrixCard, renderManeuverCard, wireVR2Buttons, vr2Ready } from "./vr2.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
@@ -2100,6 +2100,12 @@ Hooks.on("createChatMessage", async (outcome) => {
     const next = { ...matrix, resolved: true, resolution: outcome.flags.sr2e.matrixResolution ?? "" };
     await card.update({ content: renderVR2MatrixCard(next), "flags.sr2e.matrix": next });
   }
+  // A VR2.0 maneuver's Oppose card.
+  const mvr = card.flags?.sr2e?.vr2Maneuver;
+  if (mvr && !mvr.resolved) {
+    const next = { ...mvr, resolved: true, resolution: outcome.flags.sr2e.vr2ManeuverResolution ?? "" };
+    await card.update({ content: renderManeuverCard(next), "flags.sr2e.vr2Maneuver": next });
+  }
   // Melee: the defender may not own the attack card, so its outcome carries the text.
   const melee = card.flags?.sr2e?.melee;
   if (melee && !melee.resolved) {
@@ -2395,6 +2401,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   wireRitualButtons(message, html);
   wireDrugButtons(message, html);
   wireNetButtons(message, html);
+  wireVR2Buttons(message, html);
 
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.
@@ -2787,8 +2794,8 @@ Hooks.on("ready", () => {
 
 // Apply on initial load
 Hooks.on("ready", _applyNoSceneBackground);
-// VR2.0: System Test cards this client made that never reached their session's tally.
-Hooks.once("ready", () => { if (isVR2()) reconcileTallies().catch(err => console.error("SR2E | VR2 tally reconcile", err)); });
+// VR2.0: this client's unapplied tally events; the GM's sheaf deliveries and maneuver results.
+Hooks.once("ready", () => { if (isVR2()) vr2Ready().catch(err => console.error("SR2E | VR2 ready", err)); });
 
 // Re-apply whenever the canvas finishes drawing (scene activated or first load)
 Hooks.on("canvasReady", _applyNoSceneBackground);

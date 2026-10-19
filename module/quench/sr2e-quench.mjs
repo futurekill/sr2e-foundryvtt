@@ -9918,7 +9918,8 @@ export function registerSR2EQuenchTests() {
 
         it("a crash dumps the decker with dump shock, reduced by an ICCM", async function () {
           this.timeout(15000);
-          const ic = await mk({ name: "Quench VR2 Killer", type: "ic", system: { rating: 6, icType: "black" } });
+          // Gray, not black: a black-IC kill doesn't disconnect (p.124, part 2).
+          const ic = await mk({ name: "Quench VR2 Killer", type: "ic", system: { rating: 6, icType: "gray" } });
           const d = await decker("Quench VR2 Crash", { iccm: true });
           await d.update({ "system.matrixMode": true, "system.matrixPersona.condition.value": 9 });
           const c = await attackCard(ic, d);
@@ -9989,9 +9990,15 @@ export function registerSR2EQuenchTests() {
 
         it("a decker's attack rolls with an attack TN context", async function () {
           this.timeout(15000);
+          if (!canvas?.ready) this.skip();
           const d = await decker("Quench VR2 Ctx");
           const h = await host("Quench VR2 Host C", "blue", 3);
           await d.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program", system: { rating: 4, loaded: true, damageLevel: "M", category: "combat" } }]);
+          // A VR2.0 attack needs a target (part 2): another decker, so the dialog defaults to Intruding.
+          const foe = await decker("Quench VR2 Ctx Foe");
+          const [tok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await foe.getTokenDocument()).toObject(),
+            x: canvas.dimensions.sceneX, y: canvas.dimensions.sceneY }]);
+          await canvas.tokens.setTargets([tok.id]);
           let seen = null;
           const orig = d.rollSuccessTest.bind(d);
           d.rollSuccessTest = (dice, tn, o) => { seen = { tn, ctx: o.tnContext }; return orig(dice, tn, o); };
@@ -10002,7 +10009,8 @@ export function registerSR2EQuenchTests() {
             f?.querySelector('button[data-action="attack"]')?.click();
           }, 50));
           const n = game.messages.size;
-          try { await withFaces(Array(10).fill(6).concat(Array(10).fill(1)), () => vr2MatrixAttack(d)); } finally { Hooks.off("renderDialogV2", id); }
+          try { await withFaces(Array(10).fill(6).concat(Array(10).fill(1)), () => vr2MatrixAttack(d)); }
+          finally { Hooks.off("renderDialogV2", id); await canvas.tokens.setTargets([]); await tok.delete(); }
           await wait(300); since(n);
           assert.equal(seen?.ctx?.kind, "attack");
           assert.equal(seen?.ctx?.key, "computer");
@@ -10010,6 +10018,313 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: VR2.0 core" });
+
+    // ── VR2.0 part 2 (docs/PLAN-vr2-part2.md) ─────────────────────────────────
+    quench.registerBatch("sr2e.vr2-part2", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [], msgs = [], tokens = [];
+      let prior = "core", V;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn, setup = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => {
+          setup?.(app.element);
+          app.element?.querySelector(`button[data-action="${action}"]`)?.click();
+        }, 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const since = (n) => { const m = game.messages.contents.slice(n); msgs.push(...m); return m; };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const host = async (name, code = "red", sv = 8, extra = {}) => mk({ name, type: "host",
+        system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 11 }, ...extra } });
+      const decker = async (name, programs = []) => {
+        const a = await mk({ name, type: "character", system: { karma: { total: 30 }, willpower: { base: 3 },
+          cyberdeck: { mpcp: 8, deckMode: "hot" }, matrixPersona: { bod: 4, evasion: 6, sensor: 5, masking: 2 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          ...programs.map(([n, r, extra]) => ({ name: n, type: "program", system: { rating: r, loaded: true, category: "other", ...(extra ?? {}) } }))]);
+        await a.update({ "system.matrixMode": true });
+        await V.startSession(a);
+        return a;
+      };
+      const ic = async (name, h, extra = {}) => mk({ name, type: "ic", system: { rating: 5, icType: "white", hostUuid: h.uuid, ...extra } });
+      const tokenFor = async (a, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ actorLink: true })).toObject(),
+          x: d.sceneX + dx * d.size, y: d.sceneY }]);
+        tokens.push(t.id); return t;
+      };
+      const attackCard = async (atk, def, h, extra = {}) => {
+        const st = { ruleset: "vr2", attackerUuid: atk.uuid, attackerName: atk.name, attackerType: atk.type,
+          icType: atk.type === "ic" ? atk.system.icType : "", icClass: atk.type === "ic" ? atk.system.icClass : "",
+          targetUuid: def.uuid, targetName: def.name, targetSession: V.sessionKey(def), attackerSession: V.sessionKey(atk),
+          attackerComputer: 5, hostUuid: h.uuid, hostName: h.name, securityCode: h.system.securityCode,
+          securityValue: h.system.securityValue, status: "intruding", power: 6, level: "M",
+          successes: 2, testMessageId: "quenchNoTest00000", resolved: false, ...extra };
+        const m = await ChatMessage.create({ content: V.renderVR2MatrixCard(st), flags: { sr2e: { matrix: st } } });
+        msgs.push(m); return m;
+      };
+
+      before(async function () {
+        this.timeout(10000);
+        V = await import("../vr2.mjs");
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+      });
+      after(async function () {
+        this.timeout(20000);
+        if (canvas?.ready) {
+          await canvas.tokens.setTargets([]);
+          await canvas.scene.deleteEmbeddedDocuments("Token", tokens.filter(id => canvas.scene.tokens.has(id)));
+        }
+        await ChatMessage.deleteDocuments(msgs.map(m => m.id).filter(id => game.messages.has(id)));
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+      });
+
+      describe("tally events and the sheaf", () => {
+        it("a System Test's host successes cross two rows at one step: alert once, whispers, pending drained", async function () {
+          this.timeout(20000);
+          const h = await host("Quench P2 Sheaf", "red", 8, { sheaf: [
+            { id: "rowA", step: 2, event: "passive", note: "" }, { id: "rowB", step: 2, event: "ic", note: "Killer-7" }] });
+          const a = await decker("Quench P2 Sheafer", [["Deception", 4]]);
+          const n = game.messages.size;
+          // Decker 5 dice vs TN 7: nothing. Host 8 dice vs Detection Factor 2: two successes.
+          await withFaces([1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1], () => a.rollSystemOperation(h, "logonHost", {}));
+          await wait(800);
+          assert.equal(a.flags.sr2e.vr2Session.tally, 2);
+          assert.equal(h.system.alert, "passive", "the passive step raised the alert");
+          const whispers = since(n).filter(m => /Security sheaf/.test(m.content));
+          assert.lengthOf(whispers, 2, "both rows at step 2 whispered");
+          assert.lengthOf(Object.keys(a.flags.sr2e.vr2SheafPending ?? {}), 0, "delivered and drained");
+          await h.update({ "system.alert": "active" });
+          await V.deliverSheaf(a);
+          assert.equal(h.system.alert, "active", "never lowered");
+        });
+      });
+
+      describe("crashing IC (p.40)", () => {
+        it("register once; suppress refused after; a second crash card can suppress and release", async function () {
+          this.timeout(20000);
+          const h = await host("Quench P2 Crash Host", "green", 5);
+          const d = await decker("Quench P2 Crasher");
+          await V.sessionFor(d, h);
+          const victim = await ic("Quench P2 Victim", h, { rating: 4, conditionMonitor: { value: 9 } });
+          let n = game.messages.size;
+          await withFaces(Array(10).fill(1), async () => victim.rollMatrixResistance(await attackCard(d, victim, h)));
+          await wait(300);
+          const out = since(n).find(m => m.flags?.sr2e?.vr2Crash);
+          assert.ok(out, "the crash offers the choice");
+          assert.equal(victim.system.generation, 1, "a crash is a new generation");
+          await V.crashChoice(out, "register");
+          assert.equal(d.flags.sr2e.vr2Session.tally, 4);
+          await V.crashChoice(out, "suppress");
+          assert.notOk(Object.keys(d.flags.sr2e.vr2Session.suppressed ?? {}).length, "already decided");
+          // Hitting the crashed IC again is no new crash.
+          n = game.messages.size;
+          await withFaces(Array(10).fill(1), async () => victim.rollMatrixResistance(await attackCard(d, victim, h)));
+          await wait(300);
+          assert.notOk(since(n).some(m => m.flags?.sr2e?.vr2Crash), "no second crash");
+          // Another IC: suppress, then release.
+          const v2 = await ic("Quench P2 Victim 2", h, { rating: 3, conditionMonitor: { value: 9 } });
+          n = game.messages.size;
+          await withFaces(Array(10).fill(1), async () => v2.rollMatrixResistance(await attackCard(d, v2, h)));
+          await wait(300);
+          const out2 = since(n).find(m => m.flags?.sr2e?.vr2Crash);
+          const df = V.vr2DetectionFactor(d);
+          await V.crashChoice(out2, "suppress");
+          assert.equal(V.vr2DetectionFactor(d), Math.max(2, df - 1));
+          const key = Object.keys(d.flags.sr2e.vr2Session.suppressed)[0];
+          await V.releaseSuppressed(d, key);
+          assert.equal(d.flags.sr2e.vr2Session.tally, 7, "released: +3");
+          assert.isFalse(await V.releaseSuppressed(d, key), "only once");
+        });
+
+        it("a crash card from an earlier session is refused", async function () {
+          this.timeout(15000);
+          const h = await host("Quench P2 Old Host", "green", 5);
+          const d = await decker("Quench P2 Old");
+          const v = await ic("Quench P2 Old Victim", h, { rating: 4, conditionMonitor: { value: 9 } });
+          const n = game.messages.size;
+          await withFaces(Array(10).fill(1), async () => v.rollMatrixResistance(await attackCard(d, v, h, { attackerSession: "someOldSession00" })));
+          await wait(300);
+          const out = since(n).find(m => m.flags?.sr2e?.vr2Crash);
+          await V.crashChoice(out, "register");
+          assert.equal(d.flags.sr2e.vr2Session.tally ?? 0, 0);
+        });
+      });
+
+      describe("wear, Swap Memory, Shield, Medic", () => {
+        it("Armor loses a point per hit it doesn't stop; replay-proof; Swap Memory restores", async function () {
+          this.timeout(20000);
+          const h = await host("Quench P2 Armor Host", "red", 8);
+          const d = await decker("Quench P2 Armored", [["Armor", 2]]);
+          const killer = await ic("Quench P2 Killer", h, { program: "killer" });
+          const card = await attackCard(killer, d, h);
+          await clicking("no", () => withFaces(Array(10).fill(1), () => d.rollMatrixResistance(card)));
+          await wait(300);
+          const armor = d.items.getName("Armor");
+          assert.equal(armor.system.effectiveRating, 1, "worn by one");
+          await V.addWear(d, { itemId: armor.id, loadGen: 0 }, card.id);
+          assert.equal(armor.system.effectiveRating, 1, "the same card can't wear it twice");
+          await V.vr2SwapMemory(d, armor);
+          assert.equal(armor.system.effectiveRating, 2, "a fresh copy");
+          await V.addWear(d, { itemId: armor.id, loadGen: 0 }, "quenchOtherCard0");
+          assert.equal(armor.system.effectiveRating, 2, "wear captured on the old copy doesn't touch the new one");
+        });
+
+        it("Shield takes attack successes away and wears; Medic repairs and wears", async function () {
+          this.timeout(20000);
+          const h = await host("Quench P2 Shield Host", "red", 8);
+          const d = await decker("Quench P2 Shielded", [["Shield", 3], ["Medic", 4]]);
+          const killer = await ic("Quench P2 Killer 2", h, { program: "killer" });
+          const card = await attackCard(killer, d, h);
+          // Shield 3 dice vs TN 5 (the card's attackerComputer): three 5s cancel both attack
+          // successes; Bod 4 vs TN 6: nothing. Unstaged M = 2 boxes.
+          await clicking("yes", () => withFaces([5, 5, 5, 1, 1, 1, 1, 1], () => d.rollMatrixResistance(card)));
+          await wait(300);
+          assert.equal(d.system.matrixPersona.condition.value, 2, "M, not staged to S");
+          assert.equal(d.items.getName("Shield").system.effectiveRating, 2, "Shield wore");
+          // Medic 4 dice vs TN 5 (2 boxes = Moderate); it repairs a box per success it actually rolled.
+          const mres = await withFaces([5, 5, 1, 1], () => V.vr2Medic(d, d.items.getName("Medic")));
+          await wait(300);
+          assert.equal(mres?.targetNumber >= 5, true, "TN 5 for 2 boxes (plus any standing modifiers)");
+          assert.equal(d.system.matrixPersona.condition.value, 2 - Math.min(2, mres.successes));
+          assert.equal(d.items.getName("Medic").system.effectiveRating, 3, "Medic wore");
+        });
+      });
+
+      describe("attribute attacks (p.41, p.98)", () => {
+        it("a crippler stops at 1, then poison takes it to 0; a re-run changes nothing", async function () {
+          this.timeout(20000);
+          const h = await host("Quench P2 Crip Host", "orange", 6);
+          const d = await decker("Quench P2 Crippled");
+          const acid = await ic("Quench P2 Acid", h, { rating: 4, program: "crippler-acid" });
+          const crip = await attackCard(acid, d, h, { effect: "attribute", attr: "bod", floor: 1, rating: 4,
+            effectName: "Acid-4", successes: 10 });
+          await withFaces(Array(10).fill(1), () => d.rollMatrixResistance(crip));
+          await wait(300);
+          assert.equal(d.system.matrixPersona.bod, 1, "10 vs 0 = 5 points, but a crippler stops at 1");
+          const entry = Object.values(d.flags.sr2e.vr2Session.iconDamage)[0];
+          assert.equal(entry.lost, 3, "the actual loss is recorded");
+          const poison = await attackCard(d, d, h, { attackerType: "character", effect: "attribute", attr: "bod", floor: 0,
+            rating: 3, effectName: "Poison-3", successes: 2 });
+          await withFaces(Array(10).fill(1), () => d.rollMatrixResistance(poison));
+          await wait(300);
+          assert.equal(d.system.matrixPersona.bod, 0, "poison has no floor");
+          await d.update({ "system.matrixPersona.bod": 8 });
+          assert.equal(d.system.matrixPersona.bod, 4, "a later change never revives ineffective damage (8 − 3 − 1)");
+        });
+      });
+
+      describe("maneuvers (p.122)", () => {
+        it("parry: the IC's next attack is +net TN, then it's spent; evade blocks the IC until the tally catches up", async function () {
+          this.timeout(30000);
+          if (!canvas?.ready) this.skip();
+          const { vr2Maneuver, vr2MatrixAttack } = V;
+          const h = await host("Quench P2 Man Host", "green", 4);
+          const d = await decker("Quench P2 Dancer");
+          await V.sessionFor(d, h);
+          const killer = await ic("Quench P2 Man Killer", h, { program: "killer" });
+          const tD = await tokenFor(d, 0), tI = await tokenFor(killer, 2);
+          // Parry: Evasion 6 vs TN 4 (Sensor = SV 4): four 5s; the IC's SV 4 vs TN 6: nothing. Net 4.
+          await canvas.tokens.setTargets([tI.id]);
+          await clicking("go", () => withFaces([5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], () => vr2Maneuver(d)),
+            (el) => { const k = el?.querySelector('select[name="kind"]'); if (k) k.value = "parry"; });
+          await wait(500);
+          const pk = tD.actor.uuid.replaceAll(".", "~");
+          assert.equal(killer.flags.sr2e.vr2Maneuvers?.parriedBy?.[pk]?.net, 4, "the parry lands on the IC");
+          let seen = null;
+          const orig = killer.rollSuccessTest.bind(killer);
+          killer.rollSuccessTest = (dice, tn, o) => { seen = tn; return orig(dice, tn, o); };
+          await canvas.tokens.setTargets([tD.id]);
+          await clicking("attack", () => withFaces(Array(10).fill(1), () => vr2MatrixAttack(killer)));
+          await wait(300);
+          assert.equal(seen, 5 + 4, "Green vs intruding 5, +4 parry");
+          assert.notOk(Object.keys(killer.flags.sr2e.vr2Maneuvers?.parriedBy ?? {}).length, "spent");
+          // Evade: 3 vs 0 → 3 turns. The IC can't attack until the tally rises by 3.
+          await canvas.tokens.setTargets([tI.id]);
+          await clicking("go", () => withFaces([5, 5, 5, 1, 1, 1, 5, 1, 1, 1], () => vr2Maneuver(d)),
+            (el) => { const k = el?.querySelector('select[name="kind"]'); if (k) k.value = "evade"; });
+          await wait(500);
+          await canvas.tokens.setTargets([tD.id]);
+          let n = game.messages.size;
+          await clicking("attack", () => withFaces(Array(10).fill(1), () => vr2MatrixAttack(killer)));
+          await wait(300);
+          assert.notOk(since(n).some(m => m.flags?.sr2e?.matrix), "it lost the decker");
+          const turns = Object.values(killer.flags.sr2e.vr2Maneuvers.lostSight)[0].turns;
+          assert.equal(turns, 3, "3 vs 0");
+          await d.update({ "flags.sr2e.vr2Session.tally": (d.flags.sr2e.vr2Session.tally ?? 0) + turns });
+          n = game.messages.size;
+          await clicking("attack", () => withFaces(Array(10).fill(1), () => vr2MatrixAttack(killer)));
+          await wait(300);
+          assert.ok(since(n).some(m => m.flags?.sr2e?.matrix), "re-detected once the tally caught up");
+          killer.rollSuccessTest = orig;
+        });
+        it("an untargeted attack is refused", async function () {
+          if (!canvas?.ready) this.skip();
+          const d = await decker("Quench P2 NoTarget", [["Attack", 4, { damageLevel: "M" }]]);
+          await canvas.tokens.setTargets([]);
+          const n = game.messages.size;
+          await V.vr2MatrixAttack(d);
+          assert.equal(game.messages.size, n);
+        });
+      });
+
+      describe("improvised attacks (p.123)", () => {
+        it("build: points down until used; the one-shot attack spends it", async function () {
+          this.timeout(30000);
+          if (!canvas?.ready) this.skip();
+          const h = await host("Quench P2 Imp Host", "blue", 3);
+          const d = await decker("Quench P2 Improviser");
+          await V.sessionFor(d, h);
+          const foe = await decker("Quench P2 Imp Foe");
+          const tF = await tokenFor(foe, 4);
+          // Bod 1 + Evasion 2 = Power 3; Computer 5 vs TN 3: two 5s → Moderate.
+          await clicking("go", () => withFaces([5, 5, 1, 1, 1], () => V.vr2BuildImprovised(d)),
+            (el) => { el.querySelector('input[name="bod"]').value = "1"; el.querySelector('input[name="evasion"]').value = "2"; });
+          await wait(300);
+          assert.deepEqual([d.system.matrixPersona.bod, d.system.matrixPersona.evasion], [3, 4]);
+          assert.equal(d.flags.sr2e.vr2Session.improvised.level, "M");
+          // Saving the sheet must not re-author the reduced (derived) persona.
+          await d.sheet.render(true); await wait(800);
+          assert.equal(d.sheet.element.querySelector('input[name="system.matrixPersona.bod"]')?.value, "4", "edited at its authored value");
+          await d.sheet.submit(); await wait(300);
+          assert.equal(d._source.system.matrixPersona.bod, 4, "a sheet save keeps the authored Bod");
+          await d.sheet.close();
+          await canvas.tokens.setTargets([tF.id]);
+          const n = game.messages.size;
+          await clicking("attack", () => withFaces(Array(10).fill(1), () => V.vr2MatrixAttack(d)),
+            (el) => { const p = el?.querySelector('select[name="program"]'); if (p) p.value = "improv"; });
+          await wait(300);
+          const card = since(n).find(m => m.flags?.sr2e?.matrix);
+          assert.deepEqual([card?.flags.sr2e.matrix.power, card?.flags.sr2e.matrix.level], [3, "M"]);
+          assert.notOk(d.flags.sr2e.vr2Session.improvised, "a one-shot");
+          assert.deepEqual([d.system.matrixPersona.bod, d.system.matrixPersona.evasion], [4, 6], "points back");
+        });
+      });
+
+      describe("black IC and zero dice", () => {
+        it("a black-IC icon kill doesn't disconnect; Bod 0 resists with no dice", async function () {
+          this.timeout(20000);
+          const h = await host("Quench P2 Black Host", "red", 8);
+          const d = await decker("Quench P2 Fried");
+          await d.update({ "system.matrixPersona.condition.value": 9 });
+          const black = await ic("Quench P2 Black", h, { icType: "black" });
+          await withFaces(Array(10).fill(1), async () => d.rollMatrixResistance(await attackCard(black, d, h)));
+          await wait(400);
+          assert.isTrue(d.system.matrixMode, "still connected (p.124)");
+          await d.update({ "system.matrixPersona.bod": 0, "system.matrixPersona.condition.value": 0 });
+          const n = game.messages.size;
+          await withFaces([], async () => d.rollMatrixResistance(await attackCard(black, d, h)));
+          await wait(300);
+          assert.ok(since(n).some(m => m.flags?.sr2e?.resolves), "resolved with 0 dice");
+        });
+      });
+    }, { displayName: "SR2E: VR2.0 part 2" });
 
 
 

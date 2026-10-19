@@ -7,48 +7,48 @@
       <div class="cyberdeck-grid">
         <div class="form-group">
           <label>MPCP:</label>
-          <input type="number" name="system.cyberdeck.mpcp" value="{{system.cyberdeck.mpcp}}" min="0" />
+          <input type="number" name="system.cyberdeck.mpcp" value="{{authoredDeck.mpcp}}" min="0" />{{#ifEquals authoredDeck.mpcp system.cyberdeck.mpcp}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.mpcp}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Hardening:</label>
-          <input type="number" name="system.cyberdeck.hardening" value="{{system.cyberdeck.hardening}}" min="0" />
+          <input type="number" name="system.cyberdeck.hardening" value="{{authoredDeck.hardening}}" min="0" />{{#ifEquals authoredDeck.hardening system.cyberdeck.hardening}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.hardening}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Active Memory:</label>
-          <input type="number" name="system.cyberdeck.activeMemory" value="{{system.cyberdeck.activeMemory}}" min="0" />
+          <input type="number" name="system.cyberdeck.activeMemory" value="{{authoredDeck.activeMemory}}" min="0" />{{#ifEquals authoredDeck.activeMemory system.cyberdeck.activeMemory}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.activeMemory}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Storage Memory:</label>
-          <input type="number" name="system.cyberdeck.storageMemory" value="{{system.cyberdeck.storageMemory}}" min="0" />
+          <input type="number" name="system.cyberdeck.storageMemory" value="{{authoredDeck.storageMemory}}" min="0" />{{#ifEquals authoredDeck.storageMemory system.cyberdeck.storageMemory}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.storageMemory}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Load Speed:</label>
-          <input type="number" name="system.cyberdeck.loadSpeed" value="{{system.cyberdeck.loadSpeed}}" min="0" />
+          <input type="number" name="system.cyberdeck.loadSpeed" value="{{authoredDeck.loadSpeed}}" min="0" />{{#ifEquals authoredDeck.loadSpeed system.cyberdeck.loadSpeed}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.loadSpeed}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>I/O Speed:</label>
-          <input type="number" name="system.cyberdeck.ioSpeed" value="{{system.cyberdeck.ioSpeed}}" min="0" />
+          <input type="number" name="system.cyberdeck.ioSpeed" value="{{authoredDeck.ioSpeed}}" min="0" />{{#ifEquals authoredDeck.ioSpeed system.cyberdeck.ioSpeed}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.ioSpeed}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Response:</label>
-          <input type="number" name="system.cyberdeck.response" value="{{system.cyberdeck.response}}" min="0" />
+          <input type="number" name="system.cyberdeck.response" value="{{authoredDeck.response}}" min="0" />{{#ifEquals authoredDeck.response system.cyberdeck.response}}{{else}}<span class="hint" title="From the active deck">→ {{system.cyberdeck.response}}</span>{{/ifEquals}}
         </div>
         {{#if vr2}}
         <div class="form-group">
           <label title="VR2.0 p.85: hot (full simsense), cool (legal-level signal; black IC can't kill), tortoise (no ASIST)">ASIST:</label>
           <select name="system.cyberdeck.deckMode">
-            <option value="hot" {{selected system.cyberdeck.deckMode "hot"}}>Hot</option>
-            <option value="cool" {{selected system.cyberdeck.deckMode "cool"}}>Cool</option>
-            <option value="tortoise" {{selected system.cyberdeck.deckMode "tortoise"}}>Tortoise</option>
+            <option value="hot" {{selected authoredDeck.deckMode "hot"}}>Hot</option>
+            <option value="cool" {{selected authoredDeck.deckMode "cool"}}>Cool</option>
+            <option value="tortoise" {{selected authoredDeck.deckMode "tortoise"}}>Tortoise</option>
           </select>
         </div>
         <div class="form-group">
           <label title="No manual controls (VR2.0 p.85): another level of Response Increase; +2 to simsense-overload TNs">DNI only:</label>
-          <input type="checkbox" name="system.cyberdeck.dniOnly" {{checked system.cyberdeck.dniOnly}} />
+          <input type="checkbox" name="system.cyberdeck.dniOnly" {{checked authoredDeck.dniOnly}} />
         </div>
         <div class="form-group">
           <label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
-          <input type="checkbox" name="system.cyberdeck.iccm" {{checked system.cyberdeck.iccm}} />
+          <input type="checkbox" name="system.cyberdeck.iccm" {{checked authoredDeck.iccm}} />
         </div>
         {{/if}}
       </div>
@@ -72,6 +72,19 @@
       <button type="button" data-action="systemOperation" title="{{#if vr2}}A System Test against a host subsystem (VR2.0 p.19){{else}}Run a system operation against a host/node (SR2E p.166){{/if}}.">
         <i class="fas fa-terminal"></i> System Operation
       </button>
+      {{#if vr2}}
+      <button type="button" data-action="vr2Maneuver" title="Evade detection, parry or position against the targeted icon: Evasion vs its Sensor, opposed (VR2.0 p.122).">
+        <i class="fas fa-shuffle"></i> Maneuver
+      </button>
+      <button type="button" data-action="vr2Improvise" title="Write a one-shot attack program from Evasion and Bod points (VR2.0 p.123).">
+        <i class="fas fa-code"></i> Improvise
+      </button>
+      {{#if vr2LostSight}}
+      <button type="button" data-action="vr2Redetect" title="After a successful Analyze Icon or Locate Decker: find the icons that evaded you again (p.122).">
+        <i class="fas fa-eye"></i> Re-detect
+      </button>
+      {{/if}}
+      {{/if}}
       {{/if}}
       {{#if vr2}}
       {{#if vr2Session}}
@@ -95,6 +108,17 @@
       {{/if}}
     </div>
 
+    {{#if vr2}}{{#if vr2Session}}
+    {{#if vr2Improvised}}
+    <p class="rule-note"><i class="fas fa-code"></i> Improvised attack: {{#if vr2Improvised.level}}Power {{vr2Improvised.power}}, {{vr2Improvised.level}} — ready (one-shot){{else}}build failed{{/if}};
+      Bod −{{vr2Improvised.bod}}, Evasion −{{vr2Improvised.evasion}} until it's used (p.123).</p>
+    {{/if}}
+    {{#each vr2Suppressed as |sup|}}
+    <p class="rule-note"><i class="fas fa-ghost"></i> Suppressed: <strong>{{sup.name}}</strong> (rating {{sup.rating}}, Detection Factor −1)
+      <button type="button" data-action="vr2Release" data-key="{{sup.key}}" title="Release it: +1 Detection Factor, +{{sup.rating}} to the tally (VR2.0 p.40).">Release</button></p>
+    {{/each}}
+    {{/if}}{{/if}}
+
     <fieldset class="persona-config">
       <legend>Persona</legend>
       {{#if personaBudget}}
@@ -104,19 +128,19 @@
       <div class="persona-grid">
         <div class="form-group">
           <label>Bod:</label>
-          <input type="number" name="system.matrixPersona.bod" value="{{system.matrixPersona.bod}}" min="0" />
+          <input type="number" name="system.matrixPersona.bod" value="{{authoredPersona.bod}}" min="0" />{{#ifEquals authoredPersona.bod system.matrixPersona.bod}}{{else}}<span class="hint" title="Effective: loaded programs, icon damage, an improvised build">→ {{system.matrixPersona.bod}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Evasion:</label>
-          <input type="number" name="system.matrixPersona.evasion" value="{{system.matrixPersona.evasion}}" min="0" />
+          <input type="number" name="system.matrixPersona.evasion" value="{{authoredPersona.evasion}}" min="0" />{{#ifEquals authoredPersona.evasion system.matrixPersona.evasion}}{{else}}<span class="hint" title="Effective: loaded programs, icon damage, an improvised build">→ {{system.matrixPersona.evasion}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Masking:</label>
-          <input type="number" name="system.matrixPersona.masking" value="{{system.matrixPersona.masking}}" min="0" />
+          <input type="number" name="system.matrixPersona.masking" value="{{authoredPersona.masking}}" min="0" />{{#ifEquals authoredPersona.masking system.matrixPersona.masking}}{{else}}<span class="hint" title="Effective: loaded programs, icon damage, an improvised build">→ {{system.matrixPersona.masking}}</span>{{/ifEquals}}
         </div>
         <div class="form-group">
           <label>Sensor:</label>
-          <input type="number" name="system.matrixPersona.sensor" value="{{system.matrixPersona.sensor}}" min="0" />
+          <input type="number" name="system.matrixPersona.sensor" value="{{authoredPersona.sensor}}" min="0" />{{#ifEquals authoredPersona.sensor system.matrixPersona.sensor}}{{else}}<span class="hint" title="Effective: loaded programs, icon damage, an improvised build">→ {{system.matrixPersona.sensor}}</span>{{/ifEquals}}
         </div>
       </div>
       <div class="form-group" style="margin-top:6px;">
@@ -155,11 +179,13 @@
             {{program.name}}
           </span>
           <span>{{program.system.category}}</span>
-          <span>Rating: {{program.system.rating}}</span>
+          <span>Rating: {{#if ../vr2}}{{program.system.effectiveRating}}{{#if program.system.crashed}} (crashed){{/if}}{{#ifEquals program.system.effectiveRating program.system.rating}}{{else}} of {{program.system.rating}}{{/ifEquals}}{{else}}{{program.system.rating}}{{/if}}</span>
           <span>Size: {{program.system.size}}</span>
           <span>{{#if program.system.loaded}}<i class="fas fa-check text-success"></i> Loaded{{/if}}</span>
           <div class="item-controls">
             <a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>
+            {{#if ../vr2}}<a data-action="vr2SwapMemory" title="Swap Memory: a fresh copy at full rating (VR2.0 p.99)"><i class="fas fa-rotate"></i></a>
+            {{#if program.isMedic}}<a data-action="vr2Medic" title="Medic: repair the icon (a Complex Action, VR2.0 p.100)"><i class="fas fa-kit-medical"></i></a>{{/if}}{{/if}}
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
           </div>

@@ -2138,6 +2138,61 @@ export function personaBudgetOver(bems, mpcp) {
   return Math.max(0, (Number(bems) || 0) - 3 * (Number(mpcp) || 0));
 }
 
+// ── VR2.0 part 2 (docs/PLAN-vr2-part2.md) ──────────────────────────────────────
+
+/** An IC program's class (VR2.0 p.40–43): killer and cripplers are white; otherwise the authored type. */
+export function icClass(program, icType = "white") {
+  if (program === "killer" || String(program ?? "").startsWith("crippler-")) return "white";
+  return icType || "white";
+}
+
+/** The attribute a crippler attacks (p.41). */
+export const CRIPPLER_ATTRIBUTE = { "crippler-acid": "bod", "crippler-binder": "evasion",
+  "crippler-jammer": "sensor", "crippler-marker": "masking" };
+
+/**
+ * Combat maneuver TNs (p.122): the maneuverer rolls Evasion vs the opponent's Sensor less
+ * its own Cloak; the opponent rolls Sensor vs the maneuverer's Evasion less its Lock-On.
+ */
+export function maneuverTNs({ evasion, sensor, cloak = 0, lockOn = 0 }) {
+  return { maneuverer: Math.max(2, (sensor || 0) - (cloak || 0)), opponent: Math.max(2, (evasion || 0) - (lockOn || 0)) };
+}
+
+/**
+ * Who a combat maneuver benefits (p.122). Evade and parry need the maneuverer to win
+ * (more successes, at least one); a position attack goes to whichever side wins.
+ * @returns {{beneficiary: "maneuverer"|"opponent", net: number}|null}
+ */
+export function maneuverOutcome(kind, mS, oS) {
+  const m = Number(mS) || 0, o = Number(oS) || 0;
+  if (m > 0 && m > o) return { beneficiary: "maneuverer", net: m - o };
+  if (kind === "position" && o > m) return { beneficiary: "opponent", net: o - m };
+  return null;
+}
+
+/** An improvised attack's Damage Level by build successes (p.123): 1 L, 2 M, 3 S, 4+ D. */
+export function improvisedLevel(successes) {
+  const n = Number(successes) || 0;
+  return n <= 0 ? null : ["L", "M", "S", "D"][Math.min(n, 4) - 1];
+}
+
+/** Medic utility TN (p.100) by filled boxes (user ruling: 1 L, 2 M, 3+ S); null at 0. */
+export function medicTN(boxes) {
+  const n = Number(boxes) || 0;
+  return n <= 0 ? null : n === 1 ? 4 : n === 2 ? 5 : 6;
+}
+
+/** The sheaf rows a tally change crosses (p.150): old < step ≤ new, in step order. */
+export function sheafCrossed(rows, oldTally, newTally) {
+  return (rows ?? []).filter(r => r.step > oldTally && r.step <= newTally).sort((a, b) => a.step - b.step);
+}
+
+/** Attribute points an attack actually takes (p.41, p.98): never below its floor. */
+export function attributeLoss(value, points, floor = 0) {
+  const v = Number(value) || 0, p = Math.max(0, Number(points) || 0);
+  return v > floor ? v - Math.max(floor, v - p) : 0;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // SKILL WEB defaulting (SR2E p.68–69)
 //

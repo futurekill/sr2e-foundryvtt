@@ -46,6 +46,15 @@
         <span>Security Value <em>({{system.securityValue}})</em></span>
         <input type="number" name="system.securityValueOverride" value="{{system.securityValueOverride}}" min="0" /></label>
     </div>
+    <div class="field-grid">
+      <label class="field" title="Probe IC (VR2.0 p.42): on every System Test, this many dice against the decker's Detection Factor, onto the tally.">
+        <span>Probe IC rating</span><input type="number" name="system.probe" value="{{system.probe}}" min="0" /></label>
+    </div>
+    <p class="rule-note"><strong>Security sheaf</strong> (p.150):
+      {{#each sheaf as |row|}}<br>{{row.step}}: {{row.label}}{{#if row.note}} — {{row.note}}{{/if}}
+        <a data-action="hostSheafRemove" data-id="{{row.id}}" title="Remove this step"><i class="fas fa-trash"></i></a>
+      {{else}} no steps.{{/each}}
+      <br><button type="button" data-action="hostSheafAdd"><i class="fas fa-plus"></i> Add step</button></p>
     <p class="rule-note">Security tallies (the host's System Test successes, p.19):
       {{#each tallies as |t|}}<br><strong>{{t.name}}</strong>: {{t.tally}}{{else}}no decker in session.{{/each}}</p>
   </fieldset>

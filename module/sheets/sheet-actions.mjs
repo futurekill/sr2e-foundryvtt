@@ -13,7 +13,8 @@ import { visibilityAlong } from "../spell-effects.mjs";
 import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost } from "../jackpoints.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
-import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession } from "../vr2.mjs";
+import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
+  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory } from "../vr2.mjs";
 import { useDose, endDrug, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
@@ -2497,6 +2498,57 @@ async function onRecoverDumpShock(event, target) {
   return this.document.recoverDumpShock();
 }
 
+// ── VR2.0 part 2 actions (docs/PLAN-vr2-part2.md) ───────────────────────────
+/** @this {ApplicationV2} */
+async function onVR2Maneuver(event) { event.preventDefault(); return vr2Maneuver(this.document); }
+/** @this {ApplicationV2} */
+async function onVR2Improvise(event) { event.preventDefault(); return vr2BuildImprovised(this.document); }
+/** @this {ApplicationV2} */
+async function onVR2Redetect(event) { event.preventDefault(); return vr2Redetect(this.document); }
+/** @this {ApplicationV2} */
+async function onVR2Release(event, target) { event.preventDefault(); return releaseSuppressed(this.document, target.dataset.key); }
+/** @this {ApplicationV2} */
+async function onVR2Medic(event, target) {
+  event.preventDefault();
+  return vr2Medic(this.document, this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId));
+}
+/** @this {ApplicationV2} */
+async function onVR2SwapMemory(event, target) {
+  event.preventDefault();
+  return vr2SwapMemory(this.document, this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId));
+}
+
+/** Add a security-sheaf row to a host (VR2.0 p.150): a step, an event and a note. @this {ApplicationV2} */
+async function onHostSheafAdd(event) {
+  event.preventDefault();
+  const host = this.document;
+  const events = Object.entries(CONFIG.SR2E.vr2SheafEvents).map(([k, l]) => `<option value="${k}">${l || "Other"}</option>`).join("");
+  let row = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Security sheaf — ${host.name}` }, rejectClose: false,
+    content: `<div><div class="form-group"><label>Trigger step:</label><input type="number" name="step" value="5" min="1" style="width:52px;text-align:center;"></div>
+      <div class="form-group"><label>Event:</label><select name="event">${events}</select></div>
+      <div class="form-group"><label>Note:</label><input type="text" name="note" placeholder="e.g. Killer-7, Trace-8"></div></div>`,
+    buttons: [
+      { action: "add", label: "Add", default: true, callback: (ev, b) => {
+        const f = b.form.elements;
+        row = { id: foundry.utils.randomID(), step: Math.max(1, parseInt(f.step.value) || 1), event: f.event.value, note: f.note.value.trim() };
+      } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "add" || !row) return;
+  const sheaf = [...(host.system.sheaf ?? []).map(r => ({ ...r })), row].sort((a, b) => a.step - b.step);
+  return host.update({ "system.sheaf": sheaf });
+}
+
+/** Remove a security-sheaf row. @this {ApplicationV2} */
+async function onHostSheafRemove(event, target) {
+  event.preventDefault();
+  const id = target.dataset.id;
+  return this.document.update({ "system.sheaf": (this.document.system.sheaf ?? []).filter(r => r.id !== id).map(r => ({ ...r })) });
+}
+
 /**
  * Reset a host's intrusion tally and alert state (e.g. between runs).
  * @this {ApplicationV2}
@@ -3512,6 +3564,12 @@ const SHARED_ACTIONS = {
   clearSpellDefense: onClearSpellDefense,
   conjure: onConjure,
   matrixAttack: onMatrixAttack,
+  vr2Maneuver: onVR2Maneuver,
+  vr2Improvise: onVR2Improvise,
+  vr2Redetect: onVR2Redetect,
+  vr2Release: onVR2Release,
+  vr2Medic: onVR2Medic,
+  vr2SwapMemory: onVR2SwapMemory,
   systemOperation: onSystemOperation,
   toggleMatrixMode: onToggleMatrixMode,
   recoverDumpShock: onRecoverDumpShock,
@@ -4066,5 +4124,5 @@ export {
   // directly (NPC / vehicle / spirit / IC / host sheets).
   onAddItem, onDeleteItem, onEditItem,
   onRollAttribute, onRollSkill, onRollInitiative, onRollWeapon,
-  onMatrixAttack, onMatrixPerception, onResetHostTally
+  onMatrixAttack, onMatrixPerception, onResetHostTally, onVR2Maneuver, onVR2Redetect, onHostSheafAdd, onHostSheafRemove
 };

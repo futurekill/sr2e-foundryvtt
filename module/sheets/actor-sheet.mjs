@@ -20,7 +20,7 @@ import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
   onAddItem, onDeleteItem, onEditItem,
   onRollAttribute, onRollSkill, onRollInitiative, onRollWeapon,
-  onMatrixAttack, onMatrixPerception, onResetHostTally
+  onMatrixAttack, onMatrixPerception, onResetHostTally, onVR2Maneuver, onVR2Redetect, onHostSheafAdd, onHostSheafRemove
 } from "./sheet-actions.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -999,7 +999,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.isGM = game.user.isGM;
     context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
     context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, accessPorts: 0, knowAccess: false, memCapacity: 0, memUsed: 0 };
-    context.programs = actor.items.filter(i => i.type === "program");
+    context.programs = actor.items.filter(i => i.type === "program")
+      .map(i => ({ id: i.id, name: i.name, img: i.img, system: i.system, isMedic: /^medic/i.test(i.name) }));
     context.adeptPowers = actor.items.filter(i => i.type === "adept_power");
     const allContacts = actor.items.filter(i => i.type === "contact");
     context.contacts = allContacts.filter(i => i.system.contactType !== "enemy");
@@ -1065,6 +1066,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     );
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
+    // The deck block and persona are DERIVED in place (active deck, loaded programs, VR2.0
+    // icon damage): edit them at their authored values, or submitOnChange re-authors the
+    // derived numbers (CLAUDE.md, derived state).
+    context.authoredDeck = actor._source.system?.cyberdeck ?? {};
+    context.authoredPersona = actor._source.system?.matrixPersona ?? {};
     if (context.vr2 && system.isDecker) {
       // VR2.0: the security tally of the live session, and the persona budget (p.84).
       context.vr2Session = liveSession(actor);
@@ -1073,6 +1079,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       const bems = (p.bod ?? 0) + (p.evasion ?? 0) + (p.masking ?? 0) + (p.sensor ?? 0);
       const over = personaBudgetOver(bems, system.cyberdeck?.mpcp ?? 0);
       context.personaBudget = over ? { bems, cap: 3 * (system.cyberdeck?.mpcp ?? 0), over } : null;
+      context.vr2Suppressed = Object.entries(context.vr2Session?.suppressed ?? {}).map(([key, e]) => ({ key, ...e }));
+      context.vr2Improvised = context.vr2Session?.improvised ?? null;
+      context.vr2LostSight = Object.keys(actor.flags?.sr2e?.vr2Maneuvers?.lostSight ?? {}).length;
     }
     context.isRigger = system.isRigger;
 
@@ -1752,7 +1761,9 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
       deleteItem: onDeleteItem,
       addItem: onAddItem,
       matrixAttack: onMatrixAttack,
-      matrixPerception: onMatrixPerception
+      matrixPerception: onMatrixPerception,
+      vr2Maneuver: onVR2Maneuver,
+      vr2Redetect: onVR2Redetect
     }
   };
 
@@ -1783,7 +1794,9 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
     classes: ["sr2e", "sheet", "actor", "host"],
     position: { width: 400, height: "auto" },
     actions: {
-      resetHostTally: onResetHostTally
+      resetHostTally: onResetHostTally,
+      hostSheafAdd: onHostSheafAdd,
+      hostSheafRemove: onHostSheafRemove
     }
   };
 
@@ -1800,6 +1813,7 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
       const uuid = this.document.uuid;
       context.subsystems = Object.entries(CONFIG.SR2E.vr2Subsystems).map(([key, label]) =>
         ({ key, label, value: this.document.system.subsystems?.[key] ?? 0 }));
+      context.sheaf = (this.document.system.sheaf ?? []).map(r => ({ ...r, label: CONFIG.SR2E.vr2SheafEvents[r.event] || "Other" }));
       context.tallies = game.actors.filter(a => liveSession(a)?.hostUuid === uuid)
         .map(a => ({ name: a.name, tally: liveSession(a).tally ?? 0 }));
     }

@@ -780,6 +780,13 @@ SR2E.systemOperations = {
 // ── Virtual Realities 2.0 Matrix (used only when matrixRuleset === "vr2") ──────
 // The five host subsystems (ACIFS, VR2.0 p.16). Every VR2.0 System Test targets
 // one of these ratings rather than the core book's single System Rating.
+// VR2.0 IC programs (p.41) and their labels; class follows the program (icClass).
+SR2E.icPrograms = { killer: "Killer", "crippler-acid": "Acid", "crippler-binder": "Binder",
+  "crippler-jammer": "Jammer", "crippler-marker": "Marker" };
+
+// Security sheaf events (VR2.0 p.150).
+SR2E.vr2SheafEvents = { ic: "IC activates", passive: "Passive alert", active: "Active alert", shutdown: "Shutdown", other: "" };
+
 SR2E.vr2Subsystems = {
   access:  "Access",
   control: "Control",
