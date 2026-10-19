@@ -3400,16 +3400,9 @@ async function onContributeTeamKarma(event) {
     own
   );
   if (!amount) return;
-  // Dispatch the team-total change first; abort (without spending) if no GM is connected.
-  if (!CONFIG.SR2E.changeTeamKarma(amount)) return;
-  // p.191: "These points are gone for good, even if the character later leaves
-  // the team" — a permanent burn of the character's OWN capacity. Borrowed Team
-  // Karma cannot be gifted onward; it is already the team's.
-  await actor.update({ "system.karma.burned": (k.burned ?? 0) + amount });
-  ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> contributes <strong>${amount}</strong> Karma Pool to the Team Karma Pool.`
-  });
+  // The active GM burns the character's OWN capacity (p.191: "gone for good") and
+  // raises the team total in one queued step, then posts the card.
+  CONFIG.SR2E.changeTeamKarma(amount, actor);
 }
 
 /**
@@ -3428,15 +3421,9 @@ async function onDrawTeamKarma(event) {
     team
   );
   if (!amount) return;
-  if (!CONFIG.SR2E.changeTeamKarma(-amount)) return;
-  // Held for this encounter only; a refresh clears them. The shared setting was
-  // already debited above, so nothing else is charged for them later.
-  const k = actor.system.karma ?? {};
-  await actor.update({ "system.karma.drawn": (k.drawn ?? 0) + amount });
-  ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> draws <strong>${amount}</strong> from the Team Karma Pool.`
-  });
+  // The active GM debits the pool and credits the character in one queued step, so
+  // two players drawing the last point get one between them; it posts the card.
+  CONFIG.SR2E.changeTeamKarma(-amount, actor);
 }
 
 /**

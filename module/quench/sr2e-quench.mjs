@@ -9465,6 +9465,21 @@ export function registerSR2EQuenchTests() {
             assert.isFalse(CONFIG.SR2E.changeTeamKarma(NaN));
             await CONFIG.SR2E._teamKarmaSettled();
             assert.equal(game.settings.get("sr2e", "teamKarma"), 3);
+            // Two characters drawing the last point: one gets it, the other nothing.
+            await game.settings.set("sr2e", "teamKarma", 1);
+            const a = await Actor.create({ name: "Quench Team Karma A", type: "character" });
+            const b = await Actor.create({ name: "Quench Team Karma B", type: "character" });
+            const n = game.messages.size;
+            try {
+              CONFIG.SR2E.changeTeamKarma(-1, a);
+              CONFIG.SR2E.changeTeamKarma(-1, b);
+              await CONFIG.SR2E._teamKarmaSettled();
+              assert.equal(game.settings.get("sr2e", "teamKarma"), 0);
+              assert.equal((a.system.karma.drawn ?? 0) + (b.system.karma.drawn ?? 0), 1, "one point between them");
+            } finally {
+              await ChatMessage.deleteDocuments(game.messages.contents.slice(n).map(m => m.id));
+              await a.delete(); await b.delete();
+            }
           } finally {
             await CONFIG.SR2E._teamKarmaSettled();
             await game.settings.set("sr2e", "teamKarma", saved);

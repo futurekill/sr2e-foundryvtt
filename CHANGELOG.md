@@ -9,6 +9,11 @@
   Cybered [Attribute] +1 to +4, Drain ((F / 2) + 3) at L/M/S/D (physical). Each sets
   its bonus on its effect, and the notes give the Reaction versions. A copy already on
   a character keeps the old Drain; drag in the new one.
+- **Team Karma can't be overdrawn.** Two players drawing the last point at once each
+  got it. The active GM now debits the pool and credits the character in one step,
+  so they get one between them, and the other player is told the pool was empty.
+  Contributions burn the character's own Karma in the same step, and a second GM's
+  changes go through the active GM too.
 
 ## 0.106.0 — 2026-10-19
 

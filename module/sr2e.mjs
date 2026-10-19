@@ -673,14 +673,41 @@ Hooks.once("ready", async () => {
  * @private
  */
 let _teamKarmaChain = Promise.resolve();
-function _applyTeamKarmaDelta(delta) {
+function _applyTeamKarmaDelta(delta, actorUuid = null, userId = game.user.id) {
   // One write at a time, so each reads the total the previous one committed:
-  // two quick spends from 5 must leave 3, not 4.
-  // shortcut: two players drawing the LAST point at once both get it (the draw credits
-  // the actor before the GM applies it); needs a request/reply over a reliable socket.
+  // two quick spends from 5 must leave 3, not 4. A character's draw or contribution
+  // is settled HERE, in the same queued step (the GM credits or burns the character),
+  // so two players drawing the last point get one point between them.
   _teamKarmaChain = _teamKarmaChain.then(async () => {
     const current = game.settings.get("sr2e", "teamKarma") ?? 0;
-    await game.settings.set("sr2e", "teamKarma", Math.max(0, current + delta));
+    if (!actorUuid) return game.settings.set("sr2e", "teamKarma", Math.max(0, current + delta));
+    const actor = await fromUuid(actorUuid);
+    const user = game.users.get(userId);
+    if (actor?.type !== "character" || !user || !actor.testUserPermission(user, "OWNER")) return;
+    const k = actor.system.karma ?? {};
+    const speaker = ChatMessage.getSpeaker({ actor });
+    const name = foundry.utils.escapeHTML(actor.name);
+    if (delta < 0) {
+      const grant = Math.min(-delta, current);
+      if (grant < 1) {
+        return ChatMessage.create({ whisper: [userId], content: `The Team Karma Pool is empty: ${name} draws nothing.` });
+      }
+      // Held for this encounter only; a refresh clears them. Credit first: if the pool
+      // write then fails, the credit is taken back, so no point is lost or minted.
+      // A hook can cancel an update (it resolves undefined): then the pool stays as it is.
+      if (!await actor.update({ "system.karma.drawn": (k.drawn ?? 0) + grant })) return;
+      try { await game.settings.set("sr2e", "teamKarma", current - grant); }
+      catch (err) { await actor.update({ "system.karma.drawn": k.drawn ?? 0 }); throw err; }
+      return ChatMessage.create({ speaker, content: `<strong>${name}</strong> draws <strong>${grant}</strong> from the Team Karma Pool`
+        + `${grant < -delta ? ` (asked for ${-delta}; that was all it held)` : ""}.` });
+    }
+    // Only the character's OWN unspent capacity, re-read now (SR2E p.191: gone for good).
+    const give = Math.min(delta, Math.max(0, (k.poolMax ?? 0) - (k.spent ?? 0)));
+    if (give < 1) return;
+    if (!await actor.update({ "system.karma.burned": (k.burned ?? 0) + give })) return;
+    try { await game.settings.set("sr2e", "teamKarma", current + give); }
+    catch (err) { await actor.update({ "system.karma.burned": k.burned ?? 0 }); throw err; }
+    return ChatMessage.create({ speaker, content: `<strong>${name}</strong> contributes <strong>${give}</strong> Karma Pool to the Team Karma Pool.` });
   }).catch(err => {
     console.error("SR2E | Team Karma update failed:", err);
     ui.notifications.error(`Team Karma Pool update (${delta > 0 ? "+" : ""}${delta}) failed — see the console.`);
@@ -699,7 +726,14 @@ function _onSocketMessage(data) {
     case "teamKarmaDelta":
       // Exactly one client (the designated active GM) performs the write.
       if (!Number.isFinite(data.delta)) return;
-      if (game.user === game.users.activeGM) _applyTeamKarmaDelta(data.delta);
+      // Always a character's draw or contribution: a bare pool change is the active
+      // GM's own, never a socket request.
+      // shortcut: the system socket doesn't say who sent a message, so `userId` is
+      // trusted (a player could act for a character another player owns); closing that
+      // needs an authenticated transport.
+      if (game.user === game.users.activeGM && data.actorUuid && data.userId) {
+        _applyTeamKarmaDelta(data.delta, data.actorUuid, data.userId);
+      }
       break;
   }
 }
@@ -757,21 +791,30 @@ async function createActorViaGM(actorData) {
 
 /**
  * Request a Team Karma Pool change. GMs apply it directly; players emit a socket
- * request for the active GM to apply. Returns false if no GM is available.
+ * request for the active GM to apply. With `actor`, the GM's queued write also
+ * credits the draw to (or burns the contribution from) that character, granting
+ * only what the pool still holds. Returns false if no GM is available.
  * @param {number} delta
+ * @param {Actor} [actor] - the character drawing (delta < 0) or contributing
  * @returns {boolean} whether the request was applied/dispatched
  */
-SR2E.changeTeamKarma = function changeTeamKarma(delta) {
+SR2E.changeTeamKarma = function changeTeamKarma(delta, actor = null) {
   if (!Number.isFinite(delta)) return false;
-  if (game.user.isGM) {
-    _applyTeamKarmaDelta(delta);
+  // Every write goes through the ACTIVE GM's queue (a second GM's too); a bare pool
+  // change without a character is the active GM's alone.
+  if (game.user === game.users.activeGM) {
+    _applyTeamKarmaDelta(delta, actor?.uuid ?? null);
     return true;
+  }
+  if (!actor) {
+    ui.notifications.warn("Only the active GM can change the Team Karma Pool directly.");
+    return false;
   }
   if (!game.users.activeGM) {
     ui.notifications.warn("No GM is connected to update the Team Karma Pool.");
     return false;
   }
-  game.socket.emit("system.sr2e", { type: "teamKarmaDelta", delta, userId: game.user.id });
+  game.socket.emit("system.sr2e", { type: "teamKarmaDelta", delta, actorUuid: actor.uuid, userId: game.user.id });
   return true;
 };
 /** Resolves once every queued Team Karma write on this client has landed (tests). */
