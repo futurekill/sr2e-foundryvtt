@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Increase Attribute is four spells, and Increase Cybered Attribute exists** (p.154–155).
+  The compendium had one "Increase [Attribute]" with a +0(L) Drain. It is now
+  Increase [Attribute] +1 to +4, Drain ((F / 2) + 1) at L/M/S/D (mana), plus Increase
+  Cybered [Attribute] +1 to +4, Drain ((F / 2) + 3) at L/M/S/D (physical). Each sets
+  its bonus on its effect, and the notes give the Reaction versions. A copy already on
+  a character keeps the old Drain; drag in the new one.
+
 ## 0.106.0 — 2026-10-19
 
 ### Added — the Virtual Realities 2.0 Matrix plays

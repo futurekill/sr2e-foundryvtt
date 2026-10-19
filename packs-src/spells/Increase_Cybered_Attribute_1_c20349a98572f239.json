@@ -1,0 +1,77 @@
+{
+  "_id": "c20349a98572f239",
+  "name": "Increase Cybered [Attribute] +1",
+  "type": "spell",
+  "img": "systems/sr2e/assets/item_icons/spells/increase-attribute.webp",
+  "system": {
+    "category": "health",
+    "type": "physical",
+    "range": "touch",
+    "duration": "sustained",
+    "force": 1,
+    "drainCode": "((F / 2) + 3)L",
+    "target": "2 × affected Attribute",
+    "damageCode": "",
+    "isAreaEffect": false,
+    "isVoluntary": false,
+    "notes": "SR2E p.155. Like Increase [Attribute] +1, but for an Attribute already affected by cybernetics: +1 while sustained. Physical; TN = 2 × the Attribute's rating, one success suffices. Each Attribute is its own spell (learn e.g. Increase Cybered Strength +1: rename the copy). The Reaction version's Drain is one Damage Level higher, as for Increase Attribute; Increase Cybered Reaction +4 is ((F / 2) + 5)D."
+  },
+  "effects": [
+    {
+      "_id": "ae118fb76104bd54",
+      "name": "Increase Cybered [Attribute] +1",
+      "img": "icons/svg/upgrade.svg",
+      "transfer": false,
+      "disabled": false,
+      "changes": [
+        {
+          "key": "system.quickness.mod",
+          "mode": 2,
+          "value": "1",
+          "priority": null
+        }
+      ],
+      "description": "<p>Adds +1 to the chosen Attribute while sustained. Change the key to the Attribute cast on (system.body.mod, system.strength.mod, system.reaction.mod, ...).</p>",
+      "duration": {
+        "startTime": null,
+        "combat": null
+      },
+      "flags": {},
+      "statuses": [],
+      "tint": "#ffffff",
+      "origin": null,
+      "type": "base",
+      "system": {},
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "sort": 0
+    }
+  ],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "351afa1b9f352545",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!c20349a98572f239"
+}
