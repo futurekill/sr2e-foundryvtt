@@ -39,6 +39,14 @@ unchanged.
   When a decker's tally crosses one, the GM gets a whisper, and an alert step raises
   the host's alert (never lowers it).
 
+### Changed — your phone joins as you on Foundry v14
+- **"Open on phone" signs a player's phone in as the same user on v14**, as it already
+  does on v13, so targets and everything else are shared. v14 can't serve the system's
+  join page, so the QR opens Foundry's own join page. Click **Let my phone in**: the
+  computer goes offline for a moment so your name can be picked on the phone. Sign in
+  there with your password, then click **I'm in** and the computer reloads. GMs still
+  use a separate phone user, so GM automation runs on one device.
+
 ### Changed — ready for Foundry v16
 - **Map areas are Regions on Foundry v14 and later.** Blasts, shotgun cones, area spells,
   Poltergeist, Ice Sheet and ritual areas used to be Measured Templates. v14 merges

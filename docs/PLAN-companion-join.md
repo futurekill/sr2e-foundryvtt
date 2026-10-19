@@ -141,3 +141,10 @@ devices at once.
 - Passwordless or one-time pairing codes. They need server support Foundry doesn't
   offer to packages.
 - Changing Foundry's join page.
+
+
+## v14 addendum (2026-10-19)
+v14 serves every `.html` in the data folder as `text/plain`, so this page can't load
+there. On v14+ a player's phone joins as the same user through Foundry's own join page
+while the computer goes offline for a moment, and the computer then reloads; GMs use a
+separate phone user. See docs/PLAN-v14-phone-join.md.

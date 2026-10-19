@@ -633,6 +633,16 @@ If those five all work, the core loop is healthy.
 - [ ] **Address override:** `?companion=1` forces it on a desktop; `?companion=auto`
       returns to automatic.
 
+### Phone join on Foundry v14 (a player; a computer + a phone)
+- [ ] Settings → Open on phone: the QR opens `…/game?companion=1`; the phone shows Foundry's join page with your name greyed.
+- [ ] Let my phone in: a modal countdown; your name lights up on the phone; sign in → the phone opens the companion.
+- [ ] I'm in: the computer reloads, signed in as you; a target picked on either device shows on the other.
+- [ ] Let the countdown run out: the computer reloads anyway; your name greys again on the phone (repeat the steps).
+- [ ] With Foundry open for you in a second tab, your name stays grey (the dialog says why).
+- [ ] A phone already signed in as someone else opens that account (sign out there, scan again).
+- [ ] A GM gets the separate-phone-user text, and no Let my phone in.
+- [ ] Known limit (own task): with an interrupted dose and both devices loading together, check the dose card/Stun lands once.
+
 ## Matrix jackpoints (two clients: a GM and a player login)
 - [ ] GM: draw a Region over a terminal, add the **Matrix jackpoint** behaviour pointing
       at an entry Region on a separate Matrix scene; the player can view that scene

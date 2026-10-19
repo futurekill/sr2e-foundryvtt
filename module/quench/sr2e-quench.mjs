@@ -9154,7 +9154,7 @@ export function registerSR2EQuenchTests() {
     }, { displayName: "SR2E: Mobile companion screen" });
 
     quench.registerBatch("sr2e.companion-join", (context) => {
-      const { it, assert } = context;
+      const { it, assert, describe } = context;
       const wait = (ms) => new Promise(r => setTimeout(r, ms));
       const page = () => foundry.utils.getRoute("systems/sr2e/companion-join.html");
       // v14 serves package .html as text/plain, so the page itself only runs before v14.
@@ -9181,9 +9181,10 @@ export function registerSR2EQuenchTests() {
           const url = new URL(dlg.querySelector(".sr2e-phone-url").value);
           assert.equal(url.origin, location.origin);
           if (v14) {
-            // v14 can't load the system's page: Foundry's own join page, and a phone user.
+            // v14 can't load the system's page. This runs as a GM: Foundry's own join page and a
+            // separate phone user (players get the same-user flow, tested below).
             assert.equal(url.pathname, foundry.utils.getRoute("join"));
-            assert.match(dlg.querySelector(".sr2e-phone-link .hint").textContent, /own user/);
+            assert.match(dlg.querySelector(".sr2e-phone-link .hint").textContent, /separate user/);
           } else {
             assert.equal(url.pathname, page());
             const p = new URLSearchParams(url.hash.slice(1));
@@ -9244,6 +9245,79 @@ export function registerSR2EQuenchTests() {
           assert.equal(d.getElementById("error").textContent, "Wrong password.");
           assert.isFalse(d.getElementById("go").disabled, "usable again");
         } finally { f.remove(); }
+      });
+
+      // v14 same-user join (docs/PLAN-v14-phone-join.md): the offline window, with a FAKE
+      // socket and a stubbed reload, so this client never really disconnects.
+      describe("letting a phone in (same user, v14+)", () => {
+        const fake = (connected = true) => ({ connected, d: 0, c: 0,
+          disconnect() { this.connected = false; this.d++; }, connect() { this.c++; } });
+        let PL, T;
+        const resume = async () => { (T ??= await import("../targeting.mjs"))._resumeTargetSharingForTests(); };
+
+        it("disconnects, then reloads at the deadline; never reconnects; one window at a time", async function () {
+          this.timeout(10000);
+          PL ??= await import("../companion/phone-link.mjs");
+          const sock = fake(); let reloads = 0;
+          try {
+            const ctl = await PL.startPhoneWindow({ seconds: 1, socket: sock, reload: () => reloads++ });
+            assert.isTrue(ctl.ok);
+            assert.equal(sock.d, 1, "offline");
+            const again = await PL.startPhoneWindow({ seconds: 1, socket: fake(), reload: () => reloads++ });
+            assert.deepEqual(again, { ok: false, reason: "open" }, "one window at a time");
+            await wait(1600);
+            assert.equal(reloads, 1, "the deadline reloads");
+            assert.equal(sock.c, 0, "never resumes the socket");
+          } finally { await resume(); }
+        });
+
+        it("ending early reloads at once; an offline client is refused", async function () {
+          PL ??= await import("../companion/phone-link.mjs");
+          let reloads = 0;
+          try {
+            const ctl = await PL.startPhoneWindow({ seconds: 60, socket: fake(), reload: () => reloads++ });
+            ctl.end(); ctl.end();
+            assert.equal(reloads, 1, "I'm in / Cancel / close: one reload");
+            const off = await PL.startPhoneWindow({ socket: fake(false), reload: () => reloads++ });
+            assert.deepEqual(off, { ok: false, reason: "offline" });
+          } finally { await resume(); }
+        });
+
+        it("a target write started while draining is waited for too", async function () {
+          this.timeout(10000);
+          T ??= await import("../targeting.mjs");
+          const orig = game.user.update; const releases = [];
+          game.user.update = () => new Promise(r => releases.push(r));
+          try {
+            T.shareTargets(canvas?.scene?.id ?? null, []);
+            const drained = T.drainTargets({ timeoutMs: 2000 });
+            await wait(50);
+            T.shareTargets(canvas?.scene?.id ?? null, []);            // starts mid-drain
+            releases[0]?.();
+            await wait(100);
+            let done = false; drained.then(() => { done = true; });
+            await wait(100);
+            assert.isFalse(done, "still waiting for the second write");
+            releases[1]?.();
+            assert.isTrue(await drained, "quiet once both land");
+          } finally { game.user.update = orig; releases.forEach(r => r()); await resume(); }
+        });
+
+        it("a target write that won't land aborts the window with no disconnect", async function () {
+          this.timeout(10000);
+          PL ??= await import("../companion/phone-link.mjs");
+          T ??= await import("../targeting.mjs");
+          const orig = game.user.update; let release;
+          game.user.update = () => new Promise(r => { release = r; });
+          const sock = fake(); let reloads = 0;
+          try {
+            T.shareTargets(canvas?.scene?.id ?? null, []);
+            const res = await PL.startPhoneWindow({ socket: sock, reload: () => reloads++, drainTimeoutMs: 300 });
+            assert.deepEqual(res, { ok: false, reason: "busy" });
+            assert.equal(sock.d, 0, "still online");
+            assert.equal(reloads, 0);
+          } finally { game.user.update = orig; release?.(); await resume(); }
+        });
       });
     }, { displayName: "SR2E: Phone join page" });
 

@@ -89,16 +89,30 @@ export function targetChoices(rows = [], { astralActive = false } = {}) {
 export const JOIN_PAGE = "systems/sr2e/companion-join.html";
 
 /**
- * How "Open on phone" signs the phone in. Foundry v14 serves every package .html as
- * text/plain, so the system's join page can't load there: the phone uses Foundry's own
- * join page as a second user instead. Earlier generations use the system's page.
- * shortcut: a separate phone user doesn't share the computer user's targets; revisit if
- * Foundry gets a supported way to host a page (the user wants other options later).
+ * How "Open on phone" signs the phone in (docs/PLAN-v14-phone-join.md).
+ * - v13: the system's own join page ("page").
+ * - v14+ serves every .html in the data folder as text/plain, so a player's phone uses
+ *   Foundry's own join page as the SAME user, while the computer goes offline for a
+ *   moment ("sameUser").
+ * - A GM gets a separate phone user ("phoneUser"): two clients of one GM would both run
+ *   GM-only automation.
  * @param {number} generation  game.release.generation
- * @returns {"page"|"phoneUser"}
+ * @param {boolean} [isGM]
+ * @returns {"page"|"sameUser"|"phoneUser"}
  */
-export function phoneJoinMode(generation) {
-  return generation >= 14 ? "phoneUser" : "page";
+export function phoneJoinMode(generation, isGM = false) {
+  if (generation < 14) return "page";
+  return isGM ? "phoneUser" : "sameUser";
+}
+
+/**
+ * The offline window's state at `now` against an ABSOLUTE deadline (a sleeping
+ * laptop wakes past it and ends at once).
+ * @returns {{done:boolean, secondsLeft:number}}
+ */
+export function windowState(now, deadline) {
+  const left = Math.max(0, Math.ceil((deadline - now) / 1000));
+  return { done: left <= 0, secondsLeft: left };
 }
 
 /**

@@ -120,7 +120,15 @@ describe("phoneJoinMode", async () => {
   const R = await import("../module/rules/companion-rules.mjs");
   it("uses the system's join page before v14, and a separate phone user from v14 (package .html is served as text)", () => {
     expect(R.phoneJoinMode(13)).toBe("page");
-    expect(R.phoneJoinMode(14)).toBe("phoneUser");
-    expect(R.phoneJoinMode(15)).toBe("phoneUser");
+    expect(R.phoneJoinMode(13, true)).toBe("page");
+    expect(R.phoneJoinMode(14)).toBe("sameUser");
+    expect(R.phoneJoinMode(15, false)).toBe("sameUser");
+    expect(R.phoneJoinMode(14, true)).toBe("phoneUser");   // GM automation must run once
+  });
+  it("windowState: an absolute deadline, done at or past it", () => {
+    expect(R.windowState(1000, 61000)).toEqual({ done: false, secondsLeft: 60 });
+    expect(R.windowState(60500, 61000)).toEqual({ done: false, secondsLeft: 1 });
+    expect(R.windowState(61000, 61000)).toEqual({ done: true, secondsLeft: 0 });
+    expect(R.windowState(999999, 61000)).toEqual({ done: true, secondsLeft: 0 });   // a laptop woke past it
   });
 });

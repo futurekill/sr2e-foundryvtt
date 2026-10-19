@@ -55,11 +55,51 @@ export { handleFor };
 /** The shared targets as token documents (what the companion's list shows as picked). */
 export function targetDocs() { return sharedTargetDocs(); }
 
-/** Write this user's targets to their User document (any device). */
-export async function shareTargets(sceneId, ids) {
-  await game.user.update({ [`flags.${SCOPE}.${FLAG}`]: { sceneId: sceneId ?? null, ids: [...ids], by: game.socket?.id ?? "" } });
-  // No map on this device: tell the table directly, so the GM still sees the reticle.
-  if (!globalThis.canvas?.ready) game.user.broadcastActivity({ sceneId, targets: [...ids] });
+/** Target writes still in flight, and whether sharing is suspended (docs/PLAN-v14-phone-join.md). */
+const inflight = new Set();
+let suspended = false, pendingWrite = null;
+
+/** Write this user's targets to their User document (any device). Tracked until it lands. */
+export function shareTargets(sceneId, ids) {
+  if (suspended) return Promise.resolve();
+  const p = (async () => {
+    await game.user.update({ [`flags.${SCOPE}.${FLAG}`]: { sceneId: sceneId ?? null, ids: [...ids], by: game.socket?.id ?? "" } });
+    // No map on this device: tell the table directly, so the GM still sees the reticle.
+    if (!globalThis.canvas?.ready) game.user.broadcastActivity({ sceneId, targets: [...ids] });
+  })();
+  inflight.add(p);
+  p.finally(() => inflight.delete(p)).catch(() => {});
+  return p;
+}
+
+/**
+ * Before this client goes offline (the v14 phone join): fire any debounced map write,
+ * then wait until NO target write is pending or in flight, rechecking (a write can start
+ * while it waits), all within `timeoutMs`. With `suspend`, sharing stops in the same
+ * synchronous step that finds it quiet, so nothing can slip in after. False on a timeout.
+ */
+export async function drainTargets({ timeoutMs = 3000, suspend = false } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; const fn = pendingWrite; pendingWrite = null; fn?.(); }
+    if (!inflight.size && !writeTimer) {
+      if (suspend) suspendTargetSharing();
+      return true;
+    }
+    const left = deadline - Date.now();
+    if (left <= 0) return false;
+    const settled = Promise.allSettled([...inflight, queue]).then(() => true);
+    if (!(await Promise.race([settled, new Promise(r => setTimeout(() => r(false), left))]))) return false;
+  }
+}
+
+/** Tests only: undo suspendTargetSharing (a real client reloads instead). */
+export function _resumeTargetSharingForTests() { suspended = false; }
+
+/** Stop new target writes on this client until it reloads. */
+export function suspendTargetSharing() {
+  suspended = true;
+  clearTimeout(writeTimer); writeTimer = null; pendingWrite = null;
 }
 
 /**
@@ -79,14 +119,15 @@ export function updateSharedTargets(sceneId, fn) {
 
 /** A map client: mirror the user's targets out (debounced). */
 function writeFromCanvas() {
-  if (applying || !canvas?.ready) return;
+  if (applying || suspended || !canvas?.ready) return;
   clearTimeout(writeTimer);
-  writeTimer = setTimeout(() => {
+  pendingWrite = () => {
     const ids = [...game.user.targets].map(t => t.id);
     const rec = game.user.getFlag(SCOPE, FLAG);
     if (rec && rec.sceneId === canvas.scene?.id && JSON.stringify(rec.ids ?? []) === JSON.stringify(ids)) return;
     shareTargets(canvas.scene?.id ?? null, ids);
-  }, 120);
+  };
+  writeTimer = setTimeout(() => { writeTimer = null; const fn = pendingWrite; pendingWrite = null; fn?.(); }, 120);
 }
 
 /** A map client: make the map show the stored record (a no-op when it already does). */
