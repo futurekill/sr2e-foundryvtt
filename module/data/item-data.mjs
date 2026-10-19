@@ -1,5 +1,7 @@
 import { SR2EDataModel } from "./base-data.mjs";
-import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining} from "../rules/sr2e-rules.mjs";
+import { isVR2 } from "../vr2-mode.mjs";
+import { deckModeFields } from "./actor-data.mjs";
+import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -523,7 +525,8 @@ export class CyberwareData extends SR2EDataModel {
         storageMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         loadSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         ioSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-        response: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+        response: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        ...deckModeFields()
       }),
       // Skillwire PLUS (Shadowtech p.47): a skillwire system whose Total-Ratings
       // capacity is Level × 2 (a Classic system is Level × 1). An explicit flag so
@@ -815,7 +818,8 @@ export class GearData extends SR2EDataModel {
         storageMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         loadSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         ioSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-        response: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+        response: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        ...deckModeFields()
       }),
 
       // Weapon accessory (Laser Sight, Smartgun System, Gas-vent, Gyro Mount,
@@ -938,19 +942,25 @@ export class ProgramData extends SR2EDataModel {
       multiplier: new fields.NumberField({ initial: 1, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       loaded: new fields.BooleanField({ initial: false }),
+      // VR2.0 attack utility Damage Level (p.98); "" = none / not an attack.
+      // blank: true — a StringField with choices refuses "" otherwise, and every program fails validation.
+      damageLevel: new fields.StringField({ initial: "", blank: true, choices: { "": "—", L: "L", M: "M", S: "S", D: "D" } }),
       notes: new fields.StringField({ initial: "" })
     };
   }
 
   /** @override */
   prepareDerivedData() {
+    const vr2 = isVR2();
+    // VR2.0: an attack utility's size multiplier follows its Damage Level (p.98).
+    // Both directions: otherwise the authored multiplier (CLAUDE.md, derived state).
+    const levelMult = vr2 ? attackMultiplier(this.damageLevel) : null;
+    this.multiplier = levelMult ?? this.parent?._source?.system?.multiplier ?? this.multiplier;
     // Program memory size = Rating² × Multiplier (same in both rulesets).
     this.size = programSize(this.rating, this.multiplier);
     // Cost: core book is a flat Size × 100 (p.174–177); VR2.0 tiers the price
     // multiplier by rating (Program Prices Table, p.107). try/catch: data prep
     // can run before settings are registered (default to the core formula).
-    let vr2 = false;
-    try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
     // Shared derivation — the ruleset is read HERE and passed in, because the rules
     // module is Foundry-free and must not touch game.settings itself.
     this.cost = derivedItemCost({ type: "program", rating: this.rating,

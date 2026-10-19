@@ -1,5 +1,7 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats } from "../rules/sr2e-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
+import { isVR2 } from "../vr2-mode.mjs";
+import { liveSession } from "../vr2.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
 import { activeDrugs, drugOf, substanceRows } from "../drugs.mjs";
@@ -101,6 +103,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.config   = CONFIG.SR2E;
     context.editable = this.isEditable;
     context.isGM     = game.user.isGM;
+    context.vr2      = isVR2();
     context.attrBreakdown = this._buildAttrBreakdown();
     // Recoil still in force this Combat Phase (keyed; module/engagement.mjs).
     context.recoilInForce = currentRecoil(this.document, phaseKey(this.document));
@@ -1062,6 +1065,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     );
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
+    if (context.vr2 && system.isDecker) {
+      // VR2.0: the security tally of the live session, and the persona budget (p.84).
+      context.vr2Session = liveSession(actor);
+      context.vr2LastSession = actor.flags?.sr2e?.lastSession ?? null;
+      const p = system.matrixPersona ?? {};
+      const bems = (p.bod ?? 0) + (p.evasion ?? 0) + (p.masking ?? 0) + (p.sensor ?? 0);
+      const over = personaBudgetOver(bems, system.cyberdeck?.mpcp ?? 0);
+      context.personaBudget = over ? { bems, cap: 3 * (system.cyberdeck?.mpcp ?? 0), over } : null;
+    }
     context.isRigger = system.isRigger;
 
     // Localized labels for the magic tradition display (read-only when set via drag-drop)
@@ -1783,6 +1795,14 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     context.successesNeeded = this.document.system.successesNeeded;
+    if (context.vr2) {
+      // Live tallies of deckers whose session names this host (edited on the decker).
+      const uuid = this.document.uuid;
+      context.subsystems = Object.entries(CONFIG.SR2E.vr2Subsystems).map(([key, label]) =>
+        ({ key, label, value: this.document.system.subsystems?.[key] ?? 0 }));
+      context.tallies = game.actors.filter(a => liveSession(a)?.hostUuid === uuid)
+        .map(a => ({ name: a.name, tally: liveSession(a).tally ?? 0 }));
+    }
     return context;
   }
 }

@@ -58,9 +58,11 @@
     {{#if linkedHost}}
     <p class="rule-note"><i class="fas fa-link"></i> Code &amp; alert synced from <strong>{{linkedHost.name}}</strong>.</p>
     {{/if}}
-    {{#ifEquals system.alert "none"}}{{else}}
+    {{#if vr2}}
+    <p class="rule-note">VR2.0: attacks roll the host's Security Value; Power = Rating, Level by Security Code (p.40, p.124).</p>
+    {{else}}{{#ifEquals system.alert "none"}}{{else}}
     <p class="alert-note passive"><i class="fas fa-triangle-exclamation"></i> Alert — ratings boosted +50% (effective Rating {{system.effectiveRating}}, p.168).</p>
-    {{/ifEquals}}
+    {{/ifEquals}}{{/if}}
   </fieldset>
 
   <fieldset>
@@ -92,9 +94,11 @@
     <button type="button" class="matrix-attack-btn" data-action="matrixAttack" title="Attack a persona in the Matrix (IC Rating dice vs the target's Bod, SR2E p.178).">
       <i class="fas fa-bolt"></i> Matrix Attack
     </button>
+    {{#unless vr2}}
     <button type="button" class="matrix-attack-btn" data-action="matrixPerception" title="Scan for an intruder: IC Rating vs the persona's Masking; any success raises the alert (SR2E p.169).">
       <i class="fas fa-magnifying-glass"></i> Detect Intruder
     </button>
+    {{/unless}}
   </div>
 
   <fieldset>

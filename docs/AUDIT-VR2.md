@@ -525,13 +525,13 @@ ruleset → Virtual Realities 2.0** to opt in.
   Cassie example), `MATRIX_MONITOR_MAX` (flat 10), and `simsenseOverloadTN`
   (Overload Damage TNs L2/M3/S5, Deadly auto-crash).
 
-### Next (roughly in order) — the roll-time rewiring; needs live Foundry testing
-1. Branch `rollMatrixAttack` / `rollMatrixResistance` on the setting: VR2.0 uses
-   `cybercombatTN` + Bod/Security-Value resistance + `matrixCombatOutcome`.
-2. Branch dump shock to `dumpShockDamage` (staged Stun) with a Graceful Logoff
-   exemption; simsense overload via `simsenseOverloadTN`.
-3. Per-subsystem System Tests opposed vs. Detection Factor (uses
-   `vr2SystemOperations` + `subsystemRating`).
-4. IC condition monitor flat 10 boxes (`MATRIX_MONITOR_MAX`) in `vr2` mode; IC
-   Damage Table via `icDamageLevel`.
-5. Host-sheet UI for the ACIFS + Security Value fields, shown only in `vr2` mode.
+- **The roll-time rewiring** (docs/PLAN-vr2-core.md, Codex-approved): VR2.0 System
+  Tests and the per-session security tally, cybercombat (TN table, utility Damage
+  Levels, staging, Security Value/Bod resistance, resolve once), simsense overload,
+  dump shock through one leave-the-Matrix path, deck ASIST modes, IC initiative and
+  monitor, the host ACIFS UI and the persona budget warning. Code in `module/vr2.mjs`;
+  Quench batch `sr2e.vr2-core`.
+
+### Still out of scope (own plans)
+Combat maneuvers (p.121–122), special offensive utilities, IC special abilities, deck
+building/SOTA, frames/SKs, otaku, Matrix topology, automated tally triggers.

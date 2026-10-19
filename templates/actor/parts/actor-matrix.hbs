@@ -33,6 +33,24 @@
           <label>Response:</label>
           <input type="number" name="system.cyberdeck.response" value="{{system.cyberdeck.response}}" min="0" />
         </div>
+        {{#if vr2}}
+        <div class="form-group">
+          <label title="VR2.0 p.85: hot (full simsense), cool (legal-level signal; black IC can't kill), tortoise (no ASIST)">ASIST:</label>
+          <select name="system.cyberdeck.deckMode">
+            <option value="hot" {{selected system.cyberdeck.deckMode "hot"}}>Hot</option>
+            <option value="cool" {{selected system.cyberdeck.deckMode "cool"}}>Cool</option>
+            <option value="tortoise" {{selected system.cyberdeck.deckMode "tortoise"}}>Tortoise</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label title="No manual controls (VR2.0 p.85): another level of Response Increase; +2 to simsense-overload TNs">DNI only:</label>
+          <input type="checkbox" name="system.cyberdeck.dniOnly" {{checked system.cyberdeck.dniOnly}} />
+        </div>
+        <div class="form-group">
+          <label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
+          <input type="checkbox" name="system.cyberdeck.iccm" {{checked system.cyberdeck.iccm}} />
+        </div>
+        {{/if}}
       </div>
     </fieldset>
 
@@ -48,14 +66,26 @@
         {{#if system.matrixMode}}Jacked In{{else}}Jacked Out{{/if}}
       </button>
       {{#if system.matrixMode}}
-      <button type="button" data-action="matrixAttack" title="Make a Matrix attack with a loaded Attack program (SR2E p.178).">
+      <button type="button" data-action="matrixAttack" title="{{#if vr2}}Attack with a loaded attack utility vs the Cybercombat Target Numbers Table (VR2.0 p.123){{else}}Make a Matrix attack with a loaded Attack program (SR2E p.178){{/if}}.">
         <i class="fas fa-bolt"></i> Matrix Attack
       </button>
-      <button type="button" data-action="systemOperation" title="Run a system operation against a host/node (SR2E p.166).">
+      <button type="button" data-action="systemOperation" title="{{#if vr2}}A System Test against a host subsystem (VR2.0 p.19){{else}}Run a system operation against a host/node (SR2E p.166){{/if}}.">
         <i class="fas fa-terminal"></i> System Operation
       </button>
       {{/if}}
-      {{#if system.dumpShock}}
+      {{#if vr2}}
+      {{#if vr2Session}}
+      <span class="vr2-tally" title="Security tally of this session's host: the host's System Test successes so far (VR2.0 p.19). The GM sets the trigger steps.">
+        <i class="fas fa-shield-halved"></i> {{vr2Session.hostName}} tally:
+        {{#if isGM}}<input type="number" name="flags.sr2e.vr2Session.tally" value="{{vr2Session.tally}}" min="0" style="width:44px;text-align:center;" />
+        {{else}}<strong>{{vr2Session.tally}}</strong>{{/if}}
+      </span>
+      {{else if vr2LastSession}}
+      <span class="vr2-tally" style="opacity:.7;" title="The last session's security tally (VR2.0 p.19).">
+        Last session: {{vr2LastSession.hostName}} tally {{vr2LastSession.tally}}
+      </span>
+      {{/if}}
+      {{else if system.dumpShock}}
       <span class="dump-shock" style="color:#c44;font-weight:bold;" title="+2 to all TNs until shaken off.">
         <i class="fas fa-skull"></i> Dump Shock
       </span>
@@ -67,6 +97,10 @@
 
     <fieldset class="persona-config">
       <legend>Persona</legend>
+      {{#if personaBudget}}
+      <p class="alert-note passive"><i class="fas fa-triangle-exclamation"></i> Persona programs total {{personaBudget.bems}},
+        over the MPCP × 3 limit of {{personaBudget.cap}} (VR2.0 p.84).</p>
+      {{/if}}
       <div class="persona-grid">
         <div class="form-group">
           <label>Bod:</label>

@@ -31,6 +31,8 @@ import { registerCalendariaSettings, registerCalendariaHooks } from "./calendari
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
+import { renderVR2MatrixCard, reconcileTallies } from "./vr2.mjs";
+import { isVR2 } from "./vr2-mode.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
@@ -1119,12 +1121,15 @@ function _registerSystemSettings() {
   // prep can run before settings are registered (cf. autoEssence above).
   game.settings.register("sr2e", "matrixRuleset", {
     name: "Matrix ruleset",
-    hint: "Which Matrix rules the table uses. Core Rulebook is the default. Virtual Realities 2.0 swaps in the VR2.0 Matrix 2.0 ruleset (in progress — see the changelog for what's wired up).",
+    hint: "Which Matrix rules the table uses. Core Rulebook is the default. Virtual Realities 2.0 swaps in the VR2.0 Matrix 2.0 ruleset: System Tests and the security tally, the Cybercombat TN table, staged icon damage, simsense overload and dump shock.",
     scope: "world",
     config: true,
     type: String,
     choices: { core: "Core Rulebook", vr2: "Virtual Realities 2.0" },
-    default: "core"
+    default: "core",
+    // Every client reloads, so no client mixes derived data from one ruleset with
+    // roll logic from the other (docs/PLAN-vr2-core.md step 1).
+    requiresReload: true
   });
 
   // Play-area background shown when no scene is active
@@ -2046,6 +2051,12 @@ Hooks.on("createChatMessage", async (outcome) => {
     const next = { ...netHit, resolved: true, resolution: outcome.flags.sr2e.netResolution ?? "" };
     await card.update({ content: renderNetCard(next), "flags.sr2e.netHit": next });
   }
+  // A VR2.0 Matrix attack: the defender (often a player resisting GM IC) may not own it.
+  const matrix = card.flags?.sr2e?.matrix;
+  if (matrix?.ruleset === "vr2" && !matrix.resolved) {
+    const next = { ...matrix, resolved: true, resolution: outcome.flags.sr2e.matrixResolution ?? "" };
+    await card.update({ content: renderVR2MatrixCard(next), "flags.sr2e.matrix": next });
+  }
   // Melee: the defender may not own the attack card, so its outcome carries the text.
   const melee = card.flags?.sr2e?.melee;
   if (melee && !melee.resolved) {
@@ -2733,6 +2744,8 @@ Hooks.on("ready", () => {
 
 // Apply on initial load
 Hooks.on("ready", _applyNoSceneBackground);
+// VR2.0: System Test cards this client made that never reached their session's tally.
+Hooks.once("ready", () => { if (isVR2()) reconcileTallies().catch(err => console.error("SR2E | VR2 tally reconcile", err)); });
 
 // Re-apply whenever the canvas finishes drawing (scene activated or first load)
 Hooks.on("canvasReady", _applyNoSceneBackground);

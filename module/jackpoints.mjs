@@ -18,6 +18,7 @@
  * in one per-actor queue.
  */
 import { enqueueAttack } from "./engagement.mjs";
+import { isVR2 } from "./vr2-mode.mjs";
 import { winner, gmCleanup, tabDecision, bodyMarked, personaLit } from "./rules/jackpoint-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -161,6 +162,8 @@ async function enter(tokenDoc, behavior, actor) {
   {
     const check = canJackIn(tokenDoc, behavior);
     if (!check.ok) return ui.notifications.warn(check.reason);
+    // VR2.0: a second way in would reset the live session (its tally) without leaving it.
+    if (isVR2() && actor.system.matrixMode) return ui.notifications.warn(`${actor.name} is already in the Matrix: jack out first.`);
     const id = foundry.utils.randomID();
     const destScene = check.scene.id;
     // The tab's record FIRST, as pending (R4 #5 / R3 #3), then the shared write.
@@ -169,6 +172,8 @@ async function enter(tokenDoc, behavior, actor) {
     }
     await actor.update({ "system.matrixMode": true, [`flags.sr2e.matrixSessions.${id}`]: {
       jackpoint: behavior.uuid, originToken: tokenDoc.uuid, destScene, user: game.user.id, since: Date.now() } });
+    // VR2.0: the connection's session (its tally, and what a crash ends), inside the queue.
+    if (isVR2()) await (await import("./vr2.mjs")).startSession(actor);
     // Re-check after the wait (R2 #3): still ours, still the winner, still on.
     const w = winner(sessionsOf(actor));
     if (!actor.system.matrixMode || w?.id !== id) {
@@ -201,6 +206,8 @@ export function sessionHost(actor) {
 /** Jack out: any owner of the ACTOR, no body token needed (R3 #5). */
 export function jackOut(actor) {
   if (!actor?.isOwner) return;
+  // VR2.0: dump shock unless the decker logged off gracefully (dynamic: vr2.mjs imports this module).
+  if (isVR2()) return import("./vr2.mjs").then(m => m.vr2LeaveMatrix(actor));
   return matrixQueue(actor, () => actor.update({ "system.matrixMode": false }));
 }
 

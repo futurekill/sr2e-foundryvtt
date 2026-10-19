@@ -1,7 +1,22 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { isVR2 } from "../vr2-mode.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice } from "../rules/sr2e-rules.mjs";
+import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice } from "../rules/sr2e-rules.mjs";
+
+/**
+ * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
+ * manual fallback (VR2.0 p.85): hot / cool / tortoise, a deck with no manual
+ * controls (DNI only), and an ICCM filter. Inert in the core-book Matrix.
+ */
+export function deckModeFields() {
+  const fields = foundry.data.fields;
+  return {
+    deckMode: new fields.StringField({ initial: "hot", choices: { hot: "hot", cool: "cool", tortoise: "tortoise" } }),
+    dniOnly: new fields.BooleanField({ initial: false }),
+    iccm: new fields.BooleanField({ initial: false })
+  };
+}
 
 /**
  * Data model for Shadowrun 2E Player Characters.
@@ -230,7 +245,8 @@ export class CharacterData extends SR2EDataModel {
         storageMemory: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         loadSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         ioSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-        response: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+        response: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        ...deckModeFields()
       }),
 
       // --- VEHICLE CONTROL RIG ---
@@ -786,18 +802,20 @@ export class CharacterData extends SR2EDataModel {
     // carries the same deck block: "C2 decks operate exactly like regular
     // cyberdecks", so it snapshots through this identical path and the whole
     // Matrix tab / persona / cybercombat stack works on it unchanged.
-    const keys = ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response"];
+    const keys = ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response",
+                  "deckMode", "dniOnly", "iccm"];
+    const blank = { deckMode: "hot", dniOnly: false, iccm: false };
     // Both directions (CLAUDE.md, derived state): start from the AUTHORED
     // fallback every prepare, so a deck that stops working (Kamikaze) or is
     // switched off doesn't leave its stats behind.
     const authored = this.parent?._source?.system?.cyberdeck ?? {};
-    for (const k of keys) this.cyberdeck[k] = authored[k] ?? 0;
+    for (const k of keys) this.cyberdeck[k] = authored[k] ?? blank[k] ?? 0;
     const deck = this.parent?.items?.find(i =>
       (i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active) ||
       (i.type === "cyberware" && i.system.cranialDeck && workingImplant(this.parent, i) && i.system.deck?.active));
     if (!deck) return;
     const d = deck.system.deck;
-    for (const k of keys) this.cyberdeck[k] = d[k] ?? 0;
+    for (const k of keys) this.cyberdeck[k] = d[k] ?? blank[k] ?? 0;
   }
 
   /**
@@ -810,6 +828,10 @@ export class CharacterData extends SR2EDataModel {
    */
   _derivePersona() {
     this.matrixPersona.condition.max = 10;
+    // Start from the AUTHORED values every prepare (CLAUDE.md, derived state), or an
+    // unloaded program's rating outlives it.
+    const authored = this.parent?._source?.system?.matrixPersona ?? {};
+    for (const attr of ["bod", "evasion", "masking", "sensor"]) this.matrixPersona[attr] = authored[attr] ?? 0;
     const mpcp = this.cyberdeck?.mpcp ?? 0;
     if (mpcp <= 0 || !this.parent?.items) return;
 
@@ -1836,12 +1858,21 @@ export class ICData extends SR2EDataModel {
       }
     }
 
-    // Active/passive alerts boost all IC ratings by +50% (SR2E p.168).
-    this.effectiveRating = alertAdjustedRating(this.rating, this.alert);
-    this.conditionMonitor.max = this.rating * 2;
-    // Reaction Time = Security-Code base + (effective) Rating, then 1D6 (p.169).
-    this.initiative.base = icReactionBase(this.securityCode) + this.effectiveRating;
-    this.initiative.dice = 1;
+    if (isVR2()) {
+      // VR2.0: no alert boost; every icon has 10 boxes (p.123); Initiative =
+      // (Blue 1 … Red 4)D6 + IC Rating (p.120).
+      this.effectiveRating = this.rating;
+      this.conditionMonitor.max = 10;
+      this.initiative.base = this.rating;
+      this.initiative.dice = icInitiativeDice(this.securityCode);
+    } else {
+      // Active/passive alerts boost all IC ratings by +50% (SR2E p.168).
+      this.effectiveRating = alertAdjustedRating(this.rating, this.alert);
+      this.conditionMonitor.max = this.rating * 2;
+      // Reaction Time = Security-Code base + (effective) Rating, then 1D6 (p.169).
+      this.initiative.base = icReactionBase(this.securityCode) + this.effectiveRating;
+      this.initiative.dice = 1;
+    }
     this.initiative.value = this.initiative.base;
   }
 }

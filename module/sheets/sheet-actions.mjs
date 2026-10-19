@@ -12,6 +12,8 @@ import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
 import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost } from "../jackpoints.mjs";
+import { isVR2 } from "../vr2-mode.mjs";
+import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession } from "../vr2.mjs";
 import { useDose, endDrug, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
@@ -2421,6 +2423,7 @@ async function promptMatrixAttackOptions(actor) {
 async function onMatrixAttack(event, target) {
   event.preventDefault();
   const actor = this.document;
+  if (isVR2()) return vr2MatrixAttack(actor);
   const opts = await promptMatrixAttackOptions(actor);
   if (!opts) return;
 
@@ -2481,6 +2484,7 @@ async function onToggleMatrixMode(event, target) {
   // Through the actor's Matrix queue, so it can't interleave with a jackpoint
   // jack-in on this client (docs/PLAN-matrix-jackpoints.md R3 #1).
   const actor = this.document;
+  if (isVR2()) return actor.system.matrixMode ? vr2LeaveMatrix(actor) : vr2EnterMatrix(actor);
   return matrixQueue(actor, () => actor.update({ "system.matrixMode": !actor.system.matrixMode }));
 }
 
@@ -2512,7 +2516,10 @@ async function promptSystemOperationOptions(actor) {
   const targeted = targetTokens().map(t => t.actor).filter(a => a?.type === "host");
   // The host a jackpoint session points at comes first (docs/PLAN-matrix-jackpoints.md).
   const viaJackpoint = sessionHost(actor);
-  const hosts = [...new Set([...(viaJackpoint ? [viaJackpoint] : []), ...targeted, ...game.actors.filter(a => a.type === "host")])];
+  // VR2.0: the host of the live session (its tally) comes first of all.
+  let viaSession = null;
+  try { viaSession = liveSession(actor)?.hostUuid ? fromUuidSync(liveSession(actor).hostUuid) : null; } catch (e) { /* gone */ }
+  const hosts = [...new Set([...(viaSession?.type === "host" ? [viaSession] : []), ...(viaJackpoint ? [viaJackpoint] : []), ...targeted, ...game.actors.filter(a => a.type === "host")])];
   if (!hosts.length) {
     ui.notifications.warn("No host/node actors exist. Create a Host actor (the GM maps the system).");
     return null;
@@ -2523,8 +2530,10 @@ async function promptSystemOperationOptions(actor) {
     return `<option value="${h.id}">${foundry.utils.escapeHTML(h.name)} (${code}-${h.system.systemRating})</option>`;
   }).join("");
 
-  const opOptions = Object.entries(CONFIG.SR2E.systemOperations).map(([k, op]) =>
-    `<option value="${k}">${game.i18n.localize(op.label)}</option>`).join("");
+  const vr2 = isVR2();
+  const ops = vr2 ? CONFIG.SR2E.vr2SystemOperations : CONFIG.SR2E.systemOperations;
+  const opOptions = Object.entries(ops).map(([k, op]) =>
+    `<option value="${k}">${game.i18n.localize(op.label)}${vr2 ? ` (${CONFIG.SR2E.vr2Subsystems[op.subsystem]}, ${op.utility})` : ""}</option>`).join("");
 
   const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
 
@@ -2542,8 +2551,10 @@ async function promptSystemOperationOptions(actor) {
         <select name="operation">${opOptions}</select>
       </div>
       <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
-        Computer Test vs the node's System Rating; beat the Security Code in successes
-        (Blue 1 · Green 2 · Orange 3 · Red 4). Each retry adds +2 TN.
+        ${vr2 ? `Computer Test vs the subsystem rating less the utility; the host rolls its Security Value
+        against your Detection Factor, and you need more successes. Its successes go on the security tally (VR2.0 p.19).`
+        : `Computer Test vs the node's System Rating; beat the Security Code in successes
+        (Blue 1 · Green 2 · Orange 3 · Red 4). Each retry adds +2 TN.`}
       </div>
       <div class="form-group">
         <label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(max ${hackingMax})</span>:</label>

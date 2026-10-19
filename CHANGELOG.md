@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+### Added — the Virtual Realities 2.0 Matrix plays
+The **Settings → Matrix ruleset → Virtual Realities 2.0** switch now changes play, not
+just program prices. **Core Rulebook stays the default**, and a core world plays
+exactly as before. Switching the setting reloads every client.
+- **System Tests (VR2.0 p.19).** *System Operation* lists the VR2.0 operations. The
+  decker rolls Computer against the subsystem (Access, Control, Index, Files or Slave),
+  minus the loaded utility the operation uses. The host rolls its **Security Value**
+  against the decker's **Detection Factor** (Masking and Sleaze, averaged), and the
+  decker needs more successes. The host's successes go on the **security tally**,
+  win or lose. The tally belongs to the decker's session with that host: it shows on
+  the decker's Matrix tab (the GM can edit it) and on the host sheet. Karma on the
+  decker's test re-decides the card but never adds to the tally twice.
+- **Cybercombat (p.123–124).** The attack TN comes from the Cybercombat Target
+  Numbers Table (Security Code against an intruding or legitimate icon). An attack
+  utility has a Damage Level (L/M/S/D, p.98), which also sets its size multiplier.
+  The attack dialog asks for one the first time and saves it. IC attacks roll the
+  host's Security Value, at Power = Rating and a Level by Security Code. Damage stages
+  up and down by 2s onto a 10-box track. The target resists once: IC with the host's
+  Security Value, a persona with Bod against the Power less a loaded Armor utility.
+  This works even when a player resists the GM's IC.
+- **Simsense overload:** white or gray IC hurting a decker on a hot deck forces a
+  Willpower test (+2 DNI-only, −2 ICCM); failure costs a box of Stun, and Deadly
+  crashes the persona.
+- **Dump shock (p.124):** crashing, or jacking out (the sheet toggle or a jackpoint)
+  without a Graceful Logoff, posts staged Stun damage: Power = Security Value, Level by
+  Security Code, cool deck and ICCM each −2 Power and −1 level, tortoise immune. It is
+  resisted with Body and no armour. The core +2 TN dump shock doesn't apply in VR2.0.
+- **Decks** (gear, cranial and the manual block) gain an ASIST mode (hot, cool or
+  tortoise), DNI-only and ICCM (p.85). In VR2.0 these change Matrix initiative too.
+  **IC** loses the core alert boost, gets 10 boxes and rolls (Blue 1 … Red 4)D6 +
+  Rating initiative (p.120). **Hosts** show their five subsystem ratings and Security
+  Value. The decker sheet **warns** when persona programs total more than MPCP × 3
+  (p.84).
+- IC *Detect Intruder* is the core book's; VR2.0 detection is the System Test, so the
+  button is hidden there.
+
+### Fixed
+- **IC initiative** read a Reaction that IC doesn't have, so an IC rolled 1D6 + 0 in
+  the combat tracker. It now uses its Reaction Time (core: code base + Rating).
+- **Persona attributes** kept an unloaded program's rating until the next reload;
+  unloading Masking now gives back the value on the sheet.
+
 ## 0.105.0 — 2026-10-16
 
 ### Added — netguns

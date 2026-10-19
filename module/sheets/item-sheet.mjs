@@ -2,6 +2,7 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
+import { isVR2 } from "../vr2-mode.mjs";
 
 
 /**
@@ -82,13 +83,17 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.authored = {
       damageCode: item._source.system?.damageCode,
       combatTnMod: item._source.system?.combatTnMod,
-      cost: item._source.system?.cost
+      cost: item._source.system?.cost,
+      // A VR2.0 attack utility's multiplier follows its Damage Level (ProgramData).
+      multiplier: item._source.system?.multiplier
     };
     context.effective = { damageCode: item.system.damageCode, combatTnMod: item.system.combatTnMod,
                           cost: item.system.cost };
     context.damageCodeDerived = context.authored.damageCode !== context.effective.damageCode;
     context.combatTnModDerived = context.authored.combatTnMod !== context.effective.combatTnMod;
     context.costDerived = context.authored.cost !== context.effective.cost;
+    context.multiplierDerived = item.type === "program" && context.authored.multiplier !== item.system.multiplier;
+    context.vr2 = isVR2();
     context.effects = item.effects.contents;
     context.config = CONFIG.SR2E;
     context.isOwned = !!item.parent;

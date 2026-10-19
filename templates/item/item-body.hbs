@@ -594,6 +594,18 @@
     <input type="number" name="system.deck.ioSpeed" value="{{system.deck.ioSpeed}}" min="0" /></div>
   <div class="form-group"><label title="Each level adds +2 Reaction while decking">Response:</label>
     <input type="number" name="system.deck.response" value="{{system.deck.response}}" min="0" /></div>
+  {{#if vr2}}
+  <div class="form-group"><label title="VR2.0 p.85: hot (full simsense), cool (legal-level signal; black IC can't kill), tortoise (no ASIST)">ASIST mode:</label>
+    <select name="system.deck.deckMode">
+      <option value="hot" {{selected system.deck.deckMode "hot"}}>Hot</option>
+      <option value="cool" {{selected system.deck.deckMode "cool"}}>Cool</option>
+      <option value="tortoise" {{selected system.deck.deckMode "tortoise"}}>Tortoise</option>
+    </select></div>
+  <div class="form-group"><label title="No manual controls (VR2.0 p.85): another level of Response Increase; +2 to simsense-overload TNs">DNI only:</label>
+    <input type="checkbox" name="system.deck.dniOnly" {{checked system.deck.dniOnly}} /></div>
+  <div class="form-group"><label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
+    <input type="checkbox" name="system.deck.iccm" {{checked system.deck.iccm}} /></div>
+  {{/if}}
   {{/if}}
 
   {{!-- Per-rating stats table --}}
@@ -713,9 +725,22 @@
     <label>Rating:</label>
     <input type="number" name="system.rating" value="{{system.rating}}" min="1" />
   </div>
+  {{#if vr2}}
+  <div class="form-group">
+    <label title="An attack utility's Damage Level sets its size multiplier: L2 / M3 / S4 / D5 (VR2.0 p.98)">Damage Level:</label>
+    <select name="system.damageLevel">
+      <option value="" {{selected system.damageLevel ""}}>—</option>
+      <option value="L" {{selected system.damageLevel "L"}}>Light</option>
+      <option value="M" {{selected system.damageLevel "M"}}>Moderate</option>
+      <option value="S" {{selected system.damageLevel "S"}}>Serious</option>
+      <option value="D" {{selected system.damageLevel "D"}}>Deadly</option>
+    </select>
+  </div>
+  {{/if}}
   <div class="form-group">
     <label>Multiplier:</label>
-    <input type="number" name="system.multiplier" value="{{system.multiplier}}" min="0" step="0.1" />
+    <input type="number" name="system.multiplier" value="{{authored.multiplier}}" min="0" step="0.1" />
+    {{#if multiplierDerived}}<span class="hint">×{{system.multiplier}} from the Damage Level</span>{{/if}}
   </div>
   <div class="form-group">
     <label>Size (MP):</label>
@@ -846,6 +871,18 @@
     <label>Response Increase:</label>
     <input type="number" name="system.deck.response" value="{{system.deck.response}}" min="0" />
   </div>
+  {{#if vr2}}
+  <div class="form-group"><label title="VR2.0 p.85: hot (full simsense), cool (legal-level signal; black IC can't kill), tortoise (no ASIST)">ASIST mode:</label>
+    <select name="system.deck.deckMode">
+      <option value="hot" {{selected system.deck.deckMode "hot"}}>Hot</option>
+      <option value="cool" {{selected system.deck.deckMode "cool"}}>Cool</option>
+      <option value="tortoise" {{selected system.deck.deckMode "tortoise"}}>Tortoise</option>
+    </select></div>
+  <div class="form-group"><label title="No manual controls (VR2.0 p.85): another level of Response Increase; +2 to simsense-overload TNs">DNI only:</label>
+    <input type="checkbox" name="system.deck.dniOnly" {{checked system.deck.dniOnly}} /></div>
+  <div class="form-group"><label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
+    <input type="checkbox" name="system.deck.iccm" {{checked system.deck.iccm}} /></div>
+  {{/if}}
   {{/ifEquals}}
   {{#ifEquals system.category "skillsoft"}}
   <hr/>

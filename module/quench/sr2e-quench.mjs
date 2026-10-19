@@ -9742,6 +9742,260 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Netguns" });
 
+    // ── VR2.0 core (docs/PLAN-vr2-core.md) ────────────────────────────────────
+    quench.registerBatch("sr2e.vr2-core", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [], msgs = [];
+      let prior = "core";
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      // Click a named button on every dialog that opens while `fn` runs.
+      const clicking = async (action, fn) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() =>
+          app.element?.querySelector(`button[data-action="${action}"]`)?.click(), 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const since = (n) => { const m = game.messages.contents.slice(n); msgs.push(...m); return m; };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const decker = async (name, deck = {}) => {
+        const a = await mk({ name, type: "character", system: { karma: { total: 30 }, willpower: { base: 3 },
+          cyberdeck: { mpcp: 6, response: 0, deckMode: "hot", ...deck }, matrixPersona: { bod: 4, masking: 2 } } });
+        await a.createEmbeddedDocuments("Item", [
+          { name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          { name: "Deception", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+        return a;
+      };
+      const host = async (name, code = "red", sv = 8) => mk({ name, type: "host",
+        system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 11 } } });
+
+      before(async function () {
+        this.timeout(10000);
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+      });
+      after(async function () {
+        this.timeout(15000);
+        await ChatMessage.deleteDocuments(msgs.map(m => m.id).filter(id => game.messages.has(id)));
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+      });
+
+      describe("derived data", () => {
+        it("an unloaded persona program gives the authored value back (second preparation)", async function () {
+          const a = await decker("Quench VR2 Persona");
+          const [m] = await a.createEmbeddedDocuments("Item", [{ name: "Masking", type: "program", system: { rating: 5, loaded: true, category: "persona" } }]);
+          assert.equal(a.system.matrixPersona.masking, 5);
+          await m.update({ "system.loaded": false });
+          assert.equal(a.system.matrixPersona.masking, 2, "back to the authored Masking");
+        });
+
+        it("an attack utility's multiplier follows its level, both directions", async function () {
+          const a = await decker("Quench VR2 Attack");
+          const [p] = await a.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program", system: { rating: 4, multiplier: 1, loaded: true, category: "combat" } }]);
+          await p.update({ "system.damageLevel": "S" });
+          assert.equal(p.system.multiplier, 4, "Serious = ×4 (p.98)");
+          assert.equal(p.system.size, 64);
+          await p.update({ "system.damageLevel": "" });
+          assert.equal(p.system.multiplier, 1, "no level: the authored multiplier");
+          assert.equal(p._source.system.multiplier, 1, "never written to source");
+        });
+
+        it("IC: no alert boost, 10 boxes, (code)D6 + Rating initiative", async function () {
+          const h = await host("Quench VR2 Host IC", "orange", 6);
+          const ic = await mk({ name: "Quench VR2 IC", type: "ic", system: { rating: 5, hostUuid: h.uuid, alert: "active" } });
+          await h.update({ "system.alert": "active" });
+          ic.reset();
+          assert.equal(ic.system.effectiveRating, 5);
+          assert.equal(ic.system.conditionMonitor.max, 10);
+          const parts = ic._getInitiativeParts();
+          assert.deepEqual([parts.base, parts.dice], [5, 3], "Orange: 3D6 + 5 (p.120)");
+        });
+      });
+
+      describe("System Tests and the tally", () => {
+        it("the host's successes go on the tally once; Karma flips the verdict, not the tally", async function () {
+          this.timeout(15000);
+          const a = await decker("Quench VR2 Tally");
+          const h = await host("Quench VR2 Host T");
+          const n = game.messages.size;
+          // Decker 5 dice vs TN 7 (11 − Deception 4): one 6 exploding to 7 = 1 success (Karma can only buy
+          // on a natural success, p.190). Host 8 dice vs Detection Factor 2: two successes.
+          await withFaces([6, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1], () => a.rollSystemOperation(h, "logonHost", {}));
+          await wait(300);
+          const card = since(n).find(m => m.flags?.sr2e?.vr2SystemTest);
+          assert.ok(card, "a System Test card");
+          const st = card.flags.sr2e.vr2SystemTest;
+          assert.equal(st.tn, 7, "Access 11 − Deception 4");
+          const hs = st.hostSuccesses;
+          assert.equal(a.flags.sr2e.vr2Session.tally, hs, "tallied");
+          const { addTally, reconcileTallies } = await import("../vr2.mjs");
+          assert.isFalse(await addTally(a, card), "a second add is refused (receipt)");
+          await reconcileTallies();
+          assert.equal(a.flags.sr2e.vr2Session.tally, hs, "a reload's reconcile adds nothing");
+          const test = game.messages.get(st.testMessageId);
+          assert.equal(hs, 2); assert.equal(st.successes, 1);
+          assert.match(card.content, /Fails/);
+          for (let i = 0; i < hs; i++) await a.applyKarmaToTest(game.messages.get(test.id), "buySuccess");
+          await wait(300);
+          const live = game.messages.get(card.id).flags.sr2e.vr2SystemTest;
+          assert.equal(live.successes, hs + 1, "the card follows the test");
+          assert.match(game.messages.get(card.id).content, /Succeeds/, "and the verdict flips");
+          assert.equal(a.flags.sr2e.vr2Session.tally, hs, "the tally doesn't move");
+        });
+
+        it("an unreceipted card is reconciled; a card from an older session is refused", async function () {
+          this.timeout(10000);
+          const a = await decker("Quench VR2 Reconcile");
+          const h = await host("Quench VR2 Host R");
+          const { sessionFor, reconcileTallies, addTally } = await import("../vr2.mjs");
+          const s = await sessionFor(a, h);
+          const mkCard = async (sessionId) => {
+            const m = await ChatMessage.create({ content: "Quench VR2 card", flags: { sr2e: { vr2SystemTest:
+              { actorUuid: a.uuid, sessionId, hostSuccesses: 2, successes: 0 } } } });
+            msgs.push(m); return m;
+          };
+          await mkCard(s.id);
+          await reconcileTallies();
+          assert.equal(a.flags.sr2e.vr2Session.tally, 2, "reconciled");
+          const stale = await mkCard("someOldSession00");
+          assert.isFalse(await addTally(a, stale), "an old session's card is refused");
+          assert.equal(a.flags.sr2e.vr2Session.tally, 2);
+        });
+      });
+
+      describe("cybercombat", () => {
+        const attackCard = async (atk, def, extra = {}) => {
+          const { renderVR2MatrixCard } = await import("../vr2.mjs");
+          const st = { ruleset: "vr2", attackerUuid: atk.uuid, attackerName: atk.name, attackerType: atk.type,
+            icType: atk.type === "ic" ? atk.system.icType : "", targetUuid: def.uuid, hostUuid: "", hostName: "Quench Host",
+            securityCode: "red", securityValue: 8, status: "intruding", power: 6, level: "M",
+            successes: 2, testMessageId: "quenchNoTest00000", resolved: false, ...extra };
+          const m = await ChatMessage.create({ content: renderVR2MatrixCard(st), flags: { sr2e: { matrix: st } } });
+          msgs.push(m); return m;
+        };
+
+        it("two resist clicks resolve once and close the card", async function () {
+          this.timeout(15000);
+          const ic = await mk({ name: "Quench VR2 Gray", type: "ic", system: { rating: 6, icType: "black" } });
+          const d = await decker("Quench VR2 Victim");
+          const c = await attackCard(ic, d);
+          const n = game.messages.size;
+          await withFaces(Array(20).fill(1), () => Promise.all([d.rollMatrixResistance(c), d.rollMatrixResistance(c)]));
+          await wait(400);
+          assert.lengthOf(since(n).filter(m => m.flags?.sr2e?.resolves === c.id), 1, "one outcome");
+          assert.equal(d.system.matrixPersona.condition.value, 3, "M staged to S by 2 successes: 3 boxes");
+          assert.isTrue(!!game.messages.get(c.id).flags.sr2e.matrix.resolved, "the card is closed");
+        });
+
+        it("white IC on a hot deck: a failed Willpower test costs 1 Stun box", async function () {
+          this.timeout(15000);
+          const ic = await mk({ name: "Quench VR2 White", type: "ic", system: { rating: 6, icType: "white" } });
+          const d = await decker("Quench VR2 Overload");
+          const c = await attackCard(ic, d, { successes: 1, level: "L" });
+          await withFaces(Array(20).fill(1), () => d.rollMatrixResistance(c));
+          await wait(400);
+          assert.equal(d.system.conditionMonitor.stun.value, 1);
+        });
+
+        it("a crash dumps the decker with dump shock, reduced by an ICCM", async function () {
+          this.timeout(15000);
+          const ic = await mk({ name: "Quench VR2 Killer", type: "ic", system: { rating: 6, icType: "black" } });
+          const d = await decker("Quench VR2 Crash", { iccm: true });
+          await d.update({ "system.matrixMode": true, "system.matrixPersona.condition.value": 9 });
+          const c = await attackCard(ic, d);
+          const n = game.messages.size;
+          await withFaces(Array(20).fill(1), () => d.rollMatrixResistance(c));
+          await wait(500);
+          assert.isFalse(d.system.matrixMode, "jacked out");
+          const shock = since(n).map(m => new DOMParser().parseFromString(m.content, "text/html")
+            .querySelector('.sr2e-resist-btn[data-armor-calc="none"]')).find(Boolean);
+          assert.ok(shock, "a dump-shock card");
+          assert.deepEqual([shock.dataset.power, shock.dataset.level], ["6", "S"], "Red 8D, ICCM −2 Power −1 level");
+        });
+
+        it("a jackpoint jack-out without a Graceful Logoff posts dump shock", async function () {
+          this.timeout(15000);
+          const J = await import("../jackpoints.mjs");
+          const { sessionFor } = await import("../vr2.mjs");
+          const d = await decker("Quench VR2 JackOut", { deckMode: "cool" });
+          const h = await host("Quench VR2 Host J", "green", 5);
+          await d.update({ "system.matrixMode": true });
+          await sessionFor(d, h);
+          const n = game.messages.size;
+          await clicking("dump", () => J.jackOut(d));
+          await wait(400);
+          assert.isFalse(d.system.matrixMode);
+          assert.notOk(d.flags.sr2e.vr2Session, "the session ended");
+          assert.equal(d.flags.sr2e.lastSession?.hostName, h.name, "kept as lastSession");
+          const btn = since(n).map(m => new DOMParser().parseFromString(m.content, "text/html")
+            .querySelector('.sr2e-resist-btn[data-armor-calc="none"]')).find(Boolean);
+          assert.deepEqual([btn?.dataset.power, btn?.dataset.level], ["3", "L"], "Green 5M, cool deck −2 −1");
+        });
+
+        it("a double jack-out posts one dump shock; entering mints a session; a missed attack can't be resisted", async function () {
+          this.timeout(15000);
+          const J = await import("../jackpoints.mjs");
+          const d = await decker("Quench VR2 Double");
+          const h = await host("Quench VR2 Host D", "orange", 6);
+          const { sessionFor, vr2EnterMatrix } = await import("../vr2.mjs");
+          await Promise.all([vr2EnterMatrix(d), vr2EnterMatrix(d)]);
+          assert.isTrue(d.system.matrixMode, "a double click on Jack In enters once");
+          assert.ok(d.flags.sr2e.vr2Session?.id, "jacking in mints a session");
+          const id = d.flags.sr2e.vr2Session.id;
+          assert.equal((await sessionFor(d, h)).id, id, "the session adopts its first host");
+          let n = game.messages.size;
+          await clicking("dump", () => Promise.all([J.jackOut(d), J.jackOut(d)]));
+          await wait(400);
+          const shocks = since(n).filter(m => /data-armor-calc="none"/.test(m.content));
+          assert.lengthOf(shocks, 1, "one dump-shock card");
+          const ic = await mk({ name: "Quench VR2 Miss", type: "ic", system: { rating: 4, icType: "black" } });
+          const c = await attackCard(ic, d, { successes: 0 });
+          n = game.messages.size;
+          await d.rollMatrixResistance(c); await wait(300);
+          assert.equal(game.messages.size, n, "nothing to resist");
+        });
+
+        it("a core card resolved in a VR2.0 world still uses core values", async function () {
+          this.timeout(15000);
+          const ic = await mk({ name: "Quench VR2 Core IC", type: "ic", system: { rating: 3, conditionMonitor: { value: 5 } } });
+          const st = { attackerUuid: "", attackerName: "Old Decker", targetUuid: ic.uuid, successes: 6, nodeRating: 4,
+            testMessageId: "", resolved: false };
+          const c = await ChatMessage.create({ content: "Quench core matrix card", flags: { sr2e: { matrix: st } } });
+          msgs.push(c);
+          const n = game.messages.size;
+          await withFaces(Array(20).fill(1), () => ic.rollMatrixResistance(c));
+          await wait(300); since(n);
+          assert.equal(ic.system.conditionMonitor.value, 6, "capped at the core Rating × 2, not 10");
+        });
+
+        it("a decker's attack rolls with an attack TN context", async function () {
+          this.timeout(15000);
+          const d = await decker("Quench VR2 Ctx");
+          const h = await host("Quench VR2 Host C", "blue", 3);
+          await d.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program", system: { rating: 4, loaded: true, damageLevel: "M", category: "combat" } }]);
+          let seen = null;
+          const orig = d.rollSuccessTest.bind(d);
+          d.rollSuccessTest = (dice, tn, o) => { seen = { tn, ctx: o.tnContext }; return orig(dice, tn, o); };
+          const { vr2MatrixAttack } = await import("../vr2.mjs");
+          const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => {
+            const f = app.element?.querySelector("form") ?? app.element;
+            const sel = f?.querySelector('select[name="host"]'); if (sel) sel.value = h.id;
+            f?.querySelector('button[data-action="attack"]')?.click();
+          }, 50));
+          const n = game.messages.size;
+          try { await withFaces(Array(10).fill(6).concat(Array(10).fill(1)), () => vr2MatrixAttack(d)); } finally { Hooks.off("renderDialogV2", id); }
+          await wait(300); since(n);
+          assert.equal(seen?.ctx?.kind, "attack");
+          assert.equal(seen?.ctx?.key, "computer");
+          assert.equal(seen?.tn, 6, "Blue vs an intruding icon: TN 6 (p.123)");
+        });
+      });
+    }, { displayName: "SR2E: VR2.0 core" });
+
 
 
 

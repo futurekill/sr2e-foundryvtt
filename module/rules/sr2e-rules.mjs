@@ -2113,6 +2113,31 @@ export function simsenseOverloadTN(level) {
   return SIMSENSE_OVERLOAD_TN[level] ?? null;
 }
 
+/** IC initiative dice by host Security Code (VR2.0 p.120): Blue 1 … Red 4 D6, + IC Rating. */
+export function icInitiativeDice(securityCode) {
+  return { blue: 1, green: 2, orange: 3, red: 4 }[securityCode] ?? 1;
+}
+
+/**
+ * Outcome of an opposed VR2.0 System Test (p.19): the decker succeeds with MORE
+ * successes than the host; win or lose, the host's successes go on the tally.
+ * @returns {{success:boolean, tally:number}}
+ */
+export function systemTestVerdict(deckerSuccesses, hostSuccesses) {
+  const d = Number(deckerSuccesses) || 0, h = Number(hostSuccesses) || 0;
+  return { success: d > h, tally: h };
+}
+
+/** Size multiplier of an attack utility by its Damage Level (VR2.0 p.98): L2 / M3 / S4 / D5; null for none. */
+export function attackMultiplier(level) {
+  return { L: 2, M: 3, S: 4, D: 5 }[level] ?? null;
+}
+
+/** Persona programs may total no more than MPCP × 3 (VR2.0 p.84). How far over, or 0. */
+export function personaBudgetOver(bems, mpcp) {
+  return Math.max(0, (Number(bems) || 0) - 3 * (Number(mpcp) || 0));
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // SKILL WEB defaulting (SR2E p.68–69)
 //
@@ -3851,6 +3876,8 @@ export function manipulationDamage(damageCode, force) {
  */
 export function damageResistArmor({ armorCalc = "standard", armorType = "ballistic",
                                     ballistic = 0, impact = 0, armorMod = 0 } = {}) {
+  // Damage no armour touches (VR2.0 dump shock, p.124): none at all, mods included.
+  if (armorCalc === "none") return { armor: 0, label: "No armour" };
   let armor, label;
   switch (armorCalc) {
     case "half_ballistic": armor = Math.floor(ballistic / 2); label = "½ Ballistic"; break;

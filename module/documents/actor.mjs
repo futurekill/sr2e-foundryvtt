@@ -13,7 +13,7 @@ const SPELL_RESIST_IN_FLIGHT = new Set();
 /** A skill name as its CONFIG key ("Build/Repair (Car)" → "build_repair_car"). */
 const skillKeyOf = (name) => String(name ?? "").toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 /** What a skill test is, for drug TN penalties (drugTnFor). */
-const skillTnContext = (key, category = "active") =>
+export const skillTnContext = (key, category = "active") =>
   ({ kind: "skill", key, skillCategory: category, magic: !!CONFIG.SR2E.activeSkills?.[key]?.magical });
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
@@ -24,10 +24,12 @@ import { commitDamage, drugsInForce, drugDamageNote, substanceKarmaClosed, recon
 import { addictionTnFor } from "../rules/substances.mjs";
 import { renderNetCard } from "../nets.mjs";
 import { matrixQueue } from "../jackpoints.mjs";
+import { isVR2 } from "../vr2-mode.mjs";
+import { vr2MatrixResist, vr2SystemTest, renderVR2MatrixCard, renderSystemTestCard } from "../vr2.mjs";
 import { natureDepartNote } from "../nature-spirits.mjs";
 import { usePowerService, statusOf } from "../spirit-services.mjs";
 import { elementalTransition, boundElementals, aidReservation, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
-import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor,
+import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor, alertAdjustedRating,
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
@@ -384,7 +386,8 @@ export class SR2EActor extends Actor {
     const woundPenalty = options.isResistance || policy === "table" ? 0 : (this.system.woundPenalty ?? 0);
     const sustainPenalty = policy ? 0 : (this.system.sustainPenalty ?? 0);
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
-    const dumpShock = !policy && this.system.dumpShock ? 2 : 0;
+    // Core only: VR2.0 dump shock is Stun damage instead (p.124); the flag is kept for a switch back.
+    const dumpShock = !policy && this.system.dumpShock && !isVR2() ? 2 : 0;
     // Over-spec'd cranial cyberdeck (Matrixware, Shadowtech p.54): an MPCP above
     // 1.5 × Intelligence costs +4 on EVERY action, "across the board". Like the
     // sustain penalty, resistance tests get no exemption from it.
@@ -803,7 +806,8 @@ export class SR2EActor extends Actor {
       rangedDamage: renderRangedDamageCard,
       blastLaunch: renderBlastLauncher,
       spreadLaunch: renderSpreadLauncher,
-      netHit: renderNetCard
+      netHit: renderNetCard,
+      vr2SystemTest: renderSystemTestCard
     };
 
     for (const msg of game.messages ?? []) {
@@ -817,7 +821,7 @@ export class SR2EActor extends Actor {
         // A damaging manipulation card resolved by a non-author leaves only its
         // marker message behind — honour it.
         if (key === "manipDamage" && isManipCardResolved(msg)) continue;
-        if (["melee", "astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell", "netHit"].includes(key)
+        if (["melee", "astralMelee", "rangedDamage", "blastLaunch", "spreadLaunch", "spell", "netHit", "matrix"].includes(key)
             && isCardResolved(msg, key)) continue;
         if (key === "learning" && learningClosed({ actorUuid: card.actorUuid, learningAttemptId: card.attemptId })) continue;
         if (card.resolved || card.successes === successes) continue;
@@ -882,13 +886,35 @@ export class SR2EActor extends Actor {
     // Jacked into the Matrix (SR2E p.178): initiative = natural Reaction
     // (no wired/magic/VCR) + 2 per response-increase level, rolling
     // 1 + response-level d6.
+    // IC (both rulesets): its derived Reaction Time (ICData) — core p.169, VR2.0 p.120.
+    if (this.type === "ic") {
+      const base = system.initiative?.base ?? 0;
+      notes.push(`IC Rating ${system.rating}`);
+      return { base, dice: Math.max(1, system.initiative?.dice ?? 1), rigged: false, matrix: true, notes };
+    }
+
     if (system.matrixMode && (system.cyberdeck?.mpcp ?? 0) > 0) {
-      const response = system.cyberdeck?.response ?? 0;
-      const naturalReaction = system.reaction?.base ?? 0;
-      const base = Math.max(0, naturalReaction + 2 * response - woundPenalty);
-      notes.push(`Matrix: Reaction ${naturalReaction}${response ? ` +${2 * response} response` : ""}`);
+      const deck = system.cyberdeck;
+      let response = deck.response ?? 0;
+      let naturalReaction = system.reaction?.base ?? 0;
+      let plusReaction = true, lessDice = 0;
+      // VR2.0 ASIST modes (p.85): a DNI-only deck is another level of Response
+      // Increase; running cool through manual controls costs 1D6; a tortoise halves
+      // Reaction (round down, min 1) and its Response Increase adds dice only.
+      if (isVR2()) {
+        if (deck.deckMode === "tortoise") {
+          naturalReaction = Math.max(1, Math.floor(naturalReaction / 2)); plusReaction = false;
+          notes.push("tortoise");
+        } else {
+          if (deck.dniOnly) { response += 1; notes.push("DNI-only"); }
+          if (deck.deckMode === "cool" && !deck.dniOnly) { lessDice = 1; notes.push("cool −1D6"); }
+        }
+      }
+      const bonus = plusReaction ? 2 * response : 0;
+      const base = Math.max(0, naturalReaction + bonus - woundPenalty);
+      notes.unshift(`Matrix: Reaction ${naturalReaction}${bonus ? ` +${bonus} response` : ""}`);
       if (woundPenalty) notes.push(`−${woundPenalty} wound`);
-      return { base, dice: 1 + response, rigged: false, matrix: true, notes };
+      return { base, dice: Math.max(1, 1 + response - lessDice), rigged: false, matrix: true, notes };
     }
 
     // Astrally projecting (SR2E p.147): initiative = Astral Reaction + 15,
@@ -2849,6 +2875,7 @@ export class SR2EActor extends Actor {
 
   /** @private Render the Matrix attack/resist card. */
   _renderMatrixCard(state) {
+    if (state.ruleset === "vr2") return renderVR2MatrixCard(state);
     const esc = foundry.utils.escapeHTML;
     const button = state.resolved ? "" : `
       <div class="sr2e-karma-actions">
@@ -2877,18 +2904,22 @@ export class SR2EActor extends Actor {
    */
   async rollMatrixResistance(message) {
     const state = message.getFlag("sr2e", "matrix");
+    if (state?.ruleset === "vr2") return vr2MatrixResist(this, message);
     if (!state || state.resolved) return;
 
+    // A core card resolves by CORE rules even in a VR2.0 world (the derived IC
+    // fields follow the current ruleset), so its numbers are computed here.
     let dice, tn, applyDamage, monitorLabel;
     if (this.type === "ic") {
       // Alert-boosted rating (SR2E p.168) when defending.
-      dice = this.system.effectiveRating ?? this.system.rating ?? 1;
+      dice = alertAdjustedRating(this.system.rating ?? 1, this.system.alert);
       tn = Math.max(2, state.nodeRating || this.system.rating || 4);
       monitorLabel = "IC";
       applyDamage = async (boxes) => {
         const cm = this.system.conditionMonitor;
-        await this.update({ "system.conditionMonitor.value": Math.min(cm.value + boxes, cm.max) });
-        return Math.min(cm.value + boxes, cm.max) >= cm.max;
+        const max = (this.system.rating ?? 1) * 2;
+        await this.update({ "system.conditionMonitor.value": Math.min(cm.value + boxes, max) });
+        return Math.min(cm.value + boxes, max) >= max;
       };
     } else if (this.type === "character") {
       dice = this.system.cyberdeck?.mpcp ?? 0;
@@ -2990,6 +3021,7 @@ export class SR2EActor extends Actor {
    * @param {number} [opts.karmaDice] - Karma Pool dice to add.
    */
   async rollSystemOperation(host, operation, opts = {}) {
+    if (isVR2()) return vr2SystemTest(this, host, operation, opts);
     if (!host || host.type !== "host") {
       return ui.notifications.warn("Choose a target host/node for the system operation.");
     }
@@ -3069,6 +3101,7 @@ export class SR2EActor extends Actor {
    */
   async rollMatrixPerception(masking) {
     if (this.type !== "ic") return;
+    if (isVR2()) return ui.notifications.warn("VR2.0 detection runs through System Tests (VR2.0 p.19).");
     const dice = this.system.effectiveRating ?? this.system.rating ?? 1;
     const tn = Math.max(2, masking || 1);
     const result = await this.rollSuccessTest(dice, tn, {

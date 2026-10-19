@@ -336,10 +336,22 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Crash a persona** → decker dumped + **dump shock** (+2 all TNs; Shake Off = Willpower vs 4).
 - [ ] **Host actor:** set Security Code + System Rating → readout shows successes-to-breach (Blue1/Green2/Orange3/Red4).
 - [ ] **System Operation** (decker) → Computer test vs System Rating, beat the code; retries +2 TN; tally advances; **alert** escalates none→passive→active on the 1D6 roll.
-- [ ] **IC:** Reaction Time = node-code base (Green5/Orange7/Red9) + Rating + 1d6; **alert** raises ratings +50%.
+- [ ] **IC:** Reaction Time = node-code base (Green5/Orange7/Red9) + Rating + 1d6 (also in the combat tracker); **alert** raises ratings +50%.
 - [ ] **IC ↔ Host link:** set "Defends Host" → the IC's Code/alert sync from the host live; change the host's alert and the IC follows.
 - [ ] **IC perception** ("Detect Intruder"): IC Rating vs target Masking; a success raises the alert.
 - [ ] **IC deploy on active alert:** push a host to Active → GM whisper lists the defending IC (and adds their scene tokens to combat if a combat is running).
+
+## 10a. Matrix — Virtual Realities 2.0 (`sr2e.vr2-core` batch)
+Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload). Switch back after.
+- [ ] Host sheet shows Access/Control/Index/Files/Slave and Security Value; the core "successes to breach" note is gone.
+- [ ] **System Operation → Logon to Host** with Deception loaded: TN = Access − Deception; the card shows the host's dice vs Detection Factor and the verdict; the decker's Matrix tab shows the tally.
+- [ ] Buy a success with Karma on the decker's test: the card's verdict follows, the tally doesn't change. Reload: the tally is still the same.
+- [ ] **Matrix Attack** with an Attack utility with no level: the dialog's level is saved to the program; its multiplier/size follow (L2 M3 S4 D5).
+- [ ] A player decker resists the GM's IC: one result; the attack card closes for everyone; a second click does nothing.
+- [ ] White IC hits a hot-deck decker: a Willpower overload test; failure = 1 Stun box.
+- [ ] Jack out from the sheet (and from a jackpoint's HUD): "Graceful Logoff?" — *Jack out* posts a dump-shock card (staged Stun, no armour); *Graceful Logoff* doesn't. A cool deck / ICCM lowers it; a tortoise takes none.
+- [ ] Persona programs over MPCP × 3: the warning shows.
+- [ ] IC initiative in the tracker: (code)D6 + Rating; switch back to core: code base + Rating + 1D6.
 
 ## 11. Vehicles & rigging
 - [ ] Vehicle sheet: handling/speed/body/armor/condition.

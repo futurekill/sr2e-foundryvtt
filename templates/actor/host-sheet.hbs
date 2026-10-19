@@ -26,11 +26,30 @@
     </label>
   </div>
 
+  {{#unless vr2}}
   <p class="rule-note">
     A decker must beat <strong>{{successesNeeded}}</strong>
     success{{#ifEquals successesNeeded 1}}{{else}}es{{/ifEquals}} on a Computer Test
     (TN {{system.systemRating}}) to make this node execute an operation (SR2E p.165).
   </p>
+  {{/unless}}
+
+  {{#if vr2}}
+  <fieldset class="vr2-subsystems">
+    <legend>Subsystems (VR2.0 p.16)</legend>
+    <div class="field-grid">
+      {{#each subsystems as |sub|}}
+      <label class="field"><span>{{sub.label}}</span>
+        <input type="number" name="system.subsystems.{{sub.key}}" value="{{sub.value}}" min="0" /></label>
+      {{/each}}
+      <label class="field" title="The host's dice for System Tests and IC, and the dump-shock Power. 0 = the System Rating.">
+        <span>Security Value <em>({{system.securityValue}})</em></span>
+        <input type="number" name="system.securityValueOverride" value="{{system.securityValueOverride}}" min="0" /></label>
+    </div>
+    <p class="rule-note">Security tallies (the host's System Test successes, p.19):
+      {{#each tallies as |t|}}<br><strong>{{t.name}}</strong>: {{t.tally}}{{else}}no decker in session.{{/each}}</p>
+  </fieldset>
+  {{/if}}
 
   <fieldset class="intrusion">
     <legend>Intrusion</legend>
@@ -52,7 +71,7 @@
       <i class="fas fa-rotate-left"></i> Reset Tally
     </button>
     {{#ifEquals system.alert "passive"}}
-    <p class="alert-note passive"><i class="fas fa-triangle-exclamation"></i> Passive alert — all IC ratings +50% (SR2E p.168).</p>
+    {{#unless vr2}}<p class="alert-note passive"><i class="fas fa-triangle-exclamation"></i> Passive alert — all IC ratings +50% (SR2E p.168).</p>{{/unless}}
     {{/ifEquals}}
     {{#ifEquals system.alert "active"}}
     <p class="alert-note active"><i class="fas fa-bell"></i> Active alert — operators respond; the system may shut down.</p>
