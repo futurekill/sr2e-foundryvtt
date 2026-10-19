@@ -128,10 +128,11 @@ await game.combat.rollAll();`
     tip: "Sweeps leftover blast and spell templates.",
     cmd: `// Blast and area-spell templates pile up fast and clutter the map. Scoped to the
 // CURRENT scene so a stray press cannot wipe templates you left on another one.
-const ids = canvas.scene?.templates?.map(t => t.id) ?? [];
-if (!ids.length) return ui.notifications.info("No templates on this scene.");
-await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", ids);
-ui.notifications.info(\`Cleared \${ids.length} template(s).\`);`
+// Through the system's area adapter: templates on v13, template Regions on v14+.
+const docs = game.sr2e.areas.cleanupDocs(canvas.scene);
+if (!docs.length) return ui.notifications.info("No templates on this scene.");
+await game.sr2e.areas.deleteAreas(docs);
+ui.notifications.info(\`Cleared \${docs.length} template(s).\`);`
   },
   {
     slot: 10, name: "Award Karma (selected)", img: "icons/svg/upgrade.svg",

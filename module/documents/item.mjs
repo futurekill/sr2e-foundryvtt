@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { createArea, canCreateArea } from "../areas.mjs";
 import { firstTarget, targetTokens } from "../targeting.mjs";
 import { playCombatFx } from "../integrations.mjs";
 import { sfxFlags, playSfx } from "../sfx.mjs";
@@ -2110,12 +2111,12 @@ export class SR2EItem extends Item {
       templateNote = "";
     } else if (!scene) {
       templateNote = " (the scene is gone — no template)";
-    } else if (game.user.can?.("TEMPLATE_CREATE")) {
+    } else if (canCreateArea()) {
       try {
-        await scene.createEmbeddedDocuments("MeasuredTemplate", [{
+        await createArea(scene, {
           t: "circle", x: area.center.x, y: area.center.y, distance: area.radius,
           fillColor: "#9b6dff", borderColor: "#6a2dd0", flags: { sr2e: { areaSpell: this.name } }
-        }]);
+        });
       } catch (e) { templateNote = " (the template could not be placed)"; }
     } else {
       templateNote = " (no template — you lack permission to create one)";

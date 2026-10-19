@@ -16,6 +16,7 @@
  * The GM adjudicates what the book leaves to them: the link table row, time,
  * sustaining expiry, foci and spirit aid used for Drain, astral interception.
  */
+import { createArea, areaDocs } from "./areas.mjs";
 import { firstTarget } from "./targeting.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { parseDrainCode } from "./data/item-data.mjs";
@@ -454,9 +455,9 @@ async function publish(id) {
       aware of the sending may use Spell Defense (p.132).`;
     if (r.subject.kind === "area") {
       const scene = game.scenes.get(r.subject.sceneId);
-      if (scene && !scene.templates.some(t => t.flags?.sr2e?.ritualCard === key("template"))) {
-        await scene.createEmbeddedDocuments("MeasuredTemplate", [{ t: "circle", x: r.subject.center.x, y: r.subject.center.y,
-          distance: r.subject.radius, fillColor: "#9b6dff", borderColor: "#6a2dd0", flags: { sr2e: { areaSpell: r.spellName, ritualCard: key("template") } } }]);
+      if (scene && !areaDocs(scene).some(t => t.flags?.sr2e?.ritualCard === key("template"))) {
+        await createArea(scene, { t: "circle", x: r.subject.center.x, y: r.subject.center.y,
+          distance: r.subject.radius, fillColor: "#9b6dff", borderColor: "#6a2dd0", flags: { sr2e: { areaSpell: r.spellName, ritualCard: key("template") } } });
       }
       await post(key("summary-public"), { speaker, content: `<div class="sr2e-damage-result"><strong>✨ ${esc(r.spellName)}</strong>
         — a ritual area spell, ${r.subject.radius} m radius.</div>` });

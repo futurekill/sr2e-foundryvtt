@@ -5,7 +5,7 @@
   "scope": "global",
   "author": null,
   "img": "icons/svg/explosion.svg",
-  "command": "/* SR2E — hotbar slot 9. Sweeps leftover blast and spell templates.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// Blast and area-spell templates pile up fast and clutter the map. Scoped to the\n// CURRENT scene so a stray press cannot wipe templates you left on another one.\nconst ids = canvas.scene?.templates?.map(t => t.id) ?? [];\nif (!ids.length) return ui.notifications.info(\"No templates on this scene.\");\nawait canvas.scene.deleteEmbeddedDocuments(\"MeasuredTemplate\", ids);\nui.notifications.info(`Cleared ${ids.length} template(s).`);\n",
+  "command": "/* SR2E — hotbar slot 9. Sweeps leftover blast and spell templates.\n   See docs/MACROS.md for the VIA macro-pad layout. */\n// Blast and area-spell templates pile up fast and clutter the map. Scoped to the\n// CURRENT scene so a stray press cannot wipe templates you left on another one.\n// Through the system's area adapter: templates on v13, template Regions on v14+.\nconst docs = game.sr2e.areas.cleanupDocs(canvas.scene);\nif (!docs.length) return ui.notifications.info(\"No templates on this scene.\");\nawait game.sr2e.areas.deleteAreas(docs);\nui.notifications.info(`Cleared ${docs.length} template(s).`);\n",
   "folder": null,
   "sort": 9000,
   "ownership": {

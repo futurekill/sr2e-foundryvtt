@@ -7,8 +7,9 @@
  * (`flags.sr2e.effectRequest`) that the active GM consumes; everyone resolves
  * their own damage from flag-backed cards (the `resolves` marker pattern).
  */
+import { createArea, areaDocs, allAreaDocs, deleteAreas, areaShape } from "./areas.mjs";
 import { enqueueAttack } from "./engagement.mjs";
-import { canonicalSpellName, igniteDelay, segmentHitsCircle, segmentHitsRect } from "./rules/sr2e-rules.mjs";
+import { canonicalSpellName, igniteDelay, segmentHitsCircle, segmentHitsPolygon } from "./rules/sr2e-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const isActiveGM = () => !!game.users?.activeGM?.isSelf;
@@ -299,8 +300,7 @@ export async function igniteFromCast({ caster, force, successes, target }) {
 // ── Spell templates (Poltergeist, Ice Sheet) ───────────────────────────────
 
 const effectOf = (t) => t.flags?.sr2e?.spellEffect ?? null;
-const allEffectTemplates = (kind) => game.scenes.contents.flatMap(s =>
-  s.templates.filter(t => effectOf(t)?.kind === kind));
+const allEffectTemplates = (kind) => allAreaDocs(t => effectOf(t)?.kind === kind);
 const pxPerMetre = (scene) => scene.grid.size / scene.grid.distance;
 const tokenCentre = (doc, pos = doc) => {
   const size = doc.parent.grid.size;
@@ -310,20 +310,14 @@ const tokenCentre = (doc, pos = doc) => {
 /** Delete these effect instances' templates on every scene (active GM, or the owner). */
 async function deleteEffectTemplates(instances) {
   const set = new Set(instances);
-  for (const s of game.scenes) {
-    const ids = s.templates.filter(t => set.has(effectOf(t)?.instance)).map(t => t.id);
-    if (ids.length) await s.deleteEmbeddedDocuments("MeasuredTemplate", ids);
-  }
+  await deleteAreas(allAreaDocs(t => set.has(effectOf(t)?.instance)));
 }
 
 /** End a sustained spell's area (dropped, or recast): its templates go on every scene. */
 export async function endSpellEffect(spell) {
-  const mine = game.scenes.contents.flatMap(s => s.templates.filter(t => effectOf(t)?.spellUuid === spell.uuid));
+  const mine = allAreaDocs(t => effectOf(t)?.spellUuid === spell.uuid);
   if (!mine.length) return;
-  const own = mine.filter(t => t.isOwner);
-  for (const s of new Set(own.map(t => t.parent))) {
-    await s.deleteEmbeddedDocuments("MeasuredTemplate", own.filter(t => t.parent === s).map(t => t.id));
-  }
+  await deleteAreas(mine.filter(t => t.isOwner));
   const rest = mine.filter(t => !t.isOwner).map(t => effectOf(t).instance);
   if (rest.length) await asGM("templateCleanup", { instances: rest });
 }
@@ -340,12 +334,14 @@ export function renderPoltergeistCard(state) {
 
 /** Everyone standing in the template now, one per actor (hidden tokens included). */
 function occupants(t) {
-  const scene = t.parent, r = t.distance * pxPerMetre(scene);
+  const a = areaShape(t);
+  if (a?.shape !== "circle") return [];
+  const scene = t.parent, r = a.radius * pxPerMetre(scene);
   const seen = new Map();
   for (const tok of scene.tokens) {
     if (!tok.actor) continue;
     const c = tokenCentre(tok);
-    if (Math.hypot(c.x - t.x, c.y - t.y) <= r + 1e-6 && !seen.has(tok.actor.uuid)) seen.set(tok.actor.uuid, tok);
+    if (Math.hypot(c.x - a.x, c.y - a.y) <= r + 1e-6 && !seen.has(tok.actor.uuid)) seen.set(tok.actor.uuid, tok);
   }
   return [...seen.values()];
 }
@@ -392,8 +388,8 @@ export async function startPoltergeist(spell, { area, force }) {
     force: Number(force), timing: combat ? { combatId: combat.id, lastSeq: Number(combat.getFlag("sr2e", "boundarySeq")) || 0 } : null };
   let t;
   try {
-    [t] = await scene.createEmbeddedDocuments("MeasuredTemplate", [{ t: "circle", x: area.center.x, y: area.center.y,
-      distance: area.radius, fillColor: "#8a7a5a", borderColor: "#5a4a2a", flags: { sr2e: { spellEffect: fx } } }]);
+    t = await createArea(scene, { t: "circle", x: area.center.x, y: area.center.y,
+      distance: area.radius, fillColor: "#8a7a5a", borderColor: "#5a4a2a", flags: { sr2e: { spellEffect: fx } } });
   } catch (e) { t = null; }
   if (!t) return ui.notifications.warn("Poltergeist: the area could not be placed — the GM places it.");
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: caster }), content: `<div class="sr2e-damage-result">
@@ -438,14 +434,15 @@ async function poltergeistBoundary(combat, seq) {
   }
 }
 
-/** Visibility templates (smoke, Poltergeist) touching the attacker, the target, or the line between. */
-export function visibilityAlong(from, to, templates) {
+/** Visibility areas (smoke, Poltergeist) touching the attacker, the target, or the line between. */
+export function visibilityAlong(from, to, docs) {
   let v = 0;
-  for (const t of templates) {
-    const val = Number(t.document.flags?.sr2e?.visibility ?? effectOf(t.document)?.visibility) || 0;
-    if (!val || t.document.t !== "circle") continue;
-    const r = (t.document.distance ?? 0) * (canvas.grid.size / canvas.grid.distance);
-    if (segmentHitsCircle(from, to, { x: t.document.x, y: t.document.y }, r)) v = Math.max(v, val);
+  for (const t of docs) {
+    const val = Number(t.flags?.sr2e?.visibility ?? effectOf(t)?.visibility) || 0;
+    const a = val ? areaShape(t) : null;
+    if (a?.shape !== "circle") continue;
+    const r = (a.radius ?? 0) * (canvas.grid.size / canvas.grid.distance);
+    if (segmentHitsCircle(from, to, { x: a.x, y: a.y }, r)) v = Math.max(v, val);
   }
   return v;
 }
@@ -458,9 +455,9 @@ export async function placeIceSheet(spell, { side, center, scene }) {
   const px = side * pxPerMetre(scene);
   const fx = { kind: "iceSheet", instance: foundry.utils.randomID(), side };
   try {
-    await scene.createEmbeddedDocuments("MeasuredTemplate", [{ t: "rect", x: center.x - px / 2, y: center.y - px / 2,
+    await createArea(scene, { t: "rect", x: center.x - px / 2, y: center.y - px / 2,
       distance: side * Math.SQRT2, direction: 45, fillColor: "#bfe8ff", borderColor: "#5aa8d8",
-      flags: { sr2e: { spellEffect: fx } } }]);
+      flags: { sr2e: { spellEffect: fx } } });
   } catch (e) {
     return ui.notifications.warn("Ice Sheet: the ice could not be placed — the GM places it.");
   }
@@ -474,16 +471,17 @@ const ICE_SEEN = new Set();
 /** Active GM: a finished move (every waypoint) that crossed an ice sheet gets one card per sheet. */
 export async function iceCrossing(doc, movement) {
   const scene = doc.parent;
-  const ices = scene?.templates.filter(t => effectOf(t)?.kind === "iceSheet") ?? [];
+  const ices = areaDocs(scene).filter(t => effectOf(t)?.kind === "iceSheet");
   if (!ices.length || !doc.actor || !movement?.origin) return;
   const pts = [movement.origin, ...(movement.passed?.waypoints ?? [])].map(p => tokenCentre(doc, p));
   if (pts.length < 2) return;
   for (const t of ices) {
     const key = `${movement.id}:${t.id}`;
     if (ICE_SEEN.has(key)) continue;
-    const side = effectOf(t).side * pxPerMetre(scene);
-    const rect = { x: t.x, y: t.y, w: side, h: side };
-    if (!pts.slice(1).some((p, i) => segmentHitsRect(pts[i], p, rect))) continue;
+    // The true outline: a Region the GM rotated is tested as it lies, not by its bounding box.
+    const poly = areaShape(t)?.polygon;
+    if (!poly) continue;
+    if (!pts.slice(1).some((p, i) => segmentHitsPolygon(pts[i], p, poly))) continue;
     ICE_SEEN.add(key);
     const vehicle = doc.actor.type === "vehicle";
     const state = { actorUuid: doc.actor.uuid, tokenName: doc.name, vehicle, resolved: false };

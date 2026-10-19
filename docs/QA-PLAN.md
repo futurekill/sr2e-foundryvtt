@@ -363,6 +363,11 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 - [ ] Crash IC with a decker's attack: Suppress / Let it register (once); Release from the Matrix tab.
 - [ ] Host sheaf: add steps; a System Test crossing a step whispers the GM; a passive/active step raises the alert.
 
+## 10c. Map areas on Foundry v14 (v16 prep)
+- [ ] On v14: a grenade blast, a shotgun spread, an area spell, Poltergeist, Ice Sheet and a ritual area each appear as a Region of the right shape; a player's own area is theirs to move or delete.
+- [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.
+- [ ] A world with old templates opened on v14: smoke still raises the visibility TN; Ice Sheet still triggers its crossing card.
+
 ## 11. Vehicles & rigging
 - [ ] Vehicle sheet: handling/speed/body/armor/condition.
 - [ ] **Handling / Crash / Position** tests with terrain modifiers and Control Pool.

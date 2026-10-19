@@ -39,6 +39,17 @@ unchanged.
   When a decker's tally crosses one, the GM gets a whisper, and an alert step raises
   the host's alert (never lowers it).
 
+### Changed — ready for Foundry v16
+- **Map areas are Regions on Foundry v14 and later.** Blasts, shotgun cones, area spells,
+  Poltergeist, Ice Sheet and ritual areas used to be Measured Templates. v14 merges
+  those into Regions and v16 removes them. On v13 nothing changes. On v14+ they're
+  Regions with the same shape (built by Foundry's own conversion), owned by whoever
+  placed them, in the area's colour (Regions have no texture, so smoke is a grey area).
+  "Clear blast areas" and the "Clear Templates (this scene)" macro clear them either way.
+- Drug effects and attribute tooltips read Active Effects in v14's new form too (changes
+  under `system`, string change types, durations as a value and units). Nothing changes
+  on v13.
+
 ### Fixed
 - **Increase Attribute is four spells, and Increase Cybered Attribute exists** (p.154–155).
   The compendium had one "Increase [Attribute]" with a +0(L) Drain. It is now

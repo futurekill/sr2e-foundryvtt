@@ -33,6 +33,7 @@ import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs
 import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
 import { renderVR2MatrixCard, renderManeuverCard, wireVR2Buttons, vr2Ready } from "./vr2.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
+import { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea } from "./areas.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
@@ -472,7 +473,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
@@ -2192,13 +2193,13 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
     const isSmoke  = blastType === "smoke" || /smoke/i.test(blastName ?? "");
     const smokeVis = !isSmoke ? 0
                    : /heavy\s*smoke/i.test(blastName ?? "") ? 6 : 4;
-    await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
+    await createArea(canvas.scene, {
       t: "circle", x: center.x, y: center.y, distance: radiusM,
       fillColor: smokeVis ? "#9a9a9a" : "#ff6a00",
       borderColor: smokeVis ? "#555555" : "#aa2200",
       texture: smokeVis ? "icons/magic/air/fog-gas-smoke-swirling-gray.webp" : "",
       flags: { sr2e: { blast: true, ...(smokeVis ? { visibility: smokeVis } : {}) } }
-    }]);
+    });
 
     // Optional built-in Foundry effect: a negative (darkness) light source over
     // a smoke cloud actually dims vision in the lighting engine. Opt-in — vision
@@ -2330,10 +2331,10 @@ async function resolveShotgunSpread({ shooterTokenUuid, targetTokenUuid, basePow
   const measure = (a, b) => { try { return Math.round(canvas.grid.measurePath([a, b]).distance); } catch (e) { return Infinity; } };
 
   try {
-    await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [{
+    await createArea(canvas.scene, {
       t: "cone", x: origin.x, y: origin.y, direction, angle: coneAngle, distance: maxRangeM,
       fillColor: "#b08020", borderColor: "#6a4a10", flags: { sr2e: { blast: true, shotgun: true } }
-    }]);
+    });
   } catch (e) { /* template optional */ }
 
   const stages = ["L", "M", "S", "D"];
@@ -2614,11 +2615,11 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       ev.preventDefault();
       if (!canvas?.scene) return;
       // Ice Sheet goes too (it melts); a sustained spell's area never does.
-      const ids = canvas.scene.templates.filter(t => t.getFlag("sr2e", "blast")
-        || t.getFlag("sr2e", "spellEffect")?.kind === "iceSheet").map(t => t.id);
+      const areas = areaDocs(canvas.scene).filter(t => t.flags?.sr2e?.blast
+        || t.flags?.sr2e?.spellEffect?.kind === "iceSheet");
       const lightIds = canvas.scene.lights.filter(l => l.getFlag("sr2e", "smoke")).map(l => l.id);
-      if (!ids.length && !lightIds.length) return ui.notifications.info("No blast areas to clear.");
-      if (ids.length) await canvas.scene.deleteEmbeddedDocuments("MeasuredTemplate", ids);
+      if (!areas.length && !lightIds.length) return ui.notifications.info("No blast areas to clear.");
+      if (areas.length) await deleteAreas(areas);
       if (lightIds.length) await canvas.scene.deleteEmbeddedDocuments("AmbientLight", lightIds);
     });
   });

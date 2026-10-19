@@ -4227,6 +4227,27 @@ export function segmentHitsRect(a, b, rect) {
   return true;
 }
 
+/** Does segment a→b touch a polygon ([{x,y}…], any orientation)? An endpoint inside, or an edge crossed. */
+export function segmentHitsPolygon(a, b, poly) {
+  if (!poly?.length) return false;
+  const inside = (p) => {
+    let c = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const pi = poly[i], pj = poly[j];
+      if ((pi.y > p.y) !== (pj.y > p.y) && p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y) + pi.x) c = !c;
+    }
+    return c;
+  };
+  if (inside(a) || inside(b)) return true;
+  const cross = (o, p, q) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const c = poly[j], d = poly[i];
+    const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+    if (((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0))) return true;
+  }
+  return false;
+}
+
 // ── Nature spirits depart at sunrise and sunset (SR2E p.139) ────────────────
 
 /**

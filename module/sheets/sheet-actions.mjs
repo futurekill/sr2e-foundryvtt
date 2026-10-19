@@ -10,6 +10,7 @@ import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
+import { areaDocs } from "../areas.mjs";
 import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost } from "../jackpoints.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
@@ -520,7 +521,7 @@ function detectAttackTarget(attacker, weapon) {
   // (smoke-grenade clouds, a Poltergeist) around the attacker, the target, or
   // the line of fire between them (only where templates are drawn), and the
   // scene's darkness level (a document value, so it works without a map too).
-  let visMod = canvas?.ready ? visibilityAlong(originToken.center, targetToken.center, canvas.templates?.placeables ?? []) : 0;
+  let visMod = canvas?.ready ? visibilityAlong(originToken.center, targetToken.center, areaDocs(canvas.scene)) : 0;
   const darkness = scene?.environment?.darknessLevel ?? scene?.darkness ?? 0;
   if (darkness >= 0.75)      visMod = Math.max(visMod, 8);  // Full Darkness
   else if (darkness >= 0.4)  visMod = Math.max(visMod, 6);  // Minimal Light

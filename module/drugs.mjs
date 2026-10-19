@@ -11,6 +11,7 @@
  * Active Effects holding its numeric ADD changes. One person drives an actor:
  * every mutation runs in a per-actor local queue and re-reads state there.
  */
+import { effectChanges, changeIsAdd, effectTiming, isZeroDuration, makeDrugEffectData } from "./effects-compat.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { substanceState, nextStamp, EVENT_VERSION, stepId } from "./rules/substances.mjs";
@@ -26,14 +27,10 @@ export const drugOf = (item) => item?.type === "gear" ? (item.flags?.sr2e?.drug 
 /** Active drug effects on an actor, with their remaining time, for the sheets. */
 export function activeDrugs(actor) {
   return (actor?.effects ?? []).filter(e => e.flags?.sr2e?.drugEffect).map(e => {
-    const d = e.duration ?? {};
-    const timed = d.type && d.type !== "none";
-    const expired = timed && Number.isFinite(d.remaining) && d.remaining <= 0;
-    const left = d.type === "seconds" ? `${Math.ceil(d.remaining / 60)} min left`
-      : d.type === "turns" ? `${Math.ceil(d.remaining)} Combat Turn${Math.ceil(d.remaining) === 1 ? "" : "s"} left` : (d.label || "");
+    const { timed, expired, text } = effectTiming(e);
     return { id: e.id, name: e.name, img: e.img, key: e.flags.sr2e.drugEffect.key,
              exposureId: e.flags.sr2e.drugEffect.exposureId, expired,
-             label: !timed ? "until ended" : expired ? "expired" : left };
+             label: !timed ? "until ended" : expired ? "expired" : text };
   });
 }
 
@@ -44,7 +41,7 @@ export function activeDrugs(actor) {
  */
 export function drugsInForce(actor) {
   return (actor?.effects ?? [])
-    .filter(e => e.flags?.sr2e?.drugEffect && !e.disabled && e._source?.duration?.seconds !== 0)
+    .filter(e => e.flags?.sr2e?.drugEffect && !e.disabled && !isZeroDuration(e._source))
     .sort((a, b) => (a._stats?.createdTime ?? 0) - (b._stats?.createdTime ?? 0))
     .map(e => ({ id: e.id, ...e.flags.sr2e.drugEffect }));
 }
@@ -132,8 +129,9 @@ async function updateCard(message, st) {
 
 // ── Use a dose ─────────────────────────────────────────────────────────────
 
+/** A dose's timing for makeDrugEffectData (seconds, or rounds of THIS actor's combat). */
 function effectDuration(d, actor) {
-  if (!d) return {};
+  if (!d) return { indefinite: true };
   if (d.minutes != null) return { seconds: d.minutes * 60, startTime: game.time.worldTime };
   // The started combat THIS actor is fighting in (a token's own actor counts).
   const combat = (game.combats ?? []).find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid)) ?? null;
@@ -754,8 +752,8 @@ export function useDose(actor, itemId) {
     const blocked = !!drug.noRepeat && overuse;          // MAO: nothing until flushed (p.100)
     const zero = !!dur && ((dur.minutes ?? dur.turns) === 0);
     const inert = immune || blocked;
-    const changes = zero || inert ? [] : item.effects.contents.flatMap(e => e.changes)
-      .filter(c => c.mode === CONST.ACTIVE_EFFECT_MODES.ADD && Number.isFinite(Number(c.value)))
+    const changes = zero || inert ? [] : item.effects.contents.flatMap(e => effectChanges(e))
+      .filter(c => changeIsAdd(c) && Number.isFinite(Number(c.value)))
       .map(c => halve ? { ...c, value: String(halveBonus(Number(c.value))) } : c);
     const absorb = zero || inert ? 0 : halve ? halveBonus(Number(drug.absorb) || 0) : (Number(drug.absorb) || 0);
     const why = immune ? "Immune: the dose has no effect (p.87). " : blocked ? "Already active: no further effect until it's flushed out. " : "";
@@ -769,12 +767,12 @@ export function useDose(actor, itemId) {
     };
     // The effect is a tracking entry even with no changes (the card can be
     // re-posted from it, and the tests key off its end); none when inert.
-    const effect = inert ? null : {
-      name: item.name, img: item.img, origin: item.uuid, changes, disabled: false, transfer: false,
-      duration: zero ? { seconds: 0, startTime: game.time.worldTime } : effectDuration(dur, actor),
+    const effect = inert ? null : makeDrugEffectData({
+      name: item.name, img: item.img, origin: item.uuid, changes: changes.map(c => ({ ...c })), disabled: false, transfer: false,
+      timing: zero ? { zero: true, startTime: game.time.worldTime } : effectDuration(dur, actor),
       flags: { sr2e: { drugEffect: { key: drug.key, exposureId, card, overload: !!drug.overload, tn: drug.tn ?? null, absorb,
         limitsPump: !!drug.limitsPump } } }
-    };
+    });
     const implantsWork = !substancesOf(actor).implantsFailed;
     const pump = drug.activatesPump && !inert && implantsWork
       ? actor.items.find(i => i.type === "bioware" && i.system.installed && i.flags?.sr2e?.adrenalPump && !i.system.active) : null;
