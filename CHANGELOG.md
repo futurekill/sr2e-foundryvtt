@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.106.0 — 2026-10-19
 
 ### Added — the Virtual Realities 2.0 Matrix plays
 The **Settings → Matrix ruleset → Virtual Realities 2.0** switch now changes play, not
