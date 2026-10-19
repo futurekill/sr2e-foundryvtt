@@ -618,7 +618,8 @@ async function askShield(defender, st) {
   const ref = useRef(live);
   const tn = Math.max(2, st.attackerComputer ?? 4);
   const r = await defender.rollSuccessTest(Math.max(0, ref.rating), tn, {
-    label: `Shield ${ref.rating} (TN ${tn})`, closed: true, tnContext: { kind: "other" } });
+    // A test to avoid damage: no Injury Modifier (core p.112), like the resistance tests.
+    label: `Shield ${ref.rating} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
   return r ? { ref, successes: r.successes, testMessageId: r.testMessageId } : null;
 }
 
