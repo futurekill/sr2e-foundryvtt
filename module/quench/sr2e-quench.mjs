@@ -6770,6 +6770,8 @@ export function registerSR2EQuenchTests() {
         try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
       };
       const cards = (exposureId) => game.messages.filter(m => m.flags?.sr2e?.drugCard?.exposureId === exposureId);
+      /** Effects, not counting the hidden once-only step markers. */
+      const fx = (a) => a.effects.filter(e => !e.flags?.sr2e?.claim).length;
       const KAMIKAZE = { name: "Quench Drug Kamikaze", type: "gear", system: { category: "drug", quantity: 3, cost: 50 },
         effects: [{ name: "Kamikaze", transfer: false, changes: [
           { key: "system.body.mod", mode: 2, value: "1" }, { key: "system.quickness.mod", mode: 2, value: "1" },
@@ -6827,9 +6829,9 @@ export function registerSR2EQuenchTests() {
         const overuse = game.messages.filter(m => m.flags?.sr2e?.drugCard?.actorUuid === a.uuid && m.flags.sr2e.drugCard.overuse);
         assert.lengthOf(overuse, 1);
         assert.equal(item.system.quantity, 0);
-        const n = a.effects.size;
+        const n = fx(a);
         await useDose(a, item.id);
-        assert.equal(a.effects.size, n, "no dose left: nothing happens");
+        assert.equal(fx(a), n, "no dose left: nothing happens");
       });
 
       it("works on an NPC and on an unlinked token's own actor (Initiative dice too)", async () => {
@@ -6842,9 +6844,9 @@ export function registerSR2EQuenchTests() {
         const [tok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await npc.getTokenDocument()).toObject(), actorLink: false, x: 100, y: 100 }]);
         made.tokens.push(tok.id);
         const ta = tok.actor;
-        const n = ta.effects.size;
+        const n = fx(ta);
         await withFaces([3], () => useDose(ta, ta.items.getName(KAMIKAZE.name).id));
-        assert.equal(ta.effects.size, n + 1, "the token's own actor");
+        assert.equal(fx(ta), n + 1, "the token's own actor");
       });
 
       it("MAO: −1 Reaction, −1 Initiative die; duration 10 turns − Body successes", async () => {
@@ -6935,7 +6937,7 @@ export function registerSR2EQuenchTests() {
         const item = a.items.getName(KAMIKAZE.name);
         const orig = a.createEmbeddedDocuments;
         a.createEmbeddedDocuments = function (type, ...rest) {
-          if (type === "ActiveEffect") return Promise.reject(new Error("Quench effect failure"));
+          if (type === "ActiveEffect" && rest[0]?.[0]?.flags?.sr2e?.drugEffect) return Promise.reject(new Error("Quench effect failure"));
           return orig.call(this, type, ...rest);
         };
         try { await withFaces([2], () => useDose(a, item.id)); } finally { delete a.createEmbeddedDocuments; }
@@ -6981,7 +6983,7 @@ export function registerSR2EQuenchTests() {
         const steps = {
           ledger: (a) => failOnce(a, "update", (d) => keys(d).some(k => /substanceLog\.[^.]+\.type$/.test(k))),
           overuse: (a) => failOnce(a, "update", (d) => keys(d).some(k => k.endsWith("receipts.overuse"))),
-          effect: (a) => failOnce(a, "createEmbeddedDocuments", (type) => type === "ActiveEffect"),
+          effect: (a) => failOnce(a, "createEmbeddedDocuments", (type, data) => type === "ActiveEffect" && !!data?.[0]?.flags?.sr2e?.drugEffect),
           card: () => failOnce(ChatMessage, "create", (d) => !!d?.flags?.sr2e?.drugCard),
           cleanup: (a, item) => failOnce(item, "update", (d) => keys(d).some(k => k.includes("doseCommits.-="))) };
         for (const [name, arm] of Object.entries(steps)) {
@@ -7005,7 +7007,7 @@ export function registerSR2EQuenchTests() {
         // A new session with the effect missing: marked lost; the GM re-applies it.
         const b = await mk("character", [KAMI2]);
         const bi = b.items.getName(KAMI2.name);
-        const undo = failOnce(b, "createEmbeddedDocuments", (type) => type === "ActiveEffect");
+        const undo = failOnce(b, "createEmbeddedDocuments", (type, data) => type === "ActiveEffect" && !!data?.[0]?.flags?.sr2e?.drugEffect);
         try { await withFaces([2], () => useDose(b, bi.id)); } finally { undo(); }
         _newDoseSessionForTests();
         await resumeDoses(b);
@@ -7039,7 +7041,7 @@ export function registerSR2EQuenchTests() {
         try {
           const ta = tok.actor, ti = ta.items.getName(KAMIKAZE.name);
           const undo = ((o) => { const f = o.createEmbeddedDocuments; o.createEmbeddedDocuments = function (t, ...r) {
-            if (t === "ActiveEffect") return Promise.reject(new Error("Quench")); return f.call(this, t, ...r); }; return () => delete o.createEmbeddedDocuments; })(ta);
+            if (t === "ActiveEffect" && r[0]?.[0]?.flags?.sr2e?.drugEffect) return Promise.reject(new Error("Quench")); return f.call(this, t, ...r); }; return () => delete o.createEmbeddedDocuments; })(ta);
           try { await withFaces([2], () => useDose(ta, ti.id)); } finally { undo(); }
           await resumeAllDoses();
           assert.isEmpty(Object.keys(ta.items.getName(KAMIKAZE.name).flags?.sr2e?.doseCommits ?? {}), "finished on the unviewed scene");
@@ -7099,7 +7101,7 @@ export function registerSR2EQuenchTests() {
         // (c) Re-apply creates the effect, its receipt fails, the player deletes it: no resurrection.
         const c = await mk("character", [KAMIKAZE]);
         const f = c.createEmbeddedDocuments; let failed = false;
-        c.createEmbeddedDocuments = function (t, ...rest) { if (t === "ActiveEffect" && !failed) { failed = true; return Promise.reject(new Error("Quench")); } return f.call(this, t, ...rest); };
+        c.createEmbeddedDocuments = function (t, ...rest) { if (t === "ActiveEffect" && rest[0]?.[0]?.flags?.sr2e?.drugEffect && !failed) { failed = true; return Promise.reject(new Error("Quench")); } return f.call(this, t, ...rest); };
         try { await withFaces([2], () => useDose(c, c.items.getName(KAMIKAZE.name).id)); } finally { delete c.createEmbeddedDocuments; }
         _newDoseSessionForTests();
         await resumeDoses(c);
@@ -7470,10 +7472,10 @@ export function registerSR2EQuenchTests() {
           exposureId: d.exposureId, kind: "tolerance", tn: 2, pending: true, successes: null, messageId: null } });
         await withFaces([1, 1, 1], () => a.rollSuccessTest(3, 2, { label: "Quench tolerance card",
           flags: { sr2e: { substanceTest: { actorUuid: a.uuid, eventId: id } } } }));
-        const n = a.effects.size;
+        const n = fx(a);
         await withFaces([2], () => useDose(a, item.id));
         assert.isTrue(substancesOf(a).drugs.kamikaze.immune, "the landed result counted first");
-        assert.equal(a.effects.size, n, "so the new dose is inert");
+        assert.equal(fx(a), n, "so the new dose is inert");
         // A fresh claim with no card may still be rolling elsewhere: time waits.
         const b = await mk("character", [KAMIKAZE]);
         ticking = [b];
@@ -7565,9 +7567,9 @@ export function registerSR2EQuenchTests() {
         await b.update({ [`flags.sr2e.substanceLog.${ex}_tolerance`]: { v: 1, t: game.time.worldTime, seq: 99, at: Date.now(),
           type: "test", drug: "kamikaze", exposureId: ex, kind: "tolerance", tn: 2, successes: 0 } });
         assert.isTrue(substancesOf(b).drugs.kamikaze.immune);
-        const n = b.effects.size;
+        const n = fx(b);
         await withFaces([2], () => useDose(b, bi.id));
-        assert.equal(b.effects.size, n, "no new effect");
+        assert.equal(fx(b), n, "no new effect");
         assert.equal(bi.system.quantity, 1, "but the dose is spent");
       });
 
@@ -7826,6 +7828,151 @@ export function registerSR2EQuenchTests() {
           assert.equal(buyer.system.nuyen, 900, "charged once for the pack");
           assert.equal(got.getFlag("sr2e", "acquiredQuantity"), 6);
         } finally { await world.delete(); }
+      });
+
+      // ── One finisher per dose across clients (docs/PLAN-same-user-writers.md) ──
+      const KAMI_OVER = foundry.utils.mergeObject(foundry.utils.deepClone(KAMIKAZE), { system: { quantity: 3 },
+        flags: { sr2e: { drug: { absorb: 4, stimulant: true } } } });
+      const confirmYes = async (fn) => {
+        const api = foundry.applications.api.DialogV2, orig = api.confirm;
+        api.confirm = async () => true;
+        try { return await fn(); } finally { api.confirm = orig; }
+      };
+      /** A second (overuse) dose left open by a failing step; this client then "forgets" it holds it. */
+      const openOveruse = async (failWhat) => {
+        const D = await load();
+        const a = await mk("character", [KAMI_OVER]);
+        const item = a.items.getName(KAMI_OVER.name);
+        await withFaces([2], () => D.useDose(a, item.id));
+        const keys = (d) => Object.keys(foundry.utils.flattenObject(d ?? {}));
+        const target = failWhat === "card" ? ChatMessage : a;
+        const method = failWhat === "card" ? "create" : "update";
+        const pred = failWhat === "card" ? (d) => !!d?.flags?.sr2e?.drugCard : (d) => keys(d).some(k => /substanceLog\.[^.]+\.type$/.test(k));
+        const orig = target[method]; let done = false;
+        target[method] = function (...args) { if (!done && pred(...args)) { done = true; return Promise.reject(new Error("Quench step failure")); } return orig.apply(this, args); };
+        try { await withFaces([2], () => D.useDose(a, item.id)); } finally { if (target === a) delete a.update; else target[method] = orig; }
+        const exposureId = Object.keys(item.flags.sr2e.doseCommits ?? {})[0];
+        assert.ok(exposureId, "the second dose is left open");
+        D._forgetHeldForTests();
+        return { D, a, item, exposureId };
+      };
+
+      it("once(): exactly one of three parallel claims wins, on a world actor and an unlinked token actor", async () => {
+        const { once } = await import("../claims.mjs");
+        const a = await mk("character");
+        const wins = await Promise.all([1, 2, 3].map(() => once(a, "quench.parallel")));
+        assert.equal(wins.filter(Boolean).length, 1);
+        const npc = await mk("npc");
+        await npc.update({ "prototypeToken.actorLink": false });
+        const [tok] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await npc.getTokenDocument()).toObject(), actorLink: false, x: 250, y: 250 }]);
+        made.tokens.push(tok.id);
+        const twins = await Promise.all([1, 2, 3].map(() => once(tok.actor, "quench.parallel")));
+        assert.equal(twins.filter(Boolean).length, 1, "the ActorDelta arbitrates too");
+        assert.isFalse(npc.effects.some(e => e.flags?.sr2e?.claim), "nothing leaks to the base actor");
+      });
+
+      it("a dose another device holds is PENDING: no steps here, the settle barrier holds, the sheet lists it", async () => {
+        const { D, a, exposureId } = await openOveruse("event");
+        const stun = a.system.conditionMonitor.stun.value;
+        const [r1, r2] = await Promise.all([D._resumeDosesForTests(a), D._resumeDosesForTests(a)]);
+        assert.isFalse(r1); assert.isFalse(r2);
+        assert.lengthOf(cards(exposureId), 0, "no card");
+        assert.isNotOk(a.flags.sr2e.substanceLog?.[exposureId], "no ledger event");
+        assert.equal(a.system.conditionMonitor.stun.value, stun, "no wound");
+        assert.isFalse(await D.settleSubstances(a), "the barrier holds");
+        const [row] = D.unfinishedDoses(a);
+        assert.equal(row?.exposureId, exposureId);
+        assert.equal(row.holder, game.user.name);
+        assert.isFalse(row.overridable, "fresh: not yet");
+      });
+
+      it("GM force-finish completes it exactly once; a second force does nothing", async () => {
+        const { D, a, item, exposureId } = await openOveruse("event");
+        D._setStuckMsForTests(0);
+        try {
+          assert.isTrue(D.unfinishedDoses(a)[0].overridable);
+          await confirmYes(() => D.forceFinishDose(a, exposureId));
+          assert.lengthOf(cards(exposureId), 1, "one card");
+          assert.isTrue(a.flags.sr2e.substanceLog[exposureId].receipts.overuse, "the overuse step ran");
+          assert.isEmpty(Object.keys(item.flags.sr2e.doseCommits ?? {}), "commit cleared");
+          const stun = a.system.conditionMonitor.stun.value;
+          await confirmYes(() => D.forceFinishDose(a, exposureId));
+          assert.lengthOf(cards(exposureId), 1, "still one card");
+          assert.equal(a.system.conditionMonitor.stun.value, stun, "no second wound");
+          assert.lengthOf(D.unfinishedDoses(a), 0);
+        } finally { D._setStuckMsForTests(null); }
+      });
+
+      it("the old holder resuming during a force-finish stops as superseded: one card, one wound", async () => {
+        const { D, a, item, exposureId } = await openOveruse("event");
+        let release;
+        const gate = new Promise(r => { release = r; });
+        D._setDoseStepHookForTests(async (exp, gen, step) => { if (exp === exposureId && gen === 0 && step === "overuse") await gate; });
+        D._setStuckMsForTests(0);
+        try {
+          const old = D._completeDoseForTests(a, item, exposureId, 0);        // g0 runs the event step, then waits
+          await new Promise(r => setTimeout(r, 300));
+          D._forgetHeldForTests();
+          await confirmYes(() => D.forceFinishDose(a, exposureId));          // g1 finishes it
+          release();
+          assert.equal(await old, "superseded");
+          assert.lengthOf(cards(exposureId), 1, "one card");
+          assert.isTrue(a.flags.sr2e.substanceLog[exposureId].receipts.overuse);
+          assert.isEmpty(Object.keys(item.flags.sr2e.doseCommits ?? {}));
+        } finally { D._setDoseStepHookForTests(null); D._setStuckMsForTests(null); }
+      });
+
+      it("a failed force-finish stays listed and can be forced again", async () => {
+        const { D, a, item, exposureId } = await openOveruse("event");
+        D._setStuckMsForTests(0);
+        const orig = ChatMessage.create; let failed = false;
+        ChatMessage.create = function (d, ...r) { if (!failed && d?.flags?.sr2e?.drugCard) { failed = true; return Promise.reject(new Error("Quench card failure")); } return orig.call(this, d, ...r); };
+        try {
+          await confirmYes(() => D.forceFinishDose(a, exposureId));
+          ChatMessage.create = orig;
+          assert.ok(item.flags.sr2e.doseCommits?.[exposureId], "still open");
+          D._forgetHeldForTests();
+          assert.isTrue(D.unfinishedDoses(a)[0]?.overridable, "listed, overridable again");
+          await confirmYes(() => D.forceFinishDose(a, exposureId));          // g2
+          assert.lengthOf(cards(exposureId), 1);
+          assert.isEmpty(Object.keys(item.flags.sr2e.doseCommits ?? {}));
+        } finally { ChatMessage.create = orig; D._setStuckMsForTests(null); }
+      });
+
+      it("an open sheet gains Force finish when the dose crosses the threshold; old markers are pruned", async () => {
+        const { D, a } = await openOveruse("event");
+        D._setStuckMsForTests(600);
+        try {
+          await a.sheet.render({ force: true });
+          const btn = () => a.sheet.element?.querySelector('[data-action="forceFinishDose"]');
+          assert.ok(a.sheet.element.querySelector(".sr2e-unfinished-doses"), "listed");
+          assert.isNotOk(btn(), "not yet");
+          await new Promise(r => setTimeout(r, 1500));
+          assert.ok(btn(), "appeared without user action");
+        } finally { D._setStuckMsForTests(null); await a.sheet.close(); }
+        // Pruning: an orphan marker past the retention goes; a fresh one stays.
+        const { claimId, MARKER_TTL_MS } = await import("../rules/claim-rules.mjs");
+        const b = await mk("character");
+        const at = game.time.serverTime;
+        await b.createEmbeddedDocuments("ActiveEffect", [
+          { _id: claimId("quench.old"), name: "m", disabled: true, flags: { sr2e: { claim: { key: "quench.old", at: at - MARKER_TTL_MS - 1000, user: "x" } } } },
+          { _id: claimId("quench.new"), name: "m", disabled: true, flags: { sr2e: { claim: { key: "quench.new", at, user: "x" } } } }], { keepId: true });
+        assert.isTrue(await D.settleSubstances(b));
+        assert.isFalse(b.effects.has(claimId("quench.old")), "pruned");
+        assert.isTrue(b.effects.has(claimId("quench.new")), "kept");
+      });
+
+      it("VR2: one maneuver result applied twice at once writes once", async () => {
+        const { applyManeuverResult } = await import("../vr2.mjs");
+        const a = await mk("character");
+        let writes = 0;
+        const orig = a.update;
+        a.update = function (d, ...r) { if (Object.keys(foundry.utils.flattenObject(d ?? {})).some(k => k.includes("vr2Maneuvers.applied"))) writes++; return orig.call(this, d, ...r); };
+        const msg = { flags: { sr2e: { vr2ManeuverResult: { resultId: foundry.utils.randomID(), mSession: null,
+          writes: [{ actorUuid: a.uuid, set: { "flags.sr2e.vr2Maneuvers.position": { vs: "x", net: 2 } } }] } } } };
+        try { await Promise.all([applyManeuverResult(msg), applyManeuverResult(msg)]); } finally { delete a.update; }
+        assert.equal(writes, 1);
+        assert.equal(a.flags.sr2e.vr2Maneuvers.position.net, 2);
       });
     }, { displayName: "SR2E: Drugs & toxins (Shadowtech)" });
 

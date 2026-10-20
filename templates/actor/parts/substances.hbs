@@ -1,4 +1,19 @@
 {{!-- Substance use and abuse (Shadowtech p.85–88, p.99): docs/PLAN-addiction.md. --}}
+{{!-- A dose another device is still finishing (docs/PLAN-same-user-writers.md). --}}
+{{#if unfinishedDoses.length}}
+<div class="gear-category sr2e-unfinished-doses">
+  <div class="category-header flexrow"><h3>Unfinished doses</h3></div>
+  <div class="item-list">
+    {{#each unfinishedDoses as |d|}}
+    <div class="item-row flexrow" data-exposure-id="{{d.exposureId}}">
+      <span class="item-name">{{d.name}}</span>
+      <span class="hint">being finished on {{d.holder}}'s device ({{d.minutes}} min{{#unless d.holderOnline}}, offline{{/unless}})</span>
+      {{#if d.overridable}}<div class="item-controls"><a data-action="forceFinishDose" title="GM: force finish — may duplicate effects"><i class="fas fa-forward-fast"></i> Force finish</a></div>{{/if}}
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}
 {{#if (or substances.rows.length isGM)}}
 <div class="gear-category sr2e-substances">
   <div class="category-header flexrow"><h3>Substances</h3>

@@ -11,6 +11,7 @@
  * - Leaving the Matrix (p.124): one path for the sheet, a jackpoint and a crash; dump
  *   shock unless the decker completed a Graceful Logoff.
  */
+import { once, pruneMarkers } from "./claims.mjs";
 import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixCombatOutcome,
          simsenseOverloadTN, systemTestVerdict, testTotalSuccesses, MATRIX_MONITOR_MAX,
          sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
@@ -922,12 +923,19 @@ export async function applyManeuverResult(msg) {
   if (!r?.writes?.length) return;
   // Applied only while both icons are still the connections that maneuvered, so a late
   // outcome can't overwrite a newer, valid record.
-  if (r.mSession != null && (sessionKey(sync(r.maneuvererUuid)) !== r.mSession || sessionKey(sync(r.opponentUuid)) !== r.oSession)) return;
+  const sessionsHold = () => r.mSession == null
+    || (sessionKey(sync(r.maneuvererUuid)) === r.mSession && sessionKey(sync(r.opponentUuid)) === r.oSession);
+  if (!sessionsHold()) return;
   for (const w of r.writes) {
     const actor = sync(w.actorUuid);
     if (!actor || !designatedWriter(actor)) continue;
-    if (actor.flags?.sr2e?.vr2Maneuvers?.applied?.[r.resultId]) continue;
+    const applied = () => !!actor.flags?.sr2e?.vr2Maneuvers?.applied?.[r.resultId];
+    if (applied()) continue;
+    // One write per result even across one user's devices (docs/PLAN-same-user-writers.md
+    // §5); re-validated after the claim's round-trip.
+    if (!(await once(actor, `maneuver.${r.resultId}`)) || applied() || !sessionsHold()) continue;
     await actor.update({ ...w.set, [`flags.sr2e.vr2Maneuvers.applied.${r.resultId}`]: true });
+    await pruneMarkers(actor);
   }
 }
 Hooks.on("createChatMessage", (msg) => { applyManeuverResult(msg).catch(err => console.error("SR2E | maneuver result", err)); });

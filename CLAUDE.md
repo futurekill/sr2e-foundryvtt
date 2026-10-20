@@ -227,6 +227,13 @@ in a `damage:<uuid>` queue. Never call `applyDamage` from inside that queue.
 Drug TN penalties come from `options.tnContext` on `rollSuccessTest`
 (`rollSkillTest` derives it); a new skill or attack roll that calls
 `rollSuccessTest` directly must pass one. See docs/PLAN-drugs-full.md.
+A step that must happen ONCE across clients (any device or user may run it) is claimed with
+`once(actor, key)` (`module/claims.mjs`): the server rejects a second embedded create of the
+same deterministic id. A world-document create with `keepId` REPLACES instead, so never use a
+ChatMessage id as a dedupe. A dose's steps run only on the holder of its claim; others are
+PENDING (the settle barrier holds), and the GM can force-finish a stuck one from the sheet.
+The markers are hidden disabled ActiveEffects (`flags.sr2e.claim`): tests that count
+`actor.effects` must exclude them. See docs/PLAN-same-user-writers.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),

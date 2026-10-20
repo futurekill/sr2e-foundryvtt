@@ -15,6 +15,8 @@ import { effectChanges, changeIsAdd, effectTiming, isZeroDuration, makeDrugEffec
 import { enqueueAttack } from "./engagement.mjs";
 import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { substanceState, nextStamp, EVENT_VERSION, stepId } from "./rules/substances.mjs";
+import { doseKey, doseHoldState, STUCK_MS } from "./rules/claim-rules.mjs";
+import { once, markersOf, pruneMarkers } from "./claims.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const BOXES = { L: 1, M: 3, S: 6, D: 10 };
@@ -199,12 +201,19 @@ export function doseDriverOf(actor) {
  * counter, the effect, the ACTH pump, the card. Clears the item's commit when
  * every step is done.
  */
-async function completeDose(actor, item, exposureId) {
+async function completeDose(actor, item, exposureId, gen) {
   const plan = item?.flags?.sr2e?.doseCommits?.[exposureId];
   if (!plan || plan.actorUuid !== actor.uuid) return true;       // not ours (a copy): ignored
   const key = `flags.sr2e.substanceLog.${exposureId}`;
   const ev = () => actor.flags?.sr2e?.substanceLog?.[exposureId];
   const receipts = () => ev()?.receipts ?? {};
+  // Only the holder of the newest claim runs the steps; a GM force-finish supersedes
+  // this one (a mitigation: it can't recall a write already sent).
+  const go = async (step) => {
+    await stepHook?.(exposureId, gen, step);
+    return doseHoldState(markersOf(actor), exposureId, game.time.serverTime).gen <= gen;
+  };
+  if (!(await go("event"))) return "superseded";
   // 1. The ledger event and the absorption counter, ONE update (R4 #3). The
   //    new counter is inert until its effect exists (drugsInForce), so the
   //    overuse wound below can only be soaked by an EARLIER dose.
@@ -214,12 +223,14 @@ async function completeDose(actor, item, exposureId) {
   }
   // 2. Overuse: the Light Stun and its receipt in one update, re-checked inside
   //    the damage queue so it can never land twice.
+  if (!(await go("overuse"))) return "superseded";
   if (plan.overuse && !receipts().overuse) {
     await commitDamage(actor, "stun", 1, { extra: { [`${key}.receipts.overuse`]: true }, skipIf: () => !!receipts().overuse });
   }
   // 3. The effect: deterministic id (the exposureId). Never resurrect one that
   //    was ended; across sessions a missing one is "lost" and the GM can
   //    re-apply it from the ledger (R5 #5).
+  if (!(await go("effect"))) return "superseded";
   if (!receipts().effect) {
     let receipt;
     if (!plan.effect) receipt = "none";
@@ -232,6 +243,7 @@ async function completeDose(actor, item, exposureId) {
     await actor.update({ [`${key}.receipts.effect`]: receipt });
   }
   // 4. ACTH: the pump's activation and its receipt in ONE item update.
+  if (!(await go("pump"))) return "superseded";
   if (plan.pumpItemId && !receipts().pump) {
     const pump = actor.items.get(plan.pumpItemId);
     if (pump && pump.flags?.sr2e?.acthExposure !== exposureId) {
@@ -240,6 +252,7 @@ async function completeDose(actor, item, exposureId) {
     await actor.update({ [`${key}.receipts.pump`]: true });
   }
   // 5. The card (cardFor makes it idempotent); a lost effect gets the GM's Re-apply.
+  if (!(await go("card"))) return "superseded";
   if (!receipts().card) {
     const lost = receipts().effect === "lost";
     if (!cardFor(actor.uuid, exposureId, 0)) await postCard(actor, { ...plan.card, lost });
@@ -498,7 +511,7 @@ async function claimedRoll(actor, id, base, roll) {
 export function extendDose(actor, drug, dep) {
   if (!actor?.isOwner) return;
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     const r = substancesOf(actor).drugs[drug];
     if (r?.state !== "addicted" || !r.window || r.window[dep]?.extended || !r.addicted[dep]) return ui.notifications.warn("No dose window to extend.");
     const attr = dep === "P" ? "body" : "willpower";
@@ -517,7 +530,7 @@ export function extendDose(actor, drug, dep) {
 export function beginRecovery(actor, drug) {
   if (!game.user.isGM) return ui.notifications.warn("Recovery starts when the GM feels it's warranted (p.87).");
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     const fold = substancesOf(actor), r = fold.drugs[drug];
     if (!(r?.state === "addicted" || r?.state === "withdrawal")) return ui.notifications.warn("Not addicted.");
     if (Object.values(fold.drugs).some(o => o.drug !== drug && (o.state === "recovery" || o.state === "rest"))) {
@@ -539,7 +552,7 @@ export function beginRecovery(actor, drug) {
 export function cleanseSubstance(actor, drug, kind) {
   if (!game.user.isGM) return;
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     await actor.update({ [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { ...stampFor(actor), type: "therapy", drug, kind } });
   });
 }
@@ -570,7 +583,7 @@ export async function importSubstance(actor) {
   const item = actor.items.get(data.item), drug = drugOf(item);
   if (!drug) return;
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     if (substancesOf(actor).drugs[drug.key]?.base) return ui.notifications.warn(`${item.name} is already tracked — use the correction instead.`);
     const stamp = stampFor(actor);
     const snap = snapshotOf(item, drug);
@@ -615,7 +628,7 @@ export async function editSubstance(actor, drug) {
   for (const k of ["clearImmune", "restoreImplants", "clearDeath"]) if (data[k]) patch[k] = true;
   if (!Object.keys(patch).length) return;
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     await actor.update({ [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { ...stampFor(actor), type: "edit", drug, patch } });
   });
 }
@@ -630,7 +643,7 @@ function resolveDeathCheck(message, dead) {
     const live = game.messages.get(message.id) ?? message;
     const st = live.flags?.sr2e?.substanceReport;
     if (!st?.open) return;
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     const id = `death_${message.id}`;
     if (dead && !actor.flags?.sr2e?.substanceLog?.[id]) {
       await actor.update({ [`flags.sr2e.substanceLog.${id}`]: { ...stampFor(actor), type: "death", reason: st.reason, reviewedSeq: st.reviewedSeq } });
@@ -653,7 +666,7 @@ export function reapplyEffect(message) {
   const actor = asActor(sync(st?.actorUuid));
   if (!actor || !game.user.isGM) return;
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     const key = `flags.sr2e.substanceLog.${st.exposureId}`;
     const ev = actor.flags?.sr2e?.substanceLog?.[st.exposureId];
     if (!ev?.effectPlan || ev.receipts?.effect !== "lost" || ev.receipts?.ended || ENDED_HERE.has(st.exposureId)) {
@@ -675,6 +688,8 @@ export function reapplyEffect(message) {
  */
 export async function settleSubstances(actor) {
   if (!(await resumeDoses(actor))) return false;
+  const open = new Set(openCommits(actor).map(c => c.exposureId));
+  await pruneMarkers(actor, (m) => [...open].some(id => m.key?.startsWith(`dose.${id}.`)));
   const log = actor.flags?.sr2e?.substanceLog ?? {};
   const upd = {};
   let live = false;
@@ -708,13 +723,84 @@ const CLAIM_ABANDONED_MS = 60 * 1000;
 /** Complete every unfinished commit of this actor (the drain, R5 #2). */
 export async function resumeDoses(actor) {
   let ok = true;
-  for (const item of actor?.items ?? []) {
-    for (const exposureId of Object.keys(item.flags?.sr2e?.doseCommits ?? {})) {
-      try { await completeDose(actor, item, exposureId); }
-      catch (err) { ok = false; console.error(`SR2E | finishing dose ${exposureId} failed`, err); }
-    }
+  for (const { item, exposureId } of openCommits(actor)) {
+    try {
+      // Run it only as the holder of its newest claim: one this client already holds,
+      // or g0 of a commit no one has claimed (written before markers existed).
+      const st = doseHoldState(markersOf(actor), exposureId, game.time.serverTime);
+      let gen = HELD.get(exposureId) === st.gen ? st.gen : null;
+      if (gen === null && st.gen === -1 && await once(actor, doseKey(exposureId, 0))) HELD.set(exposureId, gen = 0);
+      if (gen === null) { ok = false; continue; }                // another client is finishing it
+      if ((await completeDose(actor, actor.items.get(item.id) ?? item, exposureId, gen)) !== true) ok = false;
+    } catch (err) { ok = false; console.error(`SR2E | finishing dose ${exposureId} failed`, err); }
   }
   return ok;
+}
+
+/** This actor's open dose commits: [{item, exposureId, plan}]. */
+function openCommits(actor) {
+  return [...(actor?.items ?? [])].flatMap(item => Object.entries(item.flags?.sr2e?.doseCommits ?? {})
+    .filter(([, plan]) => plan?.actorUuid === actor.uuid).map(([exposureId, plan]) => ({ item, exposureId, plan })));
+}
+
+/** Claim generations this client holds, by exposure id. */
+const HELD = new Map();
+let stepHook = null;
+let stuckMs = STUCK_MS;
+/** Tests only: await `fn(exposureId, gen, step)` before each dose step; shorten STUCK_MS. */
+export function _setDoseStepHookForTests(fn) { stepHook = fn; }
+export function _setStuckMsForTests(ms) { stuckMs = ms ?? STUCK_MS; }
+/** Tests only: run a dose's steps as the holder of `gen`, outside the actor queue. */
+export function _completeDoseForTests(actor, item, exposureId, gen) { HELD.set(exposureId, gen); return completeDose(actor, item, exposureId, gen); }
+export function _resumeDosesForTests(actor) { return resumeDoses(actor); }
+/** Tests only: forget the claims this client holds, as another device would see them. */
+export function _forgetHeldForTests() { HELD.clear(); }
+
+/** The sheets' "Unfinished doses": every open commit and who holds it. */
+export function unfinishedDoses(actor) {
+  const markers = markersOf(actor), now = game.time.serverTime;
+  return openCommits(actor).map(({ item, exposureId, plan }) => {
+    const st = doseHoldState(markers, exposureId, now, stuckMs);
+    const user = game.users.get(st.holder);
+    return { exposureId, name: plan.card?.name ?? item.name, holder: user?.name ?? "an unknown device",
+      holderOnline: !!user?.active, minutes: Math.floor(st.ageMs / 60000),
+      overridable: game.user.isGM && (st.gen === -1 || st.overridable), msUntil: st.msUntil };
+  });
+}
+
+/**
+ * GM: force-finish a dose whose holder stopped (docs/PLAN-same-user-writers.md §3). Not
+ * a fence: if the holder's device still runs, a step can land twice, and the dialog says so.
+ */
+export async function forceFinishDose(actor, exposureId) {
+  if (!game.user.isGM || !actor) return;
+  const row = unfinishedDoses(actor).find(d => d.exposureId === exposureId);
+  if (!row?.overridable) return ui.notifications.info("Nothing to force-finish yet.");
+  const ok = await foundry.applications.api.DialogV2.confirm({
+    window: { title: `Force finish ${row.name}` }, rejectClose: false,
+    content: `<p><strong>${esc(row.holder)}</strong> started finishing this dose ${row.minutes} min ago
+      (${row.holderOnline ? "still online" : "offline now"}).</p>
+      <p>Close EVERY Foundry tab and device of ${esc(row.holder)} first. Being offline is not enough: a sleeping tab
+      can reconnect and carry on.</p>
+      <p>Writes that device already sent may still land, and this client may not have seen them yet. Forcing can
+      double the overuse wound or the card: check the condition monitor and chat afterwards.</p>` });
+  if (!ok) return;
+  return queue(actor, async () => {
+    const commit = openCommits(actor).find(c => c.exposureId === exposureId);
+    if (!commit) return ui.notifications.info("That dose is already finished.");
+    const st = doseHoldState(markersOf(actor), exposureId, game.time.serverTime, stuckMs);
+    if (st.gen !== -1 && !st.overridable) return ui.notifications.info("Another device just took it over.");
+    const gen = st.gen + 1;
+    if (!(await once(actor, doseKey(exposureId, gen)))) return ui.notifications.info("Another device just took it over.");
+    HELD.set(exposureId, gen);
+    try {
+      const r = await completeDose(actor, commit.item, exposureId, gen);
+      if (r === true) ui.notifications.info(`${row.name} finished.`);
+    } catch (err) {
+      console.error(`SR2E | force-finishing dose ${exposureId} failed`, err);
+      ui.notifications.error(`Finishing ${row.name} failed (${esc(err?.message ?? err)}); it stays listed.`);
+    }
+  });
 }
 
 /**
@@ -725,7 +811,7 @@ export async function resumeDoses(actor) {
 export function useDose(actor, itemId) {
   return queue(actor, async () => {
     if (!actor?.isOwner || !["character", "npc"].includes(actor.type)) return ui.notifications.warn("Only the owner can use that.");
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists; nothing was spent.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console); nothing was spent.");
     const item = actor.items.get(itemId);
     const drug = drugOf(item);
     if (!drug) return;
@@ -781,13 +867,16 @@ export function useDose(actor, itemId) {
       body: naturalOf(actor, "body"), willpower: naturalOf(actor, "willpower"), receipts: {} };
     const plan = { actorUuid: actor.uuid, event, overuse: halve && !inert, absorb, effect, pumpItemId: pump?.id ?? null, card };
 
-    // 3. THE commit: the spend and the plan in one item update.
+    // 3. THE commit, as the holder of its claim (taken first, so no other client can
+    //    start finishing it): the spend and the plan in one item update.
+    if (!(await once(actor, doseKey(exposureId, 0)))) return ui.notifications.error("Couldn't start the dose; nothing was spent.");
+    HELD.set(exposureId, 0);
     await item.update({ "system.quantity": Math.max(0, (item.system.quantity ?? 1) - 1),
                         [`flags.sr2e.doseCommits.${exposureId}`]: plan });
     COMMITTED_THIS_SESSION.add(exposureId);
 
     // 4. Everything else, resumable.
-    try { await completeDose(actor, actor.items.get(itemId) ?? item, exposureId); }
+    try { await completeDose(actor, actor.items.get(itemId) ?? item, exposureId, 0); }
     catch (err) {
       console.error("SR2E | finishing the dose failed", err);
       ui.notifications.warn(`${item.name} was taken; finishing its effects failed and will be retried (${esc(err?.message ?? err)}).`);
@@ -814,7 +903,7 @@ export function repostCard(actor, effectId) {
 export function endDrug(actor, effectId) {
   if (!actor?.isOwner) return;
   return queue(actor, async () => {
-  if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+  if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
   const eff = actor.effects.get(effectId);
   const id = eff?.flags?.sr2e?.drugEffect?.exposureId;
   // The tombstone lands BEFORE the delete, so a resume never recreates it (R5 #5).
@@ -836,7 +925,7 @@ export function resistToxin(message) {
   if (!st?.damage || !actor) return;
   if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     const key = `${st.exposureId}_${st.seq ?? 0}`;
     if (actor.getFlag("sr2e", "toxinDone")?.[key]) return ui.notifications.warn("That damage has already been resisted.");
     const { power, level, type } = st.damage;
@@ -863,7 +952,7 @@ export function nextToxin(message) {
   if (!st?.repeatMinutes || !actor) return;
   if (!game.user.isGM) return ui.notifications.warn("The GM decides when the next 15 minutes have passed.");
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console).");
     const live = game.messages.get(message.id)?.flags?.sr2e?.drugCard ?? st;
     const next = (live.seq ?? 0) + 1;
     if (live.repeatUsed || cardFor(live.actorUuid, live.exposureId, next)) return;
@@ -911,7 +1000,7 @@ export async function drugTests(message) {
   });
   if (!data) return;                                            // cancel writes nothing
   return queue(actor, async () => {
-    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment; see the console if it persists; nothing was rolled.");
+    if (!(await settleSubstances(actor))) return ui.notifications.error("Something earlier (a dose or a roll) is still being finished — try again in a moment (if a device was closed mid-dose, the GM can force-finish it under Unfinished doses on the sheet; otherwise see the console); nothing was rolled.");
     const now = check();                                        // revalidated inside the queue
     if (now.error) return ui.notifications.warn(now.error);
     const lines = [];

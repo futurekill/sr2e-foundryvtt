@@ -16,7 +16,7 @@ import { matrixQueue, sessionHost } from "../jackpoints.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
   vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory } from "../vr2.mjs";
-import { useDose, endDrug, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
+import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
@@ -3591,6 +3591,11 @@ const SHARED_ACTIONS = {
     event.preventDefault();
     const id = target.closest("[data-effect-id]")?.dataset.effectId;
     if (id) return endDrug(this.document, id);
+  },
+  forceFinishDose: function(event, target) {
+    event.preventDefault();
+    const id = target.closest("[data-exposure-id]")?.dataset.exposureId;
+    if (id) return forceFinishDose(this.document, id);
   },
   repostDrugCard: function(event, target) {
     event.preventDefault();

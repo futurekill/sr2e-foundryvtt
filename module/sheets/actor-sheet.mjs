@@ -4,7 +4,7 @@ import { isVR2 } from "../vr2-mode.mjs";
 import { liveSession } from "../vr2.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
-import { activeDrugs, drugOf, substanceRows } from "../drugs.mjs";
+import { activeDrugs, drugOf, substanceRows, unfinishedDoses } from "../drugs.mjs";
 import { calendarDate } from "../calendaria.mjs";
 
 /** The sheet's substance rows, with calendar dates when Calendaria is active. */
@@ -234,6 +234,10 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
+    // An unfinished dose becomes force-finishable at a set time: re-render then.
+    clearTimeout(this._doseTimer);
+    const waits = (context.unfinishedDoses ?? []).filter(d => game.user.isGM && !d.overridable).map(d => d.msUntil);
+    if (waits.length) this._doseTimer = setTimeout(() => { if (this.rendered) this.render(); }, Math.min(...waits) + 250);
     if (!this.isEditable) return;
 
     // Prose-mirror blur → auto-save (biography, notes, etc.)
@@ -995,6 +999,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.bodyIndexOverstress = overstressPenalty(actor.system.bodyIndex?.value, actor.system.bodyIndex?.max);
     context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");
     context.activeDrugs = activeDrugs(actor);
+    context.unfinishedDoses = unfinishedDoses(actor);
     context.substances = substanceContext(actor);
     context.isGM = game.user.isGM;
     context.skillsofts = actor.items.filter(i => i.type === "gear" && i.system.category === "skillsoft");
@@ -1368,6 +1373,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       toggleAstral: SHARED_ACTIONS.toggleAstral,
       useDose: SHARED_ACTIONS.useDose,
       endDrug: SHARED_ACTIONS.endDrug,
+      forceFinishDose: SHARED_ACTIONS.forceFinishDose,
       repostDrugCard: SHARED_ACTIONS.repostDrugCard,
       extendDose: SHARED_ACTIONS.extendDose,
       beginRecovery: SHARED_ACTIONS.beginRecovery,
@@ -1395,9 +1401,10 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.gear = actor.items.filter(i => i.type === "gear");
     context.drugs = context.gear.filter(i => drugOf(i));
     context.activeDrugs = activeDrugs(actor);
+    context.unfinishedDoses = unfinishedDoses(actor);
     context.substances = substanceContext(actor);
     context.isGM = game.user.isGM;
-    context.showDrugs = context.drugs.length > 0 || context.activeDrugs.length > 0 || context.substances.rows.length > 0;
+    context.showDrugs = context.drugs.length > 0 || context.activeDrugs.length > 0 || context.unfinishedDoses.length > 0 || context.substances.rows.length > 0;
     context.spells = actor.items.filter(i => i.type === "spell");
     context.foci = actor.items.filter(i => i.type === "focus");
     // The armor inputs edit the stat-block base; system.armor is base + worn.

@@ -641,7 +641,8 @@ If those five all work, the core loop is healthy.
 - [ ] With Foundry open for you in a second tab, your name stays grey (the dialog says why).
 - [ ] A phone already signed in as someone else opens that account (sign out there, scan again).
 - [ ] A GM gets the separate-phone-user text, and no Let my phone in.
-- [ ] Known limit (own task): with an interrupted dose and both devices loading together, check the dose card/Stun lands once.
+- [ ] Two devices, one dose (docs/PLAN-same-user-writers.md): take a second Kamikaze dose (overuse) on the computer; one dose card and one Light Stun, on both devices.
+- [ ] Close the computer's tab during a dose (or stub a step to fail): the phone's sheet lists it under Unfinished doses; after 2 minutes the GM's open sheet shows Force finish without a refresh; it lands once.
 
 ## Matrix jackpoints (two clients: a GM and a player login)
 - [ ] GM: draw a Region over a terminal, add the **Matrix jackpoint** behaviour pointing

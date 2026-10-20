@@ -59,6 +59,13 @@ unchanged.
   on v13.
 
 ### Fixed
+- **A dose finishes once, however many devices are open.** A computer and a phone (or two
+  tabs) loading together could each finish an interrupted dose: two dose cards, and the
+  overuse Light Stun twice. Now the device that takes a dose holds it until it's done,
+  and the server turns any other device away. If that device is closed mid-dose, the
+  sheet lists the dose under **Unfinished doses**, and after 2 minutes the GM can
+  **Force finish** it. The confirmation explains when that's safe. VR2.0 maneuver
+  results apply once in the same way. See docs/PLAN-same-user-writers.md.
 - **Increase Attribute is four spells, and Increase Cybered Attribute exists** (p.154–155).
   The compendium had one "Increase [Attribute]" with a +0(L) Drain. It is now
   Increase [Attribute] +1 to +4, Drain ((F / 2) + 1) at L/M/S/D (mana), plus Increase
