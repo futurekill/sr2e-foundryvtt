@@ -324,6 +324,57 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
  * Character Sheet for Shadowrun 2E player characters.
  * Uses the V13 ApplicationV2 framework with HandlebarsApplicationMixin.
  */
+/**
+ * Points and nuyen spent in character creation vs the chosen priorities (SR2E p.44–45).
+ * Purely informational on the sheet; finishing creation converts what's left of the
+ * Resources (p.47).
+ */
+export function chargenBudgetOf(actor) {
+  const system = actor.system;
+  const prio = CONFIG.SR2E.priorities;
+  const chosen = system.chargen?.priorities ?? {};
+  const allot = {
+    attributes:  prio[chosen.attributes]?.attributes ?? 0,
+    skills:      prio[chosen.skills]?.skills ?? 0,
+    resources:   prio[chosen.resources]?.resources ?? 0,
+    forcePoints: prio[chosen.resources]?.forcePoints ?? 0
+  };
+  const attrData = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]
+    .map((k) => ({ base: system[k]?.base ?? 0 }));
+  const skillData = actor.items
+    .filter((i) => i.type === "skill")
+    // The lifecycle fields and sub-rating NAMES travel too: chargenSpend
+    // charges the allocation (SR2E p.70), and for a legacy skill with no
+    // `allocated` it has to invert the reduction, which needs the names.
+    .map((i) => ({
+      category: i.system.category,
+      rating: i.system.rating,
+      allocated: i.system.allocated,
+      ratingsFinalized: i.system.ratingsFinalized,
+      concentration: { name: i.system.concentration?.name ?? "" },
+      specialization: { name: i.system.specialization?.name ?? "" }
+    }));
+  const itemData = actor.items.map((i) => ({
+    type: i.type,
+    cost: i.system.cost ?? 0,
+    // Rating/grade/ratingStats travel too — chargenSpend prices through
+    // itemBaseCost, so rated and alpha/beta/cultured ware count properly.
+    rating: i.system.rating ?? 1,
+    grade: i.system.grade,
+    secondhandDiscount: i.system.secondhandDiscount,   // secondhand bioware's own price (Shadowtech p.12)
+    bodySystem: i.system.bodySystem,   // neural bioware ignores its grade (Shadowtech p.7)
+    ratingStats: i.system.ratingStats,
+    quantity: i.system.quantity ?? 1,
+    // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
+    // ammo by this, not cost × rounds.
+    acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
+    drug: !!drugOf(i),
+    force: i.system.force ?? 0,
+    bondingCost: i.system.bondingCost ?? 0
+  }));
+  return chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+}
+
 export class SR2ECharacterSheet extends SR2EBaseActorSheet {
 
   /** @override */
@@ -1333,51 +1384,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       ? context.prioritySum === 10
       : context.priorityDuplicates.length === 0;
 
-    // --- Chargen budget: points/nuyen spent vs the chosen priority allotment
-    // (SR2E p.44–45). Purely informational; nothing is enforced. ---
-    const allot = {
-      attributes:  prio[chosen.attributes]?.attributes ?? 0,
-      skills:      prio[chosen.skills]?.skills ?? 0,
-      resources:   prio[chosen.resources]?.resources ?? 0,
-      forcePoints: prio[chosen.resources]?.forcePoints ?? 0
-    };
-    const attrData = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]
-      .map((k) => ({ base: system[k]?.base ?? 0 }));
-    const skillData = actor.items
-      .filter((i) => i.type === "skill")
-      // The lifecycle fields and sub-rating NAMES travel too: chargenSpend
-      // charges the allocation (SR2E p.70), and for a legacy skill with no
-      // `allocated` it has to invert the reduction, which needs the names.
-      .map((i) => ({
-        category: i.system.category,
-        rating: i.system.rating,
-        allocated: i.system.allocated,
-        ratingsFinalized: i.system.ratingsFinalized,
-        concentration: { name: i.system.concentration?.name ?? "" },
-        specialization: { name: i.system.specialization?.name ?? "" }
-      }));
-    const itemData = actor.items.map((i) => ({
-      type: i.type,
-      cost: i.system.cost ?? 0,
-      // Rating/grade/ratingStats travel too — chargenSpend prices through
-      // itemBaseCost, so rated and alpha/beta/cultured ware count properly.
-      rating: i.system.rating ?? 1,
-      grade: i.system.grade,
-      bodySystem: i.system.bodySystem,   // neural bioware ignores its grade (Shadowtech p.7)
-      ratingStats: i.system.ratingStats,
-      quantity: i.system.quantity ?? 1,
-      // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
-      // ammo by this, not cost × rounds.
-      acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
-      drug: !!drugOf(i),
-      force: i.system.force ?? 0,
-      bondingCost: i.system.bondingCost ?? 0
-    }));
     // Reopening creation is GM-only (it restores list-price buying), so a player
     // looking at a finished character gets the box disabled rather than a click
     // the preUpdateActor veto silently undoes.
     context.chargenReopenLocked = !game.user.isGM && !system.chargen?.inProgress;
-    context.chargenBudget = chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+    context.chargenBudget = chargenBudgetOf(actor);
     // The Companion's two hard limits on the Attribute Edges (p.24). Reported
     // beside the budget, not enforced — like everything else in this panel.
     context.attributeEdges = attributeEdgeViolations(

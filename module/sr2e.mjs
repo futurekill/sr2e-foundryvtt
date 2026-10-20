@@ -46,7 +46,8 @@ import {
   SR2EVehicleSheet,
   SR2ESpiritSheet,
   SR2EICSheet,
-  SR2EHostSheet
+  SR2EHostSheet,
+  chargenBudgetOf
 } from "./sheets/actor-sheet.mjs";
 import { SR2EItemSheet } from "./sheets/item-sheet.mjs";
 import { rollWeaponInteractive } from "./sheets/sheet-actions.mjs";
@@ -65,7 +66,7 @@ import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
-import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair} from "./rules/sr2e-rules.mjs";
+import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
 /**
@@ -1783,6 +1784,29 @@ Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
   }).finally(() => FINALIZING.delete(actor.id));
   return false;
 });
+
+// Finishing creation (the box going off) offers the starting money (SR2E p.47):
+// what's left of the Resources at 10:1, plus 3D6 × 1,000¥. Asked of whoever finished it.
+Hooks.on("updateActor", (actor, changes, options, userId) => {
+  if (actor.type !== "character" || userId !== game.user.id) return;
+  if (changes.system?.chargen?.inProgress !== false) return;
+  offerStartingMoney(actor).catch(err => console.error("SR2E | starting money", err));
+});
+
+async function offerStartingMoney(actor) {
+  const esc = foundry.utils.escapeHTML, fmt = (n) => `${n.toLocaleString("en-US")}¥`;
+  const unspent = Math.max(0, chargenBudgetOf(actor).resources.remaining);
+  const ok = await foundry.applications.api.DialogV2.confirm({
+    window: { title: `Starting money — ${actor.name}` }, rejectClose: false,
+    content: `<p>Unspent Resources ${fmt(unspent)} become ${fmt(Math.floor(unspent / 10))} (10:1), plus 3D6 × 1,000¥ (SR2E p.47).</p>
+      <p>Roll and set ${esc(actor.name)}'s nuyen to the total? It's ${fmt(actor.system.nuyen ?? 0)} now.</p>` });
+  if (!ok) return;
+  const roll = await new Roll("3d6").evaluate();
+  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: "Starting money: 3D6 × 1,000¥ (SR2E p.47)" });
+  const total = startingMoney(unspent, roll.total);
+  await actor.update({ "system.nuyen": total });
+  ui.notifications.info(`${esc(actor.name)} starts with ${fmt(total)} (${fmt(Math.floor(unspent / 10))} + ${fmt(roll.total * 1000)}).`);
+}
 
 // Elemental sorcery services (SR2E p.141–142): the conjurer's sheet shows who
 // holds each spell and for how long, and its sustain penalty depends on it, so

@@ -1822,6 +1822,11 @@ export function attributeEdgeViolations(qualities = []) {
   };
 }
 
+/** Starting money (SR2E p.47): unspent Resource nuyen at 10:1, plus 3D6 × 1,000¥. */
+export function startingMoney(unspentResources, roll3d6) {
+  return Math.floor(Math.max(0, Number(unspentResources) || 0) / 10) + Math.max(0, Number(roll3d6) || 0) * 1000;
+}
+
 /**
  * Chargen resource cost of a single owned item.
  *

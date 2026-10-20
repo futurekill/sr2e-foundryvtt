@@ -58,3 +58,12 @@ describe("elective surgery category (core p.114) and fee (Cybertechnology p.53)"
     expect(surgeryCategory(2)).toMatchObject({ wound: "D", boxes: 10, fee: 250000 });
   });
 });
+
+import { startingMoney } from "../module/rules/sr2e-rules.mjs";
+describe("starting money (SR2E p.47)", () => {
+  it("unspent Resources at 10:1 plus 3D6 × 1,000¥", () => {
+    expect(startingMoney(15000, 0)).toBe(1500);            // the book's example
+    expect(startingMoney(15005, 10)).toBe(11500);
+    expect(startingMoney(-500, 3)).toBe(3000);              // overspent: nothing to convert
+  });
+});

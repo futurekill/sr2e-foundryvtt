@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Added — clinics, delta grade, secondhand bioware
+### Added — clinics, delta grade, secondhand bioware, starting money
 - **Cybersurgery (Cybertechnology p.53).** Buying cyberware in play (not in character
   creation, not a spare) now includes its surgery. The Buy dialog shows the surgeon's
   TN for the GM to roll. The successes change the implant's Essence: 0 → +15%,
@@ -14,6 +14,9 @@
 - **Delta-grade cyberware (Cybertechnology p.44):** Essence ×.5, price ×10. It needs a
   delta clinic (the GM's call). Cybertechnology supersedes the Street Samurai Catalog's
   "alpha and beta only".
+- **Starting money (SR2E p.47).** Unticking "Creation in progress" offers to roll it:
+  the unspent Resources at 10:1, plus 3D6 × 1,000¥, set as the character's nuyen
+  (the roll goes to chat). Skip it to keep the nuyen as it is.
 - **Secondhand bioware (Shadowtech p.12):** 40–60% off (you pick), the same Body Cost,
   and +1 on its damage-test rolls (a note). Changing the discount later re-prices it.
 

@@ -801,6 +801,23 @@ export function registerSR2EQuenchTests() {
           assert.ok(text.includes("450 / 90,000"),
             `resources row wrong; got: ${text}`);
         });
+
+        it("finishing creation converts the unspent Resources (10:1) plus 3D6 × 1,000¥ (p.47)", async () => {
+          const b = await Actor.create({ name: "Quench Starting Money", type: "character",
+            system: { nuyen: 0, chargen: { priorities: { resources: "C" } } } });
+          await b.createEmbeddedDocuments("Item", [{ name: "Ares Predator", type: "weapon", system: { cost: 450, quantity: 1 } }]);
+          const api = foundry.applications.api.DialogV2, confirm = api.confirm, rand = CONFIG.Dice.randomUniform;
+          const faces = [1, 2, 3];
+          api.confirm = async () => true;
+          CONFIG.Dice.randomUniform = () => faces.length ? (6.5 - faces.shift()) / 6 : rand();
+          try {
+            await b.update({ "system.chargen.inProgress": false });
+            const want = Math.floor((90000 - 450) / 10) + 6000;
+            let ok = false;
+            for (let i = 0; i < 40 && !ok; i++) { await new Promise(r => setTimeout(r, 100)); ok = b.system.nuyen === want; }
+            assert.equal(b.system.nuyen, want, "8,955¥ + 6,000¥");
+          } finally { api.confirm = confirm; CONFIG.Dice.randomUniform = rand; await b.delete(); }
+        });
       });
     }, { displayName: "SR2E: Chargen budget" });
 
