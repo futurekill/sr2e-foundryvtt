@@ -58,6 +58,8 @@ const UNBOUND_FOCI = [];
 // Characters left mid-chargen by the 0.92.0 skill migration, reported to the GM
 // so a stale or imported chargen flag surfaces instead of hiding.
 const PENDING_CHARGEN = [];
+// 0.109.0: implants carrying switched-off module rows, which now cost their Essence.
+const INACTIVE_MODULES = [];
 const CANDIDATE_SUBRATINGS = [];
 const REPAIRED_KARMA = [];
 
@@ -590,6 +592,17 @@ export const MIGRATIONS = [
       }
       return Object.keys(update).length ? update : null;
     }
+  },
+  {
+    // 0.109.0: an inactive cybereye/cyberear module used to cost no Essence. It now
+    // does (installed is installed). Nothing is rewritten; the GM gets a list.
+    version: "0.109.0",
+    migrateItem(source, parent) {
+      if (source.type !== "cyberware") return null;
+      const off = (source.system?.modules ?? []).filter(m => m && m.active === false && (m.essenceCost ?? 0) > 0);
+      if (off.length) INACTIVE_MODULES.push(`${parent?.name ? parent.name + " / " : ""}${source.name} (${off.map(m => m.name || "module").join(", ")})`);
+      return null;
+    }
   }
 ];
 
@@ -780,6 +793,19 @@ export async function migrateWorld() {
         set that character's Karma Pool adjustment by hand.</p></div>`
     });
     REPAIRED_KARMA.length = 0;
+  }
+
+  if (INACTIVE_MODULES.length) {
+    const names = [...new Set(INACTIVE_MODULES)];
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Switched-off implant modules now cost Essence (0.109.0)</strong>
+        <p>An installed module costs its Essence whether it's switched on or not; switching
+        it off only stops its bonus. These had been costing nothing while off:
+        ${foundry.utils.escapeHTML(names.join("; "))}.</p>
+        <p>If a module isn't actually installed, delete its row.</p></div>`
+    });
+    INACTIVE_MODULES.length = 0;
   }
 
   if (CANDIDATE_SUBRATINGS.length) {

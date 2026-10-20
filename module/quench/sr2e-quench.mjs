@@ -1124,6 +1124,22 @@ export function registerSR2EQuenchTests() {
           assert.equal(item()._source.system.combatTnMod, 0, "base must not absorb the module bonus");
           assert.equal(item().system.combatTnMod, -2, "derived TN must not compound to −8");
         });
+
+        it("a switched-off module still costs its Essence; only its bonus stops (Cybertechnology plan, Phase 0)", async () => {
+          const actor = await mk({ name: "Quench Eye Modules", type: "character" });
+          const [eyes] = await actor.createEmbeddedDocuments("Item", [{
+            name: "Cybereyes", type: "cyberware",
+            system: { installed: true, essenceCost: 0.2, combatTnMod: 0, capacity: 0.5, modules: [
+              { name: "Smartlink", active: true, combatTnMod: -2, essenceCost: 0.3, cost: 100, rating: 0 },
+              { name: "Thermographic", active: false, combatTnMod: -1, essenceCost: 0.4, cost: 50, rating: 0 }] }
+          }]);
+          const item = () => actor.items.get(eyes.id);
+          assert.equal(item().system.capacityUsed, 0.7, "both rows fill the allowance");
+          assert.equal(item().system.capacityOver, 0.2);
+          assert.equal(item().system.actualEssenceCost, 0.4, ".2 for the eyes + .2 over the allowance");
+          assert.equal(item().system.moduleCost, 150, "both rows' cost");
+          assert.equal(item().system.combatTnMod, -2, "only the ACTIVE module's TN bonus");
+        });
       });
     }, { displayName: "SR2E: Derived compounding" });
 

@@ -624,15 +624,15 @@ export class CyberwareData extends SR2EDataModel {
       });
     }
 
-    // Container cyberware: total the ACTIVE modules and surface derived readouts.
-    // capacityUsed feeds the sheet meter; capacityOver is the essence charged
-    // beyond the free allowance; combatTnMod gains any module TN bonuses.
+    // Container cyberware: a module row is INSTALLED, so its Essence and cost
+    // always count (switching an implant off doesn't give Essence back); `active`
+    // only gates its TN bonus (docs/PLAN-cybertechnology.md, Phase 0). capacityUsed
+    // feeds the sheet meter; capacityOver is the essence beyond the free allowance.
     let modEssence = 0, modCost = 0, modTn = 0;
     for (const m of this.modules ?? []) {
-      if (!m.active) continue;
       modEssence += m.essenceCost ?? 0;
       modCost    += m.cost ?? 0;
-      modTn      += m.combatTnMod ?? 0;
+      if (m.active) modTn += m.combatTnMod ?? 0;
     }
     this.capacityUsed = Math.round(modEssence * 100) / 100;
     this.capacityOver = Math.max(0, Math.round((modEssence - (this.capacity ?? 0)) * 100) / 100);

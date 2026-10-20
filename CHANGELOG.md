@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- **A switched-off cybereye or cyberear module still costs its Essence.** Switching an
+  installed accessory off used to give its Essence back; now it only stops the
+  accessory's bonus. On the first load the GM gets a list of the implants this
+  affects (delete a module's row if it isn't really installed).
+
 ## 0.108.0 — 2026-10-20
 
 ### Added — clinics, delta grade, secondhand bioware, starting money
