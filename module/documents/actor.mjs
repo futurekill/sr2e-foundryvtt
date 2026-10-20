@@ -39,6 +39,11 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
          successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
 
+/** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
+const RL = (key, data = {}) => game.i18n.format(`SR2E.RollLabel.${key}`, data);
+/** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
+const attrName = (k) => (CONFIG.SR2E.attributes?.[k] ? game.i18n.localize(CONFIG.SR2E.attributes[k]) : "") || (k.charAt(0).toUpperCase() + k.slice(1));
+
 /**
  * Render a success-test chat card from its persisted state.
  *
@@ -1041,7 +1046,7 @@ export class SR2EActor extends Actor {
     const attrValue = this.system[attribute]?.value || 0;
     const label = game.i18n.localize(CONFIG.SR2E.attributes[attribute]) || attribute;
     return this.rollSuccessTest(attrValue, targetNumber, {
-      label: `${label} Test`,
+      label: RL("Test", { name: label }),
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // Centering (Grimoire p.44) was being dropped here — pass it through.
@@ -1119,7 +1124,7 @@ export class SR2EActor extends Actor {
     return {
       dice: Math.max(1, dice),
       penalty: best.penalty,
-      label: `defaulting via ${srcLabel} +${best.penalty} TN`
+      label: RL("DefaultVia", { source: srcLabel, penalty: best.penalty })
     };
   }
 
@@ -1164,7 +1169,7 @@ export class SR2EActor extends Actor {
     if (web) {
       dicePool = web.dice;
       targetNumber += web.penalty;
-      label = `${skillName} Test — ${web.label}`;
+      label = RL("TestNote", { name: skillName, note: web.label });
     } else {
       // Flat fallback (skill not on the web): guess the attribute from the
       // activeSkills table by name, else Quickness.
@@ -1176,8 +1181,7 @@ export class SR2EActor extends Actor {
         : (this.system[attrKey]?.value ?? 1);
       dicePool = Math.max(1, attrValue);
       targetNumber += CONFIG.SR2E.defaultingPenalty;
-      const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
-      label = `${skillName} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
+      label = RL("DefaultAttr", { name: skillName, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
     }
     const key = skillKeyOf(skillName);
     return this.rollSuccessTest(dicePool, targetNumber, { tnContext: skillTnContext(key, CONFIG.SR2E.activeSkills?.[key] ? "active" : "knowledge"), ...options, label });
@@ -1200,12 +1204,12 @@ export class SR2EActor extends Actor {
     // them together); Knowledge and Language are not.
     const artBonus = this._activeSkillBonus(skill);
     const bonus = adeptBonus + artBonus;
-    const tag = `${adeptBonus ? ` (+${adeptBonus} adept)` : ""}${artBonus ? ` (+${artBonus} articulation)` : ""}`;
+    const tag = `${adeptBonus ? RL("AdeptTag", { n: adeptBonus }) : ""}${artBonus ? RL("ArticulationTag", { n: artBonus }) : ""}`;
     // A language IS a Specialization (SR2E p.74), so the rating you roll to
     // speak it is the derived one, not the number bought. Everything else rolls
     // its rating directly.
     let dicePool = skillRollRating(skill.system) + bonus;
-    let label = `${skill.name} Test${tag}`;
+    let label = RL("Test", { name: skill.name }) + tag;
 
     // Concentration/Specialization variant (SR2E p.70): roll that rating
     // instead of the general skill's.
@@ -1217,14 +1221,14 @@ export class SR2EActor extends Actor {
       const eff = effectiveSkillRating(skill.system, v);
       if (skill.system[v]?.name && !skill.system._subRatingsSuppressed && eff > 0) {
         dicePool = eff + bonus;
-        label = `${skill.name} (${skill.system[v].name}) Test${tag}`;
+        label = RL("SubTest", { name: skill.name, sub: skill.system[v].name }) + tag;
       }
     }
     // The language family is the general skill beneath the language (p.74) —
     // what you roll to muddle through a related tongue you never learned.
     if (v === "family" && skill.system.familyRating > 0) {
       dicePool = skill.system.familyRating + bonus;
-      label = `${skill.system.languageFamily || "Language family"} Test${tag}`;
+      label = RL("Test", { name: skill.system.languageFamily || RL("LanguageFamily") }) + tag;
     }
 
     // Untrained: default via the Skill Web (SR2E p.69) — cheapest legal path to
@@ -1236,7 +1240,7 @@ export class SR2EActor extends Actor {
       if (web) {
         dicePool = web.dice;
         targetNumber += web.penalty;
-        label = `${skill.name} Test — ${web.label}`;
+        label = RL("TestNote", { name: skill.name, note: web.label });
       } else {
         const attrKey = skill.system.linkedAttribute || "quickness";
         const attrValue = attrKey === "reaction"
@@ -1244,8 +1248,7 @@ export class SR2EActor extends Actor {
           : (this.system[attrKey]?.value ?? 1);
         dicePool = Math.max(1, attrValue);
         targetNumber += CONFIG.SR2E.defaultingPenalty;
-        const attrLabel = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
-        label = `${skill.name} Test — defaulting to ${attrLabel} +${CONFIG.SR2E.defaultingPenalty} TN`;
+        label = RL("DefaultAttr", { name: skill.name, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
       }
     }
 
@@ -2407,7 +2410,7 @@ export class SR2EActor extends Actor {
 
     // ── Roll ──────────────────────────────────────────────────────────────────
     const resistResult = await this.rollSuccessTest(bodyDice, tn, {
-      label: `Resist Damage: ${level} (Power ${power})${env?.source ? ` — ${env.source}` : ""}${env && env.attr !== "body" ? ` (${env.attr})` : ""}`,
+      label: RL("ResistDamage", { level, power }) + (env?.source ? ` — ${env.source}` : "") + (env && env.attr !== "body" ? ` (${env.attr})` : ""),
       poolDice: rollResult.poolDice,
       miscDice: rollResult.miscDice,
       miscLabel: rollResult.miscLabel,
@@ -2533,7 +2536,7 @@ export class SR2EActor extends Actor {
     const tn = knockdownTestTN({ power, gel,
       melee: !!opts.melee, attackerStrength: opts.attackerStrength ?? 0 });
     const roll = await this.rollSuccessTest(this.system.body?.value ?? 1, tn, {
-      label: `Knockdown Test (TN ${tn}${opts.melee ? ", vs Strength" : gel ? ", gel" : ""})`,
+      label: RL("Knockdown", { tn, note: opts.melee ? RL("KnockdownVsStrength") : gel ? RL("KnockdownGel") : "" }),
       isResistance: true,  // stopping power is not subject to the Injury Modifier
       ...this._bodyTestOpts()   // …but biosystem overstress still applies (Shadowtech p.7)
     });
@@ -3616,7 +3619,7 @@ export class SR2EActor extends Actor {
     // Base TN 2; the book modifies this by current injury modifiers (Stun +
     // Physical), which rollSuccessTest adds automatically — so no isResistance.
     const result = await this.rollSuccessTest(dice, 2, {
-      label: `Recover Stun — ${usingBody ? "Body" : "Willpower"} (${dice} dice)`,
+      label: RL("RecoverStun", { attr: attrName(usingBody ? "body" : "willpower"), dice }),
       ...(usingBody ? this._bodyTestOpts() : {})
     });
     const succ = result?.successes ?? 0;
@@ -3658,7 +3661,7 @@ export class SR2EActor extends Actor {
     const tn = CONFIG.SR2E.naturalHealTN[level] ?? 4;
 
     const result = await this.rollSuccessTest(naturalBody, tn, {
-      label: `Heal ${level} (natural Body ${naturalBody} vs TN ${tn})`,
+      label: RL("Heal", { level, body: naturalBody, tn }),
       isResistance: true,
       ...this._bodyTestOpts()
     });
@@ -3718,7 +3721,7 @@ export class SR2EActor extends Actor {
     // First Aid is an action by the medic, so the medic's own injury modifier
     // applies (rollSuccessTest adds it) — do NOT pass isResistance here.
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `First Aid: ${patient.name} (${level})${parts.length ? " — " + parts.join(", ") : ""} TN ${tn}`,
+      label: RL("FirstAid", { patient: patient.name, level, mods: parts.length ? " — " + parts.join(", ") : "", tn }),
       tnContext: skillTnContext("biotech")   // First Aid is a Biotech test: a Technical Skill (p.71)
     });
     const succ = result?.successes ?? 0;

@@ -18,6 +18,9 @@ import { renderNetCard } from "../nets.mjs";
 import { netKind } from "../rules/net-rules.mjs";
 import { isCardResolved } from "../astral-combat.mjs";
 
+/** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
+const RL = (key, data = {}) => game.i18n.format(`SR2E.RollLabel.${key}`, data);
+
 const SPELL_TN_CONTEXT = { kind: "spell", magic: true };
 
 /** A restricted-use spell's short label (p.133). */
@@ -880,7 +883,7 @@ export class SR2EItem extends Item {
       if (multiMod)        modParts.push(`multiple targets +${multiMod}`);
       if (meleeVisMod)     modParts.push(`visibility +${meleeVisMod}`);
       if (otherMod)        modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
-      label = `${this.name} [Melee Attack]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
+      label = RL("MeleeAttack", { name: this.name, mods: modParts.length ? " — " + modParts.join(", ") : "", tn: targetNumber });
 
     } else {
       // ── Ranged TN (SR2E p.100–110) ─────────────────────────────────────────
@@ -1055,7 +1058,7 @@ export class SR2EItem extends Item {
       const modeLabel = firingMode === "fa"
         ? `FA ${rounds} rounds`
         : firingMode.toUpperCase();
-      label = `${this.name} [${modeLabel}]${modParts.length ? " — " + modParts.join(", ") : ""} TN ${targetNumber}`;
+      label = RL("Attack", { name: this.name, mode: modeLabel, mods: modParts.length ? " — " + modParts.join(", ") : "", tn: targetNumber });
     }
 
     // One sound for the attack, on this, its initial test: the class from the range
@@ -1747,8 +1750,9 @@ export class SR2EItem extends Item {
       // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
       // in spellDice are not rating dice (p.191).
       karmaDiceCap: alloc.ratingDice,
-      label: `Cast ${this.name} (Force ${actualForce}${restrictedBonus ? ` as ${force}, ${restrictionLabel(restriction)}` : ""}${totemNote})`
-           + (isAreaCombat && cardTargets.length ? " — TN varies by target (p.130)" : ""),
+      label: RL("Cast", { name: this.name, force: actualForce,
+             note: (restrictedBonus ? RL("CastRestricted", { force, restriction: restrictionLabel(restriction) }) : "") + totemNote })
+           + (isAreaCombat && cardTargets.length ? RL("TnVariesByTarget") : ""),
       poolDice: castPool,           // magic pool dice, re-clamped above
       areaCast: isAreaCombat && cardTargets.length > 0,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
@@ -1788,7 +1792,8 @@ export class SR2EItem extends Item {
     const willpowerDice  = actor.system.willpower?.value ?? 1;
 
     const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice + aidDrain, drainTN, {
-      label: `Drain Resist — ${startLevel} ${drainType}${inAstral && actualForce <= magicRating ? " (cast in astral space, p.148)" : ""} (TN ${drainTN})`
+      label: RL("DrainResist", { level: startLevel, type: drainType,
+             note: inAstral && actualForce <= magicRating ? RL("CastInAstral") : "", tn: drainTN })
            + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
            + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`
            + `${aidDrain ? ` — +${aidDrain} Aid Sorcery` : ""}`,

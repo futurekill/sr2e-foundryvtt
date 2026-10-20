@@ -20,6 +20,11 @@
 - **Secondhand bioware (Shadowtech p.12):** 40–60% off (you pick), the same Body Cost,
   and +1 on its damage-test rolls (a note). Changing the discount later re-prices it.
 
+### Changed
+- **Roll labels are translatable**: skill and attribute tests (with defaulting),
+  attacks, damage resistance, casting and drain, healing, first aid and knockdown now
+  come from the language file. The English text is unchanged.
+
 ## 0.107.0 — 2026-10-19
 
 ### Added — the VR2.0 Matrix, part 2

@@ -189,9 +189,12 @@ See docs/PLAN-summon-placement-movement.md.
 
 ## Known deferred work
 VR2.0 Matrix ruleset (optional; core Matrix is implemented — see docs/MATRIX.md).
-The success-test TN/dice breakdown is localized (`SR2E.Roll.*`); roll *labels*
-(e.g. "X Test — defaulting to Y") are still English — a broader i18n pass, low
-priority for a single-language project.
+The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so are the
+everyday roll labels (`SR2E.RollLabel.*` via `RL()` in actor.mjs/item.mjs: skill and
+attribute tests, defaulting, attacks, damage resistance, casting, drain, healing,
+first aid, knockdown). Still English: the niche labels (VR2 Matrix, nets, drugs,
+astral combat, vehicles, rituals, conjuring) and the modifier fragments callers pass
+in (`modParts`, `env.source`). New labels should use `RL()`.
 
 Astral is implemented: astralState (none/perceiving/projecting) with
 Astral Reaction +15 initiative when projecting; rollAstralAttack /

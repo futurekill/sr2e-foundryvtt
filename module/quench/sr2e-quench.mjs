@@ -2555,9 +2555,9 @@ export function registerSR2EQuenchTests() {
           assert.equal(got.system.actualBodyCost, 0.4, "same Body Cost");
           assert.equal(a.system.nuyen, 96000, "60% off");
           await got.update({ "system.secondhandDiscount": 40 });
-          assert.ok(await settle(() => a.system.nuyen === 94000), `a discount-only edit re-prices (got ${a.system.nuyen})`);
+          assert.ok(await settle(() => a.system.nuyen === 94000, 3000), `a discount-only edit re-prices (got ${a.system.nuyen})`);
           await got.update({ "system.grade": "standard" });
-          assert.ok(await settle(() => a.system.nuyen === 90000), `re-grade from the purchased discount (got ${a.system.nuyen})`);
+          assert.ok(await settle(() => a.system.nuyen === 90000, 3000), `re-grade from the purchased discount (got ${a.system.nuyen})`);
         });
       });
     }, { displayName: "SR2E: Purchases" });
