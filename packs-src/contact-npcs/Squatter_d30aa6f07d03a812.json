@@ -61,7 +61,7 @@
       "_id": "984640a07d1d2337",
       "name": "Etiquette (Street)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {

@@ -67,7 +67,7 @@
       "_id": "d251ae78c419098f",
       "name": "Etiquette (Street)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -107,7 +107,7 @@
       "_id": "025634f100e8fb8d",
       "name": "Magical Theory",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/magical-theory.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -147,7 +147,7 @@
       "_id": "15db4dc032717ace",
       "name": "Negotiation",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/negotiation.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -187,7 +187,7 @@
       "_id": "b4bfc0020086d661",
       "name": "Sorcery",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/sorcery.webp",
       "effects": [],
       "flags": {},
       "_stats": {

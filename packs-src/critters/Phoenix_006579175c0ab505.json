@@ -107,7 +107,7 @@
       "_id": "943967c82ba3ed56",
       "name": "Natural Attack",
       "type": "weapon",
-      "img": "icons/svg/bones.svg",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
       "system": {
         "weaponType": "melee",
         "skill": "",

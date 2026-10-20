@@ -61,7 +61,7 @@
       "_id": "20dece43e2ddc20d",
       "name": "Bike",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/bike.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -101,7 +101,7 @@
       "_id": "40681416768eca22",
       "name": "Car",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/car.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "9e5e56f10c3d64f3",
       "name": "Demolition",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/demolitions.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -181,7 +181,7 @@
       "_id": "ff0839691e52605f",
       "name": "Etiquette (Corporate)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -221,7 +221,7 @@
       "_id": "c9b0c66689802fa9",
       "name": "Etiquette (Street)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -261,7 +261,7 @@
       "_id": "76c9a95699d12aff",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -341,7 +341,7 @@
       "_id": "ea85883026fc56bb",
       "name": "Unarmed Combat",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/unarmed-combat.webp",
       "effects": [],
       "flags": {},
       "_stats": {

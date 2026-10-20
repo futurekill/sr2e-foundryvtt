@@ -169,7 +169,7 @@
       "_id": "11dee16cb4971f05",
       "name": "Car",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/car.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -208,7 +208,7 @@
       "_id": "814d323c36a2497d",
       "name": "Bike",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/bike.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -247,7 +247,7 @@
       "_id": "fc7d17b97288941d",
       "name": "Gunnery",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/gunnery.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -286,7 +286,7 @@
       "_id": "cc384da59f45576c",
       "name": "Electronics",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -325,7 +325,7 @@
       "_id": "79a9a2ab5eeeba08",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -364,7 +364,7 @@
       "_id": "e8ebc5e2534b992e",
       "name": "Etiquette",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",

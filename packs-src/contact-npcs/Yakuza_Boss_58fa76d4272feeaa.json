@@ -61,7 +61,7 @@
       "_id": "7367c3745ef3e123",
       "name": "Etiquette (Corporate)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -101,7 +101,7 @@
       "_id": "74aea36b183e7e71",
       "name": "Etiquette (Street)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "66c39459ec5c2884",
       "name": "Leadership",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/leadership.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -181,7 +181,7 @@
       "_id": "d3ff2a9b7d7c9a43",
       "name": "Negotiation",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/negotiation.webp",
       "effects": [],
       "flags": {},
       "_stats": {

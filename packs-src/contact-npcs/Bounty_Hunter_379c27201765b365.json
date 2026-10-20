@@ -61,7 +61,7 @@
       "_id": "8ffe6f336b602d20",
       "name": "Bike",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/bike.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -101,7 +101,7 @@
       "_id": "75a66d7a4c9be758",
       "name": "Car",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/car.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "75b200bb92d246fe",
       "name": "Computer",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/computer.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -181,7 +181,7 @@
       "_id": "483cc73132694af4",
       "name": "Etiquette (Corporate)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -221,7 +221,7 @@
       "_id": "0116c5a118bcea1f",
       "name": "Etiquette (Street)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -261,7 +261,7 @@
       "_id": "fb3ed1096fc980d5",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -301,7 +301,7 @@
       "_id": "e76f40485a66966f",
       "name": "Stealth",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -341,7 +341,7 @@
       "_id": "be1f78df00040914",
       "name": "Unarmed Combat",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/unarmed-combat.webp",
       "effects": [],
       "flags": {},
       "_stats": {

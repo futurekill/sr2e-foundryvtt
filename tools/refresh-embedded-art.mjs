@@ -24,7 +24,31 @@ const isPlaceholder = (img) => !img || img.startsWith("icons/");
 // Every pack that ships actors carrying embedded items, not just the runners —
 // critters have an Unarmed Strike each, and vehicles/ic can hold gear.
 const packs = process.argv.slice(2);
-if (!packs.length) packs.push("runners", "critters", "vehicles", "ic");
+if (!packs.length) packs.push("runners", "critters", "vehicles", "ic", "contact-npcs");
+
+// The compendium's own art by type + name: item art named unlike the slug
+// ("Killing Hands (M)" → killing-hands-m.webp) and types not in TYPE_DIR
+// (skills, adept powers, traditions) are found here.
+const byName = new Map();
+for (const pack of readdirSync("packs-src")) {
+  const dir = `packs-src/${pack}`;
+  for (const jf of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    let d; try { d = JSON.parse(readFileSync(`${dir}/${jf}`, "utf8")); } catch { continue; }
+    if (d.type && d.name && d.img && !isPlaceholder(d.img) && existsSync(d.img.replace(/^systems\/sr2e\//, ""))) {
+      byName.set(`${d.type}|${d.name.toLowerCase()}`, d.img);
+    }
+  }
+}
+
+// Embedded names that differ from their art's item (type|name → asset path).
+const ALIAS = {
+  "skill|demolition": "skills/demolitions", "skill|negotiate": "skills/negotiation",
+  "skill|computers (b/r)": "skills/computer", "skill|computer theory": "skills/computer",
+  "cyberware|smartgun link": "cyberware/smartlink", "weapon|natural attack": "weapons/natural-attack"
+};
+for (const [k, v] of Object.entries(ALIAS)) {
+  if (existsSync(`assets/item_icons/${v}.webp`)) byName.set(k, `systems/sr2e/assets/item_icons/${v}.webp`);
+}
 
 let touchedItems = 0, touchedDocs = 0;
 for (const pack of packs) {
@@ -36,11 +60,15 @@ for (const pack of packs) {
     if (!Array.isArray(d.items) || !d.items.length) continue;
     let changed = 0;
     for (const it of d.items) {
+      if (!it.name || !isPlaceholder(it.img)) continue;
       const idir = TYPE_DIR[it.type];
-      if (!idir || !it.name || !isPlaceholder(it.img)) continue;
-      const rel = `assets/item_icons/${idir}/${slug(it.name)}.webp`;
-      if (!existsSync(rel)) continue;              // art not generated yet — leave placeholder
-      it.img = `systems/sr2e/${rel}`;
+      const rel = idir ? `assets/item_icons/${idir}/${slug(it.name)}.webp` : null;
+      // "Etiquette (Street)" / "Attack (Rating 4)" fall back to their base item's art.
+      const base = it.name.replace(/\s*\([^)]*\)\s*$/, "").toLowerCase();
+      const img = rel && existsSync(rel) ? `systems/sr2e/${rel}`
+        : byName.get(`${it.type}|${it.name.toLowerCase()}`) ?? byName.get(`${it.type}|${base}`);
+      if (!img) continue;                          // art not generated yet — leave placeholder
+      it.img = img;
       changed++;
     }
     if (changed) {

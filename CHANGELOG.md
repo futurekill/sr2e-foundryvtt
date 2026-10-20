@@ -21,6 +21,9 @@
   and +1 on its damage-test rolls (a note). Changing the discount later re-prices it.
 
 ### Changed
+- **Art inside the sample actors:** 181 skills, adept powers, programs and gear carried
+  by the runners, contacts and critters now show their compendium art instead of
+  placeholders. The critters' Natural Attack has a new icon of its own.
 - **Roll labels are translatable**: skill and attribute tests (with defaulting),
   attacks, damage resistance, casting and drain, healing, first aid and knockdown now
   come from the language file. The English text is unchanged.

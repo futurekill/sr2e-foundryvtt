@@ -169,7 +169,7 @@
       "_id": "9a1d24dc441f9416",
       "name": "Sorcery",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/sorcery.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -208,7 +208,7 @@
       "_id": "0342c8c804f71f90",
       "name": "Conjuring",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/conjuring.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -247,7 +247,7 @@
       "_id": "5996141a20101b87",
       "name": "Magical Theory",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/magical-theory.webp",
       "system": {
         "category": "knowledge",
         "linkedAttribute": "intelligence",
@@ -286,7 +286,7 @@
       "_id": "82ac4a044dfbb9da",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -325,7 +325,7 @@
       "_id": "e2f06f1c73a5e72a",
       "name": "Etiquette",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -364,7 +364,7 @@
       "_id": "68dd8924bfcd1d99",
       "name": "Stealth",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -711,7 +711,7 @@
       "_id": "e775376557357d80",
       "name": "Hermetic Magician",
       "type": "tradition",
-      "img": "icons/magic/symbols/rune-sigil-red-orange.webp",
+      "img": "systems/sr2e/assets/item_icons/traditions/hermetic-magician.webp",
       "system": {
         "magicType": "full_magician",
         "tradition": "hermetic",

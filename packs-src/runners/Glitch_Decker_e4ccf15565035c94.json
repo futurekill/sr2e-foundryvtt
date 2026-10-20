@@ -169,7 +169,7 @@
       "_id": "965b80c40ac304a8",
       "name": "Computer",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/computer.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -208,7 +208,7 @@
       "_id": "1c3670e01da7afd3",
       "name": "Electronics",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -247,7 +247,7 @@
       "_id": "538f6c814fece0db",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -286,7 +286,7 @@
       "_id": "a13e0f6eb5a0400a",
       "name": "Stealth",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -325,7 +325,7 @@
       "_id": "e43702a3da8f4d83",
       "name": "Etiquette",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -364,7 +364,7 @@
       "_id": "b7c55f306ce05bd7",
       "name": "Car",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/car.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -493,7 +493,7 @@
       "_id": "a0c8dbc791f68b54",
       "name": "Attack (Rating 4)",
       "type": "program",
-      "img": "icons/svg/sword.svg",
+      "img": "systems/sr2e/assets/item_icons/programs/attack.webp",
       "system": {
         "category": "combat",
         "rating": 4,
@@ -526,7 +526,7 @@
       "_id": "40d151bd225ab1f7",
       "name": "Sleaze (Rating 5)",
       "type": "program",
-      "img": "icons/skills/social/theft-pickpocket-bribery-brown.webp",
+      "img": "systems/sr2e/assets/item_icons/programs/sleaze.webp",
       "system": {
         "category": "masking",
         "rating": 5,
@@ -559,7 +559,7 @@
       "_id": "d8c43ef740ec22c0",
       "name": "Masking (Rating 4)",
       "type": "program",
-      "img": "icons/magic/perception/eye-ringed-green.webp",
+      "img": "systems/sr2e/assets/item_icons/programs/masking.webp",
       "system": {
         "category": "masking",
         "rating": 4,
@@ -592,7 +592,7 @@
       "_id": "211dc7378ca75cd7",
       "name": "Bod (Rating 4)",
       "type": "program",
-      "img": "icons/magic/defensive/shield-barrier-glowing-triangle-teal.webp",
+      "img": "systems/sr2e/assets/item_icons/programs/bod.webp",
       "system": {
         "category": "defense",
         "rating": 4,
@@ -625,7 +625,7 @@
       "_id": "2e09b06de1d26d1a",
       "name": "Evasion (Rating 4)",
       "type": "program",
-      "img": "icons/magic/movement/trail-streak-zigzag-teal.webp",
+      "img": "systems/sr2e/assets/item_icons/programs/evasion.webp",
       "system": {
         "category": "defense",
         "rating": 4,
@@ -658,7 +658,7 @@
       "_id": "f08473bc58689608",
       "name": "Sensor (Rating 4)",
       "type": "program",
-      "img": "icons/tools/scribal/magnifying-glass.webp",
+      "img": "systems/sr2e/assets/item_icons/programs/sensor.webp",
       "system": {
         "category": "sensor",
         "rating": 4,

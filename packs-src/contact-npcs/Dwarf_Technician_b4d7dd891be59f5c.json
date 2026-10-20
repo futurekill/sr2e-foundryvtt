@@ -61,7 +61,7 @@
       "_id": "8cc63ef32be0c44e",
       "name": "Computer Theory",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/computer.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -101,7 +101,7 @@
       "_id": "30b18d7a51c773d1",
       "name": "Computers (B/R)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/computer.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "76ab50f1063e1cfb",
       "name": "Electronics (B/R)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -181,7 +181,7 @@
       "_id": "96f090932877901a",
       "name": "Electronics",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -221,7 +221,7 @@
       "_id": "59e77377fddf2744",
       "name": "Etiquette (Street or Corporate)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {

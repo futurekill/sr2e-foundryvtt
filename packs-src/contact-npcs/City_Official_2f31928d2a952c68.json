@@ -61,7 +61,7 @@
       "_id": "348ead0f156da7f0",
       "name": "Etiquette (Corporate)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -101,7 +101,7 @@
       "_id": "d9d6f982c344219a",
       "name": "Etiquette (Tribal)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "cf47888831c4b790",
       "name": "Negotiate",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/negotiation.webp",
       "effects": [],
       "flags": {},
       "_stats": {

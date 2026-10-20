@@ -101,7 +101,7 @@
       "_id": "7bdfbc3abe21f263",
       "name": "Computer Theory",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/computer.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "d2704ae08eef4336",
       "name": "Computer",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/computer.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -181,7 +181,7 @@
       "_id": "11684ed05a6f6e23",
       "name": "Electronics (B/R)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -221,7 +221,7 @@
       "_id": "60992bba7c003934",
       "name": "Electronics",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/electronics.webp",
       "effects": [],
       "flags": {},
       "_stats": {

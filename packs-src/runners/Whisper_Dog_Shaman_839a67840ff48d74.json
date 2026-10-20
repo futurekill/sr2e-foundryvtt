@@ -169,7 +169,7 @@
       "_id": "d9364c0594261cae",
       "name": "Sorcery",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/sorcery.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -208,7 +208,7 @@
       "_id": "40d508fa51484307",
       "name": "Conjuring",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/conjuring.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -247,7 +247,7 @@
       "_id": "3a5286ef52a25cd2",
       "name": "Biotech",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/biotech.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "intelligence",
@@ -286,7 +286,7 @@
       "_id": "ffbe1a7608bd6039",
       "name": "Etiquette",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -325,7 +325,7 @@
       "_id": "8110bfce50daf468",
       "name": "Stealth",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -364,7 +364,7 @@
       "_id": "e1b3a170bac62617",
       "name": "Negotiation",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/negotiation.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",

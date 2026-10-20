@@ -169,7 +169,7 @@
       "_id": "ad80205e07fed4e4",
       "name": "Unarmed Combat",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/unarmed-combat.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "strength",
@@ -208,7 +208,7 @@
       "_id": "78f08f07cd9eab60",
       "name": "Armed Combat",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/armed-combat.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "strength",
@@ -247,7 +247,7 @@
       "_id": "e5fc4855452e924b",
       "name": "Stealth",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -286,7 +286,7 @@
       "_id": "506c3e0822a0c21b",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -325,7 +325,7 @@
       "_id": "e3ce776860a30a38",
       "name": "Etiquette",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -364,7 +364,7 @@
       "_id": "803135e5c667c087",
       "name": "Bike",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/bike.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -403,7 +403,7 @@
       "_id": "c604efa773aa28d9",
       "name": "Increased Reflexes",
       "type": "adept_power",
-      "img": "icons/svg/aura.svg",
+      "img": "systems/sr2e/assets/item_icons/adept-powers/increased-reflexes.webp",
       "system": {
         "pointCost": 1,
         "level": 1,
@@ -441,7 +441,7 @@
       "_id": "530a5999e555c96e",
       "name": "Killing Hands (M)",
       "type": "adept_power",
-      "img": "icons/svg/aura.svg",
+      "img": "systems/sr2e/assets/item_icons/adept-powers/killing-hands-m.webp",
       "system": {
         "pointCost": 1,
         "level": 1,
@@ -478,7 +478,7 @@
       "_id": "2d268ac6574a8c80",
       "name": "Combat Sense",
       "type": "adept_power",
-      "img": "icons/svg/aura.svg",
+      "img": "systems/sr2e/assets/item_icons/adept-powers/combat-sense.webp",
       "system": {
         "pointCost": 1,
         "level": 1,
@@ -515,7 +515,7 @@
       "_id": "7c37be885a4da7c8",
       "name": "Improved Ability (Unarmed Combat)",
       "type": "adept_power",
-      "img": "icons/svg/aura.svg",
+      "img": "systems/sr2e/assets/item_icons/adept-powers/improved-ability.webp",
       "system": {
         "pointCost": 0.5,
         "level": 4,

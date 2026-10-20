@@ -169,7 +169,7 @@
       "_id": "e973d7287d2a6499",
       "name": "Firearms",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/firearms.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -208,7 +208,7 @@
       "_id": "85cf5709fd519f73",
       "name": "Armed Combat",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/armed-combat.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "strength",
@@ -247,7 +247,7 @@
       "_id": "782ef2e667b04a61",
       "name": "Unarmed Combat",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/unarmed-combat.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "strength",
@@ -286,7 +286,7 @@
       "_id": "66e2cea02a585a2c",
       "name": "Stealth",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/stealth.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -325,7 +325,7 @@
       "_id": "ab4a60db48a3bca8",
       "name": "Bike",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/bike.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "quickness",
@@ -364,7 +364,7 @@
       "_id": "d543698410193369",
       "name": "Etiquette",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/etiquette.webp",
       "system": {
         "category": "active",
         "linkedAttribute": "charisma",
@@ -471,7 +471,7 @@
       "_id": "2c4fe99c5fea1675",
       "name": "Smartgun Link",
       "type": "cyberware",
-      "img": "icons/svg/upgrade.svg",
+      "img": "systems/sr2e/assets/item_icons/cyberware/smartlink.webp",
       "system": {
         "location": "headware",
         "grade": "standard",
