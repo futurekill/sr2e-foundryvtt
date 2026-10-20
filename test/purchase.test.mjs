@@ -17,8 +17,8 @@ describe("gradeCostMultiplier", () => {
     expect(gradeCostMultiplier("bioware", "standard")).toBe(1);
     expect(gradeCostMultiplier("gear", undefined)).toBe(1);
   });
-  it("has no delta grade — that's SR3", () => {
-    expect(gradeCostMultiplier("cyberware", "delta")).toBe(1);
+  it("delta is ×10 (Cybertechnology p.44, which supersedes SSC's no-delta)", () => {
+    expect(gradeCostMultiplier("cyberware", "delta")).toBe(10);
   });
 });
 
@@ -243,11 +243,11 @@ describe("purchasePromptFields — which cost drivers the buy dialog asks for", 
       .toEqual([]);
   });
   it("cyberware → grade (even with no rating table)", () => {
-    expect(purchasePromptFields({ type: "cyberware" })).toEqual(["grade"]);
+    expect(purchasePromptFields({ type: "cyberware" })).toEqual(["grade", "surgery"]);
   });
   it("rated cyberware → rating + grade", () => {
     expect(purchasePromptFields({ type: "cyberware",
-      ratingStats: [{ rating: 1 }, { rating: 2 }] })).toEqual(["rating", "grade"]);
+      ratingStats: [{ rating: 1 }, { rating: 2 }] })).toEqual(["rating", "grade", "surgery"]);
   });
   it("plain single-price gear → nothing (no dialog)", () => {
     expect(purchasePromptFields({ type: "gear", category: "general" })).toEqual([]);

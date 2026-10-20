@@ -351,6 +351,13 @@
       {{/each}}
     </select>
   </div>
+  {{#ifEquals system.grade "secondhand"}}
+  <div class="form-group">
+    <label>Secondhand discount (%):</label>
+    <input type="number" name="system.secondhandDiscount" value="{{system.secondhandDiscount}}" min="40" max="60" step="1" />
+    <span class="hint">40–60% off; same Body Cost; +1 on its damage-test rolls, a 7 destroys it (Shadowtech p.12)</span>
+  </div>
+  {{/ifEquals}}
   <div class="form-group">
     <label>Rating:</label>
     {{#if hasRatingTable}}
@@ -477,6 +484,13 @@
       {{/each}}
     </select>
   </div>
+  {{#if system.surgeryEssencePct}}
+  <div class="form-group">
+    <label>Cybersurgery:</label>
+    <input type="number" name="system.surgeryEssencePct" value="{{system.surgeryEssencePct}}" min="-20" max="15" step="5" />
+    <span class="hint">% Essence from the surgeon's test (Cybertechnology p.53)</span>
+  </div>
+  {{/if}}
 
   {{!-- Cyberlimb option (SR2E p.261): priced as an addition to a parent limb --}}
   <div class="form-group">

@@ -2260,10 +2260,11 @@ export function registerSR2EQuenchTests() {
 
       // New characters default to chargen.inProgress = true, which buys at LIST
       // price. These tests exercise the in-play street-price path, so leave it.
+      // Created out of creation: finishing it later is vetoed and re-issued
+      // asynchronously (skills finalize first), so an update here would race.
       const makeBuyer = async (name, nuyen) => {
-        const a = await Actor.create({ name, type: "character", system: { nuyen } });
+        const a = await Actor.create({ name, type: "character", system: { nuyen, chargen: { inProgress: false } } });
         made.push(a);
-        await a.update({ "system.chargen.inProgress": false });
         return a;
       };
 
@@ -2442,6 +2443,104 @@ export function registerSR2EQuenchTests() {
           await ware.update({ "system.grade": "beta" });
           assert.ok(await settle(() => ware.system.actualEssenceCost === 1.2),
             `beta Essence should be 1.2; got ${ware.system.actualEssenceCost}`);
+        });
+      });
+
+      describe("Delta, secondhand bioware, cybersurgery (docs/PLAN-cybersurgery-grades.md)", () => {
+        // Buy through the real drop + Buy dialog; `fill(form)` sets the dialog's fields.
+        const buy = async (actor, data, fill = () => {}, { action = "buy" } = {}) => {
+          const seen = {};
+          Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+            const form = app.element.querySelector("form") ?? app.element;
+            seen.surgery = !!form.querySelector('[name="surgerySuccesses"]');
+            seen.secondhandLabel = form.querySelector('option[value="secondhand"]')?.textContent ?? null;
+            fill(form, seen);
+            form.querySelectorAll("input,select").forEach(el => el.dispatchEvent(new Event("change", { bubbles: true })));
+            seen.secondhandLabelAfter = form.querySelector('option[value="secondhand"]')?.textContent ?? null;
+            app.element.querySelector(`button[data-action="${action}"]`).click();
+          }, 80));
+          const got = await actor.sheet._onDropItem({ altKey: false }, { type: "Item", data: foundry.utils.deepClone(data) });
+          return { got, seen };
+        };
+        const set = (form, name, v) => { const el = form.querySelector(`[name="${name}"]`); if (el.type === "checkbox") el.checked = v; else el.value = String(v); };
+        const WARE = { name: "Quench Spur", type: "cyberware", system: { essenceCost: 0.5, cost: 1000, streetIndex: "1", installed: true } };
+        const cards = (actor) => game.messages.filter(m => m.speaker?.actor === actor.id && /installed<\/strong>/.test(m.content));
+
+        it("delta: ×10 price, ×.5 Essence; with no fee/wound only the implant is charged", async () => {
+          const a = await makeBuyer("Quench Delta", 100000);
+          const { got } = await buy(a, WARE, (f) => { set(f, "grade", "delta"); set(f, "surgeryFee", false); set(f, "surgeryWound", false); });
+          assert.ok(got, "bought");
+          assert.equal(got.system.actualEssenceCost, 0.25);
+          assert.equal(a.system.nuyen, 90000, "10,000¥ implant, no fee");
+          assert.equal(got.getFlag("sr2e", "paid"), 10000);
+          assert.equal(a.system.conditionMonitor.physical.value, 0, "no wound");
+        });
+
+        it("0 successes: +15% Essence (not clamped to 1), the fee once, the wound, a card", async () => {
+          const a = await makeBuyer("Quench Surgery", 100000);
+          const { got, seen } = await buy(a, WARE, (f) => set(f, "surgerySuccesses", 0));
+          assert.isTrue(seen.surgery);
+          assert.equal(got.system.surgeryEssencePct, 15);
+          assert.equal(got.system.actualEssenceCost, 0.58);
+          assert.equal(a.system.nuyen, 100000 - 1000 - 25000, "implant + Major Invasive fee");
+          assert.equal(got.getFlag("sr2e", "paid"), 1000, "paid = the implant only");
+          assert.equal(a.system.conditionMonitor.physical.value, 6, "a Serious wound");
+          assert.lengthOf(cards(a), 1);
+        });
+
+        it("refused before anything happens: Essence below 0, or item + fee unaffordable", async () => {
+          const a = await makeBuyer("Quench Over", 1000000);
+          const big = foundry.utils.mergeObject(foundry.utils.deepClone(WARE), { system: { essenceCost: 7 } });
+          const r1 = await buy(a, big);
+          assert.isNotOk(r1.got);
+          assert.equal(a.system.nuyen, 1000000);
+          assert.isFalse(a.items.some(i => i.name === WARE.name));
+          const b = await makeBuyer("Quench Poor", 3000);                    // affords the implant, not the fee
+          const r2 = await buy(b, WARE);
+          assert.isNotOk(r2.got);
+          assert.equal(b.system.nuyen, 3000);
+          assert.isFalse(b.items.some(i => i.name === WARE.name));
+        });
+
+        it("a zero-price implant still pays its fee; a spare or chargen has no surgery", async () => {
+          const a = await makeBuyer("Quench Free Ware", 10000);
+          const free = foundry.utils.mergeObject(foundry.utils.deepClone(WARE), { system: { cost: 0, essenceCost: 0.2 } });
+          const { got } = await buy(a, free, (f) => set(f, "surgeryWound", false));
+          assert.ok(got);
+          assert.equal(a.system.nuyen, 5000, "Minor Invasive fee");
+          assert.isUndefined(got.getFlag("sr2e", "paid"), "nothing refundable");
+          const spare = foundry.utils.mergeObject(foundry.utils.deepClone(WARE), { system: { installed: false } });
+          const r = await buy(a, spare);
+          assert.isFalse(r.seen.surgery, "no surgery for a spare");
+          assert.equal(r.got?.system.surgeryEssencePct, 0);
+          const c = await makeBuyer("Quench Chargen Ware", 10000);
+          await c.update({ "system.chargen.inProgress": true });
+          const rc = await buy(c, WARE);
+          assert.isFalse(rc.seen.surgery, "no surgery in character creation (p.59)");
+        });
+
+        it("a failed create refunds the debit", async () => {
+          const a = await makeBuyer("Quench Create Fail", 100000);
+          const orig = a.createEmbeddedDocuments;
+          a.createEmbeddedDocuments = function (t, ...r) { return t === "Item" ? Promise.reject(new Error("Quench create failure")) : orig.call(this, t, ...r); };
+          try { await buy(a, WARE); } finally { delete a.createEmbeddedDocuments; }
+          assert.equal(a.system.nuyen, 100000, "refunded");
+          assert.isFalse(a.items.some(i => i.name === WARE.name));
+        });
+
+        it("secondhand bioware: the discount sets the price and its label; editing it re-prices", async () => {
+          const a = await makeBuyer("Quench Used", 100000);
+          const BIO = { name: "Quench Used Bio", type: "bioware", system: { bodySystem: "circulatory", bodyCost: 0.4, cost: 10000, streetIndex: "1" } };
+          const { got, seen } = await buy(a, BIO, (f) => { set(f, "grade", "secondhand"); set(f, "secondhandDiscount", 60); });
+          assert.match(seen.secondhandLabel, /−50% ¥/, "the default discount");
+          assert.match(seen.secondhandLabelAfter, /−60% ¥/, "follows the input");
+          assert.equal(got.system.grade, "secondhand");
+          assert.equal(got.system.actualBodyCost, 0.4, "same Body Cost");
+          assert.equal(a.system.nuyen, 96000, "60% off");
+          await got.update({ "system.secondhandDiscount": 40 });
+          assert.ok(await settle(() => a.system.nuyen === 94000), `a discount-only edit re-prices (got ${a.system.nuyen})`);
+          await got.update({ "system.grade": "standard" });
+          assert.ok(await settle(() => a.system.nuyen === 90000), `re-grade from the purchased discount (got ${a.system.nuyen})`);
         });
       });
     }, { displayName: "SR2E: Purchases" });

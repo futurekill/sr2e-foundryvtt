@@ -2438,12 +2438,15 @@ export function cranialDeckEssence(deck = {}) {
  * In SR2 "alphaware" is not a generic quality tier: it is *custom cyberware*
  * from a Shadow Clinic, and Alpha/Beta are the only grades the book offers
  * ("The Shadow Clinics to which the characters are most likely to have access
- * offer basic levels of Custom Cyberware: Alpha and Beta"). There is no
- * deltaware in SR2, and the core rulebook has no grade rules at all.
+ * offer basic levels of Custom Cyberware: Alpha and Beta"). The core rulebook
+ * has no grade rules at all. Cybertechnology (FASA7119, SR2) p.44 later adds
+ * DELTA, custom-made at a delta clinic, and says its newer material takes
+ * precedence (p.42).
  *
  *          Essence Reduction   Cost Multiple   Damage Resist
  *   Alpha  -20% (×.8)          ×3              5/6
  *   Beta   -40% (×.6)          ×7              4/5
+ *   Delta  -50% (×.5)          ×10             3/4   (Cybertechnology p.44)
  *
  * damageResist is recorded from the table for completeness; nothing consumes it
  * yet because the system models no cyberware damage (SSC: roll 5 dice vs the
@@ -2455,14 +2458,24 @@ export function cranialDeckEssence(deck = {}) {
 export const CYBERWARE_GRADES = {
   standard: { essenceMultiplier: 1.0, costMultiplier: 1 },
   alpha:    { essenceMultiplier: 0.8, costMultiplier: 3, damageResist: [5, 6] },
-  beta:     { essenceMultiplier: 0.6, costMultiplier: 7, damageResist: [4, 5] }
+  beta:     { essenceMultiplier: 0.6, costMultiplier: 7, damageResist: [4, 5] },
+  delta:    { essenceMultiplier: 0.5, costMultiplier: 10, damageResist: [3, 4] }
 };
 
 /** Bioware grades — Shadowtech p.7. Cultured is ×0.75 Body Cost and ×4 nuyen. */
 export const BIOWARE_GRADES = {
   standard: { bodyCostMultiplier: 1.0,                        costMultiplier: 1 },
-  cultured: { bodyCostMultiplier: BIOWARE_CULTURED_MULTIPLIER, costMultiplier: 4 }
+  cultured: { bodyCostMultiplier: BIOWARE_CULTURED_MULTIPLIER, costMultiplier: 4 },
+  // Shadowtech p.12: "selling for 40 percent to 60 percent less than original parts",
+  // "the same Body Costs as the new". The price is per item (secondhandDiscount).
+  secondhand: { bodyCostMultiplier: 1.0, secondhand: true }
 };
+
+/** Secondhand bioware's price multiplier: 40–60% off (Shadowtech p.12), default 50. */
+export function secondhandPriceMultiplier(discount) {
+  const d = Number(discount);
+  return 1 - (Number.isFinite(d) ? Math.min(60, Math.max(40, d)) : 50) / 100;
+}
 
 /** Smallest Essence a grade reduction may leave (SSC p.98). */
 export const CYBERWARE_GRADE_ESSENCE_FLOOR = 0.05;
@@ -2478,9 +2491,11 @@ export const CYBERWARE_GRADE_ESSENCE_FLOOR = 0.05;
  * @param {string} [bodySystem] bioware body system
  * @returns {number}
  */
-export function gradeCostMultiplier(type, grade, bodySystem = "") {
+export function gradeCostMultiplier(type, grade, bodySystem = "", secondhandDiscount = 50) {
   if (type === "cyberware") return CYBERWARE_GRADES[grade]?.costMultiplier ?? 1;
-  if (type === "bioware")   return bodySystem === "neural" ? 1 : (BIOWARE_GRADES[grade]?.costMultiplier ?? 1);
+  if (type === "bioware" && bodySystem === "neural") return 1;
+  if (type === "bioware" && grade === "secondhand") return secondhandPriceMultiplier(secondhandDiscount);
+  if (type === "bioware")   return BIOWARE_GRADES[grade]?.costMultiplier ?? 1;
   return 1;
 }
 
@@ -2636,7 +2651,39 @@ export function derivedItemCost(sys, ctx = {}) {
 export function itemBaseCost(sys, ctx = {}) {
   const base = derivedItemCost(sys, ctx)
     ?? ratedCost(sys?.ratingStats, sys?.rating, sys?.cost);
-  return base * gradeCostMultiplier(sys?.type, sys?.grade, sys?.bodySystem);
+  return base * gradeCostMultiplier(sys?.type, sys?.grade, sys?.bodySystem, sys?.secondhandDiscount);
+}
+
+// --- Cybersurgery (Cybertechnology p.53; elective surgery, core p.114) ---------
+
+/** Essence Cost Change Table (Cybertechnology p.53), from the surgeon's successes, in %. */
+export function surgeryEssencePct(successes) {
+  const n = Math.max(0, Math.floor(Number(successes) || 0));
+  return n === 0 ? 15 : n === 1 ? 10 : n <= 3 ? 0 : n <= 5 ? -10 : -20;
+}
+
+/** The surgeon's TN: 10 − ⌊the Essence the character ends with⌋, −2 intensive care (min 2). */
+export function surgeonTN(endEssence) {
+  return Math.max(2, 10 - Math.floor(Math.max(0, Number(endEssence) || 0)) - 2);
+}
+
+/** An implant's Essence after the surgeon's change, rounded up (p.53); 0% leaves it exactly as it was. */
+export function surgicalEssence(graded, pct) {
+  const g = Math.max(0, Number(graded) || 0), p = Number(pct) || 0;
+  if (!p || !g) return g;
+  return Math.max(0.01, Math.ceil(g * (1 + p / 100) * 100 - 1e-9) / 100);
+}
+
+/**
+ * The elective-surgery category of a procedure (core p.114) by its total Essence,
+ * rounded up to the hundredth first, with its wound and fee (Cybertechnology p.53).
+ */
+export function surgeryCategory(essence) {
+  const e = Math.max(0, Math.ceil((Number(essence) || 0) * 100 - 1e-9) / 100);
+  if (e === 0)   return { key: "cosmetic", label: "Minor Cosmetic", wound: "L", boxes: 1, fee: 1000 };
+  if (e <= 0.4)  return { key: "minor", label: "Minor Invasive", wound: "M", boxes: 3, fee: 5000 };
+  if (e < 1)     return { key: "major", label: "Major Invasive", wound: "S", boxes: 6, fee: 25000 };
+  return { key: "drastic", label: "Drastic Invasive", wound: "D", boxes: 10, fee: 250000 };
 }
 
 /**
@@ -2660,6 +2707,8 @@ export function purchasePromptFields(sys = {}) {
   if (sys.type === "weapon" && (sys.costPerStrengthMin ?? 0) > 0) out.push("strengthMinimum");
   // Neural bioware has no grade to choose: it is always cultured (Shadowtech p.7).
   if (sys.type === "cyberware" || (sys.type === "bioware" && sys.bodySystem !== "neural")) out.push("grade");
+  // Installing cyberware is surgery (Cybertechnology p.53); the sheet decides when it applies.
+  if (sys.type === "cyberware") out.push("surgery");
   return out;
 }
 

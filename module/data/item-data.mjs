@@ -1,7 +1,7 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { deckModeFields } from "./actor-data.mjs";
-import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
+import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -444,12 +444,14 @@ export class CyberwareData extends SR2EDataModel {
         headware: "SR2E.Cyberware.Headware", bodyware: "SR2E.Cyberware.Bodyware",
         cyberlimb: "SR2E.Cyberware.Cyberlimb", other: "SR2E.Cyberware.Other"
       }}),
-      // Custom cyberware from a Shadow Clinic (SSC p.98). Alpha and Beta are the
-      // only grades SR2 offers — deltaware is an SR3 concept.
+      // Custom cyberware from a Shadow Clinic (SSC p.98); delta from a delta
+      // clinic (Cybertechnology p.44).
       grade: new fields.StringField({ initial: "standard", choices: {
         standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha",
-        beta: "SR2E.Cyberware.Beta"
+        beta: "SR2E.Cyberware.Beta", delta: "SR2E.Cyberware.Delta"
       }}),
+      // The surgeon's Essence Cost change when it was installed (Cybertechnology p.53).
+      surgeryEssencePct: new fields.NumberField({ integer: true, initial: 0, min: -20, max: 15 }),
       essenceCost: new fields.NumberField({ required: true, initial: 0.5, min: 0 }),
       rating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
@@ -656,8 +658,9 @@ export class CyberwareData extends SR2EDataModel {
     const base = this.cranialDeck
       ? cranialDeckEssence(this.deck)
       : this.essenceCost + (this.capacityOver ?? 0);
-    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost.
-    return gradeEssenceCost(base, this.grade);
+    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost —
+    // then the surgeon's change (Cybertechnology p.53).
+    return surgicalEssence(gradeEssenceCost(base, this.grade), this.surgeryEssencePct);
   }
 }
 
@@ -682,8 +685,10 @@ export class BiowareData extends SR2EDataModel {
         structural: "SR2E.Bioware.System.Structural"
       }}),
       grade: new fields.StringField({ initial: "standard", choices: {
-        standard: "SR2E.Bioware.Standard", cultured: "SR2E.Bioware.Cultured"
+        standard: "SR2E.Bioware.Standard", cultured: "SR2E.Bioware.Cultured", secondhand: "SR2E.Bioware.Secondhand"
       }}),
+      // Secondhand price: 40–60% off (Shadowtech p.12).
+      secondhandDiscount: new fields.NumberField({ integer: true, initial: 50, min: 40, max: 60 }),
       // Listed (pre-grade) Body Cost. actualBodyCost applies the cultured multiplier.
       bodyCost: new fields.NumberField({ required: true, initial: 0.25, min: 0 }),
       rating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),

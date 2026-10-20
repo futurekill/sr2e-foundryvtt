@@ -555,6 +555,8 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 If those five all work, the core loop is healthy.
 
 ## 18. Shopping, payouts & integrations (v0.26.0)
+- [ ] Cybersurgery (docs/PLAN-cybersurgery-grades.md): drop cyberware on an in-play character: the Buy dialog shows the surgeon's TN and the procedure; 0 successes → +15% Essence, the fee and the wound land, and a card is posted. In chargen, or for an uninstalled spare: no surgery section.
+- [ ] Delta grade: ×10 price, ×.5 Essence. Secondhand bioware: the discount label follows the input; editing the discount on the item re-prices it.
 - [ ] **Street pricing:** set a Street Index ≠ 1 on a gear item → the item sheet
       and gear tab show the street price with the list price alongside.
 - [ ] **Auto-charge:** drop a costed item on a character → nuyen drops by the

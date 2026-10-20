@@ -692,7 +692,7 @@ SR2E.armorTypes = {
 // source of truth, shared with the purchase hooks. Config only adds UI labels.
 // (These two used to be maintained separately and silently drifted apart.)
 const gradeLabels = { standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha",
-                      beta: "SR2E.Cyberware.Beta" };
+                      beta: "SR2E.Cyberware.Beta", delta: "SR2E.Cyberware.Delta" };
 SR2E.cyberwareGrades = Object.fromEntries(
   Object.entries(CYBERWARE_GRADES).map(([k, v]) => [k, { ...v, label: gradeLabels[k] }])
 );
@@ -700,7 +700,7 @@ SR2E.cyberwareGrades = Object.fromEntries(
 // Bioware grades (Shadowtech FASA7110 p.7). Cultured reduces Body Cost to 0.75×
 // and costs ×4 nuyen — the purchase system applies that multiplier on a grade
 // change; the compendium stores the book's listed (standard) price.
-const bioLabels = { standard: "SR2E.Bioware.Standard", cultured: "SR2E.Bioware.Cultured" };
+const bioLabels = { standard: "SR2E.Bioware.Standard", cultured: "SR2E.Bioware.Cultured", secondhand: "SR2E.Bioware.Secondhand" };
 SR2E.biowareGrades = Object.fromEntries(
   Object.entries(BIOWARE_GRADES).map(([k, v]) => [k, { ...v, label: bioLabels[k] }])
 );

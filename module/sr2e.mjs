@@ -1273,7 +1273,7 @@ Hooks.on("updateCombat", (combat, changed) => {
 // each configuration is priced with its own row and Street Index — they just don't
 // TRIGGER anything.
 const PURCHASE_DRIVERS = ["rating", "grade", "bodySystem", "force", "grantedSkillCategory",
-                          "bondedWeaponId", "category", "focusType", "strengthMinimum"];
+                          "bondedWeaponId", "category", "focusType", "strengthMinimum", "secondhandDiscount"];
 
 // Charge (or refund) the nuyen difference when a purchased item's configuration
 // changes on a character. Runs in preUpdateItem so an unaffordable upgrade can be
@@ -1338,6 +1338,7 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     // Bows price off Strength Minimum (100¥ x Str Min), so re-pricing a Str-Min
     // change needs both fields to reach derivedItemCost's weapon branch.
     strengthMinimum: item.system.strengthMinimum, costPerStrengthMin: item.system.costPerStrengthMin,
+    secondhandDiscount: item.system.secondhandDiscount,
     ...over
   });
   const oldSys = sysFor({});

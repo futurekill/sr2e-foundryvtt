@@ -1,10 +1,10 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver } from "../rules/sr2e-rules.mjs";
-import { phaseKey, currentRecoil } from "../engagement.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier } from "../rules/sr2e-rules.mjs";
+import { phaseKey, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { liveSession } from "../vr2.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
-import { activeDrugs, drugOf, substanceRows, unfinishedDoses } from "../drugs.mjs";
+import { activeDrugs, drugOf, substanceRows, unfinishedDoses, commitDamage } from "../drugs.mjs";
 import { calendarDate } from "../calendaria.mjs";
 
 /** The sheet's substance rows, with calendar dates when Calendaria is active. */
@@ -504,6 +504,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
                    // A configured chip's slot state is the seller's choice: no auto-default.
                    slotTouched: !!srcSkill }
       } : {};
+      // Installing cyberware in play is surgery (Cybertechnology p.53; core p.114):
+      // not in character creation (p.59), not on a free drop, not for a spare.
+      const inChargen = !!this.document.system.chargen?.inProgress;
+      if (itemData.type === "cyberware" && !inChargen && this._candidateItem(itemData).system.installed) {
+        opts.surgery = { preview: (pick) => this._surgeryPreview(itemData, pick) };
+      }
       let chosen = await this.constructor._promptPurchaseOptions(itemData, this.document, opts);
       while (chosen?.retry) {                           // Buy with no skill: ask again, prefilled
         if (chosen.prefill.rating != null) itemData.system.rating = chosen.prefill.rating;
@@ -515,6 +521,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (chosen.grade != null) itemData.system.grade = chosen.grade;
       if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
       if (chosen.force != null) itemData.system.force = chosen.force;
+      if (chosen.secondhandDiscount != null) itemData.system.secondhandDiscount = chosen.secondhandDiscount;
+      if (chosen.surgery) return this._surgeryPurchase(itemData, chosen.surgery);
       if (chosen.strengthMinimum != null) {
         itemData.system.strengthMinimum = chosen.strengthMinimum;
         // Bake the Str-Min price and damage into the SOURCE so the authored
@@ -610,6 +618,83 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     return created;
   }
 
+  /** @private An unembedded, prepared copy of dropped item data (its derived Essence, installed state…). */
+  _candidateItem(itemData, over = {}) {
+    const data = foundry.utils.mergeObject(foundry.utils.deepClone(itemData), over, { inplace: false });
+    delete data._id;
+    return new Item.implementation(data, { parent: this.document });
+  }
+
+  /**
+   * @private What a cybersurgery would do (Cybertechnology p.53): the surgeon's TN from
+   * the Essence the character ends with BEFORE the surgeon's change (so the test's own
+   * result can't move its TN), the Essence after it, and the procedure's category.
+   */
+  _surgeryPreview(itemData, { rating, grade, successes = 2, others = 0 } = {}) {
+    const sys = { ...(rating != null ? { rating } : {}), ...(grade ? { grade } : {}) };
+    const pct = surgeryEssencePct(successes);
+    const plain = this._candidateItem(itemData, { system: { ...sys, surgeryEssencePct: 0 } }).system.actualEssenceCost;
+    const cost = this._candidateItem(itemData, { system: { ...sys, surgeryEssencePct: pct } }).system.actualEssenceCost;
+    const now = Number(this.document.system.essence?.value) || 0;
+    return { pct, cost, tn: surgeonTN(now - plain), end: now - cost, category: surgeryCategory(cost + (Number(others) || 0)) };
+  }
+
+  /**
+   * @private Buy and install cyberware with its surgery (docs/PLAN-cybersurgery-grades.md):
+   * in a per-actor queue, re-check Essence and nuyen, debit item + fee in ONE update,
+   * create the item carrying its `paid` flag (refund if that fails), then the wound
+   * and the card.
+   */
+  _surgeryPurchase(itemData, pick) {
+    const actor = this.document, esc = foundry.utils.escapeHTML;
+    return enqueueAttack(`purchase:${actor.uuid}`, async () => {
+      const pv = this._surgeryPreview(itemData, { rating: itemData.system.rating, grade: itemData.system.grade, ...pick });
+      if (pv.end < 0) {
+        ui.notifications.warn(`The surgery would leave ${esc(actor.name)} below 0 Essence: it's aborted (the character survives with Essence 0 — GM; Cybertechnology p.53). Nothing was bought.`);
+        return null;
+      }
+      const cand = this._candidateItem(itemData, { system: { surgeryEssencePct: pv.pct } });
+      const base = itemBaseCost({ type: cand.type, ...cand.system }, { authoredCost: itemData.system?.cost ?? 0 });
+      const price = base > 0 ? Math.round(streetPrice(base, cand.system.streetIndex)) : 0;
+      const fee = pick.fee ? pv.category.fee : 0;
+      const nuyen = actor.system.nuyen ?? 0;
+      if (nuyen < price + fee) {
+        ui.notifications.warn(`${esc(actor.name)} can't afford ${esc(itemData.name)} and its surgery (${price + fee}¥ > ${nuyen}¥) — nothing bought.`);
+        return null;
+      }
+      if (price + fee > 0) await actor.update({ "system.nuyen": nuyen - price - fee });
+      const data = foundry.utils.deepClone(itemData);
+      data.system.surgeryEssencePct = pv.pct;
+      data.flags = foundry.utils.deepClone(data.flags ?? {});
+      data.flags.sr2e = { ...(data.flags.sr2e ?? {}) };
+      delete data.flags.sr2e.acquiredQuantity; delete data.flags.sr2e.acquiredListValue;
+      if (price > 0) data.flags.sr2e.paid = price; else delete data.flags.sr2e.paid;
+      let created = null;
+      try { [created] = await actor.createEmbeddedDocuments("Item", [data]); } catch (err) { console.error("SR2E | cyberware purchase", err); }
+      if (!created) {
+        if (price + fee > 0) await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + price + fee });
+        ui.notifications.error(`${esc(itemData.name)} couldn't be added; ${price + fee}¥ was refunded.`);
+        return null;
+      }
+      const notes = [];
+      if (pick.wound) {
+        try { await commitDamage(actor, "physical", pv.category.boxes); }
+        catch (err) { console.error("SR2E | surgery wound", err); notes.push("The surgery wound couldn't be applied: GM, mark it by hand."); }
+      }
+      const clinic = { alpha: 50, beta: 50, delta: 200 }[data.system.grade];
+      if (clinic) notes.push(`At a ${data.system.grade} clinic, doctor's fees and hospitalization while it heals are ×${clinic} (Cybertechnology p.44).`);
+      if (pv.category.key === "drastic" && (actor.system.magic?.max ?? 0) > 0) notes.push("A magician checks for Magic loss after healing (p.114).");
+      try {
+        await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">
+          <strong>${esc(actor.name)}: ${esc(created.name)} installed</strong> — ${esc(pv.category.label)} surgery (p.114).
+          <br>Essence ${pv.pct ? `${pv.pct > 0 ? "+" : ""}${pv.pct}% → ${pv.cost}` : `${pv.cost}`} (surgeon's ${Number(pick.successes) || 0} success${Number(pick.successes) === 1 ? "" : "es"} vs TN ${pv.tn}, Cybertechnology p.53).
+          <br>${price ? `${price}¥ for the implant` : "No charge for the implant"}${fee ? `, ${fee}¥ for the surgery` : ""}; ${pick.wound ? `a ${esc(pv.category.wound)} wound` : "no wound applied"}.
+          ${notes.map(n => `<br><em>${esc(n)}</em>`).join("")}</div>` });
+      } catch (err) { console.error("SR2E | surgery card", err); }
+      return created;
+    });
+  }
+
   /**
    * Apply the Buy dialog's skillsoft choice to the item data (p.243): the
    * skill, slot state, linked attribute (an owned skill before the compendium;
@@ -653,11 +738,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Built from the shared grade tables rather than restated here — this dialog
     // used to carry its own hand-written copy of the multipliers, which is how it
     // came to advertise a ×2 alphaware price the rules module didn't charge.
-    const describeGrade = (key, g) => {
+    const describeGrade = (key, g, discount = sys.secondhandDiscount) => {
       const label = game.i18n.localize(CONFIG.SR2E.cyberwareGrades[key]?.label
                                     ?? CONFIG.SR2E.biowareGrades[key]?.label ?? key);
       const bits = [];
-      if (g.costMultiplier !== 1)       bits.push(`×${g.costMultiplier} ¥`);
+      if (g.secondhand) bits.push(`−${Math.round((1 - secondhandPriceMultiplier(discount)) * 100)}% ¥, same Body Cost`);
+      else if (g.costMultiplier !== 1)  bits.push(`×${g.costMultiplier} ¥`);
       if (g.essenceMultiplier != null && g.essenceMultiplier !== 1)
         bits.push(`×${g.essenceMultiplier} Essence`);
       if (g.bodyCostMultiplier != null && g.bodyCostMultiplier !== 1)
@@ -706,7 +792,21 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       <span style="opacity:.7;margin-left:6px;">${sys.costPerStrengthMin}¥ each, damage (Str Min +${sys.strMinDamageBonus ?? 0})</span></div>` : "";
     const gradeSel = fields.includes("grade") && gradeChoices ? `<div class="form-group"><label>Grade:</label>
       <select name="grade" style="flex:1;">${Object.entries(gradeChoices).map(([k, lbl]) =>
-        `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>` : "";
+        `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>
+      ${itemData.type === "bioware" ? `<div class="form-group sr2e-secondhand"><label>Secondhand discount (%):</label>
+        <input type="number" name="secondhandDiscount" value="${sys.secondhandDiscount ?? 50}" min="40" max="60" style="width:70px;">
+        <span class="hint" style="margin-left:6px;">40–60% off; +1 on its damage tests (Shadowtech p.12)</span></div>` : ""}` : "";
+    const surgery = fields.includes("surgery") && opts.surgery;
+    const surgerySel = surgery ? `<fieldset class="sr2e-surgery" style="margin-top:6px;"><legend>Cybersurgery (Cybertechnology p.53)</legend>
+      <div class="form-group"><label>Surgeon's successes:</label>
+        <input type="number" name="surgerySuccesses" value="2" min="0" style="width:60px;">
+        <span class="hint sr2e-surgery-tn" style="margin-left:6px;"></span></div>
+      <div class="form-group"><label>Other implants, same surgery (Essence):</label>
+        <input type="number" name="surgeryOthers" value="0" min="0" step="0.01" style="width:70px;"></div>
+      <div class="form-group"><label><input type="checkbox" name="surgeryFee" checked> Charge the surgery fee</label>
+        <label style="margin-left:10px;"><input type="checkbox" name="surgeryWound" checked> Apply the surgery wound</label></div>
+      <p class="hint sr2e-surgery-out" style="margin:2px 0;"></p>
+      <p class="hint" style="margin:2px 0;">Several implants in one surgery: buy the earlier ones with the fee and wound unticked, then the last with the others' Essence. Delta grade needs a delta clinic (GM).</p></fieldset>` : "";
 
     let result = null, failure = null;
     await foundry.applications.api.DialogV2.wait({
@@ -714,12 +814,14 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       rejectClose: false,
       content: `<div>
         <p style="margin:0 0 8px;">Choose what ${foundry.utils.escapeHTML(actor.name)} is buying. Price is charged on purchase (street price in play, list in character creation). Alt-drop instead to add it for free.</p>
-        ${ratingSel}${catSel}${skillSel}${forceSel}${strMinSel}${gradeSel}
+        ${ratingSel}${catSel}${skillSel}${forceSel}${strMinSel}${gradeSel}${surgerySel}
       </div>`,
-      render: soft ? (event, dialog) => {
-        try { this._wireSkillsoftFields(dialog.element, actor, opts); }
-        catch (err) { failure = err; dialog.close(); }
-      } : undefined,
+      render: (event, dialog) => {
+        try {
+          if (soft) this._wireSkillsoftFields(dialog.element, actor, opts);
+          this._wireGradeFields(dialog.element, itemData, surgery ? opts.surgery : null, describeGrade);
+        } catch (err) { failure = err; dialog.close(); }
+      },
       buttons: [
         { action: "buy", label: "Buy", default: true, callback: (e, b) => {
           // Caught here and rethrown after the dialog closes: an exception in a
@@ -734,6 +836,17 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
               force: f.force ? intOr(f.force, sys.force ?? 1) : undefined,
               strengthMinimum: f.strengthMinimum ? intOr(f.strengthMinimum, sys.strengthMinimum || 1) : undefined
             };
+            if (f.secondhandDiscount && result.grade === "secondhand") {
+              const d = parseInt(f.secondhandDiscount.value);
+              result.secondhandDiscount = Math.min(60, Math.max(40, Number.isFinite(d) ? d : 50));
+            }
+            if (surgery) {
+              // 0 successes is a real result (+15%), so this isn't intOr's clamp to 1.
+              const n = Number(f.surgerySuccesses?.value);
+              const o = Number(f.surgeryOthers?.value);
+              result.surgery = { successes: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 2,
+                others: Number.isFinite(o) && o > 0 ? o : 0, fee: !!f.surgeryFee?.checked, wound: !!f.surgeryWound?.checked };
+            }
             if (soft) {
               const cat = result.grantedSkillCategory ?? startCat;
               const skill = String(f.grantedSkill?.value ?? "").trim();
@@ -753,6 +866,34 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     });
     if (failure) throw failure;
     return result;
+  }
+
+  /**
+   * Grade fields in the Buy dialog: the secondhand discount shows only for that grade
+   * and re-labels it; the cybersurgery preview (TN, resulting Essence, category)
+   * follows the rating, grade and successes. Text only, via the DOM.
+   * @private
+   */
+  static _wireGradeFields(root, itemData, surgery, describeGrade) {
+    const form = root.querySelector("form") ?? root;
+    const grade = form.querySelector('[name="grade"]');
+    const disc = form.querySelector('[name="secondhandDiscount"]');
+    const discRow = form.querySelector(".sr2e-secondhand");
+    const refresh = () => {
+      if (discRow) discRow.style.display = grade?.value === "secondhand" ? "" : "none";
+      const opt = grade?.querySelector('option[value="secondhand"]');
+      if (opt && disc) opt.textContent = describeGrade("secondhand", CONFIG.SR2E.biowareGrades.secondhand, disc.value);
+      if (!surgery) return;
+      const num = (n, d) => { const v = Number(form.querySelector(`[name="${n}"]`)?.value); return Number.isFinite(v) ? v : d; };
+      const pv = surgery.preview({ rating: form.querySelector('[name="rating"]') ? num("rating", undefined) : undefined,
+        grade: grade?.value, successes: Math.max(0, Math.floor(num("surgerySuccesses", 2))), others: Math.max(0, num("surgeryOthers", 0)) });
+      form.querySelector(".sr2e-surgery-tn").textContent = `The GM rolls the surgeon (Biotech) against TN ${pv.tn}.`;
+      form.querySelector(".sr2e-surgery-out").textContent = `${pv.category.label}: a ${pv.category.wound} wound, ${pv.category.fee.toLocaleString()}¥. `
+        + `Essence ${pv.pct ? `${pv.pct > 0 ? "+" : ""}${pv.pct}% → ` : ""}${pv.cost}, leaving ${Math.round(pv.end * 100) / 100}${pv.end < 0 ? " — aborted (below 0)" : ""}.`;
+    };
+    form.addEventListener("input", refresh);
+    form.addEventListener("change", refresh);
+    refresh();
   }
 
   /**

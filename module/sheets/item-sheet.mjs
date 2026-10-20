@@ -154,7 +154,8 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         // Show the "Actual Essence" hint for any grade that reduces it, not just
         // alpha — betaware reduces it too (SSC p.98).
         context.gradeReducesEssence =
-          (CONFIG.SR2E.cyberwareGrades[item.system.grade]?.essenceMultiplier ?? 1) !== 1;
+          (CONFIG.SR2E.cyberwareGrades[item.system.grade]?.essenceMultiplier ?? 1) !== 1
+          || !!item.system.surgeryEssencePct;                // the surgeon's change (Cybertechnology p.53)
         context.isContainer = (item.system.capacity ?? 0) > 0 || (item.system.modules?.length ?? 0) > 0;
         break;
       case "bioware":

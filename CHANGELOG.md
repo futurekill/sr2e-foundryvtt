@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added — clinics, delta grade, secondhand bioware
+- **Cybersurgery (Cybertechnology p.53).** Buying cyberware in play (not in character
+  creation, not a spare) now includes its surgery. The Buy dialog shows the surgeon's
+  TN for the GM to roll. The successes change the implant's Essence: 0 → +15%,
+  1 → +10%, 4–5 → −10%, 6+ → −20%. The procedure's category sets the fee and the
+  wound (core p.114): Minor Invasive 5,000¥ and a Moderate wound, Major 25,000¥ and
+  Serious, Drastic 250,000¥ and Deadly. Both can be unticked, and several implants in
+  one surgery can be priced as one procedure. A surgery that would take Essence below 0
+  is aborted, and nothing is spent. A card records it all.
+- **Delta-grade cyberware (Cybertechnology p.44):** Essence ×.5, price ×10. It needs a
+  delta clinic (the GM's call). Cybertechnology supersedes the Street Samurai Catalog's
+  "alpha and beta only".
+- **Secondhand bioware (Shadowtech p.12):** 40–60% off (you pick), the same Body Cost,
+  and +1 on its damage-test rolls (a note). Changing the discount later re-prices it.
+
 ## 0.107.0 — 2026-10-19
 
 ### Added — the VR2.0 Matrix, part 2
