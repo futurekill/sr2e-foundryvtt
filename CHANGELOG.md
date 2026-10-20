@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.108.0 — 2026-10-20
+
 ### Added — clinics, delta grade, secondhand bioware, starting money
 - **Cybersurgery (Cybertechnology p.53).** Buying cyberware in play (not in character
   creation, not a spare) now includes its surgery. The Buy dialog shows the surgeon's
