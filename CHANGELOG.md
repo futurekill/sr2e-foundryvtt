@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.107.0 — 2026-10-19
+
 ### Added — the VR2.0 Matrix, part 2
 In the Virtual Realities 2.0 ruleset (Settings → Matrix ruleset). The core Matrix is
 unchanged.
