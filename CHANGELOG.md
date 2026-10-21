@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added — cyberlimbs know what they are
+- **Every cyberlimb records its type and side**, and every limb option what it adds
+  (Strength, Quickness, Body, smartlink, device, weapon). Items from the core book and
+  Cybertechnology are recognised automatically; anything else is set on the sheet or the
+  item. This is the groundwork for Cybertechnology's limb rules (Phase 3).
+- **A Cyberlimbs section** on the character's Gear tab and on NPC sheets lists every limb
+  (type, side, full/partial) and every option, with the limb it's built into. It flags a
+  limb with no type or side, limbs that overlap on one side (a hand under a full arm),
+  and options whose limb is missing, uninstalled or not a limb.
+- A limb option dragged onto a character now arrives unattached (its old link pointed
+  into the actor it came from). Uninstalling a limb keeps its options' links;
+  reinstalling restores them.
+- On first load the GM gets a list of limbs to check (nothing is changed).
+
+### Removed
+- The old "attach to limb" dropdown in the cyberware rows (the Cyberlimbs section
+  replaces it), and the unused `cyberlimbOptionSummary` helper, which miscounted options.
+
 ## 0.109.0 — 2026-10-21
 
 ### Fixed

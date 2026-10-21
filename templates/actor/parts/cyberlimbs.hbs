@@ -1,0 +1,40 @@
+{{!-- Cyberlimbs and their options (docs/PLAN-cybertechnology-phase2.md §4): every limb and
+      option item, installed or not; attach choices are installed limbs only. --}}
+{{#if cyberlimb.any}}
+<div class="gear-category sr2e-cyberlimbs">
+  <div class="category-header flexrow"><h3>Cyberlimbs</h3>
+    {{#if cyberlimb.unresolvedOverlap}}<span class="hint">Set every limb's side to check for overlaps.</span>{{/if}}</div>
+  <div class="item-list">
+    {{#each cyberlimb.limbs as |l|}}
+    <div class="item-row flexrow sr2e-limb-row {{#unless l.installed}}cyber-off{{/unless}}" data-item-id="{{l.id}}">
+      <span class="item-name"><i class="fas fa-hand"></i> {{l.name}}</span>
+      <select data-field="system.limbType" title="What this limb is{{#if l.via}} (from {{l.via}}){{/if}}">
+        {{#each @root.config.limbTypes as |label key|}}<option value="{{key}}" {{selected l.limbType key}}>{{localize label}}</option>{{/each}}
+      </select>
+      {{#if l.type}}{{#unless l.limbType}}<span class="hint" title="Recognised from the item ({{l.via}})">{{l.type}}</span>{{/unless}}{{/if}}
+      {{#if l.sided}}<select data-field="system.side" title="Which side">
+        {{#each @root.config.limbSides as |label key|}}<option value="{{key}}" {{selected l.side key}}>{{localize label}}</option>{{/each}}
+      </select>{{/if}}
+      {{#if l.coverage}}<span class="hint">{{l.coverage}}</span>{{/if}}
+      {{#unless l.installed}}<span class="hint">not installed</span>{{/unless}}
+      {{#if l.reasons.length}}<span class="hint sr2e-limb-warn">⚠ {{#each l.reasons as |r|}}{{r}}{{#unless @last}}; {{/unless}}{{/each}}</span>{{/if}}
+    </div>
+    {{/each}}
+    {{#each cyberlimb.options as |o|}}
+    <div class="item-row flexrow sr2e-limb-option {{#unless o.installed}}cyber-off{{/unless}}" data-item-id="{{o.id}}">
+      <span class="item-name"><i class="fas fa-link"></i> {{o.name}}</span>
+      <select data-field="system.linkedLimbId" title="The limb this option is built into (SR2E p.261)">
+        {{#if o.placeholder}}<option value="{{o.link}}" selected>{{o.placeholder}}</option>{{/if}}
+        <option value="" {{#unless o.link}}selected{{/unless}}>— detached —</option>
+        {{#each @root.cyberlimb.parents as |p|}}<option value="{{p.id}}" {{selected o.link p.id}}>{{p.label}}</option>{{/each}}
+      </select>
+      <select data-field="system.limbOptionKind" title="What this option adds{{#if o.kind}} (now: {{o.kind}}){{/if}}">
+        {{#each @root.config.limbOptionKinds as |label key|}}<option value="{{key}}" {{selected o.limbOptionKind key}}>{{localize label}}</option>{{/each}}
+      </select>
+      {{#if o.kind}}{{#unless o.limbOptionKind}}<span class="hint">{{o.kind}}</span>{{/unless}}{{/if}}
+      {{#if o.reason}}<span class="hint sr2e-limb-warn">⚠ {{o.reason}}</span>{{/if}}
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}

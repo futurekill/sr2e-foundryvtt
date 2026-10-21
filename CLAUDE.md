@@ -238,6 +238,16 @@ PENDING (the settle barrier holds), and the GM can force-finish a stuck one from
 The markers are hidden disabled ActiveEffects (`flags.sr2e.claim`): tests that count
 `actor.effects` must exclude them. See docs/PLAN-same-user-writers.md.
 
+## Cyberlimbs
+Limb identity (type, side, coverage) and limb-option kind come ONLY from
+`module/rules/limb-rules.mjs`: an explicit field (`limbType`, `side`, `limbOptionKind`),
+then the item's `flags.sr2e.rule`, then the known-compendium-source table, else
+unclassified. Never read item names. `limbIdentity` is derived every preparation
+(never stored). `limbModel` derives orphans and conflicts; nothing rewrites links (a
+drop blanks a dropped option's link). Phase-3 rules must use `forSideRules` /
+`forLimbRules` (unknown sides never guessed; overlaps never double-counted).
+See docs/PLAN-cybertechnology-phase2.md.
+
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),
 folded by `module/rules/substances.mjs` at the substance clock

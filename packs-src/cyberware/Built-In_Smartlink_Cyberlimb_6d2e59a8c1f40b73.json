@@ -45,7 +45,8 @@
     },
     "capacity": 0,
     "modules": [],
-    "notes": "SR2E table p.261. Cyberlimb option: a smartlink built into the limb. Essence .25, +2,500\u00a5. Acts as the wearer's smartlink receptor for the \u22122 smartgun benefit (p.90)."
+    "notes": "SR2E table p.261. Cyberlimb option: a smartlink built into the limb. Essence .25, +2,500¥. Acts as the wearer's smartlink receptor for the −2 smartgun benefit (p.90).",
+    "limbOptionKind": "smartlink"
   },
   "effects": [],
   "flags": {},

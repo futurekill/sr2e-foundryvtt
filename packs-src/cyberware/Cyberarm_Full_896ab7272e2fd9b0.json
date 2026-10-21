@@ -22,7 +22,9 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.247 (table p.261, 'Cyber Limb'). Full cyberarm. Essence 1, 100,000¥. Increased Strength +Rating×150,000¥; built-in smartlink +.25 Essence/+2,500¥."
+    "notes": "SR2E p.247 (table p.261, 'Cyber Limb'). Full cyberarm. Essence 1, 100,000¥. Increased Strength +Rating×150,000¥; built-in smartlink +.25 Essence/+2,500¥.",
+    "limbType": "arm",
+    "side": "unknown"
   },
   "effects": [],
   "flags": {},

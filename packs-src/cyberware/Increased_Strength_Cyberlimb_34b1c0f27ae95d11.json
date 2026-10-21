@@ -45,7 +45,8 @@
     },
     "capacity": 0,
     "modules": [],
-    "notes": "SR2E table p.261. Cyberlimb option: raises the LIMB's Strength by its Rating. Priced 150,000\u00a5 x Rating, so set the Rating to the bonus bought. The bonus is reported on the parent limb, not added to the character's Strength \u2014 a cyberlimb's Strength is the limb's, and the core book gives no general rule for converting it."
+    "notes": "SR2E table p.261. Cyberlimb option: raises the LIMB's Strength by its Rating. Priced 150,000¥ x Rating, so set the Rating to the bonus bought. The bonus is reported on the parent limb, not added to the character's Strength — a cyberlimb's Strength is the limb's, and the core book gives no general rule for converting it.",
+    "limbOptionKind": "strength"
   },
   "effects": [],
   "flags": {},

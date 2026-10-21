@@ -511,6 +511,33 @@
   </div>
   {{/if}}
 
+  {{!-- Cyberlimb identity (docs/PLAN-cybertechnology-phase2.md): an explicit choice wins over
+        what the item's rule flag or compendium source says. --}}
+  {{#ifEquals system.limbIdentity.role "limb"}}
+  <div class="form-group">
+    <label title="What this limb is. Left unset, it's recognised from the item when possible.">Limb type:</label>
+    <select name="system.limbType">
+      {{#each config.limbTypes as |label key|}}<option value="{{key}}" {{selected ../system.limbType key}}>{{localize label}}</option>{{/each}}
+    </select>
+    {{#if system.limbIdentity.type}}<span class="hint">now: {{system.limbIdentity.type}} ({{system.limbIdentity.via}})</span>{{/if}}
+  </div>
+  <div class="form-group">
+    <label>Side:</label>
+    <select name="system.side">
+      {{#each config.limbSides as |label key|}}<option value="{{key}}" {{selected ../system.side key}}>{{localize label}}</option>{{/each}}
+    </select>
+  </div>
+  {{/ifEquals}}
+  {{#ifEquals system.limbIdentity.role "option"}}
+  <div class="form-group">
+    <label title="What this option adds to its limb. Left unset, it's recognised from the item when possible.">Adds:</label>
+    <select name="system.limbOptionKind">
+      {{#each config.limbOptionKinds as |label key|}}<option value="{{key}}" {{selected ../system.limbOptionKind key}}>{{localize label}}</option>{{/each}}
+    </select>
+    {{#if system.limbIdentity.optionKind}}<span class="hint">now: {{system.limbIdentity.optionKind}} ({{system.limbIdentity.via}})</span>{{/if}}
+  </div>
+  {{/ifEquals}}
+
   {{#if isSkillwire}}
   <div class="form-group">
     <label title="Skillwire Plus (Shadowtech p.47) doubles the ActiveSoft rating budget to Rating × 2.">Skillwire Plus:</label>

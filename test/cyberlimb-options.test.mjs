@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { limbOptionCost, cyberlimbOptionSummary }
+import { limbOptionCost }
   from "../module/rules/sr2e-rules.mjs";
 
 // SR2E book p.261, Limbs block (corrected 11th printing):
@@ -41,37 +41,3 @@ describe("limbOptionCost (SR2 p.261)", () => {
   });
 });
 
-describe("cyberlimbOptionSummary", () => {
-  const strength = { system: { costPerRating: 150000, rating: 2, essenceCost: 0, cost: 0 } };
-  const smartlink = { system: { cost: 2500, rating: 1, essenceCost: 0.25, combatTnMod: -2 } };
-
-  it("totals cost and essence across attached options", () => {
-    const s = cyberlimbOptionSummary([strength, smartlink]);
-    expect(s.cost).toBe(302500);        // 300,000 + 2,500
-    expect(s.essence).toBe(0.25);
-  });
-
-  it("reports the Increased Strength rating without applying it", () => {
-    expect(cyberlimbOptionSummary([strength]).strengthBonus).toBe(2);
-  });
-
-  it("flags a built-in smartlink by its TN modifier", () => {
-    expect(cyberlimbOptionSummary([smartlink]).grantsSmartlink).toBe(true);
-    expect(cyberlimbOptionSummary([strength]).grantsSmartlink).toBe(false);
-  });
-
-  it("sums .25 essences without float drift", () => {
-    const three = [smartlink, smartlink, smartlink];
-    expect(cyberlimbOptionSummary(three).essence).toBe(0.75);
-  });
-
-  it("an empty or missing list totals zero", () => {
-    expect(cyberlimbOptionSummary([])).toEqual(
-      { essence: 0, cost: 0, strengthBonus: 0, grantsSmartlink: false });
-    expect(cyberlimbOptionSummary(undefined).cost).toBe(0);
-  });
-
-  it("accepts plain system objects as well as items", () => {
-    expect(cyberlimbOptionSummary([smartlink.system]).cost).toBe(2500);
-  });
-});

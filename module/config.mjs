@@ -705,6 +705,15 @@ SR2E.biowareGrades = Object.fromEntries(
   Object.entries(BIOWARE_GRADES).map(([k, v]) => [k, { ...v, label: bioLabels[k] }])
 );
 
+// Cyberlimb identity choices (docs/PLAN-cybertechnology-phase2.md); the schema's own.
+SR2E.limbTypes = { "": "SR2E.Limb.Type.Unset", arm: "SR2E.Limb.Type.Arm", leg: "SR2E.Limb.Type.Leg", hand: "SR2E.Limb.Type.Hand",
+  foot: "SR2E.Limb.Type.Foot", forearm: "SR2E.Limb.Type.Forearm", lowerLeg: "SR2E.Limb.Type.LowerLeg",
+  torso: "SR2E.Limb.Type.Torso", skull: "SR2E.Limb.Type.Skull" };
+SR2E.limbSides = { unknown: "SR2E.Limb.Side.Unknown", left: "SR2E.Limb.Side.Left", right: "SR2E.Limb.Side.Right" };
+SR2E.limbOptionKinds = { "": "SR2E.Limb.Kind.Unset", strength: "SR2E.Limb.Kind.Strength", quickness: "SR2E.Limb.Kind.Quickness",
+  body: "SR2E.Limb.Kind.Body", smartlink: "SR2E.Limb.Kind.Smartlink", device: "SR2E.Limb.Kind.Device",
+  weapon: "SR2E.Limb.Kind.Weapon", other: "SR2E.Limb.Kind.Other" };
+
 // Bioware body systems (Shadowtech) — sheet grouping + flavor, non-mechanical.
 SR2E.bodySystems = {
   circulatory: "SR2E.Bioware.System.Circulatory",

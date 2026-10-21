@@ -2578,6 +2578,115 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Purchases" });
 
+    // ── The cyberlimb model (docs/PLAN-cybertechnology-phase2.md) ─────────────
+    quench.registerBatch("sr2e.cyberlimbs", (context) => {
+      const { it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const ware = (name, system = {}, extra = {}) => ({ name, type: "cyberware", system: { location: "cyberlimb", installed: true, ...system }, ...extra });
+      const model = async (actor) => (await import("../sheets/actor-sheet.mjs")).cyberlimbContext(actor);
+
+      it("identity is derived every preparation and never stored", async () => {
+        const a = await mk({ name: "Quench Limb Prep", type: "character" });
+        const [w] = await a.createEmbeddedDocuments("Item", [ware("Limb", {}, { flags: { sr2e: { rule: "limb:hand" } } })]);
+        const id = () => a.items.get(w.id).system.limbIdentity;
+        assert.deepInclude(id(), { role: "limb", type: "hand", via: "rule" });
+        await w.update({ "system.limbType": "leg" });
+        assert.deepInclude(id(), { type: "leg", via: "set" });
+        await w.update({ "system.limbType": "" });
+        assert.deepInclude(id(), { type: "hand", via: "rule" }, "clearing the field falls back to the rule flag");
+        await w.update({ "flags.sr2e.-=rule": null });
+        assert.deepInclude(id(), { role: "limb", type: null }, "removing the flag leaves it unclassified (still a cyberlimb by location)");
+        await w.update({ "system.limbOption": true });
+        assert.equal(id().role, "option", "limb → option");
+        await w.update({ "system.limbOption": false });
+        assert.equal(id().role, "limb", "option → limb");
+        assert.notProperty(a.items.get(w.id)._source.system, "limbIdentity", "never in source");
+      });
+
+      it("the model on a character and an NPC: options, reasons, the honest dropdown", async () => {
+        for (const type of ["character", "npc"]) {
+          const a = await mk({ name: `Quench Limbs ${type}`, type });
+          // createEmbeddedDocuments can return items out of order: look them up by name.
+          await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "left" }), ware("Arm 2", { limbType: "arm" })]);
+          const arm = a.items.getName("Arm"), leg = a.items.getName("Arm 2");
+          await a.createEmbeddedDocuments("Item", [
+            ware("Str", { limbOption: true, limbOptionKind: "strength", linkedLimbId: arm.id }), ware("Lost", { limbOption: true, linkedLimbId: "nOsUchLiMb000000" })]);
+          const o1 = a.items.getName("Str"), o2 = a.items.getName("Lost");
+          const c = await model(a);
+          assert.equal(c.limbs.length, 2, type);
+          assert.match(c.limbs.find(l => l.id === leg.id).reasons.join(" "), /set its side/, `${type}: unknown side reported`);
+          const lost = c.options.find(o => o.id === o2.id);
+          assert.match(lost.placeholder, /missing limb/, `${type}: invalid link shown as a placeholder`);
+          assert.equal(c.options.find(o => o.id === o1.id).attached, true);
+          await a.sheet.render({ force: true });
+          await new Promise(r => setTimeout(r, 250));
+          const el = a.sheet.element;
+          assert.ok(el.querySelector(".sr2e-cyberlimbs"), `${type}: the Cyberlimbs section renders`);
+          const sel = el.querySelector(`[data-item-id="${o2.id}"] select[data-field="system.linkedLimbId"]`);
+          assert.equal(sel?.value, "nOsUchLiMb000000", `${type}: the select shows the real (invalid) link`);
+          // Reattach through the select, as a user would.
+          sel.value = arm.id; sel.dispatchEvent(new Event("change", { bubbles: true }));
+          await new Promise(r => setTimeout(r, 300));
+          assert.equal(a.items.get(o2.id).system.linkedLimbId, arm.id, `${type}: attach via the sheet`);
+          await a.sheet.close();
+        }
+      });
+
+      it("uninstall keeps the link (reported), reinstall restores; delete orphans it", async () => {
+        const a = await mk({ name: "Quench Limb Parent", type: "character" });
+        const [arm] = await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "right" })]);
+        const [o] = await a.createEmbeddedDocuments("Item", [ware("Smart", { limbOption: true, limbOptionKind: "smartlink", linkedLimbId: arm.id })]);
+        await arm.update({ "system.installed": false });
+        let c = await model(a);
+        assert.match(c.options[0].placeholder, /isn't installed/);
+        assert.equal(a.items.get(o.id).system.linkedLimbId, arm.id, "link kept");
+        await arm.update({ "system.installed": true });
+        c = await model(a);
+        assert.equal(c.options[0].attached, true, "reinstall restores");
+        await arm.delete();
+        c = await model(a);
+        assert.match(c.options[0].placeholder, /missing limb|limb is gone/);
+      });
+
+      it("a dropped option arrives unattached, even onto a clone with the same limb id", async () => {
+        const a = await mk({ name: "Quench Limb Source", type: "character" });
+        const [arm] = await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "left" })]);
+        const [o] = await a.createEmbeddedDocuments("Item", [ware("Str", { limbOption: true, limbOptionKind: "strength", linkedLimbId: arm.id })]);
+        const clone = await a.clone({ name: "Quench Limb Clone" }, { save: true }); made.push(clone);
+        assert.equal(clone.items.getName("Str").system.linkedLimbId, clone.items.getName("Arm").id, "a whole-actor copy keeps its links");
+        const got = await clone.sheet._onDropItem({ altKey: true }, { type: "Item", uuid: o.uuid });
+        const dropped = (Array.isArray(got) ? got[0] : got) ?? clone.items.contents.find(i => i.name === "Str" && i.id !== clone.items.getName("Str").id);
+        assert.equal(dropped.system.linkedLimbId, "", "dropped option is unattached");
+        const npc = await mk({ name: "Quench Limb NPC", type: "npc" });
+        const got2 = await npc.sheet._onDropItem({}, { type: "Item", uuid: o.uuid });
+        assert.equal((Array.isArray(got2) ? got2[0] : got2).system.linkedLimbId, "", "NPC drop path too");
+      });
+
+      it("a token's synthetic actor has its own model; the base and a sibling are untouched", async () => {
+        const a = await mk({ name: "Quench Limb Token", type: "npc", prototypeToken: { actorLink: false } });
+        await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm" })]);
+        const scene = canvas.scene;
+        const [t1, t2] = await scene.createEmbeddedDocuments("Token", [{ actorId: a.id, actorLink: false, x: 100, y: 100 }, { actorId: a.id, actorLink: false, x: 300, y: 100 }]);
+        try {
+          await t1.actor.items.getName("Arm").update({ "system.side": "left" });
+          assert.equal((await model(t1.actor)).limbs[0].side, "left");
+          assert.equal(a.items.getName("Arm").system.side, "unknown", "base unchanged");
+          assert.equal(t2.actor.items.getName("Arm").system.side, "unknown", "sibling token unchanged");
+        } finally { await scene.deleteEmbeddedDocuments("Token", [t1.id, t2.id]); }
+      });
+
+      it("Cybertechnology versions resolve without fields: a hand by its rule flag, Increased Strength by source", async () => {
+        const a = await mk({ name: "Quench Limb CT", type: "character" });
+        const [hand] = await a.createEmbeddedDocuments("Item", [ware("Cyberhand", {}, { flags: { sr2e: { rule: "limb:hand" } } })]);
+        const [str] = await a.createEmbeddedDocuments("Item", [ware("Increased Strength (Cyberlimb)", { limbOption: true, linkedLimbId: hand.id },
+          { _stats: { compendiumSource: "Compendium.sr2e-cybertechnology.ct-cyberlimbs.Item.5f2e13f2593cb635" } })]);
+        assert.deepInclude(a.items.get(hand.id).system.limbIdentity, { type: "hand", coverage: "partial" });
+        assert.equal(a.items.get(str.id).system.limbIdentity.optionKind, "strength");
+      });
+    }, { displayName: "SR2E: Cyberlimbs (model)" });
+
     // ── Matrixware: the cranial cyberdeck ("C2", Shadowtech p.54–59) ─────────
     quench.registerBatch("sr2e.matrixware", (context) => {
       const { describe, it, assert, after } = context;

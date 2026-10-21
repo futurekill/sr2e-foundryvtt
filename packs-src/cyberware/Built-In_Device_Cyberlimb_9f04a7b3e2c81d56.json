@@ -45,7 +45,8 @@
     },
     "capacity": 0,
     "modules": [],
-    "notes": "SR2E table p.261. Cyberlimb option: any ordinary device concealed in the limb, at 4 x its normal cost. Enter the device's NORMAL price in Cost \u2014 the x4 surcharge is derived. Essence and availability vary with the device."
+    "notes": "SR2E table p.261. Cyberlimb option: any ordinary device concealed in the limb, at 4 x its normal cost. Enter the device's NORMAL price in Cost — the x4 surcharge is derived. Essence and availability vary with the device.",
+    "limbOptionKind": "device"
   },
   "effects": [],
   "flags": {},

@@ -35,6 +35,7 @@
  * creation (preCreateActor hook in sr2e.mjs) and backfilled onto existing
  * characters by the 0.26.0 migration (GitHub #3).
  */
+import { limbModel } from "./rules/limb-rules.mjs";
 import { RANGE_FIXES, rangesFor, ALL_RANGE_FIXES } from "./rules/weapon-ranges.mjs";
 import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair } from "./rules/sr2e-rules.mjs";
 
@@ -60,6 +61,10 @@ const UNBOUND_FOCI = [];
 const PENDING_CHARGEN = [];
 // 0.109.0: implants carrying switched-off module rows, which now cost their Essence.
 const INACTIVE_MODULES = [];
+// 0.110.0: cyberlimb problems per actor (unclassified limbs, unknown sides, conflicts, orphans).
+const LIMB_REPORT = [];
+// Which document the runner is migrating, for reports (a token's actor shares its base's name).
+let CURRENT_LABEL = "";
 const CANDIDATE_SUBRATINGS = [];
 const REPAIRED_KARMA = [];
 
@@ -603,6 +608,24 @@ export const MIGRATIONS = [
       if (off.length) INACTIVE_MODULES.push(`${parent?.name ? parent.name + " / " : ""}${source.name} (${off.map(m => m.name || "module").join(", ")})`);
       return null;
     }
+  },
+  {
+    version: "0.110.0",
+    // Report-only: the pure limb model over the actor's SOURCE items (the prepared
+    // identity isn't in source). Nothing is written; sides and types are the GM's call.
+    migrateActor(source) {
+      const items = (source.items ?? []).filter(i => i.type === "cyberware").map(i => ({
+        id: i._id, name: i.name, installed: !!i.system?.installed, system: i.system ?? {}, flags: i.flags ?? {},
+        source: i._stats?.compendiumSource ?? i.flags?.core?.sourceId ?? null }));
+      if (!items.length) return null;
+      const m = limbModel(items);
+      const bits = [
+        ...m.limbs.filter(l => l.reasons.length).map(l => `${l.name}: ${l.reasons.join("; ")}`),
+        ...m.orphans.map(o => `${o.name}: ${o.reason}`),
+        ...(m.unresolvedOverlap.length ? ["set every limb's side to check for overlaps"] : [])];
+      if (bits.length) LIMB_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
+      return null;
+    }
   }
 ];
 
@@ -737,6 +760,7 @@ export async function migrateWorld() {
 
   // World actors (and their embedded items)
   for (const actor of game.actors) {
+    CURRENT_LABEL = actor.name;
     try { await migrateActor(pending, actor); }
     catch (err) { errors++; console.error(`SR2E | Migration failed for Actor "${actor.name}":`, err); }
   }
@@ -754,6 +778,7 @@ export async function migrateWorld() {
   for (const scene of game.scenes) {
     for (const token of scene.tokens) {
       if (token.actorLink || !token.actor) continue;
+      CURRENT_LABEL = `${token.name} (token on ${scene.name})`;
       try { await migrateActor(pending, token.actor); }
       catch (err) {
         errors++;
@@ -793,6 +818,17 @@ export async function migrateWorld() {
         set that character's Karma Pool adjustment by hand.</p></div>`
     });
     REPAIRED_KARMA.length = 0;
+  }
+
+  if (LIMB_REPORT.length) {
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Cyberlimbs to check (0.110.0)</strong>
+        <p>Limbs now record what they are and which side they're on. These need a look on
+        the sheet's Cyberlimbs section (nothing was changed):</p>
+        <ul>${[...new Set(LIMB_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
+    });
+    LIMB_REPORT.length = 0;
   }
 
   if (INACTIVE_MODULES.length) {

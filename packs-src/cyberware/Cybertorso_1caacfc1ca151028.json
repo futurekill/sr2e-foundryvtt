@@ -22,7 +22,9 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "Not in the SR2 core tables (Shadowtech-era item) — values unverified against a sourcebook."
+    "notes": "Not in the SR2 core tables (Shadowtech-era item) — values unverified against a sourcebook.",
+    "limbType": "torso",
+    "side": "unknown"
   },
   "effects": [],
   "flags": {},

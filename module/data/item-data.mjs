@@ -1,6 +1,7 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { deckModeFields } from "./actor-data.mjs";
+import { limbIdentity } from "../rules/limb-rules.mjs";
 import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
 
 /**
@@ -467,6 +468,19 @@ export class CyberwareData extends SR2EDataModel {
       // each is a catalogue entry with its own price, Street Index and icon.
       limbOption: new fields.BooleanField({ initial: false }),
       linkedLimbId: new fields.StringField({ initial: "" }),
+      // Cyberlimb identity (docs/PLAN-cybertechnology-phase2.md). Read it only through
+      // limb-rules.mjs (resolveLimbType / limbModel): "" falls back to the item's rule
+      // flag and known compendium source. blank:true or every existing item goes invalid.
+      limbType: new fields.StringField({ required: true, blank: true, initial: "", choices: {
+        "": "SR2E.Limb.Type.Unset", arm: "SR2E.Limb.Type.Arm", leg: "SR2E.Limb.Type.Leg", hand: "SR2E.Limb.Type.Hand",
+        foot: "SR2E.Limb.Type.Foot", forearm: "SR2E.Limb.Type.Forearm", lowerLeg: "SR2E.Limb.Type.LowerLeg",
+        torso: "SR2E.Limb.Type.Torso", skull: "SR2E.Limb.Type.Skull" } }),
+      side: new fields.StringField({ required: true, initial: "unknown", choices: {
+        unknown: "SR2E.Limb.Side.Unknown", left: "SR2E.Limb.Side.Left", right: "SR2E.Limb.Side.Right" } }),
+      limbOptionKind: new fields.StringField({ required: true, blank: true, initial: "", choices: {
+        "": "SR2E.Limb.Kind.Unset", strength: "SR2E.Limb.Kind.Strength", quickness: "SR2E.Limb.Kind.Quickness",
+        body: "SR2E.Limb.Kind.Body", smartlink: "SR2E.Limb.Kind.Smartlink", device: "SR2E.Limb.Kind.Device",
+        weapon: "SR2E.Limb.Kind.Weapon", other: "SR2E.Limb.Kind.Other" } }),
       // Formula prices that must stay formulas (CLAUDE.md): Increased Strength is
       // Rating x 150,000¥, Built-In Device is 4 x the device's normal cost. Set
       // ONE of these; `cost` then carries the base the multiplier applies to.
@@ -634,6 +648,10 @@ export class CyberwareData extends SR2EDataModel {
       modCost    += m.cost ?? 0;
       if (m.active) modTn += m.combatTnMod ?? 0;
     }
+    // Limb identity is derived every pass (never stored): rebuilt from scratch, so a
+    // removed rule flag or cleared limbType can't leave a stale identity behind.
+    this.limbIdentity = limbIdentity(this, this.parent?.flags,
+      this.parent?._stats?.compendiumSource ?? this.parent?.flags?.core?.sourceId ?? null);
     this.capacityUsed = Math.round(modEssence * 100) / 100;
     this.capacityOver = Math.max(0, Math.round((modEssence - (this.capacity ?? 0)) * 100) / 100);
     this.moduleCost   = modCost;

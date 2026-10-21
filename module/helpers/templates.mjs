@@ -14,6 +14,7 @@ export async function preloadTemplates() {
     "systems/sr2e/templates/actor/parts/actor-matrix.hbs",
     "systems/sr2e/templates/actor/parts/actor-gear.hbs",
     "systems/sr2e/templates/actor/parts/substances.hbs",
+    "systems/sr2e/templates/actor/parts/cyberlimbs.hbs",
     "systems/sr2e/templates/actor/parts/actor-vehicles.hbs",
     "systems/sr2e/templates/actor/parts/actor-contacts.hbs",
     "systems/sr2e/templates/actor/parts/actor-bio.hbs",

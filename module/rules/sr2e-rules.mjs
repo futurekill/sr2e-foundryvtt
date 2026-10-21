@@ -1397,35 +1397,6 @@ export function limbOptionCost(sys) {
 }
 
 /**
- * Aggregate the options attached to one cyberlimb (SR2E p.261) — the cyberware
- * mirror of `accessorySummary`.
- *
- * `essence` is for DISPLAY on the parent limb only: options are ordinary
- * cyberware items, so the actor's installed-cyberware essence sum already counts
- * them (see `_collectItemModifiers`). Adding this to the actor total would
- * double-charge Essence.
- *
- * `strengthBonus` is likewise reported, NOT applied — a cyberlimb's Strength is
- * the limb's, not the character's, and the core book gives no general-case rule
- * for converting one to the other.
- *
- * @param {Array} options - cyberware items (or plain system objects) to total.
- * @returns {{essence:number, cost:number, strengthBonus:number, grantsSmartlink:boolean}}
- */
-export function cyberlimbOptionSummary(options) {
-  const out = { essence: 0, cost: 0, strengthBonus: 0, grantsSmartlink: false };
-  for (const o of options ?? []) {
-    const s = o.system ?? o;
-    out.essence += s.essenceCost ?? 0;
-    out.cost    += limbOptionCost(s);
-    if (s.costPerRating > 0) out.strengthBonus += Math.max(0, s.rating ?? 0);
-    if ((s.combatTnMod ?? 0) !== 0) out.grantsSmartlink = true;
-  }
-  out.essence = Math.round(out.essence * 100) / 100;   // kill float drift (.25 sums)
-  return out;
-}
-
-/**
  * Gyro-stabilization (SR2E p.90): "The total recoil and movement modifiers
  * are reduced by −1 for every point of gyro-stabilization the system
  * provides." Cumulative with recoil compensation (which is applied first via

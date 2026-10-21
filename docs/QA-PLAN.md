@@ -545,6 +545,12 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 
 ---
 
+## Cyberlimbs (docs/PLAN-cybertechnology-phase2.md)
+- [ ] Drop a Cyberarm (Full) and a Cybertechnology Cyberhand: both typed automatically; set sides; a left arm + left hand shows an overlap.
+- [ ] Attach an Increased Strength to "Cyberarm (left)"; uninstall the arm (option shows "isn't installed"), reinstall (attached again).
+- [ ] Drag that option to another character: it arrives "— detached —".
+- [ ] An NPC with cyberware shows the Cyberlimbs section; reassign and detach an option there.
+
 ## Smoke test (5-minute sanity pass)
 1. Import a Sample Runner; open the sheet; roll a skill.
 2. Fire a weapon at a targeted token; resist the damage.

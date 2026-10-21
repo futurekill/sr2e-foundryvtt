@@ -4,6 +4,7 @@ import { isVR2 } from "../vr2-mode.mjs";
 import { liveSession } from "../vr2.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
+import { limbModel, limbIdentity, limbLabel, SIDED } from "../rules/limb-rules.mjs";
 import { activeDrugs, drugOf, substanceRows, unfinishedDoses, commitDamage } from "../drugs.mjs";
 import { calendarDate } from "../calendaria.mjs";
 
@@ -54,6 +55,56 @@ function readDrop(event) {
  * prose-mirror auto-save and per-field saves — so every sheet
  * (not just the character sheet) gets the same data-loss protections.
  */
+/**
+ * A dropped cyberlimb option always arrives unattached: its link points into the actor
+ * it came from, and a clone with the same limb id must not silently adopt it. Whole-
+ * actor copies, imports and tokens don't drop, so they keep their links
+ * (docs/PLAN-cybertechnology-phase2.md).
+ */
+function unattachDroppedOption(itemData) {
+  if (itemData?.type === "cyberware" && itemData.system?.limbOption && itemData.system.linkedLimbId) {
+    itemData.system = { ...itemData.system, linkedLimbId: "" };
+  }
+}
+
+/**
+ * The cyberlimb section shared by the character and NPC sheets: rows for EVERY limb and
+ * option item (installed or not), the model's reasons, and attach choices limited to
+ * installed limbs (docs/PLAN-cybertechnology-phase2.md §4).
+ */
+export function cyberlimbContext(actor) {
+  const plain = actor.items.filter(i => i.type === "cyberware").map(i => ({
+    id: i.id, name: i.name, installed: !!i.system.installed, system: i.system, flags: i.flags,
+    source: i._stats?.compendiumSource ?? i.flags?.core?.sourceId ?? null }));
+  const model = limbModel(plain);
+  const limbInfo = new Map(model.limbs.map(l => [l.id, l]));
+  const orphanInfo = new Map(model.orphans.map(o => [o.id, o]));
+  const parents = model.limbs.map(l => ({ id: l.id, label: limbLabel(l) }));
+  const limbs = [], options = [];
+  for (const p of plain) {
+    const ident = p.system.limbIdentity ?? limbIdentity(p.system, p.flags, p.source);
+    if (ident?.role === "limb") {
+      const m = limbInfo.get(p.id);
+      limbs.push({ id: p.id, name: p.name, installed: p.installed, type: ident.type, via: ident.via,
+        limbType: p.system.limbType, side: p.system.side, sided: !ident.type || SIDED.has(ident.type),
+        coverage: ident.coverage, reasons: m?.reasons ?? (p.installed ? [] : ["not installed: not counted"]),
+        overlap: model.unresolvedOverlap.some(u => u.ids.includes(p.id)) });
+    } else if (ident?.role === "option") {
+      const o = orphanInfo.get(p.id);
+      const link = p.system.linkedLimbId ?? "";
+      const attached = !!link && parents.some(x => x.id === link);
+      options.push({ id: p.id, name: p.name, installed: p.installed, kind: ident.optionKind, limbOptionKind: p.system.limbOptionKind,
+        link, attached,
+        // A link that isn't a valid choice is shown as a selected placeholder, so the
+        // select always tells the truth and picking anything fires a change.
+        placeholder: link && !attached ? `⚠ ${actor.items.get(link)?.name ?? "missing limb"} (${o?.reason ?? "not a valid limb"})` : null,
+        reason: o?.reason ?? (!p.installed ? "not installed: not counted" : null) });
+    }
+  }
+  return { limbs, options, parents, any: limbs.length + options.length > 0,
+    unresolvedOverlap: model.unresolvedOverlap.length > 0 };
+}
+
 class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   /** @override */
@@ -216,6 +267,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     } else {
       return false;
     }
+    unattachDroppedOption(itemData);
     return this.document.createEmbeddedDocuments("Item", [itemData]);
   }
 
@@ -525,6 +577,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     } else {
       return false;
     }
+
+    unattachDroppedOption(itemData);
 
     // --- Race drop handling ---
     if (itemData.type === "race") return this._onDropRace(itemData);
@@ -1177,10 +1231,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       }];
     }));
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
-    // Candidate parents for a cyberlimb option's attach dropdown (SR2E p.261) —
-    // only actual limbs, and never an option itself.
-    context.cyberlimbs = context.cyberware.filter(i =>
-      i.system.location === "cyberlimb" && !i.system.limbOption);
+    context.cyberlimb = cyberlimbContext(actor);
     // Bioware, sorted by body system so same-system implants group together
     // (Shadowtech). config.bodySystems gives the template localized labels.
     context.bioware = actor.items.filter(i => i.type === "bioware")
@@ -1553,6 +1604,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.gear = actor.items.filter(i => i.type === "gear");
     context.drugs = context.gear.filter(i => drugOf(i));
     context.activeDrugs = activeDrugs(actor);
+    context.cyberlimb = cyberlimbContext(actor);
     context.unfinishedDoses = unfinishedDoses(actor);
     context.substances = substanceContext(actor);
     context.isGM = game.user.isGM;

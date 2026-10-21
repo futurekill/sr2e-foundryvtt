@@ -196,6 +196,13 @@
       </fieldset>
       {{/if}}
 
+      {{#if cyberlimb.any}}
+      <fieldset class="npc-cyberlimbs">
+        <legend>Cyberlimbs</legend>
+        {{> "systems/sr2e/templates/actor/parts/cyberlimbs.hbs"}}
+      </fieldset>
+      {{/if}}
+
       {{#if showDrugs}}
       <fieldset class="npc-drugs">
         <legend>Drugs</legend>
