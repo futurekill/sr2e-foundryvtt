@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.109.0 — 2026-10-21
+
 ### Fixed
 - **A switched-off cybereye or cyberear module still costs its Essence.** Switching an
   installed accessory off used to give its Essence back; now it only stops the
