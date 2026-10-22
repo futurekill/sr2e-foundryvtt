@@ -494,7 +494,7 @@
 
   {{!-- Cyberlimb option (SR2E p.261): priced as an addition to a parent limb --}}
   <div class="form-group">
-    <label title="A sub-option installed into a cyberlimb (SR2E p.261) rather than a standalone implant. Attach it to a limb on the character sheet.">Cyberlimb option:</label>
+    <label title="A sub-option installed into a cyberlimb (SR2E p.261) rather than a standalone implant. Attach it to a limb on the character sheet. Spurs, razors, smartlinks, fingertip compartments and cyberguns built into a cyberlimb this way take the book's adjusted Essence (Cybertechnology p.49, p.52).">Cyberlimb option:</label>
     <input type="checkbox" name="system.limbOption" {{checked system.limbOption}} />
     <span class="hint">priced as an addition to a limb</span>
   </div>
@@ -536,7 +536,23 @@
     </select>
     {{#if system.limbIdentity.optionKind}}<span class="hint">now: {{system.limbIdentity.optionKind}} ({{system.limbIdentity.via}})</span>{{/if}}
   </div>
+  <div class="form-group">
+    <label title="+10% when added to a limb that already has a different enhancement type; both items if bought together (Cybertechnology p.51). Set automatically when attached.">+10% (multiple enhancements):</label>
+    <input type="checkbox" name="system.limbSurcharge" {{checked system.limbSurcharge}} />
+  </div>
+  <div class="form-group">
+    <label title="A lower arm/leg's Strength costs 60,000¥/point instead of 120,000¥ when the hand/foot on that side already has enhanced Strength (Cybertechnology p.51). Set automatically when attached.">Next to an enhanced hand/foot:</label>
+    <input type="checkbox" name="system.limbAdjacent" {{checked system.limbAdjacent}} />
+  </div>
   {{/ifEquals}}
+  <div class="form-group">
+    <label title="Essence when wired into a cyberlimb (Cybertechnology p.49). Blank: the book's table for known items, otherwise unchanged.">Essence in a cyberlimb:</label>
+    <input type="number" name="system.essenceInLimb" value="{{system.essenceInLimb}}" min="0" step="0.01" placeholder="—" />
+  </div>
+  <div class="form-group">
+    <label title="Essence when NOT in a cyberlimb, e.g. a cybergun in a natural limb (Cybertechnology p.52). Blank: the book's table for known items.">Essence outside a cyberlimb:</label>
+    <input type="number" name="system.essenceOutsideLimb" value="{{system.essenceOutsideLimb}}" min="0" step="0.01" placeholder="—" />
+  </div>
 
   {{#if isSkillwire}}
   <div class="form-group">

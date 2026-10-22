@@ -551,6 +551,19 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 - [ ] Drag that option to another character: it arrives "— detached —".
 - [ ] An NPC with cyberware shows the Cyberlimbs section; reassign and detach an option there.
 
+## Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md)
+Automated: `test/limb-stats.test.mjs` (book examples) and Quench `sr2e.limbrules`.
+- [ ] A Strength 6 character with one unenhanced cyberarm shows Strength 5 and the
+      "Cyberlimbs (average of four limbs)" line in the attribute tooltip.
+- [ ] A melee attack offers "lead with" each stronger limb; picking one raises the TN
+      and the damage Power uses that limb's Strength.
+- [ ] Mismatched arm Quickness shows a coordination row in a Firearms attack dialog
+      and in a Quickness test's TN breakdown.
+- [ ] Attaching a Quickness enhancement to an arm with a Strength enhancement ticks
+      "+10%" and charges the difference; detaching refunds it.
+- [ ] A spur set as a cyberlimb option and attached to a cyberarm shows 0 Essence.
+- [ ] An NPC with cyberlimbs keeps its printed Strength.
+
 ## Smoke test (5-minute sanity pass)
 1. Import a Sample Runner; open the sheet; roll a skill.
 2. Fire a weapon at a targeted token; resist the damage.

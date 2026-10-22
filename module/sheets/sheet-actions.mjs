@@ -596,8 +596,15 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // Killing Hands box for an adept who has both — the roll resolves KH first when
   // both are ticked, so an adept can uncheck KH and take the lacing option
   // instead (Codex).
+  // Gated on LACING, not the combined bonus: cyberhands raise unarmed Power too
+  // (Cybertechnology p.49) but never offer the lacing option.
   const laceBonus = weapon.system._unarmedPowerBonus ?? 0;
-  const offerBoneLacingPhysical = isMelee && laceBonus > 0;
+  const offerBoneLacingPhysical = isMelee && (weapon.system._boneLacingPower ?? 0) > 0;
+
+  // Leading with one limb (Cybertechnology p.50): its Strength, at +(limb − average)
+  // to the TN. Offered only while the four-limb average is in force.
+  const leadWith = isMelee ? (actor.system.limbs?.leadWith ?? []) : [];
+  const coordTN = presets.coordinationTN ?? 0;
 
   // ── Auto-detected modifiers ───────────────────────────────────────────────
 
@@ -779,7 +786,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   // Initial TN with all situational mods at zero
   const initFinalTN = Math.max(2, BASE_TN + cyberwareMod + accessoryTnMod
-                                          + woundPenalty + sustainPenalty
+                                          + woundPenalty + sustainPenalty + coordTN
                                           + recoilPenalty + defaultingPenalty);
 
   // Helper: format a modifier number for display (always show sign)
@@ -943,7 +950,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod
                                       + calledShotMod() - aimMod()
                                       + cyberwareMod + accessoryTnMod
-                                      + woundPenalty + sustainPenalty
+                                      + woundPenalty + sustainPenalty + coordTN
                                       + recoil - gyroCut + defaultingPenalty
                                       + engNow.tnMod);
       } else {
@@ -965,8 +972,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (friendsRow)  friendsRow.style.display  = frMod  !== 0 ? "" : "none";
         if (positionRow) positionRow.style.display = posMod !== 0 ? "" : "none";
         if (multiRow)    multiRow.style.display    = muMod  !== 0 ? "" : "none";
-        finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + mvMod + oMod
-                                      + woundPenalty + sustainPenalty + defaultingPenalty);
+        const leadTN = parseInt(root.querySelector("#sr2e-lead-with")?.selectedOptions?.[0]?.dataset.tn) || 0;
+        finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + mvMod + oMod + leadTN
+                                      + woundPenalty + sustainPenalty + coordTN + defaultingPenalty);
       }
       if (finalTnSpan) finalTnSpan.textContent = finalTN;
     }
@@ -1017,6 +1025,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       el?.addEventListener("input",  () => { syncAimPools(); updateTN(); });
     }
     modeSelect?.addEventListener("change", () => { syncCalledShot(); updateTN(); });
+    root.querySelector("#sr2e-lead-with")?.addEventListener("change", updateTN);
     syncCalledShot(); syncAimPools();
 
     // Reset Recoil button — clears rounds already fired and persists to the actor
@@ -1147,6 +1156,13 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
       ${offerBoneLacingPhysical ? `<div class="sr2e-attack__field">
         <label title="Bone lacing lets you strike for PHYSICAL damage, but the Power Level is halved, round up (Shadowtech p.42). Leave unchecked for normal (Str+${laceBonus})M Stun.">Physical (½ Power):</label>
         <input type="checkbox" id="sr2e-bonelacing-physical" name="boneLacingPhysical">
+      </div>` : ""}
+      ${leadWith.length ? `<div class="sr2e-attack__field">
+        <label title="Melee uses the average Strength of your four limbs, or lead with a stronger limb at +(its Strength − the average) to the TN (Cybertechnology p.50)">Strength:</label>
+        <select id="sr2e-lead-with" name="leadWith">
+          <option value="" data-tn="0">average (${actor.system.limbs.avgStrength})</option>
+          ${leadWith.map(l => `<option value="${l.key}" data-tn="${l.tn}">lead with ${foundry.utils.escapeHTML(l.name ?? l.key)} (Str ${l.strength}, TN +${l.tn})</option>`).join("")}
+        </select>
       </div>` : ""}
       <div class="sr2e-attack__field">
         <label title="Visibility Table (p.89) at HALF value, rounded down, except Full Darkness (SR2E p.102)">Visibility:</label>
@@ -1303,6 +1319,11 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
     <tr style="${woundStyle}">
       <td style="color:#c84;padding:1px 0;">Wound Penalty:</td>
       <td style="text-align:right;padding:1px 0;">+${woundPenalty}</td>
+    </tr>` : ""}
+    ${coordTN > 0 ? `
+    <tr>
+      <td style="color:#c84;padding:1px 0;" title="Mismatched limb Quickness (Cybertechnology p.51)">${game.i18n.localize("SR2E.Limb.Coordination")}:</td>
+      <td style="text-align:right;padding:1px 0;">+${coordTN}</td>
     </tr>` : ""}
     ${sustainPenalty > 0 ? `
     <tr>
@@ -1468,6 +1489,8 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             meleeVisMod:     MELEE_VISIBILITY.some(([v]) => v === parseInt(f.meleeVis?.value)) ? parseInt(f.meleeVis.value) : 0,
             killingHands:    f.killingHands?.checked ? killingHands : "",
             boneLacingPhysical: !!f.boneLacingPhysical?.checked,
+            // Validated against the actor's live leadWith in item.roll.
+            leadWith:        f.leadWith?.value ?? "",
             shotSpread:      !!f.shotSpread?.checked,
             choke:           weapon.system.choke ?? 0,
             poolDice,
@@ -1614,6 +1637,9 @@ export async function rollWeaponInteractive(actor, item) {
   const engaging = detectEngagingFoes(actor);
   if (engaging != null) presets.inMelee = engaging;
   if (skillChoices.length > 1) presets.skillChoices = skillChoices;
+  // Mismatched limb Quickness (Cybertechnology p.51), previewed only: the roll adds it
+  // in testTnModifiers, from the same skill key.
+  presets.coordinationTN = actor.coordinationTnFor?.({ tnContext: { key: skillKeys[0] ?? "" } }) ?? 0;
 
   const opts = await promptWeaponAttackOptions(actor, item, skillCap, baseDice,
                                                defaultingPenalty, presets);

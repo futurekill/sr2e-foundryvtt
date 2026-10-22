@@ -1,8 +1,9 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { deckModeFields } from "./actor-data.mjs";
-import { limbIdentity } from "../rules/limb-rules.mjs";
-import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, limbOptionCost, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
+import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
+import { limbOptionPrice } from "../rules/limb-stats.mjs";
+import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -481,6 +482,16 @@ export class CyberwareData extends SR2EDataModel {
         "": "SR2E.Limb.Kind.Unset", strength: "SR2E.Limb.Kind.Strength", quickness: "SR2E.Limb.Kind.Quickness",
         body: "SR2E.Limb.Kind.Body", smartlink: "SR2E.Limb.Kind.Smartlink", device: "SR2E.Limb.Kind.Device",
         weapon: "SR2E.Limb.Kind.Weapon", other: "SR2E.Limb.Kind.Other" } }),
+      // Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md). Essence when wired into
+      // an eligible cyberlimb / when not (cyberguns), overriding the known-source tables
+      // (Cybertechnology p.49, p.52); null = no override.
+      essenceInLimb: new fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
+      essenceOutsideLimb: new fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
+      // Placement facts RECORDED when the option is attached (never inferred from live
+      // siblings): +10% multiple enhancements (p.51), and a lower arm/leg's 60,000¥ rate
+      // next to an enhanced hand/foot (p.51). Set by the placement hook in sr2e.mjs.
+      limbSurcharge: new fields.BooleanField({ initial: false }),
+      limbAdjacent: new fields.BooleanField({ initial: false }),
       // Formula prices that must stay formulas (CLAUDE.md): Increased Strength is
       // Rating x 150,000¥, Built-In Device is 4 x the device's normal cost. Set
       // ONE of these; `cost` then carries the base the multiplier applies to.
@@ -629,13 +640,21 @@ export class CyberwareData extends SR2EDataModel {
     // — the same idempotence trap as combatTnMod below. Runs AFTER the baseline
     // above, which is what puts the authored price back when the option is turned
     // off (this branch has the same one-sided-write shape as the rest).
+    // Limb identity is derived every pass (never stored): rebuilt from scratch, so a
+    // removed rule flag or cleared limbType can't leave a stale identity behind.
+    this.limbIdentity = limbIdentity(this, this.parent?.flags, sourceOf(this.parent));
     if (this.limbOption) {
-      this.cost = limbOptionCost({
-        rating: this.rating,
-        cost: this._source.cost ?? 0,
-        costPerRating: this.costPerRating,
-        costMultiplierOfBase: this.costMultiplierOfBase
-      });
+      // Priced for its RECORDED placement (Cybertechnology p.31, p.51): the linked
+      // limb's type is resolved from that sibling's SOURCE, so item preparation order
+      // doesn't matter.
+      const sib = this.linkedLimbId ? this.parent?.parent?.items?.get?.(this.linkedLimbId) : null;
+      const limbType = sib?.type === "cyberware"
+        ? resolveLimbType(sib._source.system, sib.flags, sourceOf(sib)).type : null;
+      this.cost = limbOptionPrice({
+        rating: this.rating, cost: this._source.cost ?? 0, costPerRating: this.costPerRating,
+        costMultiplierOfBase: this.costMultiplierOfBase, limbSurcharge: this.limbSurcharge,
+        limbAdjacent: this.limbAdjacent
+      }, this.limbIdentity?.optionKind ?? null, limbType);
     }
 
     // Container cyberware: a module row is INSTALLED, so its Essence and cost
@@ -648,10 +667,6 @@ export class CyberwareData extends SR2EDataModel {
       modCost    += m.cost ?? 0;
       if (m.active) modTn += m.combatTnMod ?? 0;
     }
-    // Limb identity is derived every pass (never stored): rebuilt from scratch, so a
-    // removed rule flag or cleared limbType can't leave a stale identity behind.
-    this.limbIdentity = limbIdentity(this, this.parent?.flags,
-      this.parent?._stats?.compendiumSource ?? this.parent?.flags?.core?.sourceId ?? null);
     this.capacityUsed = Math.round(modEssence * 100) / 100;
     this.capacityOver = Math.max(0, Math.round((modEssence - (this.capacity ?? 0)) * 100) / 100);
     this.moduleCost   = modCost;
@@ -673,9 +688,11 @@ export class CyberwareData extends SR2EDataModel {
     // A cranial cyberdeck's Essence is the sum of its installed Matrixware
     // components, derived from the deck's own ratings (Shadowtech p.54–59),
     // rather than a flat authored value.
+    // `limbEssence` is the actor's limb-adjusted base (Cybertechnology p.49, p.52, p.31),
+    // a derived marker the actor clears and reassigns every preparation.
     const base = this.cranialDeck
       ? cranialDeckEssence(this.deck)
-      : this.essenceCost + (this.capacityOver ?? 0);
+      : (this.limbEssence ?? this.essenceCost) + (this.capacityOver ?? 0);
     // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost —
     // then the surgeon's change (Cybertechnology p.53).
     return surgicalEssence(gradeEssenceCost(base, this.grade), this.surgeryEssencePct);

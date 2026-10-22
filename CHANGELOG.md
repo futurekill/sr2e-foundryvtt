@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+## 0.111.0 — 2026-10-22
+
+### Added — Cybertechnology's cyberlimb rules (book pp.30–31, 49–52)
+- **Strength and Quickness become the average of a character's four limbs** (round
+  down) once a full cyberarm or cyberleg holds one of them. A cyberlimb has a built-in
+  Strength of 3 (a troll's, 8) plus its Strength enhancement; its Quickness is the
+  character's plus its Quickness enhancement. ⚠ An unenhanced cyberarm therefore LOWERS
+  Strength: a Strength 6 character with one becomes 5. The averages are capped at
+  min(2 × Body, Body + 4) for Strength and min(2 × Quickness, Quickness + 4) for
+  Quickness (bioware counts), and feed Reaction and Initiative; Muscle Replacement still
+  doesn't raise Reaction.
+- **Lead with one limb in melee:** the attack dialog offers each limb stronger than the
+  average, at its Strength and +(its Strength − the average) to the TN.
+- **Mismatched pairs:** a TN modifier equal to the difference between the arms'
+  Quickness plus the legs', on Quickness tests and Quickness-linked skills (weapon
+  attacks included), shown in the roll breakdown and the attack dialog.
+- **Body:** +1 per pair of full cyberarms or cyberlegs (both sides set), plus the
+  pair's Body enhancement (one per pair, up to +3).
+- **Unarmed Power:** one cyberhand or cyberfoot +1, two or more +2 (a full limb has its
+  hand or foot). Bone lacing's bonus applies instead when it's higher; cyberhands alone
+  never offer lacing's physical-damage option.
+- **Bone lacing** keeps its armor through two complete replacements (full limbs, torso,
+  skull); a third costs 1 point, a fourth all of it.
+- **Essence:** spurs, razors and fingertip compartments built into a cyberlimb cost no
+  Essence, smartlinks and the orientation system .25, a tactical computer 25% less;
+  cyberguns cost nothing in a cyberlimb and their table Essence outside one. Strength
+  enhancement costs .4 Essence per point beyond 3 (a troll pays for every point),
+  Quickness .3; a cybertorso halves that; hand, foot and lower-limb Strength costs none.
+  Any item can override with "Essence in/outside a cyberlimb".
+- **Price:** hand/foot Strength 65,000¥ per point (max +3); a lower arm/leg 120,000¥,
+  or 60,000¥ next to an enhanced hand/foot; +10% for each enhancement type added to a
+  limb that already has another. Both are recorded when the option is attached (and
+  shown as checkboxes on the item), so moving other parts never re-prices it; attaching
+  and detaching charge or refund the difference.
+- **One enhancement of each kind per limb counts** (one Body per pair). A second is
+  flagged on the sheet and still costs its Essence.
+- The Cyberlimbs section shows each limb's Strength and Quickness, the averages and
+  any cap, pair Body, unarmed Power, the coordination penalty and lacing replacements;
+  each option shows its Essence and price where it's attached. NPCs keep their printed
+  stats (their stat blocks already include their limbs).
+- A GM report on world load lists the characters whose numbers change.
+
 ## 0.110.0 — 2026-10-22
 
 ### Added — cyberlimbs know what they are

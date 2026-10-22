@@ -62,8 +62,9 @@ function readDrop(event) {
  * (docs/PLAN-cybertechnology-phase2.md).
  */
 function unattachDroppedOption(itemData) {
-  if (itemData?.type === "cyberware" && itemData.system?.limbOption && itemData.system.linkedLimbId) {
-    itemData.system = { ...itemData.system, linkedLimbId: "" };
+  // Its recorded placement facts belong to the old placement too (Phase 3 §4).
+  if (itemData?.type === "cyberware" && itemData.system?.limbOption) {
+    itemData.system = { ...itemData.system, linkedLimbId: "", limbSurcharge: false, limbAdjacent: false };
   }
 }
 
@@ -80,6 +81,7 @@ export function cyberlimbContext(actor) {
   const limbInfo = new Map(model.limbs.map(l => [l.id, l]));
   const orphanInfo = new Map(model.orphans.map(o => [o.id, o]));
   const parents = model.limbs.map(l => ({ id: l.id, label: limbLabel(l) }));
+  const rejected = new Map((actor.system.limbs?.rejected ?? []).map(r => [r.id, r.reason]));
   const limbs = [], options = [];
   for (const p of plain) {
     const ident = p.system.limbIdentity ?? limbIdentity(p.system, p.flags, p.source);
@@ -98,10 +100,22 @@ export function cyberlimbContext(actor) {
         // A link that isn't a valid choice is shown as a selected placeholder, so the
         // select always tells the truth and picking anything fires a change.
         placeholder: link && !attached ? `⚠ ${actor.items.get(link)?.name ?? "missing limb"} (${o?.reason ?? "not a valid limb"})` : null,
-        reason: o?.reason ?? (!p.installed ? "not installed: not counted" : null) });
+        reason: o?.reason ?? rejected.get(p.id) ?? (!p.installed ? "not installed: not counted" : null),
+        essence: p.installed ? actor.items.get(p.id)?.system.actualEssenceCost ?? null : null,
+        cost: (actor.items.get(p.id)?.system.cost ?? 0).toLocaleString("en-US"),
+        surcharge: !!p.system.limbSurcharge, adjacent: !!p.system.limbAdjacent });
     }
   }
-  return { limbs, options, parents, any: limbs.length + options.length > 0,
+  // The rule numbers (characters only: an NPC's authored stats already include its
+  // limbs, so nothing is computed for it; docs/PLAN-cybertechnology-phase3.md §2).
+  const L = actor.type === "character" ? actor.system.limbs : null;
+  const stats = L && (L.anyCyber || L.pairBody || L.handPower || L.laceReplacements || L.coordinationTN) ? {
+    positions: L.anyCyber ? L.positions.map(p => ({ label: `${p.side} ${p.family}`, cyber: p.cyber, strength: p.strength, quickness: p.quickness })) : [],
+    avgStrength: L.avgStrength, avgQuickness: L.avgQuickness,
+    caps: L.caps.map(c => `${c.attr} average ${c.was} capped at ${c.cap}`),
+    pairBody: L.pairBody, handPower: L.handPower, laceReplacements: L.laceReplacements, coordinationTN: L.coordinationTN
+  } : null;
+  return { limbs, options, parents, stats, any: limbs.length + options.length > 0,
     unresolvedOverlap: model.unresolvedOverlap.length > 0 };
 }
 

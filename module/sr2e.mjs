@@ -66,6 +66,7 @@ import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
+import { placementFacts } from "./rules/limb-stats.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -1274,7 +1275,30 @@ Hooks.on("updateCombat", (combat, changed) => {
 // each configuration is priced with its own row and Street Index — they just don't
 // TRIGGER anything.
 const PURCHASE_DRIVERS = ["rating", "grade", "bodySystem", "force", "grantedSkillCategory",
-                          "bondedWeaponId", "category", "focusType", "strengthMinimum", "secondhandDiscount"];
+                          "bondedWeaponId", "category", "focusType", "strengthMinimum", "secondhandDiscount",
+                          // A cyberlimb option is priced by where it's attached (Cybertechnology p.51).
+                          "linkedLimbId", "limbSurcharge", "limbAdjacent"];
+
+// A cyberlimb option's placement facts are RECORDED when it's attached, not inferred
+// from live siblings (docs/PLAN-cybertechnology-phase3.md §4): +10% if its new limb
+// already carries a different enhancement type, and the 60,000¥ lower-arm rate next to
+// an enhanced hand. Reassessed ONLY on the option's own link change; registered before
+// the purchase hook, for every user and item, so the facts are right even unpaid or with
+// auto-charge off, and the purchase hook prices (and rolls back) them as drivers.
+Hooks.on("preUpdateItem", (item, changes, options) => {
+  if (item.type !== "cyberware" || options?.sr2eKeepPlacementFacts) return;
+  const link = changes.system?.linkedLimbId;
+  if (link === undefined || link === item.system.linkedLimbId || !item.system.limbOption) return;
+  const actor = item.parent;
+  const siblings = (actor?.items ?? []).filter(i => i.type === "cyberware" && i.id !== item.id).map(i => ({
+    id: i.id, kind: i.system.limbOption ? i.system.limbIdentity?.optionKind ?? null : null,
+    linkedLimbId: i.system.limbOption ? i.system.linkedLimbId : "",
+    limbType: i.system.limbIdentity?.role === "limb" ? i.system.limbIdentity.type : null, side: i.system.side
+  }));
+  const facts = placementFacts(item.system.limbIdentity?.optionKind ?? null, link, siblings);
+  foundry.utils.setProperty(changes, "system.limbSurcharge", facts.limbSurcharge);
+  foundry.utils.setProperty(changes, "system.limbAdjacent", facts.limbAdjacent);
+});
 
 // Charge (or refund) the nuyen difference when a purchased item's configuration
 // changes on a character. Runs in preUpdateItem so an unaffordable upgrade can be
@@ -1340,11 +1364,20 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     // change needs both fields to reach derivedItemCost's weapon branch.
     strengthMinimum: item.system.strengthMinimum, costPerStrengthMin: item.system.costPerStrengthMin,
     secondhandDiscount: item.system.secondhandDiscount,
+    // Cyberlimb options (Cybertechnology p.31, p.51): priced by their placement.
+    limbOption: item.system.limbOption, costPerRating: item.system.costPerRating,
+    costMultiplierOfBase: item.system.costMultiplierOfBase, linkedLimbId: item.system.linkedLimbId,
+    limbSurcharge: item.system.limbSurcharge, limbAdjacent: item.system.limbAdjacent,
     ...over
   });
   const oldSys = sysFor({});
   const newSys = sysFor(changed);
-  const ctxFor = (sys) => ({ authoredCost, vr2, bondedWeaponReach: reachOf(sys.bondedWeaponId) });
+  const limbTypeOf = (id) => {
+    const l = id ? actor.items.get(id) : null;
+    return l?.system.limbIdentity?.role === "limb" ? l.system.limbIdentity.type : null;
+  };
+  const ctxFor = (sys) => ({ authoredCost, vr2, bondedWeaponReach: reachOf(sys.bondedWeaponId),
+    limbType: limbTypeOf(sys.linkedLimbId), limbOptionKind: item.system.limbIdentity?.optionKind ?? null });
   const oldBase = itemBaseCost(oldSys, ctxFor(oldSys));
   const newBase = itemBaseCost(newSys, ctxFor(newSys));
 
@@ -1427,7 +1460,9 @@ Hooks.on("updateItem", async (item, changes, options, userId) => {
     try {
       await item.update(
         p.revert,                 // every driver that changed, restored
-        { sr2eNoCharge: true }    // don't re-enter the charge on the rollback
+        // don't re-enter the charge on the rollback, and restore the recorded
+        // placement facts exactly (the placement hook must not recompute them)
+        { sr2eNoCharge: true, sr2eKeepPlacementFacts: true }
       );
     } catch (revertErr) {
       console.error("sr2e | item rollback failed after a failed purchase", revertErr);
