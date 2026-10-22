@@ -46,8 +46,13 @@ describe("limbModel", () => {
     const m = limbModel([limb("a", "arm", "left"), limb("f", "forearm", "left"), limb("h", "hand", "left")]);
     const arm = m.limbs.find(l => l.id === "a");
     expect(arm.conflicts.map(g => g.slot).sort()).toEqual(["arm.hand", "arm.lower"]);
-    expect(m.conflicts.find(g => g.slot === "arm.hand").ids.sort()).toEqual(["a", "f", "h"]);
+    expect(m.conflicts.find(g => g.slot === "arm.hand").ids.sort()).toEqual(["a", "h"]);
+    expect(m.conflicts.find(g => g.slot === "arm.lower").ids.sort()).toEqual(["a", "f"]);
     expect(forLimbRules(arm)).toBe(false);
+  });
+  it("a forearm and a hand on one side are separate parts (p.30), no conflict", () => {
+    const m = limbModel([limb("f", "forearm", "left"), limb("h", "hand", "left"), limb("l", "lowerLeg", "right"), limb("ft", "foot", "right")]);
+    expect(m.conflicts).toEqual([]);
   });
   it("two torsos conflict; torso and skull never need a side", () => {
     const m = limbModel([limb("t1", "torso"), limb("t2", "torso"), limb("s", "skull")]);

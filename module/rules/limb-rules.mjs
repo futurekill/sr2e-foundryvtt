@@ -10,10 +10,15 @@ export const LIMB_TYPES = ["arm", "leg", "hand", "foot", "forearm", "lowerLeg", 
 export const OPTION_KINDS = ["strength", "quickness", "body", "smartlink", "device", "weapon", "other"];
 export const SIDED = new Set(["arm", "leg", "hand", "foot", "forearm", "lowerLeg"]);
 export const COVERAGE = { arm: "full", leg: "full", forearm: "partial", lowerLeg: "partial", hand: "partial", foot: "partial", torso: "core", skull: "core" };
-/** Family-namespaced slots: an arm and a leg on one side never collide. */
+/**
+ * Family-namespaced slots: an arm and a leg on one side never collide. A lower arm/leg
+ * does NOT include the hand/foot: the book lists them as separate parts (Cybertechnology
+ * p.30; hand .35 + forearm .65 = arm 1 Essence) and prices a lower arm by whether "the
+ * adjacent hand" is enhanced (p.51).
+ */
 export const SLOTS = {
-  arm: ["arm.upper", "arm.lower", "arm.hand"], forearm: ["arm.lower", "arm.hand"], hand: ["arm.hand"],
-  leg: ["leg.upper", "leg.lower", "leg.foot"], lowerLeg: ["leg.lower", "leg.foot"], foot: ["leg.foot"],
+  arm: ["arm.upper", "arm.lower", "arm.hand"], forearm: ["arm.lower"], hand: ["arm.hand"],
+  leg: ["leg.upper", "leg.lower", "leg.foot"], lowerLeg: ["leg.lower"], foot: ["leg.foot"],
   torso: ["torso"], skull: ["skull"]
 };
 

@@ -76,7 +76,8 @@ for characters, NPCs and synthetic token actors.
      and tokens don't go through the drop path and keep their links (verified).
    - **Occupancy and conflicts (R1 #5, R2 #1).** Each sided limb occupies
      family-namespaced slots on its side:
-     - arm = {arm.upper, arm.lower, arm.hand}; forearm = {arm.lower, arm.hand};
+     - arm = {arm.upper, arm.lower, arm.hand}; forearm = {arm.lower} (corrected in
+       Phase 3 §0: p.30 makes the hand a separate part; was {arm.lower, arm.hand});
        hand = {arm.hand};
      - leg = {leg.upper, leg.lower, leg.foot}; lowerLeg = {leg.lower, leg.foot};
        foot = {leg.foot}.

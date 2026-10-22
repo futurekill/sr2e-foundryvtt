@@ -9,7 +9,8 @@
   item. This is the groundwork for Cybertechnology's limb rules (Phase 3).
 - **A Cyberlimbs section** on the character's Gear tab and on NPC sheets lists every limb
   (type, side, full/partial) and every option, with the limb it's built into. It flags a
-  limb with no type or side, limbs that overlap on one side (a hand under a full arm),
+  limb with no type or side, limbs that overlap on one side (a hand under a full arm; a lower arm and a hand
+  are separate parts and don't overlap, book p.30),
   and options whose limb is missing, uninstalled or not a limb.
 - A limb option dragged onto a character now arrives unattached (its old link pointed
   into the actor it came from). Uninstalling a limb keeps its options' links;
