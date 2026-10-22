@@ -6,6 +6,7 @@
       <div class="category-header flexrow">
         <h3>Cyberware</h3>
         <span class="essence-display">Essence: {{formatEssence system.essence.value}} / {{formatEssence system.essence.max}}</span>
+        {{#if cyberSocial.situationTN}}<span class="hint" title="Cybertechnology p.58 (optional rule): +{{cyberSocial.situationTN}} to Charisma and social-skill TNs in casual social situations; the roll dialog lets you untick it.">Social: +{{cyberSocial.situationTN}} TN</span>{{/if}}
         <button type="button" data-action="addItem" data-type="cyberware" class="btn-add">
           <i class="fas fa-plus"></i>
         </button>
@@ -21,6 +22,7 @@
           <span class="cyber-grade">{{cyber.system.grade}}</span>
           {{#if cyber.system.cranialDeck}}<span class="cyber-mods {{#if cyber.system.deck.active}}bio-active{{/if}}" title="Cranial cyberdeck — MPCP {{cyber.system.deck.mpcp}}. Activate (⚡) to drive the Matrix tab."><i class="fas fa-bolt"></i> C2 MPCP {{cyber.system.deck.mpcp}}{{#if cyber.system.deck.active}} · active{{/if}}</span>{{/if}}
           <span class="cyber-essence">Ess: {{cyber.system.actualEssenceCost}}</span>
+          {{#if cyber.system.eyeReports.length}}<span class="hint sr2e-limb-warn" title="{{#each cyber.system.eyeReports as |r|}}{{r}}&#10;{{/each}}">⚠ eye</span>{{/if}}
           <span class="cyber-installed">
             {{#if cyber.system.installed}}<i class="fas fa-check-circle"></i> Installed{{else}}<i class="fas fa-times-circle"></i> Not installed{{/if}}
           </span>

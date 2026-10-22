@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 0.112.0 — 2026-10-22
+
+### Added — Cybertechnology: cybereyes, bioware with cyberware, social penalties
+- **Cybereyes (book p.45):**
+  - **Single eyes:** a cybereye can be bought singly, at 60% of the price, .1 Essence,
+    and .25 of accessories free. Switching between pair and single charges or refunds
+    the difference.
+  - **Graded eyes:** ⚠ alpha, beta and delta cybereyes now apply the grade BEFORE the
+    .5 allowance, as the book says, so a graded eye with accessories over the
+    allowance can change Essence. The world-load report lists them.
+  - **Slot warnings, never blocks:** accessory rows get a kind (weapon, tool laser,
+    camera) and an eye (left, right, both). The sheet warns about more than 1.2
+    Essence of accessories in a pair, more than one weapon or tool laser per eye, and
+    a weapon in an eye with a camera.
+- **Bioware with cyberware (pp.56–57):**
+  - **Adrenal pump:** loses 15% efficiency per cyberlimb, 10% per lower arm/leg, 5% per
+    hand/foot, 20% for a cybertorso, and 50% more with a Reaction Enhancer. Each bonus
+    rounds down (a Level 2 pump with a cyberleg, hand and torso gives +1, and +2
+    Reaction).
+  - **Suprathyroid gland:** only full cyberlimbs and a cybertorso weaken it, so one
+    makes it useless.
+  - **Enhanced articulation:** loses its Reaction bonus when cyberlimb Quickness
+    actually raises Reaction, or when more than two limbs are cyber. Its extra skill
+    die stays.
+  - **Muscle replacement and augmentation:** 20% less Essence (or Body Cost) and price
+    per full cyberlimb. The surgery preview counts it, including what a new limb does
+    to muscle already installed.
+- **Social penalties (optional, pp.57–58):** a world setting, off by default.
+  - **Situational modifier:** characters take +1 TN per 2 points of Essence lost
+    (beyond the first .5) on Charisma and social-skill tests. It's a pre-ticked box in
+    the roll dialog, and the gear tab shows the number.
+  - **Visibility:** each cyberware can count, be hidden (contacts only), be ignored
+    (datajacks by default), or be flagrant (+1).
+  - **Contacts:** each contact gets a check button that rolls Charisma at TN 3 plus the
+    modifier and posts the Contact Reactions Table result.
+
 ## 0.111.0 — 2026-10-22
 
 ### Added — Cybertechnology's cyberlimb rules (book pp.30–31, 49–52)

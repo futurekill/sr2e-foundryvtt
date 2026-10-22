@@ -37,7 +37,7 @@
  */
 import { limbModel } from "./rules/limb-rules.mjs";
 import { RANGE_FIXES, rangesFor, ALL_RANGE_FIXES } from "./rules/weapon-ranges.mjs";
-import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair } from "./rules/sr2e-rules.mjs";
+import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair, gradeEssenceCost } from "./rules/sr2e-rules.mjs";
 
 export const UNARMED_STRIKE_DATA = {
   name: "Unarmed Strike",
@@ -65,6 +65,8 @@ const INACTIVE_MODULES = [];
 const LIMB_REPORT = [];
 // 0.111.0: characters whose numbers the cyberlimb rules now change.
 const LIMB_RULES_REPORT = [];
+// 0.112.0: cybereyes, bioware with cyberware (Cybertechnology pp.45, 56–57).
+const WARE_REPORT = [];
 // Which document the runner is migrating, for reports (a token's actor shares its base's name).
 let CURRENT_LABEL = "";
 // ...and the prepared document itself, for report-only entries that read derived values.
@@ -650,6 +652,35 @@ export const MIGRATIONS = [
       if (bits.length) LIMB_RULES_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
       return null;
     }
+  },
+  {
+    version: "0.112.0",
+    // Report-only (docs/PLAN-cybertechnology-phase3b.md §5), from the PREPARED actor.
+    migrateActor(source) {
+      const a = CURRENT_ACTOR;
+      if (!a) return null;
+      const bits = [];
+      for (const i of a.items) {
+        if (i.type !== "cyberware" || i.system.wareRule !== "cybereye-pair") continue;
+        const sys = i.system, grade = sys.grade;
+        if (grade && grade !== "standard" && (sys.capacityUsed ?? 0) > 0) {
+          const old = gradeEssenceCost((sys.essenceCost ?? 0) + Math.max(0, Math.round(((sys.capacityUsed ?? 0) - (sys.capacity ?? 0)) * 100) / 100), grade);
+          const now = sys.actualEssenceCost;
+          if (Math.abs(old - now) > 1e-9) bits.push(`${i.name}: ${old} → ${now} Essence (the grade now applies before the .5 allowance, p.45)`);
+        }
+        for (const r of sys.eyeReports ?? []) if (!/unclassified/.test(r)) bits.push(`${i.name}: ${r}`);
+      }
+      if (source.type === "character") {
+        for (const i of a.items) {
+          if (i.system?.limbDiscount != null) bits.push(`${i.name}: ${Math.round((1 - i.system.limbDiscount) * 100)}% less Essence/Body Cost with cyberlimbs (p.57)`);
+        }
+        const srcs = Object.values(a.system.attributeSources ?? {}).flat().filter(x => /\(\d+%\)$/.test(x.name));
+        for (const x of new Set(srcs.map(x => x.name))) bits.push(`${x}: weakened by cyberware (p.56–57)`);
+        if (a.system.limbs?.articulation?.lost) bits.push(`Enhanced Articulation loses its Reaction (${a.system.limbs.articulation.why})`);
+      }
+      if (bits.length) WARE_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
+      return null;
+    }
   }
 ];
 
@@ -866,6 +897,17 @@ export async function migrateWorld() {
         <ul>${[...new Set(LIMB_RULES_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
     });
     LIMB_RULES_REPORT.length = 0;
+  }
+
+  if (WARE_REPORT.length) {
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Cybereyes and bioware (0.112.0)</strong>
+        <p>Cybertechnology's rules for graded cybereyes and for bioware alongside cyberware now
+        apply. These change (nothing was written):</p>
+        <ul>${[...new Set(WARE_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
+    });
+    WARE_REPORT.length = 0;
   }
 
   if (INACTIVE_MODULES.length) {

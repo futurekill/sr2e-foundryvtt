@@ -3,6 +3,7 @@ import { isVR2 } from "../vr2-mode.mjs";
 import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
+import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
 import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
 
 /**
@@ -600,10 +601,24 @@ export class CyberwareData extends SR2EDataModel {
       // SR2E p.247 — cybereyes accept enhancements up to 0.5 Essence at no further
       // cost; only module essence beyond `capacity` adds to the base.
       capacity: new fields.NumberField({ initial: 0, min: 0 }),
+      // A cybereye bought singly (Cybertechnology p.45): .1 Essence, 60% price, half the
+      // allowance. Derived in the getters; the authored pair values are never rewritten.
+      eyes: new fields.StringField({ required: true, initial: "pair", choices: {
+        pair: "SR2E.Eyes.Pair", single: "SR2E.Eyes.Single" } }),
+      // Social penalties (optional; Cybertechnology p.58). "" = the item's default:
+      // ignored for a datajack, normal otherwise. blank:true or existing items go invalid.
+      socialVisibility: new fields.StringField({ required: true, blank: true, initial: "", choices: {
+        "": "SR2E.Social.Default", normal: "SR2E.Social.Normal", hidden: "SR2E.Social.Hidden",
+        ignored: "SR2E.Social.Ignored", flagrant: "SR2E.Social.Flagrant" } }),
       modules: new fields.ArrayField(
         new fields.SchemaField({
           name:        new fields.StringField({ initial: "" }),
           essenceCost: new fields.NumberField({ initial: 0, min: 0 }),
+          // Eye slots (p.45): what the row is, and which eye holds it.
+          kind:        new fields.StringField({ required: true, blank: true, initial: "", choices: {
+            "": "SR2E.EyeRow.Accessory", weapon: "SR2E.EyeRow.Weapon", toolLaser: "SR2E.EyeRow.ToolLaser", camera: "SR2E.EyeRow.Camera" } }),
+          eye:         new fields.StringField({ required: true, initial: "both", choices: {
+            both: "SR2E.EyeRow.Both", left: "SR2E.Limb.Side.Left", right: "SR2E.Limb.Side.Right" } }),
           cost:        new fields.NumberField({ initial: 0, min: 0 }),
           rating:      new fields.NumberField({ integer: true, initial: 0, min: 0 }),
           // TN modifier the module grants while installed (e.g. −2 for a Smartlink),
@@ -643,6 +658,9 @@ export class CyberwareData extends SR2EDataModel {
     // Limb identity is derived every pass (never stored): rebuilt from scratch, so a
     // removed rule flag or cleared limbType can't leave a stale identity behind.
     this.limbIdentity = limbIdentity(this, this.parent?.flags, sourceOf(this.parent));
+    // Ware identity (Phase 3b), likewise derived every pass.
+    this.wareRule = wareRule(this.parent?.flags, sourceOf(this.parent));
+    this.eyeReports = this.wareRule === "cybereye-pair" ? eyeReports({ rows: this.modules ?? [], eyes: this.eyes }) : [];
     if (this.limbOption) {
       // Priced for its RECORDED placement (Cybertechnology p.31, p.51): the linked
       // limb's type is resolved from that sibling's SOURCE, so item preparation order
@@ -668,7 +686,8 @@ export class CyberwareData extends SR2EDataModel {
       if (m.active) modTn += m.combatTnMod ?? 0;
     }
     this.capacityUsed = Math.round(modEssence * 100) / 100;
-    this.capacityOver = Math.max(0, Math.round((modEssence - (this.capacity ?? 0)) * 100) / 100);
+    const allowance = (this.capacity ?? 0) * (this.wareRule === "cybereye-pair" && this.eyes === "single" ? 0.5 : 1);
+    this.capacityOver = Math.max(0, Math.round((modEssence - allowance) * 100) / 100);
     this.moduleCost   = modCost;
     // Add the modules' TN bonus to the AUTHORED value, never to the prepared one.
     // This is a relative transform landing on a field the sheet also edits, so
@@ -688,14 +707,18 @@ export class CyberwareData extends SR2EDataModel {
     // A cranial cyberdeck's Essence is the sum of its installed Matrixware
     // components, derived from the deck's own ratings (Shadowtech p.54–59),
     // rather than a flat authored value.
-    // `limbEssence` is the actor's limb-adjusted base (Cybertechnology p.49, p.52, p.31),
-    // a derived marker the actor clears and reassigns every preparation.
-    const base = this.cranialDeck
-      ? cranialDeckEssence(this.deck)
-      : (this.limbEssence ?? this.essenceCost) + (this.capacityOver ?? 0);
-    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost —
-    // then the surgeon's change (Cybertechnology p.53).
-    return surgicalEssence(gradeEssenceCost(base, this.grade), this.surgeryEssencePct);
+    // `limbEssence` (Phase 3a) and `limbDiscount` (Phase 3b, muscle replacement) are the
+    // actor's markers, cleared and reassigned every preparation.
+    if (this.cranialDeck) return surgicalEssence(gradeEssenceCost(cranialDeckEssence(this.deck), this.grade), this.surgeryEssencePct);
+    const own = this.limbEssence ?? this.essenceCost;
+    const base = this.limbDiscount != null ? ceil2(own * this.limbDiscount) : own;
+    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost.
+    // A graded cybereye takes it before the .5 allowance (Cybertechnology p.45); then
+    // the surgeon's change (p.53).
+    const graded = containerEssence({ base, rows: this.capacityUsed ?? 0, capacity: this.capacity ?? 0, eyes: this.eyes,
+      isEye: this.wareRule === "cybereye-pair", graded: this.grade && this.grade !== "standard" },
+      (e) => gradeEssenceCost(e, this.grade));
+    return surgicalEssence(graded, this.surgeryEssencePct);
   }
 }
 
@@ -821,7 +844,10 @@ export class BiowareData extends SR2EDataModel {
    * consume (sheet rounds for display only). Shadowtech p.7.
    */
   get actualBodyCost() {
-    return effectiveBodyCost(this.bodyCost, this.grade, this.bodySystem);
+    // Muscle augmentation with cyberlimbs (Cybertechnology p.57): the actor's
+    // `limbDiscount` marker, applied before culturing.
+    const bc = this.limbDiscount != null ? ceil2(this.bodyCost * this.limbDiscount) : this.bodyCost;
+    return effectiveBodyCost(bc, this.grade, this.bodySystem);
   }
 }
 

@@ -1,6 +1,7 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
+import { socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
@@ -325,6 +326,7 @@ export class CharacterData extends SR2EDataModel {
     // then cyberware/adept modifiers applied on top)
     this._calculateAttributeValues(mods);
     this._applyLimbAverages(mods);
+    this._applyArticulation(mods);
 
     // Body Index (Shadowtech p.6): value from installed bioware (collected above,
     // assigned exactly once here); cap = natural, unaugmented Body — computed
@@ -357,6 +359,14 @@ export class CharacterData extends SR2EDataModel {
     if (autoEssence) {
       this.essence.value = Math.max(0, this.essence.max - mods.essenceLoss);
     }
+
+    // Social penalties (optional; Cybertechnology p.58), derived REGARDLESS of the
+    // world setting, which gates only showing and applying them. Installed cyberware
+    // counts whether or not it works (it's still visible).
+    this.social = socialModifiers((this.parent?.items ?? [])
+      .filter(i => i.type === "cyberware" && i.system.installed)
+      .map(i => ({ essence: i.system.actualEssenceCost ?? 0,
+        visibility: i.system.socialVisibility || (i.system.wareRule === "datajack" ? "ignored" : "normal") })));
 
     // Calculate Reaction = (Quickness + Intelligence) / 2, plus cyberware mods.
     // reaction.mod already holds stored + Active Effect contributions.
@@ -931,7 +941,9 @@ export class CharacterData extends SR2EDataModel {
     // (the reset contract); the Essence markers are cleared on EVERY cyberware item
     // before the model is built, so nothing reads the previous pass.
     mods.biowareQuickness = 0;
+    mods.articulationReaction = 0;
     mods.limbs = this._limbEssenceAndModel(working);
+    const ware = this._wareCyberInteractions();
     if (working && mods.limbs.pairBody) {
       mods.body += mods.limbs.pairBody;
       mods.sources.body.push({ name: game.i18n.localize("SR2E.Limb.PairBody"), value: mods.limbs.pairBody });
@@ -974,17 +986,26 @@ export class CharacterData extends SR2EDataModel {
           const rating = Math.max(1, sys.rating ?? 1);
           // MAO on an active pump (p.100): Level 1 keeps only its Reaction bonus;
           // Level 2 keeps its Reaction bonus, other attributes as Level 1.
-          const limited = maoInForce && item.flags?.sr2e?.adrenalPump;
+          const rule = ware.rules.get(item.id);
+          const limited = maoInForce && rule === "adrenal-pump";
           const scale = (key) => !limited || key === "reaction" ? rating : rating >= 2 ? 1 : 0;
+          // ONE effective bonus per attribute, consumed everywhere below: rating × MAO,
+          // then the cyberware efficiency (Cybertechnology p.56–57), rounded down.
+          const eff = rule === "adrenal-pump" ? ware.pump : rule === "suprathyroid" ? ware.supra : 1;
+          const amt = (key, val) => eff === 1 ? val * scale(key) : Math.floor(val * scale(key) * eff + 1e-9);
+          const label = eff === 1 ? item.name : `${item.name} (${Math.round(eff * 100)}%)`;
           for (const [key, val] of Object.entries(sys.attributeMods ?? {})) {
-            if (key === "quickness") mods.biowareQuickness += val * scale(key);
-            if (key in mods) mods[key] += val * scale(key);
-            if (val && scale(key) && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val * scale(key) });
+            const a = amt(key, val);
+            // Enhanced articulation's Reaction is decided after the limb averages (p.56).
+            if (key === "reaction" && rule === "enhanced-articulation") { mods.articulationReaction += a; continue; }
+            if (key === "quickness") mods.biowareQuickness += a;
+            if (key in mods) mods[key] += a;
+            if (a && mods.sources[key]) mods.sources[key].push({ name: label, value: a });
           }
           // Explicit flag only (no name heuristic): e.g. Adrenal Pump's Quickness
           // does not feed Reaction, but Muscle Augmentation's / Suprathyroid's does.
           if (sys.noReactionBonus) {
-            mods.reactionExemptQuickness += (sys.attributeMods?.quickness || 0) * scale("quickness");
+            mods.reactionExemptQuickness += amt("quickness", sys.attributeMods?.quickness || 0);
           }
           // Enhanced Articulation's +1 die (Shadowtech p.34) — per-Level like the
           // attribute mods, and gated by the same triggered/active check.
@@ -1075,6 +1096,31 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
+   * Bioware with cyberware (Cybertechnology pp.56–57; docs/PLAN-cybertechnology-phase3b.md).
+   * Clears every `limbDiscount` marker FIRST, builds the PHYSICAL limb model from item
+   * sources (failed implants are still there), sets the muscle discount, and returns the
+   * rule of every ware item plus the pump and suprathyroid efficiencies.
+   * @private
+   */
+  _wareCyberInteractions() {
+    const items = [...(this.parent?.items ?? [])];
+    for (const i of items) if (i.type === "cyberware" || i.type === "bioware") delete i.system.limbDiscount;
+    const phys = physicalLimbs(sourcesOf(items));
+    this._physicalLimbs = phys;
+    const n = fullCyberlimbs(phys);
+    const rules = new Map();
+    let enhancer = false;
+    for (const i of items) {
+      if (i.type !== "cyberware" && i.type !== "bioware") continue;
+      const r = wareRule(i.flags, sourceOf(i));
+      rules.set(i.id, r);
+      if (r === "reaction-enhancer" && i.system.installed) enhancer = true;
+      if (n > 0 && MUSCLE.has(r)) i.system.limbDiscount = muscleFactor(n);
+    }
+    return { rules, pump: pumpEfficiency(phys, { enhancer }), supra: pumpEfficiency(phys, { major: true }) };
+  }
+
+  /**
    * Replace Strength and Quickness with the four limbs' averages (p.50–51) when a full
    * cyberlimb holds a position, and record every limb number on `system.limbs`.
    * @private
@@ -1083,6 +1129,7 @@ export class CharacterData extends SR2EDataModel {
     const early = mods.limbs;
     Object.assign(this.limbs, { pairBody: early.pairBody, pairs: early.pairs, handPower: early.handPower,
       laceReplacements: early.laceReplacements, rejected: early.selection?.rejected ?? [] });
+    this.limbs.preQuickness = this.quickness.value;   // before any average (articulation)
     if (!this._limbModel) return;
     const naturalQ = this._naturalAttribute("quickness", mods);
     const st = limbStats(this._limbModel, {
@@ -1100,6 +1147,26 @@ export class CharacterData extends SR2EDataModel {
       this[attr].value = avg;
       if (delta) (this.attributeSources[attr] ??= []).push({ name: label, value: delta });
     }
+  }
+
+  /**
+   * Enhanced articulation's Reaction (Cybertechnology p.56) is LOST when the cyberlimbs
+   * really raise Reaction, or when more than two limb positions hold cyber parts
+   * (physical model, known sides only). Its +1 skill die always stays.
+   * @private
+   */
+  _applyArticulation(mods) {
+    const art = mods.articulationReaction ?? 0;
+    this.limbs.articulation = null;
+    if (!art) return;
+    const L = this.limbs, exempt = mods.reactionExemptQuickness ?? 0;
+    const gain = L.anyCyber && reactionBase(L.avgQuicknessReaction, this.intelligence.value, 0)
+      > reactionBase(L.preQuickness, this.intelligence.value, exempt);
+    const pos = cyberPositions(this._physicalLimbs);
+    const lost = gain || pos.count > 2;
+    this.limbs.articulation = { lost, why: gain ? "cyberlimb Quickness raises Reaction" : pos.count > 2 ? `${pos.count} limb positions are cyber` : null,
+      unknownSides: pos.unknown };
+    if (!lost) mods.reaction += art;
   }
 
   _naturalAttribute(attr, mods = null) {

@@ -564,6 +564,16 @@ Automated: `test/limb-stats.test.mjs` (book examples) and Quench `sr2e.limbrules
 - [ ] A spur set as a cyberlimb option and attached to a cyberarm shows 0 Essence.
 - [ ] An NPC with cyberlimbs keeps its printed Strength.
 
+## Cybereyes, bioware with cyberware, social (docs/PLAN-cybertechnology-phase3b.md)
+Automated: `test/ware-rules.test.mjs` and Quench `sr2e.warerules`.
+- [ ] A cybereye item shows Eyes (pair/single) and row Kind/Eye columns; a weapon and a
+      camera in one eye show the ⚠ on the item and the gear row.
+- [ ] Turn on "Cyberware social penalties": a character with 2.4 Essence of ware sees
+      "Social: +2 TN" on the gear tab, a pre-ticked box in a Negotiation roll dialog, and a
+      check button on each contact that posts the Contact Reactions Table.
+- [ ] An adrenal pump's attribute tooltip reads "Adrenal Pump (60%)" with a cyberleg, a
+      cyberhand and a cybertorso.
+
 ## Smoke test (5-minute sanity pass)
 1. Import a Sample Runner; open the sheet; roll a skill.
 2. Fire a weapon at a targeted token; resist the damage.

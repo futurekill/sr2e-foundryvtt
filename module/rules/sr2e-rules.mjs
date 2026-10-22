@@ -1377,6 +1377,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
 }
 
 import { limbOptionPrice } from "./limb-stats.mjs";
+import { MUSCLE, muscleFactor } from "./ware-rules.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
 
@@ -1801,7 +1802,9 @@ export function chargenItemCost(i, ctx = {}) {
   if (i?.type === "ammo" || i?.drug) {
     return (typeof i.acquiredListValue === "number") ? i.acquiredListValue : itemBaseCost(i, ctx);
   }
-  return itemBaseCost(i, ctx) * (i?.quantity ?? 1);
+  // A projection may carry its own ware context (single eye, muscle discount).
+  const c = i?.wareRule ? { ...ctx, wareRule: i.wareRule, fullCyberlimbs: i.fullCyberlimbs } : ctx;
+  return itemBaseCost(i, c) * (i?.quantity ?? 1);
 }
 
 /**
@@ -2614,8 +2617,13 @@ export function derivedItemCost(sys, ctx = {}) {
  * @returns {number}
  */
 export function itemBaseCost(sys, ctx = {}) {
-  const base = derivedItemCost(sys, ctx)
+  let base = derivedItemCost(sys, ctx)
     ?? ratedCost(sys?.ratingStats, sys?.rating, sys?.cost);
+  // Cybertechnology Phase 3b, applied ONCE here from the caller's context: a single
+  // cybereye is 60% of the pair's price (p.45); muscle replacement/augmentation is 20%
+  // cheaper per full cyberlimb (p.57), rounded up to the nuyen.
+  if (ctx.wareRule === "cybereye-pair" && sys?.eyes === "single") base = Math.ceil(base * 0.6 - 1e-9);
+  if (MUSCLE.has(ctx.wareRule)) base = Math.ceil(base * muscleFactor(ctx.fullCyberlimbs) - 1e-9);
   return base * gradeCostMultiplier(sys?.type, sys?.grade, sys?.bodySystem, sys?.secondhandDiscount);
 }
 

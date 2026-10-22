@@ -255,6 +255,16 @@ rules (their stats are printed). Placement facts (`limbSurcharge`, `limbAdjacent
 RECORDED by the preUpdateItem placement hook on the option's own link change, never
 inferred from siblings; rollback passes `sr2eKeepPlacementFacts`. The coordination TN
 lives in `testTnModifiers` only. See docs/PLAN-cybertechnology-phase3.md.
+Phase 3b (`module/rules/ware-rules.mjs`): ware identity is `wareRule(flags, source)`
+(rule flag → legacy adrenalPump flag → source uuid), never names. The PHYSICAL limb
+model (`physicalLimbs(sourcesOf(items))`, source-only, ignores implant failure) drives
+the pump/suprathyroid efficiency, the muscle discount and articulation positions. The
+actor clears `limbDiscount` on every cyberware/bioware item first, then reassigns it.
+Prices take the single-eye and muscle factors ONLY in `itemBaseCost` via `wareCtx`
+(the stored `cost` is never discounted), so every caller (drop, purchase hook,
+chargen, surgery) must pass `wareCtx`. Social values are always derived;
+the `cyberSocial` setting gates only showing and applying them. See
+docs/PLAN-cybertechnology-phase3b.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),

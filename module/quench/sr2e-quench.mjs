@@ -2796,6 +2796,140 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cyberlimb rules" });
 
+    // ── Cybereyes, bioware with cyberware, social (docs/PLAN-cybertechnology-phase3b.md) ─
+    quench.registerBatch("sr2e.warerules", (context) => {
+      const { it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const limb = (name, type, side = "unknown") => ({ name, type: "cyberware", system: { location: "cyberlimb", limbType: type, side, installed: true, essenceCost: 0, cost: 0 } });
+      const bio = (name, rule, system) => ({ name, type: "bioware", flags: { sr2e: { rule } }, system: { installed: true, bodyCost: 0, cost: 0, rating: 1, ...system } });
+      const attrs = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [`system.${k}.base`, v]));
+      const twice = (a) => { a.reset(); a.reset(); return a; };
+
+      it("the adrenal pump weakens with cyberware, rounded down (p.56), and recovers", async () => {
+        const a = await mk({ name: "Quench Ware Pump", type: "character" });
+        await a.update(attrs({ willpower: 3 }));
+        await a.createEmbeddedDocuments("Item", [limb("Leg", "leg", "left"), limb("Hand", "hand", "right"), limb("Torso", "torso"),
+          bio("Pump", "adrenal-pump", { rating: 2, triggered: true, active: true, attributeMods: { willpower: 1, reaction: 2 } })]);
+        twice(a);
+        assert.equal(a.system.willpower.value, 4, "+2 × 60% = 1.2 → +1 (the book's example)");
+        assert.match(a.system.attributeSources.willpower.map(x => x.name).join(), /Pump \(60%\)/);
+        await a.items.getName("Torso").delete();
+        assert.equal(twice(a).system.willpower.value, 4, "80%: 1.6 → +1");
+        for (const n of ["Leg", "Hand"]) await a.items.getName(n).delete();
+        assert.equal(twice(a).system.willpower.value, 5, "no cyber: the full +2");
+      });
+
+      it("suprathyroid: a hand leaves it alone, a full arm zeroes it (user ruling)", async () => {
+        const a = await mk({ name: "Quench Ware Supra", type: "character" });
+        await a.update(attrs({ body: 3 }));
+        await a.createEmbeddedDocuments("Item", [limb("Hand", "hand", "left"), bio("Supra", "suprathyroid", { attributeMods: { body: 1 } })]);
+        assert.equal(twice(a).system.body.value, 4);
+        await a.createEmbeddedDocuments("Item", [limb("Arm", "arm", "right")]);
+        assert.equal(twice(a).system.body.value, 3);
+      });
+
+      it("enhanced articulation: three cyber positions lose its Reaction, never its die", async () => {
+        const a = await mk({ name: "Quench Ware Artic", type: "character" });
+        await a.createEmbeddedDocuments("Item", [limb("H", "hand", "left"), limb("F", "foot", "right"),
+          bio("Artic", "enhanced-articulation", { activeSkillDice: 1, attributeMods: { reaction: 1 } })]);
+        twice(a);
+        assert.equal(a.system.limbs.articulation.lost, false, "two positions");
+        const kept = a.system.reaction.value;
+        await a.createEmbeddedDocuments("Item", [limb("FA", "forearm", "right")]);
+        twice(a);
+        assert.equal(a.system.limbs.articulation.lost, true, "three positions");
+        assert.equal(a.system.reaction.value, kept - 1);
+        assert.equal(a.system.activeSkillDice, 1);
+      });
+
+      it("muscle replacement and augmentation: 20% less per full cyberlimb; Body Index and awakened Essence follow", async () => {
+        const a = await mk({ name: "Quench Ware Muscle", type: "character", system: { magic: { type: "full_magician" } } });
+        await a.createEmbeddedDocuments("Item", [
+          { name: "MR", type: "cyberware", flags: { sr2e: { rule: "muscle-replacement" } }, system: { installed: true, essenceCost: 2, cost: 40000 } },
+          bio("MA", "muscle-augmentation", { bodyCost: 1.6 })]);
+        twice(a);
+        const e0 = a.system.essence.value;
+        assert.equal(a.items.getName("MR").system.actualEssenceCost, 2);
+        await a.createEmbeddedDocuments("Item", [limb("Arm", "arm", "left")]);
+        twice(a);
+        assert.equal(a.items.getName("MR").system.actualEssenceCost, 1.6);
+        assert.equal(a.items.getName("MA").system.actualBodyCost, 1.28);
+        assert.equal(Math.round(a.system.bodyIndex.value * 100) / 100, 1.28);
+        assert.equal(Math.round((a.system.essence.value - e0) * 100) / 100, 0.72, "0.4 + 0.32 back to an awakened character");
+        await a.items.getName("MR").update({ "flags.sr2e.-=rule": null });
+        assert.equal(twice(a).items.getName("MR").system.actualEssenceCost, 2, "identity gone: marker gone");
+        const { itemBaseCost } = await import("../rules/sr2e-rules.mjs");
+        const { wareCtx } = await import("../rules/ware-rules.mjs");
+        const ma = a.items.getName("MA");
+        assert.equal(itemBaseCost({ type: "bioware", ...ma.system, cost: 45000 }, wareCtx(a.items, ma)), 36000, "price 20% off");
+      });
+
+      it("cybereyes: grade before the allowance, a single eye, and the purchase refund/charge", async () => {
+        const a = await mk({ name: "Quench Ware Eye", type: "character", system: { nuyen: 0 } });
+        const rows = [{ name: "A", essenceCost: 0.4 }, { name: "B", essenceCost: 0.5 }];
+        await a.createEmbeddedDocuments("Item", [{ name: "Eyes", type: "cyberware", flags: { sr2e: { rule: "cybereye-pair" } },
+          system: { installed: true, essenceCost: 0.2, capacity: 0.5, grade: "alpha", cost: 10000, modules: rows } }]);
+        const eye = () => a.items.getName("Eyes");
+        assert.closeTo(eye().system.actualEssenceCost, 0.38, 1e-9, "alpha: .16 + (.72 − .5)");
+        await eye().update({ "system.eyes": "single" });
+        assert.closeTo(eye().system.actualEssenceCost, 0.55, 1e-9, "single: .08 + (.72 − .25)");
+        await eye().update({ "system.notes": "an unrelated save" });
+        await eye().update({ "system.eyes": "pair" });
+        assert.closeTo(eye().system.actualEssenceCost, 0.38, 1e-9, "back to a pair, exactly");
+        assert.equal(eye().system.essenceCost, 0.2, "authored values untouched");
+        await eye().update({ "system.grade": "standard" });
+        await eye().setFlag("sr2e", "paid", 10000);
+        await eye().update({ "system.eyes": "single" });
+        await new Promise(r => setTimeout(r, 300));
+        assert.equal(a.system.nuyen, 4000, "single eye: 60% of the price, 40% refunded");
+        await a.update({ "system.nuyen": 0 });
+        await eye().update({ "system.eyes": "pair" });
+        await new Promise(r => setTimeout(r, 300));
+        assert.equal(eye().system.eyes, "single", "back to a pair needs 4,000¥: vetoed");
+      });
+
+      it("eye slots are reported, never blocking", async () => {
+        const a = await mk({ name: "Quench Ware Slots", type: "character" });
+        await a.createEmbeddedDocuments("Item", [{ name: "Eyes", type: "cyberware", flags: { sr2e: { rule: "cybereye-pair" } },
+          system: { installed: true, essenceCost: 0.2, capacity: 0.5, modules: [
+            { name: "Gun", essenceCost: 0.3, kind: "weapon", eye: "left" }, { name: "Cam", essenceCost: 0.4, kind: "camera", eye: "left" }] } }]);
+        assert.match(a.items.getName("Eyes").system.eyeReports.join(), /left eye has a camera/);
+      });
+
+      it("social: derived whatever the setting; the dialog's TN lands as its own line; contacts get a button", async () => {
+        const a = await mk({ name: "Quench Ware Social", type: "character" });
+        await a.createEmbeddedDocuments("Item", [
+          { name: "Wires", type: "cyberware", system: { installed: true, essenceCost: 2.4 } },
+          { name: "Jack", type: "cyberware", flags: { sr2e: { rule: "datajack" } }, system: { installed: true, essenceCost: 0.2 } },
+          { name: "Fixer", type: "contact" }]);
+        assert.deepInclude(a.system.social, { situationTN: 2, contactTN: 2 }, "2.4 lost → +2; the datajack is ignored");
+        assert.equal(a.testTnModifiers({ socialTN: 2 }).socialTN, 2);
+        const was = game.settings.get("sr2e", "cyberSocial");
+        try {
+          await game.settings.set("sr2e", "cyberSocial", true);
+          await a.sheet.render({ force: true });
+          await new Promise(r => setTimeout(r, 300));
+          assert.ok(a.sheet.element.querySelector('[data-action="checkContactCyber"]'), "setting on: the contact check shows, no actor edit needed");
+          await game.settings.set("sr2e", "cyberSocial", false);
+          await a.sheet.render({ force: true });
+          await new Promise(r => setTimeout(r, 300));
+          assert.notOk(a.sheet.element.querySelector('[data-action="checkContactCyber"]'), "setting off: gone");
+        } finally { await game.settings.set("sr2e", "cyberSocial", was); await a.sheet.close(); }
+      });
+
+      it("an NPC's printed stats are untouched; existing documents stay valid", async () => {
+        const n = await mk({ name: "Quench Ware NPC", type: "npc" });
+        const before = n.system.willpower?.value;
+        await n.createEmbeddedDocuments("Item", [limb("Leg", "leg", "left"),
+          bio("Pump", "adrenal-pump", { rating: 2, triggered: true, active: true, attributeMods: { willpower: 1 } })]);
+        assert.equal(n.system.willpower?.value, before);
+        assert.equal(game.actors.invalidDocumentIds.size, 0);
+        for (const x of game.actors) assert.equal(x.items.invalidDocumentIds.size, 0, `${x.name} has no invalid items`);
+      });
+    }, { displayName: "SR2E: Cybereyes, bioware with cyberware, social" });
+
     // ── Matrixware: the cranial cyberdeck ("C2", Shadowtech p.54–59) ─────────
     quench.registerBatch("sr2e.matrixware", (context) => {
       const { describe, it, assert, after } = context;

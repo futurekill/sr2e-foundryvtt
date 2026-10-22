@@ -409,14 +409,16 @@ export class SR2EActor extends Actor {
     const addictionPenalty = substancesOf(this).penalty;
     const addictionTN = policy ? 0 : addictionTnFor(addictionPenalty, options.tnContext?.kind);
     const coordinationTN = policy ? 0 : this.coordinationTnFor(options);
+    // Cyberware social penalty (Cybertechnology p.58): only what the roll dialog passed.
+    const socialTN = policy ? 0 : Math.max(0, Number(options.socialTN) || 0);
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN);
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
-      + coordinationTN - centeringReduction;
+      + coordinationTN + socialTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-             coordinationTN, centeringReduction, total };
+             coordinationTN, socialTN, centeringReduction, total };
   }
 
   /**
@@ -442,7 +444,7 @@ export class SR2EActor extends Actor {
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
     const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-            coordinationTN, centeringReduction, total } = this.testTnModifiers(options);
+            coordinationTN, socialTN, centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
@@ -509,6 +511,7 @@ export class SR2EActor extends Actor {
     if (drugTN > 0)         tnParts.push(`+${drugTN} drugs`);
     if (addictionTN > 0)    tnParts.push(`+${addictionTN} ${addictionPenalty}`);
     if (coordinationTN > 0) tnParts.push(`+${coordinationTN} ${game.i18n.localize("SR2E.Limb.Coordination")}`);
+    if (socialTN > 0)       tnParts.push(`+${socialTN} ${game.i18n.localize("SR2E.Social.TnLabel")}`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
@@ -1068,6 +1071,7 @@ export class SR2EActor extends Actor {
       // Centering (Grimoire p.44) was being dropped here — pass it through.
       centeringReduction: options.centeringReduction,
       attribute,   // mismatched limb Quickness (coordinationTnFor)
+      socialTN: options.socialTN,   // cyberware social penalty (Cybertechnology p.58), from the dialog
       ...(options.whisperGM ? { whisperGM: true } : {}),
       ...(attribute === "body" ? this._bodyTestOpts() : {})
     });
@@ -1276,6 +1280,7 @@ export class SR2EActor extends Actor {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // A caller's situational TN (e.g. +4 assensing inside fat bacteria, CSH p.103).
       ...(options.extraTN ? { extraTN: options.extraTN, extraTNLabel: options.extraTNLabel } : {}),
+      socialTN: options.socialTN,   // cyberware social penalty (Cybertechnology p.58), from the dialog
       ...(options.whisperGM ? { whisperGM: true } : {})
     });
   }

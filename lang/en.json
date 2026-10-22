@@ -494,5 +494,18 @@
   "SR2E.Limb.Kind.Other": "Other",
   "SR2E.Limb.PairBody": "Cyberlimb pairs",
   "SR2E.Limb.Average": "Cyberlimbs (average of four limbs)",
-  "SR2E.Limb.Coordination": "mismatched limb Quickness"
+  "SR2E.Limb.Coordination": "mismatched limb Quickness",
+  "SR2E.Social.TnLabel": "Cyberware (social)",
+  "SR2E.Social.Default": "default",
+  "SR2E.Social.Normal": "counts",
+  "SR2E.Social.Hidden": "hidden",
+  "SR2E.Social.Ignored": "ignored",
+  "SR2E.Social.Flagrant": "flagrant",
+  "SR2E.Eyes.Pair": "Pair",
+  "SR2E.Eyes.Single": "Single eye",
+  "SR2E.EyeRow.Accessory": "accessory",
+  "SR2E.EyeRow.Weapon": "weapon",
+  "SR2E.EyeRow.ToolLaser": "tool laser",
+  "SR2E.EyeRow.Camera": "camera",
+  "SR2E.EyeRow.Both": "both"
 }

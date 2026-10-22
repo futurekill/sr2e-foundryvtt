@@ -67,6 +67,7 @@ import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
+import { wareCtx } from "./rules/ware-rules.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -1103,6 +1104,18 @@ function _registerSystemSettings() {
     default: 0
   });
 
+  // Cybertechnology's optional social penalties (p.57–58). The numbers are always
+  // derived; this gates the roll-dialog box, the sheet line and the contact check.
+  game.settings.register("sr2e", "cyberSocial", {
+    name: "Cyberware social penalties (Cybertechnology)",
+    hint: "Heavily chromed characters take +1 TN per 2 points of Essence lost (beyond the first .5) on Charisma and social-skill tests (a box in the roll dialog you can untick), and contacts can be checked against the Contact Reactions Table (Cybertechnology p.57–58).",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => { for (const a of game.actors) if (a.type === "character") a.sheet?.rendered && a.sheet.render(); }
+  });
+
   game.settings.register("sr2e", "autoChargePurchases", {
     name: "Auto-charge purchases",
     hint: "When an item with a cost is dragged onto a character sheet, deduct its street price (cost × Street Index) from the character's nuyen. The gear tab's sell button refunds what was paid.",
@@ -1277,7 +1290,9 @@ Hooks.on("updateCombat", (combat, changed) => {
 const PURCHASE_DRIVERS = ["rating", "grade", "bodySystem", "force", "grantedSkillCategory",
                           "bondedWeaponId", "category", "focusType", "strengthMinimum", "secondhandDiscount",
                           // A cyberlimb option is priced by where it's attached (Cybertechnology p.51).
-                          "linkedLimbId", "limbSurcharge", "limbAdjacent"];
+                          "linkedLimbId", "limbSurcharge", "limbAdjacent",
+                          // A single cybereye is 60% of a pair (Cybertechnology p.45).
+                          "eyes"];
 
 // A cyberlimb option's placement facts are RECORDED when it's attached, not inferred
 // from live siblings (docs/PLAN-cybertechnology-phase3.md §4): +10% if its new limb
@@ -1368,6 +1383,7 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     limbOption: item.system.limbOption, costPerRating: item.system.costPerRating,
     costMultiplierOfBase: item.system.costMultiplierOfBase, linkedLimbId: item.system.linkedLimbId,
     limbSurcharge: item.system.limbSurcharge, limbAdjacent: item.system.limbAdjacent,
+    eyes: item.system.eyes,
     ...over
   });
   const oldSys = sysFor({});
@@ -1377,7 +1393,8 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     return l?.system.limbIdentity?.role === "limb" ? l.system.limbIdentity.type : null;
   };
   const ctxFor = (sys) => ({ authoredCost, vr2, bondedWeaponReach: reachOf(sys.bondedWeaponId),
-    limbType: limbTypeOf(sys.linkedLimbId), limbOptionKind: item.system.limbIdentity?.optionKind ?? null });
+    limbType: limbTypeOf(sys.linkedLimbId), limbOptionKind: item.system.limbIdentity?.optionKind ?? null,
+    ...wareCtx(actor.items, item) });
   const oldBase = itemBaseCost(oldSys, ctxFor(oldSys));
   const newBase = itemBaseCost(newSys, ctxFor(newSys));
 

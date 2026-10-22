@@ -1,4 +1,5 @@
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier } from "../rules/sr2e-rules.mjs";
+import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
+import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { liveSession } from "../vr2.mjs";
@@ -435,6 +436,9 @@ export function chargenBudgetOf(actor) {
     // ammo by this, not cost × rounds.
     acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
     drug: !!drugOf(i),
+    // Ware context (single eye, muscle discount), priced once in itemBaseCost.
+    eyes: i.system.eyes,
+    ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(actor.items, i) : {}),
     force: i.system.force ?? 0,
     bondingCost: i.system.bondingCost ?? 0
   }));
@@ -669,9 +673,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       const bondedReach = created.system.bondedWeaponId
         ? (this.document.items.get(created.system.bondedWeaponId)?.system.reach ?? null)
         : null;
+      // Ware context (Cybertechnology p.45, p.57): the limbs BEFORE this item counts as one.
       const base = itemBaseCost(
         { type: created.type, ...created.system },
-        { authoredCost: created._source.system?.cost ?? 0, vr2, bondedWeaponReach: bondedReach });
+        { authoredCost: created._source.system?.cost ?? 0, vr2, bondedWeaponReach: bondedReach,
+          ...wareCtx(this.document.items.filter(i => i.id !== created.id), created) });
       if (event?.altKey) {
         if (base > 0) ui.notifications.info(`${foundry.utils.escapeHTML(created.name)} added to ${foundry.utils.escapeHTML(this.document.name)} for free (Alt-drop — no charge).`);
       } else if (base > 0) {
@@ -752,10 +758,46 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
   _surgeryPreview(itemData, { rating, grade, successes = 2, others = 0 } = {}) {
     const sys = { ...(rating != null ? { rating } : {}), ...(grade ? { grade } : {}) };
     const pct = surgeryEssencePct(successes);
-    const plain = this._candidateItem(itemData, { system: { ...sys, surgeryEssencePct: 0 } }).system.actualEssenceCost;
-    const cost = this._candidateItem(itemData, { system: { ...sys, surgeryEssencePct: pct } }).system.actualEssenceCost;
-    const now = Number(this.document.system.essence?.value) || 0;
+    const { discount, credit } = this._surgeryWareAdjust(itemData);
+    const essenceOf = (p) => {
+      const c = this._candidateItem(itemData, { system: { ...sys, surgeryEssencePct: p } });
+      if (discount != null) c.system.limbDiscount = discount;   // muscle with cyberlimbs (p.57)
+      return c.system.actualEssenceCost;
+    };
+    const plain = essenceOf(0), cost = essenceOf(pct);
+    // A limb going in changes the Essence of muscle already installed (`credit`).
+    const now = (Number(this.document.system.essence?.value) || 0) + credit;
     return { pct, cost, tn: surgeonTN(now - plain), end: now - cost, category: surgeryCategory(cost + (Number(others) || 0)) };
+  }
+
+  /**
+   * @private Cybertechnology p.57 for a surgery candidate: its own muscle discount from
+   * the character's full cyberlimbs, and, when the candidate is itself a limb, the
+   * Essence existing installed muscle gives back (or takes) in the HYPOTHETICAL
+   * post-installation inventory (an overlapping limb can lower the count).
+   */
+  _surgeryWareAdjust(itemData) {
+    const actor = this.document, items = [...actor.items];
+    const cand = { ...itemData, id: "zzcandidate00000", _source: { system: { ...itemData.system, installed: true } } };
+    const before = fullCyberlimbs(physicalLimbs(sourcesOf(items)));
+    const after = fullCyberlimbs(physicalLimbs(sourcesOf([...items, cand])));
+    const discount = MUSCLE.has(wareCtx([], itemData).wareRule) && before > 0 ? muscleFactor(before) : null;
+    let credit = 0;
+    if (before !== after) {
+      const awakened = actor.system.magic?.type && actor.system.magic.type !== "none";
+      const at = (v, n) => n > 0 ? ceil2(v * muscleFactor(n)) : v;
+      for (const i of items) {
+        if (!i.system.installed || !MUSCLE.has(wareCtx([], i).wareRule)) continue;
+        if (i.type === "cyberware") {
+          const e = (n) => surgicalEssence(gradeEssenceCost(at(i.system.limbEssence ?? i.system.essenceCost, n), i.system.grade), i.system.surgeryEssencePct);
+          credit += e(before) - e(after);
+        } else if (i.type === "bioware" && awakened) {
+          credit += effectiveBodyCost(at(i.system.bodyCost, before), i.system.grade, i.system.bodySystem)
+            - effectiveBodyCost(at(i.system.bodyCost, after), i.system.grade, i.system.bodySystem);
+        }
+      }
+    }
+    return { discount, credit };
   }
 
   /**
@@ -773,7 +815,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         return null;
       }
       const cand = this._candidateItem(itemData, { system: { surgeryEssencePct: pv.pct } });
-      const base = itemBaseCost({ type: cand.type, ...cand.system }, { authoredCost: itemData.system?.cost ?? 0 });
+      const base = itemBaseCost({ type: cand.type, ...cand.system }, { authoredCost: itemData.system?.cost ?? 0,
+        ...wareCtx(actor.items, itemData) });
       const price = base > 0 ? Math.round(streetPrice(base, cand.system.streetIndex)) : 0;
       const fee = pick.fee ? pv.category.fee : 0;
       const nuyen = actor.system.nuyen ?? 0;
@@ -1246,6 +1289,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     }));
     context.cyberware = actor.items.filter(i => i.type === "cyberware");
     context.cyberlimb = cyberlimbContext(actor);
+    // Cybertechnology's optional social penalties (p.58): shown only when the world rule is on.
+    let cyberSocial = false;
+    try { cyberSocial = game.settings.get("sr2e", "cyberSocial"); } catch (e) { /* off */ }
+    context.cyberSocial = cyberSocial ? actor.system.social : null;
     // Bioware, sorted by body system so same-system implants group together
     // (Shadowtech). config.bodySystems gives the template localized labels.
     context.bioware = actor.items.filter(i => i.type === "bioware")

@@ -4,6 +4,7 @@
     {{!-- ----- Allies (Contacts / Buddies / Friends For Life / Followers) ----- --}}
     <div class="contacts-toolbar flexrow">
       <span class="contacts-count">{{contacts.length}} contact{{#ifGt contacts.length 1}}s{{/ifGt}}</span>
+      {{#if cyberSocial.checkContacts}}<span class="hint" title="Cybertechnology p.58: once per run, or when new ware goes in, check each contact (Charisma, TN 3 +{{cyberSocial.contactTN}}).">Cyberware: contact checks at TN 3 +{{cyberSocial.contactTN}}</span>{{/if}}
       <button type="button" data-action="addItem" data-type="contact" class="btn-add">
         <i class="fas fa-plus"></i> Add Contact
       </button>
@@ -41,6 +42,7 @@
           <span class="rating-num">{{contact.system.influence}}</span>
         </span>
         <span class="col-controls item-controls">
+          {{#if @root.cyberSocial.checkContacts}}<a data-action="checkContactCyber" title="Check this contact against your cyberware (Cybertechnology p.58)"><i class="fas fa-user-slash"></i></a>{{/if}}
           <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
           <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
         </span>

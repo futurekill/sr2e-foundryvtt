@@ -546,6 +546,16 @@
   </div>
   {{/ifEquals}}
   <div class="form-group">
+    <label title="Cyberware social penalties (Cybertechnology p.58, optional rule). Default: counts, except a datajack. Hidden ware (headware memory, skillsofts) counts only for contacts; flagrant ware adds +1.">Social visibility:</label>
+    <select name="system.socialVisibility">
+      <option value="" {{selected system.socialVisibility ""}}>default</option>
+      <option value="normal" {{selected system.socialVisibility "normal"}}>counts</option>
+      <option value="hidden" {{selected system.socialVisibility "hidden"}}>hidden (contacts only)</option>
+      <option value="ignored" {{selected system.socialVisibility "ignored"}}>ignored</option>
+      <option value="flagrant" {{selected system.socialVisibility "flagrant"}}>flagrant (+1)</option>
+    </select>
+  </div>
+  <div class="form-group">
     <label title="Essence when wired into a cyberlimb (Cybertechnology p.49). Blank: the book's table for known items, otherwise unchanged.">Essence in a cyberlimb:</label>
     <input type="number" name="system.essenceInLimb" value="{{system.essenceInLimb}}" min="0" step="0.01" placeholder="—" />
   </div>
@@ -714,6 +724,18 @@
 
   {{!-- Container cyberware (cybereyes / cyberears): add-on modules + free capacity --}}
   {{#if isContainer}}
+  {{#ifEquals system.wareRule "cybereye-pair"}}
+  <div class="form-group">
+    <label title="A single cybereye costs 60% of the price, .1 Essence, and holds only .25 of free accessories (Cybertechnology p.45). Accessories that need a pair (low-light, thermographic, cameras) work about half as well, and vision magnification gives +4 to Combat Test TNs while active: the GM's call.">Eyes:</label>
+    <select name="system.eyes">
+      <option value="pair" {{selected system.eyes "pair"}}>Pair</option>
+      <option value="single" {{selected system.eyes "single"}}>Single eye (60% price, .1 Essence, .25 free)</option>
+    </select>
+  </div>
+  {{#if system.eyeReports.length}}
+  <div class="form-group"><span class="hint sr2e-limb-warn">⚠ {{#each system.eyeReports as |r|}}{{r}}{{#unless @last}}; {{/unless}}{{/each}}</span></div>
+  {{/if}}
+  {{/ifEquals}}
   <div class="form-group">
     <label>Module Capacity (Essence):</label>
     <input type="number" name="system.capacity" value="{{system.capacity}}" min="0" step="0.1" />
@@ -722,11 +744,11 @@
   <div class="rating-stats-section">
     <div class="rating-stats-header">
       <span>Modules</span>
-      <span class="hint">— capacity used {{system.capacityUsed}} / {{system.capacity}}{{#ifGt system.capacityOver 0}} · <strong>+{{system.capacityOver}}</strong> Essence over (total {{system.actualEssenceCost}}){{/ifGt}}</span>
+      <span class="hint">— capacity used {{system.capacityUsed}} / {{system.capacity}}{{#ifGt system.capacityOver 0}} · <strong>+{{system.capacityOver}}</strong> Essence over{{#ifEquals system.wareRule "cybereye-pair"}}{{#unless (eq system.grade "standard")}} before grade{{/unless}}{{/ifEquals}} (total {{system.actualEssenceCost}}){{/ifGt}}</span>
     </div>
     <table class="rating-stats-table modules-table">
       <thead>
-        <tr><th title="Installed / active">On</th><th>Module</th><th>Ess</th><th>Cost ¥</th><th>Rtg</th><th title="Combat TN modifier (e.g. −2 Smartlink)">TN</th><th></th></tr>
+        <tr><th title="Installed / active">On</th><th>Module</th><th>Ess</th><th>Cost ¥</th><th>Rtg</th><th title="Combat TN modifier (e.g. −2 Smartlink)">TN</th><th title="Eye slots (Cybertechnology p.45): one weapon or tool laser per eye, none in an eye with a camera">Kind</th><th title="Which eye holds it">Eye</th><th></th></tr>
       </thead>
       <tbody>
         {{#each system.modules}}
@@ -737,6 +759,12 @@
           <td><input type="number" name="system.modules.{{@index}}.cost"        value="{{this.cost}}" min="0" /></td>
           <td><input type="number" name="system.modules.{{@index}}.rating"      value="{{this.rating}}" min="0" /></td>
           <td><input type="number" name="system.modules.{{@index}}.combatTnMod" value="{{this.combatTnMod}}" /></td>
+          <td><select name="system.modules.{{@index}}.kind">
+            <option value="" {{selected this.kind ""}}>accessory</option><option value="weapon" {{selected this.kind "weapon"}}>weapon</option>
+            <option value="toolLaser" {{selected this.kind "toolLaser"}}>tool laser</option><option value="camera" {{selected this.kind "camera"}}>camera</option></select></td>
+          <td><select name="system.modules.{{@index}}.eye">
+            <option value="both" {{selected this.eye "both"}}>both</option><option value="left" {{selected this.eye "left"}}>left</option>
+            <option value="right" {{selected this.eye "right"}}>right</option></select></td>
           <td>
             <button type="button" class="remove-row-btn" data-action="removeModuleRow" data-index="{{@index}}" title="Remove module">
               <i class="fas fa-times"></i>

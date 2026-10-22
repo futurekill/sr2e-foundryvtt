@@ -5,6 +5,7 @@ import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibi
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
+import { contactReaction } from "../rules/ware-rules.mjs";
 import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
@@ -155,7 +156,17 @@ function readKarmaDice(form, actor, baseDice) {
  * @param {boolean} [opts.showPools=true]    - Whether dice pools may be used on this test.
  * @returns {Promise<{tn: number, poolDice: object, karmaDice: number}|null>}
  */
-async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true } = {}) {
+async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true, attribute = null } = {}) {
+  // Cyberware social penalty (Cybertechnology p.58, optional): a pre-ticked box on
+  // Charisma and Charisma-linked rolls when the world setting is on.
+  let cyberSocial = false;
+  try { cyberSocial = game.settings.get("sr2e", "cyberSocial"); } catch (e) { /* off */ }
+  const socialTN = cyberSocial && attribute === "charisma" ? (actor?.system?.social?.situationTN ?? 0) : 0;
+  const socialHTML = socialTN > 0 ? `
+    <div class="form-group">
+      <label title="Heavily chromed characters put people off in casual social situations; untick when it doesn't apply (a Johnson hiring muscle, an interrogation). Cybertechnology p.58.">${game.i18n.localize("SR2E.Social.TnLabel")} +${socialTN}</label>
+      <input type="checkbox" name="socialTN" checked>
+    </div>` : "";
   // Collect pools that have dice available, capping each by both available and skillCap.
   const availablePools = (showPools ? POOL_DEFS : [])
     .map(p => {
@@ -215,6 +226,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
           <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}:</label>
           <input type="number" name="tn" value="4" min="2" max="30" autofocus>
         </div>
+        ${socialHTML}
         ${poolHTML}
         ${karmaHTML}
         ${miscDiceHTML()}
@@ -236,7 +248,8 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
             if (clamped > 0) poolDice[p.key] = clamped;
           }
           const karmaDice = readKarmaDice(button.form, actor, baseDice);
-          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice, ...readMiscDice(button.form) };
+          rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice, ...readMiscDice(button.form),
+            socialTN: socialTN > 0 && button.form.elements.socialTN?.checked ? socialTN : 0 };
         }
       },
       {
@@ -264,10 +277,11 @@ async function onRollAttribute(event, target) {
   // Resistance Tests — not for general attribute tests, so pools are hidden.
   // Karma dice (p.190) may still be bought, capped at the attribute rating.
   const baseDice = actor.system[attribute]?.value ?? 0;
-  const opts = await promptRollOptions(actor, { showPools: false, baseDice });
+  const opts = await promptRollOptions(actor, { showPools: false, baseDice, attribute });
   if (!opts) return;
   return actor.rollAttributeTest(attribute, opts.tn, {
-    poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel,
+    socialTN: opts.socialTN
   });
 }
 
@@ -321,10 +335,11 @@ async function onRollSkill(event, target) {
       ? (actor.system.reaction?.value ?? 1)
       : (actor.system[attrKey]?.value ?? 1);
   }
-  const opts = await promptRollOptions(actor, { showPools: false, baseDice });
+  const opts = await promptRollOptions(actor, { showPools: false, baseDice, attribute: skillItem?.system?.linkedAttribute });
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, {
-    poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant, miscDice: opts.miscDice, miscLabel: opts.miscLabel
+    poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant, miscDice: opts.miscDice, miscLabel: opts.miscLabel,
+    socialTN: opts.socialTN
   });
 }
 
@@ -3547,6 +3562,28 @@ async function onBondWeaponFocus(event, target) {
 // ---------------------------------------------------------------------------
 // Shared actions map used by character sheet and NPC sheet
 // ---------------------------------------------------------------------------
+/**
+ * Check a contact against the character's cyberware (Cybertechnology p.58, optional):
+ * Charisma at TN 3 + the contact modifier (which counts even hidden ware), then the
+ * Contact Reactions Table. The +1 for 2/1 successes is the GM's to apply (not stored).
+ * @this {ApplicationV2}
+ */
+async function onCheckContactCyber(event, target) {
+  event.preventDefault();
+  const actor = this.document;
+  const contact = actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+  if (!contact) return;
+  const tnMod = actor.system.social?.contactTN ?? 0;
+  const result = await actor.rollSuccessTest(actor.system.charisma?.value ?? 0, 3 + tnMod, {
+    label: `${contact.name}: contact check, cyberware (Cybertechnology p.58) — TN 3 +${tnMod}` });
+  if (!result) return;
+  const r = contactReaction(result.successes ?? 0);
+  const esc = foundry.utils.escapeHTML;
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="sr2e-damage-result"><strong>${esc(contact.name)}</strong> (${result.successes ?? 0} successes): ${esc(r.text)}`
+      + (r.tnPlus ? ` <em>+${r.tnPlus} to ${esc(actor.name)}'s Charisma and social-skill TNs with this contact.</em>` : "") + `</div>` });
+}
+
 const SHARED_ACTIONS = {
   // Tab navigation — use switchTab so V13's built-in _onClickTab never fires.
   // changeTab() fails because content sections live inside <div data-part="x">
@@ -3559,6 +3596,7 @@ const SHARED_ACTIONS = {
   //
   // Instead: toggle active classes directly in the DOM. this.tabGroups is still
   // updated so the correct tab is highlighted on the next legitimate re-render.
+  checkContactCyber: onCheckContactCyber,
   switchTab: function(event, target) {
     const tab = target.dataset.tab;
     const group = target.dataset.group;
