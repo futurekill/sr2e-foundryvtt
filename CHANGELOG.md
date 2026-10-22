@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## 0.115.0 — 2026-10-22
+
+### Added — Cybertechnology: cybermancy (optional)
+- **World setting "Cybermancy (Cybertechnology)"**, off by default. A character can go
+  below 0 Essence only through a GM-confirmed operation at a delta clinic (pp.78–80):
+  - the surgery dialog's **Delta clinic** box turns the purchase into a proposal;
+  - the GM rolls the doctor's test against the survival table (by intended Essence,
+    which includes the IMS);
+  - on success, **Apply** charges once and installs the implant, an IMS (137,750¥) and
+    the automatic-medication system. Every step is receipted, so an interrupted
+    operation is **Resumed** (or **Cancelled and refunded**), never doubled;
+  - on failure, **Confirm death on the table**.
+- **Signed Essence** is derived for every character; the header shows it when negative.
+  Every consequence uses it:
+  - Willpower −1 per half point, up to 4 restored (never above the rating before
+    cybermancy), and spells that raise Willpower are ignored;
+  - +2 × |Essence| to magic cast at them, healing included (area spells per target);
+  - +|Essence| to Charisma and social skills, the part below −2 doubled. It replaces
+    the cyberware social penalty, with an "intentionally intimidating" box;
+  - the halved overflow limit, and reminders for Reaction, Perception, Lost in the
+    Details, astral presence and Karma at half rate (pp.80–83).
+- **On the game clock:**
+  - medication refills every 10 days (Refilled / Corp pays / Not refilled → death);
+  - Chronic Dissociation Syndrome tests by the table. CDS adds +3 to all tests, kills
+    in 3 + Willpower weeks, and can be treated (p.84);
+  - each due event is whispered once and stays listed on the sheet;
+  - Essence back at 0 or above suspends the schedules.
+- **Better Off Dead (p.80):** healing a character out of overflow prompts the Willpower
+  test; **Finalize** closes it to Karma and reads its final result.
+- **Cancer (p.84):** the roll and its dates go into a GM-only journal; the GM confirms
+  it and gets the onset and death notices.
+- Every death is a GM click; nothing is deleted. A mistaken death is corrected with
+  **Revive**.
+
 ## 0.114.0 — 2026-10-22
 
 ### Added — Cybertechnology: cyberware damage, repair and scarring (optional)

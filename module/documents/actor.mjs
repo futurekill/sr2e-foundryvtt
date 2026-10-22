@@ -1,6 +1,7 @@
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
+import { careReceipt } from "../cybermancy.mjs";
 import { firstTarget } from "../targeting.mjs";
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
 import { renderAstralMeleeCard, isCardResolved, isTestClosed, astralAttack } from "../astral-combat.mjs";
@@ -411,14 +412,16 @@ export class SR2EActor extends Actor {
     const coordinationTN = policy ? 0 : this.coordinationTnFor(options);
     // Cyberware social penalty (Cybertechnology p.58): only what the roll dialog passed.
     const socialTN = policy ? 0 : Math.max(0, Number(options.socialTN) || 0);
+    // Chronic Dissociation Syndrome (Cybertechnology p.83): +3 to "all other tests", ritual stages included.
+    const cdsTN = this.system.cym?.cds ? 3 : 0;
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN);
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
-      + coordinationTN + socialTN - centeringReduction;
+      + coordinationTN + socialTN + cdsTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-             coordinationTN, socialTN, centeringReduction, total };
+             coordinationTN, socialTN, cdsTN, centeringReduction, total };
   }
 
   /**
@@ -444,7 +447,7 @@ export class SR2EActor extends Actor {
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
     const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-            coordinationTN, socialTN, centeringReduction, total } = this.testTnModifiers(options);
+            coordinationTN, socialTN, cdsTN, centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
@@ -512,6 +515,7 @@ export class SR2EActor extends Actor {
     if (addictionTN > 0)    tnParts.push(`+${addictionTN} ${addictionPenalty}`);
     if (coordinationTN > 0) tnParts.push(`+${coordinationTN} ${game.i18n.localize("SR2E.Limb.Coordination")}`);
     if (socialTN > 0)       tnParts.push(`+${socialTN} ${game.i18n.localize("SR2E.Social.TnLabel")}`);
+    if (cdsTN > 0)          tnParts.push(`+${cdsTN} CDS`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
@@ -3823,7 +3827,8 @@ export class SR2EActor extends Actor {
     const turns  = healingTimeReduced(baseTime, toTime);
     const before = cm.value;
     const after  = Math.max(0, before - boxes);
-    await this.update({ "system.conditionMonitor.physical.value": after });
+    // Cybermancy (p.80): healed out of overflow → a care receipt in this same update.
+    await this.update({ "system.conditionMonitor.physical.value": after, ...careReceipt(this) });
     // Stamp the once-per-injury-set marker; clear it once they're undamaged, which
     // is the cleanest available boundary for "a new set of injuries".
     await this.setFlag("sr2e", "magicallyHealed", after > 0);
@@ -3855,7 +3860,7 @@ export class SR2EActor extends Actor {
     const before = cm.value;
     const level = SR2EActor.levelForBoxes(before);
     const floor = CONFIG.SR2E.healLevelFloor[level] ?? 0;
-    await this.update({ [`system.conditionMonitor.${type}.value`]: floor });
+    await this.update({ [`system.conditionMonitor.${type}.value`]: floor, ...(type === "physical" ? careReceipt(this) : {}) });
     const newLevel = SR2EActor.levelForBoxes(floor);
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),

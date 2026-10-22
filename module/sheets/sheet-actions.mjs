@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
 import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
@@ -7,6 +8,7 @@ import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibi
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
 import { mbwOp, reflexCheck } from "../mbw.mjs";
+import { cymOp } from "../cybermancy.mjs";
 import { postWoundCard } from "../cyberdamage.mjs";
 import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
@@ -163,8 +165,14 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
   // Charisma and Charisma-linked rolls when the world setting is on.
   let cyberSocial = false;
   try { cyberSocial = game.settings.get("sr2e", "cyberSocial"); } catch (e) { /* off */ }
-  const socialTN = cyberSocial && attribute === "charisma" ? (actor?.system?.social?.situationTN ?? 0) : 0;
-  const socialHTML = socialTN > 0 ? `
+  // Cybermancy (Cybertechnology p.83) REPLACES it (user ruling), whatever the setting; none when intimidating.
+  const cymTN = attribute === "charisma" ? (actor?.system?.cym?.social ?? 0) : 0;
+  const socialTN = cymTN || (cyberSocial && attribute === "charisma" ? (actor?.system?.social?.situationTN ?? 0) : 0);
+  const socialHTML = cymTN > 0 ? `
+    <div class="form-group">
+      <label title="Negative Essence: +|Essence| (the part below −2 doubled) to Charisma and social skills. Not when intentionally intimidating. Cybertechnology p.83.">Cybermancy +${cymTN}; intentionally intimidating (none)</label>
+      <input type="checkbox" name="cymIntimidate">
+    </div>` : socialTN > 0 ? `
     <div class="form-group">
       <label title="Heavily chromed characters put people off in casual social situations; untick when it doesn't apply (a Johnson hiring muscle, an interrogation). Cybertechnology p.58.">${game.i18n.localize("SR2E.Social.TnLabel")} +${socialTN}</label>
       <input type="checkbox" name="socialTN" checked>
@@ -251,7 +259,8 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
           }
           const karmaDice = readKarmaDice(button.form, actor, baseDice);
           rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice, ...readMiscDice(button.form),
-            socialTN: socialTN > 0 && button.form.elements.socialTN?.checked ? socialTN : 0 };
+            socialTN: cymTN > 0 ? (button.form.elements.cymIntimidate?.checked ? 0 : cymTN)
+              : socialTN > 0 && button.form.elements.socialTN?.checked ? socialTN : 0 };
         }
       },
       {
@@ -1751,7 +1760,8 @@ async function promptSpellOptions(actor, spell) {
   if (isCombat && tgtActor) {
     const attrKey = isMana ? "willpower" : "body";
     suggestedTN = tgtActor.system?.[attrKey]?.value ?? 4;
-    tnNote = `<span style="color:#6a8;">Target ${foundry.utils.escapeHTML(tgtTok.name)}: ${isMana ? "Willpower" : "Body"} ${suggestedTN}</span>`;
+    tnNote = `<span style="color:#6a8;">Target ${foundry.utils.escapeHTML(tgtTok.name)}: ${isMana ? "Willpower" : "Body"} ${suggestedTN}</span>`
+      + (cymMagicTN(tgtActor) ? `<br><span style="color:#a86;">Cybermantic: +${cymMagicTN(tgtActor)} TN, added at the roll (Cybertechnology p.80).</span>` : "");
   } else if (isCombat) {
     tnNote = `<span style="color:#a86;">No target — TN is the victim's ${isMana ? "Willpower (mana)" : "Body (physical)"}.</span>`;
   } else if (spell?.system?.category === "manipulation"
@@ -1778,6 +1788,7 @@ async function promptSpellOptions(actor, spell) {
     // APPEND — the Essence-derived TN above and the bioware surcharge are two
     // separate facts about the same cast, and the caster needs to see both.
     const addNote = (html) => { tnNote = tnNote ? `${tnNote}<br>${html}` : html; };
+    if (cymMagicTN(subject)) addNote(`<span style="color:#a86;">${foundry.utils.escapeHTML(subject.name)} is cybermantic: +${cymMagicTN(subject)} TN, added at the roll (Cybertechnology p.80).</span>`);
     if (bhMod > 0) {
       addNote(`<span style="color:#a86;">${foundry.utils.escapeHTML(subject.name)} has bioware (Body Index ${subject.system.bodyIndex.value}): +${bhMod} TN to heal.</span>`);
     } else if (!tgtActor) {
@@ -3600,6 +3611,13 @@ const SHARED_ACTIONS = {
   // updated so the correct tab is highlighted on the next legitimate re-render.
   checkContactCyber: onCheckContactCyber,
   // Move-by-wire & reflexes (docs/PLAN-cybertechnology-phase4.md)
+  cymOp: async function(event, target) { event.preventDefault(); return cymOp(this.document.uuid, target.dataset.op, target.dataset.arg ?? ""); },
+  cymManual: async function(event, target) {
+    event.preventDefault();
+    const v = Number(target.closest(".sr2e-cym")?.querySelector('[name="cymManualSigned"]')?.value);
+    if (!game.user.isGM || !Number.isFinite(v)) return;
+    return this.document.update({ "system.essence.manualSigned": Math.round(v * 100) / 100 });
+  },
   mbwOp: async function(event, target) { event.preventDefault(); return mbwOp(this.document.uuid, target.dataset.op, target.dataset.arg ?? ""); },
   mbwReflex: async function(event) {
     event.preventDefault();

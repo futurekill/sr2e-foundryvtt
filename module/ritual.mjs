@@ -16,6 +16,7 @@
  * The GM adjudicates what the book leaves to them: the link table row, time,
  * sustaining expiry, foci and spirit aid used for Drain, astral interception.
  */
+import { cymMagicTN } from "./rules/cym-rules.mjs";
 import { createArea, areaDocs } from "./areas.mjs";
 import { firstTarget } from "./targeting.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -382,6 +383,10 @@ async function stageEffect(id) {
   if (spell.system.healsDamage && spell.system.healingTnBase && subj) {
     tn = healingSpellTN(spell.system.healingTnBase, subj.system?.essence?.value ?? 6);
     tnNote = `${esc(subj.name)}: ${spell.system.healingTnBase} − Essence → TN ${tn} (p.155).`;
+  }
+  if (subj && cymMagicTN(subj)) {   // cybermancy (Cybertechnology p.80–81)
+    tn += cymMagicTN(subj);
+    tnNote += ` +${cymMagicTN(subj)} cybermancy (Cybertechnology p.80).`;
   }
   const totem = totemDice(leader, r0.category);
   const data = await form("Determine the effect (SR2E p.137)", `

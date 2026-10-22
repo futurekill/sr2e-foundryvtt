@@ -594,6 +594,20 @@ Automated: `test/cyberdamage-rules.test.mjs` and Quench `sr2e.cyberdamage`.
       Degradation check; a loss lowers Body.
 - [ ] Scarring check records a scar; its surgery link updates it.
 
+## Cybermancy (docs/PLAN-cybertechnology-phase6.md)
+Automated: `test/cym-rules.test.mjs` and Quench `sr2e.cybermancy`.
+- [ ] Setting on, as GM: buy cyberware that takes a character below 0 Essence; the surgery
+      dialog offers "Delta clinic: cybermancy authorized", and its preview names the survival TN.
+- [ ] Tick it and Buy: nothing is charged; a whispered card offers "Roll the doctor's test".
+      Success → Apply → the implant, an IMS and an automatic-medication system appear; nuyen
+      drops once. Failure → Confirm death; the sheet says "Dead (cybermancy)"; Revive undoes it.
+- [ ] The header shows the negative Essence; the gear tab's Cybermancy panel lists the
+      consequences and the next refill and CDS test.
+- [ ] Advance the clock 10 days: ONE refill notice; the panel lists it even after the card is deleted.
+- [ ] A Charisma-linked roll dialog shows "Cybermancy +N; intentionally intimidating (none)".
+- [ ] Heal a character in overflow: a Better Off Dead card appears; roll, spend Karma, Finalize.
+- [ ] Setting off: the panel disappears and old card buttons refuse.
+
 ## Smoke test (5-minute sanity pass)
 1. Import a Sample Runner; open the sheet; roll a skill.
 2. Fire a weapon at a targeted token; resist the damage.

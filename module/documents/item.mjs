@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { createArea, canCreateArea } from "../areas.mjs";
 import { firstTarget, targetTokens } from "../targeting.mjs";
 import { playCombatFx } from "../integrations.mjs";
@@ -1725,6 +1726,10 @@ export class SR2EItem extends Item {
       healingTN = biowareHealingTnMod(subject.system?.bodyIndex?.value ?? 0);
       if (healingTN > 0) healingLabel = `bioware interference (${subject.name})`;
     }
+    // Cybermancy (Cybertechnology p.80–81): +2 × |Essence| to any magical test made against a
+    // cybermantic subject, frozen now. Area spells carry it per target (baseTN).
+    const cymSubject = isArea ? null : this.system.healsDamage ? (firstTarget()?.actor ?? actor) : firstTarget()?.actor;
+    const cymTN = cymMagicTN(cymSubject);
 
     // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
     // An initiate with Centering may roll their Centering skill (vs the modified
@@ -1766,7 +1771,8 @@ export class SR2EItem extends Item {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
       centeringReduction,           // Centering vs Penalties (Grimoire p.44)
       tnContext: SPELL_TN_CONTEXT,
-      extraTN: healingTN, extraTNLabel: healingLabel
+      extraTN: healingTN + cymTN,
+      extraTNLabel: [healingLabel, cymTN ? `cybermancy (${cymSubject.name})` : ""].filter(Boolean).join(", ")
     });
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
@@ -2086,7 +2092,7 @@ export class SR2EItem extends Item {
       const d = Math.hypot(t.center.x - center.x, t.center.y - center.y) * metresPerPixel;
       if (d > geo.radius + 1e-6) continue;
       caught.push({ token: t, actor: t.actor, uuid: t.actor.uuid, name: t.name, eligible,
-                    baseTN: t.actor.system?.[attr]?.value ?? 4 });
+                    baseTN: (t.actor.system?.[attr]?.value ?? 4) + cymMagicTN(t.actor) });
     }
     return { ...geo, center, sceneId: canvas.scene.id, caught };
   }

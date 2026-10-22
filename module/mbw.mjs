@@ -10,6 +10,7 @@ import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
 import { foldMbw, proposal, ccssRow, CCSS_ROWS, ccssRehab, seizureBoxes, tleTreatTN } from "./rules/mbw-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
+import { characterTN } from "./rules/cym-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 export const mbwOn = () => { try { return game.settings.get("sr2e", "mbwComplications"); } catch (e) { return true; } };
@@ -62,7 +63,7 @@ export async function rollComplication(uuid, { manual = false } = {}) {
     payload = { type: "test", gen: f.gen.key, n, attempt };
   }
   // Rolled side-effect-free, recorded in the SAME create; a losing roll is never shown.
-  const { successes, results } = await roll(m.dice, m.tn);
+  const { successes, results } = await roll(m.dice, characterTN(actor, m.tn));   // CDS +3 (Cybertechnology p.83)
   const ok = await record(actor, key, { ...payload, itemId: m.itemId, level: m.level, dice: m.dice, tn: m.tn, successes, results },
     "That test was already rolled.");
   if (!ok) return;
@@ -134,10 +135,10 @@ export async function resolveSeizure(uuid, seizureKey) {
   const actor = await actorFor(uuid); if (!actor) return;
   const f = mbwFold(actor);
   if (!f.seizures.some(s => s.key === seizureKey)) return ui.notifications.warn("That seizure isn't on record.");
-  const will = await roll(actor.system.willpower?.value ?? 0, 6);
+  const will = await roll(actor.system.willpower?.value ?? 0, characterTN(actor, 6));
   let resisted = null, stun = 0, turns = 0, minutes = 0;
   if (will.successes === 0) {
-    resisted = await roll(actor.system.body?.value ?? 0, 6);   // Body only: no armor, no pools (user ruling)
+    resisted = await roll(actor.system.body?.value ?? 0, characterTN(actor, 6));   // Body only: no armor, no pools (user ruling)
     stun = seizureBoxes(resisted.successes);
     turns = 10 * await d6(); minutes = 10 * await d6();
   }

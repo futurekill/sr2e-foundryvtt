@@ -1,4 +1,5 @@
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
+import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs";
 import { cyberDamageOn } from "../cyberdamage.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
@@ -162,6 +163,34 @@ function mbwContext(actor) {
     canEpisode: f.active || f.chronic,
     incidents: f.incidents.map(i => ({ ...i, rowLabel: rowLabel(i), treatment: i.treatment ? { ...i.treatment, cost: (i.treatment.cost ?? 0).toLocaleString("en-US") } : null })),
     seizures: stuckSeizures(actor), records: f.voidable.map(e => ({ key: e.key, label: label(e) })) };
+}
+
+/**
+ * The cybermancy panel (docs/PLAN-cybertechnology-phase6.md): the consequences, everything
+ * pending (the durable fallback for every notice), and (GM) the records that can be voided.
+ */
+function cymContext(actor) {
+  if (!cymOn()) return null;
+  const f = cymFold(actor);
+  if (!f.ops.size) return null;
+  const c = actor.system.cym ?? {};
+  const days = (wt) => wt == null ? "" : `${Math.round((wt - game.time.worldTime) / 86400)} days`;
+  const label = (e) => ({ opRoll: `Doctor's test: ${e.successes} successes`, refill: `Refill #${e.n}: ${e.outcome}`, cds: `CDS test #${e.n}: ${e.failed ? "failed" : "passed"}`,
+    cdsTreat: `CDS treatment: ${e.outcome}`, overflowOut: `Better Off Dead: ${e.outcome}` }[e.type] ?? e.type);
+  const r = actor.flags?.sr2e?.cymReceipts ?? {};
+  return { ...c, isGM: game.user.isGM, active: f.active, dead: f.dead, suspended: f.active && (f.suspended || !c.neg),
+    signed: actor.system.essence?.signed, manual: (() => { try { return !game.settings.get("sr2e", "autoEssence"); } catch (e) { return false; } })(),
+    manualSigned: actor.system.essence?.manualSigned,
+    overflowWarn: (actor.system.conditionMonitor?.overflow ?? 0) >= (c.overflowMax ?? Infinity),
+    willpowerBefore: f.established?.willpowerBefore, refillDue: f.refillDue, cdsDue: f.cdsDue,
+    nextRefill: f.refillDue ? "" : days(f.nextRefill), nextCds: f.cdsDue ? "" : days(f.nextCds),
+    cdsDeath: f.cds ? days(f.cds.deathAt) : "", cdsDeathPassed: !!f.cds && f.cds.deathAt <= game.time.worldTime,
+    recovery: f.recoveryUntil && f.recoveryUntil > game.time.worldTime ? days(f.recoveryUntil) : "",
+    cdsSince: f.cds?.since, cdsTreatTN: f.cds ? 8 - Math.min(6, f.treatments) : null,
+    ops: [...f.ops.values()].filter(o => !o.done && !o.cancelled).map(o => ({ opId: o.opId, rolled: !!o.roll, survived: o.roll?.survived,
+      charged: !!r[o.opId]?.charged, cancelling: o.cancelIntent, name: o.proposal.snapshot.items[0]?.data?.name ?? "implant", tn: o.proposal.snapshot.tn })),
+    cares: f.cares.filter(x => !f.overflowOut(x.receipt)).map(x => ({ receipt: x.receipt, tn: 2 * x.overflowBefore })),
+    cancer: f.cancer.length, records: f.voidable.map(e => ({ key: e.key, label: label(e) })) };
 }
 
 class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -675,7 +704,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       // not in character creation (p.59), not on a free drop, not for a spare.
       const inChargen = !!this.document.system.chargen?.inProgress;
       if (itemData.type === "cyberware" && !inChargen && this._candidateItem(itemData).system.installed) {
-        opts.surgery = { preview: (pick) => this._surgeryPreview(itemData, pick) };
+        opts.surgery = { preview: (pick) => this._surgeryPreview(itemData, pick),
+          cym: cymOn() && game.user.isGM ? (pv) => cymSurgery(this.document, pv) : null };
       }
       let chosen = await this.constructor._promptPurchaseOptions(itemData, this.document, opts);
       while (chosen?.retry) {                           // Buy with no skill: ask again, prefilled
@@ -810,8 +840,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     };
     const plain = essenceOf(0), cost = essenceOf(pct);
     // A limb going in changes the Essence of muscle already installed (`credit`).
-    const now = (Number(this.document.system.essence?.value) || 0) + credit;
-    return { pct, cost, tn: surgeonTN(now - plain), end: now - cost, category: surgeryCategory(cost + (Number(others) || 0)) };
+    // Signed Essence (Phase 6): the same as the clamped value for anyone not below 0.
+    const ess = this.document.system.essence ?? {};
+    const now = (Number(ess.signed ?? ess.value) || 0) + credit;
+    return { pct, cost, plain, now, tn: surgeonTN(now - plain), end: now - cost, category: surgeryCategory(cost + (Number(others) || 0)) };
   }
 
   /**
@@ -854,15 +886,20 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const actor = this.document, esc = foundry.utils.escapeHTML;
     return enqueueAttack(`purchase:${actor.uuid}`, async () => {
       const pv = this._surgeryPreview(itemData, { rating: itemData.system.rating, grade: itemData.system.grade, ...pick });
-      if (pv.end < 0) {
-        ui.notifications.warn(`The surgery would leave ${esc(actor.name)} below 0 Essence: it's aborted (the character survives with Essence 0 — GM; Cybertechnology p.53). Nothing was bought.`);
-        return null;
-      }
       const cand = this._candidateItem(itemData, { system: { surgeryEssencePct: pv.pct } });
       const base = itemBaseCost({ type: cand.type, ...cand.system }, { authoredCost: itemData.system?.cost ?? 0,
         ...wareCtx(actor.items, itemData) });
       const price = base > 0 ? Math.round(streetPrice(base, cand.system.streetIndex)) : 0;
       const fee = pick.fee ? pv.category.fee : 0;
+      // Cybermancy (Phase 6): a delta clinic the GM authorized proposes the operation instead.
+      if (pick.delta && cymOn() && game.user.isGM && cymSurgery(actor, pv).cybermancy) {
+        await proposeOperation(actor, { itemData, pv, pick, price, fee });
+        return null;
+      }
+      if (pv.end < 0) {
+        ui.notifications.warn(`The surgery would leave ${esc(actor.name)} below 0 Essence: it's aborted (the character survives with Essence 0 — GM; Cybertechnology p.53). Nothing was bought.`);
+        return null;
+      }
       const nuyen = actor.system.nuyen ?? 0;
       if (nuyen < price + fee) {
         ui.notifications.warn(`${esc(actor.name)} can't afford ${esc(itemData.name)} and its surgery (${price + fee}¥ > ${nuyen}¥) — nothing bought.`);
@@ -1011,6 +1048,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         <input type="number" name="surgeryOthers" value="0" min="0" step="0.01" style="width:70px;"></div>
       <div class="form-group"><label><input type="checkbox" name="surgeryFee" checked> Charge the surgery fee</label>
         <label style="margin-left:10px;"><input type="checkbox" name="surgeryWound" checked> Apply the surgery wound</label></div>
+      ${surgery.cym ? `<div class="form-group"><label title="Below 0 Essence only at a delta clinic, if the GM allows cybermancy at all (Cybertechnology p.79)"><input type="checkbox" name="surgeryDelta"> Delta clinic: cybermancy authorized</label></div>` : ""}
       <p class="hint sr2e-surgery-out" style="margin:2px 0;"></p>
       <p class="hint" style="margin:2px 0;">Several implants in one surgery: buy the earlier ones with the fee and wound unticked, then the last with the others' Essence. Delta grade needs a delta clinic (GM).</p></fieldset>` : "";
 
@@ -1051,7 +1089,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
               const n = Number(f.surgerySuccesses?.value);
               const o = Number(f.surgeryOthers?.value);
               result.surgery = { successes: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 2,
-                others: Number.isFinite(o) && o > 0 ? o : 0, fee: !!f.surgeryFee?.checked, wound: !!f.surgeryWound?.checked };
+                others: Number.isFinite(o) && o > 0 ? o : 0, fee: !!f.surgeryFee?.checked, wound: !!f.surgeryWound?.checked,
+                delta: !!f.surgeryDelta?.checked };
             }
             if (soft) {
               const cat = result.grantedSkillCategory ?? startCat;
@@ -1096,6 +1135,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       form.querySelector(".sr2e-surgery-tn").textContent = `The GM rolls the surgeon (Biotech) against TN ${pv.tn}.`;
       form.querySelector(".sr2e-surgery-out").textContent = `${pv.category.label}: a ${pv.category.wound} wound, ${pv.category.fee.toLocaleString()}¥. `
         + `Essence ${pv.pct ? `${pv.pct > 0 ? "+" : ""}${pv.pct}% → ` : ""}${pv.cost}, leaving ${Math.round(pv.end * 100) / 100}${pv.end < 0 ? " — aborted (below 0)" : ""}.`;
+      const cs = surgery.cym?.(pv);
+      if (cs?.cybermancy && form.querySelector('[name="surgeryDelta"]')?.checked) {
+        form.querySelector(".sr2e-surgery-out").textContent = `Cybermancy: intended Essence ${cs.intended}${cs.ims ? " (with the IMS)" : ""}; `
+          + `the doctor's test vs TN ${cs.tn}, failure is death (p.79–80). The operation is proposed to you, not bought yet.`;
+      }
     };
     form.addEventListener("input", refresh);
     form.addEventListener("change", refresh);
@@ -1338,6 +1382,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     try { cyberSocial = game.settings.get("sr2e", "cyberSocial"); } catch (e) { /* off */ }
     context.cyberSocial = cyberSocial ? actor.system.social : null;
     context.mbw = mbwContext(actor);
+    context.cym = cymContext(actor);
+    context.essenceShown = actor.system.cym ? (actor.system.essence.signed ?? actor.system.essence.value) : actor.system.essence.value;
     context.cyberCondition = cyberConditionContext(actor);
     // Bioware, sorted by body system so same-system implants group together
     // (Shadowtech). config.bodySystems gives the template localized labels.

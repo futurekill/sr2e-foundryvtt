@@ -281,6 +281,16 @@ log: cyberware `conditions[]`, `skinMissed`, `skinLoss`, and the character's
 in the message flags. Each action resolves on its own, Apply refuses a changed snapshot,
 and scars carry stable ids. A skin loss clamps only dermal plating/sheathing Body. See
 docs/PLAN-cybertechnology-phase5.md.
+Phase 6 (`module/cybermancy.mjs`, `module/rules/cym-rules.mjs`, optional `cybermancy`): an
+event log like Phase 4 (`cym:*` records, folded by `foldCym`), never stored state.
+`essence.signed` is derived for every character after ALL losses, and only cybermantic
+characters (an op-done on record) get `system.cym`. Every consequence reads
+`neg = max(0, −signed)`. The operation is a claimed transaction (`cym:apply:<opId>:<n>`):
+the charge with its receipt, then items with deterministic ids, then op-done. Resume
+and Cancel share the claim. Lethal records are never voidable (`revive` corrects them).
+A character's own RAW roll must use `characterTN` (CDS +3); `testTnModifiers` adds it
+even under a `tnPolicy`. Healing out of overflow writes `flags.sr2e.cymCare` in the
+healing update itself. See docs/PLAN-cybertechnology-phase6.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),

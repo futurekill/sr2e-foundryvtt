@@ -70,6 +70,7 @@ import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
 import { registerMbwHooks } from "./mbw.mjs";
 import { registerCyberDamageHooks } from "./cyberdamage.mjs";
+import { registerCybermancyHooks, reconcileAllCym } from "./cybermancy.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -460,6 +461,7 @@ Hooks.once("init", async () => {
   registerSpiritServiceHooks();
   registerMbwHooks();   // move-by-wire complications (Cybertechnology pp.54–55)
   registerCyberDamageHooks();   // cyberware damage, repair, scarring (pp.44–49, 56; optional)
+  registerCybermancyHooks();    // cybermancy (Cybertechnology pp.78–84; optional)
   registerDrugHooks();
   registerCalendariaHooks();
   registerJackpointBehavior();
@@ -1109,6 +1111,14 @@ function _registerSystemSettings() {
   });
 
   // Cyberware damage, repair and scarring (Cybertechnology pp.44–49, 56; optional).
+  // Cybermancy (Cybertechnology pp.78–84): survival below 0 Essence via a GM-confirmed operation.
+  game.settings.register("sr2e", "cybermancy", {
+    name: "Cybermancy (Cybertechnology)",
+    hint: "Let a delta clinic take a character below 0 Essence (the GM ticks it in the surgery dialog), with the book's consequences: halved overflow, Willpower, magic and social penalties, medication refills and Chronic Dissociation Syndrome prompted on the game clock. Every death is the GM's click (Cybertechnology pp.78–84).",
+    scope: "world", config: true, type: Boolean, default: false,
+    onChange: () => { for (const a of game.actors) if (a.type === "character") { a.reset(); a.sheet?.rendered && a.sheet.render(); } reconcileAllCym(); }
+  });
+
   game.settings.register("sr2e", "cyberDamage", {
     name: "Cyberware damage and scarring (Cybertechnology)",
     hint: "On a Serious or Deadly physical wound, whisper the GM a card with the quick-and-dirty cyberware damage check (grade resistance, secondary effects), dermal plating/sheathing degradation and scarring. Everything is a GM click and stays editable on the sheet (Cybertechnology pp.44–49, 56).",

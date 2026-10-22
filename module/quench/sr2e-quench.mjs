@@ -3206,6 +3206,188 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cyberware damage, repair, scarring" });
 
+    // ── Cybermancy (docs/PLAN-cybertechnology-phase6.md) ──────────────────────────
+    quench.registerBatch("sr2e.cybermancy", (context) => {
+      const { it, assert, afterEach, before, after } = context;
+      const made = [];
+      let was;
+      const D = foundry.applications.api.DialogV2;
+      const orig = { confirm: D.confirm, prompt: D.prompt };
+      before(async () => { was = game.settings.get("sr2e", "cybermancy"); await game.settings.set("sr2e", "cybermancy", true);
+        D.confirm = async () => true; D.prompt = async () => ({ dice: 6, mod: 0, bonus: 0 }); });
+      after(async () => { D.confirm = orig.confirm; D.prompt = orig.prompt; await game.settings.set("sr2e", "cybermancy", was); });
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const ware = (name, rule, system = {}) => ({ name, type: "cyberware", flags: rule ? { sr2e: { rule } } : {}, system: { installed: true, essenceCost: 0, cost: 0, ...system } });
+      const Y = () => import("../cybermancy.mjs");
+      const C = () => import("../claims.mjs");
+      const forced = async (u, fn) => { const o = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => u; try { return await fn(); } finally { CONFIG.Dice.randomUniform = o; } };
+      const twice = (a) => { a.reset(); a.reset(); return a; };
+      const DAY = 86400;
+      /** A character at `ess` Essence (signed) whose first operation is on record, back-dated `ago` seconds. */
+      const cyborg = async (name, ess = -0.75, ago = 0, extra = {}) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 5 }, nuyen: 1000000, ...extra } });
+        await a.createEmbeddedDocuments("Item", [ware("Chrome", null, { essenceCost: 6 - ess })]);
+        const wt = game.time.worldTime - ago;
+        const { recordEvent } = await C();
+        await recordEvent(a, "cym:op:q1", { type: "op", opId: "q1", wt, snapshot: { items: [], intended: ess } });
+        await recordEvent(a, "cym:op-roll:q1:1", { type: "opRoll", opId: "q1", survived: true, successes: 2, pct: 0, wt });
+        await recordEvent(a, "cym:op-done:q1", { type: "opDone", opId: "q1", wt, willpowerBefore: 5, nextRefill: wt + 10 * DAY, nextCds: wt + 180 * DAY });
+        return twice(a);
+      };
+      const pv = (now, plain) => ({ now, plain, end: now - plain, category: { boxes: 0 } });
+
+      it("signed Essence and Willpower survive repeated preparation; a spell's Increase Willpower is ignored", async () => {
+        const a = await cyborg("Quench CYM Prep", -0.75);
+        assert.equal(a.system.essence.signed, -0.75);
+        assert.equal(a.system.essence.value, 0);
+        assert.equal(a.system.willpower.value, 5, "W 5, −0.75: loss 2, back 2");
+        assert.equal(a.system.cym.social, 1);
+        assert.equal(a.system.cym.magic, 2);
+        const [spell] = await a.createEmbeddedDocuments("Item", [{ name: "Increase Willpower", type: "spell" }]);
+        await a.createEmbeddedDocuments("ActiveEffect", [{ name: "IW", origin: spell.uuid, changes: [{ key: "system.willpower.mod", mode: 2, value: "2" }] }]);
+        assert.equal(twice(a).system.willpower.value, 5, "spell-origin Willpower dropped");
+        const n = await mk({ name: "Quench CYM NPC", type: "npc" });
+        assert.equal(n.system.cym, undefined, "NPCs untouched");
+      });
+
+      it("propose → doctor's test → apply: implant + IMS + auto-med with deterministic ids, charged once; Resume doesn't double", async () => {
+        const a = await mk({ name: "Quench CYM Op", type: "character", system: { nuyen: 500000 } });
+        await a.createEmbeddedDocuments("Item", [ware("Old", null, { essenceCost: 5.5 })]);
+        const y = await Y();
+        const implant = ware("New", null, { essenceCost: 0.5, cost: 1000 });
+        const opId = await y.proposeOperation(a, { itemData: implant, pv: pv(0.5, 0.5), pick: { wound: false }, price: 1000, fee: 0 });
+        assert.ok(opId);
+        const s = y.cymFold(a).ops.get(opId).proposal.snapshot;
+        assert.equal(s.intended, -0.25, "0.5 − 0.5 − IMS .25");
+        assert.equal(s.tn, 4);
+        await forced(0.2, () => y.rollOperation(a.uuid, opId));   // all 5s vs 4
+        assert.isTrue(y.cymFold(a).ops.get(opId).roll.survived);
+        await y.applyOperation(a.uuid, opId);
+        await y.applyOperation(a.uuid, opId);
+        const f = y.cymFold(a);
+        assert.ok(f.active);
+        assert.equal(a.items.filter(i => i.flags?.sr2e?.cymOp === opId).length, 3);
+        assert.equal(a.system.nuyen, 500000 - 1000 - 137750, "charged once");
+        assert.ok(a.items.find(i => i.system.wareRule === "ims"));
+        // A second operation: the IMS isn't added again, the schedules stay.
+        const before = f.nextRefill;
+        const op2 = await y.proposeOperation(a, { itemData: ware("Third", null, { essenceCost: 0.1 }), pv: pv(-0.25, 0.1), pick: {}, price: 0, fee: 0 });
+        assert.equal(y.cymFold(a).ops.get(op2).proposal.snapshot.items.length, 1, "only the implant");
+        await forced(0.2, () => y.rollOperation(a.uuid, op2));
+        // Simulate a client that died after the charge: receipt written, items not.
+        const { claimId } = await import("../rules/claim-rules.mjs");
+        await a.update({ [`flags.sr2e.cymReceipts.${op2}.charged`]: { amount: 0, manualBefore: null, manualAfter: null } });
+        const { recordEvent } = await C();
+        await recordEvent(a, `cym:apply:${op2}:1`, {});   // a claim marker, then made stale below
+        const m = a.effects.get(claimId(`cym:apply:${op2}:1`));
+        await m.update({ "flags.sr2e.claim.at": game.time.serverTime - 10 * 60 * 1000, "flags.sr2e.claim.durable": false });
+        await y.applyOperation(a.uuid, op2);
+        assert.isNotOk(y.cymFold(a).ops.get(op2).done, "Apply refuses: in progress");
+        await y.applyOperation(a.uuid, op2, { resume: true });
+        await y.applyOperation(a.uuid, op2, { resume: true });
+        assert.ok(y.cymFold(a).ops.get(op2).done);
+        assert.equal(a.items.filter(i => i.flags?.sr2e?.cymOp === op2).length, 1);
+        assert.equal(y.cymFold(a).nextRefill, before, "the first operation's schedules stay");
+      });
+
+      it("a changed character refuses Apply; Cancel refunds and removes; failure → Confirm death → Revive", async () => {
+        const a = await mk({ name: "Quench CYM Cancel", type: "character", system: { nuyen: 500000 } });
+        await a.createEmbeddedDocuments("Item", [ware("Old", null, { essenceCost: 5.5 }), ware("IMS", "ims", { essenceCost: 0 })]);
+        const y = await Y();
+        const opId = await y.proposeOperation(a, { itemData: ware("New", null, { essenceCost: 1 }), pv: pv(0.5, 1), pick: {}, price: 100, fee: 0 });
+        assert.equal(y.cymFold(a).ops.get(opId).proposal.snapshot.imsCost, 0, "an existing IMS isn't added");
+        await forced(0.2, () => y.rollOperation(a.uuid, opId));
+        await a.update({ "system.nuyen": 499999 });
+        await y.applyOperation(a.uuid, opId);
+        assert.notOk(a.flags?.sr2e?.cymReceipts?.[opId]?.charged, "the snapshot changed: refused");
+        await a.update({ "system.nuyen": 500000 });
+        await y.applyOperation(a.uuid, opId);
+        assert.equal(a.system.nuyen, 499900);
+        // A finished op can't be cancelled; a fresh one can.
+        const op2 = await y.proposeOperation(a, { itemData: ware("Next", null, { essenceCost: 0.2 }), pv: pv(-0.2, 0.2), pick: {}, price: 50, fee: 0 });   // intended −0.4: TN 4
+        await forced(0.2, () => y.rollOperation(a.uuid, op2));
+        const ids = () => a.items.filter(i => i.flags?.sr2e?.cymOp === op2).length;
+        await y.applyOperation(a.uuid, op2);
+        assert.equal(ids(), 1);
+        // (done) → cancel refused
+        await y.cancelOperation(a.uuid, op2);
+        assert.equal(ids(), 1);
+        const op3 = await y.proposeOperation(a, { itemData: ware("Last", null, { essenceCost: 0.2 }), pv: pv(-0.7, 0.2), pick: {}, price: 70, fee: 0 });
+        await forced(0.99, () => y.rollOperation(a.uuid, op3));     // all 1s: dies on the table
+        assert.isFalse(y.cymFold(a).ops.get(op3).roll.survived);
+        await y.applyOperation(a.uuid, op3);
+        assert.equal(a.system.nuyen, 499850, "nothing charged for a failure");
+        await y.confirmDeath(a.uuid, `op:${op3}`);
+        let f = y.cymFold(a);
+        assert.isTrue(f.dead);
+        assert.isFalse(f.voidable.some(e => e.key.startsWith("cym:death")));
+        await y.revive(a.uuid);
+        assert.isFalse(y.cymFold(a).dead);
+      });
+
+      it("refills: ONE notice reconciled twice, the sheet fallback, a rewind refuses; CDS +3 even on ritual stages", async () => {
+        const a = await cyborg("Quench CYM Clock", -0.75, 11 * DAY);
+        const y = await Y();
+        const msgs = () => game.messages.filter(m => m.content.includes("Quench CYM Clock") && m.content.includes("refill #1 due")).length;
+        await y.reconcile(a); await y.reconcile(a);
+        assert.equal(msgs(), 1);
+        for (const m of game.messages.filter(x => x.content.includes("Quench CYM Clock"))) await m.delete();
+        assert.deepEqual(y.cymFold(a).refillDue?.n, 1, "still listed (the sheet's fallback)");
+        await y.resolveRefill(a.uuid, "refilled");
+        assert.equal(y.cymFold(a).refillDue, null, "+10 days from the previous due: not yet");
+        await y.resolveRefill(a.uuid, "refilled");
+        assert.equal(y.cymFold(a).refillResolved, 1, "a second click finds nothing due");
+        // CDS: a failed test (forced 1s) → +3 on every test, ritual policy too.
+        const { recordEvent } = await C();
+        await recordEvent(a, "cym:cds:1:1", { type: "cds", n: 1, failed: true, deathAt: game.time.worldTime + 7 * DAY, nextDue: game.time.worldTime + 99 * DAY, wt: game.time.worldTime });
+        twice(a);
+        assert.equal(a.testTnModifiers({ tnPolicy: "table" }).cdsTN, 3);
+        assert.equal(a.testTnModifiers({}).cdsTN, 3);
+        await forced(0.99, () => y.treatCds(a.uuid));   // no successes: reversed
+        twice(a);
+        assert.equal(a.testTnModifiers({}).cdsTN, 0);
+      });
+
+      it("Better Off Dead: a healing update carries the care receipt; Finalize reads the CURRENT result; died is final", async () => {
+        const a = await cyborg("Quench CYM Overflow", -0.5);
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 2 });
+        await a._healOneLevel("physical", "test");
+        const r = Object.keys(a.flags.sr2e.cymCare ?? {});
+        assert.equal(r.length, 1, "one receipt in the healing update");
+        const y = await Y();
+        await y.reconcile(a);
+        assert.equal(y.cymFold(a).cares.length, 1);
+        await forced(0.2, () => y.overflowTest(a.uuid, r[0]));    // 5s vs TN 4 (+ wounds) …
+        const test = game.messages.contents.filter(m => m.flags?.sr2e?.test?.actorUuid === a.uuid).at(-1);
+        await y.finalizeOverflow(a.uuid, `${r[0]}|${test.id}`);
+        const out = y.cymFold(a).overflowOut(r[0]);
+        assert.ok(out);
+        assert.isTrue(game.messages.get(test.id).flags.sr2e.test.closed, "closed to Karma");
+        await y.finalizeOverflow(a.uuid, `${r[0]}|${test.id}`);
+        assert.equal(y.cymFold(a).attemptsOf(`cym:overflow-out:${r[0]}:`), 1, "one outcome");
+      });
+
+      it("magic: the area baseTN and a healing cast carry the target's surcharge; ordinary targets don't", async () => {
+        const a = await cyborg("Quench CYM Magic", -1.3);
+        const { cymMagicTN } = await import("../rules/cym-rules.mjs");
+        assert.equal(cymMagicTN(a), 3);
+        const b = await mk({ name: "Quench CYM Plain", type: "character" });
+        assert.equal(cymMagicTN(b), 0);
+      });
+
+      it("the setting off: stale buttons refuse and the consequences vanish", async () => {
+        const a = await cyborg("Quench CYM Off", -0.75, 11 * DAY);
+        const y = await Y();
+        await game.settings.set("sr2e", "cybermancy", false);
+        try {
+          await y.resolveRefill(a.uuid, "refilled");
+          assert.equal(y.cymFold(a).refillResolved, 0);
+          assert.equal(twice(a).system.cym, null);
+        } finally { await game.settings.set("sr2e", "cybermancy", true); }
+      });
+    }, { displayName: "SR2E: Cybermancy" });
+
     // ── Matrixware: the cranial cyberdeck ("C2", Shadowtech p.54–59) ─────────
     quench.registerBatch("sr2e.matrixware", (context) => {
       const { describe, it, assert, after } = context;

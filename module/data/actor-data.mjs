@@ -4,6 +4,7 @@ import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/lim
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
+import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
@@ -71,7 +72,10 @@ export class CharacterData extends SR2EDataModel {
       // --- SPECIAL ATTRIBUTES ---
       essence: new fields.SchemaField({
         value: new fields.NumberField({ required: true, initial: 6.0, min: 0, max: 6 }),
-        max: new fields.NumberField({ required: true, initial: 6.0, min: 0, max: 6 })
+        max: new fields.NumberField({ required: true, initial: 6.0, min: 0, max: 6 }),
+        // Cybermancy (Phase 6): the unclamped Essence, derived; manualSigned is authored.
+        signed: new fields.NumberField({ required: false, nullable: true, initial: null }),
+        manualSigned: new fields.NumberField({ required: false, nullable: true, initial: null })
       }),
       // Body Index (Shadowtech FASA7110 p.6): Σ effective Body Cost of installed
       // bioware. Both fields are derived every prepare (value from bioware, max
@@ -324,12 +328,18 @@ export class CharacterData extends SR2EDataModel {
     // Substance abuse (Shadowtech p.87): ½ Essence per week addicted, permanent.
     const substances = substancesOf(this.parent);
     mods.essenceLoss += substances.essenceLost;
+    // One effective Essence (Phase 6): signed after ALL losses, before any attribute.
+    let autoEssence = true;
+    try { autoEssence = game.settings.get("sr2e", "autoEssence"); } catch (e) { /* default on */ }
+    if (autoEssence) this.essence.value = Math.max(0, this.essence.max - mods.essenceLoss);
+    this.essence.signed = autoEssence ? Math.round((this.essence.max - mods.essenceLoss) * 100) / 100 : (this.essence.manualSigned ?? this.essence.value);
 
     // Calculate final attribute values (base + racial clamped to racial max,
     // then cyberware/adept modifiers applied on top)
     this._calculateAttributeValues(mods);
     this._applyLimbAverages(mods);
     this._applyArticulation(mods);
+    this._applyCybermancy();
     // CCSS Damage Level 4 (Cybertechnology p.55): "Intelligence level 0" overrides every
     // contribution, before anything reads Intelligence.
     if (this._mbwFold?.intelligenceZero) {
@@ -367,15 +377,6 @@ export class CharacterData extends SR2EDataModel {
       : (this.parent?._source?.system?.vehicleControlRig ?? 0);
     this.tacticalComputer = mods.tacComputer;
     this.activeSkillDice = mods.activeSkillDice;
-
-    // Essence loss from installed cyberware (toggleable via the autoEssence setting).
-    // try/catch: settings are registered in the init hook, but data prep can be
-    // triggered in contexts where the setting isn't registered yet.
-    let autoEssence = true;
-    try { autoEssence = game.settings.get("sr2e", "autoEssence"); } catch (e) { /* default on */ }
-    if (autoEssence) {
-      this.essence.value = Math.max(0, this.essence.max - mods.essenceLoss);
-    }
 
     // Social penalties (optional; Cybertechnology p.58), derived REGARDLESS of the
     // world setting, which gates only showing and applying them. Installed cyberware
@@ -1153,6 +1154,8 @@ export class CharacterData extends SR2EDataModel {
     const fold = foldMbw(eventsOf(this.parent).filter(e => String(e.key).startsWith("mbw:")), globalThis.game?.time?.worldTime ?? 0);
     this._mbwFold = fold;
     this._mbwLoss = fold.loss;
+    this._cymFold = foldCym(eventsOf(this.parent).filter(e => String(e.key).startsWith("cym:")), globalThis.game?.time?.worldTime ?? 0,
+      this.parent?.flags?.sr2e?.cymReceipts ?? {});
     for (const i of items) if (i.type === "cyberware" || i.type === "bioware") delete i.system.limbDiscount;
     const phys = physicalLimbs(sourcesOf(items));
     this._physicalLimbs = phys;
@@ -1317,6 +1320,37 @@ export class CharacterData extends SR2EDataModel {
    * @returns {Record<string,{name:string,value:number}[]>}
    * @private
    */
+  /**
+   * Cybermancy (optional; Cybertechnology pp.80–84, docs/PLAN-cybertechnology-phase6.md §1, §3):
+   * the consequences of NEGATIVE signed Essence, for a character whose operation is on record.
+   * Willpower is immune to spells that raise it, loses 1 per half point, and up to 4 come back
+   * (never above the rating before cybermancy). Runs after the attributes and limb averages.
+   * @private
+   */
+  _applyCybermancy() {
+    let on = false;
+    try { on = game.settings.get("sr2e", "cybermancy"); } catch (e) { /* default off */ }
+    const f = this._cymFold;
+    const neg = Math.max(0, -(this.essence.signed ?? this.essence.value));
+    if (!on || !f?.active) { this.cym = null; return; }
+    const spellBoost = (this.parent?.appliedEffects ?? []).filter(e => {
+      const o = e.origin ? globalThis.fromUuidSync?.(e.origin, { strict: false }) : null;
+      return o?.documentName === "Item" && o.type === "spell";
+    }).flatMap(e => effectChanges(e).filter(ch => changeIsAdd(ch) && ch.key === "system.willpower.mod"))
+      .reduce((t, ch) => t + Math.max(0, Number(ch.value) || 0), 0);
+    const w = this.willpower;
+    const before = w.value;
+    const after = cymWillpower(Math.max(1, w.value - spellBoost), neg, f.established?.willpowerBefore);
+    if (after !== before) {
+      w.value = after;
+      (this.attributeSources.willpower ??= []).push({ name: "Cybermancy", value: after - before });
+    }
+    this.cym = { neg, band: band(neg), social: cymSocial(neg), magic: magicSurcharge(neg), perPoint: perPoint(neg),
+      perceptionTN: 2 * perPoint(neg), searchTN: Math.ceil(3 * neg - 1e-9),
+      cds: f.cds, cdsTN: f.cds ? 3 : 0, dead: f.dead, suspended: f.suspended || neg <= 0,
+      overflowMax: overflowMax(this.body.value) };
+  }
+
   _attributeEffectSources() {
     const out = { body: [], quickness: [], strength: [], charisma: [], intelligence: [], willpower: [] };
     for (const effect of this.parent?.appliedEffects ?? []) {
@@ -1587,7 +1621,9 @@ export class NPCData extends SR2EDataModel {
       willpower: SR2EDataModel.attributeField(3),
       essence: new fields.SchemaField({
         value: new fields.NumberField({ initial: 6.0, min: 0, max: 6 }),
-        max: new fields.NumberField({ initial: 6.0, min: 0, max: 6 })
+        max: new fields.NumberField({ initial: 6.0, min: 0, max: 6 }),
+        signed: new fields.NumberField({ required: false, nullable: true, initial: null }),
+        manualSigned: new fields.NumberField({ required: false, nullable: true, initial: null })
       }),
       // Body Index (Shadowtech p.6). GM-typed, like Essence above — NPCs are
       // stat blocks, so implants aren't summed from items the way they are for

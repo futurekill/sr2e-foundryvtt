@@ -1,0 +1,43 @@
+{{!-- Cybermancy (docs/PLAN-cybertechnology-phase6.md). Every button records ONE event; this
+      panel is the durable list of what's pending (the fallback for every chat notice). --}}
+{{#if cym}}
+<div class="gear-category sr2e-cym">
+  <div class="category-header flexrow"><h3>Cybermancy</h3></div>
+  <div class="sr2e-limb-stats hint">
+    {{#if cym.dead}}<div class="sr2e-limb-warn"><strong>Dead (cybermancy).</strong></div>{{/if}}
+    {{#each cym.ops as |o|}}<div class="sr2e-limb-warn">Operation ({{o.name}}, TN {{o.tn}}):
+      {{#if o.cancelling}}cancel incomplete <a data-action="cymOp" data-op="opCancel" data-arg="{{o.opId}}">Resume the cancel</a>
+      {{else}}{{#if o.rolled}}{{#if o.survived}}{{#if o.charged}}operation incomplete <a data-action="cymOp" data-op="opResume" data-arg="{{o.opId}}">Resume</a>{{else}}survived <a data-action="cymOp" data-op="opApply" data-arg="{{o.opId}}">Apply</a>{{/if}}
+        · <a data-action="cymOp" data-op="cancerRoll" data-arg="{{o.opId}}">Cancer check</a>{{else}}died on the table <a data-action="cymOp" data-op="death" data-arg="op:{{o.opId}}">Confirm death</a>{{/if}}
+      {{else}}proposed <a data-action="cymOp" data-op="opRoll" data-arg="{{o.opId}}">Roll the doctor's test</a>{{/if}}
+      · <a data-action="cymOp" data-op="opCancel" data-arg="{{o.opId}}">{{#if o.charged}}Cancel and refund{{else}}Withdraw{{/if}}</a>{{/if}}</div>{{/each}}
+    {{#if cym.active}}
+      <div>Essence {{formatEssence cym.signed}}{{#if cym.suspended}}: <strong>Essence ≥ 0, schedules suspended</strong>{{/if}}{{#if cym.willpowerBefore}} · Willpower before cybermancy {{cym.willpowerBefore}}{{/if}}</div>
+      {{#if cym.neg}}<div>Magic against them +{{cym.magic}} TN; Charisma and social skills +{{cym.social}} (not when intimidating); surprise Reaction +{{cym.perPoint}}; Perception +{{cym.perceptionTN}}
+        (deliberate search: Willpower vs {{cym.searchTN}}, each success −1); Lost in the Details on a Perception TN 5+ (pp.80–83).
+        Constant astral presence. Karma at half rate; no Essence buy-back.</div>{{/if}}
+      <div{{#if cym.overflowWarn}} class="sr2e-limb-warn"{{/if}}>Better Off Dead: overflow limit {{cym.overflowMax}} (p.80).</div>
+      {{#if cym.refillDue}}<div class="sr2e-limb-warn">Medication refill #{{cym.refillDue.n}} due (15,000¥):
+        <a data-action="cymOp" data-op="refill" data-arg="refilled">Refilled</a> · <a data-action="cymOp" data-op="refill" data-arg="corp">Corp pays</a> · <a data-action="cymOp" data-op="refill" data-arg="died">Not refilled (death)</a></div>
+      {{else}}{{#if cym.nextRefill}}<div>Next medication refill in {{cym.nextRefill}}.</div>{{/if}}{{/if}}
+      {{#if cym.cdsDue}}<div class="sr2e-limb-warn">CDS test #{{cym.cdsDue.n}} due <a data-action="cymOp" data-op="cds">Roll Willpower</a></div>
+      {{else}}{{#if cym.nextCds}}<div>Next CDS test in {{cym.nextCds}}.</div>{{/if}}{{/if}}
+      {{#if cym.cds}}<div class="sr2e-limb-warn"><strong>Chronic Dissociation Syndrome</strong>: can't initiate actions, only react; +4 Perception (instead of +3), +3 all other tests.
+        {{#if cym.cdsDeathPassed}}Its time is up <a data-action="cymOp" data-op="death" data-arg="cds:{{cym.cdsSince}}">Confirm death</a>{{else}}Dies in {{cym.cdsDeath}} unless treated.{{/if}}
+        <a data-action="cymOp" data-op="treat" title="Spell Resistance ({{cym.cdsTreatTN}}) at a delta clinic (p.84)">Treatment</a></div>{{/if}}
+      {{#if cym.recovery}}<div>Recovering from CDS treatment: {{cym.recovery}} left.</div>{{/if}}
+      {{#each cym.cares as |c|}}<div class="sr2e-limb-warn">Healed out of overflow: <a data-action="cymOp" data-op="overflowTest" data-arg="{{c.receipt}}">Willpower vs {{c.tn}}</a> (p.80)</div>{{/each}}
+    {{/if}}
+  </div>
+  {{#if cym.isGM}}
+  <div class="sr2e-karma-actions">
+    {{#if cym.manual}}<label class="hint">Signed Essence <input type="number" name="cymManualSigned" step="0.01" value="{{cym.manualSigned}}" style="width:70px;"></label><button type="button" data-action="cymManual">Set</button>{{/if}}
+    {{#if cym.active}}{{#if cym.neg}}<button type="button" data-action="cymOp" data-op="hazing" title="Optional (p.81)">Hazing check</button>{{/if}}{{/if}}
+    {{#if cym.dead}}<button type="button" data-action="cymOp" data-op="revive" title="Correct a mistaken death">Revive</button>{{/if}}
+  </div>
+  {{#if cym.records.length}}<details><summary class="hint">Records ({{cym.records.length}})</summary>
+    {{#each cym.records as |r|}}<div class="hint">{{r.label}} <a data-action="cymOp" data-op="void" data-arg="{{r.key}}" title="Undo: void this record">void</a></div>{{/each}}
+  </details>{{/if}}
+  {{/if}}
+</div>
+{{/if}}

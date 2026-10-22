@@ -5,7 +5,7 @@
     <div class="gear-category">
       <div class="category-header flexrow">
         <h3>Cyberware</h3>
-        <span class="essence-display">Essence: {{formatEssence system.essence.value}} / {{formatEssence system.essence.max}}</span>
+        <span class="essence-display">Essence: {{formatEssence essenceShown}} / {{formatEssence system.essence.max}}</span>
         {{#if cyberSocial.situationTN}}<span class="hint" title="Cybertechnology p.58 (optional rule): +{{cyberSocial.situationTN}} to Charisma and social-skill TNs in casual social situations; the roll dialog lets you untick it.">Social: +{{cyberSocial.situationTN}} TN</span>{{/if}}
         <button type="button" data-action="addItem" data-type="cyberware" class="btn-add">
           <i class="fas fa-plus"></i>
@@ -42,6 +42,7 @@
 
     {{> "systems/sr2e/templates/actor/parts/cyberlimbs.hbs"}}
     {{> "systems/sr2e/templates/actor/parts/mbw.hbs"}}
+    {{> "systems/sr2e/templates/actor/parts/cybermancy.hbs"}}
     {{> "systems/sr2e/templates/actor/parts/cyber-condition.hbs"}}
 
     {{!-- Bioware (Shadowtech) --}}
