@@ -227,7 +227,7 @@
       "_id": "3a7a3f9912c3a879",
       "name": "Evaluate Magical Goods",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/evaluate-magical-goods.webp",
       "effects": [],
       "flags": {},
       "_stats": {

@@ -261,7 +261,7 @@
       "_id": "cd0f2105f4aae360",
       "name": "Evaluate Value of Hi-Tech Items",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/evaluate-value-of-hi-tech-items.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -301,7 +301,7 @@
       "_id": "facc9ad6903fb418",
       "name": "Equipment Acquisition",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/equipment-acquisition.webp",
       "effects": [],
       "flags": {},
       "_stats": {

@@ -61,7 +61,7 @@
       "_id": "1435515d60cc3666",
       "name": "Biological Sciences",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/biological-sciences.webp",
       "effects": [],
       "flags": {},
       "_stats": {

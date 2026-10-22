@@ -381,7 +381,7 @@
       "_id": "237d94e5dc1a8f2b",
       "name": "Data Tracing",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/data-tracing.webp",
       "effects": [],
       "flags": {},
       "_stats": {

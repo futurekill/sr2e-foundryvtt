@@ -61,7 +61,7 @@
       "_id": "74991a194f32081a",
       "name": "Aircraft (B/R)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/aircraft-b-r.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -261,7 +261,7 @@
       "_id": "fc07b1b604adef26",
       "name": "Ground Vehicles (B/R)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/ground-vehicles-b-r.webp",
       "effects": [],
       "flags": {},
       "_stats": {
