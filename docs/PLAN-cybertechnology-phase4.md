@@ -278,7 +278,7 @@ No other state exists.
 - **What it does:** it compares the INSTALLED, non-CCSS-disabled move-by-wire's
   (itemId, level), regardless of temporary failure (R6 #1), with the open
   generation. If they differ, it creates `remove` for the open one (if any), THEN `install` for
-  the working one (if any).
+  the installed, non-CCSS-disabled one (if any).
   - If it's interrupted between the two creates, the next reconciliation finds no
     open generation and just installs.
   - Both keys are deterministic, so a repeat is a no-op.
