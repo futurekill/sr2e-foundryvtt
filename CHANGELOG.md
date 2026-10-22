@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.110.0 — 2026-10-22
+
 ### Added — cyberlimbs know what they are
 - **Every cyberlimb records its type and side**, and every limb option what it adds
   (Strength, Quickness, Body, smartlink, device, weapon). Items from the core book and
