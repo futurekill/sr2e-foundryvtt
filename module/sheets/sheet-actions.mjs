@@ -6,6 +6,7 @@ import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibi
          footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
+import { mbwOp, reflexCheck } from "../mbw.mjs";
 import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
@@ -3597,6 +3598,21 @@ const SHARED_ACTIONS = {
   // Instead: toggle active classes directly in the DOM. this.tabGroups is still
   // updated so the correct tab is highlighted on the next legitimate re-render.
   checkContactCyber: onCheckContactCyber,
+  // Move-by-wire & reflexes (docs/PLAN-cybertechnology-phase4.md)
+  mbwOp: async function(event, target) { event.preventDefault(); return mbwOp(this.document.uuid, target.dataset.op, target.dataset.arg ?? ""); },
+  mbwReflex: async function(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const base = await foundry.applications.api.DialogV2.prompt({ window: { title: "Reflex check (p.53)" },
+      content: `<p>The Perception Test's base target number:</p><input type="number" name="tn" value="4" min="2" autofocus>`,
+      ok: { callback: (ev, button) => Number(button.form.elements.tn.value) || 4 } });
+    if (base) return reflexCheck(this.document, base);
+  },
+  toggleReflexes: async function(event, target) {
+    event.preventDefault();
+    const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (item) return item.update({ "system.switchedOff": !item.system.switchedOff });
+  },
   switchTab: function(event, target) {
     const tab = target.dataset.tab;
     const group = target.dataset.group;

@@ -18,10 +18,16 @@ export const WARE_SOURCES = Object.fromEntries([
   ...of("muscle-replacement", SYS("c1a2b3d4e5f60789"), SYS("c2b3c4e5f6a70890"), SYS("c3c4d5f6a7b80901"), SYS("c4d5e6a7b8c90a12"),
     CT("ct-bodyware", "eaf2a954ca2065bc"), CT("ct-bodyware", "ea48feece9ae69f5"), CT("ct-bodyware", "739128fcaa4c25b0"), CT("ct-bodyware", "3f59cc7fb97172c0")),
   ...of("cybereye-pair", SYS("wl7u7gj9e000jvwv"), CT("ct-headware", "c34224fc4f8bcecb")),
+  ...of("wired-reflexes:1", SYS("id4a6kszemfkdbut")), ...of("wired-reflexes:2", SYS("b1e2d3c4f5a60718")),
+  ...of("wired-reflexes:3", SYS("c2f3e4d5a6b70829")),
+  ...of("boosted-reflexes", CT("ct-bodyware", "05d72dfda3f7eafd"), CT("ct-bodyware", "ff4e73ebf199c7c8"), CT("ct-bodyware", "549bc17b121c5c9c")),
+  ...of("synaptic-accelerator", ST("st-bioware", "abf83fc461cdb66a")),
   ...of("datajack", SYS("b59ff8773d6c2f11"), CT("ct-matrixware", "41fb1314fbfcd8c0"), CT("ct-matrixware", "2298c394b579eb3f"),
     ST("st-cyberware", "b71df0e525220f05"))
 ]);
 export const MUSCLE = new Set(["muscle-replacement", "muscle-augmentation"]);
+/** Reaction/Initiative enhancers move-by-wire is "not compatible" with (Cybertechnology p.39). */
+export const isReflexEnhancer = (rule) => /^(wired-reflexes|boosted-reflexes|reaction-enhancer|synaptic-accelerator|adrenal-pump|suprathyroid)(:|$)/.test(rule ?? "");
 
 /** The item's rule key: its rule flag, the legacy adrenal-pump flag, or its known source. */
 export function wareRule(flags = {}, source = null) {
@@ -58,7 +64,8 @@ export const ceil2 = (n) => Math.ceil(n * 100 - 1e-9) / 100;
  * limb, 5% per hand/foot, 20% for a torso, +50% for a Reaction Enhancer (pump only),
  * floored at 0. The suprathyroid counts only major replacements (user ruling).
  */
-export function pumpEfficiency(model, { enhancer = false, major = false } = {}) {
+export function pumpEfficiency(model, { enhancer = false, major = false, mbw = false } = {}) {
+  if (mbw) return 0;   // pumps "do not function in conjunction with move-by-wire" (p.56–57)
   let off = 0;
   for (const l of eligible(model)) {
     if (l.type === "arm" || l.type === "leg") off += 15;

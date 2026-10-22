@@ -1,3 +1,5 @@
+import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
+import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil, enqueueAttack } from "../engagement.mjs";
@@ -118,6 +120,26 @@ export function cyberlimbContext(actor) {
   } : null;
   return { limbs, options, parents, stats, any: limbs.length + options.length > 0,
     unresolvedOverlap: model.unresolvedOverlap.length > 0 };
+}
+
+/**
+ * The move-by-wire & reflexes panel (docs/PLAN-cybertechnology-phase4.md): the derived
+ * numbers, everything pending, and (GM) the records that can be voided.
+ */
+function mbwContext(actor) {
+  const m = actor.system.mbw;
+  if (!m) return null;
+  const complications = mbwOn();
+  const f = mbwFold(actor);
+  const rowLabel = (i) => i.recovery ? (CCSS_ROWS[i.recovery.row]?.label ?? "") : "";
+  const label = (e) => ({ test: `Test ${e.manual ? "(stress)" : `#${e.n}`}: ${e.successes} successes`, outcome: `Result: ${e.result}`,
+    tleTreatment: `TLE-x treatment (${e.tn}): ${e.success ? "success" : "failure"}`, episode: `Episode ${e.on ? `on (−${e.reactionLoss})` : "off"}`,
+    seizureResult: `Seizure: ${e.stun} Stun`, ccssTreatment: `CCSS treatment: ${e.weeks} weeks`, ccssRecovery: `CCSS recovery: row ${e.row}` }[e.type] ?? e.type);
+  const show = !!(m.level || m.conflicts.length || m.enhancerExcess || m.reflexDice || f.occurrences.length || f.incidents.length);
+  return { ...m, show, complications, isGM: game.user.isGM, treatTN: f.nextTreat ? (f.nextTreat.number === 1 ? 8 : 10) : null,
+    canEpisode: f.active || f.chronic,
+    incidents: f.incidents.map(i => ({ ...i, rowLabel: rowLabel(i), treatment: i.treatment ? { ...i.treatment, cost: (i.treatment.cost ?? 0).toLocaleString("en-US") } : null })),
+    seizures: stuckSeizures(actor), records: f.voidable.map(e => ({ key: e.key, label: label(e) })) };
 }
 
 class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -1293,6 +1315,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     let cyberSocial = false;
     try { cyberSocial = game.settings.get("sr2e", "cyberSocial"); } catch (e) { /* off */ }
     context.cyberSocial = cyberSocial ? actor.system.social : null;
+    context.mbw = mbwContext(actor);
     // Bioware, sorted by body system so same-system implants group together
     // (Shadowtech). config.bodySystems gives the template localized labels.
     context.bioware = actor.items.filter(i => i.type === "bioware")

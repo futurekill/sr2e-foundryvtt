@@ -59,8 +59,8 @@ export function drugsInForce(actor) {
  * @param {{extra?:object, report?:boolean}} [opts] report:false when the caller's own card says it
  * @returns {Promise<{landedBoxes:number, absorbed:number, overloadStun:number}>}
  */
-export function commitDamage(actor, type, amount, { extra = {}, report = true, skipIf = null } = {}) {
-  return enqueueAttack(`damage:${actor.uuid}`, async () => {
+export function commitDamage(actor, type, amount, { extra = {}, report = true, skipIf = null, source = null } = {}) {
+  const done = enqueueAttack(`damage:${actor.uuid}`, async () => {
     // Re-checked INSIDE the queue: a receipted consequence can't land twice.
     if (skipIf?.()) return { landedBoxes: 0, absorbed: 0, overloadStun: 0, skipped: true };
     const inForce = drugsInForce(actor);
@@ -89,6 +89,10 @@ export function commitDamage(actor, type, amount, { extra = {}, report = true, s
     }
     return out;
   });
+  // AFTER the queue settles (never inside it): who needs to know damage landed
+  // (move-by-wire seizures, Cybertechnology p.55). `source` keeps a seizure's own damage out.
+  done.then(out => { if (!out?.skipped) Hooks.callAll("sr2e.damageCommitted", actor, out, { source }); }).catch(() => {});
+  return done;
 }
 
 /** "Kamikaze absorbs 3; Hyper adds 1 Stun" — for any damage card. */

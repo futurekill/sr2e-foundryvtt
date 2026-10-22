@@ -27,6 +27,7 @@
             {{#if cyber.system.installed}}<i class="fas fa-check-circle"></i> Installed{{else}}<i class="fas fa-times-circle"></i> Not installed{{/if}}
           </span>
           <div class="item-controls">
+            {{#if (and @root.mbw.hasTrigger cyber.system.isWiredReflexes)}}<a data-action="toggleReflexes" title="Reflex trigger: switch wired reflexes {{#if cyber.system.switchedOff}}on{{else}}off{{/if}} (a Simple Action, Cybertechnology p.38)"><i class="fas fa-power-off {{#unless cyber.system.switchedOff}}bio-active-icon{{/unless}}"></i></a>{{/if}}
             {{#if cyber.system.cranialDeck}}<a data-action="activateDeck" title="Activate / deactivate this cranial deck (drives the Matrix tab)"><i class="fas fa-bolt {{#if cyber.system.deck.active}}bio-active-icon{{/if}}"></i></a>{{/if}}
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="Install/Remove"><i class="fas fa-wrench"></i></a>
@@ -39,6 +40,7 @@
     </div>
 
     {{> "systems/sr2e/templates/actor/parts/cyberlimbs.hbs"}}
+    {{> "systems/sr2e/templates/actor/parts/mbw.hbs"}}
 
     {{!-- Bioware (Shadowtech) --}}
     <div class="gear-category">

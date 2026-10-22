@@ -1,0 +1,43 @@
+{{!-- Move-by-wire, reflexes and their complications (docs/PLAN-cybertechnology-phase4.md).
+      Every button records ONE event; this panel is the durable list of what's pending. --}}
+{{#if mbw.show}}
+<div class="gear-category sr2e-mbw">
+  <div class="category-header flexrow"><h3>Move-by-wire &amp; reflexes</h3></div>
+  <div class="sr2e-limb-stats hint">
+    {{#if mbw.level}}<div>Move-by-Wire {{mbw.level}}{{#if mbw.working}}: +{{mbw.level}} dice for Athletics and Stealth (p.39){{else}}{{#if mbw.disabled}}: <strong>dysfunctional (CCSS) — remove it</strong>{{else}}: not working (implant failure){{/if}}{{/if}}</div>{{/if}}
+    {{#each mbw.conflicts as |c|}}<div class="sr2e-limb-warn">⚠ {{c}}</div>{{/each}}
+    {{#if mbw.enhancerExcess}}<div class="sr2e-limb-warn">⚠ Reaction Enhancers total more than +6: {{mbw.enhancerExcess}} ignored (p.38)</div>{{/if}}
+    {{#if mbw.complications}}
+      {{#if mbw.pending}}<div>{{mbw.pending}} complication test(s) due ({{mbw.dice}} dice vs TN {{mbw.tn}}, p.55)</div>{{/if}}
+      {{#each mbw.unresolvedTests as |t|}}<div>A test ({{t.successes}} successes) awaits your choice
+        <a data-action="mbwOp" data-op="outcome" data-arg="{{t.key}}|tle">TLE-x</a> ·
+        <a data-action="mbwOp" data-op="outcome" data-arg="{{t.key}}|ccss">CCSS</a> ·
+        <a data-action="mbwOp" data-op="outcome" data-arg="{{t.key}}|both">both</a> ·
+        <a data-action="mbwOp" data-op="outcome" data-arg="{{t.key}}|none">nothing</a></div>{{/each}}
+      {{#if mbw.tle.occurrences}}<div>TLE-x: {{mbw.tle.occurrences}} occurrence(s){{#if mbw.tle.chronic}}, <strong>chronic</strong>{{else}}{{#if mbw.tle.active}}, untreated{{else}}, treated{{/if}}{{/if}}.
+        In danger: +2 Perception TNs; −1 Charisma and social skills in important social situations (p.55).
+        {{#if mbw.tle.episode}}<strong>Episode: Initiative −2, Reaction −{{mbw.tle.episode.reactionLoss}}.</strong>{{/if}}</div>{{/if}}
+      {{#each mbw.incidents as |i|}}<div class="sr2e-limb-warn">CCSS ({{i.state}}){{#if i.treatment}}: {{i.treatment.weeks}} weeks, {{i.treatment.cost}}¥{{/if}}{{#if i.recovery}} — {{i.rowLabel}}{{/if}}
+        {{#ifEquals i.state "untreated"}}<a data-action="mbwOp" data-op="survival">Hourly Body (5)</a> · <a data-action="mbwOp" data-op="ccssTreat" data-arg="{{i.key}}">Begin treatment</a>{{/ifEquals}}
+        {{#ifEquals i.state "treating"}}<a data-action="mbwOp" data-op="ccssRecovery" data-arg="{{i.key}}">Recovery test</a>{{/ifEquals}}</div>{{/each}}
+      {{#each mbw.seizures as |z|}}<div class="sr2e-limb-warn">Seizure: {{#if z.claimed}}claimed, {{z.stun}} Stun not applied{{#if z.stuck}} <a data-action="mbwOp" data-op="applyAnyway" data-arg="{{z.key}}" title="The client that claimed it seems to have stopped; if it was only paused, the damage may land twice">Apply anyway</a>{{/if}}{{else}}{{z.stun}} Stun recorded, not applied{{/if}}</div>{{/each}}
+      {{#each mbw.pendingSeizures as |z|}}<div class="sr2e-limb-warn">Seizure check pending <a data-action="mbwOp" data-op="seizure" data-arg="{{z.key}}">Willpower (6)</a></div>{{/each}}
+    {{/if}}
+  </div>
+  {{#if mbw.isGM}}
+  <div class="sr2e-karma-actions">
+    {{#if mbw.complications}}
+      {{#if mbw.pending}}<button type="button" data-action="mbwOp" data-op="test">Roll the next due test</button>{{/if}}
+      {{#if mbw.level}}<button type="button" data-action="mbwOp" data-op="stress" title="After excessive physical or emotional stress (p.55); doesn't move the schedule">Stress test</button>{{/if}}
+      {{#if mbw.tle.nextTreat}}<button type="button" data-action="mbwOp" data-op="treatOk" title="Biotech/Transimplant Surgery ({{mbw.treatTN}}) succeeded">TLE-x treated</button><button type="button" data-action="mbwOp" data-op="treatFail">Treatment failed</button>{{/if}}
+      {{#if mbw.canEpisode}}{{#if mbw.tle.episode}}<button type="button" data-action="mbwOp" data-op="episodeOff">End TLE-x episode</button>{{else}}<button type="button" data-action="mbwOp" data-op="episodeOn" title="A dangerous or tactically crucial moment (p.55)">TLE-x episode</button>{{/if}}{{/if}}
+      {{#if mbw.tle.chronic}}<button type="button" data-action="mbwOp" data-op="seizureCheck" title="A Moderate or worse wound in combat or conflict (p.55)">Seizure check</button>{{/if}}
+    {{/if}}
+    {{#if mbw.reflexDice}}<button type="button" data-action="mbwReflex" title="Wired reflexes or any other cybernetic reflex enhancement (p.53): a Perception Test at +{{mbw.reflexDice}} TN, and Willpower at the base TN to hold off. Use sparingly.">Reflex check</button>{{/if}}
+  </div>
+  {{#if mbw.records.length}}<details><summary class="hint">Records ({{mbw.records.length}})</summary>
+    {{#each mbw.records as |r|}}<div class="hint">{{r.label}} <a data-action="mbwOp" data-op="void" data-arg="{{r.key}}" title="Undo: void this record (and what depends on it)">void</a></div>{{/each}}
+  </details>{{/if}}
+  {{/if}}
+</div>
+{{/if}}

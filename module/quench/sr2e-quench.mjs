@@ -2930,6 +2930,186 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cybereyes, bioware with cyberware, social" });
 
+    // ── Move-by-wire and reflex add-ons (docs/PLAN-cybertechnology-phase4.md) ──────
+    quench.registerBatch("sr2e.mbw", (context) => {
+      const { it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const ware = (name, rule, system = {}, type = "cyberware") => ({ name, type, flags: { sr2e: { rule } }, system: { installed: true, essenceCost: 0, cost: 0, ...system } });
+      const mbwItem = (lvl = 2) => ware("MBW", `move-by-wire:${lvl}`, { attributeMods: { quickness: lvl, reaction: 2 * lvl, initiativeDice: lvl } });
+      const M = () => import("../mbw.mjs");
+      const C = () => import("../claims.mjs");
+      const twice = (a) => { a.reset(); a.reset(); return a; };
+      const wait = (ms = 300) => new Promise(r => setTimeout(r, ms));
+
+      it("move-by-wire 2: +2 dice on Athletics and Stealth only, defaulted tests included", async () => {
+        const a = await mk({ name: "Quench MBW Dice", type: "character" });
+        await a.createEmbeddedDocuments("Item", [mbwItem(2), { name: "Athletics", type: "skill", system: { rating: 3, linkedAttribute: "quickness" } },
+          { name: "Firearms", type: "skill", system: { rating: 3, linkedAttribute: "quickness" } },
+          { name: "Stealth", type: "skill", system: { rating: 0, linkedAttribute: "quickness" } }]);
+        twice(a);
+        const pool = async (n) => (await a.rollSkillTest(a.items.getName(n).id, 4))?.dicePool;
+        assert.equal(await pool("Athletics"), 5);
+        assert.equal(await pool("Firearms"), 3);
+        const q = a.system.quickness.value;
+        assert.equal(await pool("Stealth"), q + 2, "defaulted to Quickness, then +2");
+      });
+
+      it("incompatibilities: a pump stops, wired reflexes are warned and still count; the +6 enhancer cap", async () => {
+        const a = await mk({ name: "Quench MBW Conflicts", type: "character" });
+        await a.update({ "system.willpower.base": 3 });
+        await a.createEmbeddedDocuments("Item", [mbwItem(1),
+          ware("Pump", "adrenal-pump", { rating: 1, triggered: true, active: true, attributeMods: { willpower: 1 } }, "bioware"),
+          ware("Wired", "wired-reflexes:1", { attributeMods: { reaction: 2, initiativeDice: 1 } })]);
+        twice(a);
+        assert.equal(a.system.willpower.value, 3, "the pump gives nothing with move-by-wire");
+        assert.equal(a.system.mbw.conflicts.length, 2);
+        assert.equal(a.system.initiative.dice, 1 + 1 + 1, "wired reflexes still count (warned)");
+        const b = await mk({ name: "Quench MBW Cap", type: "character" });
+        await b.createEmbeddedDocuments("Item", [ware("RE4", "reaction-enhancer", { attributeMods: { reaction: 4 } }), ware("RE4b", "reaction-enhancer", { attributeMods: { reaction: 4 } })]);
+        twice(b);
+        assert.equal(b.system.mbw.enhancerExcess, 2);
+        assert.equal(b.system.reaction.value, b.system.reaction.base + 6);
+      });
+
+      it("the reflex trigger switches wired reflexes off; without one the switch is ignored", async () => {
+        const a = await mk({ name: "Quench MBW Trigger", type: "character" });
+        await a.createEmbeddedDocuments("Item", [ware("Wired", "wired-reflexes:2", { switchedOff: true, attributeMods: { reaction: 4, initiativeDice: 2 } })]);
+        twice(a);
+        assert.equal(a.system.initiative.dice, 3, "no trigger: switchedOff ignored");
+        await a.createEmbeddedDocuments("Item", [ware("Trigger", "reflex-trigger")]);
+        twice(a);
+        assert.equal(a.system.initiative.dice, 1, "trigger: off");
+        await a.items.getName("Wired").update({ "system.switchedOff": false });
+        assert.equal(twice(a).system.initiative.dice, 3);
+      });
+
+      it("the schedule: one notice per batch, scheduled slots fill in order, a stress test leaves them", async () => {
+        const a = await mk({ name: "Quench MBW Schedule", type: "character" });
+        await a.createEmbeddedDocuments("Item", [mbwItem(2)]);
+        const { reconcile, rollComplication, mbwFold } = await M();
+        const { recordEvent } = await C();
+        await reconcile(a);
+        let f = mbwFold(a);
+        assert.ok(f.gen, "an install record");
+        // Back-date a second generation by hand: the GM's clock isn't touched.
+        await recordEvent(a, `mbw:remove:${f.gen.key}`, { type: "remove", install: f.gen.key });
+        const item = a.items.getName("MBW");
+        await recordEvent(a, `mbw:install:${item.id}:9`, { type: "install", itemId: item.id, level: 2, since: game.time.worldTime - 2 * 4 * 30 * 86400 - 5 });
+        f = mbwFold(a);
+        assert.deepEqual(f.pendingSlots, [1, 2]);
+        const msgs = () => game.messages.filter(m => m.content.includes("Quench MBW Schedule") && m.content.includes("due")).length;
+        const before = msgs();
+        await reconcile(a); await reconcile(a);
+        assert.equal(msgs() - before, 1, "ONE notice, even reconciled twice");
+        await rollComplication(a.uuid);
+        assert.deepEqual(mbwFold(a).pendingSlots, [2]);
+        await rollComplication(a.uuid, { manual: true });
+        assert.deepEqual(mbwFold(a).pendingSlots, [2], "a stress test doesn't move the schedule");
+      });
+
+      it("outcomes: the first choice wins; TLE-x episode moves Initiative and Reaction and reverts", async () => {
+        const a = await mk({ name: "Quench MBW TLE", type: "character" });
+        await a.createEmbeddedDocuments("Item", [mbwItem(1)]);
+        const { rollComplication, applyOutcome, toggleEpisode, mbwFold } = await M();
+        await rollComplication(a.uuid, { manual: true });
+        const t = mbwFold(a).tests[0];
+        await applyOutcome(a.uuid, t.key, "tle");
+        await applyOutcome(a.uuid, t.key, "ccss");
+        assert.equal(mbwFold(a).outcomes.length, 1, "the stale second click is refused");
+        twice(a);
+        const r0 = a.system.reaction.value, i0 = a._getInitiativeParts().base;
+        await toggleEpisode(a.uuid, true);
+        twice(a);
+        const loss = a.system.mbw.tle.episode.reactionLoss;
+        assert.equal(a.system.reaction.value, Math.max(0, r0 - loss));
+        assert.equal(a._getInitiativeParts().base, Math.max(0, i0 - loss - 2));
+        await toggleEpisode(a.uuid, false);
+        twice(a);
+        assert.equal(a.system.reaction.value, r0);
+      });
+
+      it("chronic TLE-x: a 3-box wound prompts a seizure, a 2-box one doesn't, the seizure's own damage never does", async () => {
+        const a = await mk({ name: "Quench MBW Seizure", type: "character" });
+        await a.createEmbeddedDocuments("Item", [mbwItem(1)]);
+        const { rollComplication, applyOutcome, mbwFold, resolveSeizure } = await M();
+        const { commitDamage } = await import("../drugs.mjs");
+        for (let k = 0; k < 3; k++) {
+          await rollComplication(a.uuid, { manual: true });
+          await applyOutcome(a.uuid, mbwFold(a).unresolvedTests[0].key, "tle");
+        }
+        twice(a);
+        assert.ok(a.system.mbw.tle.chronic);
+        await commitDamage(a, "physical", 2); await wait();
+        assert.equal(mbwFold(a).seizures.length, 0);
+        await commitDamage(a, "physical", 3); await wait();
+        const f = mbwFold(a);
+        assert.equal(f.seizures.length, 1);
+        const orig = CONFIG.Dice.randomUniform;
+        CONFIG.Dice.randomUniform = () => 0.99;   // every die a 1: the seizure lands
+        try { await resolveSeizure(a.uuid, f.seizures[0].key); } finally { CONFIG.Dice.randomUniform = orig; }
+        await wait();
+        assert.equal(mbwFold(a).seizures.length, 1, "the seizure's own Stun doesn't prompt again");
+        assert.ok(a.system.conditionMonitor.stun.value >= 3, "6M Stun, unresisted by a 1");
+      });
+
+      it("CCSS: the implant stops; recovery reductions are derived; DL4 zeroes Intelligence; voiding restores", async () => {
+        const a = await mk({ name: "Quench MBW CCSS", type: "character" });
+        await a.update({ "system.willpower.base": 4, "system.intelligence.base": 4 });
+        await a.createEmbeddedDocuments("Item", [mbwItem(1)]);
+        const { rollComplication, applyOutcome, mbwFold, voidRecord } = await M();
+        const { recordEvent } = await C();
+        await rollComplication(a.uuid, { manual: true });
+        const t = mbwFold(a).tests[0];
+        await applyOutcome(a.uuid, t.key, "ccss");
+        twice(a);
+        assert.equal(a.system.mbw.working, false);
+        assert.equal(a.system.mbw.disabled, true);
+        const inc = mbwFold(a).incidents[0];
+        await recordEvent(a, `mbw:ccss-treat:${inc.key}`, { type: "ccssTreatment", incident: inc.key, weeks: 7, cost: 350000 });
+        await recordEvent(a, `mbw:ccss-recovery:${inc.key}`, { type: "ccssRecovery", incident: inc.key, row: 4 });
+        twice(a);
+        assert.equal(a.system.willpower.value, 3, "−1 Willpower, derived");
+        assert.equal(a.system.intelligence.value, 0, "DL4: Intelligence 0");
+        assert.equal(a._source.system.willpower.base, 4, "nothing written to the base");
+        await voidRecord(a.uuid, `mbw:outcome:${t.key}`);
+        twice(a);
+        assert.equal(a.system.intelligence.value, 4);
+        assert.equal(a.system.mbw.working, true);
+      });
+
+      it("the setting off posts no notice; an NPC is untouched; durable records survive pruning", async () => {
+        const a = await mk({ name: "Quench MBW Off", type: "character" });
+        await a.createEmbeddedDocuments("Item", [mbwItem(4)]);
+        const { reconcile, mbwFold } = await M();
+        const { recordEvent, pruneMarkers } = await C();
+        const was = game.settings.get("sr2e", "mbwComplications");
+        try {
+          await game.settings.set("sr2e", "mbwComplications", false);
+          await reconcile(a);
+          const g = mbwFold(a).gen;
+          await recordEvent(a, `mbw:remove:${g.key}`, { type: "remove", install: g.key });
+          await recordEvent(a, `mbw:install:${a.items.getName("MBW").id}:7`, { type: "install", itemId: a.items.getName("MBW").id, level: 4, since: game.time.worldTime - 400 * 86400 });
+          const before = game.messages.filter(m => m.content.includes("Quench MBW Off")).length;
+          await reconcile(a);
+          assert.equal(game.messages.filter(m => m.content.includes("Quench MBW Off")).length, before);
+        } finally { await game.settings.set("sr2e", "mbwComplications", was); }
+        // An OLD durable record and an old ordinary marker: pruning removes only the latter.
+        const { MARKER_TTL_MS } = await import("../rules/claim-rules.mjs");
+        const old = game.time.serverTime - MARKER_TTL_MS - 60000;   // the server clock can be young
+        await a.createEmbeddedDocuments("ActiveEffect", [
+          { name: "old durable", disabled: true, flags: { sr2e: { claim: { key: "mbw:old", at: old, durable: true, event: { type: "episode", on: false } } } } },
+          { name: "old marker", disabled: true, flags: { sr2e: { claim: { key: "x:old", at: old } } } }]);
+        await pruneMarkers(a, () => false);
+        assert.ok(a.effects.find(e => e.name === "old durable"), "durable records are never pruned");
+        assert.notOk(a.effects.find(e => e.name === "old marker"), "ordinary markers still are");
+        const npc = await mk({ name: "Quench MBW NPC", type: "npc" });
+        await npc.createEmbeddedDocuments("Item", [mbwItem(2)]);
+        assert.notOk(npc.system.mbw);
+      });
+    }, { displayName: "SR2E: Move-by-wire and reflex add-ons" });
+
     // ── Matrixware: the cranial cyberdeck ("C2", Shadowtech p.54–59) ─────────
     quench.registerBatch("sr2e.matrixware", (context) => {
       const { describe, it, assert, after } = context;

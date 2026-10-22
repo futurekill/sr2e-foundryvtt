@@ -601,6 +601,9 @@ export class CyberwareData extends SR2EDataModel {
       // SR2E p.247 — cybereyes accept enhancements up to 0.5 Essence at no further
       // cost; only module essence beyond `capacity` adds to the base.
       capacity: new fields.NumberField({ initial: 0, min: 0 }),
+      // Wired reflexes switched off with a reflex trigger (Cybertechnology p.38). Ignored
+      // without a trigger installed.
+      switchedOff: new fields.BooleanField({ initial: false }),
       // A cybereye bought singly (Cybertechnology p.45): .1 Essence, 60% price, half the
       // allowance. Derived in the getters; the authored pair values are never rewritten.
       eyes: new fields.StringField({ required: true, initial: "pair", choices: {
@@ -660,6 +663,7 @@ export class CyberwareData extends SR2EDataModel {
     this.limbIdentity = limbIdentity(this, this.parent?.flags, sourceOf(this.parent));
     // Ware identity (Phase 3b), likewise derived every pass.
     this.wareRule = wareRule(this.parent?.flags, sourceOf(this.parent));
+    this.isWiredReflexes = /^wired-reflexes:/.test(this.wareRule ?? "");
     this.eyeReports = this.wareRule === "cybereye-pair" ? eyeReports({ rows: this.modules ?? [], eyes: this.eyes }) : [];
     if (this.limbOption) {
       // Priced for its RECORDED placement (Cybertechnology p.31, p.51): the linked

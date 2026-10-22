@@ -966,9 +966,13 @@ export class SR2EActor extends Actor {
       }
     }
 
-    const base = Math.max(0, reaction - woundPenalty + vehicleMod);
+    // A TLE-x episode (Cybertechnology p.55): Initiative −2 in the meat-body modes
+    // (normal and rigging; the Matrix and astral branches returned above).
+    const tle = this.type === "character" && this.system.mbw?.tle?.episode ? 2 : 0;
+    const base = Math.max(0, reaction - woundPenalty + vehicleMod - tle);
     notes.push(rigged ? `Rigged (VCR ${vcr}): Reaction ${reaction}` : `Reaction ${reaction}`);
     if (woundPenalty) notes.push(`−${woundPenalty} wound`);
+    if (tle) notes.push("−2 TLE-x episode");
     if (vehicleMod)   notes.push(`${vehicleMod} vehicle damage`);
 
     // Tactical computer (Shadowtech p.53) adds its rating to Initiative, capped
@@ -1272,6 +1276,12 @@ export class SR2EActor extends Actor {
         label = RL("DefaultAttr", { name: skill.name, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
       }
     }
+
+    // Move-by-wire (Cybertechnology p.39): +level dice for Athletics and Stealth, added
+    // AFTER defaulting so an untrained skill still defaults (and still gets them).
+    const mbwDice = this.type === "character" && this.system.mbw?.working && (skey === "athletics" || skey === "stealth")
+      ? this.system.mbw.level : 0;
+    if (mbwDice) { dicePool += mbwDice; label += ` +${mbwDice} move-by-wire`; }
 
     return this.rollSuccessTest(dicePool, targetNumber, {
       label,

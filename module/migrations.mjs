@@ -67,6 +67,8 @@ const LIMB_REPORT = [];
 const LIMB_RULES_REPORT = [];
 // 0.112.0: cybereyes, bioware with cyberware (Cybertechnology pp.45, 56–57).
 const WARE_REPORT = [];
+// 0.113.0: move-by-wire and reflex add-ons (Cybertechnology pp.38–39).
+const MBW_REPORT = [];
 // Which document the runner is migrating, for reports (a token's actor shares its base's name).
 let CURRENT_LABEL = "";
 // ...and the prepared document itself, for report-only entries that read derived values.
@@ -681,6 +683,20 @@ export const MIGRATIONS = [
       if (bits.length) WARE_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
       return null;
     }
+  },
+  {
+    version: "0.113.0",
+    // Report-only (docs/PLAN-cybertechnology-phase4.md §10), from the PREPARED character.
+    migrateActor(source) {
+      const m = CURRENT_ACTOR?.system?.mbw;
+      if (source.type !== "character" || !m) return null;
+      const bits = [...m.conflicts];
+      if (m.enhancerExcess) bits.push(`Reaction Enhancers over +6: ${m.enhancerExcess} ignored (p.38)`);
+      if (m.hasTrigger && CURRENT_ACTOR.items.some(i => i.system?.isWiredReflexes)) bits.push("wired reflexes can now be switched off with the reflex trigger (gear tab)");
+      if (m.level) bits.push(`move-by-wire ${m.level}: +${m.level} dice on Athletics and Stealth; complication tests start on today's date`);
+      if (bits.length) MBW_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
+      return null;
+    }
   }
 ];
 
@@ -897,6 +913,16 @@ export async function migrateWorld() {
         <ul>${[...new Set(LIMB_RULES_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
     });
     LIMB_RULES_REPORT.length = 0;
+  }
+
+  if (MBW_REPORT.length) {
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Move-by-wire and reflexes (0.113.0)</strong>
+        <p>Cybertechnology's move-by-wire, reaction enhancer and reflex trigger rules now apply (nothing was written):</p>
+        <ul>${[...new Set(MBW_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
+    });
+    MBW_REPORT.length = 0;
   }
 
   if (WARE_REPORT.length) {

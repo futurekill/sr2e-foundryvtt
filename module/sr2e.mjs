@@ -68,6 +68,7 @@ import { registerMovementLimit } from "./movement.mjs";  // In-combat movement c
 import { injectPhaseSeq } from "./engagement.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
+import { registerMbwHooks } from "./mbw.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -456,6 +457,7 @@ Hooks.once("init", async () => {
   registerSR2EQuenchTests();
   registerSpellEffectHooks();
   registerSpiritServiceHooks();
+  registerMbwHooks();   // move-by-wire complications (Cybertechnology pp.54–55)
   registerDrugHooks();
   registerCalendariaHooks();
   registerJackpointBehavior();
@@ -1102,6 +1104,15 @@ function _registerSystemSettings() {
     config: true,
     type: Number,
     default: 0
+  });
+
+  // Move-by-wire complications (Cybertechnology pp.54–55): scheduled-test notices and
+  // seizure prompts to the GM. Off = no prompts; recorded history still applies.
+  game.settings.register("sr2e", "mbwComplications", {
+    name: "Move-by-wire complications (Cybertechnology)",
+    hint: "Prompt the GM for move-by-wire complication tests on the game clock (every 3–6 months by level) and for chronic TLE-x seizure checks. Every outcome is the GM's click (Cybertechnology pp.54–55).",
+    scope: "world", config: true, type: Boolean, default: true,
+    onChange: () => { for (const a of game.actors) if (a.type === "character" && a.sheet?.rendered) a.sheet.render(); }
   });
 
   // Cybertechnology's optional social penalties (p.57–58). The numbers are always

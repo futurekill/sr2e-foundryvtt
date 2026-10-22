@@ -265,6 +265,16 @@ Prices take the single-eye and muscle factors ONLY in `itemBaseCost` via `wareCt
 chargen, surgery) must pass `wareCtx`. Social values are always derived;
 the `cyberSocial` setting gates only showing and applying them. See
 docs/PLAN-cybertechnology-phase3b.md.
+Phase 4 (`module/mbw.mjs`, `module/rules/mbw-rules.mjs`): move-by-wire complications are
+an APPEND-ONLY log of durable deterministic-id records (`recordEvent` in claims.mjs:
+`flags.sr2e.claim.durable`, never pruned), folded by `foldMbw`. NEVER store derived
+complication state. Undo is a `void` record (only GM-made records are voidable). Only
+the active GM's `reconcile` writes `install`/`remove` lifecycle records; every GM action
+records one event after checking admission. CCSS losses are DERIVED in
+`_naturalAttribute` (floor 1), and DL4 Intelligence 0 is an explicit override. Seizure
+damage is admitted by `once()` and receipted in `commitDamage`'s same update (`extra` +
+`skipIf`, `source: "seizure"`). Move-by-wire's printed attributeMods are final (the
+Phase 1 provisional values match p.39). See docs/PLAN-cybertechnology-phase4.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),

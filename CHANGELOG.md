@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## 0.113.0 — 2026-10-22
+
+### Added — Cybertechnology: move-by-wire and reflex add-ons
+- **Move-by-wire (book p.39):**
+  - **Athletics and Stealth:** +1 to +4 dice by level, untrained tests included.
+  - **Incompatible implants:** adrenal pumps and suprathyroid glands stop working
+    alongside it. Other Reaction/Initiative enhancers (wired or boosted reflexes,
+    reaction enhancers, synaptic accelerators) are flagged on the sheet and in the
+    world-load report, but still count; the GM decides.
+- **Reaction Enhancer (p.38):** capped at +6.
+- **Reflex Trigger (p.38):** wired reflexes get an on/off switch on the gear tab.
+- **Reflex check (p.53, GM):** for any cybernetic reflex enhancement, a Perception test
+  at +1 TN per extra Initiative die, and Willpower to hold off. It only posts rolls.
+- **Move-by-wire complications (pp.54–55):** world setting "Move-by-wire complications",
+  on by default.
+  - **Scheduled tests:** every 3–6 months of game time by level (30-day months). The GM
+    gets one notice when tests come due, even after a big time jump, and can roll a
+    stress test any time. Every outcome is a GM click on the card or the sheet's new
+    "Move-by-wire & reflexes" panel.
+  - **TLE-x:**
+    - two treatments (TN 8, then 10), after which it's chronic;
+    - a GM-toggled episode: Initiative −2 and Reaction −1D6;
+    - chronic TLE-x prompts a seizure check on a Moderate or worse wound: Willpower
+      (6), then 6M Stun resisted with Body only.
+  - **CCSS:**
+    - the implant stops working, and a new one is unaffected;
+    - the sheet offers the hourly Body (5) survival test, the rehab weeks and cost (you
+      deduct the cost), and the physician's recovery test;
+    - the CCSS Recovery Table's permanent losses are calculated, never written into
+      the character. "Intelligence level 0" overrides everything.
+  - **Event log:** each complication event is recorded once and never edited, so a
+    second GM, a double click or an old chat card can't apply anything twice. GM-made
+    records can be voided from the sheet to undo them.
+
 ## 0.112.0 — 2026-10-22
 
 ### Added — Cybertechnology: cybereyes, bioware with cyberware, social penalties

@@ -1,7 +1,9 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
-import { socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
+import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
+import { eventsOf } from "../claims.mjs";
+import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
@@ -327,6 +329,20 @@ export class CharacterData extends SR2EDataModel {
     this._calculateAttributeValues(mods);
     this._applyLimbAverages(mods);
     this._applyArticulation(mods);
+    // CCSS Damage Level 4 (Cybertechnology p.55): "Intelligence level 0" overrides every
+    // contribution, before anything reads Intelligence.
+    if (this._mbwFold?.intelligenceZero) {
+      (this.attributeSources.intelligence ??= []).push({ name: "CCSS (permanent)", value: -this.intelligence.value });
+      this.intelligence.value = 0;
+    }
+    // The move-by-wire complication test (p.54): natural (permanently reduced) ratings,
+    // cyber at most +2 Body, no magic.
+    this.mbw.naturalBody = this._naturalAttribute("body", mods);   // "unaugmented Body" (p.55)
+    if (this.mbw.level) {
+      this.mbw.dice = complicationDice({ naturalBody: this._naturalAttribute("body", mods), wareBody: mods.wareBody,
+        naturalWillpower: this._naturalAttribute("willpower", mods), wareWillpower: mods.wareWillpower });
+      this.mbw.tn = COMPLICATION_TN[this.mbw.level] ?? 0;
+    }
 
     // Body Index (Shadowtech p.6): value from installed bioware (collected above,
     // assigned exactly once here); cap = natural, unaugmented Body — computed
@@ -390,13 +406,17 @@ export class CharacterData extends SR2EDataModel {
       // (e.g. an Increase Reflexes spell effect adds to system.initiative.mod)
       this.initiative.dice = Math.max(1, 1 + mods.initiativeDice + (this.initiative.mod ?? 0));
     }
+    // A TLE-x episode (Cybertechnology p.55, GM-toggled): Reaction −1D6 (rolled when
+    // switched on), inside the clamp, after both branches.
+    const episode = this._mbwFold?.episode;
+    if (episode) this.reaction.mod -= episode.reactionLoss;
     this.reaction.value = Math.max(0, this.reaction.base + this.reaction.mod);
 
     // Initiative base = Adjusted Reaction. The wound Initiative Modifier is applied
     // to Reaction *before* Initiative dice are rolled (SR2E Damage Modifiers Table,
     // p.112) — it reduces the base score at roll time, not the number of dice.
-    this.initiative.base = this.reaction.value;
-    this.initiative.value = this.reaction.value;
+    this.initiative.base = this.reaction.value - (episode ? 2 : 0);   // TLE-x episode: Initiative −2
+    this.initiative.value = this.initiative.base;
 
     // While astrally projecting the body is inert and the astral form acts on
     // Astral Initiative = (Astral Reaction + 15) with a single die (SR2E p.147).
@@ -943,7 +963,8 @@ export class CharacterData extends SR2EDataModel {
     mods.biowareQuickness = 0;
     mods.articulationReaction = 0;
     mods.limbs = this._limbEssenceAndModel(working);
-    const ware = this._wareCyberInteractions();
+    const ware = this._wareCyberInteractions(working);
+    mods.reactionEnhancer = 0; mods.wareInitiativeDice = 0; mods.wareBody = mods.limbs.pairBody ?? 0; mods.wareWillpower = 0;
     if (working && mods.limbs.pairBody) {
       mods.body += mods.limbs.pairBody;
       mods.sources.body.push({ name: game.i18n.localize("SR2E.Limb.PairBody"), value: mods.limbs.pairBody });
@@ -953,9 +974,21 @@ export class CharacterData extends SR2EDataModel {
       if (item.type === "cyberware" && item.system.installed && !working) {
         mods.essenceLoss += item.system.actualEssenceCost;
       } else if (item.type === "cyberware" && item.system.installed) {
-        for (const [key, val] of Object.entries(item.system.attributeMods)) {
+        const rule = ware.rules.get(item.id);
+        // Off with a reflex trigger (p.38), or a move-by-wire CCSS disabled (p.55): its
+        // Essence still counts (below), its bonuses don't.
+        const off = (ware.hasTrigger && item.system.switchedOff && /^wired-reflexes:/.test(rule ?? ""))
+          || (item.id === ware.mbwItemId && ware.mbwDisabled);
+        for (const [key, val] of off ? [] : Object.entries(item.system.attributeMods)) {
           if (key in mods) mods[key] += val;
           if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val });
+        }
+        if (!off) {
+          mods.wareInitiativeDice += item.system.attributeMods?.initiativeDice || 0;
+          mods.wareBody += item.system.attributeMods?.body || 0;
+          mods.wareWillpower += item.system.attributeMods?.willpower || 0;
+          if (rule === "reaction-enhancer") mods.reactionEnhancer += item.system.attributeMods?.reaction || 0;
+          if (/^wired-reflexes:/.test(rule ?? "")) this.mbw.wiredWorking = true;
         }
         // Muscle Replacement/Augmentation Quickness doesn't raise Reaction
         // (flag, with a name fallback for pre-0.28 world copies).
@@ -999,6 +1032,9 @@ export class CharacterData extends SR2EDataModel {
             // Enhanced articulation's Reaction is decided after the limb averages (p.56).
             if (key === "reaction" && rule === "enhanced-articulation") { mods.articulationReaction += a; continue; }
             if (key === "quickness") mods.biowareQuickness += a;
+            if (key === "initiativeDice") mods.wareInitiativeDice += a;
+            if (key === "body") mods.wareBody += a;
+            if (key === "willpower") mods.wareWillpower += a;
             if (key in mods) mods[key] += a;
             if (a && mods.sources[key]) mods.sources[key].push({ name: label, value: a });
           }
@@ -1037,6 +1073,9 @@ export class CharacterData extends SR2EDataModel {
     // Bioware total stays UNROUNDED (locked decision) — same raw summation as the
     // pure `bodyIndexTotal` helper, so model == helper. The sheet rounds for display.
     mods.bodyIndex = biowareRaw;
+    // Reaction Enhancers: +6 at most for player characters (Cybertechnology p.38).
+    if (mods.reactionEnhancer > 6) { this.mbw.enhancerExcess = mods.reactionEnhancer - 6; mods.reaction -= this.mbw.enhancerExcess; }
+    this.mbw.reflexDice = mods.wareInitiativeDice;
     // Awakened characters pay Essence equal to their bioware Body Index; mundanes
     // pay none (Shadowtech p.6). Same raw total for exact parity.
     if (isAwakened) mods.essenceLoss += mods.bodyIndex;
@@ -1102,8 +1141,12 @@ export class CharacterData extends SR2EDataModel {
    * rule of every ware item plus the pump and suprathyroid efficiencies.
    * @private
    */
-  _wareCyberInteractions() {
+  _wareCyberInteractions(working = true) {
     const items = [...(this.parent?.items ?? [])];
+    // Move-by-wire (Phase 4): the complications log, folded fresh every pass.
+    const fold = foldMbw(eventsOf(this.parent).filter(e => String(e.key).startsWith("mbw:")), globalThis.game?.time?.worldTime ?? 0);
+    this._mbwFold = fold;
+    this._mbwLoss = fold.loss;
     for (const i of items) if (i.type === "cyberware" || i.type === "bioware") delete i.system.limbDiscount;
     const phys = physicalLimbs(sourcesOf(items));
     this._physicalLimbs = phys;
@@ -1117,7 +1160,26 @@ export class CharacterData extends SR2EDataModel {
       if (r === "reaction-enhancer" && i.system.installed) enhancer = true;
       if (n > 0 && MUSCLE.has(r)) i.system.limbDiscount = muscleFactor(n);
     }
-    return { rules, pump: pumpEfficiency(phys, { enhancer }), supra: pumpEfficiency(phys, { major: true }) };
+    // Move-by-wire (Cybertechnology p.39): the installed implant, whether it works, and
+    // the Reaction/Initiative enhancers it's "not compatible" with (warned, still counted).
+    const mbwItem = items.find(i => i.type === "cyberware" && i.system.installed && /^move-by-wire:/.test(rules.get(i.id) ?? ""));
+    const mbwWorking = !!mbwItem && working && !fold.disabledItems.has(mbwItem.id);
+    const hasTrigger = items.some(i => i.type === "cyberware" && i.system.installed && rules.get(i.id) === "reflex-trigger");
+    this.mbw = { itemId: mbwItem?.id ?? null, level: mbwItem ? wareLevel(rules.get(mbwItem.id)) : 0, working: mbwWorking,
+      disabled: !!mbwItem && fold.disabledItems.has(mbwItem.id), hasTrigger, conflicts: [], reflexDice: 0, wiredWorking: false,
+      enhancerExcess: 0, dice: 0, tn: 0, pending: fold.pendingSlots.length, tle: { occurrences: fold.occurrences.length,
+        active: fold.active, chronic: fold.chronic, episode: fold.episode, nextTreat: fold.nextTreat },
+      incidents: fold.incidents, pendingSeizures: fold.pendingSeizures, unresolvedTests: fold.unresolvedTests };
+    if (mbwItem) for (const i of items) {
+      const r = rules.get(i.id);
+      if (i.id === mbwItem.id || !i.system.installed || !isReflexEnhancer(r)) continue;
+      const stop = r === "adrenal-pump" || r === "suprathyroid";
+      this.mbw.conflicts.push(stop ? `${i.name}: doesn't work with move-by-wire (p.56–57)`
+        : r === "synaptic-accelerator" && (i.system.rating ?? 1) <= 1 ? `${i.name}: Level 1 combines only at triple cost, implanted together (p.57)`
+        : `${i.name}: not compatible with move-by-wire (p.39); still counted, the GM's call`);
+    }
+    return { rules, hasTrigger, mbwItemId: mbwItem?.id ?? null, mbwDisabled: this.mbw.disabled,
+      pump: pumpEfficiency(phys, { enhancer, mbw: mbwWorking }), supra: pumpEfficiency(phys, { major: true, mbw: mbwWorking }) };
   }
 
   /**
@@ -1171,6 +1233,10 @@ export class CharacterData extends SR2EDataModel {
 
   _naturalAttribute(attr, mods = null) {
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
+    // CCSS permanent reductions (Cybertechnology p.55) lower the NATURAL rating, floor 1.
+    const loss = this._mbwLoss?.[attr] ?? 0;
+    if (loss > 0) return Math.max(1, naturalAttribute(this[attr]?.base ?? 0, this[attr]?.racial ?? 0, mods?.edgeAttr?.[attr] ?? 0,
+      maxes[attr] ?? null, mods?.edgeMax?.[attr] ?? 0) - loss);
     return naturalAttribute(
       this[attr]?.base ?? 0,
       this[attr]?.racial ?? 0,
@@ -1222,6 +1288,7 @@ export class CharacterData extends SR2EDataModel {
           const edgeEff = this._naturalAttribute(attr, mods) - natNoEdge;
           if (edgeEff > 0) named.push({ name: edgeItems.map((e) => e.name).join(" + "), value: edgeEff });
         }
+        if (this._mbwLoss?.[attr] > 0) named.push({ name: "CCSS (permanent)", value: -this._mbwLoss[attr] });
         named.push(...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? []));
         // Anything left over — a non-additive effect (override/multiply) or an
         // unknown contributor — folds into one honest "other" line, so base +

@@ -574,6 +574,17 @@ Automated: `test/ware-rules.test.mjs` and Quench `sr2e.warerules`.
 - [ ] An adrenal pump's attribute tooltip reads "Adrenal Pump (60%)" with a cyberleg, a
       cyberhand and a cybertorso.
 
+## Move-by-wire and reflex add-ons (docs/PLAN-cybertechnology-phase4.md)
+Automated: `test/mbw-rules.test.mjs` and Quench `sr2e.mbw`.
+- [ ] A character with move-by-wire shows the "Move-by-wire & reflexes" panel; Athletics
+      rolls show "+N move-by-wire".
+- [ ] Advance the clock past a test date: ONE whispered notice; "Roll the next due test"
+      posts the result card; choosing TLE-x then a second button on the same card is refused.
+- [ ] TLE-x episode on/off moves Initiative (the roll's notes say "−2 TLE-x episode").
+- [ ] CCSS: the implant shows dysfunctional; treatment and recovery buttons work; voiding the
+      result from Records restores it.
+- [ ] With a reflex trigger installed, wired reflexes rows have a power toggle.
+
 ## Smoke test (5-minute sanity pass)
 1. Import a Sample Runner; open the sheet; roll a skill.
 2. Fire a weapon at a targeted token; resist the damage.
