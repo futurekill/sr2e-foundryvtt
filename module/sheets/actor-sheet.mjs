@@ -1137,6 +1137,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         + `Essence ${pv.pct ? `${pv.pct > 0 ? "+" : ""}${pv.pct}% → ` : ""}${pv.cost}, leaving ${Math.round(pv.end * 100) / 100}${pv.end < 0 ? " — aborted (below 0)" : ""}.`;
       const cs = surgery.cym?.(pv);
       if (cs?.cybermancy && form.querySelector('[name="surgeryDelta"]')?.checked) {
+        form.querySelector(".sr2e-surgery-tn").textContent = "Rolled on the proposal card: these successes aren't used.";
         form.querySelector(".sr2e-surgery-out").textContent = `Cybermancy: intended Essence ${cs.intended}${cs.ims ? " (with the IMS)" : ""}; `
           + `the doctor's test vs TN ${cs.tn}, failure is death (p.79–80). The operation is proposed to you, not bought yet.`;
       }

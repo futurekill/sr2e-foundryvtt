@@ -3376,6 +3376,30 @@ export function registerSR2EQuenchTests() {
         assert.equal(cymMagicTN(b), 0);
       });
 
+      it("CDS and cancer notices: each posted ONCE across reconciles; the cancer page is GM-only and the actor's record has no details", async () => {
+        const a = await cyborg("Quench CYM Notices", -0.75, 200 * DAY);
+        const y = await Y();
+        const has = (t) => game.messages.filter(m => m.content.includes("Quench CYM Notices") && m.content.includes(t)).length;
+        await y.reconcile(a); await y.reconcile(a);
+        assert.equal(has("Chronic Dissociation Syndrome test #1 due"), 1);
+        D.prompt = async () => ({ bonus: -20 });   // 2D6 − 20 is always below 2 × 0.75: cancer
+        await y.rollCancer(a.uuid, "q1");
+        await y.confirmCancer(a.uuid, "q1");
+        D.prompt = async () => ({ dice: 6, mod: 0, bonus: 0 });
+        const j = game.journal.find(x => x.getFlag("sr2e", "cymJournal"));
+        try {
+          assert.equal(j.ownership.default, CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE);
+          const p = j.pages.find(x => x.getFlag("sr2e", "opId") === "q1" && x.getFlag("sr2e", "actorUuid") === a.uuid);
+          assert.ok(p?.getFlag("sr2e", "develops"));
+          const { eventsOf } = await C();
+          const rec = eventsOf(a).find(e => e.type === "cancer");
+          assert.notProperty(rec, "onsetWt", "no details on the actor");
+          await p.setFlag("sr2e", "onsetWt", game.time.worldTime - 1);
+          await y.reconcile(a); await y.reconcile(a);
+          assert.equal(has("cancer onset"), 1);
+        } finally { await j?.pages.find(x => x.getFlag("sr2e", "actorUuid") === a.uuid)?.delete(); if (j && !j.pages.size) await j.delete(); }
+      });
+
       it("the setting off: stale buttons refuse and the consequences vanish", async () => {
         const a = await cyborg("Quench CYM Off", -0.75, 11 * DAY);
         const y = await Y();

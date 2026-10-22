@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+- Cybermancy: with "Delta clinic" ticked, the surgery dialog no longer tells the GM to roll
+  the surgeon against the ordinary cybersurgery TN; the doctor's test is rolled on the
+  proposal card.
+
 ## 0.115.0 — 2026-10-22
 
 ### Added — Cybertechnology: cybermancy (optional)
