@@ -100,3 +100,15 @@ describe("TLE-x and CCSS", () => {
     expect(foldMbw(log, 0).pendingSeizures).toEqual([]);
   });
 });
+
+describe("ordering (Phase 5 maintenance)", () => {
+  it("a child sharing its parent's timestamp (and sorting before it) stays live", () => {
+    const log = [{ type: "install", key: "mbw:install:z", at: 5, itemId: "m", level: 1, since: 0 },
+      { type: "test", key: "mbw:test:a", at: 5, gen: "mbw:install:z", n: 1, successes: 1 },
+      { type: "outcome", key: "mbw:outcome:0", at: 5, test: "mbw:test:a", result: "tle" }];   // "0" sorts before "a"
+    const f = foldMbw(log, 0);
+    expect(f.outcomes.length).toBe(1);
+    expect(f.occurrences.length).toBe(1);
+  });
+});
+

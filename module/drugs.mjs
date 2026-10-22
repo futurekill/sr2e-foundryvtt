@@ -59,7 +59,8 @@ export function drugsInForce(actor) {
  * @param {{extra?:object, report?:boolean}} [opts] report:false when the caller's own card says it
  * @returns {Promise<{landedBoxes:number, absorbed:number, overloadStun:number}>}
  */
-export function commitDamage(actor, type, amount, { extra = {}, report = true, skipIf = null, source = null } = {}) {
+export function commitDamage(actor, type, amount, { extra = {}, report = true, skipIf = null, source = null, receipt = null } = {}) {
+  receipt ??= foundry.utils.randomID();   // unique per commit: listeners dedupe on it
   const done = enqueueAttack(`damage:${actor.uuid}`, async () => {
     // Re-checked INSIDE the queue: a receipted consequence can't land twice.
     if (skipIf?.()) return { landedBoxes: 0, absorbed: 0, overloadStun: 0, skipped: true };
@@ -91,7 +92,7 @@ export function commitDamage(actor, type, amount, { extra = {}, report = true, s
   });
   // AFTER the queue settles (never inside it): who needs to know damage landed
   // (move-by-wire seizures, Cybertechnology p.55). `source` keeps a seizure's own damage out.
-  done.then(out => { if (!out?.skipped) Hooks.callAll("sr2e.damageCommitted", actor, out, { source }); }).catch(() => {});
+  done.then(out => { if (!out?.skipped) Hooks.callAll("sr2e.damageCommitted", actor, out, { source, type: type === "stun" ? "stun" : "physical", receipt }); }).catch(() => {});
   return done;
 }
 

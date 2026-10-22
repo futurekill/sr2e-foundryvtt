@@ -69,6 +69,7 @@ import { injectPhaseSeq } from "./engagement.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
 import { registerMbwHooks } from "./mbw.mjs";
+import { registerCyberDamageHooks } from "./cyberdamage.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -458,6 +459,7 @@ Hooks.once("init", async () => {
   registerSpellEffectHooks();
   registerSpiritServiceHooks();
   registerMbwHooks();   // move-by-wire complications (Cybertechnology pp.54–55)
+  registerCyberDamageHooks();   // cyberware damage, repair, scarring (pp.44–49, 56; optional)
   registerDrugHooks();
   registerCalendariaHooks();
   registerJackpointBehavior();
@@ -1104,6 +1106,14 @@ function _registerSystemSettings() {
     config: true,
     type: Number,
     default: 0
+  });
+
+  // Cyberware damage, repair and scarring (Cybertechnology pp.44–49, 56; optional).
+  game.settings.register("sr2e", "cyberDamage", {
+    name: "Cyberware damage and scarring (Cybertechnology)",
+    hint: "On a Serious or Deadly physical wound, whisper the GM a card with the quick-and-dirty cyberware damage check (grade resistance, secondary effects), dermal plating/sheathing degradation and scarring. Everything is a GM click and stays editable on the sheet (Cybertechnology pp.44–49, 56).",
+    scope: "world", config: true, type: Boolean, default: false,
+    onChange: () => { for (const a of game.actors) if (a.type === "character" && a.sheet?.rendered) a.sheet.render(); }
   });
 
   // Move-by-wire complications (Cybertechnology pp.54–55): scheduled-test notices and

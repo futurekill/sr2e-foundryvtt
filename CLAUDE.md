@@ -275,6 +275,12 @@ records one event after checking admission. CCSS losses are DERIVED in
 damage is admitted by `once()` and receipted in `commitDamage`'s same update (`extra` +
 `skipIf`, `source: "seizure"`). Move-by-wire's printed attributeMods are final (the
 Phase 1 provisional values match p.39). See docs/PLAN-cybertechnology-phase4.md.
+Phase 5 (`module/cyberdamage.mjs`, optional `cyberDamage`): GM-EDITABLE state, NOT an event
+log: cyberware `conditions[]`, `skinMissed`, `skinLoss`, and the character's
+`flags.sr2e.scars`. One wound card per commit receipt (`once`), with its snapshot persisted
+in the message flags. Each action resolves on its own, Apply refuses a changed snapshot,
+and scars carry stable ids. A skin loss clamps only dermal plating/sheathing Body. See
+docs/PLAN-cybertechnology-phase5.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),

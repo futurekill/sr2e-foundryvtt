@@ -1,4 +1,5 @@
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
+import { cyberDamageOn } from "../cyberdamage.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
@@ -120,6 +121,27 @@ export function cyberlimbContext(actor) {
   } : null;
   return { limbs, options, parents, stats, any: limbs.length + options.length > 0,
     unresolvedOverlap: model.unresolvedOverlap.length > 0 };
+}
+
+/**
+ * The cyberware condition block (optional; docs/PLAN-cybertechnology-phase5.md): damaged
+ * items, plating/sheathing losses, scars. Shown with the setting on or any state set.
+ */
+function cyberConditionContext(actor) {
+  const ware = actor.items.filter(i => i.type === "cyberware");
+  const damaged = ware.filter(i => (i.system.conditions ?? []).length).map(i => ({ id: i.id, name: i.name,
+    delta: i.system.grade === "delta", conditions: i.system.conditions }));
+  const skins = ware.filter(i => ["dermal-plating", "dermal-sheath"].includes(i.system.wareRule) && (i.system.skinMissed || i.system.skinLoss))
+    .map(i => ({ id: i.id, name: i.name, missed: i.system.skinMissed, loss: i.system.skinLoss,
+      price: (i.system.wareRule === "dermal-sheath" ? 6500 : 2000 * Math.max(1, i.system.skinLoss)).toLocaleString("en-US") }));
+  const scars = (actor.getFlag("sr2e", "scars") ?? []).map(s => {
+    const current = s.treatedTo ?? s.severity;
+    return { ...s, current, procedures: current === "Terrible" ? [{ to: "Minor", label: "minor invasive → Minor" }]
+      : current !== "removed" ? [{ to: "removed", label: "minor cosmetic → removed" }] : [] };
+  });
+  const on = cyberDamageOn();
+  if (!on && !damaged.length && !skins.length && !scars.length) return null;
+  return { on, isGM: game.user.isGM, damaged, skins, scars };
 }
 
 /**
@@ -1316,6 +1338,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     try { cyberSocial = game.settings.get("sr2e", "cyberSocial"); } catch (e) { /* off */ }
     context.cyberSocial = cyberSocial ? actor.system.social : null;
     context.mbw = mbwContext(actor);
+    context.cyberCondition = cyberConditionContext(actor);
     // Bioware, sorted by body system so same-system implants group together
     // (Shadowtech). config.bodySystems gives the template localized labels.
     context.bioware = actor.items.filter(i => i.type === "bioware")

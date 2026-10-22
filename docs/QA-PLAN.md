@@ -585,6 +585,15 @@ Automated: `test/mbw-rules.test.mjs` and Quench `sr2e.mbw`.
       result from Records restores it.
 - [ ] With a reflex trigger installed, wired reflexes rows have a power toggle.
 
+## Cyberware damage, repair, scarring (docs/PLAN-cybertechnology-phase5.md)
+Automated: `test/cyberdamage-rules.test.mjs` and Quench `sr2e.cyberdamage`.
+- [ ] Setting on: hit a character for 6+ physical boxes → ONE whispered card; Stun doesn't.
+- [ ] Roll 2D6 → Choose the item and roll → the item shows ⚠ on the gear tab; "Repaired" in the
+      Cyberware condition block clears it.
+- [ ] Plating: Missed the bonder, then on a later wound tick "non-explosive or magic" and run the
+      Degradation check; a loss lowers Body.
+- [ ] Scarring check records a scar; its surgery link updates it.
+
 ## Smoke test (5-minute sanity pass)
 1. Import a Sample Runner; open the sheet; roll a skill.
 2. Fire a weapon at a targeted token; resist the damage.

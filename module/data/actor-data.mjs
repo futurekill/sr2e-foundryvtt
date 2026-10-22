@@ -1,6 +1,7 @@
 import { SR2EDataModel } from "./base-data.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
+import { skinBody } from "../rules/cyberdamage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
@@ -979,13 +980,18 @@ export class CharacterData extends SR2EDataModel {
         // Essence still counts (below), its bonuses don't.
         const off = (ware.hasTrigger && item.system.switchedOff && /^wired-reflexes:/.test(rule ?? ""))
           || (item.id === ware.mbwItemId && ware.mbwDisabled);
-        for (const [key, val] of off ? [] : Object.entries(item.system.attributeMods)) {
+        // Dermal plating/sheathing that lost rating (Cybertechnology p.47–48): ONE clamped
+        // Body for the totals, the tooltip and wareBody; every other item is untouched.
+        const skin = (rule === "dermal-plating" || rule === "dermal-sheath") && item.system.skinLoss > 0;
+        const modOf = (key, val) => skin && key === "body" ? skinBody(val, item.system.skinLoss) : val;
+        for (const [key, raw] of off ? [] : Object.entries(item.system.attributeMods)) {
+          const val = modOf(key, raw);
           if (key in mods) mods[key] += val;
-          if (val && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val });
+          if (val && mods.sources[key]) mods.sources[key].push({ name: skin && key === "body" ? `${item.name} (−${item.system.skinLoss} rating)` : item.name, value: val });
         }
         if (!off) {
           mods.wareInitiativeDice += item.system.attributeMods?.initiativeDice || 0;
-          mods.wareBody += item.system.attributeMods?.body || 0;
+          mods.wareBody += modOf("body", item.system.attributeMods?.body || 0);
           mods.wareWillpower += item.system.attributeMods?.willpower || 0;
           if (rule === "reaction-enhancer") mods.reactionEnhancer += item.system.attributeMods?.reaction || 0;
           if (/^wired-reflexes:/.test(rule ?? "")) this.mbw.wiredWorking = true;

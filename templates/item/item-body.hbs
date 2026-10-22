@@ -545,6 +545,14 @@
     <input type="checkbox" name="system.limbAdjacent" {{checked system.limbAdjacent}} />
   </div>
   {{/ifEquals}}
+  {{#if system.conditions.length}}<div class="form-group"><label>Damage:</label><span class="hint sr2e-limb-warn">{{#each system.conditions as |c|}}{{c.effect}} (repair TN {{c.repairTN}}){{#unless @last}}; {{/unless}}{{/each}} — repair from the character's Cyberware condition block</span></div>{{/if}}
+  {{#if (or (eq system.wareRule "dermal-plating") (eq system.wareRule "dermal-sheath"))}}
+  <div class="form-group">
+    <label title="Missed bonder (plating, 24 h) / sealer (sheathing, 12 h) treatments and the points of rating lost (Cybertechnology p.47–48)">Missed treatments / rating lost:</label>
+    <input type="number" name="system.skinMissed" value="{{system.skinMissed}}" min="0" step="1" />
+    <input type="number" name="system.skinLoss" value="{{system.skinLoss}}" min="0" step="1" />
+  </div>
+  {{/if}}
   <div class="form-group">
     <label title="Cyberware social penalties (Cybertechnology p.58, optional rule). Default: counts, except a datajack. Hidden ware (headware memory, skillsofts) counts only for contacts; flagrant ware adds +1.">Social visibility:</label>
     <select name="system.socialVisibility">

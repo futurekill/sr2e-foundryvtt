@@ -3110,6 +3110,102 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Move-by-wire and reflex add-ons" });
 
+    // ── Cyberware damage, repair, scarring (docs/PLAN-cybertechnology-phase5.md) ──
+    quench.registerBatch("sr2e.cyberdamage", (context) => {
+      const { it, assert, afterEach, before, after } = context;
+      const made = [];
+      let was;
+      before(async () => { was = game.settings.get("sr2e", "cyberDamage"); await game.settings.set("sr2e", "cyberDamage", true); });
+      after(async () => { await game.settings.set("sr2e", "cyberDamage", was); });
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const ware = (name, rule, system = {}) => ({ name, type: "cyberware", flags: rule ? { sr2e: { rule } } : {}, system: { installed: true, essenceCost: 0, cost: 0, ...system } });
+      const D = () => import("../cyberdamage.mjs");
+      const wait = (ms = 400) => new Promise(r => setTimeout(r, ms));
+      const cards = (a) => game.messages.filter(m => m.flags?.sr2e?.cdmg?.actorUuid === a.uuid);
+      const forced = async (u, fn) => { const o = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => u; try { return await fn(); } finally { CONFIG.Dice.randomUniform = o; } };
+      const twice = (a) => { a.reset(); a.reset(); return a; };
+
+      it("a 6-box PHYSICAL wound posts ONE card; Stun, 5 boxes, an NPC and the same receipt twice don't add any", async () => {
+        const a = await mk({ name: "Quench CD Trigger", type: "character" });
+        await a.createEmbeddedDocuments("Item", [ware("Eyes", "cybereye-pair")]);
+        const { commitDamage } = await import("../drugs.mjs");
+        await commitDamage(a, "stun", 6); await wait();
+        await commitDamage(a, "physical", 5); await wait();
+        assert.equal(cards(a).length, 0);
+        await commitDamage(a, "physical", 6, { receipt: "quenchreceipt01" }); await wait();
+        Hooks.callAll("sr2e.damageCommitted", a, { landedBoxes: 6 }, { type: "physical", receipt: "quenchreceipt01" }); await wait();
+        assert.equal(cards(a).length, 1);
+        assert.equal(cards(a)[0].flags.sr2e.cdmg.level, "S");
+        const n = await mk({ name: "Quench CD NPC", type: "npc" });
+        await commitDamage(n, "physical", 10); await wait();
+        assert.equal(game.messages.filter(m => m.flags?.sr2e?.cdmg?.actorUuid === n.uuid).length, 0);
+      });
+
+      it("damage check → condition → Repaired; a second wound keeps both; alpha grade resists", async () => {
+        const a = await mk({ name: "Quench CD Damage", type: "character" });
+        await a.createEmbeddedDocuments("Item", [ware("Eyes", "cybereye-pair"), ware("Arm", null, { location: "cyberlimb", limbType: "arm", side: "left", grade: "alpha" })]);
+        const { postWoundCard, cardOp } = await D();
+        const eyes = a.items.getName("Eyes");
+        for (const k of [1, 2]) {
+          const m = await postWoundCard(a, { boxes: 8, receipt: `quenchwound0${k}` });
+          await forced(0.99, () => cardOp(m, "check"));          // 2D6 = 2 < 6
+          assert.ok(game.messages.get(m.id).flags.sr2e.cdmg.results.check.damaged);
+          await forced(0.6, () => cardOp(game.messages.get(m.id), "damage", { item: eyes.id, table: "" }));
+          await cardOp(game.messages.get(m.id), "damage", { item: eyes.id, table: "" });   // refused: resolved
+        }
+        assert.equal(a.items.getName("Eyes").system.conditions.length, 2, "two wounds, both effects stand");
+        await a.items.getName("Eyes").update({ "system.conditions": [] });
+        const arm = a.items.getName("Arm");
+        const m = await postWoundCard(a, { boxes: 8, receipt: "quenchwound03" });
+        await forced(0.99, () => cardOp(m, "check"));
+        await forced(0.2, () => cardOp(game.messages.get(m.id), "damage", { item: arm.id, table: "" }));   // 5 dice of 5s vs 5 (never force 6s: they explode forever)
+        assert.equal(a.items.getName("Arm").system.conditions.length, 0, "alpha resisted");
+        assert.match(game.messages.get(m.id).flags.sr2e.cdmg.results.damage.text, /resisted/);
+      });
+
+      it("plating: a missed treatment, a degradation loss lowers Body everywhere, a stale card is refused, repair restores", async () => {
+        const a = await mk({ name: "Quench CD Plating", type: "character" });
+        await a.update({ "system.body.base": 3 });
+        await a.createEmbeddedDocuments("Item", [ware("Plating", "dermal-plating", { attributeMods: { body: 2 }, skinMissed: 3 })]);
+        twice(a);
+        const b0 = a.system.body.value;
+        const { postWoundCard, cardOp } = await D();
+        const p = a.items.getName("Plating");
+        const m = await postWoundCard(a, { boxes: 7, receipt: "quenchwound04" });
+        let st = foundry.utils.deepClone(game.messages.get(m.id).flags.sr2e.cdmg); st.qualifying = true;
+        await game.messages.get(m.id).update({ "flags.sr2e.cdmg": st });
+        await forced(0.99, () => cardOp(game.messages.get(m.id), `degrade:${p.id}`));   // 2 < 3
+        twice(a);
+        assert.equal(a.items.getName("Plating").system.skinLoss, 1);
+        assert.equal(a.system.body.value, b0 - 1);
+        assert.match(a.system.attributeSources.body.map(x => x.name).join(), /−1 rating/);
+        await a.items.getName("Plating").update({ "system.skinMissed": 9 });   // a hand edit
+        await cardOp(game.messages.get(m.id), `missed:${p.id}`);
+        assert.equal(a.items.getName("Plating").system.skinMissed, 9, "stale snapshot: refused");
+        await a.items.getName("Plating").update({ "system.skinLoss": 0 });
+        assert.equal(twice(a).system.body.value, b0);
+      });
+
+      it("scars: the general check and a sheathing scar from one card; the TN is exactly boxes + modifiers", async () => {
+        const a = await mk({ name: "Quench CD Scar", type: "character" });
+        await a.update({ "system.conditionMonitor.physical.value": 4 });   // wounded: the Injury Modifier must NOT apply
+        await a.createEmbeddedDocuments("Item", [ware("Sheath", "dermal-sheath", { attributeMods: { body: 2 } })]);
+        const { postWoundCard, cardOp } = await D();
+        const sh = a.items.getName("Sheath");
+        const m = await postWoundCard(a, { boxes: 10, receipt: "quenchwound05" });
+        await cardOp(game.messages.get(m.id), `missed:${sh.id}`);
+        await cardOp(game.messages.get(m.id), `sheathScar:${sh.id}`);
+        await forced(0.99, () => cardOp(game.messages.get(m.id), "scar", { treat: "none", magic: "none", plating: false, skin: true, salve: false }));
+        const scars = a.getFlag("sr2e", "scars");
+        assert.equal(scars.length, 2);
+        assert.deepEqual(scars.map(s => s.severity).sort(), ["Minor", "Terrible"]);
+        assert.match(game.messages.get(m.id).flags.sr2e.cdmg.results.scar, /TN 12/, "10 boxes + 2 skin, no wound penalty");
+        await cardOp(game.messages.get(m.id), "scar", { treat: "none", magic: "none", plating: false, skin: false, salve: false });
+        assert.equal(a.getFlag("sr2e", "scars").length, 2, "a resolved scar check can't add another");
+      });
+    }, { displayName: "SR2E: Cyberware damage, repair, scarring" });
+
     // ── Matrixware: the cranial cyberdeck ("C2", Shadowtech p.54–59) ─────────
     quench.registerBatch("sr2e.matrixware", (context) => {
       const { describe, it, assert, after } = context;

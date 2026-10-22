@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 0.114.0 — 2026-10-22
+
+### Added — Cybertechnology: cyberware damage, repair and scarring (optional)
+- **World setting "Cyberware damage and scarring (Cybertechnology)"**, off by default.
+  When it's on, a Serious or Deadly physical wound on a character whispers the GM ONE
+  card offering three checks.
+- **Cyberware damage (p.44):** 2D6 against 6 or 10. On damage, the GM picks the piece;
+  alpha, beta and delta grades get their 5-dice resistance; then the cybereye,
+  cyberear, communications headware or cyberlimb secondary-damage table, with repair TN
+  half the roll. Every effect stays until it's repaired, and a second wound adds
+  another. Damaged items show ⚠ on the gear tab.
+- **Dermal plating and sheathing (pp.47–48):** missed bonder or sealer treatments, the
+  degradation check on later wounds from non-explosive weapons or magic (sheathing only
+  on Deadly wounds), lost rating lowering the implant's Body bonus, and the street-doc
+  repair price. Sheathing without sealer offers a Minor scar.
+- **Scarring (p.56):** a Body test at TN = boxes taken plus the Scarring Modifiers;
+  scars go into a list with the surgery that can treat them.
+- **GM-editable throughout:** all of it is visible in a new "Cyberware condition" block
+  on the gear tab. Each card action applies once, and a card refuses to overwrite a
+  number you've since edited by hand. A "Wound card" button posts the card manually.
+
+### Fixed
+- Move-by-wire complications: an event recorded in the same instant as the event it
+  depends on could be ignored. Dependencies are now resolved regardless of order.
+
 ## 0.113.0 — 2026-10-22
 
 ### Added — Cybertechnology: move-by-wire and reflex add-ons

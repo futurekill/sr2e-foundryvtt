@@ -7,6 +7,7 @@ import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibi
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
 import { mbwOp, reflexCheck } from "../mbw.mjs";
+import { postWoundCard } from "../cyberdamage.mjs";
 import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
@@ -3607,6 +3608,33 @@ const SHARED_ACTIONS = {
       content: `<p>The Perception Test's base target number:</p><input type="number" name="tn" value="4" min="2" autofocus>`,
       ok: { callback: (ev, button) => Number(button.form.elements.tn.value) || 4 } });
     if (base) return reflexCheck(this.document, base);
+  },
+  // Cyberware condition (optional; docs/PLAN-cybertechnology-phase5.md), GM only
+  cdRepair: async function(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (item) return item.update({ "system.conditions": (item.system.conditions ?? []).filter(c => c.id !== target.dataset.condition) });
+  },
+  cdSkinRepair: async function(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (item && item.system.skinLoss > 0) return item.update({ "system.skinLoss": item.system.skinLoss - 1 });
+  },
+  cdScarTreat: async function(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const scars = (this.document.getFlag("sr2e", "scars") ?? []).map(s => s.id === target.dataset.scar ? { ...s, treatedTo: target.dataset.to } : s);
+    return this.document.setFlag("sr2e", "scars", scars);
+  },
+  cdManualWound: async function(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const boxes = await foundry.applications.api.DialogV2.prompt({ window: { title: "Serious/Deadly wound" },
+      content: `<p>Boxes of physical damage the wound took (6–9 Serious, 10+ Deadly):</p><input type="number" name="boxes" value="6" min="6" autofocus>`,
+      ok: { callback: (ev, button) => Number(button.form.elements.boxes.value) || 6 } });
+    if (boxes) return postWoundCard(this.document, { boxes, receipt: foundry.utils.randomID(), manual: true });
   },
   toggleReflexes: async function(event, target) {
     event.preventDefault();

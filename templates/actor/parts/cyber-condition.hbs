@@ -1,0 +1,18 @@
+{{!-- Cyberware damage, plating/sheathing, scars (optional; docs/PLAN-cybertechnology-phase5.md).
+      GM-editable state: every number here can be corrected by hand. --}}
+{{#if cyberCondition}}
+<div class="gear-category sr2e-cyber-condition">
+  <div class="category-header flexrow"><h3>Cyberware condition</h3>
+    {{#if cyberCondition.isGM}}<button type="button" data-action="cdManualWound" title="Post the Serious/Deadly wound card by hand (a lost card, or a wound the system didn't see)">Wound card</button>{{/if}}</div>
+  <div class="sr2e-limb-stats hint">
+    {{#each cyberCondition.damaged as |d|}}{{#each d.conditions as |c|}}
+      <div class="sr2e-limb-warn" data-item-id="{{d.id}}">⚠ {{d.name}}: {{c.effect}} (repair TN {{c.repairTN}}{{#if d.delta}}; delta: ×4 costs and time{{/if}})
+        {{#if @root.cyberCondition.isGM}}<a data-action="cdRepair" data-condition="{{c.id}}">Repaired</a>{{/if}}</div>
+    {{/each}}{{/each}}
+    {{#each cyberCondition.skins as |s|}}<div data-item-id="{{s.id}}">{{s.name}}: {{s.missed}} missed treatment(s), −{{s.loss}} rating
+      {{#if s.loss}}{{#if @root.cyberCondition.isGM}}<a data-action="cdSkinRepair" title="A street doc: {{s.price}}¥ for this point (p.48)">Repair a point</a>{{/if}}{{/if}}</div>{{/each}}
+    {{#each cyberCondition.scars as |z|}}<div>Scar: {{z.current}}{{#if z.treatedTo}} (was {{z.severity}}){{/if}} — {{z.source}}
+      {{#if @root.cyberCondition.isGM}}{{#each z.procedures as |p|}}<a data-action="cdScarTreat" data-scar="{{z.id}}" data-to="{{p.to}}">{{p.label}}</a>{{/each}}{{/if}}</div>{{/each}}
+  </div>
+</div>
+{{/if}}

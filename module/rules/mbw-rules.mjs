@@ -67,7 +67,12 @@ export function foldMbw(events = [], now = 0) {
       : e.type === "tleTreatment" ? e.occurrence : e.type === "ccssTreatment" || e.type === "ccssRecovery" ? e.incident : null;
     return !parent || live.has(parent);
   };
-  for (const e of all) if (e.type !== "void" && ok(e)) live.add(e.key);
+  // Resolved to a FIXPOINT, independent of sort order: a child sharing its parent's
+  // timestamp can sort before it and must still be live (Phase 5 maintenance fix).
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const e of all) if (e.type !== "void" && !live.has(e.key) && ok(e)) { live.add(e.key); changed = true; }
+  }
   const L = (type) => all.filter(e => e.type === type && live.has(e.key));
 
   // Generations: the one install with no remove is open.

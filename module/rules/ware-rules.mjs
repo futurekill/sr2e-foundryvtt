@@ -22,6 +22,11 @@ export const WARE_SOURCES = Object.fromEntries([
   ...of("wired-reflexes:3", SYS("c2f3e4d5a6b70829")),
   ...of("boosted-reflexes", CT("ct-bodyware", "05d72dfda3f7eafd"), CT("ct-bodyware", "ff4e73ebf199c7c8"), CT("ct-bodyware", "549bc17b121c5c9c")),
   ...of("synaptic-accelerator", ST("st-bioware", "abf83fc461cdb66a")),
+  ...of("dermal-plating", SYS("7tuo7vbiqlcdsia6"), SYS("d3a4b5c6e7f80931"), SYS("e4b5c6d7f8a90a42")),
+  ...of("cyberear", SYS("3d89febv0ted2kon")),
+  ...of("comm-headware", SYS("17d0945110b4cb33"), SYS("b2cc43aa6248a93b"), SYS("399qebdkfbz9i75m"), SYS("ebujgdogforfeqen"),
+    ...["bcf6634f8d183c65", "0e2a4d29461c41a8", "68e658d6b72a62b8", "cde8e55950028420", "1b0b6f5f2aaa4286", "e3caae71f62f4900",
+      "842ab9ef6cf2bcb9", "d4d209097e89fb53", "ba35beabd41162b8", "442b3110dca81095", "2b8b037fdc69b930"].map(id => CT("ct-headware", id))),
   ...of("datajack", SYS("b59ff8773d6c2f11"), CT("ct-matrixware", "41fb1314fbfcd8c0"), CT("ct-matrixware", "2298c394b579eb3f"),
     ST("st-cyberware", "b71df0e525220f05"))
 ]);

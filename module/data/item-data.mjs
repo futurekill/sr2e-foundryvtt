@@ -601,6 +601,18 @@ export class CyberwareData extends SR2EDataModel {
       // SR2E p.247 — cybereyes accept enhancements up to 0.5 Essence at no further
       // cost; only module essence beyond `capacity` adds to the base.
       capacity: new fields.NumberField({ initial: 0, min: 0 }),
+      // Cyberware damage (optional; Cybertechnology pp.44–49): GM-editable state. Every
+      // unrepaired secondary effect, the missed bonder/sealer treatments, and the points of
+      // dermal plating/sheathing rating lost (docs/PLAN-cybertechnology-phase5.md).
+      conditions: new fields.ArrayField(new fields.SchemaField({
+        id: new fields.StringField({ initial: "" }),
+        table: new fields.StringField({ initial: "" }),
+        roll: new fields.NumberField({ integer: true, initial: 0 }),
+        effect: new fields.StringField({ initial: "" }),
+        repairTN: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      }), { initial: [] }),
+      skinMissed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      skinLoss: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Wired reflexes switched off with a reflex trigger (Cybertechnology p.38). Ignored
       // without a trigger installed.
       switchedOff: new fields.BooleanField({ initial: false }),
