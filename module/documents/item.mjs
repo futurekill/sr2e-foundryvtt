@@ -50,7 +50,7 @@ function restrictionLabel(r) {
  * @param {Actor|null} actor - Attacking actor (required for formula codes).
  * @returns {{ power: number, level: string }}
  */
-export function evaluateDamageCode(code, actor = null) {
+export function evaluateDamageCode(code, actor = null, { strength = null } = {}) {
   if (!code) return { power: 0, level: "M" };
 
   // 1. Plain numeric code — "9M", "6S", "4D"
@@ -65,17 +65,19 @@ export function evaluateDamageCode(code, actor = null) {
     const expr  = formulaMatch[1];
     const level = formulaMatch[2].toUpperCase();
     const sys   = actor.system;
+    // A per-attack Strength (leading with one limb, Cybertechnology p.50).
+    const str   = Number.isFinite(strength) ? strength : (sys.strength?.value ?? 0);
 
     // Longest keys first so "strength" isn't shadowed by "str"
     const ATTR_MAP = {
-      strength:     sys.strength?.value     ?? 0,
+      strength:     str,
       intelligence: sys.intelligence?.value ?? 0,
       quickness:    sys.quickness?.value    ?? 0,
       willpower:    sys.willpower?.value    ?? 0,
       charisma:     sys.charisma?.value     ?? 0,
       reaction:     sys.reaction?.value     ?? 0,
       body:         sys.body?.value         ?? 0,
-      str:          sys.strength?.value     ?? 0,
+      str:          str,
       bod:          sys.body?.value         ?? 0,
       qui:          sys.quickness?.value    ?? 0,
       int:          sys.intelligence?.value ?? 0,
@@ -831,6 +833,7 @@ export class SR2EItem extends Item {
     const modParts = [];
     let targetNumber;
     let label;
+    let lead = null;   // melee: leading with one limb (Cybertechnology p.50)
 
     // Ranged-only state — resolved in the ranged branch, used later
     let shotsFired = 0;
@@ -868,10 +871,14 @@ export class SR2EItem extends Item {
       const multiMod    = options.multiMod    ?? 0;   // +2 per additional target
       // Visibility at half value, rounded down, except Full Darkness (p.102).
       const meleeVisMod = [0, 1, 2, 3, 8].includes(options.meleeVisMod) ? options.meleeVisMod : 0;
+      // Leading with one limb (Cybertechnology p.50): revalidated against the live
+      // limb numbers, never trusted from the dialog.
+      lead = (actor.system.limbs?.leadWith ?? []).find(l => l.key === options.leadWith) ?? null;
+      const leadTN = lead?.tn ?? 0;
 
       targetNumber = Math.max(2,
         BASE_TN + reachMod + friendsMod + positionMod + multiMod + meleeVisMod + otherMod
-                + defaultingPenalty
+                + leadTN + defaultingPenalty
       );
 
       if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
@@ -882,6 +889,7 @@ export class SR2EItem extends Item {
       if (positionMod)     modParts.push(`position ${positionMod}`);
       if (multiMod)        modParts.push(`multiple targets +${multiMod}`);
       if (meleeVisMod)     modParts.push(`visibility +${meleeVisMod}`);
+      if (lead)            modParts.push(`leading with ${lead.name ?? lead.key} (Str ${lead.strength}) +${lead.tn}`);
       if (otherMod)        modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
       label = RL("MeleeAttack", { name: this.name, mods: modParts.length ? " — " + modParts.join(", ") : "", tn: targetNumber });
 
@@ -1130,7 +1138,7 @@ export class SR2EItem extends Item {
     // The defender's test (or an Undefended concession) resolves the hit,
     // staging, and damage — see the .sr2e-defend-btn handler in sr2e.mjs.
     if (isMelee) {
-      const dmg = evaluateDamageCode(this.system.damageCode, actor);
+      const dmg = evaluateDamageCode(this.system.damageCode, actor, { strength: lead?.strength ?? null });
       let level = dmg.level;
       let power = Math.max(1, dmg.power);
       let damageType = this.system.damageType || "physical";
@@ -1146,7 +1154,7 @@ export class SR2EItem extends Item {
       } else if (appliesBoneLacingPhysical({
         boneLacingPhysical: options.boneLacingPhysical,
         killingHands: options.killingHands,
-        unarmedPowerBonus: this.system._unarmedPowerBonus
+        unarmedPowerBonus: this.system._boneLacingPower   // lacing only, not cyberhands
       })) {
         // Bone lacing physical option (Shadowtech p.42): physical damage at
         // HALF Power (round up). The lace bonus is already in dmg.power via the

@@ -491,5 +491,8 @@
   "SR2E.Limb.Kind.Smartlink": "Smartlink",
   "SR2E.Limb.Kind.Device": "Device",
   "SR2E.Limb.Kind.Weapon": "Weapon",
-  "SR2E.Limb.Kind.Other": "Other"
+  "SR2E.Limb.Kind.Other": "Other",
+  "SR2E.Limb.PairBody": "Cyberlimb pairs",
+  "SR2E.Limb.Average": "Cyberlimbs (average of four limbs)",
+  "SR2E.Limb.Coordination": "mismatched limb Quickness"
 }

@@ -4,6 +4,19 @@
 <div class="gear-category sr2e-cyberlimbs">
   <div class="category-header flexrow"><h3>Cyberlimbs</h3>
     {{#if cyberlimb.unresolvedOverlap}}<span class="hint">Set every limb's side to check for overlaps.</span>{{/if}}</div>
+  {{#if cyberlimb.stats}}{{#with cyberlimb.stats as |st|}}
+  <div class="sr2e-limb-stats hint" title="Cyberlimb rules (Cybertechnology pp.49–51)">
+    {{#if st.positions.length}}
+    <div>{{#each st.positions as |p|}}<span>{{p.label}}{{#if p.cyber}} (cyber){{/if}}: Str {{p.strength}}, Qck {{p.quickness}}</span>{{#unless @last}} · {{/unless}}{{/each}}</div>
+    <div>Average: Strength {{st.avgStrength}}, Quickness {{st.avgQuickness}} (used for the character's attributes)</div>
+    {{/if}}
+    {{#if st.pairBody}}<div>Body from cyberlimb pairs: +{{st.pairBody}}</div>{{/if}}
+    {{#if st.handPower}}<div>Cyberhands/feet: +{{st.handPower}} unarmed Power (bone lacing's, if higher, applies instead)</div>{{/if}}
+    {{#if st.coordinationTN}}<div class="sr2e-limb-warn">Mismatched limb Quickness: +{{st.coordinationTN}} TN on Quickness tests</div>{{/if}}
+    {{#if st.laceReplacements}}<div>Complete replacements: {{st.laceReplacements}} (bone lacing armor: 3 → −1, 4+ → none)</div>{{/if}}
+    {{#each st.caps as |c|}}<div class="sr2e-limb-warn">⚠ {{c}}</div>{{/each}}
+  </div>
+  {{/with}}{{/if}}
   <div class="item-list">
     {{#each cyberlimb.limbs as |l|}}
     <div class="item-row flexrow sr2e-limb-row {{#unless l.installed}}cyber-off{{/unless}}" data-item-id="{{l.id}}">
@@ -32,6 +45,7 @@
         {{#each @root.config.limbOptionKinds as |label key|}}<option value="{{key}}" {{selected o.limbOptionKind key}}>{{localize label}}</option>{{/each}}
       </select>
       {{#if o.kind}}{{#unless o.limbOptionKind}}<span class="hint">{{o.kind}}</span>{{/unless}}{{/if}}
+      {{#if o.installed}}<span class="hint" title="Essence and price for where it's attached (Cybertechnology pp.31, 49–52)">{{o.essence}} Ess · {{o.cost}}¥{{#if o.surcharge}} (+10%){{/if}}{{#if o.adjacent}} (next to an enhanced hand/foot){{/if}}</span>{{/if}}
       {{#if o.reason}}<span class="hint sr2e-limb-warn">⚠ {{o.reason}}</span>{{/if}}
     </div>
     {{/each}}

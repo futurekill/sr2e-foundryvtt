@@ -408,13 +408,28 @@ export class SR2EActor extends Actor {
     // the worst state across drugs. Not on ritual stages.
     const addictionPenalty = substancesOf(this).penalty;
     const addictionTN = policy ? 0 : addictionTnFor(addictionPenalty, options.tnContext?.kind);
+    const coordinationTN = policy ? 0 : this.coordinationTnFor(options);
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN);
-    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN - centeringReduction;
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN);
+    const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
+      + coordinationTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-             centeringReduction, total };
+             coordinationTN, centeringReduction, total };
+  }
+
+  /**
+   * Mismatched limb Quickness (Cybertechnology p.51): the pairs' difference on "all
+   * tests involving movement or coordination" — applied to Quickness attribute tests
+   * and tests of Quickness-linked skills (weapon attacks included), in this ONE place.
+   * @param {{attribute?: string, tnContext?: object}} options
+   */
+  coordinationTnFor(options = {}) {
+    const tn = this.system.limbs?.coordinationTN ?? 0;
+    if (!tn) return 0;
+    const attr = options.attribute ?? CONFIG.SR2E.activeSkills?.[options.tnContext?.key]?.attribute;
+    return attr === "quickness" ? tn : 0;
   }
 
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
@@ -427,7 +442,7 @@ export class SR2EActor extends Actor {
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
     const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-            centeringReduction, total } = this.testTnModifiers(options);
+            coordinationTN, centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
@@ -493,6 +508,7 @@ export class SR2EActor extends Actor {
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
     if (drugTN > 0)         tnParts.push(`+${drugTN} drugs`);
     if (addictionTN > 0)    tnParts.push(`+${addictionTN} ${addictionPenalty}`);
+    if (coordinationTN > 0) tnParts.push(`+${coordinationTN} ${game.i18n.localize("SR2E.Limb.Coordination")}`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
@@ -1051,6 +1067,7 @@ export class SR2EActor extends Actor {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // Centering (Grimoire p.44) was being dropped here — pass it through.
       centeringReduction: options.centeringReduction,
+      attribute,   // mismatched limb Quickness (coordinationTnFor)
       ...(options.whisperGM ? { whisperGM: true } : {}),
       ...(attribute === "body" ? this._bodyTestOpts() : {})
     });

@@ -2687,6 +2687,115 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cyberlimbs (model)" });
 
+    // ── Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md) ─────────────────
+    quench.registerBatch("sr2e.limbrules", (context) => {
+      const { it, assert, afterEach } = context;
+      const made = [];
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const ware = (name, system = {}, extra = {}) => ({ name, type: "cyberware", system: { location: "cyberlimb", installed: true, essenceCost: 0, cost: 0, ...system }, ...extra });
+      const opt = (name, kind, link, system = {}) => ware(name, { limbOption: true, limbOptionKind: kind, linkedLimbId: link, rating: 1, ...system });
+      const attrs = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [`system.${k}.base`, v]));
+      // Re-prepare twice the way Foundry does (reset() re-initialises from source and
+      // prepares; embedded items are NOT re-initialised, which is what this catches).
+      const twice = (a) => { a.reset(); a.reset(); return a; };
+
+      it("Strength and Quickness become the four-limb averages, stable over repeated preparation, and revert", async () => {
+        const a = await mk({ name: "Quench Limb Avg", type: "character" });
+        await a.update(attrs({ strength: 6, body: 6, quickness: 4, intelligence: 4 }));
+        assert.equal(a.system.strength.value, 6);
+        const [arm] = await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "left" })]);
+        assert.equal(twice(a).system.strength.value, 5, "6,6,6,3 → 5 (p.50)");
+        assert.match(a.system.attributeSources.strength.map(s => s.name).join(), /average/);
+        const [s] = await a.createEmbeddedDocuments("Item", [opt("Str +4", "strength", arm.id, { rating: 4 })]);
+        assert.equal(twice(a).system.strength.value, 6, "6,6,6,7 → 6");
+        assert.equal(a.items.get(s.id).system.actualEssenceCost, 0.4, "the 4th point costs .4 (p.50)");
+        await a.createEmbeddedDocuments("Item", [opt("Qck +2", "quickness", arm.id, { rating: 2 })]);
+        twice(a);
+        assert.equal(a.system.quickness.value, 4, "6,4,4,4 → 4");
+        assert.equal(a.system.limbs.coordinationTN, 2, "arms mismatched by 2 (p.51)");
+        assert.equal(a.coordinationTnFor({ attribute: "quickness" }), 2);
+        assert.equal(a.coordinationTnFor({ tnContext: { key: "firearms" } }), 2, "a Quickness-linked skill");
+        assert.equal(a.coordinationTnFor({ attribute: "strength" }), 0);
+        assert.equal(a.testTnModifiers({ attribute: "quickness" }).coordinationTN, 2, "in the shared TN modifiers");
+        assert.ok(a.system.limbs.leadWith.some(l => l.key === "arm.left" && l.tn === 1), "lead with the Str 7 arm at +1");
+        await arm.update({ "system.installed": false });
+        twice(a);
+        assert.equal(a.system.strength.value, 6, "uninstalled: natural again");
+        assert.equal(a.system.limbs.coordinationTN, 0, "the reset contract");
+        assert.equal(a.system.limbs.leadWith.length, 0);
+      });
+
+      it("pairs add Body; a forearm and a hand are separate parts; hands raise unarmed Power without lacing", async () => {
+        const a = await mk({ name: "Quench Limb Body", type: "character" });
+        await a.update(attrs({ body: 4, strength: 3 }));
+        // Every character gets an Unarmed Strike of its own.
+        await a.createEmbeddedDocuments("Item", [ware("L", { limbType: "arm", side: "left" }), ware("R", { limbType: "arm", side: "right" })]);
+        assert.equal(twice(a).system.body.value, 5, "+1 for a pair of cyberarms (p.49)");
+        const ua = () => a.items.getName("Unarmed Strike").system;
+        assert.equal(ua()._unarmedPowerBonus, 2, "two cyberhands: +2");
+        assert.notOk(ua()._boneLacingPower, "cyberhands never offer the lacing option");
+        await a.createEmbeddedDocuments("Item", [ware("Lace", { location: "bodyware", unarmedPowerBonus: 3, armorImpact: 2 })]);
+        twice(a);
+        assert.equal(ua()._unarmedPowerBonus, 3, "the higher of lacing and hands");
+        assert.equal(ua()._boneLacingPower, 3);
+        assert.equal(a.system.armor.impact, 2, "two replacements keep the lacing armor");
+        await a.createEmbeddedDocuments("Item", [ware("LL", { limbType: "leg", side: "left" })]);
+        assert.equal(twice(a).system.armor.impact, 1, "three replacements: −1 (p.50)");
+        const b = await mk({ name: "Quench Limb Parts", type: "character" });
+        await b.createEmbeddedDocuments("Item", [ware("F", { limbType: "forearm", side: "left" }), ware("H", { limbType: "hand", side: "left" })]);
+        assert.equal(b.system.limbs.handPower, 1, "no conflict: the hand counts");
+      });
+
+      it("an NPC's authored stats are left alone", async () => {
+        const n = await mk({ name: "Quench Limb NPC", type: "npc" });
+        const before = n.system.strength?.value;
+        await n.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "left" })]);
+        assert.equal(n.system.strength?.value, before);
+        assert.notOk(n.system.limbs?.anyCyber);
+      });
+
+      it("attaching records the surcharge and charges it; detaching refunds; an unaffordable attach is vetoed", async () => {
+        const a = await mk({ name: "Quench Limb Buy", type: "character", system: { nuyen: 100000 } });
+        const [arm] = await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "left" })]);
+        await a.createEmbeddedDocuments("Item", [opt("Str", "strength", arm.id, { cost: 150000 })]);
+        const [q] = await a.createEmbeddedDocuments("Item", [opt("Qck", "quickness", "", { cost: 90000 })]);
+        await q.setFlag("sr2e", "paid", 90000);
+        await q.update({ "system.linkedLimbId": arm.id });
+        await new Promise(r => setTimeout(r, 300));
+        const qq = () => a.items.get(q.id);
+        assert.equal(qq().system.limbSurcharge, true, "a second type on the limb (p.51)");
+        assert.equal(qq().system.cost, 99000);
+        assert.equal(a.system.nuyen, 91000, "charged the 10%");
+        await qq().update({ "system.linkedLimbId": "" });
+        await new Promise(r => setTimeout(r, 300));
+        assert.equal(qq().system.limbSurcharge, false, "reassessed on its own detach");
+        assert.equal(a.system.nuyen, 100000, "refunded");
+        await a.update({ "system.nuyen": 0 });
+        await qq().update({ "system.linkedLimbId": arm.id });
+        await new Promise(r => setTimeout(r, 300));
+        assert.equal(qq().system.linkedLimbId, "", "vetoed: can't afford the surcharge");
+        assert.equal(qq().system.limbSurcharge, false, "the facts didn't land either");
+      });
+
+      it("Essence in and out of a limb: the Compatibility table and cyberguns", async () => {
+        const a = await mk({ name: "Quench Limb Ess", type: "character" });
+        const [arm] = await a.createEmbeddedDocuments("Item", [ware("Arm", { limbType: "arm", side: "left" })]);
+        const spurSrc = "Compendium.sr2e.cyberware.Item.9u59mch2668dn9ds";
+        const gunSrc = "Compendium.sr2e-cybertechnology.ct-cyberlimbs.Item.5744e70a42e4efb4";
+        await a.createEmbeddedDocuments("Item", [
+          ware("Spur", { location: "bodyware", essenceCost: 0.1, limbOption: true, linkedLimbId: arm.id }, { _stats: { compendiumSource: spurSrc } }),
+          ware("Gun", { essenceCost: 0, limbOption: true, linkedLimbId: "" }, { _stats: { compendiumSource: gunSrc } })]);
+        twice(a);
+        assert.equal(a.items.getName("Spur").system.actualEssenceCost, 0, "a spur in a cyberlimb: 0 (p.49)");
+        assert.equal(a.items.getName("Gun").system.actualEssenceCost, 0.35, "a light-pistol cybergun outside a limb: .35 (p.52)");
+        await a.items.getName("Gun").update({ "system.linkedLimbId": arm.id });
+        assert.equal(twice(a).items.getName("Gun").system.actualEssenceCost, 0, "in the limb: 0");
+        await arm.update({ "system.installed": false });
+        assert.equal(twice(a).items.getName("Spur").system.actualEssenceCost, 0.1, "its limb uninstalled: its own Essence again");
+      });
+    }, { displayName: "SR2E: Cyberlimb rules" });
+
     // ── Matrixware: the cranial cyberdeck ("C2", Shadowtech p.54–59) ─────────
     quench.registerBatch("sr2e.matrixware", (context) => {
       const { describe, it, assert, after } = context;

@@ -1,4 +1,6 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
+import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
@@ -322,6 +324,7 @@ export class CharacterData extends SR2EDataModel {
     // Calculate final attribute values (base + racial clamped to racial max,
     // then cyberware/adept modifiers applied on top)
     this._calculateAttributeValues(mods);
+    this._applyLimbAverages(mods);
 
     // Body Index (Shadowtech p.6): value from installed bioware (collected above,
     // assigned exactly once here); cap = natural, unaugmented Body — computed
@@ -363,8 +366,11 @@ export class CharacterData extends SR2EDataModel {
     // 1 + rig level. Other Reaction/Initiative enhancers (wired reflexes,
     // spells) are suppressed; injury modifiers still apply at roll time.
     // Muscle Replacement/Augmentation Quickness is excluded here (SR2E p.249).
-    this.reaction.base = reactionBase(
-      this.quickness.value, this.intelligence.value, mods.reactionExemptQuickness ?? 0);
+    // With a full cyberlimb, Reaction reads the limbs' exemption-free average (p.51:
+    // limb Quickness "affects Reaction and Initiative"; Muscle Replacement still doesn't).
+    this.reaction.base = this.limbs.anyCyber
+      ? reactionBase(this.limbs.avgQuicknessReaction, this.intelligence.value, 0)
+      : reactionBase(this.quickness.value, this.intelligence.value, mods.reactionExemptQuickness ?? 0);
     if (this.rigging && this.vehicleControlRig > 0) {
       this.reaction.mod = 2 * this.vehicleControlRig;
       this.initiative.dice = 1 + this.vehicleControlRig;
@@ -467,7 +473,7 @@ export class CharacterData extends SR2EDataModel {
     // Bone lacing raises the Power of unarmed blows (Shadowtech p.42). Derived
     // onto the innate Unarmed Strike so every path that reads its damageCode —
     // the attack dialog, opposed melee, the riposte — sees it without changes.
-    this._applyUnarmedPower(mods.unarmedPower);
+    this._applyUnarmedPower(mods.unarmedPower, this.limbs.handPower);
   }
 
   /**
@@ -603,10 +609,15 @@ export class CharacterData extends SR2EDataModel {
    * @param {number} bonus
    * @private
    */
-  _applyUnarmedPower(bonus) {
+  _applyUnarmedPower(lace, hand = 0) {
     const unarmed = this.parent?.items?.find(
       i => i.type === "weapon" && i.name === "Unarmed Strike");
     if (!unarmed) return;
+    // Cyberhands/feet (Cybertechnology p.49) and lacing don't stack: the higher one
+    // (user ruling). Lacing stays its own fact: only it offers the physical option.
+    delete unarmed.system._boneLacingPower;
+    if (lace > 0) unarmed.system._boneLacingPower = lace;
+    const bonus = Math.max(lace, hand);
     // No early return when the bonus is gone: the code below ALREADY derives from
     // the authored value, so running it with 0 is what puts the original Power
     // back. Returning early instead left the last pass's raised code in place
@@ -916,6 +927,15 @@ export class CharacterData extends SR2EDataModel {
     // Kamikaze (p.99): failed implants still cost Essence and Body Index, and do
     // nothing else. MAO (p.100) limits an active adrenal pump.
     const working = !substancesOf(this.parent).implantsFailed;
+    // Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md). Neutral first, every pass
+    // (the reset contract); the Essence markers are cleared on EVERY cyberware item
+    // before the model is built, so nothing reads the previous pass.
+    mods.biowareQuickness = 0;
+    mods.limbs = this._limbEssenceAndModel(working);
+    if (working && mods.limbs.pairBody) {
+      mods.body += mods.limbs.pairBody;
+      mods.sources.body.push({ name: game.i18n.localize("SR2E.Limb.PairBody"), value: mods.limbs.pairBody });
+    }
     const maoInForce = drugsInForce(this.parent).some(e => e.limitsPump);
     for (const item of this.parent?.items ?? []) {
       if (item.type === "cyberware" && item.system.installed && !working) {
@@ -957,6 +977,7 @@ export class CharacterData extends SR2EDataModel {
           const limited = maoInForce && item.flags?.sr2e?.adrenalPump;
           const scale = (key) => !limited || key === "reaction" ? rating : rating >= 2 ? 1 : 0;
           for (const [key, val] of Object.entries(sys.attributeMods ?? {})) {
+            if (key === "quickness") mods.biowareQuickness += val * scale(key);
             if (key in mods) mods[key] += val * scale(key);
             if (val && scale(key) && mods.sources[key]) mods.sources[key].push({ name: item.name, value: val * scale(key) });
           }
@@ -1022,6 +1043,65 @@ export class CharacterData extends SR2EDataModel {
    * @returns {number}
    * @private
    */
+  /**
+   * Clear every cyberware item's limb Essence marker, build the limb model, and assign
+   * the limb-adjusted Essence (Cybertechnology p.49, p.52, p.31, p.37). Returns the
+   * side-independent stats (pairs, hands, lacing) for the collection. Failed implants
+   * (Kamikaze) get no limb rule at all and keep their own Essence.
+   * @private
+   */
+  _limbEssenceAndModel(working) {
+    this.limbs = NEUTRAL_LIMBS();
+    const cyber = (this.parent?.items ?? []).filter(i => i.type === "cyberware");
+    for (const i of cyber) delete i.system.limbEssence;
+    if (!working || !cyber.length) { this._limbModel = null; return limbStats({ limbs: [] }); }
+    const model = limbModel(cyber.map(i => ({ id: i.id, name: i.name, installed: !!i.system.installed,
+      system: i.system, flags: i.flags, source: sourceOf(i) })));
+    this._limbModel = model;
+    const stats = limbStats(model);
+    const troll = this.race === "troll";
+    const place = new Map();
+    for (const l of model.limbs) for (const o of l.options) {
+      place.set(o.id, { inLimb: forLimbRules(l), limbType: l.type, counted: stats.selection.counted.has(o.id) });
+    }
+    for (const i of cyber) {
+      if (!i.system.installed) continue;
+      const p = place.get(i.id) ?? { inLimb: false };
+      const e = limbEssence({ sys: i.system, source: sourceOf(i), kind: i.system.limbIdentity?.optionKind ?? null },
+        { ...p, troll, torso: stats.torso });
+      if (e !== null) i.system.limbEssence = e;
+    }
+    return stats;
+  }
+
+  /**
+   * Replace Strength and Quickness with the four limbs' averages (p.50–51) when a full
+   * cyberlimb holds a position, and record every limb number on `system.limbs`.
+   * @private
+   */
+  _applyLimbAverages(mods) {
+    const early = mods.limbs;
+    Object.assign(this.limbs, { pairBody: early.pairBody, pairs: early.pairs, handPower: early.handPower,
+      laceReplacements: early.laceReplacements, rejected: early.selection?.rejected ?? [] });
+    if (!this._limbModel) return;
+    const naturalQ = this._naturalAttribute("quickness", mods);
+    const st = limbStats(this._limbModel, {
+      naturalStrength: this.strength.value, naturalQuickness: this.quickness.value,
+      reactionExemptQuickness: mods.reactionExemptQuickness ?? 0,
+      naturalBody: this._naturalAttribute("body", mods),
+      quicknessCapBase: naturalQ + (mods.biowareQuickness ?? 0), troll: this.race === "troll" });
+    Object.assign(this.limbs, { positions: st.positions, anyCyber: st.anyCyber, caps: st.caps,
+      coordinationTN: st.coordinationTN, leadWith: st.leadWith, avgStrength: st.avgStrength,
+      avgQuickness: st.avgQuickness, avgQuicknessReaction: st.avgQuicknessReaction });
+    if (!st.anyCyber) return;
+    const label = game.i18n.localize("SR2E.Limb.Average");
+    for (const [attr, avg] of [["strength", st.avgStrength], ["quickness", st.avgQuickness]]) {
+      const delta = avg - this[attr].value;
+      this[attr].value = avg;
+      if (delta) (this.attributeSources[attr] ??= []).push({ name: label, value: delta });
+    }
+  }
+
   _naturalAttribute(attr, mods = null) {
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
     return naturalAttribute(
@@ -1221,8 +1301,12 @@ export class CharacterData extends SR2EDataModel {
     let implantBallistic = 0, implantImpact = 0;
     for (const i of this.parent?.items ?? []) {
       if ((i.type === "bioware" || i.type === "cyberware") && workingImplant(this.parent, i)) {
-        implantBallistic += i.system.armorBallistic ?? 0;
-        implantImpact    += i.system.armorImpact ?? 0;
+        // Bone lacing (the only implant with an unarmed Power bonus) loses armor to
+        // complete cyber replacements (Cybertechnology p.50).
+        const lace = i.type === "cyberware" && (i.system.unarmedPowerBonus ?? 0) > 0;
+        const reps = this.limbs?.laceReplacements ?? 0;
+        implantBallistic += lace ? lacingArmor(i.system.armorBallistic ?? 0, reps) : (i.system.armorBallistic ?? 0);
+        implantImpact    += lace ? lacingArmor(i.system.armorImpact ?? 0, reps) : (i.system.armorImpact ?? 0);
       }
     }
     this.armor.ballistic = worn.ballistic + aeBallistic + implantBallistic;

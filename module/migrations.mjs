@@ -63,8 +63,12 @@ const PENDING_CHARGEN = [];
 const INACTIVE_MODULES = [];
 // 0.110.0: cyberlimb problems per actor (unclassified limbs, unknown sides, conflicts, orphans).
 const LIMB_REPORT = [];
+// 0.111.0: characters whose numbers the cyberlimb rules now change.
+const LIMB_RULES_REPORT = [];
 // Which document the runner is migrating, for reports (a token's actor shares its base's name).
 let CURRENT_LABEL = "";
+// ...and the prepared document itself, for report-only entries that read derived values.
+let CURRENT_ACTOR = null;
 const CANDIDATE_SUBRATINGS = [];
 const REPAIRED_KARMA = [];
 
@@ -626,6 +630,26 @@ export const MIGRATIONS = [
       if (bits.length) LIMB_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
       return null;
     }
+  },
+  {
+    version: "0.111.0",
+    // Report-only: what the cyberlimb rules now change, read from the PREPARED
+    // character (docs/PLAN-cybertechnology-phase3.md §6). Nothing is written.
+    migrateActor(source) {
+      const a = CURRENT_ACTOR;
+      if (source.type !== "character" || !a?.system?.limbs) return null;
+      const L = a.system.limbs, bits = [];
+      if (L.anyCyber) bits.push(`Strength ${L.avgStrength} and Quickness ${L.avgQuickness} (four-limb averages)`);
+      if (L.pairBody) bits.push(`+${L.pairBody} Body from limb pairs`);
+      if (L.handPower) bits.push(`+${L.handPower} unarmed Power from cyberhands/feet`);
+      if (L.laceReplacements >= 3) bits.push(`bone lacing armor reduced (${L.laceReplacements} replacements)`);
+      if (L.coordinationTN) bits.push(`+${L.coordinationTN} TN on Quickness tests (mismatched limbs)`);
+      const ess = a.items.filter(i => i.type === "cyberware" && i.system.limbEssence != null
+        && i.system.limbEssence !== i.system.essenceCost).map(i => `${i.name} ${i.system.essenceCost}→${i.system.limbEssence} Essence`);
+      bits.push(...ess);
+      if (bits.length) LIMB_RULES_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
+      return null;
+    }
   }
 ];
 
@@ -760,7 +784,7 @@ export async function migrateWorld() {
 
   // World actors (and their embedded items)
   for (const actor of game.actors) {
-    CURRENT_LABEL = actor.name;
+    CURRENT_LABEL = actor.name; CURRENT_ACTOR = actor;
     try { await migrateActor(pending, actor); }
     catch (err) { errors++; console.error(`SR2E | Migration failed for Actor "${actor.name}":`, err); }
   }
@@ -778,7 +802,7 @@ export async function migrateWorld() {
   for (const scene of game.scenes) {
     for (const token of scene.tokens) {
       if (token.actorLink || !token.actor) continue;
-      CURRENT_LABEL = `${token.name} (token on ${scene.name})`;
+      CURRENT_LABEL = `${token.name} (token on ${scene.name})`; CURRENT_ACTOR = token.actor;
       try { await migrateActor(pending, token.actor); }
       catch (err) {
         errors++;
@@ -829,6 +853,19 @@ export async function migrateWorld() {
         <ul>${[...new Set(LIMB_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
     });
     LIMB_REPORT.length = 0;
+  }
+
+  if (LIMB_RULES_REPORT.length) {
+    ChatMessage.create({
+      whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>Cyberlimb rules (0.111.0)</strong>
+        <p>Cybertechnology's limb rules now apply to characters. A cyberlimb has a built-in
+        Strength of 3, and Strength and Quickness become the average of the four limbs, so
+        an unenhanced cyberarm can LOWER Strength. These characters' numbers change
+        (nothing was written; see each sheet's Cyberlimbs section):</p>
+        <ul>${[...new Set(LIMB_RULES_REPORT)].map(l => `<li>${foundry.utils.escapeHTML(l)}</li>`).join("")}</ul></div>`
+    });
+    LIMB_RULES_REPORT.length = 0;
   }
 
   if (INACTIVE_MODULES.length) {

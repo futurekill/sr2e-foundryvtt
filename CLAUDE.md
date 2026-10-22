@@ -247,6 +247,14 @@ unclassified. Never read item names. `limbIdentity` is derived every preparation
 drop blanks a dropped option's link). Phase-3 rules must use `forSideRules` /
 `forLimbRules` (unknown sides never guessed; overlaps never double-counted).
 See docs/PLAN-cybertechnology-phase2.md.
+The RULES (`module/rules/limb-stats.mjs`, Phase 3) read only that model: one counted
+option per kind per limb (`selectOptions`). CharacterData clears and rebuilds
+`system.limbs` and every item's `limbEssence` marker each pass; the averages replace
+Strength/Quickness only while a full cyber limb holds a position. NPCs get no limb
+rules (their stats are printed). Placement facts (`limbSurcharge`, `limbAdjacent`) are
+RECORDED by the preUpdateItem placement hook on the option's own link change, never
+inferred from siblings; rollback passes `sr2eKeepPlacementFacts`. The coordination TN
+lives in `testTnModifiers` only. See docs/PLAN-cybertechnology-phase3.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),

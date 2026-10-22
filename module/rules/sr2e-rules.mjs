@@ -1376,25 +1376,9 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
   return out;
 }
 
-/**
- * Derived nuyen price of a cyberlimb option (SR2E p.261). The book prices two of
- * the three as formulas, which must stay formulas (CLAUDE.md):
- *   Increased Strength   Rating x 150,000¥   → costPerRating
- *   Built-In Device      4 x Normal Cost     → costMultiplierOfBase x cost
- *   Built-In Smartlink   flat +2,500¥        → cost
- * Precedence is per-rating, then multiplier, then the flat price. Pure and
- * idempotent: it reads only authored fields and never folds its own result back.
- *
- * @param {object} sys - cyberware system data (authored, not prepared).
- * @returns {number} price in nuyen.
- */
-export function limbOptionCost(sys) {
-  const rating = Math.max(0, sys?.rating ?? 0);
-  const base   = Math.max(0, sys?.cost ?? 0);
-  if (sys?.costPerRating > 0)        return sys.costPerRating * rating;
-  if (sys?.costMultiplierOfBase > 0) return base * sys.costMultiplierOfBase;
-  return base;
-}
+import { limbOptionPrice } from "./limb-stats.mjs";
+// limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
+export { limbOptionCost } from "./limb-stats.mjs";
 
 /**
  * Gyro-stabilization (SR2E p.90): "The total recoil and movement modifiers
@@ -2608,6 +2592,11 @@ export function derivedItemCost(sys, ctx = {}) {
     if (num(sys.force) && num(sys.costPerForce) && sys.costPerForce > 0) {
       return focusCost(sys.force, sys.costPerForce);
     }
+  }
+  if (sys.type === "cyberware" && sys.limbOption) {
+    // A cyberlimb option is priced for its RECORDED placement (Cybertechnology p.31,
+    // p.51): the caller passes the linked limb's type and the option's resolved kind.
+    return limbOptionPrice(sys, ctx.limbOptionKind ?? null, ctx.limbType ?? null);
   }
   if (sys.type === "weapon") {
     // Bows: price scales with the Strength Minimum they were bought at (p.96).

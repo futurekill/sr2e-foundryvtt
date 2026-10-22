@@ -44,6 +44,9 @@ export const SOURCE_OPTION = {
     .map(id => [CT(id), "other"]))         // cyberdeck, DNI, external mount, magnetic system, coverings
 };
 
+/** A document's compendium source uuid (the resolvers' last fallback). */
+export const sourceOf = (doc) => doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null;
+
 const ruleOf = (flags) => String(flags?.sr2e?.rule ?? "");
 
 /** What a limb is, and where that came from. */
