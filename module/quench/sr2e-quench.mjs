@@ -3400,6 +3400,28 @@ export function registerSR2EQuenchTests() {
         } finally { await j?.pages.find(x => x.getFlag("sr2e", "actorUuid") === a.uuid)?.delete(); if (j && !j.pages.size) await j.delete(); }
       });
 
+      it("an unlinked token's character: its own record, notices, and actions by token UUID; the base actor untouched", async () => {
+        const base = await mk({ name: "Quench CYM Token Base", type: "character", system: { willpower: { base: 5 } } });
+        await base.createEmbeddedDocuments("Item", [ware("Chrome", null, { essenceCost: 6.75 })]);
+        const scene = await Scene.create({ name: "Quench CYM Scene", width: 1000, height: 1000 });
+        made.push(scene);
+        const [tok] = await scene.createEmbeddedDocuments("Token", [{ name: "Quench CYM Token", actorId: base.id, actorLink: false, x: 100, y: 100 }]);
+        const a = tok.actor;
+        assert.notEqual(a.uuid, base.uuid, "a synthetic actor");
+        const { recordEvent } = await C();
+        const wt = game.time.worldTime - 11 * DAY;
+        await recordEvent(a, "cym:op:t1", { type: "op", opId: "t1", wt, snapshot: { items: [], intended: -0.75 } });
+        await recordEvent(a, "cym:op-roll:t1:1", { type: "opRoll", opId: "t1", survived: true, successes: 2, pct: 0, wt });
+        await recordEvent(a, "cym:op-done:t1", { type: "opDone", opId: "t1", wt, willpowerBefore: 5, nextRefill: wt + 10 * DAY, nextCds: wt + 180 * DAY });
+        const y = await Y();
+        await y.reconcile(a); await y.reconcile(a);
+        assert.equal(game.messages.filter(m => m.content.includes("refill #1 due") && m.speaker?.token === tok.id).length, 1, "one notice, spoken by the token");
+        await y.resolveRefill(a.uuid, "refilled");
+        assert.equal(y.cymFold(tok.actor).refillResolved, 1, "resolved through the token's UUID");
+        assert.isFalse(y.cymFold(base).active, "the base actor has no cybermancy");
+        assert.equal(tok.actor.system.essence.signed, -0.75);
+      });
+
       it("the setting off: stale buttons refuse and the consequences vanish", async () => {
         const a = await cyborg("Quench CYM Off", -0.75, 11 * DAY);
         const y = await Y();

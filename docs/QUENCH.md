@@ -151,6 +151,10 @@ Every batch is registered through `sweepAfterBatch`, which:
   **every chat card this user created during the batch**. Leftover cards stay
   rendered in the chat log and made each later batch slower.
 
+An interrupted run (a reload, a logout) skips that sweep. `game.sr2e.cleanupQuench()`
+removes what's left from every world collection: "Quench…" documents, and chat cards
+spoken by a "Quench…" actor or naming one when their speaker is gone.
+
 When the Quench window runs in a hidden browser pane, deleted cards' rows can
 linger in the chat log (Foundry removes a row when its slide-out animation
 ends, and hidden pages don't animate). The documents are gone; the rows stay

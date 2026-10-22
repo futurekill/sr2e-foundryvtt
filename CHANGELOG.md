@@ -2,7 +2,15 @@
 
 ## Unreleased
 
+### Removed
+- **"Cyberarm (Partial)" and "Cyberleg (Partial)"** are gone from the cyberware compendium.
+  They were placeholders from the system's first build (not in the SR2 core tables, values
+  never verified, no limb type). The Cybertechnology module ships the real partial limbs:
+  the cyber forearm, lower leg, hand and foot. Copies already in a world are untouched.
+
 ### Fixed
+- `game.sr2e.cleanupQuench()` never removed chat cards (they have no name). It now sweeps
+  the cards an interrupted Quench run leaves behind.
 - Cybermancy: with "Delta clinic" ticked, the surgery dialog no longer tells the GM to roll
   the surgeon against the ordinary cybersurgery TN; the doctor's test is rolled on the
   proposal card.

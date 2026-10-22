@@ -85,10 +85,15 @@ async function cleanupQuench() {
   if (!game.user.isGM) { ui.notifications?.warn("cleanupQuench: GM only"); return 0; }
   const collections = [game.actors, game.items, game.scenes, game.journal,
     game.macros, game.tables, game.playlists, game.cards, game.messages, game.combats];
+  // Chat messages have no name: a test's card is spoken by a "Quench …" actor, or (blast and
+  // spread cards) has no speaker actor and names a "Quench …" document in its text.
+  const isQuench = (d) => d instanceof ChatMessage
+    ? (d.speaker?.alias ?? "").startsWith("Quench") || (!game.actors.get(d.speaker?.actor) && /\bQuench [A-Z]/.test(d.content ?? ""))
+    : (d.name ?? "").startsWith("Quench");
   let total = 0;
   for (const coll of collections) {
     if (!coll) continue;
-    const ids = coll.filter(d => (d.name ?? "").startsWith("Quench")).map(d => d.id);
+    const ids = coll.filter(isQuench).map(d => d.id);
     if (ids.length) { await coll.documentClass.deleteDocuments(ids); total += ids.length; }
   }
   ui.notifications?.info(`cleanupQuench: removed ${total} leftover document(s).`);
