@@ -41,6 +41,9 @@ export const traceTally = (base, traced) => base > 0 && traced ? base + 1 : base
 /** Tar baby/pit (p.42): the tar wins only on MORE successes. */
 export const tarWins = (tarSuccesses, utilitySuccesses) => tarSuccesses > utilitySuccesses;
 
+/** A program's identity for corruption (plan §2): its compendium source, else its name slug. */
+export const programKey = ({ source, name }) => source || String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
 const PERSONA = ["bod", "evasion", "masking", "sensor"];
 /**
  * The VR2 persona (plan §2): `programs[attr]` = { loaded, best } (best usable rating, or 0

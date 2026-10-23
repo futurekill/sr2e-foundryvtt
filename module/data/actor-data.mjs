@@ -4,6 +4,7 @@ import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/lim
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
+import { foldDeck, programKey } from "../rules/vr2ic-rules.mjs";
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
@@ -17,6 +18,19 @@ import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstres
  * manual fallback (VR2.0 p.85): hot / cool / tortoise, a deck with no manual
  * controls (DNI only), and an ICCM filter. Inert in the core-book Matrix.
  */
+
+/**
+ * VR2.0: a program that can't be used (part 2's crash flag, part 3's crash record for its
+ * CURRENT load, or corruption of its key on the active deck; docs/PLAN-vr2-part3.md §2).
+ */
+export function programUnusable(actor, item) {
+  if (item?.system?.crashed) return true;
+  const gen = item?.system?.loadGen ?? 0;
+  const crashed = eventsOf(actor).some(e => e.type === "crash" && String(e.key).startsWith("vr2:") && e.programId === item.id && e.loadGen === gen);
+  if (crashed) return true;
+  const deck = actor?.system?.vr2Deck;
+  return !!deck?.corrupted?.has(programKey({ source: item._stats?.compendiumSource ?? item.flags?.core?.sourceId, name: item.name }));
+}
 export function deckModeFields() {
   const fields = foundry.data.fields;
   return {
@@ -857,9 +871,16 @@ export class CharacterData extends SR2EDataModel {
     const deck = this.parent?.items?.find(i =>
       (i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active) ||
       (i.type === "cyberware" && i.system.cranialDeck && workingImplant(this.parent, i) && i.system.deck?.active));
-    if (!deck) return;
-    const d = deck.system.deck;
-    for (const k of keys) this.cyberdeck[k] = d[k] ?? blank[k] ?? 0;
+    // VR2.0 part 3 (docs/PLAN-vr2-part3.md §2): the deck's permanent history lives on the
+    // deck item itself (the manual fallback: on the actor), folded every pass, never stored.
+    const history = isVR2() ? foldDeck(eventsOf(deck ?? this.parent).filter(e => String(e.key).startsWith("vr2deck:"))) : null;
+    if (deck) {
+      const d = deck.system.deck;
+      for (const k of keys) this.cyberdeck[k] = d[k] ?? blank[k] ?? 0;
+    }
+    const baseMpcp = this.cyberdeck.mpcp ?? 0;
+    if (history) this.cyberdeck.mpcp = Math.max(0, baseMpcp - history.damage.mpcp);   // the effective MPCP
+    this.vr2Deck = history ? { itemId: deck?.id ?? null, uuid: deck?.uuid ?? null, baseMpcp, ...history } : null;
   }
 
   /**
@@ -884,9 +905,10 @@ export class CharacterData extends SR2EDataModel {
       const present = {};
       for (const item of this.parent.items) {
         if (item.type !== "program" || !item.system.loaded) continue;
-        // VR2.0: a worn or crashed copy counts at what it has left, so a crashed persona
-        // program means 0, never a fall-back to the authored value (PLAN-vr2-part2 §4).
-        const rating = vr2 ? (item.system.crashed ? 0 : (item.system.effectiveRating ?? 0)) : (item.system.rating ?? 0);
+        // VR2.0: a worn, crashed or corrupted copy counts at what it has left, so an unusable
+        // persona program means 0, never a fall-back to the authored value (PLAN-vr2-part2 §4,
+        // part 3 §2).
+        const rating = vr2 ? (programUnusable(this.parent, item) ? 0 : (item.system.effectiveRating ?? 0)) : (item.system.rating ?? 0);
         const name = item.name.toLowerCase();
         for (const attr of ["bod", "evasion", "masking", "sensor"]) {
           if (name.startsWith(attr)) { present[attr] = true; best[attr] = Math.max(best[attr], rating); }
@@ -897,6 +919,14 @@ export class CharacterData extends SR2EDataModel {
         // unusable loaded program as 0 rather than falling back to the authored value.
         if (best[attr] > 0) this.matrixPersona[attr] = personaAttribute(best[attr], mpcp);
         else if (vr2 && present[attr]) this.matrixPersona[attr] = 0;
+      }
+    }
+    // Part 3: chip damage after the cap; a deck whose MPCP is burned to 0 runs no persona
+    // (a decker with no deck at all keeps the authored persona).
+    const h = this.vr2Deck;
+    if (vr2 && h) {
+      for (const attr of ["bod", "evasion", "masking", "sensor"]) {
+        this.matrixPersona[attr] = h.baseMpcp > 0 && mpcp <= 0 ? 0 : Math.max(0, this.matrixPersona[attr] - (h.damage[attr] ?? 0));
       }
     }
     if (vr2) this._applyIconState();
@@ -2134,9 +2164,15 @@ export class ICData extends SR2EDataModel {
       // VR2.0 (docs/PLAN-vr2-part2.md §3): the IC program, which sets its class; its
       // defensive options (p.50); and a generation bumped on every crash, so a reset IC
       // starts with no maneuver records.
-      program: new fields.StringField({ initial: "", blank: true, choices: { "": "—", killer: "Killer",
-        "crippler-acid": "Crippler: acid", "crippler-binder": "Crippler: binder",
-        "crippler-jammer": "Crippler: jammer", "crippler-marker": "Crippler: marker" } }),
+      program: new fields.StringField({ initial: "", blank: true, choices: () => ({ "": "—", ...CONFIG.SR2E.icPrograms }) }),
+      // Part 3 (docs/PLAN-vr2-part3.md §2): the program's variant, its trap link (the hidden
+      // gray/black IC it triggers), an exploding scramble's bomb, and what it protects.
+      psychotropic: new fields.StringField({ initial: "", blank: true, choices: () => CONFIG.SR2E.icPsychotropic }),
+      scramble: new fields.StringField({ initial: "", blank: true, choices: () => CONFIG.SR2E.icScramble }),
+      worm: new fields.StringField({ initial: "", blank: true, choices: () => CONFIG.SR2E.icWorm }),
+      trapFor: new fields.StringField({ initial: "", blank: true }),
+      bombUuid: new fields.StringField({ initial: "", blank: true }),
+      protects: new fields.StringField({ initial: "", blank: true }),
       defense: new fields.StringField({ initial: "", blank: true, choices: { "": "—", shield: "Shield", shift: "Shift" } }),
       armorDefense: new fields.BooleanField({ initial: false }),
       generation: new fields.NumberField({ integer: true, initial: 0, min: 0 })

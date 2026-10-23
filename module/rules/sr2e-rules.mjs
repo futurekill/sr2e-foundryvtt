@@ -2105,7 +2105,10 @@ export function personaBudgetOver(bems, mpcp) {
 
 /** An IC program's class (VR2.0 p.40–43): killer and cripplers are white; otherwise the authored type. */
 export function icClass(program, icType = "white") {
-  if (program === "killer" || String(program ?? "").startsWith("crippler-")) return "white";
+  const p = String(program ?? "");
+  if (p.startsWith("black-")) return "black";
+  if (p === "blaster" || p === "sparky" || p === "tar-pit" || p.startsWith("ripper-")) return "gray";
+  if (p) return "white";   // killer, cripplers, tar baby, trace, data bomb, scramble, worm (p.41–45)
   return icType || "white";
 }
 

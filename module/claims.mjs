@@ -8,7 +8,7 @@ import { claimId, MARKER_TTL_MS } from "./rules/claim-rules.mjs";
 export const markerOf = (e) => e?.flags?.sr2e?.claim ?? null;
 
 /** This actor's markers: [{id, key, at, user}]. */
-export const markersOf = (actor) => (actor?.effects ?? []).filter(e => markerOf(e)).map(e => ({ id: e.id, ...markerOf(e) }));
+export const markersOf = (actor) => (actor?.effects ?? []).filter(e => markerOf(e)).map(e => ({ id: e.id, ...markerOf(e), ct: e._stats?.createdTime ?? null }));
 
 /** Did THIS call win `key` on this actor? Rethrows anything but a duplicate-id rejection. */
 export async function once(actor, key) {
@@ -45,7 +45,7 @@ export async function recordEvent(actor, key, payload = {}) {
 }
 
 /** This actor's durable event records whose payload type is in `types` (all if omitted). */
-export const eventsOf = (actor) => markersOf(actor).filter(m => m.durable && m.event).map(m => ({ key: m.key, at: m.at, ...m.event }));
+export const eventsOf = (actor) => markersOf(actor).filter(m => m.durable && m.event).map(m => ({ key: m.key, at: m.at, ct: m.ct, ...m.event }));
 
 /** Delete markers older than the retention, except durable records and those `keep(marker)` protects. Never throws. */
 export async function pruneMarkers(actor, keep = () => false) {

@@ -791,7 +791,15 @@ SR2E.systemOperations = {
 // one of these ratings rather than the core book's single System Rating.
 // VR2.0 IC programs (p.41) and their labels; class follows the program (icClass).
 SR2E.icPrograms = { killer: "Killer", "crippler-acid": "Acid", "crippler-binder": "Binder",
-  "crippler-jammer": "Jammer", "crippler-marker": "Marker" };
+  "crippler-jammer": "Jammer", "crippler-marker": "Marker",
+  // Part 3 (docs/PLAN-vr2-part3.md; p.41–50).
+  "tar-baby": "Tar Baby", trace: "Trace", "data-bomb": "Data Bomb", scramble: "Scramble", worm: "Worm",
+  blaster: "Blaster", sparky: "Sparky", "ripper-acid": "Acid-rip", "ripper-bind": "Bind-rip",
+  "ripper-jam": "Jam-rip", "ripper-mark": "Mark-rip", "tar-pit": "Tar Pit",
+  "black-lethal": "Black IC (lethal)", "black-nonlethal": "Black IC (non-lethal)", "black-psychotropic": "Black IC (psychotropic)" };
+SR2E.icPsychotropic = { "": "—", cyberphobia: "Cyberphobia", judas: "Judas", maniac: "Matrix maniac", pcpic: "Positive conditioning (PCPIC)" };
+SR2E.icScramble = { "": "—", exploding: "Exploding", poison: "Poison" };
+SR2E.icWorm = { "": "—", data: "Dataworm", death: "Deathworm", tape: "Tapeworm" };
 
 // Security sheaf events (VR2.0 p.150).
 SR2E.vr2SheafEvents = { ic: "IC activates", passive: "Passive alert", active: "Active alert", shutdown: "Shutdown", other: "" };

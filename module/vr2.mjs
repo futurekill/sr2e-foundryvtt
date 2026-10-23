@@ -17,6 +17,7 @@ import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixC
          sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
+import { programUnusable } from "./data/actor-data.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { matrixQueue, sessionHost } from "./jackpoints.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -41,7 +42,7 @@ const sessionQueue = (actor, fn) => enqueueAttack(`vr2session:${actor.uuid}`, fn
 export function usablePrograms(actor) {
   const vr2 = isVR2();
   return actor.items.filter(i => i.type === "program" && i.system.loaded
-    && (!vr2 || (!i.system.crashed && (i.system.effectiveRating ?? 0) > 0)));
+    && (!vr2 || (!programUnusable(actor, i) && (i.system.effectiveRating ?? 0) > 0)));
 }
 
 /** A program's rating as it counts now (VR2.0: what wear has left). */
