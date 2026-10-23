@@ -91,8 +91,26 @@ const hostOptions = (hosts, selected) => hosts.map(h =>
 
 // ── Sessions and the security tally ──────────────────────────────────────────
 
-/** The decker's live VR2.0 session record, or null. */
-export const liveSession = (actor) => { const s = actor?.flags?.sr2e?.vr2Session; return s?.id ? s : null; };
+/**
+ * The decker's live VR2.0 session record, or null. On part 3's connection log a session
+ * belongs to ONE connection (`conn`): an older connection's session reads as absent, so a
+ * reconnect never inherits its tally, suppressions or icon damage (PLAN-vr2-part3 §0, R6 #1).
+ */
+export const liveSession = (actor) => {
+  const s = actor?.flags?.sr2e?.vr2Session;
+  if (!s?.id) return null;
+  const conn = actor.system?.vr2Conn;
+  if (conn && s.conn !== conn.n) return null;
+  if (!conn && s.conn != null) return null;   // its connection ended
+  return s;
+};
+/** End the live host session (kept as lastSession): part 3's exit housekeeping. */
+export function closeSession(actor) {
+  return sessionQueue(actor, async () => {
+    const cur = actor?.flags?.sr2e?.vr2Session;
+    if (cur?.id) await replaceSessions(actor, null, cur);
+  });
+}
 
 /** Replace the session records whole (a merge would carry old receipts along). */
 async function replaceSessions(actor, live, last) {
@@ -111,7 +129,8 @@ async function replaceSessions(actor, live, last) {
 export function startSession(actor) {
   return sessionQueue(actor, async () => {
     const h = sessionHost(actor);
-    const next = { id: foundry.utils.randomID(), hostUuid: h?.uuid ?? "", hostName: h?.name ?? "", tally: 0, receipts: {} };
+    const next = { id: foundry.utils.randomID(), hostUuid: h?.uuid ?? "", hostName: h?.name ?? "", tally: 0, receipts: {},
+      conn: actor.system.vr2Conn?.n ?? null };
     await replaceSessions(actor, next, liveSession(actor));
     return next;
   });
@@ -121,6 +140,9 @@ export function startSession(actor) {
 export function vr2EnterMatrix(actor) {
   return matrixQueue(actor, async () => {
     if (actor.system.matrixMode) return;
+    // Part 3: entry IS the connection record (its number server-arbitrated, PLAN-vr2-part3 §0).
+    const { openConnection } = await import("./vr2ic.mjs");
+    if (await openConnection(actor) == null) return;
     await actor.update({ "system.matrixMode": true });
     await startSession(actor);
   });
@@ -135,7 +157,8 @@ export function sessionFor(actor, host) {
       await actor.update({ "flags.sr2e.vr2Session.hostUuid": host.uuid, "flags.sr2e.vr2Session.hostName": host.name });
       return { ...s, hostUuid: host.uuid, hostName: host.name };
     }
-    const next = { id: foundry.utils.randomID(), hostUuid: host.uuid, hostName: host.name, tally: 0, receipts: {} };
+    const next = { id: foundry.utils.randomID(), hostUuid: host.uuid, hostName: host.name, tally: 0, receipts: {},
+      conn: actor.system.vr2Conn?.n ?? null };
     await replaceSessions(actor, next, s);
     return next;
   });
@@ -354,6 +377,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
         sessionId: session.id, base: pr.successes, source: "probe" } } } });
     await applyTallyEvent(pm);
   }
+  res.cardId = msg.id;   // part 3 checks a Graceful Logoff's verdict on its card
   return res;
 }
 
@@ -1062,6 +1086,25 @@ export async function vr2Ready() {
 
 // ── Leaving the Matrix (p.124) ───────────────────────────────────────────────
 
+/** Part 3: a crash or a voluntary exit as a request; Graceful Logoff is its real System Test. */
+async function leaveOnLog(actor, crash) {
+  const { requestExit } = await import("./vr2ic.mjs");
+  if (crash) return requestExit(actor, { trigger: "dump" });
+  const known = sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor);
+  const pick = await promptLeave(actor, known);
+  if (!pick) return;
+  if (!pick.graceful) return requestExit(actor, { trigger: "voluntary" });
+  const host = known ?? game.actors.get(pick.hostId);
+  if (!host) return ui.notifications.warn("A Graceful Logoff needs a host: create a Host actor (VR2.0 p.114).");
+  const res = await vr2SystemTest(actor, host, "gracefulLogoff");
+  if (!res) return;
+  const st = game.messages.get(res.cardId)?.flags?.sr2e?.vr2SystemTest;
+  if (!st || !systemTestVerdict(st.successes, st.hostSuccesses).success) {
+    return ui.notifications.info(`${actor.name}'s Graceful Logoff fails: still connected (try again, or jack out with dump shock).`);
+  }
+  return requestExit(actor, { gracefulCard: res.cardId });
+}
+
 async function promptLeave(actor, known) {
   const hosts = known ? [] : game.actors.filter(a => a.type === "host");
   let pick = null;
@@ -1098,6 +1141,9 @@ async function promptLeave(actor, known) {
  */
 export async function vr2LeaveMatrix(actor, { crash = null } = {}) {
   if (!actor?.isOwner) return;
+  // Part 3 (PLAN-vr2-part3 §3a): on the connection log, every way out is an exit REQUEST the
+  // sequencer opens; its steps (dump shock included) run there.
+  if (actor.system.vr2Conn) return leaveOnLog(actor, crash);
   let graceful = false, host = crash;
   // The connection this exit is for: a dialog left open across a crash and a reconnect
   // must not end the NEW connection.

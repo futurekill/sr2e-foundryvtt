@@ -87,6 +87,13 @@ export function foldDeck(records = []) {
 
 // ── The decker's log ───────────────────────────────────────────────────────────
 
+/** The live connection's open record (an open with no end), or null; also the next number. */
+export function liveOpen(records = []) {
+  const ended = new Set(records.filter(e => e.type === "connEnd").map(e => e.n));
+  const opens = records.filter(e => e.type === "connOpen").sort((a, b) => a.n - b.n);
+  return { open: opens.filter(o => !ended.has(o.n)).at(-1) ?? null, nextN: (opens.at(-1)?.n ?? 0) + 1, any: opens.length > 0 };
+}
+
 const bySeq = (a, b) => (a.seq ?? 0) - (b.seq ?? 0) || String(a.key).localeCompare(String(b.key));
 
 /**

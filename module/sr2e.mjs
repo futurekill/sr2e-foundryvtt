@@ -69,6 +69,7 @@ import { injectPhaseSeq } from "./engagement.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
 import { registerMbwHooks } from "./mbw.mjs";
+import { registerVr2IcHooks } from "./vr2ic.mjs";
 import { registerCyberDamageHooks } from "./cyberdamage.mjs";
 import { registerCybermancyHooks, reconcileAllCym } from "./cybermancy.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
@@ -464,6 +465,7 @@ Hooks.once("init", async () => {
   registerSR2EQuenchTests();
   registerSpellEffectHooks();
   registerSpiritServiceHooks();
+  registerVr2IcHooks();  // VR2.0 part 3: the IC sequencer (docs/PLAN-vr2-part3.md)
   registerMbwHooks();   // move-by-wire complications (Cybertechnology pp.54–55)
   registerCyberDamageHooks();   // cyberware damage, repair, scarring (pp.44–49, 56; optional)
   registerCybermancyHooks();    // cybermancy (Cybertechnology pp.78–84; optional)

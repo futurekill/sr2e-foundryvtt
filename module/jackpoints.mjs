@@ -170,6 +170,13 @@ async function enter(tokenDoc, behavior, actor) {
     if (!writeTab({ actorUuid: actor.uuid, session: id, phase: "pending", originScene: tokenDoc.parent.id, destScene })) {
       return ui.notifications.error("This browser won't keep the jack-in's return point (storage blocked) — jack in from the sheet instead.");
     }
+    // VR2.0 part 3: the connection record FIRST, carrying what entry needs (PLAN-vr2-part3 §0, R6 #2).
+    if (isVR2()) {
+      const { openConnection } = await import("./vr2ic.mjs");
+      const n = await openConnection(actor, { jackpoint: { jackpoint: behavior.uuid, originToken: tokenDoc.uuid,
+        originScene: tokenDoc.parent.id, destScene, user: game.user.id, session: id } });
+      if (n == null) { clearTab(); return; }
+    }
     await actor.update({ "system.matrixMode": true, [`flags.sr2e.matrixSessions.${id}`]: {
       jackpoint: behavior.uuid, originToken: tokenDoc.uuid, destScene, user: game.user.id, since: Date.now() } });
     // VR2.0: the connection's session (its tally, and what a crash ends), inside the queue.
@@ -198,6 +205,12 @@ async function enter(tokenDoc, behavior, actor) {
 
 /** The Host the actor's live jackpoint session points at, for system operations (impl R1 #9). */
 export function sessionHost(actor) {
+  // VR2.0 part 3: the live connection's own record names its jackpoint (plan §0, R6 #2).
+  const conn = actor?.system?.vr2Conn;
+  if (conn?.jackpoint?.jackpoint) {
+    const h = sync(sync(conn.jackpoint.jackpoint)?.system?.host);
+    return h?.type === "host" ? h : null;
+  }
   const w = actor?.system?.matrixMode ? winner(sessionsOf(actor)) : null;
   const host = sync(sync(w?.jackpoint)?.system?.host);
   return host?.type === "host" ? host : null;
@@ -271,7 +284,7 @@ export async function reconcileGM(actor) {
   await actor.update(Object.fromEntries(drop.map(id => [`flags.sr2e.matrixSessions.-=${id}`, null])));
 }
 
-const refreshActorTokens = (actor) => {
+export const refreshActorTokens = (actor) => {
   for (const t of canvas.tokens?.placeables ?? []) if (t.document.actorId === actor.id) t.renderFlags.set({ refresh: true });
 };
 

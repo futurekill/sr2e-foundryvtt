@@ -4,7 +4,7 @@ import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/lim
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
-import { foldDeck, programKey } from "../rules/vr2ic-rules.mjs";
+import { foldDeck, programKey, liveOpen } from "../rules/vr2ic-rules.mjs";
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
@@ -338,6 +338,12 @@ export class CharacterData extends SR2EDataModel {
     // (re)derived below — magic.max depends on the Essence this collection feeds,
     // so consulting it here would be circular (Shadowtech bioware Essence rule).
     const isAwakened = this.magic.type !== "none";
+    // VR2.0 part 3 (docs/PLAN-vr2-part3.md §0): once a decker is on the connection log,
+    // being in the Matrix IS having a live connection, derived both ways every pass, so no
+    // delayed write can switch a newer connection off. Before that, the stored field rules.
+    const conn = isVR2() ? liveOpen(eventsOf(this.parent).filter(e => String(e.key).startsWith("vr2:"))) : null;
+    this.vr2Conn = conn?.open ?? null;
+    this.matrixMode = conn?.any ? !!conn.open : (this.parent?._source?.system?.matrixMode ?? false);
     const mods = this._collectItemModifiers({ isAwakened });
     // Substance abuse (Shadowtech p.87): ½ Essence per week addicted, permanent.
     const substances = substancesOf(this.parent);

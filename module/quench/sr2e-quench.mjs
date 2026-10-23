@@ -11556,6 +11556,87 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: VR2.0 part 2" });
 
+    // ── VR2.0 part 3: the rest of the IC (docs/PLAN-vr2-part3.md) ────────────────────
+    quench.registerBatch("sr2e.vr2-ic", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [];
+      let prior = "core", Y, V;
+      const wait = (ms = 600) => new Promise(r => setTimeout(r, ms));
+      /** Until `pred()` holds (the sequencer runs debounced), or a timeout. */
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const hostA = (name, code = "green", sv = 4) => mk({ name, type: "host", system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 6 } } });
+      const decker = (name) => mk({ name, type: "character", system: { willpower: { base: 4 }, cyberdeck: { mpcp: 6, deckMode: "hot" },
+        matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+      before(async () => {
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        Y = await import("../vr2ic.mjs"); V = await import("../vr2.mjs");
+      });
+      after(async () => { await game.settings.set("sr2e", "matrixRuleset", prior); });
+      afterEach(async () => { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+
+      it("entry is the connection record; the Matrix mode is derived from it, and a second open of the same number loses", async () => {
+        const a = await decker("Quench VIC Entry");
+        await V.vr2EnterMatrix(a);
+        assert.equal(a.system.vr2Conn?.n, 1);
+        assert.isTrue(a.system.matrixMode);
+        assert.equal(V.liveSession(a)?.conn, 1, "the session belongs to connection 1");
+        const { recordEvent } = await import("../claims.mjs");
+        assert.isFalse(await recordEvent(a, "vr2:conn-open:1", { type: "connOpen", n: 1 }), "the server admits one");
+        await a.update({ "system.matrixMode": false });   // a stray stored write
+        assert.isTrue(a.system.matrixMode, "the log decides, not the stored field");
+      });
+
+      it("a voluntary exit: the sequencer opens it, posts dump shock once, ends the connection; a reconnect is number 2 with a fresh session", async () => {
+        const h = await hostA("Quench VIC Host");
+        const a = await decker("Quench VIC Exit");
+        await V.vr2EnterMatrix(a);
+        await V.sessionFor(a, h);
+        await a.update({ "flags.sr2e.vr2Session.tally": 7 });
+        const n0 = game.messages.size;
+        await Y.requestExit(a, { trigger: "voluntary" });
+        assert.isTrue(await settle(() => !a.system.vr2Conn), "the connection ended");
+        assert.isFalse(a.system.matrixMode);
+        const dumps = game.messages.contents.slice(n0).filter(m => m.content.includes("dump shock") && m.speaker?.actor === a.id);
+        assert.equal(dumps.length, 1, "one dump-shock card");
+        await V.vr2EnterMatrix(a);
+        assert.equal(a.system.vr2Conn?.n, 2);
+        const s = await V.sessionFor(a, h);
+        assert.equal(s.tally, 0, "connection 2 doesn't inherit connection 1's tally");
+        for (const m of game.messages.contents.slice(n0)) await m.delete();
+      });
+
+      it("a graceful exit needs a successful Graceful Logoff card; no dump shock", async () => {
+        const h = await hostA("Quench VIC Graceful");
+        const a = await decker("Quench VIC Logoff");
+        await V.vr2EnterMatrix(a);
+        await Y.requestExit(a, { gracefulCard: "nonexistent" });
+        await wait(800);
+        assert.ok(a.system.vr2Conn, "refused: no successful test");
+        const st = { operation: "gracefulLogoff", actorUuid: a.uuid, successes: 3, hostSuccesses: 1 };
+        const card = await ChatMessage.create({ content: "Quench VIC graceful", flags: { sr2e: { vr2SystemTest: st } } });
+        const n0 = game.messages.size;
+        await Y.requestExit(a, { gracefulCard: card.id });
+        assert.isTrue(await settle(() => !a.system.vr2Conn));
+        assert.equal(game.messages.contents.slice(n0).filter(m => m.content.includes("dump shock")).length, 0);
+        for (const m of [card, ...game.messages.contents.slice(n0)]) await m.delete();
+        assert.ok(h);
+      });
+
+      it("no deck switch while connected", async () => {
+        const a = await decker("Quench VIC Deck");
+        const [d1, d2] = await a.createEmbeddedDocuments("Item", [
+          { name: "Deck A", type: "gear", system: { category: "cyberdeck", deck: { active: true, mpcp: 6 } } },
+          { name: "Deck B", type: "gear", system: { category: "cyberdeck", deck: { active: false, mpcp: 4 } } }]);
+        await V.vr2EnterMatrix(a);
+        const b = a.items.getName("Deck B");
+        await b.update({ "system.deck.active": true });
+        assert.isFalse(a.items.getName("Deck B").system.deck.active, "refused while connected");
+        assert.ok(d1 && d2);
+      });
+    }, { displayName: "SR2E: VR2.0 part 3 (IC)" });
+
 
 
 
