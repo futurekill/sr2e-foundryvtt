@@ -4048,3 +4048,6 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e .sr2e-substances .sr2e-substance-row { gap: 0.5em; align-items: baseline; }
 .sr2e .sr2e-substances .sr2e-substance-state { flex: 2; }
 .sr2e .sr2e-substances .sr2e-substance-alert { margin: 0.25em 0; font-weight: 600; color: var(--sr2e-danger); }
+
+/* VR2.0 part 3 panel (docs/PLAN-vr2-part3.md): inline buttons in its notes. */
+.sr2e .vr2-ic-panel button { display: inline-flex; width: auto; margin: 0 0 0 4px; padding: 0 6px; line-height: 20px; }

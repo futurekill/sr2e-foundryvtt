@@ -50,6 +50,11 @@
       <label class="field" title="Probe IC (VR2.0 p.42): on every System Test, this many dice against the decker's Detection Factor, onto the tally.">
         <span>Probe IC rating</span><input type="number" name="system.probe" value="{{system.probe}}" min="0" /></label>
     </div>
+    <p class="rule-note"><strong>Shutdown</strong> (p.53):
+      {{#if shutdown}}{{#if shutdown.offline}}<strong>shut down</strong>{{else}}{{shutdown.left}} of {{shutdown.turns}} Combat Turns left (final warning at {{shutdown.warning}}){{/if}}
+        {{#if shutdown.manual}}{{#unless shutdown.offline}}<button type="button" data-action="vr2ic" data-op="shutdownAdvance" title="End a Combat Turn (no combat is counting it)">Next turn</button>{{/unless}}{{/if}}
+        <button type="button" data-action="vr2ic" data-op="shutdownReset" title="Bring the host back up">Reset</button>
+      {{else}}running. <button type="button" data-action="vr2ic" data-op="shutdownStart" title="Start the shutdown sequence by hand (a sheaf step does it automatically)">Start shutdown</button>{{/if}}</p>
     <p class="rule-note"><strong>Security sheaf</strong> (p.150):
       {{#each sheaf as |row|}}<br>{{row.step}}: {{row.label}}{{#if row.note}} — {{row.note}}{{/if}}
         <a data-action="hostSheafRemove" data-id="{{row.id}}" title="Remove this step"><i class="fas fa-trash"></i></a>

@@ -16,6 +16,7 @@ export async function preloadTemplates() {
     "systems/sr2e/templates/actor/parts/substances.hbs",
     "systems/sr2e/templates/actor/parts/cyberlimbs.hbs",
     "systems/sr2e/templates/actor/parts/mbw.hbs",
+    "systems/sr2e/templates/actor/parts/vr2-ic.hbs",
     "systems/sr2e/templates/actor/parts/cybermancy.hbs",
     "systems/sr2e/templates/actor/parts/cyber-condition.hbs",
     "systems/sr2e/templates/actor/parts/actor-vehicles.hbs",

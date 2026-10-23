@@ -84,6 +84,21 @@
         <input type="checkbox" name="system.armorDefense" {{checked system.armorDefense}} /></label>
     </div>
     <p class="rule-note">Class: <strong>{{system.icClass}}</strong>{{#if system.program}} (from the program){{/if}}.</p>
+    <div class="field-grid">
+      {{#ifEquals system.program "black-psychotropic"}}<label class="field"><span>Psychotropic effect (p.49)</span>
+        <select name="system.psychotropic">{{#each config.icPsychotropic as |label key|}}<option value="{{key}}" {{selected ../system.psychotropic key}}>{{label}}</option>{{/each}}</select></label>{{/ifEquals}}
+      {{#ifEquals system.program "scramble"}}<label class="field"><span>Scramble (p.42)</span>
+        <select name="system.scramble">{{#each config.icScramble as |label key|}}<option value="{{key}}" {{selected ../system.scramble key}}>{{label}}</option>{{/each}}</select></label>
+        <label class="field"><span>Linked data bomb (UUID)</span><input type="text" name="system.bombUuid" value="{{system.bombUuid}}" /></label>{{/ifEquals}}
+      {{#ifEquals system.program "worm"}}<label class="field"><span>Worm (p.44)</span>
+        <select name="system.worm">{{#each config.icWorm as |label key|}}<option value="{{key}}" {{selected ../system.worm key}}>{{label}}</option>{{/each}}</select></label>{{/ifEquals}}
+      <label class="field" title="A reactive white or trace IC can hide a gray or black IC: crashing it (or its trace finishing) wakes that IC (p.50)."><span>Trap for (hidden IC's UUID)</span>
+        <input type="text" name="system.trapFor" value="{{system.trapFor}}" /></label>
+      <label class="field" title="What a data bomb, scramble or trap protects: a file, a slave device, a subsystem (p.41–42)."><span>Protects</span>
+        <input type="text" name="system.protects" value="{{system.protects}}" /></label>
+    </div>
+    {{#if (or (eq system.program "tar-baby") (eq system.program "tar-pit"))}}<p class="rule-note">
+      <button type="button" data-action="vr2ic" data-op="strike" title="GM: target the decker first, then strike a utility they run outside a System Test (p.42).">Strike a utility</button></p>{{/if}}
   </fieldset>
   {{/if}}
 

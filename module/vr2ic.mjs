@@ -974,6 +974,85 @@ export async function rebuildJackpointEntries() {
   }
 }
 
+// ── Sheets (plan §5–§7) ─────────────────────────────────────────────────────────
+
+/** The decker's part-3 panel on the Matrix tab. */
+export function deckerContext(actor) {
+  if (!isVR2() || actor?.type !== "character") return null;
+  const f = foldOf(actor);
+  const deck = actor.system.vr2Deck;
+  const live = f.live;
+  const name = (icKey) => sync(String(icKey).slice(0, String(icKey).lastIndexOf("#")))?.name ?? "IC";
+  const spoofs = recordsOf(actor).filter(e => e.type === "spoof");
+  const freezes = recordsOf(actor).filter(e => e.type === "freeze" || e.type === "unfreeze");
+  return {
+    isGM: game.user.isGM, n: live?.n ?? null,
+    exit: live?.exit ? { trigger: live.exit.trigger, steps: live.steps.map(s => ({ step: s.step, done: s.applied })), pending: live.pending.length } : null,
+    locks: (live?.locks ?? []).map(h => ({ name: name(h.icKey), rating: h.rating })),
+    traces: (live?.traces ?? []).filter(t => !t.dead).map(t => {
+      const mine = spoofs.filter(sp => sp.icKey === t.icKey && sp.conn === live.n);
+      const lastSpoof = mine.sort((a, b) => b.seq - a.seq)[0];
+      const frozenBy = freezes.filter(x => x.icKey === t.icKey).sort((a, b) => b.seq - a.seq)[0];
+      return { icKey: t.icKey, name: name(t.icKey), turnsLeft: t.turnsLeft, complete: t.complete, frozen: t.frozen, manual: !!t.clock?.manual,
+        canFreeze: !!lastSpoof && !t.frozen && !t.complete, spoofKey: lastSpoof?.key ?? "", unfreezeKey: frozenBy?.type === "freeze" ? frozenBy.spoof : "" };
+    }),
+    traced: !!live?.traced,
+    psy: (actor.system.vr2Psy ?? []).map(c => ({ key: c.key, kind: CONFIG.SR2E.icPsychotropic[c.kind] ?? c.kind, rating: c.rating })),
+    deck: deck ? { baseMpcp: deck.baseMpcp, damage: Object.entries(deck.damage).filter(([, v]) => v > 0).map(([k, v]) => `${k} −${v}`).join(", "),
+      worms: deck.worms.map(w => CONFIG.SR2E.icWorm[w.kind] ?? w.kind).join(", "), corrupted: [...deck.corrupted],
+      deathwormTN: deck.deathwormTN } : null,
+    connected: !!live
+  };
+}
+
+/** One dispatcher for the sheets' part-3 buttons (`data-action="vr2ic"`). */
+export async function sheetOp(doc, op, arg) {
+  const gm = () => { if (!game.user.isGM) { ui.notifications.warn("That's the GM's."); return false; } return true; };
+  if (op === "relocate") return relocate(doc, arg);
+  if (op === "freeze") return request(doc, "freeze", { spoof: arg });
+  if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });
+  if (op === "advance") return gm() && advanceManual(doc);
+  if (op === "psyRecover") {
+    const mods = await foundry.applications.api.DialogV2.prompt({ window: { title: "Recovery (VR2.0 p.50)" },
+      content: `<p>Willpower against the IC's rating, with:</p>
+        <label><input type="checkbox" name="medication"> Medication or magical treatment (−1)</label><br>
+        <label><input type="checkbox" name="therapy"> Intensive psychotherapy, Hospitalized lifestyle (−2, includes medication)</label><br>
+        <label><input type="checkbox" name="spell"> A maintained spell with the desired effect (−1)</label>`,
+      ok: { callback: (e, b) => ({ medication: b.form.elements.medication.checked, therapy: b.form.elements.therapy.checked, spell: b.form.elements.spell.checked }) } }).catch(() => null);
+    if (mods) return psyRecover(doc, arg, mods);
+    return;
+  }
+  if (op === "replaceChip") {
+    if (!gm()) return;
+    const deck = sync(doc.system.vr2Deck?.uuid) ?? doc;
+    const n = eventsOf(deck).filter(e => e.type === "chipReplace" && e.chip === arg).length + 1;
+    await recordEvent(deck, `${DECK}chip-replace:${arg}:${n}`, { type: "chipReplace", chip: arg });
+    return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: doc }), content: `<div class="sr2e-item-card">${esc(doc.name)}'s deck gets a new ${arg === "mpcp" ? "MPCP chip (damage and worms gone)" : "persona chip"}.</div>` });
+  }
+  if (op === "reload") {
+    if (doc.system.vr2Conn) return ui.notifications.warn("Reload it from storage after jacking out (VR2.0 p.43).");
+    const deck = sync(doc.system.vr2Deck?.uuid) ?? doc;
+    const g = (doc.system.vr2Deck?.reloadGen?.(arg) ?? 0) + 1;
+    return recordEvent(deck, `${DECK}reload:${arg}:${g}`, { type: "reload", programKey: arg, g });
+  }
+  if (op === "shutdownStart") return gm() && startShutdown(doc);
+  if (op === "shutdownAdvance") return gm() && advanceShutdown(doc);
+  if (op === "shutdownReset") return gm() && resetShutdown(doc);
+  if (op === "strike") {
+    if (!gm()) return;
+    const target = game.user.targets.first()?.actor;
+    if (target?.type !== "character" || !target.system.vr2Conn) return ui.notifications.warn("Target the connected decker whose utility the tar strikes.");
+    const V = await import("./vr2.mjs");
+    const progs = V.usablePrograms(target);
+    if (!progs.length) return ui.notifications.warn(`${target.name} runs no usable programs.`);
+    const id = await foundry.applications.api.DialogV2.prompt({ window: { title: `${doc.name} strikes` },
+      content: `<select name="p">${progs.map(p => `<option value="${p.id}">${esc(p.name)} (${V.programRating(p)})</option>`).join("")}</select>`,
+      ok: { callback: (e, b) => b.form.elements.p.value } }).catch(() => null);
+    const p = target.items.get(id);
+    if (p) return tarStrike(target, doc, { itemId: p.id, loadGen: p.system.loadGen ?? 0, rating: V.programRating(p), name: p.name }, `sheet-${foundry.utils.randomID()}`);
+  }
+}
+
 /** One dispatcher for part 3's card buttons. */
 export async function icOp(uuid, op, arg) {
   const actor = await fromUuid(uuid);

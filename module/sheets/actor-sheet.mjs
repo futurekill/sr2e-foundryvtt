@@ -7,6 +7,7 @@ import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice,
 import { phaseKey, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { liveSession } from "../vr2.mjs";
+import { deckerContext, hostShutdown } from "../vr2ic.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
 import { limbModel, limbIdentity, limbLabel, SIDED } from "../rules/limb-rules.mjs";
@@ -26,7 +27,7 @@ import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
   onAddItem, onDeleteItem, onEditItem,
   onRollAttribute, onRollSkill, onRollInitiative, onRollWeapon,
-  onMatrixAttack, onMatrixPerception, onResetHostTally, onVR2Maneuver, onVR2Redetect, onHostSheafAdd, onHostSheafRemove
+  onMatrixAttack, onMatrixPerception, onResetHostTally, onVR2Maneuver, onVR2Redetect, onHostSheafAdd, onHostSheafRemove, onVr2Ic
 } from "./sheet-actions.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -1484,6 +1485,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       context.vr2Suppressed = Object.entries(context.vr2Session?.suppressed ?? {}).map(([key, e]) => ({ key, ...e }));
       context.vr2Improvised = context.vr2Session?.improvised ?? null;
       context.vr2LostSight = Object.keys(actor.flags?.sr2e?.vr2Maneuvers?.lostSight ?? {}).length;
+      context.vr2ic = deckerContext(actor);
     }
     context.isRigger = system.isRigger;
 
@@ -2128,7 +2130,8 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
       matrixAttack: onMatrixAttack,
       matrixPerception: onMatrixPerception,
       vr2Maneuver: onVR2Maneuver,
-      vr2Redetect: onVR2Redetect
+      vr2Redetect: onVR2Redetect,
+      vr2ic: onVr2Ic
     }
   };
 
@@ -2161,7 +2164,8 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
     actions: {
       resetHostTally: onResetHostTally,
       hostSheafAdd: onHostSheafAdd,
-      hostSheafRemove: onHostSheafRemove
+      hostSheafRemove: onHostSheafRemove,
+      vr2ic: onVr2Ic
     }
   };
 
@@ -2181,6 +2185,8 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
       context.sheaf = (this.document.system.sheaf ?? []).map(r => ({ ...r, label: CONFIG.SR2E.vr2SheafEvents[r.event] || "Other" }));
       context.tallies = game.actors.filter(a => liveSession(a)?.hostUuid === uuid)
         .map(a => ({ name: a.name, tally: liveSession(a).tally ?? 0 }));
+      const run = hostShutdown(this.document);
+      context.shutdown = run ? { left: run.left, turns: run.turns, warning: run.warning, offline: run.offline, manual: !!run.clock?.manual } : null;
     }
     return context;
   }

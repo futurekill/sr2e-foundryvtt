@@ -363,6 +363,23 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 - [ ] Crash IC with a decker's attack: Suppress / Let it register (once); Release from the Matrix tab.
 - [ ] Host sheaf: add steps; a System Test crossing a step whispers the GM; a passive/active step raises the alert.
 
+### 10c. VR2.0 part 3: the rest of the IC (`sr2e.vr2-ic` batch; docs/PLAN-vr2-part3.md)
+A GM must be online: the GM's client sequences every part-3 event.
+- [ ] Jack in (sheet or jackpoint), then **jack out**: dump shock posts ONCE; jacking in again gives a fresh tally.
+- [ ] Graceful Logoff from the leave dialog RUNS the System Test; only a success leaves without dump shock.
+- [ ] While connected, switching to another deck is refused.
+- [ ] A black IC hits: its attack closes to Karma; **Resist** rolls the icon (Bod) and the body (Body, or Willpower when non-lethal); both land once.
+- [ ] With a black IC's hooks in, plain jack-out is refused; **Willpower** or **Pull the plug** opens the exit, the GM is told the IC makes one more attack; after it resolves the decker is out.
+- [ ] A black kill (Physical full): the IC's MPCP shot posts, the deck's MPCP drops, no dump shock.
+- [ ] Icon down (Matrix monitor full): every action but jacking out refuses, black IC rating +2.
+- [ ] Blaster crashes the persona: dumped; the Blaster Test lowers the deck's MPCP (the Matrix tab shows "chip damage"); **New MPCP chip** (GM) clears it.
+- [ ] Tar on a host: after a System Test with a utility, the GM gets "Tar strikes"; a win crashes that utility (Swap Memory brings it back); tar pit's corruption survives Swap Memory until **Reload** out of the Matrix.
+- [ ] Trace IC: its attack card's **Start location cycle** shows turns; **Relocate** spoofs a turn, **Keep frozen** costs a Detection Factor point; at 0 the GM gets the Response Times card (and a trap's hidden IC).
+- [ ] Data bomb: Defuse success → "defused"; a later success on the bombed target → "goes off" (an admitted auto-hit + the suppress choice).
+- [ ] Worm: "infection test" from the System Test's GM card; deathworms add +2 TN; a new MPCP chip clears it.
+- [ ] Host sheet **Start shutdown** / **Next turn**: the warning, then every decker on it is dumped; jacking in to it refuses until **Reset**.
+- [ ] Psychotropic black IC: on the way out, the Willpower card; failing it adds the condition (cyberphobia: +rating on Computer tests and a test to jack in); **Recovery test** ends it.
+
 ## 10c. Map areas on Foundry v14 (v16 prep)
 - [ ] On v14: a grenade blast, a shotgun spread, an area spell, Poltergeist, Ice Sheet and a ritual area each appear as a Region of the right shape; a player's own area is theirs to move or delete.
 - [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.

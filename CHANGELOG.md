@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+## 0.116.0 — 2026-10-23
+
+### Added — Virtual Realities 2.0: the rest of the IC (VR2.0 ruleset)
+- **Black IC** (p.47–50): lethal, non-lethal and psychotropic.
+  - Its first hit locks the decker in: jacking out takes a Complex Action and a
+    Willpower (rating) test, or pulling the plug, and the IC makes one more attack.
+  - Each hit is resisted twice, by the icon (Bod) and by the decker (Body; Willpower
+    when non-lethal, and Stun on a cool deck), with Hardening off the Power.
+  - With the icon down the connection stays, the IC is +2, and the decker can only try
+    to jack out.
+  - A kill drops the link after the IC's shot at the MPCP.
+  - Psychotropic IC implants cyberphobia (+rating on Computer tests, a test before
+    jacking in), Judas, Matrix maniac or positive conditioning, with recovery tests on
+    the Matrix tab.
+- **Gray IC** (p.43):
+  - blaster and sparky burn the MPCP when they crash the persona (sparky also jolts the
+    decker);
+  - rippers burn the persona chip;
+  - tar pit corrupts every copy of a utility until it's reloaded after jacking out.
+
+  The damage stays with the deck item until the GM fits a new chip.
+- **Tar baby** (p.42): after a System Test, the GM can have tar strike the utility
+  used. A win crashes that copy and the tar itself.
+- **Trace IC** (p.45–47):
+  - it hunts against the Trace Factor;
+  - the location cycle counts Combat Turns, at round ends or by "Next turn";
+  - Relocate spoofs a turn, and "Keep frozen" suppresses it;
+  - jacking out leaves a datatrail;
+  - success means −1 TN to IC attacks and +1 to every tally increase, plus a GM card
+    with the Security Asset Response Times.
+
+  Jackpoints gain a trace modifier.
+- **Trap IC, data bombs, scramble (exploding, poison) and worms** (data, death, tape),
+  offered to the GM after the System Tests that trigger them.
+- **New System Operations:** Analyze IC/Icon/Subsystem, Decrypt Access/File/Slave,
+  Disinfect, Redirect Datatrail and Defuse.
+- **Host shutdown** (p.53): a sheaf step (or the host sheet) starts the countdown, with
+  the final warning. Deckers still on it are dumped, and it refuses connections until
+  reset.
+- **Graceful Logoff** now runs its System Test (harder with traces locating) instead of
+  being taken on trust.
+
+### Changed
+- **Under VR2.0, a GM must be online for the Matrix to resolve.** The GM's client
+  sequences connections, attacks, exits and IC effects. Players' clients record what they
+  roll, and anything waiting is listed on the sheet. Being "in the Matrix" now follows
+  the connection's record, and swapping decks while connected is refused.
+
 ### Removed
 - **"Cyberarm (Partial)" and "Cyberleg (Partial)"** are gone from the cyberware compendium.
   They were placeholders from the system's first build (not in the SR2 core tables, values

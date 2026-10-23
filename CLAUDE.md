@@ -188,7 +188,16 @@ first confirming `system.*` messages actually deliver in the target deployment.
 See docs/PLAN-summon-placement-movement.md.
 
 ## Known deferred work
-VR2.0 Matrix ruleset (optional; core Matrix is implemented — see docs/MATRIX.md).
+VR2.0 Matrix (optional `matrixRuleset`): parts 1–2 (docs/PLAN-vr2-core.md, PLAN-vr2-part2.md)
+and part 3, the rest of the IC (docs/PLAN-vr2-part3.md, `module/vr2ic.mjs`,
+`module/rules/vr2ic-rules.mjs`). Part 3 is an EVENT LOG of durable records (`vr2:` on the
+decker, `vr2deck:` on the deck item, on IC/hosts), folded by `foldVr2Ic`/`foldDeck`. Facts whose
+ORDER matters (attack admission, exits, trace ticks/spoofs, IC crashes, acks, connection ends)
+are written ONLY by the world-wide sequencer (`sequencer()`, the active GM's client, `seq`);
+players' clients create `request`s. Monitors and IC are changed only there. Under part 3
+`matrixMode` is DERIVED from the connection log (`system.vr2Conn`); host sessions carry `conn`.
+Remaining deferred: VR2's optional IC (cascading, expert, constructs, party), the utilities
+chapter, grid topology.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so are the
 everyday roll labels (`SR2E.RollLabel.*` via `RL()` in actor.mjs/item.mjs: skill and
 attribute tests, defaulting, attacks, damage resistance, casting, drain, healing,

@@ -118,6 +118,7 @@
       <button type="button" data-action="vr2Release" data-key="{{sup.key}}" title="Release it: +1 Detection Factor, +{{sup.rating}} to the tally (VR2.0 p.40).">Release</button></p>
     {{/each}}
     {{/if}}{{/if}}
+    {{#if vr2ic}}{{> "systems/sr2e/templates/actor/parts/vr2-ic.hbs" ic=vr2ic}}{{/if}}
 
     <fieldset class="persona-config">
       <legend>Persona</legend>

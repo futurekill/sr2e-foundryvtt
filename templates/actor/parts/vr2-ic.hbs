@@ -1,0 +1,24 @@
+{{!-- VR2.0 part 3 (docs/PLAN-vr2-part3.md): the connection's IC state, traces, psychotropic
+      conditions and the deck's permanent damage. Every button records ONE request or fact. --}}
+<div class="vr2-ic-panel">
+  {{#if ic.connected}}
+    {{#if ic.exit}}<p class="alert-note passive"><i class="fas fa-plug-circle-xmark"></i> Jacking out ({{ic.exit.trigger}}):
+      {{#each ic.exit.steps as |s|}}{{s.step}}{{#if s.done}} ✓{{/if}}{{#unless @last}} · {{/unless}}{{/each}}{{#if ic.exit.pending}} · waiting on {{ic.exit.pending}} attack(s){{/if}}</p>{{/if}}
+    {{#each ic.locks as |l|}}<p class="alert-note active"><i class="fas fa-skull"></i> <strong>{{l.name}}</strong> (black IC {{l.rating}}) has its hooks in: jacking out takes Willpower (VR2.0 p.48).</p>{{/each}}
+    {{#each ic.traces as |t|}}<p class="rule-note"><i class="fas fa-location-crosshairs"></i> Trace <strong>{{t.name}}</strong>:
+      {{#if t.complete}}<strong>located</strong> (−1 TN to IC attacks, +1 tally){{else}}{{t.turnsLeft}} turn(s) to locate{{#if t.frozen}}, <strong>frozen</strong> (Detection Factor −1){{/if}}
+        <button type="button" data-action="vr2ic" data-op="relocate" data-arg="{{t.icKey}}" title="Simple Action: Computer vs the trace's rating − Relocate; the host opposes (p.46)">Relocate</button>
+        {{#if t.canFreeze}}<button type="button" data-action="vr2ic" data-op="freeze" data-arg="{{t.spoofKey}}" title="Keep it suppressed: −1 Detection Factor while it lasts (p.46)">Keep frozen</button>{{/if}}
+        {{#if t.unfreezeKey}}<button type="button" data-action="vr2ic" data-op="unfreeze" data-arg="{{t.unfreezeKey}}">Release</button>{{/if}}
+        {{#if t.manual}}{{#if ../ic.isGM}}<button type="button" data-action="vr2ic" data-op="advance" title="GM: end a Combat Turn (no combat is counting this trace)">Next turn</button>{{/if}}{{/if}}{{/if}}</p>{{/each}}
+  {{/if}}
+  {{#each ic.psy as |c|}}<p class="alert-note passive"><i class="fas fa-brain"></i> {{c.kind}} (rating {{c.rating}}, VR2.0 p.49–50)
+    <button type="button" data-action="vr2ic" data-op="psyRecover" data-arg="{{c.key}}" title="Willpower against the rating: daily for a Matrix maniac, weekly otherwise">Recovery test</button></p>{{/each}}
+  {{#if ic.deck}}{{#if (or ic.deck.damage ic.deck.worms ic.deck.corrupted.length)}}
+  <p class="rule-note"><i class="fas fa-microchip"></i> Deck:
+    {{#if ic.deck.damage}}chip damage {{ic.deck.damage}}{{/if}}{{#if ic.deck.worms}} · worms: {{ic.deck.worms}}{{#if ic.deck.deathwormTN}} (+{{ic.deck.deathwormTN}} cybercombat TN){{/if}}{{/if}}
+    {{#each ic.deck.corrupted as |k|}} · <em>{{k}}</em> corrupted <button type="button" data-action="vr2ic" data-op="reload" data-arg="{{k}}" title="Reload it from storage (only out of the Matrix)">Reload</button>{{/each}}
+    {{#if ic.isGM}}<button type="button" data-action="vr2ic" data-op="replaceChip" data-arg="mpcp" title="A new MPCP chip: its damage and worms are gone">New MPCP chip</button>
+    <button type="button" data-action="vr2ic" data-op="replaceChip" data-arg="persona" title="A new persona chip: the rippers' damage is gone">New persona chip</button>{{/if}}</p>
+  {{/if}}{{/if}}
+</div>

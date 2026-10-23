@@ -2562,6 +2562,12 @@ async function onVR2Improvise(event) { event.preventDefault(); return vr2BuildIm
 async function onVR2Redetect(event) { event.preventDefault(); return vr2Redetect(this.document); }
 /** @this {ApplicationV2} */
 async function onVR2Release(event, target) { event.preventDefault(); return releaseSuppressed(this.document, target.dataset.key); }
+/** VR2.0 part 3's sheet buttons (traces, psychotropic recovery, deck chips, shutdown, tar). @this {ApplicationV2} */
+export async function onVr2Ic(event, target) {
+  event.preventDefault();
+  const { sheetOp } = await import("../vr2ic.mjs");
+  return sheetOp(this.document, target.dataset.op, target.dataset.arg ?? "");
+}
 /** @this {ApplicationV2} */
 async function onVR2Medic(event, target) {
   event.preventDefault();
@@ -3698,6 +3704,7 @@ const SHARED_ACTIONS = {
   vr2Improvise: onVR2Improvise,
   vr2Redetect: onVR2Redetect,
   vr2Release: onVR2Release,
+  vr2ic: onVr2Ic,
   vr2Medic: onVR2Medic,
   vr2SwapMemory: onVR2SwapMemory,
   systemOperation: onSystemOperation,
