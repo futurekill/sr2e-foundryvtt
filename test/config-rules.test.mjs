@@ -58,7 +58,8 @@ describe("VR2.0 System Operations → ACIFS subsystem (FASA7904 pp.114–116)", 
     const subsystems = Object.keys(SR2E.vr2Subsystems);
     expect(subsystems).toEqual(["access", "control", "index", "files", "slave"]);
     for (const [key, op] of Object.entries(SR2E.vr2SystemOperations)) {
-      expect(subsystems, `${key} → ${op.subsystem}`).toContain(op.subsystem);
+      // "targeted": the subsystem is picked at the test (Analyze Subsystem, Disinfect, Defuse; VR2.0 p.111–112).
+      expect([...subsystems, "targeted"], `${key} → ${op.subsystem}`).toContain(op.subsystem);
       expect(op.label, `${key} needs a label`).toBeTruthy();
     }
   });

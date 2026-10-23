@@ -142,9 +142,9 @@ export function startSession(actor) {
 export function vr2EnterMatrix(actor) {
   return matrixQueue(actor, async () => {
     if (actor.system.matrixMode) return;
+    if (!await Y.mayJackIn(actor, sessionHost(actor))) return;
     // Part 3: entry IS the connection record (its number server-arbitrated, PLAN-vr2-part3 §0).
-    const { openConnection } = await import("./vr2ic.mjs");
-    if (await openConnection(actor) == null) return;
+    if (await Y.openConnection(actor) == null) return;
     await actor.update({ "system.matrixMode": true });
     await startSession(actor);
   });
@@ -152,6 +152,7 @@ export function vr2EnterMatrix(actor) {
 
 /** The live session against `host`: a session with no host yet adopts it; another host starts a new one (the old kept as lastSession). */
 export function sessionFor(actor, host) {
+  if (Y.hostOffline(host)) { ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`); return Promise.resolve(null); }
   return sessionQueue(actor, async () => {
     const s = liveSession(actor);
     if (s?.hostUuid === host.uuid) return s;
@@ -240,6 +241,7 @@ export async function deliverSheaf(actor) {
         await host.update(update);
       });
       const what = CONFIG.SR2E.vr2SheafEvents?.[e.event] ?? e.event ?? "";
+      if (e.event === "shutdown" && host) await Y.startShutdown(host);   // part 3: one lifecycle (p.53)
       await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
         content: `<div class="sr2e-item-card"><strong>Security sheaf — ${esc(host?.name ?? "host")}</strong>
           <br>${esc(e.deckerName)}'s tally reached ${e.tally}: step ${e.step}${what ? ` — <strong>${esc(what)}</strong>` : ""}${e.note ? `: ${esc(e.note)}` : ""} (VR2.0 p.150).</div>` });
@@ -345,6 +347,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   if (operation !== "gracefulLogoff") { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   const op = CONFIG.SR2E.vr2SystemOperations[operation];
   if (!op || host?.type !== "host") return ui.notifications.warn("Choose a host and a System Operation.");
+  if (Y.hostOffline(host)) return ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`);
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
   const trained = (computer?.system?.rating ?? 0) > 0;
   const dice = trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
@@ -361,6 +364,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const tn = Math.max(2, subsystem - utility - sensor) + (trained ? 0 : 4) + tracing;
   const subsystemLabel = CONFIG.SR2E.vr2Subsystems[sub] ?? sub;
   const session = await sessionFor(actor, host);
+  if (!session) return;
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(1, dice), tn, {
     label: `${op.label} — Computer vs ${subsystemLabel} (TN ${tn})`, tnContext: skillTnContext("computer"),
@@ -1237,7 +1241,8 @@ async function leaveOnLog(actor, crash) {
   if (f.live?.exit) return ui.notifications.info(`${actor.name} is already jacking out.`);
   if (f.live?.locks.length) {
     const ics = f.live.locks.map(h => sync(h.icKey.slice(0, h.icKey.lastIndexOf("#")))).filter(Boolean);
-    const rating = Math.max(...ics.map(ic => Y.blackRating(ic, actor)), 0);
+    // PCPIC: Willpower (rating + the wound modifier) instead (p.50).
+    const rating = Y.pcpicTN(actor) ?? Math.max(...ics.map(ic => Y.blackRating(ic, actor)), 0);
     const choice = await foundry.applications.api.DialogV2.wait({ window: { title: `Jack out — ${actor.name}` }, rejectClose: false,
       content: `<p>Black IC (${ics.map(i => esc(i.name)).join(", ")}) has its hooks in ${esc(actor.name)}'s ASIST interface (VR2.0 p.48).
         Jacking out is a Complex Action and a <strong>Willpower (${rating})</strong> test; on a success the IC makes one more attack before the link drops.

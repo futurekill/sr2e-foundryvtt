@@ -174,7 +174,8 @@ async function enter(tokenDoc, behavior, actor) {
     }
     // VR2.0 part 3: the connection record FIRST, carrying what entry needs (PLAN-vr2-part3 §0, R6 #2).
     if (isVR2()) {
-      const { openConnection } = await import("./vr2ic.mjs");
+      const { openConnection, mayJackIn } = await import("./vr2ic.mjs");
+      if (!await mayJackIn(actor, sync(behavior.system?.host))) { clearTab(); return; }
       const n = await openConnection(actor, { jackpoint: { jackpoint: behavior.uuid, originToken: tokenDoc.uuid,
         originScene: tokenDoc.parent.id, destScene, user: game.user.id, session: id } });
       if (n == null) { clearTab(); return; }

@@ -2640,7 +2640,7 @@ async function promptSystemOperationOptions(actor) {
   const vr2 = isVR2();
   const ops = vr2 ? CONFIG.SR2E.vr2SystemOperations : CONFIG.SR2E.systemOperations;
   const opOptions = Object.entries(ops).map(([k, op]) =>
-    `<option value="${k}">${game.i18n.localize(op.label)}${vr2 ? ` (${CONFIG.SR2E.vr2Subsystems[op.subsystem]}, ${op.utility})` : ""}</option>`).join("");
+    `<option value="${k}">${game.i18n.localize(op.label)}${vr2 ? ` (${CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? "targeted subsystem"}, ${op.utility})` : ""}</option>`).join("");
 
   const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
 

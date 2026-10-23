@@ -805,7 +805,6 @@ SR2E.icWorm = { "": "—", data: "Dataworm", death: "Deathworm", tape: "Tapeworm
 SR2E.vr2SheafEvents = { ic: "IC activates", passive: "Passive alert", active: "Active alert", shutdown: "Shutdown", other: "" };
 
 SR2E.vr2Subsystems = {
-  targeted: "the targeted subsystem",
   access:  "Access",
   control: "Control",
   index:   "Index",

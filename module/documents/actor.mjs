@@ -413,15 +413,21 @@ export class SR2EActor extends Actor {
     // Cyberware social penalty (Cybertechnology p.58): only what the roll dialog passed.
     const socialTN = policy ? 0 : Math.max(0, Number(options.socialTN) || 0);
     // Chronic Dissociation Syndrome (Cybertechnology p.83): +3 to "all other tests", ritual stages included.
+    // VR2.0 cyberphobia (p.49): +rating on any task involving computers or the Matrix; reported with it.
+    const phobia = Math.max(0, ...(this.system.vr2Psy ?? []).filter(c => c.kind === "cyberphobia").map(c => c.rating));
+    const ctx = options.tnContext ?? {};
+    const computing = ["computer", "electronics"].includes(String(ctx.key ?? "").toLowerCase()) || /b\/r/i.test(String(ctx.key ?? ""))
+      || ctx.kind === "matrix" || ctx.kind === "attack" && String(ctx.key ?? "").toLowerCase() === "computer";
     const cdsTN = this.system.cym?.cds ? 3 : 0;
+    const phobiaTN = computing ? phobia : 0;
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN);
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
-      + coordinationTN + socialTN + cdsTN - centeringReduction;
+      + coordinationTN + socialTN + cdsTN + phobiaTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-             coordinationTN, socialTN, cdsTN, centeringReduction, total };
+             coordinationTN, socialTN, cdsTN, phobiaTN, centeringReduction, total };
   }
 
   /**
@@ -447,7 +453,7 @@ export class SR2EActor extends Actor {
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
     const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-            coordinationTN, socialTN, cdsTN, centeringReduction, total } = this.testTnModifiers(options);
+            coordinationTN, socialTN, cdsTN, phobiaTN, centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
@@ -516,6 +522,7 @@ export class SR2EActor extends Actor {
     if (coordinationTN > 0) tnParts.push(`+${coordinationTN} ${game.i18n.localize("SR2E.Limb.Coordination")}`);
     if (socialTN > 0)       tnParts.push(`+${socialTN} ${game.i18n.localize("SR2E.Social.TnLabel")}`);
     if (cdsTN > 0)          tnParts.push(`+${cdsTN} CDS`);
+    if (phobiaTN > 0)       tnParts.push(`+${phobiaTN} cyberphobia`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })

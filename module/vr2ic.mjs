@@ -10,7 +10,7 @@
  */
 import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
-         boundariesToTick, RESPONSE_TIMES, wormInfects } from "./rules/vr2ic-rules.mjs";
+         boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod } from "./rules/vr2ic-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -91,6 +91,20 @@ export async function openConnection(actor, { jackpoint = null } = {}) {
   const ok = await recordEvent(actor, `${P3}conn-open:${n}`, { type: "connOpen", n, user: game.user.id, jackpoint,
     deck: actor.system.vr2Deck?.uuid ?? null, settings: { hardening: d.hardening ?? 0, deckMode: d.deckMode ?? "hot", iccm: !!d.iccm } });
   return ok ? n : null;
+}
+
+/**
+ * Before any jack-in (plan §3b, §7): an offline host refuses, and cyberphobia demands a
+ * Willpower (rating) test first (p.49). False aborts BEFORE anything changes.
+ */
+export async function mayJackIn(actor, host) {
+  if (host && hostOffline(host)) { ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`); return false; }
+  const phobia = (actor.system.vr2Psy ?? []).filter(c => c.kind === "cyberphobia").sort((a, b) => b.rating - a.rating)[0];
+  if (!phobia) return true;
+  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, phobia.rating, { label: `Cyberphobia: Willpower (${phobia.rating}) to jack in (VR2.0 p.49)`, tnContext: { kind: "other" } });
+  if ((r?.successes ?? 0) > 0) return true;
+  ui.notifications.info(`${actor.name} can't bring themself to jack in.`);
+  return false;
 }
 
 /** Deck activation is refused while connected (plan §0, R3 #6). */
@@ -712,6 +726,111 @@ STEP_RESOLVERS.datatrail = async (actor, f, s) => {
   await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
 };
 
+// ── Host shutdown (plan §7; p.53) ───────────────────────────────────────────────
+
+export const hostShutdown = (host) => shutdownState(recordsOf(host)).running;
+/** Is this host shut down (refuse every way onto it)? */
+export const hostOffline = (host) => !!hostShutdown(host)?.offline;
+
+/** Start a shutdown (a sheaf step, or the GM): rolled first, ONE lifecycle per reset. */
+export function startShutdown(host) {
+  return sequencer(async () => {
+    const st = shutdownState(recordsOf(host));
+    if (st.running) return;
+    const turns = (await new Roll(`${shutdownDice(host.system.securityValue)}d6`).evaluate()).total;
+    const warning = finalWarning((await new Roll("1d6").evaluate()).total);
+    // The clock of a combat that one of this host's connected deckers is fighting in; else manual.
+    const deckers = allDocs().filter(a => a.type === "character" && a.system.vr2Conn && sync(a.flags?.sr2e?.vr2Session?.hostUuid)?.uuid === host.uuid);
+    const combat = game.combats.find(c => c.started && c.combatants.some(cb => deckers.some(d => cb.actor?.uuid === d.uuid))) ?? null;
+    if (!await fact(host, `shutdown:${st.nextN}`, { type: "shutdown", n: st.nextN, turns, warning,
+      clock: combat ? { combatId: combat.id, startRound: combat.round } : { manual: true } })) return;
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      <strong>${esc(host.name)} begins shutting down</strong>: ${turns} Combat Turn${turns === 1 ? "" : "s"}, final warning with ${warning} left (VR2.0 p.53).
+      Each turn's end, a secret Sensor test per decker against the turns left. ${combat ? "Counted at each round's end." : "Advance turns from the host's sheet."}</div>` });
+  });
+}
+
+/** One turn of a shutdown (a boundary id), then the warning and the end. Sequencer only. */
+async function tickShutdown(host, boundary) {
+  const run = hostShutdown(host);
+  if (!run || run.offline) return;
+  if (!await fact(host, `shutdown-tick:${run.n}:${boundary}`, { type: "shutdownTick", n: run.n, boundary })) return;
+  const now = hostShutdown(host);
+  const deckers = allDocs().filter(a => a.type === "character" && a.system.vr2Conn && sync(a.flags?.sr2e?.vr2Session?.hostUuid)?.uuid === host.uuid);
+  if (now.warned && await once(host, `${P3}card:shutdown-warn:${now.n}`)) {
+    await ChatMessage.create({ content: `<div class="sr2e-item-card"><strong>${esc(host.name)} is shutting down</strong>: ${now.left} Combat Turn${now.left === 1 ? "" : "s"} left (VR2.0 p.53).</div>` });
+  }
+  if (!now.offline) return;
+  for (const a of deckers) await openExit(a, "shutdown");
+  await ChatMessage.create({ content: `<div class="sr2e-item-card"><strong>${esc(host.name)} shuts down.</strong> Every decker still on it is dumped; frames and running programs crash (VR2.0 p.53).</div>` });
+  for (const a of deckers) schedule(a);
+}
+export function advanceShutdown(host) {
+  return sequencer(async () => { const run = hostShutdown(host); if (run?.clock?.manual) await tickShutdown(host, `m${run.ticks.length + 1}`); });
+}
+export function resetShutdown(host) {
+  return sequencer(async () => { const run = hostShutdown(host); if (run) await fact(host, `shutdown-reset:${run.n}`, { type: "shutdownReset", n: run.n }); });
+}
+
+// ── Psychotropic black IC (plan §3b; p.49–50) ──────────────────────────────────
+
+/** The exit's psychotropic step: the decker's Willpower against the implant (−2 on a cool deck). */
+STEP_RESOLVERS.psychotropic = async (actor, f, s) => {
+  if (!await once(actor, `${P3}card:psy:${f.live.n}:${s.ref}`)) return;
+  const hit = f.live.hits.find(h => h.icKey === s.ref);
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
+    ${esc(hit?.icName ?? "Psychotropic IC")} reaches for ${esc(actor.name)}'s mind as the link drops (VR2.0 p.49):
+    <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(actor.uuid)}" data-op="psy" data-arg="${esc(s.ref)}">Willpower (${Math.max(2, (hit?.rating ?? 0) - (hit?.cool ? 2 : 0))})</button></div></div>` });
+};
+/** The decker's implant test; the sequencer records the condition on a failure. */
+export async function psyTest(actor, icKey) {
+  const f = foldOf(actor);
+  const hit = f.live?.hits.find(h => h.icKey === icKey);
+  if (!hit || f.live.steps.find(x => x.step === "psychotropic" && x.ref === icKey)?.res) return;
+  const tn = Math.max(2, hit.rating - (hit.cool ? 2 : 0));
+  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: `Resist the psychotropic implant — Willpower (${tn})`, tnContext: { kind: "other" } });
+  if (r) await request(actor, "psy", { icKey, successes: r.successes, conn: f.liveN });
+}
+Object.assign(HANDLERS, {
+  async psy(actor, r, f) {
+    const hit = f.live?.hits.find(h => h.icKey === r.icKey);
+    if (!hit || f.liveN !== r.conn) return { ok: false, why: "no such psychotropic hit on this connection" };
+    const key = `exit-res:${f.liveN}:psychotropic:${r.icKey}`;
+    if (!await fact(actor, key, { type: "exitRes", n: f.liveN, step: "psychotropic", ref: r.icKey, successes: r.successes })) return { ok: true };
+    const kind = sync(r.icKey.slice(0, r.icKey.lastIndexOf("#")))?.system?.psychotropic || "cyberphobia";
+    if (r.successes <= 0) {
+      await fact(actor, `psy:${f.liveN}:${r.icKey}`, { type: "psy", kind, rating: hit.rating, icName: hit.icName });
+      await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+        ${esc(actor.name)} carries ${esc(CONFIG.SR2E.icPsychotropic[kind] ?? kind)} (rating ${hit.rating}) out of the Matrix (VR2.0 p.49–50).</div>` });
+    }
+    await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
+    return { ok: true };
+  }
+});
+
+/** PCPIC's grip (p.50): a voluntary exit needs Willpower (rating + the wound modifier). */
+export function pcpicTN(actor) {
+  const f = foldOf(actor);
+  const pcpic = (f.live?.locks ?? []).filter(h => sync(h.icKey.slice(0, h.icKey.lastIndexOf("#")))?.system?.psychotropic === "pcpic");
+  if (!pcpic.length) return null;
+  const cm = actor.system.conditionMonitor ?? {};
+  const boxes = Math.max(cm.physical?.value ?? 0, cm.stun?.value ?? 0);
+  const level = boxes >= 10 ? "D" : boxes >= 6 ? "S" : boxes >= 3 ? "M" : boxes >= 1 ? "L" : "";
+  return Math.max(...pcpic.map(h => h.rating)) + pcpicMod(level);
+}
+
+/** Recovery (p.50): Willpower vs the rating with the treatment modifiers; a success ends it. */
+export async function psyRecover(actor, condKey, mods = {}) {
+  const c = recordsOf(actor).find(e => e.key === condKey && e.type === "psy");
+  if (!c) return;
+  const { psychoRecoveryTN } = await import("./rules/vr2ic-rules.mjs");
+  const tn = psychoRecoveryTN(c.rating, { ...mods, pcpic: c.kind === "pcpic" });
+  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: `Recover from ${CONFIG.SR2E.icPsychotropic[c.kind] ?? c.kind} — Willpower (${tn})`, tnContext: { kind: "other" } });
+  if (!r) return;
+  const k = recordsOf(actor).filter(e => e.type === "psyRecover" && e.cond === condKey).length + 1;
+  await recordEvent(actor, `${P3}psy-recover:${condKey}:${k}`, { type: "psyRecover", cond: condKey, success: r.successes > 0 });
+}
+
 /** Register a request handler (later stages add theirs). */
 export const addHandler = (kind, fn) => { HANDLERS[kind] = fn; };
 
@@ -861,6 +980,7 @@ export async function icOp(uuid, op, arg) {
   if (!actor) return;
   if (op === "sparky") return resistSparky(actor, arg);
   if (op === "traceStart") return traceStart(actor, arg);
+  if (op === "psy") return psyTest(actor, arg);
   if (["worm", "wormGone", "defused", "explode", "poison"].includes(op)) {
     const [card, icUuid] = arg.split("|");
     const ic = await fromUuid(icUuid);
@@ -904,6 +1024,14 @@ export function registerVr2IcHooks() {
         await tickTraces(a, (t, ticks) => t.clock?.combatId === combat.id ? boundariesToTick(t, ticks, combat.round) : []);
         await noticeTraces(a);
       }).catch(err => console.error("SR2E | trace ticks", err));
+    }
+    for (const h of game.actors.filter(x => x.type === "host")) {
+      const run = hostShutdown(h);
+      if (!run || run.offline || run.clock?.combatId !== combat.id) continue;
+      const done = new Set(run.ticks.map(t => t.boundary));
+      sequencer(async () => {
+        for (let r = run.clock.startRound; r < combat.round; r++) if (!done.has(r)) await tickShutdown(h, r);
+      }).catch(err => console.error("SR2E | shutdown ticks", err));
     }
   });
   Hooks.on("createChatMessage", (m) => { if (m.flags?.sr2e?.vr2SystemTest) offerTar(m).catch(err => console.error("SR2E | tar offer", err)); });

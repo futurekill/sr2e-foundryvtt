@@ -11908,6 +11908,54 @@ export function registerSR2EQuenchTests() {
         assert.equal(CONFIG.SR2E.vr2SystemOperations.defuse.subsystem, "targeted");
       });
 
+      it("host shutdown: one lifecycle, turns counted down, the deckers on it dumped; offline refuses until reset", async () => {
+        const h = await hostA("Quench VIC Shut", "green", 2);                // 1D6 turns
+        const a = await decker("Quench VIC Shutout");
+        await V.vr2EnterMatrix(a);
+        await V.sessionFor(a, h);
+        await Y.startShutdown(h); await Y.startShutdown(h);
+        assert.equal(Y.recordsOf(h).filter(e => e.type === "shutdown").length, 1, "one lifecycle");
+        const turns = Y.hostShutdown(h).turns;
+        for (let i = 0; i < turns; i++) await Y.advanceShutdown(h);
+        assert.isTrue(Y.hostOffline(h));
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 10000), "dumped");
+        assert.equal(recs(a, "exitOpen")[0].trigger, "shutdown");
+        await V.vr2EnterMatrix(a);
+        assert.isNull(await V.sessionFor(a, h), "an offline host refuses");
+        await Y.resetShutdown(h);
+        assert.isFalse(Y.hostOffline(h));
+        await cleanup();
+      });
+
+      it("psychotropic black IC: the exit's Willpower test implants cyberphobia (its TN on Computer tests, a test to jack in); recovery ends it", async () => {
+        const h = await hostA("Quench VIC Psy", "green", 1);
+        const ic = await icA("Quench VIC Phobia", h, "black-psychotropic", 4);
+        await ic.update({ "system.psychotropic": "cyberphobia" });
+        const a = await decker("Quench VIC Phobic");
+        await a.update({ "system.willpower.base": 6 });
+        await V.vr2EnterMatrix(a);
+        const card = await attackCard(ic, h, a, { level: "L" });
+        await settle(() => recs(a, "admit").length === 1);
+        await forced(0.2, () => V.vr2MatrixResist(a, card));
+        await settle(() => recs(a, "ack").length >= 2);
+        await Y.requestExit(a, { trigger: "plug" });
+        await settle(() => !!Y.foldOf(a).live?.exit);
+        const last = await attackCard(ic, h, a, { lastAttack: true, faces: 0.99 });   // a miss
+        await settle(() => recs(a, "admit").length === 2);
+        assert.isTrue(await settle(() => game.messages.contents.some(m => m.content.includes("reaches for"))), "the implant test is offered");
+        await forced(0.99, () => Y.psyTest(a, Y.icKeyOf(ic).replace(/#\d+$/, "#0")));
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 10000), "the exit completes");
+        assert.equal(a.system.vr2Psy.length, 1);
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "skill", key: "computer" } }).phobiaTN, 4);
+        assert.equal(a.testTnModifiers({ tnContext: { kind: "skill", key: "firearms" } }).phobiaTN, 0);
+        await forced(0.99, () => V.vr2EnterMatrix(a));
+        assert.isNull(a.system.vr2Conn, "cyberphobia stops the jack-in");
+        await forced(0.2, () => Y.psyRecover(a, a.system.vr2Psy[0].key, { therapy: true }));
+        assert.equal(a.system.vr2Psy.length, 0, "recovered");
+        assert.ok(last);
+        await cleanup();
+      });
+
       it("no deck switch while connected", async () => {
         const a = await decker("Quench VIC Deck");
         const [d1, d2] = await a.createEmbeddedDocuments("Item", [

@@ -63,6 +63,20 @@ export function boundariesToTick(trace, ticks = [], q) {
   for (let r = start + 1; r < q; r++) if (!done.has(r)) out.push(r);
   return out;
 }
+/**
+ * A host's shutdown lifecycle from its records (plan §7): the latest started sequence n with no
+ * reset; turns left = turns − its ticks (the starting turn counts: "the number of Combat Turns
+ * the sequence will last", p.53). null when none is running.
+ */
+export function shutdownState(records = []) {
+  const resets = new Set(records.filter(e => e.type === "shutdownReset").map(e => e.n));
+  const run = records.filter(e => e.type === "shutdown" && !resets.has(e.n)).sort((a, b) => b.n - a.n)[0] ?? null;
+  const nextN = 1 + Math.max(0, ...records.filter(e => e.type === "shutdown").map(e => e.n));
+  if (!run) return { running: null, nextN };
+  const ticks = records.filter(e => e.type === "shutdownTick" && e.n === run.n);
+  const left = Math.max(0, run.turns - ticks.length);
+  return { running: { ...run, left, offline: left <= 0, warned: left <= run.warning, ticks }, nextN };
+}
 /** Tar baby/pit (p.42): the tar wins only on MORE successes. */
 export const tarWins = (tarSuccesses, utilitySuccesses) => tarSuccesses > utilitySuccesses;
 

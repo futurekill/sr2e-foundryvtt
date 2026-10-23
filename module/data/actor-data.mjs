@@ -343,6 +343,11 @@ export class CharacterData extends SR2EDataModel {
     // delayed write can switch a newer connection off. Before that, the stored field rules.
     const conn = isVR2() ? liveOpen(eventsOf(this.parent).filter(e => String(e.key).startsWith("vr2:"))) : null;
     this.vr2Conn = conn?.open ?? null;
+    // Psychotropic conditions carried out of the Matrix (part 3 §3b), until a recovery succeeds.
+    if (isVR2()) {
+      const recs = eventsOf(this.parent).filter(e => String(e.key).startsWith("vr2:"));
+      this.vr2Psy = recs.filter(e => e.type === "psy" && !recs.some(r => r.type === "psyRecover" && r.cond === e.key && r.success));
+    } else this.vr2Psy = [];
     this.matrixMode = conn?.any ? !!conn.open : (this.parent?._source?.system?.matrixMode ?? false);
     const mods = this._collectItemModifiers({ isAwakened });
     // Substance abuse (Shadowtech p.87): ½ Essence per week addicted, permanent.
