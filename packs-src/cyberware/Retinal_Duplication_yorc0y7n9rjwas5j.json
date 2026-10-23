@@ -11,7 +11,7 @@
     "cost": 50000,
     "availability": "12/7days",
     "legality": "Illegal",
-    "installed": false,
+    "installed": true,
     "attributeMods": {
       "body": 0,
       "quickness": 0,

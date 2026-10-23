@@ -12,7 +12,7 @@
     "availability": "Varies",
     "streetIndex": "",
     "legality": "Legal",
-    "installed": false,
+    "installed": true,
     "limbOption": true,
     "linkedLimbId": "",
     "costPerRating": 0,

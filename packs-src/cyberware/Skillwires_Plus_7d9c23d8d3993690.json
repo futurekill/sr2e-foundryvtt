@@ -6,7 +6,7 @@
   "system": {
     "grade": "standard",
     "legality": "Restricted",
-    "installed": false,
+    "installed": true,
     "attributeMods": {
       "body": 0,
       "quickness": 0,

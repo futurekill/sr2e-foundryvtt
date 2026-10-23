@@ -44,6 +44,14 @@
 - **Graceful Logoff** now runs its System Test (harder with traces locating) instead of
   being taken on trust.
 
+### Fixed
+- **Buying cyberware in play now runs the surgery.** 57 items in the system's cyberware
+  compendium were stored as uninstalled "spares", so the Buy dialog never offered the
+  Cybersurgery section (or charged their Essence until someone ticked Installed). They now
+  arrive installed, as the cybersurgery rules intended. A spare is still possible: untick
+  Installed. Rigger 2, Shadowtech, the Street Samurai Catalog and the Corporate Security
+  Handbook have the same problem in their own packs, to be fixed in their next releases.
+
 ### Changed
 - **Under VR2.0, a GM must be online for the Matrix to resolve.** The GM's client
   sequences connections, attacks, exits and IC effects. Players' clients record what they

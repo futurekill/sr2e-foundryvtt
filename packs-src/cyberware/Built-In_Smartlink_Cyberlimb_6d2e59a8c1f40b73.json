@@ -12,7 +12,7 @@
     "availability": "6/4 days",
     "streetIndex": "1.5",
     "legality": "Legal",
-    "installed": false,
+    "installed": true,
     "limbOption": true,
     "linkedLimbId": "",
     "costPerRating": 0,
