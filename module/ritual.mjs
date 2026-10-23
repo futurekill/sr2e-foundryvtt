@@ -334,7 +334,7 @@ async function stageLink(id) {
     const dice = Math.trunc(Number(data.dice) || 0);
     if (dice < 1 || dice > r.pool) { ui.notifications.warn(`Use 1–${r.pool} dice.`); return false; }
     const tn = ritualLinkTN({ location: data.location, spirit: !!data.spirit, barrier: data.barrier, lodge: data.lodge, staleTissue: !!data.stale });
-    await rollStage(r, "link", dice, tn, `Ritual — material link for ${r.spellName} (TN ${tn}, p.136)`);
+    await rollStage(r, "link", dice, tn, RL("RitualLink", { spell: r.spellName, tn }));
     adopt(r);
   });
 }
@@ -351,7 +351,7 @@ async function stageSending(id) {
     const dice = Math.trunc(Number(data.dice) || 0);
     if (dice < 1 || dice > r.pool) { ui.notifications.warn(`Use 1–${r.pool} dice.`); return false; }
     const tn = ritualSendingTN({ targetType: data.type, fastMoving: !!data.fast, area: r.subject.kind === "area" });
-    await rollStage(r, "sending", dice, tn, `Ritual — sending ${r.spellName} (TN ${tn}, p.136)`);
+    await rollStage(r, "sending", dice, tn, RL("RitualSending", { spell: r.spellName, tn }));
     adopt(r);
   });
 }
@@ -419,8 +419,8 @@ async function stageEffect(id) {
     if (dice < 1 || dice + withheld > r.pool) { ui.notifications.warn(`Use 1–${r.pool - withheld} dice (${withheld} withheld for the radius).`); return false; }
     const bio = spell.system.healsDamage && subj ? biowareHealingTnMod(subj.system?.bodyIndex?.value ?? 0) : 0;
     await rollStage(r, "effect", Math.max(0, dice + totem), Math.max(2, Math.trunc(Number(data.tn) || 4)),
-      `Ritual — ${r.spellName} effect (Force ${r.effForce}${totem ? `, totem ${totem > 0 ? "+" : ""}${totem}` : ""}, p.137)`,
-      { poolDice: dice, totemUsed: Math.max(0, totem), withheld, extraTN: bio, extraTNLabel: bio ? "bioware interference" : undefined });
+      RL("RitualEffect", { spell: r.spellName, force: r.effForce, totem: totem ? RL("RitualTotemTag", { n: `${totem > 0 ? "+" : ""}${totem}` }) : "" }),
+      { poolDice: dice, totemUsed: Math.max(0, totem), withheld, extraTN: bio, extraTNLabel: bio ? RL("BiowareInterference") : undefined });
     adopt(r);    // freezes the Drain level before anything is published
   });
 }

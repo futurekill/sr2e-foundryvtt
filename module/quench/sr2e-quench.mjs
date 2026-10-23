@@ -1586,7 +1586,8 @@ export function registerSR2EQuenchTests() {
       let env, prevSetting, prevScene;
 
       // A Q5 human = walk 5 / run 15 (m per Combat Phase). Scene is 100px/1m.
-      before(async () => {
+      before(async function () {
+        this.timeout(15000);   // viewing a new scene draws the canvas: often over mocha's 2 s
         prevScene = canvas.scene;
         prevSetting = game.settings.get("sr2e", "movementLimit");
         await game.settings.set("sr2e", "movementLimit", true);
@@ -1618,7 +1619,8 @@ export function registerSR2EQuenchTests() {
         env = { runner, bystander, scene, tok, byTok, combat };
       });
 
-      after(async () => {
+      after(async function () {
+        this.timeout(15000);   // re-viewing the previous scene redraws the canvas
         try { await env?.combat?.delete(); } catch (e) {}
         try { await env?.scene?.delete(); } catch (e) {}       // deletes its tokens
         try { await env?.runner?.delete(); } catch (e) {}

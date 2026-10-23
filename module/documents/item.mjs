@@ -1707,11 +1707,11 @@ export class SR2EItem extends Item {
     const drainPool = drainPoolAlloc > 0 ? { magic: drainPoolAlloc } : {};
 
     let totemNote = "";
-    if (totemBonus   > 0) totemNote += ` +${totemBonus} totem`;
-    if (totemPenalty > 0) totemNote += ` −${totemPenalty} totem`;
-    if (focusDice    > 0) totemNote += ` +${focusDice} focus`;
-    if (area?.withheld)    totemNote += ` −${area.withheld} withheld for a ${area.radius} m radius`;
-    if (aidCast > 0)       totemNote += ` +${aidCast} Aid Sorcery (${aidSpirit.name})`;
+    if (totemBonus   > 0) totemNote += RL("PlusTotem", { n: totemBonus });
+    if (totemPenalty > 0) totemNote += RL("MinusTotem", { n: totemPenalty });
+    if (focusDice    > 0) totemNote += RL("PlusFocus", { n: focusDice });
+    if (area?.withheld)    totemNote += RL("WithheldTag", { n: area.withheld, radius: area.radius });
+    if (aidCast > 0)       totemNote += RL("AidSorceryTag", { n: aidCast, spirit: aidSpirit.name });
 
     // ── Bioware interference with magical healing (Shadowtech p.6) ────────────
     // "For magical healing on subjects with bioware, increase the target numbers
@@ -1751,7 +1751,7 @@ export class SR2EItem extends Item {
         // cTN already carries the penalties: roll it as is (policy "table"
         // adds no caster modifiers), or they would count twice.
         const cResult = await actor.rollSuccessTest(cDice, cTN, {
-          label: `Centering — ${cSkill.name} vs penalties (TN ${cTN})`, isResistance: true, tnPolicy: "table"
+          label: RL("Centering", { skill: cSkill.name, tn: cTN }), isResistance: true, tnPolicy: "table"
         });
         centeringReduction = centeringPenaltyReduction(cResult?.successes ?? 0, penaltyC);
       }
@@ -1808,9 +1808,9 @@ export class SR2EItem extends Item {
     const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice + aidDrain, drainTN, {
       label: RL("DrainResist", { level: startLevel, type: drainType,
              note: inAstral && actualForce <= magicRating ? RL("CastInAstral") : "", tn: drainTN })
-           + `${drainSubjectNote ? ` — ${drainSubjectNote}` : ""}`
-           + `${drainFocusDice ? ` — +${drainFocusDice} focus` : ""}`
-           + `${aidDrain ? ` — +${aidDrain} Aid Sorcery` : ""}`,
+           + (drainSubjectNote ? RL("DrainNoteTag", { note: drainSubjectNote }) : "")
+           + (drainFocusDice ? RL("DrainFocusTag", { n: drainFocusDice }) : "")
+           + (aidDrain ? RL("DrainAidTag", { n: aidDrain }) : ""),
       poolDice: drainPool,              // separately allocated magic pool dice
       // The book grants the focus to "the tests to cast AND RESIST DRAIN" for its
       // spell (p.137). We used to add it to the cast only, so we over-granted on
@@ -1831,7 +1831,7 @@ export class SR2EItem extends Item {
       const cDice = cSkill?.system?.rating ?? 0;
       if (cDice > 0) {
         const cResult = await actor.rollSuccessTest(cDice, drainTN, {
-          label: `Centering — ${cSkill.name} (TN ${drainTN})`, isResistance: true
+          label: RL("CenteringDrain", { skill: cSkill.name, tn: drainTN }), isResistance: true
         });
         const bonus = centeringDrainBonus(cResult?.successes ?? 0, drainSuccesses);
         if (bonus > 0) {
@@ -2245,7 +2245,7 @@ export class SR2EItem extends Item {
     const targetNumber = options.targetNumber || 4;
 
     return actor.rollSuccessTest(rating, targetNumber, {
-      label: `${this.name} (Rating ${rating})`,
+      label: RL("NameRating", { name: this.name, rating }),
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });

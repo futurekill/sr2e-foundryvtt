@@ -762,3 +762,8 @@ If those five all work, the core loop is healthy.
   missing from `lang/en.json`.
 - Live: roll a net escape, a conjuring, a vehicle crash and a VR2.0 Matrix attack; each
   card's label reads as before (no raw `SR2E.RollLabel.` text).
+
+## 0.116.2 checks
+- Core compendium **Cybereyes**: no module rows; Essence .2 on a fresh drop.
+- Shadowtech **Import history**: the Substances row shows the item's name.
+- `sr2e.movement` hooks finish inside their 15 s budget; no "Quench Movement" scenes left.

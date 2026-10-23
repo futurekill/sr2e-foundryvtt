@@ -1939,8 +1939,8 @@ export class SR2EActor extends Actor {
       vehicle.system.handling + terrainMod + vcrMod + damageMod + otherMod + defaultingPenalty
     );
 
-    const typeLabel = { handling: "Handling Test", position: "Position Test", crash: "Crash Test" }[testType] ?? "Vehicle Test";
-    const label = `${vehicle.name} — ${typeLabel} [${terrain}${defaultingNote}] TN ${tn}`;
+    const typeLabel = RL({ handling: "HandlingTest", position: "PositionTest", crash: "CrashTest" }[testType] ?? "VehicleTest");
+    const label = RL("VehicleTest2", { name: vehicle.name, test: typeLabel, terrain, notes: defaultingNote, tn });
 
     const result = await this.rollSuccessTest(dice, tn, {
       label, tnContext: skillTnContext(skillKey),

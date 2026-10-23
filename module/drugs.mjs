@@ -596,7 +596,7 @@ export async function importSubstance(actor) {
     // Blank means "work it out": a blank number field arrives as null/"", not 0.
     const whole = (v) => v === null || v === undefined || v === "" ? undefined
       : Number.isInteger(Number(v)) && Number(v) >= 0 ? Number(v) : undefined;
-    const baseline = { addiction: snap.addiction, tolerance: snap.tolerance, strength: snap.strength, P: snap.P, M: snap.M,
+    const baseline = { name: snap.name, addiction: snap.addiction, tolerance: snap.tolerance, strength: snap.strength, P: snap.P, M: snap.M,
       uses: whole(data.uses) ?? 0, boxesLost: whole(data.boxesLost) ?? 0,
       essenceLost: Math.max(0, Math.round(2 * (Number(data.essenceLost) || 0)) / 2),
       lastDose: stamp.t - Math.max(0, Number(data.hoursAgo) || 0) * 3600,

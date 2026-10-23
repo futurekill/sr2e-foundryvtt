@@ -7,6 +7,7 @@
  * (`flags.sr2e.effectRequest`) that the active GM consumes; everyone resolves
  * their own damage from flag-backed cards (the `resolves` marker pattern).
  */
+import { RL } from "./util/roll-label.mjs";
 import { createArea, areaDocs, allAreaDocs, deleteAreas, areaShape } from "./areas.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { canonicalSpellName, igniteDelay, segmentHitsCircle, segmentHitsPolygon } from "./rules/sr2e-rules.mjs";
@@ -507,7 +508,7 @@ async function iceTest(message) {
   const a = await fromUuid(st.actorUuid).catch(() => null);
   const actor = a?.documentName === "Token" ? a.actor : a;
   if (!actor?.isOwner) return ui.notifications.warn("Only the character's owner or the GM rolls this.");
-  const r = await actor.rollSuccessTest(actor.system.quickness?.value ?? 1, 3, { label: "Ice Sheet — keep your feet (Quickness, TN 3)" });
+  const r = await actor.rollSuccessTest(actor.system.quickness?.value ?? 1, 3, { label: RL("IceSheet") });
   if (!r) return;
   const prone = (r.successes ?? 0) < 1;
   if (prone) {

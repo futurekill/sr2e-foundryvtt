@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.116.2 — 2026-10-23
+
+### Changed
+- The roll labels 0.116.1 missed are localized too: ritual link, sending and effect tests,
+  Centering, Ice Sheet, vehicle handling/position/crash tests, rated-item tests, and the
+  cast and Drain notes (totem, focus, withheld dice, Aid Sorcery).
+
+### Fixed
+- **Cybereyes cost .2 Essence again** (Cybertechnology p.45). The core compendium's
+  Cybereyes carried six catalogue accessory rows (low-light, thermographic, flare
+  compensation, camera, cosmetic, retinal duplication), and every row counts, so a plain
+  pair cost .7 Essence. It now ships with no accessories; each one is its own item in the
+  same compendium folder. **GMs:** a cybereye bought before this still has those rows.
+  Open it and delete the rows the character doesn't have.
+- A drug brought in with **Import history** showed its internal key ("kamikaze") in the
+  Substances list instead of the item's name until the next dose.
+
 ## 0.116.1 — 2026-10-23
 
 ### Changed

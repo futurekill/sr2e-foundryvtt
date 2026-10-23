@@ -321,9 +321,10 @@ describe("boundaries (Codex stage-1 review)", () => {
     expect(k.addicted).toEqual({ P: false, M: false });
   });
   it("a baseline import sets history; clearing addiction mid-recovery ends it", () => {
-    const e = [ev("edit", 0, { patch: { baseline: { addiction: 4, tolerance: 2, strength: 4, P: true, uses: 7, boxesLost: 3, essenceLost: 1.5 } } })];
+    const e = [ev("edit", 0, { patch: { baseline: { name: "Kamikaze", addiction: 4, tolerance: 2, strength: 4, P: true, uses: 7, boxesLost: 3, essenceLost: 1.5 } } })];
     const s = S(e, 0);
     expect([s.drugs.kamikaze.uses, s.monitorLoss, s.essenceLost]).toEqual([7, 3 + 1, 1.5]);   // + ⌊7 ÷ 4⌋ wasting
+    expect(s.drugs.kamikaze.name).toBe("Kamikaze");   // the item's name, not the key
     const r = [dose(0, { id: "d1" }), test(HOUR, "d1", "P", 0), ev("edit", 2 * HOUR, { patch: { addiction: 9 } }),
                ev("recovery", 2 * HOUR, { successes: 1 }), ev("edit", 3 * HOUR, { patch: { clearAddiction: true } })];
     expect(S(r, 4 * HOUR).drugs.kamikaze.state).toBe("none");

@@ -311,6 +311,7 @@ export function substanceState(events = [], now = 0) {
                        strength: Number(b.strength) || 0, P: !!b.P, M: !!b.M };
             r.addiction = r.base.addiction; r.tolerance = r.base.tolerance;
             r.lastDose = b.lastDose ?? null;
+            if (b.name) r.name = b.name;
             // Clean boundaries before the import are consumed, not applied: the
             // imported ratings are already current.
             const iv = cleanInterval(r), from = b.lastDose ?? t;
