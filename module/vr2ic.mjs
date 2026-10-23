@@ -9,7 +9,7 @@
  * admits or refuses them. Monitors and IC are changed only there.
  */
 import { recordEvent, eventsOf, once } from "./claims.mjs";
-import { foldVr2Ic, liveOpen, grayTN, mpcpLoss } from "./rules/vr2ic-rules.mjs";
+import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey } from "./rules/vr2ic-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -282,6 +282,164 @@ async function applyResults(actor) {
 }
 
 
+// ── IC crashes, gray IC and tar (plan §4) ──────────────────────────────────────
+
+/**
+ * Matrix boxes on an IC, inside the sequencer: a crash bumps the generation AND records the
+ * crash fact with its seq in the SAME update (R7 #3), so traces and traps can order it.
+ */
+export async function icDamage(ic, boxes, card = "") {
+  const before = ic.system.conditionMonitor?.value ?? 0;
+  const after = Math.min(MATRIX_MONITOR_MAX, before + boxes);
+  const update = { "system.conditionMonitor.value": after };
+  if (before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX) {
+    const gen = ic.system.generation ?? 0;
+    update["system.generation"] = gen + 1;
+    update[`flags.sr2e.vr2Crashes.${gen}`] = { seq: nextSeq(), card };
+  }
+  await ic.update(update);
+  return { before, after };
+}
+
+/** Crash an IC outright (tar baby/pit crash themselves, p.42): no tally. */
+const crashIC = (ic, card) => icDamage(ic, MATRIX_MONITOR_MAX, card);
+
+Object.assign(HANDLERS, {
+  /** An attribute attack resolved on the defender's client (part 2): the attack is resolved; a ripper's chip test is requested. */
+  async resolved(actor, r, f) {
+    const conn = f.conn(r.conn);
+    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted", tell: false };
+    if (r.ripper && r.lost > 0) {
+      await fact(actor, `ripper:${r.card}`, { type: "ripper", conn: r.conn, card: r.card, attr: r.attr, rating: r.rating,
+        chipGen: chipGens(actor).persona, hardening: conn.open?.settings?.hardening ?? 0 });
+    }
+    if (!recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) {
+      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { lost: r.lost ?? 0 } });
+    }
+    return { ok: true };
+  }
+});
+
+/** The Ripper Test (p.43): rating dice vs MPCP + Hardening; each success costs the persona chip a point. */
+async function applyRippers(actor) {
+  const recs = recordsOf(actor);
+  for (const rp of recs.filter(e => e.type === "ripper" && !recs.some(a => a.type === "ack" && a.target === e.key))) {
+    const conn = recs.find(e => e.type === "connOpen" && e.n === rp.conn);
+    const tn = grayTN("ripper", actor.system.cyberdeck?.mpcp ?? 0, rp.hardening);
+    const r = await SR2ESuccessRoll.successTest(rp.rating ?? 0, tn);
+    const loss = mpcpLoss("ripper", r.successes);
+    if (loss > 0) await recordEvent(deckDoc(actor, conn), `${DECK}dmg:ripper:${rp.card}`, { type: "deckDmg", attr: rp.attr, amount: loss, chipGen: rp.chipGen });
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: r.rolls, content: `<div class="sr2e-damage-result">
+      Ripper Test against ${esc(actor.name)}'s persona chip (TN ${tn}): ${r.successes} success${r.successes === 1 ? "" : "es"},
+      ${rp.attr} chip −${loss} until the chip is replaced (VR2.0 p.43).</div>` });
+    await fact(actor, `ack:${rp.key}`, { type: "ack", target: rp.key, outcome: { loss } });
+  }
+}
+
+/**
+ * Gray IC crashed the persona (p.43): the Blaster/Sparky Test against the connection's deck,
+ * bound to the chip it hit. Sparky also burns the decker: (rating)M staged by its successes,
+ * resisted with Body (Hardening reduces the Power); a non-lethal design, so Stun (a stated reading).
+ */
+async function resolveGray(actor, f, s) {
+  const g = recordsOf(actor).find(e => e.type === "gray" && e.card === s.ref);
+  if (!g) return;
+  const key = `exit-res:${f.live.n}:gray:${s.ref}`;
+  const conn = f.live.open;
+  const mpcp = actor.system.cyberdeck?.mpcp ?? 0;
+  const tn = grayTN(g.kind, mpcp, g.hardening);
+  const r = await SR2ESuccessRoll.successTest(g.rating ?? 0, tn);
+  const loss = Math.min(mpcp, mpcpLoss(g.kind, r.successes));
+  await fact(actor, key, { type: "exitRes", n: f.live.n, step: "gray", ref: s.ref, successes: r.successes, loss, tn,
+    sparky: g.kind === "sparky" ? { power: g.rating, level: matrixCombatOutcome("M", r.successes, 0).level ?? "M" } : null });
+  if (loss > 0) await recordEvent(deckDoc(actor, conn), `${DECK}dmg:gray:${s.ref}`, { type: "deckDmg", attr: "mpcp", amount: loss, chipGen: g.chipGen });
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: r.rolls, content: `<div class="sr2e-damage-result">
+    <strong>${g.kind === "sparky" ? "Sparky" : "Blaster"} Test on ${esc(actor.name)}'s MPCP</strong> (TN ${tn}): ${r.successes} success${r.successes === 1 ? "" : "es"}, MPCP −${loss}
+    (replace the chip to restore it; persona programs must fit MPCP × 3, VR2.0 p.43).${g.kind === "sparky"
+      ? `<br>The deck's power supply jolts ${esc(actor.name)}: <strong>${g.rating}${matrixCombatOutcome("M", r.successes, 0).level ?? "M"}</strong> Stun, Body against ${Math.max(2, g.rating - g.hardening)} (Hardening off the Power).
+         <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-vr2ic-btn" data-actor="${esc(actor.uuid)}" data-op="sparky" data-arg="${esc(s.ref)}">Resist the jolt (Body)</button></div>` : ""}</div>` });
+  if (g.kind !== "sparky") await ackGray(actor, key, g.key);
+}
+const ackGray = async (actor, resKey, grayKey) => {
+  await fact(actor, `ack:${P3}${resKey}`, { type: "ack", target: P3 + resKey });
+  await fact(actor, `ack:${grayKey}`, { type: "ack", target: grayKey });
+};
+
+/** The decker's Body against sparky's jolt: recorded on their client, applied here. */
+export async function resistSparky(actor, card) {
+  const recs = recordsOf(actor);
+  const res = recs.find(e => e.type === "exitRes" && e.step === "gray" && e.ref === card);
+  if (!res?.sparky) return;
+  if (recs.some(e => e.type === "res" && e.card === card && e.side === "sparky")) return ui.notifications.info("Already resisted.");
+  const tn = Math.max(2, res.sparky.power - (recs.find(e => e.type === "gray" && e.card === card)?.hardening ?? 0));
+  const r = await actor.rollSuccessTest(actor.system.body?.value ?? 0, tn, { label: `Resist sparky's jolt — Body (TN ${tn})`, isResistance: true, tnContext: { kind: "other" } });
+  if (r) await recordEvent(actor, `${P3}res:${card}:sparky`, { type: "res", card, side: "sparky", successes: r.successes });
+}
+async function applySparky(actor) {
+  const recs = recordsOf(actor);
+  for (const r of recs.filter(e => e.type === "res" && e.side === "sparky" && !recs.some(a => a.type === "ack" && a.target === e.key))) {
+    const res = recs.find(e => e.type === "exitRes" && e.step === "gray" && e.ref === r.card);
+    const out = matrixCombatOutcome(res.sparky.level, 0, r.successes);
+    const boxes = out.level ? damageBoxes(out.level) : 0;
+    const receipt = `flags.sr2e.vr2Receipts.sparky${r.card}`;
+    if (boxes > 0 && !foundry.utils.getProperty(actor, receipt)) {
+      await commitDamage(actor, "stun", boxes, { extra: { [receipt]: true }, skipIf: () => !!foundry.utils.getProperty(actor, receipt), source: "vr2-sparky" });
+    }
+    await fact(actor, `ack:${r.key}`, { type: "ack", target: r.key, outcome: { boxes } });
+    const g = recs.find(e => e.type === "gray" && e.card === r.card);
+    await ackGray(actor, res.key.slice(P3.length), g.key);
+  }
+}
+
+/** Tar IC on this host, for the GM, after a System Test that used a utility (plan §4). */
+export async function offerTar(message) {
+  const st = message?.flags?.sr2e?.vr2SystemTest;
+  if (!isSequencer() || !st?.utilityRef || st.conn == null) return;
+  const tars = game.actors.filter(a => a.type === "ic" && a.system.hostUuid === st.hostUuid && /^tar-/.test(a.system.program));
+  if (!tars.length) return;
+  await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+    ${esc(st.actorName)} used ${esc(st.utilityRef.name)} (${st.utilityRef.rating}) on ${esc(st.hostName)}: tar IC there may strike (VR2.0 p.42).
+    <div class="sr2e-karma-actions">${tars.map(t => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.actorUuid)}" data-op="tar"
+      data-arg="${esc(`${message.id}|${t.uuid}`)}">${esc(t.name)} strikes</button>`).join("")}</div></div>` });
+}
+
+/**
+ * A tar strike (p.42–43): Tar (utility rating) against the utility (tar rating), rolled here
+ * and recorded on the decker; the tar wins only on MORE successes. A win crashes that COPY of
+ * the utility and the tar itself (no tally); tar pit then corrupts every copy on the deck.
+ * `ref` is the utility as it was used (a Swap Memory since leaves the fresh copy alone).
+ */
+export async function tarStrike(actor, ic, ref, card) {
+  if (!isSequencer()) return ui.notifications.warn("Tar strikes are the GM's (the active GM's client).");
+  return sequencer(async () => {
+    const icKey = icKeyOf(ic), key = `tar:${card}:${icKey}`;
+    if (recordsOf(actor).some(e => e.key === P3 + key)) return ui.notifications.info("That tar has already struck.");
+    const tar = await SR2ESuccessRoll.successTest(ic.system.rating ?? 0, Math.max(2, ref.rating));
+    const util = await SR2ESuccessRoll.successTest(ref.rating ?? 0, Math.max(2, ic.system.rating ?? 0));
+    const won = tarWins(tar.successes, util.successes);
+    const pit = won && ic.system.program === "tar-pit";
+    const conn = liveConn(actor);
+    const item = actor.items.get(ref.itemId);
+    const pKey = programKey({ source: item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId, name: ref.name });
+    const g = actor.system.vr2Deck?.reloadGen?.(pKey) ?? 0;
+    const pitRoll = pit ? await SR2ESuccessRoll.successTest(ic.system.rating ?? 0, grayTN("tar-pit", actor.system.cyberdeck?.mpcp ?? 0, conn?.settings?.hardening ?? 0)) : null;
+    if (!await fact(actor, key, { type: "tar", card, icKey, won, tar: tar.successes, util: util.successes, pit: pitRoll?.successes ?? null, programKey: pKey, g })) return;
+    if (won) {
+      await recordEvent(actor, `${P3}crash:${ref.itemId}:${ref.loadGen}:tar-${card}`, { type: "crash", programId: ref.itemId, loadGen: ref.loadGen });
+      await crashIC(ic, card);
+      if (pitRoll?.successes > 0) await recordEvent(deckDoc(actor, conn), `${DECK}corrupt:${pKey}:${g}:tar-${card}`, { type: "corrupt", programKey: pKey, g });
+    }
+    const sensor = !won ? await SR2ESuccessRoll.successTest(actor.system.matrixPersona?.sensor ?? 0, Math.max(2, ic.system.rating ?? 0)) : null;
+    const notice = !sensor ? "" : sensor.successes >= 3 ? `notices ${esc(ic.name)} (rating ${ic.system.rating})` : sensor.successes === 2 ? "notices tar IC" : sensor.successes === 1 ? "notices it triggered IC" : "notices nothing";
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      <strong>${esc(ic.name)} vs ${esc(ref.name)}</strong>: ${tar.successes} against ${util.successes}.
+      ${won ? `The tar wins: ${esc(ref.name)} crashes (a Swap Memory reloads it) and so does the tar, with no tally.${pit
+        ? (pitRoll.successes > 0 ? ` <strong>Tar pit: every copy of ${esc(ref.name)} on the deck is corrupted</strong> until reloaded from outside after jacking out (p.43).` : " Tar pit: its viral code is defeated.") : ""}`
+        : `The utility holds. The decker's secret Sensor test: ${sensor.successes} (${notice}; p.40).`}</div>` });
+    if (won) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}'s ${esc(ref.name)} crashes (tar IC, VR2.0 p.42).</div>` });
+  });
+}
+
 /** Register a request handler (later stages add theirs). */
 export const addHandler = (kind, fn) => { HANDLERS[kind] = fn; };
 
@@ -305,6 +463,7 @@ async function processRequests(actor) {
 
 /** Steps the sequencer can resolve by itself; the rest wait on players or the GM. */
 const STEP_RESOLVERS = {
+  gray: (actor, f, s) => resolveGray(actor, f, s),
   async dumpShock(actor, f, s) {
     const host = exitHost(actor);
     const set = f.live.open?.settings ?? {};
@@ -348,6 +507,16 @@ STEP_RESOLVERS.finalShot = async (actor, f, s) => {
 async function advanceExit(actor) {
   let f = foldOf(actor);
   if (!f.live?.exit) return;
+  // An admitted attack nobody will resist (it missed, Karma included) resolves as a miss.
+  for (const a of f.live.pending) {
+    const st = game.messages.get(a.card)?.flags?.sr2e?.matrix;
+    const t = game.messages.get(st?.testMessageId)?.flags?.sr2e?.test;
+    const live = t ? testTotalSuccesses(t) : (st?.successes ?? 0);
+    if (st && live <= 0 && !f.live.hits.some(h => h.card === a.card)) {
+      await fact(actor, `ack:attack:${a.card}`, { type: "ack", target: `attack:${a.card}`, outcome: { miss: true } });
+    }
+  }
+  f = foldOf(actor);
   for (const s of f.live.steps) {
     if (s.res) continue;
     if (s.step === "lastAttack") {
@@ -395,7 +564,7 @@ export function schedule(actor) {
     PENDING.delete(actor.uuid);
     const gone = actor.isToken ? !actor.token?.parent?.tokens?.has(actor.token.id) : !game.actors.has(actor.id);
     if (gone) return;
-    sequencer(async () => { await processRequests(actor); await applyResults(actor); await advanceExit(actor); })
+    sequencer(async () => { await processRequests(actor); await applyResults(actor); await applyRippers(actor); await applySparky(actor); await advanceExit(actor); })
       .catch(err => console.error("SR2E | vr2 sequencer", err));
   }, 150));
 }
@@ -411,6 +580,18 @@ export async function rebuildJackpointEntries() {
     if (!jp?.session || jp.user !== game.user.id || a.flags?.sr2e?.matrixSessions?.[jp.session]) continue;
     await a.update({ [`flags.sr2e.matrixSessions.${jp.session}`]: { jackpoint: jp.jackpoint, originToken: jp.originToken,
       destScene: jp.destScene, user: jp.user, since: Date.now() } });
+  }
+}
+
+/** One dispatcher for part 3's card buttons. */
+export async function icOp(uuid, op, arg) {
+  const actor = await fromUuid(uuid);
+  if (!actor) return;
+  if (op === "sparky") return resistSparky(actor, arg);
+  if (op === "tar") {
+    const [card, icUuid] = arg.split("|");
+    const st = game.messages.get(card)?.flags?.sr2e?.vr2SystemTest, ic = await fromUuid(icUuid);
+    if (st?.utilityRef && ic) return tarStrike(actor, ic, st.utilityRef, card);
   }
 }
 
@@ -430,6 +611,13 @@ export function registerVr2IcHooks() {
     }
   };
   Hooks.on("createActiveEffect", onRecord);
+  Hooks.on("createChatMessage", (m) => { if (m.flags?.sr2e?.vr2SystemTest) offerTar(m).catch(err => console.error("SR2E | tar offer", err)); });
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    html.querySelectorAll?.(".sr2e-vr2ic-btn").forEach(b => b.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      try { await icOp(b.dataset.actor, b.dataset.op, b.dataset.arg ?? ""); } catch (err) { console.error("SR2E | vr2 IC", err); ui.notifications.error(err.message); }
+    }));
+  });
   // One deck per connection (plan §0): no deck switches while connected.
   Hooks.on("preUpdateItem", (item, changes) => {
     if (!foundry.utils.hasProperty(changes, "system.deck.active") || !(item.parent instanceof Actor)) return;

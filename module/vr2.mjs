@@ -18,6 +18,7 @@ import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixC
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
+import { programKey } from "./rules/vr2ic-rules.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { matrixQueue, sessionHost } from "./jackpoints.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -343,7 +344,8 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const trained = (computer?.system?.rating ?? 0) > 0;
   const dice = trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
   const subsystem = host.system.subsystemRating(op.subsystem);
-  const utility = loadedUtility(actor, op.utility);
+  const utilityItem = bestUtility(actor, op.utility);
+  const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
   const tn = Math.max(2, subsystem - utility) + (trained ? 0 : 4);
   const subsystemLabel = CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? op.subsystem;
@@ -361,7 +363,10 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const hostRoll = await SR2ESuccessRoll.successTest(securityValue, df);
   const st = { actorUuid: actor.uuid, actorName: actor.name, operation, opLabel: op.label, hostName: host.name,
     subsystemLabel, subsystem, utilityName: op.utility, utility, tn, df, securityValue,
-    successes: res.successes, hostSuccesses: hostRoll.successes, sessionId: session.id, testMessageId: res.testMessageId };
+    successes: res.successes, hostSuccesses: hostRoll.successes, sessionId: session.id, testMessageId: res.testMessageId,
+    // Part 3: what reactive IC (tar, worms, bombs) needs to act on this test (plan §4).
+    hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem),
+    deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null };
   const ev = { eventId: `st-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: session.id,
     base: hostRoll.successes, source: "system-test" };
   const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderSystemTestCard(st),
@@ -726,9 +731,12 @@ export async function vr2MatrixResist(defender, message) {
     } else {
       // Committed in the defender's session queue (serialized with session changes), and
       // only while it's still the connection that was hit.
+      // Part 3: an IC's crash is stamped by the sequencer (generation and crash fact in ONE
+      // update), so traces and traps can order it (PLAN-vr2-part3 §0, R7 #3).
+      const Y = await import("./vr2ic.mjs");
       const hit = defender.type === "character"
         ? await sessionQueue(defender, () => sameSession() ? matrixDamage(defender, out.boxes) : null)
-        : await matrixDamage(defender, out.boxes);
+        : (Y.isSequencer() ? await Y.sequencer(() => Y.icDamage(defender, out.boxes, message.id)) : await matrixDamage(defender, out.boxes));
       if (!hit) return ui.notifications.warn("That attack hit an earlier session: nothing applied.");
       const { before, after } = hit;
       crashed = before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX;
@@ -890,6 +898,12 @@ async function resistAttribute(defender, message, st, liveAtk) {
     return l;
   });
   if (shield) await addWear(defender, shield.ref, message.id);
+  // Part 3: the admitted attack is resolved; a ripper's permanent chip test follows (p.43).
+  if (lost != null && st.targetConn != null && defender.system.vr2Conn?.n === st.targetConn) {
+    const Y = await import("./vr2ic.mjs");
+    await Y.request(defender, "resolved", { card: message.id, conn: st.targetConn, lost, attr: st.attr, rating: st.rating,
+      ripper: String(st.program ?? "").startsWith("ripper-") });
+  }
   const text = lost == null ? `${defender.name}'s session changed: nothing applied.`
     : lost > 0 ? `${defender.name}'s ${ATTR_LABEL[st.attr]} drops by ${lost}.` : `${defender.name}'s ${ATTR_LABEL[st.attr]} holds.`;
   await ChatMessage.create({
@@ -1150,6 +1164,9 @@ export async function vr2Medic(actor, item) {
 export async function vr2SwapMemory(actor, item) {
   { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   if (!item || item.type !== "program") return;
+  // Tar pit's corruption is in every copy on the deck: only a reload from outside clears it (p.43).
+  const key = programKey({ source: item._stats?.compendiumSource ?? item.flags?.core?.sourceId, name: item.name });
+  if (actor.system.vr2Deck?.corrupted?.has(key)) return ui.notifications.warn(`${item.name} is corrupted on this deck: reload it from storage after jacking out (VR2.0 p.43).`);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   await enqueueAttack(`program:${item.uuid}`, () => item.update({ "system.loadGen": (item.system.loadGen ?? 0) + 1, "system.crashed": false }));
   await commitAction(actor, startedBuild);

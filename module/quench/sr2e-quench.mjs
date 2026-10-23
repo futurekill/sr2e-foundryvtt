@@ -11729,6 +11729,76 @@ export function registerSR2EQuenchTests() {
         await cleanup();
       });
 
+      const deckOf = async (a, mpcp = 6, hardening = 0) => (await a.createEmbeddedDocuments("Item", [{ name: "Quench VIC Deck", type: "gear",
+        system: { category: "cyberdeck", deck: { active: true, mpcp, hardening } } }]))[0];
+      const attrCard = async (ic, h, a, attr) => {
+        const card = await attackCard(ic, h, a);
+        await card.update({ "flags.sr2e.matrix": { ...card.flags.sr2e.matrix, effect: "attribute", attr, floor: 1, rating: ic.system.rating, effectName: ic.name } });
+        return card;
+      };
+
+      it("blaster crashes the persona: a dump exit, the Blaster Test lands on the HIT deck, the connection ends", async () => {
+        const h = await hostA("Quench VIC Gray", "orange", 6);
+        const bl = await icA("Quench VIC Blaster", h, "blaster", 8);
+        const a = await decker("Quench VIC Blasted");
+        const deck = await deckOf(a, 6, 0);
+        await V.vr2EnterMatrix(a);
+        await a.update({ "system.matrixPersona.condition.value": 9 });
+        const card = await attackCard(bl, h, a, { level: "M" });
+        await settle(() => recs(a, "admit").length === 1);
+        await forced(0.99, () => V.vr2MatrixResist(a, card));
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 10000), "dumped and ended");
+        assert.equal(recs(a, "gray").length, 1);
+        const dmg = (await import("../claims.mjs")).eventsOf(a.items.get(deck.id)).filter(e => e.type === "deckDmg");
+        const res = recs(a, "exitRes").find(e => e.step === "gray");
+        assert.equal(dmg.reduce((t, e) => t + e.amount, 0), res.loss, "the deck item carries the damage");
+        assert.equal(a.system.cyberdeck.mpcp, 6 - res.loss, "the effective MPCP");
+        await cleanup();
+      });
+
+      it("a ripper's damage resolves its attack and burns the persona chip; a crippler resolves its attack too", async () => {
+        const h = await hostA("Quench VIC Rip", "green", 4);
+        const rip = await icA("Quench VIC Ripper", h, "ripper-acid", 5);
+        const cr = await icA("Quench VIC Crippler", h, "crippler-binder", 5);
+        const a = await decker("Quench VIC Ripped");
+        const deck = await deckOf(a, 6, 0);
+        await V.vr2EnterMatrix(a);
+        const c1 = await attrCard(rip, h, a, "bod");
+        const c2 = await attrCard(cr, h, a, "evasion");
+        await settle(() => recs(a, "admit").length === 2);
+        await forced(0.99, () => V.vr2MatrixResist(a, c1));
+        await forced(0.99, () => V.vr2MatrixResist(a, c2));
+        assert.isTrue(await settle(() => recs(a, "ack").filter(e => /^attack:/.test(e.target)).length === 2), "both attacks resolved");
+        assert.isTrue(await settle(() => recs(a, "ack").some(e => e.target.includes("ripper"))), "the ripper test ran");
+        assert.equal(Y.foldOf(a).live.pending.length, 0);
+        assert.ok(deck);
+        await cleanup();
+      });
+
+      it("tar baby crashes the copy that was used (a Swap Memory restores it); tar pit corrupts every copy until reloaded", async () => {
+        const h = await hostA("Quench VIC Tar", "green", 4);
+        const tb = await icA("Quench VIC Tar Baby", h, "tar-baby", 8);
+        const tp = await icA("Quench VIC Tar Pit", h, "tar-pit", 8);
+        const a = await decker("Quench VIC Tarred");
+        await deckOf(a, 4, 0);                                        // tar pit's TN = MPCP 4 + Hardening 0
+        const [an] = await a.createEmbeddedDocuments("Item", [{ name: "Analyze", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+        await V.vr2EnterMatrix(a);
+        const ref = { itemId: an.id, loadGen: an.system.loadGen ?? 0, rating: 4, name: "Analyze" };
+        const g0 = tb.system.generation ?? 0;
+        await forced(0.2, () => Y.tarStrike(a, tb, ref, "quenchcardtar001"));     // both all 5s: 8 vs 4 successes
+        assert.isFalse(V.usablePrograms(a).some(i => i.id === an.id), "that copy crashed");
+        assert.equal(tb.system.generation, g0 + 1, "the tar crashed itself");
+        assert.ok(tb.flags.sr2e.vr2Crashes?.[g0]?.seq, "its crash is a sequenced fact");
+        await V.vr2SwapMemory(a, a.items.get(an.id));
+        assert.isTrue(V.usablePrograms(a).some(i => i.id === an.id), "the fresh copy is usable");
+        const ref2 = { ...ref, loadGen: a.items.get(an.id).system.loadGen };
+        await forced(0.2, () => Y.tarStrike(a, tp, ref2, "quenchcardtar002"));
+        assert.isTrue(a.system.vr2Deck.corrupted.has("analyze"), "tar pit corrupted the program on this deck");
+        await V.vr2SwapMemory(a, a.items.get(an.id));
+        assert.isFalse(V.usablePrograms(a).some(i => i.id === an.id), "corruption survives a Swap Memory");
+        await cleanup();
+      });
+
       it("no deck switch while connected", async () => {
         const a = await decker("Quench VIC Deck");
         const [d1, d2] = await a.createEmbeddedDocuments("Item", [

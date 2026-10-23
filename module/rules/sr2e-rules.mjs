@@ -2114,7 +2114,9 @@ export function icClass(program, icType = "white") {
 
 /** The attribute a crippler attacks (p.41). */
 export const CRIPPLER_ATTRIBUTE = { "crippler-acid": "bod", "crippler-binder": "evasion",
-  "crippler-jammer": "sensor", "crippler-marker": "masking" };
+  "crippler-jammer": "sensor", "crippler-marker": "masking",
+  // Rippers attack the same way, then damage the persona chip (p.43; VR2.0 part 3).
+  "ripper-acid": "bod", "ripper-bind": "evasion", "ripper-jam": "sensor", "ripper-mark": "masking" };
 
 /**
  * Combat maneuver TNs (p.122): the maneuverer rolls Evasion vs the opponent's Sensor less
