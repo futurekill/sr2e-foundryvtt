@@ -9,7 +9,8 @@
  * admits or refuses them. Monitors and IC are changed only there.
  */
 import { recordEvent, eventsOf, once } from "./claims.mjs";
-import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey } from "./rules/vr2ic-rules.mjs";
+import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
+         boundariesToTick, RESPONSE_TIMES } from "./rules/vr2ic-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -113,6 +114,9 @@ function exitHost(actor) {
 export function requestExit(actor, { trigger = "voluntary", gracefulCard = null, gateKey = null } = {}) {
   return request(actor, "exit", { trigger: gracefulCard ? "graceful" : trigger, gracefulCard, gateKey });
 }
+
+/** Exit steps the sequencer resolves by itself (filled below); the rest wait on players or the GM. */
+const STEP_RESOLVERS = {};
 
 const HANDLERS = {
   /** Open the exit (one per connection; plan §3a). */
@@ -298,7 +302,16 @@ export async function icDamage(ic, boxes, card = "") {
     update[`flags.sr2e.vr2Crashes.${gen}`] = { seq: nextSeq(), card };
   }
   await ic.update(update);
+  if (update["system.generation"] != null) await fireTrap(ic, `${ic.uuid}#${update["system.generation"] - 1}`);
   return { before, after };
+}
+
+/** A trap IC crashed or finished its trace: the hidden gray/black IC it guards wakes up (p.50–51). */
+async function fireTrap(ic, icKey) {
+  const hidden = sync(ic.system.trapFor);
+  if (!hidden || !await once(ic, `${P3}trap:${icKey}`)) return;
+  await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+    <strong>Trap!</strong> ${esc(ic.name)} was a trap: <strong>${esc(hidden.name)}</strong> (${esc(hidden.system.program || hidden.system.icType)}, rating ${hidden.system.rating}) activates (VR2.0 p.50).</div>` });
 }
 
 /** Crash an IC outright (tar baby/pit crash themselves, p.42): no tally. */
@@ -440,6 +453,152 @@ export async function tarStrike(actor, ic, ref, card) {
   });
 }
 
+// ── Trace (plan §5) ────────────────────────────────────────────────────────────
+
+/** The trace's open boundary right now (the turn in progress). */
+function openBoundaryOf(actor, t) {
+  const ticks = recordsOf(actor).filter(e => e.type === "tick" && e.conn === t.conn && e.icKey === t.icKey);
+  const combat = t.clock?.combatId ? game.combats.get(t.clock.combatId) : null;
+  return openBoundary(t, ticks, combat?.round ?? null);
+}
+
+/** "Start location cycle" (GM, on a trace hit): freeze the successes; ⌊10 ÷ s⌋ turns (p.45). */
+export async function traceStart(actor, card) {
+  return sequencer(async () => {
+    const f = foldOf(actor), st = game.messages.get(card)?.flags?.sr2e?.matrix;
+    if (!f.live?.admitted.some(a => a.card === card) || !st) return ui.notifications.warn("That trace attack isn't admitted on the live connection.");
+    if (f.live.traces.some(t => t.icKey === st.icKey)) return ui.notifications.info("That trace is already locating.");
+    const tm = game.messages.get(st.testMessageId), test = tm?.flags?.sr2e?.test;
+    if (test && !test.closed) {
+      const { renderSuccessTestCard } = await import("./documents/actor.mjs");
+      await tm.update({ content: renderSuccessTestCard({ ...test, closed: true }), "flags.sr2e.test": { ...test, closed: true } });
+    }
+    const successes = test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
+    if (successes <= 0) return ui.notifications.info("The trace missed: still hunting.");
+    const turns = locationTurns(successes);
+    // The decker's own combat clock, only if they're actually fighting in one; else the manual clock.
+    const combat = game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid || (!actor.isToken && cb.actorId === actor.id))) ?? null;
+    await fact(actor, `trace:${f.live.n}:${st.icKey}`, { type: "trace", conn: f.live.n, icKey: st.icKey, rating: st.icRating ?? st.power ?? 0,
+      icName: st.attackerName, turns, clock: combat ? { combatId: combat.id, startRound: combat.round } : { manual: true } });
+    await fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome: { trace: turns } });
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      <strong>${esc(st.attackerName)}</strong> has ${esc(actor.name)}'s datatrail: ${turns === 0 ? "located at once" : `${turns} Combat Turn${turns === 1 ? "" : "s"} to locate`}
+      (10 ÷ ${successes}, VR2.0 p.45)${combat ? ", counted at each round's end from the next one" : ": advance turns from the decker's Matrix tab (no combat running)"}.
+      The trace IC turns reactive.</div>` });
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)} feels a lock on the datatrail.</div>` });
+  });
+}
+
+Object.assign(HANDLERS, {
+  /** Relocate (p.46): a success spoofs the turn in progress; refused once that turn has closed. */
+  async relocate(actor, r, f) {
+    const t = f.live?.traces.find(x => x.icKey === r.icKey && !x.complete && !x.dead);
+    if (!t) return { ok: false, why: "no locating trace" };
+    if (!r.success) return { ok: true };
+    const boundary = r.boundary;
+    if (recordsOf(actor).some(e => e.type === "tick" && e.conn === f.live.n && e.icKey === r.icKey && e.boundary === boundary)) {
+      return { ok: false, why: "that turn had already closed" };
+    }
+    await fact(actor, `spoof:${f.live.n}:${r.icKey}:${boundary}`, { type: "spoof", conn: f.live.n, icKey: r.icKey, boundary });
+    return { ok: true };
+  },
+  /** Keep a spoofed trace frozen by suppressing it (a Detection Factor point; p.46). */
+  async freeze(actor, r, f) {
+    const sp = recordsOf(actor).find(e => e.type === "spoof" && e.key === r.spoof);
+    if (!sp || sp.conn !== f.live?.n) return { ok: false, why: "freezing needs a successful Relocate first" };
+    await fact(actor, `freeze:${r.spoof}`, { type: "freeze", conn: sp.conn, icKey: sp.icKey, spoof: r.spoof });
+    return { ok: true };
+  },
+  async unfreeze(actor, r, f) {
+    const fr = recordsOf(actor).find(e => e.type === "freeze" && e.spoof === r.spoof);
+    if (!fr) return { ok: false, why: "not frozen" };
+    await fact(actor, `unfreeze:${r.spoof}`, { type: "unfreeze", conn: fr.conn, icKey: fr.icKey, spoof: r.spoof });
+    return { ok: true };
+  }
+});
+
+/** The turn's end for every locating trace on this clock: one tick per boundary, in seq. */
+async function tickTraces(actor, boundaryFor) {
+  const f = foldOf(actor);
+  for (const t of f.live?.traces ?? []) {
+    if (t.complete || t.dead) continue;
+    const ticks = recordsOf(actor).filter(e => e.type === "tick" && e.conn === t.conn && e.icKey === t.icKey);
+    for (const b of boundaryFor(t, ticks)) {
+      await fact(actor, `tick:${t.conn}:${t.icKey}:${b}`, { type: "tick", conn: t.conn, icKey: t.icKey, boundary: b });
+    }
+  }
+}
+
+/** Completions, once each: the GM's response card and a trapped trace's hidden IC (p.46–47). */
+async function noticeTraces(actor) {
+  const f = foldOf(actor);
+  for (const t of f.live?.traces ?? []) {
+    if (!t.complete || !await once(actor, `${P3}card:traced:${t.conn}:${t.icKey}`)) continue;
+    const rows = RESPONSE_TIMES.rows.map((r, i) => `<tr><td>${r}</td>${["public", "corporate", "megacorp", "government"].map(k => `<td>${RESPONSE_TIMES[k][i] ?? "NA"}</td>`).join("")}</tr>`).join("");
+    const trace = recordsOf(actor).find(e => e.type === "trace" && e.conn === t.conn && e.icKey === t.icKey);
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      <strong>${esc(trace?.icName ?? "Trace IC")} locates ${esc(actor.name)}'s jackpoint</strong>: network address and physical location go into the security logs.
+      From now on: −1 TN to proactive IC attacks on ${esc(actor.name)}, and +1 to every tally increase (VR2.0 p.46).
+      <br>Security Asset Response Times (minutes, p.47):
+      <table><tr><th>Jackpoint</th><th>Public</th><th>Corp</th><th>Megacorp</th><th>Gov't</th></tr>${rows}</table></div>` });
+    const ic = sync(t.icKey.slice(0, t.icKey.lastIndexOf("#")));
+    if (ic) await fireTrap(ic, t.icKey);
+  }
+}
+
+/** Manual clock: the GM ends a turn for a decker's manual traces. */
+export function advanceManual(actor) {
+  return sequencer(async () => {
+    await tickTraces(actor, (t, ticks) => t.clock?.manual ? [openBoundary(t, ticks)] : []);
+    await noticeTraces(actor);
+  });
+}
+
+/** The decker's Relocate (Simple Action): Computer vs the trace rating − Relocate, opposed by the host (a tally event). */
+export async function relocate(actor, icKey) {
+  const why = vr2ActionGuard(actor);
+  if (why) return ui.notifications.warn(why);
+  const t = foldOf(actor).live?.traces.find(x => x.icKey === icKey && !x.complete && !x.dead);
+  if (!t) return;
+  const V = await import("./vr2.mjs");
+  const { relocateTN } = await import("./rules/vr2ic-rules.mjs");
+  const rel = V.loadedUtility(actor, "relocate");
+  const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
+  const tn = relocateTN(t.rating, rel);
+  const boundary = openBoundaryOf(actor, t);
+  const r = await actor.rollSuccessTest(computer, tn, { label: `Relocate against the trace (TN ${tn}, VR2.0 p.46)`, tnContext: { kind: "matrix" } });
+  if (!r) return;
+  const host = sync(V.liveSession(actor)?.hostUuid);
+  if (host) {
+    const df = V.vr2DetectionFactor(actor);
+    const hr = await SR2ESuccessRoll.successTest(host.system.securityValue, df);
+    const s0 = V.liveSession(actor);
+    const pm = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: hr.rolls,
+      content: `<div class="sr2e-item-card">${esc(host.name)} opposes the Relocate (Security Value vs Detection Factor ${df}): ${hr.successes} onto ${esc(actor.name)}'s tally.</div>`,
+      flags: { sr2e: { vr2TallyEvent: { eventId: `reloc-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: s0?.id, base: hr.successes, source: "relocate" } } } });
+    await V.applyTallyEvent(pm);
+  }
+  await request(actor, "relocate", { icKey, success: r.successes > 0, boundary });
+  if (r.successes > 0) ui.notifications.info(`${actor.name} spoofs the trace this turn. To keep it frozen, suppress it from the Matrix tab.`);
+}
+
+STEP_RESOLVERS.datatrail = async (actor, f, s) => {
+  const t = f.live.traces.find(x => x.icKey === s.ref);
+  const roll = (await new Roll("1d6").evaluate()).total;
+  const left = datatrailTurns(roll);
+  const located = !!t && left >= t.turnsLeft;
+  const key = `exit-res:${f.live.n}:datatrail:${s.ref}`;
+  await fact(actor, key, { type: "exitRes", n: f.live.n, step: "datatrail", ref: s.ref, roll, left, located });
+  await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+    ${esc(actor.name)}'s datatrail stays up ${left} turn${left === 1 ? "" : "s"} (1D6 − 1 = ${roll - 1}, min 1) against ${t?.turnsLeft ?? 0} left:
+    <strong>${located ? "the trace still locates the jackpoint" : "the trace loses it"}</strong> (VR2.0 p.46).</div>` });
+  if (located) {
+    const ic = sync(s.ref.slice(0, s.ref.lastIndexOf("#")));
+    if (ic) await fireTrap(ic, s.ref);
+  }
+  await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
+};
+
 /** Register a request handler (later stages add theirs). */
 export const addHandler = (kind, fn) => { HANDLERS[kind] = fn; };
 
@@ -462,7 +621,7 @@ async function processRequests(actor) {
 }
 
 /** Steps the sequencer can resolve by itself; the rest wait on players or the GM. */
-const STEP_RESOLVERS = {
+Object.assign(STEP_RESOLVERS, {
   gray: (actor, f, s) => resolveGray(actor, f, s),
   async dumpShock(actor, f, s) {
     const host = exitHost(actor);
@@ -482,7 +641,7 @@ const STEP_RESOLVERS = {
     }
     await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
   }
-};
+});
 export const addStepResolver = (step, fn) => { STEP_RESOLVERS[step] = fn; };
 
 STEP_RESOLVERS.finalShot = async (actor, f, s) => {
@@ -564,7 +723,7 @@ export function schedule(actor) {
     PENDING.delete(actor.uuid);
     const gone = actor.isToken ? !actor.token?.parent?.tokens?.has(actor.token.id) : !game.actors.has(actor.id);
     if (gone) return;
-    sequencer(async () => { await processRequests(actor); await applyResults(actor); await applyRippers(actor); await applySparky(actor); await advanceExit(actor); })
+    sequencer(async () => { await processRequests(actor); await applyResults(actor); await applyRippers(actor); await applySparky(actor); await noticeTraces(actor); await advanceExit(actor); })
       .catch(err => console.error("SR2E | vr2 sequencer", err));
   }, 150));
 }
@@ -588,6 +747,7 @@ export async function icOp(uuid, op, arg) {
   const actor = await fromUuid(uuid);
   if (!actor) return;
   if (op === "sparky") return resistSparky(actor, arg);
+  if (op === "traceStart") return traceStart(actor, arg);
   if (op === "tar") {
     const [card, icUuid] = arg.split("|");
     const st = game.messages.get(card)?.flags?.sr2e?.vr2SystemTest, ic = await fromUuid(icUuid);
@@ -611,11 +771,23 @@ export function registerVr2IcHooks() {
     }
   };
   Hooks.on("createActiveEffect", onRecord);
+  // The end of each Combat Turn (a round change) ticks every trace on that combat's clock.
+  Hooks.on("updateCombat", (combat, changes) => {
+    if (!("round" in (changes ?? {})) || !isSequencer() || !isVR2()) return;
+    for (const a of allDocs()) {
+      if (a.type !== "character" || !a.system.vr2Conn) continue;
+      sequencer(async () => {
+        await tickTraces(a, (t, ticks) => t.clock?.combatId === combat.id ? boundariesToTick(t, ticks, combat.round) : []);
+        await noticeTraces(a);
+      }).catch(err => console.error("SR2E | trace ticks", err));
+    }
+  });
   Hooks.on("createChatMessage", (m) => { if (m.flags?.sr2e?.vr2SystemTest) offerTar(m).catch(err => console.error("SR2E | tar offer", err)); });
   Hooks.on("renderChatMessageHTML", (message, html) => {
     html.querySelectorAll?.(".sr2e-vr2ic-btn").forEach(b => b.addEventListener("click", async (ev) => {
       ev.preventDefault();
-      try { await icOp(b.dataset.actor, b.dataset.op, b.dataset.arg ?? ""); } catch (err) { console.error("SR2E | vr2 IC", err); ui.notifications.error(err.message); }
+      const arg = b.dataset.arg === "__CARD__" ? message.id : (b.dataset.arg ?? "");   // a card can't know its own id when rendered
+      try { await icOp(b.dataset.actor, b.dataset.op, arg); } catch (err) { console.error("SR2E | vr2 IC", err); ui.notifications.error(err.message); }
     }));
   });
   // One deck per connection (plan §0): no deck switches while connected.

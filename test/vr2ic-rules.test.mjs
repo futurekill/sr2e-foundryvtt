@@ -94,6 +94,19 @@ describe("traces", () => {
   });
 });
 
+describe("trace clocks (p.45–46: the hit's own turn doesn't count)", () => {
+  it("boundaries to tick and the open boundary", async () => {
+    const { boundariesToTick, openBoundary } = await import("../module/rules/vr2ic-rules.mjs");
+    const t = { clock: { combatId: "c", startRound: 1 } };
+    expect(boundariesToTick(t, [], 2)).toEqual([]);           // round 1 (the hit's) ended: not counted
+    expect(boundariesToTick(t, [], 5)).toEqual([2, 3, 4]);    // a jump ticks each round crossed
+    expect(boundariesToTick(t, [{ boundary: 2 }], 4)).toEqual([3]);
+    expect(openBoundary(t, [], 3)).toBe(3);
+    expect(openBoundary({ clock: { manual: true } }, [])).toBe("m0");                    // the hit's own turn
+    expect(openBoundary({ clock: { manual: true } }, [{ boundary: "m0" }])).toBe("m1");
+  });
+});
+
 describe("foldVr2Ic: the connection and its exit", () => {
   const base = [
     { key: "o1", type: "connOpen", n: 1, settings: { deckMode: "hot" } },

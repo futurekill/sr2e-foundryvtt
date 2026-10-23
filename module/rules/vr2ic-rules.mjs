@@ -38,6 +38,31 @@ export const shutdownDice = (sv) => Math.max(1, Math.ceil((Number(sv) || 0) / 2)
 export const finalWarning = (roll) => Math.ceil((Number(roll) || 0) / 2);
 /** Tally acceleration while traced (p.46): +1 to any increase. */
 export const traceTally = (base, traced) => base > 0 && traced ? base + 1 : base;
+/** Security Asset Response Times (p.47), in minutes; null = NA. Rows by the jackpoint's security rating. */
+export const RESPONSE_TIMES = {
+  rows: ["B or higher", "C", "D", "Z", "On site"],
+  public:     ["10 + 2D6", "10 + 4D6", "20 + 4D6", null, null],
+  corporate:  ["15 + 2D6", "15 + 3D6", "10 + 2D6", "10 + 1D6", "2D6 ÷ 2"],
+  megacorp:   ["8 + 2D6", "10 + 1D6", "5 + 1D6", "5 + 1D6", "1D6 ÷ 2"],
+  government: ["10 + 1D6", "10 + 1D6", "5 + 1D6", "5 + 1D6", "2D6 ÷ 2"]
+};
+/**
+ * The boundary that ends the turn now in progress (plan §5): on a combat clock, the current
+ * round; on the manual clock, the next manual tick. A Relocate spoofs THIS boundary.
+ */
+export function openBoundary(trace, ticks = [], round = null) {
+  // Manual clock: m0 ends the hit's own turn (never counted, like the combat clock's start round).
+  if (trace.clock?.manual) return `m${ticks.filter(t => String(t.boundary).startsWith("m")).length}`;
+  return round;
+}
+/** Combat boundaries to tick when a combat moves to round `q`: rounds after the trace's own, not yet ticked, that ended. */
+export function boundariesToTick(trace, ticks = [], q) {
+  const start = trace.clock?.startRound ?? 0;
+  const done = new Set(ticks.map(t => t.boundary));
+  const out = [];
+  for (let r = start + 1; r < q; r++) if (!done.has(r)) out.push(r);
+  return out;
+}
 /** Tar baby/pit (p.42): the tar wins only on MORE successes. */
 export const tarWins = (tarSuccesses, utilitySuccesses) => tarSuccesses > utilitySuccesses;
 
@@ -142,7 +167,8 @@ export function foldVr2Ic(events = [], ext = {}) {
       for (const k of exit.locks ?? []) steps.push({ step: "lastAttack", ref: k });
       for (const h of hits) { const r = res(h.card, "meat"); if (r && acks.get(r.key)?.outcome?.down) steps.push({ step: "finalShot", ref: h.card }); }
       for (const c of events.filter(e => e.type === "gray" && e.conn === n)) steps.push({ step: "gray", ref: c.card });
-      for (const t of traces) if (!t.complete && !t.dead && (t.startSeq ?? 0) < exit.seq) steps.push({ step: "datatrail", ref: t.icKey });
+      // A Graceful Logoff stops location cycles (p.45); any other exit leaves a datatrail.
+      if (exit.trigger !== "graceful") for (const t of traces) if (!t.complete && !t.dead && (t.startSeq ?? 0) < exit.seq) steps.push({ step: "datatrail", ref: t.icKey });
       if (exit.trigger !== "graceful" && open?.settings?.deckMode !== "tortoise" && !dead) steps.push({ step: "dumpShock", ref: "" });
       for (const h of hits) if (h.kind === "psychotropic") steps.push({ step: "psychotropic", ref: h.icKey });
       for (const w of ext.tapeworms ?? []) steps.push({ step: "tapeworm", ref: w });
@@ -186,6 +212,7 @@ export function traceState(t, events, crashSeq = () => null) {
   for (const k of ticks) {
     if (completeSeq != null) break;
     if (crash != null && k.seq > crash) break;
+    if (k.boundary === "m0") continue;   // the hit's own turn (p.45–46)
     if (spoofs.some(s => s.boundary === k.boundary && s.seq < k.seq) || frozenAt(k.seq)) continue;
     left -= 1;
     if (left <= 0) completeSeq = k.seq;

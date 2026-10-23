@@ -11799,6 +11799,71 @@ export function registerSR2EQuenchTests() {
         await cleanup();
       });
 
+      const traceCard = async (tr, h, a) => {
+        const card = await attackCard(tr, h, a);
+        await card.update({ "flags.sr2e.matrix": { ...card.flags.sr2e.matrix, effect: "trace" } });
+        return card;
+      };
+
+      it("trace: the location cycle counts turns (manual clock), Relocate spoofs a turn, completion traces the decker (+1 tally, a trap fires)", async () => {
+        const h = await hostA("Quench VIC Trace Host", "orange", 3);
+        const hidden = await icA("Quench VIC Hidden", h, "black-lethal", 7);
+        const tr = await icA("Quench VIC Tracer", h, "trace", 6);
+        await tr.update({ "system.trapFor": hidden.uuid });
+        const a = await decker("Quench VIC Traced");
+        await V.vr2EnterMatrix(a);
+        await V.sessionFor(a, h);
+        const card = await traceCard(tr, h, a);                           // 3 dice of 5s: 3 successes → ⌊10 ÷ 3⌋ = 3 turns
+        await settle(() => recs(a, "admit").length === 1);
+        await Y.traceStart(a, card.id);
+        let t = Y.foldOf(a).live.traces[0];
+        assert.equal(t.turnsLeft, 3);
+        await Y.advanceManual(a);                                         // m0: the hit's own turn ends, not counted
+        assert.equal(Y.foldOf(a).live.traces[0].turnsLeft, 3);
+        await Y.advanceManual(a);
+        t = Y.foldOf(a).live.traces[0];
+        assert.equal(t.turnsLeft, 2);
+        // A Relocate request for the turn in progress (m2) spoofs it.
+        await Y.request(a, "relocate", { icKey: t.icKey, success: true, boundary: "m2" });
+        await settle(() => recs(a, "spoof").length === 1);
+        await Y.advanceManual(a);
+        assert.equal(Y.foldOf(a).live.traces[0].turnsLeft, 2, "the spoofed turn doesn't count");
+        await Y.request(a, "relocate", { icKey: t.icKey, success: true, boundary: "m2" });   // late: that turn closed
+        await wait(600);
+        assert.equal(recs(a, "spoof").length, 1, "a late Relocate is refused");
+        const n0 = game.messages.size;
+        await Y.advanceManual(a); await Y.advanceManual(a);
+        assert.isTrue(Y.foldOf(a).live.traced, "located");
+        const fresh = game.messages.contents.slice(n0);
+        assert.ok(fresh.some(m => m.content.includes("Response Times")));
+        assert.ok(fresh.some(m => m.content.includes("Trap!") && m.content.includes("Quench VIC Hidden")));
+        await cleanup();
+      });
+
+      it("a frozen trace costs a Detection Factor point and doesn't tick; an exit with a locating trace rolls the datatrail", async () => {
+        const h = await hostA("Quench VIC Trace2", "green", 2);
+        const tr = await icA("Quench VIC Tracer2", h, "trace", 4);
+        const a = await decker("Quench VIC Frozen");
+        await V.vr2EnterMatrix(a);
+        await V.sessionFor(a, h);
+        const card = await traceCard(tr, h, a);                           // 2 successes → 5 turns
+        await settle(() => recs(a, "admit").length === 1);
+        await Y.traceStart(a, card.id);
+        const df0 = V.vr2DetectionFactor(a);
+        const t = Y.foldOf(a).live.traces[0];
+        await Y.request(a, "relocate", { icKey: t.icKey, success: true, boundary: "m0" });
+        await settle(() => recs(a, "spoof").length === 1);
+        await Y.request(a, "freeze", { spoof: recs(a, "spoof")[0].key });
+        await settle(() => recs(a, "freeze").length === 1);
+        assert.equal(V.vr2DetectionFactor(a), Math.max(2, df0 - 1));
+        await Y.advanceManual(a); await Y.advanceManual(a);
+        assert.equal(Y.foldOf(a).live.traces[0].turnsLeft, 5, "frozen: no ticks count");
+        await Y.requestExit(a, { trigger: "voluntary" });
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 10000));
+        assert.ok(recs(a, "exitRes").some(e => e.step === "datatrail"), "the datatrail was rolled");
+        await cleanup();
+      });
+
       it("no deck switch while connected", async () => {
         const a = await decker("Quench VIC Deck");
         const [d1, d2] = await a.createEmbeddedDocuments("Item", [

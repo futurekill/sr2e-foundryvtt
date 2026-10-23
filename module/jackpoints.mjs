@@ -38,7 +38,9 @@ export class JackpointBehaviorData extends foundry.data.regionBehaviors.RegionBe
         label: "Entry area on the Matrix scene", hint: "A Region on the Matrix scene where this jackpoint's personas are." }),
       label: new f.StringField({ initial: "", label: "What it is", hint: "Shown on the Jack in button, e.g. \"Strice mainframe port\"." }),
       host: new f.DocumentUUIDField({ type: "Actor", nullable: true, initial: null,
-        label: "Host (optional)", hint: "The Host actor a decker here is most likely working against." })
+        label: "Host (optional)", hint: "The Host actor a decker here is most likely working against." }),
+      traceMod: new f.NumberField({ integer: true, initial: 0, label: "Trace modifier (VR2.0)",
+        hint: "Added to a decker's Trace Factor when jacked in here (Virtual Realities 2.0 p.28, p.45)." })
     };
   }
   static events = {};

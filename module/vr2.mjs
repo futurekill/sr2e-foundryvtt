@@ -18,7 +18,8 @@ import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixC
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
-import { programKey } from "./rules/vr2ic-rules.mjs";
+import { programKey, traceTally, traceFactor } from "./rules/vr2ic-rules.mjs";
+import * as Y from "./vr2ic.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { matrixQueue, sessionHost } from "./jackpoints.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -170,7 +171,9 @@ export function sessionFor(actor, host) {
  * crosses, as ONE update (docs/PLAN-vr2-part2.md §1). Call inside the session queue.
  */
 function tallyUpdate(actor, s, base, eventId) {
-  const add = Math.max(0, Number(base) || 0);
+  // Part 3: a traced decker's tally accelerates, +1 per increase (p.46).
+  const traced = actor.system?.vr2Conn ? !!Y.foldOf(actor).live?.traced : false;
+  const add = traceTally(Math.max(0, Number(base) || 0), traced);
   const tally = (s.tally ?? 0) + add;
   const update = { "flags.sr2e.vr2Session.tally": tally, [`flags.sr2e.vr2Session.receipts.${eventId}`]: add };
   const host = sync(s.hostUuid);
@@ -297,7 +300,9 @@ export function releaseSuppressed(actor, key) {
 
 /** Detection Factor (p.17–18), less one per suppressed IC (p.40); TN floor 2. */
 export function vr2DetectionFactor(actor) {
-  const suppressed = Object.keys(liveSession(actor)?.suppressed ?? {}).length;
+  // Part 2's per-session suppressions, plus part 3's frozen traces on the connection (p.46).
+  const suppressed = Object.keys(liveSession(actor)?.suppressed ?? {}).length
+    + (actor.system?.vr2Conn ? (Y.foldOf(actor).live?.frozenCount ?? 0) : 0);
   return Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")) - suppressed);
 }
 
@@ -347,7 +352,10 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const utilityItem = bestUtility(actor, op.utility);
   const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
-  const tn = Math.max(2, subsystem - utility) + (trained ? 0 : 4);
+  // A Graceful Logoff with trace IC locating is harder by each trace's rating (p.45).
+  const tracing = operation === "gracefulLogoff" && actor.system.vr2Conn
+    ? (Y.foldOf(actor).live?.traces ?? []).filter(t => !t.complete && !t.dead).reduce((n, t) => n + (t.rating ?? 0), 0) : 0;
+  const tn = Math.max(2, subsystem - utility) + (trained ? 0 : 4) + tracing;
   const subsystemLabel = CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? op.subsystem;
   const session = await sessionFor(actor, host);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
@@ -406,6 +414,12 @@ function offenseOf(item) {
 export function renderVR2MatrixCard(st) {
   const hit = (st.successes ?? 0) > 0;
   const attr = st.effect === "attribute";
+  if (st.effect === "trace") {
+    return `<div class="sr2e-damage-result"><strong>${esc(st.attackerName)} hunts ${esc(st.targetName ?? "")}'s datatrail</strong> — ${plural(st.successes ?? 0, "success")}
+      <br><em>${hit ? "A hit: the location cycle starts, ⌊10 ÷ successes⌋ Combat Turns (VR2.0 p.45)." : "No fix yet: the hunt goes on."}</em>
+      ${hit && !st.resolved ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.targetUuid)}" data-op="traceStart"
+        data-arg="__CARD__" title="GM: freeze the successes and start the countdown">Start location cycle</button></div>` : ""}</div>`;
+  }
   const button = !st.resolved && hit ? `
     <div class="sr2e-karma-actions">
       <button type="button" class="sr2e-matrixresist-btn"
@@ -526,7 +540,6 @@ export async function vr2MatrixAttack(actor) {
 }
 
 async function attackOnce(actor) {
-  const Y = await import("./vr2ic.mjs");
   const why = Y.vr2ActionGuard(actor);
   if (why) return ui.notifications.warn(why);
   const target = firstTarget()?.actor ?? null;
@@ -557,6 +570,20 @@ async function attackOnce(actor) {
     // Black IC is +2 while the decker's icon is down (p.48); others use their rating.
     power = Y.blackKind(actor.system.program) && target.type === "character" ? Y.blackRating(actor, target) : actor.system.rating;
     tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
+    // Trace IC hunts against the decker's Trace Factor (p.45), not the cybercombat table.
+    if (actor.system.program === "trace" && target.type === "character") {
+      const conn = target.system.vr2Conn;
+      const jp = sync(conn?.jackpoint?.jackpoint);
+      const trapped = sync(actor.system.trapFor);
+      tn = Math.max(2, traceFactor({ evasion: target.system.matrixPersona?.evasion ?? 0, rating: actor.system.rating,
+        camo: loadedUtility(target, "camo"), redirects: conn ? (Y.foldOf(target).live?.redirects ?? 0) : 0,
+        jackpoint: Number(jp?.system?.traceMod) || 0,
+        trapGray: trapped?.system?.icClass === "gray" ? trapped.system.rating : 0,
+        trapBlack: trapped?.system?.icClass === "black" ? trapped.system.rating : 0 }));
+      effect = { effect: "trace" };
+    }
+    // A traced decker: −1 to proactive IC attacks (p.46).
+    if (target.type === "character" && target.system.vr2Conn && Y.foldOf(target).live?.traced) tn = Math.max(2, tn - 1);
     const attr = CRIPPLER_ATTRIBUTE[actor.system.program];
     if (attr) {
       if (target.type !== "character") return ui.notifications.warn("A crippler attacks a decker's persona.");
