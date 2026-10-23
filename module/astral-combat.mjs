@@ -19,6 +19,7 @@ import { targetTokens } from "./targeting.mjs";
 import { astralProfile, meleeOutcome, netToSteps, testTotalSuccesses, successesFromSource } from "./rules/sr2e-rules.mjs";
 import { evaluateDamageCode } from "./documents/item.mjs";
 import { magicalSkillBlock } from "./restricted-spells.mjs";
+import { RL } from "./util/roll-label.mjs";
 
 const STAGES = ["L", "M", "S", "D"];
 const IN_FLIGHT = new Set();
@@ -172,7 +173,7 @@ export async function astralAttack(actor, opts = {}) {
   const tn = Math.max(2, 4 + (Number(opts.otherMod) || 0));
   const result = await actor.rollSuccessTest(choice.dice, tn, {
     tnContext: astralCtx(choice.key),
-    label: `Astral Attack — ${choice.label} (TN ${tn})`,
+    label: RL("AstralAttack", { choice: choice.label, tn }),
     poolDice: pool > 0 ? { astral: pool } : {},
     karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
@@ -280,7 +281,7 @@ export async function astralDefend(message, choice = {}) {
     const tn = Math.max(2, 4 + (Number(choice.otherMod) || 0));
     const defense = await defender.rollSuccessTest(opt.dice, tn, {
       tnContext: astralCtx(opt.key),
-      label: `Defend (astral) vs ${state.attackerName} — ${opt.label}${choice.fullDefense ? ", Full Defense" : ""} (TN ${tn})`,
+      label: RL("AstralDefend", { attacker: state.attackerName, option: opt.label, full: choice.fullDefense ? RL("FullDefenseTag") : "", tn }),
       poolDice: pool > 0 ? { astral: pool } : {},
       karmaDice: choice.karmaDice
     });
@@ -331,7 +332,7 @@ export async function astralResist(message, choice = {}) {
     const poolAvail = prof.kind === "magician" ? (actor.system.dicePools?.astral?.value ?? 0) : 0;
     const pool = Math.max(0, Math.min(choice.poolDice ?? 0, poolAvail));
     const res = await actor.rollSuccessTest(prof.resistDice, st.tn, {
-      label: `Resist astral damage — ${st.resistLabel} (TN ${st.tn})`,
+      label: RL("ResistAstralDamage", { attr: st.resistLabel, tn: st.tn }),
       poolDice: pool > 0 ? { astral: pool } : {},
       karmaDice: choice.karmaDice, isResistance: true
     });

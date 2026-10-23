@@ -12,6 +12,7 @@ import { netTN, escapeTN, netHolds, escapeImpossible, advanceTurns } from "./rul
 import { isOnAstralPlane } from "./rules/astral-rules.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
+import { RL, AL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -108,7 +109,7 @@ export async function resistNet(message) {
     if (c.err) return ui.notifications.warn(c.err);
     const tn = netTN({ net: c.st.net, largeTarget: pick.largeTarget });
     const res = await c.actor.rollSuccessTest(diceOf(c.actor, c.st.astral), tn, {
-      label: `Resist the net (${c.st.astral ? "Astral Reaction" : "Strength"}) TN ${tn}`,
+      label: RL("NetResist", { attr: c.st.astral ? RL("AstralReaction") : AL("strength"), tn }),
       poolDice: pick.pool ? { [poolKey(c.st.astral)]: pick.pool } : {},
       isResistance: true, closed: true, tnContext: { kind: "other" }
     });
@@ -174,7 +175,8 @@ export async function escapeNet(tokenUuid, cardId = null) {
     if (c.err) return ui.notifications.warn(c.err);
     if (c.net.id !== first.net.id) return ui.notifications.warn("That net was replaced while you decided.");
     const res = await c.actor.rollSuccessTest(diceOf(c.actor, c.net.astral), tn, {
-      label: `Escape the net (${c.net.astral ? "Astral Reaction" : "Strength"}) TN ${tn}, ${counted.turns} turn${counted.turns === 1 ? "" : "s"} entangled`,
+      label: RL("NetEscape", { attr: c.net.astral ? RL("AstralReaction") : AL("strength"), tn,
+        turns: RL(counted.turns === 1 ? "TurnEntangled" : "TurnsEntangled", { n: counted.turns }) }),
       poolDice: pick.pool ? { [poolKey(c.net.astral)]: pick.pool } : {},
       isResistance: true, closed: true, tnContext: { kind: "other" }
     });

@@ -757,3 +757,8 @@ If those five all work, the core loop is healthy.
       attacks play it, bows and swords don't.
 - [ ] The Environment volume slider controls the level.
 
+## Localized roll labels (0.116.1)
+- `npm test`: `test/roll-labels.test.mjs` fails if code asks for an `SR2E.RollLabel.*` key
+  missing from `lang/en.json`.
+- Live: roll a net escape, a conjuring, a vehicle crash and a VR2.0 Matrix attack; each
+  card's label reads as before (no raw `SR2E.RollLabel.` text).

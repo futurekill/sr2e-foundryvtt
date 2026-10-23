@@ -26,6 +26,7 @@ import { preCastBlock, fetishCheck, personallySustaining } from "./restricted-sp
 import { spellEffectKind, igniteFromCast } from "./spell-effects.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
 import { commitDamage } from "./drugs.mjs";
+import { RL } from "./util/roll-label.mjs";
 import {
   ritualMaterialsCost, ritualLinkTN, ritualSendingTN, ritualStageHours, ritualTeamMax, ritualResistTN,
   ritualSustainHours, MATERIAL_LINK_TN, SENDING_TN, spellForces, canonicalSpellName, drainTargetNumber,
@@ -540,8 +541,9 @@ async function drain(id, memberUuid) {
     const other = Math.max(0, Math.trunc(Number(data.other) || 0));
     await m.rollSuccessTest((m.system.willpower?.value ?? 1) + assigned + totem + other, r.drainTN, {
       isResistance: true,
-      extraTN: r.sustain?.mode === "locked" ? 2 : 0, extraTNLabel: "locked in (sustaining)",
-      label: `Ritual Drain — ${r.spellName}, ${r.drainLevel} (TN ${r.drainTN})${assigned ? ` +${assigned} pool` : ""}${totem ? ` +${totem} totem` : ""}${other ? ` +${other} ${data.otherLabel || "attested"}` : ""}`,
+      extraTN: r.sustain?.mode === "locked" ? 2 : 0, extraTNLabel: RL("LockedInSustaining"),
+      label: RL("RitualDrain", { spell: r.spellName, level: r.drainLevel, tn: r.drainTN,
+        notes: `${assigned ? RL("PoolTag", { n: assigned }) : ""}${totem ? RL("PlusTotem", { n: totem }) : ""}${other ? RL("PlusLabel", { n: other, label: data.otherLabel || RL("Attested") }) : ""}` }),
       flags: { sr2e: { ritualTest: { ritualId: r.id, stage: "drain", memberUuid, dice: assigned } } }
     });
     adopt(r);

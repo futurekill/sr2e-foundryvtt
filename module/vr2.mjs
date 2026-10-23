@@ -28,6 +28,7 @@ import { firstTarget } from "./targeting.mjs";
 import { miscDiceHTML, readMiscDice } from "./dialogs/roll-modifiers.mjs";
 import { skillTnContext } from "./documents/actor.mjs";
 import { commitDamage } from "./drugs.mjs";
+import { RL, AL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -367,7 +368,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   if (!session) return;
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(1, dice), tn, {
-    label: `${op.label} — Computer vs ${subsystemLabel} (TN ${tn})`, tnContext: skillTnContext("computer"),
+    label: RL("SystemOpVs", { op: op.label, subsystem: subsystemLabel, tn }), tnContext: skillTnContext("computer"),
     poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
     karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
@@ -628,7 +629,7 @@ async function attackOnce(actor) {
   else if (ms.pos) tn -= ms.pos;
   tn = Math.max(2, tn);
   const res = await actor.rollSuccessTest(Math.max(0, dice), tn, {
-    label: `Matrix Attack ${effect.effect ? effect.effectName : `${power}${level}`} (TN ${tn}, ${codeLabel(code)} vs ${o.status})`,
+    label: RL("MatrixAttack", { what: effect.effect ? effect.effectName : `${power}${level}`, tn, code: codeLabel(code), status: o.status }),
     poolDice: !isIC && o.hacking ? { hacking: o.hacking } : undefined,
     karmaDice: o.karmaDice ?? 0, miscDice: o.miscDice, miscLabel: o.miscLabel, tnContext
   });
@@ -700,7 +701,7 @@ async function askShield(defender, st) {
   const tn = Math.max(2, st.attackerComputer ?? 4);
   const r = await defender.rollSuccessTest(Math.max(0, ref.rating), tn, {
     // A test to avoid damage: no Injury Modifier (core p.112), like the resistance tests.
-    label: `Shield ${ref.rating} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+    label: RL("Shield", { rating: ref.rating, tn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
   return r ? { ref, successes: r.successes, testMessageId: r.testMessageId } : null;
 }
 
@@ -745,7 +746,7 @@ export async function vr2MatrixResist(defender, message) {
     const sessionId = defender.type === "character" ? (liveSession(defender)?.id ?? null) : null;
     const shield = await askShield(defender, st);
     const res = await defender.rollSuccessTest(Math.max(0, dice), tn, {
-      label: `Resist Matrix damage — ${what} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" }
+      label: RL("ResistMatrixDamage", { what, tn }), isResistance: true, closed: true, tnContext: { kind: "other" }
     });
     if (!res) return;
     // The attack's CURRENT successes, from its own test (Karma may have moved them).
@@ -787,7 +788,7 @@ export async function vr2MatrixResist(defender, message) {
         } else {
           const otn = Math.max(2, simsenseOverloadTN(out.level) + (deck.dniOnly ? 2 : 0) - (deck.iccm ? 2 : 0));
           const ov = await defender.rollSuccessTest(Math.max(0, defender.system.willpower?.value ?? 0), otn, {
-            label: `Simsense overload — Willpower (TN ${otn})`, isResistance: true, closed: true, tnContext: { kind: "other" }
+            label: RL("SimsenseOverload", { tn: otn }), isResistance: true, closed: true, tnContext: { kind: "other" }
           });
           if (ov?.testMessageId) closes.push(ov.testMessageId);
           if ((ov?.successes ?? 0) > 0) lines.push("The decker shrugs off the simsense overload.");
@@ -847,7 +848,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
       const armor = bestUtility(defender, "armor"), ref = useRef(armor);
       const tn = Math.max(2, hit.rating - (ref?.rating ?? 0)) + (defender.system.vr2Deck?.deathwormTN ?? 0);
       const r = await defender.rollSuccessTest(Math.max(0, defender.system.matrixPersona?.bod ?? 0), tn, {
-        label: `Resist black IC — icon Bod${ref ? `, ${ref.name}` : ""} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+        label: RL("ResistBlackIcon", { ref: ref ? `, ${ref.name}` : "", tn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
       if (!r) return;
       await recordEvent(defender, `vr2:res:${message.id}:icon`, { type: "res", card: message.id, side: "icon", successes: r.successes, tn });
       if (ref) await addWear(defender, ref, message.id);
@@ -858,7 +859,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
       const dice = willpower ? (defender.system.willpower?.value ?? 0) : (defender.system.body?.value ?? 0);
       // Karma Pool yes, Hacking Pool no (p.48): an ordinary resistance test, no pools offered.
       const r = await defender.rollSuccessTest(Math.max(0, dice), tn, {
-        label: `Resist black IC — ${willpower ? "Willpower" : "Body"} (TN ${tn}, Hardening off the Power)`, isResistance: true, tnContext: { kind: "other" } });
+        label: RL("ResistBlackMeat", { attr: AL(willpower ? "willpower" : "body"), tn }), isResistance: true, tnContext: { kind: "other" } });
       if (!r) return;
       await recordEvent(defender, `vr2:res:${message.id}:meat`, { type: "res", card: message.id, side: "meat", successes: r.successes, tn, testMessageId: r.testMessageId });
     }
@@ -871,7 +872,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
   what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
   const shield = await askShield(defender, st);
   const res = await defender.rollSuccessTest(Math.max(0, dice), tn, {
-    label: `Resist Matrix damage — ${what} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+    label: RL("ResistMatrixDamage", { what, tn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
   if (!res) return;
   const atkS = Math.max(0, liveAtk() - (shield?.successes ?? 0));
   const out = matrixCombatOutcome(st.level, atkS, res.successes);
@@ -885,7 +886,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
     else {
       const otn = Math.max(2, simsenseOverloadTN(out.level) + (deck.dniOnly ? 2 : 0) - (deck.iccm ? 2 : 0));
       const ov = await defender.rollSuccessTest(Math.max(0, defender.system.willpower?.value ?? 0), otn, {
-        label: `Simsense overload — Willpower (TN ${otn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+        label: RL("SimsenseOverload", { tn: otn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
       if ((ov?.successes ?? 0) > 0) lines.push("The decker shrugs off the simsense overload.");
       else { overloadStun = 1; lines.push("Simsense overload: 1 box of Stun (VR2.0 p.124)."); }
     }
@@ -910,7 +911,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
   const shield = await askShield(defender, st);
   const tn = Math.max(2, st.rating ?? 2) + (defender.system.vr2Deck?.deathwormTN ?? 0);   // deathworms (p.44)
   const res = await defender.rollSuccessTest(Math.max(0, value), tn, {
-    label: `Resist ${st.effectName} — ${ATTR_LABEL[st.attr]} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+    label: RL("ResistEffect", { effect: st.effectName, attr: ATTR_LABEL[st.attr], tn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
   if (!res) return;
   const atkS = liveAtk();
   if (atkS <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
@@ -1007,7 +1008,7 @@ export async function vr2Maneuver(actor) {
   const tns = maneuverTNs({ evasion, sensor, cloak, lockOn });
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(0, evasion), tns.maneuverer, {
-    label: `${MANEUVERS[pick.kind]} — ${actor.type === "ic" ? "Security Value" : "Evasion"} (TN ${tns.maneuverer})`,
+    label: RL("Maneuver", { maneuver: MANEUVERS[pick.kind], stat: RL(actor.type === "ic" ? "SecurityValue" : "Evasion"), tn: tns.maneuverer }),
     closed: true, tnContext: { kind: "other" } });
   if (!res) return;
   await commitAction(actor, startedBuild);
@@ -1034,7 +1035,7 @@ export async function opposeManeuver(message) {
     const opp = sync(st.opponentUuid);
     if (!opp?.isOwner) return ui.notifications.warn(`Only ${st.opponentName}'s owner or the GM can oppose.`);
     const res = await opp.rollSuccessTest(Math.max(0, opp.system.matrixPersona?.sensor ?? 0), st.oppTN, {
-      label: `Oppose ${MANEUVERS[st.kind]} — Sensor (TN ${st.oppTN})`, closed: true, tnContext: { kind: "other" } });
+      label: RL("OpposeManeuver", { maneuver: MANEUVERS[st.kind], tn: st.oppTN }), closed: true, tnContext: { kind: "other" } });
     if (!res) return;
     if (isCardResolved(game.messages.get(message.id), "vr2Maneuver")) return ui.notifications.warn("Opposed on another device meanwhile.");
     return postManeuverResult(st, res.successes, { resolves: message.id, oppTestId: res.testMessageId });
@@ -1145,7 +1146,7 @@ export async function vr2BuildImprovised(actor) {
   const computer = computerOf(actor);
   const res = await actor.rollSuccessTest(computer > 0 ? computer : (actor.system.intelligence?.value ?? 0),
     power + (computer > 0 ? 0 : 4), {
-      label: `Improvised attack — Computer (TN ${power}${computer > 0 ? "" : " +4 untrained"})`,
+      label: RL("Improvised", { tn: power, untrained: computer > 0 ? "" : RL("UntrainedTag") }),
       closed: true, tnContext: skillTnContext("computer") });
   if (!res) return;
   const level = improvisedLevel(res.successes);
@@ -1181,7 +1182,7 @@ export async function vr2Medic(actor, item) {
   const ref = useRef(item);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(0, ref.rating), tn, {
-    label: `${item.name} (TN ${tn})`, closed: true, tnContext: { kind: "other" } });
+    label: RL("NameTN", { name: item.name, tn }), closed: true, tnContext: { kind: "other" } });
   if (!res) return;
   await commitAction(actor, startedBuild);
   const repaired = await enqueueAttack(`matrixmon:${actor.uuid}`, async () => {
@@ -1250,7 +1251,7 @@ async function leaveOnLog(actor, crash) {
       buttons: [{ action: "test", label: `Willpower (${rating})`, default: true }, { action: "plug", label: "Pull the plug" }, { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
     if (choice === "plug") return requestExit(actor, { trigger: "plug" });
     if (choice !== "test") return;
-    const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, rating, { label: `Jack out against black IC — Willpower (${rating})`, tnContext: { kind: "other" } });
+    const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, rating, { label: RL("JackOutBlack", { rating }), tnContext: { kind: "other" } });
     if (!r) return;
     const { recordEvent } = await import("./claims.mjs");
     const attempt = Y.recordsOf(actor).filter(e => e.type === "gate" && e.n === f.liveN).length + 1;

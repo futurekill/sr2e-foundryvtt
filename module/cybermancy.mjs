@@ -12,6 +12,7 @@ import { surgeryEssencePct, surgicalEssence, testTotalSuccesses } from "./rules/
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { enqueueAttack } from "./engagement.mjs";
+import { RL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -327,7 +328,7 @@ export async function overflowTest(uuid, receipt) {
   if (!care || f.dead || f.overflowOut(receipt)) return ui.notifications.info("That overflow test isn't pending.");
   const tn = 2 * care.overflowBefore;
   const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn,
-    { label: `Better Off Dead: Willpower vs 2 × overflow (${tn}), or death (Cybertechnology p.80)`, tnContext: { kind: "other" } });
+    { label: RL("BetterOffDead", { tn }), tnContext: { kind: "other" } });
   return card(actor, `<strong>${esc(actor.name)}</strong>: once Karma is spent on that test,
     <div class="sr2e-karma-actions">${btn(actor, "overflowFinal", "Finalize the result", `${receipt}|${r?.testMessageId ?? ""}`)}</div>`);
 }

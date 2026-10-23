@@ -17,6 +17,7 @@ import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus, test
 import { substanceState, nextStamp, EVENT_VERSION, stepId } from "./rules/substances.mjs";
 import { doseKey, doseHoldState, STUCK_MS } from "./rules/claim-rules.mjs";
 import { once, markersOf, pruneMarkers } from "./claims.mjs";
+import { RL, AL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const BOXES = { L: 1, M: 3, S: 6, D: 10 };
@@ -523,7 +524,7 @@ export function extendDose(actor, drug, dep) {
     const id = `${r.window.id}_${dep}_extend`;
     const ok = await claimedRoll(actor, id, { type: "extend", drug, windowId: r.window.id, dep, tn: Math.max(2, r.addiction) }, {
       dice: actor.system[attr]?.value ?? 1, tn: Math.max(2, r.addiction), options: {
-        label: `${r.name} — hold out longer (${attr === "body" ? "Body" : "Willpower"} vs Addiction ${r.addiction})`,
+        label: RL("HoldOut", { name: r.name, attr: AL(attr), addiction: r.addiction }),
         ...(attr === "body" ? actor._bodyTestOpts?.() : {}) } });
     if (ok == null) return;
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">💊 ${esc(actor.name)} — ${esc(r.name)}: ${
@@ -546,7 +547,7 @@ export function beginRecovery(actor, drug) {
     // An outstanding claim for this drug is reused, never re-rolled (Codex 3–6 #3).
     const open = Object.entries(actor.flags?.sr2e?.substanceLog ?? {}).find(([, e]) => e?.type === "recovery" && e.drug === drug && e.pending);
     const ok = await claimedRoll(actor, open?.[0] ?? `recovery_${foundry.utils.randomID()}`, { type: "recovery", drug, tn }, {
-      dice: actor.system.willpower?.value ?? 1, tn, options: { label: `${r.name} — kick the habit (Willpower vs Addiction ${r.addiction} +${plus})` } });
+      dice: actor.system.willpower?.value ?? 1, tn, options: { label: RL("KickHabit", { name: r.name, addiction: r.addiction, plus }) } });
     if (ok == null) return;
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">💊 ${esc(actor.name)} — ${esc(r.name)}: ${
       ok > 0 ? "<strong>begins recovery</strong> (+2 TNs, +4 on spellcasting; Addiction −1 every three days)" : "not ready to quit"} (p.87–88).</div>` });
@@ -831,7 +832,7 @@ export function useDose(actor, itemId) {
     } else if (drug.duration?.bodyReducesBy) {
       // A Body SUCCESS Test (not resistance): the book gives no TN; SR II's default 4.
       const t = await actor.rollSuccessTest(actor.system.body?.value ?? 1, 4, {
-        label: `${item.name} — Body Success Test (duration, TN 4)`, ...actor._bodyTestOpts?.() });
+        label: RL("DrugDuration", { name: item.name }), ...actor._bodyTestOpts?.() });
       dur = drugDuration(drug.duration, { successes: t?.successes ?? 0 });
     } else dur = drugDuration(drug.duration);
 
@@ -935,7 +936,7 @@ export function resistToxin(message) {
     if (actor.getFlag("sr2e", "toxinDone")?.[key]) return ui.notifications.warn("That damage has already been resisted.");
     const { power, level, type } = st.damage;
     const t = await actor.rollSuccessTest(actor.system.body?.value ?? 1, power, {
-      label: `Resist ${st.name}: ${power}${level}${type === "stun" ? " Stun" : ""} (Body, no armour)`,
+      label: RL("ResistToxin", { name: st.name, power, level, stun: type === "stun" ? RL("StunTag") : "" }),
       isResistance: true, ...actor._bodyTestOpts?.() });
     if (!t) return;
     const final = toxinLevel(level, t.successes ?? 0);
@@ -980,7 +981,7 @@ export async function drugTests(message) {
   const actor = asActor(sync(st?.actorUuid));
   if (!actor) return;
   if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM rolls these.`);
-  const label = { P: "Physical addiction (Body)", M: "Mental addiction (Willpower)", tolerance: "Tolerance (Body)" };
+  const label = { P: RL("AddictionPhysical"), M: RL("AddictionMental"), tolerance: RL("Tolerance") };
   // Eligibility and the current TNs, re-derived each time they're needed.
   const check = () => {
     const log = actor.flags?.sr2e?.substanceLog ?? {};
@@ -1027,7 +1028,7 @@ export async function drugTests(message) {
       if (prior) { successes = testTotalSuccesses(prior.flags.sr2e.test ?? {}); messageId = prior.id; }
       else {
         const t = await actor.rollSuccessTest(actor.system[attr]?.value ?? 1, claim.tn ?? tn, {
-          label: `${st.name} — ${label[k]} vs ${claim.tn ?? tn}`, isResistance: true,
+          label: RL("SubstanceTest", { name: st.name, kind: label[k], tn: claim.tn ?? tn }), isResistance: true,
           flags: { sr2e: { substanceTest: { actorUuid: actor.uuid, eventId: id, gen: claim.gen ?? null } } },
           ...(attr === "body" ? actor._bodyTestOpts?.() : {}) });
         if (!t) continue;

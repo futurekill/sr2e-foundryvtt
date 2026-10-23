@@ -12,6 +12,7 @@ import { sourceOf } from "./rules/limb-rules.mjs";
 import { woundLevel, woundThreshold, gradeResistTN, TABLES, secondaryEffect, degrades, skinRepairPrice,
          SCAR_TREATMENT, SCAR_MAGIC, SCAR_PLATING, SCAR_SKIN, SCAR_SALVE, scarSeverity } from "./rules/cyberdamage-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
+import { RL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 export const cyberDamageOn = () => { try { return game.settings.get("sr2e", "cyberDamage"); } catch (e) { return false; } };
@@ -170,7 +171,7 @@ async function scarDialog(actor, st, preset = null) {
   const over = actor._bodyTestOpts?.() ?? {};
   const tn = Math.max(2, st.boxes + mods);
   const dice = actor.system.body?.value ?? 0;
-  const res = await actor.rollSuccessTest(dice, tn, { label: `Scarring check (Cybertechnology p.56): TN ${st.boxes} boxes ${mods >= 0 ? "+" : ""}${mods}`,
+  const res = await actor.rollSuccessTest(dice, tn, { label: RL("Scarring", { boxes: st.boxes, mods: `${mods >= 0 ? "+" : ""}${mods}` }),
     tnPolicy: "table", ...(over.extraTN ? { extraTN: over.extraTN, extraTNLabel: over.extraTNLabel } : {}) });
   const successes = res?.successes ?? 0;
   return { dice, tn: tn + (over.extraTN ?? 0), rolledTN: res?.targetNumber, successes, severity: scarSeverity(successes), parts: `${st.boxes} + ${mods}${over.extraTN ? ` + ${over.extraTN} overstress` : ""}` };

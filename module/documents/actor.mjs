@@ -41,7 +41,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
-const RL = (key, data = {}) => game.i18n.format(`SR2E.RollLabel.${key}`, data);
+import { RL, AL } from "../util/roll-label.mjs";
 /** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
 const attrName = (k) => (CONFIG.SR2E.attributes?.[k] ? game.i18n.localize(CONFIG.SR2E.attributes[k]) : "") || (k.charAt(0).toUpperCase() + k.slice(1));
 
@@ -1337,7 +1337,8 @@ export class SR2EActor extends Actor {
     // p.243) — the wires override the character's own reflexes. So pool dice are
     // NOT forwarded here, even if the roll dialog offered them.
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
-      label: `${family ? (chip.system.languageFamily || "Language family") : (soft.system.grantedSkill || soft.name)} Test (chipped)${artBonus ? ` (+${artBonus} articulation)` : ""}`,
+      label: RL("Chipped", { name: family ? (chip.system.languageFamily || RL("LanguageFamily")) : (soft.system.grantedSkill || soft.name),
+        bonus: artBonus ? RL("ArticulationTag", { n: artBonus }) : "" }),
       tnContext: skillTnContext(skillKeyOf(soft.system.grantedSkill || soft.name), chip?.system.category ?? soft.system.grantedSkillCategory ?? "active"),
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -1418,14 +1419,13 @@ export class SR2EActor extends Actor {
       await this.update({ "system.nuyen": nuyen - materials });
     }
 
-    const totemNote = totemBonus > 0 ? ` +${totemBonus} totem` : "";
-    const fociNote  = fociDice   > 0 ? ` +${fociDice} focus`   : "";
+    const totemNote = totemBonus > 0 ? RL("PlusTotem", { n: totemBonus }) : "";
+    const fociNote  = fociDice   > 0 ? RL("PlusFocus", { n: fociDice }) : "";
 
     // ── Conjuring Test (no Magic Pool) ────────────────────────────────────────
     const conjureResult = await this.rollSuccessTest(conjuringDice, force, {
       tnContext: skillTnContext("conjuring"),
-      label: `Conjure ${kind === "elemental" ? "Elemental" : "Nature Spirit"} ` +
-             `(Force ${force}, ${domain}${totemNote}${fociNote})`,
+      label: RL("Conjure", { what: RL(kind === "elemental" ? "Elemental" : "NatureSpirit"), force, domain, notes: `${totemNote}${fociNote}` }),
       karmaDice: opts.karmaDice,
       miscDice: opts.miscDice, miscLabel: opts.miscLabel
     });
@@ -1437,7 +1437,7 @@ export class SR2EActor extends Actor {
     // domain (a shaman's; elementals, p.140, name only the focus).
     const drain = CONFIG.SR2E.conjuringDrain(force, charisma);
     const drainResult = await this.rollSuccessTest(charisma + fociDice + totemBonus, force, {
-      label: `Conjuring Drain — ${drain.level} ${drain.type} (TN ${force}${totemNote}${fociNote})`,
+      label: RL("ConjuringDrain", { level: drain.level, type: drain.type, tn: force, notes: `${totemNote}${fociNote}` }),
       isResistance: true
     });
     const stages     = ["L", "M", "S", "D"];
@@ -1744,7 +1744,7 @@ export class SR2EActor extends Actor {
     const adeptBonus = skillItem?.system?._adeptBonus ?? 0;
     const artBonus = this._activeSkillBonus(skillItem);
     const skillBonus = adeptBonus + artBonus;
-    const bonusNote = `${adeptBonus ? ` (+${adeptBonus} adept)` : ""}${artBonus ? ` (+${artBonus} articulation)` : ""}`;
+    const bonusNote = `${adeptBonus ? RL("AdeptTag", { n: adeptBonus }) : ""}${artBonus ? RL("ArticulationTag", { n: artBonus }) : ""}`;
 
     let dice = rating + skillBonus;
     let defaultingPenalty = 0;
@@ -1760,7 +1760,7 @@ export class SR2EActor extends Actor {
         const attrKey = CONFIG.SR2E.activeSkills[skillKey]?.attribute ?? "strength";
         dice = Math.max(1, this.system[attrKey]?.value ?? 1);
         defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-        defaultingNote = `, defaulting +${defaultingPenalty}`;
+        defaultingNote = RL("DefaultingTag", { penalty: defaultingPenalty });
       }
     }
 
@@ -1769,7 +1769,8 @@ export class SR2EActor extends Actor {
 
     const defense = await this.rollSuccessTest(dice, tn, {
       tnContext: { kind: "attack", skillCategory: "active", melee: true },
-      label: `Defend vs ${state.attackerName} — ${defWeaponName}${defaultingNote}${choice.meleeVis ? `, visibility +${choice.meleeVis}` : ""} TN ${tn}`,
+      label: RL("MeleeDefend", { attacker: state.attackerName, weapon: defWeaponName, tn,
+        notes: `${defaultingNote}${choice.meleeVis ? RL("VisibilityTag", { n: choice.meleeVis }) : ""}` }),
       poolDice: choice.poolDice > 0 ? { combat: choice.poolDice } : {},
       karmaDice: choice.karmaDice,
       miscDice: choice.miscDice, miscLabel: choice.miscLabel
@@ -1926,7 +1927,7 @@ export class SR2EActor extends Actor {
       } else {
         dice = Math.max(1, this.system.reaction?.value ?? 1);
         defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-        defaultingNote = `, defaulting to Reaction +${defaultingPenalty}`;
+        defaultingNote = RL("DefaultingToTag", { attr: AL("reaction"), penalty: defaultingPenalty });
       }
     }
 
@@ -1975,7 +1976,7 @@ export class SR2EActor extends Actor {
     const tn   = Math.max(2, power - armor);
 
     const resist = await vehicle.rollSuccessTest(dice, tn, {
-      label: `${vehicle.name} — Crash! Resist ${power}${level} (Body + ½ Armor, no Control Pool)`,
+      label: RL("Crash", { name: vehicle.name, power, level }),
       isResistance: true
     });
 
@@ -2049,7 +2050,7 @@ export class SR2EActor extends Actor {
     // My ram test (Control Pool / karma may assist)
     const myResult = await this.rollSuccessTest(myDice, myTN, {
       tnContext: skillTnContext(skillKey),
-      label: `Ram: ${myVehicle.name} → ${oppName} (TN ${myTN})`,
+      label: RL("Ram", { name: myVehicle.name, opponent: oppName, tn: myTN }),
       poolDice: options.poolDice, karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
     // Opposing ram test (rolled by the system; no pool)
@@ -2121,7 +2122,7 @@ export class SR2EActor extends Actor {
     const dice = Math.max(1, opts.intelligence ?? this.system.intelligence?.value ?? 1);
 
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `Escape Test — pursue (Intelligence ${dice} vs TN ${tn})`
+      label: RL("Escape", { dice, tn })
     });
 
     const escaped = (result?.successes ?? 0) === 0;
@@ -2257,7 +2258,7 @@ export class SR2EActor extends Actor {
     }
 
     const resist = await this.rollSuccessTest(dice + allocated, tn, {
-      label: `${this.name} — Resist ${power}${startLevel}${allocated ? ` (+${allocated} Control Pool)` : ""}`,
+      label: RL("VehicleResist", { name: this.name, power, level: startLevel, pool: allocated ? RL("ControlPoolTag", { n: allocated }) : "" }),
       isResistance: true
     });
 
@@ -2712,13 +2713,13 @@ export class SR2EActor extends Actor {
 
     const level = atk.level;
     const dice  = atk.dice === "reaction" ? (this.system.reaction?.value ?? force) : force;
-    const diceLabel = atk.dice === "reaction" ? "Reaction" : "Force";
+    const diceLabel = atk.dice === "reaction" ? AL("reaction") : RL("Force");
 
     // Who it's aimed at, captured before any await: the Resist button names them, so
     // whoever happens to be selected can't take (and use up) someone else's hit.
     const targetUuid = firstTarget()?.actor?.uuid ?? "";
     const result = await this.rollSuccessTest(dice, 4, {
-      label: `${this.name} — Manifest Attack (${diceLabel} ${dice})`
+      label: RL("ManifestAttack", { name: this.name, attr: diceLabel, dice })
     });
     if ((result?.successes ?? 0) <= 0) return result;
 
@@ -2838,7 +2839,7 @@ export class SR2EActor extends Actor {
     const dice = this.system.willpower?.value ?? 1;
     const tn = Math.max(2, state.power);
     const resist = await this.rollSuccessTest(dice, tn, {
-      label: `Resist Astral — Astral Body/Willpower (TN ${tn})`,
+      label: RL("ResistAstral", { tn }),
       isResistance: true
     });
 
@@ -2960,7 +2961,7 @@ export class SR2EActor extends Actor {
       // Alert-boosted rating (SR2E p.168) when defending.
       dice = alertAdjustedRating(this.system.rating ?? 1, this.system.alert);
       tn = Math.max(2, state.nodeRating || this.system.rating || 4);
-      monitorLabel = "IC";
+      monitorLabel = RL("MonitorIC");
       applyDamage = async (boxes) => {
         const cm = this.system.conditionMonitor;
         const max = (this.system.rating ?? 1) * 2;
@@ -2972,7 +2973,7 @@ export class SR2EActor extends Actor {
       if (dice <= 0) return ui.notifications.warn(`${this.name} has no cyberdeck to resist in the Matrix.`);
       const computer = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
       tn = Math.max(2, computer?.system?.rating ?? 4);
-      monitorLabel = "persona";
+      monitorLabel = RL("MonitorPersona");
       applyDamage = async (boxes) => {
         const cm = this.system.matrixPersona.condition;
         await this.update({ "system.matrixPersona.condition.value": Math.min(cm.value + boxes, cm.max) });
@@ -2983,7 +2984,7 @@ export class SR2EActor extends Actor {
     }
 
     const resist = await this.rollSuccessTest(Math.max(1, dice), tn, {
-      label: `Resist Matrix Attack — ${monitorLabel} (TN ${tn})`,
+      label: RL("ResistMatrixAttack", { monitor: monitorLabel, tn }),
       isResistance: true
     });
     const net = state.successes - (resist?.successes ?? 0);
@@ -3029,7 +3030,7 @@ export class SR2EActor extends Actor {
     if (!this.system.dumpShock) return;
     const will = this.system.willpower?.value ?? 1;
     const result = await this.rollSuccessTest(will, 4, {
-      label: "Shake off Dump Shock — Willpower (TN 4)", isResistance: true
+      label: RL("DumpShock"), isResistance: true
     });
     if ((result?.successes ?? 0) > 0) {
       await this.update({ "system.dumpShock": false });
@@ -3087,7 +3088,7 @@ export class SR2EActor extends Actor {
     const opLabel = game.i18n.localize(CONFIG.SR2E.systemOperations[operation]?.label ?? operation);
 
     const result = await this.rollSuccessTest(Math.max(1, dice), Math.max(2, tn), {
-      label: `${opLabel} — Computer (TN ${tn})`, tnContext: skillTnContext("computer"),
+      label: RL("SystemOp", { op: opLabel, tn }), tnContext: skillTnContext("computer"),
       poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
       karmaDice: opts.karmaDice ?? 0,
       miscDice: opts.miscDice, miscLabel: opts.miscLabel
@@ -3151,7 +3152,7 @@ export class SR2EActor extends Actor {
     const dice = this.system.effectiveRating ?? this.system.rating ?? 1;
     const tn = Math.max(2, masking || 1);
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `IC Perception — Rating vs Masking ${tn} (SR2E p.169)`
+      label: RL("ICPerception", { tn })
     });
     const detected = (result?.successes ?? 0) > 0;
 
@@ -3366,7 +3367,7 @@ export class SR2EActor extends Actor {
       const r = await elementalTransition(spirit, "aidStudy");
       if (!r.ok) return null;
       dice += r.dice ?? 0;
-      aidNote = ` +${r.dice} Aid Study (${spirit.name})`;
+      aidNote = RL("AidStudyTag", { n: r.dice, spirit: spirit.name });
       await this.setFlag("sr2e", "aidStudyUsed", [...(this.getFlag("sr2e", "aidStudyUsed") ?? []), key]);
     }
     dice = Math.max(0, dice);
@@ -3375,7 +3376,7 @@ export class SR2EActor extends Actor {
     await this.update({ [`flags.sr2e.learning.${attemptId}`]: {
       status: "pending", spellName: def.name, force, definition: def, karmaPaid: false } });
     const result = await this.rollSuccessTest(dice, tn, {
-      label: `Learn ${def.name} (Force ${force}) — Sorcery + Magical Theory${aidNote}`, tnContext: skillTnContext("sorcery"),
+      label: RL("Learn", { name: def.name, force, notes: aidNote }), tnContext: skillTnContext("sorcery"),
       karmaDice: o.karmaDice, karmaDiceCap: sorcery + theory,
       learningAttemptId: attemptId
     });
@@ -3563,8 +3564,8 @@ export class SR2EActor extends Actor {
         });
       }
       let dice = (this.system[attr]?.value ?? 1) + own + mp + granted;
-      let defNote = (own ? ` +${own} Spell Defense` : "") + (mp ? ` +${mp} Magic Pool` : "")
-        + grants.map(g => ` +${g.n} Spell Defense (${g.magicianName})`).join("");
+      let defNote = (own ? RL("SpellDefenseTag", { n: own }) : "") + (mp ? RL("MagicPoolTag", { n: mp }) : "")
+        + grants.map(g => RL("SpellDefenseFromTag", { n: g.n, name: g.magicianName })).join("");
       // An elemental's reserved Spell Defense dice (p.141): combat spells only
       // for a fire elemental. Paid (its Force drops) BEFORE any die is added; if
       // payment fails, the resistance goes ahead without them and the
@@ -3575,11 +3576,11 @@ export class SR2EActor extends Actor {
         const n = Math.min(res.dice, res.spirit.system.effectiveForce ?? 0);
         const paid = n > 0 && res.spirit.isOwner
           ? await elementalTransition(res.spirit, "aid", { n }, { quiet: true, silent: true }) : { ok: false };
-        if (paid.ok) { aidUsed = n; dice += n; defNote += ` +${n} Aid Sorcery (${res.spirit.name})`; }
-        else defNote += " (elemental aid unavailable)";
+        if (paid.ok) { aidUsed = n; dice += n; defNote += RL("AidSorceryTag", { n, spirit: res.spirit.name }); }
+        else defNote += RL("ElementalAidUnavailable");
       }
       const resist = await this.rollSuccessTest(dice, state.force, {
-        label: `Resist ${state.spellName} — ${attr === "willpower" ? "Willpower" : "Body"}${defNote} (TN ${state.force})`,
+        label: RL("ResistSpell", { spell: state.spellName, attr: AL(attr === "willpower" ? "willpower" : "body"), notes: defNote, tn: state.force }),
         isResistance: true,
         // A physical spell is resisted with BODY, so overstress applies; a mana
         // spell is resisted with Willpower and must not take it.

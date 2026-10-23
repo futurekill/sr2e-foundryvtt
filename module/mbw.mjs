@@ -11,6 +11,7 @@ import { foldMbw, proposal, ccssRow, CCSS_ROWS, ccssRehab, seizureBoxes, tleTrea
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { characterTN } from "./rules/cym-rules.mjs";
+import { RL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 export const mbwOn = () => { try { return game.settings.get("sr2e", "mbwComplications"); } catch (e) { return true; } };
@@ -208,14 +209,14 @@ export async function voidRecord(uuid, key) {
 export async function hourlySurvival(uuid) {
   const actor = await actorFor(uuid); if (!actor) return;
   const body = actor.system.mbw?.naturalBody ?? 0;
-  return actor.rollSuccessTest(body, 5, { label: "CCSS untreated: unaugmented Body (5), or die (Cybertechnology p.55)", isResistance: true });
+  return actor.rollSuccessTest(body, 5, { label: RL("CcssUntreated"), isResistance: true });
 }
 
 /** Reflex jumpiness (p.53): Perception at base + reflex dice; Willpower at base to hold off. */
 export async function reflexCheck(actor, base) {
   const n = actor.system.mbw?.reflexDice ?? 0;
-  await actor.rollSuccessTest(actor.system.intelligence?.value ?? 0, base + n, { label: `Reflexes: Perception (Intelligence) TN ${base} +${n} (Cybertechnology p.53)` });
-  await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, base, { label: `Reflexes: Willpower TN ${base} to hold off (p.53)` });
+  await actor.rollSuccessTest(actor.system.intelligence?.value ?? 0, base + n, { label: RL("ReflexPerception", { base, n }) });
+  await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, base, { label: RL("ReflexWillpower", { base }) });
 }
 
 // ── Reconciliation (active GM only; never in preparation) ──────────────────────────

@@ -20,7 +20,7 @@ import { netKind } from "../rules/net-rules.mjs";
 import { isCardResolved } from "../astral-combat.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
-const RL = (key, data = {}) => game.i18n.format(`SR2E.RollLabel.${key}`, data);
+import { RL } from "../util/roll-label.mjs";
 
 const SPELL_TN_CONTEXT = { kind: "spell", magic: true };
 

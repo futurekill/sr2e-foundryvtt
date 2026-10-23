@@ -16,6 +16,7 @@ import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { enqueueAttack } from "./engagement.mjs";
+import { RL } from "./util/roll-label.mjs";
 
 export const P3 = "vr2:";
 export const DECK = "vr2deck:";
@@ -101,7 +102,7 @@ export async function mayJackIn(actor, host) {
   if (host && hostOffline(host)) { ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`); return false; }
   const phobia = (actor.system.vr2Psy ?? []).filter(c => c.kind === "cyberphobia").sort((a, b) => b.rating - a.rating)[0];
   if (!phobia) return true;
-  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, phobia.rating, { label: `Cyberphobia: Willpower (${phobia.rating}) to jack in (VR2.0 p.49)`, tnContext: { kind: "other" } });
+  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, phobia.rating, { label: RL("Cyberphobia", { rating: phobia.rating }), tnContext: { kind: "other" } });
   if ((r?.successes ?? 0) > 0) return true;
   ui.notifications.info(`${actor.name} can't bring themself to jack in.`);
   return false;
@@ -399,7 +400,7 @@ export async function resistSparky(actor, card) {
   if (!res?.sparky) return;
   if (recs.some(e => e.type === "res" && e.card === card && e.side === "sparky")) return ui.notifications.info("Already resisted.");
   const tn = Math.max(2, res.sparky.power - (recs.find(e => e.type === "gray" && e.card === card)?.hardening ?? 0));
-  const r = await actor.rollSuccessTest(actor.system.body?.value ?? 0, tn, { label: `Resist sparky's jolt — Body (TN ${tn})`, isResistance: true, tnContext: { kind: "other" } });
+  const r = await actor.rollSuccessTest(actor.system.body?.value ?? 0, tn, { label: RL("Sparky", { tn }), isResistance: true, tnContext: { kind: "other" } });
   if (r) await recordEvent(actor, `${P3}res:${card}:sparky`, { type: "res", card, side: "sparky", successes: r.successes });
 }
 async function applySparky(actor) {
@@ -693,7 +694,7 @@ export async function relocate(actor, icKey) {
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
   const tn = relocateTN(t.rating, rel);
   const boundary = openBoundaryOf(actor, t);
-  const r = await actor.rollSuccessTest(computer, tn, { label: `Relocate against the trace (TN ${tn}, VR2.0 p.46)`, tnContext: { kind: "matrix" } });
+  const r = await actor.rollSuccessTest(computer, tn, { label: RL("Relocate", { tn }), tnContext: { kind: "matrix" } });
   if (!r) return;
   const host = sync(V.liveSession(actor)?.hostUuid);
   if (host) {
@@ -788,7 +789,7 @@ export async function psyTest(actor, icKey) {
   const hit = f.live?.hits.find(h => h.icKey === icKey);
   if (!hit || f.live.steps.find(x => x.step === "psychotropic" && x.ref === icKey)?.res) return;
   const tn = Math.max(2, hit.rating - (hit.cool ? 2 : 0));
-  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: `Resist the psychotropic implant — Willpower (${tn})`, tnContext: { kind: "other" } });
+  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: RL("Psychotropic", { tn }), tnContext: { kind: "other" } });
   if (r) await request(actor, "psy", { icKey, successes: r.successes, conn: f.liveN });
 }
 Object.assign(HANDLERS, {
@@ -825,7 +826,7 @@ export async function psyRecover(actor, condKey, mods = {}) {
   if (!c) return;
   const { psychoRecoveryTN } = await import("./rules/vr2ic-rules.mjs");
   const tn = psychoRecoveryTN(c.rating, { ...mods, pcpic: c.kind === "pcpic" });
-  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: `Recover from ${CONFIG.SR2E.icPsychotropic[c.kind] ?? c.kind} — Willpower (${tn})`, tnContext: { kind: "other" } });
+  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: RL("PsychoRecover", { condition: CONFIG.SR2E.icPsychotropic[c.kind] ?? c.kind, tn }), tnContext: { kind: "other" } });
   if (!r) return;
   const k = recordsOf(actor).filter(e => e.type === "psyRecover" && e.cond === condKey).length + 1;
   await recordEvent(actor, `${P3}psy-recover:${condKey}:${k}`, { type: "psyRecover", cond: condKey, success: r.successes > 0 });

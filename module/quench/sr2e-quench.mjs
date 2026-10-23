@@ -11185,7 +11185,8 @@ export function registerSR2EQuenchTests() {
           const c = await attackCard(ic, d, { successes: 0 });
           n = game.messages.size;
           await d.rollMatrixResistance(c); await wait(300);
-          assert.equal(game.messages.size, n, "nothing to resist");
+          // Rolls only: a late card from the jack-out above can land in this window under load.
+          assert.lengthOf(since(n).filter(m => m.rolls?.length), 0, "nothing to resist");
         });
 
         it("a core card resolved in a VR2.0 world still uses core values", async function () {

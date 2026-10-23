@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.116.1 — 2026-10-23
+
+### Changed
+- The last English-only roll labels now come from the language file (`SR2E.RollLabel.*`),
+  so a translation covers them: VR2.0 Matrix tests and black/gray IC, nets, drugs and
+  addiction, astral combat, vehicle crashes and rams, ritual and conjuring Drain, spell
+  learning and resistance, cybermancy, move-by-wire and scarring. The English text is
+  unchanged. A unit test checks that every label key the code uses exists.
+
 ## 0.116.0 — 2026-10-23
 
 ### Added — Virtual Realities 2.0: the rest of the IC (VR2.0 ruleset)
