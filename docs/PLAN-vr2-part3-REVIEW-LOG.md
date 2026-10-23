@@ -228,3 +228,65 @@ VERDICT: REVISE
 ### Claude response (round 5)
 All 6 accepted (no disagreement): matrixMode derived from the connection log for VR2 deckers (entry/exit write only records; no projection races); entry is the conn-open record, sessions lazy, jackpoint record reconciled; every admitted attack recorded pending before damage, in the exit barrier; trace completion persisted with the completing tick; locking ICs captured in exit-open with an explicit cancel rule; distinct attempt keys for gates and redirects; chipGen captured at request time.
 MAX_ROUNDS reached without an APPROVED verdict; round-5 fixes applied but not re-reviewed.
+
+## Round 6 — Codex (extra round, user request)
+Four material issues remain:
+
+1. **Lazy sessions can inherit a previous connection’s state (§0).** `sessionFor` returns an existing session when its host matches; `_applyIconState` applies any stored session’s damage without checking connection identity. If exit cleanup is interrupted, reconnecting to the same host inherits tally, suppression, and icon damage.  
+   **Fix:** Store the connection number on every host session and require it to match in `liveSession`, `sessionFor`, tally application, and persona derivation; make cleanup optional housekeeping.
+
+2. **Existing jackpoint reconciliation cannot reconstruct missing entry state (§0).** `scheduleReconcile` only reconciles existing browser/shared session records; it does not recreate a missing `matrixSessions` entry. `sessionHost` depends on that entry. An interruption after `conn-open` can therefore leave a connected character without the jackpoint host, scene transition, or trace modifier.  
+   **Fix:** Include jackpoint, origin token, destination scene, and initiating user in `conn-open`, then explicitly reconstruct or derive jackpoint state from it.
+
+3. **`completes: true` can be committed from a stale fold (§5).** The GM computes that the next tick completes a trace; a player’s successful spoof reaches the server before that tick but has not reached the GM’s client. The tick nevertheless permanently records completion, although the specified ordering makes the spoof valid. Persisting the calculation does not make its inputs current.  
+   **Fix:** Serialize accepted spoof/freeze commands and tick creation through the GM’s trace queue, with an explicit turn-closing boundary.
+
+4. **The pending-attack barrier has no admission cutoff (§3–3a).** A client can observe no pending attacks and submit `conn-end` while another submits a new `vr2:attack` for that connection; their different IDs allow both. Recording attacks before damage protects already-visible attacks, not concurrent admission.  
+   **Fix:** Close ordinary attack admission when exit begins, permit only explicitly requested final attacks afterward, and enforce that boundary through one serialized admission/completion path.
+
+The document also retains conflicting instructions: §0 says `matrixMode` is never written, but §3a still clears it and invokes a removed projection rule; §3 requires waiting for every admitted attack, but §3a’s barrier still lists only black hits and gray consequences. Consolidate those passages before implementation.
+
+VERDICT: REVISE
+### Claude response (round 6)
+All 4 accepted, plus the two contradictions removed. Principle added: records hold facts, never conclusions; order-dependent results are derived from server-ordered history. Sessions carry the connection number; conn-open carries the jackpoint/entry data and the jackpoint entry is rebuilt from it; trace completion derived (IC crash is a durable record, ordered); attack admission = created before exit-open or a listed lastAttack; conn-end attempts, the first valid one counts.
+
+## Round 7 — Codex (extra round)
+The session and jackpoint changes address those earlier findings. The history-based design still has three material gaps:
+
+1. **A deterministic fold is not proof that a client has complete history (§0, §5).** The GM can receive a tick before an earlier spoof, derive completion, and fire the trap. When the spoof arrives, the fold corrects itself, but the trap has already fired. Also, equal-time records sorted by key can arrive later yet sort earlier, contradicting “later records can’t change it.”  
+   **Fix:** Gate irreversible consequences on an explicitly finalized input set—simplest here: route trace commands and turn closure through the single GM-client queue.
+
+2. **Historical exit validity cannot be reconstructed from the proposed receipts (§3a).** The fold must determine whether every application had finished *before* an end candidate, but monitor applications leave mutable flags, not ordered application records. A receipt appearing later cannot establish when an earlier candidate became valid. The same issue affects historical dead/unconscious state.  
+   **Fix:** Publish durable application acknowledgements after successful receipted writes, carrying their outcomes, and require those acknowledgements to precede an accepted end candidate.
+
+3. **The IC crash record and generation bump are separate writes (§5).** `recordEvent` creates an embedded ActiveEffect; `matrixDamage` updates the actor. Saying the crash record is created “with” the generation bump does not make them atomic. Interruption between them leaves the historical fold and live incarnation disagreeing.  
+   **Fix:** Commit the crash fact and generation change in one actor update, then materialize any event-log copy idempotently from that committed fact.
+
+Add tests that delay delivery of an earlier spoof until after a completion check, introduce an application receipt after a premature end candidate, and interrupt between crash-record creation and generation update.
+
+VERDICT: REVISE
+### Claude response (round 7)
+All 3 accepted. A lifecycle sequencer (one GM-client queue per connection) writes every order-dependent fact (admission, exit, ticks, spoofs, freezes, IC crash application, acks, end) with a seq, and alone draws conclusions; players create request records. Durable application acks (with outcomes) gate the barrier and the end. An IC crash is one actor update (generation + crash flag). Tradeoff recorded: a GM must be online for a part-3 lifecycle.
+
+## Round 8 — Codex (extra round)
+The acknowledgements and atomic crash update address the previous gaps. Two material issues remain:
+
+1. **Per-connection sequencing cannot order shared IC events (§0, §5).** Decker A can crash an IC tracing decker B. A’s crash `seq` and B’s tick `seq` belong to different counters, so they cannot establish whether B’s trace completed first. Separate queues also allow these operations to interleave despite using one GM client.  
+   **Fix:** Use one GM-client lifecycle queue and sequence across all deckers, IC, and hosts—the simplest option for the stated small-world workload.
+
+2. **Corruption and reload are not order-independent (§0, §2).** `corrupt:<programKey>:<source>` and `reload:<programKey>:<n>` have neither shared sequencing nor a generation relationship. The fold cannot distinguish “corrupt, reload, corrupt again” without ordering, and a delayed old corruption can contaminate a freshly reloaded copy.  
+   **Fix:** Give each deck/program identity a reload generation, capture it in the tar request, and apply corruption only to that generation.
+
+Add regressions for one decker destroying another’s tracing IC, and corruption → reload → delayed old corruption → new corruption.
+
+VERDICT: REVISE
+### Claude response (round 8)
+Both accepted: one world-wide GM-client sequencer with a single seq counter (seeded from the highest seq seen); program reload generations captured in tar requests, corruption counts only for its generation.
+
+## Round 9 — Codex (extra round)
+Both remaining blockers are addressed: the world-wide sequence orders shared IC events against every decker’s trace, and reload generations prevent delayed corruption from affecting fresh copies. The regression tests cover both cases.
+
+I found no further material blocker within the documented single-GM-client and manual-recovery limits. The plan is sound enough to implement.
+
+VERDICT: APPROVED
+**Converged: APPROVED in round 9.**

@@ -1,5 +1,5 @@
 # Plan: the Virtual Realities 2.0 Matrix, part 3 — the rest of the IC
-_Round 5 — revised after Codex rounds 1–5 (log: PLAN-vr2-part3-REVIEW-LOG.md). Round 3 replaced mutable connection state with an event log._
+_Final — Codex APPROVED in round 9 (rounds 6–9 were extra rounds at the user's request). Round 3 replaced mutable state with an event log; round 7 added the GM-client sequencer. Log: PLAN-vr2-part3-REVIEW-LOG.md._
 
 ## Goal
 Finish VR2.0's Intrusion Countermeasures chapter (pp.40–53) on top of parts 1–2
@@ -208,27 +208,67 @@ adds records beside them and never stores what it can fold.
   - on the IC or HOST (GM-owned): bomb states, shutdown lifecycles, trap triggers.
 
   Whoever may update that actor creates them: the owner's clients and the GM's.
-- **Ordering (R4 #2):** a TOTAL order: the SERVER-stamped `_stats.createdTime`
-  (`eventsOf` gains it), then the record key. Conflicting transitions never rely on it:
-  terminal states use ONE key (a bomb's end, a trace's completion); paired states key
-  each pair by its cycle (freeze/unfreeze); damage is bound to the chip incarnation it
-  hit (§2). The fold tests shuffle equal-time records.
+- **Ordering (R4 #2, R7 #1):** facts whose order MATTERS are written only by the
+  lifecycle sequencer (below) and carry its `seq`, so they are ordered by `seq`. Every
+  other record is order-independent by construction:
+  - terminal states use ONE key (a bomb's end);
+  - paired states are keyed by their cycle (freeze/unfreeze);
+  - damage is bound to the chip incarnation it hit (§2).
+
+  For display only, those are sorted by the server's `_stats.createdTime` and then the
+  key. The fold tests shuffle them.
 - **Keys:** every record key is hashed by `claimId`, so uuids and compendium source ids
   in keys never become dotted update paths (R3 #9). The raw identities are in the
   payload. Any remaining flag map uses part 2's `keyOf` encoding.
+- **Only the sequencer draws conclusions (R6 #3, #4; R7 #1).** Anything that depends on
+  the order of inputs from different clients is decided in the sequencer's queue, which
+  wrote every such input itself: a trace's completion, whether a spoof counted, whether
+  an attack was admitted, whether a connection may end. No other client writes a
+  conclusion from a view that may be stale.
 - **Random outcomes are rolled first and stored in the record that commits them**
   (Phase 4's pattern). The losing client of a race discards its roll. Effects are
   derived from the record, so a retry never rerolls (R3 #7).
-- **Effects on monitors and IC are applied ONLY by the active GM's client (R4 #1):**
-  condition monitors (meat and persona), an IC's crash and generation. There, one
-  `commitDamage`/`matrixDamage` queue per target serializes them, and each carries its
-  receipt in the same update (`extra`/`skipIf`) under a `once(target,
+- **Effects on monitors and IC are applied ONLY by the active GM's client (R4 #1), inside
+  the sequencer:** condition monitors (meat and persona), an IC's crash and generation.
+  Each carries its receipt in the same update (`extra`/`skipIf`) under a `once(target,
   "<recordKey>:apply")` claim, as with move-by-wire's seizure damage.
+  - **An IC crash is ONE actor update (R7 #3):** the generation +1 and
+    `flags.sr2e.vr2Crashes.<gen> = { seq, card }` together. The fold reads that flag
+    (committed atomically with the bump), never a separate effect record.
   - Players' clients only create records. With no GM online, applications wait and are
     listed as pending on the sheet.
   - (Two tabs of the GM user are part of the documented same-user limit.)
-- **No "designated writer" (R3 #2).** Any authorized client may create a record or claim
-  an application. The server's duplicate-id rejection makes it exactly one.
+- **The lifecycle sequencer (R7 #1, #2; R8 #1): ONE GM-client queue for the whole world,
+  `enqueueAttack("vr2gm")`, on the active GM's client, writes every fact
+  whose ORDER matters and every conclusion drawn from them:**
+  - attack admission, exit opening, gate results, Relocate/freeze/unfreeze admission;
+  - trace ticks and completion, IC crash application;
+  - application acknowledgements, and the connection's end.
+
+  Players' clients create REQUEST records (`vr2:req:<kind>:<id>`, rolls included);
+  the sequencer admits or refuses each in arrival order.
+  - Because it wrote every input it reasons about, its view is complete. It may record
+    conclusions (`completes`, `admitted`, `valid end`) and fire irreversible
+    consequences (a trap, a response-times card) safely.
+  - Each fact it writes carries `seq`, from ONE world-wide counter, so facts about
+    different deckers, IC and hosts are mutually ordered: decker A crashing the IC
+    that traces decker B is ordered against B's ticks (R8 #1). The counter is seeded,
+    when the queue first runs on a GM client, from the highest `seq` in the records it
+    can see (the world's characters, IC and hosts), and incremented in the queue.
+  - The fold orders sequencer facts by `seq`, never by timestamps. The world is small (one
+    GM, a few deckers), so one queue costs nothing.
+  - The cost: with no GM online, requests wait (listed on the sheet) and exits stay
+    pending until a GM connects. Entry (`conn-open`) is still the player's own record.
+  - Rolls stay in the request records (never rerolled). A refused request's card says
+    why ("the turn had already closed", "the decker is leaving").
+- **Application acknowledgements (R7 #2):** after a receipted write (damage, a monitor,
+  an IC), the sequencer records `vr2:ack:<recordKey>` = `{ seq, outcome }`. The outcome
+  includes boxes landed, dead/unconscious and a crash.
+  - The barrier and the end read ACKS, never mutable flags.
+  - On resume, a receipt present without its ack is acknowledged from the receipt
+    (which carries the outcome).
+- **Any authorized client** may still create non-ordered records (a request, a deck
+  history entry). The server's duplicate-id rejection makes each exactly one.
 - **The documented limit (R3 #1):** a client that wins an apply claim and dies before
   writing leaves the record (the outcome is safe) and a claim. After `STUCK_MS` the
   sheet shows "Apply anyway" (GM), the same manual recovery as doses and seizures
@@ -250,11 +290,21 @@ adds records beside them and never stores what it can fold.
     switch off a newer connection. The stored field keeps serving the core ruleset.
     Every VR2 path that sets `matrixMode` (the sheet toggle, `jackIn`, dump shock)
     records instead.
-  - **Entry is the `conn-open` record alone.** Part 1's session is created lazily by the
-    first action that needs it (`sessionFor` already adopts a host). The jackpoint's
-    per-client session record is reconciled by its existing `scheduleReconcile`.
-    Neither can be "half set up", because neither is a precondition of being
-    connected.
+  - **Entry is the `conn-open` record alone.** Its payload carries everything entry
+    needs (R6 #2): the jackpoint behaviour uuid, the origin token and scene, the
+    destination scene and the initiating user.
+    - Under part 3, `sessionHost` and the trace modifier read the jackpoint from the
+      LIVE connection's open record, not from `matrixSessions`.
+    - The jackpoint module's per-client view and scene transition are rebuilt from it
+      by a new reconcile step: if a live connection names a jackpoint and this
+      client's user initiated it, but no `matrixSessions` entry exists, recreate the
+      entry.
+  - **Host sessions belong to a connection (R6 #1):** part 1's session record gains
+    `conn: n`. `liveSession`, `sessionFor`, tally application and `_applyIconState` treat
+    a session whose `conn` isn't the live connection as absent. A reconnect never
+    inherits tally, suppressions or icon damage, and cleaning up old sessions is only
+    housekeeping. Sessions are still created lazily by the first action that needs
+    one.
   - A host change starts a part-2 session but never touches the connection.
 - **The deck is fixed per connection (R3 #6):** activating another deck (gear or C2) is
   refused while `matrixMode` is on. Every consequence uses the connection's snapshot,
@@ -299,10 +349,17 @@ adds records beside them and never stores what it can fold.
     iff a record exists for its CURRENT loadGen. A late strike on an older copy is
     harmless. Part 2's `crashed` boolean stays readable (OR-ed in) until it's next
     cleared;
-  - `vr2:corrupt:<programKey>:<source>` and `vr2:reload:<programKey>:<n>` on the deck
-    (R2 #8): `programKey` = the compendium source id, else the name slug. Every program
-    with that key is unusable while that deck is active. "Reload from storage"
-    (owner/GM, only OUT of the Matrix) records a reload, a declared simplification.
+  - `vr2:reload:<programKey>:<g>` and `vr2:corrupt:<programKey>:<g>:<source>` on the deck
+    (R2 #8, R8 #2): `programKey` = the compendium source id, else the name slug.
+    - The program's RELOAD GENERATION g = the number of reload records for that key.
+    - A tar request captures g when it's made; its corruption is recorded with that g
+      and counts only while the current generation is still g. A delayed old corruption
+      can't touch a freshly reloaded copy; "corrupt, reload, corrupt again" are
+      generations 0 and 1.
+    - Every program with a corrupted key at the current generation is unusable while
+      that deck is active.
+    - "Reload from storage" (owner/GM, only OUT of the Matrix) records reload g + 1, a
+      declared simplification.
   - A manual-fallback decker (no deck item) keeps the same records on the actor, under
     the prefix `vr2:manual-deck:`.
 - **Derivation (R1 #6, R4 #10):** effective MPCP = max(0, mpcp − Σ current-incarnation
@@ -382,21 +439,23 @@ adds records beside them and never stores what it can fold.
   - RESOLVED: its result record `vr2:exit-res:<n>:<step>:<ref>` exists, carrying any
     rolled values;
   - APPLIED: its effect's receipt exists (damage, a card's consequence id).
-- **The barrier:** the exit completes only when:
-  - every step is applied; and
-  - every `vr2:hit` on this connection is resolved, both resistances included (R3 #4);
-    and
-  - every gray consequence recorded by a resolution on this connection is applied
-    (R3 #5).
+- **Attack admission (R6 #4, R7):** an attack is a request. The sequencer admits it
+  (`vr2:admit:<card>` with `seq`) unless the exit is already open; a listed
+  `lastAttack` is admitted after it. Any other attack is refused, and the card says "the
+  decker is leaving".
+- **The barrier (one list):** the exit is complete when every derived step is APPLIED and
+  every ADMITTED attack of connection n is resolved. In both cases that means ACKED
+  (R7 #2): both black resistances, part 2's resolution, and every gray/ripper
+  consequence it recorded.
 - **Gray consequences (R3 #5):** when blaster or sparky crashes the persona, the
   resolution creates `vr2:gray:<card>` (the request, with the deck reference and the
   chip incarnations at that moment, so the damage it materializes is bound to them)
   BEFORE opening the dump exit. It is resolved from that record, needing no live
   connection.
-- **Completion:** when the barrier holds, any client creates `vr2:conn-end:<n>` (one
-  admitted), then (in `matrixQueue`) part 1's session close and `matrixMode` false; the
-  projection rule (§0) repairs an interruption between the two. The old immediate `vr2LeaveMatrix` crash path
-  becomes "open the exit". Dump shock is the `dumpShock` step: its card is the
+- **Completion:** the sequencer checks the barrier in its queue (complete view) and
+  records `vr2:conn-end:<n>` with `seq`. `matrixMode` follows from the fold (§0); nothing
+  else is written. The old immediate
+  `vr2LeaveMatrix` crash path becomes "open the exit". Dump shock is the `dumpShock` step: its card is the
   application, with consequence id `exit:<n>:dump`, posted once by a claim.
 - **The steps, in order:**
   1. `lastAttack`: the GM makes the IC's last attack against this connection (the card
@@ -453,7 +512,8 @@ adds records beside them and never stores what it can fold.
     - `vr2:crash:<programId>:<ref.loadGen>:tar-<card>`, only ever about that copy;
     - the IC's crash (GM; generation +1, no tally; claimed, receipted on the IC);
     - for tar pit, its MPCP roll is part of the same record, and any success adds
-      `vr2:corrupt:<programKey>:tar-<card>` on the connection's deck.
+      `vr2:corrupt:<programKey>:<g>:tar-<card>` on the connection's deck, with the
+      reload generation g captured in the tar request.
   - The utility wins: a GM-whispered Sensor test.
 
 ### 5. Trace and trap (R1 #3, #11, #12; R2 #9, #10; R3 #8)
@@ -470,39 +530,37 @@ adds records beside them and never stores what it can fold.
   - `clock` is FIXED here: `{ combatId, startRound }` if a combat is active, else
     `{ manual: true }`.
   - Several traces coexist.
-  - **Completion is persisted WITH the completing tick (R4 #7, R5 #4):** the active GM
-    computes the fold when creating each tick, and the tick that brings a trace to 0
-    carries `completes: true`. A 0-turn location cycle completes in the
-    `vr2:trace:<n>:<icKey>` record itself (`completes: true`). Completion is therefore
-    immutable history. A later crash of the IC stops only traces whose completion isn't
-    already recorded.
-- **Ticks (R2 #10):** `vr2:tick:<n>:<icKey>:<boundary>`, where `boundary` = the
-  combat round that ended, or `m<n>` on the manual clock.
-  - The active GM records one per round crossed (a jump of three rounds is three
+  - **Completion is the sequencer's (R7 #1):** it writes the ticks, the admitted spoofs,
+    freezes and unfreezes, and the IC's crash application, all in `seq` order. When a
+    tick brings a trace to 0 (and the IC hasn't crashed earlier in `seq`), that tick
+    carries `completes: true`, now safe because no input can be unseen. A 0-turn cycle
+    completes at its trace record. Consequences (the trap, the response-times card)
+    fire only after the completing fact is written.
+- **Ticks (R2 #10):** `vr2:tick:<n>:<icKey>:<boundary>` (with `seq`), where `boundary` =
+  the combat round that ended, or `m<n>` on the manual clock.
+  - The sequencer records one per round crossed (a jump of three rounds is three
     ticks).
   - A deleted combat, or time with no GM, is caught up by "Advance N turns" (manual
     ticks). Switching to the manual clock is a recorded GM choice and never re-counts a
     round.
 - **Relocate (R3 #8):** a Simple Action Control Test (Computer vs rating − Relocate). The
   host's opposing roll is a part-2 tally event.
-  - On success it records `vr2:spoof:<n>:<icKey>:<boundary>`, where `boundary` = the
-    end of the current turn: the first boundary with no tick yet.
-  - The fold counts a spoof only if its `createdTime` precedes that boundary's tick. A
-    Relocate that loses the race to its own turn's end is wasted, and the card says so
-    (the book's action had to happen within the turn).
-- **The fold:** turns left = turns − (ticks not covered by a valid spoof or a freeze).
-  0 → complete. Because ticks and spoofs are ordered by the server, completion can't be
-  undone by a late spoof.
-- **"Keep it frozen" (R2 #9, R4 #6):** offered right after a SUCCESSFUL Relocate. It
-  records `vr2:freeze:<spoofKey>`, keyed by THAT Relocate's spoof record, so each
-  freeze cycle has its own key. `vr2:unfreeze:<spoofKey>` releases it with no tally. A
-  later Relocate can freeze again.
+  - On success it creates a Relocate REQUEST (roll included). The sequencer admits it as
+    `vr2:spoof:<n>:<icKey>:<boundary>` for the turn still open in its queue. If that
+    turn has already closed (its tick written), the request is refused and the card
+    says so: the book's action had to happen within the turn.
+- **The fold:** turns left = turns − (ticks not covered by an admitted spoof or a
+  freeze), in `seq` order.
+- **"Keep it frozen" (R2 #9, R4 #6):** offered right after a SUCCESSFUL Relocate. It is a
+  request; the sequencer admits it as `vr2:freeze:<spoofKey>`, keyed by THAT Relocate's
+  spoof record, so each freeze cycle has its own key. `vr2:unfreeze:<spoofKey>` (also
+  admitted) releases it with no tally. A later Relocate can freeze again.
   - `vr2DetectionFactor` subtracts one per frozen trace on the CONNECTION, beside part
     2's per-session suppressions.
   - A freeze's tick doesn't count.
 - **A crashed trace IC** ends its trace in the fold, and the normal crash tally choice
   applies.
-- **Completion** is derived. Its consequences are claimed once each:
+- **Completion's consequences** (once derived) are claimed once each:
   - the GM card with the Security Asset Response Times row;
   - the trap trigger (`vr2:trap:<icKey>` on the IC);
   - `traced` effects read live from the fold: −1 TN on proactive IC attacks against that
@@ -595,6 +653,27 @@ adds records beside them and never stores what it can fold.
   - shutdown;
   - psychotropic recovery;
   - core ruleset inert.
+- **Quench, the round-8 regressions:**
+  - decker A crashes the IC tracing decker B; B's trace completes iff its completing
+    tick precedes the crash in `seq`;
+  - corrupt → reload → a delayed old corruption → a new corruption: only the new one
+    counts.
+- **Quench, the round-7 regressions:**
+  - a Relocate request reaching the GM after its turn's tick is refused, and one before
+    it counts (no trap fired early);
+  - a receipt written but its ack interrupted: the ack is created on resume, and the end
+    waits for it;
+  - an IC crash's generation and crash flag land in one update (interrupting is
+    impossible by construction; the test asserts the single update);
+  - with no GM online, an exit request waits and completes when a GM connects.
+- **Quench, the round-6 regressions:**
+  - an interrupted exit, then a reconnect to the same host: no inherited tally,
+    suppressions or icon damage;
+  - a connected decker whose `matrixSessions` entry is lost gets it rebuilt from
+    `conn-open`;
+  - an attack created after `exit-open` is refused;
+- **Vitest:** the fold over sequencer facts in `seq` order, and its refusal of
+  requests against a closed turn or an open exit.
 - **Quench, the round-5 regressions:**
   - a delayed clear can't disconnect a newer connection (matrixMode derived);
   - a gray crash during an open exit is waited on;
@@ -649,7 +728,11 @@ adds records beside them and never stores what it can fold.
   model.
 - **An event log with server-arbitrated keys** (Phases 4/6) rather than mutable state
   with a designated writer. Rolls live in the records that commit them; effects are
-  claimed and receipted; ordering is the server's `createdTime`.
+  claimed, receipted and acknowledged. Order-dependent facts come from one world-wide
+  GM-client sequencer (`seq`).
+- **A GM must be online for a VR2 decker's lifecycle under part 3.** Requests wait
+  (listed on the sheet), and exits stay pending until a GM connects. Accepted because
+  every IC in this part is GM-run anyway.
 - **The stuck-claim limit is accepted and surfaced** ("Apply anyway"), as for doses and
   seizures.
 - **One deck per connection:** swapping decks while connected is refused.
