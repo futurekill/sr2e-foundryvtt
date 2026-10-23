@@ -101,7 +101,7 @@
       "_id": "07be82e778ef3c10",
       "name": "Know Neighborhood",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/know-neighborhood.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -141,7 +141,7 @@
       "_id": "5c09bb12fb80baba",
       "name": "Scrounge",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/scrounge.webp",
       "effects": [],
       "flags": {},
       "_stats": {

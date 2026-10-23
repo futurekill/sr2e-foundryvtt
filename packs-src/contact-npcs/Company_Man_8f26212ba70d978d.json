@@ -221,7 +221,7 @@
       "_id": "45371416255ec46f",
       "name": "Vehicle (Gamemaster's discretion for type)",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/vehicle-gamemasters-discretion-for-type.webp",
       "effects": [],
       "flags": {},
       "_stats": {

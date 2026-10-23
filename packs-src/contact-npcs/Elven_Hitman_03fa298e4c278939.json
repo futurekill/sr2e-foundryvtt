@@ -301,7 +301,7 @@
       "_id": "67b7f0d3fad64789",
       "name": "Hovercraft",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/hovercraft.webp",
       "effects": [],
       "flags": {},
       "_stats": {

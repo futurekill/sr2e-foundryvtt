@@ -785,7 +785,7 @@
       "_id": "0cdba143f331e02d",
       "name": "Fuchi Cyber-6 (Glitch's deck)",
       "type": "gear",
-      "img": "icons/commodities/tech/console-green.webp",
+      "img": "systems/sr2e/assets/item_icons/gear/cyberdeck-fuchi-cyber-6.webp",
       "system": {
         "category": "cyberdeck",
         "quantity": 1,

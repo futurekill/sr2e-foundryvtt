@@ -421,7 +421,7 @@
       "_id": "11b35d8d1b45d56b",
       "name": "Tracking",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/tracking.webp",
       "effects": [],
       "flags": {},
       "_stats": {

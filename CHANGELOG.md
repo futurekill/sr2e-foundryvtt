@@ -9,9 +9,9 @@
   the cyber forearm, lower leg, hand and foot. Copies already in a world are untouched.
 
 ### Changed
-- Nine of the sample contacts' bespoke knowledge skills (Aircraft and Ground Vehicles
-  B/R, Biological Sciences, Corporate Rumormill, Data Tracing, Equipment Acquisition, the
-  two Evaluate skills, History) have their own icons instead of the placeholder book.
+- The sample contacts' 20 bespoke knowledge skills (Aircraft and Ground Vehicles B/R,
+  Psychology, Tracking, Rumormill, Woodworking and the rest) and Glitch's Fuchi Cyber-6
+  deck have their own icons. No compendium item uses placeholder art any more.
 
 ### Fixed
 - `game.sr2e.cleanupQuench()` never removed chat cards (they have no name). It now sweeps

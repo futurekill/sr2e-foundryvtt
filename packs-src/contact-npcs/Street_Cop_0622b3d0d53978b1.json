@@ -261,7 +261,7 @@
       "_id": "1d04e390350b2cc7",
       "name": "Police Procedures",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/police-procedures.webp",
       "effects": [],
       "flags": {},
       "_stats": {

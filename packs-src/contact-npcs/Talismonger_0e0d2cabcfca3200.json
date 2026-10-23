@@ -267,7 +267,7 @@
       "_id": "5e280cf3e61d7d35",
       "name": "Woodworking",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/woodworking.webp",
       "effects": [],
       "flags": {},
       "_stats": {
@@ -307,7 +307,7 @@
       "_id": "29a86e34aa001ac1",
       "name": "Metalworking",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/metalworking.webp",
       "effects": [],
       "flags": {},
       "_stats": {

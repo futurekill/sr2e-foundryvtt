@@ -261,7 +261,7 @@
       "_id": "0f6c4cc851c0fd8e",
       "name": "Psychology",
       "type": "skill",
-      "img": "icons/svg/book.svg",
+      "img": "systems/sr2e/assets/item_icons/skills/psychology.webp",
       "effects": [],
       "flags": {},
       "_stats": {
