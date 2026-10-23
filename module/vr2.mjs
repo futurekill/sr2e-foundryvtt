@@ -336,6 +336,7 @@ export function renderSystemTestCard(st) {
  * Factor once, here, and its successes go on the tally whether the decker wins or not.
  */
 export async function vr2SystemTest(actor, host, operation, opts = {}) {
+  if (operation !== "gracefulLogoff") { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   const op = CONFIG.SR2E.vr2SystemOperations[operation];
   if (!op || host?.type !== "host") return ui.notifications.warn("Choose a host and a System Operation.");
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
@@ -520,6 +521,9 @@ export async function vr2MatrixAttack(actor) {
 }
 
 async function attackOnce(actor) {
+  const Y = await import("./vr2ic.mjs");
+  const why = Y.vr2ActionGuard(actor);
+  if (why) return ui.notifications.warn(why);
   const target = firstTarget()?.actor ?? null;
   if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you attack first.");
   if (!["ic", "character"].includes(target.type)) return ui.notifications.warn("Only IC or a decker's persona can be attacked in the Matrix.");
@@ -544,7 +548,9 @@ async function attackOnce(actor) {
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
     if (!actor.system.hostUuid && actor.isOwner) await actor.update({ "system.hostUuid": host.uuid });
-    dice = host.system.securityValue; power = actor.system.rating; level = icDamageLevel(code);
+    dice = host.system.securityValue; level = icDamageLevel(code);
+    // Black IC is +2 while the decker's icon is down (p.48); others use their rating.
+    power = Y.blackKind(actor.system.program) && target.type === "character" ? Y.blackRating(actor, target) : actor.system.rating;
     tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
     const attr = CRIPPLER_ATTRIBUTE[actor.system.program];
     if (attr) {
@@ -596,9 +602,17 @@ async function attackOnce(actor) {
     targetUuid: target.uuid, targetName: target.name, targetSession: sessionKey(target), attackerSession: sessionKey(actor),
     targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
     ...hostSnap(host), status: o.status, power, level, ...effect,
-    successes: res.successes, testMessageId: res.testMessageId, resolved: false };
-  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
+    successes: res.successes, testMessageId: res.testMessageId, resolved: false,
+    icKey: isIC ? Y.icKeyOf(actor) : "", targetConn: target.system?.vr2Conn?.n ?? null };
+  const card = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
     flags: { sr2e: { matrix: state } } });
+  // Part 3: an IC's attack on a decker on the connection log is ADMITTED by the sequencer
+  // (refused while the decker is leaving, unless it's a locking IC's last attack; plan §3a).
+  if (isIC && state.targetConn != null) {
+    const exit = Y.foldOf(target).live?.exit;
+    await Y.request(target, "attack", { card: card.id, icKey: state.icKey, cls: state.icClass || state.icType, program: state.program,
+      lastAttack: !!exit && (exit.locks ?? []).includes(state.icKey) });
+  }
   return res;
 }
 
@@ -616,7 +630,7 @@ async function spendAttackState(actor, ms, usedBuild) {
 }
 
 /** Fill Matrix boxes in a per-actor queue that re-reads the live value. A crash is the crossing (§2). */
-function matrixDamage(actor, boxes) {
+export function matrixDamage(actor, boxes) {
   return enqueueAttack(`matrixmon:${actor.uuid}`, async () => {
     const path = actor.type === "ic" ? "system.conditionMonitor.value" : "system.matrixPersona.condition.value";
     const before = foundry.utils.getProperty(actor, path) ?? 0;
@@ -669,6 +683,8 @@ export async function vr2MatrixResist(defender, message) {
     const liveAtk = () => { const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : (st.successes ?? 0); };
     if (liveAtk() <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
     if (st.effect === "attribute") return await resistAttribute(defender, message, st, liveAtk);
+    // Part 3: a decker on the connection log resolves through the sequencer (plan §0, §3).
+    if (defender.type === "character" && st.targetConn != null && defender.system.vr2Conn) return await resistOnLog(defender, message, st, liveAtk);
     // A persona hit belongs to the connection it hit: a reconnect doesn't take it.
     const sameSession = () => defender.type !== "character" || !st.targetSession || liveSession(defender)?.id === st.targetSession;
     if (!sameSession()) return ui.notifications.warn("That attack hit an earlier session.");
@@ -766,6 +782,77 @@ export async function vr2MatrixResist(defender, message) {
 }
 
 /**
+ * Part 3: the defender ROLLS (Shield, resistance, simsense overload); the sequencer APPLIES.
+ * Black IC: the attack is frozen first, then the icon and the meat resist separately.
+ */
+async function resistOnLog(defender, message, st, liveAtk) {
+  const Y = await import("./vr2ic.mjs");
+  if (defender.system.vr2Conn?.n !== st.targetConn) return ui.notifications.warn("That attack hit an earlier connection.");
+  const settle = async (pred, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await new Promise(r => setTimeout(r, 100)); } return false; };
+  const recs = () => Y.recordsOf(defender);
+  if (!await settle(() => recs().some(e => e.type === "admit" && e.card === message.id), 4000)) {
+    return ui.notifications.warn("That attack isn't admitted yet (a GM must be online), or was refused.");
+  }
+  if (Y.blackKind(st.program)) {
+    if (!recs().some(e => e.type === "hit" && e.card === message.id)) await Y.request(defender, "black", { card: message.id, conn: st.targetConn });
+    if (!await settle(() => recs().some(e => e.type === "hit" && e.card === message.id))) return ui.notifications.warn("Waiting for the GM to freeze the black IC's attack.");
+    const hit = recs().find(e => e.type === "hit" && e.card === message.id);
+    const { recordEvent } = await import("./claims.mjs");
+    const has = (side) => recs().some(e => e.type === "res" && e.card === message.id && e.side === side);
+    if (!has("icon")) {
+      const armor = bestUtility(defender, "armor"), ref = useRef(armor);
+      const tn = Math.max(2, hit.rating - (ref?.rating ?? 0));
+      const r = await defender.rollSuccessTest(Math.max(0, defender.system.matrixPersona?.bod ?? 0), tn, {
+        label: `Resist black IC — icon Bod${ref ? `, ${ref.name}` : ""} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+      if (!r) return;
+      await recordEvent(defender, `vr2:res:${message.id}:icon`, { type: "res", card: message.id, side: "icon", successes: r.successes, tn });
+      if (ref) await addWear(defender, ref, message.id);
+    }
+    if (!has("meat")) {
+      const willpower = hit.kind !== "lethal";
+      const tn = Math.max(2, hit.rating - (hit.hardening ?? 0));
+      const dice = willpower ? (defender.system.willpower?.value ?? 0) : (defender.system.body?.value ?? 0);
+      // Karma Pool yes, Hacking Pool no (p.48): an ordinary resistance test, no pools offered.
+      const r = await defender.rollSuccessTest(Math.max(0, dice), tn, {
+        label: `Resist black IC — ${willpower ? "Willpower" : "Body"} (TN ${tn}, Hardening off the Power)`, isResistance: true, tnContext: { kind: "other" } });
+      if (!r) return;
+      await recordEvent(defender, `vr2:res:${message.id}:meat`, { type: "res", card: message.id, side: "meat", successes: r.successes, tn, testMessageId: r.testMessageId });
+    }
+    return;
+  }
+  // Non-black: Shield, resistance and overload rolled here; one apply request.
+  let dice, tn, what, armorRef = null;
+  armorRef = useRef(bestUtility(defender, "armor"));
+  dice = defender.system.matrixPersona?.bod ?? 0; tn = Math.max(2, st.power - (armorRef?.rating ?? 0));
+  what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
+  const shield = await askShield(defender, st);
+  const res = await defender.rollSuccessTest(Math.max(0, dice), tn, {
+    label: `Resist Matrix damage — ${what} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+  if (!res) return;
+  const atkS = Math.max(0, liveAtk() - (shield?.successes ?? 0));
+  const out = matrixCombatOutcome(st.level, atkS, res.successes);
+  const lines = [];
+  if (shield) { lines.push(`Shield: −${shield.successes} attack success${shield.successes === 1 ? "" : "es"}.`); await addWear(defender, shield.ref, message.id); }
+  let overloadStun = 0, overloadCrash = false;
+  const cls = st.icClass || st.icType, deck = defender.system.cyberdeck ?? {};
+  if (out.level && armorRef) { await addWear(defender, armorRef, message.id); lines.push(`${armorRef.name} loses a point.`); }
+  if (out.level && ["white", "gray"].includes(cls) && (deck.deckMode ?? "hot") === "hot") {
+    if (out.level === "D") { overloadCrash = true; lines.push("Deadly damage from white or gray IC on a hot deck: simsense overload crashes the persona (VR2.0 p.124)."); }
+    else {
+      const otn = Math.max(2, simsenseOverloadTN(out.level) + (deck.dniOnly ? 2 : 0) - (deck.iccm ? 2 : 0));
+      const ov = await defender.rollSuccessTest(Math.max(0, defender.system.willpower?.value ?? 0), otn, {
+        label: `Simsense overload — Willpower (TN ${otn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
+      if ((ov?.successes ?? 0) > 0) lines.push("The decker shrugs off the simsense overload.");
+      else { overloadStun = 1; lines.push("Simsense overload: 1 box of Stun (VR2.0 p.124)."); }
+    }
+  }
+  lines.unshift(`${plural(atkS, "attack success")} vs ${plural(res.successes, "resistance success")}.`);
+  await Y.request(defender, "apply", { card: message.id, conn: st.targetConn, boxes: out.boxes, level: out.level,
+    overloadStun, overloadCrash, program: st.program, rating: st.power, lines });
+  return res;
+}
+
+/**
  * An attribute attack (crippler p.41; poison/restrict/reveal p.98–99): the persona tests
  * the attribute against the program's rating; 1 point per 2 net successes, as it actually
  * lands, committed once per card in the defender's session (PLAN-vr2-part2 §5, §9).
@@ -838,6 +925,7 @@ export function renderManeuverCard(st) {
 
 /** Perform a combat maneuver (a Simple Action) against the targeted icon. */
 export async function vr2Maneuver(actor) {
+  { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   const target = firstTarget()?.actor ?? null;
   if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you maneuver against first.");
   if (!["ic", "character"].includes(target.type)) return ui.notifications.warn("Only IC or a decker's persona can maneuver.");
@@ -980,6 +1068,7 @@ export function vr2Redetect(actor) {
 
 /** Build a one-shot attack program from Evasion and Bod points (a Simple Action). */
 export async function vr2BuildImprovised(actor) {
+  { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   const s = liveSession(actor);
   if (!s) return ui.notifications.warn(`${actor.name} isn't jacked in.`);
   if (s.improvised) return ui.notifications.warn("An improvised attack is already built: use it first (it's a one-shot).");
@@ -1033,6 +1122,7 @@ export async function vr2BuildImprovised(actor) {
 
 /** Medic (a Complex Action): rating dice against 4/5/6 by the icon's wound level; a box per success. */
 export async function vr2Medic(actor, item) {
+  { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   if (!/^medic/i.test(item?.name ?? "")) return ui.notifications.warn("That isn't a Medic utility.");
   if (!usablePrograms(actor).includes(item)) return ui.notifications.warn(`${item.name} isn't usable: load it, or Swap Memory a fresh copy.`);
   const boxes = actor.system.matrixPersona?.condition?.value ?? 0;
@@ -1058,6 +1148,7 @@ export async function vr2Medic(actor, item) {
 
 /** Swap Memory: reload a fresh copy (worn utilities back to full; a crashed one runs again). */
 export async function vr2SwapMemory(actor, item) {
+  { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   if (!item || item.type !== "program") return;
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   await enqueueAttack(`program:${item.uuid}`, () => item.update({ "system.loadGen": (item.system.loadGen ?? 0) + 1, "system.crashed": false }));
@@ -1088,8 +1179,32 @@ export async function vr2Ready() {
 
 /** Part 3: a crash or a voluntary exit as a request; Graceful Logoff is its real System Test. */
 async function leaveOnLog(actor, crash) {
-  const { requestExit } = await import("./vr2ic.mjs");
+  const Y = await import("./vr2ic.mjs");
+  const { requestExit } = Y;
   if (crash) return requestExit(actor, { trigger: "dump" });
+  // Black IC's grip (p.48): a Complex Action and Willpower (rating) to get out, and it makes one
+  // more attack before the link drops; pulling the plug skips the test but not that attack.
+  const f = Y.foldOf(actor);
+  if (f.live?.exit) return ui.notifications.info(`${actor.name} is already jacking out.`);
+  if (f.live?.locks.length) {
+    const ics = f.live.locks.map(h => sync(h.icKey.slice(0, h.icKey.lastIndexOf("#")))).filter(Boolean);
+    const rating = Math.max(...ics.map(ic => Y.blackRating(ic, actor)), 0);
+    const choice = await foundry.applications.api.DialogV2.wait({ window: { title: `Jack out — ${actor.name}` }, rejectClose: false,
+      content: `<p>Black IC (${ics.map(i => esc(i.name)).join(", ")}) has its hooks in ${esc(actor.name)}'s ASIST interface (VR2.0 p.48).
+        Jacking out is a Complex Action and a <strong>Willpower (${rating})</strong> test; on a success the IC makes one more attack before the link drops.
+        Pulling the plug (a companion, or an ICCM monitor) needs no test, but the IC still gets that attack.</p>`,
+      buttons: [{ action: "test", label: `Willpower (${rating})`, default: true }, { action: "plug", label: "Pull the plug" }, { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+    if (choice === "plug") return requestExit(actor, { trigger: "plug" });
+    if (choice !== "test") return;
+    const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, rating, { label: `Jack out against black IC — Willpower (${rating})`, tnContext: { kind: "other" } });
+    if (!r) return;
+    const { recordEvent } = await import("./claims.mjs");
+    const attempt = Y.recordsOf(actor).filter(e => e.type === "gate" && e.n === f.liveN).length + 1;
+    const key = `vr2:gate:${f.liveN}:${attempt}`;
+    await recordEvent(actor, key, { type: "gate", n: f.liveN, success: r.successes > 0, successes: r.successes });
+    if (r.successes <= 0) return ui.notifications.info(`${actor.name} can't break free this time.`);
+    return requestExit(actor, { trigger: "gate", gateKey: key });
+  }
   const known = sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor);
   const pick = await promptLeave(actor, known);
   if (!pick) return;

@@ -11624,6 +11624,111 @@ export function registerSR2EQuenchTests() {
         assert.ok(h);
       });
 
+      const forced = async (u, fn) => { const o = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => u; try { return await fn(); } finally { CONFIG.Dice.randomUniform = o; } };
+      const icA = (name, h, program, rating = 6) => mk({ name, type: "ic", system: { rating, icType: "white", program, hostUuid: h.uuid } });
+      /** An IC's attack card on a connected decker, as part 2 builds it, then its admission request. */
+      const attackCard = async (ic, h, a, { level = "S", faces = 0.2, lastAttack = false } = {}) => {
+        const res = await forced(faces, () => ic.rollSuccessTest(h.system.securityValue, 4, { label: "Quench VIC attack", tnContext: { kind: "other" } }));
+        const st = { ruleset: "vr2", attackerUuid: ic.uuid, attackerName: ic.name, attackerType: "ic", icType: ic.system.icType,
+          icClass: ic.system.icClass, program: ic.system.program, targetUuid: a.uuid, targetName: a.name, targetSession: V.sessionKey(a),
+          attackerSession: V.sessionKey(ic), hostUuid: h.uuid, hostName: h.name, securityCode: h.system.securityCode,
+          securityValue: h.system.securityValue, status: "intruding", power: Y.blackKind(ic.system.program) ? Y.blackRating(ic, a) : ic.system.rating,
+          level, successes: res.successes, testMessageId: res.testMessageId, resolved: false, icKey: Y.icKeyOf(ic), targetConn: a.system.vr2Conn?.n ?? null };
+        const card = await ChatMessage.create({ content: "Quench VIC attack card", flags: { sr2e: { matrix: st } } });
+        await Y.request(a, "attack", { card: card.id, icKey: st.icKey, cls: st.icClass, program: st.program, lastAttack });
+        return card;
+      };
+      const recs = (a, type) => Y.recordsOf(a).filter(e => e.type === type);
+      const cleanup = async () => { for (const m of game.messages.filter(m => /Quench VIC/.test(m.content) || /Quench VIC/.test(m.speaker?.alias ?? ""))) await m.delete(); };
+
+      it("black IC: the attack is frozen (closed to Karma), both resistances land once, and its lock refuses a voluntary exit", async () => {
+        const h = await hostA("Quench VIC Red", "red", 1);              // 1 attack die: the hit stays Serious
+        const ic = await icA("Quench VIC Black", h, "black-lethal", 6);
+        const a = await decker("Quench VIC Victim");
+        await V.vr2EnterMatrix(a);
+        const card = await attackCard(ic, h, a);
+        assert.isTrue(await settle(() => recs(a, "admit").length === 1), "admitted");
+        await forced(0.99, () => V.vr2MatrixResist(a, card));          // all 1s: no resistance successes
+        assert.isTrue(await settle(() => recs(a, "ack").length >= 2), "both applied");
+        const hit = recs(a, "hit")[0];
+        assert.isTrue(game.messages.get(card.flags.sr2e.matrix.testMessageId).flags.sr2e.test.closed, "closed to Karma");
+        const phys = a.system.conditionMonitor.physical.value;
+        assert.isAbove(phys, 0, "meat damage landed");
+        assert.isAbove(a.system.matrixPersona.condition.value, 0, "icon damage landed");
+        await forced(0.99, () => V.vr2MatrixResist(a, card));          // a retry rolls nothing new
+        await wait(600);
+        assert.equal(a.system.conditionMonitor.physical.value, phys, "never twice");
+        assert.equal(Y.foldOf(a).live.locks.length, 1);
+        await Y.requestExit(a, { trigger: "voluntary" });
+        await wait(800);
+        assert.notOk(Y.foldOf(a).live.exit, "the lock refuses a voluntary exit");
+        await Y.requestExit(a, { trigger: "plug" });
+        assert.isTrue(await settle(() => !!Y.foldOf(a).live?.exit), "pulling the plug opens it");
+        assert.deepEqual(Y.foldOf(a).live.steps.map(s => s.step).sort(), ["dumpShock", "lastAttack"].sort());
+        assert.ok(hit);
+        await cleanup();
+      });
+
+      it("the last attack is admitted after the exit opens; another IC's attack isn't; then the connection ends", async () => {
+        const h = await hostA("Quench VIC Red2", "red", 6);
+        const ic = await icA("Quench VIC Black2", h, "black-nonlethal", 4);
+        const killer = await icA("Quench VIC Killer", h, "killer", 4);
+        const a = await decker("Quench VIC Leaver");
+        await a.update({ "system.willpower.base": 6 });
+        await V.vr2EnterMatrix(a);
+        const c1 = await attackCard(ic, h, a);
+        await settle(() => recs(a, "admit").length === 1);
+        await forced(0.2, () => V.vr2MatrixResist(a, c1));          // 5s: shrugged off
+        await settle(() => recs(a, "ack").length >= 2);
+        await Y.requestExit(a, { trigger: "plug" });
+        await settle(() => !!Y.foldOf(a).live?.exit);
+        await attackCard(killer, h, a);
+        const last = await attackCard(ic, h, a, { lastAttack: true });
+        assert.isTrue(await settle(() => recs(a, "admit").some(e => e.card === last.id)), "the last attack is admitted");
+        await wait(500);
+        assert.equal(recs(a, "admit").length, 2, "the killer's attack is refused: the decker is leaving");
+        await forced(0.2, () => V.vr2MatrixResist(a, last));
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 8000), "the barrier holds and the connection ends");
+        await cleanup();
+      });
+
+      it("a black kill: the exit opens by itself, the final MPCP shot lands on the deck, no dump shock; icon down blocks actions", async () => {
+        const h = await hostA("Quench VIC Red3", "red", 8);
+        const ic = await icA("Quench VIC Black3", h, "black-lethal", 10);
+        const a = await decker("Quench VIC Dead");
+        await a.update({ "system.body.base": 1 });
+        const [deck] = await a.createEmbeddedDocuments("Item", [{ name: "Quench VIC Deck", type: "gear", system: { category: "cyberdeck", deck: { active: true, mpcp: 6, hardening: 0 } } }]);
+        await V.vr2EnterMatrix(a);
+        await a.update({ "system.matrixPersona.condition.value": 10 });   // icon already down
+        assert.equal(Y.blackRating(ic, a), 12, "+2 with the icon down");
+        assert.match(Y.vr2ActionGuard(a) ?? "", /icon is down/);
+        const card = await attackCard(ic, h, a, { level: "D" });
+        await settle(() => recs(a, "admit").length === 1);
+        const n0 = game.messages.size;
+        await forced(0.99, () => V.vr2MatrixResist(a, card));
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 10000), "the connection ends after the final shot");
+        const exit = recs(a, "exitOpen")[0];
+        assert.equal(exit.trigger, "black-kill");
+        assert.ok(recs(a, "exitRes").some(e => e.step === "finalShot"));
+        assert.equal(game.messages.contents.slice(n0).filter(m => m.content.includes("dump shock")).length, 0, "no dump shock for the dead");
+        assert.ok(deck);
+        await cleanup();
+      });
+
+      it("a non-black crash on the log: applied by the sequencer once, then a dump exit", async () => {
+        const h = await hostA("Quench VIC Green", "green", 4);
+        const killer = await icA("Quench VIC Killer2", h, "killer", 8);
+        const a = await decker("Quench VIC Dumped");
+        await V.vr2EnterMatrix(a);
+        await a.update({ "system.matrixPersona.condition.value": 9 });
+        const card = await attackCard(killer, h, a, { level: "M" });
+        await settle(() => recs(a, "admit").length === 1);
+        await forced(0.99, () => V.vr2MatrixResist(a, card));
+        assert.isTrue(await settle(() => !a.system.vr2Conn, 10000), "dumped");
+        assert.equal(recs(a, "exitOpen")[0].trigger, "dump");
+        await cleanup();
+      });
+
       it("no deck switch while connected", async () => {
         const a = await decker("Quench VIC Deck");
         const [d1, d2] = await a.createEmbeddedDocuments("Item", [

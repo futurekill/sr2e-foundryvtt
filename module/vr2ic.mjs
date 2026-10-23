@@ -9,8 +9,10 @@
  * admits or refuses them. Monitors and IC are changed only there.
  */
 import { recordEvent, eventsOf, once } from "./claims.mjs";
-import { foldVr2Ic, liveOpen } from "./rules/vr2ic-rules.mjs";
-import { dumpShockDamage, systemTestVerdict } from "./rules/sr2e-rules.mjs";
+import { foldVr2Ic, liveOpen, grayTN, mpcpLoss } from "./rules/vr2ic-rules.mjs";
+import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
+import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
+import { commitDamage } from "./drugs.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 
@@ -108,8 +110,8 @@ function exitHost(actor) {
  * A voluntary exit (the sheet, a jackpoint): a graceful one needs a SUCCESSFUL Graceful
  * Logoff System Test card. Recorded as a request; the sequencer opens the exit.
  */
-export function requestExit(actor, { trigger = "voluntary", gracefulCard = null } = {}) {
-  return request(actor, "exit", { trigger: gracefulCard ? "graceful" : trigger, gracefulCard });
+export function requestExit(actor, { trigger = "voluntary", gracefulCard = null, gateKey = null } = {}) {
+  return request(actor, "exit", { trigger: gracefulCard ? "graceful" : trigger, gracefulCard, gateKey });
 }
 
 const HANDLERS = {
@@ -124,10 +126,162 @@ const HANDLERS = {
       if (!good) return { ok: false, why: "no successful Graceful Logoff" };
     }
     const locks = f.live.locks.map(h => h.icKey);
-    await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger, locks });
+    if (locks.length && (trigger === "voluntary" || trigger === "graceful")) return { ok: false, why: "black IC holds the connection: test Willpower, or pull the plug" };
+    if (trigger === "gate") {
+      const g = recordsOf(actor).find(e => e.type === "gate" && e.key === r.gateKey);
+      if (!g?.success || g.n !== f.live.n) return { ok: false, why: "no successful Willpower test" };
+    }
+    await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger,
+      locks: trigger === "gate" || trigger === "plug" ? locks : [] });
     return { ok: true };
   }
 };
+// ── Black IC and part 2's resolutions on the log (plan §3) ──────────────────────
+
+const LEVEL_NAMES = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly" };
+/** Is the decker's icon down (the persona monitor full)? */
+export const iconDown = (actor) => (actor?.system?.matrixPersona?.condition?.value ?? 0) >= MATRIX_MONITOR_MAX;
+/** A black IC's effective rating: +2 while the decker's icon is down (p.48). */
+export const blackRating = (ic, decker) => (ic?.system?.rating ?? 0) + (iconDown(decker) ? 2 : 0);
+/** The kind of black IC a program is: lethal, non-lethal or psychotropic (null for others). */
+export const blackKind = (program) => String(program ?? "").startsWith("black-") ? program.slice(6) : null;
+
+/**
+ * Every decker action but jacking out is refused while the icon is down, or while an exit
+ * is open (plan §3, R2 #14). Returns the reason, or null.
+ */
+export function vr2ActionGuard(actor) {
+  if (actor?.type !== "character" || !actor.system.vr2Conn) return null;
+  if (foldOf(actor).live?.exit) return `${actor.name} is jacking out.`;
+  if (iconDown(actor)) return `${actor.name}'s icon is down: you can only try to jack out (VR2.0 p.48).`;
+  return null;
+}
+
+/** The deck a connection's permanent damage lands on: its own item, else the actor (manual). */
+const deckDoc = (actor, conn) => sync(conn?.deck) ?? actor;
+const chipGens = (actor) => actor.system.vr2Deck?.chipGen ?? { mpcp: 0, persona: 0 };
+
+async function postResolution(actor, card, text, lines = [], extraFlags = {}) {
+  if (!await once(actor, `${P3}card:res:${card}`)) return;
+  const st = game.messages.get(card)?.flags?.sr2e?.matrix;
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="sr2e-damage-result"><strong>${esc(text)}</strong>${lines.map(l => `<br>${esc(l)}`).join("")}</div>`,
+    flags: { sr2e: { resolves: card, closesTests: [st?.testMessageId].filter(Boolean),
+      matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}`, ...extraFlags } } });
+}
+
+/** Open a dump/black-kill exit from inside the sequencer (one per connection). */
+async function openExit(actor, trigger) {
+  const f = foldOf(actor);
+  if (!f.live || f.live.exit) return;
+  // A damage dump or a black kill owes no last attack (p.48: the link just drops); only a
+  // gate or pulled plug does, and those come through the exit request.
+  await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger, locks: [] });
+}
+
+Object.assign(HANDLERS, {
+  /** An IC's attack on a connected decker: admitted unless the decker is leaving (a listed last attack is). */
+  async attack(actor, r, f) {
+    if (!f.live) return { ok: false, why: "not connected", tell: false };
+    const exit = f.live.exit;
+    if (exit && !(r.lastAttack && (exit.locks ?? []).includes(r.icKey))) return { ok: false, why: "the decker is leaving" };
+    if (!await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program })) return { ok: true };
+    if (exit && r.lastAttack) await fact(actor, `exit-res:${f.live.n}:lastAttack:${r.icKey}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: r.icKey, noEffect: true, card: r.card });
+    return { ok: true };
+  },
+
+  /** A non-black resolution rolled by the defender: applied here, once (plan §0). */
+  async apply(actor, r, f) {
+    const conn = f.conn(r.conn);
+    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
+    if (recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) return { ok: true };
+    const lines = [...(r.lines ?? [])];
+    let crashed = false, text = `${actor.name} resists the Matrix attack.`;
+    if (r.boxes > 0) {
+      const { matrixDamage } = await import("./vr2.mjs");
+      const { before, after } = await matrixDamage(actor, r.boxes);
+      crashed = before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX;
+      text = `${actor.name} takes ${LEVEL_NAMES[r.level]} Matrix damage: ${r.boxes} box${r.boxes === 1 ? "" : "es"} (${after}/${MATRIX_MONITOR_MAX}).`;
+      if (r.overloadCrash) crashed = true;
+      if (r.overloadStun > 0) await commitDamage(actor, "stun", r.overloadStun, { source: "vr2-overload" });
+    }
+    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { crashed, boxes: r.boxes } });
+    if (crashed) {
+      const prog = r.program ?? "";
+      if (prog === "blaster" || prog === "sparky") {
+        await fact(actor, `gray:${r.card}`, { type: "gray", conn: r.conn, card: r.card, kind: prog, rating: r.rating ?? 0,
+          chipGen: chipGens(actor).mpcp, hardening: conn.open?.settings?.hardening ?? 0 });
+      }
+      lines.push(`${actor.name}'s persona crashes: dumped from the Matrix.`);
+      await openExit(actor, "dump");
+    }
+    await postResolution(actor, r.card, text, lines);
+    return { ok: true };
+  },
+
+  /** A black hit: close the attack to Karma and freeze it (plan §3). */
+  async black(actor, r, f) {
+    const conn = f.conn(r.conn);
+    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
+    if (conn.hits.some(h => h.card === r.card)) return { ok: true };
+    const msg = game.messages.get(r.card), st = msg?.flags?.sr2e?.matrix;
+    if (!st) return { ok: false, why: "the attack card is gone" };
+    const tm = game.messages.get(st.testMessageId), test = tm?.flags?.sr2e?.test;
+    if (test && !test.closed) {
+      const { renderSuccessTestCard } = await import("./documents/actor.mjs");
+      const next = { ...test, closed: true };
+      await tm.update({ content: renderSuccessTestCard(next), "flags.sr2e.test": next });
+    }
+    const successes = test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
+    await fact(actor, `hit:${r.card}`, { type: "hit", conn: r.conn, card: r.card, icKey: st.icKey, icName: st.attackerName,
+      kind: blackKind(st.program), rating: st.power, level: st.level, attackSuccesses: successes,
+      cool: conn.open?.settings?.deckMode === "cool", hardening: conn.open?.settings?.hardening ?? 0 });
+    return { ok: true };
+  }
+});
+
+/** Apply each black resistance record once (plan §3): the icon's boxes, the meat damage. */
+async function applyResults(actor) {
+  const recs = recordsOf(actor);
+  const acked = new Set(recs.filter(e => e.type === "ack").map(e => e.target));
+  for (const r of recs.filter(e => e.type === "res" && !acked.has(e.key))) {
+    const hit = recs.find(e => e.type === "hit" && e.card === r.card);
+    if (!hit) continue;
+    const out = matrixCombatOutcome(hit.level, hit.attackSuccesses, r.successes);
+    if (r.side === "icon") {
+      let crashed = false;
+      if (out.level) {
+        const { matrixDamage } = await import("./vr2.mjs");
+        const { before, after } = await matrixDamage(actor, out.boxes);
+        crashed = before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX;
+      }
+      await fact(actor, `ack:${r.key}`, { type: "ack", target: r.key, outcome: { boxes: out.boxes, crashed } });
+    } else {
+      const stun = hit.kind !== "lethal" || hit.cool;
+      const boxes = out.level ? damageBoxes(out.level) : 0;
+      const receipt = `flags.sr2e.vr2Receipts.meat${r.card}`;   // a message id: alphanumeric, path-safe
+      if (boxes > 0 && !foundry.utils.getProperty(actor, receipt)) {
+        await commitDamage(actor, stun ? "stun" : "physical", boxes, { extra: { [receipt]: true },
+          skipIf: () => !!foundry.utils.getProperty(actor, receipt), source: "black-ic" });
+      }
+      const cm = actor.system.conditionMonitor ?? {};
+      const down = (cm.physical?.value ?? 0) >= (cm.physical?.max ?? 10) || (cm.stun?.value ?? 0) >= (cm.stun?.max ?? 10);
+      await fact(actor, `ack:${r.key}`, { type: "ack", target: r.key, outcome: { boxes, stun, down } });
+      if (down) await openExit(actor, "black-kill");
+    }
+    const after = recordsOf(actor);
+    const both = ["icon", "meat"].every(side => { const x = after.find(e => e.type === "res" && e.card === r.card && e.side === side); return x && after.some(e => e.type === "ack" && e.target === x.key); });
+    if (both) {
+      const o = (side) => after.find(e => e.type === "ack" && e.target === after.find(x => x.type === "res" && x.card === r.card && x.side === side).key).outcome;
+      const ic = o("icon"), m = o("meat");
+      const lines = [`Icon: ${ic.boxes} Matrix box${ic.boxes === 1 ? "" : "es"}${ic.crashed ? ": the icon is down, the connection stays, and black IC is +2 (p.48)" : ""}.`,
+        `${actor.name}: ${m.boxes} box${m.boxes === 1 ? "" : "es"} of ${m.stun ? "Stun" : "Physical"} damage${m.down ? `, ${m.stun ? "unconscious" : "down"}: the connection drops after the IC's last shot at the MPCP` : ""}.`];
+      await postResolution(actor, r.card, `${hit.icName} hits ${actor.name} with black IC (${hit.rating}${hit.level}).`, lines);
+    }
+  }
+}
+
+
 /** Register a request handler (later stages add theirs). */
 export const addHandler = (kind, fn) => { HANDLERS[kind] = fn; };
 
@@ -172,12 +326,43 @@ const STEP_RESOLVERS = {
 };
 export const addStepResolver = (step, fn) => { STEP_RESOLVERS[step] = fn; };
 
+STEP_RESOLVERS.finalShot = async (actor, f, s) => {
+  const hit = f.live.hits.find(h => h.card === s.ref);
+  const conn = f.live.open;
+  const mpcp = actor.system.cyberdeck?.mpcp ?? 0;
+  const tn = grayTN("blaster", mpcp, conn?.settings?.hardening ?? 0);
+  const r = await SR2ESuccessRoll.successTest(2 * (hit?.rating ?? 0), tn);
+  const loss = Math.min(mpcp, mpcpLoss("blaster", r.successes));
+  const key = `exit-res:${f.live.n}:finalShot:${s.ref}`;
+  await fact(actor, key, { type: "exitRes", n: f.live.n, step: "finalShot", ref: s.ref, successes: r.successes, loss, tn });
+  if (loss > 0) await recordEvent(deckDoc(actor, conn), `${DECK}dmg:final:${s.ref}`, { type: "deckDmg", attr: "mpcp", amount: loss, chipGen: chipGens(actor).mpcp });
+  if (await once(actor, `${P3}card:final:${s.ref}`)) {
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: r.rolls, content: `<div class="sr2e-damage-result">
+      <strong>${esc(hit?.icName ?? "Black IC")} takes its shot at ${esc(actor.name)}'s MPCP</strong> (as blaster, double rating: ${2 * (hit?.rating ?? 0)} dice vs TN ${tn}):
+      ${r.successes} success${r.successes === 1 ? "" : "es"}, MPCP −${loss}.${loss >= mpcp && mpcp > 0 ? " <strong>The MPCP is destroyed: every file downloaded this run is deleted</strong> (VR2.0 p.48)." : ""}</div>` });
+  }
+  await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
+};
+
 /** Advance an open exit: resolve what the sequencer can, then end the connection at the barrier. */
 async function advanceExit(actor) {
   let f = foldOf(actor);
   if (!f.live?.exit) return;
   for (const s of f.live.steps) {
     if (s.res) continue;
+    if (s.step === "lastAttack") {
+      // The locking IC makes one more attack (the GM rolls it); destroyed meanwhile → cancelled (R5 #5).
+      const [u, g] = [s.ref.slice(0, s.ref.lastIndexOf("#")), Number(s.ref.slice(s.ref.lastIndexOf("#") + 1))];
+      if (icGen(u) !== g) {
+        await fact(actor, `exit-res:${f.live.n}:lastAttack:${s.ref}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: s.ref, cancelled: true });
+        f = foldOf(actor);
+      } else if (await once(actor, `${P3}card:last:${f.live.n}:${s.ref}`)) {
+        await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u2 => u2.id), content: `<div class="sr2e-item-card">
+          <strong>${esc(sync(u)?.name ?? "Black IC")}</strong> makes one more attack on ${esc(actor.name)} before the link drops (VR2.0 p.48):
+          attack from the IC's sheet with ${esc(actor.name)} targeted.</div>` });
+      }
+      continue;
+    }
     const r = STEP_RESOLVERS[s.step];
     if (r) { await r(actor, f, s); f = foldOf(actor); }
   }
@@ -208,7 +393,9 @@ export function schedule(actor) {
   clearTimeout(PENDING.get(actor.uuid));
   PENDING.set(actor.uuid, setTimeout(() => {
     PENDING.delete(actor.uuid);
-    sequencer(async () => { await processRequests(actor); await advanceExit(actor); })
+    const gone = actor.isToken ? !actor.token?.parent?.tokens?.has(actor.token.id) : !game.actors.has(actor.id);
+    if (gone) return;
+    sequencer(async () => { await processRequests(actor); await applyResults(actor); await advanceExit(actor); })
       .catch(err => console.error("SR2E | vr2 sequencer", err));
   }, 150));
 }
