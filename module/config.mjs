@@ -805,6 +805,7 @@ SR2E.icWorm = { "": "—", data: "Dataworm", death: "Deathworm", tape: "Tapeworm
 SR2E.vr2SheafEvents = { ic: "IC activates", passive: "Passive alert", active: "Active alert", shutdown: "Shutdown", other: "" };
 
 SR2E.vr2Subsystems = {
+  targeted: "the targeted subsystem",
   access:  "Access",
   control: "Control",
   index:   "Index",
@@ -832,7 +833,17 @@ SR2E.vr2SystemOperations = {
   editFile:           { label: "Edit File",           subsystem: "files",   utility: "Read/Write" },
   makeComcall:        { label: "Make Comcall",        subsystem: "files",   utility: "Commlink" },
   editSlave:          { label: "Edit Slave",          subsystem: "slave",   utility: "Spoof" },
-  monitorSlave:       { label: "Monitor Slave",       subsystem: "slave",   utility: "Spoof" }
+  monitorSlave:       { label: "Monitor Slave",       subsystem: "slave",   utility: "Spoof" },
+  // Part 3 (docs/PLAN-vr2-part3.md; VR2.0 p.111–117). "targeted": the subsystem is picked at the test.
+  analyzeIC:          { label: "Analyze IC",          subsystem: "control", utility: "Analyze" },
+  analyzeIcon:        { label: "Analyze Icon",        subsystem: "control", utility: "Analyze" },
+  analyzeSubsystem:   { label: "Analyze Subsystem",   subsystem: "targeted", utility: "Analyze" },
+  decryptAccess:      { label: "Decrypt Access",      subsystem: "access",  utility: "Decrypt" },
+  decryptFile:        { label: "Decrypt File",        subsystem: "files",   utility: "Decrypt" },
+  decryptSlave:       { label: "Decrypt Slave",       subsystem: "slave",   utility: "Decrypt" },
+  disinfect:          { label: "Disinfect",           subsystem: "targeted", utility: "Disinfect" },
+  redirectDatatrail:  { label: "Redirect Datatrail",  subsystem: "control", utility: "Camo" },
+  defuse:             { label: "Defuse Data Bomb",    subsystem: "targeted", utility: "Defuse" }
 };
 
 // Alert states (SR2E p.168). Passive adds +50% to IC ratings (applied by the

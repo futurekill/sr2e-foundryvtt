@@ -2657,6 +2657,8 @@ async function promptSystemOperationOptions(actor) {
         <label>Operation:</label>
         <select name="operation">${opOptions}</select>
       </div>
+      ${vr2 ? `<div class="form-group"><label>Targeted subsystem <span style="color:#958ba8;font-size:10px;">(Analyze Subsystem, Disinfect, Defuse)</span>:</label>
+        <select name="subsystem">${["access", "control", "index", "files", "slave"].map(k => `<option value="${k}" ${k === "files" ? "selected" : ""}>${CONFIG.SR2E.vr2Subsystems[k]}</option>`).join("")}</select></div>` : ""}
       <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
         ${vr2 ? `Computer Test vs the subsystem rating less the utility; the host rolls its Security Value
         against your Detection Factor, and you need more successes. Its successes go on the security tally (VR2.0 p.19).`
@@ -2682,6 +2684,7 @@ async function promptSystemOperationOptions(actor) {
           result = {
             hostId:    f.host?.value ?? null,
             operation: f.operation?.value ?? null,
+            subsystem: f.subsystem?.value ?? null,
             hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
             karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
             ...readMiscDice(button.form)
@@ -2706,7 +2709,7 @@ async function onSystemOperation(event, target) {
   const opts = await promptSystemOperationOptions(actor);
   if (!opts || !opts.host) return;
   return actor.rollSystemOperation(opts.host, opts.operation, {
-    hacking: opts.hacking, karmaDice: opts.karmaDice,
+    hacking: opts.hacking, karmaDice: opts.karmaDice, subsystem: opts.subsystem,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }

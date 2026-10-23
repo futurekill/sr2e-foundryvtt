@@ -10,7 +10,7 @@
  */
 import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
-         boundariesToTick, RESPONSE_TIMES } from "./rules/vr2ic-rules.mjs";
+         boundariesToTick, RESPONSE_TIMES, wormInfects } from "./rules/vr2ic-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -404,17 +404,130 @@ async function applySparky(actor) {
   }
 }
 
-/** Tar IC on this host, for the GM, after a System Test that used a utility (plan §4). */
+/**
+ * After a System Test on the log, the GM's options for the host's reactive IC (plan §4, §6):
+ * tar on the utility used, worm infection tests, data bombs (defuse, or the protected target
+ * opened), scramble (a failed decrypt's poison, an exploding scramble's bomb).
+ */
 export async function offerTar(message) {
   const st = message?.flags?.sr2e?.vr2SystemTest;
-  if (!isSequencer() || !st?.utilityRef || st.conn == null) return;
-  const tars = game.actors.filter(a => a.type === "ic" && a.system.hostUuid === st.hostUuid && /^tar-/.test(a.system.program));
-  if (!tars.length) return;
+  if (!isSequencer() || st?.conn == null) return;
+  const onHost = (p) => game.actors.filter(a => a.type === "ic" && a.system.hostUuid === st.hostUuid && p(a.system.program));
+  const success = systemTestVerdict(st.successes, st.hostSuccesses).success;
+  const btn = (op, ic, label, title = "") => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.actorUuid)}" data-op="${op}"
+    data-arg="${esc(`${message.id}|${ic.uuid}`)}" title="${esc(title)}">${esc(label)}</button>`;
+  const armed = (b) => !recordsOf(b).some(e => e.type === "bombEnd" && e.icKey === icKeyOf(b));
+  const rows = [];
+  if (st.utilityRef) for (const t of onHost(p => /^tar-/.test(p))) rows.push(btn("tar", t, `${t.name} strikes ${st.utilityRef.name}`, "p.42"));
+  for (const w of onHost(p => p === "worm")) {
+    rows.push(btn("worm", w, `${w.name}: infection test`, "Security Value vs MPCP (p.44)"));
+    if (st.operation === "disinfect" && success) rows.push(btn("wormGone", w, `Disinfect destroys ${w.name}`, "no tally (p.44)"));
+  }
+  for (const b of onHost(p => p === "data-bomb").filter(armed)) {
+    if (st.operation === "defuse") {
+      if (success) rows.push(btn("defused", b, `${b.name} is defused`, "no tally (p.41)"));
+      else if (st.allOnes) rows.push(btn("explode", b, `All 1s: ${b.name} goes off`, "p.41"));
+    } else if (success) rows.push(btn("explode", b, `${b.name} goes off (this opened what it protects: ${b.system.protects || "?"})`, "p.41"));
+  }
+  if (/^decrypt/.test(st.operation)) for (const sc of onHost(p => p === "scramble")) {
+    if (!success && sc.system.scramble === "poison") rows.push(btn("poison", sc, `${sc.name}: Poison Test`, "rating dice vs the decker's Computer (p.42)"));
+    const bomb = sync(sc.system.bombUuid);
+    if (success && sc.system.scramble === "exploding" && bomb && armed(bomb)) rows.push(btn("explode", bomb, `${bomb.name} goes off (exploding scramble)`, "p.42"));
+  }
+  if (st.operation === "redirectDatatrail" && success) {
+    const n = st.conn;
+    const k = recordsOf(sync(st.actorUuid)).filter(e => e.type === "redirect" && e.conn === n).length + 1;
+    await sequencer(() => fact(sync(st.actorUuid), `redirect:${n}:${k}:${message.id}`, { type: "redirect", conn: n, card: message.id }));
+    rows.push(`<em>Redirect recorded (+1 Trace Factor; one per grid, the GM's call).</em>`);
+  }
+  if (!rows.length) return;
   await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
-    ${esc(st.actorName)} used ${esc(st.utilityRef.name)} (${st.utilityRef.rating}) on ${esc(st.hostName)}: tar IC there may strike (VR2.0 p.42).
-    <div class="sr2e-karma-actions">${tars.map(t => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.actorUuid)}" data-op="tar"
-      data-arg="${esc(`${message.id}|${t.uuid}`)}">${esc(t.name)} strikes</button>`).join("")}</div></div>` });
+    ${esc(st.actorName)}: ${esc(st.opLabel)} on ${esc(st.hostName)} (${success ? "success" : "failure"}). Reactive IC there:
+    <div class="sr2e-karma-actions">${rows.join("")}</div></div>` });
 }
+
+// ── Data bombs, scramble, worms (plan §6) ────────────────────────────────────────
+
+/** A bomb's end: ONE terminal record per incarnation; only an explosion hits (p.41). */
+export async function bombEnd(actor, bomb, outcome, card) {
+  return sequencer(async () => {
+    const icKey = icKeyOf(bomb);
+    if (!await recordEvent(bomb, `${P3}bomb-end:${icKey}`, { type: "bombEnd", icKey, outcome, card, seq: nextSeq() })) {
+      const prior = recordsOf(bomb).find(e => e.type === "bombEnd" && e.icKey === icKey);
+      return ui.notifications.info(`${bomb.name} is already ${prior?.outcome ?? "done"}.`);
+    }
+    if (outcome !== "exploded") {
+      return ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">${esc(bomb.name)} is defused (no tally, p.41).</div>` });
+    }
+    const host = sync(bomb.system.hostUuid);
+    const st = { ruleset: "vr2", attackerUuid: bomb.uuid, attackerName: bomb.name, attackerType: "ic", icType: "white", icClass: "white",
+      program: "data-bomb", targetUuid: actor.uuid, targetName: actor.name, targetSession: (await import("./vr2.mjs")).sessionKey(actor),
+      hostUuid: host?.uuid ?? "", hostName: host?.name ?? "the host", securityCode: host?.system.securityCode ?? "green",
+      securityValue: host?.system.securityValue ?? 0, status: "intruding", power: bomb.system.rating, level: "M",
+      successes: 1, resolved: false, icKey, targetConn: actor.system.vr2Conn?.n ?? null, autoHit: true };
+    const { renderVR2MatrixCard } = await import("./vr2.mjs");
+    const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: bomb }),
+      content: renderVR2MatrixCard(st).replace("</strong>", "</strong> <em>(the data bomb explodes: an automatic hit, VR2.0 p.41)</em>"),
+      flags: { sr2e: { matrix: st } } });
+    if (st.targetConn != null) await request(actor, "attack", { card: msg.id, icKey, cls: "white", program: "data-bomb" });
+    const s = (await import("./vr2.mjs")).liveSession(actor);
+    if (s) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
+      The explosion adds ${bomb.system.rating} to ${esc(actor.name)}'s tally, unless a point of Detection Factor suppresses it (p.41).
+      <div class="sr2e-karma-actions">
+        <button type="button" class="sr2e-vr2-crashchoice" data-choice="suppress">Suppress (−1 Detection Factor)</button>
+        <button type="button" class="sr2e-vr2-crashchoice" data-choice="register">Let it register (+${bomb.system.rating})</button></div></div>`,
+      flags: { sr2e: { vr2Crash: { cardId: msg.id, deckerUuid: actor.uuid, sessionId: s.id, icUuid: bomb.uuid, icName: bomb.name, rating: bomb.system.rating } } } });
+  });
+}
+
+/** Poison scramble (p.42): rating dice vs the decker's Computer; a success destroys the data. */
+export async function poisonTest(actor, sc) {
+  const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
+  const r = await SR2ESuccessRoll.successTest(sc.system.rating ?? 0, Math.max(2, computer));
+  await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), rolls: r.rolls, content: `<div class="sr2e-item-card">
+    ${esc(sc.name)}'s Poison Test against ${esc(actor.name)}'s Computer ${computer}: ${r.successes} success${r.successes === 1 ? "" : "es"},
+    <strong>${r.successes > 0 ? `the data${sc.system.protects ? ` (${esc(sc.system.protects)})` : ""} is destroyed` : "the decker suppresses its destruct code"}</strong> (VR2.0 p.42).</div>` });
+}
+
+/** A worm's infection test (p.44): Security Value dice vs the deck's MPCP; more than the Hardening infects. */
+export async function wormTest(actor, worm, card) {
+  return sequencer(async () => {
+    const conn = liveConn(actor);
+    const host = sync(worm.system.hostUuid);
+    const mpcp = actor.system.cyberdeck?.mpcp ?? 0, hardening = conn?.settings?.hardening ?? 0;
+    const r = await SR2ESuccessRoll.successTest(host?.system.securityValue ?? 0, Math.max(2, mpcp));
+    const infects = wormInfects(r.successes, hardening);
+    if (infects) await recordEvent(deckDoc(actor, conn), `${DECK}worm:${card}:${worm.id}`, { type: "worm", kind: worm.system.worm || "data", chipGen: chipGens(actor).mpcp, name: worm.name });
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), rolls: r.rolls, content: `<div class="sr2e-item-card">
+      ${esc(worm.name)} tries to infect ${esc(actor.name)}'s MPCP (Security Value vs MPCP ${mpcp}${hardening ? `, needs more than Hardening ${hardening}` : ""}):
+      ${r.successes} success${r.successes === 1 ? "" : "es"}, <strong>${infects ? `infected (${CONFIG.SR2E.icWorm[worm.system.worm] ?? "worm"})` : "no infection"}</strong>.
+      ${infects ? "Only a new MPCP chip removes it; a Computer task (base time 10 hours) detects it (VR2.0 p.44)." : ""}</div>` });
+  });
+}
+
+/** Dataworms on a deck report on each logon: 1D6 = 1, and the decker's secret Sensor (8) (p.44). */
+async function dataworms(actor) {
+  const n = actor.system.vr2Conn?.n;
+  for (const w of (actor.system.vr2Deck?.worms ?? []).filter(x => x.kind === "data")) {
+    if (n == null || !await once(actor, `${P3}card:dataworm:${n}:${w.key}`)) continue;
+    const d = (await new Roll("1d6").evaluate()).total;
+    if (d !== 1) continue;
+    const s = await SR2ESuccessRoll.successTest(actor.system.matrixPersona?.sensor ?? 0, 8);
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      A dataworm in ${esc(actor.name)}'s deck sends a report (1D6 = 1). Secret Sensor (8): ${s.successes} —
+      ${s.successes > 0 ? "the decker notices it and may fight it (3D6 Initiative, Evasion 8, evades detection)" : "the decker doesn't know"} (VR2.0 p.44).</div>` });
+  }
+}
+
+STEP_RESOLVERS.tapeworm = async (actor, f, s) => {
+  const lost = Math.max(0, (await new Roll("1d6").evaluate()).total - 1);
+  const file = (await new Roll("1d6").evaluate()).total;
+  const key = `exit-res:${f.live.n}:tapeworm:${s.ref}`;
+  await fact(actor, key, { type: "exitRes", n: f.live.n, step: "tapeworm", ref: s.ref, lost, file });
+  await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+    A tapeworm eats ${lost} Paydata Point${lost === 1 ? "" : "s"} from ${esc(actor.name)}'s run (1D6 − 1); a specific datafile: ${file} — ${file >= 5 ? "<strong>corrupted</strong>" : "intact"} (VR2.0 p.45).</div>` });
+  await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
+};
 
 /**
  * A tar strike (p.42–43): Tar (utility rating) against the utility (tar rating), rolled here
@@ -748,6 +861,16 @@ export async function icOp(uuid, op, arg) {
   if (!actor) return;
   if (op === "sparky") return resistSparky(actor, arg);
   if (op === "traceStart") return traceStart(actor, arg);
+  if (["worm", "wormGone", "defused", "explode", "poison"].includes(op)) {
+    const [card, icUuid] = arg.split("|");
+    const ic = await fromUuid(icUuid);
+    if (!ic) return;
+    if (op === "worm") return wormTest(actor, ic, card);
+    if (op === "wormGone") { await ic.update({ "system.generation": (ic.system.generation ?? 0) + 1 }); return ui.notifications.info(`${ic.name} destroyed (delete or reuse it).`); }
+    if (op === "defused") return bombEnd(actor, ic, "defused", card);
+    if (op === "explode") return bombEnd(actor, ic, "exploded", card);
+    if (op === "poison") return poisonTest(actor, ic);
+  }
   if (op === "tar") {
     const [card, icUuid] = arg.split("|");
     const st = game.messages.get(card)?.flags?.sr2e?.vr2SystemTest, ic = await fromUuid(icUuid);
@@ -765,6 +888,7 @@ export function registerVr2IcHooks() {
     if (!key.startsWith(P3) || !(e.parent instanceof Actor)) return;
     schedule(e.parent);
     // Connection changes move the derived Matrix mode: let the jackpoints and cues catch up.
+    if (/^vr2:conn-open:/.test(key) && isSequencer()) sequencer(() => dataworms(e.parent)).catch(err => console.error("SR2E | dataworms", err));
     if (/^vr2:conn-(open|end):/.test(key)) {
       const jp = await import("./jackpoints.mjs");
       jp.scheduleReconcile?.(e.parent); jp.refreshActorTokens?.(e.parent);

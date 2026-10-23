@@ -11864,6 +11864,50 @@ export function registerSR2EQuenchTests() {
         await cleanup();
       });
 
+      it("a data bomb ends once: defused, then a detonation is refused; another bomb explodes as an admitted auto-hit", async () => {
+        const h = await hostA("Quench VIC Bombs", "green", 4);
+        const b1 = await icA("Quench VIC Bomb1", h, "data-bomb", 6);
+        const b2 = await icA("Quench VIC Bomb2", h, "data-bomb", 5);
+        const a = await decker("Quench VIC Bomber");
+        await V.vr2EnterMatrix(a);
+        await V.sessionFor(a, h);
+        await Y.bombEnd(a, b1, "defused", "quenchcard01");
+        await Y.bombEnd(a, b1, "exploded", "quenchcard02");
+        const ends = Y.recordsOf(b1).filter(e => e.type === "bombEnd");
+        assert.deepEqual(ends.map(e => e.outcome), ["defused"], "one terminal outcome");
+        await Y.bombEnd(a, b2, "exploded", "quenchcard03");
+        assert.isTrue(await settle(() => recs(a, "admit").length === 1), "the explosion's hit is admitted");
+        const card = game.messages.get(recs(a, "admit")[0].card);
+        await forced(0.99, () => V.vr2MatrixResist(a, card));
+        const { matrixCombatOutcome } = await import("../rules/sr2e-rules.mjs");
+        const boxes = matrixCombatOutcome("M", 1, 0).boxes;                 // Matrix boxes for M (VR2.0 p.124)
+        assert.isTrue(await settle(() => a.system.matrixPersona.condition.value === boxes), `5M: ${boxes} Matrix boxes`);
+        await cleanup();
+      });
+
+      it("worms: an infection lands on the deck's current MPCP chip; deathworms add to cybercombat TNs; a new chip clears them", async () => {
+        const h = await hostA("Quench VIC Worms", "orange", 6);
+        const w = await icA("Quench VIC Deathworm", h, "worm", 1);
+        await w.update({ "system.worm": "death" });
+        const a = await decker("Quench VIC Infected");
+        const deck = await deckOf(a, 4, 0);
+        await V.vr2EnterMatrix(a);
+        await forced(0.2, () => Y.wormTest(a, w, "quenchcard04"));      // 6 dice of 5s vs MPCP 4
+        assert.equal(a.system.vr2Deck.worms.length, 1);
+        assert.equal(a.system.vr2Deck.deathwormTN, 2);
+        const { recordEvent } = await import("../claims.mjs");
+        await recordEvent(a.items.get(deck.id), "vr2deck:chip-replace:mpcp:1", { type: "chipReplace", chip: "mpcp" });
+        assert.equal(a.system.vr2Deck.worms.length, 0, "a new MPCP chip has no worms");
+        await cleanup();
+      });
+
+      it("the new System Operations exist, with the targeted subsystem chosen at the test", () => {
+        for (const k of ["analyzeIC", "analyzeIcon", "analyzeSubsystem", "decryptAccess", "decryptFile", "decryptSlave", "disinfect", "redirectDatatrail", "defuse"]) {
+          assert.ok(CONFIG.SR2E.vr2SystemOperations[k], k);
+        }
+        assert.equal(CONFIG.SR2E.vr2SystemOperations.defuse.subsystem, "targeted");
+      });
+
       it("no deck switch while connected", async () => {
         const a = await decker("Quench VIC Deck");
         const [d1, d2] = await a.createEmbeddedDocuments("Item", [

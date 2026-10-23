@@ -348,15 +348,18 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
   const trained = (computer?.system?.rating ?? 0) > 0;
   const dice = trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
-  const subsystem = host.system.subsystemRating(op.subsystem);
+  const sub = op.subsystem === "targeted" ? (opts.subsystem || "files") : op.subsystem;
+  const subsystem = host.system.subsystemRating(sub);
   const utilityItem = bestUtility(actor, op.utility);
   const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
   // A Graceful Logoff with trace IC locating is harder by each trace's rating (p.45).
   const tracing = operation === "gracefulLogoff" && actor.system.vr2Conn
     ? (Y.foldOf(actor).live?.traces ?? []).filter(t => !t.complete && !t.dead).reduce((n, t) => n + (t.rating ?? 0), 0) : 0;
-  const tn = Math.max(2, subsystem - utility) + (trained ? 0 : 4) + tracing;
-  const subsystemLabel = CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? op.subsystem;
+  // Analyze Icon: the Sensor rating lowers the TN too, never below 2 (p.111).
+  const sensor = operation === "analyzeIcon" ? (actor.system.matrixPersona?.sensor ?? 0) : 0;
+  const tn = Math.max(2, subsystem - utility - sensor) + (trained ? 0 : 4) + tracing;
+  const subsystemLabel = CONFIG.SR2E.vr2Subsystems[sub] ?? sub;
   const session = await sessionFor(actor, host);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(1, dice), tn, {
@@ -373,7 +376,8 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
     subsystemLabel, subsystem, utilityName: op.utility, utility, tn, df, securityValue,
     successes: res.successes, hostSuccesses: hostRoll.successes, sessionId: session.id, testMessageId: res.testMessageId,
     // Part 3: what reactive IC (tar, worms, bombs) needs to act on this test (plan §4).
-    hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem),
+    hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem), sub,
+    allOnes: (res.dice ?? []).length > 0 && res.dice.every(d => d.total === 1),
     deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null };
   const ev = { eventId: `st-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: session.id,
     base: hostRoll.successes, source: "system-test" };
@@ -614,6 +618,7 @@ async function attackOnce(actor) {
       }
     }
     tnContext = { ...skillTnContext("computer"), kind: "attack" };
+    tn += actor.system.vr2Deck?.deathwormTN ?? 0;   // deathworms in the deck (p.44)
   }
   if (ms.pos && o.position === "power" && power != null) power += ms.pos;
   else if (ms.pos) tn -= ms.pos;
@@ -836,7 +841,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
     const has = (side) => recs().some(e => e.type === "res" && e.card === message.id && e.side === side);
     if (!has("icon")) {
       const armor = bestUtility(defender, "armor"), ref = useRef(armor);
-      const tn = Math.max(2, hit.rating - (ref?.rating ?? 0));
+      const tn = Math.max(2, hit.rating - (ref?.rating ?? 0)) + (defender.system.vr2Deck?.deathwormTN ?? 0);
       const r = await defender.rollSuccessTest(Math.max(0, defender.system.matrixPersona?.bod ?? 0), tn, {
         label: `Resist black IC — icon Bod${ref ? `, ${ref.name}` : ""} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
       if (!r) return;
@@ -858,7 +863,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
   // Non-black: Shield, resistance and overload rolled here; one apply request.
   let dice, tn, what, armorRef = null;
   armorRef = useRef(bestUtility(defender, "armor"));
-  dice = defender.system.matrixPersona?.bod ?? 0; tn = Math.max(2, st.power - (armorRef?.rating ?? 0));
+  dice = defender.system.matrixPersona?.bod ?? 0; tn = Math.max(2, st.power - (armorRef?.rating ?? 0)) + (defender.system.vr2Deck?.deathwormTN ?? 0);
   what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
   const shield = await askShield(defender, st);
   const res = await defender.rollSuccessTest(Math.max(0, dice), tn, {
@@ -899,7 +904,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
   if (st.targetSession && s0.id !== st.targetSession) return ui.notifications.warn("That attack hit an earlier session.");
   const value = defender.system.matrixPersona?.[st.attr] ?? 0;
   const shield = await askShield(defender, st);
-  const tn = Math.max(2, st.rating ?? 2);
+  const tn = Math.max(2, st.rating ?? 2) + (defender.system.vr2Deck?.deathwormTN ?? 0);   // deathworms (p.44)
   const res = await defender.rollSuccessTest(Math.max(0, value), tn, {
     label: `Resist ${st.effectName} — ${ATTR_LABEL[st.attr]} (TN ${tn})`, isResistance: true, closed: true, tnContext: { kind: "other" } });
   if (!res) return;
