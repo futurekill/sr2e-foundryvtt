@@ -1,5 +1,5 @@
 # Plan: the Virtual Realities 2.0 Matrix, part 3 — the rest of the IC
-_Round 1 — revised after Codex round 1 (log: PLAN-vr2-part3-REVIEW-LOG.md)_
+_Round 5 — revised after Codex rounds 1–5 (log: PLAN-vr2-part3-REVIEW-LOG.md). Round 3 replaced mutable connection state with an event log._
 
 ## Goal
 Finish VR2.0's Intrusion Countermeasures chapter (pp.40–53) on top of parts 1–2
@@ -102,6 +102,10 @@ Matrix is untouched. Load: one GM world, a decker or two, a handful of IC.
 - **Trace (pp.45–47):**
   - **Trace Factor:** Evasion − the trace IC's rating + Camo rating + Datatrail
     Redirects this run + the jackpoint's trace modifier (+ bandwidth, out of scope).
+    *Stated reading:* p.117 (Redirect Datatrail) says a redirect "reduce[s] his trace
+    factor by 1". p.45 gives the formula with redirects ADDED, and its worked example is
+    "2 Datatrail Redirects, for +2". A higher factor is the IC's TN, so redirects help the
+    decker. We follow p.45 (formula plus example).
     A trap link adds half a gray IC's rating, or a black IC's full rating.
   - **Hunt cycle:** cybercombat Attack Tests against TN = the Trace Factor, until one
     succeeds. The decker may fight it. Relocate doesn't work in this cycle.
@@ -168,44 +172,97 @@ Matrix is untouched. Load: one GM world, a decker or two, a handful of IC.
   - Everyone is told at the final warning. Deckers still on at the end are dumped (dump
     shock); frames and running programs crash.
 
+- **The operations this part needs (p.111–117, read from renders), added to
+  `CONFIG.SR2E.vr2SystemOperations` (R2 #11):**
+
+  | Operation | Test | Utility | Action |
+  |---|---|---|---|
+  | Analyze IC | Control | Analyze | Free |
+  | Analyze Icon | Control | Analyze | Free (TN − Sensor − Analyze, min 2) |
+  | Analyze Subsystem | the targeted subsystem | Analyze | Simple |
+  | Decrypt Access | Access | Decrypt | Simple |
+  | Decrypt File | Files | Decrypt | Simple |
+  | Decrypt Slave | Slave | Decrypt | Simple |
+  | Disinfect | the appropriate subsystem | Disinfect | Complex |
+  | Redirect Datatrail | Control | Camo | Complex (on a grid; GM records the count) |
+
+  A data bomb's defuse is a System Test against the controlling subsystem with Defuse
+  reducing the TN (p.41). It is added as an operation "Defuse" whose subsystem is
+  picked at the test (Files or Slave). "The targeted/appropriate subsystem" is a
+  choice in the dialog for those three operations.
+
 ## Approach
 
-### 0. Identity, writers and receipts (R1 #2–#5, #7, #9)
-- **The connection** (new): `flags.sr2e.vr2Connection = { id, startedAt, deckRef,
-  redirects, black: {}, traces: {}, exit: null }` is written when the decker enters the
-  Matrix (in `matrixQueue`, beside `startSession`) and ended only by an exit.
-  - Part 2's per-host session (`vr2Session`, the tally) stays as it is. A host change
-    starts a new host session, but never touches the connection.
-  - Everything "this run" or "until you jack out" lives on the connection: black-IC
-    locks, traces, redirects, the icon-down state's black lock. Everything per host
-    stays on the session.
-- **One writer per decker:** every mutation of a decker's connection or session runs on
-  `designatedWriter(decker)` (part 2: its lowest-id active non-GM owner, else the active
-  GM), inside `sessionQueue`.
-  - Other clients (the GM's timers, an IC's resolution) never write it. They post an
-    EVENT message (`flags.sr2e.vr2Event = { id, kind, deckerUuid, connectionId, … }`).
-    The designated writer applies each event once, with the event id as a receipt on the
-    connection. It is reconciled on load, like part 2's tally events.
-  - The writer re-validates the connection id, the IC incarnation and the state before
-    applying.
-- **Receipts live on the damaged document, in the same update as the effect** (never
-  on a card):
-  - meat damage: `commitDamage(…, { extra: { "flags.sr2e.vr2Receipts.<key>": true },
-    skipIf })`;
-  - deck damage and infection: the deck item's own `system.deck.receipts.<key>`, in the
-    same update as the change;
-  - program crash and corruption: the program item;
-  - the IC's own state: the IC actor.
+### 0. The model: an event log, not mutable state (R3 #1, #2, #7–#10)
+Part 3's state is an APPEND-ONLY log of durable records, the pattern Cybertechnology
+Phases 4 and 6 already use (`recordEvent` in claims.mjs): deterministic ids, so the
+SERVER rejects a duplicate, never pruned, and folded by pure functions (`foldVr2Ic`).
+Parts 1–2 keep their own state (sessions, the tally, maneuvers, `matrixMode`); part 3
+adds records beside them and never stores what it can fold.
+- **Where records live:**
+  - on the DECKER (a character actor): the connection, black hits and resistances,
+    traces and ticks, exits, psychotropic conditions, program crashes;
+  - on the DECK ITEM itself (gear cyberdeck or C2; embedded ActiveEffects on the item,
+    which travel with it when it changes hands; R4 #8): its damage, worms, chip
+    replacements and corruption;
+  - on the IC or HOST (GM-owned): bomb states, shutdown lifecycles, trap triggers.
 
-  Cards only render.
-- **The deck reference is captured at the triggering action:** `deckRef = { uuid }` for a
-  gear deck or C2, or `{ manual: true }` for a decker with no deck item. It is stored on
-  the attack card, the System Test card and the connection. Resolution writes to THAT
-  deck (the manual fallback: the actor's authored `system.cyberdeck.damage`), even if
-  another deck is active by then.
-- **IC incarnation:** `icKey = <icUuid>:<generation>` (part 2 bumps the generation on a
-  crash). Every record about an IC is keyed by it. A record whose IC has moved to a
-  newer generation is dead.
+  Whoever may update that actor creates them: the owner's clients and the GM's.
+- **Ordering (R4 #2):** a TOTAL order: the SERVER-stamped `_stats.createdTime`
+  (`eventsOf` gains it), then the record key. Conflicting transitions never rely on it:
+  terminal states use ONE key (a bomb's end, a trace's completion); paired states key
+  each pair by its cycle (freeze/unfreeze); damage is bound to the chip incarnation it
+  hit (§2). The fold tests shuffle equal-time records.
+- **Keys:** every record key is hashed by `claimId`, so uuids and compendium source ids
+  in keys never become dotted update paths (R3 #9). The raw identities are in the
+  payload. Any remaining flag map uses part 2's `keyOf` encoding.
+- **Random outcomes are rolled first and stored in the record that commits them**
+  (Phase 4's pattern). The losing client of a race discards its roll. Effects are
+  derived from the record, so a retry never rerolls (R3 #7).
+- **Effects on monitors and IC are applied ONLY by the active GM's client (R4 #1):**
+  condition monitors (meat and persona), an IC's crash and generation. There, one
+  `commitDamage`/`matrixDamage` queue per target serializes them, and each carries its
+  receipt in the same update (`extra`/`skipIf`) under a `once(target,
+  "<recordKey>:apply")` claim, as with move-by-wire's seizure damage.
+  - Players' clients only create records. With no GM online, applications wait and are
+    listed as pending on the sheet.
+  - (Two tabs of the GM user are part of the documented same-user limit.)
+- **No "designated writer" (R3 #2).** Any authorized client may create a record or claim
+  an application. The server's duplicate-id rejection makes it exactly one.
+- **The documented limit (R3 #1):** a client that wins an apply claim and dies before
+  writing leaves the record (the outcome is safe) and a claim. After `STUCK_MS` the
+  sheet shows "Apply anyway" (GM), the same manual recovery as doses and seizures
+  (docs/PLAN-same-user-writers.md). Nothing is lost; only its application waits.
+- **The connection (R4 #4):**
+  - `vr2:conn-open:<n>` is created when the decker enters the Matrix (in `matrixQueue`,
+    beside part 1's `startSession`), with n = 1 + the number of connections ever opened.
+    Two entering clients compute the same n, so the server admits ONE; the loser
+    aborts its entry.
+  - It snapshots `deckRef` and the deck's FIXED settings (`hardening`, `deckMode`,
+    `iccm`). The MPCP is NOT snapshotted (R4 #9): the effective MPCP is folded from the
+    deck's history at each test's resolution.
+  - The live connection is open n with no `conn-end:<n>`. Connection n + 1 can't be
+    opened before `conn-end:<n>`.
+  - **`matrixMode` is DERIVED, never written (R5 #1, #2):** for a VR2 decker,
+    CharacterData's preparation sets `matrixMode` = "a live connection exists" (both
+    directions, from the log). Entry and exit write ONLY records (`conn-open`,
+    `conn-end`), so there is no projection to interrupt and no delayed write that can
+    switch off a newer connection. The stored field keeps serving the core ruleset.
+    Every VR2 path that sets `matrixMode` (the sheet toggle, `jackIn`, dump shock)
+    records instead.
+  - **Entry is the `conn-open` record alone.** Part 1's session is created lazily by the
+    first action that needs it (`sessionFor` already adopts a host). The jackpoint's
+    per-client session record is reconciled by its existing `scheduleReconcile`.
+    Neither can be "half set up", because neither is a precondition of being
+    connected.
+  - A host change starts a part-2 session but never touches the connection.
+- **The deck is fixed per connection (R3 #6):** activating another deck (gear or C2) is
+  refused while `matrixMode` is on. Every consequence uses the connection's snapshot,
+  so a trigger and its exit always hit the same deck.
+- **IC incarnation:** `icKey = <icUuid>#<generation>`, in payloads.
+  - ACTION requests against an older incarnation are refused.
+  - Consequences already recorded (a trap trigger, a tar pit roll, a detonation) are
+    resolved from their record whatever the IC's generation is now.
 
 ### 1. Pure rules (`module/rules/vr2ic-rules.mjs`, Vitest)
 - `blackDamage(code, rating, iconDown)` → `{ power, level }`.
@@ -229,161 +286,250 @@ Matrix is untouched. Load: one GM world, a decker or two, a handful of IC.
     `protects` (text), `bombState` (armed/defused/spent).
   - Every choices StringField has `blank: true` and `""`. `icClass` is derived from the
     program.
-- **Deck damage:** the deck block gains `damage: { mpcp, bod, evasion, masking, sensor }`,
-  `worms: [{ id, kind }]` and `receipts: {}`, snapshotted with the other keys. The
-  manual fallback has the same block on the actor.
-  - **Derivation, R1 #6:** effective MPCP = max(0, mpcp − damage.mpcp). Each attribute =
-    max(0, min(loaded program rating, effective MPCP) − damage[attr]). If no program of
-    that kind is loaded, the authored value is used, capped the same way.
-  - With an effective MPCP of 0, every attribute is 0 (the deck can't run a persona)
-    and the sheet says so.
-  - Session icon damage (cripplers, part 2) and improvised sacrifices apply after this,
-    as today.
-  - **Repair:** "Replace MPCP chip" clears damage.mpcp AND the worms. "Replace persona
-    chip" clears the four attribute damages. Both are GM buttons on the deck.
-- **Programs:**
-  - `crashedGen`, R1 #13: a program is crashed iff `crashedGen === loadGen`, so a Swap
-    Memory (which bumps `loadGen`) is a fresh copy whatever arrives late. Part 2's
-    `crashed` is migrated into it.
-  - `corrupted: { deckUuid, receipt }`, R1 #14: `usablePrograms`, `bestUtility` and
-    `_derivePersona` exclude a program corrupted on the active deck. Swap Memory refuses
-    it.
-  - "Reload from storage" clears it. It's a GM/owner button available only OUT of the
-    Matrix (a declared simplification: the external clean copy is assumed).
+- **Deck damage, worms, chip replacements and corruption are FOLDED from records on the
+  DECK ITEM** (no mutable fields; R4 #8):
+  - `vr2:chip-replace:<chip>:<n>` = `{}`, where `chip` is "mpcp" or "persona". The chip's
+    INCARNATION is its replacement count;
+  - `vr2:deck-dmg:<source>` = `{ attr, amount, chip, chipGen }`. `chipGen` is captured
+    in the REQUEST (the `vr2:gray`/`vr2:ripper` record, made when the hit landed) and
+    copied through the result, so damage only counts against the chip incarnation that
+    was hit. A replacement installed before resolution stays clean (R4 #11, R5 note);
+  - `vr2:worm:<source>` = `{ kind, chipGen }` (the MPCP chip's incarnation);
+  - (on the decker) `vr2:crash:<programId>:<loadGen>:<source>` (R1 #13, R2 #7): a program is crashed
+    iff a record exists for its CURRENT loadGen. A late strike on an older copy is
+    harmless. Part 2's `crashed` boolean stays readable (OR-ed in) until it's next
+    cleared;
+  - `vr2:corrupt:<programKey>:<source>` and `vr2:reload:<programKey>:<n>` on the deck
+    (R2 #8): `programKey` = the compendium source id, else the name slug. Every program
+    with that key is unusable while that deck is active. "Reload from storage"
+    (owner/GM, only OUT of the Matrix) records a reload, a declared simplification.
+  - A manual-fallback decker (no deck item) keeps the same records on the actor, under
+    the prefix `vr2:manual-deck:`.
+- **Derivation (R1 #6, R4 #10):** effective MPCP = max(0, mpcp − Σ current-incarnation
+  damage.mpcp). Each attribute:
+  - no program of that kind LOADED: the authored value, capped at the effective MPCP,
+    less chip damage;
+  - loaded, but every loaded copy crashed or corrupted: 0 (presence, not usability,
+    decides the fallback, as part 2 does);
+  - otherwise max(0, min(best usable rating, effective MPCP) − Σ chip damage).
 
-### 3. Black IC (R1 #1, #7, #8)
-- **The record:** a black attack card snapshots `black: { icKey, rating, lethal,
-  psychotropic, kind }` and the target's connection id.
-- **One resolution, frozen first:**
-  - Resolving a black hit begins with "Finalize the attack": the attack test is closed
-    to Karma, and its CURRENT successes are frozen into the card's resolution request
-    (an event).
-  - The decker's designated writer then records `connection.black[icKey] = { rating,
-    hitAt, attackSuccesses, card }`. This is the jack-out lock, set even by a hit that
-    does no damage.
-  - The two resistances follow, each its own test and each receipted on its own
-    document:
-    1. **Icon:** Bod vs Power, armor applies. Matrix boxes on the persona, receipt
-       `black:<card>:icon` on the decker.
-    2. **Meat:** Body (lethal on a hot deck) or Willpower (non-lethal, psychotropic, or
-       lethal on a cool deck → Stun), against Power − Hardening (floor 2). Karma yes,
-       pools no. `commitDamage` with receipt `black:<card>:meat`.
+  An effective MPCP of 0 makes every attribute 0, and the sheet says so. Session icon
+  damage and improvised sacrifices apply after this, as today. `usablePrograms` and
+  `bestUtility` exclude crashed and corrupted programs.
 
-    Either order. The card shows each as done when its receipt exists.
-- **Icon down** is actor-wide and derived: the persona monitor is full. While it's
-  down:
-  - every black IC's Power is +2;
-  - the decker's attack, maneuver and System Test buttons refuse ("Your icon is down:
-    you can only try to jack out", a shared guard);
-  - non-black IC treat a crash as part 2 does (a dump). A black kill does not dump.
-- **Dead or unconscious after the meat damage** (read after the commit): the designated
-  writer opens the EXIT (§3a) with `finalShot: { icKey, rating × 2 }`. The connection
-  isn't cleared until the exit completes.
-- **The jack-out gate:** while `connection.black` has a live record (its IC still on that
-  generation), every voluntary exit runs a Willpower (highest live rating) test, a
-  Complex Action with Karma allowed.
-  - Success opens the exit with `lastAttack: { icKey }`.
+### 3. Black IC (R1 #1, #7, #8; R2 #2, #14; R3 #3, #4)
+- **A hit:** resolving a black attack card begins with "Finalize the attack": the test
+  closes to Karma, and the record `vr2:hit:<card>` = `{ conn: n, icKey, rating,
+  attackSuccesses, lethal, kind, deckSnap }` is created. A hit that does no damage still
+  makes a record.
+  - It is both the jack-out lock (while its IC is on that incarnation) and a PENDING
+    attack. There is one record per CARD, so several cards from one IC coexist (R3 #4).
+- **Every admitted attack on a connected decker records `vr2:attack:<card>` = `{ conn: n,
+  icKey, class }` on the decker BEFORE any damage is applied (R5 #3)**, black, gray and
+  white alike. It is pending until its resolution record exists (`vr2:hit` resolved,
+  part 2's resolution card, or a gray/ripper result). The exit barrier waits on every
+  pending attack of that connection, so a crash during an open exit can't be passed by
+  before its consequence is recorded.
+- **Two resistances, each its own record with its rolled result:**
+  - `vr2:res:<card>:icon` (Bod vs Power, armor), applied to the persona monitor by
+    claim + receipt;
+  - `vr2:res:<card>:meat` (Body, or Willpower when non-lethal/psychotropic/cool), against
+    Power − the snapshot's Hardening (floor 2). Applied by `commitDamage` with a claim
+    and receipt. Karma yes, pools no. Lethal on a cool deck is Stun.
+
+  Either order. A hit is RESOLVED when both records exist and both applications have
+  their receipts.
+- **`blackRating(ic, decker)`** = rating + 2 while the persona monitor is full (icon
+  down). It feeds the Power, the gate test, the final shot and the psychotropic test.
+- **One action guard, `vr2ActionGuard`,** refuses attack, maneuver, System Test, Medic,
+  Swap Memory, Relocate and improvised builds:
+  - while the icon is down ("you can only try to jack out");
+  - while an exit is open.
+
+  Non-black IC crashing the persona open a dump exit (§3a). A black kill does not.
+- **Dead or unconscious after a meat application:** the applying client records
+  `vr2:exit-open:<n>` (trigger "black-kill"); `finalShot:<card>` is then a derived step
+  (§3a).
+- **The gate:** while any lock is live, a voluntary exit first rolls Willpower vs the
+  highest `blackRating`, a Complex Action with Karma allowed. The roll is recorded
+  `vr2:gate:<n>:<attempt>` (attempt = 1 + the gate records on this connection; R5 #6).
+  - Success opens the exit with the step `lastAttack:<icKey>` for each locking IC.
   - Failure: the decker stays.
-  - "Pull the plug" or an ICCM monitor jack-out opens the exit with `lastAttack` and no
-    test.
-  - A damage dump skips the gate.
-  - PCPIC replaces the gate test with Willpower (rating) + pcpicMod(the current wound),
-    offered after each of its hits.
+  - "Pull the plug" or the ICCM monitor opens the exit with `lastAttack` and no test.
+  - PCPIC replaces the gate (§3b).
 
-### 3a. The exit record (R1 #1, #9, #10)
-- **Opening it:** every way out (the sheet, a jackpoint, a damage crash, a shutdown, a
-  black kill) opens `connection.exit = { id, kind, steps: [...] }`. Opening it is one
-  update by the designated writer, and a second open finds it there. The steps, in
-  order, are only the ones that apply:
-  1. `lastAttack`: the GM makes the IC's last attack AGAINST THIS CONNECTION (the attack
-     dialog targets the exiting connection; attack cards carry the connection id, so a
-     reconnection can't take it);
-  2. `finalShot`: the MPCP shot (blaster rules, double rating) on `connection.deckRef`;
-  3. `datatrail`: for each live trace, 1D6 − 1 against its turns left;
-  4. `dumpShock`: posted once;
-  5. `psychotropic`: one Willpower (rating) test per live psychotropic hit;
-  6. `tapeworm`: one roll per tapeworm on the deck.
-- Each step records `steps[i].done` in its own update, so the steps are resumable
-  across a reload; the designated writer resumes an open exit on load.
-- **Ending the connection:** only after the last step does the writer move the
-  connection to `flags.sr2e.vr2LastConnection` and clear `matrixMode`. The old part-2
-  path is refactored into this.
-- **Graceful Logoff** is part 1's System Test (`gracefulLogoff`), plus every live trace's
-  rating on its TN. Success opens an exit of kind "graceful": no dump shock, and it stops
-  the location cycles. It is refused while a black lock is live (the gate is the way
-  out). The leave dialog's "Graceful Logoff" button now RUNS that test instead of
-  asserting it.
+### 3a. The exit (R1 #1, #9, #10; R2 #1; R3 #3–#5)
+- **Opening:** `vr2:exit-open:<n>` (n = the connection), whose payload names the
+  trigger (voluntary/gate, plug, dump, black-kill, shutdown, graceful). One per
+  connection; a second open is rejected.
+- **The required steps are DERIVED, never created (R4 #3)**: the fold computes them from
+  the records that exist:
+  - `lastAttack:<icKey>`, for each locking IC incarnation LISTED in the exit-open payload
+    (captured when it opened by gate or plug, R5 #5). If that IC is destroyed before
+    its last attack, the step resolves as `cancelled` (an exit-res record), explicitly;
+  - `finalShot:<card>`, for each black hit whose meat application left the decker dead
+    or unconscious (the application's receipt records that state);
+  - `gray:<card>`, for each gray consequence on this connection;
+  - `datatrail:<icKey>`, for each trace still locating at the exit;
+  - `dumpShock`, unless graceful, a tortoise, or the decker is dead;
+  - `psychotropic:<icKey>`, for each psychotropic hit;
+  - `tapeworm:<wormKey>`, for each tapeworm on the connection's deck.
 
-### 4. Gray IC and tar (R1 #5, #13–#15)
-- **Blaster and sparky crash the persona:** the attack card already carries `deckRef`.
-  The resolution emits a gray event, and the designated writer rolls the Blaster/Sparky
-  Test and applies `damage.mpcp += loss` to that deck with the receipt
-  `gray:<card>`. Sparky's meat damage is a separate receipted step (Body, Hardening
-  reduces the Power).
-- **Rippers:** after part 2's attribute loss lands (its own receipt), a ripper event
-  applies `damage[attr] += successes` with the receipt `ripper:<card>`.
-- **Tar baby and tar pit (shared action snapshot, R1 #15):** every System Test card now
-  records `{ hostUuid, connectionId, deckRef, utility: useRef(item) }`.
-  - For the GM, the card lists each tar IC on that host whose incarnation hasn't struck
-    this card (outcome key `tar:<card>:<icKey>`). Several tar IC each get their own key.
-  - **Programs executed outside a System Test** (an attack utility, Medic, Relocate): the
-    IC sheet has "Strike a utility", where the GM picks the decker and program, captured
-    as a useRef.
-  - **The opposed test is side-effect-free.** Tar wins on MORE successes; ties hold.
-  - **Tar wins:**
-    - the program gets `crashedGen = ref.loadGen` (stale if swapped since), receipted
-      on the program;
-    - the IC is crashed (generation +1, no tally);
-    - tar pit then rolls rating vs MPCP + Hardening on `deckRef`. Any success corrupts
-      every copy of that program (same `flags.core.sourceId`/name) on that deck.
-  - **The utility wins:** a GM-whispered Sensor test (p.40 results).
+  A step that arises during the exit (its last attack knocks the decker out) is simply
+  derived on the next fold. Nothing can be "created too late".
+- **Three states per step (R3 #3):**
+  - REQUIRED: the fold derives it;
+  - RESOLVED: its result record `vr2:exit-res:<n>:<step>:<ref>` exists, carrying any
+    rolled values;
+  - APPLIED: its effect's receipt exists (damage, a card's consequence id).
+- **The barrier:** the exit completes only when:
+  - every step is applied; and
+  - every `vr2:hit` on this connection is resolved, both resistances included (R3 #4);
+    and
+  - every gray consequence recorded by a resolution on this connection is applied
+    (R3 #5).
+- **Gray consequences (R3 #5):** when blaster or sparky crashes the persona, the
+  resolution creates `vr2:gray:<card>` (the request, with the deck reference and the
+  chip incarnations at that moment, so the damage it materializes is bound to them)
+  BEFORE opening the dump exit. It is resolved from that record, needing no live
+  connection.
+- **Completion:** when the barrier holds, any client creates `vr2:conn-end:<n>` (one
+  admitted), then (in `matrixQueue`) part 1's session close and `matrixMode` false; the
+  projection rule (§0) repairs an interruption between the two. The old immediate `vr2LeaveMatrix` crash path
+  becomes "open the exit". Dump shock is the `dumpShock` step: its card is the
+  application, with consequence id `exit:<n>:dump`, posted once by a claim.
+- **The steps, in order:**
+  1. `lastAttack`: the GM makes the IC's last attack against this connection (the card
+     carries the connection number);
+  2. `finalShot`: rating × 2 vs the effective MPCP folded at resolution + the snapshot's
+     Hardening (R4 #9);
+  3. `gray`;
+  4. `datatrail`: per live trace, 1D6 − 1 vs its turns left;
+  5. `dumpShock`;
+  6. `psychotropic`;
+  7. `tapeworm`.
+- **Resumption:** any client that can update the decker resumes an open exit on
+  `ready`, `userConnected` and on any of its records changing. Every step is
+  idempotent, so resuming twice is harmless.
+- **Graceful Logoff** is part 1's System Test (`gracefulLogoff`), with every live trace's
+  rating added to its TN.
+  - Success opens an exit of kind "graceful": no dump shock, and it stops location
+    cycles.
+  - It is refused while a black lock is live.
+  - The leave dialog's "Graceful Logoff" button RUNS that test.
 
-### 5. Trace and trap (R1 #3, #11, #12)
-- **The record:** `connection.traces[icKey] = { rating, hostUuid, phase, turnsLeft,
-  cursor, spoofed: null, frozen: false }`. Several traces coexist. Only the designated
-  writer writes them.
+### 3b. Psychotropic conditions (R2 #12)
+- **The condition:** `vr2:psy:<n>:<icKey>` = `{ kind, rating, icName }`, created by
+  the `psychotropic` step's RESULT when its Willpower test (vs `blackRating`, −2 on a
+  cool deck, Karma allowed) fails. Recovery records `vr2:psy-recover:<condKey>:<n>`
+  carry the roll; a success ends the condition.
+- **Cyberphobia's modifier** lives in `testTnModifiers`, applied even under a tnPolicy:
+  +rating (the highest active, once) to tests whose tnContext skill is Computer,
+  Electronics or a B/R skill, or whose `kind` is "matrix". The pre-jack-in Willpower
+  (rating) test in `vr2EnterMatrix` and the jackpoint `jackIn` aborts before
+  `matrixMode` changes.
+- **Judas and maniac:** reminders, plus a GM "Secret test" (whispered).
+- **PCPIC:** while its lock is live, a voluntary exit needs Willpower (rating +
+  pcpicMod(the current wound)). It is re-prompted at each turn boundary after its hit
+  (§5's ticks). Its post-exit step negates further effects.
+- **Recovery:** Willpower vs `psychoRecoveryTN(rating, checkboxes)`; the cadence is a
+  reminder.
+
+### 4. Gray IC and tar (R1 #5, #13–#15; R3 #5, #10)
+- **Blaster and sparky:** see §3a (`vr2:gray:<card>`). Its result record carries the
+  MPCP roll (rating dice vs MPCP + Hardening, or + 2 + Hardening for sparky). Its
+  application is `vr2:deck-dmg` for mpcp. Sparky adds a meat resistance record
+  (Body; Hardening reduces the Power), applied like black IC's.
+- **Rippers:** after part 2's attribute loss lands, `vr2:ripper:<card>` records its roll
+  (rating vs MPCP + Hardening). Its application is `vr2:deck-dmg` for that attribute,
+  by its successes.
+- **Tar baby and tar pit:** every System Test card records `{ hostUuid, conn: n, deckSnap,
+  utility: useRef(item) }`.
+  - The GM sees each tar IC on that host as "<Tar Pit-6> strikes <utility>". The IC
+    sheet's "Strike a utility" covers programs run outside a System Test.
+  - The strike rolls both sides and records `vr2:tar:<card>:<icKey>` on the decker
+    (results inside). Several tar IC have separate keys.
+  - Tar wins on MORE successes. The application is:
+    - `vr2:crash:<programId>:<ref.loadGen>:tar-<card>`, only ever about that copy;
+    - the IC's crash (GM; generation +1, no tally; claimed, receipted on the IC);
+    - for tar pit, its MPCP roll is part of the same record, and any success adds
+      `vr2:corrupt:<programKey>:tar-<card>` on the connection's deck.
+  - The utility wins: a GM-whispered Sensor test.
+
+### 5. Trace and trap (R1 #3, #11, #12; R2 #9, #10; R3 #8)
 - **Hunt:** a trace IC attacks with TN = the Trace Factor. Its inputs:
   - the target's Evasion and Camo;
-  - `connection.redirects`;
-  - the jackpoint's `traceMod` (a NEW numeric field on the jackpoint behaviour; a field
-    on an existing type needs no server restart);
+  - the connection's redirect count (`vr2:redirect:<n>:<k>` (k = 1 + the redirects so far) records, made by the
+    GM or by Redirect Datatrail);
+  - the jackpoint's `traceMod` (a NEW numeric field on the jackpoint behaviour; no
+    server restart);
   - the trap bonus.
-- **A hit:** "Start location cycle" freezes the successes (the attack test closes) and
-  emits an event. The writer sets turnsLeft = locationTurns(s); 0 completes at once.
-- **Turns:** the cursor is `{ combatId, round }` when there's a combat, else a manual
-  counter `n`.
-  - The active GM emits ONE tick event per (trace, boundary), with id
-    `tick:<icKey>:<combatId>:<round>` or `tick:<icKey>:m<n>`. The writer applies it
-    once.
-  - A tick decrements unless the trace is `frozen`, or `spoofed` names that same
-    boundary. At 0 it completes.
-- **Relocate:** offered only in the location phase. A Simple Action Control Test
-  (Computer vs rating − Relocate); the host's opposing roll is a tally event. Success
-  sets `spoofed` = the current boundary.
-- **"Keep it frozen":** offered only right after a SUCCESSFUL Relocate. It sets `frozen`
-  and spends a Detection Factor point, as a distinct suppression entry (`kind:
-  "trace"`). Releasing it unfreezes the trace and charges NO tally (R1 #12).
-- **Crashing a trace IC** (its generation moves) kills the record at its next
-  validation, with the normal crash tally choice.
-- **Completion:**
-  - `connection.traced = { icKey, at }`;
-  - a GM card with the Security Asset Response Times row;
-  - the trap trigger, if the IC is a trap.
-  - The effects are read live: −1 TN on proactive IC attacks whose target connection is
-    traced, and `traceTally` in `tallyUpdate` (the receipt records the +1).
-- **Trap:** when an IC with `trapFor` crashes or its trace completes, the GM gets a card
-  naming the hidden IC (one per incarnation: the receipt `trap:<icKey>` on the trap IC).
+- **Location:** "Start location cycle" closes the attack test and records
+  `vr2:trace:<n>:<icKey>` = `{ successes, turns: locationTurns(s), clock }`. 0 turns
+  means complete at once.
+  - `clock` is FIXED here: `{ combatId, startRound }` if a combat is active, else
+    `{ manual: true }`.
+  - Several traces coexist.
+  - **Completion is persisted WITH the completing tick (R4 #7, R5 #4):** the active GM
+    computes the fold when creating each tick, and the tick that brings a trace to 0
+    carries `completes: true`. A 0-turn location cycle completes in the
+    `vr2:trace:<n>:<icKey>` record itself (`completes: true`). Completion is therefore
+    immutable history. A later crash of the IC stops only traces whose completion isn't
+    already recorded.
+- **Ticks (R2 #10):** `vr2:tick:<n>:<icKey>:<boundary>`, where `boundary` = the
+  combat round that ended, or `m<n>` on the manual clock.
+  - The active GM records one per round crossed (a jump of three rounds is three
+    ticks).
+  - A deleted combat, or time with no GM, is caught up by "Advance N turns" (manual
+    ticks). Switching to the manual clock is a recorded GM choice and never re-counts a
+    round.
+- **Relocate (R3 #8):** a Simple Action Control Test (Computer vs rating − Relocate). The
+  host's opposing roll is a part-2 tally event.
+  - On success it records `vr2:spoof:<n>:<icKey>:<boundary>`, where `boundary` = the
+    end of the current turn: the first boundary with no tick yet.
+  - The fold counts a spoof only if its `createdTime` precedes that boundary's tick. A
+    Relocate that loses the race to its own turn's end is wasted, and the card says so
+    (the book's action had to happen within the turn).
+- **The fold:** turns left = turns − (ticks not covered by a valid spoof or a freeze).
+  0 → complete. Because ticks and spoofs are ordered by the server, completion can't be
+  undone by a late spoof.
+- **"Keep it frozen" (R2 #9, R4 #6):** offered right after a SUCCESSFUL Relocate. It
+  records `vr2:freeze:<spoofKey>`, keyed by THAT Relocate's spoof record, so each
+  freeze cycle has its own key. `vr2:unfreeze:<spoofKey>` releases it with no tally. A
+  later Relocate can freeze again.
+  - `vr2DetectionFactor` subtracts one per frozen trace on the CONNECTION, beside part
+    2's per-session suppressions.
+  - A freeze's tick doesn't count.
+- **A crashed trace IC** ends its trace in the fold, and the normal crash tally choice
+  applies.
+- **Completion** is derived. Its consequences are claimed once each:
+  - the GM card with the Security Asset Response Times row;
+  - the trap trigger (`vr2:trap:<icKey>` on the IC);
+  - `traced` effects read live from the fold: −1 TN on proactive IC attacks against that
+    connection, and +1 on tally events (`traceTally` in part 2's `tallyUpdate`, recorded
+    in the receipt).
+- **Trap (R2 #6):** an IC with `trapFor` that crashes (in the same update as its
+  generation bump, the IC's own flag `trapFired.<gen>`), or whose trace completes,
+  gives the GM one card naming the hidden IC.
 
 ### 6. Data bombs, scramble, worms (R1 #16–#18)
 - **Data bomb:** `bombState` per incarnation (armed, defused or spent).
-  - **Defuse** is a System Test linked to the bomb (the card carries `bombKey`). On
-    success the writer sets `defused` (receipted on the bomb). On failure it stays
-    armed. All 1s: the card offers "It goes off" (the book's exception).
+  - **State is folded from ONE terminal record on the BOMB (R3 #1, R4 #5):**
+    `vr2:bomb-end:<icKey>` = `{ outcome: "defused"|"exploded", card }`. The server admits
+    the first; a defuse and a detonation racing on the same incarnation produce exactly
+    one outcome. Only an "exploded" end authorizes the damage card. The state is armed
+    (no end) / defused / spent.
+  - **Defuse** is the "Defuse" System Test linked to the bomb (the card carries
+    `bombKey`). Success → a defused record. Failure → it stays armed. All 1s: the card
+    offers "It goes off" (the book's exception).
   - **Detonation:** "It goes off" is offered on a later successful System Test linked to
     an armed bomb, or by the GM.
-    - It CLAIMS the explosion with `once(bomb, "explode:<icKey>")`, sets `spent`, and
-      posts the auto-hit (Rating)M card (resisted normally).
-    - The suppress choice costs a Detection Factor point; "register" adds the rating.
+    - It creates the terminal record with outcome "exploded"; if a defuse won, nothing
+      happens and the card says so.
+    - The explosion's auto-hit (Rating)M card is a consequence claimed by
+      `once(bomb, "<key>:card")`. A stuck claim gets "Post anyway".
+    - Resisted normally. The suppress choice costs a Detection Factor point; "register"
+      adds the rating.
 - **Scramble:**
   - Decryption is part 1's System Test as it stands: the host's successes still go on
     the tally (that's the System Test); "no tally" means no CRASH tally, which nothing
@@ -412,15 +558,17 @@ Matrix is untouched. Load: one GM world, a decker or two, a handful of IC.
   Willpower (rating) first, and a failure stops it.
 
 ### 7. Host shutdown (R1 #19)
-- **One lifecycle on the host:** `flags.sr2e.shutdown = { id, state:
-  "counting"|"offline", turns, warning, cursor, receipts }`.
-  - A "shutdown" sheaf row's delivery STARTS it with `once(host, "shutdown:<n>")`, where
-    n counts resets. A second crossing finds it running.
-  - The ticks are boundary-keyed, like traces, and receipted on the host.
+- **One lifecycle on the HOST, as records (R3 #1):**
+  - `vr2:shutdown:<n>` = `{ turns, warning, clock }`, rolled before it's created (n
+    counts resets). A second sheaf crossing finds it there.
+  - Ticks are `vr2:shutdown-tick:<n>:<boundary>`, like traces.
+  - `vr2:shutdown-reset:<n>` ends lifecycle n.
 - **The warning:** a public card for that host's deckers.
-- **At 0:** state goes "offline", and each live connection on that host gets an exit of
-  kind "shutdown" (its own receipt per connection).
-- **Offline:** `sessionFor` and the System Test refuse that host. "Reset shutdown" (GM)
+- **At 0** (derived): the host is offline, and each live connection on that host gets an
+  exit of kind "shutdown" (its exit-open record is the per-connection receipt).
+- **Offline:** every entry path refuses that host: `sessionFor`, the System Test,
+  `vr2EnterMatrix`, and the jackpoint `jackIn` (checked BEFORE matrixMode or the
+  connection changes) (R2 #13). "Reset shutdown" (GM)
   brings it back.
 - The secret Sensor tests are one GM button per decker.
 
@@ -447,11 +595,41 @@ Matrix is untouched. Load: one GM world, a decker or two, a handful of IC.
   - shutdown;
   - psychotropic recovery;
   - core ruleset inert.
+- **Quench, the round-5 regressions:**
+  - a delayed clear can't disconnect a newer connection (matrixMode derived);
+  - a gray crash during an open exit is waited on;
+  - an IC crash right after the completing tick keeps the trace completed;
+  - a locking IC destroyed before its last attack cancels that step;
+  - two failed gates, then a third attempt; three redirects counted.
+- **Quench, the round-4 regressions:**
+  - two different damage records on one monitor, both landing in full;
+  - competing connection opens (one admitted);
+  - an exit opened before its triggering hit's consequences resolve still requires them;
+  - a defuse and a detonation racing (one outcome);
+  - freeze, release, freeze;
+  - a completed trace surviving its IC's crash;
+  - a chip replaced before a delayed gray result materializes (the new chip clean);
+  - a deck given to another actor keeps its damage;
+  - a crashed persona program giving 0, not the authored value.
+- **Vitest:** the fold with shuffled equal-time records gives the same state.
+- **Quench, the round-3 regressions:**
+  - interruption right after an apply claim, then "Apply anyway";
+  - two clients creating the same record (one wins, its roll is used);
+  - an ordinary black hit resolved meat-first, the exit waiting for the icon resistance;
+  - a gray consequence applied after the connection ended;
+  - a Relocate recorded after its turn's tick, which doesn't count;
+  - deck activation refused while connected.
+- **Quench, the round-2 regressions:**
+  - final-attack unconsciousness merges a final shot into the open exit;
+  - an interrupted bomb delivery is delivered once on reconcile;
+  - reverse-order tar resolutions leave the current copy alone;
+  - a frozen trace survives a host change with its DF cost;
+  - a round jump of 3 ticks 3 times;
+  - an offline host refuses a jackpoint jack-in;
+  - icon down blocks Medic and Swap Memory.
 - **Quench, the failure paths:**
   - interruption after each permanent write (re-run the step: no double effect);
-  - the GM ticking while the owner relocates (one writer, both effects land once);
   - a host change keeps black locks and traces;
-  - a deck swap between the hit and its resolution damages the hit deck;
   - two traces;
   - a shutdown delivered twice;
   - a reconnect during a pending exit;
@@ -461,20 +639,21 @@ Matrix is untouched. Load: one GM world, a decker or two, a handful of IC.
 - **Rules-light where the book is GM fiat.** Judas, Matrix maniac, physical response,
   data loss and paydata are cards and reminders, not automation; the system has no
   paydata model.
-- **Permanent deck damage is a field on the deck item**, not a change to its authored
-  ratings: the GM can see and repair it, and a deck swap carries its own damage.
+- **Permanent deck damage is folded from records** about that deck, never a change to its
+  authored ratings: the GM can see it and repair it (a chip-replace record).
 - **Countdowns ride combat rounds** when a combat exists, with a manual "Next turn"
   otherwise. VR2 counts Combat Turns at Phase 0; a round change is that boundary in
   this system (initiative passes are inside a round).
 - **Reactive IC is GM-triggered** from the System Test card (tar, worms, data bombs),
   not auto-fired. The book triggers it by the GM's placement, which the system doesn't
   model.
-- **Receipts on the damaged document**, in the same update as the effect; cards only
-  render.
-- **One writer per decker** (events from everyone else), rather than trying to make the
-  GM's and the owner's concurrent writes safe.
-- **A connection outlives host sessions**; an exit is a resumable record, not an
-  instant.
+- **An event log with server-arbitrated keys** (Phases 4/6) rather than mutable state
+  with a designated writer. Rolls live in the records that commit them; effects are
+  claimed and receipted; ordering is the server's `createdTime`.
+- **The stuck-claim limit is accepted and surfaced** ("Apply anyway"), as for doses and
+  seizures.
+- **One deck per connection:** swapping decks while connected is refused.
+- **A connection outlives host sessions**; an exit is a resumable set of steps.
 
 ## Risks / open questions
 - The book doesn't say what dice the gray "tests" roll. The examples imply the IC's
