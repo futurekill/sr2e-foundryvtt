@@ -261,9 +261,25 @@ Phase 1's per-target pipeline exists. Both ship before the plan is closed.
   refund; Karma during Ram application → refused/refunded.
 - CHANGELOG, QA-PLAN, wiki Magic page.
 
+## User rulings and a re-read (2026-10-24)
+The user asked whether p.130 is all the book says about modifiers. A whole-book search found:
+- **Movement, p.83 (general, any test):** walking while making a Success Test +1 (+2 over
+  rough terrain or through obstacles); running "+4 target modifier to any tests attempted
+  while running". These apply to the Spell Success Test → the dialog gets the caster's
+  movement (stationary / walking / walking, rough / running), prefilled from the movement
+  ledger when there is one. (The ranged table's "target running/stationary" rows are ranged
+  combat, not general — not applied to spells.)
+- **Barriers, p.98:** "Against combat magic spells, barriers use twice their normal rating"
+  (damaging manipulations use the normal rating) → **Ram vs a barrier uses 2 × the Barrier
+  Rating** (`barrierEffect(force + successes, 2 × rating)`); vs a vehicle (Body + armor, p.151)
+  the same doubling applies (it is the barrier rating Ram is compared with).
+- **Moving Target Table, p.108:** worded for "shooting" from/at vehicles — not applied to
+  spells (GM's "other TN" covers a ruling).
+- Grimoire special spells → "GM resolves" card (user: yes).
+
 ## Key decisions & tradeoffs
-- Situation modifiers are exactly p.130's (injury, cover, visibility, magical barriers/
-  circles/lodges, sustaining). Running/walking rows are not applied (open question).
+- Situation modifiers: p.130's (injury, cover, visibility, magical barriers/circles/lodges,
+  sustaining) plus the caster's own movement (p.83).
 - Visibility uses the book's table with a vision type the caster picks; it never permits an
   unseen target.
 - Resistance Karma after damage stays as weapons do.

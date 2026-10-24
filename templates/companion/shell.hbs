@@ -55,6 +55,7 @@
 
     <section class="c-card c-menu">
       {{#if canSwitch}}<button type="button" data-action="switchCharacter">Switch character</button>{{/if}}
+      <button type="button" data-action="toggleSound">{{#if soundOn}}🔊 Sound on this phone: on — tap to mute{{else}}🔇 Sound on this phone: off — tap to turn on{{/if}}</button>
       <button type="button" data-action="fullFoundry">Open full Foundry on this device</button>
     </section>
     {{/if}}

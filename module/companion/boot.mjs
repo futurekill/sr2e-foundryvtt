@@ -11,12 +11,18 @@
  *   sr2e.companion            "on" | "off" (absent = automatic)
  *   sr2e.companion.noCanvas   the device's noCanvas value before we changed it
  *   sr2e.companion.actor      the character picked on this device
+ *   sr2e.companion.sound      "on" = this phone plays sound (absent = muted, the default)
+ *   sr2e.companion.volumes    this device's own volumes from before the companion muted them
  * `?companion=1|0|auto` in the address sets the first, and is then removed from it.
  */
 
 import { companionMode, overrideFromQuery, canvasPlan, companionActor, stripCompanionParam } from "../rules/companion-rules.mjs";
 
 const KEY = "sr2e.companion", KEY_CANVAS = "sr2e.companion.noCanvas", KEY_ACTOR = "sr2e.companion.actor";
+const KEY_SOUND = "sr2e.companion.sound", KEY_VOLUMES = "sr2e.companion.volumes";
+// Foundry's three volumes are CLIENT settings — per device — so muting the phone leaves the
+// player's computer (and everyone else) as it was. Dice So Nice plays on the interface channel.
+const VOLUMES = ["globalPlaylistVolume", "globalAmbientVolume", "globalInterfaceVolume"];
 const RELOADED = "sr2e.companion.reloaded";   // sessionStorage: "on"/"off", one reload per tab per direction
 
 const store = {
@@ -49,8 +55,36 @@ function decide() {
 /** Is this device running the companion screen? Decided once per page load. */
 export const isCompanion = typeof window === "undefined" ? false : decide();
 
+/** Does this companion play sound? Off by default: the player's computer already does. */
+export const companionSoundOn = () => store.get(KEY_SOUND) === "on";
+
+/** Mute this device, remembering its own volumes the first time. */
+async function muteDevice() {
+  if (store.get(KEY_VOLUMES) === null) {
+    store.set(KEY_VOLUMES, JSON.stringify(Object.fromEntries(VOLUMES.map(k => [k, game.settings.get("core", k)]))));
+  }
+  for (const k of VOLUMES) if (game.settings.get("core", k) !== 0) await game.settings.set("core", k, 0);
+}
+
+/** Give this device its own volumes back (if the companion muted it). */
+async function restoreDevice() {
+  const raw = store.get(KEY_VOLUMES);
+  if (raw === null) return;
+  let saved = {};
+  try { saved = JSON.parse(raw) ?? {}; } catch (e) { /* corrupt: fall back to Foundry's default */ }
+  for (const k of VOLUMES) await game.settings.set("core", k, Number.isFinite(saved[k]) ? saved[k] : 0.5);
+  store.set(KEY_VOLUMES, null);
+}
+
+/** Turn this phone's sound on or off. */
+export async function setCompanionSound(on) {
+  store.set(KEY_SOUND, on ? "on" : null);
+  return on ? restoreDevice() : muteDevice();
+}
+
 /** Switch this device between the companion and full Foundry, then reload. */
-export function setCompanion(on) {
+export async function setCompanion(on) {
+  if (!on) await restoreDevice().catch(err => console.error("sr2e | companion volumes", err));
   store.set(KEY, on ? "on" : "off");
   try { sessionStorage.removeItem(RELOADED); } catch (e) { /* */ }
   globalThis.location.reload();
@@ -105,9 +139,14 @@ export function registerCompanion() {
     if (plan.reload) { session.set(RELOADED, isCompanion ? "on" : "off"); globalThis.location.reload(); }
   });
 
-  if (!isCompanion) return;
+  if (!isCompanion) {
+    // A device that stopped being a companion (manually or by size) gets its volumes back.
+    Hooks.once("ready", () => restoreDevice().catch(err => console.error("sr2e | companion volumes", err)));
+    return;
+  }
   Hooks.once("ready", async () => {
     hideResolutionBanner();
+    if (!companionSoundOn()) await muteDevice().catch(err => console.error("sr2e | companion mute", err));
     const { SR2ECompanionApp } = await import("./app.mjs");
     // The screen first, then the question: a picker must never be the only thing on a blank page.
     game.sr2e ??= {};

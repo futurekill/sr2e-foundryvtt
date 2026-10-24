@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.117.3 — 2026-10-24
+
 ### Fixed
 - (tests) The manipulation-damage Quench batch removes every area-spell template it creates,
   including one that lands late under a loaded run (it was leaving Flame Bomb templates on

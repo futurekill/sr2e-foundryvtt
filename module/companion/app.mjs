@@ -8,7 +8,7 @@
  * the roll dialogs are the system's own, restyled for touch by the companion CSS.
  */
 
-import { setCompanion, chooseActor } from "./boot.mjs";
+import { setCompanion, chooseActor, companionSoundOn, setCompanionSound } from "./boot.mjs";
 import { SHARED_ACTIONS } from "../sheets/sheet-actions.mjs";
 import { targetDocs, updateSharedTargets } from "../targeting.mjs";
 import { targetChoices } from "../rules/companion-rules.mjs";
@@ -49,6 +49,7 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
       },
       clearTargets: async function () { await updateSharedTargets(this.targetScene()?.id ?? null, () => []); },
       fullFoundry: () => setCompanion(false),
+      toggleSound: async function () { await setCompanionSound(!companionSoundOn()); this.render(); },
       switchCharacter: async function () {
         const actor = await chooseActor({ ask: true });
         if (actor) { this.actor = actor; this.render(); }
@@ -88,7 +89,7 @@ export class SR2ECompanionApp extends HandlebarsApplicationMixin(ApplicationV2) 
   async _prepareContext() {
     const a = this.actor;
     const ctx = {
-      actor: a, user: game.user.name,
+      actor: a, user: game.user.name, soundOn: companionSoundOn(),
       canSwitch: game.actors.filter(x => x.type === "character" && x.isOwner).length > 1
     };
     if (!a) return ctx;
