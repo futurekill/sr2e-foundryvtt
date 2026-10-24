@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { combatSpellOutcome, combatSpellTarget, targetKindOf, visibilityMod, spellSituationTN,
-         ramEffect, isMisfire, inferDamageType, isManualCombatSpell, isRamSpell }
+         ramEffect, isMisfire, inferDamageType, spellDamageType, isManualCombatSpell, isRamSpell }
   from "../module/rules/spell-rules.mjs";
 
 // SR2E p.131: ties to the caster at the base level; 2 net successes stage one level.
@@ -80,6 +80,10 @@ describe("misfire, damage type, special spells", () => {
     expect(inferDamageType({ source: "Compendium.sr2e.spells.Item.35196693267b9409", name: "Sleepy Manaball" })).toBe("physical");
     expect(inferDamageType({ name: "Homebrew Stunner" })).toBe("stun");
     expect(inferDamageType({ name: "Firebolt" })).toBe("physical");
+  });
+  it("reads a document's source for the default", () => {
+    expect(spellDamageType({ name: "Stun Bolt", system: {}, _stats: { compendiumSource: "Compendium.sr2e-grimoire.grim-spells.Item.ffacf666721c2cf1" } })).toBe("stun");
+    expect(spellDamageType({ name: "Stun Bolt", system: { damageType: "" }, flags: { core: { sourceId: "Compendium.sr2e-grimoire.grim-spells.Item.ffacf666721c2cf1" } } })).toBe("stun");
   });
   it("flags the GM-resolved and Ram spells", () => {
     expect(isManualCombatSpell({ range: "touch" })).toBe(true);

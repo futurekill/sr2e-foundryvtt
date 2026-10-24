@@ -179,6 +179,11 @@ export function inferDamageType({ damageType = "", damageCode = "", source = nul
   return /stun|sleep/i.test(String(name)) ? "stun" : "physical";
 }
 
+/** The damage type of a spell document or its source data. */
+export const spellDamageType = (doc) => inferDamageType({
+  damageType: doc?.system?.damageType, damageCode: doc?.system?.damageCode, name: doc?.name,
+  source: doc?._stats?.compendiumSource ?? doc?.flags?.core?.sourceId ?? null });
+
 /** Does the resolver leave this combat spell to the GM (touch range, a special Grimoire spell, opt-in)? */
 export function isManualCombatSpell({ range = "", spellRule = "", source = null } = {}) {
   return range === "touch" || spellRule === "manual" || (!!source && MANUAL_SPELL_SOURCES.has(source));

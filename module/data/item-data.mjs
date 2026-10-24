@@ -383,6 +383,10 @@ export class SpellData extends SR2EDataModel {
       drainCode: new fields.StringField({ initial: "(F / 2)M" }),
       target: new fields.StringField({ initial: "" }),
       damageCode: new fields.StringField({ initial: "" }),
+      // A combat spell's damage (p.127: Physical "unless otherwise noted"). "" = not yet known;
+      // read it through spellDamageType() (module/rules/spell-rules.mjs), never directly.
+      damageType: new fields.StringField({ initial: "", blank: true, choices: {
+        "": "—", physical: "SR2E.Spells.DamagePhysical", stun: "SR2E.Spells.DamageStun" } }),
       isAreaEffect: new fields.BooleanField({ initial: false }),
       isVoluntary: new fields.BooleanField({ initial: false }),
       // Marks a spell as "magical healing" for the bioware interference rule

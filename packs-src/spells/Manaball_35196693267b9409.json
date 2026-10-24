@@ -14,7 +14,8 @@
     "damageCode": "M",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets."
+    "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets.",
+    "damageType": "physical"
   },
   "img": "systems/sr2e/assets/item_icons/spells/manaball.webp",
   "effects": [],

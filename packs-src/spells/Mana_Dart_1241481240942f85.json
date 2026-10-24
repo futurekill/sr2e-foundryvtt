@@ -14,7 +14,8 @@
     "damageCode": "L",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "A small dart of magical power that does Physical damage."
+    "notes": "A small dart of magical power that does Physical damage.",
+    "damageType": "physical"
   },
   "img": "systems/sr2e/assets/item_icons/spells/mana-dart.webp",
   "effects": [],

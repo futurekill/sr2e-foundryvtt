@@ -309,6 +309,23 @@
     <label>Damage Code:</label>
     <input type="text" name="system.damageCode" value="{{system.damageCode}}" placeholder="For combat spells" />
   </div>
+  {{#if (eq system.category "combat")}}
+  <div class="form-group">
+    <label>{{localize "SR2E.Spells.DamageType"}}:</label>
+    <select name="system.damageType">
+      <option value="" {{selected system.damageType ""}}>—</option>
+      <option value="physical" {{selected system.damageType "physical"}}>{{localize "SR2E.Spells.DamagePhysical"}}</option>
+      <option value="stun" {{selected system.damageType "stun"}}>{{localize "SR2E.Spells.DamageStun"}}</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>{{localize "SR2E.Spells.ResolveManually"}}:</label>
+    <select name="flags.sr2e.spellRule">
+      <option value="" {{selected item.flags.sr2e.spellRule ""}}>—</option>
+      <option value="manual" {{selected item.flags.sr2e.spellRule "manual"}}>Yes</option>
+    </select>
+  </div>
+  {{/if}}
   <div class="form-group">
     <label>Area Effect:</label>
     <input type="checkbox" name="system.isAreaEffect" {{checked system.isAreaEffect}} />

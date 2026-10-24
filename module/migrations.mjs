@@ -38,6 +38,7 @@
 import { limbModel } from "./rules/limb-rules.mjs";
 import { RANGE_FIXES, rangesFor, ALL_RANGE_FIXES } from "./rules/weapon-ranges.mjs";
 import { startingKarmaPool, karmaPoolCapacity, skillTiersFromAllocation, allocationFromLegacyRating, staleSubRatingRepair, gradeEssenceCost } from "./rules/sr2e-rules.mjs";
+import { spellDamageType } from "./rules/spell-rules.mjs";
 
 export const UNARMED_STRIKE_DATA = {
   name: "Unarmed Strike",
@@ -696,6 +697,15 @@ export const MIGRATIONS = [
       if (m.level) bits.push(`move-by-wire ${m.level}: +${m.level} dice on Athletics and Stealth; complication tests start on today's date`);
       if (bits.length) MBW_REPORT.push(`${CURRENT_LABEL || source.name} — ${bits.join("; ")}`);
       return null;
+    }
+  },
+  {
+    version: "0.118.0",
+    // Combat spells carry their damage type as data (docs/PLAN-combat-spells.md P1.2).
+    // Detected by value: a blank field is the only thing it writes.
+    migrateItem(source) {
+      if (source.type !== "spell" || source.system?.category !== "combat" || source.system?.damageType) return null;
+      return { "system.damageType": spellDamageType(source) };
     }
   }
 ];

@@ -14,7 +14,8 @@
     "damageCode": "S",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "An area-effect spell that causes Physical damage. The fireball spell can ignite combustible materials in its blast area. Gamemaster discretion."
+    "notes": "An area-effect spell that causes Physical damage. The fireball spell can ignite combustible materials in its blast area. Gamemaster discretion.",
+    "damageType": "physical"
   },
   "img": "systems/sr2e/assets/item_icons/spells/fireball.webp",
   "effects": [],

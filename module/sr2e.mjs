@@ -68,6 +68,7 @@ import { registerMovementLimit } from "./movement.mjs";  // In-combat movement c
 import { injectPhaseSeq } from "./engagement.mjs";
 import { proportionalRefund } from "./rules/sr2e-rules.mjs";
 import { rowsPaid } from "./rules/ware-rules.mjs";
+import { spellDamageType } from "./rules/spell-rules.mjs";
 import { moneyQueue, updated, applyUpdate, adjustNuyen, adjustNuyenQueued, settingSet, created as createdDocs, deleted as deletedDocs, saleQuote, payAwards } from "./money.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
@@ -1889,6 +1890,13 @@ function pendingSkillLifecycle(raw = {}) {
         !!raw.concentration?.name, !!raw.specialization?.name);
   return { ratingsFinalized: false, allocated };
 }
+
+// A combat spell arriving without a damage type (old private packs, imports) gets one.
+// Spells inside a created actor skip this hook; spellDamageType() infers at use too.
+Hooks.on("preCreateItem", (item) => {
+  if (item.type === "spell" && item.system.category === "combat" && !item.system.damageType)
+    item.updateSource({ "system.damageType": spellDamageType(item) });
+});
 
 Hooks.on("preCreateItem", (item, data) => {
   if (item.type !== "skill" || item.parent?.type !== "character") return;

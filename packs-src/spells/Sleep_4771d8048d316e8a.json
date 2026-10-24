@@ -14,7 +14,8 @@
     "damageCode": "M",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "An area-effect spell that causes Stun damage to living targets only."
+    "notes": "An area-effect spell that causes Stun damage to living targets only.",
+    "damageType": "stun"
   },
   "img": "systems/sr2e/assets/item_icons/spells/sleep.webp",
   "effects": [],

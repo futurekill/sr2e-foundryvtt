@@ -14,7 +14,8 @@
     "damageCode": "D",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "An area-effect spell that causes Physical damage. The hellblast spell can ignite combustible materials in its blast area. Gamemaster discretion."
+    "notes": "An area-effect spell that causes Physical damage. The hellblast spell can ignite combustible materials in its blast area. Gamemaster discretion.",
+    "damageType": "physical"
   },
   "img": "systems/sr2e/assets/item_icons/spells/hellblast.webp",
   "effects": [],
