@@ -26,6 +26,7 @@ import { preCastBlock, fetishCheck, personallySustaining } from "./restricted-sp
 import { spellEffectKind, igniteFromCast } from "./spell-effects.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
 import { commitDamage } from "./drugs.mjs";
+import { moneyQueue, adjustNuyen } from "./money.mjs";
 import { RL } from "./util/roll-label.mjs";
 import {
   ritualMaterialsCost, ritualLinkTN, ritualSendingTN, ritualStageHours, ritualTeamMax, ritualResistTN,
@@ -301,9 +302,10 @@ async function pay(id, supplied) {
     if (r.paid) return false;
     const leader = asActor(sync(r.leaderUuid));
     if (!supplied) {
-      const n = leader.system.nuyen ?? 0;
-      if (n < r.materials) { ui.notifications.warn(`${leader.name} has ${n.toLocaleString()}¥; the materials cost ${r.materials.toLocaleString()}¥.`); return false; }
-      await leader.update({ "system.nuyen": n - r.materials, [`flags.sr2e.ritualPaid.${r.id}`]: true });
+      // The leader's money queue (a different key from this ritual's queue: no deadlock).
+      const charged = await moneyQueue(leader, () => leader.getFlag("sr2e", `ritualPaid.${r.id}`)
+        || adjustNuyen(leader, -r.materials, { [`flags.sr2e.ritualPaid.${r.id}`]: true }), "ritual materials");
+      if (!charged) { ui.notifications.warn(`${leader.name} has ${(leader.system.nuyen ?? 0).toLocaleString()}¥; the materials cost ${r.materials.toLocaleString()}¥.`); return false; }
     }
     r.paid = true;
   });

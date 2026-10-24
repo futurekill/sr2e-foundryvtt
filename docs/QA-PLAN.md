@@ -767,3 +767,16 @@ If those five all work, the core loop is healthy.
 - Core compendium **Cybereyes**: no module rows; Essence .2 on a fresh drop.
 - Shadowtech **Import history**: the Substances row shows the item's name.
 - `sr2e.movement` hooks finish inside their 15 s budget; no "Quench Movement" scenes left.
+
+## Money queue and eye accessories (0.117.0; docs/PLAN-money-queue-and-eye-accessories.md)
+- Quench `sr2e.money-queue` and `sr2e.eye-accessory-drop` (delayed/failing writes are stubbed).
+- Live: drag Low-Light Vision from the Cyberware compendium onto a Cybereyes row on the Gear
+  tab → a row in the eye, 3,750¥ charged, Essence unchanged; the row's × refunds it.
+- Live: type a new value into the nuyen field while a purchase settles → both land.
+
+## GitHub #19–#22 (0.117.0)
+- #19: a Knowledge skill at 4 in creation raises Skills spent by 4; a language marked
+  "Native language" costs nothing.
+- #20: Sum-to-10 — set two categories to B: no swap; the total shows, valid when ≤ 10.
+- #21: Knowledge "+" and Language "+" create the skill in that section (Intelligence).
+- #22: Equip a cyberdeck on the Gear tab → MPCP etc. on the Matrix tab follow it.

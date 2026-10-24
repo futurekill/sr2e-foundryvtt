@@ -1804,7 +1804,8 @@ export function chargenItemCost(i, ctx = {}) {
   }
   // A projection may carry its own ware context (single eye, muscle discount).
   const c = i?.wareRule ? { ...ctx, wareRule: i.wareRule, fullCyberlimbs: i.fullCyberlimbs } : ctx;
-  return itemBaseCost(i, c) * (i?.quantity ?? 1);
+  // Eye accessories bought into a cybereye count at their list price, after the eye's own.
+  return itemBaseCost(i, c) * (i?.quantity ?? 1) + (Number(i?.moduleListValue) || 0);
 }
 
 /**
@@ -1838,9 +1839,10 @@ export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuan
  *   Bonus Attribute Points (Companion p.24) are bought with Edge, not with the
  *   attribute budget; they live outside `base` (see naturalAttribute) and so are
  *   excluded here for free.
- * - Skills: sum of **Active + Build/Repair** skill ratings. Knowledge, Language
- *   and Special skills follow the p.74 special rules (native language is free,
- *   others need GM approval), so they are NOT charged against the skill budget.
+ * - Skills: every skill costs Skill Points — "any skills from the Skills chapter"
+ *   (SR2E p.46; GitHub #19), Special skills with GM approval. Only the languages
+ *   p.46 gives for free are not charged: the native language and a Street
+ *   lifestyle's local dialect (`freeLanguage`).
  * - Resources: sum of gear cost via chargenItemCost (list price, no Street Index;
  *   ammo priced by bundle, not ×rounds).
  * - Force Points (magicians only): sum of spell Force + focus Bonding cost.
@@ -1860,7 +1862,7 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
   // refunded 1 skill point for every concentration and 2 for every
   // specialization, repeatable on every skill.
   const skillSpent = skills
-    .filter((k) => k.category === "active" || k.category === "build_repair")
+    .filter((k) => !(k.category === "language" && k.freeLanguage))
     .reduce((s, k) => s + skillChargenSpend(k), 0);
   // Price each item through chargenItemCost: itemBaseCost × quantity for normal
   // gear, but ammo's `cost` is the price of the WHOLE bundle, so multiplying by

@@ -1,4 +1,5 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { moneyQueue, applyUpdate } from "../money.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { createArea, canCreateArea } from "../areas.mjs";
 import { firstTarget, targetTokens } from "../targeting.mjs";
@@ -472,6 +473,15 @@ export class SR2EItem extends Item {
   async reloadWeapon() {
     const actor = this.parent;
     if (!actor || this.type !== "weapon") return;
+    // Reserve rounds are refundable stock: the reload reads and writes them inside the
+    // owner's money queue, so it can't interleave with a sale or a consolidation.
+    return moneyQueue(actor, () => this._reloadNow(), "reload");
+  }
+
+  /** @private The reload itself, inside the owner's money queue. */
+  async _reloadNow() {
+    const actor = this.parent;
+    if (!actor?.items.has(this.id)) return;
     const ammo = this.system.ammo;
     if (!(ammo?.max > 0)) {
       return ui.notifications.warn(`${this.name} does not track ammunition (set a clip size first).`);
@@ -484,6 +494,7 @@ export class SR2EItem extends Item {
 
     let current = ammo.current;
     let ejectNote = "";
+    let returned = null;   // the ejected rounds' reserve, credited below with the other writes
 
     // Clip swap: any rounds not from the selected reserve are ejected so the
     // clip never mixes types. This includes rounds with no recorded origin
@@ -492,7 +503,7 @@ export class SR2EItem extends Item {
       const oldReserve = ammo.loadedSourceId ? actor.items.get(ammo.loadedSourceId) : null;
       const oldName = ammo.loadedName || "untracked";
       if (oldReserve?.type === "ammo") {
-        await oldReserve.update({ "system.quantity": oldReserve.system.quantity + current });
+        returned = { reserve: oldReserve, before: oldReserve.system.quantity };
         ejectNote = `<br><em>Ejected ${current} ${foundry.utils.escapeHTML(oldName)} round${current === 1 ? "" : "s"} back to reserve.</em>`;
       } else {
         ejectNote = `<br><em>Ejected ${current} ${foundry.utils.escapeHTML(oldName)} round${current === 1 ? "" : "s"} (no reserve to return them to — discarded).</em>`;
@@ -513,8 +524,20 @@ export class SR2EItem extends Item {
     }
 
     const remaining = source.system.quantity - take;
-    await source.update({ "system.quantity": remaining });
-    await this.update({
+    // Three checked writes (inside the money queue): the ejected rounds back, the new ones
+    // out, the clip loaded. A failure undoes the ones that landed, so no round is duplicated.
+    const sourceBefore = source.system.quantity;
+    const undo = async (why) => {
+      const ok = await applyUpdate(source, { "system.quantity": sourceBefore }, {}, "reload: undo reserve")
+        && (!returned || await applyUpdate(returned.reserve, { "system.quantity": returned.before }, {}, "reload: undo eject"));
+      if (ok) ui.notifications.warn(`${this.name} couldn't be reloaded (${why}) — nothing changed.`);
+      else ui.notifications.error(`${this.name}: the reload failed (${why}) and its rounds couldn't all be put back — check ${source.name}'s quantity by hand.`, { permanent: true });
+    };
+    if (returned && !(await applyUpdate(returned.reserve, { "system.quantity": returned.before + ammo.current }, {}, "reload: eject"))) {
+      return ui.notifications.warn(`${this.name} couldn't be reloaded — nothing changed.`);
+    }
+    if (!(await applyUpdate(source, { "system.quantity": remaining }, {}, "reload: take rounds"))) return undo("the reserve couldn't be updated");
+    const loaded = await applyUpdate(this, {
       "system.ammo.current":        current + take,
       "system.ammo.loadedSourceId": source.id,
       "system.ammo.loadedName":     source.name,
@@ -523,7 +546,8 @@ export class SR2EItem extends Item {
       "system.ammo.armorMod":       source.system.armorModifier ?? 0,
       "system.ammo.armorCalc":      source.system.armorCalc ?? "standard",
       "system.ammo.damageType":     source.system.damageType ?? ""
-    });
+    }, {}, "reload: load");
+    if (!loaded) return undo("the weapon couldn't be loaded");
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),

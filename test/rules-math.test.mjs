@@ -733,15 +733,16 @@ describe("chargenSpend — priority budget tracking (SR2E p.44–45)", () => {
     const r = chargenSpend({ attributes: attrs }, { attributes: 30 });
     expect(r.attributes).toEqual({ spent: 27, total: 30, remaining: 3, over: false });
   });
-  it("counts active + build/repair skills, not knowledge/language/special", () => {
+  it("every skill costs Skill Points except the free native language and street dialect (p.46, GitHub #19)", () => {
     const skills = [
       { category: "active", rating: 6 }, { category: "build_repair", rating: 4 },
       { category: "knowledge", rating: 5 }, { category: "language", rating: 3 },
-      { category: "special", rating: 2 }
+      { category: "special", rating: 2 },
+      { category: "language", rating: 6, freeLanguage: "native" }, { category: "language", rating: 2, freeLanguage: "dialect" }
     ];
-    const r = chargenSpend({ skills }, { skills: 8 });
-    expect(r.skills.spent).toBe(10);   // 6 + 4 only
-    expect(r.skills.over).toBe(true);  // 10 > 8
+    const r = chargenSpend({ skills }, { skills: 24 });
+    expect(r.skills.spent).toBe(20);   // 6 + 4 + 5 + 3 + 2; the native language and dialect are free
+    expect(r.skills.over).toBe(false);
   });
   it("sums gear list cost × quantity; ammo counts its bundle, not ×rounds", () => {
     const items = [

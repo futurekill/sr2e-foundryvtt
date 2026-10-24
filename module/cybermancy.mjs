@@ -11,7 +11,7 @@ import { MONTH_S } from "./rules/mbw-rules.mjs";
 import { surgeryEssencePct, surgicalEssence, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
-import { enqueueAttack } from "./engagement.mjs";
+import { moneyQueue, adjustNuyen, created, deleted } from "./money.mjs";
 import { RL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -152,34 +152,46 @@ export async function applyOperation(uuid, opId, { resume = false } = {}) {
   if (o.cancelIntent) return cancelOperation(uuid, opId, { resume: true, confirmed: true });
   if (!o.roll?.survived) return ui.notifications.warn("Only a survived operation can be applied.");
   const s = o.proposal.snapshot;
-  if (!receiptOf(actor, opId).charged) {   // before the charge the proposal must still be true
+  // Before the charge the proposal must still be true. Checked here for a quick answer,
+  // and again inside the money queue, where nothing can change under it.
+  const stale = () => {
+    if (receiptOf(actor, opId).charged) return false;
     const ids = actor.items.filter(i => i.type === "cyberware" && i.system.installed).map(i => i.id).sort();
-    const changed = JSON.stringify(ids) !== JSON.stringify(s.cyberIds) || (actor.system.nuyen ?? 0) !== s.nuyen
+    return JSON.stringify(ids) !== JSON.stringify(s.cyberIds) || (actor.system.nuyen ?? 0) !== s.nuyen
       || signedOf(actor) !== s.signed || (actor.system.essence?.manualSigned ?? null) !== s.manualSigned;
-    if (changed) return ui.notifications.warn(`${actor.name} changed since the operation was proposed (cyberware, nuyen or Essence): withdraw it and propose it again.`);
-  }
+  };
+  const staleMsg = `${actor.name} changed since the operation was proposed (cyberware, nuyen or Essence): withdraw it and propose it again.`;
+  if (stale()) return ui.notifications.warn(staleMsg);
   if (!await claimOp(actor, opId, resume)) return;
   const pct = o.roll.pct ?? 0;
   const final = r2(s.intended + s.plain - surgicalEssence(s.plain, pct));
-  // 1. Charge (per-actor purchase queue): nuyen, receipt and manual Essence in ONE update.
-  await enqueueAttack(`purchase:${actor.uuid}`, async () => {
-    if (receiptOf(actor, opId).charged) return;
-    const manual = !autoEssence();
-    await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) - s.total,
-      [`flags.sr2e.cymReceipts.${opId}.charged`]: { amount: s.total, manualBefore: s.manualSigned, manualAfter: manual ? final : null },
-      ...(manual ? { "system.essence.manualSigned": final } : {}) });
-  });
-  // 2. Items, one at a time, by deterministic id.
-  for (const { slot, data } of s.items) {
-    const id = itemId(opId, slot);
-    if (actor.items.has(id)) continue;
-    const d = foundry.utils.deepClone(data);
-    d._id = id;
-    d.system = { ...(d.system ?? {}), installed: true, ...(slot === "implant" ? { surgeryEssencePct: pct } : {}) };
-    d.flags = foundry.utils.mergeObject(d.flags ?? {}, { sr2e: { cymOp: opId, ...(slot === "implant" && s.price > 0 ? { paid: s.price } : {}) } });
-    try { await actor.createEmbeddedDocuments("Item", [d], { keepId: true }); }
-    catch (err) { if (!actor.items.has(id)) throw err; }
-  }
+  // 1–2. In ONE money-queue entry: re-validate, charge (nuyen, receipt and manual
+  // Essence in one update), then the items by deterministic id — so no sale, purchase or
+  // reprice on this client lands between the charge and the implants it paid for.
+  const applied = await moneyQueue(actor, async () => {
+    if (stale()) { ui.notifications.warn(staleMsg); return false; }
+    if (!receiptOf(actor, opId).charged) {
+      const manual = !autoEssence();
+      const charged = await adjustNuyen(actor, -s.total, {
+        [`flags.sr2e.cymReceipts.${opId}.charged`]: { amount: s.total, manualBefore: s.manualSigned, manualAfter: manual ? final : null },
+        ...(manual ? { "system.essence.manualSigned": final } : {}) });
+      if (!charged) { ui.notifications.warn(`${actor.name} couldn't be charged ${s.total.toLocaleString("en-US")}¥ for the operation: nothing was applied.`); return false; }
+    }
+    for (const { slot, data } of s.items) {
+      const id = itemId(opId, slot);
+      if (actor.items.has(id)) continue;
+      const d = foundry.utils.deepClone(data);
+      d._id = id;
+      d.system = { ...(d.system ?? {}), installed: true, ...(slot === "implant" ? { surgeryEssencePct: pct } : {}) };
+      d.flags = foundry.utils.mergeObject(d.flags ?? {}, { sr2e: { cymOp: opId, ...(slot === "implant" && s.price > 0 ? { paid: s.price } : {}) } });
+      if (!(await created(actor, actor.createEmbeddedDocuments("Item", [d], { keepId: true }), 1, "cybermancy item")) && !actor.items.has(id)) {
+        ui.notifications.error(`The operation was charged but ${d.name} couldn't be added: use Resume on the sheet.`, { permanent: true });
+        return false;
+      }
+    }
+    return true;
+  }, "cybermancy apply");
+  if (!applied) return;
   // 3. The surgery wound, receipted in the monitor update.
   if (s.wound && s.woundBoxes > 0) {
     const wounded = () => !!receiptOf(actor, opId).wounded;
@@ -197,6 +209,18 @@ export async function applyOperation(uuid, opId, { resume = false } = {}) {
     ${first ? `<br>Willpower before cybermancy: ${s.willpower}.` : ""}`);
 }
 
+/**
+ * An implant created by a cybermantic operation that isn't done or cancelled yet. Its
+ * money lives in the operation's receipt, so selling, deleting, repricing or moving it
+ * would refund it twice (docs/PLAN-money-queue-and-eye-accessories.md).
+ */
+export function unfinishedCymImplant(actor, item) {
+  const opId = item?.flags?.sr2e?.cymOp;
+  if (!opId) return false;
+  const o = cymFold(actor).ops.get(opId);
+  return !!o && !o.done && !o.cancelled;
+}
+
 /** Cancel and refund (same claim as Apply): intent, refund, items, terminal record. */
 export async function cancelOperation(uuid, opId, { resume = false, confirmed = false } = {}) {
   const actor = await actorFor(uuid); if (!actor) return;
@@ -206,20 +230,27 @@ export async function cancelOperation(uuid, opId, { resume = false, confirmed = 
   if (!await claimOp(actor, opId, resume || o.cancelIntent)) return;
   await recordEvent(actor, `cym:op-cancel-intent:${opId}`, { type: "opCancelIntent", opId, wt: game.time.worldTime });
   const notes = [];
-  await enqueueAttack(`purchase:${actor.uuid}`, async () => {
+  // One money-queue entry: the operation's items go first (checked), then the refund
+  // with its receipt — never a refund while its implants are still on the character.
+  const undone = await moneyQueue(actor, async () => {
+    const ids = o.proposal.snapshot.items.map(({ slot }) => itemId(opId, slot)).filter(id => actor.items.has(id));
+    if (ids.length && !(await deleted(actor, actor.deleteEmbeddedDocuments("Item", ids), ids, "cybermancy cancel"))) {
+      ui.notifications.error("The operation's implants couldn't all be removed: nothing was refunded. Try Cancel again.", { permanent: true });
+      return false;
+    }
     const r = receiptOf(actor, opId);
-    if (!r.charged || r.refunded) return;
+    if (!r.charged || r.refunded) return true;
     const restore = !autoEssence() && r.charged.manualAfter != null;
     const same = (actor.system.essence?.manualSigned ?? null) === r.charged.manualAfter;
     if (restore && !same) notes.push("Manual Essence was edited since the charge: set it by hand.");
-    await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + r.charged.amount, [`flags.sr2e.cymReceipts.${opId}.refunded`]: true,
-      ...(restore && same ? { "system.essence.manualSigned": r.charged.manualBefore } : {}) });
-  });
-  for (const { slot } of o.proposal.snapshot.items) {
-    const id = itemId(opId, slot);
-    if (!actor.items.has(id)) continue;
-    try { await actor.deleteEmbeddedDocuments("Item", [id]); } catch (err) { if (actor.items.has(id)) throw err; }
-  }
+    if (!(await adjustNuyen(actor, r.charged.amount, { [`flags.sr2e.cymReceipts.${opId}.refunded`]: true,
+      ...(restore && same ? { "system.essence.manualSigned": r.charged.manualBefore } : {}) }))) {
+      ui.notifications.error(`The implants were removed but the ${r.charged.amount.toLocaleString("en-US")}¥ refund failed: add it to ${actor.name} by hand.`, { permanent: true });
+      return false;
+    }
+    return true;
+  }, "cybermancy cancel");
+  if (!undone) return;
   await recordEvent(actor, `cym:op-cancelled:${opId}`, { type: "opCancelled", opId, wt: game.time.worldTime });
   return card(actor, `<strong>${esc(actor.name)}</strong>: the cybermantic operation was cancelled${receiptOf(actor, opId).refunded ? " and refunded" : ""}.${notes.map(n => ` <em>${esc(n)}</em>`).join("")}`);
 }

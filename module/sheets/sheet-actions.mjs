@@ -1,14 +1,14 @@
 import { parseDrainCode } from "../data/item-data.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
-import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, streetPrice, biowareHealingTnMod, proportionalRefund, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
 import { mbwOp, reflexCheck } from "../mbw.mjs";
-import { cymOp } from "../cybermancy.mjs";
+import { cymOp, unfinishedCymImplant } from "../cybermancy.mjs";
 import { postWoundCard } from "../cyberdamage.mjs";
 import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
@@ -21,6 +21,7 @@ import { matrixQueue, sessionHost } from "../jackpoints.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
   vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory } from "../vr2.mjs";
+import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
@@ -2744,6 +2745,9 @@ async function onToggleEquip(event, target) {
   const itemId = target.closest("[data-item-id]")?.dataset.itemId;
   const item = this.document.items.get(itemId);
   if (!item) return;
+  // A cyberdeck you equip is the deck you use: equipping activates it (and switches any
+  // other deck off), unequipping deactivates it — the Matrix tab follows the active deck.
+  if (item.type === "gear" && item.system.category === "cyberdeck") return setDeckActive(this.document, item, !item.system.equipped);
   const usesInstalled = item.type === "cyberware" || item.type === "bioware";
   const field = usesInstalled ? "system.installed" :
                 item.type === "program" ? "system.loaded" : "system.equipped";
@@ -2756,7 +2760,11 @@ async function onToggleEquip(event, target) {
   if (item.type === "cyberware" && item.system.cranialDeck && currentValue) {
     update["system.deck.active"] = false;
   }
-  return item.update(update);
+  // Installing or removing an implant changes Essence, which an eye-accessory fit checks
+  // inside the money queue: on a character it lands in that queue too, toggling the live item.
+  const actor = this.document;
+  if (!usesInstalled || actor.type !== "character") return item.update(update);
+  return moneyQueue(actor, () => actor.items.get(itemId)?.update({ ...update, [field]: !actor.items.get(itemId).system.installed }), "install toggle");
 }
 
 /**
@@ -2849,7 +2857,16 @@ async function onDeleteItem(event, target) {
     if (!confirmed) return;
   }
 
-  return item.delete();
+  // A character's items are deleted inside its money queue, re-fetched, so a delete
+  // can't land between another entry's write and its charge.
+  const actor = this.document;
+  if (actor.type !== "character") return item.delete();
+  return moneyQueue(actor, async () => {
+    const live = actor.items.get(itemId);
+    if (!live) return null;
+    if (unfinishedCymImplant(actor, live)) { ui.notifications.warn(`${live.name} belongs to an unfinished cybermantic operation: finish or cancel it first.`); return null; }
+    return live.delete();
+  }, "delete");
 }
 
 /**
@@ -2894,9 +2911,19 @@ async function onActivateDeck(event, target) {
   const isDeck = (i) => (i.type === "gear" && i.system.category === "cyberdeck") ||
                         (i.type === "cyberware" && i.system.cranialDeck && workingImplant(actor, i));
   if (!deck || !isDeck(deck)) return;
-  const makeActive = !deck.system.deck?.active;
-  const updates = actor.items.filter(isDeck)
-    .map(i => ({ _id: i.id, "system.deck.active": i.id === itemId ? makeActive : false }));
+  return setDeckActive(actor, deck, !deck.system.deck?.active);
+}
+
+/**
+ * Make `deck` the active cyberdeck (or switch it off). Exactly one deck is active: every
+ * other one goes off in the same batch. A gear deck is equipped with it (GitHub #22).
+ */
+function setDeckActive(actor, deck, on) {
+  const isDeck = (i) => (i.type === "gear" && i.system.category === "cyberdeck") ||
+                        (i.type === "cyberware" && i.system.cranialDeck && workingImplant(actor, i));
+  const updates = actor.items.filter(isDeck).filter(i => i.id !== deck.id && i.system.deck?.active && on)
+    .map(i => ({ _id: i.id, "system.deck.active": false }));
+  updates.push({ _id: deck.id, "system.deck.active": on, ...(deck.type === "gear" ? { "system.equipped": on } : {}) });
   return actor.updateEmbeddedDocuments("Item", updates);
 }
 
@@ -2915,16 +2942,7 @@ async function onSellItem(event, target) {
   // Ammo depletes as it's fired: refund proportionally to what's left, so an
   // emptied box refunds nothing (no more selling a fired-out box for full price).
   // Everything else refunds the price paid, or street price if untracked.
-  const quote = (it) => {
-    const paid = it.getFlag("sr2e", "paid");
-    const acquiredQuantity = it.getFlag("sr2e", "acquiredQuantity");
-    const isDrug = it.type === "gear" && !!it.flags?.sr2e?.drug;
-    if ((it.type === "ammo" || isDrug) && acquiredQuantity != null) return {
-      price: proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: it.system.quantity ?? 0 }),
-      note: ` (${it.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)` };
-    return { price: paid ?? streetPrice(Number(it.system.cost) || 0, it.system.streetIndex),
-      note: paid != null ? " (refund of the price paid)" : " (street price)" };
-  };
+  const quote = saleQuote;
   const { price, note } = quote(item);
   const confirmed = await foundry.applications.api.DialogV2.confirm({
     window: { title: `Sell ${item.name}?` },
@@ -2932,33 +2950,29 @@ async function onSellItem(event, target) {
   });
   if (!confirmed) return;
 
-  // A second dialog (double tap, or phone + computer) must not pay again: re-read the
-  // item, and pay only once THIS delete has really removed it.
-  const live = actor.items.get(itemId);
-  if (!live) return;
-  if (quote(live).price !== price) {
-    return ui.notifications.warn(`${live.name} changed while you were deciding — sell it again to see the new price.`);
-  }
-  const backup = live.toObject();
-  let gone = null;
-  try { gone = await live.delete(); } catch (err) { console.error("sr2e | sell: delete failed", err); }
-  if (!gone) {
-    if (actor.items.has(itemId)) ui.notifications.warn(`Couldn't sell ${live.name} — it is still on ${actor.name}.`);
-    return;
-  }
-  let credited = null;
-  try { credited = await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + price }); }
-  catch (err) { console.error("sr2e | sell: credit failed", err); }
-  if (!credited) {
-    try {
-      await actor.createEmbeddedDocuments("Item", [backup], { keepId: true });
-      ui.notifications.warn(`Couldn't pay for ${backup.name}, so it was put back on ${actor.name}.`);
-    } catch (err) {
-      console.error("sr2e | sell: restore failed", err);
-      ui.notifications.error(`${backup.name} was removed but the ${price}¥ wasn't paid, and it couldn't be put back. Add ${price}¥ to ${actor.name} by hand.`, { permanent: true });
+  // After the dialog, the sale is ONE money-queue entry: re-read the item and its quote
+  // (a purchase, reprice or consumption may have settled meanwhile), delete, credit.
+  // A second dialog (double tap, or phone + computer) must not pay again.
+  const backup = await moneyQueue(actor, async () => {
+    const live = actor.items.get(itemId);
+    if (!live) return null;
+    if (unfinishedCymImplant(actor, live)) { ui.notifications.warn(`${live.name} belongs to an unfinished cybermantic operation: finish or cancel it first.`); return null; }
+    if (quote(live).price !== price) {
+      ui.notifications.warn(`${live.name} changed while you were deciding — sell it again to see the new price.`);
+      return null;
     }
-    return;
-  }
+    const snap = live.toObject();
+    if (!(await deleted(actor, live.delete(), [itemId], "sell: delete"))) {
+      if (actor.items.has(itemId)) ui.notifications.warn(`Couldn't sell ${live.name} — it is still on ${actor.name}.`);
+      return null;
+    }
+    if (await adjustNuyen(actor, price)) return snap;
+    const back = await created(actor, actor.createEmbeddedDocuments("Item", [snap], { keepId: true, sr2eNoCharge: true }), 1, "sell: restore");
+    if (back) ui.notifications.warn(`Couldn't pay for ${snap.name}, so it was put back on ${actor.name}.`);
+    else ui.notifications.error(`${snap.name} was removed but the ${price}¥ wasn't paid, and it couldn't be put back. Add ${price}¥ to ${actor.name} by hand.`, { permanent: true });
+    return null;
+  }, "sell");
+  if (!backup) return;
   ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<strong>${foundry.utils.escapeHTML(actor.name)}</strong> sells <strong>${foundry.utils.escapeHTML(backup.name)}</strong> for <strong>${price}¥</strong>.`
@@ -2995,6 +3009,8 @@ async function onAddItem(event, target) {
   const itemData = { name, type };
   // Pass the initial category into system data so the item lands in the right section.
   if (category) itemData.system = { category };
+  // Knowledge and Language skills are Intelligence-linked (SR2E p.74).
+  if (type === "skill" && (category === "knowledge" || category === "language")) itemData.system.linkedAttribute = "intelligence";
   // Let an "Add Enemy" button seed contactType=enemy so it lands in the Enemies list.
   const contactType = target.dataset.contactType;
   if (contactType) itemData.system = { ...(itemData.system ?? {}), contactType };

@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+## 0.117.0 — 2026-10-23
+
+### Added
+- **Drop an eye accessory onto a cybereye** (Cybertechnology p.45). On the Gear tab, drop
+  low-light, thermographic, a camera, an eye gun… onto a cybereye's row and it's fitted
+  into that eye as an accessory row instead of becoming a separate implant.
+  - Inside the eye's free allowance (.5 for a pair, .25 for a single eye) it costs no
+    Essence; past it, the extra counts. It's refused only if it would take Essence below 0.
+  - Bought at the eye's grade and the accessory's own Street Index, with no surgery;
+    list price during character creation, where it counts toward Resources.
+  - A weapon or tool laser in a pair asks which eye. Alt-drop fits it free.
+  - One the character already owns can be dropped onto the eye too: it moves in and keeps
+    its resale value (its grade must match the eye's).
+  - Removing the row refunds what it cost; selling the eye refunds the eye and its
+    accessories. An eye with bought accessories can't change grade (remove them first).
+
+### Changed
+- **One money queue per character.** Buying, selling, deleting, Rating/Grade changes,
+  surgery, cybermancy, ammo merges, reloads, drug doses, quantity edits, conjuring and
+  ritual materials, starting money and the Award Nuyen macros now happen one at a time
+  per character, against the live balance, and every write is checked (a failed step
+  is undone, or you're told exactly what to fix by hand). Overlapping clicks or a phone
+  and a computer used together can no longer lose or duplicate nuyen.
+  - The nuyen field on the sheet now adds the change you type to the current balance,
+    so a purchase that lands at the same moment isn't overwritten.
+  - Award Nuyen takes the pot first and puts any share it couldn't pay back into it.
+  - Merging ammo boxes never loses resale value: boxes bought at different prices per
+    round, or empty untracked boxes, are left unmerged.
+- **Equipping a cyberdeck activates it** (GitHub #22): the Matrix tab uses the active
+  deck, and equipping one now makes it active (switching any other deck off). The
+  Matrix tab says when decks are owned but none is active.
+
+### Fixed
+- **Knowledge, Language and Special skills cost Skill Points** in character creation
+  (SR2E p.46: "any skills from the Skills chapter"; GitHub #19). The native language and
+  a Street lifestyle's local dialect are free: mark them with **Free at creation** on the
+  language skill.
+- **Sum-to-10 priorities** (Shadowrun Companion p.20) can repeat a grade — choosing one
+  no longer swaps it with another category (GitHub #20) — and a total under 10 is valid
+  ("may not exceed 10").
+- **Adding a skill from the Knowledge or Language section** creates it there, linked to
+  Intelligence (GitHub #21).
+- A failed ammo merge restored the surviving box with a zero refund value instead of none.
+
 ## 0.116.2 — 2026-10-23
 
 ### Changed

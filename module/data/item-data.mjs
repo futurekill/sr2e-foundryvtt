@@ -102,6 +102,10 @@ export class SkillData extends SR2EDataModel {
       // it. Free text — a lookup of the book's ~400 languages buys nothing until
       // something validates against it.
       languageFamily: new fields.StringField({ initial: "" }),
+      // The languages SR2E p.46 gives for free at creation (no Skill Points): the native
+      // language (Intelligence + 2) and, with a Street lifestyle, a local dialect (½ Int).
+      freeLanguage: new fields.StringField({ required: true, blank: true, initial: "", choices: {
+        "": "SR2E.FreeLanguage.None", native: "SR2E.FreeLanguage.Native", dialect: "SR2E.FreeLanguage.Dialect" } }),
       // The +2 is written as a character-generation rule, so it is flagged
       // rather than automatic. Default true: hand-entered languages (including
       // every one already on a live sheet) get it with no bookkeeping, and the
@@ -627,11 +631,16 @@ export class CyberwareData extends SR2EDataModel {
         ignored: "SR2E.Social.Ignored", flagrant: "SR2E.Social.Flagrant" } }),
       modules: new fields.ArrayField(
         new fields.SchemaField({
+          // Stable row identity: every mutation finds its row by id, never by position
+          // (docs/PLAN-money-queue-and-eye-accessories.md). Legacy rows get one lazily.
+          id:          new fields.StringField({ initial: "" }),
           name:        new fields.StringField({ initial: "" }),
           essenceCost: new fields.NumberField({ initial: 0, min: 0 }),
-          // Eye slots (p.45): what the row is, and which eye holds it.
+          // Eye slots (p.45): what the row is, and which eye holds it. Blank = not
+          // classified yet (eyeReports asks for it); "accessory" = an ordinary one.
           kind:        new fields.StringField({ required: true, blank: true, initial: "", choices: {
-            "": "SR2E.EyeRow.Accessory", weapon: "SR2E.EyeRow.Weapon", toolLaser: "SR2E.EyeRow.ToolLaser", camera: "SR2E.EyeRow.Camera" } }),
+            "": "SR2E.EyeRow.Unclassified", accessory: "SR2E.EyeRow.Accessory", weapon: "SR2E.EyeRow.Weapon",
+            toolLaser: "SR2E.EyeRow.ToolLaser", camera: "SR2E.EyeRow.Camera" } }),
           eye:         new fields.StringField({ required: true, initial: "both", choices: {
             both: "SR2E.EyeRow.Both", left: "SR2E.Limb.Side.Left", right: "SR2E.Limb.Side.Right" } }),
           cost:        new fields.NumberField({ initial: 0, min: 0 }),
@@ -640,7 +649,11 @@ export class CyberwareData extends SR2EDataModel {
           // surfaced on the parent's combatTnMod so the smartgun logic still sees it.
           combatTnMod: new fields.NumberField({ integer: true, initial: 0 }),
           active:      new fields.BooleanField({ initial: true }),
-          notes:       new fields.StringField({ initial: "" })
+          notes:       new fields.StringField({ initial: "" }),
+          // Money (Part B): what the character handed over for this row (refunded when
+          // the row is removed or the eye sold), and its list price (counted in creation).
+          paid:        new fields.NumberField({ initial: 0, min: 0 }),
+          listValue:   new fields.NumberField({ initial: 0, min: 0 })
         }),
         { initial: [] }
       ),

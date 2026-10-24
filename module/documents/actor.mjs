@@ -1,6 +1,7 @@
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
+import { moneyQueue, adjustNuyen } from "../money.mjs";
 import { careReceipt } from "../cybermancy.mjs";
 import { firstTarget } from "../targeting.mjs";
 import { SR2ESuccessRoll } from "../dice/sr2e-roll.mjs";
@@ -1412,11 +1413,11 @@ export class SR2EActor extends Actor {
     // them as already bought (a GM-supplied rite, materials on hand).
     const materials = kind === "elemental" && opts.materials !== false ? elementalMaterialsCost(force) : 0;
     if (materials > 0) {
-      const nuyen = this.system.nuyen ?? 0;
-      if (nuyen < materials) {
-        return ui.notifications.warn(`The rite's materials cost ${materials.toLocaleString()}¥ (1,000¥ × Force, SR2E p.140); ${this.name} has ${nuyen.toLocaleString()}¥.`);
+      // Charged in the money queue against the live balance (docs/PLAN-money-queue-and-eye-accessories.md).
+      const paidFor = await moneyQueue(this, () => adjustNuyen(this, -materials), "conjuring materials");
+      if (!paidFor) {
+        return ui.notifications.warn(`The rite's materials cost ${materials.toLocaleString()}¥ (1,000¥ × Force, SR2E p.140); ${this.name} has ${(this.system.nuyen ?? 0).toLocaleString()}¥.`);
       }
-      await this.update({ "system.nuyen": nuyen - materials });
     }
 
     const totemNote = totemBonus > 0 ? RL("PlusTotem", { n: totemBonus }) : "";

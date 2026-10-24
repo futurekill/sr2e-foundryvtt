@@ -13,7 +13,8 @@
  * window (its button sits at the bottom of the sidebar) and run the SR2E batches.
  */
 import { evaluateDamageCode } from "../documents/item.mjs";
-import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating } from "../rules/sr2e-rules.mjs";
+import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating, gradeCostMultiplier } from "../rules/sr2e-rules.mjs";
+import { saleQuote } from "../money.mjs";
 
 export function registerSR2EQuenchTests() {
   Hooks.on("quenchReady", (quenchApi) => {
@@ -9685,7 +9686,9 @@ export function registerSR2EQuenchTests() {
         assert.equal(canvas.scene.id, matrix.id, "this tab is in the Matrix");
         assert.equal(J.readTab()?.phase, "entered");
         await J.jackOut(a);
-        await wait(1500);
+        // Under a full run the jack-out's async steps can take longer than a fixed wait.
+        await settle(() => !a.system.matrixMode && !Object.keys(a.flags.sr2e?.matrixSessions ?? {}).length
+          && canvas.scene.id === meat.id && !J.readTab(), 8000);
         assert.isFalse(a.system.matrixMode);
         assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0, "session gone");
         assert.equal(canvas.scene.id, meat.id, "back in meat space");
@@ -11180,7 +11183,8 @@ export function registerSR2EQuenchTests() {
           assert.equal((await sessionFor(d, h)).id, id, "the session adopts its first host");
           let n = game.messages.size;
           await clicking("dump", () => Promise.all([J.jackOut(d), J.jackOut(d)]));
-          await wait(400);
+          await settle(() => game.messages.contents.slice(n).some(m => /data-armor-calc="none"/.test(m.content)), 5000);
+          await wait(400);   // and long enough for a second card to show up if there were one
           const shocks = since(n).filter(m => /data-armor-calc="none"/.test(m.content));
           assert.lengthOf(shocks, 1, "one dump-shock card");
           const ic = await mk({ name: "Quench VR2 Miss", type: "ic", system: { rating: 4, icType: "black" } });
@@ -11976,5 +11980,359 @@ export function registerSR2EQuenchTests() {
 
 
 
+
+    // ── The money queue (docs/PLAN-money-queue-and-eye-accessories.md, Part A) ──────
+    quench.registerBatch("sr2e.money-queue", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [];
+      let prevPot;
+      before(async () => { await game.settings.set("sr2e", "autoChargePurchases", true); prevPot = game.settings.get("sr2e", "communalNuyen"); });
+      after(async function () {
+        this.timeout(15000);
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+        await game.settings.set("sr2e", "communalNuyen", prevPot);
+      });
+      const buyer = async (name, nuyen = 100000) => {
+        const a = await Actor.create({ name, type: "character", system: { nuyen, chargen: { inProgress: false } } });
+        made.push(a);
+        return a;
+      };
+      // Delay every actor nuyen write by `ms`, so overlapping operations really overlap.
+      const slowNuyen = (actor, ms = 150) => {
+        const orig = actor.update.bind(actor);
+        actor.update = async (data, opts) => { if (data && "system.nuyen" in data) await new Promise(r => setTimeout(r, ms)); return orig(data, opts); };
+        return () => { delete actor.update; };
+      };
+
+      describe("queued adjustments", () => {
+        it("two overlapping credits and a debit all land (none overwrites another)", async () => {
+          const a = await buyer("Quench Money A", 1000);
+          const undo = slowNuyen(a);
+          try {
+            const r = await Promise.all([game.sr2e.adjustNuyen(a, 500), game.sr2e.adjustNuyen(a, 250), game.sr2e.adjustNuyen(a, -100)]);
+            assert.deepEqual(r, [true, true, true]);
+          } finally { undo(); }
+          assert.equal(a.system.nuyen, 1650);
+        });
+        it("a debit that would go below 0 is refused and changes nothing", async () => {
+          const a = await buyer("Quench Money B", 100);
+          assert.isFalse(await game.sr2e.adjustNuyen(a, -101));
+          assert.equal(a.system.nuyen, 100);
+        });
+      });
+
+      describe("repricing runs in the queue", () => {
+        const pump = () => ([{ name: "Adrenal Pump", type: "bioware", flags: { sr2e: { paid: 180000 } },
+          system: { rating: 1, streetIndex: "3", ratingStats: [
+            { rating: 1, bodyCost: 1.25, cost: 60000, streetIndex: "3" }, { rating: 2, bodyCost: 2.5, cost: 100000, streetIndex: "3" },
+            { rating: 3, bodyCost: 3, cost: 150000, streetIndex: "3" }] } }]);
+        it("two quick upgrades both settle: charged and paid add up", async () => {
+          const a = await buyer("Quench Money Pump", 1000000);
+          const [p] = await a.createEmbeddedDocuments("Item", pump());
+          const n0 = a.system.nuyen;
+          await Promise.all([p.update({ "system.rating": 2 }), p.update({ "system.rating": 3 })]);   // each is vetoed and queued
+          await game.sr2e.moneySettled(a);
+          assert.equal(a.items.get(p.id).system.rating, 3);
+          assert.equal(n0 - a.system.nuyen, 450000 - 180000, "street 450k − 180k paid");
+          assert.equal(a.items.get(p.id).getFlag("sr2e", "paid"), 450000);
+        });
+        it("an unaffordable upgrade changes nothing and leaves nothing pending", async () => {
+          const a = await buyer("Quench Money Poor", 1000);
+          const [p] = await a.createEmbeddedDocuments("Item", pump());
+          await p.update({ "system.rating": 2 });
+          await game.sr2e.moneySettled(a);
+          assert.equal(a.items.get(p.id).system.rating, 1);
+          assert.equal(a.system.nuyen, 1000);
+          await a.update({ "system.nuyen": 1000000 });
+          await p.update({ "system.rating": 2 });
+          await game.sr2e.moneySettled(a);
+          assert.equal(a.items.get(p.id).system.rating, 2, "a later change goes through");
+        });
+      });
+
+      describe("ammo consolidation keeps resale value", () => {
+        const box = (extra = {}) => ({ name: "Quench Ammo", type: "ammo", system: { quantity: 10, cost: 100, streetIndex: "1", ...extra } });
+        it("two untracked boxes merge into one that sells for both", async () => {
+          const a = await buyer("Quench Money Ammo 1");
+          await a.createEmbeddedDocuments("Item", [box(), box()]);
+          const before = a.items.filter(i => i.type === "ammo").reduce((s, i) => s + saleQuote(i).price, 0);
+          await game.sr2e.consolidateAmmo(a, { quiet: true });
+          const piles = a.items.filter(i => i.type === "ammo");
+          assert.lengthOf(piles, 1);
+          assert.equal(saleQuote(piles[0]).price, before, "same total resale value");
+        });
+        it("empty untracked boxes and boxes bought at different prices per round are not merged", async () => {
+          const a = await buyer("Quench Money Ammo 2");
+          await a.createEmbeddedDocuments("Item", [box({ quantity: 0 }), box({ quantity: 0 })]);
+          await game.sr2e.consolidateAmmo(a, { quiet: true });
+          assert.lengthOf(a.items.filter(i => i.type === "ammo"), 2, "empty untracked boxes stay apart");
+          const b = await buyer("Quench Money Ammo 3");
+          await b.createEmbeddedDocuments("Item", [
+            { ...box({ quantity: 0 }), flags: { sr2e: { paid: 1000, acquiredQuantity: 100, acquiredListValue: 1000 } } },
+            { ...box({ quantity: 100 }), flags: { sr2e: { paid: 100, acquiredQuantity: 100, acquiredListValue: 100 } } }]);
+          await game.sr2e.consolidateAmmo(b, { quiet: true });
+          assert.lengthOf(b.items.filter(i => i.type === "ammo"), 2, "different prices per round stay apart");
+        });
+        it("a failed merge leaves an untracked pile untracked", async () => {
+          const a = await buyer("Quench Money Ammo 4");
+          await a.createEmbeddedDocuments("Item", [box({ quantity: 20 }), box()]);
+          const survivor = a.items.filter(i => i.type === "ammo").reduce((x, y) => (y.system.quantity > x.system.quantity ? y : x));
+          const orig = survivor.update.bind(survivor);
+          survivor.update = async (data, opts) => { if (data && "flags.sr2e.paid" in data) throw new Error("test: credit fails"); return orig(data, opts); };
+          try { await game.sr2e.consolidateAmmo(a, { quiet: true }); } finally { delete survivor.update; }
+          assert.lengthOf(a.items.filter(i => i.type === "ammo"), 2, "both piles back");
+          assert.isUndefined(a.items.get(survivor.id).getFlag("sr2e", "paid"), "no paid flag written");
+        });
+      });
+
+      describe("Award Nuyen", () => {
+        it("the pot is written first; a failed credit goes back into the pot", async () => {
+          const a = await buyer("Quench Money Award 1", 0), b = await buyer("Quench Money Award 2", 0);
+          await game.settings.set("sr2e", "communalNuyen", 100);
+          const orig = b.update.bind(b);
+          b.update = async (data, opts) => { if (data && "system.nuyen" in data) return null; return orig(data, opts); };
+          let r;
+          try { r = await game.sr2e.payAwards({ quotedPot: 100, newPot: 0, awards: { [a.id]: 600, [b.id]: 500 } }); }
+          finally { delete b.update; }
+          assert.isTrue(r.ok);
+          assert.deepEqual([r.paid, r.failed], [[a.id], [b.id]]);
+          assert.equal(a.system.nuyen, 600);
+          assert.equal(game.settings.get("sr2e", "communalNuyen"), 500, "the failed 500 is back in the pot");
+        });
+        it("a pot that changed since the quote pays no one; emptying the pot (0) is a success", async () => {
+          const a = await buyer("Quench Money Award 3", 0);
+          await game.settings.set("sr2e", "communalNuyen", 50);
+          const stale = await game.sr2e.payAwards({ quotedPot: 40, newPot: 0, awards: { [a.id]: 50 } });
+          assert.isFalse(stale.ok);
+          assert.equal(a.system.nuyen, 0);
+          const ok = await game.sr2e.payAwards({ quotedPot: 50, newPot: 0, awards: { [a.id]: 50 } });
+          assert.isTrue(ok.ok);
+          assert.equal(a.system.nuyen, 50);
+          assert.equal(game.settings.get("sr2e", "communalNuyen"), 0);
+        });
+      });
+
+      describe("checked stock writes", () => {
+        it("a reload whose weapon write fails puts the reserve rounds back", async () => {
+          const a = await buyer("Quench Money Reload");
+          const [ammo] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Rounds", type: "ammo", system: { quantity: 30, cost: 100 } }]);
+          const [gun] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Pistol", type: "weapon",
+            system: { ammo: { max: 10, current: 0, sourceId: ammo.id } } }]);
+          const orig = gun.update.bind(gun);
+          gun.update = async (data, opts) => { if (data && "system.ammo.current" in data) return null; return orig(data, opts); };
+          try { await gun.reloadWeapon(); } finally { delete gun.update; }
+          assert.equal(a.items.get(ammo.id).system.quantity, 30, "no rounds lost");
+          assert.equal(a.items.get(gun.id).system.ammo.current, 0);
+        });
+        it("an award to a character deleted meanwhile goes back into the pot", async () => {
+          const a = await buyer("Quench Money Gone", 0);
+          const id = a.id;
+          await game.settings.set("sr2e", "communalNuyen", 0);
+          await a.delete();
+          made.splice(made.indexOf(a), 1);
+          const r = await game.sr2e.payAwards({ quotedPot: 0, newPot: 0, awards: { [id]: 300 } });
+          assert.deepEqual(r.failed, [id]);
+          assert.equal(game.settings.get("sr2e", "communalNuyen"), 300);
+        });
+      });
+
+      describe("the sheet's nuyen field is a change, not a value", () => {
+        it("quick successive edits chain onto the live balance", async function () {
+          this.timeout(8000);
+          const a = await buyer("Quench Money Field", 1000);
+          await a.sheet.render(true);
+          await settle(() => a.sheet.element?.querySelector('input[name="system.nuyen"]'), 3000);
+          const input = a.sheet.element.querySelector('input[name="system.nuyen"]');
+          await game.sr2e.adjustNuyen(a, 5000);   // lands after the render: the field still shows 1000
+          input.value = "1100"; input.dispatchEvent(new Event("change", { bubbles: true }));
+          input.value = "1200"; input.dispatchEvent(new Event("change", { bubbles: true }));
+          await game.sr2e.moneySettled(a);
+          assert.equal(a.system.nuyen, 6200, "5000 + 100 + 100, nothing overwritten");
+          await a.sheet.close();
+        });
+      });
+    }, { displayName: "SR2E: Money queue" });
+
+    // ── Eye accessories dropped onto a cybereye (Part B) ─────────────────────────────
+    quench.registerBatch("sr2e.eye-accessory-drop", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [];
+      const PACK = "sr2e.cyberware";
+      const uuid = (id) => `Compendium.${PACK}.Item.${id}`;
+      const EYE = "wl7u7gj9e000jvwv", LOWLIGHT = "8wowabmno7q0ei3t", CAMERA = "144bdb840b3ae99b", THERMO = "9i6g5s9fxe4ykzk7";
+      before(async () => { await game.settings.set("sr2e", "autoChargePurchases", true); });
+      after(async function () { this.timeout(15000); for (const a of made) { try { await a.delete(); } catch (e) {} } });
+      const buyer = async (name, nuyen = 100000, system = {}) => {
+        const a = await Actor.create({ name, type: "character", system: { nuyen, chargen: { inProgress: false }, ...system } });
+        made.push(a);
+        return a;
+      };
+      // The shipped core eye, added free (no surgery dialog), remembering its source.
+      const eyeOn = async (actor, system = {}) => {
+        const doc = await game.packs.get(PACK).getDocument(EYE);
+        const data = doc.toObject();
+        data._stats = { ...(data._stats ?? {}), compendiumSource: doc.uuid };
+        Object.assign(data.system, system);
+        const [eye] = await actor.createEmbeddedDocuments("Item", [data]);
+        return eye;
+      };
+      const onRow = (eye, ev = {}) => ({ altKey: false, ...ev, target: { closest: () => ({ dataset: { itemId: eye.id } }) } });
+      const fit = (actor, eye, drag, ev) => actor.sheet._onDropItem(onRow(eye, ev), { type: "Item", ...drag });
+      const rows = (actor, eye) => actor.items.get(eye.id).system.modules;
+
+      describe("buying into an eye", () => {
+        it("Low-Light into a pair: a row, its street price once, no extra Essence", async () => {
+          const a = await buyer("Quench Eye 1");
+          const eye = await eyeOn(a);
+          const ess0 = a.system.essence.value, n0 = a.system.nuyen;
+          await fit(a, eye, { uuid: uuid(LOWLIGHT) });
+          const r = rows(a, eye);
+          assert.lengthOf(r, 1);
+          assert.include(r[0], { name: "Low-Light Vision", kind: "accessory", paid: 3750, listValue: 3000 });
+          assert.ok(r[0].id, "the row has an id");
+          assert.equal(n0 - a.system.nuyen, 3750, "3,000¥ × SI 1.25, once");
+          assert.equal(a.system.essence.value, ess0, "inside the .5 allowance");
+          assert.lengthOf(a.items.filter(i => i.name === "Low-Light Vision"), 0, "no separate implant");
+        });
+        it("a beta eye: the accessory costs beta, its Essence fits the graded allowance", async () => {
+          const a = await buyer("Quench Eye Beta", 1000000);
+          const eye = await eyeOn(a, { grade: "beta" });
+          const n0 = a.system.nuyen;
+          await fit(a, eye, { uuid: uuid(LOWLIGHT) });
+          const price = Math.round(Math.round(3000 * gradeCostMultiplier("cyberware", "beta")) * 1.25);
+          assert.equal(n0 - a.system.nuyen, price);
+          assert.equal(rows(a, eye)[0].paid, price);
+        });
+        it("past the allowance costs Essence; past 0 Essence is refused", async () => {
+          const a = await buyer("Quench Eye Over", 1000000);
+          const eye = await eyeOn(a);
+          await fit(a, eye, { uuid: uuid(CAMERA) });     // .4
+          const ess = a.system.essence.value;
+          await fit(a, eye, { uuid: uuid(THERMO) });     // +.2 → .1 over
+          assert.closeTo(ess - a.system.essence.value, 0.1, 0.001);
+          const b = await buyer("Quench Eye Zero", 1000000);
+          await b.createEmbeddedDocuments("Item", [{ name: "Quench Heavy Ware", type: "cyberware", system: { essenceCost: 5.75, installed: true } }]);
+          const eye2 = await eyeOn(b);                   // 6 − 5.75 − .2 = .05
+          await fit(b, eye2, { uuid: uuid(CAMERA) });    // inside the allowance: fine
+          const n1 = b.system.nuyen;
+          await fit(b, eye2, { uuid: uuid(THERMO) });    // .1 over → −.05: refused
+          assert.lengthOf(rows(b, eye2), 1, "refused");
+          assert.equal(b.system.nuyen, n1, "nothing charged");
+        });
+        it("a spare (uninstalled) eye takes anything; Alt-drop is free", async () => {
+          const a = await buyer("Quench Eye Spare", 1000000);
+          const eye = await eyeOn(a, { installed: false });
+          const ess = a.system.essence.value, n0 = a.system.nuyen;
+          await fit(a, eye, { uuid: uuid(CAMERA) });
+          await fit(a, eye, { uuid: uuid(THERMO) }, { altKey: true });
+          assert.equal(a.system.essence.value, ess);
+          assert.equal(rows(a, eye)[1].paid, 0, "Alt-drop: nothing paid");
+          assert.equal(n0 - a.system.nuyen, 10000, "only the camera was charged");
+        });
+        it("an item that isn't an eye accessory stays a separate implant", async () => {
+          const a = await buyer("Quench Eye Other");
+          const eye = await eyeOn(a);
+          await fit(a, eye, { data: { name: "Quench Not An Accessory", type: "cyberware", system: { essenceCost: 0.1, cost: 100, installed: false } } }, { altKey: true });
+          assert.lengthOf(rows(a, eye), 0);
+          assert.ok(a.items.find(i => i.name === "Quench Not An Accessory"));
+        });
+        it("a weapon in a pair asks which eye", async () => {
+          const a = await buyer("Quench Eye Gun");
+          const eye = await eyeOn(a);
+          Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+            app.element.querySelector('[name="eye"]').value = "right";
+            app.element.querySelector('button[data-action="ok"]').click();
+          }, 80));
+          await fit(a, eye, { data: { name: "Quench Eye Gun", type: "cyberware", flags: { sr2e: { rule: "eye-accessory:weapon" } },
+            system: { essenceCost: 0.4, cost: 6400, streetIndex: "1", installed: true } } });
+          assert.include(rows(a, eye)[0], { kind: "weapon", eye: "right", paid: 6400 });
+        });
+      });
+
+      describe("moving an owned accessory into an eye", () => {
+        it("a tracked one keeps its paid value; an untracked one its street price; no money moves", async () => {
+          const a = await buyer("Quench Eye Move");
+          const eye = await eyeOn(a);
+          const [ll] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Low-Light", type: "cyberware", flags: { sr2e: { paid: 3500, rule: "eye-accessory:accessory" } },
+            system: { essenceCost: 0.2, cost: 3000, streetIndex: "1.25", installed: true } }]);
+          const [th] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Thermo", type: "cyberware", flags: { sr2e: { rule: "eye-accessory:accessory" } },
+            system: { essenceCost: 0.2, cost: 3000, streetIndex: "1.25", installed: true } }]);
+          const n0 = a.system.nuyen;
+          await fit(a, eye, { uuid: ll.uuid });
+          await fit(a, eye, { uuid: th.uuid });
+          assert.deepEqual(rows(a, eye).map(r => r.paid), [3500, 3750]);
+          assert.isFalse(a.items.has(ll.id) || a.items.has(th.id), "the loose items are gone");
+          assert.equal(a.system.nuyen, n0);
+        });
+        it("a move keeps the item's own Rating (no free upgrade)", async () => {
+          const a = await buyer("Quench Eye Move Rating");
+          const eye = await eyeOn(a);
+          const [mag] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Magnification", type: "cyberware", flags: { sr2e: { paid: 2500, rule: "eye-accessory:accessory" } },
+            system: { rating: 1, cost: 2500, streetIndex: "1", installed: true, ratingStats: [
+              { rating: 1, essenceCost: 0.2, cost: 2500, streetIndex: "1" }, { rating: 3, essenceCost: 0.2, cost: 6000, streetIndex: "1" }] } }]);
+          let asked = false;
+          const hook = Hooks.once("renderDialogV2", () => { asked = true; });
+          await fit(a, eye, { uuid: mag.uuid });
+          Hooks.off("renderDialogV2", hook);
+          assert.isFalse(asked, "no Rating picker for a move");
+          assert.include(rows(a, eye)[0], { rating: 1, paid: 2500 });
+        });
+        it("a grade mismatch is refused", async () => {
+          const a = await buyer("Quench Eye Grade");
+          const eye = await eyeOn(a);
+          const [ll] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Alpha LL", type: "cyberware", flags: { sr2e: { rule: "eye-accessory:accessory" } },
+            system: { essenceCost: 0.2, cost: 3000, grade: "alpha", installed: true } }]);
+          await fit(a, eye, { uuid: ll.uuid });
+          assert.lengthOf(rows(a, eye), 0);
+          assert.ok(a.items.has(ll.id));
+        });
+      });
+
+      describe("money afterwards", () => {
+        it("removing a row refunds it; selling the eye quotes eye + rows; regrading is refused", async () => {
+          const a = await buyer("Quench Eye After");
+          const eye = await eyeOn(a);
+          await fit(a, eye, { uuid: uuid(LOWLIGHT) });
+          await fit(a, eye, { uuid: uuid(THERMO) });
+          const live = a.items.get(eye.id);
+          assert.equal(saleQuote(live).price, saleQuote({ ...live, getFlag: () => undefined, system: { ...live.system, modules: [] }, type: live.type }).price + 7500);
+          await live.update({ "system.grade": "alpha" });
+          assert.equal(a.items.get(eye.id).system.grade, "standard", "grade change refused");
+          const n0 = a.system.nuyen;
+          const { SR2EItemSheet } = await import("../sheets/item-sheet.mjs");
+          await SR2EItemSheet._removeModuleRow.call(live.sheet, new Event("click"), { dataset: { rowId: rows(a, eye)[0].id, index: "0" } });
+          await game.sr2e.moneySettled(a);
+          assert.lengthOf(rows(a, eye), 1);
+          assert.equal(a.system.nuyen - n0, 3750, "refunded what it cost");
+        });
+        it("a failed charge takes the row back out", async () => {
+          const a = await buyer("Quench Eye Fail");
+          const eye = await eyeOn(a);
+          const orig = a.update.bind(a);
+          a.update = async (data, opts) => { if (data && "system.nuyen" in data) return null; return orig(data, opts); };
+          try { await fit(a, eye, { uuid: uuid(LOWLIGHT) }); } finally { delete a.update; }
+          assert.lengthOf(rows(a, eye), 0);
+          assert.equal(a.system.nuyen, 100000);
+        });
+        it("a configured eye copied from another character brings no refundable rows", async () => {
+          const a = await buyer("Quench Eye Source"), b = await buyer("Quench Eye Copy");
+          const eye = await eyeOn(a);
+          await fit(a, eye, { uuid: uuid(LOWLIGHT) });
+          await b.sheet._onDropItem({ altKey: true }, { type: "Item", uuid: a.items.get(eye.id).uuid });
+          const copy = b.items.find(i => i.system.modules?.length);
+          assert.ok(copy);
+          assert.deepEqual(copy.system.modules.map(r => [r.paid, r.listValue]), [[0, 0]]);
+        });
+        it("character creation counts a bought accessory at list", async () => {
+          const a = await buyer("Quench Eye Chargen", 100000, { chargen: { inProgress: true } });
+          const eye = await eyeOn(a);
+          const { chargenBudgetOf } = await import("../sheets/actor-sheet.mjs");
+          const spent0 = chargenBudgetOf(a).resources.spent;
+          await fit(a, eye, { uuid: uuid(LOWLIGHT) });
+          assert.equal(chargenBudgetOf(a).resources.spent - spent0, 3000);
+          assert.equal(rows(a, eye)[0].listValue, 3000);
+        });
+      });
+    }, { displayName: "SR2E: Eye accessories" });
   });
 }

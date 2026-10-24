@@ -4051,3 +4051,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 
 /* VR2.0 part 3 panel (docs/PLAN-vr2-part3.md): inline buttons in its notes. */
 .sr2e .vr2-ic-panel button { display: inline-flex; width: auto; margin: 0 0 0 4px; padding: 0 6px; line-height: 20px; }
+
+/* Container rows waiting for their ids (legacy eyes): read-only for a moment. */
+.sr2e .modules-table.rows-locked { pointer-events: none; opacity: 0.6; }
+.sr2e .cyber-row.eye-drop-target { outline: 2px dashed var(--sr2e-accent, #b066ff); outline-offset: -2px; }

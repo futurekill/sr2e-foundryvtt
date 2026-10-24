@@ -279,10 +279,9 @@ if (!data) return;
 const total = Number(data.total) || 0;
 const each = Math.floor(total / actors.length);
 const leftover = total - (each * actors.length);
-for (const a of actors) {
-  if (a.system.nuyen === undefined) continue;
-  await a.update({ "system.nuyen": (a.system.nuyen ?? 0) + each });
-}
+const awards = Object.fromEntries(actors.filter(a => a.system.nuyen !== undefined).map(a => [a.id, each]));
+const payout = await game.sr2e.payAwards({ awards });
+if (payout.failed.length) ui.notifications.warn(\`Not paid: \${payout.failed.map(id => game.actors.get(id)?.name).join(", ")}.\`);
 ui.notifications.info(\`\${each}¥ each\${leftover ? \` (\${leftover}¥ left over — hand it out yourself)\` : ""}.\`);`
   }
 ];

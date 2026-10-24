@@ -4,6 +4,7 @@
     {{!-- Cyberdeck Configuration --}}
     <fieldset class="cyberdeck-config">
       <legend>Cyberdeck</legend>
+      {{#if deckInactiveHint}}<p class="hint sr2e-limb-warn">No deck is active, so these are the manual values. Equip (or ⚡ activate) a deck on the Gear tab to use its ratings.</p>{{/if}}
       <div class="cyberdeck-grid">
         <div class="form-group">
           <label>MPCP:</label>

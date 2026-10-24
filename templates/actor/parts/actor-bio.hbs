@@ -181,7 +181,7 @@
         <p class="priority-{{#if priorityValid}}ok{{else}}warning{{/if}}">
           {{#if priorityValid}}<i class="fas fa-check"></i>{{else}}<i class="fas fa-triangle-exclamation"></i>{{/if}}
           Sum-to-10: grade values (A=4, B=3, C=2, D=1, E=0) total <strong>{{prioritySum}}</strong> / 10.
-          {{#unless priorityValid}}Adjust until the total is exactly 10.{{/unless}}
+          {{#unless priorityValid}}Lower a grade: the total may not exceed 10 (Companion p.20).{{/unless}}
         </p>
         {{else}}
         {{#unless priorityValid}}

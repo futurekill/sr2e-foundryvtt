@@ -42,6 +42,47 @@ export function wareRule(flags = {}, source = null) {
   return (source && WARE_SOURCES[source]) || null;
 }
 
+// --- Eye accessories (Cybertechnology p.45; docs/PLAN-money-queue-and-eye-accessories.md, B) ---
+
+/**
+ * Compendium items that are cybereye accessories, by source uuid → the eye-slot kind
+ * (p.45: one weapon or tool laser per eye, none in an eye with a camera). Anything not
+ * here (or flagged `eye-accessory:<kind>`) drops as a separate implant, as before.
+ */
+export const EYE_ACCESSORIES = Object.fromEntries([
+  ...["144bdb840b3ae99b"].map(id => [SYS(id), "camera"]),
+  ...["744944a80870f8e4", "a15d1d7b0ae428f8", "8wowabmno7q0ei3t", "yorc0y7n9rjwas5j", "9i6g5s9fxe4ykzk7"].map(id => [SYS(id), "accessory"]),
+  ...["31508076d778885e", "27d05df8d5e89cd2"].map(id => [CT("ct-headware", id), "camera"]),
+  ...["db4b34d56b5fe4ff", "f907f01feb12b228"].map(id => [CT("ct-headware", id), "weapon"]),
+  [CT("ct-headware", "a3c6d19af545c440"), "toolLaser"],
+  ...["48ed5da4650dddb7", "b4873d563d15db53", "0c34cd62ad663347", "8609fec5bed97391", "ed3e865d819d86b0", "65b218b8626721d4",
+      "e73bb2a10707a33f", "0c714595748b730d", "5035f2ffdab29487", "a2d98cf9619ae2e1", "69ea82f262152213", "6017448370891e57",
+      "8088310339272e12", "76c079211779d2c6", "cb9af40eeb712367"].map(id => [CT("ct-headware", id), "accessory"])
+]);
+const EYE_KINDS = new Set(["accessory", "weapon", "toolLaser", "camera"]);
+
+/** An item's eye-accessory kind ("accessory" | "weapon" | "toolLaser" | "camera"), or null. */
+export function eyeAccessoryKind(flags = {}, source = null) {
+  const r = flags?.sr2e?.rule;
+  if (typeof r === "string" && r.startsWith("eye-accessory:")) {
+    const k = r.slice("eye-accessory:".length);
+    return EYE_KINDS.has(k) ? k : "accessory";
+  }
+  return (source && EYE_ACCESSORIES[source]) || null;
+}
+
+/** Give every id-less row an id (legacy rows), keeping order. Returns null when none lacked one. */
+export function withRowIds(rows = [], newId) {
+  if (rows.every(r => r?.id)) return null;
+  return rows.map(r => (r?.id ? r : { ...r, id: newId() }));
+}
+
+/** What the accessory rows of an eye refund when sold with it. */
+export const rowsPaid = (rows = []) => rows.reduce((s, r) => s + (Number(r?.paid) || 0), 0);
+
+/** The list value of the rows a character bought (counted in character creation). */
+export const rowsListValue = (rows = []) => rows.reduce((s, r) => s + (Number(r?.listValue) || 0), 0);
+
 // --- The physical limb model (source-only) ---------------------------------------
 
 /**
@@ -144,7 +185,7 @@ export function eyeReports({ rows = [], eyes = "pair" }) {
     if ((r.kind === "weapon" || r.kind === "toolLaser") && r.eye !== "left" && r.eye !== "right") out.push(`${r.name || "a weapon row"}: set which eye it's in`);
   }
   const blank = rows.filter(r => !r.kind).length;
-  if (blank) out.push(`${blank} row(s) unclassified: set Weapon / Tool laser / Camera so the slot rules can check them`);
+  if (blank) out.push(`${blank} row(s) unclassified: set each one's kind (accessory, weapon, tool laser or camera) so the slot rules can check them`);
   return out;
 }
 

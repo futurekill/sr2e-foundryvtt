@@ -13,7 +13,7 @@
       </div>
       <div class="item-list">
         {{#each cyberware as |cyber|}}
-        <div class="item-row cyber-row flexrow {{#if cyber.system.installed}}cyber-on{{else}}cyber-off{{/if}}" data-item-id="{{cyber.id}}">
+        <div class="item-row cyber-row flexrow {{#if cyber.system.installed}}cyber-on{{else}}cyber-off{{/if}}" data-item-id="{{cyber.id}}"{{#if (eq cyber.system.wareRule "cybereye-pair")}} data-eye-host title="Drop an eye accessory here to fit it into this eye (Cybertechnology p.45)"{{/if}}>
           <span class="item-name">
             <i class="fas fa-microchip"></i>
             {{cyber.name}}

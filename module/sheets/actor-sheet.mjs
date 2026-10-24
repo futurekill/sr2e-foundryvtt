@@ -1,10 +1,12 @@
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
 import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs";
 import { cyberDamageOn } from "../cyberdamage.mjs";
+import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
-import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
+import { rowsListValue, wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
-import { phaseKey, currentRecoil, enqueueAttack } from "../engagement.mjs";
+import { phaseKey, currentRecoil } from "../engagement.mjs";
+import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { liveSession } from "../vr2.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
@@ -346,16 +348,21 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   async _onDropItem(event, data) {
     if (!this.document.isOwner) return false;
     let itemData;
+    const eyeHost = eyeHostAt(this.document, event);   // an eye accessory onto a cybereye row
     if (data.uuid) {
       const item = await fromUuid(data.uuid);
       if (!item) return false;
-      if (item.parent?.uuid === this.document.uuid) return false;
-      itemData = item.toObject();
+      if (item.parent?.uuid === this.document.uuid) {
+        if (eyeHost && eyeHost.id !== item.id && accessoryKindOf(item.toObject())) return fitEyeAccessory(this.document, eyeHost, item.toObject(), { source: item });
+        return false;
+      }
+      itemData = withSource(item);
     } else if (data.data) {
       itemData = data.data;
     } else {
       return false;
     }
+    if (eyeHost && accessoryKindOf(itemData)) return fitEyeAccessory(this.document, eyeHost, itemData, { free: true });
     unattachDroppedOption(itemData);
     return this.document.createEmbeddedDocuments("Item", [itemData]);
   }
@@ -400,6 +407,23 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     for (const input of this.element.querySelectorAll("input[name], select[name], textarea[name]")) {
       if (input.closest("[data-item-id]")) continue;
       if (input.name !== "name" && !input.name.startsWith("system.")) continue;
+      // Nuyen is edited as a CHANGE against what this field last showed, applied to the
+      // live balance in the money queue — so a typed edit can't overwrite a charge that
+      // landed meanwhile, and quick successive edits chain (docs/PLAN-money-queue-…, A2).
+      if (input.name === "system.nuyen") {
+        input.dataset.prev = String(this.document.system.nuyen ?? 0);
+        input.addEventListener("change", (event) => {
+          event.stopPropagation();
+          const typed = Math.round(parseFloat(input.value) || 0);
+          const delta = typed - (Number(input.dataset.prev) || 0);
+          input.dataset.prev = String(typed);
+          if (!delta) return;
+          moneyQueue(this.document, () => adjustNuyen(this.document, delta), "nuyen field").then(ok => {
+            if (!ok) { ui.notifications.warn("That would take nuyen below 0 — not changed."); this.render(); }
+          });
+        });
+        continue;
+      }
       input.addEventListener("change", (event) => {
         event.stopPropagation();
         let value = input.value;
@@ -423,6 +447,9 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         let value = input.value;
         if (input.type === "number")   value = parseFloat(value) || 0;
         if (input.type === "checkbox") value = input.checked;
+        if (field === "system.quantity" && hasRefundableStock(item)) {
+          return queuedQuantityEdit(item, Number(input.defaultValue), value).then(ok => { if (!ok) this.render(); });
+        }
         item.update({ [field]: value });
       });
     }
@@ -434,6 +461,12 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // AppV1-only no-op in V2 — so nothing was draggable OUT. Wire it explicitly:
     // set draggable + fire our _onDragStart (which writes {type:"Item", uuid} for
     // the hotbarDrop hook to turn into an item.roll() macro).
+    // Cybereye rows light up while something is dragged over them (eye accessories).
+    for (const el of this.element.querySelectorAll("[data-eye-host]")) {
+      el.addEventListener("dragenter", () => el.classList.add("eye-drop-target"));
+      el.addEventListener("dragleave", (ev) => { if (!el.contains(ev.relatedTarget)) el.classList.remove("eye-drop-target"); });
+      el.addEventListener("drop", () => el.classList.remove("eye-drop-target"));
+    }
     for (const el of this.element.querySelectorAll("[data-item-id]")) {
       el.setAttribute("draggable", "true");
       el.addEventListener("dragstart", this._onDragStart.bind(this));
@@ -489,6 +522,7 @@ export function chargenBudgetOf(actor) {
     // `allocated` it has to invert the reduction, which needs the names.
     .map((i) => ({
       category: i.system.category,
+      freeLanguage: i.system.freeLanguage,
       rating: i.system.rating,
       allocated: i.system.allocated,
       ratingsFinalized: i.system.ratingsFinalized,
@@ -514,7 +548,9 @@ export function chargenBudgetOf(actor) {
     eyes: i.system.eyes,
     ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(actor.items, i) : {}),
     force: i.system.force ?? 0,
-    bondingCost: i.system.bondingCost ?? 0
+    bondingCost: i.system.bondingCost ?? 0,
+    // Accessories bought into an eye (docs/PLAN-money-queue-and-eye-accessories.md, B5).
+    moduleListValue: rowsListValue(i.system.modules ?? [])
   }));
   return chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
 }
@@ -659,11 +695,17 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
   async _dropItemWorkflow(event, data, progress) {
     if (!this.document.isOwner) return false;
     let itemData;
+    // An eye accessory dropped on a cybereye's row is fitted into that eye
+    // (docs/PLAN-money-queue-and-eye-accessories.md, B) — including one already owned.
+    const eyeHost = eyeHostAt(this.document, event);
     if (data.uuid) {
       const item = await fromUuid(data.uuid);
       if (!item) return false;
-      if (item.parent?.uuid === this.document.uuid) return false;
-      itemData = item.toObject();
+      if (item.parent?.uuid === this.document.uuid) {
+        if (eyeHost && eyeHost.id !== item.id && accessoryKindOf(item.toObject())) return fitEyeAccessory(this.document, eyeHost, item.toObject(), { source: item });
+        return false;
+      }
+      itemData = withSource(item);
     } else if (data.data) {
       itemData = data.data;
     } else {
@@ -677,6 +719,14 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
 
     // --- Tradition drop handling ---
     if (itemData.type === "tradition") return this._onDropTradition(itemData);
+
+    if (eyeHost && accessoryKindOf(itemData)) return fitEyeAccessory(this.document, eyeHost, itemData, { free: !!event?.altKey });
+    // A configured eye arrives with ITS rows, which this character didn't buy: nothing in
+    // them is refundable or counted in creation. shortcut: the rows come free with a copied
+    // eye (the shipped compendium eyes have none since 0.116.2); the GM's call otherwise.
+    if (itemData.type === "cyberware" && itemData.system?.modules?.length) {
+      itemData.system.modules = itemData.system.modules.map(r => ({ ...r, id: r.id || foundry.utils.randomID(), paid: 0, listValue: 0 }));
+    }
 
     // --- Weapon focus: bond to an existing melee weapon on drop (SR2E p.126),
     // which prices it (Reach + Force) and auto-bonds/activates it. ---
@@ -731,76 +781,83 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       }
     }
 
-    const [created] = await this.document.createEmbeddedDocuments("Item", [itemData]);
-    progress.created = created;
+    // Creation through payment is ONE money-queue entry, so a sale, a reprice or another
+    // purchase on this client can't land between the item appearing and its charge.
+    const actor = this.document;
+    const created = await moneyQueue(actor, async () => {
+      const [created] = await createdDocs(actor, actor.createEmbeddedDocuments("Item", [itemData]), 1, "item drop") ?? [];
+      if (!created) { ui.notifications.warn(`${foundry.utils.escapeHTML(itemData.name)} couldn't be added.`); return null; }
+      progress.created = created;
 
-    // Auto-charge purchases: characters pay the street price (base cost × Street
-    // Index) for dropped items, where base cost accounts for the chosen Rating AND
-    // Grade (SSC p.98 / Shadowtech p.7). The paid amount is remembered on the item
-    // so the sell button and the Rating/Grade-change hook can refund/re-price it.
-    // Hold ALT while dropping to add it for FREE (no charge, no `paid` flag).
-    if (created && isCharacter && autoCharge) {
-      // Price with the SAME context the purchase hook uses, or an authored DataSoft
-      // is re-derived at the Mp fallback (charged the wrong price) and a bonded
-      // weapon focus is priced off costPerForce instead of its weapon's Reach.
-      let vr2 = false;
-      try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
-      const bondedReach = created.system.bondedWeaponId
-        ? (this.document.items.get(created.system.bondedWeaponId)?.system.reach ?? null)
-        : null;
-      // Ware context (Cybertechnology p.45, p.57): the limbs BEFORE this item counts as one.
-      const base = itemBaseCost(
-        { type: created.type, ...created.system },
-        { authoredCost: created._source.system?.cost ?? 0, vr2, bondedWeaponReach: bondedReach,
-          ...wareCtx(this.document.items.filter(i => i.id !== created.id), created) });
-      if (event?.altKey) {
-        if (base > 0) ui.notifications.info(`${foundry.utils.escapeHTML(created.name)} added to ${foundry.utils.escapeHTML(this.document.name)} for free (Alt-drop — no charge).`);
-      } else if (base > 0) {
-        // During character creation, gear is bought at LIST price — the
-        // Street Index markup only applies to in-play purchases.
-        const inChargen = !!this.document.system.chargen?.inProgress;
-        const price = Math.round(inChargen ? base : streetPrice(base, created.system.streetIndex));
-        const nuyen = this.document.system.nuyen ?? 0;
-        if (nuyen >= price) {
-          // Write the purchase flags in ONE update so they can't partially land —
-          // ammo left with `paid` but no basis would fall back to the old
-          // full-refund. Ammo depletes as it's fired, so it also records the
-          // acquisition basis: how many rounds and what list value it bought.
-          // Sell-back then refunds proportionally to what's left, and chargen
-          // counts the bundle value — not `cost × rounds` (see proportionalRefund
-          // / chargenItemCost).
-          const flags = { paid: price };
-          if (created.type === "ammo" || drugOf(created)) {
-            flags.acquiredQuantity = created.system.quantity ?? 0;
-            flags.acquiredListValue = base;
-          }
-          // Flags first, then the money: if either write fails (throws, or resolves to
-          // nothing) the item goes, so nothing is ever kept unpaid or paid-for-but-unrecorded.
-          const ok = (p) => p.then(r => !!r, err => { console.error("sr2e | purchase", err); return false; });
-          let failed = !(await ok(created.update({ "flags.sr2e": flags })));
-          const fresh = this.document.system.nuyen ?? 0;   // re-read: the flag write was a round trip
-          if (!failed && fresh < price) {
-            await created.delete();
-            ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${fresh}¥) — not added.`);
-            return null;
-          }
-          if (!failed) failed = !(await ok(this.document.update({ "system.nuyen": fresh - price })));
-          if (failed) {
-            if (await ok(created.delete())) {
-              ui.notifications.warn(`Couldn't buy ${foundry.utils.escapeHTML(created.name)} — nothing was charged and it wasn't added.`);
-            } else {
-              ui.notifications.error(`${foundry.utils.escapeHTML(created.name)} was added to ${foundry.utils.escapeHTML(this.document.name)} but not paid for — remove it or charge ${price}¥ by hand.`, { permanent: true });
+      // Auto-charge purchases: characters pay the street price (base cost × Street
+      // Index) for dropped items, where base cost accounts for the chosen Rating AND
+      // Grade (SSC p.98 / Shadowtech p.7). The paid amount is remembered on the item
+      // so the sell button and the Rating/Grade-change hook can refund/re-price it.
+      // Hold ALT while dropping to add it for FREE (no charge, no `paid` flag).
+      if (created && isCharacter && autoCharge) {
+        // Price with the SAME context the purchase hook uses, or an authored DataSoft
+        // is re-derived at the Mp fallback (charged the wrong price) and a bonded
+        // weapon focus is priced off costPerForce instead of its weapon's Reach.
+        let vr2 = false;
+        try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
+        const bondedReach = created.system.bondedWeaponId
+          ? (this.document.items.get(created.system.bondedWeaponId)?.system.reach ?? null)
+          : null;
+        // Ware context (Cybertechnology p.45, p.57): the limbs BEFORE this item counts as one.
+        const base = itemBaseCost(
+          { type: created.type, ...created.system },
+          { authoredCost: created._source.system?.cost ?? 0, vr2, bondedWeaponReach: bondedReach,
+            ...wareCtx(this.document.items.filter(i => i.id !== created.id), created) });
+        if (event?.altKey) {
+          if (base > 0) ui.notifications.info(`${foundry.utils.escapeHTML(created.name)} added to ${foundry.utils.escapeHTML(this.document.name)} for free (Alt-drop — no charge).`);
+        } else if (base > 0) {
+          // During character creation, gear is bought at LIST price — the
+          // Street Index markup only applies to in-play purchases.
+          const inChargen = !!this.document.system.chargen?.inProgress;
+          const price = Math.round(inChargen ? base : streetPrice(base, created.system.streetIndex));
+          const nuyen = this.document.system.nuyen ?? 0;
+          if (nuyen >= price) {
+            // Write the purchase flags in ONE update so they can't partially land —
+            // ammo left with `paid` but no basis would fall back to the old
+            // full-refund. Ammo depletes as it's fired, so it also records the
+            // acquisition basis: how many rounds and what list value it bought.
+            // Sell-back then refunds proportionally to what's left, and chargen
+            // counts the bundle value — not `cost × rounds` (see proportionalRefund
+            // / chargenItemCost).
+            const flags = { paid: price };
+            if (created.type === "ammo" || drugOf(created)) {
+              flags.acquiredQuantity = created.system.quantity ?? 0;
+              flags.acquiredListValue = base;
             }
+            // Flags first, then the money: if either write fails (throws, or resolves to
+            // nothing) the item goes, so nothing is ever kept unpaid or paid-for-but-unrecorded.
+            let failed = !(await updated(created.update({ "flags.sr2e": flags }), "purchase flags"));
+            const fresh = this.document.system.nuyen ?? 0;   // re-read: the flag write was a round trip
+            if (!failed && fresh < price) {
+              if (!(await deletedDocs(actor, created.delete(), [created.id]))) ui.notifications.error(`${foundry.utils.escapeHTML(created.name)} is on ${foundry.utils.escapeHTML(actor.name)} unpaid — remove it or charge ${price}¥ by hand.`, { permanent: true });
+              ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${fresh}¥) — not added.`);
+              return null;
+            }
+            if (!failed) failed = !(await adjustNuyen(actor, -price));
+            if (failed) {
+              if (await deletedDocs(actor, created.delete(), [created.id])) {
+                ui.notifications.warn(`Couldn't buy ${foundry.utils.escapeHTML(created.name)} — nothing was charged and it wasn't added.`);
+              } else {
+                ui.notifications.error(`${foundry.utils.escapeHTML(created.name)} was added to ${foundry.utils.escapeHTML(this.document.name)} but not paid for — remove it or charge ${price}¥ by hand.`, { permanent: true });
+              }
+              return null;
+            }
+            ui.notifications.info(`${foundry.utils.escapeHTML(this.document.name)} buys ${foundry.utils.escapeHTML(created.name)} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${actor.system.nuyen ?? 0}¥ left.`);
+          } else {
+            if (!(await deletedDocs(actor, created.delete(), [created.id]))) ui.notifications.error(`${foundry.utils.escapeHTML(created.name)} is on ${foundry.utils.escapeHTML(actor.name)} unpaid — remove it.`, { permanent: true });
+            ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);
             return null;
           }
-          ui.notifications.info(`${foundry.utils.escapeHTML(this.document.name)} buys ${foundry.utils.escapeHTML(created.name)} for ${price}¥${inChargen ? " (list — character creation)" : (price !== base ? ` (${base}¥ list)` : "")} — ${fresh - price}¥ left.`);
-        } else {
-          await created.delete();
-          ui.notifications.warn(`${foundry.utils.escapeHTML(this.document.name)} can't afford ${foundry.utils.escapeHTML(created.name)} (${price}¥ > ${nuyen}¥) — not added. Alt-drop to add it for free.`);
-          return null;
         }
       }
-    }
+      return created;
+    }, "item drop");
+    if (!created) return null;
 
     // Ammo stacks on drop: fold the new box into a matching pile (same shape and
     // same money provenance) instead of leaving a duplicate line. Reuses the
@@ -885,7 +942,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
    */
   _surgeryPurchase(itemData, pick) {
     const actor = this.document, esc = foundry.utils.escapeHTML;
-    return enqueueAttack(`purchase:${actor.uuid}`, async () => {
+    return moneyQueue(actor, async () => {
       const pv = this._surgeryPreview(itemData, { rating: itemData.system.rating, grade: itemData.system.grade, ...pick });
       const cand = this._candidateItem(itemData, { system: { surgeryEssencePct: pv.pct } });
       const base = itemBaseCost({ type: cand.type, ...cand.system }, { authoredCost: itemData.system?.cost ?? 0,
@@ -906,18 +963,21 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         ui.notifications.warn(`${esc(actor.name)} can't afford ${esc(itemData.name)} and its surgery (${price + fee}¥ > ${nuyen}¥) — nothing bought.`);
         return null;
       }
-      if (price + fee > 0) await actor.update({ "system.nuyen": nuyen - price - fee });
+      if (price + fee > 0 && !(await adjustNuyen(actor, -(price + fee)))) {
+        ui.notifications.warn(`Couldn't charge ${esc(actor.name)} for ${esc(itemData.name)} — nothing bought.`);
+        return null;
+      }
       const data = foundry.utils.deepClone(itemData);
       data.system.surgeryEssencePct = pv.pct;
       data.flags = foundry.utils.deepClone(data.flags ?? {});
       data.flags.sr2e = { ...(data.flags.sr2e ?? {}) };
       delete data.flags.sr2e.acquiredQuantity; delete data.flags.sr2e.acquiredListValue;
       if (price > 0) data.flags.sr2e.paid = price; else delete data.flags.sr2e.paid;
-      let created = null;
-      try { [created] = await actor.createEmbeddedDocuments("Item", [data]); } catch (err) { console.error("SR2E | cyberware purchase", err); }
+      const [created] = await createdDocs(actor, actor.createEmbeddedDocuments("Item", [data]), 1, "cyberware purchase") ?? [];
       if (!created) {
-        if (price + fee > 0) await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + price + fee });
-        ui.notifications.error(`${esc(itemData.name)} couldn't be added; ${price + fee}¥ was refunded.`);
+        if (price + fee > 0 && !(await adjustNuyen(actor, price + fee))) {
+          ui.notifications.error(`${esc(itemData.name)} couldn't be added and the ${price + fee}¥ couldn't be refunded: add it to ${esc(actor.name)} by hand.`, { permanent: true });
+        } else ui.notifications.error(`${esc(itemData.name)} couldn't be added; ${price + fee}¥ was refunded.`);
         return null;
       }
       const notes = [];
@@ -1473,6 +1533,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // icon damage): edit them at their authored values, or submitOnChange re-authors the
     // derived numbers (CLAUDE.md, derived state).
     context.authoredDeck = actor._source.system?.cyberdeck ?? {};
+    // Decks owned but none active: the numbers below are the manual ones (GitHub #22).
+    const decks = actor.items.filter(i => (i.type === "gear" && i.system.category === "cyberdeck") || (i.type === "cyberware" && i.system.cranialDeck));
+    context.deckInactiveHint = decks.length > 0 && !decks.some(i => i.system.deck?.active);
     context.authoredPersona = actor._source.system?.matrixPersona ?? {};
     if (context.vr2 && system.isDecker) {
       // VR2.0: the security tally of the live session, and the persona budget (p.84).
@@ -1581,14 +1644,14 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.priorityUnused = ["A", "B", "C", "D", "E"].filter((g) => !counts[g]);
 
     // Validity depends on the method (Companion p.20). Standard: each A–E once
-    // (no duplicates). Sum-to-10: the grade point values (A=4…E=0) total 10 —
-    // duplicates allowed.
+    // (no duplicates). Sum-to-10: the grade point values (A=4…E=0) may "not exceed
+    // 10" — duplicates allowed (the book's own example: 3, 3, 3, 1, 0).
     const method = system.chargen?.priorityMethod ?? "standard";
     const GRADE_PTS = { A: 4, B: 3, C: 2, D: 1, E: 0 };
     context.prioritySum = Object.keys(desc).reduce((s, cat) => s + (GRADE_PTS[chosen[cat]] ?? 0), 0);
     context.priorityMethod = method;
     context.priorityValid = method === "sumto10"
-      ? context.prioritySum === 10
+      ? context.prioritySum <= 10
       : context.priorityDuplicates.length === 0;
 
     // Reopening creation is GM-only (it restores list-price buying), so a player
@@ -1649,6 +1712,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       );
       for (const sel of prioSelects) {
         sel.addEventListener("change", (event) => {
+          // Sum-to-10 (Companion p.20) allows repeated grades: no swap, the field just saves.
+          if ((this.actor.system.chargen?.priorityMethod ?? "standard") === "sumto10") return;
           const changed = event.currentTarget;
           const newGrade = changed.value;
           const prev = this.actor.system.chargen?.priorities ?? {};

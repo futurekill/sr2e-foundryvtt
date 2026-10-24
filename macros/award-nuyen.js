@@ -17,7 +17,7 @@
 if (!game.user.isGM) {
   return ui.notifications.warn("Only the GM can award nuyen.");
 }
-if (!game.sr2e?.allocateNuyen) {
+if (!game.sr2e?.allocateNuyen || !game.sr2e?.payAwards) {
   return ui.notifications.error("SR2E allocateNuyen helper missing — update the system.");
 }
 
@@ -101,16 +101,16 @@ const res = game.sr2e.allocateNuyen({
 if (!res.ok) return ui.notifications.warn(res.error);
 if (res.pool <= 0) return ui.notifications.warn("Nothing to award.");
 
-for (const id of result.ids) {
-  const actor = game.actors.get(id);
-  const amt = res.awards[id] ?? 0;
-  if (!actor || amt <= 0) continue;
-  await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + amt });
-}
-await game.settings.set("sr2e", "communalNuyen", res.newPot);
+// The pot is written first and each credit is checked (game.sr2e.payAwards): a failed
+// share goes back to the pot, and a pot that changed since this dialog opened refuses.
+const awards = Object.fromEntries(result.ids.map(id => [id, res.awards[id] ?? 0]));
+const payout = await game.sr2e.payAwards({ quotedPot: pot, newPot: res.newPot, awards });
+if (!payout.ok) return ui.notifications.warn(`Nothing awarded: ${payout.why}.`);
+const failedNames = payout.failed.map(id => game.actors.get(id)?.name).filter(Boolean);
 
 const modeLabel = { even: "even split", amount: "by amount", percent: "by percentage", weight: "by weight" }[result.mode] ?? result.mode;
 const lines = result.ids
+  .filter(id => payout.paid.includes(id))
   .map(id => ({ name: game.actors.get(id)?.name, amt: res.awards[id] ?? 0 }))
   .filter(r => r.name && r.amt > 0)
   .map(r => `<li><strong>${r.name}</strong> — ${r.amt.toLocaleString()}¥</li>`)
@@ -123,5 +123,6 @@ ChatMessage.create({
     <ul style="margin:4px 0 4px 16px;padding:0;">${lines}</ul>
     ${res.leftover > 0 ? `<em>${res.leftover.toLocaleString()}¥ to the communal pot (now ${res.newPot.toLocaleString()}¥).</em>` : ""}
     ${result.includePot && pot > 0 ? `<br><em>Folded ${pot.toLocaleString()}¥ from the communal pot into the pool.</em>` : ""}
+    ${failedNames.length ? `<br><strong>Not paid (returned to the pot):</strong> ${failedNames.join(", ")}.` : ""}
   </div>`
 });

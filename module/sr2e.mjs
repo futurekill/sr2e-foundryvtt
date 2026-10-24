@@ -66,12 +66,15 @@ import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
 import { injectPhaseSeq } from "./engagement.mjs";
+import { proportionalRefund } from "./rules/sr2e-rules.mjs";
+import { rowsPaid } from "./rules/ware-rules.mjs";
+import { moneyQueue, updated, applyUpdate, adjustNuyen, adjustNuyenQueued, settingSet, created as createdDocs, deleted as deletedDocs, saleQuote, payAwards } from "./money.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
 import { registerMbwHooks } from "./mbw.mjs";
 import { registerVr2IcHooks } from "./vr2ic.mjs";
 import { registerCyberDamageHooks } from "./cyberdamage.mjs";
-import { registerCybermancyHooks, reconcileAllCym } from "./cybermancy.mjs";
+import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "./cybermancy.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -328,7 +331,12 @@ async function consolidateAmmo(actor, { dryRun = false, quiet = false, itemId = 
     if (!quiet) ui.notifications?.warn(game.i18n.localize("SR2E.Ammo.ConsolidateNotOwner"));
     return { merged: 0, removed: 0, groups: [] };
   }
+  // The whole merge is ONE money-queue entry: quantities and refund provenance can't move
+  // under it (a sale, a reload, a dose).
+  return moneyQueue(actor, () => consolidateAmmoNow(actor, { dryRun, quiet, itemId }), "consolidate ammo");
+}
 
+async function consolidateAmmoNow(actor, { dryRun, quiet, itemId }) {
   const shapeOf = (i) => ({
     src: i._stats?.compendiumSource ?? null,
     name: i.name,
@@ -373,6 +381,7 @@ async function consolidateAmmo(actor, { dryRun = false, quiet = false, itemId = 
     if (w.system.ammo?.loadedSourceId) referenced.add(w.system.ammo.loadedSourceId);
   }
   const report = [];
+  const skipped = [];
   let merged = 0, removed = 0;
 
   for (const group of dupes) {
@@ -384,18 +393,34 @@ async function consolidateAmmo(actor, { dryRun = false, quiet = false, itemId = 
     // Sum the sell-back/chargen basis too. Every pile in a "based" group carries
     // a basis (the grouping guarantees same provenance class), so the sums are
     // complete; an untracked group has no basis and stays untracked.
-    const totalAcqQty = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredQuantity") ?? 0), 0);
-    const totalAcqVal = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredListValue") ?? 0), 0);
+    let totalAcqQty = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredQuantity") ?? 0), 0);
+    let totalAcqVal = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredListValue") ?? 0), 0);
+    // Resale value must survive the merge (docs/PLAN-money-queue-and-eye-accessories.md).
+    // An untracked group becomes tracked at exactly what selling each pile would pay; any
+    // group merges only when the merged pile would sell for the SAME total as its piles.
+    const separately = group.reduce((s, i) => s + saleQuote(i).price, 0);
+    let mergedPaid = totalPaid;
+    if (!hasBasis(survivor)) {
+      mergedPaid = separately;
+      totalAcqQty = totalQty;
+      totalAcqVal = group.reduce((s, i) => s + (Number(i.system.cost) || 0), 0);
+    }
+    const together = proportionalRefund({ paid: mergedPaid, acquiredQuantity: totalAcqQty, currentQuantity: totalQty });
+    if (together !== separately) {
+      skipped.push(`${survivor.name}: ${totalQty === 0 ? "empty boxes would lose their resale value" : "bought at different prices per round"}`);
+      continue;
+    }
     report.push({ name: survivor.name, survivorId: survivor.id, piles: group.length, quantity: totalQty, paid: totalPaid });
     if (dryRun) continue;
 
     // Snapshot everything this group is about to touch, for rollback.
     const snapshot = {
+      // Flags keep their PRESENCE: an absent flag is restored as absent, never as 0.
       survivor: {
         quantity: survivor.system.quantity,
-        paid: survivor.getFlag("sr2e", "paid") ?? 0,
-        acqQty: survivor.getFlag("sr2e", "acquiredQuantity") ?? 0,
-        acqVal: survivor.getFlag("sr2e", "acquiredListValue") ?? 0
+        paid: survivor.getFlag("sr2e", "paid"),
+        acqQty: survivor.getFlag("sr2e", "acquiredQuantity"),
+        acqVal: survivor.getFlag("sr2e", "acquiredListValue")
       },
       doomed: doomed.map((i) => i.toObject()),
       weapons: actor.items.filter((w) => w.type === "weapon"
@@ -414,28 +439,40 @@ async function consolidateAmmo(actor, { dryRun = false, quiet = false, itemId = 
         if (doomed.some((d) => d.id === w["system.ammo.loadedSourceId"])) u["system.ammo.loadedSourceId"] = survivor.id;
         return u;
       });
-      if (repoint.length) await actor.updateEmbeddedDocuments("Item", repoint, { sr2eNoCharge: true });
+      if (repoint.length) {
+        try { await actor.updateEmbeddedDocuments("Item", repoint, { sr2eNoCharge: true }); } catch (err) { console.error("SR2E | consolidate: repoint", err); }
+        // Every weapon must really point at the survivor before any pile is deleted.
+        const pointed = repoint.every(u => Object.entries(u).every(([k, v]) => k === "_id" || foundry.utils.getProperty(actor.items.get(u._id)?._source ?? {}, k) === v));
+        if (!pointed) throw new Error("weapons not re-pointed");
+      }
 
-      // 2. Delete the duplicates BEFORE crediting the survivor. If this throws,
+      // 2. Delete the duplicates BEFORE crediting the survivor. If that fails,
       //    nothing has been credited yet and the rounds still exist exactly once.
-      await actor.deleteEmbeddedDocuments("Item", doomed.map((i) => i.id));
+      const ids = doomed.map((i) => i.id);
+      if (!(await deletedDocs(actor, actor.deleteEmbeddedDocuments("Item", ids), ids, "consolidate: delete"))) throw new Error("duplicates not deleted");
 
-      // 3. Credit the survivor with the whole pile + summed basis.
-      await survivor.update({ "system.quantity": totalQty }, { sr2eNoCharge: true });
-      await survivor.setFlag("sr2e", "paid", totalPaid);
-      if (totalAcqQty) await survivor.setFlag("sr2e", "acquiredQuantity", totalAcqQty);
-      if (totalAcqVal) await survivor.setFlag("sr2e", "acquiredListValue", totalAcqVal);
+      // 3. Credit the survivor with the whole pile + summed basis, in ONE update.
+      const credit = { "system.quantity": totalQty, "flags.sr2e.paid": mergedPaid };
+      if (totalAcqQty) credit["flags.sr2e.acquiredQuantity"] = totalAcqQty;
+      if (totalAcqVal) credit["flags.sr2e.acquiredListValue"] = totalAcqVal;
+      if (!(await updated(survivor.update(credit, { sr2eNoCharge: true }), "consolidate: credit"))) throw new Error("survivor not credited");
       merged++; removed += doomed.length;
     } catch (err) {
       console.error("SR2E | consolidateAmmo failed; rolling back", err);
       try {
-        await survivor.update({ "system.quantity": snapshot.survivor.quantity }, { sr2eNoCharge: true });
-        await survivor.setFlag("sr2e", "paid", snapshot.survivor.paid);
-        await survivor.setFlag("sr2e", "acquiredQuantity", snapshot.survivor.acqQty);
-        await survivor.setFlag("sr2e", "acquiredListValue", snapshot.survivor.acqVal);
+        const s = snapshot.survivor;
+        const restore = { "system.quantity": s.quantity };
+        for (const [flag, v] of [["paid", s.paid], ["acquiredQuantity", s.acqQty], ["acquiredListValue", s.acqVal]]) {
+          if (v == null) restore[`flags.sr2e.-=${flag}`] = null; else restore[`flags.sr2e.${flag}`] = v;
+        }
+        if (!(await applyUpdate(survivor, restore, { sr2eNoCharge: true }, "consolidate: restore survivor"))) throw new Error("survivor not restored");
         const missing = snapshot.doomed.filter((d) => !actor.items.get(d._id));
-        if (missing.length) await actor.createEmbeddedDocuments("Item", missing, { keepId: true, sr2eNoCharge: true });
-        if (snapshot.weapons.length) await actor.updateEmbeddedDocuments("Item", snapshot.weapons, { sr2eNoCharge: true });
+        if (missing.length && !(await createdDocs(actor, actor.createEmbeddedDocuments("Item", missing, { keepId: true, sr2eNoCharge: true }), missing.length, "consolidate: restore piles"))) throw new Error("piles not restored");
+        if (snapshot.weapons.length) {
+          await actor.updateEmbeddedDocuments("Item", snapshot.weapons, { sr2eNoCharge: true });
+          const back = snapshot.weapons.every(u => Object.entries(u).every(([k, v]) => k === "_id" || foundry.utils.getProperty(actor.items.get(u._id)?._source ?? {}, k) === v));
+          if (!back) throw new Error("weapon references not restored");
+        }
         ui.notifications?.error(game.i18n.format("SR2E.Ammo.ConsolidateFailed", { name: survivor.name }));
       } catch (rollbackErr) {
         // Never silent: the actor may now be inconsistent and the GM must know.
@@ -447,7 +484,8 @@ async function consolidateAmmo(actor, { dryRun = false, quiet = false, itemId = 
   }
 
   const summary = report.map((r) => `${r.name} ×${r.quantity} (${r.piles} piles)`).join(", ");
-  if (!quiet) {
+  if (skipped.length && !quiet) ui.notifications?.warn(`Not merged, so no resale value is lost — ${skipped.join("; ")}.`);
+  if (!quiet && (report.length || !skipped.length)) {
     ui.notifications?.info(dryRun
       ? game.i18n.format("SR2E.Ammo.ConsolidateDryRun", { summary })
       : game.i18n.format("SR2E.Ammo.ConsolidateDone", { removed, summary }));
@@ -489,7 +527,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
@@ -1342,16 +1380,21 @@ Hooks.on("preUpdateItem", (item, changes, options) => {
   if (item.type !== "cyberware" || options?.sr2eKeepPlacementFacts) return;
   const link = changes.system?.linkedLimbId;
   if (link === undefined || link === item.system.linkedLimbId || !item.system.limbOption) return;
-  const actor = item.parent;
-  const siblings = (actor?.items ?? []).filter(i => i.type === "cyberware" && i.id !== item.id).map(i => ({
+  const facts = placementFactsFor(item, link);
+  foundry.utils.setProperty(changes, "system.limbSurcharge", facts.limbSurcharge);
+  foundry.utils.setProperty(changes, "system.limbAdjacent", facts.limbAdjacent);
+});
+
+/** A limb option's placement facts if it were linked to `link`, from its live siblings. */
+function placementFactsFor(item, link) {
+  const siblings = (item.parent?.items ?? []).filter(i => i.type === "cyberware" && i.id !== item.id).map(i => ({
     id: i.id, kind: i.system.limbOption ? i.system.limbIdentity?.optionKind ?? null : null,
     linkedLimbId: i.system.limbOption ? i.system.linkedLimbId : "",
     limbType: i.system.limbIdentity?.role === "limb" ? i.system.limbIdentity.type : null, side: i.system.side
   }));
-  const facts = placementFacts(item.system.limbIdentity?.optionKind ?? null, link, siblings);
-  foundry.utils.setProperty(changes, "system.limbSurcharge", facts.limbSurcharge);
-  foundry.utils.setProperty(changes, "system.limbAdjacent", facts.limbAdjacent);
-});
+  const { limbSurcharge, limbAdjacent } = placementFacts(item.system.limbIdentity?.optionKind ?? null, link, siblings);
+  return { limbSurcharge, limbAdjacent };
+}
 
 // Charge (or refund) the nuyen difference when a purchased item's configuration
 // changes on a character. Runs in preUpdateItem so an unaffordable upgrade can be
@@ -1372,25 +1415,13 @@ Hooks.on("preUpdateItem", (item, changes) => {
   if (fixed !== nextSpent) foundry.utils.setProperty(changes, "system.spent", fixed);
 });
 
-Hooks.on("preUpdateItem", (item, changes, options, userId) => {
-  if (game.user.id !== userId || options?.sr2eNoCharge) return;
-  // Only react to a driver that ACTUALLY changed. A write that re-sends the same
-  // value (an importer normalising, a sheet re-submit) must not transact or record
-  // a rollback.
-  const changed = {};
-  for (const k of PURCHASE_DRIVERS) {
-    const v = changes.system?.[k];
-    if (v !== undefined && v !== item.system[k]) changed[k] = v;
-  }
-  if (!Object.keys(changed).length) return;
+/**
+ * The nuyen a configuration change of a BOUGHT item costs (+) or refunds (−), priced from
+ * the LIVE item: each side at its own rating row and Street Index, chargen at list, and
+ * a refund never pays out more than was really paid. 0 = no money moves.
+ */
+function repriceDelta(item, changed, paid) {
   const actor = item.parent;
-  if (!(actor instanceof Actor) || actor.type !== "character") return;
-  let autoCharge = true;
-  try { autoCharge = game.settings.get("sr2e", "autoChargePurchases"); } catch (e) { /* default on */ }
-  if (!autoCharge) return;
-  const paid = item.getFlag("sr2e", "paid");
-  if (paid == null) return;   // free / GM-gifted item — don't start charging it
-
   let vr2 = false;
   try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
   // The AUTHORED price and Street Index — never the prepared ones. `system.cost` on
@@ -1443,7 +1474,7 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
     inChargen ? c : streetPrice(c, ratedStreetIndex(sys.ratingStats, sys.rating, flatSI));
   const oldPrice = priceOf(oldBase, oldSys);
   const newPrice = priceOf(newBase, newSys);
-  if (oldPrice === newPrice) return;
+  if (oldPrice === newPrice) return 0;
   let delta = Math.round(newPrice - oldPrice);
 
   // A refund is computed from the CURRENT price tables, but `paid` is what the
@@ -1459,76 +1490,110 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   // 100k and leaves 100k paid, rather than refunding the full 200k and handing
   // over the standard ware for nothing.
   if (delta < 0) delta = Math.min(paid, Math.round(newPrice)) - paid;
-  if (delta === 0) return;
-  const nuyen = actor.system.nuyen ?? 0;
-  if (delta > 0 && nuyen < delta) {
-    ui.notifications.warn(`${actor.name} can't afford to upgrade ${item.name} — needs ${delta}¥ more (has ${nuyen}¥). Change refused.`);
-    return false;   // veto the Rating/Grade change (must be synchronous)
+  return delta;
+}
+
+/** A purchase driver that really changed, against the live item. */
+function changedDrivers(item, changes) {
+  const changed = {};
+  for (const k of PURCHASE_DRIVERS) {
+    const v = changes.system?.[k];
+    if (v !== undefined && v !== item.system[k]) changed[k] = v;
   }
-  // Don't charge here: a preUpdate hook can't await, so a fire-and-forget
-  // actor.update() could fail (or read stale nuyen) while the item change still
-  // commits — a free upgrade. Hand the charge to the updateItem hook below,
-  // which awaits it, re-reads nuyen, and rolls the item back on failure.
-  // Snapshot EVERY driver being changed, dotted and ready to apply. Reverting only
-  // rating/grade while gating more fields would leave the item changed but unpaid.
-  const revert = {};
-  for (const k of Object.keys(changed)) revert[`system.${k}`] = item.system[k];
-  options.sr2ePurchase = { delta, newPaid: Math.max(0, paid + delta), revert };
+  return changed;
+}
+
+/** A bought item on a character with auto-charge on: its configuration changes cost money. */
+function chargesFor(item) {
+  const actor = item.parent;
+  if (!(actor instanceof Actor) || actor.type !== "character") return false;
+  let autoCharge = true;
+  try { autoCharge = game.settings.get("sr2e", "autoChargePurchases"); } catch (e) { /* default on */ }
+  return autoCharge && item.getFlag("sr2e", "paid") != null;   // free / GM-gifted items aren't charged
+}
+
+// A regraded eye is a different eye: its accessories were bought at its grade
+// (Cybertechnology p.45), so a cybereye with bought accessory rows keeps its grade.
+Hooks.on("preUpdateItem", (item, changes, options, userId) => {
+  if (game.user.id !== userId || item.type !== "cyberware" || item.system.wareRule !== "cybereye-pair") return;
+  const grade = changes.system?.grade;
+  if (grade === undefined || grade === item.system.grade || !rowsPaid(item.system.modules ?? [])) return;
+  ui.notifications.warn(`${item.name} has accessories bought at its grade: remove them (refunded) before changing its grade.`);
+  return false;
 });
 
-// Second half of the purchase re-pricing: perform the nuyen charge/refund AFTER
-// the item change has committed, where we can await it. On any failure the item
-// is rolled back to its previous Rating/Grade so a character can never keep an
-// unpaid upgrade. The `paid` flag is only stamped once the money actually moved.
-Hooks.on("updateItem", async (item, changes, options, userId) => {
-  if (game.user.id !== userId) return;
-  const p = options?.sr2ePurchase;
-  if (!p) return;
-  const actor = item.parent;
-  if (!actor) return;
-  // All-or-nothing: if any step fails, undo whatever already happened — including
-  // the money, if it already moved. Otherwise a setFlag failure after a successful
-  // charge would revert the item while the nuyen stayed spent (paid for nothing).
-  let charged = false;
-  try {
-    const nuyen = actor.system.nuyen ?? 0;   // fresh read, not the preUpdate snapshot
-    if (p.delta > 0 && nuyen < p.delta) throw new Error(`needs ${p.delta}¥, has ${nuyen}¥`);
-    await actor.update({ "system.nuyen": nuyen - p.delta });
-    charged = true;
-    await item.setFlag("sr2e", "paid", p.newPaid);
-    ui.notifications.info(`${actor.name} ${p.delta > 0 ? "pays" : "refunds"} ${Math.abs(p.delta)}¥ to change ${item.name} — ${nuyen - p.delta}¥ left.`);
-  } catch (err) {
-    // Unwind carefully: only revert the item once the money is confirmed back.
-    // Never swallow a failure here — a silent one leaves nuyen and the item
-    // disagreeing, which is worse than a loud message the GM can act on.
-    if (charged) {
-      try {
-        await actor.update({ "system.nuyen": (actor.system.nuyen ?? 0) + p.delta });
-      } catch (refundErr) {
-        console.error("sr2e | refund failed after a failed purchase", refundErr);
-        ui.notifications.error(
-          `${item.name}: paid ${Math.abs(p.delta)}¥ but the purchase failed AND the refund failed — ` +
-          `the item has been left as-is (you kept what you paid for). Fix ${actor.name}'s nuyen by hand. (${refundErr.message})`);
-        return;   // do NOT revert: the money is gone, so let them keep the upgrade
-      }
-    }
-    try {
-      await item.update(
-        p.revert,                 // every driver that changed, restored
-        // don't re-enter the charge on the rollback, and restore the recorded
-        // placement facts exactly (the placement hook must not recompute them)
-        { sr2eNoCharge: true, sr2eKeepPlacementFacts: true }
-      );
-    } catch (revertErr) {
-      console.error("sr2e | item rollback failed after a failed purchase", revertErr);
-      ui.notifications.error(
-        `${item.name}: the purchase failed and the money was refunded, but the item could NOT be ` +
-        `reverted — it is still changed and now unpaid. Fix it by hand. (${revertErr.message})`);
-      return;
-    }
-    ui.notifications.error(`Purchase failed for ${item.name} — change reverted, no money spent (${err.message}).`);
+// Charge (or refund) the difference when a BOUGHT item's configuration changes on a
+// character (docs/PLAN-money-queue-and-eye-accessories.md, A2). The change itself moves
+// into the actor's money queue: this hook vetoes the direct write and re-issues it from
+// repriceQueued, where the live price, the charge, the `paid` flag and any rollback
+// settle in ONE entry — a sale, purchase or second change on this client waits behind it.
+Hooks.on("preUpdateItem", (item, changes, options, userId) => {
+  if (game.user.id !== userId || options?.sr2eNoCharge || options?.sr2eQueued) return;
+  if (!Object.keys(changedDrivers(item, changes)).length || !chargesFor(item)) return;
+  if (unfinishedCymImplant(item.parent, item)) {
+    ui.notifications.warn(`${item.name} belongs to an unfinished cybermantic operation: finish or cancel it first.`);
+    return false;
   }
+  const request = foundry.utils.deepClone(changes);
+  delete request._id;
+  repriceQueued(item, request);
+  return false;
 });
+
+/** Apply a configuration change to a bought item inside its owner's money queue. */
+function repriceQueued(item, changes) {
+  const actor = item.parent, esc = foundry.utils.escapeHTML;
+  const rerender = () => { item.sheet?.rendered && item.sheet.render(); actor.sheet?.rendered && actor.sheet.render(); };
+  return moneyQueue(actor, async () => {
+    const live = actor.items.get(item.id);
+    if (!live) return false;
+    // Placement facts: the queued write carries its own (sr2eKeepPlacementFacts), so
+    // recompute them exactly when the placement hook would — the link really changes.
+    if (changes.system) { delete changes.system.limbSurcharge; delete changes.system.limbAdjacent; }
+    const link = changes.system?.linkedLimbId;
+    if (link !== undefined && link !== live.system.linkedLimbId && live.system.limbOption) {
+      Object.assign(changes.system, placementFactsFor(live, link));
+    }
+    const changed = changedDrivers(live, changes);
+    const opts = { sr2eQueued: true, sr2eKeepPlacementFacts: true };
+    if (!Object.keys(changed).length || !chargesFor(live)) {
+      if (!(await updated(live.update(changes, opts), "item change"))) rerender();
+      return true;
+    }
+    const paid = live.getFlag("sr2e", "paid") ?? 0;
+    const delta = repriceDelta(live, changed, paid);
+    const nuyen = actor.system.nuyen ?? 0;
+    if (delta > 0 && nuyen < delta) {
+      ui.notifications.warn(`${actor.name} can't afford to change ${live.name} — needs ${delta}¥ more (has ${nuyen}¥). Change refused.`);
+      rerender();
+      return false;
+    }
+    // Snapshot every driver being changed, so a rollback restores all of them.
+    const revert = {};
+    for (const k of Object.keys(changed)) revert[`system.${k}`] = live.system[k];
+    if (!(await updated(live.update(changes, opts), "item change"))) {
+      ui.notifications.error(`${live.name} couldn't be changed — nothing was charged.`);
+      rerender();
+      return false;
+    }
+    if (!delta) return true;
+    const undo = async (why) => {
+      if (await applyUpdate(live, revert, { sr2eNoCharge: true, sr2eKeepPlacementFacts: true }, "item rollback")) {
+        ui.notifications.error(`Purchase failed for ${live.name} — change reverted, no money spent (${why}).`);
+      } else {
+        ui.notifications.error(`${live.name}: the purchase failed and the item could NOT be reverted — it is changed and unpaid (${why}). Fix it by hand.`, { permanent: true });
+      }
+    };
+    if (!(await adjustNuyen(actor, -delta))) { await undo(delta > 0 ? "couldn't charge" : "couldn't refund"); return false; }
+    if (!(await updated(live.setFlag("sr2e", "paid", Math.max(0, (live.getFlag("sr2e", "paid") ?? 0) + delta)), "paid flag"))) {
+      if (await adjustNuyen(actor, delta)) await undo("couldn't record the price");
+      else ui.notifications.error(`${live.name}: ${Math.abs(delta)}¥ moved but its price couldn't be recorded, and the money couldn't be put back. Fix ${esc(actor.name)}'s nuyen by hand.`, { permanent: true });
+      return false;
+    }
+    ui.notifications.info(`${actor.name} ${delta > 0 ? "pays" : "refunds"} ${Math.abs(delta)}¥ to change ${live.name} — ${actor.system.nuyen ?? 0}¥ left.`);
+    return true;
+  }, "reprice");
+}
 
 // Single active cyberdeck — belt-and-suspenders for when deck.active is set true
 // outside the activateDeck action (Adventure import, a direct item edit). When
@@ -1879,23 +1944,38 @@ Hooks.on("preUpdateActor", (actor, changes, options, userId) => {
 // what's left of the Resources at 10:1, plus 3D6 × 1,000¥. Asked of whoever finished it.
 Hooks.on("updateActor", (actor, changes, options, userId) => {
   if (actor.type !== "character" || userId !== game.user.id) return;
+  // Re-opening creation re-arms the offer for the next finish.
+  if (changes.system?.chargen?.inProgress === true && actor.getFlag("sr2e", "startingMoneyGranted")) {
+    actor.unsetFlag("sr2e", "startingMoneyGranted").catch(err => console.error("SR2E | starting money marker", err));
+    return;
+  }
   if (changes.system?.chargen?.inProgress !== false) return;
   offerStartingMoney(actor).catch(err => console.error("SR2E | starting money", err));
 });
 
 async function offerStartingMoney(actor) {
   const esc = foundry.utils.escapeHTML, fmt = (n) => `${n.toLocaleString("en-US")}¥`;
+  if (actor.getFlag("sr2e", "startingMoneyGranted")) return;
   const unspent = Math.max(0, chargenBudgetOf(actor).resources.remaining);
+  const shown = actor.system.nuyen ?? 0;
   const ok = await foundry.applications.api.DialogV2.confirm({
     window: { title: `Starting money — ${actor.name}` }, rejectClose: false,
     content: `<p>Unspent Resources ${fmt(unspent)} become ${fmt(Math.floor(unspent / 10))} (10:1), plus 3D6 × 1,000¥ (SR2E p.47).</p>
-      <p>Roll and set ${esc(actor.name)}'s nuyen to the total? It's ${fmt(actor.system.nuyen ?? 0)} now.</p>` });
+      <p>Roll and set ${esc(actor.name)}'s nuyen to the total? It's ${fmt(shown)} now.</p>` });
   if (!ok) return;
   const roll = await new Roll("3d6").evaluate();
   await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: "Starting money: 3D6 × 1,000¥ (SR2E p.47)" });
   const total = startingMoney(unspent, roll.total);
-  await actor.update({ "system.nuyen": total });
-  ui.notifications.info(`${esc(actor.name)} starts with ${fmt(total)} (${fmt(Math.floor(unspent / 10))} + ${fmt(roll.total * 1000)}).`);
+  // The SET happens in the money queue, against the quote: if anything bought, sold or
+  // reopened creation in between, the quote is stale and nothing is written.
+  const done = await moneyQueue(actor, async () => {
+    const stale = actor.getFlag("sr2e", "startingMoneyGranted") || actor.system.chargen?.inProgress
+      || (actor.system.nuyen ?? 0) !== shown || Math.max(0, chargenBudgetOf(actor).resources.remaining) !== unspent;
+    if (stale) return false;
+    return updated(actor.update({ "system.nuyen": total, "flags.sr2e.startingMoneyGranted": true }), "starting money");
+  }, "starting money");
+  if (done) ui.notifications.info(`${esc(actor.name)} starts with ${fmt(total)} (${fmt(Math.floor(unspent / 10))} + ${fmt(roll.total * 1000)}).`);
+  else ui.notifications.warn(`${esc(actor.name)}'s starting money wasn't set: something changed since the quote (or it was already granted). Re-open and finish creation to get a new quote.`);
 }
 
 // Elemental sorcery services (SR2E p.141–142): the conjurer's sheet shows who

@@ -17,6 +17,7 @@ import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus, test
 import { substanceState, nextStamp, EVENT_VERSION, stepId } from "./rules/substances.mjs";
 import { doseKey, doseHoldState, STUCK_MS } from "./rules/claim-rules.mjs";
 import { once, markersOf, pruneMarkers } from "./claims.mjs";
+import { moneyQueue, updated } from "./money.mjs";
 import { RL, AL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -877,8 +878,15 @@ export function useDose(actor, itemId) {
     //    start finishing it): the spend and the plan in one item update.
     if (!(await once(actor, doseKey(exposureId, 0)))) return ui.notifications.error("Couldn't start the dose; nothing was spent.");
     HELD.set(exposureId, 0);
-    await item.update({ "system.quantity": Math.max(0, (item.system.quantity ?? 1) - 1),
-                        [`flags.sr2e.doseCommits.${exposureId}`]: plan });
+    // The dose is refundable stock: the spend lands in the owner's money queue against
+    // the live quantity, so a sale or edit can't interleave (docs/PLAN-money-queue-…, A2).
+    const spent = await moneyQueue(actor, async () => {
+      const live = actor.items.get(itemId);
+      if (!live || (live.system.quantity ?? 0) < 1) return false;
+      return updated(live.update({ "system.quantity": live.system.quantity - 1,
+                                   [`flags.sr2e.doseCommits.${exposureId}`]: plan }), "dose spend");
+    }, "dose");
+    if (!spent) { HELD.delete(exposureId); return ui.notifications.warn(`No ${item.name} could be taken — nothing was spent.`); }
     COMMITTED_THIS_SESSION.add(exposureId);
 
     // 4. Everything else, resumable.

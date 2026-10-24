@@ -3,6 +3,8 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
+import { hasRefundableStock, queuedQuantityEdit, moneyQueue, adjustNuyen, updated } from "../money.mjs";
+import { withRowIds } from "../rules/ware-rules.mjs";
 
 
 /**
@@ -34,6 +36,60 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     }
   };
 
+  /**
+   * @override
+   * Refundable stock (ammo, tracked drugs) on a character: the quantity is never resent
+   * by an unrelated field's submit, and a real edit goes through the owner's money queue
+   * against the value this form showed (docs/PLAN-money-queue-and-eye-accessories.md, A2).
+   */
+  async _processSubmitData(event, form, submitData, options) {
+    const item = this.document;
+    const q = submitData?.system?.quantity;
+    if (q !== undefined && item.parent?.type === "character" && hasRefundableStock(item)) {
+      delete submitData.system.quantity;
+      if (Number(q) !== Number(this._shownQuantity)) {
+        const shown = this._shownQuantity;
+        this._shownQuantity = Number(q);
+        queuedQuantityEdit(item, shown, Number(q)).then(ok => { if (!ok) this.render(); });
+      }
+    }
+    // Container rows: merge the submitted fields onto the rows BY ID, so fields the form
+    // doesn't show (id, paid, listValue) survive and a stale form never rewrites a row
+    // that changed meanwhile.
+    const sub = submitData?.system?.modules;
+    if (sub !== undefined) {
+      delete submitData.system.modules;
+      if (!this._rowsLocked) {
+        const shown = this._shownRows ?? [];
+        const edits = [];
+        for (const [k, v] of Object.entries(sub ?? {})) {
+          const base = shown[Number(k)];
+          if (!base || !v) continue;
+          const fields = {};
+          // Only the fields the form shows: cleaning may fill hidden ones (paid…) with defaults.
+          for (const f of ROW_FORM_FIELDS) if (f in v && !foundry.utils.objectsEqual({ v: base[f] }, { v: v[f] })) fields[f] = v[f];
+          if (Object.keys(fields).length) edits.push({ id: base.id, index: Number(k), fields });
+        }
+        if (edits.length) applyRowChanges(item, (rows) => {
+          for (const e of edits) {
+            const i = e.id ? rows.findIndex(r => r.id === e.id) : e.index;
+            if (i >= 0 && rows[i]) rows[i] = { ...rows[i], ...e.fields };
+          }
+          return rows;
+        }).then(ok => { if (!ok) this.render(); });
+      }
+    }
+    if (submitData?.system && !Object.keys(submitData.system).length) delete submitData.system;
+    if (!Object.keys(submitData ?? {}).length) return;
+    // A cybereye on a character: its other fields (pair/single, installed, Essence) change
+    // what an accessory fit checks, so they land in the owner's money queue too.
+    const actor = moneyActor(item);
+    if (actor && item.system.wareRule === "cybereye-pair") {
+      return moneyQueue(actor, () => actor.items.has(item.id) ? super._processSubmitData(event, form, submitData, options) : null, "eye form");
+    }
+    return super._processSubmitData(event, form, submitData, options);
+  }
+
   /** @override */
   static PARTS = {
     header: { template: "systems/sr2e/templates/item/parts/item-header.hbs" },
@@ -47,6 +103,20 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     context.item = item;
     context.system = item.system;
+    // What the form shows, so a whole-form submit can tell a real quantity edit from a
+    // stale resend (see _processSubmitData).
+    this._shownQuantity = item.system.quantity;
+    // Container rows as rendered: form fields address rows by POSITION, so submits are
+    // mapped back to row ids through this snapshot (docs/PLAN-money-queue-…, B2).
+    this._shownRows = foundry.utils.deepClone(item._source.system?.modules ?? []);
+    this._rowsLocked = false;
+    if (this._shownRows.some(r => !r.id)) {
+      if (moneyActor(item)) {
+        // Legacy rows get ids first, in the owner's money queue; until then they're read-only.
+        this._rowsLocked = context.rowsLocked = true;
+        normaliseRowIds(item, this._shownRows);
+      } else this._rowsLocked = context.rowsLocked = !item.isOwner;
+    }
 
     // A spell focus binds to ONE spell on its owning actor (SR2E p.137), so the
     // form needs that actor's spells to choose from. Nothing supplied them before,
@@ -322,21 +392,76 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static async _addModuleRow(event, target) {
     event.preventDefault();
     const item = this.document;
-    const mods = foundry.utils.deepClone(item.system.modules ?? []);
-    mods.push({ name: "", essenceCost: 0, cost: 0, rating: 0, combatTnMod: 0, active: true, notes: "" });
-    const update = { "system.modules": mods };
-    if ((item.system.capacity ?? 0) <= 0) update["system.capacity"] = 0.5;
-    await item.update(update);
+    const row = { id: foundry.utils.randomID(), name: "", essenceCost: 0, cost: 0, rating: 0, combatTnMod: 0, active: true, notes: "" };
+    const extra = (item.system.capacity ?? 0) <= 0 ? { "system.capacity": 0.5 } : {};
+    await applyRowChanges(item, (rows) => [...rows, row], extra);
   }
 
   /** Remove a module slot from container cyberware. */
   static async _removeModuleRow(event, target) {
     event.preventDefault();
     const item = this.document;
+    const rowId = target.dataset.rowId;
     const index = parseInt(target.dataset.index);
-    if (isNaN(index)) return;
-    const mods = foundry.utils.deepClone(item.system.modules ?? []);
-    mods.splice(index, 1);
-    await item.update({ "system.modules": mods });
+    const actor = moneyActor(item);
+    if (!actor) {
+      if (isNaN(index)) return;
+      const mods = foundry.utils.deepClone(item._source.system.modules ?? []);
+      mods.splice(index, 1);
+      return item.update({ "system.modules": mods });
+    }
+    if (!rowId) return this.render();   // legacy rows: ids first (see _prepareContext)
+    // On a character: remove the row and refund what was paid for it, in ONE money entry.
+    return moneyQueue(actor, async () => {
+      const live = actor.items.get(item.id);
+      const rows = foundry.utils.deepClone(live?._source.system.modules ?? []);
+      const i = rows.findIndex(r => r.id === rowId);
+      if (i < 0) return;
+      const [gone] = rows.splice(i, 1);
+      if (!(await updated(live.update({ "system.modules": rows }), "remove row"))) return ui.notifications.warn(`Couldn't remove ${gone.name || "that row"}.`);
+      const refund = Number(gone.paid) || 0;
+      if (!refund) return;
+      if (await adjustNuyen(actor, refund)) return ui.notifications.info(`${actor.name} gets ${refund}¥ back for ${gone.name || "the accessory"}.`);
+      const back = foundry.utils.deepClone(actor.items.get(item.id)?._source.system.modules ?? []);
+      back.splice(Math.min(i, back.length), 0, gone);
+      if (await updated(live.update({ "system.modules": back }), "restore row")) ui.notifications.warn(`Couldn't refund ${gone.name}, so it was put back.`);
+      else ui.notifications.error(`${gone.name} was removed but its ${refund}¥ wasn't refunded: add it to ${actor.name} by hand.`, { permanent: true });
+    }, "remove eye row");
   }
+}
+
+/** The row fields the item sheet's form edits (templates/item/item-body.hbs). */
+const ROW_FORM_FIELDS = ["active", "name", "essenceCost", "cost", "rating", "combatTnMod", "kind", "eye"];
+
+/** The character whose money queue an item's row changes go through, or null (unembedded, NPC…). */
+function moneyActor(item) {
+  const actor = item.parent;
+  return actor?.type === "character" ? actor : null;
+}
+
+/**
+ * Change an item's container rows. On a character: inside the owner's money queue, against
+ * the LIVE rows (by id); otherwise directly. `mutate(rows)` returns the new rows.
+ */
+export function applyRowChanges(item, mutate, extra = {}) {
+  const actor = moneyActor(item);
+  const run = async () => {
+    const live = actor ? actor.items.get(item.id) : item;
+    if (!live) return false;
+    const rows = mutate(foundry.utils.deepClone(live._source.system.modules ?? []));
+    return updated(live.update({ "system.modules": rows, ...extra }), "container rows");
+  };
+  return actor ? moneyQueue(actor, run, "eye rows") : run();
+}
+
+/** Give legacy rows ids, if the live rows are still the ones the sheet rendered. */
+function normaliseRowIds(item, shown) {
+  const actor = moneyActor(item);
+  return moneyQueue(actor, async () => {
+    const live = actor.items.get(item.id);
+    const rows = foundry.utils.deepClone(live?._source.system.modules ?? []);
+    if (!live || !foundry.utils.objectsEqual({ r: rows }, { r: shown })) return live?.sheet?.render();
+    const fixed = withRowIds(rows, () => foundry.utils.randomID());
+    if (fixed) await updated(live.update({ "system.modules": fixed }), "row ids");
+  }, "row ids");
 }
