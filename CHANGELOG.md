@@ -4,6 +4,13 @@
 
 ## 0.117.3 — 2026-10-24
 
+### Added
+- **Phone companion sound switch.** A phone in companion mode is now silent by default, so
+  sound comes only from the player's computer: it mutes that device's own Foundry volumes
+  (music, ambient, interface — which also covers combat sounds and Dice So Nice), and the
+  computer is unaffected. **Sound on this phone** at the bottom of the Status tab turns it on
+  or off; leaving companion mode gives the device its own volumes back.
+
 ### Fixed
 - (tests) The manipulation-damage Quench batch removes every area-spell template it creates,
   including one that lands late under a loaded run (it was leaving Flame Bomb templates on
