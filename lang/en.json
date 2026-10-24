@@ -476,6 +476,7 @@
   "SR2E.RollLabel.TnVariesByTarget": " — TN varies by target (p.130)",
   "SR2E.RollLabel.DrainResist": "Drain Resist — {level} {type}{note} (TN {tn})",
   "SR2E.RollLabel.CastInAstral": " (cast in astral space, p.148)",
+  "SR2E.RollLabel.MisfireTag": " (misfire, +2 TN, p.131)",
   "SR2E.RollLabel.HandlingTest": "Handling Test",
   "SR2E.RollLabel.PositionTest": "Position Test",
   "SR2E.RollLabel.CrashTest": "Crash Test",

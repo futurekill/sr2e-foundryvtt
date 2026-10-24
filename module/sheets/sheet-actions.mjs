@@ -15,6 +15,8 @@ import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
+import { combatSpellMode, combatTargetRows, snapshotTargets, casterSituationHTML, targetRowsHTML, wireTargetRows,
+         readTargetRows, promptAreaTargets } from "../combat-spells.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
 import { areaDocs } from "../areas.mjs";
 import { startRitual } from "../ritual.mjs";
@@ -1849,6 +1851,22 @@ async function promptSpellOptions(actor, spell) {
   const isArea       = !!spell?.system?.isAreaEffect;
   const isAreaCombat = isArea && isCombat;
   const casterToken  = actor.getActiveTokens?.()?.[0] ?? null;
+
+  // ── Combat spells: per-target TN and situation (docs/PLAN-combat-spells.md P1.3) ──
+  // A snapshot of the targets NOW; the cast re-reads these documents, never the live set.
+  const combatMode = isCombat ? combatSpellMode(spell) : null;
+  const combatRows = (isCombat && !isArea) ? combatTargetRows(spell, snapshotTargets()) : [];
+  const tableMode  = combatMode && combatMode !== "manual" && combatRows.length > 0;
+  const combatSection = isCombat && combatMode !== "manual" ? `
+    <fieldset class="sr2e-attack__group">
+      <legend class="sr2e-attack__legend">Situation <span class="sr2e-attack__hint">p.130, p.89, p.83</span></legend>
+      ${casterSituationHTML(actor)}
+      ${tableMode ? targetRowsHTML(combatRows, { ram: combatMode === "ram" })
+        + (combatRows.filter(r => r.eligible).length > 1 ? `<p class="sr2e-attack__hint">One target per casting: the first the caster can see is affected.</p>` : "") : ""}
+      ${combatMode === "ram" && !combatRows.length ? `<div class="sr2e-attack__field"><label title="The barrier's rating (Barrier Rating Table, p.98); combat spells face twice it">Barrier Rating</label>
+        <input type="number" name="ram_rating" value="0" min="0"></div>
+        <p class="sr2e-attack__hint">TN from the Object Resistance Table (p.130): natural 3, low-tech 5, high-tech 8, highly processed 10+.</p>` : ""}
+    </fieldset>` : "";
   const areaSection = isArea ? `
     <fieldset class="sr2e-attack__group">
       <legend class="sr2e-attack__legend">Area effect <span class="sr2e-attack__hint">p.130</span></legend>
@@ -1942,6 +1960,7 @@ async function promptSpellOptions(actor, spell) {
     const root = (html instanceof Element) ? html : document;
     const form = root.querySelector("#sr2e-cast-force")?.form;
     if (!form) return;
+    if (tableMode) wireTargetRows(form);
     const $ = (id) => root.querySelector(`#${id}`);
     const update = () => {
       const { force, geo, dice } = readPreview(form);
@@ -1995,12 +2014,13 @@ async function promptSpellOptions(actor, spell) {
               </div>
               <div class="sr2e-attack__field">
                 <label>${game.i18n.localize("SR2E.Dialog.TargetNumber")}${isAreaCombat ? ` <span class="sr2e-attack__hint">per target</span>` : ""}</label>
-                <input type="number" name="tn" value="${suggestedTN}" min="2" max="30" ${isAreaCombat ? "readonly tabindex=\"-1\"" : ""}>
+                <input type="number" name="tn" value="${suggestedTN}" min="2" max="30" ${isAreaCombat || tableMode ? "readonly tabindex=\"-1\"" : ""}>
               </div>
             </div>
             ${isAreaCombat
               ? `<p class="sr2e-attack__hint">Rolled once, then scored against each target's own ${isMana ? "Willpower" : "Body"} (p.130).</p>`
               : (tnNote ? `<p class="sr2e-attack__hint">${tnNote}</p>` : "")}
+            ${combatSection}
             ${areaSection}
             ${totemLine}
           </section>
@@ -2064,6 +2084,11 @@ async function promptSpellOptions(actor, spell) {
             ...(aid && (aid.cast + aid.drain) > 0 ? { elementalAid: aid } : {}),
             // Area: the centre is resolved by onCastSpell after this dialog.
             ...(isArea ? { areaRequest: { center: el.area_center?.value ?? "point", radiusDelta } } : {}),
+            // Combat: the targets' situation (single) or the caster's (area: rows after placement).
+            ...(isCombat ? { combatTargets: tableMode ? readTargetRows(button.form, combatRows)
+              : combatMode === "manual" ? { targets: combatRows.map(r => ({ tokenUuid: r.tokenUuid, see: true })) }
+              : { ...readTargetRows(button.form, []), targets: [] } } : {}),
+            ...(el.ram_rating ? { ramRating: Number(el.ram_rating.value) || 0 } : {}),
             // Misc applies to the CASTING test only; the Drain roll never sees it.
             ...readMiscDice(button.form)
           };
@@ -2098,6 +2123,12 @@ async function onCastSpell(event, target) {
     try { area = await resolveAreaCentre(this.document, item, opts.areaRequest); }
     finally { if (tuck) await this.maximize(); }
     if (!area) return;
+    // Area combat (P1.3): dialog 2 lists who the placed area catches; cancel spends nothing.
+    if (opts.combatTargets && combatSpellMode(item) !== "manual") {
+      const rows = await promptAreaTargets(item, areaTokens(this.document, area), opts.combatTargets);
+      if (!rows) return;
+      opts.combatTargets = { ...opts.combatTargets, targets: rows.targets };
+    }
   }
   return item.roll({
     area,
@@ -2107,8 +2138,17 @@ async function onCastSpell(event, target) {
     karmaDice: opts.karmaDice,
     resolvedDrainLevel: opts.resolvedDrainLevel,
     drainSubjectNote: opts.drainSubjectNote,
-    miscDice: opts.miscDice, miscLabel: opts.miscLabel
+    miscDice: opts.miscDice, miscLabel: opts.miscLabel,
+    combatTargets: opts.combatTargets, ramRating: opts.ramRating
   });
+}
+
+/** The tokens an area centred at `area` catches (the cast's own rule: not hidden, seen by a player). */
+function areaTokens(actor, area) {
+  const radius = (actor.system.magic?.value ?? 0) + (Number(area.radiusDelta) || 0);
+  const mpp = canvas.dimensions.distance / canvas.dimensions.size;
+  return canvas.tokens.placeables.filter(t => t.actor && !t.document.hidden && (game.user.isGM || t.visible)
+    && Math.hypot(t.center.x - area.x, t.center.y - area.y) * mpp <= radius + 1e-6).map(t => t.document);
 }
 
 /**

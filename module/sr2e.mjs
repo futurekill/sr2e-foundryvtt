@@ -69,6 +69,7 @@ import { injectPhaseSeq } from "./engagement.mjs";
 import { proportionalRefund } from "./rules/sr2e-rules.mjs";
 import { rowsPaid } from "./rules/ware-rules.mjs";
 import { spellDamageType } from "./rules/spell-rules.mjs";
+import { wireCombatSpellButtons, refundLateGrants, renderSpellResistCard as renderCombatSpellCard, renderRamCard } from "./combat-spells.mjs";
 import { moneyQueue, updated, applyUpdate, adjustNuyen, adjustNuyenQueued, settingSet, created as createdDocs, deleted as deletedDocs, saleQuote, payAwards } from "./money.mjs";
 import { placementFacts } from "./rules/limb-stats.mjs";
 import { wareCtx } from "./rules/ware-rules.mjs";
@@ -2268,6 +2269,14 @@ async function resistRangedDamage(message) {
  * ranged card or launcher, that card's author — or the GM if the author is
  * away — re-renders it closed, launchers showing the successes the launch used.
  */
+// A Spell Defense grant that landed after its target resisted is refunded once (P1.5).
+Hooks.on("createChatMessage", (m) => {
+  if (m.flags?.sr2e?.spellDefenseGrant || m.flags?.sr2e?.resolvesAttack) refundLateGrants().catch(err => console.error("SR2E | grant refund", err));
+});
+Hooks.on("updateChatMessage", (m, changes) => {
+  if (changes.flags?.sr2e?.spellRes?.phase === "done") refundLateGrants().catch(err => console.error("SR2E | grant refund", err));
+});
+
 Hooks.on("createChatMessage", async (outcome) => {
   // A resisted row: its card remembers it too, so deleting the result can't reopen it.
   // One dotted key per row, so two rows finishing together don't overwrite each other.
@@ -2309,6 +2318,13 @@ Hooks.on("createChatMessage", async (outcome) => {
   if (mvr && !mvr.resolved) {
     const next = { ...mvr, resolved: true, resolution: outcome.flags.sr2e.vr2ManeuverResolution ?? "" };
     await card.update({ content: renderManeuverCard(next), "flags.sr2e.vr2Maneuver": next });
+  }
+  // Combat spells (docs/PLAN-combat-spells.md): the resolver may not own the card.
+  for (const [key, render] of [["spell", renderCombatSpellCard], ["ram", renderRamCard]]) {
+    const st = card.flags?.sr2e?.[key];
+    if (!st || st.resolved) continue;
+    const next = { ...st, resolved: true, resolution: "<br><strong>Being resolved — see below.</strong>" };
+    await card.update({ content: render(next), [`flags.sr2e.${key}`]: next });
   }
   // Melee: the defender may not own the attack card, so its outcome carries the text.
   const melee = card.flags?.sr2e?.melee;
@@ -2606,6 +2622,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   wireDrugButtons(message, html);
   wireNetButtons(message, html);
   wireVR2Buttons(message, html);
+  wireCombatSpellButtons(message, html);
 
   // Wire up "Resist Damage" buttons embedded in weapon attack chat cards.
   // The button carries data-power, data-level, data-armor-type, data-damage-type.

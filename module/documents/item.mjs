@@ -11,7 +11,6 @@ import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elem
 import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
-import { normActorUuid } from "../spell-defense.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
@@ -22,6 +21,8 @@ import { isCardResolved } from "../astral-combat.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL } from "../util/roll-label.mjs";
+import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
+         resolveMisfire } from "../combat-spells.mjs";
 
 const SPELL_TN_CONTEXT = { kind: "spell", magic: true };
 
@@ -174,41 +175,8 @@ export function renderMeleeAttackCard(state) {
   </div>`;
 }
 
-/**
- * Render the combat-spell Resist Spell card (SR2E p.130–131).
- * State in flags.sr2e.spell: { casterUuid, casterName, spellName, force,
- * successes, resistAttr ("willpower"|"body"), baseLevel, dmgType, resolved }.
- */
-export function renderSpellResistCard(state) {
-  const esc = foundry.utils.escapeHTML;
-  const attrLabel = state.resistAttr === "willpower" ? "Willpower" : "Body";
-  // The handler resolves a stored targetUuid; only legacy / un-targeted cards
-  // fall back to the selected token.
-  const who = state.targetUuid
-    ? (state.targetName ? `${esc(state.targetName)} resists` : "The target resists")
-    : "Select the defending token, then resist";
-  const button = state.resolved ? "" : `
-    <div class="sr2e-karma-actions">
-      <button type="button" class="sr2e-resist-btn sr2e-spellresist-btn"
-              title="${who} with ${attrLabel} (+ Spell Defense) vs Force ${state.force}. Armor does not help (SR2E p.131).">
-        ✨ Resist Spell
-      </button>
-      ${state.testMessageId ? `<button type="button" class="sr2e-resist-btn sr2e-grant-defense-btn"
-              title="A magician protects this target with Spell Defense dice (SR2E p.132) — before it resists.">
-        🛡 Spell Defense
-      </button>` : ""}
-    </div>`;
-  const vs = state.targetName ? ` at <strong>${esc(state.targetName)}</strong>` : "";
-  const tnNote = state.targetTN ? `, TN ${state.targetTN}` : "";
-  return `<div class="sr2e-damage-result">
-    <strong>${esc(state.casterName)} casts ${esc(state.spellName)}</strong>${vs}
-    — ${state.successes} success${state.successes === 1 ? "" : "es"} (Force ${state.force}${tnNote}).
-    <br><em>Base ${state.force}${state.baseLevel}${state.dmgType === "stun" ? " Stun" : ""}.
-    Resist with ${attrLabel} + Spell Defense, no armor (SR2E p.131).</em>
-    ${state.resolution ?? ""}
-    ${button}
-  </div>`;
-}
+// The combat spell card lives with its resolver (module/combat-spells.mjs).
+export { renderSpellResistCard };
 
 /**
  * A ranged weapon's damage card (SR2E p.91), rendered from its flag state so a
@@ -1624,10 +1592,32 @@ export class SR2EItem extends Item {
     const effectKind = spellEffectKind(this);
     const igniteTarget = effectKind === "ignite" ? (firstTarget()?.actor ?? null) : null;
     const resistAttr = this.system.type === "mana" ? "willpower" : "body";
-    const cardTargets = (area?.caught ?? []).filter(c => c.eligible === "card");
-    const targetNumber = (isAreaCombat && cardTargets.length)
-      ? Math.min(...cardTargets.map(c => c.baseTN))
-      : (options.targetNumber ?? 4);
+    // Combat spells (docs/PLAN-combat-spells.md): each target's TN from LIVE documents —
+    // its Willpower/Body (TN 8 for a vehicle) plus its own situation (p.130). The caster's
+    // movement (p.83) is caster-wide and rides on the roll.
+    const combatMode = spellCategory === "combat" ? combatSpellMode(this) : null;
+    let combatPlan = null;
+    if (combatMode && combatMode !== "manual") {
+      const req = isAreaCombat
+        ? (options.combatTargets ?? { targets: (area?.caught ?? []).map(c => ({ tokenUuid: c.token?.document?.uuid, see: true })) })
+        // A macro cast has no dialog: the current targets, seen, no situation.
+        : (options.combatTargets ?? { targets: targetTokens().map(t => ({ tokenUuid: t.document?.uuid, see: true })) });
+      if (req) combatPlan = planCombatTargets(this, req);
+      if (!isAreaCombat && combatPlan?.length) {
+        const chosen = combatPlan.find(r => r.eligible);
+        if (!chosen) {
+          ui.notifications.warn(`${this.name}: ${combatPlan.map(r => `${r.name} — ${r.why}`).join("; ")}. Nothing was spent.`);
+          return null;
+        }
+        // One target per casting (p.129; splitting the dice is a separate choice).
+        combatPlan = combatPlan.filter(r => !r.eligible || r === chosen);
+      }
+    }
+    const moveTN = combatMode ? movementTN(options.combatTargets) : 0;
+    const cardTargets = isAreaCombat ? (combatPlan ?? []).filter(r => r.eligible && r.tn != null) : [];
+    const singleCombat = !isArea && combatPlan?.find(r => r.eligible);
+    const targetNumber = cardTargets.length ? Math.min(...cardTargets.map(c => c.tn))
+      : singleCombat?.tn ?? (options.targetNumber ?? 4);
 
     // ── Totem modifier ────────────────────────────────────────────────────────
     // Shamans receive bonus or penalty dice from their totem when casting
@@ -1752,7 +1742,7 @@ export class SR2EItem extends Item {
     }
     // Cybermancy (Cybertechnology p.80–81): +2 × |Essence| to any magical test made against a
     // cybermantic subject, frozen now. Area spells carry it per target (baseTN).
-    const cymSubject = isArea ? null : this.system.healsDamage ? (firstTarget()?.actor ?? actor) : firstTarget()?.actor;
+    const cymSubject = (isArea || combatPlan) ? null : this.system.healsDamage ? (firstTarget()?.actor ?? actor) : firstTarget()?.actor;
     const cymTN = cymMagicTN(cymSubject);
 
     // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
@@ -1783,7 +1773,8 @@ export class SR2EItem extends Item {
 
     // ── Spell Success Test ────────────────────────────────────────────────────
     const spellResult = await actor.rollSuccessTest(spellDice, targetNumber, {
-      flags: sfxFlags(spellSound(spellCategory, SFX_KEYS), "spell"),   // the cast's one sound
+      // The cast's one sound, and the tag Avoid an Oops is decided through (p.191).
+      flags: foundry.utils.mergeObject(sfxFlags(spellSound(spellCategory, SFX_KEYS), "spell"), { sr2e: { spellCast: { casterUuid: actor.uuid } } }),
       // Karma-bought dice cap on FORCE alone: the totem bonus and focus dice
       // in spellDice are not rating dice (p.191).
       karmaDiceCap: alloc.ratingDice,
@@ -1795,9 +1786,13 @@ export class SR2EItem extends Item {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
       centeringReduction,           // Centering vs Penalties (Grimoire p.44)
       tnContext: SPELL_TN_CONTEXT,
-      extraTN: healingTN + cymTN,
-      extraTNLabel: [healingLabel, cymTN ? `cybermancy (${cymSubject.name})` : ""].filter(Boolean).join(", ")
+      extraTN: healingTN + cymTN + moveTN,
+      extraTNLabel: [healingLabel, cymTN ? `cybermancy (${cymSubject.name})` : "", moveTN ? "moving (p.83)" : ""].filter(Boolean).join(", ")
     });
+
+    // Rule of One (p.131): a misfire raises Drain's TN by 2 — unless Karma avoids the Oops.
+    const misfire = spellResult?.isCriticalGlitch && spellResult.testMessageId
+      ? (await resolveMisfire(actor, spellResult.testMessageId, this.name)) === "declined" : false;
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
     playCombatFx("spell", area ? area.caught.map(c => c.token) : (canvas?.ready ? targetTokens() : []));
@@ -1809,7 +1804,7 @@ export class SR2EItem extends Item {
     // TN = ⌊Force÷2⌋ + drain modifier  (SR2E p.140)
     // e.g. Fireball "((F / 2) + 3)D" at Force 4 → TN = ⌊4÷2⌋+3 = 5, level D
     // Drain at the ACTUAL Force, even for a restricted-use spell (p.133).
-    const drainTN        = drainTargetNumber(actualForce, drain.modifier);
+    const drainTN        = drainTargetNumber(actualForce, drain.modifier) + (misfire ? 2 : 0);
     // Physical drain if Force > Magic Rating (SR2E p.138) — and ALWAYS for a
     // spell cast in astral space: "When a magician casts spells in astral space,
     // Drain always causes Physical damage, regardless of the spell's Force" (p.148).
@@ -1831,7 +1826,7 @@ export class SR2EItem extends Item {
 
     const drainResult = await actor.rollSuccessTest(willpowerDice + drainFocusDice + aidDrain, drainTN, {
       label: RL("DrainResist", { level: startLevel, type: drainType,
-             note: inAstral && actualForce <= magicRating ? RL("CastInAstral") : "", tn: drainTN })
+             note: (inAstral && actualForce <= magicRating ? RL("CastInAstral") : "") + (misfire ? RL("MisfireTag") : ""), tn: drainTN })
            + (drainSubjectNote ? RL("DrainNoteTag", { note: drainSubjectNote }) : "")
            + (drainFocusDice ? RL("DrainFocusTag", { n: drainFocusDice }) : "")
            + (aidDrain ? RL("DrainAidTag", { n: aidDrain }) : ""),
@@ -1928,28 +1923,17 @@ export class SR2EItem extends Item {
         "${foundry.utils.escapeHTML(this.system.damageCode)}" is not a Force code like (F)M — the GM resolves the damage.</div>` });
     }
     if (isArea) {
-      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg,
+      await this._postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg, combatPlan, combatMode,
         // Poltergeist places its own area, only once it is sustained.
         template: effectKind !== "poltergeist" });
     } else if (manipDmg) {
       await this._postManipDamage(manipDmg, spellResult, manipTarget);
-    } else if (this.system.category === "combat" && (spellResult?.successes ?? 0) > 0) {
-      const isMana   = this.system.type === "mana";
-      const { baseLevel, dmgType } = this._combatSpellDamage();
-      const mkState = (targetUuid) => ({
-        casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
-        targetUuid, force, successes: spellResult.successes,
-        testMessageId: spellResult.testMessageId,
-        resistAttr: isMana ? "willpower" : "body", baseLevel, dmgType, resolved: false
-      });
-      const postCard = (state) => ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor }),
-        content: renderSpellResistCard(state), flags: { sr2e: { spell: state } }
-      });
-
-      // The caster's target (T key) resists, regardless of token selection.
-      const targetTok = firstTarget();
-      await postCard(mkState(targetTok?.actor?.uuid ?? ""));
+    } else if (combatMode) {
+      // One card per target, also at 0 successes (Karma can revive a miscast) — P1.4.
+      // A single target's card shows the TN actually rolled (its own + the caster's modifiers).
+      await postCombatSpellCards(this, { spellResult, force,
+        targets: (combatPlan ?? []).map(r => r.eligible ? { ...r, tn: spellResult?.targetNumber ?? r.tn } : r),
+        untargetedTN: targetNumber, ramRating: options.ramRating ?? 0 });
     }
 
     // ── Sustained spells (SR2E p.130) ─────────────────────────────────────────
@@ -2051,18 +2035,6 @@ export class SR2EItem extends Item {
   }
 
   /**
-   * Base Damage Level and damage type of a combat spell. Stun-type combat
-   * spells (Stunbolt, Stunball, Sleep) deal Stun; others deal Physical.
-   * @private
-   */
-  _combatSpellDamage() {
-    return {
-      baseLevel: (this.system.damageCode || "M").match(/[LMSD]/)?.[0] ?? "M",
-      dmgType: /stun|sleep/i.test(this.name) ? "stun" : "physical"
-    };
-  }
-
-  /**
    * Centre, geometry and caught tokens for an area-effect cast (SR2E p.130).
    *
    * `req` is what the cast dialog forwards — {x, y, sceneId, radiusDelta}.
@@ -2111,7 +2083,8 @@ export class SR2EItem extends Item {
     for (const t of canvas.tokens.placeables) {
       if (!t.actor || t.document.hidden) continue;
       if (!game.user.isGM && !t.visible) continue;
-      const eligible = areaTargetEligible(t.actor.type, this.system.type);
+      // Combat spells keep everyone: planCombatTargets says who can't be affected, and why.
+      const eligible = this.system.category === "combat" ? "card" : areaTargetEligible(t.actor.type, this.system.type);
       if (!eligible) continue;
       const d = Math.hypot(t.center.x - center.x, t.center.y - center.y) * metresPerPixel;
       if (d > geo.radius + 1e-6) continue;
@@ -2135,7 +2108,8 @@ export class SR2EItem extends Item {
    * ONE TN and keeps its Karma buttons, so counts here could go stale.
    * @private
    */
-  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg = null, template = true }) {
+  async _postAreaResults(area, spellResult, { force, targetNumber, resistAttr, isAreaCombat, manipDmg = null, template = true,
+                                             combatPlan = null, combatMode = null }) {
     const actor = this.parent;
     const esc = foundry.utils.escapeHTML;
     const speaker = ChatMessage.getSpeaker({ actor });
@@ -2175,34 +2149,35 @@ export class SR2EItem extends Item {
       ${area.radius} m radius (Force ${force}).${templateNote}${defenseBtn}</div>` });
 
     const rows = [];
-    if (isAreaCombat) {
-      // Caster-side TN modifiers (wounds, sustaining, …) apply against everyone.
+    if (isAreaCombat && combatMode === "manual") {
+      // A special spell (P1.4): the GM resolves it for everyone caught.
+      const docs = area.caught.map(c => c.token?.document).filter(Boolean);
+      for (const c of area.caught) rows.push(`<li>${esc(c.name)}</li>`);
+      await postCombatSpellCards(this, { spellResult, force, untargetedTN: targetNumber,
+        targets: docs.map(d => ({ name: d.name, eligible: true })) });
+    } else if (isAreaCombat) {
+      // Caster-side TN modifiers (wounds, sustaining, movement…) apply against everyone.
       const castDelta = (spellResult?.targetNumber ?? targetNumber) - targetNumber;
       const dice = spellResult?.dice ?? [];
-      const { baseLevel, dmgType } = this._combatSpellDamage();
-      // One card per ACTOR: two linked tokens of one actor would otherwise give
-      // one attack two resistances sharing a single Spell Defense key.
-      const seenActors = new Set();
-      for (const { actor: target, uuid, name, eligible, baseTN } of area.caught) {
-        const key = normActorUuid(uuid);
-        if (seenActors.has(key)) continue;
-        seenActors.add(key);
-        if (eligible === "gm") {
-          rows.push(`<li>${esc(name)} — GM: Object Resistance Table (p.130)</li>`);
+      const { baseLevel, dmgType } = combatSpellDamage(this);
+      // One card per ACTOR (planCombatTargets dedupes), each with its own TN (p.130).
+      for (const t of combatPlan ?? []) {
+        if (!t.eligible) {
+          rows.push(`<li>${esc(t.name)} — not affected: ${esc(t.why)}</li>`);
           continue;
         }
-        const tn = baseTN + castDelta;
+        const tn = t.tn + castDelta;
         const successes = successesAtTN(dice, tn);
-        rows.push(`<li>${esc(name)} — TN ${tn} — ${successes
+        rows.push(`<li>${esc(t.name)} — TN ${tn}${t.situation ? ` (${esc(t.situation)})` : ""} — ${successes
           ? `${successes} success${successes === 1 ? "" : "es"}` : "0, unaffected"}</li>`);
         if (!successes) continue;
         const state = {
           casterUuid: actor.uuid, casterName: actor.name, spellName: this.name,
-          targetUuid: uuid, targetName: name, targetTN: tn, force, successes,
-          testMessageId: spellResult?.testMessageId, resistAttr, baseLevel, dmgType,
+          targetUuid: t.uuid, targetKey: t.key, targetName: t.name, targetTN: tn, kind: t.kind, situation: t.situation ?? "",
+          force, successes, testMessageId: spellResult?.testMessageId, resistAttr: t.resistAttr, baseLevel, dmgType,
           resolved: false, areaCard: true
         };
-        const owners = game.users.filter(u => target.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owners = game.users.filter(u => t.actor.testUserPermission(u, "OWNER")).map(u => u.id);
         await ChatMessage.create({
           speaker, content: renderSpellResistCard(state), flags: { sr2e: { spell: state } },
           whisper: [...new Set([...casterIds, ...owners])]

@@ -4055,3 +4055,9 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 /* Container rows waiting for their ids (legacy eyes): read-only for a moment. */
 .sr2e .modules-table.rows-locked { pointer-events: none; opacity: 0.6; }
 .sr2e .cyber-row.eye-drop-target { outline: 2px dashed var(--sr2e-accent, #b066ff); outline-offset: -2px; }
+
+/* Combat-spell target table (docs/PLAN-combat-spells.md P1.3): Foundry draws an unchecked
+   box in the light theme's ink, invisible on this dialog's dark panel. */
+.sr2e-cs-targets input[type="checkbox"]:not(:checked)::before { color: var(--sr2e-text-muted, #aaa1c0); }
+.sr2e-cs-targets th, .sr2e-cs-targets td { text-align: center; padding: 2px 4px; }
+.sr2e-cs-targets td:first-child { text-align: left; }
