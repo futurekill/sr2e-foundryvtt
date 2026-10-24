@@ -4976,8 +4976,10 @@ export function registerSR2EQuenchTests() {
         return { r, msgs };
       };
 
+      let areasBefore = new Set();
       before(async () => {
         if (!canvas?.ready) return;
+        areasBefore = new Set(game.sr2e.areas.areaDocs(canvas.scene).map(t => t.id));
         const pack = game.packs.get("sr2e.spells");
         const idx = await pack.getIndex();
         const doc = async (name) => (await pack.getDocument(idx.find(e => e.name === name)._id)).toObject();
@@ -5011,7 +5013,10 @@ export function registerSR2EQuenchTests() {
         // Let Foundry's floating damage numbers finish first: deleting a token
         // under one throws an uncaught PIXI error that Quench counts as a failure.
         await new Promise(r => setTimeout(r, 2500));
-        const tpl = made.templates.filter(id => game.sr2e.areas.areaDocs(canvas.scene).some(t => t.id === id));
+        // Every area-spell template this batch's casts left, including one that landed after
+        // its cast's 300 ms window (under a loaded full run) — those leaked onto the scene.
+        const late = game.sr2e.areas.areaDocs(canvas.scene).filter(t => !areasBefore.has(t.id) && t.flags?.sr2e?.areaSpell && t.author?.id === game.user.id).map(t => t.id);
+        const tpl = [...new Set([...made.templates, ...late])].filter(id => game.sr2e.areas.areaDocs(canvas.scene).some(t => t.id === id));
         if (tpl.length) await game.sr2e.areas.deleteAreas(game.sr2e.areas.areaDocs(canvas.scene).filter(t => tpl.includes(t.id)));
         await canvas.scene.deleteEmbeddedDocuments("Token", made.tokens.filter(id => canvas.scene.tokens.has(id)));
         await ChatMessage.deleteDocuments(made.messages.filter(id => game.messages.has(id)));

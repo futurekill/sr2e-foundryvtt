@@ -198,12 +198,17 @@ players' clients create `request`s. Monitors and IC are changed only there. Unde
 `matrixMode` is DERIVED from the connection log (`system.vr2Conn`); host sessions carry `conn`.
 Remaining deferred: VR2's optional IC (cascading, expert, constructs, party), the utilities
 chapter, grid topology.
-The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so are the
-everyday roll labels (`SR2E.RollLabel.*` via `RL()` in actor.mjs/item.mjs: skill and
-attribute tests, defaulting, attacks, damage resistance, casting, drain, healing,
-first aid, knockdown). Still English: the niche labels (VR2 Matrix, nets, drugs,
-astral combat, vehicles, rituals, conjuring) and the modifier fragments callers pass
-in (`modParts`, `env.source`). New labels should use `RL()`.
+The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
+label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;
+`test/roll-labels.test.mjs` fails on a key missing from lang/en.json). Still English:
+the modifier fragments callers pass in (`modParts`, `env.source`). New labels use `RL()`.
+
+Money (0.117.0, docs/PLAN-money-queue-and-eye-accessories.md): every write to a
+character's nuyen or `paid` provenance goes through `moneyQueue(actor, fn)` in
+`module/money.mjs` with checked writes (`updated`/`applyUpdate`/`created`/`deleted`/
+`adjustNuyen`). Never await a moneyQueue entry from inside another for the same actor.
+A Rating/Grade change on a bought item is vetoed in preUpdateItem and re-issued from
+the queue (`repriceQueued`); tests wait on `game.sr2e.moneySettled(actor)`.
 
 Astral is implemented: astralState (none/perceiving/projecting) with
 Astral Reaction +15 initiative when projecting; rollAstralAttack /
