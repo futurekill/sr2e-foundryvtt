@@ -1079,7 +1079,8 @@ export class SR2EActor extends Actor {
 
   async rollAttributeTest(attribute, targetNumber = 4, options = {}) {
     const attrValue = this.system[attribute]?.value || 0;
-    const label = game.i18n.localize(CONFIG.SR2E.attributes[attribute]) || attribute;
+    // AL covers the special attributes too (a Reaction test, e.g. surprise — SR2E p.84).
+    const label = AL(attribute);
     return this.rollSuccessTest(attrValue, targetNumber, {
       label: RL("Test", { name: label }),
       poolDice: options.poolDice,

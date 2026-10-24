@@ -213,7 +213,7 @@
         <span class="attr-total">{{formatEssence essenceShown}}</span>
       </div>
       <div class="attribute-row flexrow">
-        <label>{{localize "SR2E.Attributes.Reaction"}}</label>
+        <label class="attribute-label" data-action="rollAttribute" data-attribute="reaction">{{localize "SR2E.Attributes.Reaction"}}</label>
         {{#ifGt system.reaction.mod 0}}
         <span class="attr-total augmented up" data-tooltip="{{attrBreakdown.reaction.tt}}" data-tooltip-class="sr2e-attr-tt" data-tooltip-direction="UP"><i class="fas fa-caret-up augment-icon"></i>{{system.reaction.value}}</span>
         {{else}}{{#ifGt 0 system.reaction.mod}}

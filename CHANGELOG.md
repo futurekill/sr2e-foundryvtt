@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.117.1 — 2026-10-23
+
+### Added
+- **Reaction is rollable** (e.g. a surprise test, SR2E p.84): click Reaction on the
+  character sheet's Attributes tab, the NPC sheet's **R**, or tap it on the phone companion.
+
 ## 0.117.0 — 2026-10-23
 
 ### Added

@@ -780,3 +780,6 @@ If those five all work, the core loop is healthy.
 - #20: Sum-to-10 — set two categories to B: no swap; the total shows, valid when ≤ 10.
 - #21: Knowledge "+" and Language "+" create the skill in that section (Intelligence).
 - #22: Equip a cyberdeck on the Gear tab → MPCP etc. on the Matrix tab follow it.
+
+## Reaction rollable (0.117.1)
+- Click Reaction (character sheet), R (NPC sheet), Reaction (phone companion) → a Reaction Test card.

@@ -36,7 +36,7 @@
         {{#each attributes as |a|}}
         <button type="button" class="c-stat" data-action="rollAttribute" data-attribute="{{a.key}}"><span>{{a.label}}</span><b>{{a.value}}</b></button>
         {{/each}}
-        <div class="c-stat"><span>Reaction</span><b>{{reaction}}</b></div>
+        <button type="button" class="c-stat" data-action="rollAttribute" data-attribute="reaction"><span>Reaction</span><b>{{reaction}}</b></button>
         <div class="c-stat"><span>Essence</span><b>{{essence}}</b></div>
         {{#if magic}}<div class="c-stat"><span>Magic</span><b>{{magic}}</b></div>{{/if}}
       </div>
