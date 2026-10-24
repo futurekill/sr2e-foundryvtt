@@ -789,3 +789,8 @@ If those five all work, the core loop is healthy.
 - Live: cast an area spell with "a point" as the centre → an orange circle of Magic ± the
   change follows the cursor, caught tokens ringed, label "N m radius · K tokens"; Esc
   cancels with nothing left drawn and no main menu.
+
+## Phone companion sound (0.117.3)
+- Open the companion on a phone: its volumes go to 0 (the computer's don't change); Status →
+  "Sound on this phone" turns them back to what they were and off again; "Open full Foundry
+  on this device" restores them.
