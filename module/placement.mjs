@@ -148,13 +148,66 @@ function _promptForPoint(name) {
  * Resolves to the clicked WORLD point {x, y}, or null on Escape, timeout, a
  * canvas teardown, or no canvas at all. Callers must treat null as a cancel.
  * @param {string} label - what is being placed, for the prompt
+ * @param {object} [preview] - the area, drawn under the cursor before the click:
+ *   `{ radius }` (scene distance units, a circle) or `{ side }` (a square), plus an
+ *   optional `note` for the label (e.g. "before scatter") and `include(token)`, which
+ *   tokens count as caught (the caller's own targeting rule).
  * @returns {Promise<{x:number, y:number}|null>}
  */
-export function promptForCanvasPoint(label) {
+export function promptForCanvasPoint(label, preview = null) {
   if (!canvas?.ready) return Promise.resolve(null);
   return awaitCanvasClick(`Click the map to centre ${label}. (Esc to cancel.)`,
     `${label}: no point chosen — cancelled.`,
-    (m) => ({ x: m.x, y: m.y }));
+    (m) => ({ x: m.x, y: m.y }), preview);
+}
+
+/** Tokens on the viewed scene whose centre lies inside the previewed area at `c` (and pass `include`). */
+export function tokensInArea(c, { radiusPx = null, sidePx = null, include = null }) {
+  return (canvas.tokens?.placeables ?? []).filter(tok => {
+    if (!tok.visible || tok.document.hidden && !game.user.isGM) return false;
+    if (include && !include(tok)) return false;
+    const p = tok.center;
+    if (sidePx != null) return Math.abs(p.x - c.x) <= sidePx / 2 && Math.abs(p.y - c.y) <= sidePx / 2;
+    return Math.hypot(p.x - c.x, p.y - c.y) <= radiusPx + 1e-6;
+  });
+}
+
+/**
+ * The area under the cursor while a point is being picked: the circle or square at its
+ * real size, a ring on every token it would catch, and a label with the size and count.
+ * Returns { move(point), destroy() }.
+ */
+function areaPreview({ radius = null, side = null, note = "", include = null } = {}) {
+  const ppu = canvas.dimensions.distancePixels;   // pixels per scene distance unit (metres)
+  const units = canvas.scene?.grid?.units || "m";
+  const radiusPx = radius != null ? Math.max(0, radius) * ppu : null;
+  const sidePx = side != null ? Math.max(0, side) * ppu : null;
+  const g = new PIXI.Graphics();
+  const text = new PIXI.Text("", { fontFamily: "Signika, sans-serif", fontSize: 18, fill: 0xffffff,
+    stroke: 0x000000, strokeThickness: 4 });
+  text.anchor.set(0.5, 1);
+  const layer = canvas.interface ?? canvas.stage;
+  layer.addChild(g);
+  layer.addChild(text);
+  const colour = 0xff6a00;
+  const size = sidePx != null ? `${Math.round(side * 10) / 10} ${units} square` : `${Math.round(radius * 10) / 10} ${units} radius`;
+  return {
+    move(c) {
+      g.clear();
+      g.lineStyle(3, colour, 0.95).beginFill(colour, 0.18);
+      if (sidePx != null) g.drawRect(c.x - sidePx / 2, c.y - sidePx / 2, sidePx, sidePx);
+      else g.drawCircle(c.x, c.y, radiusPx);
+      g.endFill();
+      g.lineStyle(2, colour, 0.95).moveTo(c.x - 8, c.y).lineTo(c.x + 8, c.y).moveTo(c.x, c.y - 8).lineTo(c.x, c.y + 8);
+      const caught = tokensInArea(c, { radiusPx, sidePx, include });
+      for (const tok of caught) {
+        g.lineStyle(3, 0xffd000, 1).drawCircle(tok.center.x, tok.center.y, Math.max(tok.w, tok.h) / 2 + 4);
+      }
+      text.text = `${size} · ${caught.length} token${caught.length === 1 ? "" : "s"}${note ? ` · ${note}` : ""}`;
+      text.position.set(c.x, c.y - (sidePx != null ? sidePx / 2 : radiusPx) - 6);
+    },
+    destroy() { g.destroy(); text.destroy(); }
+  };
 }
 
 /**
@@ -162,16 +215,29 @@ export function promptForCanvasPoint(label) {
  * coordinates). Cancels on Escape OR a scene change so the awaiting promise
  * never hangs.
  */
-function awaitCanvasClick(prompt, timeoutMsg, toPoint) {
+function awaitCanvasClick(prompt, timeoutMsg, toPoint, preview = null) {
   return new Promise((resolve) => {
     const stage = canvas.stage;
     let settled = false;
     const note = ui.notifications.info(prompt, { permanent: true });
     let timer;
+    // The area follows the pointer until the click (an area spell, a blast, the Ice Sheet).
+    let shown = null;
+    try { if (preview && (preview.radius != null || preview.side != null)) shown = areaPreview(preview); }
+    catch (err) { console.error("sr2e | area preview", err); }
+    const onMove = (event) => {
+      const m = event?.getLocalPosition?.(stage) ?? canvas.mousePosition;
+      if (m) shown?.move(m);
+    };
+    if (shown) {
+      stage.on("pointermove", onMove);
+      if (canvas.mousePosition) shown.move(canvas.mousePosition);
+    }
     const done = (value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      if (shown) { stage.off("pointermove", onMove); shown.destroy(); }
       stage.off("pointerdown", onClick);
       window.removeEventListener("keydown", onKey, true);
       Hooks.off("canvasTearDown", onTearDown);
@@ -186,7 +252,10 @@ function awaitCanvasClick(prompt, timeoutMsg, toPoint) {
       const m = event?.getLocalPosition?.(stage) ?? canvas.mousePosition;
       done(m ? toPoint(m) : null);
     };
-    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); done(null); } };
+    // Escape cancels the prompt and goes no further (it would also open Foundry's main menu).
+    // stopPropagation, not stopImmediatePropagation: another pending prompt's listener on
+    // window must still hear it.
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(null); } };
     const onTearDown = () => done(null);
     // Never wait forever: an unanswered prompt (nobody at the keyboard, an
     // automated caller) must self-cancel so the awaiting caller always settles.

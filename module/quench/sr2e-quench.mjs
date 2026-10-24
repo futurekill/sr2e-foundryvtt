@@ -12334,5 +12334,20 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Eye accessories" });
+
+    // ── The area preview while a point is picked (area spells, blasts, the Ice Sheet) ──
+    quench.registerBatch("sr2e.area-preview", (context) => {
+      const { it, assert } = context;
+      it("counts the tokens whose centre is inside the circle or square, through the caller's filter", async () => {
+        if (!canvas?.ready || !canvas.tokens.placeables.length) return assert.ok(true, "no tokens on the viewed scene to measure");
+        const { tokensInArea } = await import("../placement.mjs");
+        const tok = canvas.tokens.placeables.find(t => t.visible);
+        const c = tok.center;
+        assert.include(tokensInArea(c, { radiusPx: 1 }), tok, "a token at the centre is caught");
+        assert.notInclude(tokensInArea({ x: c.x + 500, y: c.y }, { radiusPx: 100 }), tok, "too far away");
+        assert.include(tokensInArea({ x: c.x + 40, y: c.y }, { sidePx: 100 }), tok, "inside the square");
+        assert.notInclude(tokensInArea(c, { radiusPx: 1, include: () => false }), tok, "the filter excludes it");
+      });
+    }, { displayName: "SR2E: Area preview" });
   });
 }

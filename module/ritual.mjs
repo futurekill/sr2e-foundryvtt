@@ -246,7 +246,8 @@ export async function startRitual(spell) {
     subject = { kind: "actor", uuid: target.actor.uuid, name: target.name,
                 type: target.actor.type === "spirit" ? "spirit" : ["character", "npc"].includes(target.actor.type) ? "metahuman" : "object" };
   } else if (data.subjectKind === "area") {
-    const pt = await promptForCanvasPoint("the ritual's area");
+    // Shown at the leader's Magic in metres; the radius can still change at the effect (p.130).
+    const pt = await promptForCanvasPoint("the ritual's area", { radius: leader.system.magic?.value ?? 0, note: "radius can change at the effect" });
     if (!pt) return;
     subject = { kind: "area", name: data.subjectName || "an area", type: "place", sceneId: canvas.scene.id, center: pt };
   } else {

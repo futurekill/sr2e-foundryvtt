@@ -1,10 +1,11 @@
 import { parseDrainCode } from "../data/item-data.mjs";
+import { evaluateDamageCode } from "../documents/item.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
 import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
+         footprintDistance, areaTargetEligible, blastRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
 import { mbwOp, reflexCheck } from "../mbw.mjs";
@@ -1686,7 +1687,8 @@ export async function rollWeaponInteractive(actor, item) {
   // Aiming an area weapon at a point (p.96): pick it after the dialog and before
   // the roll, so a cancelled click spends nothing.
   if (item.system.blastType && opts.aimAt === "point") {
-    const pt = await promptForCanvasPoint(item.name);
+    const dmg = evaluateDamageCode(item.system.damageCode, this.document);
+    const pt = await promptForCanvasPoint(item.name, { radius: blastRadius(dmg.power, blastFalloffRate(item.system.blastType)), note: "before scatter" });
     if (!pt) return;
     opts.blastPoint = { x: pt.x, y: pt.y, sceneId: canvas.scene?.id ?? null };
   }
@@ -2126,7 +2128,13 @@ async function resolveAreaCentre(actor, spell, { center, radiusDelta }) {
   let point = null;
   if (center === "target") point = firstTarget()?.center ?? null;
   else if (center === "self") point = actor.getActiveTokens?.()?.[0]?.center ?? null;
-  else point = await promptForCanvasPoint(spell.name);
+  else {
+    // The area at its real size under the cursor, ringing the tokens it would catch (the
+    // same rule as the cast: not hidden, and affected by this spell's type).
+    const radius = (actor.system.magic?.value ?? 0) + (Number(radiusDelta) || 0);
+    point = await promptForCanvasPoint(spell.name, { radius,
+      include: (t) => !!t.actor && !t.document.hidden && areaTargetEligible(t.actor.type, spell.system.type) });
+  }
   if (!point) {
     if (center !== "point") ui.notifications.warn(`${spell.name}: no token to centre on — cast cancelled.`);
     return null;

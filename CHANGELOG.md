@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.117.2 — 2026-10-24
+
+### Added
+- **See the area before you click.** When you pick a point on the map for an area spell,
+  the area follows the cursor at its real size: a circle of the spell's radius (your
+  Magic in metres, plus or minus the change you chose; p.130) with a ring on every token
+  it would catch, and a label with the radius and the count. Also for a ritual's area
+  (at the leader's Magic; the radius can still change at the effect), the Ice Sheet's
+  square, and a grenade or launcher blast aimed at a point (its blast radius, before
+  scatter).
+
+### Fixed
+- Esc to cancel picking a point on the map no longer also opens Foundry's main menu.
+
 ## 0.117.1 — 2026-10-23
 
 ### Added

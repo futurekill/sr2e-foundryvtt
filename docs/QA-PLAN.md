@@ -783,3 +783,9 @@ If those five all work, the core loop is healthy.
 
 ## Reaction rollable (0.117.1)
 - Click Reaction (character sheet), R (NPC sheet), Reaction (phone companion) → a Reaction Test card.
+
+## Area preview (0.117.2)
+- Quench `sr2e.area-preview` (which tokens count as inside).
+- Live: cast an area spell with "a point" as the centre → an orange circle of Magic ± the
+  change follows the cursor, caught tokens ringed, label "N m radius · K tokens"; Esc
+  cancels with nothing left drawn and no main menu.

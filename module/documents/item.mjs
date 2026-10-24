@@ -1974,7 +1974,7 @@ export class SR2EItem extends Item {
     } else if (effectKind === "poltergeist" && this.system.sustaining && area?.center) {
       await startPoltergeist(this, { area, force });
     } else if (effectKind === "iceSheet" && liveSuccesses > 0) {
-      const center = options.iceCenter ?? await promptForCanvasPoint("the Ice Sheet");
+      const center = options.iceCenter ?? await promptForCanvasPoint("the Ice Sheet", { side: iceSheetSide(magicRating, liveSuccesses) });
       if (center && canvas?.scene) {
         await placeIceSheet(this, { side: iceSheetSide(magicRating, liveSuccesses), center, scene: canvas.scene });
       }

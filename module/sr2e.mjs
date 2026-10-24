@@ -2175,7 +2175,7 @@ async function launchFromCard(message, key) {
       ? (st.aim ?? (st.centerTokenUuid ? { mode: "token", tokenUuid: st.centerTokenUuid } : { mode: "deferred" }))
       : null;
     if (aim?.mode === "deferred") {
-      const pt = await promptForCanvasPoint(st.name);
+      const pt = await promptForCanvasPoint(st.name, { radius: blastRadius(st.basePower, blastFalloffRate(st.blastType)), note: "before scatter" });
       if (!pt) return;                                   // cancelled: still retryable
       aim = { mode: "point", x: pt.x, y: pt.y, sceneId: canvas.scene?.id ?? null };
       // The click took time: re-check and re-read (Karma may have landed).
