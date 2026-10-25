@@ -1857,12 +1857,24 @@ async function promptSpellOptions(actor, spell) {
   const combatMode = isCombat ? combatSpellMode(spell) : null;
   const combatRows = (isCombat && !isArea) ? combatTargetRows(spell, snapshotTargets()) : [];
   const tableMode  = combatMode && combatMode !== "manual" && combatRows.length > 0;
+  const splitRows  = tableMode ? combatRows.map((r, i) => ({ r, i })).filter(x => x.r.eligible) : [];
   const combatSection = isCombat && combatMode !== "manual" ? `
     <fieldset class="sr2e-attack__group">
       <legend class="sr2e-attack__legend">Situation <span class="sr2e-attack__hint">p.130, p.89, p.83</span></legend>
       ${casterSituationHTML(actor)}
-      ${tableMode ? targetRowsHTML(combatRows, { ram: combatMode === "ram" })
-        + (combatRows.filter(r => r.eligible).length > 1 ? `<p class="sr2e-attack__hint">One target per casting: the first the caster can see is affected.</p>` : "") : ""}
+      ${tableMode ? targetRowsHTML(combatRows, { ram: combatMode === "ram" }) : ""}
+      ${splitRows.length > 1 ? `<label class="sr2e-attack__check"><input type="checkbox" name="cs_split">
+          Split the Force dice between targets — one test and one Drain each (p.129)</label>
+        <table class="sr2e-attack__breakdown-table sr2e-cs-targets sr2e-cs-split">
+          <tr><th>Target</th><th>Force dice</th><th>Magic Pool</th><th>Drain pool</th><th>Karma</th></tr>
+          ${splitRows.map(({ r, i }, j) => `<tr><td>${esc(r.name)}</td>
+            <td><input type="number" name="split_force_${i}" value="${Math.floor(defaultForce / splitRows.length) + (j < defaultForce % splitRows.length ? 1 : 0)}" min="1" style="width:44px"></td>
+            <td><input type="number" name="split_pool_${i}" value="0" min="0" style="width:44px"></td>
+            <td><input type="number" name="split_drain_${i}" value="0" min="0" style="width:44px"></td>
+            <td><input type="number" name="split_karma_${i}" value="0" min="0" style="width:44px"></td></tr>`).join("")}
+        </table>
+        <p class="sr2e-attack__hint">Unsplit, only the first target you can see is affected. Split, the Dice tab's pool and Karma are
+          replaced by this table; foci and elemental aid work only on a single target.</p>` : ""}
       ${combatMode === "ram" && !combatRows.length ? `<div class="sr2e-attack__field"><label title="The barrier's rating (Barrier Rating Table, p.98); combat spells face twice it">Barrier Rating</label>
         <input type="number" name="ram_rating" value="0" min="0"></div>
         <p class="sr2e-attack__hint">TN from the Object Resistance Table (p.130): natural 3, low-tech 5, high-tech 8, highly processed 10+.</p>` : ""}
@@ -2089,6 +2101,11 @@ async function promptSpellOptions(actor, spell) {
               : combatMode === "manual" ? { targets: combatRows.map(r => ({ tokenUuid: r.tokenUuid, see: true })) }
               : { ...readTargetRows(button.form, []), targets: [] } } : {}),
             ...(el.ram_rating ? { ramRating: Number(el.ram_rating.value) || 0 } : {}),
+            // Multiple targets (p.129): the ledger, for the targets the caster can see.
+            ...(el.cs_split?.checked ? { split: splitRows.filter(({ i }) => el[`cs_see_${i}`]?.checked).map(({ r, i }) => ({
+              tokenUuid: r.tokenUuid, force: Number(el[`split_force_${i}`]?.value) || 0,
+              pool: Number(el[`split_pool_${i}`]?.value) || 0, drainPool: Number(el[`split_drain_${i}`]?.value) || 0,
+              karma: Number(el[`split_karma_${i}`]?.value) || 0 })) } : {}),
             // Misc applies to the CASTING test only; the Drain roll never sees it.
             ...readMiscDice(button.form)
           };
@@ -2139,7 +2156,7 @@ async function onCastSpell(event, target) {
     resolvedDrainLevel: opts.resolvedDrainLevel,
     drainSubjectNote: opts.drainSubjectNote,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel,
-    combatTargets: opts.combatTargets, ramRating: opts.ramRating
+    combatTargets: opts.combatTargets, ramRating: opts.ramRating, split: opts.split
   });
 }
 

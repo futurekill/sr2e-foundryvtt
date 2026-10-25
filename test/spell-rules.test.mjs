@@ -92,3 +92,22 @@ describe("misfire, damage type, special spells", () => {
     expect(isRamSpell({ source: "Compendium.sr2e.spells.Item.5997ac8fe972f5cf" })).toBe(true);
   });
 });
+
+import { validateSplit } from "../module/rules/spell-rules.mjs";
+describe("validateSplit (p.129 ledger)", () => {
+  const base = { force: 6, magic: 5, poolAvail: 6, karmaAvail: 2 };
+  it("accepts a sound split", () => {
+    expect(validateSplit({ ...base, shares: [{ force: 3, pool: 2, drainPool: 1 }, { force: 3, pool: 2, karma: 2 }] }).ok).toBe(true);
+  });
+  it("refuses a single share, a zero share and too many dice", () => {
+    expect(validateSplit({ ...base, shares: [{ force: 6 }] }).ok).toBe(false);
+    expect(validateSplit({ ...base, shares: [{ force: 6 }, { force: 0 }] }).ok).toBe(false);
+    expect(validateSplit({ ...base, shares: [{ force: 4 }, { force: 3 }] }).ok).toBe(false);
+  });
+  it("caps pool per cast test and in total, and Karma per share and in total", () => {
+    expect(validateSplit({ ...base, shares: [{ force: 3, pool: 6 }, { force: 3 }] }).ok).toBe(false);
+    expect(validateSplit({ ...base, shares: [{ force: 3, pool: 4, drainPool: 2 }, { force: 3, pool: 1 }] }).ok).toBe(false);
+    expect(validateSplit({ ...base, shares: [{ force: 1, karma: 2 }, { force: 5 }] }).ok).toBe(false);
+    expect(validateSplit({ ...base, shares: [{ force: 3, karma: 2 }, { force: 3, karma: 1 }] }).ok).toBe(false);
+  });
+});

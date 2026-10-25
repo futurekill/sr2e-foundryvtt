@@ -175,7 +175,18 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).
 - [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.
 - [ ] **Combat-spell TN auto-pulls from the target** (SR2E p.130): with a token targeted, the cast dialog shows TN = the victim's **Willpower** (mana spell) or **Body** (physical spell), not a flat 4/6.
-- [ ] **Combat spells** post a **Resist Spell** card; target resists with Willpower/Body + Spell Defense, and **damage is applied** (Power = Force, staged by net successes).
+- [ ] **Combat spells** post a **Resist Spell** card; target resists with Willpower/Body + Spell Defense, and **damage is applied** (a Damage Level — the base level on a tie — staged one level per 2 net successes, p.131).
+- [ ] **Combat spell targets (0.118.0):** target a character and a van, cast Mana Bolt → the dialog's table shows the character's TN (Willpower) and "Not affected — mana spells don't affect non-living targets" for the van. Tick Cover → TN +4; Visibility "Minimal Light" with vision Normal → +6, Low-light (natural) → +2; Movement Running → +4 on every row. Untick **See** → that target is not affected.
+- [ ] **Vehicle (p.109):** Power Bolt at a van → TN 8; Resist Spell on the van rolls Body + ½ armor; damage lands on its monitor. Stunball over a van → "can't affect".
+- [ ] **Tie (p.131):** a cast with 2 successes resisted with 2 → base level damage (not "no effect").
+- [ ] **Miscast card:** 0 successes still posts a card reading "Miscast"; buy a success with Karma → the card comes alive with its Resist button.
+- [ ] **Misfire:** an all-ones cast with Karma → "Avoid an Oops?" prompt. Yes → 1 Karma, ordinary failure, Drain at its normal TN. No → Drain TN +2 and the test's Karma buttons are closed.
+- [ ] **One resistance:** click Resist Spell on two devices at once → one result; the other is told it's already being resisted. After resisting, Karma on the casting test is refused (refunded if it raced).
+- [ ] **Mark resolved (GM):** a resistance stuck "…is resisting…" for 2+ minutes → GM's ⚙ Mark resolved lists what landed and closes it without re-rolling.
+- [ ] **Ram:** target a van, cast Ram (TN 8) → card "Power P vs twice the Barrier Rating" with an Apply button → Light damage once. With no target, the dialog asks the Barrier Rating.
+- [ ] **Special spell:** cast the Grimoire's Death Touch → a GM card with the successes and base level, no Resist button.
+- [ ] **Split (p.129):** target two characters, tick Split, give 2 + 2 dice → two cast tests, two Drain tests at full Force, two cards. Shares totalling more than Force are refused with nothing spent.
+- [ ] **Area combat (0.118.0):** cast Manaball → click the map → a second dialog lists who's caught, each with cover/visibility/see; cancelling it spends nothing.
 - [ ] **Area spells need no target (0.94.0, p.130).** Cast Sleep with NO token targeted → the sheet minimizes and you are asked to click the map; a circle of radius = Magic Rating appears there. Escape cancels with nothing spent (no drain, Magic Pool untouched).
 - [ ] **Centre choice:** "On <target>" (when one is targeted), "Click the map", "On me".
 - [ ] **Radius ± m:** +1 m costs 1 die, −1 m costs 2 dice, never more than Force (the dialog warns; the cast refuses). The Dice readout drops accordingly.

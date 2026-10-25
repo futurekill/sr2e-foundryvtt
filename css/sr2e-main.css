@@ -4061,3 +4061,4 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-cs-targets input[type="checkbox"]:not(:checked)::before { color: var(--sr2e-text-muted, #aaa1c0); }
 .sr2e-cs-targets th, .sr2e-cs-targets td { text-align: center; padding: 2px 4px; }
 .sr2e-cs-targets td:first-child { text-align: left; }
+.sr2e-attack__check:has(input[name="cs_split"]:not(:checked)) + .sr2e-cs-split { display: none; }

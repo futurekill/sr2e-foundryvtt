@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+## 0.118.0 — 2026-10-24
+
+### Added
+- **Combat spells work like weapon combat** (SR2E pp.127–132, docs/PLAN-combat-spells.md).
+  - **Per-target situation.** The cast dialog lists your targets, each with its own TN
+    (Willpower for mana spells, Body for physical, **TN 8 for a vehicle**, p.109) and its own
+    situation: **Can see it** (combat spells need line of sight), **Cover** (+4),
+    **Visibility** (the p.89 table, for your vision type: normal, low-light or
+    thermographic, natural or cybernetic — prefilled from your cybereyes and metatype),
+    a **magical barrier / circle / lodge** it crosses (+1 per 2 points) and an **Other**
+    modifier. **Your movement** (walking +1, rough terrain +2, running +4, p.83) applies too.
+    Area spells ask after you place the area, listing who it caught.
+  - **Who can be affected.** Mana spells don't affect vehicles or objects; Stun spells don't
+    affect vehicles; a vehicle resists with **Body + ½ armor** and takes Physical damage on
+    its own monitor. A target that can't be affected gets a one-line card saying why.
+  - **The result follows the book.** A **tie does the spell's base level** ("the tie goes to
+    the attacker", p.131) — it used to do nothing; 2 net successes stage it one level. The
+    card says "Base: Serious Physical" (a combat spell has a Damage Level, not a Power), and
+    the outcome reads "Smith takes Deadly Physical (10 boxes) — 3 vs 1 successes (net 2)".
+  - **A 0-success cast still posts its card** ("Miscast"), so Karma can revive it.
+  - **Rule of One (p.131):** an all-ones casting test is a misfire: Drain's TN goes up by 2.
+    With Karma you're offered **Avoid an Oops** (1 Karma, p.191) first — the spell simply
+    fails instead. The prompt and the card's button make one decision between them.
+  - **Damage type is data:** spells have a **Damage type** field (Physical / Stun) instead
+    of guessing from the name. Existing spells are set on load (Sleep and the Grimoire's
+    Stun spells are Stun).
+  - **Ram** (p.151): Force + successes against **twice** the Barrier Rating (combat spells
+    face barriers at double rating, p.98); against a vehicle (Body + armor) each reduction
+    is **Light damage**, applied with the card's **Apply** button.
+  - **Special spells** (the Grimoire's touch spells, Slay, Spirit Bolt, Sterilize, Urban
+    Renewal, Wrecker, any touch-range combat spell, or one marked **Resolve manually** on its
+    sheet) post a card for the GM to resolve.
+  - **Any magician can add unused Magic Pool** when resisting (NPCs too, p.129).
+- **Multiple targets (p.129).** Target two or more and tick **Split the Force dice**: give
+  each target its share of the Force dice (and of Magic Pool, Drain pool and Karma). Each
+  target gets its own test at its own TN and its own Drain test at the full Force. The whole
+  split is checked before anything is spent. (Foci and elemental aid stay with
+  single-target casts.)
+
+### Changed
+- **Resisting a spell can't happen twice.** One device wins the resistance; from that moment
+  the casting test is closed to Karma (Karma that loses the race is refunded). If a
+  resistance is interrupted, the GM's **Mark resolved** finishes it from what actually
+  landed — nothing is re-rolled or re-spent. Spell Defense given after the target resisted
+  is refunded once.
+
 ## 0.117.3 — 2026-10-24
 
 ### Added

@@ -191,3 +191,24 @@ export function isManualCombatSpell({ range = "", spellRule = "", source = null 
 
 /** Is this the Ram spell (by source, or flagged `spellRule: "ram"`)? */
 export const isRamSpell = ({ source = null, spellRule = "" } = {}) => spellRule === "ram" || (!!source && RAM_SOURCES.has(source));
+
+/**
+ * A split casting's allocation ledger (p.129), checked before anything is spent: per target
+ * Force dice (≥ 1, together ≤ the effective Force), cast Magic Pool (≤ the Magic Attribute per
+ * cast test, p.85), Drain Magic Pool (no cap), and pre-roll Karma dice (≤ that test's Force
+ * share, p.191). In total the pool and Karma must be available.
+ * @param {{shares:{force:number,pool?:number,drainPool?:number,karma?:number}[], force:number, magic:number, poolAvail:number, karmaAvail:number}} o
+ * @returns {{ok:boolean, why:string}}
+ */
+export function validateSplit({ shares = [], force = 0, magic = 0, poolAvail = 0, karmaAvail = 0 } = {}) {
+  const n = (v) => Math.max(0, Math.trunc(Number(v) || 0));
+  if (shares.length < 2) return { ok: false, why: "a split needs two or more targets" };
+  if (shares.some(s => n(s.force) < 1)) return { ok: false, why: "every target needs at least 1 Force die" };
+  const sum = (k) => shares.reduce((t, s) => t + n(s[k]), 0);
+  if (sum("force") > force) return { ok: false, why: `the shares add up to ${sum("force")} dice, more than Force ${force}` };
+  if (shares.some(s => n(s.pool) > magic)) return { ok: false, why: `Magic Pool on one casting test is capped at your Magic ${magic} (p.85)` };
+  if (sum("pool") + sum("drainPool") > poolAvail) return { ok: false, why: `that is ${sum("pool") + sum("drainPool")} Magic Pool dice; ${poolAvail} available` };
+  if (shares.some(s => n(s.karma) > n(s.force))) return { ok: false, why: "Karma dice on a test can't exceed its Force share (p.191)" };
+  if (sum("karma") > karmaAvail) return { ok: false, why: `that is ${sum("karma")} Karma dice; ${karmaAvail} in the pool` };
+  return { ok: true, why: "" };
+}

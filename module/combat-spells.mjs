@@ -610,7 +610,11 @@ export async function decideOops(message, choice) {
   if (!caster || !st?.criticalGlitch) return null;
   const current = () => game.messages.get(message.id)?.getFlag("sr2e", "oops") ?? null;
   if (current()) return current();
-  if (!await once(caster, `oops:${message.id}`)) return current();
+  if (!await once(caster, `oops:${message.id}`)) {
+    // Another call holds the decision: wait for it to be written (bounded).
+    for (let i = 0; i < 50 && !current(); i++) await new Promise(r => setTimeout(r, 100));
+    return current();
+  }
   let decision = "declined";
   if (choice === "avoided" && (caster.system.karma?.pool ?? 0) >= 1) {
     await caster.applyKarmaToTest(message, "avoidGlitch", { oopsClaimed: true });

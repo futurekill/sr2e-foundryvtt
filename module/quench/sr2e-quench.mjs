@@ -6755,7 +6755,11 @@ export function registerSR2EQuenchTests() {
         const tIn = await put(inside, 0); await put(outside, 20);
         const o = origin();
         const area = { sceneId: canvas.scene.id, x: o.x + g() / 2, y: o.y + g() / 2 };
-        await withFaces(Array(30).fill(1), () => sp.roll({ force: 4, targetNumber: 4, area }));
+        // All ones is a misfire (p.131): decline Avoid an Oops when it is offered.
+        const confirm = foundry.applications.api.DialogV2.confirm;
+        foundry.applications.api.DialogV2.confirm = async () => false;
+        try { await withFaces(Array(30).fill(1), () => sp.roll({ force: 4, targetNumber: 4, area })); }
+        finally { foundry.applications.api.DialogV2.confirm = confirm; }
         assert.lengthOf(game.sr2e.areas.areaDocs(canvas.scene).filter(t => t.flags?.sr2e?.spellEffect), 0, "0 successes: nothing placed");
         assert.lengthOf(flagged("poltergeist"), 0);
 
@@ -12354,5 +12358,210 @@ export function registerSR2EQuenchTests() {
         assert.notInclude(tokensInArea(c, { radiusPx: 1, include: () => false }), tok, "the filter excludes it");
       });
     }, { displayName: "SR2E: Area preview" });
+
+    // docs/PLAN-combat-spells.md: targets, the claimed resistance, Ram, Avoid an Oops, refunds.
+    quench.registerBatch("sr2e.combat-spells", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [], tokens = [], msgs = [];
+      after(async function () {
+        this.timeout(20000);
+        for (const m of msgs) { try { await game.messages.get(m)?.delete(); } catch (e) {} }
+        if (tokens.length && canvas.scene) { try { await canvas.scene.deleteEmbeddedDocuments("Token", tokens.filter(id => canvas.scene.tokens.has(id))); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const cs = () => import("../combat-spells.mjs");
+      const actor = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const person = (name, attrs = {}) => actor({ name, type: "character", system: { chargen: { inProgress: false },
+        willpower: { base: attrs.willpower ?? 4 }, body: { base: attrs.body ?? 3 } } });
+      const tokenFor = async (a, x) => {
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ x, y: 300, hidden: false })).toObject(), actorLink: true }]);
+        tokens.push(t.id);
+        return t;
+      };
+      const spellOn = async (caster, data) => {
+        const [sp] = await caster.createEmbeddedDocuments("Item", [{ name: data.name, type: "spell", system: { category: "combat", force: 4,
+          type: data.type ?? "mana", damageCode: data.damageCode ?? "M", drainCode: "(F / 2)M", ...(data.system ?? {}) }, ...(data._stats ? { _stats: data._stats } : {}) }]);
+        return sp;
+      };
+      // A casting test message with `n` successes (no dice rolled here).
+      const castTest = async (caster, n) => {
+        const m = await ChatMessage.create({ content: "quench cast", flags: { sr2e: { spellCast: { casterUuid: caster.uuid }, test: {
+          actorUuid: caster.uuid, tn: 4, label: "q", rerolls: 0, boughtSuccesses: 0, glitchAvoided: false, criticalGlitch: false, hasKarma: true,
+          dice: Array.from({ length: 4 }, (_, i) => ({ total: i < n ? 6 : 2, rolls: [i < n ? 6 : 2], success: i < n })) } } } });
+        msgs.push(m.id);
+        return m;
+      };
+      const since = (n) => game.messages.contents.slice(n);
+
+      it("a blank-typed Grimoire Stun Bolt is created as stun; Sleep's field says stun", async () => {
+        const { spellDamageType } = await import("../rules/spell-rules.mjs");
+        const a = await person("Quench CS Typer");
+        const sp = await spellOn(a, { name: "Stun Bolt", _stats: { compendiumSource: "Compendium.sr2e-grimoire.grim-spells.Item.ffacf666721c2cf1" } });
+        assert.equal(sp.system.damageType, "stun");
+        const sleep = await fromUuid("Compendium.sr2e.spells.Item.4771d8048d316e8a");
+        assert.equal(spellDamageType(sleep), "stun", "the field (packs-src) or its source");
+        assert.equal(spellDamageType({ name: "Mana Bolt", system: { damageType: "" } }), "physical");
+      });
+
+      describe("targets", () => {
+        it("vehicle TN 8 for a physical spell, refused for mana and stun; unseen excluded; cover per target", async () => {
+          if (!canvas?.ready) return assert.ok(true, "no canvas");
+          const { planCombatTargets } = await cs();
+          const caster = await person("Quench CS Caster");
+          const p1 = await person("Quench CS P1", { body: 3, willpower: 5 }), p2 = await person("Quench CS P2", { body: 2 });
+          const van = await actor({ name: "Quench CS Van", type: "vehicle", system: { body: 4, armor: 3 } });
+          const [t1, t2, tv] = [await tokenFor(p1, 100), await tokenFor(p2, 200), await tokenFor(van, 300)];
+          const phys = await spellOn(caster, { name: "Power Bolt", type: "physical" });
+          const mana = await spellOn(caster, { name: "Mana Bolt", type: "mana" });
+          const stun = await spellOn(caster, { name: "Stun Bolt Q", type: "mana", system: { damageType: "stun" } });
+          const req = { vision: "normal", targets: [{ tokenUuid: t1.uuid, see: true, cover: true }, { tokenUuid: t2.uuid, see: false }, { tokenUuid: tv.uuid, see: true }] };
+          const rp = planCombatTargets(phys, req);
+          assert.equal(rp[0].tn, 3 + 4, "Body + partial cover");
+          assert.isFalse(rp[1].eligible, "unseen");
+          assert.equal(rp[2].tn, 8, "vehicle TN 8 (p.109)");
+          assert.isFalse(planCombatTargets(mana, req)[2].eligible, "mana vs a vehicle");
+          assert.equal(planCombatTargets(mana, req)[0].tn, 5 + 4, "Willpower + cover");
+          assert.isFalse(planCombatTargets(stun, req)[2].eligible);
+        });
+      });
+
+      describe("resistance", () => {
+        it("a tie does the base level; damage and receipt land; the cast closes; one of two concurrent resists wins", async function () {
+          this.timeout(20000);
+          const { postCombatSpellCards, resistCombatSpell } = await cs();
+          const caster = await person("Quench CS Caster 2");
+          const target = await person("Quench CS Target", { willpower: 1 });
+          const sp = await spellOn(caster, { name: "Mana Bolt", damageCode: "S" });
+          const test = await castTest(caster, 1);
+          const n0 = game.messages.size;
+          const [card] = await postCombatSpellCards(sp, { spellResult: { testMessageId: test.id, successes: 1 }, force: 4,
+            targets: [{ uuid: target.uuid, key: target.uuid, name: target.name, kind: "living", eligible: true, tn: 1, resistAttr: "willpower" }] });
+          msgs.push(card.id);
+          // Willpower 1 at TN 4 — the resister can roll 0 or 1 success; either way the claim is single.
+          const res = await Promise.all([resistCombatSpell(target, card), resistCombatSpell(target, card)]);
+          const outcomes = since(n0).filter(m => m.flags?.sr2e?.spellRes);
+          outcomes.forEach(m => msgs.push(m.id));
+          since(n0).filter(m => m.flags?.sr2e?.spellResTest).forEach(m => msgs.push(m.id));
+          assert.equal(outcomes.length, 1, "one resolution");
+          assert.equal(res.filter(Boolean).length, 1);
+          const rec = Object.values(target.flags.sr2e.spellRes)[0];
+          const resist = game.messages.get(rec.resistTestId).flags.sr2e.test;
+          const r = resist.dice.filter(d => d.success).length;
+          const expected = r > 1 ? 0 : 6;   // 1 vs 0 or 1 vs 1 (tie): Serious; 1 vs more: none
+          assert.equal(rec.damaged, expected);
+          assert.equal(target.system.conditionMonitor.physical.value, expected);
+          const { isTestClosed } = await import("../astral-combat.mjs");
+          assert.isTrue(isTestClosed(test.id), "the cast is closed to Karma");
+        });
+
+        it("a vehicle resists with Body + half armor; its flat monitor and receipt land together", async function () {
+          this.timeout(20000);
+          const { postCombatSpellCards, resistCombatSpell } = await cs();
+          const caster = await person("Quench CS Caster 3");
+          const van = await actor({ name: "Quench CS Van 2", type: "vehicle", system: { body: 4, armor: 3 } });
+          const sp = await spellOn(caster, { name: "Power Bolt", type: "physical", damageCode: "M" });
+          const test = await castTest(caster, 4);
+          const n0 = game.messages.size;
+          const [card] = await postCombatSpellCards(sp, { spellResult: { testMessageId: test.id, successes: 4 }, force: 4,
+            targets: [{ uuid: van.uuid, key: van.uuid, name: van.name, kind: "vehicle", eligible: true, tn: 8, resistAttr: "vehicle" }] });
+          msgs.push(card.id);
+          await resistCombatSpell(van, card);
+          since(n0).forEach(m => msgs.push(m.id));
+          const rec = Object.values(van.flags.sr2e.spellRes)[0];
+          const resist = game.messages.get(rec.resistTestId).flags.sr2e.test;
+          assert.equal(resist.dice.length, 4 + 1, "Body 4 + ½ of armor 3");
+          assert.equal(van.system.conditionMonitor.value, Math.min(rec.damaged, van.system.conditionMonitor.max));
+        });
+
+        it("Karma bought on a closed cast is refused and refunded", async () => {
+          const caster = await person("Quench CS Karma");
+          const test = await castTest(caster, 2);
+          const closer = await ChatMessage.create({ content: "q close", flags: { sr2e: { closesTests: [test.id] } } });
+          msgs.push(closer.id);
+          const k0 = caster.system.karma.pool;
+          await caster.applyKarmaToTest(test, "reroll");
+          assert.equal(caster.system.karma.pool, k0);
+          assert.equal(game.messages.get(test.id).flags.sr2e.test.rerolls, 0);
+        });
+
+        it("an interrupted resistance is marked resolved by the GM without re-spending", async function () {
+          this.timeout(20000);
+          const { postCombatSpellCards, resistCombatSpell, markSpellResResolved } = await cs();
+          const caster = await person("Quench CS Caster 4");
+          const target = await person("Quench CS Target 4");
+          const sp = await spellOn(caster, { name: "Mana Bolt" });
+          const test = await castTest(caster, 2);
+          const n0 = game.messages.size;
+          const [card] = await postCombatSpellCards(sp, { spellResult: { testMessageId: test.id, successes: 2 }, force: 4,
+            targets: [{ uuid: target.uuid, key: target.uuid, name: target.name, kind: "living", eligible: true, tn: 4, resistAttr: "willpower" }] });
+          msgs.push(card.id);
+          target.rollSuccessTest = async () => { throw new Error("quench: interrupted"); };
+          try { await resistCombatSpell(target, card); } catch (e) { /* the interruption */ } finally { delete target.rollSuccessTest; }
+          const pending = since(n0).find(m => m.flags?.sr2e?.spellRes);
+          since(n0).forEach(m => msgs.push(m.id));
+          assert.equal(pending.flags.sr2e.spellRes.phase, "pending");
+          await pending.update({ "flags.sr2e.spellRes.at": game.time.serverTime - 10 * 60 * 1000 });
+          const confirm = foundry.applications.api.DialogV2.confirm;
+          foundry.applications.api.DialogV2.confirm = async () => true;
+          try { await markSpellResResolved(game.messages.get(pending.id)); } finally { foundry.applications.api.DialogV2.confirm = confirm; }
+          assert.equal(game.messages.get(pending.id).flags.sr2e.spellRes.phase, "done");
+          assert.equal(target.system.conditionMonitor.physical.value, 0, "no damage invented");
+          const n1 = game.messages.size;
+          await resistCombatSpell(target, game.messages.get(card.id));
+          assert.equal(game.messages.size, n1, "never re-run");
+        });
+      });
+
+      it("Ram applies its Light damage once", async () => {
+        const { applyRam, renderRamCard } = await cs();
+        const van = await actor({ name: "Quench CS Van 3", type: "vehicle", system: { body: 4, armor: 3 } });
+        const caster = await person("Quench CS Ram");
+        const test = await castTest(caster, 3);
+        const st = { testMessageId: test.id, casterName: "Q", spellName: "Ram", force: 5, successes: 3, targetUuid: van.uuid, targetName: van.name,
+                     barrierRating: 7, vehicleUuid: van.uuid, resolved: false };
+        const card = await ChatMessage.create({ content: renderRamCard(st), flags: { sr2e: { ram: st } } });
+        msgs.push(card.id);
+        const n0 = game.messages.size;
+        await Promise.all([applyRam(card), applyRam(card)]);
+        since(n0).forEach(m => msgs.push(m.id));
+        assert.equal(van.system.conditionMonitor.value, 1, "Power 8 vs 14: one reduction, one Light box");
+      });
+
+      it("two Avoid an Oops decisions on one misfire: one wins", async () => {
+        const { decideOops } = await cs();
+        const caster = await person("Quench CS Oops");
+        const m = await ChatMessage.create({ content: "q oops", flags: { sr2e: { spellCast: { casterUuid: caster.uuid }, test: {
+          actorUuid: caster.uuid, tn: 4, label: "q", dice: [{ total: 1, rolls: [1], success: false }], criticalGlitch: true,
+          glitchAvoided: false, rerolls: 0, boughtSuccesses: 0, hasKarma: true } } } });
+        msgs.push(m.id);
+        const [a, b] = await Promise.all([decideOops(m, "declined"), decideOops(m, "avoided")]);
+        assert.equal(a, b, "both see the one decision");
+        assert.include(["declined", "avoided"], game.messages.get(m.id).flags.sr2e.oops);
+      });
+
+      it("a grant that arrives after the resistance is refunded once", async () => {
+        const { refundLateGrants } = await cs();
+        const mage = await person("Quench CS Mage");
+        const out = await ChatMessage.create({ content: "q outcome", flags: { sr2e: { resolvesAttack: { castTestId: "qcast", targetActorUuid: "qt" }, usedGrants: [] } } });
+        const g = await ChatMessage.create({ content: "q grant", flags: { sr2e: { spellDefenseGrant: { id: "qgrant" + foundry.utils.randomID(6),
+          castTestId: "qcast", targetActorUuid: "qt", magicianUuid: mage.uuid, magicianName: mage.name, n: 2 } } } });
+        msgs.push(out.id, g.id);
+        const n0 = game.messages.size;
+        await Promise.all([refundLateGrants(), refundLateGrants()]);
+        await new Promise(r => setTimeout(r, 500));
+        since(n0).forEach(m => msgs.push(m.id));
+        assert.equal(mage.system.dicePools.spellDefense, 2);
+      });
+
+      it("a split that over-allocates the Force is refused before anything is spent", async () => {
+        const caster = await person("Quench CS Split");
+        await caster.update({ "system.magic.type": "full_magician", "system.magic.tradition": "hermetic" });
+        const sp = await spellOn(caster, { name: "Mana Bolt" });
+        const n0 = game.messages.size;
+        const r = await sp._rollSpellcast({ force: 1, split: [{ tokenUuid: "x", force: 1 }, { tokenUuid: "y", force: 1 }] });
+        assert.isNull(r);
+        assert.equal(game.messages.size, n0, "no roll, no Drain");
+      });
+    }, { displayName: "SR2E: Combat spells" });
   });
 }

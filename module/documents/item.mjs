@@ -21,6 +21,7 @@ import { isCardResolved } from "../astral-combat.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL } from "../util/roll-label.mjs";
+import { validateSplit } from "../rules/spell-rules.mjs";
 import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
          resolveMisfire } from "../combat-spells.mjs";
 
@@ -1528,6 +1529,7 @@ export class SR2EItem extends Item {
   async _rollSpellcast(options = {}) {
     const actor = this.parent;
     if (!actor) return;
+    if (options.split?.length) return this._rollSplitCast(options);
 
     // Force is provided by the cast dialog; fall back to the item's stored value.
     // A restricted-use spell (p.133) runs its EFFECT at a higher Force than it
@@ -1647,7 +1649,7 @@ export class SR2EItem extends Item {
     // used reduces its Force by 1. Resolved and PAID before any other spend, so
     // a refusal (not bound, wrong element, not enough Force, no services) costs
     // nothing.
-    if (fetish.consume) {
+    if (fetish.consume && !options.fetishPaid) {
       await fetish.consume.update({ "system.quantity": Math.max(0, (fetish.consume.system.quantity ?? 1) - 1) });
     }
     const magicAvail = actor.system.dicePools?.magic?.value ?? 0;
@@ -1709,7 +1711,8 @@ export class SR2EItem extends Item {
     // allocation. Magic Pool is capped at the Magic Rating, and for an area
     // cast also at the ORIGINAL Force (p.130).
     const alloc = spellCastDice({
-      force, withheld: area?.withheld ?? 0, totemBonus, totemPenalty, focusCast: focusDice,
+      // A split casting rolls only this target's share of the Force dice (p.129).
+      force: options.forceDice ?? force, withheld: area?.withheld ?? 0, totemBonus, totemPenalty, focusCast: focusDice,
       poolReq: options.poolDice?.magic ?? 0, poolAvail: magicAvail, poolCap,
       aidReq: aidCast, aidAvail: aidCast,
       karmaReq: options.karmaDice ?? 0, karmaAvail: actor.system.karma?.pool ?? 0,
@@ -1779,7 +1782,7 @@ export class SR2EItem extends Item {
       // in spellDice are not rating dice (p.191).
       karmaDiceCap: alloc.ratingDice,
       label: RL("Cast", { name: this.name, force: actualForce,
-             note: (restrictedBonus ? RL("CastRestricted", { force, restriction: restrictionLabel(restriction) }) : "") + totemNote })
+             note: (options.forceDice ? RL("SplitShareTag", { n: options.forceDice }) : "") + (restrictedBonus ? RL("CastRestricted", { force, restriction: restrictionLabel(restriction) }) : "") + totemNote })
            + (isAreaCombat && cardTargets.length ? RL("TnVariesByTarget") : ""),
       poolDice: castPool,           // magic pool dice, re-clamped above
       areaCast: isAreaCombat && cardTargets.length > 0,
@@ -1965,6 +1968,41 @@ export class SR2EItem extends Item {
     }
 
     return spellResult;
+  }
+
+  /**
+   * Multiple targets (SR2E p.129): the Force dice are split between them — one Spell Success
+   * Test per target with its share and its own TN, and one Drain test per target at the
+   * original, undivided Force. The whole ledger is checked before anything is spent.
+   * Foci and elemental aid stay with single-target casts (docs/PLAN-combat-spells.md P2).
+   * @private
+   */
+  async _rollSplitCast(options) {
+    const actor = this.parent;
+    const { effective: force } = spellForces({ learnedForce: this.system.force,
+      actualForce: options.force ?? this.system.force, restriction: this.system.restriction ?? "" });
+    const usesFoci = Object.values(options.focusDice ?? {}).some(f => (f?.cast || f?.drain));
+    if (usesFoci || (options.elementalAid?.cast || options.elementalAid?.drain)) {
+      ui.notifications.warn(`${this.name}: foci and elemental aid can't be split between targets — cast at one target to use them. Nothing was spent.`);
+      return null;
+    }
+    const v = validateSplit({ shares: options.split, force, magic: actor.system.magic?.value ?? 0,
+      poolAvail: actor.system.dicePools?.magic?.value ?? 0, karmaAvail: actor.system.karma?.pool ?? 0 });
+    if (!v.ok) {
+      ui.notifications.warn(`${this.name}: ${v.why}. Nothing was spent.`);
+      return null;
+    }
+    let first = null;
+    for (const [i, sh] of options.split.entries()) {
+      const r = await this._rollSpellcast({ ...options, split: null, forceDice: sh.force,
+        poolDice: sh.pool ? { magic: sh.pool } : {}, drainPoolDice: sh.drainPool ? { magic: sh.drainPool } : {},
+        karmaDice: sh.karma ?? 0, focusDice: {}, elementalAid: null, fetishPaid: i > 0,
+        miscDice: i === 0 ? options.miscDice : 0,
+        combatTargets: { ...options.combatTargets, targets: (options.combatTargets?.targets ?? []).filter(t => t.tokenUuid === sh.tokenUuid) } });
+      if (i === 0) first = r;
+      if (r === null && i === 0) return null;
+    }
+    return first;
   }
 
   /**
