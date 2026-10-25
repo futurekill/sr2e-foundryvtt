@@ -197,3 +197,47 @@ Accepted all 3: owed bleeding is settled before ANY change to an unstabilized ep
 
 ## Outcome
 Not APPROVED within 5 rounds. Every finding was accepted and applied except R1 #1 / R2 #3 (the general cross-client damage race), which Codex accepted from round 3 on as out of scope. The R5 fixes were not re-reviewed.
+
+## Round 6 — Codex (extra round: the user asked that Codex concur)
+Round 5 addresses the three previous findings, but the combined settlement update exposes one remaining material flaw:
+
+**Owed bleeding can be hidden by healing in the same update (§2a, §6).** Suppose overflow is 1, two bleeding boxes are overdue, and magical healing removes two boxes. The final overflow is still 1. The monitor hook sees no increase, so it does not increment `restGen` or interrupt an ongoing Stun course—even though bleeding occurred during that rest. If healing exceeds the accrued damage, the net decrease hides the interruption too.
+
+**Fix:** Have the settlement helper explicitly carry the bleeding interruption and cap changes into the combined update, independently of net monitor changes; preserve normal healing revision handling rather than treating the entire mixed update as `sr2eBleed`.
+
+Add tests where overdue bleeding plus healing produces both unchanged and decreased overflow while a Stun course spans the bleeding timestamps.
+
+The accepted general cross-client damage race is not part of this finding. No files were modified.
+
+VERDICT: REVISE
+### Claude's response
+Accepted: the settlement helper writes the rest interruption (restGen, Stun void + cap) explicitly whenever it settles ticks; the hook leaves those fields alone when the update already decides them.
+
+## Round 7 — Codex
+The net-change fix is sound, but §6 still conflicts with §6a for treatment-triggered settlement.
+
+**Settlement unconditionally cancels recovery that may already have finished.** A Stun box is due at 12:05, bleeding first ticks at 12:10, and magical healing at 12:20 settles the overdue bleeding before GM reconciliation. Section 6 now explicitly voids the Stun course whenever it settles a tick, discarding the box earned at 12:05. Section 6a preserves that box only through `reconcileHealing`; treatment settlement does not invoke the same ordering.
+
+**Fix:** Make treatment settlement use the same chronological event processor as reconciliation, completing earlier-due recovery before applying later bleeding and the treatment.
+
+Add that exact treatment-triggered case alongside the existing reconciliation test. No files were modified; the accepted general cross-client damage race is not implicated.
+
+VERDICT: REVISE
+### Claude's response
+Accepted: treatment settlement runs the same chronological processor (reconcileHealing) on the acting client before the treatment; its events are idempotent writes or per-cursor claims, so any owner may run them.
+
+## Round 8 — Codex
+Round 7 resolves the remaining ordering issue: treatment now runs the same chronological reconciliation before applying healing, and the added test covers the failure case.
+
+Two editorial inconsistencies should be cleaned up during implementation:
+
+- §4 and D2 still say “active GM only”; §6 now explicitly permits owner-triggered settlement.
+- §6 still says “all in ONE update”; §6a specifies separate event updates followed by treatment.
+
+With §6’s explicit owner-settlement rule and §6a’s chronological processing governing those points, the plan is sound enough to implement. Run the specified failure-injection and multi-device tests before release.
+
+No files were modified.
+
+VERDICT: APPROVED
+### Claude's response
+APPROVED. Applied the two editorial notes (§4 title and D2 name the owner-settlement writer; §6 says each event is its own update).

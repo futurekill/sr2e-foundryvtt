@@ -1,5 +1,5 @@
 # Plan: healing on the game clock (Calendaria)
-_Round 5 — revised after Codex R1–R5 (MAX_ROUNDS reached; R5 fixes applied without a further review) (see PLAN-healing-clock-REVIEW-LOG.md)_
+_Round 7 — revised after Codex R1–R7 (extra rounds at the user's request: Codex must concur)_ (see PLAN-healing-clock-REVIEW-LOG.md)_
 
 ## Goal
 When the Calendaria module is active (and the new `healingClock` setting is on), the
@@ -98,7 +98,7 @@ whether or not the clock is on (cheap), so turning the setting on later finds ho
 5. A card: "heals to Moderate on 4 Jan 18:00" (Calendaria date).
 - Stun successes used = `min(roll, stunCap)` when a cap is set; a 0-success roll starts nothing.
 
-### 4. Completion — the active GM; idempotent absolute writes (R1 #1, #3; R2 #2, #3, #8)
+### 4. Completion — the active GM on the clock, or any owner settling before a treatment (§6); idempotent absolute writes (R1 #1, #3; R2 #2, #3, #8)
 On `updateWorldTime`, `ready`, `userConnected` and `updateSetting(healingClock)`, the active GM
 calls `reconcileHealing(actor, now)` for characters, NPCs and spirits (world actors + unlinked
 token actors on every scene). For a course with `dueAt ≤ now` and a matching revision:
@@ -155,7 +155,16 @@ deterministic id — duplicates write the same episode.
   episode — setting `stable` (First Aid, self-stabilization, a doctor's course, Under care) AND
   every healing that lowers overflow (magical healing, a completed stage, Finish now) — first
   adds the ticks owed from `cursor` to now and computes its own change against that settled
-  monitor, all in ONE update. Healing never forgives bleeding that already happened.
+  monitor (each due event its own update, in §6a order, then the treatment). Healing never forgives bleeding that already happened.
+  Settlement IS the §6a processor (R7): the acting client (any owner, not only the GM — every
+  event is an idempotent absolute write or a per-cursor claim) first runs
+  `reconcileHealing(actor, now)` — earlier-due recoveries complete before later ticks, exactly as
+  in a GM reconcile — and only then applies the treatment against the settled monitor. Within
+  that processor the settlement step does NOT rely on the hook seeing a net increase (R6): when it settles
+  ≥ 1 tick it writes the interruption itself in that update — `restGen + 1`, the Stun course
+  voided with `stunCap ??= course.successes` — while the healing part keeps its ordinary
+  revision handling (`rev.phys + 1`). The hook treats `restGen`/course fields already present in
+  the update as decided and doesn't recompute them.
 - **Only unstabilized time bleeds (R5 #3):** while `stable` is set nothing accrues and nothing is
   owed; moving between stable states (aid → care, care again) changes only the label; ending
   care (`stable: null`) sets `cursor = now`.
@@ -205,7 +214,11 @@ deleteToken for an unlinked token's actor). Visibility setting `healingNotesVisi
   magical healing after an unreconciled hour → the owed boxes land before the healing; a Stun box
   due 12:05 with bleeding from 12:00 (first tick 12:10) reconciled at 12:20 → the box completes,
   then the ticks; the reverse ordering voids the box; First Aid at noon then care at 13:00 →
-  nothing charged for the stabilized hour. Cases: start → advance →
+  nothing charged for the stabilized hour. (R6): overdue bleeding settled inside a magical heal
+  whose net overflow is unchanged, and one whose net overflow drops — in both, a Stun course
+  spanning the ticks is voided with its cap kept. (R7): a Stun box due 12:05, bleeding ticking
+  from 12:10, magical healing at 12:20 with no GM reconcile → the box completes, then two ticks,
+  then the healing. Cases: start → advance →
   heals once; two concurrent starts → one course; damage during a course → void, no heal; magical
   healing during a course → void; completion with the claim taken but the update stubbed to fail
   → the course stays, Finish now works once; setting off → nothing completes, a changed monitor
@@ -217,7 +230,7 @@ deleteToken for an unlinked token's actor). Visibility setting `healingNotesVisi
 ## Key decisions & tradeoffs
 - **D1 Stored, validated state** (not an event log): short-lived bookkeeping the GM can fix; the
   snapshot makes it self-invalidating.
-- **D2 One completion writer:** the active GM.
+- **D2 Completion writers:** the active GM on clock changes; an owner may run the same processor before a treatment (§6). Every event is an idempotent absolute write or a per-cursor claim.
 - **D3 Big time jumps:** only the running course completes; bleeding accrues (RAW — the GM gets
   the card and decides).
 - **D4 Off/on:** off pauses completion; on again, a still-valid course completes (its time has
