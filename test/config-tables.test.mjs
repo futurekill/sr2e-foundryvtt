@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { SR2E } from "../module/config.mjs";
 
 describe("Healing tables (SR2E p.112–115)", () => {
-  it("natural-healing TN rises with wound level", () => {
-    expect(SR2E.naturalHealTN).toEqual({ Light: 2, Moderate: 4, Serious: 6, Deadly: 6 });
+  it("Wound Table TN rises with wound level; Deadly has none (always medical attention, p.113)", () => {
+    expect(SR2E.naturalHealTN).toEqual({ Light: 2, Moderate: 4, Serious: 6 });
   });
 
   it("First Aid TN rises with wound level", () => {

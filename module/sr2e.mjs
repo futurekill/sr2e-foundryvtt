@@ -16,7 +16,7 @@ import * as dataModels from "./data/_index.mjs";
 import * as documents from "./documents/_index.mjs";
 import { SR2ECombatant } from "./documents/combatant.mjs";
 import { meleeUndefended } from "./documents/actor.mjs";
-import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderMeleeAttackCard, renderBlastLauncher, renderSpreadLauncher } from "./documents/item.mjs";
+import { renderManipDamageCard, isManipCardResolved, renderRangedDamageCard, renderMeleeAttackCard, renderBlastLauncher, renderSpreadLauncher, renderHealingCard } from "./documents/item.mjs";
 import { detachElementalHolder, countTurnFromCard } from "./elementals.mjs";
 import { promptForCanvasPoint } from "./placement.mjs";
 import { promptGrant, grantSpellDefense } from "./spell-defense.mjs";
@@ -2319,8 +2319,8 @@ Hooks.on("createChatMessage", async (outcome) => {
     const next = { ...mvr, resolved: true, resolution: outcome.flags.sr2e.vr2ManeuverResolution ?? "" };
     await card.update({ content: renderManeuverCard(next), "flags.sr2e.vr2Maneuver": next });
   }
-  // Combat spells (docs/PLAN-combat-spells.md): the resolver may not own the card.
-  for (const [key, render] of [["spell", renderCombatSpellCard], ["ram", renderRamCard]]) {
+  // Combat spells (docs/PLAN-combat-spells.md) and healing cards: the resolver may not own the card.
+  for (const [key, render] of [["spell", renderCombatSpellCard], ["ram", renderRamCard], ["healing", renderHealingCard]]) {
     const st = card.flags?.sr2e?.[key];
     if (!st || st.resolved) continue;
     const next = { ...st, resolved: true, resolution: "<br><strong>Being resolved — see below.</strong>" };
@@ -2780,7 +2780,8 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       return actor.applyMagicalHealing({
         successes:  parseInt(btn.dataset.successes) || 0,
         spellName:  btn.dataset.spellName || "Heal",
-        casterName: btn.dataset.casterName || ""
+        casterName: btn.dataset.casterName || "",
+        message
       });
     });
   });

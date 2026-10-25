@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## 0.118.1 — 2026-10-24
+
+### Fixed
+- **Healing now follows SR2E pp.111–115 and p.155.** An audit of every healing path against
+  the book found these problems:
+  - **First Aid on a Deadly wound** healed it to Serious. First aid can only **stabilize**
+    a Deadly wound. If the Biotech test fails, the patient rolls natural Body against TN 10
+    to stabilize themselves.
+  - **First aid never reduces a wound by more than one level**, and it is of no use once
+    magical healing has been applied. Both now ask before treating again, since whether
+    these are new injuries is the GM's call. The card gives the treatment time (10/20/30
+    minutes divided by the successes).
+  - **Natural healing** rolled only the Wound Table test and healed a level at once. It now
+    makes both tests:
+    - the Wound Table test (natural Body against 2/4/6) decides whether the wound heals
+      without medical attention;
+    - the **Healing Table** test (TN 4/6/8/10) sets how long the stage takes: the base time
+      divided by the successes, never under the minimum. The minimum lifestyle is also shown.
+  - **A doctor can now heal a Deadly wound**, which previously couldn't be healed at all. The
+    Heal dialog has the **Doctoring Table**: intensive care, long-term magical care,
+    conditions, the magician +2, and natural Body and Willpower.
+  - Light wounds' minimum healing time is 2 hours (it said 12).
+  - **Magic loss (p.115):** a magician treated without the +2, or healed of a Deadly wound,
+    rolls 2D6. A result under their Magic costs 1 point permanently.
+  - **Treat and Heal reduce Physical overflow** first (p.115). A Treat/Heal card applies
+    only once, and Karma bought on the casting reaches it.
+  - Healing a Deadly wound by a stage clears the overflow, because the monitor drops to the
+    next level's lowest point (p.113).
+
 ## 0.118.0 — 2026-10-24
 
 ### Added

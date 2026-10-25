@@ -36,7 +36,8 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
          knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
-         healingBaseTime, healingTimeReduced, splitHealingSuccesses,
+         healingBaseTime, healingTimeReduced, splitHealingSuccesses, HEALING_TABLE, naturalHealingHours, healingTimeText,
+         doctoringMod, magicLost,
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
@@ -3575,51 +3576,96 @@ export class SR2EActor extends Actor {
     });
   }
 
+  /** Natural Body and Willpower (no cyberware, spell or other modifications) — p.113. */
+  _naturalAttrs() {
+    const nat = (a) => Math.max(1, (this.system[a]?.base ?? 1) + (this.system[a]?.racial ?? 0));
+    return { body: nat("body"), willpower: nat("willpower") };
+  }
+
+  /** Is this patient a magician for medical purposes (p.115)? */
+  _medicalMagician() {
+    return !!this.system.magic?.type && this.system.magic.type !== "none";
+  }
+
   /**
-   * Natural healing of Physical damage (SR2E p.112–113). A Body Test using
-   * NATURAL Body (cyberware does not help) vs the wound-level TN. Any success
-   * heals one Damage Level; the monitor drops to the lower level's floor.
-   * Deadly wounds require medical attention (handled by First Aid / a doctor).
+   * Natural healing of one stage of Physical damage (SR2E p.112–113).
+   * 1. Unless a doctor is involved, the Wound Table test: natural Body vs Light 2 /
+   *    Moderate 4 / Serious 6. No successes — or a Deadly wound — means medical
+   *    attention is required for healing to occur.
+   * 2. The Healing Table test: natural Body vs Light 4 / Moderate 6 / Serious 8 / Deadly 10,
+   *    with the Doctoring Table when a doctor is involved. The successes divide the base
+   *    time (never under the minimum); the stage then drops the monitor to the next level.
+   * 3. A magician healed of a Deadly wound, or doctored without the +2, checks Magic loss (p.115).
+   * @param {{doctor?:boolean, intensiveCare?:boolean, magicalCare?:boolean,
+   *          condition?:"hospital"|"notHospital"|"bad"|"terrible", waiveMagician?:boolean}} [opts]
    */
-  async healPhysical() {
+  async healPhysical(opts = {}) {
     const cm = this.system.conditionMonitor?.physical;
     if (!cm || cm.value <= 0) {
       return ui.notifications.info(`${this.name} has no Physical damage to heal.`);
     }
     const level = SR2EActor.levelForBoxes(cm.value);
-    if (level === "Deadly") {
-      return ui.notifications.warn(`${this.name} has a Deadly wound — it requires medical attention (First Aid or a doctor).`);
+    const key = { Light: "L", Moderate: "M", Serious: "S", Deadly: "D" }[level];
+    const nat = this._naturalAttrs();
+    const speaker = ChatMessage.getSpeaker({ actor: this });
+    const doctor = !!opts.doctor;
+    if (!doctor && key === "D") {
+      return ui.notifications.warn(`${this.name} has a Deadly wound — it always requires medical attention (SR2E p.113). Heal it with a doctor.`);
     }
-    // Natural Body only: base + racial, ignoring cyberware mod
-    const naturalBody = Math.max(1, (this.system.body?.base ?? 1) + (this.system.body?.racial ?? 0));
-    const tn = CONFIG.SR2E.naturalHealTN[level] ?? 4;
-
-    const result = await this.rollSuccessTest(naturalBody, tn, {
-      label: RL("Heal", { level, body: naturalBody, tn }),
-      isResistance: true,
-      ...this._bodyTestOpts()
-    });
-    const succ = result?.successes ?? 0;
-    if (succ <= 0) {
-      return ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="sr2e-damage-result"><strong>No natural healing</strong>
-          <em>— medical attention is required for this wound (SR2E p.113).</em></div>`
-      });
+    if (!doctor) {
+      const tn = CONFIG.SR2E.naturalHealTN[level] ?? 4;
+      const w = await this.rollSuccessTest(nat.body, tn, {
+        label: RL("Heal", { level, body: nat.body, tn }), isResistance: true, ...this._bodyTestOpts() });
+      if (!(w?.successes > 0)) {
+        return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>No natural healing</strong>
+          <em>— this ${level.toLowerCase()} wound needs medical attention to heal (SR2E p.113).</em></div>` });
+      }
     }
-    return this._healOneLevel("physical", `Natural healing (${CONFIG.SR2E.healTime[level] ?? ""})`);
+    const magician = this._medicalMagician();
+    const mod = doctor ? doctoringMod({ ...opts, magician, naturalBody: nat.body, naturalWillpower: nat.willpower }) : { total: 0, parts: [] };
+    const row = HEALING_TABLE[key];
+    const tn = Math.max(2, row.tn + mod.total);
+    const r = await this.rollSuccessTest(nat.body, tn, {
+      label: RL("HealTime", { level, body: nat.body, tn, mods: mod.parts.length ? ` — ${mod.parts.join(", ")}` : "" }),
+      isResistance: true, ...this._bodyTestOpts() });
+    const hours = naturalHealingHours(key, r?.successes ?? 0);
+    await this._healOneLevel("physical", `${doctor ? "With a doctor" : "Natural healing"}: this stage takes
+      <strong>${healingTimeText(hours)}</strong> of rest (${r?.successes ?? 0} success${r?.successes === 1 ? "" : "es"} into
+      ${healingTimeText(row.baseH)}, minimum ${healingTimeText(row.minH)}). Minimum lifestyle: ${row.lifestyle} (p.113).`);
+    const checks = magician ? (key === "D" ? 1 : 0) + (doctor && opts.waiveMagician ? 1 : 0) : 0;
+    await this._magicLossChecks(checks, key === "D" ? "a Deadly wound" : "treated without the magician modifier");
   }
 
   /**
-   * Apply First Aid to a patient (SR2E p.115). The acting character is the
-   * medic, rolling Biotech vs the First Aid Table TN for the patient's current
-   * Physical wound, with the given modifiers. 1+ success heals one level.
-   * Physical damage only; must be used before magical healing (the "golden hour").
+   * Magic loss (SR2E p.115): for each check roll 2D6; a result less than the current Magic
+   * Rating costs 1 point permanently.
+   */
+  async _magicLossChecks(n, why) {
+    for (let i = 0; i < n; i++) {
+      const magic = this.system.magic?.value ?? 0;
+      if (magic <= 0) return;
+      const roll = await new Roll("2d6").evaluate();
+      const lost = magicLost(roll.total, magic);
+      if (lost) await this.update({ "system.magic.value": magic - 1 });
+      await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: this }),
+        flavor: `Magic loss check (${why}, SR2E p.115): 2D6 ${roll.total} vs Magic ${magic} — ${lost
+          ? `<strong>1 point of Magic is lost permanently</strong> (now ${magic - 1})` : "no loss"}.` });
+    }
+  }
+
+  /**
+   * Apply First Aid to a patient (SR2E p.115). The acting character is the medic, rolling
+   * Biotech vs the First Aid Table TN for the patient's current wound, with its modifiers.
+   * Physical damage only, within the "golden" first hour, and of no use once magical healing
+   * has been applied. 1+ success reduces the Damage Level by one — never more than one level
+   * through first aid — taking the table's time divided by the successes. A Deadly wound can
+   * only be STABILIZED; if that fails, the patient's natural Body vs 10 may stabilize them.
    *
    * @param {Actor}  patient        - Wounded actor (defaults to self).
    * @param {object} [opts]
    * @param {number} [opts.conditionMod=0] - Bad +1 / Terrible +3 conditions.
    * @param {boolean}[opts.noMedkit=false] - +4 with no medkit.
+   * @param {boolean}[opts.waiveMagician=false] - treat a magician without the +2 (Magic loss check).
    */
   async firstAid(patient, opts = {}) {
     patient = patient ?? this;
@@ -3628,6 +3674,18 @@ export class SR2EActor extends Actor {
       return ui.notifications.info(`${patient.name} has no Physical damage for First Aid.`);
     }
     const level = SR2EActor.levelForBoxes(cm.value);
+    const deadly = level === "Deadly";
+    const esc = foundry.utils.escapeHTML;
+    // What counts as one set of injuries is the GM's call, so these ask rather than refuse.
+    const already = patient.getFlag("sr2e", "magicallyHealed")
+      ? `${esc(patient.name)} has been magically healed — first aid is no longer of any use for these injuries (SR2E p.115).`
+      : (!deadly && patient.getFlag("sr2e", "firstAided"))
+        ? `First aid has already reduced ${esc(patient.name)}'s wound by one level — it can never reduce it by more (SR2E p.115).` : "";
+    if (already) {
+      const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "First Aid" },
+        content: `<p>${already}</p><p>Are these new injuries? Treat anyway?</p>` });
+      if (!ok) return;
+    }
 
     // Medic's Biotech (defaults via the Skill Web when untrained, SR2E p.69)
     const biotech = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "biotech");
@@ -3642,7 +3700,8 @@ export class SR2EActor extends Actor {
     // First Aid Table TN + modifiers
     let tn = CONFIG.SR2E.firstAidTN[level] ?? 6;
     const parts = [];
-    if (patient.system.magic?.type && patient.system.magic.type !== "none") { tn += 2; parts.push("magician +2"); }
+    const magician = patient._medicalMagician?.() ?? false;
+    if (magician && !opts.waiveMagician) { tn += 2; parts.push("magician +2"); }
     // Patient Body attribute modifier
     const pBody = patient.system.body?.value ?? 1;
     const bodyMod = firstAidBodyMod(pBody);
@@ -3659,15 +3718,34 @@ export class SR2EActor extends Actor {
       tnContext: skillTnContext("biotech")   // First Aid is a Biotech test: a Technical Skill (p.71)
     });
     const succ = result?.successes ?? 0;
-    if (succ <= 0) {
-      return ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="sr2e-damage-result"><strong>First Aid fails</strong>
-          <em>— no successes. First aid can only be tried once per injury (SR2E p.115).</em></div>`
-      });
+    const speaker = ChatMessage.getSpeaker({ actor: this });
+    const checks = magician && opts.waiveMagician && succ > 0 ? 1 : 0;
+
+    if (deadly) {
+      if (succ > 0) {
+        await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>${esc(patient.name)} is stabilized</strong>
+          <em>— no longer taking a box every 10 minutes. First aid can't heal a Deadly wound; keep them stabilized until
+          professional help takes over (SR2E p.115).</em></div>` });
+      } else {
+        const nat = patient._naturalAttrs?.() ?? { body: patient.system.body?.value ?? 1 };
+        const self = await patient.rollSuccessTest(nat.body, 10, {
+          label: RL("StabilizeSelf", { body: nat.body }), isResistance: true, ...(patient._bodyTestOpts?.() ?? {}) });
+        await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">${(self?.successes ?? 0) > 0
+          ? `<strong>${esc(patient.name)}'s body stabilizes itself</strong> <em>(natural Body vs 10, SR2E p.115).</em>`
+          : `<strong>${esc(patient.name)} is not stabilized</strong> <em>— they take a box every 10 minutes and die once the
+             overflow exceeds their Body (SR2E p.111, p.115).</em>`}</div>` });
+      }
+      return patient._magicLossChecks?.(checks, "first aid without the magician modifier");
     }
-    return patient._healOneLevel("physical",
-      `First Aid by ${foundry.utils.escapeHTML(this.name)} (one attempt per injury — use before magical healing)`);
+    if (succ <= 0) {
+      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>First Aid fails</strong>
+        <em>— no successes (SR2E p.115).</em></div>` });
+    }
+    const minutes = { Light: 10, Moderate: 20, Serious: 30 }[level];
+    await patient._healOneLevel("physical",
+      `First Aid by ${esc(this.name)}: ${Math.max(1, Math.round(minutes / succ))} uninterrupted minutes (${minutes} ÷ ${succ}).
+       First aid never reduces a wound by more than one level (SR2E p.115).`, { firstAided: true });
+    return patient._magicLossChecks?.(checks, "first aid without the magician modifier");
   }
 
   /**
@@ -3683,10 +3761,16 @@ export class SR2EActor extends Actor {
    * @param {string} opts.spellName  - "Treat" or "Heal" (drives the 1-hour note).
    * @param {string} [opts.casterName]
    */
-  async applyMagicalHealing({ successes = 0, spellName = "Heal", casterName = "" } = {}) {
+  async applyMagicalHealing({ successes = 0, spellName = "Heal", casterName = "", message = null } = {}) {
     const cm = this.system.conditionMonitor?.physical;
-    if (!cm || cm.value <= 0) {
+    const overflow = this.system.conditionMonitor?.overflow ?? 0;
+    if (!cm || (cm.value <= 0 && overflow <= 0)) {
       return ui.notifications.info(`${this.name} has no Physical damage to heal.`);
+    }
+    // One application per casting: the card's own successes, live (Karma included).
+    if (message) {
+      if (isCardResolved(message, "healing")) return ui.notifications.warn("That healing has already been applied.");
+      successes = message.getFlag("sr2e", "healing")?.successes ?? successes;
     }
     if (successes <= 0) return ui.notifications.info("No successes — nothing to apply.");
 
@@ -3723,10 +3807,15 @@ export class SR2EActor extends Actor {
 
     const { boxes, toTime } = splitHealingSuccesses(successes, form.toTime);
     const turns  = healingTimeReduced(baseTime, toTime);
-    const before = cm.value;
-    const after  = Math.max(0, before - boxes);
+    if (message && isCardResolved(game.messages.get(message.id), "healing")) return ui.notifications.warn("That healing has already been applied.");
+    // "Treat and heal spells will reduce Physical overflow damage" (p.115): overflow first.
+    const fromOverflow = Math.min(boxes, overflow);
+    const before = cm.value + overflow;
+    const physAfter = Math.max(0, cm.value - (boxes - fromOverflow));
+    const after = physAfter + overflow - fromOverflow;
     // Cybermancy (p.80): healed out of overflow → a care receipt in this same update.
-    await this.update({ "system.conditionMonitor.physical.value": after, ...careReceipt(this) });
+    await this.update({ "system.conditionMonitor.physical.value": physAfter,
+      "system.conditionMonitor.overflow": overflow - fromOverflow, ...careReceipt(this) });
     // Stamp the once-per-injury-set marker; clear it once they're undamaged, which
     // is the cleanest available boundary for "a new set of injuries".
     await this.setFlag("sr2e", "magicallyHealed", after > 0);
@@ -3734,6 +3823,7 @@ export class SR2EActor extends Actor {
     const who = casterName ? ` by ${foundry.utils.escapeHTML(casterName)}` : "";
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
+      ...(message ? { flags: { sr2e: { resolves: message.id } } } : {}),
       content: `<div class="sr2e-damage-result">
         <strong>${foundry.utils.escapeHTML(this.name)}: ${spellName}${who}</strong>
         — healed <strong>${boxes}</strong> box${boxes === 1 ? "" : "es"}
@@ -3753,12 +3843,17 @@ export class SR2EActor extends Actor {
    * box floor (SR2E p.113), and post a chat note.
    * @private
    */
-  async _healOneLevel(type, note) {
+  async _healOneLevel(type, note, { firstAided = false } = {}) {
     const cm = this.system.conditionMonitor?.[type];
     const before = cm.value;
     const level = SR2EActor.levelForBoxes(before);
     const floor = CONFIG.SR2E.healLevelFloor[level] ?? 0;
-    await this.update({ [`system.conditionMonitor.${type}.value`]: floor, ...(type === "physical" ? careReceipt(this) : {}) });
+    // A stage of healing drops the monitor to the next level's lowest point (p.113), so any
+    // Physical overflow goes with a Deadly wound. Undamaged ends this set of injuries.
+    await this.update({ [`system.conditionMonitor.${type}.value`]: floor,
+      ...(type === "physical" ? { "system.conditionMonitor.overflow": 0, ...careReceipt(this),
+        "flags.sr2e.firstAided": floor > 0 && (firstAided || !!this.getFlag("sr2e", "firstAided")),
+        ...(floor === 0 ? { "flags.sr2e.magicallyHealed": false } : {}) } : {}) });
     const newLevel = SR2EActor.levelForBoxes(floor);
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),

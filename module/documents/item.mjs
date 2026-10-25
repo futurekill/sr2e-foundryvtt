@@ -142,7 +142,7 @@ export function renderHealingCard(state) {
     <strong>${esc(state.spellName)} on ${esc(state.subjectName)}</strong>
     — <strong>${s}</strong> success${s === 1 ? "" : "es"}
     to spend on boxes healed and/or reducing the maintenance time.
-    ${state.hurt ? `<br><button class="sr2e-apply-healing-btn"
+    ${state.resolved ? `<br><strong>Applied.</strong>` : state.hurt ? `<br><button class="sr2e-apply-healing-btn"
         data-actor-uuid="${state.subjectUuid}"
         data-successes="${s}"
         data-spell-name="${esc(state.spellName)}"

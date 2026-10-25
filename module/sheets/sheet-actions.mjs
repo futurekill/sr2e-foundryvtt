@@ -3493,10 +3493,43 @@ async function onRecoverStun(event) {
   return this.document.recoverStun();
 }
 
-/** Natural Physical healing (SR2E p.113). @this {ApplicationV2} */
+/**
+ * Natural Physical healing (SR2E p.113): with or without a doctor, and the Doctoring Table.
+ * @this {ApplicationV2}
+ */
 async function onHealPhysical(event) {
   event.preventDefault();
-  return this.document.healPhysical();
+  const actor = this.document;
+  const magician = actor.system.magic?.type && actor.system.magic.type !== "none";
+  let opts = null;
+  const action = await foundry.applications.api.DialogV2.wait({
+    window: { title: `Heal — ${actor.name}` },
+    rejectClose: false,
+    content: `<div>
+      <p class="hint" style="margin:0 0 6px;">One stage of healing (one Damage Level) — SR2E p.113. Without a doctor the
+        wound must first pass a natural Body test; a Deadly wound always needs a doctor.</p>
+      <div class="form-group"><label>A doctor is involved:</label><input type="checkbox" name="doctor" style="width:auto;"></div>
+      <fieldset><legend>Doctoring Table (doctor only)</legend>
+        <div class="form-group"><label>Where:</label><select name="condition">
+          <option value="hospital">Hospital or clinic (+0)</option><option value="notHospital">Not in a hospital or clinic (+2)</option>
+          <option value="bad">Bad conditions (+3)</option><option value="terrible">Terrible conditions (+4)</option></select></div>
+        <div class="form-group"><label>Intensive care (hospital, −2):</label><input type="checkbox" name="intensiveCare" style="width:auto;"></div>
+        <div class="form-group"><label>Long-term magical care (−2):</label><input type="checkbox" name="magicalCare" style="width:auto;"></div>
+        ${magician ? `<div class="form-group"><label title="A magician can be treated without the +2, but then checks for Magic loss (p.115)">Treat without the magician +2:</label>
+          <input type="checkbox" name="waiveMagician" style="width:auto;"></div>` : ""}
+      </fieldset>
+    </div>`,
+    buttons: [
+      { action: "go", label: "Heal", default: true, callback: (ev, b) => {
+        const el = b.form.elements;
+        opts = { doctor: !!el.doctor.checked, condition: el.condition.value, intensiveCare: !!el.intensiveCare.checked,
+          magicalCare: !!el.magicalCare.checked, waiveMagician: !!el.waiveMagician?.checked };
+      } },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }
+    ]
+  });
+  if (action !== "go" || !opts) return;
+  return actor.healPhysical(opts);
 }
 
 /**
@@ -3517,7 +3550,8 @@ async function onFirstAid(event) {
     content: `<div>
       <p class="hint" style="margin:0 0 6px;">
         Patient: <strong>${foundry.utils.escapeHTML(patient.name)}</strong>${patient === medic ? " (self)" : ""}.
-        Treats Physical damage only; one attempt per injury (SR2E p.115).
+        Physical damage only, within the first hour after the injury, and never more than one level (SR2E p.115).
+        A Deadly wound can only be stabilized.
       </p>
       <div class="form-group">
         <label>Conditions:</label>
@@ -3531,12 +3565,17 @@ async function onFirstAid(event) {
         <label>No medkit (+4):</label>
         <input type="checkbox" name="noMedkit" style="width:auto;">
       </div>
+      ${patient.system.magic?.type && patient.system.magic.type !== "none" ? `<div class="form-group">
+        <label title="A magician can be treated without the +2, but then checks for Magic loss (p.115)">Treat without the magician +2:</label>
+        <input type="checkbox" name="waiveMagician" style="width:auto;">
+      </div>` : ""}
     </div>`,
     buttons: [
       { action: "go", label: "Treat", default: true, callback: (event, button) => {
         opts = {
           conditionMod: parseInt(button.form.elements.cond?.value) || 0,
-          noMedkit: !!button.form.elements.noMedkit?.checked
+          noMedkit: !!button.form.elements.noMedkit?.checked,
+          waiveMagician: !!button.form.elements.waiveMagician?.checked
         };
       }},
       { action: "cancel", label: "SR2E.Dialog.Cancel" }

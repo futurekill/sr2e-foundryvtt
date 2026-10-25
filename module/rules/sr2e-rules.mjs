@@ -255,6 +255,62 @@ export function healingDrainLevel(physicalBoxes) {
 }
 
 /**
+ * Healing Table (SR2E p.113): per Damage Level, the base and minimum time (hours), the
+ * Body Test's TN and the minimum lifestyle. "Dead" on the printed table is the Deadly row.
+ */
+export const HEALING_TABLE = Object.freeze({
+  D: { baseH: 720, minH: 72, tn: 10, lifestyle: "Hospitalized" },
+  S: { baseH: 480, minH: 48, tn: 8, lifestyle: "High" },
+  M: { baseH: 240, minH: 24, tn: 6, lifestyle: "Middle" },
+  L: { baseH: 24, minH: 2, tn: 4, lifestyle: "Low" }
+});
+
+/**
+ * How long one stage of natural healing takes (p.113): "Divide the successes from the Body
+ * Test into the base time … the actual time can never be lower than the Minimum Time."
+ * No successes leaves the base time (nothing to divide by).
+ * @returns {number} hours
+ */
+export function naturalHealingHours(level, successes) {
+  const row = HEALING_TABLE[level] ?? HEALING_TABLE.L;
+  const n = Math.max(0, Math.trunc(Number(successes) || 0));
+  return n > 0 ? Math.max(row.minH, row.baseH / n) : row.baseH;
+}
+
+/** "36 hours" / "6.7 days" for a healing time in hours. */
+export function healingTimeText(hours) {
+  const r = (x) => Math.round(x * 10) / 10;
+  return hours < 48 ? `${r(hours)} hour${r(hours) === 1 ? "" : "s"}` : `${r(hours / 24)} days`;
+}
+
+/** The Doctoring Table's −0…−3 for a natural Body or Willpower (p.113): 4–6 −1, 7–9 −2, 10+ −3. */
+export const doctoringAttrMod = (v) => (v >= 10 ? -3 : v >= 7 ? -2 : v >= 4 ? -1 : 0);
+
+/**
+ * The Doctoring Table (p.113) — only when a doctor is involved: intensive care −2 (hospital
+ * only), long-term magical care −2, ONE condition (not in a hospital or clinic +2, bad +3,
+ * terrible +4), a magician patient +2 (unless the doctor treats without it, p.115), and the
+ * patient's NATURAL Body and Willpower.
+ * @returns {{total:number, parts:string[]}}
+ */
+export function doctoringMod({ intensiveCare = false, magicalCare = false, condition = "hospital", magician = false,
+                               waiveMagician = false, naturalBody = 1, naturalWillpower = 1 } = {}) {
+  const parts = [];
+  const add = (n, label) => { if (n) parts.push(`${label} ${n > 0 ? "+" : ""}${n}`); return n; };
+  let t = 0;
+  t += add(intensiveCare ? -2 : 0, "intensive care");
+  t += add(magicalCare ? -2 : 0, "long-term magical care");
+  t += add({ notHospital: 2, bad: 3, terrible: 4 }[condition] ?? 0, { notHospital: "not in a hospital", bad: "bad conditions", terrible: "terrible conditions" }[condition] ?? "");
+  t += add(magician && !waiveMagician ? 2 : 0, "magician");
+  t += add(doctoringAttrMod(naturalBody), "Body");
+  t += add(doctoringAttrMod(naturalWillpower), "Willpower");
+  return { total: t, parts };
+}
+
+/** Magic loss (p.115): roll 2D6; a result LESS than the current Magic loses 1 point permanently. */
+export const magicLost = (twoD6, magic) => Number(twoD6) < Number(magic);
+
+/**
  * First Aid target-number modifier from the patient's Body (SR2E p.115):
  * a tougher patient is easier to stabilise. −1 at Body 4+, −2 at 7+, −3 at 10+.
  * @param {number} body

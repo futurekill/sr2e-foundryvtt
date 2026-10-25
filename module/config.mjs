@@ -467,20 +467,13 @@ SR2E.drainCodes = {
 SR2E.healLevelFloor = { Deadly: 6, Serious: 3, Moderate: 1, Light: 0, Undamaged: 0 };
 
 // Physical natural healing — Body Test target number by wound level (Wound
-// Table, p.112). Deadly always requires medical attention.
-SR2E.naturalHealTN = { Light: 2, Moderate: 4, Serious: 6, Deadly: 6 };
+// Table, p.113). Deadly always requires medical attention.
+SR2E.naturalHealTN = { Light: 2, Moderate: 4, Serious: 6 };
 
 // First Aid — Biotech Test target number by current wound level (First Aid
 // Table, p.115).
 SR2E.firstAidTN = { Light: 4, Moderate: 6, Serious: 8, Deadly: 10 };
 
-// Heal-time per level (Healing Table, p.113) — for the chat note only.
-SR2E.healTime = {
-  Deadly:   "30 days base (min 3 days), Hospitalized lifestyle",
-  Serious:  "20 days base (min 2 days), High lifestyle",
-  Moderate: "10 days base (min 1 day), Middle lifestyle",
-  Light:    "24 hours base (min 12 hours), Low lifestyle"
-};
 
 // ---------------------------------------------------------------------------
 // CONJURING (SR2E p.138–140)

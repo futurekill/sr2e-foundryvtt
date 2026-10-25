@@ -1550,6 +1550,25 @@ export function registerSR2EQuenchTests() {
       };
 
       describe("applyMagicalHealing", () => {
+        const allToBoxes = async (fn) => {
+          const prompt = foundry.applications.api.DialogV2.prompt;
+          foundry.applications.api.DialogV2.prompt = async () => ({ toTime: 0 });
+          try { return await fn(); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
+        };
+        it("heals Physical overflow first (p.115), and a card applies once", async () => {
+          const a = await patient(10);
+          await a.update({ "system.conditionMonitor.overflow": 2 });
+          const st = { spellName: "Heal", casterName: "Q", subjectUuid: a.uuid, subjectName: a.name, successes: 3, hurt: true, resolved: false };
+          const card = await ChatMessage.create({ content: "q heal", flags: { sr2e: { healing: st } } });
+          const n0 = game.messages.size;
+          await allToBoxes(() => a.applyMagicalHealing({ successes: 3, spellName: "Heal", message: card }));
+          assert.equal(a.system.conditionMonitor.overflow, 0);
+          assert.equal(a.system.conditionMonitor.physical.value, 9);
+          await allToBoxes(() => a.applyMagicalHealing({ successes: 3, spellName: "Heal", message: game.messages.get(card.id) }));
+          assert.equal(a.system.conditionMonitor.physical.value, 9, "not applied twice");
+          for (const m of [card, ...game.messages.contents.slice(n0)]) await game.messages.get(m.id)?.delete();
+        });
+
         it("refuses an undamaged patient rather than flagging them healed", async () => {
           const a = await patient(0);
           await a.applyMagicalHealing({ successes: 3, spellName: "Heal" });
@@ -4439,6 +4458,55 @@ export function registerSR2EQuenchTests() {
           // and it did not throw on the mod being present.
           await a.healPhysical();
           assert.isAtMost(a.system.conditionMonitor.physical.value, 2);
+        });
+
+        it("with a doctor, a Deadly wound heals one stage to Serious and the overflow goes with it (p.113)", async () => {
+          const a = await pc();
+          await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 2 });
+          await a.healPhysical({ doctor: true, condition: "hospital" });
+          assert.equal(a.system.conditionMonitor.physical.value, 6);
+          assert.equal(a.system.conditionMonitor.overflow, 0);
+        });
+      });
+
+      describe("firstAid (p.115)", () => {
+        const withFaces = async (faces, fn) => {
+          const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+          CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+          try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+        };
+        it("a Deadly wound is stabilized, never healed", async () => {
+          const medic = await pc(), patient = await pc();
+          await patient.update({ "system.conditionMonitor.physical.value": 10 });
+          await withFaces([6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6], () => medic.firstAid(patient, {}));
+          assert.equal(patient.system.conditionMonitor.physical.value, 10);
+        });
+        const medicWith = async (rating) => {
+          const m = await pc();
+          await m.createEmbeddedDocuments("Item", [{ name: "Biotech", type: "skill", system: { rating, category: "active" } }]);
+          return m;
+        };
+        it("never more than one level: a second success asks, and declining changes nothing", async () => {
+          const medic = await medicWith(3), patient = await pc();
+          await patient.update({ "system.conditionMonitor.physical.value": 6 });
+          await withFaces([6, 6, 6, 6, 6, 6, 6, 6, 6, 1, 1, 1], () => medic.firstAid(patient, {}));
+          assert.equal(patient.system.conditionMonitor.physical.value, 3, "Serious → Moderate");
+          assert.isTrue(patient.getFlag("sr2e", "firstAided"));
+          const confirm = foundry.applications.api.DialogV2.confirm;
+          foundry.applications.api.DialogV2.confirm = async () => false;
+          try { await medic.firstAid(patient, {}); } finally { foundry.applications.api.DialogV2.confirm = confirm; }
+          assert.equal(patient.system.conditionMonitor.physical.value, 3);
+        });
+        it("a magician treated without the +2 checks Magic loss: 2D6 under Magic loses a point", async () => {
+          const medic = await medicWith(3);
+          const mage = await pc({ magic: { type: "full_magician", value: 6 } });
+          await mage.update({ "system.conditionMonitor.physical.value": 1 });
+          const m0 = mage.system.magic.value;
+          assert.isAbove(m0, 2);
+          // Light: TN 4, Body 6 −1 = 3, no +2: three 5s succeed; then the 2D6 come up 1 + 1.
+          await withFaces([5, 5, 5, 1, 1], () => medic.firstAid(mage, { waiveMagician: true }));
+          assert.equal(mage.system.conditionMonitor.physical.value, 0);
+          assert.equal(mage.system.magic.value, m0 - 1);
         });
       });
 

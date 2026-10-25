@@ -171,6 +171,13 @@ and any **red console errors**. File them wherever the group tracks issues
       the wound level to keep your feet (Moderate: 3+ successes), 0 successes / a
       Deadly wound sets the token **prone**, 1..threshold reports a 1 m stagger.
 
+### Healing (0.118.1, SR2E p.111–115, p.155)
+- [ ] **Heal (no doctor):** Moderate wound → "Heal without medical attention?" test (natural Body vs 4); fail → "needs medical attention", nothing healed. Pass → the Healing Table test (vs 6) and a card "this stage takes N days of rest … minimum lifestyle Middle"; monitor drops to 1 box.
+- [ ] **Deadly needs a doctor:** Heal without ticking the doctor → refused. Tick it → Doctoring Table modifiers on the roll (TN 10 base); monitor 10 + overflow 2 → 6, overflow 0. A magician patient then rolls a Magic loss check.
+- [ ] **First Aid:** Serious → one level, the card shows minutes; a second First Aid asks ("never more than one level"). On a Deadly wound: success → "stabilized", failure → the patient's natural Body vs 10.
+- [ ] **Magician waiving +2:** First Aid with "Treat without the magician +2" → lower TN; after a success, 2D6 vs Magic → maybe −1 Magic permanently.
+- [ ] **Treat/Heal:** patient with overflow 2, 3 successes all to boxes → overflow 0, then 1 box off the monitor. Click Apply again → "already applied".
+
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).
 - [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.
