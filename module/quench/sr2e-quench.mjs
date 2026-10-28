@@ -13066,20 +13066,6 @@ export function registerSR2EQuenchTests() {
         assert.equal(a.system.strength.value, s0 - 1, "its +1 Strength is off");
       });
 
-      it("an interrupted apply resumes from its receipts; a 0-damage hit keeps a healing course", async () => {
-        const a = await pc("Resume", [{ name: "Quench Cultured", grade: "cultured" }]);
-        await a.applyDamage("physical", 10);
-        await new Promise(r => setTimeout(r, 400));
-        const card = cardFor(a); msgs.push(card.id);
-        const it = a.items.find(i => i.type === "bioware");
-        const rev0 = it.system.damageRev;
-        await withFaces([4, 1], () => B.cardOp(card, "roll"));          // cultured: 1 − 1 = no damage
-        assert.equal(it.system.damage, 0);
-        assert.equal(it.system.damageRev, rev0, "no revision change");
-        await B.cardOp(game.messages.get(card.id), "apply");           // resuming changes nothing
-        assert.equal(it.system.damage, 0);
-      });
-
       it("a card whose persistence failed after the item's receipt landed: Apply remaining never doubles the damage", async () => {
         const a = await pc("Fail");
         await a.applyDamage("physical", 10);
@@ -13095,40 +13081,76 @@ export function registerSR2EQuenchTests() {
         assert.equal(it.system.damage, 3, "resumed from the receipt: not applied twice");
       });
 
-      it("two Deadly hits on two cards add up; a secondhand implant's 7 destroys it", async () => {
-        const a = await pc("Two", [{ name: "Quench Secondhand", grade: "secondhand" }]);
-        const it = a.items.find(i => i.type === "bioware");
-        await a.applyDamage("physical", 10);
-        await new Promise(r => setTimeout(r, 400));
-        const c1 = cardFor(a); msgs.push(c1.id);
-        await withFaces([4, 2], () => B.cardOp(c1, "roll"));            // 2 + 1 = Moderate
-        assert.equal(it.system.damage, 3);
+      const deadlyCard = async (a) => {
         await a.update({ "system.conditionMonitor.physical.value": 0, "system.conditionMonitor.overflow": 0 });
         await a.applyDamage("physical", 10);
         await new Promise(r => setTimeout(r, 400));
-        const c2 = game.messages.contents.filter(m => m.flags?.sr2e?.biodmg?.actorUuid === a.uuid).at(-1); msgs.push(c2.id);
+        const c = game.messages.contents.filter(m => m.flags?.sr2e?.biodmg?.actorUuid === a.uuid).at(-1); msgs.push(c.id);
+        return c;
+      };
+
+      it("two Deadly hits on two cards add up (Moderate + Moderate = 6)", async () => {
+        const a = await pc("Two");
+        const it = a.items.find(i => i.type === "bioware");
+        const c1 = await deadlyCard(a);
+        await withFaces([4, 3], () => B.cardOp(c1, "roll"));
+        const c2 = await deadlyCard(a);
         assert.notEqual(c2.id, c1.id);
-        await withFaces([4, 6], () => B.cardOp(c2, "roll"));            // 6 + 1 = 7: destroyed
+        await withFaces([4, 4], () => B.cardOp(c2, "roll"));
+        assert.equal(it.system.damage, 6);
+        assert.isFalse(it.system.destroyed);
+      });
+
+      it("a secondhand implant's 7 destroys it at once (p.12)", async () => {
+        const a = await pc("Secondhand", [{ name: "Quench Secondhand", grade: "secondhand" }]);
+        const it = a.items.find(i => i.type === "bioware");
+        const c = await deadlyCard(a);
+        await withFaces([4, 6], () => B.cardOp(c, "roll"));
         assert.isTrue(it.system.destroyed);
       });
 
-      it("Roll again supersedes a stuck attempt; the results then stand", async () => {
+      it("a 0-damage hit leaves a running healing course intact; it then completes", async () => {
+        const prevEpoch = game.settings.get("sr2e", "healingClockEpoch");
+        seam.force = true; await game.settings.set("sr2e", "healingClockEpoch", 1);
+        try {
+          const a = await pc("Zero", [{ name: "Quench Cultured", grade: "cultured" }]);
+          const it = a.items.find(i => i.type === "bioware");
+          await it.update({ "system.damage": 3 });
+          await withFaces(Array(40).fill(6), () => B.healBioware(a, it, { doctor: true }));
+          const c0 = foundry.utils.deepClone(it.flags.sr2e.bioHeal);
+          assert.ok(c0, "a course");
+          const c = await deadlyCard(a);
+          await withFaces([4, 1], () => B.cardOp(c, "roll"));        // cultured: 1 − 1 = no damage
+          assert.equal(it.system.damage, 3);
+          assert.deepEqual(it.flags.sr2e.bioHeal, c0, "same course, same deadline");
+          await B.reconcileBioware(a, c0.dueAt);
+          assert.equal(it.system.damage, 1, "Moderate → Light");
+        } finally { seam.force = false; await game.settings.set("sr2e", "healingClockEpoch", prevEpoch); }
+      });
+
+      it("a claimant paused mid-roll and superseded by Roll again publishes and applies nothing", async () => {
         const a = await pc("Again");
-        await a.applyDamage("physical", 10);
-        await new Promise(r => setTimeout(r, 400));
-        const card = cardFor(a); msgs.push(card.id);
-        const { once, markersOf } = await import("../claims.mjs");
-        const key = `biodmg-roll:${card.flags.sr2e.biodmg.receipt}:0`;
-        await once(a, key);                                             // a device claimed and vanished
-        const m = markersOf(a).find(x => x.key === key);
-        await a.effects.get(m.id).update({ "flags.sr2e.claim.at": game.time.serverTime - 10 * 60 * 1000 });
-        await withFaces([4, 3], () => B.cardOp(card, "again"));
-        const st = game.messages.get(card.id).flags.sr2e.biodmg;
-        assert.equal(st.rollAttempt, 1);
-        assert.ok(st.results);
         const it = a.items.find(i => i.type === "bioware");
-        await withFaces([4, 6], () => B.cardOp(game.messages.get(card.id), "roll"));
-        assert.equal(it.system.damage, 3, "no second result set");
+        const card = await deadlyCard(a);
+        const proto = Roll.prototype, orig = proto.evaluate;
+        let release, calls = 0;
+        const gate = new Promise(r => { release = r; });
+        proto.evaluate = async function (...args) { if (calls++ === 0) await gate; return orig.apply(this, args); };
+        let first;
+        try {
+          first = B.cardOp(card, "roll");                             // claims attempt 0, then waits in its first die
+          await new Promise(r => setTimeout(r, 300));
+          const { markersOf } = await import("../claims.mjs");
+          const key = `biodmg-roll:${card.flags.sr2e.biodmg.receipt}:0`;
+          const m = markersOf(a).find(x => x.key === key);
+          await a.effects.get(m.id).update({ "flags.sr2e.claim.at": game.time.serverTime - 10 * 60 * 1000 });
+          await withFaces([4, 3], () => B.cardOp(game.messages.get(card.id), "again"));   // Moderate
+          assert.equal(it.system.damage, 3);
+        } finally { proto.evaluate = orig; }
+        release();
+        await withFaces([6, 6], () => first);                         // the old claimant resumes: it would be Deadly
+        assert.equal(it.system.damage, 3, "nothing from the superseded attempt");
+        assert.equal(game.messages.get(card.id).flags.sr2e.biodmg.rollAttempt, 1);
       });
 
       it("Heal: half the time, one level; a destroyed implant can't be healed", async () => {

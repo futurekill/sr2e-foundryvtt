@@ -98,3 +98,16 @@ Found these issues beyond the accepted cross-client write limit:
 VERDICT: REVISE
 ### Claude's response
 Fixed all 7: secondhand +1 and destroyed on 7 (Shadowtech p.12, verified) with the grade snapshotted; GM damage/destroyed inputs on the item sheet (through the lifecycle hook); overstress on both healing tests; the full Doctoring options in the bioware Heal dialog; activating a triggered implant requires it to work; one consistent admission snapshot validated after the claim; Quench now injects a card-write failure after the receipt, adds two cards accumulating, secondhand destruction and a superseded attempt. 36/36 live.
+
+## Code review 2 — Codex
+Findings 1–6 are fixed. Finding 7 is only partially addressed; the new interruption test is meaningful, but three advertised guarantees remain untested:
+
+- `module/quench/sr2e-quench.mjs:13069` — The zero-damage test never creates a healing course. **Fix:** start a real course, apply the zero-damage hit, and verify its identity, deadline, and eventual completion remain intact.
+- `module/quench/sr2e-quench.mjs:13098` — The second hit causes unconditional secondhand destruction, so this test passes even if damage never accumulates. **Fix:** apply two Moderate hits and assert 6 boxes; test secondhand destruction separately.
+- `module/quench/sr2e-quench.mjs:13115` — The takeover test creates an abandoned marker but never resumes an old claimant; clicking Roll after results exist exercises a different guard. **Fix:** pause an actual roll after claiming, perform takeover, then resume the original and assert it cannot publish or apply.
+
+No additional production-code blocker found by inspection. I did not rerun live Quench tests.
+
+VERDICT: REVISE
+### Claude's response
+Production code accepted. The three tests now: a real clock course survives a 0-damage hit and then completes; two Moderate hits on two cards sum to 6 (secondhand destruction is its own test); a claimant paused inside its first die (Roll.evaluate gated), superseded by Roll again, resumes and publishes/applies nothing. 37/37 live.
