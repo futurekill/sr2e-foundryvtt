@@ -28,6 +28,7 @@ import { wireRitualButtons, startRitual } from "./ritual.mjs";
 import { registerSpiritServiceHooks } from "./spirit-services.mjs";
 import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs";
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
+import { registerHealingClockSettings, registerHealingClockHooks } from "./healing-clock.mjs";
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
@@ -511,6 +512,7 @@ Hooks.once("init", async () => {
   registerCybermancyHooks();    // cybermancy (Cybertechnology pp.78–84; optional)
   registerDrugHooks();
   registerCalendariaHooks();
+  registerHealingClockHooks();     // healing on the game clock (docs/PLAN-healing-clock.md)
   registerJackpointBehavior();
   registerJackpointHooks();
   registerAstralWalls();
@@ -1240,6 +1242,7 @@ function _registerSystemSettings() {
   });
 
   registerCalendariaSettings();
+  registerHealingClockSettings();
 
   game.settings.register("sr2e", "autoEssence", {
     name: "SR2E.Settings.AutoEssence",

@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 0.119.0 — 2026-10-28
+
+### Added
+- **Healing on the game clock (Calendaria).** When the Calendaria module is active, healing
+  that takes time now takes game time (SR2E p.111–115; docs/PLAN-healing-clock.md, reviewed
+  and approved by Codex). Without Calendaria, or with **Healing on the game clock** switched
+  off in the settings, healing resolves at once as before.
+  - **Heal**, **First Aid** and **Recover Stun** roll as usual, then the level or Stun box comes
+    off by itself when its time has passed. A card gives the date, and a natural-healing stage
+    gets a Calendaria note (GM-only unless **Players see healing notes** is on). The next stage
+    starts when you click Heal again.
+  - Physical and Stun recover side by side.
+  - **Interruptions:**
+    - Any new damage stops Stun rest, and a re-roll can't beat the first roll (p.112).
+    - A new wound, or any other healing, stops a stage under way, and a card says to roll again.
+  - **Dying characters:**
+    - Past the Physical column and untreated, a character takes an extra box every 10 minutes
+      of game time (p.111).
+    - First Aid, self-stabilizing or a doctor stops it, each from the moment it happened, and
+      time already owed is charged first.
+    - At the death threshold the GM gets one private card; nothing is deleted.
+  - **The first hour:** First Aid and Treat ask before treating a wound more than an hour old
+    (p.115, p.155).
+  - **GM controls on character, NPC and spirit sheets:** Finish now, Interrupted, Cancel,
+    Under care, Care ends, Survived, Settle and Clear stuck start.
+
 ## 0.118.1 — 2026-10-24
 
 ### Fixed

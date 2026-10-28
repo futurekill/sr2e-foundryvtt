@@ -1902,6 +1902,8 @@ export class SR2EItem extends Item {
       const subject = firstTarget()?.actor ?? actor;
       const healState = {
         spellName: this.name, casterName: actor.name,
+        // Treat (8 − Essence) must land within an hour of the injury; Heal (10) any time (p.155).
+        healKind: this.system.healingTnBase === 8 ? "treat" : "heal",
         subjectUuid: subject.uuid, subjectName: subject.name,
         successes: spellResult.successes,
         hurt: (subject.system?.conditionMonitor?.physical?.value ?? 0) > 0,

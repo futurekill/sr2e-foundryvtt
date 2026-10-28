@@ -370,3 +370,15 @@ the driving client goes through `matrixQueue(actor, …)` — the sheet toggle a
 dump shock do; any new path must too. Reconciliation runs via
 `scheduleReconcile`, never directly. Never `await canvas.animatePan` (it never
 resolves in a hidden tab). See docs/PLAN-matrix-jackpoints.md.
+
+## Healing on the game clock
+`module/healing-clock.mjs` (+ pure `module/rules/healing-clock-rules.mjs`, docs/PLAN-healing-clock.md):
+with Calendaria active and `healingClock` on, healing courses and bleeding run on world time. State
+lives at `flags.sr2e.healClock.<stateKey(actor.uuid)>` (keyed by the OWNING actor, so token actors
+never read inherited state). A `preUpdateActor` hook keeps per-column revisions, `restGen`, wound and
+bleeding episodes in the SAME update as any monitor change; the clock's own writes pass the
+`sr2eClock` option and decide their state themselves. Completions and ticks are absolute writes,
+fenced by revision / claimed cursor. Any treatment settles first (`reconcileHealing` returns false
+while another device holds the bleeding — then refuse). Never call `reconcileHealing` from inside a
+`damage:<uuid>` queue entry (it queues itself — deadlock). Tests inject `now` and force the gate
+with `testSeam.force`; never advance world time.

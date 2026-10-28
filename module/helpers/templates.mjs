@@ -8,6 +8,7 @@ export async function preloadTemplates() {
     "systems/sr2e/templates/actor/parts/actor-header.hbs",
     "systems/sr2e/templates/actor/parts/actor-tabs.hbs",
     "systems/sr2e/templates/actor/parts/actor-attributes.hbs",
+    "systems/sr2e/templates/actor/parts/healing-clock.hbs",
     "systems/sr2e/templates/actor/parts/actor-skills.hbs",
     "systems/sr2e/templates/actor/parts/actor-combat.hbs",
     "systems/sr2e/templates/actor/parts/actor-magic.hbs",

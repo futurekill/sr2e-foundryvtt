@@ -347,9 +347,10 @@ export async function treatCds(uuid) {
 // ── Better Off Dead (p.80) ──────────────────────────────────────────────────────
 
 /** The healing update's own care receipt when the patient is in overflow (§7). */
-export function careReceipt(actor) {
+export function careReceipt(actor, key = null) {
   if (actor?.type !== "character" || !actor.system.cym || (actor.system.conditionMonitor?.overflow ?? 0) <= 0) return {};
-  return { [`flags.sr2e.cymCare.${foundry.utils.randomID()}`]: { overflowBefore: actor.system.conditionMonitor.overflow, wt: game.time.worldTime } };
+  // A deterministic `key` (a clocked healing course) makes a duplicate completion write the same receipt.
+  return { [`flags.sr2e.cymCare.${key ?? foundry.utils.randomID()}`]: { overflowBefore: actor.system.conditionMonitor.overflow, wt: game.time.worldTime } };
 }
 
 export async function overflowTest(uuid, receipt) {

@@ -1,0 +1,28 @@
+{{!-- Healing on the game clock (Calendaria) — docs/PLAN-healing-clock.md --}}
+{{#if healClock}}
+<div class="heal-clock">
+  {{#each healClock.courses as |c|}}
+  <div class="heal-clock__row"><i class="fas fa-hourglass-half"></i> {{c.label}} — due {{c.due}}
+    {{#if ../healClock.isGM}}
+    <button type="button" class="btn-small" data-action="healClock" data-op="finish" data-kind="{{c.kind}}">Finish now</button>
+    <button type="button" class="btn-small" data-action="healClock" data-op="interrupt" data-kind="{{c.kind}}" title="Rest or treatment interrupted (p.112, p.115)">Interrupted</button>
+    <button type="button" class="btn-small" data-action="healClock" data-op="cancel" data-kind="{{c.kind}}">Cancel</button>
+    {{/if}}
+  </div>
+  {{/each}}
+  {{#if healClock.bleed}}
+  <div class="heal-clock__row"><i class="fas fa-droplet"></i> {{healClock.bleed.label}}
+    {{#if healClock.isGM}}
+      {{#if healClock.bleed.lethal}}<button type="button" class="btn-small" data-action="healClock" data-op="survived">Survived</button>
+      {{else if healClock.bleed.stable}}<button type="button" class="btn-small" data-action="healClock" data-op="careEnds" title="Aid or care stops: bleeding resumes (p.115)">Care ends</button>
+      {{else}}<button type="button" class="btn-small" data-action="healClock" data-op="care">Under care</button>
+      <button type="button" class="btn-small" data-action="healClock" data-op="settle" title="Apply the bleeding owed up to now">Settle</button>{{/if}}
+    {{/if}}
+  </div>
+  {{/if}}
+  {{#if healClock.isGM}}{{#each healClock.stuckStarts as |k|}}
+  <div class="heal-clock__row"><i class="fas fa-triangle-exclamation"></i> A {{k}} heal was started and never finished
+    <button type="button" class="btn-small" data-action="healClock" data-op="clearStart" data-kind="{{k}}">Clear stuck start</button></div>
+  {{/each}}{{/if}}
+</div>
+{{/if}}

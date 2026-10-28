@@ -4062,3 +4062,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-cs-targets th, .sr2e-cs-targets td { text-align: center; padding: 2px 4px; }
 .sr2e-cs-targets td:first-child { text-align: left; }
 .sr2e-attack__check:has(input[name="cs_split"]:not(:checked)) + .sr2e-cs-split { display: none; }
+
+/* Healing on the game clock (docs/PLAN-healing-clock.md §7). */
+.heal-clock { margin-top: 4px; font-size: 11px; display: grid; gap: 2px; }
+.heal-clock__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }

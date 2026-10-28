@@ -233,6 +233,7 @@ deleteToken for an unlinked token's actor). Visibility setting `healingNotesVisi
 - **D2 Completion writers:** the active GM on clock changes; an owner may run the same processor before a treatment (§6). Every event is an idempotent absolute write or a per-cursor claim.
 - **D3 Big time jumps:** only the running course completes; bleeding accrues (RAW — the GM gets
   the card and decides).
+- **D4a Epoch (added in the build):** a bleeding cursor is clamped to the world time the clock was last switched on (`healingClockEpoch`), persisted before any tick is claimed — turning the clock on never charges bleeding for the time it was off.
 - **D4 Off/on:** off pauses completion; on again, a still-valid course completes (its time has
   passed), a changed monitor voids it.
 - **D5 Physical and Stun recover independently;** one course per column.

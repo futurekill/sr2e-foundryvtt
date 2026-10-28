@@ -19,6 +19,9 @@ export const skillTnContext = (key, category = "active") =>
   ({ kind: "skill", key, skillCategory: category, magic: !!CONFIG.SR2E.activeSkills?.[key]?.magical });
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { resistCombatSpell, decideOops, renderRamCard } from "../combat-spells.mjs";
+import { healingClockOn, reconcileHealing, admitStart, commitStart, clockState, setStable } from "../healing-clock.mjs";
+import { stunSuccesses, stunBoxSeconds, durationText, goldenHour } from "../rules/healing-clock-rules.mjs";
+import { calendarDate } from "../calendaria.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
@@ -3539,6 +3542,9 @@ export class SR2EActor extends Actor {
    * modifiers (Stun + Physical). One box recovers in 60 min ÷ successes.
    */
   async recoverStun() {
+    // On the game clock, settle what is due FIRST — the wound read below must be the settled one.
+    const clock = healingClockOn();
+    if (clock && !await reconcileHealing(this)) return ui.notifications.warn("Bleeding is being settled on another device — try again in a moment.");
     const cm = this.system.conditionMonitor?.stun;
     if (!cm || cm.value <= 0) {
       return ui.notifications.info(`${this.name} has no Stun damage to recover.`);
@@ -3550,6 +3556,12 @@ export class SR2EActor extends Actor {
     // rolled this is a Body Success Test, so biosystem overstress applies
     // (Shadowtech p.7). Ties resolve to Willpower, which keeps it unambiguous.
     const usingBody = body > will;
+    // On the game clock (docs/PLAN-healing-clock.md) the box lands when its rest is over.
+    let adm = null;
+    if (clock) {
+      adm = await admitStart(this, "stun");
+      if (!adm) return null;
+    }
 
     // Base TN 2; the book modifies this by current injury modifiers (Stun +
     // Physical), which rollSuccessTest adds automatically — so no isResistance.
@@ -3557,13 +3569,25 @@ export class SR2EActor extends Actor {
       label: RL("RecoverStun", { attr: attrName(usingBody ? "body" : "willpower"), dice }),
       ...(usingBody ? this._bodyTestOpts() : {})
     });
-    const succ = result?.successes ?? 0;
+    // An interrupted recovery's re-roll can never beat the first roll (p.112).
+    const succ = clock ? stunSuccesses(result?.successes ?? 0, clockState(this).stunCap) : (result?.successes ?? 0);
     if (succ <= 0) {
+      if (adm) await commitStart(this, "stun", adm, null);
       return ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>No Stun recovered</strong>
           <em>— rest and try again (SR2E p.112).</em></div>`
       });
+    }
+    if (adm) {
+      const now = game.time.worldTime;
+      const course = { id: foundry.utils.randomID(), startedAt: now, dueAt: now + stunBoxSeconds(succ), successes: succ,
+                       target: Math.max(0, this.system.conditionMonitor.stun.value - 1) };
+      if (!await commitStart(this, "stun", adm, course)) return null;
+      return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>${foundry.utils.escapeHTML(this.name)} rests to recover 1 box of Stun</strong>
+          <em>— ${durationText(stunBoxSeconds(succ))} of complete rest (${succ} success${succ === 1 ? "" : "es"}), done ${calendarDate(course.dueAt) ?? "then"}.
+          Damage or activity interrupts it (SR2E p.112).</em></div>` });
     }
     await this.update({ "system.conditionMonitor.stun.value": Math.max(0, cm.value - 1) });
     const minutes = Math.max(1, Math.round(60 / succ));
@@ -3600,6 +3624,9 @@ export class SR2EActor extends Actor {
    *          condition?:"hospital"|"notHospital"|"bad"|"terrible", waiveMagician?:boolean}} [opts]
    */
   async healPhysical(opts = {}) {
+    // On the game clock, settle what is due FIRST — the wound read below must be the settled one.
+    const clock = healingClockOn();
+    if (clock && !await reconcileHealing(this)) return ui.notifications.warn("Bleeding is being settled on another device — try again in a moment.");
     const cm = this.system.conditionMonitor?.physical;
     if (!cm || cm.value <= 0) {
       return ui.notifications.info(`${this.name} has no Physical damage to heal.`);
@@ -3612,11 +3639,17 @@ export class SR2EActor extends Actor {
     if (!doctor && key === "D") {
       return ui.notifications.warn(`${this.name} has a Deadly wound — it always requires medical attention (SR2E p.113). Heal it with a doctor.`);
     }
+    let adm = null;
+    if (clock) {
+      adm = await admitStart(this, "physical");
+      if (!adm) return null;
+    }
     if (!doctor) {
       const tn = CONFIG.SR2E.naturalHealTN[level] ?? 4;
       const w = await this.rollSuccessTest(nat.body, tn, {
         label: RL("Heal", { level, body: nat.body, tn }), isResistance: true, ...this._bodyTestOpts() });
       if (!(w?.successes > 0)) {
+        if (adm) await commitStart(this, "physical", adm, null);
         return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>No natural healing</strong>
           <em>— this ${level.toLowerCase()} wound needs medical attention to heal (SR2E p.113).</em></div>` });
       }
@@ -3629,10 +3662,22 @@ export class SR2EActor extends Actor {
       label: RL("HealTime", { level, body: nat.body, tn, mods: mod.parts.length ? ` — ${mod.parts.join(", ")}` : "" }),
       isResistance: true, ...this._bodyTestOpts() });
     const hours = naturalHealingHours(key, r?.successes ?? 0);
+    const checks = magician ? (key === "D" ? 1 : 0) + (doctor && opts.waiveMagician ? 1 : 0) : 0;
+    if (adm) {
+      const now = game.time.worldTime;
+      const course = { id: foundry.utils.randomID(), kind: "natural", startedAt: now, dueAt: now + hours * 3600, level,
+        successes: r?.successes ?? 0, doctor, waiveMagician: !!(doctor && opts.waiveMagician), magician, deadly: key === "D" };
+      // A doctor treating overflow is professional care: the bleeding stops (p.111, p.115) —
+      // written with the course, so neither exists without the other.
+      if (!await commitStart(this, "physical", adm, course, { stabilize: doctor ? "care" : null })) return null;
+      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>${foundry.utils.escapeHTML(this.name)}
+        heals to the next level in ${healingTimeText(hours)}</strong> — ${calendarDate(course.dueAt) ?? ""}
+        <em>(${r?.successes ?? 0} success${r?.successes === 1 ? "" : "es"} into ${healingTimeText(row.baseH)}, minimum
+        ${healingTimeText(row.minH)}; minimum lifestyle ${row.lifestyle}, SR2E p.113).${checks ? " Magic loss is checked when it heals (p.115)." : ""}</em></div>` });
+    }
     await this._healOneLevel("physical", `${doctor ? "With a doctor" : "Natural healing"}: this stage takes
       <strong>${healingTimeText(hours)}</strong> of rest (${r?.successes ?? 0} success${r?.successes === 1 ? "" : "es"} into
       ${healingTimeText(row.baseH)}, minimum ${healingTimeText(row.minH)}). Minimum lifestyle: ${row.lifestyle} (p.113).`);
-    const checks = magician ? (key === "D" ? 1 : 0) + (doctor && opts.waiveMagician ? 1 : 0) : 0;
     await this._magicLossChecks(checks, key === "D" ? "a Deadly wound" : "treated without the magician modifier");
   }
 
@@ -3669,6 +3714,9 @@ export class SR2EActor extends Actor {
    */
   async firstAid(patient, opts = {}) {
     patient = patient ?? this;
+    // On the game clock, settle what is due FIRST — the wound read below must be the settled one.
+    const clock = healingClockOn();
+    if (clock && !await reconcileHealing(patient)) return ui.notifications.warn("Bleeding is being settled on another device — try again in a moment.");
     const cm = patient.system.conditionMonitor?.physical;
     if (!cm || cm.value <= 0) {
       return ui.notifications.info(`${patient.name} has no Physical damage for First Aid.`);
@@ -3686,6 +3734,9 @@ export class SR2EActor extends Actor {
         content: `<p>${already}</p><p>Are these new injuries? Treat anyway?</p>` });
       if (!ok) return;
     }
+    if (clock && !await goldenHourOk(patient, "First aid", "p.115")) return;
+    const adm = clock && !deadly ? await admitStart(patient, "physical") : null;
+    if (clock && !deadly && !adm) return null;
 
     // Medic's Biotech (defaults via the Skill Web when untrained, SR2E p.69)
     const biotech = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "biotech");
@@ -3723,6 +3774,7 @@ export class SR2EActor extends Actor {
 
     if (deadly) {
       if (succ > 0) {
+        if (clock) await setStable(patient, "aid");
         await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>${esc(patient.name)} is stabilized</strong>
           <em>— no longer taking a box every 10 minutes. First aid can't heal a Deadly wound; keep them stabilized until
           professional help takes over (SR2E p.115).</em></div>` });
@@ -3730,6 +3782,7 @@ export class SR2EActor extends Actor {
         const nat = patient._naturalAttrs?.() ?? { body: patient.system.body?.value ?? 1 };
         const self = await patient.rollSuccessTest(nat.body, 10, {
           label: RL("StabilizeSelf", { body: nat.body }), isResistance: true, ...(patient._bodyTestOpts?.() ?? {}) });
+        if (clock && (self?.successes ?? 0) > 0) await setStable(patient, "self");
         await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">${(self?.successes ?? 0) > 0
           ? `<strong>${esc(patient.name)}'s body stabilizes itself</strong> <em>(natural Body vs 10, SR2E p.115).</em>`
           : `<strong>${esc(patient.name)} is not stabilized</strong> <em>— they take a box every 10 minutes and die once the
@@ -3738,10 +3791,20 @@ export class SR2EActor extends Actor {
       return patient._magicLossChecks?.(checks, "first aid without the magician modifier");
     }
     if (succ <= 0) {
+      if (adm) await commitStart(patient, "physical", adm, null);
       return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>First Aid fails</strong>
         <em>— no successes (SR2E p.115).</em></div>` });
     }
     const minutes = { Light: 10, Moderate: 20, Serious: 30 }[level];
+    if (adm) {
+      const now = game.time.worldTime, secs = Math.max(60, Math.round(minutes * 60 / succ));
+      const course = { id: foundry.utils.randomID(), kind: "aid", startedAt: now, dueAt: now + secs, level, successes: succ,
+        doctor: false, waiveMagician: !!opts.waiveMagician, magician, deadly: false };
+      if (!await commitStart(patient, "physical", adm, course)) return null;
+      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>First Aid by ${esc(this.name)}</strong>
+        — ${esc(patient.name)}'s wound drops a level after ${durationText(secs)} of uninterrupted treatment (${minutes} ÷ ${succ}),
+        ${calendarDate(course.dueAt) ?? ""}. <em>Never more than one level through first aid (SR2E p.115).</em></div>` });
+    }
     await patient._healOneLevel("physical",
       `First Aid by ${esc(this.name)}: ${Math.max(1, Math.round(minutes / succ))} uninterrupted minutes (${minutes} ÷ ${succ}).
        First aid never reduces a wound by more than one level (SR2E p.115).`, { firstAided: true });
@@ -3762,8 +3825,11 @@ export class SR2EActor extends Actor {
    * @param {string} [opts.casterName]
    */
   async applyMagicalHealing({ successes = 0, spellName = "Heal", casterName = "", message = null } = {}) {
+    // On the game clock, settle what is due FIRST — the wound read below must be the settled one.
+    const clock = healingClockOn();
+    if (clock && !await reconcileHealing(this)) return ui.notifications.warn("Bleeding is being settled on another device — try again in a moment.");
     const cm = this.system.conditionMonitor?.physical;
-    const overflow = this.system.conditionMonitor?.overflow ?? 0;
+    let overflow = this.system.conditionMonitor?.overflow ?? 0;
     if (!cm || (cm.value <= 0 && overflow <= 0)) {
       return ui.notifications.info(`${this.name} has no Physical damage to heal.`);
     }
@@ -3773,6 +3839,10 @@ export class SR2EActor extends Actor {
       successes = message.getFlag("sr2e", "healing")?.successes ?? successes;
     }
     if (successes <= 0) return ui.notifications.info("No successes — nothing to apply.");
+    if (clock) {
+      const kind = message?.getFlag("sr2e", "healing")?.healKind ?? (spellName === "Treat" ? "treat" : "heal");
+      if (kind === "treat" && !await goldenHourOk(this, "Treat", "p.155")) return;
+    }
 
     // "A character can only be magically treated or healed once for any single
     // set of injuries" (p.155). Advisory, not a block: what counts as one set of
@@ -3808,10 +3878,14 @@ export class SR2EActor extends Actor {
     const { boxes, toTime } = splitHealingSuccesses(successes, form.toTime);
     const turns  = healingTimeReduced(baseTime, toTime);
     if (message && isCardResolved(game.messages.get(message.id), "healing")) return ui.notifications.warn("That healing has already been applied.");
+    // The dialog took time: settle again and heal what is there NOW (Codex code review #1).
+    if (clock && !await reconcileHealing(this)) return ui.notifications.warn("Bleeding is being settled on another device — try again in a moment.");
+    overflow = this.system.conditionMonitor?.overflow ?? 0;
+    const physNow = this.system.conditionMonitor.physical.value;
     // "Treat and heal spells will reduce Physical overflow damage" (p.115): overflow first.
     const fromOverflow = Math.min(boxes, overflow);
-    const before = cm.value + overflow;
-    const physAfter = Math.max(0, cm.value - (boxes - fromOverflow));
+    const before = physNow + overflow;
+    const physAfter = Math.max(0, physNow - (boxes - fromOverflow));
     const after = physAfter + overflow - fromOverflow;
     // Cybermancy (p.80): healed out of overflow → a care receipt in this same update.
     await this.update({ "system.conditionMonitor.physical.value": physAfter,
@@ -3839,29 +3913,52 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Reduce a condition column by one wound level, dropping to the lower level's
-   * box floor (SR2E p.113), and post a chat note.
-   * @private
+   * The ONE update for a stage of healing (SR2E p.113): the column drops to the next level's
+   * lowest point — absolute values, so a duplicate writes the same thing — any Physical
+   * overflow goes with it, and the treatment markers follow their rules (first aid's one level,
+   * magical healing's set of injuries ending at Undamaged).
+   * @param {"physical"|"stun"} type @param {string} level - the level being healed FROM
    */
-  async _healOneLevel(type, note, { firstAided = false } = {}) {
-    const cm = this.system.conditionMonitor?.[type];
-    const before = cm.value;
-    const level = SR2EActor.levelForBoxes(before);
+  healStageUpdate(type, level, { firstAided = false, careKey = null } = {}) {
     const floor = CONFIG.SR2E.healLevelFloor[level] ?? 0;
-    // A stage of healing drops the monitor to the next level's lowest point (p.113), so any
-    // Physical overflow goes with a Deadly wound. Undamaged ends this set of injuries.
-    await this.update({ [`system.conditionMonitor.${type}.value`]: floor,
-      ...(type === "physical" ? { "system.conditionMonitor.overflow": 0, ...careReceipt(this),
+    return { [`system.conditionMonitor.${type}.value`]: floor,
+      ...(type === "physical" ? { "system.conditionMonitor.overflow": 0, ...careReceipt(this, careKey),
         "flags.sr2e.firstAided": floor > 0 && (firstAided || !!this.getFlag("sr2e", "firstAided")),
-        ...(floor === 0 ? { "flags.sr2e.magicallyHealed": false } : {}) } : {}) });
+        ...(floor === 0 ? { "flags.sr2e.magicallyHealed": false } : {}) } : {}) };
+  }
+
+  /** "Serious → Moderate" card for a healed stage. */
+  healStageCard(type, level, before, floor, note) {
     const newLevel = SR2EActor.levelForBoxes(floor);
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
-        <strong>${this.name}: ${level} → ${newLevel === "Undamaged" ? "healed" : newLevel}</strong>
+        <strong>${foundry.utils.escapeHTML(this.name)}: ${level} → ${newLevel === "Undamaged" ? "healed" : newLevel}</strong>
         ${type === "stun" ? " Stun" : ""} <em>(${before} → ${floor} boxes)</em>
         ${note ? `<br><em>${note}</em>` : ""}
       </div>`
     });
   }
+
+  /**
+   * Reduce a condition column by one wound level, dropping to the lower level's
+   * box floor (SR2E p.113), and post a chat note.
+   * @private
+   */
+  async _healOneLevel(type, note, { firstAided = false } = {}) {
+    const before = this.system.conditionMonitor?.[type]?.value ?? 0;
+    const level = SR2EActor.levelForBoxes(before);
+    const upd = this.healStageUpdate(type, level, { firstAided });
+    await this.update(upd);
+    return this.healStageCard(type, level, before, upd[`system.conditionMonitor.${type}.value`], note);
+  }
+}
+
+/** The golden hour (p.115, p.155): asks before treating a wound more than an hour old. */
+async function goldenHourOk(patient, what, page) {
+  const g = goldenHour(clockState(patient).injury, game.time.worldTime);
+  if (!g.old) return true;
+  return foundry.applications.api.DialogV2.confirm({ window: { title: what },
+    content: `<p>${foundry.utils.escapeHTML(patient.name)}'s wound is more than an hour old — ${what.toLowerCase()} won't help (SR2E ${page}).${
+      g.mixed ? " A newer injury is still inside the hour." : ""}</p><p>Treat anyway?</p>` });
 }

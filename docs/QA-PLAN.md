@@ -178,6 +178,16 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Magician waiving +2:** First Aid with "Treat without the magician +2" → lower TN; after a success, 2D6 vs Magic → maybe −1 Magic permanently.
 - [ ] **Treat/Heal:** patient with overflow 2, 3 successes all to boxes → overflow 0, then 1 box off the monitor. Click Apply again → "already applied".
 
+### Healing on the game clock (0.119.0, Calendaria active)
+- [ ] **Stun:** Recover Stun → a card "rests … done <date>"; the sheet shows "1 Stun box, due …". Advance Calendaria past it → the box comes off, one card.
+- [ ] **Natural healing:** Heal a Moderate wound → "heals to the next level in N days", a Calendaria note (hidden). Advance past it → Moderate → Light, the note goes.
+- [ ] **Interrupted:** while Stun rests, take any damage → "the wound changed" card, the course is gone; Recover Stun again can't roll better than the first time.
+- [ ] **Bleeding:** put a test character at 10 Physical + 1 overflow; advance 30 minutes → overflow +3. First Aid success → "Stabilized (first aid)"; advance → nothing more. GM "Care ends" → bleeding resumes from then.
+- [ ] **Bled out:** a Body 2 character bleeding for an hour → stops at overflow 3, one GM-only "has bled out" card; GM "Survived" clears it.
+- [ ] **First hour:** First Aid on a wound older than an hour → a confirm; Treat card the same.
+- [ ] **Two devices:** desktop and phone press Recover Stun together → one course.
+- [ ] **Switched off:** turn the setting off → courses freeze; the GM's Finish now still works. Turn it on → bleeding counts only from then.
+
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).
 - [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.

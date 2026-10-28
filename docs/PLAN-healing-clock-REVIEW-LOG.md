@@ -241,3 +241,145 @@ No files were modified.
 VERDICT: APPROVED
 ### Claude's response
 APPROVED. Applied the two editorial notes (§4 title and D2 name the owner-settlement writer; §6 says each event is its own update).
+
+## Code review 1 — Codex
+The implementation reopens several failures the plan explicitly addressed. These findings do not reopen the accepted general cross-client damage race.
+
+1. **Magical healing uses overflow captured before settlement.**  
+   `module/documents/actor.mjs:3828` captures `overflow`, reconciliation runs at line 3839, then lines 3879–3885 calculate healing using the old value. Starting at overflow 1, accruing two bleeding boxes, then healing one box writes overflow 0 instead of 2.  
+   **Fix:** After successful settlement and the allocation dialog, reread the live monitors and calculate the healing update from those values.
+
+2. **New healing stages use the wound level from before reconciliation.**  
+   `module/documents/actor.mjs:3630` computes `level` before line 3641 completes overdue healing; the subsequent admission validates the new revision but installs a course for the old level. A due Serious → Moderate stage can therefore be followed by another “Serious” stage that merely returns the monitor to Moderate. First Aid has the same ordering problem at line 3734.  
+   **Fix:** Reconcile before deriving eligibility, wound level, treatment flags, TN and duration in all healing entry points.
+
+3. **Blocked bleeding settlement silently permits treatment to continue.**  
+   `module/healing-clock.mjs:152` merely breaks when another client owns the tick claim; `reconcileHealing` returns normally, and `setStable` at line 257 then stabilizes the unresolved episode. A claim whose writer failed can thus cause overdue bleeding to be forgiven.  
+   **Fix:** Return an explicit pending/settled result and prevent treatment or course admission until settlement succeeds.
+
+4. **A bleeding claim is applied to whichever episode exists afterward.**  
+   `module/healing-clock.mjs:173` rereads state after the asynchronous claim but never verifies the claimed episode, cursor or `restGen`. A suspended original claimant can resume after takeover advances the cursor and apply its old tick count again to the new cursor.  
+   **Fix:** Pass the claimed episode ID, cursor and generation into `applyTicks` and reject any mismatch before computing the write.
+
+5. **“Finish now” skips chronological settlement.**  
+   `module/healing-clock.mjs:270` calls `complete` directly. It can award a Stun box despite an earlier owed bleeding interruption, or finish Physical healing and erase overdue overflow.  
+   **Fix:** Settle through the current time first, then finish only the same still-valid course.
+
+6. **Magic-loss cleanup deletes the receipts that fence resumed workers.**  
+   `module/healing-clock.mjs:248` deletes both `loss` and `lossDone`. After a GM manually takes over a suspended check, cleanup removes its `"manual"` receipt; the original worker resumes, sees no receipt at line 240, and applies the automatic check anyway. This violates the plan’s retained receipts.  
+   **Fix:** Delete only the pending `loss` entry; retain completion/takeover receipts so resumed workers remain fenced.
+
+7. **The epoch clamp claims one cursor but updates another.**  
+   `module/healing-clock.mjs:145` adjusts the cursor only in a local snapshot. `applyTicks` rereads the original cursor at line 174 and advances that instead. For stored cursor 0, epoch 10,000 and time 10,600, the code claims cursor 10,000 but persists cursor 600; later reconciliation is blocked on the already-used claim or retries the wrong interval. The epoch is also an unplanned change to catch-up semantics.  
+   **Fix:** Remove the epoch behavior to follow the approved plan, or persist and consistently validate the effective cursor before claiming or applying ticks.
+
+8. **The promised immediate bleeding recovery button does not recover claims.**  
+   `module/healing-clock.mjs:298` implements “Settle” as ordinary reconciliation; `claimTick` still refuses an existing claim younger than `STUCK_MS` at line 168. The plan explicitly gives this GM button an immediate takeover path.  
+   **Fix:** Add an explicit, generation-checked forced-takeover mode for the GM action.
+
+9. **Disabling the clock removes the controls needed to resolve frozen courses.**  
+   `module/healing-clock.mjs:303` returns no sheet context when the feature is off, hiding Finish, Cancel and stuck-start recovery. The approved off/on behavior retained GM controls.  
+   **Fix:** Keep existing clock state and GM recovery controls visible when automatic processing is disabled.
+
+10. **NPCs and spirits are processed automatically but lack the new controls.**  
+    `module/sheets/actor-sheet.mjs:1525` adds `healClock` only to the character sheet, and the controls exist only in `templates/actor/parts/actor-attributes.hbs:57`. Tracked NPCs and spirits therefore lack the implemented care/interruption/recovery interface.  
+    **Fix:** Supply clock context and the shared controls to every supported actor sheet.
+
+11. **Changing note visibility does not update existing notes.**  
+    `module/healing-clock.mjs:408` registers no visibility-change handler, and line 349 returns immediately for an existing course regardless of visibility. Switching from visible to hidden leaves previously public notes public.  
+    **Fix:** Resynchronize notes on setting changes and update existing notes’ visibility rather than returning solely on course ID.
+
+The Quench batch does not cover several promised acceptance cases: real inactive-scene token completion, failed bleeding claims, treatment-triggered chronological settlement, duplicate cybermancy completion, or resumed Magic-loss workers after takeover. Its “two devices” test runs two calls on one client.
+
+I could not execute Vitest: its configuration loader attempted to create a temporary file and the read-only sandbox rejected it. No files were modified.
+
+VERDICT: REVISE
+### Claude's response
+Fixed all 11: settlement runs first in every entry point and magical healing re-reads after its dialog; reconcileHealing returns settled/blocked and treatments refuse when blocked; ticks fenced by the claimed episode+cursor; Finish settles first; Magic loss receipts kept; epoch clamp persisted before claiming (the epoch is kept and documented: turning the clock on never charges bleeding for the time it was off); Settle forces a takeover; the panel shows whenever state exists; shared partial on character/NPC/spirit sheets with the action on the base sheet; note visibility resyncs. Added Quench: settlement before magical healing, stale tick claimant fenced, manual Magic-loss takeover.
+
+## Code review 2 — Codex
+The fixes address most prior findings, but these concrete issues remain:
+
+1. **An empty scan permanently disables automatic reconciliation.**  
+   `module/healing-clock.mjs:418`: when no actor is busy, the async function reaches `finally` without awaiting; it clears `scanning`, then `??=` overwrites that with the completed promise. Every later scan returns that promise without doing work. I reproduced this JavaScript ordering with a read-only Node check.  
+   **Fix:** Assign the scan promise before executing its body, and clear it in an attached `finally`.
+
+2. **Re-enabling can apply bleeding before the new epoch is saved.**  
+   `module/healing-clock.mjs:439` calls `syncEpoch()` without awaiting it, then immediately reconciles. The scan can read epoch 0 and charge the entire disabled interval, potentially killing an actor before the epoch update lands.  
+   **Fix:** Await epoch synchronization before reconciliation, and prevent concurrent scans from running during that transition.
+
+3. **Failed stabilization is still reported as successful.**  
+   `module/documents/actor.mjs:3777` and `:3785` ignore `setStable()` returning `false`, then announce stabilization. At `:3672`, doctor care similarly ignores failure after installing the course. If settlement becomes blocked during the roll, the character keeps bleeding despite the success card or doctor course.  
+   **Fix:** Propagate stabilization failure to callers and retain a retryable successful treatment result; install doctor care and its course together after settlement succeeds.
+
+4. **“Finish now” can finish a replacement course.**  
+   `module/healing-clock.mjs:293` does not capture the selected course ID before awaiting reconciliation. Reconciliation can finish the original course and await Magic-loss work; meanwhile another client starts the next stage. Line 296 then finishes that new stage immediately.  
+   **Fix:** Capture the requested course ID before settlement and finish only if that same course still exists and remains valid.
+
+Add tests for an initially idle world followed by a new course, delayed epoch persistence, blocked settlement after a successful treatment roll, and replacement-course admission during Finish.
+
+No files were modified. These findings do not reopen the accepted general cross-client damage race.
+
+VERDICT: REVISE
+### Claude's response
+Fixed all 4: scan promise assigned before its body and cleared in an attached finally; epoch sync is a promise chain every scan awaits; stabilization failures are reported (the GM Under care button is the retry) and doctor care is recorded before the course (no course without it); Finish captures the clicked course id. Added Quench: idle scan then a due course; Finish finishes one course.
+
+## Code review 3 — Codex
+The scan-promise and Finish-course-ID fixes address those findings. Three issues remain:
+
+1. **Failed stabilization still leaves the patient bleeding while announcing success.**  
+   `module/documents/actor.mjs:3782` adds a warning, but the following card still says bleeding stopped. The suggested “Under care” retry settles through its later execution time, charging bleeding *after* the successful stabilization roll, and changes maintained aid/self-stabilization into professional care.  
+   **Fix:** Persist a retryable stabilization result with its effective time and original kind; settle only through that time before recording stabilization.
+
+2. **Doctor care is written before admission is validated.**  
+   `module/documents/actor.mjs:3672` calls `setStable` before `commitStart` checks the admission generation at `module/healing-clock.mjs:107`. A suspended attempt cleared by the GM can resume, stabilize the patient, then fail admission. Likewise, a failed course write leaves care installed despite the comment claiming otherwise.  
+   **Fix:** After settlement, validate admission and write the doctor course plus care state atomically inside the same queued transition.
+
+3. **Owner-triggered settlement bypasses the epoch barrier.**  
+   `module/healing-clock.mjs:423` awaits epoch synchronization only in `reconcileAll`; treatment calls enter `reconcileHealing` directly at line 127. During re-enabling, an owner can therefore settle against the old epoch and receive disabled-interval bleeding before the GM’s epoch update arrives.  
+   **Fix:** Make epoch readiness a prerequisite of every reconciliation entry point, including owner treatment settlement.
+
+No files were modified. These findings do not reopen the accepted general cross-client damage race.
+
+VERDICT: REVISE
+### Claude's response
+Fixed all 3: stabilization is now a recorded intent (bleed.pendingStable {kind, at}) — it never fails; reconciliation charges the ticks before its time and then applies it, now or on a later reconcile; a doctor course writes its care intent in the same admission-checked write; every reconcileHealing awaits the epoch sync and an unknown epoch counts as now. Also fixed a self-inflicted deadlock (commitStart reconciled inside its own queue). Added Quench: stabilizing while another device holds the settlement; doctor on a bleeding patient. Healing batches 30/30 live.
+
+## Code review 4 — Codex
+The admission-checked doctor update is fixed, but the new pending-stabilization path has two correctness gaps, and epoch handling still loses owed bleeding.
+
+1. **Later care overwrites an earlier pending stabilization.**  
+   `module/healing-clock.mjs:303` replaces `pendingStable` unconditionally. If aid succeeds at 12:10 while settlement is blocked, then “Under care” is clicked at 12:20, the original timestamp disappears. Reconciliation charges bleeding through 12:20, including time already covered by aid.  
+   **Fix:** Preserve and settle earlier pending transitions before recording later ones; never overwrite their effective timestamps.
+
+2. **New damage does not invalidate pending stabilization.**  
+   `module/rules/healing-clock-rules.mjs:83` handles renewed injury only when `bleed.stable` is set. A blocked stabilization still has `stable: null`; subsequent overflow damage leaves its old `pendingStable` intact, and `module/healing-clock.mjs:168` later applies that old stabilization to the new wound.  
+   **Fix:** Make fresh injury supersede pending stabilization while preserving settlement of the earlier stabilized interval.
+
+3. **An unknown epoch silently forgives accrued bleeding.**  
+   `module/healing-clock.mjs:152` substitutes `now` for an unavailable epoch and persists it as the cursor. If the clock is enabled without a GM available to initialize the epoch, every owner-triggered settlement advances the cursor to now without applying any bleeding.  
+   **Fix:** Return pending without changing the cursor until a shared epoch is available; do not manufacture a new activation time on each reconciliation.
+
+Add tests for blocked aid followed by care, blocked aid followed by new damage, and owner settlement while the epoch is unavailable.
+
+No files were modified.
+
+VERDICT: REVISE
+### Claude's response
+Fixed all 3: stabilization intents are an ordered list (bleed.pending), each applied at its own time (applyPending); new damage while intents wait appends a "bleeding resumes now" entry instead of losing them; an unknown epoch makes reconciliation return pending with the cursor untouched. Vitest + Quench cover blocked aid then care, then new damage, and the unknown epoch. Healing batches 32/32 live.
+
+## Code review 5 — Codex
+The pending-care fixes address the previous findings. One regression remains:
+
+**“Finish now” is blocked whenever the clock is disabled.**  
+`module/healing-clock.mjs:455` clears the epoch when disabling the feature. The new unconditional guard at line 152 then makes reconciliation return `false`, so `GM_ACTIONS.finish` at line 318 refuses every course—even Stun recovery with no bleeding. “Try Settle first” cannot help because Settle encounters the same guard. The plan explicitly retains manual completion while disabled.
+
+**Fix:** Distinguish an enabled clock awaiting epoch initialization from an intentionally disabled clock, and provide the disabled-state GM completion path without restarting automatic processing.
+
+Add a regression test: start a course, disable the clock, let epoch clearing finish, then use Finish now and verify exactly one completion.
+
+No files were modified.
+
+VERDICT: REVISE
+### Claude's response
+Fixed: with the clock off, reconcileHealing is a no-op (nothing accrues, D4) and Finish now completes directly; the unknown-epoch guard applies only while the clock is on. Quench regression: clock off + epoch cleared, Finish twice → one completion. Healing batches 33/33 live.

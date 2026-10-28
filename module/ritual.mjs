@@ -450,7 +450,8 @@ async function publish(id) {
         return post(key("manip", target.uuid), { speaker, whisper, content: renderManipDamageCard(st), flags: { sr2e: { manipDamage: st } } });
       }
       if (spell.system.healsDamage) {
-        const st = { spellName: r.spellName, casterName: leader.name, subjectUuid: target.uuid, subjectName: name, successes: s.successes,
+        const st = { spellName: r.spellName, healKind: spell.system.healingTnBase === 8 ? "treat" : "heal",
+          casterName: leader.name, subjectUuid: target.uuid, subjectName: name, successes: s.successes,
           hurt: (target.system?.conditionMonitor?.physical?.value ?? 0) > 0, testMessageId: s.testId, resolved: false };
         return post(key("heal", target.uuid), { speaker, whisper, content: renderHealingCard(st), flags: { sr2e: { healing: st } } });
       }

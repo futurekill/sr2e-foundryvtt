@@ -15,6 +15,7 @@ import { promptAstralOptions } from "../astral-combat.mjs";
 import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
+import { GM_ACTIONS as HEAL_CLOCK_ACTIONS } from "../healing-clock.mjs";
 import { combatSpellMode, combatTargetRows, snapshotTargets, casterSituationHTML, targetRowsHTML, wireTargetRows,
          readTargetRows, promptAreaTargets } from "../combat-spells.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
@@ -3726,7 +3727,17 @@ async function onCheckContactCyber(event, target) {
       + (r.tnPlus ? ` <em>+${r.tnPlus} to ${esc(actor.name)}'s Charisma and social-skill TNs with this contact.</em>` : "") + `</div>` });
 }
 
+/** A GM healing-clock control (docs/PLAN-healing-clock.md §7): data-op, data-kind. */
+async function onHealClock(event, target) {
+  event.preventDefault();
+  if (!game.user.isGM) return;
+  const fn = HEAL_CLOCK_ACTIONS[target.dataset.op];
+  if (fn) await fn(this.document, target.dataset.kind);
+  this.render();
+}
+
 const SHARED_ACTIONS = {
+  healClock: onHealClock,
   // Tab navigation — use switchTab so V13's built-in _onClickTab never fires.
   // changeTab() fails because content sections live inside <div data-part="x">
   // wrappers that V13 injects, not as direct children of this.element.

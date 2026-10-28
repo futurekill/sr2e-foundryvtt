@@ -4419,9 +4419,12 @@ export function registerSR2EQuenchTests() {
     // player hits when already hurt, so a wrong guard either blocks legitimate
     // healing or lets someone walk off a Deadly wound.
     quench.registerBatch("sr2e.healing-guards", (context) => {
-      const { describe, it, assert, after } = context;
+      const { describe, it, assert, before, after } = context;
       const made = [];
-      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+      // These cover healing that resolves at once: the game clock (Calendaria) is forced off.
+      let seam, prev;
+      before(async () => { seam = (await import("../healing-clock.mjs")).testSeam; prev = seam.force; seam.force = false; });
+      after(async () => { seam.force = prev; for (const a of made) { try { await a.delete(); } catch (e) {} } });
 
       async function pc(system = {}) {
         const a = await Actor.create({ name: "Quench Heal", type: "character",
@@ -12631,5 +12634,282 @@ export function registerSR2EQuenchTests() {
         assert.equal(game.messages.size, n0, "no roll, no Drain");
       });
     }, { displayName: "SR2E: Combat spells" });
+
+    // docs/PLAN-healing-clock.md: time is INJECTED (reconcileHealing(actor, now)); world time never moves.
+    quench.registerBatch("sr2e.healing-clock", (context) => {
+      const { it, assert, before, after } = context;
+      const made = [], msgs0 = { n: 0 };
+      let H, prevForce, prevEpoch;
+      before(async () => {
+        H = await import("../healing-clock.mjs");
+        prevForce = H.testSeam.force; H.testSeam.force = true; msgs0.n = game.messages.size;
+        // Tests backdate cursors; an epoch of "now" would clamp them away.
+        prevEpoch = game.settings.get("sr2e", "healingClockEpoch");
+        await game.settings.set("sr2e", "healingClockEpoch", 1);
+      });
+      after(async function () {
+        this.timeout(20000);
+        H.testSeam.force = prevForce;
+        await game.settings.set("sr2e", "healingClockEpoch", prevEpoch);
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+        const mine = game.messages.contents.slice(msgs0.n).filter(m => /Quench HC/.test(m.content + (m.speaker?.alias ?? ""))).map(m => m.id);
+        if (mine.length) await ChatMessage.deleteDocuments(mine);
+      });
+      const pc = async (name, system = {}) => {
+        const a = await Actor.create({ name: `Quench HC ${name}`, type: "character",
+          system: foundry.utils.mergeObject({ body: { base: 5 }, willpower: { base: 4 }, chargen: { inProgress: false } }, system) });
+        made.push(a); return a;
+      };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const st = (a) => H.clockState(a);
+      const now = () => game.time.worldTime;
+
+      it("Recover Stun starts a course; it lands once when its time has passed", async () => {
+        const a = await pc("Stun");
+        await a.update({ "system.conditionMonitor.stun.value": 4 });
+        await withFaces([6, 6, 6, 6, 6, 1, 1, 1, 1], () => a.recoverStun());
+        const c = st(a).stun;
+        assert.ok(c, "a course"); assert.equal(a.system.conditionMonitor.stun.value, 4, "nothing yet");
+        await H.reconcileHealing(a, c.dueAt - 1);
+        assert.equal(a.system.conditionMonitor.stun.value, 4);
+        await H.reconcileHealing(a, c.dueAt);
+        await H.reconcileHealing(a, c.dueAt + 10);
+        assert.equal(a.system.conditionMonitor.stun.value, 3, "one box, once");
+        assert.isNull(st(a).stun);
+      });
+
+      it("two devices starting at once: one course", async () => {
+        const a = await pc("Twice");
+        await a.update({ "system.conditionMonitor.stun.value": 4 });
+        await withFaces(Array(30).fill(5), () => Promise.all([a.recoverStun(), a.recoverStun()]));
+        assert.ok(st(a).stun);
+        assert.equal(st(a).startGen.stun, 1, "one admitted start");
+      });
+
+      it("damage voids a course and keeps the Stun cap; Physical healing leaves Stun rest alone", async () => {
+        const a = await pc("Void");
+        await a.update({ "system.conditionMonitor.stun.value": 4, "system.conditionMonitor.physical.value": 3 });
+        // Two Moderate wounds: TN 2 + 4 — sixes succeed.
+        await withFaces([6, 1, 6, 1, 6, 1, 6, 1, 6, 1], () => a.recoverStun());
+        const succ = st(a).stun.successes;
+        await a.update({ "system.conditionMonitor.physical.value": 1 });           // healing: no void
+        assert.ok(st(a).stun && H.clockState(a).stun.id, "still resting");
+        await a.applyDamage("physical", 1);
+        await new Promise(r => setTimeout(r, 200));
+        assert.isNull(st(a).stun, "damage interrupts rest");
+        assert.equal(st(a).stunCap, succ);
+      });
+
+      it("a stale starter after Clear stuck start writes nothing", async () => {
+        const a = await pc("Stale");
+        await a.update({ "system.conditionMonitor.stun.value": 2 });
+        const adm = await H.admitStart(a, "stun");
+        await H.GM_ACTIONS.clearStart(a, "stun");
+        const g = st(a).startGen.stun;
+        const ok = await H.commitStart(a, "stun", adm, { id: "x", dueAt: now() + 60, successes: 1, target: 1 });
+        assert.isFalse(ok); assert.isNull(st(a).stun); assert.equal(st(a).startGen.stun, g, "untouched");
+      });
+
+      it("a failed completion write leaves the course; Finish now completes it once", async () => {
+        const a = await pc("Fail");
+        await a.update({ "system.conditionMonitor.stun.value": 3 });
+        await withFaces(Array(30).fill(5), () => a.recoverStun());
+        const c = st(a).stun;
+        const orig = a.update.bind(a);
+        a.update = async (d, o) => { if (o?.sr2eClock) throw new Error("quench: dropped"); return orig(d, o); };
+        try { await H.reconcileHealing(a, c.dueAt); } catch (e) { /* the failure */ } finally { delete a.update; }
+        assert.ok(st(a).stun, "still there"); assert.equal(a.system.conditionMonitor.stun.value, 3);
+        await H.GM_ACTIONS.finish(a, "stun");
+        await H.GM_ACTIONS.finish(a, "stun");
+        assert.equal(a.system.conditionMonitor.stun.value, 2);
+      });
+
+      it("bleeding: ticks every 10 minutes, stops when stabilized, owed time lands first, lethal once", async () => {
+        const a = await pc("Bleed", { body: { base: 3 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const t0 = st(a).bleed.cursor;
+        await H.reconcileHealing(a, t0 + 25 * 60);
+        assert.equal(a.system.conditionMonitor.overflow, 3, "two ticks");
+        // Later time with no reconcile in between: the owed boxes land, capped at the first lethal value (Body 3 + 1).
+        await H.reconcileHealing(a, t0 + 20 * 60 + 3 * 600);
+        assert.equal(a.system.conditionMonitor.overflow, 4, "capped at the first lethal value");
+        assert.isTrue(st(a).bleed.lethal);
+        const cards = game.messages.contents.filter(m => /has bled out/.test(m.content) && m.speaker?.actor === a.id);
+        await H.reconcileHealing(a, t0 + 99 * 600);
+        assert.equal(game.messages.contents.filter(m => /has bled out/.test(m.content) && m.speaker?.actor === a.id).length, cards.length, "one card");
+      });
+
+      it("a stabilized episode owes nothing; care ending resumes from now", async () => {
+        const a = await pc("Stable", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const st0 = st(a);
+        st0.bleed.stable = "aid";
+        await a.update({ [H.statePath(a)]: st0 }, { sr2eClock: true });
+        await H.reconcileHealing(a, st0.bleed.cursor + 6 * 600);
+        assert.equal(a.system.conditionMonitor.overflow, 1);
+      });
+
+      it("a Stun box due before the first tick completes; then the ticks", async () => {
+        const a = await pc("Order", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1, "system.conditionMonitor.stun.value": 4 });
+        const s = st(a), t0 = s.bleed.cursor;
+        s.stun = { id: "q", startedAt: t0, dueAt: t0 + 300, stunRev: s.rev.stun, restGen: s.restGen, successes: 2, target: 3 };
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        await H.reconcileHealing(a, t0 + 20 * 60);
+        assert.equal(a.system.conditionMonitor.stun.value, 3, "the box was earned before the bleeding");
+        assert.equal(a.system.conditionMonitor.overflow, 3);
+      });
+
+      it("an unlinked token actor never reads its base actor's clock state", async () => {
+        const a = await pc("Base");
+        await a.update({ "system.conditionMonitor.stun.value": 2 });
+        await withFaces(Array(30).fill(5), () => a.recoverStun());
+        assert.ok(H.clockState(a).stun);
+        // A synthetic token actor carries the base actor's flags but its own uuid.
+        const synth = { uuid: `Scene.q.Token.q.Actor.${a.id}`, flags: a.flags };
+        assert.isNull(H.clockState(synth).stun, "inherited state is never read");
+      });
+
+      it("First Aid on a wound more than an hour old asks first; declining changes nothing", async () => {
+        const medic = await pc("Medic"), p = await pc("Old");
+        await p.update({ "system.conditionMonitor.physical.value": 3 });
+        const s = st(p); s.injury = { firstAt: now() - 2 * 3600, lastAt: now() - 2 * 3600 };
+        await p.update({ [H.statePath(p)]: s }, { sr2eClock: true });
+        const confirm = foundry.applications.api.DialogV2.confirm;
+        foundry.applications.api.DialogV2.confirm = async () => false;
+        try { await medic.firstAid(p, {}); } finally { foundry.applications.api.DialogV2.confirm = confirm; }
+        assert.isNull(st(p).physical); assert.equal(p.system.conditionMonitor.physical.value, 3);
+      });
+
+      it("magical healing after unreconciled bleeding settles it first, then heals what is there", async () => {
+        const a = await pc("Settle", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const s = st(a); s.bleed.cursor = now() - 30 * 60;           // three ticks owed
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        const prompt = foundry.applications.api.DialogV2.prompt;
+        foundry.applications.api.DialogV2.prompt = async () => ({ toTime: 0 });
+        try { await a.applyMagicalHealing({ successes: 2, spellName: "Heal" }); }
+        finally { foundry.applications.api.DialogV2.prompt = prompt; }
+        assert.equal(a.system.conditionMonitor.overflow, 2, "1 + 3 owed − 2 healed");
+      });
+
+      it("a resumed old tick claimant writes nothing", async () => {
+        const a = await pc("Fence", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const old = { id: st(a).bleed.id, cursor: st(a).bleed.cursor };
+        await H.reconcileHealing(a, old.cursor + 600);
+        assert.equal(a.system.conditionMonitor.overflow, 2);
+        await H._test.applyTicks(a, 1, old);                          // the stale claim resumes
+        assert.equal(a.system.conditionMonitor.overflow, 2);
+      });
+
+      it("a Magic loss check taken over by hand is never rolled again", async () => {
+        const a = await pc("Loss", { magic: { type: "full_magician", value: 5 } });
+        const s = st(a); s.loss = { c1: { n: 1, why: "q" } }; s.lossDone = { c1: { 0: "manual" } };
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        const m0 = a.system.magic.value;
+        await H.reconcileHealing(a);
+        assert.equal(a.system.magic.value, m0);
+        assert.notOk(st(a).loss.c1, "the debt is cleared");
+        assert.equal(st(a).lossDone.c1[0], "manual", "the receipt stays");
+      });
+
+      it("stabilizing while another device holds the settlement: recorded, and only earlier bleeding is charged", async () => {
+        const a = await pc("Pending", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const s = st(a); s.bleed.cursor = now() - 20 * 60;             // two ticks owed at stabilization
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        const { once } = await import("../claims.mjs");
+        await once(a, `bleed:${a.uuid}:${s.bleed.id}:${s.bleed.cursor}`);  // someone else holds it
+        await H.setStable(a, "aid");
+        assert.equal(st(a).bleed.pending?.[0]?.kind, "aid", "recorded");
+        assert.equal(a.system.conditionMonitor.overflow, 1, "not settled yet");
+        await H.GM_ACTIONS.settle(a);                                    // forced takeover
+        assert.equal(a.system.conditionMonitor.overflow, 3, "the two ticks before the stabilization");
+        assert.equal(st(a).bleed.stable, "aid");
+        await H.reconcileHealing(a, now() + 60 * 60);
+        assert.equal(a.system.conditionMonitor.overflow, 3, "nothing after it");
+      });
+
+      it("a doctor on a bleeding patient: the course and the care are recorded together", async () => {
+        const a = await pc("Doctor", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        await withFaces(Array(40).fill(6), () => a.healPhysical({ doctor: true, condition: "hospital" }));
+        assert.ok(st(a).physical, "a course");
+        assert.equal(st(a).bleed?.stable, "care");
+        await H.reconcileHealing(a, st(a).physical.dueAt);
+        assert.equal(a.system.conditionMonitor.physical.value, 6);
+        assert.equal(a.system.conditionMonitor.overflow, 0);
+      });
+
+      it("blocked aid, then care, then new damage: each change counts from its own time", async () => {
+        const a = await pc("Chain", { body: { base: 8 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const s = st(a), t0 = now() - 60 * 60;
+        s.bleed.cursor = t0;
+        s.bleed.pending = [{ kind: "aid", at: t0 + 10 * 60 }, { kind: "care", at: t0 + 20 * 60 }];
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        await H.reconcileHealing(a);
+        assert.equal(a.system.conditionMonitor.overflow, 2, "only the tick before the aid");
+        assert.equal(st(a).bleed.stable, "care");
+        await a.applyDamage("physical", 1);                              // a new wound
+        await new Promise(r => setTimeout(r, 200));
+        assert.isNull(st(a).bleed.stable, "the new wound bleeds");
+      });
+
+      it("an unknown epoch settles nothing rather than guessing", async () => {
+        const a = await pc("Epoch", { body: { base: 6 } });
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        const cur = st(a).bleed.cursor;
+        await game.settings.set("sr2e", "healingClockEpoch", 0);
+        try { assert.isFalse(await H.reconcileHealing(a, cur + 30 * 60)); }
+        finally { await game.settings.set("sr2e", "healingClockEpoch", 1); }
+        assert.equal(a.system.conditionMonitor.overflow, 1);
+        assert.equal(st(a).bleed.cursor, cur, "cursor untouched");
+      });
+
+      it("with the clock switched off, Finish now still completes a course — once", async () => {
+        const a = await pc("Off");
+        await a.update({ "system.conditionMonitor.stun.value": 3 });
+        await withFaces(Array(30).fill(5), () => a.recoverStun());
+        assert.ok(st(a).stun);
+        H.testSeam.force = false;
+        await game.settings.set("sr2e", "healingClockEpoch", 0);
+        try {
+          await H.GM_ACTIONS.finish(a, "stun");
+          await H.GM_ACTIONS.finish(a, "stun");
+        } finally { H.testSeam.force = true; await game.settings.set("sr2e", "healingClockEpoch", 1); }
+        assert.equal(a.system.conditionMonitor.stun.value, 2);
+      });
+
+      it("an idle scan doesn't stop later scans (the world scan)", async function () {
+        // World-wide: only runs when no real actor has clock state or overflow.
+        const others = game.actors.filter(x => !x.name.startsWith("Quench HC") &&
+          (x.flags?.sr2e?.healClock || (x.system.conditionMonitor?.overflow ?? 0) > 0));
+        if (others.length) return this.skip();
+        await H.reconcileAll(); await H.reconcileAll();
+        const a = await pc("Scan");
+        await a.update({ "system.conditionMonitor.stun.value": 2 });
+        await withFaces(Array(30).fill(5), () => a.recoverStun());
+        const s = st(a); s.stun.dueAt = now() - 1;
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        await H.reconcileAll();
+        assert.equal(a.system.conditionMonitor.stun.value, 1, "the scan still runs");
+      });
+
+      it("Finish now finishes only the course the GM clicked", async () => {
+        const a = await pc("Finish");
+        await a.update({ "system.conditionMonitor.stun.value": 3 });
+        await withFaces(Array(30).fill(5), () => a.recoverStun());
+        const s = st(a); s.stun.dueAt = now() - 1;                  // the reconcile inside Finish lands it
+        await a.update({ [H.statePath(a)]: s }, { sr2eClock: true });
+        await H.GM_ACTIONS.finish(a, "stun");
+        assert.equal(a.system.conditionMonitor.stun.value, 2, "one box: the due course, not a second one");
+      });
+    }, { displayName: "SR2E: Healing clock" });
   });
 }
