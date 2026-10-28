@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Removed
+- **"Cybertorso"** is gone from the cyberware compendium. Like the Partial limbs retired in
+  0.117, it was a placeholder from the system's first build (in no SR2 book, values never
+  verified). The Cybertechnology module ships the real Cybertorso. Copies already in a world are
+  untouched and still count as a torso.
+
 ### Added
 - **Bioware damage (Shadowtech p.6; optional setting "Bioware damage", off by default;**
   docs/PLAN-bioware-damage.md).

@@ -28,7 +28,7 @@ const CT = (id) => `Compendium.sr2e-cybertechnology.ct-cyberlimbs.Item.${id}`;
 export const SOURCE_LIMB = {
   [SYS("896ab7272e2fd9b0")]: "arm",    // Cyberarm (Full), core p.247/261
   [SYS("c2808ba4b899ecb8")]: "leg",    // Cyberleg (Full)
-  [SYS("1caacfc1ca151028")]: "torso"   // Cybertorso
+  [SYS("1caacfc1ca151028")]: "torso"   // Cybertorso — retired from the compendium (no book); kept so world copies still classify
 };
 export const SOURCE_OPTION = {
   [SYS("34b1c0f27ae95d11")]: "strength",   // Increased Strength (Cyberlimb), core p.261
