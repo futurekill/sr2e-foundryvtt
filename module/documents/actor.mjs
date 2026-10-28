@@ -22,6 +22,7 @@ import { resistCombatSpell, decideOops, renderRamCard } from "../combat-spells.m
 import { healingClockOn, reconcileHealing, admitStart, commitStart, clockState, setStable } from "../healing-clock.mjs";
 import { stunSuccesses, stunBoxSeconds, durationText, goldenHour } from "../rules/healing-clock-rules.mjs";
 import { calendarDate } from "../calendaria.mjs";
+import { currentPenalties } from "../permanent-damage.mjs";
 import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
@@ -3602,7 +3603,8 @@ export class SR2EActor extends Actor {
 
   /** Natural Body and Willpower (no cyberware, spell or other modifications) — p.113. */
   _naturalAttrs() {
-    const nat = (a) => Math.max(1, (this.system[a]?.base ?? 1) + (this.system[a]?.racial ?? 0));
+    // The data model's natural ratings (racial clamp, CCSS and permanent losses) when it has them.
+    const nat = (a) => this.system.naturalAttrs?.[a] ?? Math.max(1, (this.system[a]?.base ?? 1) + (this.system[a]?.racial ?? 0));
     return { body: nat("body"), willpower: nat("willpower") };
   }
 
@@ -3639,6 +3641,12 @@ export class SR2EActor extends Actor {
     if (!doctor && key === "D") {
       return ui.notifications.warn(`${this.name} has a Deadly wound — it always requires medical attention (SR2E p.113). Heal it with a doctor.`);
     }
+    // Permanent damage (p.113–114): resolved first; a damaged organ needs continuous care.
+    const pen = currentPenalties(this);
+    if (pen.pending) return ui.notifications.warn(`${this.name}: roll for permanent damage from the Deadly wound first (SR2E p.113).`);
+    if (pen.doctorRequired && !doctor) {
+      return ui.notifications.warn(`${this.name} has organ damage — healing needs continuous care by a Biotech character: tick "A doctor is involved" (SR2E p.113).`);
+    }
     let adm = null;
     if (clock) {
       adm = await admitStart(this, "physical");
@@ -3661,12 +3669,13 @@ export class SR2EActor extends Actor {
     const r = await this.rollSuccessTest(nat.body, tn, {
       label: RL("HealTime", { level, body: nat.body, tn, mods: mod.parts.length ? ` — ${mod.parts.join(", ")}` : "" }),
       isResistance: true, ...this._bodyTestOpts() });
-    const hours = naturalHealingHours(key, r?.successes ?? 0);
+    const hours = naturalHealingHours(key, r?.successes ?? 0, pen);
     const checks = magician ? (key === "D" ? 1 : 0) + (doctor && opts.waiveMagician ? 1 : 0) : 0;
     if (adm) {
       const now = game.time.worldTime;
       const course = { id: foundry.utils.randomID(), kind: "natural", startedAt: now, dueAt: now + hours * 3600, level,
-        successes: r?.successes ?? 0, doctor, waiveMagician: !!(doctor && opts.waiveMagician), magician, deadly: key === "D" };
+        successes: r?.successes ?? 0, doctor, waiveMagician: !!(doctor && opts.waiveMagician), magician, deadly: key === "D",
+        pk: pen.key, careGen: pen.careGen, careRequired: pen.doctorRequired };
       // A doctor treating overflow is professional care: the bleeding stops (p.111, p.115) —
       // written with the course, so neither exists without the other.
       if (!await commitStart(this, "physical", adm, course, { stabilize: doctor ? "care" : null })) return null;
@@ -3674,6 +3683,11 @@ export class SR2EActor extends Actor {
         heals to the next level in ${healingTimeText(hours)}</strong> — ${calendarDate(course.dueAt) ?? ""}
         <em>(${r?.successes ?? 0} success${r?.successes === 1 ? "" : "es"} into ${healingTimeText(row.baseH)}, minimum
         ${healingTimeText(row.minH)}; minimum lifestyle ${row.lifestyle}, SR2E p.113).${checks ? " Magic loss is checked when it heals (p.115)." : ""}</em></div>` });
+    }
+    // Instant healing (no clock): the permanent-damage facts must still be the ones rolled for.
+    const pen2 = currentPenalties(this);
+    if (pen2.pending || pen2.key !== pen.key || (pen.doctorRequired && pen2.careGen !== pen.careGen)) {
+      return ui.notifications.warn(`${this.name}: the permanent damage or its care changed while you rolled — heal again.`);
     }
     await this._healOneLevel("physical", `${doctor ? "With a doctor" : "Natural healing"}: this stage takes
       <strong>${healingTimeText(hours)}</strong> of rest (${r?.successes ?? 0} success${r?.successes === 1 ? "" : "es"} into

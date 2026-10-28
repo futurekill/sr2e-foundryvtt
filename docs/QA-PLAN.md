@@ -188,6 +188,14 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] **Two devices:** desktop and phone press Recover Stun together → one course.
 - [ ] **Switched off:** turn the setting off → courses freeze; the GM's Finish now still works. Turn it on → bleeding counts only from then.
 
+### Permanent damage from Deadly wounds (0.120.0, p.113–114)
+- [ ] Damage a test character to 10 Physical → a card "suffers a Deadly wound — roll for permanent damage"; the sheet shows the waiting roll. Heal (with a doctor) is refused until it's rolled.
+- [ ] Roll: the dialog asks about a trauma patch (+2). 0 successes → an attribute −1 (tooltip "Permanent damage"); Heal now requires "A doctor is involved"; the healing time doubles.
+- [ ] 1 success → a limb/eye named; the next Heal's base time is 50% longer.
+- [ ] GM Void on the result → the attribute comes back; the roll waits again.
+- [ ] Clock on: a doctor's stage under organ damage, then GM "Care ends" → the stage stops with a card.
+- [ ] Advance Karma on a human with Body 6 (after creation) → "6 → 7 — 14 Karma (above racial max ×2!)"; after buying, Body shows 7.
+
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).
 - [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.

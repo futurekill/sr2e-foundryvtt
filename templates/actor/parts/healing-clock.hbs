@@ -1,4 +1,20 @@
 {{!-- Healing on the game clock (Calendaria) — docs/PLAN-healing-clock.md --}}
+{{#if permDmg}}
+<div class="heal-clock">
+  {{#if permDmg.pending}}
+  <div class="heal-clock__row"><i class="fas fa-skull"></i> Deadly wound: permanent damage not rolled yet
+    <button type="button" class="btn-small" data-action="permDamage" data-op="roll">Roll permanent damage</button></div>
+  {{/if}}
+  {{#each permDmg.history as |h|}}
+  <div class="heal-clock__row"><i class="fas fa-bone"></i> Permanent damage: {{h.text}}{{#if h.current}} (this wound){{/if}}
+    {{#if ../permDmg.isGM}}<button type="button" class="btn-small" data-action="permDamage" data-op="void" data-id="{{h.id}}" title="Undo this result (GM)">Void</button>{{/if}}</div>
+  {{/each}}
+  {{#if permDmg.care}}{{#if permDmg.isGM}}
+  <div class="heal-clock__row"><i class="fas fa-user-nurse"></i> Organ damage: healing needs continuous care
+    <button type="button" class="btn-small" data-action="permDamage" data-op="careEnds" title="The Biotech caregiver leaves: a running stage stops">Care ends</button></div>
+  {{/if}}{{/if}}
+</div>
+{{/if}}
 {{#if healClock}}
 <div class="heal-clock">
   {{#each healClock.courses as |c|}}

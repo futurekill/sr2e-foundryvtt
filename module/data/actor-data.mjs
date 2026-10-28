@@ -2,6 +2,7 @@ import { SR2EDataModel } from "./base-data.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
+import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
 import { foldDeck, programKey, liveOpen } from "../rules/vr2ic-rules.mjs";
@@ -437,6 +438,7 @@ export class CharacterData extends SR2EDataModel {
     // switched on), inside the clamp, after both branches.
     const episode = this._mbwFold?.episode;
     if (episode) this.reaction.mod -= episode.reactionLoss;
+    if (this._permLoss?.reaction) this.reaction.mod -= this._permLoss.reaction;   // permanent damage (p.113)
     this.reaction.value = Math.max(0, this.reaction.base + this.reaction.mod);
 
     // Initiative base = Adjusted Reaction. The wound Initiative Modifier is applied
@@ -1195,6 +1197,8 @@ export class CharacterData extends SR2EDataModel {
     const fold = foldMbw(eventsOf(this.parent).filter(e => String(e.key).startsWith("mbw:")), globalThis.game?.time?.worldTime ?? 0);
     this._mbwFold = fold;
     this._mbwLoss = fold.loss;
+    // Permanent damage from Deadly wounds (core p.113–114): THIS actor's non-void outcomes only.
+    this._permLoss = this.parent?.uuid ? foldPermLoss(liveOutcomes(eventsOf(this.parent), this.parent.uuid).live) : {};
     this._cymFold = foldCym(eventsOf(this.parent).filter(e => String(e.key).startsWith("cym:")), globalThis.game?.time?.worldTime ?? 0,
       this.parent?.flags?.sr2e?.cymReceipts ?? {});
     for (const i of items) if (i.type === "cyberware" || i.type === "bioware") delete i.system.limbDiscount;
@@ -1282,9 +1286,12 @@ export class CharacterData extends SR2EDataModel {
   }
 
   _naturalAttribute(attr, mods = null) {
-    const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
-    // CCSS permanent reductions (Cybertechnology p.55) lower the NATURAL rating, floor 1.
-    const loss = this._mbwLoss?.[attr] ?? 0;
+    // The racial maximum caps a character in CREATION (p.44); afterwards Good Karma may raise an
+    // attribute above it at double cost with the GM's agreement (p.192), so it no longer clamps.
+    const maxes = this.chargen?.inProgress === false ? {} : (CONFIG.SR2E.racialMaximums[this.race] ?? {});
+    // CCSS reductions (Cybertechnology p.55) and permanent damage (core p.113) lower the NATURAL
+    // rating, floor 1 — subtracted once, after the clamp, so the ceiling drops by the same amount.
+    const loss = (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0);
     if (loss > 0) return Math.max(1, naturalAttribute(this[attr]?.base ?? 0, this[attr]?.racial ?? 0, mods?.edgeAttr?.[attr] ?? 0,
       maxes[attr] ?? null, mods?.edgeMax?.[attr] ?? 0) - loss);
     return naturalAttribute(
@@ -1310,7 +1317,17 @@ export class CharacterData extends SR2EDataModel {
     // undeclared nested property can be dropped or throw. Top-level derived data
     // on the model is safe (the system assigns lots of it here).
     this.attributeSources = {};
+    // The ONE natural-rating source for medical tests (p.113, p.115) and advancement.
+    this.naturalAttrs = {};
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
+      if (this[attr]) {
+        this.naturalAttrs[attr] = this._naturalAttribute(attr, mods);
+        // For advancement: the unclamped natural rating, the ceiling and the permanent losses.
+        const max = (CONFIG.SR2E.racialMaximums[this.race] ?? {})[attr];
+        (this.naturalInfo ??= {})[attr] = { raw: (this[attr].base ?? 0) + (this[attr].racial ?? 0) + (mods?.edgeAttr?.[attr] ?? 0),
+          cap: max == null ? null : max + (mods?.edgeMax?.[attr] ?? 0),
+          loss: (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0) };
+      }
       if (this[attr]) {
         // .mod at this point = stored value + Active Effect contributions
         // (effects are applied before prepareDerivedData); item mods stack on top.
@@ -1339,6 +1356,7 @@ export class CharacterData extends SR2EDataModel {
           if (edgeEff > 0) named.push({ name: edgeItems.map((e) => e.name).join(" + "), value: edgeEff });
         }
         if (this._mbwLoss?.[attr] > 0) named.push({ name: "CCSS (permanent)", value: -this._mbwLoss[attr] });
+        if (this._permLoss?.[attr] > 0) named.push({ name: "Permanent damage", value: -this._permLoss[attr] });
         named.push(...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? []));
         // Anything left over — a non-additive effect (override/multiply) or an
         // unknown contributor — folds into one honest "other" line, so base +

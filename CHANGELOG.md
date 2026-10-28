@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 0.120.0 — 2026-10-28
+
+### Added
+- **Permanent damage from Deadly wounds** (core p.113–114; docs/PLAN-deadly-permanent-damage.md,
+  plan and code approved by Codex). When a character or NPC takes a Deadly wound, a card asks for
+  the **permanent damage roll**: natural Body plus dermal armor against TN 4, +2 if a trauma patch
+  was used.
+  - **0 successes:** a vital organ is damaged. One attribute (1D6: Body, Strength, Quickness,
+    Intelligence, Willpower or Reaction) drops by 1 permanently, along with its racial maximum.
+    The whole healing takes twice as long, and healing needs a doctor's continuous care.
+  - **1 success:** a limb, ear or eye is mangled and needs a replacement. The base healing time
+    rises by 50%.
+  - **2+ successes:** nothing lasting.
+  - **Healing waits:** Heal waits until the roll is made.
+  - **Sheet panel:** shows a waiting roll and every result so far. The GM can **Void** a
+    result, which undoes it; the roll is then waiting again. **Care ends** stops a stage that
+    needs continuous care.
+  - **Karma:** none on this roll, so two devices can't both charge it.
+
+### Fixed
+- **Raising an attribute above its racial maximum with Good Karma** (double cost, with the GM's
+  agreement, core p.192) now actually raises it. The racial maximum used to cap every character,
+  so the purchase bought nothing; it now caps characters only during creation. A raise that
+  wouldn't change the rating is no longer offered.
+
 ## 0.119.0 — 2026-10-28
 
 ### Added

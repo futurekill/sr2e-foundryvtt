@@ -16,6 +16,7 @@ import { exclusiveBlock, bindFetishStock } from "../restricted-spells.mjs";
 import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpdate } from "../engagement.mjs";
 import { promptForCanvasPoint } from "../placement.mjs";
 import { GM_ACTIONS as HEAL_CLOCK_ACTIONS } from "../healing-clock.mjs";
+import { rollPermanentDamage, voidPermanentDamage } from "../permanent-damage.mjs";
 import { combatSpellMode, combatTargetRows, snapshotTargets, casterSituationHTML, targetRowsHTML, wireTargetRows,
          readTargetRows, promptAreaTargets } from "../combat-spells.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
@@ -3736,8 +3737,19 @@ async function onHealClock(event, target) {
   this.render();
 }
 
+/** Permanent damage panel (docs/PLAN-deadly-permanent-damage.md §5): data-op roll | void | careEnds. */
+async function onPermDamage(event, target) {
+  event.preventDefault();
+  const actor = this.document, op = target.dataset.op;
+  if (op === "roll") await rollPermanentDamage(actor);
+  else if (op === "void") await voidPermanentDamage(actor, target.dataset.id);
+  else if (op === "careEnds" && game.user.isGM) await HEAL_CLOCK_ACTIONS.careEnds(actor);   // one transition
+  this.render();
+}
+
 const SHARED_ACTIONS = {
   healClock: onHealClock,
+  permDamage: onPermDamage,
   // Tab navigation — use switchTab so V13's built-in _onClickTab never fires.
   // changeTab() fails because content sections live inside <div data-part="x">
   // wrappers that V13 injects, not as direct children of this.element.
@@ -4219,11 +4231,25 @@ const SHARED_ACTIONS = {
     const ATTRS = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"];
     const maxes = CONFIG.SR2E.racialMaximums[system.race] ?? {};
 
+    // Priced from the EFFECTIVE natural rating — after the racial clamp, CCSS and permanent
+    // damage losses (core p.113) — against the same lowered ceiling; a raise that would not change
+    // the effective rating is refused (docs/PLAN-deadly-permanent-damage.md §4).
     const attrCost = key => {
-      const natural = system[key].base + system[key].racial;
-      const newNat  = natural + 1;
-      const overMax = maxes[key] != null && newNat > maxes[key];
-      return { newNat, cost: newNat * (overMax ? 2 : 1), overMax };
+      const info = system.naturalInfo?.[key];
+      if (!info) {
+        const natural = system[key].base + system[key].racial;
+        const newNat  = natural + 1;
+        const overMax = maxes[key] != null && newNat > maxes[key];
+        return { newNat, cost: newNat * (overMax ? 2 : 1), overMax, natural, stuck: false };
+      }
+      // After creation the maximum no longer clamps (p.192): it only marks the double-cost line.
+      const clamp = system.chargen?.inProgress !== false && info.cap != null;
+      const eff = (raw) => Math.max(1, (clamp ? Math.min(raw, info.cap) : raw) - info.loss);
+      const natural = eff(info.raw), newNat = eff(info.raw + 1);
+      const ceiling = info.cap == null ? null : info.cap - info.loss;
+      const overMax = ceiling != null && info.raw + 1 - info.loss > ceiling;
+      // A raise that would not change the effective rating is never sold.
+      return { newNat, cost: newNat * (overMax ? 2 : 1), overMax, natural, stuck: newNat === natural };
     };
     const skillCost = item => {
       const newRating = item.system.rating + 1;
@@ -4232,9 +4258,10 @@ const SHARED_ACTIONS = {
     };
 
     const attrOptions = ATTRS.map(k => {
-      const { newNat, cost, overMax } = attrCost(k);
+      const { newNat, cost, overMax, natural, stuck } = attrCost(k);
       const label = game.i18n.localize(CONFIG.SR2E.attributes[k]);
-      return `<option value="attr:${k}">${label} ${newNat - 1} → ${newNat} — ${cost} Karma${overMax ? " (above racial max ×2!)" : ""}</option>`;
+      if (stuck) return `<option value="attr:${k}" disabled>${label} ${natural} — can't be raised now</option>`;
+      return `<option value="attr:${k}">${label} ${natural} → ${newNat} — ${cost} Karma${overMax ? " (above racial max ×2!)" : ""}</option>`;
     }).join("");
 
     const skills = actor.items.filter(i => i.type === "skill")
@@ -4278,7 +4305,8 @@ const SHARED_ACTIONS = {
     let label, cost;
 
     if (kind === "attr") {
-      const { newNat, cost: c, overMax } = attrCost(key);
+      const { newNat, cost: c, overMax, stuck } = attrCost(key);
+      if (stuck) return ui.notifications.warn("Raising that attribute wouldn't change its rating.");
       cost = c;
       if (cost > available) {
         return ui.notifications.warn(`Not enough Good Karma — ${cost} needed, ${available} available.`);

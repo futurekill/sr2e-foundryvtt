@@ -382,3 +382,12 @@ fenced by revision / claimed cursor. Any treatment settles first (`reconcileHeal
 while another device holds the bleeding — then refuse). Never call `reconcileHealing` from inside a
 `damage:<uuid>` queue entry (it queues itself — deadlock). Tests inject `now` and force the gate
 with `testSeam.force`; never advance world time.
+
+## Permanent damage from Deadly wounds
+`module/permanent-damage.mjs` (+ `module/rules/permanent-damage-rules.mjs`, docs/PLAN-deadly-permanent-damage.md):
+episode state at `flags.sr2e.permDmg.<permKey(uuid)>` kept by a `preUpdateActor` hook; each episode's
+outcome is a durable `recordEvent` (`permdmg:<uuid>:<g>:<attempt>`, voids `permdmg-void:…`) and
+EVERYTHING else (attribute loss, healing multipliers, doctor requirement, pending) is derived from
+the non-void records of THIS actor's uuid. No Karma on the roll (a losing publish must cost nothing).
+Natural ratings for medical tests come from `system.naturalAttrs`; after creation the racial maximum
+no longer clamps (p.192: Good Karma may exceed it).

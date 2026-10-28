@@ -15,6 +15,7 @@ import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { calendaria, calendarDate } from "./calendaria.mjs";
 import { magicLost } from "./rules/sr2e-rules.mjs";
+import { currentPenalties, careEnds as permCareEnds } from "./permanent-damage.mjs";
 import { stateKey, normalize, clockChanges, courseValid, dueEvents, applyPending, lethalOverflow, STAGE_FLOOR, BLEED_S,
          durationText } from "./rules/healing-clock-rules.mjs";
 
@@ -45,7 +46,7 @@ const gmWhisper = () => ({ whisper: game.users.filter(u => u.isGM).map(u => u.id
 const write = (actor, st, extra = {}, opts = {}) => actor.update({ ...extra, [statePath(actor)]: st }, { sr2eClock: true, ...opts });
 /** Bleeding never counts time from before the clock was last switched on (D4). */
 const epoch = () => Number(setting("healingClockEpoch", 0)) || 0;
-const naturalBody = (a) => Math.max(1, (a.system.body?.base ?? 1) + (a.system.body?.racial ?? 0));
+const naturalBody = (a) => a.system.naturalAttrs?.body ?? Math.max(1, (a.system.body?.base ?? 1) + (a.system.body?.racial ?? 0));
 const lethalFor = (a) => lethalOverflow(naturalBody(a), a.system.cym?.overflowMax ?? null);
 
 // ── The hook (§2a) ─────────────────────────────────────────────────────────
@@ -106,13 +107,16 @@ export async function commitStart(actor, column, adm, course, { stabilize = null
     const st = clockState(actor);
     if ((st.startGen?.[column] ?? 0) !== adm.gen) return false;
     const same = column === "stun" ? (st.rev.stun === adm.r0.stun && st.restGen === adm.r0.restGen) : st.rev.phys === adm.r0.phys;
-    const fits = !!course && same && !(st[column] && courseValid(st, column));
+    // Permanent-damage penalties and continuous care must still be what the course was rolled for.
+    const pen = column === "physical" && course?.pk != null ? currentPenalties(actor) : null;
+    const penOk = !pen || (pen.key === course.pk && (!course.careRequired || pen.careGen === course.careGen));
+    const fits = !!course && same && penOk && !(st[column] && courseValid(st, column));
     st.startGen = { ...(st.startGen ?? {}), [column]: adm.gen + 1 };
     if (fits) st[column] = column === "stun" ? { ...course, stunRev: st.rev.stun, restGen: st.restGen } : { ...course, rev: st.rev.phys };
     // A doctor's course on a bleeding patient is professional care: recorded in the SAME write.
     if (fits && stabilize && st.bleed) st.bleed = { ...st.bleed, pending: [...(st.bleed.pending ?? []), { kind: stabilize, at: game.time.worldTime }] };
     await write(actor, st);
-    if (course && !same) await card(actor, `<strong>${esc(actor.name)}: the wound changed while you rolled</strong> — roll again.`);
+    if (course && (!same || !penOk)) await card(actor, `<strong>${esc(actor.name)}: the wound changed while you rolled</strong> — roll again.`);
     return fits;
   });
   if (ok && stabilize) await reconcileHealing(actor);          // outside the queue: it queues itself
@@ -135,10 +139,14 @@ export async function reconcileHealing(actor, now = game.time.worldTime, { force
   const settled = await enqueueAttack(`damage:${actor.uuid}`, async () => {
     // 1. Invalid courses (their wound changed while the hook wasn't watching).
     let st = clockState(actor);
-    const bad = ["physical", "stun"].filter(k => st[k] && !courseValid(st, k));
+    const pen = st.physical?.pk != null ? currentPenalties(actor) : null;
+    const penStale = (c) => !!pen && (pen.key !== c.pk || (c.careRequired && pen.careGen !== c.careGen));
+    const bad = ["physical", "stun"].filter(k => st[k] && (!courseValid(st, k) || (k === "physical" && penStale(st[k]))));
     if (bad.length) {
       for (const k of bad) st[k] = null;
       await write(actor, st);
+      await card(actor, `<strong>${esc(actor.name)}:</strong> the ${bad.map(k => k === "stun" ? "Stun recovery" : "healing").join(" and ")}
+        under way stopped — the wound, its permanent damage or its care changed. Roll again (SR2E p.112–114).`);
     }
     // 2. Overflow with no bleeding episode (before the feature, or while it was off).
     const mon = monitorOf(actor);
@@ -235,6 +243,16 @@ async function complete(actor, kind, expectedId = null) {
       await card(actor, `<strong>${esc(actor.name)} recovered 1 box of Stun</strong> <em>(${before} → ${c.target}) after resting (SR2E p.112).</em>`);
     }
     return;
+  }
+  if (c.pk != null) {
+    const pen = currentPenalties(actor);
+    if (pen.key !== c.pk || (c.careRequired && pen.careGen !== c.careGen)) {
+      st.physical = null;
+      await write(actor, st);
+      await card(actor, `<strong>${esc(actor.name)}:</strong> ${c.careRequired && pen.careGen !== c.careGen
+        ? "continuous care stopped, so this stage of healing stopped" : "the permanent damage changed, so the healing time changed"} — roll Heal again (SR2E p.113).`);
+      return;
+    }
   }
   const before = monitorOf(actor).phys;
   const upd = actor.healStageUpdate("physical", c.level, { firstAided: c.kind === "aid", careKey: `healclock-${c.id}` });
@@ -340,7 +358,7 @@ export const GM_ACTIONS = {
     await write(actor, st);
   }),
   care: (actor) => setStable(actor, "care"),
-  careEnds: (actor) => setStable(actor, null),
+  careEnds: async (actor) => { await permCareEnds(actor); return setStable(actor, null); },
   survived: (actor) => enqueueAttack(`damage:${actor.uuid}`, async () => {
     const st = clockState(actor);
     if (st.bleed) st.bleed = { ...st.bleed, lethal: false, stable: "care" };

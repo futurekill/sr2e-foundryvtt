@@ -25,6 +25,7 @@ function substanceContext(actor) {
 import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { clockView } from "../healing-clock.mjs";
+import { permView } from "../permanent-damage.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
@@ -212,7 +213,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     actions: {
       editImage: SHARED_ACTIONS.editImage,
       exportJson: SHARED_ACTIONS.exportJson,
-      healClock: SHARED_ACTIONS.healClock
+      healClock: SHARED_ACTIONS.healClock,
+      permDamage: SHARED_ACTIONS.permDamage
     },
     // V13: register DragDrop so _onDragOver/_onDrop/_onDragStart are bound.
     // Without this, dragover never calls preventDefault(), letting the browser's
@@ -248,6 +250,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.editable = this.isEditable;
     context.isGM     = game.user.isGM;
     context.healClock = clockView(this.document);   // healing on the game clock (Calendaria)
+    context.permDmg = permView(this.document);      // permanent damage from Deadly wounds (p.113–114)
     context.vr2      = isVR2();
     context.attrBreakdown = this._buildAttrBreakdown();
     // Recoil still in force this Combat Phase (keyed; module/engagement.mjs).

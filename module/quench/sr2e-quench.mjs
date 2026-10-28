@@ -4466,6 +4466,8 @@ export function registerSR2EQuenchTests() {
         it("with a doctor, a Deadly wound heals one stage to Serious and the overflow goes with it (p.113)", async () => {
           const a = await pc();
           await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 2 });
+          // The Deadly wound's permanent-damage check comes first (p.113): no lasting damage.
+          await (await import("../claims.mjs")).recordEvent(a, `permdmg:${a.uuid}:0:0`, { type: "permdmg", kind: "none", woundGen: 0, successes: 2 });
           await a.healPhysical({ doctor: true, condition: "hospital" });
           assert.equal(a.system.conditionMonitor.physical.value, 6);
           assert.equal(a.system.conditionMonitor.overflow, 0);
@@ -12838,6 +12840,7 @@ export function registerSR2EQuenchTests() {
       it("a doctor on a bleeding patient: the course and the care are recorded together", async () => {
         const a = await pc("Doctor", { body: { base: 6 } });
         await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        await (await import("../claims.mjs")).recordEvent(a, `permdmg:${a.uuid}:0:0`, { type: "permdmg", kind: "none", woundGen: 0, successes: 2 });
         await withFaces(Array(40).fill(6), () => a.healPhysical({ doctor: true, condition: "hospital" }));
         assert.ok(st(a).physical, "a course");
         assert.equal(st(a).bleed?.stable, "care");
@@ -12911,5 +12914,111 @@ export function registerSR2EQuenchTests() {
         assert.equal(a.system.conditionMonitor.stun.value, 2, "one box: the due course, not a second one");
       });
     }, { displayName: "SR2E: Healing clock" });
+
+    // docs/PLAN-deadly-permanent-damage.md (core p.113–114).
+    quench.registerBatch("sr2e.permanent-damage", (context) => {
+      const { it, assert, before, after } = context;
+      const made = [];
+      let P, seam, prev;
+      before(async () => {
+        P = await import("../permanent-damage.mjs");
+        seam = (await import("../healing-clock.mjs")).testSeam; prev = seam.force; seam.force = false;   // instant healing here
+      });
+      after(async function () {
+        this.timeout(20000);
+        seam.force = prev;
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const pc = async (name) => {
+        const a = await Actor.create({ name: `Quench PD ${name}`, type: "character",
+          system: { body: { base: 5 }, willpower: { base: 4 }, chargen: { inProgress: false } } });
+        made.push(a); return a;
+      };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const noTrauma = async (fn) => {
+        const c = foundry.applications.api.DialogV2.confirm;
+        foundry.applications.api.DialogV2.confirm = async () => false;
+        try { return await fn(); } finally { foundry.applications.api.DialogV2.confirm = c; }
+      };
+
+      it("a Deadly wound opens one check; Heal waits for it", async () => {
+        const a = await pc("Open");
+        await a.update({ "system.conditionMonitor.physical.value": 10 });
+        assert.equal(P.permView(a).pending, 1);
+        await a.update({ "system.conditionMonitor.physical.value": 10, "system.conditionMonitor.overflow": 1 });
+        assert.equal(P.permView(a).pending, 1, "still one episode");
+        await a.healPhysical({ doctor: true });
+        assert.equal(a.system.conditionMonitor.physical.value, 10, "refused until rolled");
+      });
+
+      it("0 successes, 1D6 = 1: Body −1 permanently; two devices → one outcome; organ damage needs a doctor", async () => {
+        const a = await pc("Organ");
+        const b0 = a.system.body.value;
+        await a.update({ "system.conditionMonitor.physical.value": 10 });
+        await noTrauma(() => withFaces([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], () =>
+          Promise.all([P.rollPermanentDamage(a), P.rollPermanentDamage(a)])));
+        const o = P.outcomesOf(a).live;
+        assert.lengthOf(o, 1, "one outcome");
+        assert.include(o[0], { kind: "organ", attr: "body" });
+        assert.equal(a.system.body.value, b0 - 1);
+        assert.equal(a.system.naturalAttrs.body, 4);
+        await a.update({ "system.conditionMonitor.physical.value": 6 });
+        await a.healPhysical({});
+        assert.equal(a.system.conditionMonitor.physical.value, 6, "no doctor: refused");
+      });
+
+      it("Void restores the attribute and re-opens the check", async () => {
+        const a = await pc("Void");
+        await a.update({ "system.conditionMonitor.physical.value": 10 });
+        const { recordEvent } = await import("../claims.mjs");
+        await recordEvent(a, `permdmg:${a.uuid}:0:0`, { type: "permdmg", kind: "organ", attr: "body", woundGen: 0, successes: 0 });
+        assert.equal(a.system.body.value, 4);
+        await P.voidPermanentDamage(a, "0:0");
+        assert.equal(a.system.body.value, 5);
+        assert.equal(P.permView(a).pending, 1);
+      });
+
+      it("an unlinked token actor ignores its base actor's outcomes", async () => {
+        const a = await pc("Base");
+        const { recordEvent } = await import("../claims.mjs");
+        await recordEvent(a, `permdmg:${a.uuid}:0:0`, { type: "permdmg", kind: "organ", attr: "willpower", woundGen: 0, successes: 0 });
+        const { liveOutcomes } = await import("../rules/permanent-damage-rules.mjs");
+        const { eventsOf } = await import("../claims.mjs");
+        assert.lengthOf(liveOutcomes(eventsOf(a), `Scene.q.Token.q.Actor.${a.id}`).live, 0);
+      });
+
+      it("after creation an attribute bought above its racial maximum counts (p.192)", async () => {
+        const a = await pc("OverMax");
+        await a.update({ "system.body.base": 7 });
+        assert.equal(a.system.body.value, 7, "human Body 7 — the GM-approved double-cost raise");
+      });
+
+      it("on the clock: Care ends stops an organ-damage course; Void stops a course built on the voided result", async () => {
+        const H = await import("../healing-clock.mjs");
+        const prevEpoch = game.settings.get("sr2e", "healingClockEpoch");
+        seam.force = true; await game.settings.set("sr2e", "healingClockEpoch", 1);
+        try {
+          const a = await pc("Fence");
+          await a.update({ "system.conditionMonitor.physical.value": 6 });
+          const { recordEvent } = await import("../claims.mjs");
+          // An organ result for this wound (the crossing happened before this test).
+          const st = P.permState(a);
+          await recordEvent(a, `permdmg:${a.uuid}:0:0`, { type: "permdmg", kind: "organ", attr: "strength", woundGen: st.woundGen, successes: 0 });
+          await withFaces(Array(40).fill(6), () => a.healPhysical({ doctor: true }));
+          assert.ok(H.clockState(a).physical?.careRequired, "a doctor's course under organ damage");
+          await H.GM_ACTIONS.careEnds(a);
+          await H.reconcileHealing(a);
+          assert.isNull(H.clockState(a).physical, "care ended: the stage stopped");
+          await withFaces(Array(40).fill(6), () => a.healPhysical({ doctor: true }));
+          assert.ok(H.clockState(a).physical, "a new course");
+          await P.voidPermanentDamage(a, "0:0");
+          assert.isNull(H.clockState(a).physical, "voided: the stage stopped");
+        } finally { seam.force = false; await game.settings.set("sr2e", "healingClockEpoch", prevEpoch); }
+      });
+    }, { displayName: "SR2E: Permanent damage" });
   });
 }

@@ -271,10 +271,12 @@ export const HEALING_TABLE = Object.freeze({
  * No successes leaves the base time (nothing to divide by).
  * @returns {number} hours
  */
-export function naturalHealingHours(level, successes) {
+export function naturalHealingHours(level, successes, { baseMult = 1, totalMult = 1 } = {}) {
   const row = HEALING_TABLE[level] ?? HEALING_TABLE.L;
   const n = Math.max(0, Math.trunc(Number(successes) || 0));
-  return n > 0 ? Math.max(row.minH, row.baseH / n) : row.baseH;
+  // A mangled limb raises the BASE time 50 % (p.114); a damaged organ doubles the whole process.
+  const base = row.baseH * baseMult;
+  return (n > 0 ? Math.max(row.minH, base / n) : base) * totalMult;
 }
 
 /** "36 hours" / "6.7 days" for a healing time in hours. */
