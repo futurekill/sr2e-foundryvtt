@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.121.0 — 2026-10-28
+
 ### Removed
 - **"Cybertorso"** is gone from the cyberware compendium. Like the Partial limbs retired in
   0.117, it was a placeholder from the system's first build (in no SR2 book, values never

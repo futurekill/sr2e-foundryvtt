@@ -196,6 +196,13 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Clock on: a doctor's stage under organ damage, then GM "Care ends" → the stage stops with a card.
 - [ ] Advance Karma on a human with Body 6 (after creation) → "6 → 7 — 14 Karma (above racial max ×2!)"; after buying, Body shows 7.
 
+### Bioware damage (0.121.0, Shadowtech p.6; setting "Bioware damage" on)
+- [ ] A character with two bioware implants takes a single 10-box physical hit → a GM card "a Deadly hit — bioware damage"; Roll → 1D6 − 3 hits, each named with its level; the gear tab shows each implant's damage.
+- [ ] An implant at Serious or worse shows "off" and its bonuses disappear (a +1 Strength implant's Strength drops); a triggered pump can't be activated.
+- [ ] Heal on the row (with a doctor, hospital) → one level down at half the usual time; with Calendaria on, a course that lands later.
+- [ ] A secondhand implant rolling 6 (+1 = 7) is destroyed; its Heal button disappears; the GM can clear "Destroyed" on the item sheet after a replacement.
+- [ ] Dermal bioware (Orthoskin) is never picked.
+
 ## 7. Magic — spellcasting
 - [ ] Cast a spell — Sorcery test vs the spell's TN; **Drain** resisted (Willpower, TN ⌊Force/2⌋+mod).
 - [ ] **Force defaults to the spell's learned Force** (set on the spell item sheet) — the cast dialog pre-fills it, no re-entry needed; still adjustable up to Magic.
