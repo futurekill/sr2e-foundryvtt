@@ -26,6 +26,7 @@ import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { clockView } from "../healing-clock.mjs";
 import { permView } from "../permanent-damage.mjs";
+import { bioView } from "../bioware-damage.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
 import {
   SHARED_ACTIONS, detectAttackTarget, promptWeaponAttackOptions,
@@ -1459,6 +1460,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       .sort((a, b) => (a.system.bodySystem ?? "").localeCompare(b.system.bodySystem ?? "")
                    || a.name.localeCompare(b.name));
     context.bodySystems = CONFIG.SR2E.bodySystems;
+    context.bioViews = Object.fromEntries(context.bioware.map(i => [i.id, bioView(actor, i)]));   // Shadowtech p.6
     context.bodyIndexOver = (actor.system.bodyIndex?.value ?? 0) > (actor.system.bodyIndex?.max ?? 0);
     context.bodyIndexOverstress = overstressPenalty(actor.system.bodyIndex?.value, actor.system.bodyIndex?.max);
     context.gear = actor.items.filter(i => i.type === "gear" && i.system.category !== "skillsoft");

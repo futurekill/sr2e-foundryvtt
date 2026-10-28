@@ -794,6 +794,12 @@ export class BiowareData extends SR2EDataModel {
       // only the mods are gated. Non-triggered implants ignore both.
       triggered: new fields.BooleanField({ initial: false }),
       active: new fields.BooleanField({ initial: false }),
+      // Damage to the implant itself (Shadowtech p.6; docs/PLAN-bioware-damage.md): its own 10-box
+      // track; Serious (6) or worse switches it off; past Deadly it is destroyed (sticky).
+      damage: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 10 }),
+      destroyed: new fields.BooleanField({ initial: false }),
+      damageRev: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      implantGen: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       // Per-rating stats. Rows carry rating-dependent BODY COST (not essenceCost)
       // and optional per-rating ARMOR (Orthoskin's non-linear ballistic/impact).
       // Rows must have sorted, unique ratings (enforced by the content validator

@@ -79,11 +79,17 @@
           {{/if}}
           {{#if bio.system.armorImpact}}<span class="cyber-mods" title="Subdermal armor (adds to worn armor)">Armor {{bio.system.armorBallistic}}B/{{bio.system.armorImpact}}I</span>{{/if}}
           <span class="cyber-essence" title="Effective Body Cost (cultured applied)">BC: {{formatEssence bio.system.actualBodyCost}}</span>
+          {{#with (lookup ../bioViews bio.id) as |bv|}}
+            {{#if bv.destroyed}}<span class="cyber-mods bio-damaged" title="Past Deadly damage: it can't be healed, only removed and replaced (Shadowtech p.6)"><i class="fas fa-heart-crack"></i> Destroyed</span>
+            {{else if bv.level}}<span class="cyber-mods bio-damaged" title="Its own damage track (Shadowtech p.6){{#if bv.off}} — Serious or worse: not working until healed below Serious{{/if}}"><i class="fas fa-heart-crack"></i> {{bv.level}} ({{bv.damage}}){{#if bv.off}} — off{{/if}}{{#if bv.healing}} · healing{{/if}}</span>{{/if}}
+          {{/with}}
           <span class="cyber-installed">
             {{#if bio.system.installed}}<i class="fas fa-check-circle"></i> Installed{{else}}<i class="fas fa-times-circle"></i> Not installed{{/if}}
           </span>
           <div class="item-controls">
             {{#if bio.system.triggered}}<a data-action="toggleBioActive" title="Activate / deactivate the implant's surge"><i class="fas fa-bolt {{#if bio.system.active}}bio-active-icon{{/if}}"></i></a>{{/if}}
+            {{#with (lookup ../bioViews bio.id) as |bv|}}{{#if bv.level}}{{#unless bv.destroyed}}{{#unless bv.healing}}<a data-action="healBioware" title="Heal one level — half the usual time (Shadowtech p.6)"><i class="fas fa-kit-medical"></i></a>{{/unless}}{{/unless}}{{/if}}
+            {{#if bv.stuck}}{{#if @root.isGM}}<a data-action="clearBioHeal" title="GM: a heal was started on another device and never finished — clear it"><i class="fas fa-triangle-exclamation"></i></a>{{/if}}{{/if}}{{/with}}
             <a data-action="sellItem" title="Sell (refunds what was paid, or the street price)"><i class="fas fa-coins"></i></a>
             <a data-action="toggleEquip" title="Install/Remove"><i class="fas fa-wrench"></i></a>
             <a data-action="editItem"><i class="fas fa-edit"></i></a>

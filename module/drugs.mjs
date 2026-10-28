@@ -11,6 +11,7 @@
  * Active Effects holding its numeric ADD changes. One person drives an actor:
  * every mutation runs in a per-actor local queue and re-reads state there.
  */
+import { bioFunctions } from "./rules/bioware-damage-rules.mjs";
 import { effectChanges, changeIsAdd, effectTiming, isZeroDuration, makeDrugEffectData } from "./effects-compat.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
@@ -165,7 +166,8 @@ export const substanceNow = (actor, events = ledgerOf(actor)) =>
  */
 export const implantsWork = (actor) => !substancesOf(actor).implantsFailed;
 /** An installed implant that still works. */
-export const workingImplant = (actor, item) => !!item?.system?.installed && implantsWork(actor);
+export const workingImplant = (actor, item) => !!item?.system?.installed && implantsWork(actor)
+  && (item.type !== "bioware" || bioFunctions(item.system));      // damaged bioware (Shadowtech p.6)
 
 /** The folded state for an actor, cached per ledger object and clock (derived data reads it often). */
 const FOLD_CACHE = new WeakMap();
@@ -868,7 +870,7 @@ export function useDose(actor, itemId) {
     });
     const implantsWork = !substancesOf(actor).implantsFailed;
     const pump = drug.activatesPump && !inert && implantsWork
-      ? actor.items.find(i => i.type === "bioware" && i.system.installed && i.flags?.sr2e?.adrenalPump && !i.system.active) : null;
+      ? actor.items.find(i => i.type === "bioware" && workingImplant(actor, i) && i.flags?.sr2e?.adrenalPump && !i.system.active) : null;
     if (drug.activatesPump && !inert && !pump) card.notes = "No inactive adrenal pump installed to trigger. " + card.notes;
     const event = { ...stampFor(actor), type: "dose", drug: drug.key, snapshot: snapshotOf(item, drug),
       body: naturalOf(actor, "body"), willpower: naturalOf(actor, "willpower"), receipts: {} };

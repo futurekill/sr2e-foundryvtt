@@ -13020,5 +13020,148 @@ export function registerSR2EQuenchTests() {
         } finally { seam.force = false; await game.settings.set("sr2e", "healingClockEpoch", prevEpoch); }
       });
     }, { displayName: "SR2E: Permanent damage" });
+
+    // docs/PLAN-bioware-damage.md (Shadowtech p.6).
+    quench.registerBatch("sr2e.bioware-damage", (context) => {
+      const { it, assert, before, after } = context;
+      const made = [], msgs = [];
+      let B, seam, prevSet, prevForce;
+      before(async () => {
+        B = await import("../bioware-damage.mjs");
+        seam = (await import("../healing-clock.mjs")).testSeam; prevForce = seam.force; seam.force = false;
+        prevSet = game.settings.get("sr2e", "biowareDamage"); await game.settings.set("sr2e", "biowareDamage", true);
+      });
+      after(async function () {
+        this.timeout(20000);
+        seam.force = prevForce; await game.settings.set("sr2e", "biowareDamage", prevSet);
+        for (const m of msgs) { try { await game.messages.get(m)?.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const pc = async (name, bio = [{ name: "Quench Muscle", grade: "standard" }]) => {
+        const a = await Actor.create({ name: `Quench BD ${name}`, type: "character",
+          system: { body: { base: 6 }, willpower: { base: 4 }, chargen: { inProgress: false } } });
+        made.push(a);
+        await a.createEmbeddedDocuments("Item", bio.map(b => ({ name: b.name, type: "bioware",
+          system: { bodyCost: 0.2, grade: b.grade, installed: true, attributeMods: { strength: 1 } } })));
+        return a;
+      };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform, origR = Math.random; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        Math.random = () => 0;                                      // picks: always the first item
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; Math.random = origR; }
+      };
+      const cardFor = (a) => game.messages.contents.find(m => m.flags?.sr2e?.biodmg?.actorUuid === a.uuid);
+
+      it("a Deadly physical hit posts one card; rolled once, applied once, Serious switches it off", async () => {
+        const a = await pc("Hit");
+        const s0 = a.system.strength.value;
+        await a.applyDamage("physical", 10);
+        await new Promise(r => setTimeout(r, 400));
+        const card = cardFor(a); msgs.push(card.id);
+        // 1D6 = 4 → one hit; its 1D6 = 5 → Serious.
+        await withFaces([4, 5], () => Promise.all([B.cardOp(card, "roll"), B.cardOp(card, "roll")]));
+        const it = a.items.find(i => i.type === "bioware");
+        assert.equal(it.system.damage, 6, "one Serious hit, not two");
+        assert.equal(a.system.strength.value, s0 - 1, "its +1 Strength is off");
+      });
+
+      it("an interrupted apply resumes from its receipts; a 0-damage hit keeps a healing course", async () => {
+        const a = await pc("Resume", [{ name: "Quench Cultured", grade: "cultured" }]);
+        await a.applyDamage("physical", 10);
+        await new Promise(r => setTimeout(r, 400));
+        const card = cardFor(a); msgs.push(card.id);
+        const it = a.items.find(i => i.type === "bioware");
+        const rev0 = it.system.damageRev;
+        await withFaces([4, 1], () => B.cardOp(card, "roll"));          // cultured: 1 − 1 = no damage
+        assert.equal(it.system.damage, 0);
+        assert.equal(it.system.damageRev, rev0, "no revision change");
+        await B.cardOp(game.messages.get(card.id), "apply");           // resuming changes nothing
+        assert.equal(it.system.damage, 0);
+      });
+
+      it("a card whose persistence failed after the item's receipt landed: Apply remaining never doubles the damage", async () => {
+        const a = await pc("Fail");
+        await a.applyDamage("physical", 10);
+        await new Promise(r => setTimeout(r, 400));
+        const card = cardFor(a); msgs.push(card.id);
+        const it = a.items.find(i => i.type === "bioware");
+        const msg = game.messages.get(card.id), orig = msg.update.bind(msg);
+        let n = 0;
+        msg.update = async (d, o) => { if (++n === 2) throw new Error("quench: card write dropped"); return orig(d, o); };   // 1st = results, 2nd = applied marks
+        try { await withFaces([4, 3], () => B.cardOp(msg, "roll")); } catch (e) { /* the failure */ } finally { delete msg.update; }
+        assert.equal(it.system.damage, 3, "the hit landed (Moderate)");
+        await B.cardOp(game.messages.get(card.id), "apply");
+        assert.equal(it.system.damage, 3, "resumed from the receipt: not applied twice");
+      });
+
+      it("two Deadly hits on two cards add up; a secondhand implant's 7 destroys it", async () => {
+        const a = await pc("Two", [{ name: "Quench Secondhand", grade: "secondhand" }]);
+        const it = a.items.find(i => i.type === "bioware");
+        await a.applyDamage("physical", 10);
+        await new Promise(r => setTimeout(r, 400));
+        const c1 = cardFor(a); msgs.push(c1.id);
+        await withFaces([4, 2], () => B.cardOp(c1, "roll"));            // 2 + 1 = Moderate
+        assert.equal(it.system.damage, 3);
+        await a.update({ "system.conditionMonitor.physical.value": 0, "system.conditionMonitor.overflow": 0 });
+        await a.applyDamage("physical", 10);
+        await new Promise(r => setTimeout(r, 400));
+        const c2 = game.messages.contents.filter(m => m.flags?.sr2e?.biodmg?.actorUuid === a.uuid).at(-1); msgs.push(c2.id);
+        assert.notEqual(c2.id, c1.id);
+        await withFaces([4, 6], () => B.cardOp(c2, "roll"));            // 6 + 1 = 7: destroyed
+        assert.isTrue(it.system.destroyed);
+      });
+
+      it("Roll again supersedes a stuck attempt; the results then stand", async () => {
+        const a = await pc("Again");
+        await a.applyDamage("physical", 10);
+        await new Promise(r => setTimeout(r, 400));
+        const card = cardFor(a); msgs.push(card.id);
+        const { once, markersOf } = await import("../claims.mjs");
+        const key = `biodmg-roll:${card.flags.sr2e.biodmg.receipt}:0`;
+        await once(a, key);                                             // a device claimed and vanished
+        const m = markersOf(a).find(x => x.key === key);
+        await a.effects.get(m.id).update({ "flags.sr2e.claim.at": game.time.serverTime - 10 * 60 * 1000 });
+        await withFaces([4, 3], () => B.cardOp(card, "again"));
+        const st = game.messages.get(card.id).flags.sr2e.biodmg;
+        assert.equal(st.rollAttempt, 1);
+        assert.ok(st.results);
+        const it = a.items.find(i => i.type === "bioware");
+        await withFaces([4, 6], () => B.cardOp(game.messages.get(card.id), "roll"));
+        assert.equal(it.system.damage, 3, "no second result set");
+      });
+
+      it("Heal: half the time, one level; a destroyed implant can't be healed", async () => {
+        const a = await pc("Heal");
+        const it = a.items.find(i => i.type === "bioware");
+        await it.update({ "system.damage": 6 });
+        await withFaces(Array(40).fill(6), () => B.healBioware(a, it, { doctor: true, condition: "hospital" }));
+        assert.equal(it.system.damage, 3, "Serious → Moderate");
+        await it.update({ "system.destroyed": true });
+        await B.healBioware(a, it, { doctor: true });
+        assert.isTrue(it.system.destroyed);
+      });
+
+      it("on the clock: a course; damage voids it; a copied course is ignored", async () => {
+        const prevEpoch = game.settings.get("sr2e", "healingClockEpoch");
+        seam.force = true; await game.settings.set("sr2e", "healingClockEpoch", 1);
+        try {
+          const a = await pc("Clock");
+          const it = a.items.find(i => i.type === "bioware");
+          await it.update({ "system.damage": 3 });
+          await withFaces(Array(40).fill(6), () => B.healBioware(a, it, { doctor: true }));
+          const c = it.flags.sr2e.bioHeal;
+          assert.ok(c, "a course"); assert.equal(it.system.damage, 3);
+          await it.update({ "system.damage": 4 });                       // a hand edit (new damage)
+          await B.reconcileBioware(a, c.dueAt + 1);
+          assert.equal(it.system.damage, 4, "voided: no heal");
+          assert.notOk(it.flags.sr2e?.bioHeal);
+          // A course copied from another item (wrong owner) never completes.
+          await it.update({ "flags.sr2e.bioHeal": { ...c, owner: "Actor.zzz.Item.zzz", rev: it.system.damageRev, implantGen: it.system.implantGen } }, { sr2eBio: true });
+          await B.reconcileBioware(a, c.dueAt + 1);
+          assert.equal(it.system.damage, 4);
+        } finally { seam.force = false; await game.settings.set("sr2e", "healingClockEpoch", prevEpoch); }
+      });
+    }, { displayName: "SR2E: Bioware damage" });
   });
 }

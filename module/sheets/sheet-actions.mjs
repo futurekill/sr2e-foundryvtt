@@ -17,6 +17,7 @@ import { phaseKey, engagedRecord, currentRecoil as recoilInForce, recoilResetUpd
 import { promptForCanvasPoint } from "../placement.mjs";
 import { GM_ACTIONS as HEAL_CLOCK_ACTIONS } from "../healing-clock.mjs";
 import { rollPermanentDamage, voidPermanentDamage } from "../permanent-damage.mjs";
+import { healBioware, clearStuckBioHeal } from "../bioware-damage.mjs";
 import { combatSpellMode, combatTargetRows, snapshotTargets, casterSituationHTML, targetRowsHTML, wireTargetRows,
          readTargetRows, promptAreaTargets } from "../combat-spells.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
@@ -2847,6 +2848,9 @@ async function onToggleBioActive(event, target) {
   if (!item.system.active && !implantsWork(this.document)) {
     return ui.notifications.warn("Kamikaze has burned out this character's implants — they no longer function (Shadowtech p.99).");
   }
+  if (!item.system.active && !workingImplant(this.document, item)) {
+    return ui.notifications.warn(`${item.name} is too badly damaged to work (Serious or worse, Shadowtech p.6).`);
+  }
   return item.update({ "system.active": !item.system.active });
 }
 
@@ -3747,8 +3751,42 @@ async function onPermDamage(event, target) {
   this.render();
 }
 
+/** Heal one level of a damaged bioware implant (Shadowtech p.6). */
+async function onHealBioware(event, target) {
+  event.preventDefault();
+  const actor = this.document, item = actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+  if (!item) return;
+  let opts = null;
+  const action = await foundry.applications.api.DialogV2.wait({ window: { title: `Heal ${item.name}` }, rejectClose: false,
+    content: `<div><p class="hint" style="margin:0 0 6px;">One level of the implant's damage, in half the usual time (Shadowtech p.6).
+        Deadly damage needs a doctor.</p>
+      <div class="form-group"><label>A doctor is involved:</label><input type="checkbox" name="doctor" style="width:auto;"></div>
+      <fieldset><legend>Doctoring Table (doctor only)</legend>
+        <div class="form-group"><label>Where:</label><select name="condition">
+          <option value="hospital">Hospital or clinic (+0)</option><option value="notHospital">Not in a hospital or clinic (+2)</option>
+          <option value="bad">Bad conditions (+3)</option><option value="terrible">Terrible conditions (+4)</option></select></div>
+        <div class="form-group"><label>Intensive care (hospital, −2):</label><input type="checkbox" name="intensiveCare" style="width:auto;"></div>
+        <div class="form-group"><label>Long-term magical care (−2):</label><input type="checkbox" name="magicalCare" style="width:auto;"></div>
+      </fieldset></div>`,
+    buttons: [{ action: "go", label: "Heal", default: true, callback: (ev, b) => {
+      const el = b.form.elements;
+      opts = { doctor: !!el.doctor.checked, condition: el.condition.value, intensiveCare: !!el.intensiveCare.checked, magicalCare: !!el.magicalCare.checked };
+    } }, { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+  if (action !== "go" || !opts) return;
+  await healBioware(actor, item, opts);
+  this.render();
+}
+async function onClearBioHeal(event, target) {
+  event.preventDefault();
+  const actor = this.document, item = actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+  if (item) await clearStuckBioHeal(actor, item);
+  this.render();
+}
+
 const SHARED_ACTIONS = {
   healClock: onHealClock,
+  healBioware: onHealBioware,
+  clearBioHeal: onClearBioHeal,
   permDamage: onPermDamage,
   // Tab navigation — use switchTab so V13's built-in _onClickTab never fires.
   // changeTab() fails because content sections live inside <div data-part="x">

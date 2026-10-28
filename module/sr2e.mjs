@@ -30,6 +30,7 @@ import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs"
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 import { registerHealingClockSettings, registerHealingClockHooks } from "./healing-clock.mjs";
 import { registerPermanentDamage } from "./permanent-damage.mjs";
+import { registerBiowareDamage } from "./bioware-damage.mjs";
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
@@ -1245,6 +1246,7 @@ function _registerSystemSettings() {
 
   registerCalendariaSettings();
   registerHealingClockSettings();
+  registerBiowareDamage();         // bioware damage (Shadowtech p.6; optional)
 
   game.settings.register("sr2e", "autoEssence", {
     name: "SR2E.Settings.AutoEssence",

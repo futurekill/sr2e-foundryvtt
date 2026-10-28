@@ -16,6 +16,7 @@ import { enqueueAttack } from "./engagement.mjs";
 import { calendaria, calendarDate } from "./calendaria.mjs";
 import { magicLost } from "./rules/sr2e-rules.mjs";
 import { currentPenalties, careEnds as permCareEnds } from "./permanent-damage.mjs";
+import { reconcileBioware } from "./bioware-damage.mjs";
 import { stateKey, normalize, clockChanges, courseValid, dueEvents, applyPending, lethalOverflow, STAGE_FLOOR, BLEED_S,
          durationText } from "./rules/healing-clock-rules.mjs";
 
@@ -195,6 +196,7 @@ export async function reconcileHealing(actor, now = game.time.worldTime, { force
     return true;
   });
   await settleMagicLoss(actor);
+  await reconcileBioware(actor, now);                           // bioware heals on its own clock (Shadowtech p.6)
   return settled;
 }
 
@@ -452,7 +454,8 @@ function allTracked() {
 }
 const busy = (a) => {
   const st = a.flags?.sr2e?.healClock?.[stateKey(a.uuid)];
-  return !!st && (st.physical || st.stun || st.bleed || Object.keys(st.loss ?? {}).length) || (a.system.conditionMonitor?.overflow ?? 0) > 0;
+  return !!st && (st.physical || st.stun || st.bleed || Object.keys(st.loss ?? {}).length) || (a.system.conditionMonitor?.overflow ?? 0) > 0
+    || a.items.some(i => i.type === "bioware" && i.flags?.sr2e?.bioHeal);
 };
 let scanning = null, epochSync = Promise.resolve();
 /** The active GM reconciles everyone with something running — never before the epoch is saved. */

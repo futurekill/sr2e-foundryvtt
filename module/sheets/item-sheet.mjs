@@ -103,6 +103,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     context.item = item;
     context.system = item.system;
+    context.isGM = game.user.isGM;
     // What the form shows, so a whole-form submit can tell a real quantity edit from a
     // stale resend (see _processSubmitData).
     this._shownQuantity = item.system.quantity;

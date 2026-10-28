@@ -383,6 +383,16 @@
     <span class="hint">40–60% off; same Body Cost; +1 on its damage-test rolls, a 7 destroys it (Shadowtech p.12)</span>
   </div>
   {{/ifEquals}}
+  {{#if isGM}}
+  <div class="form-group">
+    <label title="The implant's own damage track (Shadowtech p.6): 1 Light, 3 Moderate, 6 Serious (stops working), 10 Deadly">Damage (boxes):</label>
+    <input type="number" name="system.damage" value="{{system.damage}}" min="0" max="10" step="1" />
+  </div>
+  <div class="form-group">
+    <label title="Past Deadly: no longer works and can't be healed — clear this after a replacement">Destroyed:</label>
+    <input type="checkbox" name="system.destroyed" {{checked system.destroyed}} style="width:auto;" />
+  </div>
+  {{/if}}
   <div class="form-group">
     <label>Rating:</label>
     {{#if hasRatingTable}}

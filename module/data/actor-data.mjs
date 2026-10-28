@@ -3,6 +3,7 @@ import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
 import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs";
+import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
 import { foldDeck, programKey, liveOpen } from "../rules/vr2ic-rules.mjs";
@@ -1065,7 +1066,7 @@ export class CharacterData extends SR2EDataModel {
         // Attribute mods are PER-LEVEL — scale by Rating (all rated attribute
         // bioware in Shadowtech is linear). Triggered implants (Adrenal Pump,
         // Pain Editor) only apply their mods while `active`.
-        if (working && (!sys.triggered || sys.active)) {
+        if (working && bioFunctions(sys) && (!sys.triggered || sys.active)) {   // Serious+ damage: off (Shadowtech p.6)
           const rating = Math.max(1, sys.rating ?? 1);
           // MAO on an active pump (p.100): Level 1 keeps only its Reaction bonus;
           // Level 2 keeps its Reaction bonus, other attributes as Level 1.

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- **Bioware damage (Shadowtech p.6; optional setting "Bioware damage", off by default;**
+  docs/PLAN-bioware-damage.md).
+  - **Damage:** a single physical hit of Deadly severity can damage a character's bioware. The
+    GM's card rolls 1D6 − 3 for how many implants are hit, then picks them at random (dermal
+    bioware is exempt). Each implant rolls 1D6 for its damage: −1 if cultured, +1 if
+    secondhand, and a secondhand 7 destroys it (p.12).
+  - **Effects:** each implant has its own 10-box track. At Serious or worse it stops working
+    until healed below Serious; past Deadly it's destroyed and can only be replaced.
+  - **Healing:** the **Heal** button on the bioware row heals the implant by itself, in half
+    the usual time. With Calendaria, that time passes on the game clock.
+  - **GM editing:** the item sheet has damage and "destroyed" fields for the GM.
+
 ## 0.120.0 — 2026-10-28
 
 ### Added

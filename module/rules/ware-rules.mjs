@@ -22,6 +22,8 @@ export const WARE_SOURCES = Object.fromEntries([
   ...of("wired-reflexes:3", SYS("c2f3e4d5a6b70829")),
   ...of("boosted-reflexes", CT("ct-bodyware", "05d72dfda3f7eafd"), CT("ct-bodyware", "ff4e73ebf199c7c8"), CT("ct-bodyware", "549bc17b121c5c9c")),
   ...of("synaptic-accelerator", ST("st-bioware", "abf83fc461cdb66a")),
+  // Dermal bioware: can't be damaged by a Deadly hit (Shadowtech p.6).
+  ...of("orthoskin", ST("st-bioware", "f59178e795823c16")),
   ...of("dermal-plating", SYS("7tuo7vbiqlcdsia6"), SYS("d3a4b5c6e7f80931"), SYS("e4b5c6d7f8a90a42")),
   ...of("cyberear", SYS("3d89febv0ted2kon")),
   ...of("comm-headware", SYS("17d0945110b4cb33"), SYS("b2cc43aa6248a93b"), SYS("399qebdkfbz9i75m"), SYS("ebujgdogforfeqen"),
