@@ -843,3 +843,8 @@ If those five all work, the core loop is healthy.
 - [ ] An NPC sheet: type 9 in Essence → saved; clear it → still 9; type −1 → warned, still 9.
 - [ ] Paranormal Animals' Nosferatu imports from its compendium with Essence 7.
 - [ ] A Heal spell on an Essence-12 critter suggests TN 2.
+
+## Spirit attack Power and group totem bonuses (docs/PLAN-ancestor-spirit.md)
+- [ ] Quench batch `sr2e.spirit-attack-power` passes (4 tests).
+- [ ] A Rat shaman conjuring a city spirit: the card shows +2 totem dice on Conjuring and Drain.
+- [ ] A spirit sheet's Attack tooltip matches what the attack rolls (earth: Reaction dice, (F)S).

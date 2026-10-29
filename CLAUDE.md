@@ -397,3 +397,11 @@ no longer clamps (p.192: Good Karma may exceed it).
 type, core p.217 — the GM's). Foundry 13 CLAMPS an out-of-range NumberField on construction instead
 of rejecting it, so a schema `max` silently rewrites stat blocks; never re-add one. The NPC sheet's
 Essence input has its own save guard (blank → no save) in actor-sheet.mjs. docs/PLAN-npc-essence.md.
+
+## Spirit attacks and totem groups
+A spirit's manifest attack comes ONLY from `spiritAttackSummary(sys)` (rules/sr2e-rules.mjs) —
+rollSpiritAttack and the sheet tooltip both use it; a profile's `attack.power` is "force" (default)
+or "strength". Totem conjuring dice come ONLY from `totemConjuringBonus` (explicit domain → group →
+inherited best member, never summed), used for both the Conjuring and Drain pools. Content modules
+add spirit types by extending CONFIG at `init` (world documents are prepared before `setup`).
+docs/PLAN-ancestor-spirit.md.

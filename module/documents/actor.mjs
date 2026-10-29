@@ -45,7 +45,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary } from "../rules/sr2e-rules.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
@@ -1415,7 +1415,9 @@ export class SR2EActor extends Actor {
     let totemBonus = 0;
     if (this.system.magic?.tradition === "shamanic" && this.system.magic?.totem) {
       const totem = CONFIG.SR2E.totems[this.system.magic.totem];
-      totemBonus = totem?.conjuringBonus?.[domain] ?? 0;
+      // Group bonuses too (Rat's Spirits of Man, core p.121) — one value for Conjuring and Drain.
+      totemBonus = totemConjuringBonus(totem, domain,
+        { groupOf: CONFIG.SR2E.spiritDomainGroup, inherits: CONFIG.SR2E.spiritDomainInherits });
     }
 
     // A summoned spirit becomes a world Actor. Verify we can actually create one
@@ -1543,7 +1545,7 @@ export class SR2EActor extends Actor {
     // else the default SVG. Token gets the same image, rotation locked.
     const variant = spiritPortraitVariant(CONFIG.SR2E?.spiritPortraitVariants?.[domain] ?? 0);
     const img = variant
-      ? `systems/sr2e/assets/spirit_portraits/${domain}-${variant}.webp`
+      ? `${CONFIG.SR2E?.spiritPortraitBase?.[domain] ?? "systems/sr2e/assets/spirit_portraits"}/${domain}-${variant}.webp`
       : (kind === "elemental" ? "icons/svg/fire.svg" : "icons/svg/oak.svg");
 
     let spiritUuid = null;
@@ -2705,18 +2707,15 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Roll a spirit's manifest attack (Unarmed, Force dice; SR2E Critters p.228).
-   * Nature spirits deal (Force)M, elementals (Force)S. Posts a Resist Damage
-   * button (Impact armor) for the defender.
+   * Roll a spirit's manifest attack from its stat profile's attack descriptor (p.234–235): dice
+   * (Force or Reaction), Power (Force, or Strength for a profile with `power: "strength"` — the
+   * Cyberpirates ancestor spirit), level and Stun. Posts a Resist Damage button (Impact armor).
    */
   async rollSpiritAttack() {
     if (this.type !== "spirit") return;
     if (!this.isOwner) return ui.notifications.warn(`You do not own ${this.name}.`);
     const busy = this._elementalBusyReason();
     if (busy) return ui.notifications.warn(busy);
-    // Effective Force: Aid Sorcery and sustained turns reduce it (p.141–142).
-    const force = this.system.effectiveForce ?? this.system.force ?? 1;
-
     // The attack comes from the spirit's stat profile (SR2E p.234–235), not one
     // blanket rule: earth strikes with Reaction dice for (F)S, fire is a RANGED
     // (F)M at Force x 2 metres, water does (F)S STUN on Force dice — and air has
@@ -2740,9 +2739,13 @@ export class SR2EActor extends Actor {
       return ui.notifications.warn(`${this.name}: order it to Fight for you first — one service for the whole fight (SR2E p.140).`);
     }
 
-    const level = atk.level;
-    const dice  = atk.dice === "reaction" ? (this.system.reaction?.value ?? force) : force;
-    const diceLabel = atk.dice === "reaction" ? AL("reaction") : RL("Force");
+    // Dice and Power from the profile (spiritAttackSummary — the sheet's tooltip uses the same):
+    // most spirits strike at their Force; the ancestor spirit at its Strength (CP p.152).
+    const sum = spiritAttackSummary(this.system);
+    const level = sum.level;
+    const dice  = sum.dice;
+    const power = sum.power;
+    const diceLabel = sum.diceFrom === "reaction" ? AL("reaction") : RL("Force");
 
     // Who it's aimed at, captured before any await: the Resist button names them, so
     // whoever happens to be selected can't take (and use up) someone else's hit.
@@ -2757,20 +2760,20 @@ export class SR2EActor extends Actor {
     const finalIdx = Math.min(stages.indexOf(level) + stageUps, 3);
     const safeName = foundry.utils.escapeHTML(this.name);
 
-    const isStun = atk.damageType === "stun";
-    const detail = atk.mode === "ranged"
-      ? `ranged, range ${force * (atk.rangeMult ?? 2)} m`
-      : `melee${atk.reach ? `, +${atk.reach} Reach` : ""}`;
+    const isStun = sum.stun;
+    const detail = sum.mode === "ranged"
+      ? `ranged, range ${sum.range} m`
+      : `melee${sum.reach ? `, +${sum.reach} Reach` : ""}`;
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
-        <strong>${safeName} Attack:</strong> ${force}${stages[finalIdx]}${isStun ? " Stun" : ""}
-        <br><em>Base ${force}${level}${isStun ? " Stun" : ""} | ${diceLabel} ${dice} dice
+        <strong>${safeName} Attack:</strong> ${power}${stages[finalIdx]}${isStun ? " Stun" : ""}
+        <br><em>Base ${power}${level}${isStun ? " Stun" : ""}${sum.powerFrom === "strength" ? " (Strength)" : ""} | ${diceLabel} ${dice} dice
         | staged up ${stageUps} level(s) | ${detail}</em>
         <br>
         <button class="sr2e-resist-btn"
-                data-power="${force}" data-base-power="${force}"
+                data-power="${power}" data-base-power="${power}"
                 data-level="${stages[finalIdx]}" data-armor-type="impact"
                 data-damage-type="${isStun ? "stun" : "physical"}" data-armor-calc="standard"
                 data-armor-mod="0" data-ammo-name=""

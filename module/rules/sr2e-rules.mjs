@@ -1265,6 +1265,50 @@ export function spiritAttributes(profile, force) {
   };
 }
 
+/**
+ * A totem's conjuring dice for a spirit domain (docs/PLAN-ancestor-spirit.md):
+ *  1. its entry for the domain (explicit always wins);
+ *  2. else its entry for the domain's GROUP — Rat's "+2 for all Spirits of Man" (core p.121);
+ *  3. else, for a domain that inherits (the ancestor spirit, Cyberpirates p.152: "all totem bonuses
+ *     for conjuring Spirits of Man apply"), the HIGHEST bonus among the group's member domains —
+ *     never a sum (Dog's field 2 + hearth 2 is +2);
+ *  4. else 0.
+ * @param {object} totem  a CONFIG.SR2E.totems entry
+ * @param {string} domain
+ * @param {{groupOf?: Record<string,string>, inherits?: Record<string,boolean>}} maps
+ */
+export function totemConjuringBonus(totem, domain, { groupOf = {}, inherits = {} } = {}) {
+  const b = totem?.conjuringBonus ?? {};
+  if (b[domain] != null) return b[domain];
+  const group = groupOf[domain];
+  if (!group) return 0;
+  if (b[group] != null) return b[group];
+  if (!inherits[domain]) return 0;
+  const members = Object.entries(groupOf).filter(([d, g]) => g === group && d !== domain && b[d] != null).map(([d]) => b[d]);
+  return members.length ? Math.max(...members) : 0;
+}
+
+/**
+ * What a spirit's manifest attack rolls and deals, from its profile's attack descriptor — the ONE
+ * source for both rollSpiritAttack and the sheet's tooltip. `dice`: "force" | "reaction";
+ * `power`: "force" (default) | "strength" (the ancestor spirit's (Strength)M Stun).
+ * @param {{effectiveForce?:number, force?:number, reaction?:{value:number}, strength?:{value:number}, attackProfile?:object}} sys
+ * @returns {null|{dice:number, diceFrom:string, power:number, powerFrom:string, level:string, stun:boolean, mode:string, reach:number, range:number}}
+ */
+export function spiritAttackSummary(sys) {
+  const atk = sys?.attackProfile;
+  if (!atk) return null;
+  const force = sys.effectiveForce ?? sys.force ?? 1;
+  const diceFrom = atk.dice === "reaction" ? "reaction" : "force";
+  const powerFrom = atk.power === "strength" ? "strength" : "force";
+  return {
+    dice: diceFrom === "reaction" ? (sys.reaction?.value ?? force) : force, diceFrom,
+    power: powerFrom === "strength" ? (sys.strength?.value ?? force) : force, powerFrom,
+    level: atk.level, stun: atk.damageType === "stun", mode: atk.mode,
+    reach: atk.reach ?? 0, range: atk.mode === "ranged" ? force * (atk.rangeMult ?? 2) : 0
+  };
+}
+
 /* ── INITIATIVE PASSES (SR2E p.78–79) — pure decision helpers for SR2ECombat ── */
 
 /** Initiative left after taking an action: −10, floored at 0 (you simply stop

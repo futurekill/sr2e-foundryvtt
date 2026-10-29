@@ -13287,5 +13287,91 @@ export function registerSR2EQuenchTests() {
         assert.isTrue(D.substanceRows(a).essenceZero, "Essence 0 with a loss alerts");
       });
     }, { displayName: "SR2E: NPC Essence above 6" });
+
+    // Spirit attack Power source and group totem bonuses (docs/PLAN-ancestor-spirit.md).
+    quench.registerBatch("sr2e.spirit-attack-power", (context) => {
+      const { it, assert, before, after } = context;
+      const made = [];
+      let msgsBefore;
+      const ANC = { b: 2, q: 0, mult: 3, s: 1, r: 0, attack: { mode: "melee", level: "M", damageType: "stun", dice: "force", power: "strength" } };
+      before(() => {
+        msgsBefore = game.messages.size;
+        CONFIG.SR2E.spiritProfiles.__qanc = ANC; CONFIG.SR2E.spiritDomainProfile.__qanc = "__qanc";
+      });
+      after(async function () {
+        this.timeout(20000);
+        delete CONFIG.SR2E.spiritProfiles.__qanc; delete CONFIG.SR2E.spiritDomainProfile.__qanc;
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgsBefore).map(m => m.id));
+      });
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform, q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const spirit = async (domain, force, extra = {}) => {
+        const a = await Actor.create({ name: `Quench Spirit ${domain}`, type: "spirit", system: { spiritType: "nature", domain, force, services: 2, ...extra } });
+        made.push(a); await a.setFlag("sr2e", "fighting", true); return a;
+      };
+      const lastButton = () => {
+        const m = game.messages.contents.at(-1);
+        const d = document.createElement("div"); d.innerHTML = m?.content ?? "";
+        return { html: m?.content ?? "", btn: d.querySelector(".sr2e-resist-btn")?.dataset ?? {} };
+      };
+
+      it("a Strength-power profile (the ancestor spirit) attacks with Force dice for (Strength)M Stun, and it lands as Stun", async () => {
+        const a = await spirit("__qanc", 4);
+        assert.equal(a.system.strength.value, 5);
+        const calls = []; const orig = a.rollSuccessTest.bind(a);
+        a.rollSuccessTest = (d, tn, o) => { calls.push(d); return orig(d, tn, o); };
+        await withFaces([5, 1, 1, 1], () => a.rollSpiritAttack());          // 1 success: no staging
+        assert.equal(calls[0], 4, "Force dice");
+        const { html, btn } = lastButton();
+        assert.equal(btn.power, "5"); assert.equal(btn.level, "M"); assert.equal(btn.damageType, "stun");
+        assert.include(html, "(Strength)");
+        const target = await Actor.create({ name: "Quench Spirit Target", type: "npc", system: { body: { base: 1 } } }); made.push(target);
+        // The resistance dialog: confirm it as is (no pool dice).
+        new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)))
+          .then(app => app.element.querySelector('button[data-action="roll"]')?.click());
+        await withFaces([1], () => target.rollDamageResistance(Number(btn.power), btn.level, btn.armorType, btn.damageType));
+        await new Promise(r => setTimeout(r, 300));
+        assert.isAbove(target.system.conditionMonitor.stun.value, 0, "Stun boxes");
+        assert.equal(target.system.conditionMonitor.physical.value, 0, "no Physical");
+      });
+
+      it("default Power stays Force: a Force-4 earth spirit (Strength 8) hits for 4, effective Force 3 for 3", async () => {
+        const e = await spirit("mountain", 4);
+        assert.equal(e.system.strength.value, 8);
+        await withFaces(Array(8).fill(5).map((v, i) => i ? 1 : 5), () => e.rollSpiritAttack());
+        assert.equal(lastButton().btn.power, "4");
+        await e.update({ "system.forceUsed": 1 });
+        await withFaces(Array(8).fill(1).map((v, i) => i ? 1 : 5), () => e.rollSpiritAttack());
+        assert.equal(lastButton().btn.power, "3");
+      });
+
+      it("the sheet's Attack tooltip says what the roll does", async function () {
+        this.timeout(8000);
+        const a = await spirit("__qanc", 4);
+        await a.sheet.render(true); await new Promise(r => setTimeout(r, 600));
+        try {
+          const t = a.sheet.element.querySelector('[data-action="spiritAttack"]')?.title ?? "";
+          assert.include(t, "4 Force dice"); assert.include(t, "5M Stun"); assert.include(t, "Strength");
+        } finally { await a.sheet.close(); }
+      });
+
+      it("a Rat shaman's Conjuring and Drain pools include +2 for a city spirit (core p.121)", async () => {
+        const shaman = await Actor.create({ name: "Quench Rat Shaman", type: "character",
+          system: { charisma: { base: 5 }, magic: { type: "full_magician", rating: 6, tradition: "shamanic", totem: "rat" } } });
+        made.push(shaman);
+        await shaman.createEmbeddedDocuments("Item", [{ name: "Conjuring", type: "skill", system: { rating: 4, category: "active" } }]);
+        const calls = []; const orig = shaman.rollSuccessTest.bind(shaman);
+        shaman.rollSuccessTest = (d, tn, o) => { calls.push(d); return orig(d, tn, o); };
+        const before = new Set(game.actors.map(a => a.id));
+        await withFaces(Array(20).fill(5), () => shaman.rollConjuring({ force: 1, kind: "nature", domain: "city" }));
+        for (const a of game.actors.filter(a => !before.has(a.id))) made.push(a);
+        assert.equal(calls[0], 6, "Conjuring 4 + Rat 2");
+        assert.equal(calls[1], 7, "Drain: Charisma 5 + Rat 2");
+      });
+    }, { displayName: "SR2E: spirit attack Power and group totem bonuses" });
   });
 }

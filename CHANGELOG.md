@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+- **Rat shamans get their +2 dice for conjuring Spirits of Man** (core p.121) on city, hearth and
+  field spirits — the totem's bonus was stored for the whole group and never reached those
+  domains. It counts for the Conjuring and the Drain pools.
+- The spirit sheet's **Attack** tooltip shows the attack the spirit really makes (its dice, Power,
+  level and Stun) instead of a generic "(Force)S or M".
+
+### Added (for content modules)
+- A spirit profile's attack can take its Power from **Strength** instead of Force
+  (`attack.power: "strength"`) — the Cyberpirates ancestor spirit's (Strength)M Stun.
+- Spirit **groups** for totem bonuses (`CONFIG.SR2E.spiritDomainGroup`, `spiritDomainInherits`): a
+  totem's bonus for a group reaches its domains, and a domain can inherit its group's best bonus.
+- `CONFIG.SR2E.spiritPortraitBase` lets a module ship portraits for a spirit type it adds.
+
 ## 0.122.0 — 2026-10-29
 
 ### Fixed

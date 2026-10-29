@@ -547,6 +547,15 @@ SR2E.spiritDomainProfile = {
   lake: "water", river: "water", sea: "water", swamp: "water"
 };
 
+// Spirit GROUPS for totem conjuring bonuses (docs/PLAN-ancestor-spirit.md): a totem may give dice
+// for a whole group — Rat: "+2 dice for conjuring all Spirits of Man" (core p.121), stored as
+// `spirits_of_man`. A domain in `spiritDomainInherits` (a module's ancestor spirit) takes the best
+// bonus among its group's member domains. See totemConjuringBonus in rules/sr2e-rules.mjs.
+SR2E.spiritDomainGroup = { city: "spirits_of_man", hearth: "spirits_of_man", field: "spirits_of_man" };
+SR2E.spiritDomainInherits = {};
+// Where a domain's portraits live when a MODULE ships them (path prefix); default the system's.
+SR2E.spiritPortraitBase = {};
+
 // Elemental types — a mage summons elementals of the four classical elements.
 // Each aids one spell category for Aid Sorcery (SR2E p.140).
 SR2E.elementalTypes = {

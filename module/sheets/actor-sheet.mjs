@@ -22,7 +22,7 @@ function substanceContext(actor) {
   for (const r of s.rows) r.nextDate = calendarDate(r.nextT);
   return s;
 }
-import { elementalAidsCategory } from "../rules/sr2e-rules.mjs";
+import { elementalAidsCategory, spiritAttackSummary } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { clockView } from "../healing-clock.mjs";
 import { permView } from "../permanent-damage.mjs";
@@ -2162,6 +2162,13 @@ export class SR2ESpiritSheet extends SR2EBaseActorSheet {
     }));
     context.spiritDomains = CONFIG.SR2E.spiritDomains;
     context.isElemental = this.document.system.spiritType === "elemental";
+    // The Attack button's tooltip from the same summary the roll uses (spiritAttackSummary).
+    {
+      const a = spiritAttackSummary(this.document.system);
+      context.attackTitle = !a ? "No manifest attack: its attacks are its Powers (SR2E p.234)"
+        : `Manifest attack: ${a.dice} ${a.diceFrom === "reaction" ? "Reaction" : "Force"} dice, ${a.power}${a.level}${a.stun ? " Stun" : ""}`
+          + `${a.powerFrom === "strength" ? " (Power = Strength)" : ""}, ${a.mode === "ranged" ? `ranged ${a.range} m` : `melee${a.reach ? ` +${a.reach} Reach` : ""}`}`;
+    }
     // Service status (SR2E p.139–142): see module/spirit-services.mjs.
     {
       const doc = this.document;
