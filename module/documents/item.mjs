@@ -1,3 +1,4 @@
+import { adeptPowersWork, weaponUsable, inAnimalForm } from "../rules/shapeshift-rules.mjs";
 import { parseDrainCode } from "../data/item-data.mjs";
 import { moneyQueue, applyUpdate } from "../money.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
@@ -214,7 +215,7 @@ export function renderRangedDamageCard(state) {
             data-power="${state.power}" data-base-power="${state.basePower}"
             data-level="${state.baseLevel}" data-armor-type="${state.armorType}"
             data-damage-type="${state.damageType}" data-armor-calc="${state.armorCalc}"
-            data-armor-mod="${state.armorMod}" data-ammo-name="${esc(state.ammoName ?? "")}"
+            data-armor-mod="${state.armorMod}" data-ammo-name="${esc(state.ammoName ?? "")}" data-material="${esc(state.material ?? "")}"
             data-target-uuid="${state.targetUuid ?? ""}" data-attacker-successes="${n}"
             data-stage="net" data-stage-vs="${n}"
             data-rated-level="${state.ratedLevel}" data-called-shot="${state.calledShot ? 1 : 0}"
@@ -514,7 +515,8 @@ export class SR2EItem extends Item {
       "system.ammo.damageMod":      source.system.damageModifier ?? 0,
       "system.ammo.armorMod":       source.system.armorModifier ?? 0,
       "system.ammo.armorCalc":      source.system.armorCalc ?? "standard",
-      "system.ammo.damageType":     source.system.damageType ?? ""
+      "system.ammo.damageType":     source.system.damageType ?? "",
+      "system.ammo.material":       source.system.material ?? ""
     }, {}, "reload: load");
     if (!loaded) return undo("the weapon couldn't be loaded");
 
@@ -561,6 +563,8 @@ export class SR2EItem extends Item {
     // wound penalties and recoil are theirs; the weapon stays on the vehicle.
     const actor = options.gunner ?? this.parent;
     if (!actor) return;
+    // A shapeshifter's gear doesn't shift; a multi-form critter's attacks belong to their form (Companion p.36).
+    if (!weaponUsable(actor.type, actor.system, this.system)) return ui.notifications.warn(`${actor.name} can't use ${this.name} in this form.`);
 
     // Ranged fire is per-phase state (recoil, targets engaged, walking fire —
     // p.92–93): capture the phase and the aimed token NOW, then run one attack
@@ -1141,7 +1145,7 @@ export class SR2EItem extends Item {
       // strike as PHYSICAL damage at the purchased level instead of (Str)M
       // Stun. Applied when the dialog checkbox was ticked (options.killingHands
       // carries the level letter).
-      if (options.killingHands && /unarmed/i.test(this.name)) {
+      if (options.killingHands && /unarmed/i.test(this.name) && adeptPowersWork(actor.system)) {
         level = options.killingHands;
         damageType = "physical";
         weaponName = `${this.name} (Killing Hands)`;
@@ -1158,6 +1162,7 @@ export class SR2EItem extends Item {
         weaponName = `${this.name} (physical, ½ Power)`;
       }
       const meleeState = {
+        material: this.system.material ?? "",   // a shapeshifter's bane (Companion p.38)
         attackerUuid: actor.uuid,
         attackerName: actor.name,
         weaponName,
@@ -1270,6 +1275,8 @@ export class SR2EItem extends Item {
       const ammoCalc  = hasAmmo ? (ammo.armorCalc || "standard") : "standard";
       const ammoMod   = hasAmmo ? (ammo.armorMod ?? 0) : 0;
       const ammoName  = hasAmmo ? (ammo.loadedName || "") : "";
+      // What hits: the loaded rounds' material, else the weapon's (a shapeshifter's bane, Companion p.38).
+      const material  = hasAmmo ? (ammo.material ?? "") : (this.system.material || "");
       if (hasAmmo && ammo.damageMod) {
         effectivePower += ammo.damageMod;
         powerNotes.push(`${ammo.damageMod > 0 ? "+" : ""}${ammo.damageMod} ${ammoName || "ammo"}`);
@@ -1377,7 +1384,7 @@ export class SR2EItem extends Item {
         weaponName: this.name, attackerName, attributed: !!defender, targetUuid,
         power: effectivePower, basePower, baseLevel: stages[finalIdx], ratedLevel: dmg.level,
         calledShot: !!calledShotSteps, armorType, damageType, armorCalc: ammoCalc, armorMod: ammoMod,
-        ammoName, powerNote, codeText: this.system.damageCode,
+        ammoName, material, powerNote, codeText: this.system.damageCode,
         antiVehicle: isAntiVehicleOrdnance(this.name),   // keeps its Damage Level vs vehicles (p.108)
         // A shot declared through a barrier that MISSED never ran the barrier
         // resolution; if Karma revives it, the GM resolves it by hand (no button).
@@ -1758,7 +1765,7 @@ export class SR2EItem extends Item {
     // MPCP overload, drugs — Hyper's +5 is a penalty like the others — and
     // bioware interference on a healing spell).
     const penaltyC = actor.testTnModifiers({ tnContext: SPELL_TN_CONTEXT, extraTN: healingTN }).total;
-    if ((mgC?.initiateGrade ?? 0) >= 1 && mgC?.metamagic?.includes?.("centering")
+    if (!inAnimalForm(actor.type, actor.system) && (mgC?.initiateGrade ?? 0) >= 1 && mgC?.metamagic?.includes?.("centering")
         && mgC?.centeringSkill && penaltyC > 0) {
       const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
       const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mgC.centeringSkill));
@@ -1846,7 +1853,7 @@ export class SR2EItem extends Item {
     // (only if the drain test scored at least one of its own).
     let drainSuccesses = drainResult?.successes ?? 0;
     const mg = actor.system.magic;
-    if ((mg?.initiateGrade ?? 0) >= 1 && mg?.metamagic?.includes?.("centering")
+    if (!inAnimalForm(actor.type, actor.system) && (mg?.initiateGrade ?? 0) >= 1 && mg?.metamagic?.includes?.("centering")
         && mg?.centeringSkill && drainSuccesses >= 1) {
       const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
       const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mg.centeringSkill));
@@ -1877,7 +1884,7 @@ export class SR2EItem extends Item {
       const finalLevel = stages[finalIdx];
       // Boxes per drain level (SR2E p.113): L=1, M=3, S=6, D=10
       const drainBoxes = [1, 3, 6, 10][finalIdx];
-      await actor.applyDamage(drainType, drainBoxes);
+      await actor.applyDamage(drainType, drainBoxes, { source: "drain" });
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-drain-result">

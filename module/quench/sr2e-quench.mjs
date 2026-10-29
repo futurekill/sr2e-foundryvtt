@@ -1,3 +1,4 @@
+import * as SSR from "../rules/shapeshift-rules.mjs";
 /**
  * In-Foundry integration tests, run by the Quench module.
  *
@@ -12,6 +13,7 @@
  * Foundry's Add-on Modules browser, enable it in the world, then open the Quench
  * window (its button sits at the bottom of the sidebar) and run the SR2E batches.
  */
+import { chargenBudgetOf } from "../sheets/actor-sheet.mjs";
 import { evaluateDamageCode } from "../documents/item.mjs";
 import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating, gradeCostMultiplier } from "../rules/sr2e-rules.mjs";
 import { saleQuote } from "../money.mjs";
@@ -13609,5 +13611,291 @@ export function registerSR2EQuenchTests() {
         assert.equal(calls[1], 7, "Drain: Charisma 5 + Rat 2");
       });
     }, { displayName: "SR2E: spirit attack Power and group totem bonuses" });
+
+    // ── Shapeshifters (Companion pp.36–38; core p.227–229; docs/PLAN-shapeshifters.md) ──────
+    quench.registerBatch("sr2e.shapeshifters", (context) => {
+      const { it, assert, after } = context;
+      const made = [];
+      const SS = game.sr2e.shapeshift;
+      const combats = [];
+      const stOf = (a) => a.flags?.sr2e?.shift?.[SSR.shiftKey(a.uuid)] ?? {};
+      after(async function () {
+        this.timeout(20000);
+        await ChatMessage.deleteDocuments(game.messages.filter(m => made.some(a => a.id === m.speaker?.actor)
+          || made.some(a => a.uuid === (m.flags?.sr2e?.shiftDeath?.actorUuid ?? m.flags?.sr2e?.shiftDeathResult?.actorUuid))).map(m => m.id));
+        for (const c of combats) { try { await c.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const withFaces = async (face, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        CONFIG.Dice.randomUniform = () => (6.5 - face) / 6;
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const shifter = async (name, species = "bear", system = {}) => {
+        const a = await Actor.create({ name, type: "character", system: { race: "shapeshifter",
+          shapeshifter: { species }, body: { base: 4 }, quickness: { base: 4 }, strength: { base: 4 },
+          charisma: { base: 3 }, intelligence: { base: 3 }, willpower: { base: 4 }, ...system } });
+        made.push(a); return a;
+      };
+
+      it("legacy documents construct with the new defaults", async () => {
+        const a = await Actor.create({ name: "Quench SS Legacy", type: "character" }); made.push(a);
+        assert.equal(a.system.shapeshifter.species, ""); assert.equal(a.system.shapeshifter.form, "human");
+        const n = await Actor.create({ name: "Quench SS Legacy NPC", type: "npc" }); made.push(n);
+        assert.deepEqual(n.system.forms, []); assert.equal(n.system.activeForm, ""); assert.isFalse(n.system.shapeshifter.enabled);
+        const [w] = await a.createEmbeddedDocuments("Item", [{ name: "Quench SS Knife", type: "weapon", system: { weaponType: "melee" } }]);
+        assert.equal(w.system.form, ""); assert.equal(w.system.material, "");
+      });
+
+      it("form modifiers: bear human +1B +1S; animal +5B −1Q +5S −2W, armor stays behind, stable on a second preparation", async () => {
+        const a = await shifter("Quench SS Bear");
+        await a.createEmbeddedDocuments("Item", [{ name: "Quench SS Jacket", type: "armor", system: { ballistic: 5, impact: 3, equipped: true } }]);
+        assert.equal(a.system.body.value, 5); assert.equal(a.system.strength.value, 5);
+        assert.equal(a.system.armor.ballistic, 5);
+        await SS.shiftForm(a, "animal");
+        assert.equal(a.system.shapeshifter.form, "animal");
+        a.prepareData(); a.prepareData();
+        assert.equal(a.system.body.value, 9); assert.equal(a.system.quickness.value, 3);
+        assert.equal(a.system.strength.value, 9); assert.equal(a.system.willpower.value, 2);
+        assert.equal(a.system.armor.ballistic, 0, "worn armor doesn't shift");
+        assert.equal(SSR.dermalDiceOf(a.type, a.system), 2, "Dermal Armor (+2 Body)");
+        await SS.shiftForm(a, "human");
+        assert.equal(a.system.body.value, 5); assert.equal(a.system.armor.ballistic, 5, "armor back in human form");
+      });
+
+      it("tiger animal form adds +2D6 Initiative; the base cap is 6 only in creation", async () => {
+        const a = await shifter("Quench SS Tiger", "tiger", { body: { base: 6 }, chargen: { inProgress: true } });
+        await SS.shiftForm(a, "animal");
+        assert.equal(a.system.initiative.dice, 3, "1 + 2D6");
+        assert.equal(a.system.body.value, 10, "base 6 + 4, above any racial maximum");
+      });
+
+      it("shifting rejects cyberware first; a direct update to animal with implants is refused; nobody installs in animal form", async () => {
+        const a = await shifter("Quench SS Cyber");
+        const [c] = await a.createEmbeddedDocuments("Item", [{ name: "Quench SS Datajack", type: "cyberware", system: { installed: true, essenceCost: 0.2 } }]);
+        assert.isTrue(c.system.installed, "the GM may install it");
+        await a.update({ "system.shapeshifter.form": "animal" });
+        assert.equal(a.system.shapeshifter.form, "human", "direct update refused");
+        await SS.shiftForm(a, "animal");
+        assert.equal(a.system.shapeshifter.form, "animal");
+        assert.isFalse(a.items.get(c.id).system.installed, "rejected");
+        await a.items.get(c.id).update({ "system.installed": true });
+        assert.isFalse(a.items.get(c.id).system.installed, "can't reinstall in animal form");
+      });
+
+      it("projection: refused in animal form and for a mundane shapeshifter", async () => {
+        const m = await shifter("Quench SS Mage", "fox", { magic: { type: "full_magician", value: 4, max: 4, tradition: "shamanic" } });
+        await SS.shiftForm(m, "animal");
+        await m.update({ "system.astralState": "projecting" });
+        assert.notEqual(m.system.astralState, "projecting", "animal form");
+        await SS.shiftForm(m, "human");
+        await m.update({ "system.astralState": "projecting" });
+        assert.equal(m.system.astralState, "projecting", "human-form magician may");
+        const mundane = await shifter("Quench SS Mundane", "wolf");
+        await mundane.update({ "system.astralState": "projecting" });
+        assert.notEqual(mundane.system.astralState, "projecting");
+      });
+
+      it("damage buckets by source; regeneration out of combat by the Companion's rates", async () => {
+        const a = await shifter("Quench SS Wolf", "wolf");
+        await a.applyDamage("physical", 3);                                       // human form
+        await SS.shiftForm(a, "animal");
+        await a.applyDamage("physical", 3);                                       // animal form
+        await a.applyDamage("physical", 1, { source: "bane" });
+        assert.deepEqual(stOf(a).b, { human: 3, animal: 3, bane: 1, drain: 0 });
+        await SS.regenerateMinutes(a, 1);                                         // 20 turns at E 6
+        assert.equal(a.system.conditionMonitor.physical.value, 0, "all healed in a minute (silver: 1 box/minute)");
+        assert.deepEqual(stOf(a).b, { human: 0, animal: 0, bane: 0, drain: 0 });
+      });
+
+      it("Deadly in animal form opens a death check that blocks regeneration; one recorded roll decides it", async () => {
+        const a = await shifter("Quench SS Leopard", "leopard");
+        await SS.shiftForm(a, "animal");
+        await a.applyDamage("physical", 10);
+        const d = stOf(a).death;
+        assert.equal(d?.state, "pending"); assert.equal(d.diesOn, 1);
+        await SS.regenerateMinutes(a, 1);
+        assert.equal(a.system.conditionMonitor.physical.value, 10, "no regeneration while it waits");
+        await withFaces(4, () => SS.resolveDeath(a, d.id));
+        assert.equal(stOf(a).death.state, "survived");
+        const recs = (await import("../claims.mjs")).eventsOf(a).filter(e => e.key.startsWith(`death:${d.id}:`));
+        assert.lengthOf(recs, 1, "one result recorded");
+        await withFaces(1, () => SS.resolveDeath(a, d.id));                       // stale: already settled
+        assert.equal(stOf(a).death.state, "survived");
+        await SS.regenerateMinutes(a, 1);
+        assert.equal(a.system.conditionMonitor.physical.value, 0, "survivors regenerate");
+        assert.isFalse(stOf(a).survived, "the episode ended with the wound");
+      });
+
+      it("silver + other damage: dies on 1–2; a 2 kills; human form gets no check", async () => {
+        const a = await shifter("Quench SS Seal", "seal");
+        await SS.shiftForm(a, "animal");
+        await a.applyDamage("physical", 4, { source: "bane" });
+        await a.applyDamage("physical", 6);
+        const d = stOf(a).death;
+        assert.equal(d?.diesOn, 2);
+        await withFaces(2, () => SS.resolveDeath(a, d.id));
+        assert.equal(stOf(a).death.state, "dead");
+        assert.isTrue(a.statuses.has("dead"), "dead status");
+        await SS.clearDeath(a);
+        assert.isNull(stOf(a).death);
+        const h = await shifter("Quench SS Human Form", "wolf");
+        await h.applyDamage("physical", 10);
+        assert.isNotOk(stOf(h).death, "standard rules in human form");
+      });
+
+      it("Body + 10 kills outright in any form", async () => {
+        const a = await shifter("Quench SS Outright", "wolf");                    // Body 4 → threshold 14
+        await a.applyDamage("physical", 14);
+        assert.equal(stOf(a).death?.state, "dead");
+      });
+
+      it("combat: one regeneration tick per Combat Turn, none at the start, none on a rewind", async function () {
+        this.timeout(10000);
+        const a = await shifter("Quench SS Combat Wolf", "wolf");
+        await SS.shiftForm(a, "animal");
+        const c = await Combat.create({ scene: null }); combats.push(c);
+        await c.createEmbeddedDocuments("Combatant", [{ actorId: a.id }]);
+        await c.startCombat();
+        await a.applyDamage("physical", 9);
+        await c.update({ round: 2 });
+        assert.ok(await settle(() => a.system.conditionMonitor.physical.value === 3, 3000), `6 healed (now ${a.system.conditionMonitor.physical.value})`);
+        await c.update({ round: 1 });
+        await c.update({ round: 2 });
+        await new Promise(r => setTimeout(r, 500));
+        assert.equal(a.system.conditionMonitor.physical.value, 3, "a replayed round heals nothing");
+        await c.update({ round: 3 });
+        assert.ok(await settle(() => a.system.conditionMonitor.physical.value === 0, 3000));
+      });
+
+      it("a claimed but never-written tick is taken over after STUCK_MS (catch-up, no lost turn)", async function () {
+        this.timeout(10000);
+        const { claimId, STUCK_MS } = await import("../rules/claim-rules.mjs");
+        const a = await shifter("Quench SS Stuck Wolf", "wolf");
+        await SS.shiftForm(a, "animal");
+        const c = await Combat.create({ scene: null }); combats.push(c);
+        await c.createEmbeddedDocuments("Combatant", [{ actorId: a.id }]);
+        await c.startCombat();
+        const cb = c.combatants.contents[0];
+        await a.applyDamage("physical", 9);
+        const key = `regen:${cb.id}:1`;                                          // another client claimed it, then died
+        await a.createEmbeddedDocuments("ActiveEffect", [{ _id: claimId(key), name: "SR2E step marker", disabled: true, transfer: false,
+          flags: { sr2e: { claim: { key, at: game.time.serverTime - STUCK_MS - 1000, user: "someoneElse" } } } }], { keepId: true });
+        await c.update({ round: 2 });
+        assert.ok(await settle(() => a.system.conditionMonitor.physical.value === 3, 3000), `taken over (now ${a.system.conditionMonitor.physical.value})`);
+      });
+
+      it("NPC regeneration: wounds vanish; a full monitor opens a check (dies on 1)", async () => {
+        const n = await Actor.create({ name: "Quench SS NPC", type: "npc", system: { shapeshifter: { enabled: true } } }); made.push(n);
+        await n.applyDamage("physical", 6);
+        await SS.regenerateMinutes(n, 1);
+        assert.equal(n.system.conditionMonitor.physical.value, 0);
+        await n.applyDamage("physical", 10);
+        assert.equal(stOf(n).death?.diesOn, 1);
+      });
+
+      it("NPC forms: the active form's block replaces the printed one, effects land on top, twice-prepared, cleared cleanly", async () => {
+        const n = await Actor.create({ name: "Quench SS Kludde", type: "npc", system: { body: { base: 5 }, armor: { ballistic: 1 },
+          forms: [{ key: "avian", name: "Avian", body: 3, quickness: 6, strength: 2, charisma: 1, intelligence: 2, willpower: 6,
+                    reactionMod: 1, initiativeDice: 3, ballistic: 0, impact: 0 }] } }); made.push(n);
+        await n.createEmbeddedDocuments("ActiveEffect", [{ name: "Quench SS Boost", changes: [
+          { key: "system.reaction.mod", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: "2" },
+          { key: "system.armor.impact", mode: CONST.ACTIVE_EFFECT_MODES.OVERRIDE, value: "4" }] }]);
+        await SS.shiftForm(n, "avian");
+        n.prepareData(); n.prepareData();
+        assert.equal(n.system.body.value, 3); assert.equal(n.system.reaction.mod, 3, "form 1 + effect 2");
+        assert.equal(n.system.initiative.dice, 3); assert.equal(n.system.armor.impact, 4, "override on top");
+        assert.equal(n._source.system.body.base, 5, "the printed block untouched");
+        await SS.shiftForm(n, "");
+        assert.equal(n.system.body.value, 5); assert.equal(n.system.reaction.mod, 2); assert.equal(n.system.armor.ballistic, 1);
+      });
+
+      it("animal form: no Social skills; only natural weapons; the shapeshifter priority table", async () => {
+        const a = await shifter("Quench SS Fox", "fox", { chargen: { inProgress: true, priorities: { race: "A", magic: "E", attributes: "B", skills: "C", resources: "D" } } });
+        const [neg, claws, gun] = ["Negotiation", "Quench SS Claws", "Quench SS Pistol"];
+        const items = await a.createEmbeddedDocuments("Item", [
+          { name: neg, type: "skill", system: { rating: 3, category: "active" } },
+          { name: claws, type: "weapon", system: { weaponType: "melee", form: "animal", damageCode: "5M" } },
+          { name: gun, type: "weapon", system: { weaponType: "firearm" } }]);
+        const by = (n) => items.find(i => i.name === n);
+        assert.equal(chargenBudgetOf(a).attributes.total, 24, "Shapeshifter table, Attributes B");
+        await SS.shiftForm(a, "animal");
+        const n0 = game.messages.size;
+        await a.rollSkillTest(by(neg).id, 4);
+        assert.equal(game.messages.size, n0, "refused");
+        assert.isTrue(SSR.weaponUsable(a.type, a.system, by(claws).system));
+        assert.isFalse(SSR.weaponUsable(a.type, a.system, by(gun).system));
+      });
+
+      it("already-wounded: damage from before it had state regenerates (as human-form damage)", async () => {
+        const a = await shifter("Quench SS Prewound", "wolf");
+        await a.update({ "system.conditionMonitor.physical.value": 4 }, { sr2eShift: true });
+        await a.update({ [`flags.sr2e.shift.-=${SSR.shiftKey(a.uuid)}`]: null });   // no state at all
+        await SS.shiftForm(a, "animal");
+        await SS.regenerateMinutes(a, 1);
+        assert.equal(a.system.conditionMonitor.physical.value, 0);
+      });
+
+      it("a projecting shapeshifter's Astral Reaction is Quickness + Intelligence", async () => {
+        const a = await shifter("Quench SS Astral", "wolf", { quickness: { base: 6 }, intelligence: { base: 2 },
+          magic: { type: "full_magician", value: 4, max: 4, tradition: "shamanic" } });
+        assert.equal(a.system.astralReaction, 8, "6 + 2, not twice Intelligence");
+      });
+
+      it("Magic loss: owed by death id, applied once against the CURRENT rating", async () => {
+        const a = await shifter("Quench SS Mage Loss", "wolf", { magic: { type: "full_magician", value: 6, max: 6, tradition: "shamanic" } });
+        await SS.shiftForm(a, "animal");
+        await a.applyDamage("physical", 10);
+        const id = stOf(a).death.id;
+        await withFaces(5, () => SS.resolveDeath(a, id));
+        assert.isTrue(stOf(a).magicOwed?.[id], "owed");
+        await a.update({ "system.magic.value": 4 });                               // something else lowers it
+        await withFaces(1, () => game.sr2e.shapeshift.deathMagicLoss(a, id));      // 2D6 = 2 < 4: lost
+        assert.equal(a.system.magic.value, 3, "4 − 1, never the recorded 6 − 1");
+        assert.isNotOk(stOf(a).magicOwed?.[id]);
+        await withFaces(1, () => game.sr2e.shapeshift.deathMagicLoss(a, id));
+        assert.equal(a.system.magic.value, 3, "a retry changes nothing");
+      });
+
+      it("two owed Magic loss checks at once each take their own point (queued, own receipt)", async () => {
+        const a = await shifter("Quench SS Two Losses", "wolf", { magic: { type: "full_magician", value: 6, max: 6, tradition: "shamanic" } });
+        const path = `flags.sr2e.shift.${SSR.shiftKey(a.uuid)}`;
+        await a.update({ [`${path}.magicOwed.aaa`]: true, [`${path}.magicOwed.bbb`]: true });
+        await withFaces(1, () => Promise.all([SS.deathMagicLoss(a, "aaa"), SS.deathMagicLoss(a, "bbb"), SS.deathMagicLoss(a, "aaa")]));
+        assert.equal(a.system.magic.value, 4, "6 − 1 − 1");
+        assert.deepEqual(stOf(a).magicOwed, { aaa: false, bbb: false });
+      });
+
+      it("concurrent Magic loss checks roll against the rating the first one left (6, two 5s → 5)", async () => {
+        const a = await shifter("Quench SS Two Fives", "wolf", { magic: { type: "full_magician", value: 6, max: 6, tradition: "shamanic" } });
+        const path = `flags.sr2e.shift.${SSR.shiftKey(a.uuid)}`;
+        await a.update({ [`${path}.magicOwed.ccc`]: true, [`${path}.magicOwed.ddd`]: true });
+        const orig = CONFIG.Dice.randomUniform; let k = 0;
+        CONFIG.Dice.randomUniform = () => (6.5 - [2, 3][k++ % 2]) / 6;      // each 2D6 = 2 + 3 = 5
+        try { await Promise.all([SS.deathMagicLoss(a, "ccc"), SS.deathMagicLoss(a, "ddd")]); }
+        finally { CONFIG.Dice.randomUniform = orig; }
+        assert.equal(a.system.magic.value, 5, "5 < 6 loses one; then 5 is not < 5");
+      });
+
+      it("overlapping round handlers after a stuck claim: the cursor never regresses", async function () {
+        this.timeout(10000);
+        const { claimId, STUCK_MS } = await import("../rules/claim-rules.mjs");
+        const a = await shifter("Quench SS Overlap", "wolf");
+        await SS.shiftForm(a, "animal");
+        const c = await Combat.create({ scene: null }); combats.push(c);
+        await c.createEmbeddedDocuments("Combatant", [{ actorId: a.id }]);
+        await c.startCombat();
+        const cb = c.combatants.contents[0];
+        await a.applyDamage("physical", 9);
+        const key = `regen:${cb.id}:1`;
+        await a.createEmbeddedDocuments("ActiveEffect", [{ _id: claimId(key), name: "SR2E step marker", disabled: true, transfer: false,
+          flags: { sr2e: { claim: { key, at: game.time.serverTime - STUCK_MS - 1000, user: "someoneElse" } } } }], { keepId: true });
+        await Promise.all([c.update({ round: 3 }), c.update({ round: 5 })]);
+        assert.ok(await settle(() => stOf(a).high?.[cb.id] === 5, 4000), `cursor ${stOf(a).high?.[cb.id]}`);
+        await new Promise(r => setTimeout(r, 500));
+        assert.equal(stOf(a).high[cb.id], 5, "never regressed");
+        assert.equal(a.system.conditionMonitor.physical.value, 0);
+      });
+    }, { displayName: "SR2E: shapeshifters" });
   });
 }

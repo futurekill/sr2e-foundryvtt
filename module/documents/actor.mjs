@@ -1,6 +1,8 @@
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
+import { isShapeshifter } from "../shapeshift.mjs";
+import { dermalDiceOf, weaponUsable, inAnimalForm, isSocialSkill, shapeshifterAstral, baneHit } from "../rules/shapeshift-rules.mjs";
 import { moneyQueue, adjustNuyen } from "../money.mjs";
 import { careReceipt } from "../cybermancy.mjs";
 import { firstTarget } from "../targeting.mjs";
@@ -142,7 +144,7 @@ export async function meleeUndefended(message) {
     return await attacker._resolveMeleeHit(message, state, {
       winnerName: state.attackerName, loserName: "the undefended target",
       weaponName: state.weaponName, net: state.successes,
-      power: state.power, level: state.level, damageType: state.damageType,
+      power: state.power, level: state.level, damageType: state.damageType, material: state.material ?? "",
       riposte: false
     });
   } finally { MELEE_IN_FLIGHT.delete(message.id); }
@@ -436,7 +438,7 @@ export class SR2EActor extends Actor {
     const phobiaTN = computing && !equipment ? phobia : 0;
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
-    const centeringReduction = Math.min(options.centeringReduction ?? 0,
+    const centeringReduction = inAnimalForm(this.type, this.system) ? 0 : Math.min(options.centeringReduction ?? 0,
       woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
       + coordinationTN + socialTN + cdsTN + phobiaTN - centeringReduction;
@@ -1266,6 +1268,12 @@ export class SR2EActor extends Actor {
   async rollSkillTest(skillId, targetNumber = 4, options = {}) {
     const skill = this.items.get(skillId);
     if (!skill || skill.type !== "skill") return;
+    // A shapeshifter in animal form can't speak or use Social skills, nor Centering (Companion p.36).
+    if (inAnimalForm(this.type, this.system)) {
+      const centering = String(this.system.magic?.centeringSkill ?? "").trim().toLowerCase();
+      if (isSocialSkill(skill.name)) return ui.notifications.warn(`${this.name} can't use Social skills in animal form (Companion p.36).`);
+      if (centering && skill.name.trim().toLowerCase() === centering) return ui.notifications.warn(`${this.name} can't use Centering in animal form (Companion p.36).`);
+    }
     // Sustaining an exclusive spell forbids any other magical skill (p.133).
     const skey = skill.name.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
     if (CONFIG.SR2E.activeSkills?.[skey]?.magical) {
@@ -1487,7 +1495,7 @@ export class SR2EActor extends Actor {
     const finalIdx   = stages.indexOf(drain.level) - reductions;
     if (finalIdx >= 0) {
       const boxes = [1, 3, 6, 10][finalIdx];
-      await this.applyDamage(drain.type, boxes);
+      await this.applyDamage(drain.type, boxes, { source: "drain" });
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-drain-result"><strong>Conjuring Drain:</strong>
@@ -1673,11 +1681,13 @@ export class SR2EActor extends Actor {
     }
 
     // ── Defending weapon choices (incl. cyber-implant melee weapons) ──────────
+    // Only what this form can wield (shapeshifters, multi-form critters — Companion p.36).
     const meleeWeapons = this.items.filter(
-      i => i.isWeaponLike && ["melee", "throwing"].includes(i.system.weaponType)
+      i => i.isWeaponLike && ["melee", "throwing"].includes(i.system.weaponType) && weaponUsable(this.type, this.system, i.system)
     );
+    const natural = inAnimalForm(this.type, this.system) && meleeWeapons.length;
     const weaponOptions = [
-      `<option value="">Unarmed — (Str)M Stun</option>`,
+      ...(natural ? [] : [`<option value="">Unarmed — (Str)M Stun</option>`]),
       ...meleeWeapons.map(w =>
         `<option value="${w.id}">${foundry.utils.escapeHTML(w.name)} — ${foundry.utils.escapeHTML(w.system.damageCode)}</option>`)
     ].join("");
@@ -1771,6 +1781,8 @@ export class SR2EActor extends Actor {
 
     // ── Defender's skill and dice ─────────────────────────────────────────────
     const weapon = choice.weaponId ? this.items.get(choice.weaponId) : null;
+    // The form may have changed while the dialog was open.
+    if (weapon && !weaponUsable(this.type, this.system, weapon.system)) return ui.notifications.warn(`${this.name} can't use ${weapon.name} in this form.`);
     const skillKey = weapon
       ? (weapon.system.weaponType === "throwing" ? "throwing_weapons" : "armed_combat")
       : "unarmed_combat";
@@ -1843,7 +1855,7 @@ export class SR2EActor extends Actor {
       // A riposte is reactive with no dialog, so it stays Stun — the bone-lacing
       // physical option is an active declaration made on your own attack.
       const strikeWeapon = weapon
-        ?? this.items.find(i => i.type === "weapon" && i.name === "Unarmed Strike");
+        ?? this.items.find(i => i.type === "weapon" && i.name === "Unarmed Strike" && weaponUsable(this.type, this.system, i.system));
       const code = strikeWeapon ? strikeWeapon.system.damageCode : "(Str)M";
       const dmg = evaluateDamageCode(code, this);
       const damageType = weapon
@@ -1859,7 +1871,7 @@ export class SR2EActor extends Actor {
         power: Math.max(1, dmg.power), level: dmg.level, damageType,
         // p.103: melee knockback is resisted against the STRIKER's Strength.
         winnerStrength: this.system.strength?.value ?? 0,
-        loserUuid: state.attackerUuid,
+        loserUuid: state.attackerUuid, material: strikeWeapon?.system.material ?? "",
         riposte: true
       });
     } else {
@@ -1878,7 +1890,7 @@ export class SR2EActor extends Actor {
         // p.103: resisted against the STRIKER's Strength, so it has to come
         // from the attacker's own sheet, not the defender's.
         winnerStrength: striker?.system?.strength?.value ?? 0,
-        loserUuid: this.uuid,
+        loserUuid: this.uuid, material: state.material ?? "",
         riposte: false
       });
     }
@@ -1914,7 +1926,7 @@ export class SR2EActor extends Actor {
                 data-damage-type="${o.damageType}"
                 data-armor-calc="standard"
                 data-armor-mod="0"
-                data-ammo-name=""
+                data-ammo-name="" data-material="${esc(o.material ?? "")}"
                 data-melee="1"
                 data-attacker-strength="${o.winnerStrength ?? 0}"
                 ${o.loserUuid ? `data-target-uuid="${esc(o.loserUuid)}"` : ""}
@@ -2404,14 +2416,24 @@ export class SR2EActor extends Actor {
 
     // Troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table) —
     // an extra Body die for resisting damage, not an armor rating bonus.
-    const dermalBonus = system.race === "troll" ? 1 : 0;
+    // Shapeshifter bear animal form: Dermal Armor (+2 Body) (Companion p.36).
+    const dermalBonus = dermalDiceOf(this.type, system);
     // Extra resistance dice (e.g. +1 per intervening target in a shotgun spread,
     // SR2E p.95): they take the bullet's brunt for the target behind them.
     const bonusDice  = Math.max(0, options.bonusDice ?? 0);
     const bodyDice   = env && env.attr !== "body"
       ? (system[env.attr]?.value ?? 1) + bonusDice
       : (system.body?.value ?? 1) + dermalBonus + bonusDice;
-    const tn         = Math.max(2, power - armor);
+    let tn           = Math.max(2, power - armor);
+    // A shapeshifter's bane (silver): Severe Allergy +2 Power, Vulnerability +1 Damage Level (Companion p.38;
+    // core p.229). Asked here, pre-ticked when the attack says what it's made of.
+    const bane = isShapeshifter(this) ? String(this.system.shapeshifter?.bane ?? "").trim() : "";
+    const baneHTML = bane ? `
+      <div class="form-group" style="margin:6px 0 0;">
+        <label style="font-size:12px;flex:1;" title="Severe Allergy and Vulnerability: +2 Power, +1 Damage Level (Companion p.38; core p.229)">
+          <input type="checkbox" name="bane" ${String(options.material ?? "").trim().toLowerCase() === bane.toLowerCase() ? "checked" : ""}>
+          ${foundry.utils.escapeHTML(bane.charAt(0).toUpperCase() + bane.slice(1))} weapon (+2 Power, +1 Damage Level)</label>
+      </div>` : "";
 
     // ── Build dialog ──────────────────────────────────────────────────────────
     const combatAvail = system.dicePools?.combat?.value ?? 0;
@@ -2466,6 +2488,7 @@ export class SR2EActor extends Actor {
           ${flechetteNote}
         </div>
         ${poolHTML}
+        ${baneHTML}
         ${miscDiceHTML()}
       </div>`,
       buttons: [
@@ -2476,6 +2499,7 @@ export class SR2EActor extends Actor {
           callback: (event, button) => {
             const raw = parseInt(button.form.elements.pool_combat?.value) || 0;
             rollResult = {
+              bane: !!button.form.elements.bane?.checked,
               poolDice: { combat: Math.min(Math.max(0, raw), combatAvail) },
               ...readMiscDice(button.form)
             };
@@ -2486,6 +2510,11 @@ export class SR2EActor extends Actor {
     });
 
     if (action !== "roll" || !rollResult) return;
+    if (rollResult.bane) {
+      ({ power, level } = baneHit(power, level));
+      startIdx = stages.indexOf(level);
+      tn = Math.max(2, power - armor);
+    }
     // Last check before any dice or pool are spent: the card this resists may
     // have changed while the dialog was open (a damaging manipulation card is
     // re-rendered when the caster spends Karma, or resolved by someone else).
@@ -2556,7 +2585,7 @@ export class SR2EActor extends Actor {
     const finalLevel  = stages[finalIdx];
     const damageBoxes = boxesForLevel(finalLevel);   // L=1, M=3, S=6, D=10 (SR2E p.113)
     // Knockdown and the card use what LANDED (Kamikaze may absorb some, p.99).
-    const dealt = await this.applyDamage(damageType, damageBoxes, { report: false })
+    const dealt = await this.applyDamage(damageType, damageBoxes, { report: false, source: rollResult.bane ? "bane" : null })
       ?? { landedBoxes: damageBoxes, absorbed: 0, overloadStun: 0 };
     const landed = dealt.landedBoxes;
     const drugNote = drugDamageNote(dealt);
@@ -2878,8 +2907,10 @@ export class SR2EActor extends Actor {
     const state = message.getFlag("sr2e", "astral");
     if (!state || state.resolved) return;
 
-    // Astral Body = Willpower; spirits/critters use Willpower too
-    const dice = this.system.willpower?.value ?? 1;
+    // Astral Body = Willpower; spirits/critters use Willpower too. A projecting shapeshifter's Astral Body
+    // is its Body (Companion p.37).
+    const ss = this.system.astralState === "projecting" ? shapeshifterAstral(this.type, this.system) : null;
+    const dice = ss ? ss.body : (this.system.willpower?.value ?? 1);
     const tn = Math.max(2, state.power);
     const resist = await this.rollSuccessTest(dice, tn, {
       label: RL("ResistAstral", { tn }),

@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "systems/sr2e/assets/creature_portraits/shapeshifter.webp",
   "system": {
-    "biography": "<p>An animal that takes metahuman form (human-form statistics; in animal form use the animal's attributes +2 Body/+1 Quickness/+2 Strength).</p><p><strong>Powers:</strong> Enhanced Physical Attributes (in animal form), Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Silver, Severe), Vulnerability (Silver)</p><p><em>Perception rating 3 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An animal that takes metahuman form (human-form statistics; in animal form use the animal's attributes +2 Body/+1 Quickness/+2 Strength).</p><p><strong>Powers:</strong> Enhanced Physical Attributes (in animal form), Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Silver, Severe), Vulnerability (Silver)</p><p>Shapeshifter is on: Regeneration (wounds vanish at the start of the next Combat Turn; a death check when it goes down), Allergy + Vulnerability to silver in damage resistance, dual-natured. Add its animal form under <strong>Forms</strong> (the animal's attributes +2 Body, +1 Quickness, +2 Strength).</p><p><em>Perception rating 3 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
@@ -100,7 +100,11 @@
       "walk": 4,
       "run": 20
     },
-    "dualNatured": true
+    "dualNatured": true,
+    "shapeshifter": {
+      "enabled": true,
+      "bane": "silver"
+    }
   },
   "items": [
     {

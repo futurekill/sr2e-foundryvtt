@@ -6,6 +6,7 @@
  */
 
 // Configuration
+import { registerShapeshifters, shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss } from "./shapeshift.mjs";
 import { firstTarget, registerTargetSync } from "./targeting.mjs";
 import { SR2E } from "./config.mjs";
 
@@ -517,6 +518,7 @@ Hooks.once("init", async () => {
   registerCalendariaHooks();
   registerHealingClockHooks();     // healing on the game clock (docs/PLAN-healing-clock.md)
   registerPermanentDamage();       // Deadly wounds' permanent damage (core p.113–114)
+  registerShapeshifters();         // shapeshifters: forms, regeneration, death checks (Companion pp.36–38)
   registerJackpointBehavior();
   registerJackpointHooks();
   registerAstralWalls();
@@ -535,7 +537,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { shapeshift: { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss }, areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
@@ -2277,7 +2279,7 @@ async function resistRangedDamage(message) {
     if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
     return await actor.rollDamageResistance(snap.power, snap.baseLevel, snap.armorType, snap.damageType, {
       armorCalc: snap.armorCalc, armorMod: snap.armorMod, ammoName: snap.ammoName, basePower: snap.basePower,
-      antiVehicle: !!snap.antiVehicle,
+      antiVehicle: !!snap.antiVehicle, material: snap.material ?? "",
       attackerSuccesses: snap.successes, stageVs: snap.successes,
       ratedLevel: snap.ratedLevel, calledShot: !!snap.calledShot,
       resolvesMessageId: message.id,
@@ -2726,6 +2728,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       const armorCalc  = btn.dataset.armorCalc         || "standard";
       const armorMod   = parseInt(btn.dataset.armorMod) || 0;
       const ammoName   = btn.dataset.ammoName          || "";
+      const material   = btn.dataset.material          || "";
 
       // The defender is whoever the attacker targeted (baked into the card), so
       // the target resists even though the attacker has a token selected. Falls
@@ -2773,7 +2776,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
             calledShot: btn.dataset.calledShot === "1" }
         : {};
       return actor.rollDamageResistance(power, level, armorType, damageType,
-        { armorCalc, armorMod, ammoName, basePower, bonusDice, attackerSuccesses,
+        { armorCalc, armorMod, ammoName, material, basePower, bonusDice, attackerSuccesses,
           antiVehicle: btn.dataset.antiVehicle === "1",
           melee, attackerStrength, fullDefense: btn.dataset.fullDefense === "1", ...net,
           resolvesRow: rowKey,

@@ -35,7 +35,8 @@ SR2E.races = {
   dwarf: "SR2E.Races.Dwarf",
   elf: "SR2E.Races.Elf",
   ork: "SR2E.Races.Ork",
-  troll: "SR2E.Races.Troll"
+  troll: "SR2E.Races.Troll",
+  shapeshifter: "SR2E.Races.Shapeshifter"
 };
 
 SR2E.racialModifiers = {
@@ -43,7 +44,9 @@ SR2E.racialModifiers = {
   dwarf:  { body: 1, quickness: -1, strength: 2, charisma: 0, intelligence: 0, willpower: 1 },
   elf:    { body: 0, quickness: 1, strength: 0, charisma: 2, intelligence: 0, willpower: 0 },
   ork:    { body: 3, quickness: 0, strength: 2, charisma: -1, intelligence: -1, willpower: 0 },
-  troll:  { body: 5, quickness: -1, strength: 4, charisma: -2, intelligence: -2, willpower: -1 }
+  troll:  { body: 5, quickness: -1, strength: 4, charisma: -2, intelligence: -2, willpower: -1 },
+  // A shapeshifter's species modifiers depend on its FORM (Companion p.36): CharacterData adds them after the base cap.
+  shapeshifter: { body: 0, quickness: 0, strength: 0, charisma: 0, intelligence: 0, willpower: 0 }
 };
 
 SR2E.racialMaximums = {
@@ -51,7 +54,9 @@ SR2E.racialMaximums = {
   dwarf:  { body: 7, quickness: 5, strength: 8, charisma: 6, intelligence: 6, willpower: 7, essence: 6, magic: 6, reaction: 5 },
   elf:    { body: 6, quickness: 7, strength: 6, charisma: 8, intelligence: 6, willpower: 6, essence: 6, magic: 6, reaction: 6 },
   ork:    { body: 9, quickness: 6, strength: 8, charisma: 5, intelligence: 5, willpower: 6, essence: 6, magic: 6, reaction: 5 },
-  troll:  { body: 11, quickness: 5, strength: 10, charisma: 4, intelligence: 4, willpower: 5, essence: 6, magic: 6, reaction: 4 }
+  troll:  { body: 11, quickness: 5, strength: 10, charisma: 4, intelligence: 4, willpower: 5, essence: 6, magic: 6, reaction: 4 },
+  // Base Attribute Ratings may not exceed 6; the form modifiers then apply uncapped (Companion p.36).
+  shapeshifter: { body: 6, quickness: 6, strength: 6, charisma: 6, intelligence: 6, willpower: 6, essence: 6, magic: 6, reaction: 6 }
 };
 
 SR2E.racialAbilities = {
@@ -59,7 +64,8 @@ SR2E.racialAbilities = {
   dwarf:  ["thermographic_vision", "disease_resistance"],
   elf:    ["low_light_vision"],
   ork:    ["low_light_vision"],
-  troll:  ["thermographic_vision", "dermal_armor", "reach_1"]
+  troll:  ["thermographic_vision", "dermal_armor", "reach_1"],
+  shapeshifter: []
 };
 
 // ---------------------------------------------------------------------------

@@ -33,6 +33,55 @@
     </div>
   </div>
 
+  {{!-- Forms and shapeshifting (core p.227–229; Companion p.37) --}}
+  <fieldset class="npc-forms">
+    <legend>Forms</legend>
+    <div class="flexrow">
+      <label title="Regeneration, Allergy (Severe) + Vulnerability to its bane, dual-natured (core p.227–229)">
+        <input type="checkbox" name="system.shapeshifter.enabled" {{checked system.shapeshifter.enabled}} /> Shapeshifter</label>
+      {{#if system.shapeshifter.enabled}}
+      <label>Bane: <input type="text" name="system.shapeshifter.bane" value="{{system.shapeshifter.bane}}" style="max-width:6em" /></label>
+      <button type="button" class="btn-small" data-action="regenerate" title="Out of combat: its wounds vanish (core p.227)"><i class="fas fa-heart-pulse"></i> Regenerate</button>
+      {{#if shift.pending}}<span class="priority-warning" title="{{shift.death.why}}"><i class="fas fa-skull"></i> Death check (dies on {{#ifEquals shift.death.diesOn 1}}1{{else}}1–2{{/ifEquals}})</span>
+        {{#if isGM}}<button type="button" class="btn-small" data-action="deathCheck" data-id="{{shift.death.id}}">Roll 1D6</button>
+        {{#if shift.massiveOffer}}<button type="button" class="btn-small" data-action="deathCheck" data-id="{{shift.death.id}}" data-massive="1">Fire / explosion</button>{{/if}}{{/if}}{{/if}}
+      {{#if shift.dead}}<span class="priority-warning"><i class="fas fa-skull"></i> Dead</span>{{/if}}
+      {{#if isGM}}{{#each shift.magicOwed as |id|}}<button type="button" class="btn-small" data-action="deathMagic" data-id="{{id}}" title="Survived a Deadly wound (Companion p.38): 2D6 vs Magic (p.115)">Magic loss check</button>{{/each}}{{/if}}
+      {{#if isGM}}{{#if shift.death}}<button type="button" class="btn-small" data-action="clearDeath">Clear</button>{{/if}}{{/if}}
+      {{/if}}
+      <button type="button" class="btn-small" data-action="addForm" title="Another stat block this creature can take"><i class="fas fa-plus"></i> Form</button>
+    </div>
+    {{#if shift.forms.length}}
+    <div class="flexrow">
+      <button type="button" class="btn-small{{#unless system.activeForm}} active{{/unless}}" data-action="shiftForm" data-form="" {{#if shift.problem}}disabled title="{{shift.problem}}"{{/if}}>Printed form</button>
+      {{#each shift.forms as |f|}}
+      <button type="button" class="btn-small{{#if f.active}} active{{/if}}" data-action="shiftForm" data-form="{{f.key}}" {{#if ../shift.problem}}disabled title="{{../shift.problem}}"{{/if}}>{{f.name}}</button>
+      {{/each}}
+    </div>
+    <table class="npc-form-table">
+      <tr><th>Name</th><th title="Tag weapons with this to limit them to the form">Key</th><th>B</th><th>Q</th><th>S</th><th>C</th><th>I</th><th>W</th><th title="Reaction modifier">R±</th><th title="Initiative dice">Init</th><th title="Ballistic / Impact">Armor</th><th>Art</th><th></th></tr>
+      {{#each shift.forms as |f|}}
+      <tr>
+        <td><input type="text" value="{{f.name}}" data-form-index="{{f.i}}" data-form-field="name" /></td>
+        <td><input type="text" value="{{f.key}}" data-form-index="{{f.i}}" data-form-field="key" /></td>
+        <td><input type="number" value="{{f.body}}" min="0" data-form-index="{{f.i}}" data-form-field="body" /></td>
+        <td><input type="number" value="{{f.quickness}}" min="0" data-form-index="{{f.i}}" data-form-field="quickness" /></td>
+        <td><input type="number" value="{{f.strength}}" min="0" data-form-index="{{f.i}}" data-form-field="strength" /></td>
+        <td><input type="number" value="{{f.charisma}}" min="0" data-form-index="{{f.i}}" data-form-field="charisma" /></td>
+        <td><input type="number" value="{{f.intelligence}}" min="0" data-form-index="{{f.i}}" data-form-field="intelligence" /></td>
+        <td><input type="number" value="{{f.willpower}}" min="0" data-form-index="{{f.i}}" data-form-field="willpower" /></td>
+        <td><input type="number" value="{{f.reactionMod}}" data-form-index="{{f.i}}" data-form-field="reactionMod" /></td>
+        <td><input type="number" value="{{f.initiativeDice}}" min="1" data-form-index="{{f.i}}" data-form-field="initiativeDice" /></td>
+        <td><input type="number" value="{{f.ballistic}}" min="0" data-form-index="{{f.i}}" data-form-field="ballistic" />/<input type="number" value="{{f.impact}}" min="0" data-form-index="{{f.i}}" data-form-field="impact" /></td>
+        <td><input type="text" value="{{f.img}}" placeholder="token art" data-form-index="{{f.i}}" data-form-field="img" /></td>
+        <td><button type="button" class="btn-small" data-action="deleteForm" data-form-index="{{f.i}}" title="Delete form"><i class="fas fa-trash"></i></button></td>
+      </tr>
+      {{/each}}
+    </table>
+    <p class="hint">A weapon whose Form is a form's key is usable only in that form.{{#if shift.formLocked}} The stat block below shows the active form; shift back to edit it.{{/if}}</p>
+    {{/if}}
+  </fieldset>
+
   {{!-- Attributes --}}
   <fieldset class="npc-attributes">
     <legend>Attributes</legend>
@@ -40,32 +89,32 @@
       <div class="attr-item">
         <label class="attr-roll" data-action="rollAttribute" data-attribute="body"
                title="Roll Body">B</label>
-        <input type="number" name="system.body.base" value="{{system.body.base}}" min="1" />
+        <input type="number" name="system.body.base" value="{{system.body.base}}" min="1"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
       </div>
       <div class="attr-item">
         <label class="attr-roll" data-action="rollAttribute" data-attribute="quickness"
                title="Roll Quickness">Q</label>
-        <input type="number" name="system.quickness.base" value="{{system.quickness.base}}" min="1" />
+        <input type="number" name="system.quickness.base" value="{{system.quickness.base}}" min="1"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
       </div>
       <div class="attr-item">
         <label class="attr-roll" data-action="rollAttribute" data-attribute="strength"
                title="Roll Strength">S</label>
-        <input type="number" name="system.strength.base" value="{{system.strength.base}}" min="1" />
+        <input type="number" name="system.strength.base" value="{{system.strength.base}}" min="1"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
       </div>
       <div class="attr-item">
         <label class="attr-roll" data-action="rollAttribute" data-attribute="charisma"
                title="Roll Charisma">C</label>
-        <input type="number" name="system.charisma.base" value="{{system.charisma.base}}" min="1" />
+        <input type="number" name="system.charisma.base" value="{{system.charisma.base}}" min="1"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
       </div>
       <div class="attr-item">
         <label class="attr-roll" data-action="rollAttribute" data-attribute="intelligence"
                title="Roll Intelligence">I</label>
-        <input type="number" name="system.intelligence.base" value="{{system.intelligence.base}}" min="1" />
+        <input type="number" name="system.intelligence.base" value="{{system.intelligence.base}}" min="1"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
       </div>
       <div class="attr-item">
         <label class="attr-roll" data-action="rollAttribute" data-attribute="willpower"
                title="Roll Willpower">W</label>
-        <input type="number" name="system.willpower.base" value="{{system.willpower.base}}" min="1" />
+        <input type="number" name="system.willpower.base" value="{{system.willpower.base}}" min="1"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
       </div>
       <div class="attr-item">
         <label title="Essence — critters may exceed 6 (vampires 2D6, shapeshifters 8; core p.217)">E</label>
@@ -108,9 +157,9 @@
               top, so binding them to the total would re-add it on every edit. --}}
         <div class="flexrow">
           <label>B:</label>
-          <input type="number" name="system.armor.ballistic" value="{{armorBase.ballistic}}" min="0" />
+          <input type="number" name="system.armor.ballistic" value="{{armorBase.ballistic}}" min="0"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
           <label>I:</label>
-          <input type="number" name="system.armor.impact" value="{{armorBase.impact}}" min="0" />
+          <input type="number" name="system.armor.impact" value="{{armorBase.impact}}" min="0"  {{#if shift.formLocked}}disabled title="The active form sets this — shift back to edit"{{/if}} />
         </div>
         {{#if armorWorn}}
         <p class="rule-note">With worn armor: {{system.armor.ballistic}}/{{system.armor.impact}}</p>

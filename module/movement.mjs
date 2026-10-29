@@ -24,6 +24,7 @@
  * math lives in module/rules/sr2e-rules.mjs and is unit-tested.
  */
 
+import { shapeshifterAstral } from "./rules/shapeshift-rules.mjs";
 import { movementRates, runMultiplierForRace, movementPhase, movementColorBand }
   from "./rules/sr2e-rules.mjs";
 import { isOnAstralPlane, astralCaps, chargeAstralMove, astralMoveDecision } from "./rules/astral-rules.mjs";
@@ -120,7 +121,9 @@ function astralCapsOf(tokenDoc) {
   const a = tokenDoc?.actor;
   if (!a) return null;
   const spirit = a.type === "spirit";
-  const aq = Number(spirit ? a.system?.quickness?.value : a.system?.intelligence?.value) || 0;
+  // A projecting shapeshifter's Astral Quickness is its Quickness (Companion p.37).
+  const ss = shapeshifterAstral(a.type, a.system);
+  const aq = Number(spirit ? a.system?.quickness?.value : ss ? ss.quickness : a.system?.intelligence?.value) || 0;
   if (aq <= 0) return null;
   const caps = astralCaps({ astralQuickness: aq, magic: a.system?.magic?.value ?? 0 });
   return { ...caps, canFast: !spirit && !!tokenDoc.flags?.sr2e?.astralForm };

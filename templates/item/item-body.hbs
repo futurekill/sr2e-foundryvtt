@@ -145,6 +145,14 @@
     <input type="number" name="system.reach" value="{{system.reach}}" min="0" />
   </div>
   <div class="form-group">
+    <label title="Which form can use it. Blank: any form for an NPC; carried gear (human form only) for a shapeshifter character. 'animal': a shapeshifter's natural weapon. Otherwise an NPC form key (Companion p.36).">Form:</label>
+    <input type="text" name="system.form" value="{{system.form}}" placeholder="any" />
+  </div>
+  <div class="form-group">
+    <label title="What it's made of — silver hurts shapeshifters (+2 Power, +1 Damage Level, Companion p.38).">Material:</label>
+    <input type="text" name="system.material" value="{{system.material}}" placeholder="e.g. silver" />
+  </div>
+  <div class="form-group">
     <label title="Bows and crossbows list a Strength Minimum (SR2 p.96). A wielder below it takes +1 target number per point short. 0 = not applicable.">Strength Min:</label>
     <input type="number" name="system.strengthMinimum" value="{{system.strengthMinimum}}" min="0" />
     {{#if system.costPerStrengthMin}}<span class="derived-readout" title="This bow is priced and staged off its Strength Minimum (SR2 p.96) — change Str Min and both follow.">{{system.costPerStrengthMin}}¥ x Str Min = {{system.cost}}¥, damage {{system.damageCode}}</span>{{/if}}
@@ -1231,6 +1239,10 @@
     <input type="text" name="system.ammoType" value="{{system.ammoType}}" />
   </div>
   <div class="form-group">
+    <label title="What the rounds are made of — silver hurts shapeshifters (Companion p.38). Wins over the weapon's own material.">Material:</label>
+    <input type="text" name="system.material" value="{{system.material}}" placeholder="e.g. silver" />
+  </div>
+  <div class="form-group">
     <label>Quantity:</label>
     <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" />
   </div>
@@ -1284,6 +1296,12 @@
       {{/each}}
     </select>
   </div>
+  {{#ifEquals system.raceKey "shapeshifter"}}
+  <div class="form-group">
+    <label title="Shapeshifter Attribute Modifiers Table (Companion p.36)">Species:</label>
+    <select name="system.species">{{selectOptions speciesChoices selected=system.species localize=true}}</select>
+  </div>
+  {{/ifEquals}}
   <fieldset>
     <legend>Attribute Modifiers</legend>
     <div class="attr-mods-grid">

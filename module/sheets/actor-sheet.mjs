@@ -1,3 +1,5 @@
+import { shiftView } from "../shapeshift.mjs";
+import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
 import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs";
 import { cyberDamageOn } from "../cyberdamage.mjs";
@@ -252,6 +254,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.isGM     = game.user.isGM;
     context.healClock = clockView(this.document);   // healing on the game clock (Calendaria)
     context.permDmg = permView(this.document);      // permanent damage from Deadly wounds (p.113–114)
+    context.shift = shiftView(this.document);        // shapeshifters and forms (Companion pp.36–38)
+    context.speciesChoices = SPECIES_CHOICES;
     context.vr2      = isVR2();
     context.attrBreakdown = this._buildAttrBreakdown();
     // Recoil still in force this Combat Phase (keyed; module/engagement.mjs).
@@ -524,9 +528,12 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
  * Purely informational on the sheet; finishing creation converts what's left of the
  * Resources (p.47).
  */
+/** The priority table: the Shapeshifter Character Creation Table for a shapeshifter (Companion p.36). */
+export const priorityTableFor = (system) => shapeshifterOf("character", system) ? SHAPESHIFTER_PRIORITIES : CONFIG.SR2E.priorities;
+
 export function chargenBudgetOf(actor) {
   const system = actor.system;
-  const prio = CONFIG.SR2E.priorities;
+  const prio = priorityTableFor(system);
   const chosen = system.chargen?.priorities ?? {};
   const allot = {
     attributes:  prio[chosen.attributes]?.attributes ?? 0,
@@ -1400,8 +1407,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
 
     // Set system.race — the CONFIG table handles all modifiers and maximums.
     const updateData = {
-      "system.race": raceKey
+      "system.race": raceKey,
+      // A shapeshifter race item names its species (Companion p.36); any other race clears it.
+      "system.shapeshifter.species": raceKey === "shapeshifter" ? (itemData.system?.species ?? "") : ""
     };
+    if (actor.system.shapeshifter?.form !== "human") updateData["system.shapeshifter.form"] = "human";
 
     await actor.update(updateData);
     ui.notifications.info(`${itemData.name} applied to ${actor.name}.`);
@@ -1645,18 +1655,19 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // --- Character-creation priority dropdowns (SR2E p.54) ---
     // Build labelled A–E options per category so the player can see what each
     // grade grants, and flag duplicate grades (each letter is used exactly once).
-    const prio = CONFIG.SR2E.priorities;
+    const prio = priorityTableFor(system);
     const chosen = system.chargen?.priorities ?? {};
-    const nuyen = (n) => "" + n.toLocaleString("en-US") + "¥";
+    const nuyen = (n) => n == null ? "—" : "" + n.toLocaleString("en-US") + "¥";
     const magicLabels = {
       full_magician: "Full Magician", adept_or_meta_magician: "Aspected / Adept",
-      meta_adept: "Adept", none: "Mundane"
+      meta_adept: "Adept", adept: "Adept", none: "Mundane"
     };
+    const raceLabels = { metahuman: "Any metatype", human: "Human only", shapeshifter: "Shapeshifter" };
     const desc = {
-      race:       (g) => prio[g].race === "metahuman" ? "Any metatype" : "Human only",
+      race:       (g) => raceLabels[prio[g].race] ?? "—",
       magic:      (g) => magicLabels[prio[g].magic] ?? "Mundane",
-      attributes: (g) => `${prio[g].attributes} points`,
-      skills:     (g) => `${prio[g].skills} points`,
+      attributes: (g) => prio[g].attributes == null ? "—" : `${prio[g].attributes} points`,
+      skills:     (g) => prio[g].skills == null ? "—" : `${prio[g].skills} points`,
       resources:  (g) => nuyen(prio[g].resources)
     };
     // Count how many categories picked each grade, to mark collisions.
@@ -1687,6 +1698,15 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.priorityValid = method === "sumto10"
       ? context.prioritySum <= 10
       : context.priorityDuplicates.length === 0;
+    // Shapeshifter creation (Companion pp.36–38): reported, not enforced, like the rest of this panel.
+    context.shapeshifterChargen = shapeshifterOf("character", system) ? [
+      chosen.race !== "A" ? "A shapeshifter must put Race at Priority A." : "",
+      method === "sumto10" ? "The Shapeshifter Character Creation Table has no Sum-to-10 option — use Standard." : "",
+      system.magic?.type === "full_magician" && chosen.magic !== "B" ? "A shapeshifter magician needs Magic at Priority B." : "",
+      ["physical_adept", "shamanic_adept", "magical_adept"].includes(system.magic?.type) && chosen.magic !== "C" ? "A shapeshifter adept needs Magic at Priority C." : "",
+      system.magic?.type !== "none" && ["D", "E"].includes(chosen.magic) ? "Magic at D or E is mundane for a shapeshifter." : "",
+      "No free starting contacts: buy them with Resources (Companion p.38)."
+    ].filter(Boolean) : [];
 
     // Reopening creation is GM-only (it restores list-price buying), so a player
     // looking at a finished character gets the box disabled rather than a click
@@ -1840,7 +1860,15 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       importSubstance: SHARED_ACTIONS.importSubstance,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
-      addItem: onAddItem
+      addItem: onAddItem,
+      // Forms and shapeshifting (core p.227–229; docs/PLAN-shapeshifters.md)
+      shiftForm: SHARED_ACTIONS.shiftForm,
+      regenerate: SHARED_ACTIONS.regenerate,
+      deathCheck: SHARED_ACTIONS.deathCheck,
+      clearDeath: SHARED_ACTIONS.clearDeath,
+      deathMagic: SHARED_ACTIONS.deathMagic,
+      addForm: SHARED_ACTIONS.addForm,
+      deleteForm: SHARED_ACTIONS.deleteForm
     }
   };
 
@@ -1848,6 +1876,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
   static PARTS = {
     npc: { template: "systems/sr2e/templates/actor/npc-sheet.hbs" }
   };
+
 
   /** @override */
   async _prepareContext(options) {
@@ -1878,6 +1907,27 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     });
 
     return context;
+  }
+
+  /** Form rows edit the authored array directly (no named inputs: an ArrayField of objects). */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    this.element.querySelectorAll("[data-form-field]").forEach(el => el.addEventListener("change", async (ev) => {
+      ev.stopPropagation();
+      const i = Number(el.dataset.formIndex), f = el.dataset.formField;
+      const forms = foundry.utils.deepClone(this.document._source.system.forms ?? []);
+      if (!forms[i]) return;
+      if (f === "key" && forms[i].key && forms[i].key === this.document.system.activeForm) {
+        el.value = forms[i].key;
+        return ui.notifications.warn("Shift out of that form before renaming its key.");
+      }
+      if (f === "key" && (!el.value.trim() || forms.some((x, j) => j !== i && x.key === el.value.trim()))) {
+        el.value = forms[i].key;
+        return ui.notifications.warn("A form needs its own key — blank and duplicate keys are refused.");
+      }
+      forms[i][f] = el.type === "number" ? (parseInt(el.value) || 0) : el.value.trim();
+      await this.document.update({ "system.forms": forms });
+    }));
   }
 }
 
@@ -1965,6 +2015,7 @@ async function onFireVehicleWeapon(event, target) {
                                                baseDice, defaultingPenalty, presets);
   if (!opts) return;
   return weapon.roll({ ...opts, gunner });
+
 }
 
 /**

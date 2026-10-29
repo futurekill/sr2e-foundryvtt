@@ -1,4 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
@@ -74,6 +75,15 @@ export class CharacterData extends SR2EDataModel {
       // and CONFIG.SR2E.racialMaximums using this key — no per-actor overrides needed
       // for the standard five metatypes.
       race: new fields.StringField({ required: true, initial: "human" }),
+      // Shapeshifter (Companion pp.36–38): race "shapeshifter" + a species. The form picks the attribute
+      // modifiers; `bane` is the substance it's allergic and vulnerable to (silver).
+      shapeshifter: new fields.SchemaField({
+        species: new fields.StringField({ initial: "", blank: true, choices: SPECIES_CHOICES }),
+        form: new fields.StringField({ initial: "human", choices: { human: "SR2E.Shapeshift.FormHuman", animal: "SR2E.Shapeshift.FormAnimal" } }),
+        bane: new fields.StringField({ initial: "silver", blank: true }),
+        humanImg: new fields.StringField({ initial: "", blank: true }),
+        animalImg: new fields.StringField({ initial: "", blank: true })
+      }),
 
       // --- PHYSICAL ATTRIBUTES ---
       body: SR2EDataModel.attributeField(3),
@@ -433,7 +443,8 @@ export class CharacterData extends SR2EDataModel {
       this.reaction.mod = (this.reaction.mod ?? 0) + mods.reaction;
       // initiative.mod is the Active-Effect hook for EXTRA INITIATIVE DICE
       // (e.g. an Increase Reflexes spell effect adds to system.initiative.mod)
-      this.initiative.dice = Math.max(1, 1 + mods.initiativeDice + (this.initiative.mod ?? 0));
+      // A shapeshifter's animal-form Initiative dice are natural, not ware (Companion p.36).
+      this.initiative.dice = Math.max(1, 1 + mods.initiativeDice + characterForm(this).initDice + (this.initiative.mod ?? 0));
     }
     // A TLE-x episode (Cybertechnology p.55, GM-toggled): Reaction −1D6 (rolled when
     // switched on), inside the clamp, after both branches.
@@ -619,7 +630,8 @@ export class CharacterData extends SR2EDataModel {
       delete skill.system._adeptBonus;
       delete skill.system._adeptSource;
     }
-    for (const power of items) {
+    // Physical adept powers work only in human form (Companion p.36) — after the reset above.
+    for (const power of adeptPowersWork(this) ? items : []) {
       if (power.type !== "adept_power") continue;
       // The field wins when it is set. When it is not, read the skill from the
       // power's name: the compendium item ships with `improvedSkill` empty and
@@ -1115,7 +1127,7 @@ export class CharacterData extends SR2EDataModel {
           mods.edgeMax[a] = (mods.edgeMax[a] ?? 0) + item.system.maximumBonus;
         }
       }
-      if (item.type === "adept_power") {
+      if (item.type === "adept_power" && adeptPowersWork(this)) {   // human form only (Companion p.36)
         // Power effects are per-level (SR2E p.124–126): scale by the level.
         const lvl = Math.max(1, item.system.level ?? 1);
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
@@ -1296,8 +1308,10 @@ export class CharacterData extends SR2EDataModel {
     // CCSS reductions (Cybertechnology p.55) and permanent damage (core p.113) lower the NATURAL
     // rating, floor 1 — subtracted once, after the clamp, so the ceiling drops by the same amount.
     const loss = (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0);
-    if (loss > 0) return Math.max(1, naturalAttribute(this[attr]?.base ?? 0, this[attr]?.racial ?? 0, mods?.edgeAttr?.[attr] ?? 0,
-      maxes[attr] ?? null, mods?.edgeMax?.[attr] ?? 0) - loss);
+    // A shapeshifter's form modifiers apply AFTER the base cap and are not limited by it (Companion p.36).
+    const form = characterForm(this).attrs[attr] ?? 0;
+    if (loss > 0 || form) return Math.max(1, naturalAttribute(this[attr]?.base ?? 0, this[attr]?.racial ?? 0, mods?.edgeAttr?.[attr] ?? 0,
+      maxes[attr] ?? null, mods?.edgeMax?.[attr] ?? 0) + form - loss);
     return naturalAttribute(
       this[attr]?.base ?? 0,
       this[attr]?.racial ?? 0,
@@ -1330,7 +1344,8 @@ export class CharacterData extends SR2EDataModel {
         const max = (CONFIG.SR2E.racialMaximums[this.race] ?? {})[attr];
         (this.naturalInfo ??= {})[attr] = { raw: (this[attr].base ?? 0) + (this[attr].racial ?? 0) + (mods?.edgeAttr?.[attr] ?? 0),
           cap: max == null ? null : max + (mods?.edgeMax?.[attr] ?? 0),
-          loss: (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0) };
+          loss: (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0),
+          form: characterForm(this).attrs[attr] ?? 0 };   // eligibility only; the price is form-free
       }
       if (this[attr]) {
         // .mod at this point = stored value + Active Effect contributions
@@ -1359,6 +1374,8 @@ export class CharacterData extends SR2EDataModel {
           const edgeEff = this._naturalAttribute(attr, mods) - natNoEdge;
           if (edgeEff > 0) named.push({ name: edgeItems.map((e) => e.name).join(" + "), value: edgeEff });
         }
+        const formMod = characterForm(this).attrs[attr] ?? 0;
+        if (formMod) named.push({ name: game.i18n.localize(this.shapeshifter.form === "animal" ? "SR2E.Shapeshift.FormAnimal" : "SR2E.Shapeshift.FormHuman"), value: formMod });
         if (this._mbwLoss?.[attr] > 0) named.push({ name: "CCSS (permanent)", value: -this._mbwLoss[attr] });
         if (this._permLoss?.[attr] > 0) named.push({ name: "Permanent damage", value: -this._permLoss[attr] });
         named.push(...(aeSources[attr] ?? []), ...(mods.sources?.[attr] ?? []));
@@ -1453,7 +1470,7 @@ export class CharacterData extends SR2EDataModel {
     // Combat Pool = floor((Quickness + Intelligence + Willpower) / 2), less
     // 1 die per point of heavy-armor Ballistic over Quickness (SR2E p.84).
     const equippedArmor = (this.parent?.items ?? [])
-      .filter(i => i.type === "armor" && i.system.equipped);
+      .filter(i => i.type === "armor" && i.system.equipped && !inAnimalForm("character", this));
     const combatPool = Math.max(0, Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
     ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor));
@@ -1525,7 +1542,8 @@ export class CharacterData extends SR2EDataModel {
     // Worn armor does NOT stack — only the highest rating counts; layered
     // pieces (helmets, form-fitting body armor) add to it (SR2E p.242).
     const worn = wornArmorTotals(
-      (this.parent?.items ?? []).filter(i => i.type === "armor" && i.system.equipped)
+      // Clothing and armor don't shift with a shapeshifter (Companion p.36): none in animal form.
+      inAnimalForm("character", this) ? [] : (this.parent?.items ?? []).filter(i => i.type === "armor" && i.system.equipped)
     );
     // Note: troll Dermal Armor is "+1 Body" (SR2E Racial Modifications Table),
     // applied as an extra Body die on Damage Resistance Tests in
@@ -1637,9 +1655,11 @@ export class CharacterData extends SR2EDataModel {
     return 2 * count;
   }
 
-  /** Astral Reaction = (Intelligence + Willpower) ÷ 2 (SR2E p.147). */
+  /** Astral Reaction = twice Intelligence, i.e. Astral Quickness (Intelligence) + Intelligence (SR2E p.149). */
   get astralReaction() {
-    return astralReaction(this.intelligence.value);
+    // A shapeshifter's Astral Quickness is its Quickness (Companion p.37).
+    const ss = shapeshifterAstral("character", this);
+    return ss ? ss.quickness + this.intelligence.value : astralReaction(this.intelligence.value);
   }
 
   /**
@@ -1736,6 +1756,30 @@ export class NPCData extends SR2EDataModel {
       // Dual-natured (SR2E p.148): present on both planes at once — can fight and
       // be fought in astral space, keeping the same Attributes and physical armor.
       dualNatured: new fields.BooleanField({ initial: false }),
+
+      // Shapeshifter (core p.227–229): Regeneration, Allergy + Vulnerability to its bane.
+      shapeshifter: new fields.SchemaField({
+        enabled: new fields.BooleanField({ initial: false }),
+        bane: new fields.StringField({ initial: "silver", blank: true })
+      }),
+      // Alternate forms, each a printed stat block (shapeshifters' animal form, the Kludde's three forms).
+      // activeForm "" (or an unknown key) = the actor's own printed block.
+      forms: new fields.ArrayField(new fields.SchemaField({
+        key: new fields.StringField({ initial: "", blank: true }),
+        name: new fields.StringField({ initial: "", blank: true }),
+        img: new fields.StringField({ initial: "", blank: true }),
+        body: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+        quickness: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+        strength: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+        charisma: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+        intelligence: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+        willpower: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+        reactionMod: new fields.NumberField({ integer: true, initial: 0 }),
+        initiativeDice: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+        ballistic: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        impact: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      })),
+      activeForm: new fields.StringField({ initial: "", blank: true }),
 
       // An Awakened NPC perceives and projects like a character (p.145–147).
       astralState: new fields.StringField({ initial: "none", choices: {
@@ -1854,6 +1898,18 @@ export class NPCData extends SR2EDataModel {
   prepareBaseData() {
     super.prepareBaseData?.();
     this.initiative.dice = this.parent?._source?.system?.initiative?.dice ?? this.initiative.dice;
+    // The active FORM's stat block is the baseline, set every pass in both directions BEFORE Active Effects
+    // apply (so every effect mode lands on top of it, and clearing the form restores the printed block).
+    const src = this.parent?._source?.system;
+    if (!src) return;
+    const form = activeFormOf(this);
+    for (const a of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
+      this[a].base = form ? form[a] : (src[a]?.base ?? this[a].base);
+    }
+    this.reaction.mod = form ? form.reactionMod : (src.reaction?.mod ?? 0);
+    if (form) this.initiative.dice = form.initiativeDice;
+    this.armor.ballistic = form ? form.ballistic : (src.armor?.ballistic ?? 0);
+    this.armor.impact = form ? form.impact : (src.armor?.impact ?? 0);
   }
 
   /** Astral Reaction (SR2E p.147) — as for characters. */

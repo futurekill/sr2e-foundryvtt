@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## 0.125.0 — 2026-10-29
+
+### Added
+- **Shapeshifters** (Shadowrun Companion pp.36–38; core pp.227–229). Pick race *Shapeshifter*
+  (the Companion module ships one race item per species) and a species: Bear, Fox, Leopard, Seal,
+  Tiger or Wolf.
+  - **Forms.** The header's *Shift to animal / human* button is the Complex Action. Each form's
+    Attribute modifiers apply after the base cap of 6 with no racial maximum, plus the animal
+    form's Initiative dice, Reach (shown in the melee dialog) and the bear's Dermal Armor (+2 Body
+    dice).
+  - **Animal form.** Worn armor and carried weapons stay behind; only weapons whose *Form* is
+    `animal` can be used. Social skills, Centering, Killing Hands and adept powers are refused.
+    Shifting rejects installed cyberware, and no-one can install it in animal form; a player
+    can't install it in human form either (the GM may).
+  - **Creation.** The priority panel switches to the Shapeshifter Character Creation Table and
+    warns until Race is A, when Magic doesn't match the tradition, and that there are no free
+    contacts.
+  - **Dual-natured.** Astral combat treats a shapeshifter as dual-natured. A magician projects
+    only in human form, with Strength, Quickness and Body as its astral attributes.
+  - **Regeneration (Physical only).** Damage is tracked by where it came from. In animal form,
+    damage taken there heals Essence boxes each Combat Turn and human-form damage half that, from
+    one budget. Silver and Physical Drain heal 1 box a minute. Nothing regenerates in human form.
+    Ticks happen as each Combat Turn passes; out of combat, *Regenerate* asks how many minutes.
+  - **Death checks.** A Deadly wound in animal form posts a GM card: roll 1D6, dies on 1 (1–2 for
+    massive tissue injury, Drain, or silver mixed with other damage). Regeneration waits until it's
+    rolled. Damage of Body + 10 kills in any form. A surviving magician gets a Magic loss check.
+  - **Silver.** Weapons and ammunition have a *Material*. Against a shapeshifter the damage
+    resistance dialog offers "Silver weapon" (+2 Power, +1 Damage Level), ticked already when the
+    attack was silver. The bane is set per creature (a few shapeshifters fear gold instead).
+- **NPC forms and shapeshifter critters.** An NPC can hold alternate forms, each a full stat
+  block, switched with the buttons on its sheet; weapons can be tagged to a form. *Shapeshifter*
+  on an NPC turns on core Regeneration: wounds vanish at the start of the next Combat Turn, with a
+  death check when it goes down. The core Shapeshifter critter has it on.
+
 ## 0.124.0 — 2026-10-29
 
 ### Added

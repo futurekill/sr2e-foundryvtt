@@ -1,4 +1,5 @@
 import { SR2EDataModel } from "./base-data.mjs";
+import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
@@ -199,6 +200,11 @@ export class WeaponData extends SR2EDataModel {
       }}),
       concealability: new fields.NumberField({ integer: true, initial: 6, min: 0 }),
       reach: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Which FORM can use it (shapeshifters, multi-form critters): "" = any form for an NPC, carried gear
+      // (human form only) for a shapeshifter character; "animal" = a natural weapon; else an NPC form key.
+      form: new fields.StringField({ initial: "", blank: true }),
+      // What it's made of ("silver", "gold", "wood"…) — a shapeshifter's bane (Companion p.38).
+      material: new fields.StringField({ initial: "", blank: true }),
 
       // Strength Minimum (SR2 p.96). Bows and crossbows list one: a wielder
       // below it takes +1 TN per point short, and it sets the weapon's range.
@@ -237,7 +243,8 @@ export class WeaponData extends SR2EDataModel {
         damageMod: new fields.NumberField({ integer: true, initial: 0 }),
         armorMod: new fields.NumberField({ integer: true, initial: 0 }),
         armorCalc: new fields.StringField({ initial: "standard" }),
-        damageType: new fields.StringField({ initial: "", blank: true })
+        damageType: new fields.StringField({ initial: "", blank: true }),
+        material: new fields.StringField({ initial: "", blank: true })
       }),
       recoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       smartgunCompatible: new fields.BooleanField({ initial: false }),
@@ -1213,6 +1220,8 @@ export class AmmoData extends SR2EDataModel {
         flechette:      "SR2E.Ammo.ArmorFlechette"
       }}),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
+      // What the rounds are made of (silver…); wins over the weapon's own material.
+      material: new fields.StringField({ initial: "", blank: true }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -1346,8 +1355,11 @@ export class RaceData extends SR2EDataModel {
         dwarf: "SR2E.Races.Dwarf",
         elf: "SR2E.Races.Elf",
         ork: "SR2E.Races.Ork",
-        troll: "SR2E.Races.Troll"
+        troll: "SR2E.Races.Troll",
+        shapeshifter: "SR2E.Races.Shapeshifter"
       }}),
+      // Shapeshifter species (Companion p.36) — blank for the metatypes.
+      species: new fields.StringField({ initial: "", blank: true, choices: SPECIES_CHOICES }),
 
       // Racial attribute modifiers (additive bonuses to base attributes)
       attributeMods: new fields.SchemaField({

@@ -15,6 +15,7 @@
  * posted. Tests that decided an exchange are closed to Karma via
  * `flags.sr2e.closesTests`. Legacy `flags.sr2e.astral` cards are untouched.
  */
+import { weaponUsable, isDualNaturedSys, shapeshifterAstral } from "./rules/shapeshift-rules.mjs";
 import { targetTokens } from "./targeting.mjs";
 import { astralProfile, meleeOutcome, netToSteps, testTotalSuccesses, successesFromSource } from "./rules/sr2e-rules.mjs";
 import { evaluateDamageCode } from "./documents/item.mjs";
@@ -32,10 +33,12 @@ const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 export function astralKind(actor) {
   if (!actor) return null;
   if (actor.type === "spirit") return actor.system.depleted ? null : "spirit";
-  if (actor.type === "npc" && actor.system.dualNatured) return "dual";
-  // Characters, and Awakened NPCs perceiving or projecting (p.145–147).
-  if (actor.type === "character" || (actor.type === "npc" && actor.system.awakened))
-    return ["perceiving", "projecting"].includes(actor.system.astralState) ? "magician" : null;
+  const magicianish = actor.type === "character" || (actor.type === "npc" && actor.system.awakened);
+  // Projecting first: a projecting dual-natured magician (a shapeshifter) fights as its astral form.
+  if (magicianish && actor.system.astralState === "projecting") return "magician";
+  if (isDualNaturedSys(actor.type, actor.system)) return "dual";
+  // Characters, and Awakened NPCs perceiving (p.145–147).
+  if (magicianish) return actor.system.astralState === "perceiving" ? "magician" : null;
   return null;
 }
 
@@ -56,11 +59,13 @@ export function actorAstralProfile(actor, focusId = "") {
   const sys = actor.system;
   const v = (k) => sys[k]?.value ?? sys[k] ?? 0;
   const focus = focusId ? astralFoci(actor).find(f => f.id === focusId) : null;
+  const ss = shapeshifterAstral(actor.type, sys);
   let physicalDamage = null;
   if (kind === "dual") {
     // Its physical attack (p.148: same Attributes on both planes): its natural /
     // melee weapon's code, else astralProfile's (Strength)M.
-    const natural = actor.items.find(i => i.type === "weapon" && i.system.weaponType === "melee");
+    const natural = actor.items.find(i => i.type === "weapon" && i.system.weaponType === "melee"
+      && weaponUsable(actor.type, actor.system, i.system));
     const d = natural ? evaluateDamageCode(natural.system.damageCode, actor) : null;
     if (d?.power > 0 && STAGES.includes(d.level)) physicalDamage = { power: d.power, level: d.level };
   }
@@ -69,7 +74,9 @@ export function actorAstralProfile(actor, focusId = "") {
     skills: { armed: skillRating(actor, "armed combat"), unarmed: skillRating(actor, "unarmed combat"),
               sorcery: skillRating(actor, "sorcery") },
     attrs: { intelligence: v("intelligence"), willpower: v("willpower"), charisma: v("charisma"),
-             body: v("body"), strength: v("strength") },
+             body: v("body"), strength: v("strength"),
+             // A projecting shapeshifter: astral Strength/Body are Strength/Body (Companion p.37).
+             ...(kind === "magician" && ss ? { charisma: ss.strength, willpower: ss.body } : {}) },
     force: sys.effectiveForce ?? sys.force ?? 0,
     focusRating: focus?.system?.force ?? 0,
     physicalDamage,

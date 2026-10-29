@@ -78,14 +78,19 @@ export function commitDamage(actor, type, amount, { extra = {}, report = true, s
       const o = damageUpdateFor(mon, t, n);
       mon = { physical: { ...mon.physical, value: o.physical }, stun: { ...mon.stun, value: o.stun }, overflow: o.overflow };
     };
+    const physTotal = () => mon.physical.value + mon.overflow;
+    const physBefore = physTotal();
     if (r.landed) hit(type === "stun" ? "stun" : "physical", r.landed);
+    // The Physical boxes THIS hit added (incl. its own Stun overflow) carry its source; Hyper's don't.
+    // A shapeshifter's regeneration reads it (silver, Physical Drain — Companion p.38).
+    const sourced = ["bane", "drain"].includes(source) ? physTotal() - physBefore : 0;
     if (r.overloadStun) hit("stun", r.overloadStun);
     const update = { ...extra };
     if (r.landed || r.overloadStun) Object.assign(update, {
       "system.conditionMonitor.physical.value": mon.physical.value, "system.conditionMonitor.stun.value": mon.stun.value,
       "system.conditionMonitor.overflow": mon.overflow });
     for (const [id, used] of Object.entries(r.absorbUsed)) update[`flags.sr2e.drugAbsorb.${id}`] = counters[id] - used;
-    if (Object.keys(update).length) await actor.update(update);
+    if (Object.keys(update).length) await actor.update(update, sourced > 0 ? { sr2eDamage: { [source]: sourced } } : {});
     const out = { landedBoxes: r.landed, absorbed: r.absorbed, overloadStun: r.overloadStun };
     if (report && (r.absorbed || r.overloadStun)) {
       try { await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">💊 ${drugDamageNote(out)}</div>` }); }

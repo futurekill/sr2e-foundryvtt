@@ -4066,3 +4066,21 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 /* Healing on the game clock (docs/PLAN-healing-clock.md §7). */
 .heal-clock { margin-top: 4px; font-size: 11px; display: grid; gap: 2px; }
 .heal-clock__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+/* Shapeshifters (Companion pp.36–38): the header's species / form / regeneration row, NPC forms. */
+.sr2e-sheet-header .sr2e-shift-row,
+.sr2e-sheet-header .sr2e-shift-imgs { flex-wrap: wrap; row-gap: 4px; }
+.sr2e-sheet-header .sr2e-shift-row > *,
+.sr2e-sheet-header .sr2e-shift-imgs > label { flex: 0 0 auto; white-space: nowrap; }
+.sr2e-sheet-header .sr2e-shift-row select { width: auto; }
+.sr2e-sheet-header .sr2e-shift-row .priority-warning { margin: 0; padding: 2px 6px; }
+.sr2e-sheet-header .sr2e-shift-imgs input[type="text"] { flex: 1 1 8em; min-width: 6em; }
+.sr2e-shift-form { font-size: 11px; color: var(--sr2e-text-muted); }
+.npc-forms .flexrow { gap: 6px; align-items: center; flex-wrap: wrap; }
+.npc-forms .flexrow > * { flex: 0 0 auto; }
+.npc-forms .btn-small.active { outline: 1px solid var(--sr2e-accent, currentColor); }
+.npc-form-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+.npc-form-table th, .npc-form-table td { padding: 1px 2px; }
+.npc-form-table input { height: 22px; padding: 0 2px; font-size: 11px; }
+.npc-form-table input[type="number"] { width: 2.4em !important; min-width: 0; text-align: center; }
+.npc-form-table input[type="text"] { width: 100%; min-width: 4em; }

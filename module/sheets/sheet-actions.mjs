@@ -1,3 +1,5 @@
+import { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss } from "../shapeshift.mjs";
+import { adeptPowersWork, weaponUsable, characterForm, shapeshifterOf } from "../rules/shapeshift-rules.mjs";
 import { parseDrainCode } from "../data/item-data.mjs";
 import { evaluateDamageCode } from "../documents/item.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
@@ -607,11 +609,14 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const BASE_TN    = 4;
   const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
   const isRanged   = !isMelee;
+  // A bear's or tiger's animal form adds Reach to its natural weapons (Companion p.36). Reach is the
+  // player's Reach Mod here; the dialog states it.
+  const formReach = weapon.system.form === "animal" ? characterForm(actor.system).reach : 0;
 
   // Killing Hands (SR2E p.125-126): offer the physical-damage declaration on
   // unarmed attacks when the adept has the power. Best (highest) level wins.
   let killingHands = "";
-  if (isMelee && /unarmed/i.test(weapon.name)) {
+  if (isMelee && /unarmed/i.test(weapon.name) && adeptPowersWork(actor.system)) {   // human form only (Companion p.36)
     const order = { L: 1, M: 2, S: 3, D: 4 };
     for (const p of actor.items) {
       if (p.type !== "adept_power") continue;
@@ -1210,7 +1215,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
         <label>Reach Mod:</label>
         <input type="number" id="sr2e-reach-mod" name="reachMod"
                value="0"
-               title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)">
+               title="Your weapon longer: −1 per point of reach advantage. Shorter: +1 per point. (SR2E p.101)${formReach ? ` Your reach: ${(weapon.system.reach ?? 0) + formReach} (+${formReach} animal form, Companion p.36).` : ""}">
       </div>
       <div class="sr2e-attack__field">
         <label>Other Mod:</label>
@@ -1564,6 +1569,7 @@ async function onRollWeapon(event, target) {
  */
 export async function rollWeaponInteractive(actor, item) {
   if (!actor || !item) return;
+  if (!weaponUsable(actor.type, actor.system, item.system)) return ui.notifications.warn(`${actor.name} can't use ${item.name} in this form.`);
 
   // SR2E weapon-type → default skill (mirrors the lookup in _rollWeaponAttack)
   const WEAPON_TYPE_DEFAULT_SKILLS = {
@@ -3784,6 +3790,55 @@ async function onClearBioHeal(event, target) {
 }
 
 const SHARED_ACTIONS = {
+  // Shapeshifters (Companion pp.36–38; docs/PLAN-shapeshifters.md)
+  shiftForm: async function(event, target) {
+    event.preventDefault();
+    return shiftForm(this.document, target.dataset.form ?? "");
+  },
+  regenerate: async function(event) {
+    event.preventDefault();
+    const minutes = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `Regenerate: ${this.document.name}` },
+      content: `<div class="form-group"><label>Minutes passed</label>
+        <input type="number" name="minutes" value="1" min="1" step="1" autofocus></div>
+        <p class="hint">Out of combat. In combat, regeneration happens as each Combat Turn passes.</p>`,
+      ok: { label: "Regenerate", callback: (ev, btn) => Math.max(1, parseInt(btn.form.elements.minutes.value) || 1) },
+      rejectClose: false
+    });
+    if (minutes) return regenerateMinutes(this.document, minutes);
+  },
+  deathCheck: async function(event, target) {
+    event.preventDefault();
+    return resolveDeath(this.document, target.dataset.id, { massive: target.dataset.massive === "1" });
+  },
+  clearDeath: async function(event) {
+    event.preventDefault();
+    return clearDeath(this.document);
+  },
+  deathMagic: async function(event, target) {
+    event.preventDefault();
+    return deathMagicLoss(this.document, target.dataset.id);
+  },
+  addForm: async function(event) {
+    event.preventDefault();
+    const forms = foundry.utils.deepClone(this.document._source.system.forms ?? []);
+    const s = this.document._source.system;
+    let n = forms.length + 1;
+    while (forms.some(f => f.key === `form${n}`)) n++;
+    forms.push({ key: `form${n}`, name: `Form ${n}`, img: "",
+      body: s.body.base, quickness: s.quickness.base, strength: s.strength.base, charisma: s.charisma.base,
+      intelligence: s.intelligence.base, willpower: s.willpower.base, reactionMod: s.reaction?.mod ?? 0,
+      initiativeDice: s.initiative?.dice ?? 1, ballistic: s.armor?.ballistic ?? 0, impact: s.armor?.impact ?? 0 });
+    return this.document.update({ "system.forms": forms });
+  },
+  deleteForm: async function(event, target) {
+    event.preventDefault();
+    const i = Number(target.dataset.formIndex);
+    const forms = foundry.utils.deepClone(this.document._source.system.forms ?? []);
+    if (forms[i]?.key && forms[i].key === this.document.system.activeForm) return ui.notifications.warn("Shift out of that form before deleting it.");
+    forms.splice(i, 1);
+    return this.document.update({ "system.forms": forms });
+  },
   healClock: onHealClock,
   healBioware: onHealBioware,
   clearBioHeal: onClearBioHeal,
@@ -4288,8 +4343,10 @@ const SHARED_ACTIONS = {
       const natural = eff(info.raw), newNat = eff(info.raw + 1);
       const ceiling = info.cap == null ? null : info.cap - info.loss;
       const overMax = ceiling != null && info.raw + 1 - info.loss > ceiling;
-      // A raise that would not change the effective rating is never sold.
-      return { newNat, cost: newNat * (overMax ? 2 : 1), overMax, natural, stuck: newNat === natural };
+      // A raise that would not change the effective rating is never sold. A shapeshifter's form modifier
+      // is part of that rating but not of the price (Companion p.36; form-independent).
+      const live = (raw) => Math.max(1, (clamp ? Math.min(raw, info.cap) : raw) + (info.form ?? 0) - info.loss);
+      return { newNat, cost: newNat * (overMax ? 2 : 1), overMax, natural, stuck: live(info.raw + 1) === live(info.raw) };
     };
     const skillCost = item => {
       const newRating = item.system.rating + 1;
@@ -4385,7 +4442,11 @@ const SHARED_ACTIONS = {
    */
   toggleAstral: async function(event, target) {
     event.preventDefault();
-    const order = ["none", "perceiving", "projecting"];
+    const sys = this.document.system;
+    // A shapeshifter projects only in human form, as a full magician (Companion p.37).
+    const noProject = this.document.type === "character" && shapeshifterOf("character", sys)
+      && (sys.shapeshifter.form === "animal" || sys.magic?.type !== "full_magician");
+    const order = noProject ? ["none", "perceiving"] : ["none", "perceiving", "projecting"];
     const cur = this.document.system.astralState ?? "none";
     const next = order[(order.indexOf(cur) + 1) % order.length];
     await this.document.update({ "system.astralState": next });

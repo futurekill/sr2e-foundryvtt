@@ -415,3 +415,17 @@ module/secondhand.mjs: `tnPolicy: "equipment"` (zeroes every character modifier 
 must opt in or out) and `rerollCostPerDie` (read by `karmaRerollCost`). Failure is settled by the
 GM through a `closesTests` message that is also the retry record (`applied`). `secondhandDead`
 gates a failed part's mods in actor-data; cyberlimbs and limb options are excluded (reminder only).
+
+## Shapeshifters
+Companion pp.36–38 + core pp.227–229 (docs/PLAN-shapeshifters.md; Codex plan rounds 1–5). Pure rules in
+`module/rules/shapeshift-rules.mjs`, the rest in `module/shapeshift.mjs`. A character is a shapeshifter by
+`race === "shapeshifter"` + `shapeshifter.species`; its form modifiers are a NATURAL term added after the base
+cap in `_naturalAttribute` (never in `.racial`, never in `naturalInfo` — advancement prices off base). NPC forms
+are absolute stat blocks set in `NPCData.prepareBaseData` (before Active Effects). State lives at
+`flags.sr2e.shift.<shiftKey(uuid)>`; ONE preUpdateActor hook keeps the Physical damage buckets and opens death
+checks in the same update as any Physical change. Damage writers name their source via `commitDamage`'s
+`source` ("bane", "drain") → `options.sr2eDamage`; a new drain path must pass `source: "drain"`. Every weapon
+eligibility check goes through `weaponUsable`. Regeneration ticks: GM clients on a round increase, each
+combatant's cursor advance claimed by its starting point. Death results are `recordEvent` records applied
+idempotently (fenced by id + rev + pending).
+

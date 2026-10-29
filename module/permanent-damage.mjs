@@ -7,6 +7,7 @@
  * that publish, and no Karma. Everything else — attribute loss, healing penalties, pending checks —
  * is derived from the non-void records.
  */
+import { dermalDiceOf } from "./rules/shapeshift-rules.mjs";
 import { recordEvent, eventsOf } from "./claims.mjs";
 import { wareRule } from "./rules/ware-rules.mjs";
 import { skinBody } from "./rules/cyberdamage-rules.mjs";
@@ -61,7 +62,7 @@ function onUpdate(actor, changes, options, userId) {
 /** Natural Body + dermal armor: dermal plating/sheathing as the attribute pipeline counts it, troll +1. */
 export function permanentDamageDice(actor) {
   const natural = actor.system.naturalAttrs?.body ?? Math.max(1, (actor.system.body?.base ?? 1) + (actor.system.body?.racial ?? 0));
-  let dermal = actor.system.race === "troll" ? 1 : 0;
+  let dermal = dermalDiceOf(actor.type, actor.system);   // troll +1, bear animal form +2 (Companion p.36)
   for (const i of actor.items) {
     if (i.type !== "cyberware" && i.type !== "bioware") continue;
     const rule = wareRule(i.flags, i._stats?.compendiumSource ?? i.flags?.core?.sourceId ?? null);

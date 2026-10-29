@@ -194,6 +194,10 @@
         {{/unless}}
         {{/ifEquals}}
 
+        {{#each shapeshifterChargen}}
+        <p class="priority-warning"><i class="fas fa-paw"></i> {{this}}</p>
+        {{/each}}
+
         {{!-- Live point/nuyen spend vs the chosen priority allotment (p.44–45).
              Only shown while creation is in progress — a karma-advanced or
              ported character has legitimately grown past its starting budget,

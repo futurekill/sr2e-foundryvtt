@@ -58,6 +58,40 @@
       </div>
     </div>
 
+    {{!-- Shapeshifter (Companion pp.36–38): species, form, regeneration, death checks --}}
+    {{#ifEquals system.race "shapeshifter"}}
+    <div class="header-race-row sr2e-shift-row flexrow">
+      <label class="race-label">Species:</label>
+      <select name="system.shapeshifter.species" title="Shapeshifter Attribute Modifiers Table (Companion p.36)">
+        {{selectOptions speciesChoices selected=system.shapeshifter.species localize=true}}
+      </select>
+      {{#if shift.on}}
+      <span class="sr2e-shift-form" title="Human or animal form (Companion p.36)"><i class="fas fa-paw"></i> {{#if shift.animal}}Animal form{{else}}Human form{{/if}}</span>
+      <button type="button" class="btn-small" data-action="shiftForm" data-form="{{shift.nextForm}}"
+              {{#if shift.problem}}disabled title="Can't shift: {{shift.problem}}"{{else}}title="Complex Action. Gear and clothing don't shift; shifting to animal form rejects cyberware (Companion pp.36–38)."{{/if}}>
+        Shift to {{shift.nextForm}}</button>
+      <button type="button" class="btn-small" data-action="regenerate"
+              title="Out of combat: minutes pass. Animal form only: animal-form damage {{system.essence.value}}/turn, human-form damage half that, silver and Drain 1 box/minute (Companion p.37–38). Damage now — human {{shift.buckets.human}}, animal {{shift.buckets.animal}}, silver {{shift.buckets.bane}}, Drain {{shift.buckets.drain}}.">
+        <i class="fas fa-heart-pulse"></i> Regenerate</button>
+      {{#if shift.pending}}
+      <span class="priority-warning" title="{{shift.death.why}}"><i class="fas fa-skull"></i> Death check (dies on {{#ifEquals shift.death.diesOn 1}}1{{else}}1–2{{/ifEquals}})</span>
+      {{#if isGM}}<button type="button" class="btn-small" data-action="deathCheck" data-id="{{shift.death.id}}">Roll 1D6</button>
+      {{#if shift.massiveOffer}}<button type="button" class="btn-small" data-action="deathCheck" data-id="{{shift.death.id}}" data-massive="1" title="Burns, trauma: dies on 1–2">Massive tissue</button>{{/if}}{{/if}}
+      {{/if}}
+      {{#if shift.dead}}<span class="priority-warning"><i class="fas fa-skull"></i> Dead</span>{{/if}}
+      {{#if isGM}}{{#each shift.magicOwed as |id|}}<button type="button" class="btn-small" data-action="deathMagic" data-id="{{id}}" title="Survived a Deadly wound (Companion p.38): 2D6 vs Magic (p.115)">Magic loss check</button>{{/each}}{{/if}}
+      {{#if isGM}}{{#if shift.death}}<button type="button" class="btn-small" data-action="clearDeath" title="Revive / clear the death state (GM)">Clear</button>{{/if}}{{/if}}
+      {{/if}}
+    </div>
+    {{#if shift.on}}
+    <div class="header-race-row sr2e-shift-imgs flexrow">
+      <label class="race-label" title="Token art per form (optional)">Human art:</label><input type="text" name="system.shapeshifter.humanImg" value="{{system.shapeshifter.humanImg}}" placeholder="path/to/human.webp" />
+      <label class="race-label">Animal art:</label><input type="text" name="system.shapeshifter.animalImg" value="{{system.shapeshifter.animalImg}}" placeholder="path/to/animal.webp" />
+      <label class="race-label" title="Allergy (Severe) and Vulnerability (Companion p.38)">Bane:</label><input type="text" name="system.shapeshifter.bane" value="{{system.shapeshifter.bane}}" style="max-width:6em" />
+    </div>
+    {{/if}}
+    {{/ifEquals}}
+
     {{!-- Row 2.5: Condition status --}}
     <div class="header-condition-row flexrow">
       <span class="condition-badge {{woundLevelClass woundLevel}}">

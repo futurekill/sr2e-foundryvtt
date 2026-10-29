@@ -1,6 +1,7 @@
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
+import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { hasRefundableStock, queuedQuantityEdit, moneyQueue, adjustNuyen, updated } from "../money.mjs";
@@ -169,6 +170,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.vr2 = isVR2();
     context.effects = item.effects.contents;
     context.config = CONFIG.SR2E;
+    context.speciesChoices = SPECIES_CHOICES;   // race items: shapeshifter species (Companion p.36)
     context.isOwned = !!item.parent;
     context.type = item.type;
     context.editable = this.isEditable;
