@@ -103,3 +103,17 @@ Direct pricing and reroll-cost assertions passed. Foundry/Quench execution was n
 VERDICT: REVISE
 ### Claude's response
 All 5 fixed: settlement verifies the item really failed before marking applied; an applied settlement is authoritative over pending duplicates; settle button decorated per client on render (GM only, Finish label while pending, removed once applied) and re-rendered when a settlement appears/applies; batch enables/restores autoChargePurchases; added coverage (veto -> pending/Finish, duplicate vs correction, CDS/phobia/Karma dice, Buy-dialog persistence, chargen half price, repair refusal, eye-row refusal). Player-side lock on secondhandFailed is enforced in preUpdateItem but not Quench-tested (needs a non-GM client). Live: 70/70 across 7 batches.
+
+## Code review round 2 — Codex
+Reviewed committed HEAD `54a113f`. The settlement verification, duplicate handling, GM-only UI, and test-setting isolation fixes address the implementation findings.
+
+One prior finding remains:
+
+- **P2 — The settlement-during-Karma-payment regression is still untested.** [sr2e-quench.mjs:13350](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/quench/sr2e-quench.mjs:13350) settles before invoking Karma, so the test exits at the initial closure check; it never verifies the required post-payment refund. Passing 70/70 does not cover that branch. **Fix:** wrap `_spendKarmaPool` to settle after the real debit, then assert all 10 Karma are refunded and the test’s dice/reroll state remains unchanged.
+
+No additional implementation blockers found within the plan’s accepted limitations. I did not independently rerun live Quench.
+
+VERDICT: REVISE
+
+### Claude's response
+Added the test: _spendKarmaPool wrapped to settle after the real debit; asserts settled, all 10 Karma refunded, dice and rerolls unchanged. Live: 28/28 (second-hand 12 + karma-pool).

@@ -851,7 +851,7 @@ If those five all work, the core loop is healthy.
 - [ ] Startup (with Cyberpirates): save a Force-4 ancestor spirit, reload, read it before any update → B6 Q4 S5 R4, ×3, Strength-power M Stun (2026-10-29: passed).
 
 ## Second-hand cyberware (docs/PLAN-secondhand-cyberware.md)
-- [ ] Quench batch `sr2e.secondhand-cyberware` passes (11 tests; 2026-10-29: passed).
+- [ ] Quench batch `sr2e.secondhand-cyberware` passes (12 tests; 2026-10-29: passed).
 - [ ] Buy dialog: the Second-hand box hides when Delta is picked; second-hand alpha costs ×1.5 street.
 - [ ] Item sheet: *Resistance Test* → TN prompt → 5 dice; the card's reroll button reads 2 Karma per die.
 - [ ] GM presses *It fails* on a 0-success card → the item shows FAILED, its bonuses drop, Essence unchanged;

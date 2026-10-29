@@ -13458,6 +13458,22 @@ export function registerSR2EQuenchTests() {
         assert.equal((eye.system.modules ?? []).length, 0);
       });
 
+      it("settled DURING a Karma payment: the reroll is refunded and the card unchanged", async () => {
+        const a = await pc("Quench SH Race", { karma: { total: 200, poolAdjust: -1 } });
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Race Part", { secondhand: true })]);
+        await withFaces(2, () => roll(a, w));
+        const msg = testMsg();
+        const dice0 = JSON.stringify(msg.flags.sr2e.test.dice), pool0 = a.system.karma.pool;
+        const orig = a._spendKarmaPool.bind(a);
+        a._spendKarmaPool = async (cost) => { const r = await orig(cost); await settleSecondhandTest(game.messages.get(msg.id)); return r; };
+        try { await withFaces(2, () => a.applyKarmaToTest(game.messages.get(msg.id), "reroll")); } finally { delete a._spendKarmaPool; }
+        assert.ok(await settle(() => w.system.secondhandFailed), "settled");
+        assert.ok(await settle(() => a.system.karma.pool === pool0), `all 10 refunded (pool ${a.system.karma.pool} vs ${pool0})`);
+        const st = game.messages.get(msg.id).flags.sr2e.test;
+        assert.equal(JSON.stringify(st.dice), dice0, "dice unchanged");
+        assert.equal(st.rerolls ?? 0, 0, "no reroll recorded");
+      });
+
       it("the GM can't settle a part that held", async () => {
         const a = await pc("Quench SH Held");
         const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Held Part", { secondhand: true })]);
