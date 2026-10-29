@@ -15,6 +15,7 @@
 import { evaluateDamageCode } from "../documents/item.mjs";
 import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating, gradeCostMultiplier } from "../rules/sr2e-rules.mjs";
 import { saleQuote } from "../money.mjs";
+import { settleSecondhandTest, settlementsOf, settleState, decorateSettleButton } from "../secondhand.mjs";
 
 export function registerSR2EQuenchTests() {
   Hooks.on("quenchReady", (quenchApi) => {
@@ -13289,6 +13290,219 @@ export function registerSR2EQuenchTests() {
     }, { displayName: "SR2E: NPC Essence above 6" });
 
     // Spirit attack Power source and group totem bonuses (docs/PLAN-ancestor-spirit.md).
+    // ── Second-hand cyberware (SSC p.100; docs/PLAN-secondhand-cyberware.md) ──────
+    quench.registerBatch("sr2e.secondhand-cyberware", (context) => {
+      const { it, assert, before, after } = context;
+      const made = [];
+      let prevCharge;
+      before(async () => {                                   // the price tests need charging on
+        prevCharge = game.settings.get("sr2e", "autoChargePurchases");
+        await game.settings.set("sr2e", "autoChargePurchases", true);
+      });
+      const ownMessages = () => game.messages.filter(m => made.some(a => a.id === m.speaker?.actor)
+        || made.some(a => (m.flags?.sr2e?.secondhandSettle?.itemUuid ?? "").startsWith(a.uuid)));
+      after(async function () {
+        this.timeout(20000);
+        await game.settings.set("sr2e", "autoChargePurchases", prevCharge);
+        await ChatMessage.deleteDocuments(ownMessages().map(m => m.id));
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const pc = async (name, system = {}) => {
+        const a = await Actor.create({ name, type: "character", system: { nuyen: 1000000, chargen: { inProgress: false }, ...system } });
+        made.push(a); return a;
+      };
+      const withFaces = async (face, fn) => {
+        const orig = CONFIG.Dice.randomUniform;
+        CONFIG.Dice.randomUniform = () => (6.5 - face) / 6;
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const cyber = (name, system = {}, flags = {}) => ({ name, type: "cyberware", flags,
+        system: { cost: 10000, streetIndex: "1", essenceCost: 0.5, installed: true, ...system } });
+      const testMsg = () => game.messages.contents.filter(m => m.flags?.sr2e?.test?.secondhand).at(-1);
+      const roll = (a, item) => a.rollSuccessTest(5, 4, { label: "Quench second-hand", tnPolicy: "equipment", rerollCostPerDie: 2,
+        secondhand: { itemUuid: item.uuid, itemName: item.name } });
+
+      it("second-hand alpha: half the alpha price, alpha's Essence; unticking charges the difference", async () => {
+        const a = await pc("Quench SH Price");
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Alpha", { grade: "alpha", secondhand: true }, { sr2e: { paid: 15000 } })]);
+        assert.equal(w.system.actualEssenceCost, 0.4, "alpha Essence, unchanged by second-hand");
+        const n0 = a.system.nuyen;
+        await w.update({ "system.secondhand": false });
+        assert.ok(await settle(() => n0 - a.system.nuyen === 15000), `charged 15000 (got ${n0 - a.system.nuyen})`);
+        assert.ok(await settle(() => w.getFlag("sr2e", "paid") === 30000));
+      });
+
+      it("the test: the GM's TN exactly, 2 Karma per die re-rolled, the GM settles a failure and closes it", async () => {
+        const a = await pc("Quench SH Test", { karma: { total: 200, poolAdjust: -1 } });
+        await a.update({ "system.conditionMonitor.physical.value": 3 });      // wounded: no effect here
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Arm", { secondhand: true })]);
+        assert.equal(a.system.karma.pool, 20);
+        await withFaces(2, () => roll(a, w));
+        const msg = testMsg();
+        assert.equal(msg.flags.sr2e.test.tn, 4, "equipment policy: no wound modifier");
+        assert.include(msg.content, "sr2e-secondhand-settle");
+        await withFaces(2, () => a.applyKarmaToTest(msg, "reroll"));
+        assert.ok(await settle(() => a.system.karma.pool === 10), "5 failures × 2");
+        await withFaces(2, () => a.applyKarmaToTest(game.messages.get(msg.id), "reroll"));
+        assert.ok(await settle(() => a.system.karma.pool === 0), "again 5 × 2: no escalation");
+        await a.update({ "system.karma.total": 300 });                        // more Karma for the closed-test check
+        const before = a.system.karma.pool;
+        await settleSecondhandTest(game.messages.get(msg.id));
+        assert.ok(await settle(() => w.system.secondhandFailed), "marked failed");
+        assert.equal(settlementsOf(msg.id).length, 1);
+        assert.isTrue(settlementsOf(msg.id)[0].flags.sr2e.secondhandSettle.applied);
+        await withFaces(2, () => a.applyKarmaToTest(game.messages.get(msg.id), "reroll"));
+        assert.equal(a.system.karma.pool, before, "closed: no Karma spent");
+        // A GM correction is never re-failed by a second press.
+        await w.update({ "system.secondhandFailed": false });
+        await settleSecondhandTest(game.messages.get(msg.id));
+        assert.isFalse(w.system.secondhandFailed);
+        assert.equal(settlementsOf(msg.id).length, 1);
+      });
+
+      it("an unapplied settlement (its item write failed) is finished by the next press", async () => {
+        const a = await pc("Quench SH Retry");
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Retry Part", { secondhand: true })]);
+        await withFaces(2, () => roll(a, w));
+        const msg = testMsg();
+        const orig = w.update.bind(w); let once = true;
+        w.update = (...args) => { if (once) { once = false; throw new Error("quench: stubbed failure"); } return orig(...args); };
+        try { await settleSecondhandTest(msg); } catch (e) { /* the stubbed failure */ }
+        assert.isFalse(w.system.secondhandFailed);
+        assert.isFalse(settlementsOf(msg.id)[0].flags.sr2e.secondhandSettle.applied);
+        delete w.update;
+        // fromUuid returns the same embedded instance, so the stub is gone for the retry.
+        await settleSecondhandTest(msg);
+        assert.ok(await settle(() => w.system.secondhandFailed), "finished");
+        assert.equal(settlementsOf(msg.id).length, 1);
+      });
+
+      it("a vetoed item write leaves the settlement pending (Finish), never applied", async () => {
+        const a = await pc("Quench SH Veto");
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Veto Part", { secondhand: true })]);
+        await withFaces(2, () => roll(a, w));
+        const msg = testMsg();
+        const veto = Hooks.on("preUpdateItem", (item) => item.id === w.id ? false : undefined);
+        try { await settleSecondhandTest(msg); } finally { Hooks.off("preUpdateItem", veto); }
+        assert.isFalse(w.system.secondhandFailed);
+        assert.equal(settleState(msg.id).state, "pending");
+        const d = document.createElement("div"); d.innerHTML = msg.content; decorateSettleButton(msg, d);
+        assert.include(d.textContent, "Finish: mark failed");
+        await settleSecondhandTest(msg);
+        assert.ok(await settle(() => w.system.secondhandFailed));
+        assert.equal(settleState(msg.id).state, "applied");
+        const d2 = document.createElement("div"); d2.innerHTML = msg.content; decorateSettleButton(msg, d2);
+        assert.notInclude(d2.textContent, "mark", "the button is gone once applied");
+      });
+
+      it("an applied settlement wins over a pending duplicate (a GM correction stays)", async () => {
+        const a = await pc("Quench SH Dup");
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Dup Part", { secondhand: true })]);
+        await withFaces(2, () => roll(a, w));
+        const msg = testMsg();
+        await settleSecondhandTest(msg);
+        await ChatMessage.create({ content: "quench duplicate", flags: { sr2e: { closesTests: [msg.id],
+          secondhandSettle: { testId: msg.id, itemUuid: w.uuid, applied: false } } } });
+        await w.update({ "system.secondhandFailed": false });                  // the GM's correction
+        await settleSecondhandTest(msg);
+        assert.isFalse(w.system.secondhandFailed);
+      });
+
+      it("the equipment policy zeroes CDS and phobia; Karma dice add to the 5", async () => {
+        const a = await pc("Quench SH Mods", { karma: { total: 50, poolAdjust: -1 } });
+        a.system.cym = { ...(a.system.cym ?? {}), cds: true };
+        a.system.vr2Psy = [{ kind: "cyberphobia", rating: 2 }];
+        const ctx = { tnContext: { key: "computer", kind: "matrix" } };
+        assert.equal(a.testTnModifiers(ctx).cdsTN, 3, "CDS applies to ordinary tests");
+        assert.equal(a.testTnModifiers(ctx).phobiaTN, 2);
+        const eq = a.testTnModifiers({ ...ctx, tnPolicy: "equipment" });
+        assert.equal(eq.cdsTN, 0); assert.equal(eq.phobiaTN, 0); assert.equal(eq.total, 0);
+        a.reset();
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Dice", { secondhand: true })]);
+        await a.rollSuccessTest(5, 4, { tnPolicy: "equipment", karmaDice: 2, rerollCostPerDie: 2, secondhand: { itemUuid: w.uuid, itemName: w.name } });
+        assert.equal(testMsg().flags.sr2e.test.dice.length, 7);
+      });
+
+      it("the Buy dialog keeps the box; chargen counts half", async () => {
+        const a = await pc("Quench SH Buy");
+        const itemData = { name: "Quench SH Buy Ware", type: "cyberware", system: { cost: 1000, grade: "standard", installed: false } };
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+          const f = app.element; const g = f.querySelector('[name="grade"]'); g.value = "alpha";
+          g.dispatchEvent(new Event("change", { bubbles: true }));
+          f.querySelector('[name="secondhand"]').checked = true;
+          f.querySelector('button[data-action="ok"], footer button').click(); }, 300));
+        const r = await a.sheet.constructor._promptPurchaseOptions(itemData, a, {});
+        assert.deepEqual({ grade: r.grade, secondhand: r.secondhand }, { grade: "alpha", secondhand: true });
+        const c = await Actor.create({ name: "Quench SH Chargen", type: "character", system: { chargen: { priorities: { resources: "C" } } } });
+        made.push(c);
+        const { chargenBudgetOf } = await import("../sheets/actor-sheet.mjs");
+        const s0 = chargenBudgetOf(c).resources.spent;
+        await c.createEmbeddedDocuments("Item", [cyber("Quench SH Chargen Ware", { secondhand: true })]);
+        assert.equal(chargenBudgetOf(c).resources.spent - s0, 5000, "list price, halved");
+      });
+
+      it("a failed part refuses repair; second-hand ware can't become an eye accessory row", async () => {
+        const a = await pc("Quench SH Repair");
+        await a.createEmbeddedDocuments("Item", [
+          cyber("Quench SH Broken", { secondhand: true, secondhandFailed: true, conditions: [{ id: "c1", table: "other", roll: 9, effect: "x", repairTN: 4 }] }),
+          cyber("Quench SH Eye", { essenceCost: 0.2 }, { sr2e: { rule: "cybereye-pair" } })]);
+        const w = a.items.getName("Quench SH Broken"), eye = a.items.getName("Quench SH Eye");
+        const row = document.createElement("div"); row.dataset.itemId = w.id;
+        const btn = document.createElement("button"); btn.dataset.condition = "c1"; row.append(btn);
+        await a.sheet.options.actions.cdRepair.call(a.sheet, new Event("click"), btn);
+        assert.equal(w.system.conditions.length, 1, "no repair is possible");
+        const { fitEyeAccessory } = await import("../eye-accessories.mjs");
+        const res = await fitEyeAccessory(a, eye, { name: "Quench SH Cam", type: "cyberware", flags: { sr2e: { rule: "eye-accessory:camera" } },
+          system: { secondhand: true, cost: 100 } });
+        assert.isNull(res);
+        assert.equal((eye.system.modules ?? []).length, 0);
+      });
+
+      it("the GM can't settle a part that held", async () => {
+        const a = await pc("Quench SH Held");
+        const [w] = await a.createEmbeddedDocuments("Item", [cyber("Quench SH Held Part", { secondhand: true })]);
+        await withFaces(5, () => roll(a, w));
+        const msg = testMsg();
+        await settleSecondhandTest(msg);
+        assert.isFalse(w.system.secondhandFailed);
+        assert.equal(settlementsOf(msg.id).length, 0);
+      });
+
+      it("a failed part stops working but keeps its Essence; worthless, unrepairable in price, not re-gradable", async () => {
+        const a = await pc("Quench SH Failed");
+        await a.createEmbeddedDocuments("Item", [
+          cyber("Quench SH Wired", { secondhand: true, attributeMods: { reaction: 2, initiativeDice: 1 } }, { sr2e: { paid: 5000 } }),
+          cyber("Muscle Replacement", { secondhand: true, attributeMods: { quickness: 2 } }),
+          cyber("Quench SH Spur", { secondhand: true, isWeapon: true, damageCode: "(Str)M" })]);
+        // By name: createEmbeddedDocuments returns items out of order.
+        const [wired, muscle, spur] = ["Quench SH Wired", "Muscle Replacement", "Quench SH Spur"].map(n => a.items.getName(n));
+        const reaction = a.system.reaction.value, ess = a.system.essence.value;
+        assert.isTrue(spur.isWeaponLike);
+        const noMuscleReaction = reaction;                                       // muscle Quickness never feeds Reaction
+        await a.updateEmbeddedDocuments("Item", [wired, muscle, spur].map(i => ({ _id: i.id, "system.secondhandFailed": true })));
+        assert.equal(a.system.reaction.value, noMuscleReaction - 2, "only the wired +2 drops; the failed muscle doesn't lower Reaction");
+        assert.equal(a.system.initiative.dice, 1, "its initiative die is gone");
+        assert.equal(a.system.essence.value, ess, "Essence still counts");
+        assert.isFalse(spur.isWeaponLike, "a failed cyberweapon doesn't attack");
+        assert.equal(saleQuote(wired).price, 0, "worthless");
+        const n0 = a.system.nuyen;
+        await wired.update({ "system.grade": "beta" });
+        assert.equal(wired.system.grade, "standard", "re-grading a failed part is refused");
+        assert.equal(a.system.nuyen, n0);
+      });
+
+      it("delta is never second-hand: refused as a transition, an existing bad record still edits", async () => {
+        const a = await pc("Quench SH Delta");
+        await a.createEmbeddedDocuments("Item", [cyber("Quench SH ToDelta", { secondhand: true }),
+          cyber("Quench SH BadDelta", { grade: "delta", secondhand: true })]);
+        const sh = a.items.getName("Quench SH ToDelta"), bad = a.items.getName("Quench SH BadDelta");
+        await sh.update({ "system.grade": "delta" });
+        assert.equal(sh.system.grade, "standard");
+        await bad.update({ name: "Quench SH BadDelta renamed" });
+        assert.equal(bad.name, "Quench SH BadDelta renamed");
+      });
+    });
+
     quench.registerBatch("sr2e.spirit-attack-power", (context) => {
       const { it, assert, before, after } = context;
       const made = [];

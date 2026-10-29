@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added
+- **Second-hand cyberware** (Street Samurai Catalog p.100; Cybertechnology p.42). Tick
+  *Second-hand* when buying cyberware, or on its sheet. It's a condition on standard, alpha or
+  beta ware, never delta.
+  - It costs half the new price at its grade, with the same Essence and installation.
+  - Ticking or unticking it on a bought item charges or refunds the difference.
+- **The second-hand Resistance Test.** Once per adventure, when it's crucial the part not break,
+  the GM can call it from the item sheet's *Resistance Test* button.
+  - It rolls 5 dice against the GM's TN (default 4, up to 8 for a crucial strain).
+  - Character modifiers (wounds and the like) don't apply.
+  - Karma rerolls cost 2 per die re-rolled.
+  - With 0 successes the GM presses *It fails* on the card. That closes the test to Karma and
+    marks the part **failed**: it must be replaced.
+- **A failed part stops working.** Its attribute, Reaction and Initiative bonuses drop, but its
+  Essence still counts.
+  - A cyberweapon stops attacking.
+  - It sells for 0¥, can't be repaired, re-graded or re-rated, and only the GM can clear the
+    failure.
+  - A failed cyberlimb is a GM reminder, as in cyberware damage (Cybertechnology p.49).
+- The character sheet tags second-hand ware "2nd-hand", and "⚠ FAILED" once it fails.
+
 ## 0.123.1 — 2026-10-29
 
 ### Fixed

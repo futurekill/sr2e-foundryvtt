@@ -20,6 +20,7 @@
           </span>
           <span class="cyber-location">{{cyber.system.location}}</span>
           <span class="cyber-grade">{{cyber.system.grade}}</span>
+          {{#if cyber.system.secondhandFailed}}<span class="hint sr2e-limb-warn" title="Failed its second-hand Resistance Test: must be replaced, no repair (SSC p.100)">⚠ FAILED</span>{{else if cyber.system.secondhand}}<span class="hint" title="Second-hand: half price; once per adventure the GM may call a 5-die test (SSC p.100)">2nd-hand</span>{{/if}}
           {{#if cyber.system.cranialDeck}}<span class="cyber-mods {{#if cyber.system.deck.active}}bio-active{{/if}}" title="Cranial cyberdeck — MPCP {{cyber.system.deck.mpcp}}. Activate (⚡) to drive the Matrix tab."><i class="fas fa-bolt"></i> C2 MPCP {{cyber.system.deck.mpcp}}{{#if cyber.system.deck.active}} · active{{/if}}</span>{{/if}}
           <span class="cyber-essence">Ess: {{cyber.system.actualEssenceCost}}</span>
           {{#if cyber.system.conditions.length}}<span class="hint sr2e-limb-warn" title="{{#each cyber.system.conditions as |c|}}{{c.effect}} (repair TN {{c.repairTN}})&#10;{{/each}}">⚠ damaged</span>{{/if}}

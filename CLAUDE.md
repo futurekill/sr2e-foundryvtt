@@ -405,3 +405,13 @@ or "strength". Totem conjuring dice come ONLY from `totemConjuringBonus` (explic
 inherited best member, never summed), used for both the Conjuring and Drain pools. Content modules
 add spirit types by extending CONFIG at `init` (world documents are prepared before `setup`).
 docs/PLAN-ancestor-spirit.md.
+
+## Second-hand cyberware
+SSC p.100 + Cybertechnology p.42 (docs/PLAN-secondhand-cyberware.md, Codex-approved round 4).
+`system.secondhand` is a CONDITION on standard/alpha/beta (never delta: `cyberSecondhand` ignores
+it there and `preUpdateItem` refuses the transition), priced ×.5 in `itemBaseCost` after the grade.
+Bioware keeps its own `secondhand` GRADE (Shadowtech p.12). The Resistance Test lives in
+module/secondhand.mjs: `tnPolicy: "equipment"` (zeroes every character modifier — a new modifier
+must opt in or out) and `rerollCostPerDie` (read by `karmaRerollCost`). Failure is settled by the
+GM through a `closesTests` message that is also the retry record (`applied`). `secondhandDead`
+gates a failed part's mods in actor-data; cyberlimbs and limb options are excluded (reminder only).

@@ -80,6 +80,7 @@ import { registerMbwHooks } from "./mbw.mjs";
 import { registerVr2IcHooks } from "./vr2ic.mjs";
 import { registerCyberDamageHooks } from "./cyberdamage.mjs";
 import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "./cybermancy.mjs";
+import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 
@@ -1377,7 +1378,9 @@ const PURCHASE_DRIVERS = ["rating", "grade", "bodySystem", "force", "grantedSkil
                           // A cyberlimb option is priced by where it's attached (Cybertechnology p.51).
                           "linkedLimbId", "limbSurcharge", "limbAdjacent",
                           // A single cybereye is 60% of a pair (Cybertechnology p.45).
-                          "eyes"];
+                          "eyes",
+                          // Second-hand cyberware is half price (SSC p.100).
+                          "secondhand"];
 
 // A cyberlimb option's placement facts are RECORDED when it's attached, not inferred
 // from live siblings (docs/PLAN-cybertechnology-phase3.md §4): +10% if its new limb
@@ -1461,7 +1464,7 @@ function repriceDelta(item, changed, paid) {
     limbOption: item.system.limbOption, costPerRating: item.system.costPerRating,
     costMultiplierOfBase: item.system.costMultiplierOfBase, linkedLimbId: item.system.linkedLimbId,
     limbSurcharge: item.system.limbSurcharge, limbAdjacent: item.system.limbAdjacent,
-    eyes: item.system.eyes,
+    eyes: item.system.eyes, secondhand: item.system.secondhand,
     ...over
   });
   const oldSys = sysFor({});
@@ -1520,6 +1523,31 @@ function chargesFor(item) {
   try { autoCharge = game.settings.get("sr2e", "autoChargePurchases"); } catch (e) { /* default on */ }
   return autoCharge && item.getFlag("sr2e", "paid") != null;   // free / GM-gifted items aren't charged
 }
+
+// Second-hand cyberware (SSC p.100; docs/PLAN-secondhand-cyberware.md): a failed part is
+// cleared only by a GM, and can't be re-graded or re-rated (no refund leaks through
+// repriceDelta) — replace it. Delta is always custom-made, never second-hand
+// (Cybertechnology p.42): refused as a TRANSITION, so an existing bad record still edits.
+Hooks.on("preUpdateItem", (item, changes, options, userId) => {
+  if (game.user.id !== userId || item.type !== "cyberware") return;
+  const sys = changes.system ?? {};
+  if (sys.secondhandFailed !== undefined && sys.secondhandFailed !== item.system.secondhandFailed
+      && !game.user.isGM && !options?.sr2eSecondhandSettle) {
+    ui.notifications.warn("Only the GM can change whether a second-hand part has failed.");
+    return false;
+  }
+  const failedAfter = sys.secondhandFailed ?? item.system.secondhandFailed;
+  if (item.system.secondhandFailed && failedAfter && Object.keys(changedDrivers(item, changes)).length) {
+    ui.notifications.warn(`${item.name} has failed — it can't be re-graded or re-rated: replace it (SSC p.100).`);
+    return false;
+  }
+  const badNow = item.system.grade === "delta" && item.system.secondhand;
+  const badAfter = (sys.grade ?? item.system.grade) === "delta" && (sys.secondhand ?? item.system.secondhand);
+  if (badAfter && !badNow) {
+    ui.notifications.warn("Delta-grade cyberware is always custom-made — it can't be second-hand (Cybertechnology p.42). Untick second-hand first.");
+    return false;
+  }
+});
 
 // A regraded eye is a different eye: its accessories were bought at its grade
 // (Cybertechnology p.45), so a cybereye with bought accessory rows keeps its grade.
@@ -2963,6 +2991,11 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       ev.preventDefault();
       return meleeUndefended(message);
     });
+  });
+
+  decorateSettleButton(message, html);
+  html.querySelectorAll?.(".sr2e-secondhand-settle").forEach(btn => {
+    btn.addEventListener("click", (ev) => { ev.preventDefault(); return settleSecondhandTest(message); });
   });
 
   // Wire up Karma Pool buttons on success-test cards (reroll failures,

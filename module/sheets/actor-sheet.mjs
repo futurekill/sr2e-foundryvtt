@@ -558,6 +558,7 @@ export function chargenBudgetOf(actor) {
     rating: i.system.rating ?? 1,
     grade: i.system.grade,
     secondhandDiscount: i.system.secondhandDiscount,   // secondhand bioware's own price (Shadowtech p.12)
+    secondhand: i.system.secondhand,   // second-hand cyberware is half price (SSC p.100)
     bodySystem: i.system.bodySystem,   // neural bioware ignores its grade (Shadowtech p.7)
     ratingStats: i.system.ratingStats,
     quantity: i.system.quantity ?? 1,
@@ -791,6 +792,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
       if (chosen.force != null) itemData.system.force = chosen.force;
       if (chosen.secondhandDiscount != null) itemData.system.secondhandDiscount = chosen.secondhandDiscount;
+      if (chosen.secondhand != null) itemData.system.secondhand = chosen.secondhand;
       if (chosen.surgery) return this._surgeryPurchase(itemData, chosen.surgery);
       if (chosen.strengthMinimum != null) {
         itemData.system.strengthMinimum = chosen.strengthMinimum;
@@ -1120,7 +1122,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         `<option value="${k}"${k === (sys.grade ?? "standard") ? " selected" : ""}>${lbl}</option>`).join("")}</select></div>
       ${itemData.type === "bioware" ? `<div class="form-group sr2e-secondhand"><label>Secondhand discount (%):</label>
         <input type="number" name="secondhandDiscount" value="${sys.secondhandDiscount ?? 50}" min="40" max="60" style="width:70px;">
-        <span class="hint" style="margin-left:6px;">40–60% off; +1 on its damage tests (Shadowtech p.12)</span></div>` : ""}` : "";
+        <span class="hint" style="margin-left:6px;">40–60% off; +1 on its damage tests (Shadowtech p.12)</span></div>` : ""}
+      ${itemData.type === "cyberware" ? `<div class="form-group sr2e-secondhand-cyber"><label title="Comes in standard, alpha and beta grades, never delta (Cybertechnology p.42). Once per adventure the GM may call a 5-die Resistance Test; a failed part must be replaced (SSC p.100).">
+        <input type="checkbox" name="secondhand"${sys.secondhand && sys.grade !== "delta" ? " checked" : ""}> Second-hand (−50% ¥, same Essence; SSC p.100)</label></div>` : ""}` : "";
     const surgery = fields.includes("surgery") && opts.surgery;
     const surgerySel = surgery ? `<fieldset class="sr2e-surgery" style="margin-top:6px;"><legend>Cybersurgery (Cybertechnology p.53)</legend>
       <div class="form-group"><label>Surgeon's successes:</label>
@@ -1162,6 +1166,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
               force: f.force ? intOr(f.force, sys.force ?? 1) : undefined,
               strengthMinimum: f.strengthMinimum ? intOr(f.strengthMinimum, sys.strengthMinimum || 1) : undefined
             };
+            // Second-hand cyberware: true OR false travels, so the caller always copies it;
+            // never with delta (Cybertechnology p.42).
+            if (f.secondhand) result.secondhand = !!f.secondhand.checked && (result.grade ?? sys.grade) !== "delta";
             if (f.secondhandDiscount && result.grade === "secondhand") {
               const d = parseInt(f.secondhandDiscount.value);
               result.secondhandDiscount = Math.min(60, Math.max(40, Number.isFinite(d) ? d : 50));
@@ -1208,6 +1215,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const discRow = form.querySelector(".sr2e-secondhand");
     const refresh = () => {
       if (discRow) discRow.style.display = grade?.value === "secondhand" ? "" : "none";
+      const shRow = form.querySelector(".sr2e-secondhand-cyber");
+      if (shRow) {
+        shRow.style.display = grade?.value === "delta" ? "none" : "";
+        if (grade?.value === "delta") shRow.querySelector("input").checked = false;
+      }
       const opt = grade?.querySelector('option[value="secondhand"]');
       if (opt && disc) opt.textContent = describeGrade("secondhand", CONFIG.SR2E.biowareGrades.secondhand, disc.value);
       if (!surgery) return;

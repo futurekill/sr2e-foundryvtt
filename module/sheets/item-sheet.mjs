@@ -5,6 +5,7 @@ import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
 import { hasRefundableStock, queuedQuantityEdit, moneyQueue, adjustNuyen, updated } from "../money.mjs";
 import { withRowIds } from "../rules/ware-rules.mjs";
+import { rollSecondhandTest } from "../secondhand.mjs";
 
 
 /**
@@ -19,6 +20,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     position: { width: 520, height: 480 },
     actions: {
       rollItem:        SR2EItemSheet._onRollItem,
+      secondhandTest:  function() { return rollSecondhandTest(this.document); },
       addRatingRow:    SR2EItemSheet._addRatingRow,
       removeRatingRow: SR2EItemSheet._removeRatingRow,
       addModuleRow:    SR2EItemSheet._addModuleRow,

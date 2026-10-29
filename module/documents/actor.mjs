@@ -45,7 +45,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary, karmaRerollCost } from "../rules/sr2e-rules.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
@@ -231,9 +231,10 @@ export function renderSuccessTestCard(state) {
       if (state.areaCast) {
         buttons.push(`<em class="sr2e-karma-note">Karma rerolls and bought successes on a multi-target area roll are GM adjudication (p.130).</em>`);
       } else if (failures > 0) {
-        const cost = (state.rerolls ?? 0) + 1;
+        const cost = karmaRerollCost(state, failures);
+        const why = state.rerollCostPerDie ? `${state.rerollCostPerDie} Karma per die re-rolled (SSC p.100)` : "Cost escalates by 1 each reroll on the same test.";
         buttons.push(`<button type="button" class="sr2e-karma-btn" data-karma-action="reroll"
-          title="SR2E p.190: reroll all ${failures} failed dice. Cost escalates by 1 each reroll on the same test.">
+          title="SR2E p.190: reroll all ${failures} failed dice. ${why}">
           ${_l("SR2E.Chat.RerollFailures", { cost })}</button>`);
       }
       if (natural >= 1 && !state.areaCast) {
@@ -245,6 +246,9 @@ export function renderSuccessTestCard(state) {
   }
   const buttonHtml = buttons.length
     ? `<div class="sr2e-karma-actions">${buttons.join(" ")}</div>` : "";
+  // Second-hand cyberware (SSC p.100): the GM settles a 0-success test as a failed part.
+  const settleHtml = state.secondhand
+    ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-secondhand-settle" title="GM: with 0 successes the part fails and must be replaced; no repair is possible (SSC p.100). Closes the test to Karma.">It fails — mark for replacement (GM)</button></div>` : "";
 
   return `
     <div class="sr2e-roll-message">
@@ -258,7 +262,7 @@ export function renderSuccessTestCard(state) {
         <strong>${_l("SR2E.Chat.Successes")}: ${successes}</strong>${boughtNote}${rerollNote}
         ${banner}
       </div>
-      ${buttonHtml}
+      ${buttonHtml}${settleHtml}
     </div>`;
 }
 
@@ -396,7 +400,10 @@ export class SR2EActor extends Actor {
     // `tnPolicy: "table"` (link, sending) takes none; "injury" (the effect)
     // takes only the leader's Injury Modifier.
     const policy = options.tnPolicy ?? "";
-    const woundPenalty = options.isResistance || policy === "table" ? 0 : (this.system.woundPenalty ?? 0);
+    // "equipment": a part's own test (second-hand cyberware, SSC p.100) — the TN is exactly
+    // the GM's, so EVERY character modifier is zeroed, including wounds, CDS and phobia.
+    const equipment = policy === "equipment";
+    const woundPenalty = options.isResistance || policy === "table" || equipment ? 0 : (this.system.woundPenalty ?? 0);
     const sustainPenalty = policy ? 0 : (this.system.sustainPenalty ?? 0);
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
     // Core only: VR2.0 dump shock is Stun damage instead (p.124); the flag is kept for a switch back.
@@ -425,8 +432,8 @@ export class SR2EActor extends Actor {
     const ctx = options.tnContext ?? {};
     const computing = ["computer", "electronics"].includes(String(ctx.key ?? "").toLowerCase()) || /b\/r/i.test(String(ctx.key ?? ""))
       || ctx.kind === "matrix" || ctx.kind === "attack" && String(ctx.key ?? "").toLowerCase() === "computer";
-    const cdsTN = this.system.cym?.cds ? 3 : 0;
-    const phobiaTN = computing ? phobia : 0;
+    const cdsTN = this.system.cym?.cds && !equipment ? 3 : 0;
+    const phobiaTN = computing && !equipment ? phobia : 0;
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = Math.min(options.centeringReduction ?? 0,
@@ -579,7 +586,11 @@ export class SR2EActor extends Actor {
       // Multi-target area cast: reroll/buy are refused (applyKarmaToTest).
       ...(options.areaCast ? { areaCast: true } : {}),
       // Applied the moment it's rolled (a net resist or escape): no Karma afterwards.
-      ...(options.closed ? { closed: true } : {})
+      ...(options.closed ? { closed: true } : {}),
+      // A test with its own reroll price (second-hand cyberware, SSC p.100): karmaRerollCost.
+      ...(options.rerollCostPerDie > 0 ? { rerollCostPerDie: options.rerollCostPerDie } : {}),
+      // Second-hand cyberware's Resistance Test: the card's GM settle button (secondhand.mjs).
+      ...(options.secondhand ? { secondhand: options.secondhand } : {})
     };
 
     // Keep the message: downstream cards (melee, astral, matrix, spell resist)
@@ -768,7 +779,7 @@ export class SR2EActor extends Actor {
       if (state.criticalGlitch) return;
       const failedIdx = state.dice.map((d, i) => d.success ? -1 : i).filter(i => i >= 0);
       if (failedIdx.length === 0) return;
-      const cost = (state.rerolls ?? 0) + 1;
+      const cost = karmaRerollCost(state, failedIdx.length);
       if (karmaAvail < cost) {
         return ui.notifications.warn(`Rerolling failures costs ${cost} Karma Pool — only ${karmaAvail} available.`);
       }

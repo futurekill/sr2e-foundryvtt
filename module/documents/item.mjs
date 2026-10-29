@@ -385,7 +385,7 @@ export class SR2EItem extends Item {
    */
   get isWeaponLike() {
     return this.type === "weapon"
-      || (this.type === "cyberware" && this.system.isWeapon === true);
+      || (this.type === "cyberware" && this.system.isWeapon === true && !this.system.secondhandFailed);   // failed: SSC p.100
   }
 
   async roll(options = {}) {

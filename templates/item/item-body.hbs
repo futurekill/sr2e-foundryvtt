@@ -519,6 +519,24 @@
       {{/each}}
     </select>
   </div>
+  {{!-- Second-hand (SSC p.100): never delta (Cybertechnology p.42), but a stray flag stays visible to untick. --}}
+  {{#if (or system.secondhand (ne system.grade "delta"))}}
+  <div class="form-group">
+    <label>Second-hand:</label>
+    <input type="checkbox" name="system.secondhand" {{checked system.secondhand}} />
+    <span class="hint">−50% ¥, same Essence; once per adventure the GM may call a 5-die test (SSC p.100)</span>
+  </div>
+  {{/if}}
+  {{#if (or system.secondhand system.secondhandFailed)}}
+  <div class="form-group">
+    <label>Failed:</label>
+    <input type="checkbox" name="system.secondhandFailed" {{checked system.secondhandFailed}} {{#unless isGM}}disabled{{/unless}} />
+    <span class="hint">{{#if system.secondhandFailed}}<strong>FAILED</strong> — must be replaced; no repair (SSC p.100). Only the GM can clear it.{{else}}Set by the GM when its test fails.{{/if}}</span>
+    {{#if (and system.secondhand (not system.secondhandFailed) (ne system.grade "delta"))}}
+    <button type="button" data-action="secondhandTest" title="Roll 5 dice against the GM's TN (SSC p.100)"><i class="fas fa-dice"></i> Resistance Test</button>
+    {{/if}}
+  </div>
+  {{/if}}
   {{#if system.surgeryEssencePct}}
   <div class="form-group">
     <label>Cybersurgery:</label>

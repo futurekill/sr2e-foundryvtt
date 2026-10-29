@@ -461,6 +461,11 @@ export class CyberwareData extends SR2EDataModel {
         standard: "SR2E.Cyberware.Standard", alpha: "SR2E.Cyberware.Alpha",
         beta: "SR2E.Cyberware.Beta", delta: "SR2E.Cyberware.Delta"
       }}),
+      // Second-hand (SSC p.100; a condition on standard/alpha/beta, Cybertechnology p.42):
+      // half price, same Essence. `secondhandFailed`: it failed its Resistance Test and must
+      // be replaced — no repair (GM-only to clear; sr2e.mjs preUpdateItem).
+      secondhand: new fields.BooleanField({ initial: false }),
+      secondhandFailed: new fields.BooleanField({ initial: false }),
       // The surgeon's Essence Cost change when it was installed (Cybertechnology p.53).
       surgeryEssencePct: new fields.NumberField({ integer: true, initial: 0, min: -20, max: 15 }),
       essenceCost: new fields.NumberField({ required: true, initial: 0.5, min: 0 }),

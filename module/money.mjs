@@ -110,6 +110,10 @@ export function saleQuote(it) {
     note: ` (${it.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)` };
   // An eye's accessory rows refund what was paid for each, with the eye (Part B).
   const rows = rowsPaid(it.system?.modules ?? []);
+  // A failed second-hand part is worthless (SSC p.100: it "must be replaced"); its bought
+  // accessory rows are separate purchases and still refund.
+  if (it.type === "cyberware" && it.system?.secondhandFailed) return { price: rows,
+    note: ` (failed second-hand ware: worthless, SSC p.100${rows ? `; ${rows}¥ for its accessories` : ""})` };
   return { price: (paid ?? streetPrice(Number(it.system.cost) || 0, it.system.streetIndex)) + rows,
     note: (paid != null ? " (refund of the price paid" : " (street price") + (rows ? `, plus ${rows}¥ for its accessories)` : ")") };
 }

@@ -3822,12 +3822,14 @@ const SHARED_ACTIONS = {
     event.preventDefault();
     if (!game.user.isGM) return;
     const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (item?.system.secondhandFailed) return ui.notifications.warn(`${item.name} failed as second-hand ware: no repair is possible — replace it (SSC p.100).`);
     if (item) return item.update({ "system.conditions": (item.system.conditions ?? []).filter(c => c.id !== target.dataset.condition) });
   },
   cdSkinRepair: async function(event, target) {
     event.preventDefault();
     if (!game.user.isGM) return;
     const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (item?.system.secondhandFailed) return ui.notifications.warn(`${item.name} failed as second-hand ware: no repair is possible — replace it (SSC p.100).`);
     if (item && item.system.skinLoss > 0) return item.update({ "system.skinLoss": item.system.skinLoss - 1 });
   },
   cdScarTreat: async function(event, target) {

@@ -2520,9 +2520,11 @@ export function cranialDeckEssence(deck = {}) {
  *   Beta   -40% (×.6)          ×7              4/5
  *   Delta  -50% (×.5)          ×10             3/4   (Cybertechnology p.44)
  *
- * damageResist is recorded from the table for completeness; nothing consumes it
- * yet because the system models no cyberware damage (SSC: roll 5 dice vs the
- * Serious/Deadly target, one success ignores the damage entirely).
+ * damageResist is the 5-die target against Serious/Deadly damage, one success
+ * ignores it (read by the optional cyberware damage, cyberdamage-rules.mjs).
+ *
+ * Second-hand is a CONDITION, not a grade: it "comes in standard, alpha, and beta
+ * grades" (Cybertechnology p.42) — see cyberSecondhand.
  *
  * NOTE: Shadowtech p.40 — "None of the cyberware presented in the book is
  * currently available in either alpha or beta grades."
@@ -2548,6 +2550,31 @@ export function secondhandPriceMultiplier(discount) {
   const d = Number(discount);
   return 1 - (Number.isFinite(d) ? Math.min(60, Math.max(40, d)) : 50) / 100;
 }
+
+/**
+ * Second-hand cyberware (SSC p.100): "costs 50 percent less ... Installation and
+ * Essence Cost are the same". Never delta, which is always custom-made (Cybertechnology
+ * p.42), so a stray flag on a delta item is ignored.
+ */
+export const cyberSecondhand = (sys) => sys?.type === "cyberware" && !!sys.secondhand && sys.grade !== "delta";
+export const SECONDHAND_CYBER_MULTIPLIER = 0.5;
+
+/**
+ * A second-hand part that failed its test (SSC p.100) has stopped working; its Essence still
+ * counts. Cyberlimbs and limb options are excluded: a dead limb follows the cyberware-damage
+ * precedent ("The limb shuts down completely", Cybertechnology p.49), a GM reminder — the book
+ * prints no stats for one.
+ */
+export const secondhandDead = (item) => item?.type === "cyberware" && !!item.system?.secondhandFailed
+  && !["limb", "option"].includes(item.system.limbIdentity?.role);
+
+/**
+ * Karma Pool cost to reroll a test's failures. Normally 1, escalating by 1 per repeat
+ * (SR2E p.191); a test may carry its own per-die price instead (second-hand cyberware's
+ * Resistance Test: "2 points of Karma per die re-rolled", SSC p.100), which never escalates.
+ */
+export const karmaRerollCost = (state, failures) =>
+  state?.rerollCostPerDie > 0 ? state.rerollCostPerDie * failures : (state?.rerolls ?? 0) + 1;
 
 /** Smallest Essence a grade reduction may leave (SSC p.98). */
 export const CYBERWARE_GRADE_ESSENCE_FLOOR = 0.05;
@@ -2733,7 +2760,8 @@ export function itemBaseCost(sys, ctx = {}) {
   // cheaper per full cyberlimb (p.57), rounded up to the nuyen.
   if (ctx.wareRule === "cybereye-pair" && sys?.eyes === "single") base = Math.ceil(base * 0.6 - 1e-9);
   if (MUSCLE.has(ctx.wareRule)) base = Math.ceil(base * muscleFactor(ctx.fullCyberlimbs) - 1e-9);
-  return base * gradeCostMultiplier(sys?.type, sys?.grade, sys?.bodySystem, sys?.secondhandDiscount);
+  return base * gradeCostMultiplier(sys?.type, sys?.grade, sys?.bodySystem, sys?.secondhandDiscount)
+    * (cyberSecondhand(sys) ? SECONDHAND_CYBER_MULTIPLIER : 1);
 }
 
 // --- Cybersurgery (Cybertechnology p.53; elective surgery, core p.114) ---------

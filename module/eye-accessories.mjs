@@ -97,8 +97,12 @@ async function askFitting(host, data, kind, { ratings, rating }) {
   return { rating: res.rating != null ? Number(res.rating) : rating, eye: needsEye ? res.eye : "both" };
 }
 
+// Rows have no item to test (SSC p.100), so second-hand accessories stay separate implants.
+const SECONDHAND_ROW = "Second-hand accessories stay separate items so they can be tested (SSC p.100): leave it as its own implant.";
+
 /** Why an owned accessory can't move into `host` (null = it can). Checked before the dialog and again in the queue. */
 function moveProblem(actor, src, host) {
+  if (src.system.secondhand || src.system.secondhandFailed) return SECONDHAND_ROW;
   if (src.system.grade !== host.system.grade) return `${src.name} is ${src.system.grade}-grade and ${host.name} is ${host.system.grade}: an accessory must match its eye's grade.`;
   if (src.system.conditions?.length) return `${src.name} is damaged: repair it before moving it into an eye.`;
   if (src.effects.size) return `${src.name} has Active Effects, which an eye row can't carry: leave it as a separate implant.`;
@@ -114,6 +118,8 @@ export async function fitEyeAccessory(actor, host, data, { source = null, free =
   const kind = accessoryKindOf(data);
   if (!kind) return null;
   if (unfinishedCymImplant(actor, host)) { ui.notifications.warn(`${host.name} belongs to an unfinished cybermantic operation: finish or cancel it first.`); return null; }
+  // A purchase from second-hand data, too (a move is checked in moveProblem, live in the queue).
+  if (!source && (data.system?.secondhand || data.system?.secondhandFailed)) { ui.notifications.warn(SECONDHAND_ROW); return null; }
   const problem = source && moveProblem(actor, source, host);
   if (problem) { ui.notifications.warn(problem); return null; }
   // What the dialog was shown: plain values, compared with the live documents in the queue.

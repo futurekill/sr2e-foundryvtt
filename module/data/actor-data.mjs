@@ -13,7 +13,7 @@ import { isVR2 } from "../vr2-mode.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass } from "../rules/sr2e-rules.mjs";
+import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -1023,8 +1023,9 @@ export class CharacterData extends SR2EDataModel {
         const rule = ware.rules.get(item.id);
         // Off with a reflex trigger (p.38), or a move-by-wire CCSS disabled (p.55): its
         // Essence still counts (below), its bonuses don't.
+        const dead = secondhandDead(item);   // failed second-hand part (SSC p.100)
         const off = (ware.hasTrigger && item.system.switchedOff && /^wired-reflexes:/.test(rule ?? ""))
-          || (item.id === ware.mbwItemId && ware.mbwDisabled);
+          || (item.id === ware.mbwItemId && ware.mbwDisabled) || dead;
         // Dermal plating/sheathing that lost rating (Cybertechnology p.47–48): ONE clamped
         // Body for the totals, the tooltip and wareBody; every other item is untouched.
         const skin = (rule === "dermal-plating" || rule === "dermal-sheath") && item.system.skinLoss > 0;
@@ -1040,13 +1041,15 @@ export class CharacterData extends SR2EDataModel {
           mods.wareWillpower += item.system.attributeMods?.willpower || 0;
           if (rule === "reaction-enhancer") mods.reactionEnhancer += item.system.attributeMods?.reaction || 0;
           if (/^wired-reflexes:/.test(rule ?? "")) this.mbw.wiredWorking = true;
-        }
-        // Muscle Replacement/Augmentation Quickness doesn't raise Reaction
-        // (flag, with a name fallback for pre-0.28 world copies).
-        if (item.system.noReactionBonus || /muscle (replacement|augmentation)/i.test(item.name)) {
-          mods.reactionExemptQuickness += item.system.attributeMods?.quickness || 0;
+          // Muscle Replacement/Augmentation Quickness doesn't raise Reaction
+          // (flag, with a name fallback for pre-0.28 world copies). Inside the guard: a
+          // part whose Quickness doesn't count must not take Reaction away either.
+          if (item.system.noReactionBonus || /muscle (replacement|augmentation)/i.test(item.name)) {
+            mods.reactionExemptQuickness += item.system.attributeMods?.quickness || 0;
+          }
         }
         mods.essenceLoss += item.system.actualEssenceCost;
+        if (dead) continue;
         // Installed VCR cyberware sets the character's rig level (its rating)
         if (item.system.isVcr) {
           mods.vcrLevel = Math.max(mods.vcrLevel, item.system.rating || 1);
@@ -1212,14 +1215,14 @@ export class CharacterData extends SR2EDataModel {
       if (i.type !== "cyberware" && i.type !== "bioware") continue;
       const r = wareRule(i.flags, sourceOf(i));
       rules.set(i.id, r);
-      if (r === "reaction-enhancer" && i.system.installed) enhancer = true;
+      if (r === "reaction-enhancer" && i.system.installed && !secondhandDead(i)) enhancer = true;
       if (n > 0 && MUSCLE.has(r)) i.system.limbDiscount = muscleFactor(n);
     }
     // Move-by-wire (Cybertechnology p.39): the installed implant, whether it works, and
     // the Reaction/Initiative enhancers it's "not compatible" with (warned, still counted).
-    const mbwItem = items.find(i => i.type === "cyberware" && i.system.installed && /^move-by-wire:/.test(rules.get(i.id) ?? ""));
+    const mbwItem = items.find(i => i.type === "cyberware" && i.system.installed && !secondhandDead(i) && /^move-by-wire:/.test(rules.get(i.id) ?? ""));
     const mbwWorking = !!mbwItem && working && !fold.disabledItems.has(mbwItem.id);
-    const hasTrigger = items.some(i => i.type === "cyberware" && i.system.installed && rules.get(i.id) === "reflex-trigger");
+    const hasTrigger = items.some(i => i.type === "cyberware" && i.system.installed && !secondhandDead(i) && rules.get(i.id) === "reflex-trigger");
     this.mbw = { itemId: mbwItem?.id ?? null, level: mbwItem ? wareLevel(rules.get(mbwItem.id)) : 0, working: mbwWorking,
       disabled: !!mbwItem && fold.disabledItems.has(mbwItem.id), hasTrigger, conflicts: [], reflexDice: 0, wiredWorking: false,
       enhancerExcess: 0, dice: 0, tn: 0, pending: fold.pendingSlots.length, tle: { occurrences: fold.occurrences.length,
