@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.123.0 — 2026-10-29
+
 ### Fixed
 - **Rat shamans get their +2 dice for conjuring Spirits of Man** (core p.121) on city, hearth and
   field spirits — the totem's bonus was stored for the whole group and never reached those
