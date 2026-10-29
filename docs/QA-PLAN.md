@@ -837,3 +837,9 @@ If those five all work, the core loop is healthy.
 - Open the companion on a phone: its volumes go to 0 (the computer's don't change); Status →
   "Sound on this phone" turns them back to what they were and off again; "Open full Foundry
   on this device" restores them.
+
+## NPC Essence above 6 (docs/PLAN-npc-essence.md)
+- [ ] Quench batch `sr2e.npc-essence` passes (7 tests).
+- [ ] An NPC sheet: type 9 in Essence → saved; clear it → still 9; type −1 → warned, still 9.
+- [ ] Paranormal Animals' Nosferatu imports from its compendium with Essence 7.
+- [ ] A Heal spell on an Essence-12 critter suggests TN 2.

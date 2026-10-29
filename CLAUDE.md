@@ -391,3 +391,9 @@ EVERYTHING else (attribute loss, healing multipliers, doctor requirement, pendin
 the non-void records of THIS actor's uuid. No Karma on the roll (a losing publish must cost nothing).
 Natural ratings for medical tests come from `system.naturalAttrs`; after creation the racial maximum
 no longer clamps (p.192: Good Karma may exceed it).
+
+## NPC Essence
+`NPCData.essence` has no upper bound (critters print 2D6 / 8; Essence Drain's cap is per creature
+type, core p.217 — the GM's). Foundry 13 CLAMPS an out-of-range NumberField on construction instead
+of rejecting it, so a schema `max` silently rewrites stat blocks; never re-add one. The NPC sheet's
+Essence input has its own save guard (blank → no save) in actor-sheet.mjs. docs/PLAN-npc-essence.md.

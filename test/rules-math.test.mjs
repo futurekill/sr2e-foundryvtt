@@ -79,6 +79,7 @@ describe("Treat / Heal cast TN (SR2E p.155)", () => {
   it("Treat is 8 − Essence, Heal is 10 − Essence", () => {
     expect(healingSpellTN(8, 6)).toBe(2);    // Treat on an unmodified subject
     expect(healingSpellTN(10, 6)).toBe(4);   // Heal on an unmodified subject
+    expect(healingSpellTN(10, 12)).toBe(2);  // a high-Essence critter (vampire 2D6): floored at TN 2
     expect(healingSpellTN(10, 3)).toBe(7);   // heavily chromed → much harder
     expect(healingSpellTN(8, 3)).toBe(5);
   });

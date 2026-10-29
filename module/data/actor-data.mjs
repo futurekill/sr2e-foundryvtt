@@ -1679,9 +1679,12 @@ export class NPCData extends SR2EDataModel {
       charisma: SR2EDataModel.attributeField(3),
       intelligence: SR2EDataModel.attributeField(3),
       willpower: SR2EDataModel.attributeField(3),
+      // No upper bound: critters print Essence above 6 (vampires 2D6, shapeshifters 8) and Essence
+      // Drain raises it to twice the creature type's maximum (core p.217) — a per-type cap the GM
+      // applies (docs/PLAN-npc-essence.md). A schema max silently reset such stat blocks to 6.
       essence: new fields.SchemaField({
-        value: new fields.NumberField({ initial: 6.0, min: 0, max: 6 }),
-        max: new fields.NumberField({ initial: 6.0, min: 0, max: 6 }),
+        value: new fields.NumberField({ initial: 6.0, min: 0 }),
+        max: new fields.NumberField({ initial: 6.0, min: 0 }),
         signed: new fields.NumberField({ required: false, nullable: true, initial: null }),
         manualSigned: new fields.NumberField({ required: false, nullable: true, initial: null })
       }),

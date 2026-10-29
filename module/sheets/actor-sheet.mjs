@@ -431,6 +431,20 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         });
         continue;
       }
+      // NPC Essence: a blank or non-numeric entry saves nothing (the generic path would write 0, which
+      // the substance rules read as death), and a refused update re-renders (docs/PLAN-npc-essence.md).
+      if (input.name === "system.essence.value") {
+        input.addEventListener("change", (event) => {
+          event.stopPropagation();
+          const v = input.value.trim() === "" ? NaN : Number(input.value);
+          if (!Number.isFinite(v) || v < 0) {
+            if (input.value.trim() !== "") ui.notifications.warn("Essence must be 0 or more — not changed.");
+            return this.render();
+          }
+          this.document.update({ [input.name]: v }).catch(() => { ui.notifications.warn("Essence not changed."); this.render(); });
+        });
+        continue;
+      }
       input.addEventListener("change", (event) => {
         event.stopPropagation();
         let value = input.value;

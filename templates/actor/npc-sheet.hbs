@@ -68,8 +68,9 @@
         <input type="number" name="system.willpower.base" value="{{system.willpower.base}}" min="1" />
       </div>
       <div class="attr-item">
-        <label>E</label>
-        <span>{{#if system.essence.manualSigned}}{{system.essence.manualSigned}}{{else}}{{system.essence.value}}{{/if}}</span>
+        <label title="Essence — critters may exceed 6 (vampires 2D6, shapeshifters 8; core p.217)">E</label>
+        <input type="number" name="system.essence.value" value="{{system.essence.value}}" min="0" step="any" />
+        {{#if (or system.essence.manualSigned (eq system.essence.manualSigned 0))}}<span class="hint" title="Signed Essence kept by hand (Cybertechnology)">signed (manual): {{system.essence.manualSigned}}</span>{{/if}}
       </div>
       <div class="attr-item">
         <label title="Body Index — total Body Cost of this NPC's bioware (Shadowtech p.6). Typed, not summed from items. Over natural Body ({{system.bodyIndex.max}}) it inflicts overstress: +1 TN per point on Body tests, and it raises the TN to magically heal this NPC by half its value.">BI</label>

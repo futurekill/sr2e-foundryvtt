@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+- **NPC Essence can go above 6.** Critters print Essence the old 0–6 limit couldn't hold: vampires
+  2D6, shapeshifters 8, Paranormal Animals' Nosferatu 7. Foundry silently cut such values to 6
+  (the Nosferatu loaded at Essence 6). There is no upper limit now: Essence Drain raises a being's
+  Essence up to twice its type's maximum — 12 for humanoids (p.217) — which the GM applies.
+  **If you imported a Nosferatu (or another high-Essence critter) before this release, check its
+  Essence: if it reads 6, set it by hand** (re-importing would lose your edits to it).
+
+### Changed
+- **The NPC sheet's Essence is editable** (it was read-only), so you can enter a rolled 2D6 or
+  track drain and loss. A blank entry saves nothing; a negative one is refused. A hand-kept signed
+  Essence (Cybertechnology) now shows beside it instead of replacing it.
+
 ## 0.121.0 — 2026-10-28
 
 ### Removed

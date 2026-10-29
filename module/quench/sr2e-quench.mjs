@@ -13185,5 +13185,88 @@ export function registerSR2EQuenchTests() {
         } finally { seam.force = false; await game.settings.set("sr2e", "healingClockEpoch", prevEpoch); }
       });
     }, { displayName: "SR2E: Bioware damage" });
+
+    // NPC Essence above 6 (docs/PLAN-npc-essence.md): critters print 2D6 / 8; the old 0–6 bound
+    // silently reset them to 6.
+    quench.registerBatch("sr2e.npc-essence", (context) => {
+      const { it, assert, after } = context;
+      const made = [], scenes = [];
+      after(async function () {
+        this.timeout(20000);
+        for (const s of scenes) { try { await s.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const src = (value, max = value, extra = {}) => ({ name: "Quench Ess", type: "npc", system: { essence: { value, max, ...extra } } });
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const sheetInput = (a) => a.sheet.element.querySelector('input[name="system.essence.value"]');
+      const change = async (a, v) => { const i = sheetInput(a); i.value = v; i.dispatchEvent(new Event("change", { bubbles: true })); await wait(500); };
+
+      it("strict validation accepts 0, 7, 7.5, 12 and 20 (value and max independently); −1 is clamped or rejected", () => {
+        for (const [v, m] of [[0, 0], [7, 7], [7.5, 6], [12, 12], [6, 20], [20, 6]]) {
+          const a = new Actor.implementation(src(v, m), { strict: true });
+          assert.equal(a.system.essence.value, v, `value ${v}`);
+          assert.equal(a._source.system.essence.max, m, `max ${m}`);
+        }
+        // Below the floor: construction clamps to 0, a strict change is rejected.
+        const z = new Actor.implementation(src(-1), { strict: true });
+        assert.equal(z.system.essence.value, 0);
+        assert.throws(() => z.validate({ changes: { system: { essence: { value: -1 } } }, strict: true, fallback: false }));
+      });
+
+      it("a stored Essence 7 survives both load paths (fromSource and strict construction)", () => {
+        assert.equal(Actor.implementation.fromSource(src(7)).system.essence.value, 7);
+        assert.equal(new Actor.implementation(src(7), { strict: true }).system.essence.value, 7);
+      });
+
+      it("a world NPC at 8 round-trips through update and a fresh load", async () => {
+        const a = await Actor.create(src(8)); made.push(a);
+        assert.equal(a.system.essence.value, 8);
+        await a.update({ "system.essence.value": 11.5 });
+        assert.equal(Actor.implementation.fromSource(a.toObject()).system.essence.value, 11.5);
+      });
+
+      it("the NPC sheet's Essence input saves 9, ignores a blank entry, refuses −1", async function () {
+        this.timeout(10000);
+        const a = await Actor.create(src(7)); made.push(a);
+        await a.sheet.render(true); await wait(600);
+        try {
+          await change(a, "9");  assert.equal(a.system.essence.value, 9);
+          await change(a, "");   assert.equal(a.system.essence.value, 9);
+          await change(a, "-1"); assert.equal(a.system.essence.value, 9);
+          assert.equal(sheetInput(a).value, "9", "re-rendered at 9");
+        } finally { await a.sheet.close(); }
+      });
+
+      it("the value input is always shown; a manual signed Essence only when set (0 included)", async function () {
+        this.timeout(10000);
+        for (const [ms, shown] of [[null, false], [0, true], [3.5, true]]) {
+          const a = await Actor.create(src(5, 5, { manualSigned: ms })); made.push(a);
+          await a.sheet.render(true); await wait(500);
+          try {
+            assert.ok(sheetInput(a), `input with manualSigned ${ms}`);
+            assert.equal(!!a.sheet.element.textContent.includes("signed (manual)"), shown, `signed shown for ${ms}`);
+          } finally { await a.sheet.close(); }
+        }
+      });
+
+      it("an unlinked token's Essence edit leaves its base actor alone", async function () {
+        this.timeout(10000);
+        const a = await Actor.create(src(8)); made.push(a);
+        const scene = await Scene.create({ name: "Quench NPC Essence", width: 1000, height: 1000 }); scenes.push(scene);
+        const [t] = await scene.createEmbeddedDocuments("Token", [{ actorId: a.id, actorLink: false, x: 100, y: 100 }]);
+        const ta = t.actor;
+        await ta.sheet.render(true); await wait(500);
+        try { await change(ta, "10"); } finally { await ta.sheet.close(); }
+        assert.equal(t.actor.system.essence.value, 10);
+        assert.equal(a.system.essence.value, 8);
+      });
+
+      it("substance rules read a high Essence as is", async () => {
+        const D = await import("../drugs.mjs");
+        const a = await Actor.create(src(9)); made.push(a);
+        assert.equal(D.actualEssence(a), 9);
+        assert.equal(!!D.substanceRows(a).essenceZero, false);
+      });
+    }, { displayName: "SR2E: NPC Essence above 6" });
   });
 }
