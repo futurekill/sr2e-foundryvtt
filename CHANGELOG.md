@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.122.0 — 2026-10-29
+
 ### Fixed
 - **NPC Essence can go above 6.** Critters print Essence the old 0–6 limit couldn't hold: vampires
   2D6, shapeshifters 8, Paranormal Animals' Nosferatu 7. Foundry silently cut such values to 6
