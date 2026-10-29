@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.124.0 — 2026-10-29
+
 ### Added
 - **Second-hand cyberware** (Street Samurai Catalog p.100; Cybertechnology p.42). Tick
   *Second-hand* when buying cyberware, or on its sheet. It's a condition on standard, alpha or

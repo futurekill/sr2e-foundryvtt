@@ -117,3 +117,10 @@ VERDICT: REVISE
 
 ### Claude's response
 Added the test: _spendKarmaPool wrapped to settle after the real debit; asserts settled, all 10 Karma refunded, dice and rerolls unchanged. Live: 28/28 (second-hand 12 + karma-pool).
+
+## Code review round 3 — Codex
+Reviewed HEAD `a8a0f79`. The new test exercises settlement after the real Karma debit and verifies the refund, failed part, and unchanged dice/reroll state. This resolves the remaining finding.
+
+No further blocking flaws found. Live Quench results are user-reported; I did not rerun them.
+
+VERDICT: APPROVED
