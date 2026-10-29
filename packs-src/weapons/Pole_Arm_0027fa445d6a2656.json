@@ -35,7 +35,7 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E Melee Weapons Table p.101: (Str+3)S, Reach 2, Concealability 2, 500¥.",
+    "notes": "SR2E Street Gear p.254: (Str)S, Reach 2, Concealability 2, Weight 4, Availability 4/48 hrs, 500¥, Street Index 2. (The combat chapter's Melee Weapons Table, p.101, prints (Str+3)S; Street Gear is the canonical table.)",
     "streetIndex": 2
   },
   "effects": [],

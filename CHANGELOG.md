@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.123.1 — 2026-10-29
+
+### Fixed
+- The **Pole Arm**'s note cited the combat chapter's (Str+3)S (p.101) while the item uses the
+  Street Gear table's (Str)S (p.254). The note now matches p.254 and mentions the p.101 difference.
+
 ## 0.123.0 — 2026-10-29
 
 ### Fixed
