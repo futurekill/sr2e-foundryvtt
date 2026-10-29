@@ -13292,17 +13292,21 @@ export function registerSR2EQuenchTests() {
     quench.registerBatch("sr2e.spirit-attack-power", (context) => {
       const { it, assert, before, after } = context;
       const made = [];
-      let msgsBefore;
+      let prevPlacement;
+      // Only this batch's own messages: those spoken by an actor it made.
+      const ownMessages = () => game.messages.filter(m => made.some(a => a.id === m.speaker?.actor));
       const ANC = { b: 2, q: 0, mult: 3, s: 1, r: 0, attack: { mode: "melee", level: "M", damageType: "stun", dice: "force", power: "strength" } };
-      before(() => {
-        msgsBefore = game.messages.size;
+      before(async () => {
+        prevPlacement = game.settings.get("sr2e", "spiritPlacement");
+        await game.settings.set("sr2e", "spiritPlacement", "off");   // no interactive token placement
         CONFIG.SR2E.spiritProfiles.__qanc = ANC; CONFIG.SR2E.spiritDomainProfile.__qanc = "__qanc";
       });
       after(async function () {
         this.timeout(20000);
         delete CONFIG.SR2E.spiritProfiles.__qanc; delete CONFIG.SR2E.spiritDomainProfile.__qanc;
+        await game.settings.set("sr2e", "spiritPlacement", prevPlacement);
+        await ChatMessage.deleteDocuments(ownMessages().map(m => m.id));
         for (const a of made) { try { await a.delete(); } catch (e) {} }
-        await ChatMessage.deleteDocuments(game.messages.contents.slice(msgsBefore).map(m => m.id));
       });
       const withFaces = async (faces, fn) => {
         const orig = CONFIG.Dice.randomUniform, q = [...faces];
@@ -13327,8 +13331,11 @@ export function registerSR2EQuenchTests() {
         await withFaces([5, 1, 1, 1], () => a.rollSpiritAttack());          // 1 success: no staging
         assert.equal(calls[0], 4, "Force dice");
         const { html, btn } = lastButton();
-        assert.equal(btn.power, "5"); assert.equal(btn.level, "M"); assert.equal(btn.damageType, "stun");
-        assert.include(html, "(Strength)");
+        assert.equal(btn.power, "5"); assert.equal(btn.basePower, "5"); assert.equal(btn.level, "M"); assert.equal(btn.damageType, "stun");
+        assert.include(html, "Attack:</strong> 5M"); assert.include(html, "(Strength)");
+        // Its ASTRAL attack is untouched: still Force dice for (Force)M (p.147).
+        const astral = (await import("../astral-combat.mjs")).actorAstralProfile(a);
+        assert.equal(astral.damage.power, 4, "astral Power stays Force");
         const target = await Actor.create({ name: "Quench Spirit Target", type: "npc", system: { body: { base: 1 } } }); made.push(target);
         // The resistance dialog: confirm it as is (no pool dice).
         new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => res(app), 50)))
@@ -13343,10 +13350,10 @@ export function registerSR2EQuenchTests() {
         const e = await spirit("mountain", 4);
         assert.equal(e.system.strength.value, 8);
         await withFaces(Array(8).fill(5).map((v, i) => i ? 1 : 5), () => e.rollSpiritAttack());
-        assert.equal(lastButton().btn.power, "4");
+        { const { html, btn } = lastButton(); assert.equal(btn.power, "4"); assert.equal(btn.basePower, "4"); assert.include(html, "Attack:</strong> 4S"); }
         await e.update({ "system.forceUsed": 1 });
         await withFaces(Array(8).fill(1).map((v, i) => i ? 1 : 5), () => e.rollSpiritAttack());
-        assert.equal(lastButton().btn.power, "3");
+        { const { btn } = lastButton(); assert.equal(btn.power, "3"); assert.equal(btn.basePower, "3"); }
       });
 
       it("the sheet's Attack tooltip says what the roll does", async function () {
@@ -13366,9 +13373,8 @@ export function registerSR2EQuenchTests() {
         await shaman.createEmbeddedDocuments("Item", [{ name: "Conjuring", type: "skill", system: { rating: 4, category: "active" } }]);
         const calls = []; const orig = shaman.rollSuccessTest.bind(shaman);
         shaman.rollSuccessTest = (d, tn, o) => { calls.push(d); return orig(d, tn, o); };
-        const before = new Set(game.actors.map(a => a.id));
         await withFaces(Array(20).fill(5), () => shaman.rollConjuring({ force: 1, kind: "nature", domain: "city" }));
-        for (const a of game.actors.filter(a => !before.has(a.id))) made.push(a);
+        for (const a of game.actors.filter(a => a.type === "spirit" && a.system.conjurerUuid === shaman.uuid)) made.push(a);
         assert.equal(calls[0], 6, "Conjuring 4 + Rat 2");
         assert.equal(calls[1], 7, "Drain: Charisma 5 + Rat 2");
       });

@@ -848,3 +848,4 @@ If those five all work, the core loop is healthy.
 - [ ] Quench batch `sr2e.spirit-attack-power` passes (4 tests).
 - [ ] A Rat shaman conjuring a city spirit: the card shows +2 totem dice on Conjuring and Drain.
 - [ ] A spirit sheet's Attack tooltip matches what the attack rolls (earth: Reaction dice, (F)S).
+- [ ] Startup (with Cyberpirates): save a Force-4 ancestor spirit, reload, read it before any update → B6 Q4 S5 R4, ×3, Strength-power M Stun (2026-10-29: passed).
