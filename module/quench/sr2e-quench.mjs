@@ -13225,16 +13225,28 @@ export function registerSR2EQuenchTests() {
         assert.equal(Actor.implementation.fromSource(a.toObject()).system.essence.value, 11.5);
       });
 
-      it("the NPC sheet's Essence input saves 9, ignores a blank entry, refuses −1", async function () {
-        this.timeout(10000);
+      it("the NPC sheet's Essence input saves 9, 0 and 7.5, ignores a blank entry, refuses −1 and a failed save", async function () {
+        this.timeout(15000);
         const a = await Actor.create(src(7)); made.push(a);
+        const warns = [], origWarn = ui.notifications.warn.bind(ui.notifications);
+        ui.notifications.warn = (m, ...r) => { warns.push(String(m)); return origWarn(m, ...r); };
         await a.sheet.render(true); await wait(600);
         try {
-          await change(a, "9");  assert.equal(a.system.essence.value, 9);
-          await change(a, "");   assert.equal(a.system.essence.value, 9);
-          await change(a, "-1"); assert.equal(a.system.essence.value, 9);
-          assert.equal(sheetInput(a).value, "9", "re-rendered at 9");
-        } finally { await a.sheet.close(); }
+          await change(a, "9");   assert.equal(a.system.essence.value, 9);
+          await change(a, "0");   assert.equal(a.system.essence.value, 0, "zero is a real value");
+          await change(a, "7.5"); assert.equal(a.system.essence.value, 7.5, "fractions are kept");
+          await change(a, "");    assert.equal(a.system.essence.value, 7.5, "blank saves nothing");
+          assert.equal(warns.length, 0, "blank is silent");
+          await change(a, "-1");  assert.equal(a.system.essence.value, 7.5);
+          assert.equal(warns.length, 1, "negative warns");
+          assert.equal(sheetInput(a).value, "7.5", "re-rendered at 7.5");
+          const origUpdate = a.update; a.update = () => Promise.reject(new Error("refused"));
+          try { await change(a, "5"); } finally { a.update = origUpdate; }
+          await wait(300);
+          assert.equal(a._source.system.essence.value, 7.5, "a refused save changes nothing");
+          assert.equal(warns.length, 2, "a refused save warns");
+          assert.equal(sheetInput(a).value, "7.5", "and the input is restored");
+        } finally { ui.notifications.warn = origWarn; await a.sheet.close(); }
       });
 
       it("the value input is always shown; a manual signed Essence only when set (0 included)", async function () {
@@ -13245,6 +13257,7 @@ export function registerSR2EQuenchTests() {
           try {
             assert.ok(sheetInput(a), `input with manualSigned ${ms}`);
             assert.equal(!!a.sheet.element.textContent.includes("signed (manual)"), shown, `signed shown for ${ms}`);
+            if (shown) assert.include(a.sheet.element.textContent, `signed (manual): ${ms}`);
           } finally { await a.sheet.close(); }
         }
       });
@@ -13261,11 +13274,17 @@ export function registerSR2EQuenchTests() {
         assert.equal(a.system.essence.value, 8);
       });
 
-      it("substance rules read a high Essence as is", async () => {
+      it("substance losses never touch an NPC's hand-kept Essence of 9; at 0 the death alert shows", async () => {
         const D = await import("../drugs.mjs");
         const a = await Actor.create(src(9)); made.push(a);
+        await a.update({ [`flags.sr2e.substanceLog.${foundry.utils.randomID()}`]: { v: 1, t: game.time.worldTime, seq: 1, at: Date.now(),
+          type: "edit", drug: "kamikaze", patch: { baseline: { addiction: 4, tolerance: 2, strength: 4, P: true, uses: 2, essenceLost: 1 } } } });
+        assert.isAbove(D.substancesOf(a).essenceLost, 0, "the ledger carries a loss");
+        assert.equal(a.system.essence.value, 9, "not subtracted from a hand-kept stat block");
         assert.equal(D.actualEssence(a), 9);
-        assert.equal(!!D.substanceRows(a).essenceZero, false);
+        assert.isFalse(!!D.substanceRows(a).essenceZero);
+        await a.update({ "system.essence.value": 0 });
+        assert.isTrue(D.substanceRows(a).essenceZero, "Essence 0 with a loss alerts");
       });
     }, { displayName: "SR2E: NPC Essence above 6" });
   });

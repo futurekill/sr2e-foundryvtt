@@ -5,10 +5,11 @@ _Round 1 — revised after Codex round 1, 2026-10-29_
 Let an NPC (critter) carry the Essence its stat block prints: vampires and other HMHVV templates
 print **2D6** (2–12), shapeshifters **(8)**, Paranormal Animals' Nosferatu **7**. Today
 `NPCData.essence.value/max` are `NumberField({min: 0, max: 6})`. Observed live (2026-10-29):
-(Foundry 13.351, GM client) `new Actor.implementation(source)` with no options on the Nosferatu's
-stored source (Essence 7) did not throw; the invalid fields fall back to their initial value and the prepared actor has
-**Essence 6** (Foundry logs the validation failure to the console; there is no user-facing notice).
-Strict creation/update paths reject the value instead. Either way the stat block can't be used.
+(Foundry 13.351, GM client) `new Actor.implementation(source)` on the Nosferatu's stored source
+(Essence 7) gives an actor with **Essence 6**: `NumberField` cleaning CLAMPS a value to the field's
+bounds before validation, on every construction path (strict included), so nothing is rejected and
+nothing is reported — the stat block is silently rewritten (−1 becomes 0 the same way). Only a direct
+`validate({changes})`, which skips cleaning, rejects an out-of-range value. Either way the stat block can't be used.
 That is a live bug today, not only a prerequisite for Cyberpirates (docs/NEEDS-SYSTEM.md there lists
 7 critters waiting on it).
 

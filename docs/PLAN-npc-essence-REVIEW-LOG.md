@@ -15,3 +15,8 @@ listed; inventory corrected.
 Default construction is strict in the installed source; test permissive (fromSource) and strict paths explicitly.
 ### Claude's response
 Accepted: both paths named and tested separately; the observation records the Foundry version and the exact call.
+
+## Code review 1 — Codex: REVISE, 3 findings (all test/doc)
+1 substance test had no ledger; 2 save-guard branches untested (0, fractions, warning, refused save); 3 plan said fallback, Foundry actually clamps in cleaning.
+### Claude's response
+All fixed: ledger loss on a 9-Essence NPC (not subtracted, no alert; alert at 0); DOM saves of 0 and 7.5, warning counts, an injected refused update; plan restated (pre-validation clamping). Quench 7/7.
