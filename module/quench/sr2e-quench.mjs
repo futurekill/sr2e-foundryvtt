@@ -12071,6 +12071,82 @@ export function registerSR2EQuenchTests() {
       });
     });
 
+    // VR2.0 part 5a: the utilities (docs/PLAN-vr2-part5.md).
+    quench.registerBatch("sr2e.vr2-utilities", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [], tokens = [];
+      let prior = "core", V, Y;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn, setup = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => { setup?.(app.element); app.element?.querySelector(`button[data-action="${action}"]`)?.click(); }, 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const setTargets = async (ids) => {
+        for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+        return canvas.tokens.setTargets(ids);
+      };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const host = (name, code = "orange", sv = 6) => mk({ name, type: "host", system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 6 } } });
+      const decker = async (name, programs = []) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 4 }, body: { base: 4 }, cyberdeck: { mpcp: 6, deckMode: "hot" },
+          matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          ...programs.map(([n, r, extra]) => ({ name: n, type: "program", system: { rating: r, loaded: true, category: "other", ...(extra ?? {}) } }))]);
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      const tokenFor = async (a, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ actorLink: true })).toObject(), x: d.sceneX + dx * d.size, y: d.sceneY }]);
+        tokens.push(t.id);
+        for (let i = 0; i < 100 && !canvas.tokens.get(t.id)?.targetArrows; i++) await wait(50);
+        return t;
+      };
+      /** A attacks B with a program, through the real dialog; returns the attack card. */
+      const attack = async (a, b, programName, faces = Array(20).fill(6)) => {
+        const tB = canvas.tokens.placeables.find(t => t.actor?.uuid === b.uuid) ?? await tokenFor(b, 2);
+        await setTargets([tB.id]);
+        const p = a.items.getName(programName), n = game.messages.size;
+        await clicking("attack", () => withFaces(faces, () => V.vr2MatrixAttack(a)), (el) => { const s = el?.querySelector('select[name="program"]'); if (s) s.value = p.id; });
+        return game.messages.contents.slice(n).find(m => m.flags?.sr2e?.matrix) ?? null;
+      };
+      before(async () => {
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        V = await import("../vr2.mjs"); Y = await import("../vr2ic.mjs");
+      });
+      after(async () => {
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+        for (const m of game.messages.filter(m => /Quench UT/.test(m.content) || made.some(a => a.id === m.speaker?.actor))) { try { await m.delete(); } catch (e) { /* gone */ } }
+      });
+      afterEach(async () => {
+        await setTargets([]);
+        if (tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+      });
+
+      it("a decker's attack on a decker on the connection log is admitted and resolves (part 5a §0)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        await host("Quench UT Host");
+        const a = await decker("Quench UT Attacker", [["Attack", 4, { damageLevel: "M" }]]);
+        const b = await decker("Quench UT Defender");
+        await tokenFor(a, 0);
+        const card = await attack(a, b, "Attack");
+        assert.ok(card, "the attack card");
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "admit" && e.card === card.id)), "admitted by the sequencer");
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(b, game.messages.get(card.id)));
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "ack" && e.target === `attack:${card.id}`)), "resolved");
+        assert.isAbove(b.system.matrixPersona.condition.value, 0, "took Matrix damage");
+      });
+    });
+
     quench.registerBatch("sr2e.vr2-ic", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [];

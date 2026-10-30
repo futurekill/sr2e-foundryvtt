@@ -237,6 +237,7 @@ Object.assign(HANDLERS, {
   /** An IC's attack on a connected decker: admitted unless the decker is leaving (a listed last attack is). */
   async attack(actor, r, f) {
     if (!f.live) return { ok: false, why: "not connected", tell: false };
+    if (r.conn != null && r.conn !== f.live.n) return { ok: false, why: "that attack hit an earlier connection" };
     const exit = f.live.exit;
     if (exit && !(r.lastAttack && (exit.locks ?? []).includes(r.icKey))) return { ok: false, why: "the decker is leaving" };
     if (!await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program,
@@ -1076,9 +1077,43 @@ export function schedule(actor) {
 /** One sequencer pass for a decker (call only inside `sequencer`). */
 async function passFor(actor) {
   await recoverResolved(actor); await reconcileTar(actor);
-  await processRequests(actor); await reconcileShieldFreeze(actor);
+  await admitDeckerCards(actor); await processRequests(actor); await reconcileShieldFreeze(actor);
   await applyResults(actor); await applyRippers(actor); await applySparky(actor);
   await noticeTraces(actor); await advanceExit(actor);
+}
+
+/** A decker's attacker key (part 5a §0.5): `deck:<uuid>@<conn>`, "" off the connection log. */
+export const attackerKeyOf = (actor) => actor?.system?.vr2Conn ? `deck:${actor.uuid}@${actor.system.vr2Conn.n}` : "";
+/** How many times this decker's icon has crashed on its live connection (part 5a §0.8). */
+export const crashInc = (actor) => Object.keys(actor?.flags?.sr2e?.vr2IconCrash?.[actor?.system?.vr2Conn?.n] ?? {}).length;
+
+/**
+ * Part 5a §0: a decker's attack card is admitted by the sequencer finding it (the attacker can't write a
+ * request onto another player's actor). Runs before `processRequests`, so a card that exists can't be
+ * outrun by an exit request. Every card on this actor, oldest first; the admit/refuse facts make it idempotent.
+ */
+async function admitDeckerCards(actor) {
+  const recs = recordsOf(actor);
+  const seen = new Set(recs.filter(e => e.type === "admit" || e.type === "refuse").map(e => e.card));
+  const cards = game.messages.contents.filter(m => {
+    const st = m.flags?.sr2e?.matrix;
+    return st?.ruleset === "vr2" && st.attackerType === "character" && st.targetUuid === actor.uuid && st.targetConn != null && !seen.has(m.id);
+  });
+  for (const m of cards) {
+    const st = m.flags.sr2e.matrix, f = foldOf(actor);
+    if (!f.live || st.targetConn !== f.live.n) {
+      await fact(actor, `refuse:${m.id}`, { type: "refuse", card: m.id, why: "earlier connection" });
+      await postResolution(actor, m.id, `${st.attackerName}'s attack hit ${actor.name}'s earlier connection: nothing happens.`, []);
+      continue;
+    }
+    if (f.live.exit) {
+      await fact(actor, `refuse:${m.id}`, { type: "refuse", card: m.id, why: "leaving" });
+      await postResolution(actor, m.id, `${actor.name} was already leaving: ${st.attackerName}'s attack misses.`, []);
+      continue;
+    }
+    await fact(actor, `admit:${m.id}`, { type: "admit", conn: f.live.n, card: m.id, icKey: st.icKey ?? "", cls: "decker", program: st.program ?? "",
+      cascade0: null, successes: Number.isInteger(st.successes) ? st.successes : null });
+  }
 }
 
 /**
@@ -1332,6 +1367,13 @@ export function registerVr2IcHooks() {
     }
   });
   Hooks.on("createChatMessage", (m) => { if (m.flags?.sr2e?.vr2SystemTest) offerTar(m).catch(err => console.error("SR2E | tar offer", err)); });
+  // Part 5a §0: a decker's attack on a decker on the log is admitted by the sequencer finding the card.
+  Hooks.on("createChatMessage", (m) => {
+    const st = m.flags?.sr2e?.matrix;
+    if (st?.ruleset !== "vr2" || st.attackerType !== "character" || st.targetConn == null) return;
+    const t = sync(st.targetUuid);
+    if (t) schedule(t);
+  });
   Hooks.on("renderChatMessageHTML", (message, html) => {
     html.querySelectorAll?.(".sr2e-vr2ic-btn").forEach(b => b.addEventListener("click", async (ev) => {
       ev.preventDefault();

@@ -686,7 +686,7 @@ async function attackOnce(actor) {
     targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
     ...hostSnap(host), status: o.status, power, level, ...effect,
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
-    icKey: isIC ? icKey0 : "", targetConn: target.system?.vr2Conn?.n ?? null,
+    icKey: isIC ? icKey0 : Y.attackerKeyOf(actor), attackerInc: isIC ? null : Y.crashInc(actor), targetConn: target.system?.vr2Conn?.n ?? null,
     ...(isIC ? { icRating, threat, comp: prof.comp, psychotropic: prof.psychotropic, expert: Y.expertOf(actor),
       cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area }) };
   const card = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
@@ -695,7 +695,7 @@ async function attackOnce(actor) {
   // (refused while the decker is leaving, unless it's a locking IC's last attack; plan §3a).
   if (isIC && state.targetConn != null) {
     const exit = Y.foldOf(target).live?.exit;
-    await Y.request(target, "attack", { card: card.id, icKey: state.icKey, cls: state.icClass || state.icType, program: state.program,
+    await Y.request(target, "attack", { card: card.id, conn: state.targetConn, icKey: state.icKey, cls: state.icClass || state.icType, program: state.program,
       lastAttack: !!exit && (exit.locks ?? []).includes(state.icKey), cascade0, successes: res.successes });
   }
   return res;
@@ -724,6 +724,12 @@ export function matrixDamage(actor, boxes) {
     // A crashed IC is a new incarnation: maneuver records against the old one lapse.
     if (actor.type === "ic" && before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX) {
       update["system.generation"] = (actor.system.generation ?? 0) + 1;
+    }
+    // Part 5a §0.8: a decker's icon crash on the log is receipted in the same update: the durable
+    // incarnation boundary that ends their locks and tracks.
+    const conn = actor.type === "character" ? actor.system.vr2Conn?.n : null;
+    if (conn != null && before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX) {
+      update[`flags.sr2e.vr2IconCrash.${conn}.${Y.crashInc(actor) + 1}`] = { at: game.time.serverTime };
     }
     await actor.update(update);
     return { before, after };
@@ -969,8 +975,8 @@ async function resistAttribute(defender, message, st, liveAtk) {
   const s0 = liveSession(defender);
   if (!s0) return ui.notifications.warn(`${defender.name} isn't in a VR2.0 session.`);
   if (st.targetSession && s0.id !== st.targetSession) return ui.notifications.warn("That attack hit an earlier session.");
-  // Part 4a §6a: an IC attack on the connection log is resisted only once the GM admitted it.
-  if (st.attackerType === "ic" && st.targetConn != null) {
+  // Part 4a §6a, part 5a §0: an attack on the connection log (IC or decker) is resisted only once the GM admitted it.
+  if (st.targetConn != null) {
     const Y = await import("./vr2ic.mjs");
     if (defender.system.vr2Conn?.n !== st.targetConn) return ui.notifications.warn("That attack hit an earlier connection.");
     const t0 = Date.now();
@@ -1005,7 +1011,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
     // conn/rating/program let the sequencer re-send a lost `resolved` request (part 4a §6a).
     // An IC's attack on the log also leaves a pending receipt OUTSIDE the session, in the same update, so a
     // lost `resolved` request is re-sent however many host switches follow (part 4a §6a).
-    const pending = st.attackerType === "ic" && st.targetConn != null
+    const pending = st.targetConn != null
       ? { [`flags.sr2e.vr2AttrPending.${message.id}`]: { conn: st.targetConn, lost: l, attr: st.attr, rating: st.rating ?? 0, program: st.program ?? "", threat: st.threat ?? 0 } } : {};
     await defender.update({ [`flags.sr2e.vr2Session.iconDamage.${message.id}`]: { attr: st.attr, lost: l, seq, source: st.effectName },
       "flags.sr2e.vr2Session.damageSeq": seq, ...pending });
