@@ -11990,6 +11990,23 @@ export function registerSR2EQuenchTests() {
         assert.equal(Y.foldOf(d).live.locks.length, 0, "one monitor: the crash ends the program's lock");
       });
 
+      it("a construct program that crashes while its attack is rolled posts no attack", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench CON Midroll Host", "red", 8);
+        const c = await construct("Quench CON Midroll", h, [comp("kil", "killer", 4), comp("tar", "tar-baby", 3)], 0);
+        const d = await decker("Quench CON Midroll Decker");
+        const tD = await tokenFor(d, 0); await tokenFor(c, 2);
+        await setTargets([tD.id]);
+        const orig = c.rollSuccessTest.bind(c);
+        c.rollSuccessTest = async (...args) => { const r = await orig(...args); await Y.crashComponent(c, 0, "kil"); return r; };
+        const n = game.messages.size;
+        try { await clicking("attack", () => withFaces(Array(12).fill(6), () => V.vr2MatrixAttack(c)), (el) => { const s = el?.querySelector('select[name="comp"]'); if (s) s.value = "kil"; }); }
+        finally { c.rollSuccessTest = orig; }
+        assert.notOk(game.messages.contents.slice(n).some(m => m.flags?.sr2e?.matrix), "no attack card");
+        assert.notOk(Y.recordsOf(d).some(e => e.type === "admit"), "nothing admitted");
+      });
+
       it("a construct's tar program that wins crashes only itself; the construct goes on (p.42, p.52)", async () => {
         const h = await host("Quench CON Tar Host", "red", 8);
         const c = await construct("Quench CON Tarry", h, [comp("kil", "killer", 4), comp("tar", "tar-baby", 3)], 1);
@@ -12622,6 +12639,11 @@ export function registerSR2EQuenchTests() {
           assert.deepEqual([row(a), row(b)].map(r => r.querySelector(".amount").value), ["500", "500"]);
           assert.match(f.querySelector(".sr2e-award-summary").textContent, /1¥ to the communal pot/);
           const amt = row(a).querySelector(".amount");
+          amt.value = 600;
+          amt.dispatchEvent(new Event("input", { bubbles: true }));
+          const tick = row(a).querySelector("input[type=checkbox]");
+          for (const on of [false, true]) { tick.checked = on; tick.dispatchEvent(new Event("change", { bubbles: true })); }
+          assert.equal(amt.value, "500", "unticking drops the typed share; reticked, it's an even share again");
           amt.value = 600;
           amt.dispatchEvent(new Event("input", { bubbles: true }));
           assert.equal(row(b).querySelector(".amount").value, "401", "the other runner gets the rest");

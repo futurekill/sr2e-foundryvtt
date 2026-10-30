@@ -68,7 +68,7 @@ export async function awardNuyenDialog() {
           const on = row.querySelector("input[type=checkbox]").checked;
           const amt = row.querySelector("input.amount");
           amt.disabled = !on;
-          if (!on) amt.value = "";
+          if (!on) { amt.value = ""; delete amt.dataset.pinned; }
           else if (!amt.dataset.pinned) amt.value = r.awards[row.dataset.id];
           row.querySelector(".unpin").style.visibility = on && amt.dataset.pinned ? "visible" : "hidden";
         }
@@ -77,7 +77,7 @@ export async function awardNuyenDialog() {
           : !ids.length ? "Tick at least one runner."
           : `Paying ${yen(r.awarded)}${r.leftover ? ` · ${yen(r.leftover)} to the communal pot` : ""}`;
         sum.style.color = r.ok ? "" : "var(--color-level-error, #c33)";
-        pay.disabled = !r.ok || !ids.length || r.awarded <= 0;
+        pay.disabled = !r.ok || !ids.length || pool <= 0;
       };
       form.addEventListener("input", (ev) => {
         const t = ev.target;
@@ -105,7 +105,7 @@ export async function awardNuyenDialog() {
 
   const r = splitAward(result.pool, result.ids, result.pinned);
   if (!r.ok) return ui.notifications.warn(r.error);
-  if (r.awarded <= 0) return ui.notifications.warn("Nothing to award.");
+  if (result.pool <= 0) return ui.notifications.warn("Nothing to award.");
   const newPot = (result.includePot ? 0 : pot) + r.leftover;
   // The pot is written first and each credit is checked: a failed share goes back to the
   // pot, and a pot that changed while the dialog was open refuses the whole payout.

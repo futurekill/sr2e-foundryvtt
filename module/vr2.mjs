@@ -662,12 +662,19 @@ async function attackOnce(actor) {
   if (ms.pos && o.position === "power" && power != null) power += ms.pos;
   else if (ms.pos) tn -= ms.pos;
   tn = Math.max(2, tn);
+  const attackerSession0 = sessionKey(actor);
   const res = await actor.rollSuccessTest(Math.max(0, dice), tn, {
     label: RL("MatrixAttack", { what: effect.effect ? effect.effectName : `${power}${level}`, tn, code: codeLabel(code), status: o.status }),
     poolDice: !isIC && o.hacking ? { hacking: o.hacking } : undefined,
     karmaDice: o.karmaDice ?? 0, miscDice: o.miscDice, miscLabel: o.miscLabel, tnContext
   });
   if (!res) return;
+  // An IC (or the construct program) that crashed or rebooted while the dice rolled doesn't attack.
+  if (isIC && (Y.icKeyOf(actor, prof.comp) !== icKey0 || (actor.system.conditionMonitor?.value ?? 0) >= MATRIX_MONITOR_MAX
+    || (Y.isConstruct(actor) && !Y.compAvailable(actor, prof.comp, undefined, { budget: false })))) {
+    ui.notifications.warn(`${actor.name} crashed during its attack roll: the attack is lost.`);
+    return;
+  }
   // Rolled = committed: the position bonus was "the next attack", a parry lasts "until the
   // next attack by the opposing icon" (p.122), an improvised attack is a one-shot (p.123).
   await spendAttackState(actor, ms, usedBuild);
@@ -675,7 +682,7 @@ async function attackOnce(actor) {
   // Posted even at 0 successes (inert), so Karma can still bring it to life.
   const state = { ruleset: "vr2", attackerUuid: actor.uuid, attackerName: actor.name, attackerType: actor.type,
     icType: isIC ? actor.system.icType : "", icClass: isIC ? prof.icClass : "", program: isIC ? prof.program : "",
-    targetUuid: target.uuid, targetName: target.name, targetSession: sessionKey(target), attackerSession: sessionKey(actor),
+    targetUuid: target.uuid, targetName: target.name, targetSession: sessionKey(target), attackerSession: attackerSession0,
     targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
     ...hostSnap(host), status: o.status, power, level, ...effect,
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
