@@ -161,6 +161,12 @@ cap; Selena's Attack-8S (design 256, base 512 days, 4 successes → 128, +1 → 
 - **Own world setting, off by default** (`vr2UtilityOptions`).
 
 ## Risks / open questions
+- **Tools that stack (p.101–102):** read as: PC tools and a mainframe never mix; a shop REPLACES a kit (+2, not
+  +3) and its memory doubling earns the +1 only when ticked as doubled memory ("+3 (+1 doubled, +2 shop)");
+  suite +1 on a mainframe. Implemented in `toolBonus`; the Selena example and the team example pass.
+- **Rounding:** the task period (base ÷ successes) rounds up; percentage sizes round up (the book is silent).
+- **Already built ahead of review (pure math only):** `module/rules/vr2-options.mjs` + `test/vr2-options.test.mjs`
+  (12 tests from the book's examples). Everything that touches Foundry waits for approval.
 - **Programming suite:** the table says task bonus 5, the text says it "adds a +1 task bonus to the
   mainframe host bonus" (4 + 1 = 5): consistent, +5 total on a mainframe with a suite.
 - DINAB's "fails a test" on a non-opposed test (e.g. a System Test is always opposed by the host): only

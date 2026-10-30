@@ -1,0 +1,84 @@
+// VR2.0 utility options and programming (pp.100–104): the book's own examples.
+import { describe, it, expect } from "vitest";
+import { activeOptions, programSizes, defenseTN, areaTN, skulkTally, utilityOf, toolBonus, baseTime, taskPeriod, workDone,
+         teamTerms, mainframeAdequate } from "../module/rules/vr2-options.mjs";
+import { programSize, programCostVR2 } from "../module/rules/sr2e-rules.mjs";
+
+describe("option sizes and price (p.103)", () => {
+  it("no options = today's size and price", () => {
+    expect(programSizes({ rating: 6, multiplier: 3 })).toMatchObject({ actual: programSize(6, 3), design: programSize(6, 3), price: programCostVR2(6, 3) });
+  });
+  it("Attack-6M: 108 Mp, 21,600¥; with Skulk-4 effective Rating 10, design 300 Mp, 60,000¥", () => {
+    expect(programSizes({ rating: 6, multiplier: 3 })).toMatchObject({ design: 108, price: 21600 });
+    expect(programSizes({ rating: 6, multiplier: 3, options: [{ kind: "skulk", rating: 4 }] })).toMatchObject({ effective: 10, design: 300, price: 60000 });
+  });
+  it("Attack-6M (Limit: IC) is Rating 5: 5² × 3", () => {
+    expect(programSizes({ rating: 6, multiplier: 3, options: [{ kind: "limit" }] }).actual).toBe(75);
+  });
+  it("percentage changes apply to the size the rating gives (180 Mp → 90 with optimization)", () => {
+    const once = programSizes({ rating: 6, multiplier: 5, options: [{ kind: "optimization" }] });
+    expect(once.actual).toBe(90);
+    expect(once.design).toBe(360);
+  });
+  it("squeeze's +1 is design-only; one-shot −75% actual, +50% design", () => {
+    expect(programSizes({ rating: 4, multiplier: 2, options: [{ kind: "squeeze" }] })).toMatchObject({ actual: 32, design: 50 });
+    expect(programSizes({ rating: 4, multiplier: 2, options: [{ kind: "oneShot" }] })).toMatchObject({ actual: 8, design: 48 });
+  });
+  it("an effective rating below 1 counts as 1", () => {
+    expect(programSizes({ rating: 1, multiplier: 2, options: [{ kind: "limit" }] }).actual).toBe(2);
+  });
+});
+
+describe("which options apply", () => {
+  it("allow-lists, rating caps, chaser + penetration both inert", () => {
+    expect(utilityOf("Attack-6M")).toBe("attack");
+    expect(utilityOf("Black Hammer 4")).toBe("black hammer");
+    const a = activeOptions("attack", 6, [{ kind: "skulk", rating: 4 }, { kind: "area", rating: 7 }, { kind: "squeeze" }]);
+    expect(a.active.map(o => o.kind)).toEqual(["skulk"]);
+    expect(a.inert.map(o => o.kind)).toEqual(["area", "squeeze"]);   // Area-7 > Rating 6; squeeze isn't an attack option
+    const cp = activeOptions("attack", 6, [{ kind: "chaser" }, { kind: "penetration" }, { kind: "targeting" }]);
+    expect(cp.active.map(o => o.kind)).toEqual(["targeting"]);
+    expect(activeOptions("", 6, [{ kind: "targeting" }]).active).toEqual([]);
+  });
+});
+
+describe("option effects (p.103–104)", () => {
+  it("shield and shift with chaser / penetration (user rulings: penetration +4 total vs shift)", () => {
+    expect([defenseTN("shield"), defenseTN("shield", ["chaser"]), defenseTN("shield", ["penetration"])]).toEqual([2, 4, 0]);
+    expect([defenseTN("shift"), defenseTN("shift", ["chaser"]), defenseTN("shift", ["penetration"])]).toEqual([2, 0, 4]);
+  });
+  it("area: the p.103 example — A at 6 + 2 = 8, B at 4 + 2 = 6; skulk", () => {
+    expect([areaTN(6, 2), areaTN(4, 2)]).toEqual([8, 6]);
+    expect([skulkTally(6, 4), skulkTally(3, 4)]).toEqual([2, 0]);
+  });
+});
+
+describe("programming (pp.100–102)", () => {
+  it("Selena's Attack-8S: 256 Mp, 512 days, 4 successes → 128, and the worked days to the end", () => {
+    const d = programSizes({ rating: 8, multiplier: 4 }).design;
+    expect(d).toBe(256);
+    expect(baseTime(d)).toBe(512);
+    let left = taskPeriod(512, 4);
+    expect(left).toBe(128);
+    left -= workDone(10, toolBonus({}));                                    // 118
+    left -= workDone(10, toolBonus({ doubleMemory: true }));                // 98
+    expect(left).toBe(98);
+    left -= workDone(5, toolBonus({ doubleMemory: true, kit: true }));      // 83
+    expect(left).toBe(83);
+    left -= workDone(15, toolBonus({ mainframe: true }));                   // 8
+    expect(left).toBe(8);
+    expect(workDone(3, toolBonus({ doubleMemory: true, kit: true }))).toBeGreaterThanOrEqual(8);   // done in 3 days
+    expect(mainframeAdequate(4, 8)).toBe(true);
+    expect(taskPeriod(512, 0)).toBe(null);
+  });
+  it("tools: shop +2 (+3 with doubled memory), a suite +1 on a mainframe", () => {
+    expect([toolBonus({ shop: true }), toolBonus({ shop: true, doubleMemory: true }), toolBonus({ mainframe: true, suite: true })]).toEqual([2, 3, 5]);
+  });
+  it("teams: skill 8 → 4 members, Rating 9; 6/7/6 → 7; +3/+2/+3 → +5 (6 days a day)", () => {
+    expect(teamTerms([8, 3, 3, 3])).toMatchObject({ maxSize: 4, maxRating: 9 });
+    const t = teamTerms([6, 7, 6], [3, 2, 3]);
+    expect(t.skill).toBe(7);
+    expect(t.bonus).toBe(5);
+    expect(workDone(1, t.bonus)).toBe(6);
+  });
+});
