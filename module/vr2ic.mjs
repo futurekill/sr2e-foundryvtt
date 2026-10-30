@@ -902,11 +902,14 @@ async function slowPrompt(ic, sl) {
   const combat = game.combats.get(sl.combatId), cb = combat?.combatants.find(c => c.actor?.uuid === ic.uuid);
   const rc = cb?.flags?.sr2e?.slowApplied?.[sl.card];
   if (!rc?.hung || rc.round !== combat.round || rc.gen !== (ic.system.generation ?? 0)) return;
-  if (!await once(ic, `${P3}card:slowprompt:${sl.card}`)) return;
+  // The prompt's id is derived from the card: it exists or it doesn't, no separate marker to outlive it (code review R3).
+  const id = `sp${sl.card}`.slice(0, 16);
+  if (game.messages.has(id)) return;
   const owner = sync(sl.deckerUuid);
-  await ChatMessage.create({ whisper: [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u => !u.isGM && owner?.testUserPermission(u, "OWNER"))].map(u => u.id),
+  await ChatMessage.create({ _id: id, whisper: [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u => !u.isGM && owner?.testUserPermission(u, "OWNER"))].map(u => u.id),
     content: `<div class="sr2e-item-card">${esc(ic.name)} has hung. Suppress it to keep it down (−1 Detection Factor, no tally), or it resumes next Combat Turn (p.99).
-    <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(sl.deckerUuid)}" data-op="slowSuppress" data-arg="${esc(`${sl.card}|${ic.uuid}`)}">Suppress</button></div></div>` });
+    <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(sl.deckerUuid)}" data-op="slowSuppress" data-arg="${esc(`${sl.card}|${ic.uuid}`)}">Suppress</button></div></div>` },
+  { keepId: true });
 }
 
 /** Apply each current Slow to the IC's combatant once (R3 #7, #8): stale facts never touch a later round or incarnation. */
@@ -920,6 +923,9 @@ async function reconcileSlow(ic) {
   }
   for (const sl of recordsOf(ic).filter(e => e.type === "slow" && e.lost > 0)) await slowPrompt(ic, sl);
 }
+
+/** For Quench: one IC's Slow reconcile. */
+export const reconcileSlowForTest = (ic) => reconcileSlow(ic);
 
 /** Live Slow suppressions on an IC (R3 #10): no release, same IC generation, the decker's session still live. */
 export function slowSuppressions(ic) {

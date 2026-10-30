@@ -12231,6 +12231,14 @@ export function registerSR2EQuenchTests() {
           assert.isTrue(await settle(() => Y.recordsOf(k).some(e => e.type === "slow" && e.card === card.id)), "one Slow result");
           assert.isTrue(await settle(() => (combat.combatants.get(cb.id).initiative ?? 1) === 0), "Initiative 10 → 0");
           assert.equal(Y.icDisabled(k), "hung");
+          // The Suppress prompt is reconciled from the receipt: deleted (as if never created), it comes back.
+          const pid = `sp${card.id}`.slice(0, 16);
+          assert.isTrue(await settle(() => game.messages.has(pid)), "the Suppress prompt");
+          await game.messages.get(pid).delete();
+          await Y.flush?.();
+          await Y.sequencer(() => Y.reconcileSlowForTest(k));
+          assert.isTrue(await settle(() => game.messages.has(pid)), "re-posted by the reconcile");
+          await game.messages.get(pid)?.delete();
           await Y.request(a, "slowSuppress", { card: card.id, icUuid: k.uuid });
           assert.isTrue(await settle(() => Y.icDisabled(k) === "suppressed"), "suppressed");
           assert.isTrue(combat.combatants.get(cb.id).heldOut, "held out of the turn order");
