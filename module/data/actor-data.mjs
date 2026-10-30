@@ -2267,7 +2267,18 @@ export class ICData extends SR2EDataModel {
       protects: new fields.StringField({ initial: "", blank: true }),
       defense: new fields.StringField({ initial: "", blank: true, choices: { "": "—", shield: "Shield", shift: "Shift" } }),
       armorDefense: new fields.BooleanField({ initial: false }),
-      generation: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      generation: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Part 4a (docs/PLAN-vr2-part4.md): the optional IC (p.51–53). Expert: + shifts dice from damage
+      // resistance to attack, − the other way (1–3). Cascading: misses and neutralized hits raise its SV /
+      // rating (derived from the deckers' records); the epoch is bumped to start it over. Party: a
+      // cluster id and its ORIGINAL size N.
+      expert: new fields.NumberField({ integer: true, initial: 0, min: -3, max: 3 }),
+      cascading: new fields.BooleanField({ initial: false }),
+      cascadeEpoch: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      party: new fields.SchemaField({
+        id: new fields.StringField({ initial: "", blank: true }),
+        size: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      })
     };
   }
 

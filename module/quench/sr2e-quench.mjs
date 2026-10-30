@@ -11497,9 +11497,10 @@ export function registerSR2EQuenchTests() {
           const d = await decker("Quench P2 Shielded", [["Shield", 3], ["Medic", 4]]);
           const killer = await ic("Quench P2 Killer 2", h, { program: "killer" });
           const card = await attackCard(killer, d, h);
-          // Shield 3 dice vs TN 5 (the card's attackerComputer): three 5s cancel both attack
-          // successes; Bod 4 vs TN 6: nothing. Unstaged M = 2 boxes.
-          await clicking("yes", () => withFaces([5, 5, 5, 1, 1, 1, 1, 1], () => d.rollMatrixResistance(card)));
+          // Shield 3 dice vs TN 5 (the card's attackerComputer): one 5 cancels one of the two attack
+          // successes; Bod 4 vs TN 6: nothing. Unstaged M = 2 boxes. (Cancelling BOTH means no damage at
+          // all, p.100 — part 4a's batch sr2e.vr2-optional-ic covers that.)
+          await clicking("yes", () => withFaces([5, 1, 1, 1, 1, 1, 1], () => d.rollMatrixResistance(card)));
           await wait(300);
           assert.equal(d.system.matrixPersona.condition.value, 2, "M, not staged to S");
           assert.equal(d.items.getName("Shield").system.effectiveRating, 2, "Shield wore");
@@ -11649,6 +11650,228 @@ export function registerSR2EQuenchTests() {
     }, { displayName: "SR2E: VR2.0 part 2" });
 
     // ── VR2.0 part 3: the rest of the IC (docs/PLAN-vr2-part3.md) ────────────────────
+    quench.registerBatch("sr2e.vr2-optional-ic", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [], tokens = [];
+      let prior = "core", V, Y;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn, setup = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => { setup?.(app.element); app.element?.querySelector(`button[data-action="${action}"]`)?.click(); }, 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const setTargets = async (ids) => {
+        for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+        return canvas.tokens.setTargets(ids);
+      };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const host = (name, code = "green", sv = 6) => mk({ name, type: "host", system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 6 } } });
+      const ic = (name, h, extra = {}) => mk({ name, type: "ic", system: { rating: 5, icType: "white", program: "killer", hostUuid: h.uuid, ...extra } });
+      const decker = async (name, programs = []) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 4 }, cyberdeck: { mpcp: 6, deckMode: "cool" },
+          matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          ...programs.map(([n, r, extra]) => ({ name: n, type: "program", system: { rating: r, loaded: true, category: "other", ...(extra ?? {}) } }))]);
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      const tokenFor = async (a, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ actorLink: true })).toObject(), x: d.sceneX + dx * d.size, y: d.sceneY }]);
+        tokens.push(t.id);
+        for (let i = 0; i < 100 && !canvas.tokens.get(t.id)?.targetArrows; i++) await wait(50);
+        return t;
+      };
+      /** Spy on an actor's next Success Tests: [dice, tn] of each. */
+      const spy = (a) => { const seen = [], orig = a.rollSuccessTest.bind(a);
+        a.rollSuccessTest = (dice, tn, o) => { seen.push([dice, tn]); return orig(dice, tn, o); };
+        return { seen, off: () => { a.rollSuccessTest = orig; } }; };
+      const attack = (atk, faces, setup = null) => clicking("attack", () => withFaces(faces, () => V.vr2MatrixAttack(atk)), setup);
+      before(async () => {
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        V = await import("../vr2.mjs"); Y = await import("../vr2ic.mjs");
+      });
+      after(async () => {
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+        for (const m of game.messages.filter(m => /Quench OIC/.test(m.content) || /Quench OIC/.test(m.speaker?.alias ?? "")
+          || made.some(a => a.id === m.speaker?.actor))) { try { await m.delete(); } catch (e) { /* gone */ } }
+      });
+      afterEach(async () => {
+        await setTargets([]);
+        if (tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+      });
+
+      it("expert IC: Offense-2 attacks with SV + 2 and resists with SV − 2; a reactive program's expert does nothing (p.52)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench OIC Expert Host", "green", 6);
+        const k = await ic("Quench OIC Expert", h, { expert: 2 });
+        const tar = await ic("Quench OIC Tar", h, { program: "tar-baby", expert: 2 });
+        assert.equal(Y.expertOf(k), 2); assert.equal(Y.expertOf(tar), 0, "reactive: no expert");
+        const d = await decker("Quench OIC Expert Decker", [["Attack", 4, { damageLevel: "M" }]]);
+        const tD = await tokenFor(d, 0), tK = await tokenFor(k, 2);
+        const sk = spy(k);
+        await setTargets([tD.id]);
+        await attack(k, Array(10).fill(1));
+        sk.off();
+        assert.equal(sk.seen[0]?.[0], 8, "6 + 2 attack dice");
+        // The IC resists the decker's hit with SV − 2.
+        await V.sessionFor(d, h);
+        await setTargets([tK.id]);
+        const n = game.messages.size;
+        await attack(d, Array(10).fill(6));
+        const card = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.matrix);
+        assert.ok(card, "the decker's attack card");
+        const sr = spy(k);
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(k, card));
+        sr.off();
+        assert.equal(sr.seen[0]?.[0], 4, "6 − 2 resistance dice");
+      });
+
+      it("cascading: each miss adds 1 to the SV it attacks with, capped (Green-6: +2); reset and a rating change start over (p.51)", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench OIC Cascade Host", "green", 6);
+        const k = await ic("Quench OIC Cascader", h, { cascading: true });
+        const d = await decker("Quench OIC Cascade Decker");
+        const tD = await tokenFor(d, 0); await tokenFor(k, 2);
+        await setTargets([tD.id]);
+        const dice = [];
+        for (let i = 0; i < 4; i++) { const sp = spy(k); await attack(k, Array(12).fill(1)); sp.off(); dice.push(sp.seen[0]?.[0]); }
+        assert.deepEqual(dice, [6, 7, 8, 8], "misses raise the SV, up to the cap");
+        assert.equal(Y.cascadeOf(k, h).sv, 2);
+        await k.update({ "system.cascadeEpoch": k.system.cascadeEpoch + 1 });
+        assert.equal(Y.cascadeOf(k, h).sv, 0, "reset");
+        const e0 = k.system.cascadeEpoch;
+        await k.update({ "system.rating": 6 }); await k.update({ "system.rating": 5 });
+        assert.equal(k.system.cascadeEpoch, e0 + 2, "each rating change bumps the epoch, so a revert can't resurrect");
+        await k.update({ "system.cascading": false });
+        assert.equal(Y.cascadeOf(k, h).sv, 0, "off: no bonus");
+      });
+
+      it("cascading rating: a fully resisted hit counts; outcomes are this IC's alone; a trace success never counts", async () => {
+        const h = await host("Quench OIC Records Host", "green", 6);
+        const a1 = await ic("Quench OIC Twin A", h, { cascading: true });
+        const a2 = await ic("Quench OIC Twin B", h, { cascading: true });
+        const d = await decker("Quench OIC Records Decker");
+        const { recordEvent } = await import("../claims.mjs");
+        const admit = async (icA, card, successes, outcome) => {
+          await recordEvent(d, `vr2:admit:${card}`, { type: "admit", conn: d.system.vr2Conn.n, card, icKey: Y.icKeyOf(icA), successes,
+            cascade0: Y.cascadeBaseline(icA, h) });
+          if (outcome) await recordEvent(d, `vr2:ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome });
+        };
+        await admit(a1, "qoic1", 3, { boxes: 0, crashed: false });
+        await admit(a1, "qoic2", 2, { boxes: 4, crashed: false });
+        await admit(a1, "qoic3", 2, { trace: 0 });
+        assert.deepEqual([Y.cascadeOf(a1, h).rating, Y.cascadeOf(a1, h).sv], [1, 0]);
+        assert.deepEqual([Y.cascadeOf(a2, h).rating, Y.cascadeOf(a2, h).sv], [0, 0], "the identical twin doesn't share it");
+      });
+
+      it("Shield taking every attack success: no damage, and the cascading IC counts a neutralized hit (p.100)", async function () {
+        this.timeout(30000);
+        const h = await host("Quench OIC Shield Host", "green", 1);
+        const k = await ic("Quench OIC Shielded", h, { cascading: true });
+        const d = await decker("Quench OIC Shield Decker", [["Shield", 6, {}]]);
+        const res = await withFaces([5], () => k.rollSuccessTest(1, 4, { label: "Quench OIC attack", tnContext: { kind: "other" } }));
+        const st = { ruleset: "vr2", attackerUuid: k.uuid, attackerName: k.name, attackerType: "ic", icType: "white", icClass: k.system.icClass,
+          program: "killer", targetUuid: d.uuid, targetName: d.name, targetSession: V.sessionKey(d), attackerSession: V.sessionKey(k),
+          attackerComputer: 4, hostUuid: h.uuid, hostName: h.name, securityCode: "green", securityValue: 1, status: "intruding",
+          power: 5, icRating: 5, level: "M", successes: res.successes, testMessageId: res.testMessageId, resolved: false,
+          icKey: Y.icKeyOf(k), targetConn: d.system.vr2Conn.n, cascade0: Y.cascadeBaseline(k, h) };
+        assert.equal(res.successes, 1, "one attack success");
+        const card = await ChatMessage.create({ content: "Quench OIC attack card", flags: { sr2e: { matrix: st } } });
+        await Y.request(d, "attack", { card: card.id, icKey: st.icKey, cls: st.icClass, program: "killer", cascade0: st.cascade0, successes: res.successes });
+        assert.isTrue(await settle(() => Y.recordsOf(d).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        // Shield 6 dice vs TN 4: six 5s (no explosion); Bod 4 vs TN 5: four 1s — only the Shield stops it.
+        await clicking("yes", () => withFaces([5, 5, 5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2MatrixResist(d, card)));
+        assert.isTrue(await settle(() => Y.recordsOf(d).some(e => e.type === "ack" && e.target === `attack:${card.id}`)), "applied");
+        assert.equal(d.system.matrixPersona.condition.value, 0, "no damage");
+        assert.equal(Y.recordsOf(d).find(e => e.type === "ack" && e.target === `attack:${card.id}`).outcome.boxes, 0);
+        assert.equal(Y.cascadeOf(k, h).rating, 1, "a neutralized hit");
+        // The direct path (a decker with a session but no connection log) stops it too.
+        const d2 = await mk({ name: "Quench OIC Shield Direct", type: "character", system: { matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+        await d2.createEmbeddedDocuments("Item", [{ name: "Shield", type: "program", system: { rating: 6, loaded: true, category: "other" } }]);
+        await d2.update({ "system.matrixMode": true }); await V.startSession(d2);
+        const card2 = await ChatMessage.create({ content: "Quench OIC direct card", flags: { sr2e: { matrix: { ...st, testMessageId: null, successes: 1,
+          targetUuid: d2.uuid, targetName: d2.name, targetSession: V.sessionKey(d2), targetConn: null } } } });
+        await clicking("yes", () => withFaces([5, 5, 5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2MatrixResist(d2, card2)));
+        await wait(400);
+        assert.equal(d2.system.matrixPersona.condition.value, 0, "no damage on the direct path either");
+      });
+
+      it("party IC: formed once per actor and budget-checked; +N TN both ways, the area box removes the decker's; N survives a crash (p.52)", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench OIC Party Host", "green", 6);
+        const big = [await ic("Quench OIC Big1", h), await ic("Quench OIC Big2", h), await ic("Quench OIC Big3", h)];
+        assert.notOk(await Y.formParty(big), "15 points > 12: refused");
+        assert.equal(Y.partyOf(big[0]), 0);
+        const [p1, p2, p3] = [await ic("Quench OIC P1", h, { rating: 3 }), await ic("Quench OIC P2", h, { rating: 3 }), await ic("Quench OIC P3", h, { rating: 3 })];
+        assert.ok(await Y.formParty([p1, p1, p2, p3]), "formed");
+        assert.deepEqual([p1, p2, p3].map(Y.partyOf), [3, 3, 3], "N = 3 (the duplicate counted once)");
+        const d = await decker("Quench OIC Party Decker", [["Attack", 4, { damageLevel: "M" }]]);
+        const tD = await tokenFor(d, 0), t1 = await tokenFor(p1, 2);
+        await setTargets([tD.id]);
+        const sp = spy(p1); await attack(p1, Array(10).fill(1)); sp.off();
+        assert.equal(sp.seen[0]?.[1], 5 + 3, "Green vs intruding 5, +3 party");
+        await V.sessionFor(d, h);
+        await setTargets([t1.id]);
+        const warns = [], ow = ui.notifications.warn.bind(ui.notifications);
+        ui.notifications.warn = (m, ...r) => { warns.push(m); return ow(m, ...r); };
+        let s1, s2;
+        try {
+          s1 = spy(d); await attack(d, Array(10).fill(1)); s1.off();
+          await setTargets([t1.id]);
+          s2 = spy(d); await attack(d, Array(10).fill(1), (el) => { const b = el?.querySelector('input[name="area"]'); if (b) b.checked = true; }); s2.off();
+        } finally { ui.notifications.warn = ow; }
+        assert.equal(s1.seen[0]?.[1] - s2.seen[0]?.[1], 3, `+3 to hit a member, none with an area-effect utility (${JSON.stringify([s1.seen, s2.seen, warns])})`);
+        await Y.sequencer(() => Y.icDamage(p3, 10));
+        assert.equal(Y.partyOf(p1), 3, "N is the original size after a member crashes");
+        await Y.leaveParty(p2);
+        assert.equal(Y.partyOf(p2), 0, "left");
+      });
+
+      it("an attribute loss interrupted before its report is re-sent after two host switches, then acked", async () => {
+        const h = await host("Quench OIC Recover Host", "green", 4);
+        const h2 = await host("Quench OIC Recover H2", "green", 4), h3 = await host("Quench OIC Recover H3", "green", 4);
+        const acid = await ic("Quench OIC Recover Acid", h, { program: "crippler-acid", rating: 4 });
+        const d = await decker("Quench OIC Recover Decker");
+        await V.sessionFor(d, h);
+        const card = await ChatMessage.create({ content: "Quench OIC recover card", flags: { sr2e: { matrix: { ruleset: "vr2", attackerType: "ic", icKey: Y.icKeyOf(acid) } } } });
+        await Y.request(d, "attack", { card: card.id, icKey: Y.icKeyOf(acid), cls: "white", program: "crippler-acid" });
+        assert.isTrue(await settle(() => Y.recordsOf(d).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        // The loss committed (receipt written in the same update), then the client died before reporting it.
+        await d.update({ [`flags.sr2e.vr2AttrPending.${card.id}`]: { conn: d.system.vr2Conn.n, lost: 1, attr: "bod", rating: 4, program: "crippler-acid" } });
+        await V.sessionFor(d, h2); await V.sessionFor(d, h3);
+        await Y.flush();
+        const ack = Y.recordsOf(d).find(e => e.type === "ack" && e.target === `attack:${card.id}`);
+        assert.equal(ack?.outcome?.lost, 1, "re-sent and acknowledged");
+        await Y.flush();
+        assert.notOk(d.flags.sr2e.vr2AttrPending?.[card.id], "the pending receipt is cleared once acked");
+      });
+
+      it("an attribute attack on the log isn't resisted until admitted", async () => {
+        const h = await host("Quench OIC Attr Host", "green", 4);
+        const acid = await ic("Quench OIC Acid", h, { program: "crippler-acid", rating: 4 });
+        const d = await decker("Quench OIC Attr Decker");
+        await V.sessionFor(d, h);
+        const st = { ruleset: "vr2", attackerUuid: acid.uuid, attackerName: acid.name, attackerType: "ic", icType: "white", icClass: acid.system.icClass,
+          program: "crippler-acid", targetUuid: d.uuid, targetName: d.name, targetSession: V.sessionKey(d), attackerSession: V.sessionKey(acid),
+          hostUuid: h.uuid, hostName: h.name, securityCode: "green", securityValue: 4, status: "intruding", effect: "attribute", attr: "bod",
+          floor: 1, rating: 4, effectName: "Acid-4", successes: 6, resolved: false, icKey: Y.icKeyOf(acid), targetConn: d.system.vr2Conn.n };
+        const card = await ChatMessage.create({ content: "Quench OIC acid card", flags: { sr2e: { matrix: st } } });
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(d, card));
+        assert.equal(d.system.matrixPersona.bod, 4, "nothing lands without an admission");
+      });
+    });
+
     quench.registerBatch("sr2e.vr2-ic", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [];

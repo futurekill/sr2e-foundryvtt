@@ -423,6 +423,16 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Host sheet **Start shutdown** / **Next turn**: the warning, then every decker on it is dumped; jacking in to it refuses until **Reset**.
 - [ ] Psychotropic black IC: on the way out, the Willpower card; failing it adds the condition (cyberphobia: +rating on Computer tests and a test to jack in); **Recovery test** ends it.
 
+### 10d. VR2.0 part 4a: optional IC (`sr2e.vr2-optional-ic` batch; docs/PLAN-vr2-part4.md)
+2026-10-30: batch 7/7; with vr2-core, vr2-part2, vr2-ic, manipulation-damage, astral 67/67; full sr2e.** 723/726 (3 hidden-pane timeouts, pass on rerun).
+- [ ] IC sheet (VR2): **Expert** −3…+3 and **Cascading** are editable only for proactive programs (killer, cripplers, blaster, sparky, rippers, black, trace).
+- [ ] Expert Offense-2 on a Green-6 host: the IC's attack rolls 8 dice; a decker's hit on it is resisted with 4.
+- [ ] Cascading killer on Green-6: two missed attacks → the third rolls 8 dice, never more; the sheet shows "Security Value +2/2"; **Reset** clears it; changing its rating also starts over.
+- [ ] A cascading IC's hit that the decker fully resists (or Shields to 0) → the sheet shows "rating +1".
+- [ ] Select two other IC tokens, **Form party IC with selected** on a third: +3 TN on their attacks, +3 TN for a decker to hit one; ticking **Area-effect utility** in the decker's attack dialog removes it. Over budget (ratings + options > 2 × SV, or > SV ÷ 2 members) is refused.
+- [ ] Shield that cancels every attack success: no Matrix damage at all.
+- [ ] A crippler on a connected decker: Resist waits for the GM's admission.
+
 ## 10c. Map areas on Foundry v14 (v16 prep)
 - [ ] On v14: a grenade blast, a shotgun spread, an area spell, Poltergeist, Ice Sheet and a ritual area each appear as a Region of the right shape; a player's own area is theirs to move or delete.
 - [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.

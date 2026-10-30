@@ -144,3 +144,57 @@ describe("foldVr2Ic: the connection and its exit", () => {
     expect(f.live.steps.map(s => s.step)).toContain("gray");
   });
 });
+
+describe("part 4a — optional IC (p.51–53)", () => {
+  it("cascade caps: book example Green-6 SV +2, Killer-5 +2; Blue 1; Red 100% or 4; Orange 50% or 3", async () => {
+    const { cascadeCap } = await import("../module/rules/vr2ic-rules.mjs");
+    expect([cascadeCap("green", 6), cascadeCap("green", 5), cascadeCap("blue", 9), cascadeCap("red", 3), cascadeCap("red", 7),
+      cascadeCap("orange", 10), cascadeCap("green", 13)]).toEqual([2, 2, 1, 4, 7, 5, 3]);
+  });
+  it("expert: Offense-2 on Red-6 attacks with 8, resists with 4; Defense-2 the reverse", async () => {
+    const { expertDice } = await import("../module/rules/vr2ic-rules.mjs");
+    expect(expertDice(6, 2)).toEqual({ attack: 8, resist: 4 });
+    expect(expertDice(6, -2)).toEqual({ attack: 4, resist: 8 });
+    expect(expertDice(2, 3)).toEqual({ attack: 5, resist: 0 });
+  });
+  it("cascadeOutcomes: miss → sv, neutralized damage/attribute → rating, black needs both sides 0, trace never", async () => {
+    const { cascadeOutcomes } = await import("../module/rules/vr2ic-rules.mjs");
+    const c0 = { on: true };
+    const ev = [
+      { type: "admit", card: "m", icKey: "ic#0", successes: 0, cascade0: c0 },
+      { type: "admit", card: "m", icKey: "ic#0", successes: 0, cascade0: c0 },               // duplicate: once
+      { type: "admit", card: "d", icKey: "ic#0", successes: 2, cascade0: c0 },
+      { type: "ack", target: "attack:d", outcome: { boxes: 0, crashed: false } },
+      { type: "admit", card: "hurt", icKey: "ic#0", successes: 2, cascade0: c0 },
+      { type: "ack", target: "attack:hurt", outcome: { boxes: 3 } },
+      { type: "admit", card: "a", icKey: "ic#0", successes: 1, cascade0: c0 },
+      { type: "ack", target: "attack:a", outcome: { lost: 0 } },
+      { type: "admit", card: "a2", icKey: "ic#0", successes: 1, cascade0: c0 },
+      { type: "ack", target: "attack:a2", outcome: {} },                                     // no numeric lost
+      { type: "admit", card: "t", icKey: "ic#0", successes: 3, cascade0: c0 },
+      { type: "ack", target: "attack:t", outcome: { trace: 0 } },
+      { type: "admit", card: "b", icKey: "ic#0", successes: 2, cascade0: c0 }, { type: "hit", card: "b" },
+      { key: "vr2:res:b:icon", type: "res", card: "b", side: "icon" }, { key: "vr2:res:b:meat", type: "res", card: "b", side: "meat" },
+      { type: "ack", target: "vr2:res:b:icon", outcome: { boxes: 0 } }, { type: "ack", target: "vr2:res:b:meat", outcome: { boxes: 0 } },
+      { type: "admit", card: "bm", icKey: "ic#0", successes: 2, cascade0: c0 }, { type: "hit", card: "bm" },
+      { key: "vr2:res:bm:icon", type: "res", card: "bm", side: "icon" }, { key: "vr2:res:bm:meat", type: "res", card: "bm", side: "meat" },
+      { type: "ack", target: "vr2:res:bm:icon", outcome: { boxes: 0 } }, { type: "ack", target: "vr2:res:bm:meat", outcome: { boxes: 2 } },
+      { type: "admit", card: "off", icKey: "ic#0", successes: 0, cascade0: { on: false } }
+    ];
+    expect(cascadeOutcomes(ev).map(o => `${o.card}:${o.kind}`)).toEqual(["m:sv", "d:rating", "a:rating", "b:rating"]);
+  });
+  it("cascadeBonus caps each kind separately", async () => {
+    const { cascadeBonus } = await import("../module/rules/vr2ic-rules.mjs");
+    const o = [..."sss"].map(() => ({ kind: "sv" })).concat([{ kind: "rating" }]);
+    expect(cascadeBonus(o, { code: "green", sv0: 6, rating0: 5 })).toMatchObject({ sv: 2, rating: 1 });
+  });
+  it("partyBudget: SV 8 → 16 points, 4 members; options 1 each; PCPIC with other black", async () => {
+    const { partyBudget } = await import("../module/rules/vr2ic-rules.mjs");
+    const m = (rating, o = {}) => ({ rating, program: "killer", ...o });
+    expect(partyBudget({ sv: 8, members: [m(5), m(5), m(5, { expert: 1 })] })).toMatchObject({ capacity: 16, used: 16, maxMembers: 4, problems: [] });
+    expect(partyBudget({ sv: 8, members: [m(6), m(6), m(5)] }).problems.length).toBe(1);
+    expect(partyBudget({ sv: 4, members: [m(1), m(1), m(1)] }).problems[0]).toMatch(/at most 2/);
+    expect(partyBudget({ sv: 12, members: [m(3, { program: "black-psychotropic", psychotropic: "pcpic" }), m(3, { program: "black-lethal" })] }).problems)
+      .toContain("PCPIC can't share a party with other black IC (p.50)");
+  });
+});

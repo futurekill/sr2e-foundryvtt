@@ -2310,6 +2310,13 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
       .map(h => ({ uuid: h.uuid, name: h.name }));
     const host = this.document.system.hostUuid ? fromUuidSync(this.document.system.hostUuid) : null;
     context.linkedHost = host ? { uuid: host.uuid, name: host.name } : null;
+    // Part 4a (p.51–53): eligibility, the live cascade bonus, and party membership.
+    const Y = await import("../vr2ic.mjs");
+    const { isProactive } = await import("../rules/vr2ic-rules.mjs");
+    const ic = this.document;
+    context.optionalIC = { proactive: isProactive(ic.system.program),
+      cascade: ic.system.cascading && host?.type === "host" ? Y.cascadeOf(ic, host) : null,
+      party: Y.partyOf(ic), partyId: ic.system.party?.id ?? "" };
     return context;
   }
 }

@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 0.126.0 — 2026-10-30
+
+### Added
+- **Optional IC from Virtual Realities 2.0** (pp.51–53). Each is a per-IC choice on its sheet; IC
+  that don't use them behave as before.
+  - **Expert IC.** Shift 1–3 dice between the IC's attack and its damage resistance. Expert
+    Offense-2 on a Red-6 host attacks with 8 dice and resists with 4.
+  - **Cascading IC.** Each missed attack adds 1 to the Security Value it attacks with. Each hit the
+    decker fully neutralizes adds 1 to its rating (Power, a crippler's target number, a trace's
+    factor). Both are capped by the Cascading IC Table; percentages round down. A crash, the GM's
+    **Reset**, or changing the IC's program, rating or host starts it over. Cascading attacks on a
+    decker in the Matrix are rolled by the active GM.
+  - **Party IC.** Select IC tokens and use **Form party IC with selected**. A party of N attacks at
+    +N target number, and a decker hits a member at +N unless an *Area-effect utility* is ticked in
+    the attack dialog. N stays as members crash. Capacity (ratings + options ≤ 2 × Security Value,
+    at most Security Value ÷ 2 members) and the PCPIC rule are checked when it forms. Tar in a party
+    gets −2 target number.
+  - Constructs and Shield against black IC are a later part.
+
+### Fixed
+- **A Shield that cancels every attack success now stops the attack** (VR2.0 p.100). It used to
+  let the attack's base damage through.
+- A crippler or ripper attack on a decker in the Matrix can't be resisted, and so can't cost
+  attributes, before the GM's client has admitted it. If the client is interrupted between the
+  loss and its report, the GM's client re-sends the report.
+
 ## 0.125.1 — 2026-10-29
 
 ### Added

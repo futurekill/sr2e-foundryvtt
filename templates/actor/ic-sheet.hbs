@@ -97,6 +97,17 @@
       <label class="field" title="What a data bomb, scramble or trap protects: a file, a slave device, a subsystem (p.41–42)."><span>Protects</span>
         <input type="text" name="system.protects" value="{{system.protects}}" /></label>
     </div>
+    <div class="field-grid">
+      <label class="field" title="Expert IC (p.52): + raises the attack dice and lowers damage resistance by as much; − the reverse. Proactive IC only."><span>Expert (−3…+3)</span>
+        <input type="number" name="system.expert" value="{{system.expert}}" min="-3" max="3" {{#unless optionalIC.proactive}}disabled{{/unless}} /></label>
+      <label class="field" title="Cascading IC (p.51): each miss adds 1 to the Security Value it attacks with; each hit the decker fully neutralizes adds 1 to its rating — up to the Cascading IC Table's cap. Proactive IC only."><span>Cascading</span>
+        <input type="checkbox" name="system.cascading" {{checked system.cascading}} {{#unless optionalIC.proactive}}disabled{{/unless}} /></label>
+    </div>
+    {{#if optionalIC.cascade}}<p class="rule-note">Cascade now: Security Value +{{optionalIC.cascade.sv}}/{{optionalIC.cascade.capSV}}, rating +{{optionalIC.cascade.rating}}/{{optionalIC.cascade.capRating}}.
+      {{#if isGM}}<button type="button" data-action="vr2ic" data-op="resetCascade" title="Start the cascade over (also happens when its program, rating or host changes, or it crashes).">Reset</button>{{/if}}</p>{{/if}}
+    <p class="rule-note">{{#if optionalIC.party}}Party IC: {{optionalIC.party}} programs — +{{optionalIC.party}} TN on its attacks and to hit it (an area-effect utility ignores that; p.52).
+      {{#if isGM}}<button type="button" data-action="vr2ic" data-op="leaveParty">Leave party</button>{{/if}}
+      {{else}}{{#if isGM}}<button type="button" data-action="vr2ic" data-op="formParty" title="Select the other IC tokens on the canvas, then form a party with this one (p.52–53).">Form party IC with selected</button>{{/if}}{{/if}}</p>
     {{#if (or (eq system.program "tar-baby") (eq system.program "tar-pit"))}}<p class="rule-note">
       <button type="button" data-action="vr2ic" data-op="strike" title="GM: target the decker first, then strike a utility they run outside a System Test (p.42).">Strike a utility</button></p>{{/if}}
   </fieldset>

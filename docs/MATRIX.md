@@ -172,3 +172,12 @@ See docs/PLAN-matrix-jackpoints.md for the design. GM setup:
    **Matrix persona** toggle on it.
 The decker stands in the jackpoint and clicks **Jack in** on their token HUD;
 jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
+
+## VR2.0 part 4a — optional IC (docs/PLAN-vr2-part4.md)
+- Expert / cascading / party IC are per-IC fields (`expert`, `cascading`, `cascadeEpoch`, `party {id, size}`).
+- Cascade is DERIVED, never stored: `cascadeOutcomes()` reads each decker's `admit` facts (they carry the
+  attack-time `cascade0` snapshot and final successes) and their acks; `cascadeOf(ic, host)` keeps this IC's
+  (icKey) outcomes under its current baseline. Only attacks on a decker on the connection log cascade (the
+  admission is the evidence); a legacy direct attack says so on its card.
+- Party IC: non-IC component programs aren't modelled. Constructs and black-IC Shield: part 4b.
+

@@ -236,3 +236,80 @@ export function traceState(t, events, crashSeq = () => null) {
     dead: !complete && crash != null, frozen: frozenAt(Infinity), clock: t.clock,
     lastBoundary: ticks.at(-1)?.boundary ?? null };
 }
+
+// ── Part 4a: the optional IC (docs/PLAN-vr2-part4.md; pp.51–53) ─────────────────
+
+/** Proactive IC (p.41, p.45): they make Attack Tests. Trace only hunts, then turns reactive. */
+export const PROACTIVE_IC = new Set(["killer", "crippler-acid", "crippler-binder", "crippler-jammer", "crippler-marker",
+  "blaster", "sparky", "ripper-acid", "ripper-bind", "ripper-jam", "ripper-mark",
+  "black-lethal", "black-nonlethal", "black-psychotropic", "trace"]);
+export const isProactive = (program) => PROACTIVE_IC.has(program);
+
+/** Cascading IC Table (p.51): the most an SV or a rating may rise. Percentages round down (the book is silent). */
+export function cascadeCap(code, original) {
+  const o = Math.max(0, Number(original) || 0);
+  return { blue: 1, green: Math.max(Math.floor(o / 4), 2), orange: Math.max(Math.floor(o / 2), 3), red: Math.max(o, 4) }[code] ?? 0;
+}
+
+/** Expert IC (p.52): e > 0 adds attack dice and takes resistance dice, e < 0 the reverse. */
+export function expertDice(sv, expert = 0) {
+  const e = Math.max(-3, Math.min(3, Number(expert) || 0)), v = Number(sv) || 0;
+  return { attack: Math.max(0, v + e), resist: Math.max(0, v - e) };
+}
+
+/**
+ * Cascading outcomes recorded on ONE decker (all connections): one entry per admitted cascading attack.
+ * A miss (0 successes, final — IC have no Karma) raises SV; a hit the decker fully neutralized raises
+ * the rating (p.51). Black needs both its icon and meat outcomes at 0; a trace success is never neutral.
+ * @returns {{icKey: string, card: string, kind: "sv"|"rating", cascade0: object}[]}
+ */
+export function cascadeOutcomes(events = []) {
+  const acks = new Map(events.filter(e => e.type === "ack").map(a => [a.target, a]));
+  const seen = new Set(), out = [];
+  for (const a of events.filter(e => e.type === "admit" && e.cascade0?.on)) {
+    if (seen.has(a.card)) continue;
+    seen.add(a.card);
+    const add = (kind) => out.push({ icKey: a.icKey, card: a.card, kind, cascade0: a.cascade0 });
+    if (a.successes === 0) { add("sv"); continue; }
+    if (!(a.successes > 0)) continue;
+    const hit = events.find(e => e.type === "hit" && e.card === a.card);
+    if (hit) {
+      const sides = ["icon", "meat"].map(side => {
+        const r = events.find(e => e.type === "res" && e.card === a.card && e.side === side);
+        return r ? acks.get(r.key)?.outcome : undefined;
+      });
+      if (sides.every(o => o && o.boxes === 0)) add("rating");
+      continue;
+    }
+    const o = acks.get(`attack:${a.card}`)?.outcome;
+    if (!o || "trace" in o) continue;
+    if (o.boxes === 0 || o.lost === 0) add("rating");
+  }
+  return out;
+}
+
+/** The cascade bonus from outcomes already filtered to this IC and its current baseline. */
+export function cascadeBonus(outcomes = [], { code, sv0, rating0 }) {
+  const n = (k) => outcomes.filter(o => o.kind === k).length;
+  return { sv: Math.min(n("sv"), cascadeCap(code, sv0)), rating: Math.min(n("rating"), cascadeCap(code, rating0)),
+    capSV: cascadeCap(code, sv0), capRating: cascadeCap(code, rating0) };
+}
+
+/**
+ * Party IC budget (p.52–53): combined ratings ≤ 2 × SV; at most ⌊SV ÷ 2⌋ members; each option 1 point;
+ * PCPIC can't share a party with other black IC (p.50).
+ * @param {{rating: number, program: string, psychotropic?: string, expert?: number, cascading?: boolean,
+ *          armorDefense?: boolean, defense?: string}[]} members
+ */
+export function partyBudget({ sv, members = [] }) {
+  const capacity = 2 * (Number(sv) || 0), maxMembers = Math.floor((Number(sv) || 0) / 2);
+  const opts = (m) => (m.expert ? 1 : 0) + (m.cascading ? 1 : 0) + (m.armorDefense ? 1 : 0) + (m.defense ? 1 : 0);
+  const used = members.reduce((t, m) => t + (Number(m.rating) || 0) + opts(m), 0);
+  const problems = [];
+  if (members.length < 2) problems.push("a party needs at least 2 IC");
+  if (members.length > maxMembers) problems.push(`at most ${maxMembers} IC (half the Security Value)`);
+  if (used > capacity) problems.push(`ratings and options use ${used} of ${capacity} points (twice the Security Value)`);
+  const black = members.filter(m => String(m.program).startsWith("black-"));
+  if (black.some(m => m.psychotropic === "pcpic") && black.length > 1) problems.push("PCPIC can't share a party with other black IC (p.50)");
+  return { capacity, used, maxMembers, problems };
+}

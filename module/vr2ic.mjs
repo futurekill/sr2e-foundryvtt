@@ -10,7 +10,8 @@
  */
 import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
-         boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod } from "./rules/vr2ic-rules.mjs";
+         boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod,
+         isProactive, cascadeOutcomes, cascadeBonus, partyBudget } from "./rules/vr2ic-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -204,7 +205,8 @@ Object.assign(HANDLERS, {
     if (!f.live) return { ok: false, why: "not connected", tell: false };
     const exit = f.live.exit;
     if (exit && !(r.lastAttack && (exit.locks ?? []).includes(r.icKey))) return { ok: false, why: "the decker is leaving" };
-    if (!await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program })) return { ok: true };
+    if (!await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program,
+      cascade0: r.cascade0 ?? null, successes: Number.isInteger(r.successes) ? r.successes : null })) return { ok: true };
     if (exit && r.lastAttack) await fact(actor, `exit-res:${f.live.n}:lastAttack:${r.icKey}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: r.icKey, noEffect: true, card: r.card });
     return { ok: true };
   },
@@ -337,12 +339,13 @@ Object.assign(HANDLERS, {
   async resolved(actor, r, f) {
     const conn = f.conn(r.conn);
     if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted", tell: false };
+    if (!Number.isInteger(r.lost)) return { ok: false, why: "no committed attribute loss", tell: false };
     if (r.ripper && r.lost > 0) {
       await fact(actor, `ripper:${r.card}`, { type: "ripper", conn: r.conn, card: r.card, attr: r.attr, rating: r.rating,
         chipGen: chipGens(actor).persona, hardening: conn.open?.settings?.hardening ?? 0 });
     }
     if (!recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) {
-      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { lost: r.lost ?? 0 } });
+      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { lost: r.lost } });
     }
     return { ok: true };
   }
@@ -555,7 +558,8 @@ export async function tarStrike(actor, ic, ref, card) {
   return sequencer(async () => {
     const icKey = icKeyOf(ic), key = `tar:${card}:${icKey}`;
     if (recordsOf(actor).some(e => e.key === P3 + key)) return ui.notifications.info("That tar has already struck.");
-    const tar = await SR2ESuccessRoll.successTest(ic.system.rating ?? 0, Math.max(2, ref.rating));
+    // Tar in a construct or party IC gets −2 TN (part-3 note; constructs are part 4b).
+    const tar = await SR2ESuccessRoll.successTest(ic.system.rating ?? 0, Math.max(2, ref.rating - (partyOf(ic) ? 2 : 0)));
     const util = await SR2ESuccessRoll.successTest(ref.rating ?? 0, Math.max(2, ic.system.rating ?? 0));
     const won = tarWins(tar.successes, util.successes);
     const pit = won && ic.system.program === "tar-pit";
@@ -956,10 +960,93 @@ export function schedule(actor) {
     PENDING.delete(actor.uuid);
     const gone = actor.isToken ? !actor.token?.parent?.tokens?.has(actor.token.id) : !game.actors.has(actor.id);
     if (gone) return;
-    sequencer(async () => { await processRequests(actor); await applyResults(actor); await applyRippers(actor); await applySparky(actor); await noticeTraces(actor); await advanceExit(actor); })
-      .catch(err => console.error("SR2E | vr2 sequencer", err));
+    sequencer(() => passFor(actor)).catch(err => console.error("SR2E | vr2 sequencer", err));
   }, 150));
 }
+
+/** One sequencer pass for a decker (call only inside `sequencer`). */
+async function passFor(actor) {
+  await recoverResolved(actor);
+  await processRequests(actor); await applyResults(actor); await applyRippers(actor); await applySparky(actor);
+  await noticeTraces(actor); await advanceExit(actor);
+}
+
+/**
+ * Part 4a §6a: an attribute loss committed on the decker's client but whose `resolved` request never
+ * went out (interrupted) — re-send it from the session receipt, before `processRequests` acks it.
+ */
+async function recoverResolved(actor) {
+  // `vr2AttrPending` is written in the SAME update as the loss, outside the session, so it survives host
+  // switches; it's cleared here once the attack is acknowledged.
+  const pending = actor.flags?.sr2e?.vr2AttrPending ?? {};
+  const recs = recordsOf(actor);
+  const done = new Map(recs.filter(e => e.type === "done").map(e => [e.req, e]));
+  const now = game.time.serverTime;
+  for (const [card, r] of Object.entries(pending)) {
+    if (recs.some(e => e.type === "ack" && e.target === `attack:${card}`)) { await actor.update({ [`flags.sr2e.vr2AttrPending.-=${card}`]: null }); continue; }
+    if (r?.conn == null || !Number.isInteger(r.lost)) continue;
+    if (!recs.some(e => e.type === "admit" && e.card === card)) continue;
+    // A request still waiting is enough. A failed one is retried with backoff (30 s, 60 s, 2 min…, on
+    // the next sequencer pass after that), never abandoned: the loss is committed and must be acked.
+    const reqs = recs.filter(e => e.type === "req" && e.kind === "resolved" && e.card === card);
+    if (reqs.some(q => !done.has(q.key))) continue;
+    const last = Math.max(0, ...reqs.map(q => Number(done.get(q.key)?.at) || 0));
+    if (reqs.length && now - last < 30000 * 2 ** Math.min(reqs.length - 1, 6)) continue;
+    await request(actor, "resolved", { card, conn: r.conn, lost: r.lost, attr: r.attr, rating: r.rating ?? 0,
+      ripper: String(r.program ?? "").startsWith("ripper-") });
+  }
+}
+
+/**
+ * Part 4a §4: settle every decker on the log (admissions, resolutions) before a cascading IC attacks,
+ * so the bonus sees every outcome already earned. Active GM only; resolves when the pass is done.
+ */
+export function flush() {
+  return sequencer(async () => { for (const a of allDocs()) if (a.type === "character" && onLog(a)) await passFor(a); });
+}
+
+// ── Part 4a: the optional IC (docs/PLAN-vr2-part4.md; p.51–53) ───────────────
+
+/** Expert IC (p.52) counts only for proactive programs, on attack and on resistance alike. */
+export const expertOf = (ic) => ic?.type === "ic" && isProactive(ic.system.program) ? (Number(ic.system.expert) || 0) : 0;
+/** Party IC membership (p.52): a cluster id and its ORIGINAL size N ≥ 2; 0 = not in a party. */
+export const partyOf = (ic) => ic?.type === "ic" && ic.system.party?.id && (ic.system.party.size ?? 0) >= 2 ? ic.system.party.size : 0;
+
+/** The cascade baseline a new attack snapshots (plan §4): only the current one's outcomes count. */
+export function cascadeBaseline(ic, host) {
+  return { on: !!ic.system.cascading && isProactive(ic.system.program), gen: ic.system.generation ?? 0, epoch: ic.system.cascadeEpoch ?? 0,
+    program: ic.system.program, hostUuid: host?.uuid ?? ic.system.hostUuid, code: host?.system.securityCode ?? ic.system.securityCode,
+    sv0: host?.system.securityValue ?? 0, rating0: ic.system.rating ?? 0 };
+}
+
+/** The cascade bonus now (p.51): this IC's outcomes under its current baseline, capped; 0 when not cascading. */
+export function cascadeOf(ic, host) {
+  const b = cascadeBaseline(ic, host);
+  if (!b.on) return { sv: 0, rating: 0, capSV: 0, capRating: 0 };
+  const key = icKeyOf(ic);
+  const same = (c) => c && ["gen", "epoch", "program", "hostUuid", "code", "sv0", "rating0"].every(k => c[k] === b[k]);
+  const mine = allDocs().filter(a => a.type === "character").flatMap(a => cascadeOutcomes(recordsOf(a)))
+    .filter(o => o.icKey === key && same(o.cascade0));
+  return cascadeBonus(mine, b);
+}
+
+/** GM: form a party from IC actors (p.52–53). Dedupes, one host, budget-checked; N is stored once. */
+export async function formParty(ics) {
+  if (!game.user.isGM) { ui.notifications.warn("Only the GM forms party IC."); return null; }
+  const list = [...new Map(ics.filter(a => a?.type === "ic").map(a => [a.uuid, a])).values()];
+  const hosts = new Set(list.map(a => a.system.hostUuid));
+  if (hosts.size !== 1 || !list[0]?.system.hostUuid) { ui.notifications.warn("Party IC must all defend the same host (set each IC's host first)."); return null; }
+  const host = sync(list[0].system.hostUuid);
+  const { problems } = partyBudget({ sv: host?.system.securityValue ?? 0, members: list.map(a => ({ rating: a.system.rating, program: a.system.program,
+    psychotropic: a.system.psychotropic, expert: a.system.expert, cascading: a.system.cascading, armorDefense: a.system.armorDefense, defense: a.system.defense })) });
+  if (problems.length) { ui.notifications.warn(`Can't form that party: ${problems.join("; ")}.`); return null; }
+  const id = foundry.utils.randomID();
+  for (const a of list) await a.update({ "system.party.id": id, "system.party.size": list.length });
+  ui.notifications.info(`Party IC formed: ${list.map(a => a.name).join(", ")} (+${list.length} TN, VR2.0 p.52).`);
+  return id;
+}
+/** GM: one IC leaves its party (the others keep N — it's the original size, p.52). */
+export const leaveParty = (ic) => ic.update({ "system.party.id": "", "system.party.size": 0 });
 
 /**
  * An interrupted jack-in can leave a live connection whose jackpoint session entry was
@@ -1013,6 +1100,14 @@ export async function sheetOp(doc, op, arg) {
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
   if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });
   if (op === "advance") return gm() && advanceManual(doc);
+  // Part 4a: cascade reset and party IC (p.51–53).
+  if (op === "resetCascade") return gm() && doc.update({ "system.cascadeEpoch": (doc.system.cascadeEpoch ?? 0) + 1 });
+  if (op === "formParty") {
+    if (!gm()) return;
+    const ics = [doc, ...canvas.tokens.controlled.map(t => t.actor)];
+    return formParty(ics);
+  }
+  if (op === "leaveParty") return gm() && leaveParty(doc);
   if (op === "psyRecover") {
     const mods = await foundry.applications.api.DialogV2.prompt({ window: { title: "Recovery (VR2.0 p.50)" },
       content: `<p>Willpower against the IC's rating, with:</p>
@@ -1089,6 +1184,8 @@ export function registerVr2IcHooks() {
     schedule(e.parent);
     // Connection changes move the derived Matrix mode: let the jackpoints and cues catch up.
     if (/^vr2:conn-open:/.test(key) && isSequencer()) sequencer(() => dataworms(e.parent)).catch(err => console.error("SR2E | dataworms", err));
+    // Part 4a: an admission or a resolution can change an IC's cascade — refresh open IC sheets.
+    if (/^vr2:(admit|ack):/.test(key)) for (const a of allDocs()) if (a.type === "ic" && a.system.cascading && a.sheet?.rendered) a.sheet.render();
     if (/^vr2:conn-(open|end):/.test(key)) {
       const jp = await import("./jackpoints.mjs");
       jp.scheduleReconcile?.(e.parent); jp.refreshActorTokens?.(e.parent);
@@ -1121,6 +1218,13 @@ export function registerVr2IcHooks() {
       const arg = b.dataset.arg === "__CARD__" ? message.id : (b.dataset.arg ?? "");   // a card can't know its own id when rendered
       try { await icOp(b.dataset.actor, b.dataset.op, arg); } catch (err) { console.error("SR2E | vr2 IC", err); ui.notifications.error(err.message); }
     }));
+  });
+  // Part 4a §4: changing what an IC IS starts its cascade over (so a revert can't resurrect old outcomes).
+  Hooks.on("preUpdateActor", (actor, changes) => {
+    if (actor.type !== "ic") return;
+    const moved = ["program", "rating", "hostUuid"].some(k => foundry.utils.hasProperty(changes, `system.${k}`)
+      && foundry.utils.getProperty(changes, `system.${k}`) !== actor.system[k]);
+    if (moved && !foundry.utils.hasProperty(changes, "system.cascadeEpoch")) foundry.utils.setProperty(changes, "system.cascadeEpoch", (actor.system.cascadeEpoch ?? 0) + 1);
   });
   // One deck per connection (plan §0): no deck switches while connected.
   Hooks.on("preUpdateItem", (item, changes) => {
