@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.127.0 — 2026-10-30
+
 ### Added
 - **Constructs** (VR2.0 p.52). Tick *Construct* on an IC (VR2.0 rules) and add its programs: one
   icon with one Condition Monitor.
