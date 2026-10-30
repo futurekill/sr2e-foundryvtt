@@ -154,11 +154,13 @@ cap; Selena's Attack-8S (design 256, base 512 days, 4 successes → 128, +1 → 
 - The programming task lives on the program item being written (unusable until complete), not a new
   item type.
 
+## Decided by the user (2026-10-30)
+- **Penetration defeats both shields:** IC with the shield defense lose their +2 TN, and a decker hit by a
+  penetration attack gets no Shield utility test.
+- **Penetration vs shift: +4 total** ("shield" in that sentence read as a typo for shift).
+- **Own world setting, off by default** (`vr2UtilityOptions`).
+
 ## Risks / open questions
-- **Penetration vs the decker's Shield utility:** the text says "defeats the shield defensive utility";
-  Shield is literally a defensive utility (p.100) and IC "shield" is a defense (p.50). Plan: both.
-- **Penetration vs shift:** "+2 … in addition to the +2 … afforded by the shield defensive utility" reads
-  as a typo for shift; plan: +4 total vs shift.
 - **Programming suite:** the table says task bonus 5, the text says it "adds a +1 task bonus to the
   mainframe host bonus" (4 + 1 = 5): consistent, +5 total on a mainframe with a suite.
 - DINAB's "fails a test" on a non-opposed test (e.g. a System Test is always opposed by the host): only
