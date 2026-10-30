@@ -131,7 +131,7 @@ Frequent, but not every round.
 | **17** | End Combat | **confirms** | The only destructive key, so the only one that asks. |
 | **18** | Clear All Targets | no | Targets only, never your selection. |
 | **19** | Select All Player Tokens | no | Grab the party, then hit 2 / 5 / 6. |
-| **20** | Award Nuyen (selected) | **yes** | Even split; tells you the remainder rather than silently dropping it. |
+| **20** | Award Nuyen (selected) | **yes** | Opens the payout dialog with the selection ticked: even split as you type, any share overridable, remainder to the communal pot. |
 
 ## Three rules every macro here follows
 
@@ -141,8 +141,8 @@ Frequent, but not every round.
 2. **Safe to press twice.** A pad invites fat-fingering. Refreshing a full pool
    is a no-op; recovering stun on someone unstunned does nothing; nothing here
    deletes without being scoped.
-3. **Only two ask a question.** Damage and Karma need a number, and guessing is
-   worse than a keystroke. The other eight fire immediately.
+3. **Only three ask a question.** Damage, Karma and Nuyen need a number, and guessing is
+   worse than a keystroke. The rest fire immediately.
 
 ## Deliberate omissions
 

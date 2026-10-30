@@ -2868,6 +2868,30 @@ export function allocateNuyen({ total = 0, pot = 0, includePot = false, mode = "
 }
 
 /**
+ * The Award Nuyen dialog's split: runners whose amount the GM typed keep it, the
+ * rest share what's left evenly (floored), and the remainder goes to the pot.
+ * @param {number} pool  ¥ to hand out (payout, plus the pot if folded in)
+ * @param {string[]} ids recipients
+ * @param {Object<string,number>} pinned id → ¥ the GM typed
+ * @returns {{ok:boolean, error?:string, awards:Object<string,number>, awarded:number, leftover:number}}
+ */
+export function splitAward(pool, ids, pinned = {}) {
+  pool = Math.max(0, Math.floor(Number(pool) || 0));
+  const awards = {};
+  let fixed = 0;
+  const free = [];
+  for (const id of ids) {
+    if (id in pinned) fixed += awards[id] = Math.max(0, Math.floor(Number(pinned[id]) || 0));
+    else free.push(id);
+  }
+  if (fixed > pool) return { ok: false, error: `The typed amounts add up to ${fixed}¥, more than the ${pool}¥ payout.`, awards, awarded: fixed, leftover: 0 };
+  const each = free.length ? Math.floor((pool - fixed) / free.length) : 0;
+  for (const id of free) awards[id] = each;
+  const awarded = fixed + each * free.length;
+  return { ok: true, awards, awarded, leftover: pool - awarded };
+}
+
+/**
  * Overstress penalty (Shadowtech p.7): +1 TN to Body tests per whole or partial
  * point the Body Index exceeds its max; zero-floored so it never reads negative.
  * @param {number} value Body Index

@@ -709,9 +709,12 @@ If those five all work, the core loop is healthy.
       paid (or the current street price) after a confirm, and posts to chat.
 - [ ] **Installed cyberware** rows are green/labelled "Installed"; uninstalled
       rows are dimmed.
-- [ ] **Award Nuyen macro:** splits a total evenly across selected characters;
-      remainder lands in the communal pot (world setting); "include communal
-      pot" pays it back out; chat message summarises.
+- [ ] **Award Nuyen** (both macros open one dialog): selected characters start
+      ticked (none selected: the players' assigned characters). Typing the payout
+      splits it live; typing a runner's amount fixes it (↺ undoes) and the rest
+      re-split; the summary shows what goes to the communal pot; typed amounts over
+      the payout disable Pay Out. "Add the communal pot" folds it in; the chat card
+      lists each share.
 - [ ] **Dice So Nice:** with DSN enabled, "SR2E — Matrix Neon" and "SR2E —
       Street Chrome" appear under Dice Configuration.
 - [ ] **Token Magic FX:** with TMFX enabled and a token targeted, ranged

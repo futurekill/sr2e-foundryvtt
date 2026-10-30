@@ -68,3 +68,29 @@ describe("allocateNuyen", () => {
     expect(allocateNuyen({ total: 100, ids: [] }).ok).toBe(false);
   });
 });
+
+import { splitAward } from "../module/rules/sr2e-rules.mjs";
+
+describe("splitAward (Award Nuyen dialog)", () => {
+  it("splits evenly and leaves the rounding for the pot", () => {
+    expect(splitAward(10000, ["a", "b", "c"])).toEqual({ ok: true, awards: { a: 3333, b: 3333, c: 3333 }, awarded: 9999, leftover: 1 });
+  });
+  it("a typed amount is kept; the others share the rest", () => {
+    const r = splitAward(10000, ["a", "b", "c"], { a: 5000 });
+    expect(r.awards).toEqual({ a: 5000, b: 2500, c: 2500 });
+    expect(r.leftover).toBe(0);
+  });
+  it("every amount typed: the unassigned rest goes to the pot", () => {
+    const r = splitAward(1000, ["a", "b"], { a: 300, b: 200 });
+    expect(r.awards).toEqual({ a: 300, b: 200 });
+    expect(r.leftover).toBe(500);
+  });
+  it("refuses typed amounts over the payout", () => {
+    const r = splitAward(100, ["a", "b"], { a: 150 });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/150¥/);
+  });
+  it("no recipients: everything is left over", () => {
+    expect(splitAward(500, [])).toMatchObject({ ok: true, awarded: 0, leftover: 500 });
+  });
+});

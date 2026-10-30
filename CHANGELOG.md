@@ -26,6 +26,15 @@
   Shield first. Shield successes come off the attack. If none are left, the attack stops: no
   damage and no hold on the decker. The Shield loses its point once.
 
+### Changed
+- **Award Nuyen is one simple dialog.** Both Award Nuyen macros now open the same window: type the
+  payout and it splits evenly across the ticked runners as you type. To give someone a different
+  share, type their amount; the others split the rest (↺ puts them back on an even share). A line
+  at the bottom shows what's paid and what goes to the communal pot. The four split modes and the
+  share box whose meaning changed with the mode are gone. Selected tokens start ticked; with none
+  selected, the players' own characters do. Re-import `macros/award-nuyen.js` if you installed the
+  old copy (the old one still works). Scripts can open it with `game.sr2e.awardNuyen()`.
+
 ### Fixed
 - Black IC's psychotropic effect and PCPIC use the program's subtype as it was when the IC hit,
   not its current setting.

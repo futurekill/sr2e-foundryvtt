@@ -12600,6 +12600,38 @@ export function registerSR2EQuenchTests() {
           assert.equal(a.system.nuyen, 50);
           assert.equal(game.settings.get("sr2e", "communalNuyen"), 0);
         });
+        it("the dialog splits live, keeps a typed share, and pays what it shows", async function () {
+          const player = game.users.find(u => !u.isGM);
+          if (!player) this.skip();
+          const a = await buyer("Quench Money Dialog 1", 0), b = await buyer("Quench Money Dialog 2", 0);
+          for (const x of [a, b]) await x.update({ [`ownership.${player.id}`]: 3 });
+          await game.settings.set("sr2e", "communalNuyen", 0);
+          canvas.tokens?.releaseAll();
+          const done = game.sr2e.awardNuyen();
+          let d;
+          for (let i = 0; i < 40 && !(d = [...document.querySelectorAll(".application.dialog")].find(e => e.querySelector(".sr2e-award-row"))); i++) await new Promise(r => setTimeout(r, 50));
+          const f = d.querySelector("form");
+          const row = (x) => f.querySelector(`.sr2e-award-row[data-id="${x.id}"]`);
+          for (const r of f.querySelectorAll(".sr2e-award-row")) {
+            const c = r.querySelector("input[type=checkbox]");
+            c.checked = r === row(a) || r === row(b);
+            c.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+          f.elements.total.value = 1001;
+          f.elements.total.dispatchEvent(new Event("input", { bubbles: true }));
+          assert.deepEqual([row(a), row(b)].map(r => r.querySelector(".amount").value), ["500", "500"]);
+          assert.match(f.querySelector(".sr2e-award-summary").textContent, /1¥ to the communal pot/);
+          const amt = row(a).querySelector(".amount");
+          amt.value = 600;
+          amt.dispatchEvent(new Event("input", { bubbles: true }));
+          assert.equal(row(b).querySelector(".amount").value, "401", "the other runner gets the rest");
+          d.querySelector('[data-action="pay"]').click();
+          await done;
+          const card = game.messages.contents.at(-1);
+          if (card?.content.includes("sr2e-award")) await card.delete();
+          assert.deepEqual([a.system.nuyen, b.system.nuyen], [600, 401]);
+          assert.equal(game.settings.get("sr2e", "communalNuyen"), 0);
+        });
       });
 
       describe("checked stock writes", () => {

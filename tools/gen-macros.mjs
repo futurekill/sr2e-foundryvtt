@@ -267,22 +267,9 @@ ui.notifications.info(\`Selected \${pcs.length} player token(s).\`);`
   },
   {
     slot: 20, name: "Award Nuyen (selected)", img: "icons/svg/coins.svg",
-    tip: "Splits a total evenly across the selected characters.",
-    cmd: `${SEL}
-const data = await foundry.applications.api.DialogV2.prompt({
-  window: { title: \`Award Nuyen — split across \${actors.length}\` },
-  content: \`<div class="form-group"><label>Total ¥</label>
-    <input type="number" name="total" value="1000" min="0" autofocus></div>\`,
-  ok: { label: "Split", callback: (ev, btn) => new FormDataExtended(btn.form).object }
-}).catch(() => null);
-if (!data) return;
-const total = Number(data.total) || 0;
-const each = Math.floor(total / actors.length);
-const leftover = total - (each * actors.length);
-const awards = Object.fromEntries(actors.filter(a => a.system.nuyen !== undefined).map(a => [a.id, each]));
-const payout = await game.sr2e.payAwards({ awards });
-if (payout.failed.length) ui.notifications.warn(\`Not paid: \${payout.failed.map(id => game.actors.get(id)?.name).join(", ")}.\`);
-ui.notifications.info(\`\${each}¥ each\${leftover ? \` (\${leftover}¥ left over — hand it out yourself)\` : ""}.\`);`
+    tip: "Opens the payout dialog with the selected characters ticked (none selected: the players' characters).",
+    cmd: `// Split evenly as you type; type a runner's amount to fix it. Leftover goes to the communal pot.
+return game.sr2e.awardNuyen();`
   }
 ];
 

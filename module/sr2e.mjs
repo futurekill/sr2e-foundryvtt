@@ -6,6 +6,7 @@
  */
 
 // Configuration
+import { awardNuyenDialog } from "./award-nuyen.mjs";
 import { registerShapeshifters, shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss } from "./shapeshift.mjs";
 import { firstTarget, registerTargetSync } from "./targeting.mjs";
 import { SR2E } from "./config.mjs";
@@ -537,7 +538,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { shapeshift: { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss }, areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { shapeshift: { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss }, areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, awardNuyen: awardNuyenDialog, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.
@@ -1158,7 +1159,7 @@ function _registerSystemSettings() {
 
   game.settings.register("sr2e", "communalNuyen", {
     name: "Communal nuyen pot",
-    hint: "Undivided remainder from Award Nuyen payouts. Paid back out by ticking 'include communal pot' on a future award.",
+    hint: "Undivided remainder from Award Nuyen payouts. Paid back out by ticking 'Add the communal pot' on a future award.",
     scope: "world",
     config: true,
     type: Number,
