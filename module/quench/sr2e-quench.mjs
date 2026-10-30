@@ -12145,6 +12145,118 @@ export function registerSR2EQuenchTests() {
         assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "ack" && e.target === `attack:${card.id}`)), "resolved");
         assert.isAbove(b.system.matrixPersona.condition.value, 0, "took Matrix damage");
       });
+
+      const ic = (name, h, program, rating = 4) => mk({ name, type: "ic", system: { rating, icType: "white", program, hostUuid: h.uuid } });
+
+      it("black hammer: a lethal black lock with no MPCP shot; the attacker's crash ends the lock (p.98)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        await host("Quench UT BH Host", "orange");
+        const a = await decker("Quench UT Hammerer", [["Black Hammer", 4]]);
+        const b = await decker("Quench UT Hammered");
+        await tokenFor(a, 0);
+        const card = await attack(a, b, "Black Hammer", [6, 1, 1, 1]);   // 1 success: Serious stays Serious
+        const st = card?.flags.sr2e.matrix;
+        assert.deepEqual([st?.program, st?.level, st?.noBlaster, st?.icRating], ["black-lethal", "S", true, 4], "a black card, Serious on Orange");
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        await withFaces(Array(20).fill(6), () => V.vr2MatrixResist(b, game.messages.get(card.id)));   // resisted well: alive
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "hit" && e.card === card.id)), "frozen into a hit");
+        const hit = Y.recordsOf(b).find(e => e.type === "hit" && e.card === card.id);
+        assert.isTrue(hit.noBlaster, "no blaster shot (p.98)");
+        assert.equal(Y.foldOf(b).live.locks.length, 1, "the hammer holds the connection");
+        await V.matrixDamage(a, 10);
+        await Y.flush();
+        assert.equal(Y.foldOf(b).live.locks.length, 0, "the attacker's crash ends the lock");
+      });
+
+      it("track: a lock is a trace cycle keyed by the card; Relocate against the attacker's Sensor kills it (p.97)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        await host("Quench UT Track Host");
+        const a = await decker("Quench UT Tracker", [["Track", 4]]);
+        const b = await decker("Quench UT Tracked", [["Relocate", 5]]);
+        await tokenFor(a, 0);
+        const card = await attack(a, b, "Track");
+        assert.equal(card?.flags.sr2e.matrix.effect, "track");
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(b, game.messages.get(card.id)));
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "trace" && e.icKey === `track~${card.id}`)), "the track locks");
+        const t = Y.foldOf(b).live.traces.find(x => x.icKey === `track~${card.id}`);
+        assert.isTrue(t.track);
+        assert.equal(t.turnsLeft, 2, "10 ÷ 4 net successes");
+        await withFaces(Array(20).fill(6), () => Y.relocate(b, t.icKey));
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "traceDead" && e.icKey === t.icKey)), "Relocate kills it");
+        assert.isTrue(Y.foldOf(b).live.traces.find(x => x.icKey === t.icKey).dead);
+      });
+
+      it("hog: drains the highest program now and each turn, sticks with it, and a purge unloads it; Swap Memory loads it again (p.98)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        await host("Quench UT Hog Host");
+        const a = await decker("Quench UT Hogger", [["Hog", 4]]);
+        const b = await decker("Quench UT Hogged", [["Browse", 6], ["Sleaze", 5]]);
+        await tokenFor(a, 0);
+        const card = await attack(a, b, "Hog");
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(b, game.messages.get(card.id)));
+        const browse = () => b.items.getName("Browse");
+        assert.isTrue(await settle(() => browse().system.effectiveRating === 4), "6 − 2 at once");
+        await Y.advanceManual(b);
+        assert.equal(browse().system.effectiveRating, 2, "still Browse, though Sleaze (5) is higher now");
+        await withFaces(Array(20).fill(6), () => Y.vr2HogPurge(b, card.id));
+        assert.isTrue(await settle(() => !browse().system.loaded), "the purge unloads the infected program");
+        assert.equal(Y.liveHogs(b).length, 0, "and wipes the virus");
+        await V.vr2SwapMemory(b, browse());
+        assert.isTrue(await settle(() => browse().system.loaded && browse().system.effectiveRating === 6), "Swap Memory loads a fresh copy");
+      });
+
+      it("slow: a proactive IC loses actions, hangs at 0, can be suppressed (held out, −1 DF), no tally (p.99)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UT Slow Host");
+        const k = await ic("Quench UT Killer", h, "killer", 4);
+        const a = await decker("Quench UT Slower", [["Slow", 4]]);
+        await tokenFor(a, 0);
+        const tK = await tokenFor(k, 2);
+        const combat = await Combat.create({ scene: canvas.scene.id, active: true });
+        try {
+          await combat.createEmbeddedDocuments("Combatant", [{ tokenId: tK.id, sceneId: canvas.scene.id, actorId: k.id }]);
+          const cb = combat.combatants.contents[0];
+          await cb.update({ initiative: 10 });
+          await combat.update({ round: 1, turn: 0 });
+          const df0 = V.vr2DetectionFactor(a);
+          const card = await attack(a, k, "Slow");
+          assert.equal(card?.flags.sr2e.matrix.effect, "slow");
+          await withFaces(Array(20).fill(1), () => V.vr2MatrixResist(k, game.messages.get(card.id)));
+          assert.isTrue(await settle(() => Y.recordsOf(k).some(e => e.type === "slow" && e.card === card.id)), "one Slow result");
+          assert.isTrue(await settle(() => (combat.combatants.get(cb.id).initiative ?? 1) === 0), "Initiative 10 → 0");
+          assert.equal(Y.icDisabled(k), "hung");
+          await Y.request(a, "slowSuppress", { card: card.id, icUuid: k.uuid });
+          assert.isTrue(await settle(() => Y.icDisabled(k) === "suppressed"), "suppressed");
+          assert.isTrue(combat.combatants.get(cb.id).heldOut, "held out of the turn order");
+          assert.isFalse(combat.combatants.get(cb.id).isDefeated, "never marked defeated");
+          assert.equal(V.vr2DetectionFactor(a), Math.max(2, df0 - 1), "a point of Detection Factor");
+          const tally0 = a.flags.sr2e.vr2Session?.tally ?? 0;
+          await Y.request(a, "slowRelease", { card: card.id, icUuid: k.uuid });
+          assert.isTrue(await settle(() => Y.icDisabled(k) === "hung"), "released: still hung this turn, back next turn");
+          assert.equal(V.vr2DetectionFactor(a), df0, "the Detection Factor point comes back");
+          assert.equal(a.flags.sr2e.vr2Session?.tally ?? 0, tally0, "no tally from the release");
+        } finally { await combat.delete(); }
+      });
+
+      it("steamroller: only against tar, (Rating)D; immune to tar (p.99)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UT Steam Host");
+        const tar = await ic("Quench UT Tar", h, "tar-baby", 4);
+        const killer = await ic("Quench UT Not Tar", h, "killer", 4);
+        const a = await decker("Quench UT Steamer", [["Steamroller", 5]]);
+        await tokenFor(a, 0);
+        const card = await attack(a, tar, "Steamroller");
+        assert.deepEqual([card?.flags.sr2e.matrix.power, card?.flags.sr2e.matrix.level], [5, "D"]);
+        const none = await attack(a, killer, "Steamroller");
+        assert.isNull(none, "not offered against a killer");
+      });
     });
 
     quench.registerBatch("sr2e.vr2-ic", (context) => {

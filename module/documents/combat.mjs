@@ -24,7 +24,7 @@ export class SR2ECombat extends Combat {
     // Clear stale initiative on the defeated so a corpse can't sort first and
     // capture the opening turn; roll only for the living who haven't rolled.
     await this._clearDefeatedInitiative();
-    const unrolled = this.combatants.filter(c => !c.isDefeated && c.initiative === null).map(c => c.id);
+    const unrolled = this.combatants.filter(c => !c.isDefeated && !c.heldOut && c.initiative === null).map(c => c.id);
     if (unrolled.length) await this.rollInitiative(unrolled, { updateTurn: false });
     await super.startCombat();
     // SR2E p.84: all Dice Pools are full at the first step of the first Combat
@@ -60,7 +60,7 @@ export class SR2ECombat extends Combat {
   /** Set initiative to null on every defeated combatant that still holds one. */
   async _clearDefeatedInitiative() {
     const updates = this.combatants
-      .filter(c => c.isDefeated && c.initiative !== null)
+      .filter(c => (c.isDefeated || c.heldOut) && c.initiative !== null)
       .map(c => ({ _id: c.id, initiative: null }));
     if (updates.length) await this.updateEmbeddedDocuments("Combatant", updates);
   }

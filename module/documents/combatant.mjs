@@ -9,6 +9,11 @@
  *   Initiative = Adjusted Reaction + Initiative Dice (wound penalty removes dice)
  */
 export class SR2ECombatant extends Combatant {
+  /** Out of the turn order without being defeated: an IC held down by a Slow suppression (VR2.0 p.99, part 5a §5). */
+  get heldOut() {
+    return this.actor?.type === "ic" && !!game.sr2e?.vr2SlowSuppressed?.(this.actor);
+  }
+
   /**
    * Build the initiative Roll for this combatant.
    * Called by Combat.rollInitiative() when the GM rolls from the tracker UI.

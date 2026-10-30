@@ -170,8 +170,10 @@ export function foldVr2Ic(events = [], ext = {}) {
       const base = h ? ["icon", "meat"].every(s => { const r = res(a.card, s); return r && acked(r.key); }) : acked(`attack:${a.card}`);
       return base && consequences(a.card).every(c => acked(c.key));
     };
-    // Locks: black hits whose IC is still on that incarnation.
-    const locks = hits.filter(h => icAlive(h.icKey));
+    // Locks: black hits whose IC is still on that incarnation. A decker's lock (part 5a §2) ends per hit,
+    // by its sequenced `lockEnd`; a hit frozen after its attacker was already gone never locks.
+    const lockEnded = new Set(T("lockEnd").map(e => e.card));
+    const locks = hits.filter(h => !h.lockless && !lockEnded.has(h.card) && (isDeckKey(h.icKey) || icAlive(h.icKey)));
     const dead = hits.some(h => { const r = res(h.card, "meat"); return r && acks.get(r.key)?.outcome?.down; });
     // Traces.
     const traces = T("trace").filter(t => t.conn === n).map(t => traceState(t, events, crashSeq));
@@ -179,8 +181,9 @@ export function foldVr2Ic(events = [], ext = {}) {
     // Derived exit steps (plan §3a).
     let steps = [];
     if (exit) {
-      for (const k of exit.locks ?? []) steps.push({ step: "lastAttack", ref: k });
-      for (const h of hits) { const r = res(h.card, "meat"); if (r && acks.get(r.key)?.outcome?.down) steps.push({ step: "finalShot", ref: h.card }); }
+      for (const k of new Set(exit.locks ?? [])) steps.push({ step: "lastAttack", ref: k });
+      // Black hammer and killjoy lack black IC's blaster-like MPCP shot (p.98).
+      for (const h of hits) { const r = res(h.card, "meat"); if (!h.noBlaster && r && acks.get(r.key)?.outcome?.down) steps.push({ step: "finalShot", ref: h.card }); }
       for (const c of events.filter(e => e.type === "gray" && e.conn === n)) steps.push({ step: "gray", ref: c.card });
       // A Graceful Logoff stops location cycles (p.45); any other exit leaves a datatrail.
       if (exit.trigger !== "graceful") for (const t of traces) if (!t.complete && !t.dead && (t.startSeq ?? 0) < exit.seq) steps.push({ step: "datatrail", ref: t.icKey });
@@ -217,7 +220,9 @@ export function traceState(t, events, crashSeq = () => null) {
   const ticks = events.filter(e => e.type === "tick" && mine(e)).sort(bySeq);
   const spoofs = events.filter(e => e.type === "spoof" && mine(e));
   const freezes = events.filter(e => (e.type === "freeze" || e.type === "unfreeze") && mine(e)).sort(bySeq);
-  const crash = crashSeq(t.icKey);
+  // A track (part 5a §3) ends by its sequenced `traceDead`; an IC trace by its IC's crash.
+  const td = events.filter(e => e.type === "traceDead" && mine(e)).sort(bySeq)[0];
+  const crash = td ? td.seq : crashSeq(t.icKey);
   const frozenAt = (seq) => {
     const open = new Set();
     for (const f of freezes) { if (f.seq > seq) break; if (f.type === "freeze") open.add(f.spoof); else open.delete(f.spoof); }
@@ -234,6 +239,7 @@ export function traceState(t, events, crashSeq = () => null) {
   }
   const complete = completeSeq != null && (crash == null || completeSeq < crash);
   return { icKey: t.icKey, conn: t.conn, rating: t.rating, startSeq: t.seq, turnsLeft: Math.max(0, left), complete,
+    track: !!t.track, attacker: t.attacker ?? null,
     dead: !complete && crash != null, frozen: frozenAt(Infinity), clock: t.clock,
     lastBoundary: ticks.at(-1)?.boundary ?? null };
 }
@@ -324,6 +330,15 @@ export function parseIcKey(key) {
   const rest = k.slice(i + 1), j = rest.indexOf("/");
   return { uuid: k.slice(0, i), gen: Number(j < 0 ? rest : rest.slice(0, j)), comp: j < 0 ? "" : rest.slice(j + 1) };
 }
+/** A decker attacker's key (part 5a §0.5): `deck:<uuid>@<conn>`. */
+export const isDeckKey = (key) => String(key ?? "").startsWith("deck:");
+/** Either kind of attacker key → `{ kind: "ic", uuid, gen, comp }` or `{ kind: "deck", uuid, conn }`. */
+export function parseAttackerKey(key) {
+  const k = String(key ?? "");
+  if (!isDeckKey(k)) return { kind: "ic", ...parseIcKey(k) };
+  const body = k.slice(5), i = body.lastIndexOf("@");
+  return { kind: "deck", uuid: i < 0 ? body : body.slice(0, i), conn: i < 0 ? NaN : Number(body.slice(i + 1)) };
+}
 /** The icon part of an IC key (drops a construct component). */
 export const iconKeyOf = (key) => { const p = parseIcKey(key); return `${p.uuid}#${p.gen}`; };
 
@@ -355,3 +370,23 @@ export function constructBudget({ sv, code, components = [], defenses = 0, threa
   if ((Number(threat) || 0) > (THREAT_CAP[code] ?? 0)) problems.push(`Threat Rating over ${THREAT_CAP[code] ?? 0} on ${code}`);
   return { capacity, used, perProgram, problems: [...new Set(problems)] };
 }
+
+// ── Part 5a: the utilities (docs/PLAN-vr2-part5.md; VR2.0 pp.97–100) ─────────────
+
+/** Hog (p.98): 1 rating point per 2 net successes over the MPCP test; 0 = no infection. */
+export const hogPoints = (attack, mpcp) => Math.max(0, Math.floor(((Number(attack) || 0) - (Number(mpcp) || 0)) / 2));
+/** Hog purge TN (p.98): Hog rating − Hardening + the infected program's original rating, minimum 2 (after every modifier). */
+export const hogPurgeTN = (rating, hardening, original) => Math.max(2, (Number(rating) || 0) - (Number(hardening) || 0) + (Number(original) || 0));
+/**
+ * The program a hog tick drains (p.98): it keeps the previous tick's copy while that copy is still usable,
+ * else the highest-rated usable program (ties: lowest id). `programs` = [{ id, loadGen, rating }] (usable, rating > 0).
+ */
+export function hogTarget(prev, programs) {
+  const keep = prev && programs.find(p => p.id === prev.itemId && p.loadGen === prev.loadGen && p.rating > 0);
+  if (keep) return keep;
+  return [...programs].filter(p => p.rating > 0).sort((a, b) => b.rating - a.rating || String(a.id).localeCompare(String(b.id)))[0] ?? null;
+}
+/** Slow (p.99): actions lost, 1 per 2 net successes; a tie or a resistance win loses none. */
+export const slowActionsLost = (attack, resist) => Math.max(0, Math.floor(((Number(attack) || 0) - (Number(resist) || 0)) / 2));
+/** Track (p.97): it locks on when the Evasion successes fail to equal or beat the attack's. */
+export const trackLocks = (attack, evasion) => (Number(attack) || 0) > (Number(evasion) || 0);

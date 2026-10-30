@@ -1321,7 +1321,7 @@ export function spendInitiative(total) {
  * that isn't defeated, or `null` if nobody can act (clear the turn pointer).
  * `combatants` must already be in descending-initiative order (Foundry's sort). */
 export function nextEligibleTurnIndex(combatants) {
-  const i = combatants.findIndex(c => (c.initiative ?? 0) > 0 && !c.isDefeated);
+  const i = combatants.findIndex(c => (c.initiative ?? 0) > 0 && !c.isDefeated && !c.heldOut);
   return i === -1 ? null : i;
 }
 
@@ -1329,7 +1329,7 @@ export function nextEligibleTurnIndex(combatants) {
  * The defeated stay out (null initiative) so a re-rolled corpse can't jump to
  * the top of the tracker. */
 export function livingCombatantIds(combatants) {
-  return combatants.filter(c => !c.isDefeated).map(c => c.id);
+  return combatants.filter(c => !c.isDefeated && !c.heldOut).map(c => c.id);
 }
 
 /**

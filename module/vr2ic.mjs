@@ -11,7 +11,8 @@
 import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
          boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod,
-         isProactive, cascadeOutcomes, cascadeBonus, partyBudget, parseIcKey, iconKeyOf, constructBudget, THREAT_CAP } from "./rules/vr2ic-rules.mjs";
+         isProactive, cascadeOutcomes, cascadeBonus, partyBudget, parseIcKey, iconKeyOf, constructBudget, THREAT_CAP,
+         isDeckKey, parseAttackerKey, hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks } from "./rules/vr2ic-rules.mjs";
 import { icClass } from "./rules/sr2e-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
@@ -150,7 +151,7 @@ const HANDLERS = {
       const good = st?.operation === "gracefulLogoff" && st.actorUuid === actor.uuid && systemTestVerdict(st.successes, st.hostSuccesses).success;
       if (!good) return { ok: false, why: "no successful Graceful Logoff" };
     }
-    const locks = f.live.locks.map(h => h.icKey);
+    const locks = [...new Set(f.live.locks.map(h => h.icKey))];
     if (locks.length && (trigger === "voluntary" || trigger === "graceful")) return { ok: false, why: "black IC holds the connection: test Willpower, or pull the plug" };
     if (trigger === "gate") {
       const g = recordsOf(actor).find(e => e.type === "gate" && e.key === r.gateKey);
@@ -165,6 +166,9 @@ const HANDLERS = {
 
 const LEVEL_NAMES = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly" };
 /** Is the decker's icon down (the persona monitor full)? */
+/** Is this trace IC locating some decker (past its hunting cycle; Slow can't touch it then, p.99)? */
+export const isLocating = (ic) => allDocs().some(a => a.type === "character" && a.system.vr2Conn
+  && (foldOf(a).live?.traces ?? []).some(t => !t.complete && !t.dead && parseIcKey(t.icKey).uuid === ic.uuid));
 export const iconDown = (actor) => (actor?.system?.matrixPersona?.condition?.value ?? 0) >= MATRIX_MONITOR_MAX;
 /** A black IC's effective rating: +2 while the decker's icon is down (p.48). `rating` = a component's or a frozen one. */
 export const blackRating = (ic, decker, rating = null) => (rating ?? ic?.system?.rating ?? 0) + (iconDown(decker) ? 2 : 0);
@@ -205,6 +209,7 @@ export const blackKind = (program) => String(program ?? "").startsWith("black-")
  * is open (plan §3, R2 #14). Returns the reason, or null.
  */
 export function vr2ActionGuard(actor) {
+  if (actor?.type === "ic") { const d = icDisabled(actor); return d ? `${actor.name} is ${d === "suppressed" ? "slowed and suppressed" : "hung by Slow this turn"} (VR2.0 p.99).` : null; }
   if (actor?.type !== "character" || !actor.system.vr2Conn) return null;
   if (foldOf(actor).live?.exit) return `${actor.name} is jacking out.`;
   if (iconDown(actor)) return `${actor.name}'s icon is down: you can only try to jack out (VR2.0 p.48).`;
@@ -239,10 +244,10 @@ Object.assign(HANDLERS, {
     if (!f.live) return { ok: false, why: "not connected", tell: false };
     if (r.conn != null && r.conn !== f.live.n) return { ok: false, why: "that attack hit an earlier connection" };
     const exit = f.live.exit;
-    if (exit && !(r.lastAttack && (exit.locks ?? []).includes(r.icKey))) return { ok: false, why: "the decker is leaving" };
-    if (!await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program,
-      cascade0: r.cascade0 ?? null, successes: Number.isInteger(r.successes) ? r.successes : null })) return { ok: true };
-    if (exit && r.lastAttack) await fact(actor, `exit-res:${f.live.n}:lastAttack:${r.icKey}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: r.icKey, noEffect: true, card: r.card });
+    if (exit && !(r.lastAttack && lastAttackOpen(actor, f, r.icKey))) return { ok: false, why: "the decker is leaving" };
+    await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program,
+      cascade0: r.cascade0 ?? null, successes: Number.isInteger(r.successes) ? r.successes : null, ...(exit ? { lastAttack: r.icKey } : {}) });
+    await reconcileLastAttacks(actor);
     return { ok: true };
   },
 
@@ -319,6 +324,8 @@ async function freezeBlack(actor, card, connN, { legacy = false } = {}) {
   await fact(actor, `hit:${card}`, { type: "hit", conn: connN, card, icKey: st.icKey, icName: st.attackerName,
     kind: blackKind(st.program), rating: st.power, icRating: st.icRating ?? null, threat: st.threat ?? 0, psychotropic: st.psychotropic ?? "",
     level: st.level, attackSuccesses: net, shield: sh?.successes ?? 0,
+    ...(st.noBlaster ? { noBlaster: true } : {}), ...(isDeckKey(st.icKey) ? { attackerInc: st.attackerInc ?? 0,
+      ...(attackerEnded(st.icKey, st.attackerInc) ? { lockless: true } : {}) } : {}),
     cool: conn.open?.settings?.deckMode === "cool", hardening: conn.open?.settings?.hardening ?? 0 });
   return { ok: true };
 }
@@ -645,6 +652,8 @@ STEP_RESOLVERS.tapeworm = async (actor, f, s) => {
  */
 export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
   if (!isSequencer()) return ui.notifications.warn("Tar strikes are the GM's (the active GM's client).");
+  // Steamroller is immune to tar (p.99).
+  if (/^steamroller/i.test(ref?.name ?? "")) return ui.notifications.info(`${ref.name} is immune to tar (VR2.0 p.99).`);
   return sequencer(async () => {
     const prof = icProfile(ic, comp), gen = ic.system.generation ?? 0;
     const icKey = icKeyOf(ic, prof.comp), key = `tar:${card}:${icKey}`;
@@ -729,12 +738,218 @@ export async function traceStart(actor, card) {
   });
 }
 
+// ── Part 5a: Track, Hog, Slow (docs/PLAN-vr2-part5.md §3–§5) ───────────────────────
+
+/** Close an attack card's test and return its successes as they stand (Karma included). */
+async function freezeSuccesses(st) {
+  const tm = game.messages.get(st.testMessageId), test = tm?.flags?.sr2e?.test;
+  if (test && !test.closed) {
+    const { renderSuccessTestCard } = await import("./documents/actor.mjs");
+    await tm.update({ content: renderSuccessTestCard({ ...test, closed: true }), "flags.sr2e.test": { ...test, closed: true } });
+  }
+  return test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
+}
+/** The combat an actor is fighting in, if any (its clock). */
+const combatOf = (actor) => game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid || (!actor.isToken && cb.actorId === actor.id))) ?? null;
+const clockOf = (actor) => { const c = combatOf(actor); return c ? { combatId: c.id, startRound: c.round } : { manual: true }; };
+
+/** The live connection's hog infections that still run (not done, not purged). */
+export function liveHogs(actor) {
+  const recs = recordsOf(actor), n = actor.system.vr2Conn?.n;
+  const over = new Set(recs.filter(e => e.type === "hogEnd" || e.type === "hogPurged").map(e => e.card));
+  return recs.filter(e => e.type === "hog" && e.conn === n && !over.has(e.card));
+}
+const hogTicksOf = (actor, card) => recordsOf(actor).filter(e => e.type === "hogTick" && e.card === card).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+
+/** One hog application (p.98): the fact first (target and exact wear frozen), then its wear reconciled. */
+async function hogTick(actor, h, boundary) {
+  if (recordsOf(actor).some(e => e.key === `${P3}hogtick:${h.card}:${boundary}`)) return;
+  const V = await import("./vr2.mjs");
+  const prev = hogTicksOf(actor, h.card).at(-1) ?? null;
+  const progs = V.usablePrograms(actor).map(i => ({ id: i.id, loadGen: i.system.loadGen ?? 0, rating: V.programRating(i) }));
+  const t = hogTarget(prev, progs);
+  if (!t) {
+    if (await fact(actor, `hog-end:${h.card}`, { type: "hogEnd", card: h.card, why: "done" })) {
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">The hog virus has crashed every program on ${esc(actor.name)}'s deck.</div>` });
+    }
+    return;
+  }
+  const same = prev && prev.itemId === t.id && prev.loadGen === t.loadGen;
+  const wear = Math.min(h.points, t.rating);
+  await fact(actor, `hogtick:${h.card}:${boundary}`, { type: "hogTick", card: h.card, conn: h.conn, boundary, itemId: t.id, loadGen: t.loadGen,
+    original: same ? prev.original : t.rating, wear });
+  await reconcileHog(actor);
+  const item = actor.items.get(t.id);
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">Hog drains ${esc(item?.name ?? "a program")}
+    by ${wear} (${Math.max(0, t.rating - wear)} left${t.rating - wear <= 0 ? ": crashed" : ""}).</div>` });
+}
+
+/** Every hog fact's consequences, idempotently (R2 #11; R3 #6): wear keys, and a purge's unload bound to its load. */
+async function reconcileHog(actor) {
+  const recs = recordsOf(actor);
+  for (const k of recs.filter(e => e.type === "hogTick")) {
+    const item = actor.items.get(k.itemId);
+    const path = `flags.sr2e.hogWear.${k.loadGen}_${k.card}_${k.boundary}`;
+    if (item && foundry.utils.getProperty(item, path) !== k.wear) await item.update({ [path]: k.wear });
+  }
+  for (const p of recs.filter(e => e.type === "hogPurged")) {
+    if (recs.some(e => e.type === "hogUnload" && e.card === p.card)) continue;
+    const item = actor.items.get(p.itemId);
+    if (item && (item.system.loadGen ?? 0) === p.loadGen && item.system.loaded) await item.update({ "system.loaded": false });
+    await fact(actor, `hog-unload:${p.card}`, { type: "hogUnload", card: p.card });
+  }
+}
+
+/** The decker purges a hog (p.98): a Complex Action, Computer vs Hog − Hardening + the infected program's original rating. */
+export async function vr2HogPurge(actor, card) {
+  const why = vr2ActionGuard(actor);
+  if (why) return ui.notifications.warn(why);
+  const h = liveHogs(actor).find(x => x.card === card);
+  const last = h ? hogTicksOf(actor, card).at(-1) : null;
+  if (!h || !last) return ui.notifications.info("No hog virus to purge.");
+  const hardening = liveConn(actor)?.settings?.hardening ?? 0;
+  const tn = hogPurgeTN(h.rating, hardening, last.original);
+  const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
+  const item = actor.items.get(last.itemId);
+  const r = await actor.rollSuccessTest(computer, tn, { label: RL("HogPurge", { what: item?.name ?? "", tn }), tnContext: { kind: "matrix" } });
+  if (!r) return;
+  await request(actor, "hogPurge", { card, itemId: last.itemId, loadGen: last.loadGen, successes: r.successes });
+}
+
+/** A Slow result, once per card, by the sequencer (R2 #13): the IC's resistance successes against the attack. */
+export function slowResult(ic, card, resist) {
+  return sequencer(async () => {
+    if (recordsOf(ic).some(e => e.type === "slow" && e.card === card)) return ui.notifications.info("That Slow is already resolved.");
+    const st = game.messages.get(card)?.flags?.sr2e?.matrix;
+    if (!st) return;
+    const atk = await freezeSuccesses(st), lost = slowActionsLost(atk, resist);
+    const combat = combatOf(ic);
+    await fact(ic, `slow:${card}`, { type: "slow", card, lost, combatId: combat?.id ?? null, round: combat?.round ?? null,
+      gen: ic.system.generation ?? 0, deckerUuid: st.attackerUuid, session: st.attackerSession ?? "" });
+    await reconcileSlow(ic);
+    const hung = !!combat?.combatants.find(c => c.actor?.uuid === ic.uuid)?.getFlag("sr2e", `slowApplied.${card}`)?.hung;
+    const text = !lost ? `${ic.name} shrugs off the Slow.` : `${ic.name} loses ${lost} action${lost === 1 ? "" : "s"}${hung ? ": it hangs this turn" : ""}${combat ? "" : " (no combat: the GM applies it)"}.`;
+    await postResolution(ic, card, text, [`${atk} attack success${atk === 1 ? "" : "es"} against ${resist} (VR2.0 p.99).`]);
+    if (hung) await ChatMessage.create({ whisper: [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u => !u.isGM && sync(st.attackerUuid)?.testUserPermission(u, "OWNER"))].map(u => u.id),
+      content: `<div class="sr2e-item-card">${esc(ic.name)} has hung. Suppress it to keep it down (−1 Detection Factor, no tally), or it resumes next Combat Turn (p.99).
+      <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.attackerUuid)}" data-op="slowSuppress" data-arg="${esc(`${card}|${ic.uuid}`)}">Suppress</button></div></div>` });
+  });
+}
+
+/** Apply each current Slow to the IC's combatant once (R3 #7, #8): stale facts never touch a later round or incarnation. */
+async function reconcileSlow(ic) {
+  for (const sl of recordsOf(ic).filter(e => e.type === "slow" && e.lost > 0)) {
+    const combat = game.combats.get(sl.combatId);
+    const cb = combat?.combatants.find(c => c.actor?.uuid === ic.uuid);
+    if (!cb || combat.round !== sl.round || (ic.system.generation ?? 0) !== sl.gen || cb.getFlag("sr2e", `slowApplied.${sl.card}`)) continue;
+    const before = cb.initiative ?? 0, after = Math.max(0, before - 10 * sl.lost);
+    await cb.update({ initiative: after, [`flags.sr2e.slowApplied.${sl.card}`]: { hung: before > 0 && after === 0, round: sl.round } });
+  }
+}
+
+/** Live Slow suppressions on an IC (R3 #10): no release, same IC generation, the decker's session still live. */
+export function slowSuppressions(ic) {
+  const recs = recordsOf(ic), released = new Set(recs.filter(e => e.type === "slowRelease").map(e => e.card));
+  return recs.filter(e => e.type === "slowSuppress" && !released.has(e.card) && e.gen === (ic.system.generation ?? 0)
+    && sync(e.deckerUuid)?.flags?.sr2e?.vr2Session?.id === e.session);
+}
+/** "suppressed", "hung" (this turn) or "" (part 5a §5). */
+export function icDisabled(ic) {
+  if (ic?.type !== "ic") return "";
+  if (slowSuppressions(ic).length) return "suppressed";
+  for (const c of game.combats) {
+    const cb = c.combatants.find(x => x.actor?.uuid === ic.uuid);
+    if (Object.values(cb?.flags?.sr2e?.slowApplied ?? {}).some(v => v?.hung && v.round === c.round)) return "hung";
+  }
+  return "";
+}
+
+Object.assign(HANDLERS, {
+  /** Track (p.97): the target's Evasion successes against the attack; a lock is a trace cycle keyed by the card. */
+  async track(actor, r, f) {
+    const conn = f.conn(r.conn);
+    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
+    if (recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) return { ok: true };
+    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
+    if (!st) return { ok: false, why: "the attack card is gone" };
+    const atk = await freezeSuccesses(st), ev = Number(r.successes) || 0;
+    if (!trackLocks(atk, ev)) {
+      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { evaded: true } });
+      await postResolution(actor, r.card, `${actor.name} slips ${st.attackerName}'s Track.`, [`Evasion ${ev} against ${atk}.`]);
+      return { ok: true };
+    }
+    if (attackerEnded(st.icKey, st.attackerInc)) {
+      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { attackerGone: true } });
+      await postResolution(actor, r.card, `${st.attackerName} is gone: the Track never locks.`);
+      return { ok: true };
+    }
+    const key = `track~${r.card}`, turns = locationTurns(atk - ev);
+    await fact(actor, `trace:${r.conn}:${key}`, { type: "trace", conn: r.conn, icKey: key, track: true, attacker: st.icKey, attackerInc: st.attackerInc ?? 0,
+      rating: st.rating ?? 0, icName: st.attackerName, turns, clock: clockOf(actor) });
+    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { trace: turns } });
+    await postResolution(actor, r.card, `${st.attackerName}'s Track locks onto ${actor.name}'s datatrail: ${turns === 0 ? "located at once" : `${turns} Combat Turn${turns === 1 ? "" : "s"} to locate`}.`,
+      [`10 ÷ ${atk - ev} net successes (VR2.0 p.97). Relocate against ${st.attackerName}'s Sensor breaks it.`]);
+    return { ok: true };
+  },
+  /** Hog (p.98): the MPCP successes against the attack; an infection drains at once and every Combat Turn. */
+  async hog(actor, r, f) {
+    const conn = f.conn(r.conn);
+    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
+    if (recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) return { ok: true };
+    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
+    if (!st) return { ok: false, why: "the attack card is gone" };
+    const atk = await freezeSuccesses(st), points = hogPoints(atk, r.successes);
+    if (points < 1) {
+      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { resisted: true } });
+      await postResolution(actor, r.card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${r.successes} against ${atk}.`]);
+      return { ok: true };
+    }
+    const h = { type: "hog", conn: r.conn, card: r.card, points, rating: st.rating ?? 0, icName: st.attackerName, clock: clockOf(actor) };
+    await fact(actor, `hog:${r.conn}:${r.card}`, h);
+    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { hog: points } });
+    await postResolution(actor, r.card, `${st.attackerName}'s hog infects ${actor.name}'s deck: ${points} point${points === 1 ? "" : "s"} a turn.`,
+      ["It drains the highest-rated program until it crashes, then the next (VR2.0 p.98). Purge it from the Matrix tab."]);
+    await hogTick(actor, { ...h, card: r.card }, "m0");
+    return { ok: true };
+  },
+  /** A purge (p.98): validated against the infection's CURRENT target (R2 #10). */
+  async hogPurge(actor, r) {
+    const h = liveHogs(actor).find(x => x.card === r.card);
+    const last = h ? hogTicksOf(actor, r.card).at(-1) : null;
+    if (!h || !last) return { ok: false, why: "no such hog infection" };
+    if (last.itemId !== r.itemId || last.loadGen !== r.loadGen) return { ok: false, why: "the hog moved to another program meanwhile: purge again" };
+    if (!(r.successes > 0)) return { ok: true };
+    await fact(actor, `hog-purged:${r.card}`, { type: "hogPurged", card: r.card, itemId: r.itemId, loadGen: r.loadGen });
+    await reconcileHog(actor);
+    return { ok: true };
+  },
+  /** Suppress / release a hung IC (R5 #5): filed on the decker's own log; the IC's fact is authoritative. */
+  async slowSuppress(actor, r) {
+    const ic = sync(r.icUuid);
+    const sl = ic && recordsOf(ic).find(e => e.type === "slow" && e.card === r.card);
+    if (!sl || sl.deckerUuid !== actor.uuid) return { ok: false, why: "not your Slow" };
+    if (icDisabled(ic) !== "hung" || (ic.system.generation ?? 0) !== sl.gen) return { ok: false, why: "it isn't hung any more" };
+    const session = actor.flags?.sr2e?.vr2Session?.id;
+    if (!session) return { ok: false, why: "no live session" };
+    await fact(ic, `slow-suppress:${r.card}`, { type: "slowSuppress", card: r.card, deckerUuid: actor.uuid, session, gen: sl.gen, icName: ic.name });
+    return { ok: true };
+  },
+  async slowRelease(actor, r) {
+    const ic = sync(r.icUuid);
+    if (!ic || !recordsOf(ic).some(e => e.type === "slowSuppress" && e.card === r.card && e.deckerUuid === actor.uuid)) return { ok: false, why: "no such suppression" };
+    await fact(ic, `slow-release:${r.card}`, { type: "slowRelease", card: r.card });
+    return { ok: true };
+  }
+});
+
 Object.assign(HANDLERS, {
   /** Relocate (p.46): a success spoofs the turn in progress; refused once that turn has closed. */
   async relocate(actor, r, f) {
     const t = f.live?.traces.find(x => x.icKey === r.icKey && !x.complete && !x.dead);
     if (!t) return { ok: false, why: "no locating trace" };
     if (!r.success) return { ok: true };
+    // A track fails completely on a Relocate success (p.97–98): the attacker must hit again.
+    if (t.track) { await fact(actor, `trace-dead:${t.conn}:${t.icKey}`, { type: "traceDead", conn: t.conn, icKey: t.icKey, why: "relocated" }); return { ok: true }; }
     const boundary = r.boundary;
     if (recordsOf(actor).some(e => e.type === "tick" && e.conn === f.live.n && e.icKey === r.icKey && e.boundary === boundary)) {
       return { ok: false, why: "that turn had already closed" };
@@ -759,6 +974,7 @@ Object.assign(HANDLERS, {
 
 /** The turn's end for every locating trace on this clock: one tick per boundary, in seq. */
 async function tickTraces(actor, boundaryFor) {
+  await reconcileEnds(actor);   // part 5a: an ended attacker's track dies BEFORE any tick (R3 #3)
   const f = foldOf(actor);
   for (const t of f.live?.traces ?? []) {
     if (t.complete || t.dead) continue;
@@ -774,6 +990,13 @@ async function noticeTraces(actor) {
   const f = foldOf(actor);
   for (const t of f.live?.traces ?? []) {
     if (!t.complete || !await once(actor, `${P3}card:traced:${t.conn}:${t.icKey}`)) continue;
+    if (t.track) {
+      const tr = recordsOf(actor).find(e => e.type === "trace" && e.conn === t.conn && e.icKey === t.icKey);
+      const atk = sync(parseAttackerKey(t.attacker).uuid);
+      await ChatMessage.create({ whisper: [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u => !u.isGM && atk?.testUserPermission(u, "OWNER"))].map(u => u.id),
+        content: `<div class="sr2e-item-card"><strong>${esc(tr?.icName ?? "The track")}'s Track locates ${esc(actor.name)}'s jackpoint</strong> (VR2.0 p.97).</div>` });
+      continue;
+    }
     const rows = RESPONSE_TIMES.rows.map((r, i) => `<tr><td>${r}</td>${["public", "corporate", "megacorp", "government"].map(k => `<td>${RESPONSE_TIMES[k][i] ?? "NA"}</td>`).join("")}</tr>`).join("");
     const trace = recordsOf(actor).find(e => e.type === "trace" && e.conn === t.conn && e.icKey === t.icKey);
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
@@ -791,6 +1014,7 @@ export function advanceManual(actor) {
   return sequencer(async () => {
     await tickTraces(actor, (t, ticks) => t.clock?.manual ? [openBoundary(t, ticks)] : []);
     await noticeTraces(actor);
+    for (const h of liveHogs(actor).filter(x => x.clock?.manual)) await hogTick(actor, h, `n${hogTicksOf(actor, h.card).length}`);
   });
 }
 
@@ -804,7 +1028,8 @@ export async function relocate(actor, icKey) {
   const { relocateTN } = await import("./rules/vr2ic-rules.mjs");
   const rel = V.loadedUtility(actor, "relocate");
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
-  const tn = relocateTN(t.rating, rel);
+  // Against a track (p.97–98): the attacking decker's Sensor instead of the system's rating.
+  const tn = t.track ? Math.max(2, (sync(parseAttackerKey(t.attacker).uuid)?.system?.matrixPersona?.sensor ?? 0) - rel) : relocateTN(t.rating, rel);
   const boundary = openBoundaryOf(actor, t);
   const r = await actor.rollSuccessTest(computer, tn, { label: RL("Relocate", { tn }), tnContext: { kind: "matrix" } });
   if (!r) return;
@@ -819,7 +1044,8 @@ export async function relocate(actor, icKey) {
     await V.applyTallyEvent(pm);
   }
   await request(actor, "relocate", { icKey, success: r.successes > 0, boundary });
-  if (r.successes > 0) ui.notifications.info(`${actor.name} spoofs the trace this turn. To keep it frozen, suppress it from the Matrix tab.`);
+  if (r.successes > 0) ui.notifications.info(t.track ? `${actor.name} shakes off the track: it fails completely (p.97–98).`
+    : `${actor.name} spoofs the trace this turn. To keep it frozen, suppress it from the Matrix tab.`);
 }
 
 STEP_RESOLVERS.datatrail = async (actor, f, s) => {
@@ -1027,6 +1253,21 @@ async function advanceExit(actor) {
     if (s.res) continue;
     if (s.step === "lastAttack") {
       // The locking IC makes one more attack (the GM rolls it); destroyed meanwhile → cancelled (R5 #5).
+      if (isDeckKey(s.ref)) {
+        const { uuid: du } = parseAttackerKey(s.ref);
+        const hit = f.live.hits.find(h => h.icKey === s.ref);
+        if (attackerEnded(s.ref, hit?.attackerInc)) {
+          await fact(actor, `exit-res:${f.live.n}:lastAttack:${s.ref}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: s.ref, cancelled: true });
+          f = foldOf(actor);
+        } else if (await once(actor, `${P3}card:last:${f.live.n}:${s.ref}`)) {
+          const atk = sync(du);
+          const to = [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u2 => !u2.isGM && atk?.testUserPermission(u2, "OWNER"))].map(u2 => u2.id);
+          await ChatMessage.create({ whisper: to, content: `<div class="sr2e-item-card">
+            <strong>${esc(atk?.name ?? "The attacker")}</strong> gets one last attack on ${esc(actor.name)} before the link drops (VR2.0 p.48): attack with ${esc(actor.name)} targeted.
+            <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(actor.uuid)}" data-op="waive" data-arg="${esc(s.ref)}">Waive (GM)</button></div></div>` });
+        }
+        continue;
+      }
       const { uuid: u, gen: g, comp } = parseIcKey(s.ref);
       if (icGen(u) !== g) {
         await fact(actor, `exit-res:${f.live.n}:lastAttack:${s.ref}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: s.ref, cancelled: true });
@@ -1034,7 +1275,8 @@ async function advanceExit(actor) {
       } else if (await once(actor, `${P3}card:last:${f.live.n}:${s.ref}`)) {
         await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u2 => u2.id), content: `<div class="sr2e-item-card">
           <strong>${esc(sync(u)?.name ?? "Black IC")}${comp ? ` (${esc(CONFIG.SR2E.icPrograms[icProfile(sync(u), comp).program] ?? "its black program")})` : ""}</strong> makes one more attack on ${esc(actor.name)} before the link drops (VR2.0 p.48):
-          attack from the IC's sheet with ${esc(actor.name)} targeted${comp ? ", with that program" : ""}.</div>` });
+          attack from the IC's sheet with ${esc(actor.name)} targeted${comp ? ", with that program" : ""}.
+          <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(actor.uuid)}" data-op="waive" data-arg="${esc(s.ref)}">Waive (GM)</button></div></div>` });
       }
       continue;
     }
@@ -1076,8 +1318,9 @@ export function schedule(actor) {
 
 /** One sequencer pass for a decker (call only inside `sequencer`). */
 async function passFor(actor) {
+  await reconcileHog(actor);
   await recoverResolved(actor); await reconcileTar(actor);
-  await admitDeckerCards(actor); await processRequests(actor); await reconcileShieldFreeze(actor);
+  await reconcileEnds(actor); await admitDeckerCards(actor); await processRequests(actor); await reconcileLastAttacks(actor); await reconcileShieldFreeze(actor);
   await applyResults(actor); await applyRippers(actor); await applySparky(actor);
   await noticeTraces(actor); await advanceExit(actor);
 }
@@ -1106,6 +1349,12 @@ async function admitDeckerCards(actor) {
       await postResolution(actor, m.id, `${st.attackerName}'s attack hit ${actor.name}'s earlier connection: nothing happens.`, []);
       continue;
     }
+    if (f.live.exit && lastAttackOpen(actor, f, st.icKey)) {
+      await fact(actor, `admit:${m.id}`, { type: "admit", conn: f.live.n, card: m.id, icKey: st.icKey, cls: "decker", program: st.program ?? "",
+        cascade0: null, successes: Number.isInteger(st.successes) ? st.successes : null, lastAttack: st.icKey });
+      await reconcileLastAttacks(actor);
+      continue;
+    }
     if (f.live.exit) {
       await fact(actor, `refuse:${m.id}`, { type: "refuse", card: m.id, why: "leaving" });
       await postResolution(actor, m.id, `${actor.name} was already leaving: ${st.attackerName}'s attack misses.`, []);
@@ -1113,6 +1362,52 @@ async function admitDeckerCards(actor) {
     }
     await fact(actor, `admit:${m.id}`, { type: "admit", conn: f.live.n, card: m.id, icKey: st.icKey ?? "", cls: "decker", program: st.program ?? "",
       cascade0: null, successes: Number.isInteger(st.successes) ? st.successes : null });
+  }
+}
+
+/** Is lock `key`'s last attack still owed (part 5a §0.6): a lock of this exit, no exitRes, no last-attack admit yet? */
+function lastAttackOpen(actor, f, key) {
+  const exit = f.live?.exit;
+  if (!exit || !key || !(exit.locks ?? []).includes(key)) return false;
+  const recs = recordsOf(actor);
+  if (recs.some(e => e.type === "exitRes" && e.n === f.live.n && e.step === "lastAttack" && e.ref === key)) return false;
+  return !recs.some(e => e.type === "admit" && e.conn === f.live.n && e.lastAttack === key);
+}
+
+/** The exitRes of an admitted last attack, healed if an interruption lost it (part 5a §0.6). */
+async function reconcileLastAttacks(actor) {
+  const f = foldOf(actor);
+  if (!f.live?.exit) return;
+  const recs = recordsOf(actor);
+  for (const a of recs.filter(e => e.type === "admit" && e.conn === f.live.n && e.lastAttack)) {
+    if (recs.some(e => e.type === "exitRes" && e.n === f.live.n && e.step === "lastAttack" && e.ref === a.lastAttack)) continue;
+    await fact(actor, `exit-res:${f.live.n}:lastAttack:${a.lastAttack}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: a.lastAttack, noEffect: true, card: a.card });
+  }
+}
+
+/** Has the decker incarnation that rolled a card ended (part 5a §0.8): its connection over, or its icon crashed since? */
+export function attackerEnded(key, inc) {
+  const p = parseAttackerKey(key);
+  if (p.kind !== "deck") return false;
+  const a = sync(p.uuid);
+  if (!a) return true;
+  if (liveOpen(recordsOf(a)).open?.n !== p.conn) return true;
+  return Object.keys(a.flags?.sr2e?.vr2IconCrash?.[p.conn] ?? {}).length > (inc ?? 0);
+}
+
+/** End the locks and tracks of decker incarnations that have ended (part 5a §2, §3). Before any tick or admission. */
+async function reconcileEnds(actor) {
+  const f = foldOf(actor);
+  if (!f.live) return;
+  const recs = recordsOf(actor);
+  for (const h of f.live.locks) {
+    if (isDeckKey(h.icKey) && attackerEnded(h.icKey, h.attackerInc)) await fact(actor, `lock-end:${h.card}`, { type: "lockEnd", conn: f.live.n, card: h.card });
+  }
+  for (const t of recs.filter(e => e.type === "trace" && e.track && e.conn === f.live.n)) {
+    if (recs.some(e => e.type === "traceDead" && e.icKey === t.icKey)) continue;
+    const st = f.live.traces.find(x => x.icKey === t.icKey);
+    if (st?.complete) continue;
+    if (attackerEnded(t.attacker, t.attackerInc)) await fact(actor, `trace-dead:${t.conn}:${t.icKey}`, { type: "traceDead", conn: t.conn, icKey: t.icKey, why: "attacker" });
   }
 }
 
@@ -1243,6 +1538,8 @@ export function deckerContext(actor) {
 export async function sheetOp(doc, op, arg) {
   const gm = () => { if (!game.user.isGM) { ui.notifications.warn("That's the GM's."); return false; } return true; };
   if (op === "relocate") return relocate(doc, arg);
+  if (op === "hogPurge") return vr2HogPurge(doc, arg);
+  if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
   if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });
   if (op === "advance") return gm() && advanceManual(doc);
@@ -1297,11 +1594,27 @@ export async function sheetOp(doc, op, arg) {
 }
 
 /** One dispatcher for part 3's card buttons. */
+/** The GM waives a lock's last attack (part 5a §0.7): cancelled, so the exit can finish. Refused once it was rolled. */
+export function waiveLastAttack(actor, key) {
+  if (!game.user.isGM) return ui.notifications.warn("Only the GM can waive the last attack.");
+  return sequencer(async () => {
+    const f = foldOf(actor);
+    if (!f.live?.exit) return ui.notifications.info(`${actor.name} isn't leaving any more.`);
+    const recs = recordsOf(actor);
+    if (recs.some(e => e.type === "exitRes" && e.n === f.live.n && e.step === "lastAttack" && e.ref === key)) return ui.notifications.info("That last attack is already settled.");
+    if (recs.some(e => e.type === "admit" && e.conn === f.live.n && e.lastAttack === key)) return ui.notifications.warn("That last attack was already rolled.");
+    await fact(actor, `exit-res:${f.live.n}:lastAttack:${key}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: key, cancelled: true, waived: true });
+    ui.notifications.info("Last attack waived.");
+  }).then(() => schedule(actor));
+}
+
 export async function icOp(uuid, op, arg) {
   const actor = await fromUuid(uuid);
   if (!actor) return;
   if (op === "sparky") return resistSparky(actor, arg);
   if (op === "traceStart") return traceStart(actor, arg);
+  if (op === "waive") return waiveLastAttack(actor, arg);
+  if (op === "slowSuppress") { const [card, icUuid] = arg.split("|"); return request(actor, "slowSuppress", { card, icUuid }); }
   if (op === "psy") return psyTest(actor, arg);
   if (["worm", "wormGone", "defused", "explode", "poison", "tar"].includes(op)) {
     // card|icUuid|generation|component (part 4b R4); older buttons have only card|icUuid.
@@ -1329,6 +1642,8 @@ export async function icOp(uuid, op, arg) {
 }
 
 export function registerVr2IcHooks() {
+  // Combat eligibility (SR2ECombatant#heldOut) reads this synchronously (part 5a §5).
+  game.sr2e = Object.assign(game.sr2e ?? {}, { vr2SlowSuppressed: (ic) => slowSuppressions(ic).length > 0 });
   const all = () => { for (const a of allDocs()) if (a.type === "character") schedule(a); };
   Hooks.once("ready", all);
   Hooks.once("ready", rebuildJackpointEntries);
@@ -1337,6 +1652,8 @@ export function registerVr2IcHooks() {
     const key = String(e.flags?.sr2e?.claim?.key ?? "");
     if (!key.startsWith(P3) || !(e.parent instanceof Actor)) return;
     schedule(e.parent);
+    // Part 5a §5: a Slow record on an IC is reconciled by its own pass (R3 #9).
+    if (e.parent.type === "ic" && /^vr2:slow:/.test(key) && isSequencer()) sequencer(() => reconcileSlow(e.parent)).catch(err => console.error("SR2E | slow", err));
     // Connection changes move the derived Matrix mode: let the jackpoints and cues catch up.
     if (/^vr2:conn-open:/.test(key) && isSequencer()) sequencer(() => dataworms(e.parent)).catch(err => console.error("SR2E | dataworms", err));
     // Part 4a: an admission or a resolution can change an IC's cascade — refresh open IC sheets.
@@ -1355,6 +1672,9 @@ export function registerVr2IcHooks() {
       sequencer(async () => {
         await tickTraces(a, (t, ticks) => t.clock?.combatId === combat.id ? boundariesToTick(t, ticks, combat.round) : []);
         await noticeTraces(a);
+        for (const h of liveHogs(a).filter(x => x.clock?.combatId === combat.id)) {
+          for (let r = h.clock.startRound; r < combat.round; r++) await hogTick(a, h, r);
+        }
       }).catch(err => console.error("SR2E | trace ticks", err));
     }
     for (const h of game.actors.filter(x => x.type === "host")) {

@@ -2,7 +2,8 @@
 import { describe, it, expect } from "vitest";
 import { blackDamage, grayTN, mpcpLoss, traceFactor, locationTurns, datatrailTurns, relocateTN, defuseTN, pcpicMod,
          psychoRecoveryTN, wormInfects, shutdownDice, finalWarning, traceTally, tarWins, personaVR2, foldDeck,
-         foldVr2Ic, traceState } from "../module/rules/vr2ic-rules.mjs";
+         foldVr2Ic, traceState, parseAttackerKey, isDeckKey,
+         hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks } from "../module/rules/vr2ic-rules.mjs";
 import { matrixCombatOutcome } from "../module/rules/sr2e-rules.mjs";
 
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = (i * 7 + 3) % (i + 1); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -218,5 +219,68 @@ describe("part 4b — constructs (p.52)", () => {
     expect(constructBudget({ sv: 8, code: "red", components: [c("a", "killer", 2)] }).problems).toContain("a construct needs at least 2 programs");
     const bad = constructBudget({ sv: 8, code: "red", components: [c("a", "killer", 2), c("a", "data-bomb", 2), c("", "", 1), c("d", "scramble", 1, { scramble: "exploding" })] }).problems.join("|");
     expect(bad).toMatch(/own id/); expect(bad).toMatch(/data-bomb can't/); expect(bad).toMatch(/no program/); expect(bad).toMatch(/exploding/);
+  });
+});
+
+describe("part 5a: decker attackers (deck: keys)", () => {
+  it("parses both key kinds", () => {
+    expect(parseAttackerKey("deck:Actor.abc@3")).toEqual({ kind: "deck", uuid: "Actor.abc", conn: 3 });
+    expect(parseAttackerKey("Actor.ic#2/kil")).toMatchObject({ kind: "ic", uuid: "Actor.ic", gen: 2, comp: "kil" });
+    expect(isDeckKey("deck:x@1")).toBe(true);
+    expect(isDeckKey("Actor.ic#0")).toBe(false);
+  });
+  const open = { key: "o1", type: "connOpen", n: 1, settings: { deckMode: "hot" } };
+  const hit = (card, extra = {}) => [{ key: `a-${card}`, type: "admit", conn: 1, card, icKey: "deck:A@2", seq: 1 },
+    { key: `h-${card}`, type: "hit", conn: 1, card, icKey: "deck:A@2", rating: 5, kind: "lethal", noBlaster: true, seq: 2, ...extra }];
+  it("a deck lock holds until its own lockEnd; a lockless hit never locks", () => {
+    expect(foldVr2Ic([open, ...hit("c1")]).live.locks.length).toBe(1);
+    expect(foldVr2Ic([open, ...hit("c1"), { key: "le", type: "lockEnd", card: "c1", seq: 3 }]).live.locks.length).toBe(0);
+    expect(foldVr2Ic([open, ...hit("c1", { lockless: true })]).live.locks.length).toBe(0);
+    // A new hit after the first lock ended is a new lock.
+    expect(foldVr2Ic([open, ...hit("c1"), { key: "le", type: "lockEnd", card: "c1", seq: 3 }, ...hit("c2")]).live.locks.map(h => h.card)).toEqual(["c2"]);
+  });
+  it("two live hits from one decker are ONE last-attack obligation; no final shot for black hammer", () => {
+    const exit = { key: "e1", type: "exitOpen", n: 1, trigger: "gate", locks: ["deck:A@2", "deck:A@2"], seq: 9 };
+    const down = [{ key: "r1", type: "res", card: "c1", side: "meat", seq: 4 }, { key: "k1", type: "ack", target: "r1", outcome: { down: true }, seq: 5 }];
+    const f = foldVr2Ic([open, ...hit("c1"), ...hit("c2"), ...down, exit]);
+    expect(f.live.steps.filter(s => s.step === "lastAttack").length).toBe(1);
+    expect(f.live.steps.some(s => s.step === "finalShot")).toBe(false);
+  });
+  it("a track cycle ends at its traceDead, even with ticks after it", () => {
+    const t = { key: "t1", type: "trace", conn: 1, icKey: "track~c1", turns: 2, seq: 1, track: true };
+    const ev = [t, { key: "d", type: "traceDead", conn: 1, icKey: "track~c1", seq: 2 },
+      { key: "k1", type: "tick", conn: 1, icKey: "track~c1", boundary: 1, seq: 3 }, { key: "k2", type: "tick", conn: 1, icKey: "track~c1", boundary: 2, seq: 4 }];
+    const st = traceState(t, ev);
+    expect(st.complete).toBe(false);
+    expect(st.dead).toBe(true);
+  });
+});
+
+describe("part 5a: hog, slow, track (VR2.0 pp.97–99)", () => {
+  it("hog drains 1 per 2 net successes; the purge TN clamps after every modifier", () => {
+    expect(hogPoints(5, 1)).toBe(2);
+    expect(hogPoints(2, 1)).toBe(0);
+    expect(hogPoints(1, 4)).toBe(0);
+    expect(hogPurgeTN(3, 4, 6)).toBe(5);   // 3 − 4 + 6, not max(2, −1) + 6 = 8
+    expect(hogPurgeTN(2, 4, 1)).toBe(2);
+  });
+  it("hog keeps its victim until it crashes, then takes the next highest (6/5, 2 a turn)", () => {
+    const progs = (r6, r5) => [{ id: "a", loadGen: 0, rating: r6 }, { id: "b", loadGen: 0, rating: r5 }].filter(p => p.rating > 0);
+    let prev = null, t = hogTarget(prev, progs(6, 5));
+    expect(t.id).toBe("a");
+    prev = { itemId: "a", loadGen: 0 };
+    expect(hogTarget(prev, progs(4, 5)).id).toBe("a");          // 4 < 5, but it stays on the infected program
+    expect(hogTarget(prev, progs(0, 5)).id).toBe("b");          // crashed → next
+    expect(hogTarget({ itemId: "a", loadGen: 0 }, [{ id: "a", loadGen: 1, rating: 6 }]).loadGen).toBe(1);   // reloaded copy: a fresh pick
+    expect(hogTarget(null, [])).toBe(null);
+  });
+  it("slow: ties and resistance wins lose nothing", () => {
+    expect(slowActionsLost(5, 1)).toBe(2);
+    expect(slowActionsLost(3, 3)).toBe(0);
+    expect(slowActionsLost(1, 4)).toBe(0);
+  });
+  it("track locks only when Evasion fails to equal or beat the attack", () => {
+    expect(trackLocks(3, 2)).toBe(true);
+    expect(trackLocks(3, 3)).toBe(false);
   });
 });

@@ -1083,7 +1083,10 @@ export class ProgramData extends SR2EDataModel {
     const levelMult = vr2 ? attackMultiplier(this.damageLevel) : null;
     this.multiplier = levelMult ?? this.parent?._source?.system?.multiplier ?? this.multiplier;
     // Rating left on the loaded copy (VR2.0 only; core ignores wear entirely).
-    const worn = vr2 ? (this.wearEvents ?? []).filter(e => e.startsWith(`${this.loadGen}:`)).length : 0;
+    // Hog drain (part 5a §4) is per-tick flag keys `<loadGen>_<card>_<boundary>`, subtracted the same way.
+    const hog = vr2 ? Object.entries(this.parent?.flags?.sr2e?.hogWear ?? {}).filter(([k]) => k.startsWith(`${this.loadGen}_`))
+      .reduce((n, [, v]) => n + (Number(v) || 0), 0) : 0;
+    const worn = vr2 ? (this.wearEvents ?? []).filter(e => e.startsWith(`${this.loadGen}:`)).length + hog : 0;
     this.effectiveRating = Math.max(0, this.rating - worn);
     // Program memory size = Rating² × Multiplier (same in both rulesets).
     this.size = programSize(this.rating, this.multiplier);

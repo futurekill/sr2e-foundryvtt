@@ -18,7 +18,7 @@ import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixC
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
-import { programKey, traceTally, traceFactor, expertDice, isProactive } from "./rules/vr2ic-rules.mjs";
+import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage } from "./rules/vr2ic-rules.mjs";
 import * as Y from "./vr2ic.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { matrixQueue, sessionHost } from "./jackpoints.mjs";
@@ -304,7 +304,9 @@ export function releaseSuppressed(actor, key) {
 /** Detection Factor (p.17–18), less one per suppressed IC (p.40); TN floor 2. */
 export function vr2DetectionFactor(actor) {
   // Part 2's per-session suppressions, plus part 3's frozen traces on the connection (p.46).
-  const suppressed = Object.keys(liveSession(actor)?.suppressed ?? {}).length
+  // Part 5a §5: a Slow suppression's point is derived from the IC's own fact.
+  const slowHeld = game.actors.filter(a => a.type === "ic").reduce((n, ic) => n + Y.slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid).length, 0);
+  const suppressed = slowHeld + Object.keys(liveSession(actor)?.suppressed ?? {}).length
     + (actor.system?.vr2Conn ? (Y.foldOf(actor).live?.frozenCount ?? 0) : 0);
   return Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")) - suppressed);
 }
@@ -404,6 +406,35 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   return res;
 }
 
+/** Part 5a: the target's test against Track (Evasion) or Hog (MPCP), sent to the sequencer once admitted (p.97–98). */
+async function resistUtility(defender, message, st) {
+  if (defender.type !== "character" || st.targetConn == null) return ui.notifications.warn("Track and hog hit a connected decker.");
+  if (defender.system.vr2Conn?.n !== st.targetConn) return ui.notifications.warn("That attack hit an earlier connection.");
+  const t0 = Date.now();
+  while (!Y.recordsOf(defender).some(e => e.type === "admit" && e.card === message.id) && Date.now() - t0 < 4000) await new Promise(r => setTimeout(r, 100));
+  if (!Y.recordsOf(defender).some(e => e.type === "admit" && e.card === message.id)) return ui.notifications.warn("That attack isn't admitted yet (a GM must be online), or was refused.");
+  const hardening = Y.liveConn(defender)?.settings?.hardening ?? 0;
+  const track = st.effect === "track";
+  const dice = track ? (defender.system.matrixPersona?.evasion ?? 0) : (defender.system.cyberdeck?.mpcp ?? 0);
+  const tn = Math.max(2, (st.rating ?? 0) - (track ? 0 : hardening));
+  const r = await defender.rollSuccessTest(Math.max(0, dice), tn, {
+    label: RL(track ? "ResistTrack" : "ResistHog", { tn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
+  if (!r) return;
+  await Y.request(defender, st.effect, { card: message.id, conn: st.targetConn, successes: r.successes });
+  return r;
+}
+
+/** Part 5a: an IC resists Slow with the host's Security Value (+ expert, threat) against the Slow rating (p.99). */
+async function resistSlow(ic, message, st) {
+  if (ic.type !== "ic") return ui.notifications.warn("Slow attacks IC.");
+  const dice = expertDice(st.securityValue, Y.expertOf(ic)).resist + Y.threatOf(ic);
+  const r = await ic.rollSuccessTest(Math.max(0, dice), Math.max(2, st.rating ?? 0), {
+    label: RL("ResistSlow", { tn: Math.max(2, st.rating ?? 0) }), isResistance: true, closed: true, tnContext: { kind: "other" } });
+  if (!r) return;
+  await Y.slowResult(ic, message.id, r.successes);
+  return r;
+}
+
 // ── Cybercombat (p.123–124) ──────────────────────────────────────────────────
 
 /** Who an icon is right now, for maneuver records: a decker's session, or an IC's generation. */
@@ -411,6 +442,30 @@ export const sessionKey = (a) => a?.type === "ic" ? `${a.uuid}:${a.system.genera
 
 const ATTR_LABEL = { bod: "Bod", evasion: "Evasion", masking: "Masking", sensor: "Sensor" };
 const OFFENSE_ATTRIBUTE = { poison: "bod", restrict: "evasion", reveal: "masking" };
+
+/** Part 5a: the special combat utilities (VR2.0 pp.97–99), by name prefix or `system.offense`. */
+const UTILITY_KINDS = { "black hammer": "blackHammer", killjoy: "killjoy", track: "track", hog: "hog", slow: "slow", steamroller: "steamroller" };
+export function utilityKindOf(item) {
+  const o = item?.system?.offense;
+  if (Object.values(UTILITY_KINDS).includes(o)) return o;
+  const n = String(item?.name ?? "").toLowerCase();
+  return Object.entries(UTILITY_KINDS).find(([k]) => n.startsWith(k))?.[1] ?? "";
+}
+const KIND_LABEL = { blackHammer: "lethal black IC", killjoy: "non-lethal black IC", track: "locates the jackpoint", hog: "drains the deck's programs",
+  slow: "slows proactive IC", steamroller: "Deadly against tar" };
+/** Why a special utility can't hit this target ("" if it can; p.97–99). */
+function utilityTargetProblem(kind, target) {
+  if (["blackHammer", "killjoy", "track", "hog"].includes(kind)) {
+    return target.type === "character" && target.system.vr2Conn ? "" : "it targets a decker on the Matrix (connected)";
+  }
+  if (kind === "slow") {
+    if (target.type !== "ic") return "it targets IC";
+    if (!isProactive(target.system.program)) return "reactive IC is immune to Slow (p.99)";
+    return target.system.program === "trace" && Y.isLocating?.(target) ? "trace IC is vulnerable only while hunting (p.99)" : "";
+  }
+  if (kind === "steamroller") return target.type === "ic" && ["tar-baby", "tar-pit"].includes(target.system.program) ? "" : "it attacks only tar baby and tar pit (p.99)";
+  return "";
+}
 
 /** A utility's attribute attack (p.98–99), from its field or its name; "" for none. */
 function offenseOf(item) {
@@ -428,6 +483,16 @@ export function renderVR2MatrixCard(st) {
       <br><em>${hit ? "A hit: the location cycle starts, ⌊10 ÷ successes⌋ Combat Turns (VR2.0 p.45)." : "No fix yet: the hunt goes on."}</em>
       ${hit && !st.resolved ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.targetUuid)}" data-op="traceStart"
         data-arg="__CARD__" title="GM: freeze the successes and start the countdown">Start location cycle</button></div>` : ""}</div>`;
+  }
+  // Part 5a: Track, Hog and Slow do no damage; the target tests against the utility's rating (p.97–99).
+  if (["track", "hog", "slow"].includes(st.effect)) {
+    const test = { track: `Evasion against TN ${st.rating}; if it fails to match the attack, the track locks on (10 ÷ net successes turns, p.97)`,
+      hog: `MPCP against TN ${st.rating} − Hardening; the attacker drains 1 point per 2 net successes from the highest-rated program, every turn (p.98)`,
+      slow: `the host's Security Value against TN ${st.rating}; the IC loses 1 action per 2 net successes (p.99)` }[st.effect];
+    return `<div class="sr2e-damage-result"><strong>${esc(st.attackerName)} hits ${esc(st.targetName ?? "")} with ${esc(st.effectName)}</strong> — ${plural(st.successes ?? 0, "success")}
+      <br>${hit ? `<em>The target tests ${esc(test)}.</em>` : "<em>The attack misses.</em>"}
+      ${st.resolution ?? ""}
+      ${!st.resolved && hit ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-matrixresist-btn">🖧 Resist (Matrix)</button></div>` : ""}</div>`;
   }
   const button = !st.resolved && hit ? `
     <div class="sr2e-karma-actions">
@@ -487,7 +552,8 @@ async function promptAttack(actor, target, ms) {
   const preHost = isIC ? sync(actor.system.hostUuid) : (sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor));
   let programs = "";
   if (!isIC) {
-    const list = usablePrograms(actor).filter(i => i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name))
+    const list = usablePrograms(actor).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
+      && !(utilityKindOf(i) && utilityTargetProblem(utilityKindOf(i), target)))
       .sort((a, b) => programRating(b) - programRating(a));
     const imp = liveSession(actor)?.improvised;
     const improv = imp?.level ? `<option value="improv">Improvised attack (Power ${imp.power}, ${imp.level})</option>` : "";
@@ -495,7 +561,8 @@ async function promptAttack(actor, target, ms) {
       ui.notifications.warn("Load an attack utility, or build an improvised attack (VR2.0 p.123).");
       return null;
     }
-    programs = improv + list.map(p => `<option value="${p.id}">${esc(p.name)} (Rating ${programRating(p)}${offenseOf(p) ? `, against ${ATTR_LABEL[OFFENSE_ATTRIBUTE[offenseOf(p)]]}`
+    programs = improv + list.map(p => `<option value="${p.id}">${esc(p.name)} (Rating ${programRating(p)}${utilityKindOf(p) ? `, ${KIND_LABEL[utilityKindOf(p)]}`
+      : offenseOf(p) ? `, against ${ATTR_LABEL[OFFENSE_ATTRIBUTE[offenseOf(p)]]}`
       : p.system.damageLevel ? `, ${p.system.damageLevel}` : ", no level"})</option>`).join("");
   }
   const hackingMax = actor.system.dicePools?.hacking?.value ?? 0;
@@ -580,7 +647,7 @@ async function attackOnce(actor) {
   // Shield and shift defenses make IC harder to hit (p.50).
   let tn = cybercombatTN(code, o.status) + ms.parry
     + (target.type === "ic" && ["shield", "shift"].includes(target.system.defense) ? 2 : 0);
-  let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer;
+  let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer, special = {};
   let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "";
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
@@ -641,8 +708,22 @@ async function attackOnce(actor) {
     } else {
       const prog = actor.items.get(o.programId);
       if (!prog || !usablePrograms(actor).includes(prog)) return ui.notifications.warn("That utility isn't loaded and usable any more.");
-      const offense = offenseOf(prog);
-      if (offense) {
+      const offense = offenseOf(prog), kind = utilityKindOf(prog);
+      const kindWhy = kind ? utilityTargetProblem(kind, target) : "";
+      if (kindWhy) return ui.notifications.warn(`${prog.name} can't attack ${target.name}: ${kindWhy}.`);
+      const r = programRating(prog);
+      if (kind === "blackHammer" || kind === "killjoy") {
+        // A decker's black IC (p.98): the host's Security Code sets the level; +2 on a downed icon (p.48).
+        const bd = blackDamage(code, r, Y.iconDown(target));
+        dice = r; power = bd.power; level = bd.level;
+        special = { program: kind === "blackHammer" ? "black-lethal" : "black-nonlethal", noBlaster: true, icRating: r, utility: kind };
+      } else if (kind === "track" || kind === "hog" || kind === "slow") {
+        dice = r;
+        effect = { effect: kind, rating: r, effectName: prog.name };
+      } else if (kind === "steamroller") {
+        dice = power = r; level = "D";   // (Rating)D against tar (p.99)
+        special = { utility: kind };
+      } else if (offense) {
         if (target.type !== "character") return ui.notifications.warn(`${prog.name} attacks a persona, not IC.`);
         dice = programRating(prog);
         effect = { effect: "attribute", attr: OFFENSE_ATTRIBUTE[offense], floor: 0, rating: programRating(prog), effectName: prog.name };
@@ -688,7 +769,7 @@ async function attackOnce(actor) {
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
     icKey: isIC ? icKey0 : Y.attackerKeyOf(actor), attackerInc: isIC ? null : Y.crashInc(actor), targetConn: target.system?.vr2Conn?.n ?? null,
     ...(isIC ? { icRating, threat, comp: prof.comp, psychotropic: prof.psychotropic, expert: Y.expertOf(actor),
-      cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area }) };
+      cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area, ...special }) };
   const card = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
     flags: { sr2e: { matrix: state } } });
   // Part 3: an IC's attack on a decker on the connection log is ADMITTED by the sequencer
@@ -774,6 +855,8 @@ export async function vr2MatrixResist(defender, message) {
     const liveAtk = () => { const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : (st.successes ?? 0); };
     if (liveAtk() <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
     if (st.effect === "attribute") return await resistAttribute(defender, message, st, liveAtk);
+    if (st.effect === "track" || st.effect === "hog") return await resistUtility(defender, message, st);
+    if (st.effect === "slow") return await resistSlow(defender, message, st);
     // Part 3: a decker on the connection log resolves through the sequencer (plan §0, §3).
     if (defender.type === "character" && st.targetConn != null && defender.system.vr2Conn) return await resistOnLog(defender, message, st, liveAtk);
     // A persona hit belongs to the connection it hit: a reconnect doesn't take it.
@@ -1289,7 +1372,7 @@ export async function vr2SwapMemory(actor, item) {
   const key = programKey({ source: item._stats?.compendiumSource ?? item.flags?.core?.sourceId, name: item.name });
   if (actor.system.vr2Deck?.corrupted?.has(key)) return ui.notifications.warn(`${item.name} is corrupted on this deck: reload it from storage after jacking out (VR2.0 p.43).`);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
-  await enqueueAttack(`program:${item.uuid}`, () => item.update({ "system.loadGen": (item.system.loadGen ?? 0) + 1, "system.crashed": false }));
+  await enqueueAttack(`program:${item.uuid}`, () => item.update({ "system.loadGen": (item.system.loadGen ?? 0) + 1, "system.crashed": false, "system.loaded": true }));
   await commitAction(actor, startedBuild);
   ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
     swaps in a fresh copy of ${esc(item.name)} (rating ${item.system.rating}).</div>` });
