@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.128.0 — 2026-10-30
+
 ### Added
 - **VR2.0 utilities** (VR2.0 pp.97–100), under the VR2.0 Matrix rules:
   - **Black Hammer and Killjoy**: a decker's own black IC. Lethal (black hammer) or Stun (killjoy), Moderate

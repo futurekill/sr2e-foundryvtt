@@ -240,3 +240,85 @@ The stale tradeoffs are corrected. I found no remaining material plan blocker wi
 
 VERDICT: APPROVED
 **APPROVED in round 7** (5 planned rounds + 2 confirmation rounds). Declined: R5 #4 (system-wide Karma writers), recorded under Risks.
+
+## Code review (implementation) — Codex
+
+### p5-code1
+The implementation still has material bugs. I inspected the diff and current call paths, and ran read-only probes of the pure helpers; I did not run live Quench tests.
+
+1. **Attack identity is captured after the roll.** In `module/vr2.mjs:770`, `attackerKey`, `attackerInc`, and `targetConn` are read after awaited rolling and action updates. If the attacker crashes during the roll, the card receives the *new* incarnation and can establish a lock; if the defender reconnects, the old attack can hit the new connection.  
+   **Fix:** Snapshot both connection identities and the attacker incarnation before rolling, and retain those snapshots on the card.
+
+2. **Black Hammer’s jack-out test still parses decker keys as IC keys.** `leaveOnLog` (`module/vr2.mjs:1442`) calls `icOfKey`, whose parser cannot resolve `deck:Actor.…@1`; the subsequent filter removes that lock from the rating calculation. With only decker locks, the computed Willpower TN is zero instead of the frozen utility rating plus the applicable bonus.  
+   **Fix:** Resolve lock owners through `parseAttackerKey` and calculate the gate from every surviving hit’s frozen `icRating`.
+
+3. **An old, ended hit can cancel a new attacker’s last attack.** `advanceExit` (`module/vr2ic.mjs:1331`) selects the first historical hit matching the attacker key. After an attacker crashes, repairs its icon, and hits again on the same connection, that first hit belongs to the ended incarnation; the code cancels the obligation despite the newer live lock.  
+   **Fix:** Select the surviving lock that established the exit obligation, preferably snapshotting its incarnation in `exitOpen`.
+
+4. **Track/Hog resolution is not recoverable after partial handler failure.** Their resistance is sent only in a request, rather than the planned durable resistance fact. If creating the trace/infection succeeds but writing its attack ack fails, `processRequests` records the request as done, and no reconciliation completes the missing ack. The attack can hold the exit barrier indefinitely.  
+   **Fix:** Persist one resistance outcome per card and reconcile effect creation and acknowledgement independently of request completion.
+
+5. **Hog can permanently skip its initial drain.** The Hog handler (`module/vr2ic.mjs:895`) writes its ack and posts resolution before calling `hogTick(..., "m0")`. Disconnecting or throwing in that interval leaves an acknowledged infection without its initial tick; `reconcileHog` only repairs ticks already recorded.  
+   **Fix:** Reconcile a missing initial tick for every committed infection before considering its initialization complete.
+
+6. **Hog’s next tick can select its victim from unreconciled ratings.** Combat/manual advancement calls `hogTick` without first completing existing Hog wear. If the previous tick fact should crash a rating-2 program but its item update failed, the next tick sees rating 2 and drains the same copy again instead of moving to the next program.  
+   **Fix:** Reconcile outstanding wear before selecting or calculating each new tick.
+
+7. **Slow adopts the current round and generation after resistance finishes.** `slowResult` (`module/vr2ic.mjs:826`) snapshots these values only after the resistance roll. Advancing the round or resetting the IC while that roll is pending makes the old attack drain the new round/incarnation; the later stale checks cannot detect this.  
+   **Fix:** Capture the intended combat, combatant, round, and IC generation before resistance and validate those snapshots when committing the result.
+
+8. **Slow’s promised restart recovery is missing.** The ready/user-connected scheduler only visits characters, and Slow reconciliation is triggered only by creation of `vr2:slow:` records. If the GM disconnects after the fact lands but before its combatant update, reconnecting does not apply it; retrying `slowResult` immediately returns “already resolved.”  
+   **Fix:** Implement the planned IC reconciliation pass on ready/GM handover and reconcile existing facts before returning from duplicate resolution.
+
+9. **Hung-state and suppression checks accept stale receipts.** `icDisabled` (`module/vr2ic.mjs:862`) checks only receipt round, not IC generation. Resetting the IC within that round leaves the replacement hung. Separately, `slowSuppress` accepts an old card whenever *any* Slow currently hangs that IC, without requiring that card’s own current hung receipt or original session.  
+   **Fix:** Bind hung receipts to generation and validate suppression against the exact card, combat, round, generation, and originating session.
+
+10. **Unlinked-token IC can be suppressed for free and lack a Release control.** Combat eligibility reads the synthetic actor’s suppression correctly, but Detection Factor and the sheet’s suppression list scan only `game.actors` (`module/vr2.mjs:308`, `module/vr2ic.mjs:1598`). Suppression on an unlinked token therefore holds it out without charging Detection Factor or listing it for release.  
+    **Fix:** Use the same UUID-deduplicated world-and-synthetic actor enumeration for suppression accounting, display, and eligibility.
+
+11. **Restore can bank excess repairs against future damage.** `restoreState` (`module/rules/vr2ic-rules.mjs:399`) processes all damage before all repairs, ignoring their relative sequence. Two clients can each repair the same outstanding two points because `sessionQueue` is client-local; both receipts survive, and the excess repairs then erase a later two-point injury. A pure-helper probe confirmed that outcome.  
+    **Fix:** Fold damage and repairs in one chronological stream, discard surplus repair points, and serialize repair authorization across clients.
+
+12. **Slow silently fails when resolved by a non-active GM.** `resistSlow` allows the IC’s owner to roll, then directly calls `slowResult`, which executes only through the local active-GM sequencer. A second GM can complete resistance but produce no fact or resolution.  
+    **Fix:** Submit the resistance result through an authorized request that the active GM processes, or explicitly restrict resolution before rolling.
+
+13. **The Evaluate Quench test permanently modifies unrelated world data.** The test at `module/quench/sr2e-quench.mjs:12265` calls `game.sr2e.degradeEvaluate()`, which targets every Evaluate program in the world. Cleanup deletes test actors and the operation card but leaves decay receipts on real actors, world items, and unlinked tokens.  
+    **Fix:** Exercise the decay application with an operation whose targets are exclusively test fixtures; never invoke the global population-changing operation against the live world.
+
+The Evaluate restoration transaction does correctly derive its transaction ID from the request and resume existing debit receipts. The previously accepted cross-feature Karma race is not counted again here.
+
+VERDICT: REVISE
+### p5-code2
+The fixes for #1–3, #6–7, #9–10, and #12–13 address the reported scenarios. For #11, a read-only probe confirms that chronological folding discards surplus repairs; I accept the stated choice to let a duplicate repair be wasted.
+
+Three recovery gaps remain:
+
+1. **#4 is only partially fixed: failed requests without an effect record remain stuck.** In `module/vr2ic.mjs`, `reconcileUtilityAcks` only examines existing traces and infections. If a resisted Track/Hog attack fails while writing its no-effect ack—or a successful attack fails before creating its effect—`processRequests` still writes `done`, and reconciliation never revisits it. The admitted attack remains pending, requiring another user resolution and potentially another resistance roll.  
+   **Fix:** Persist the resistance outcome and reconcile all terminal outcomes, or retry recoverable failed requests using their original recorded successes.
+
+2. **#5 still loses the initial Hog drain if another tick arrives first.** After the infection fact lands but initial ticking fails, a combat-round update can execute before the debounced recovery pass. That creates a numbered turn tick. Recovery tests for *any* `hogTick`, sees that later tick, and permanently skips `"m0"`. An isolated probe of the actual reconciliation function confirmed it writes the ack but no initial tick.  
+   **Fix:** Ensure `"m0"` initialization completes before every subsequent tick, and check for that exact boundary rather than the existence of any tick.
+
+3. **#8 now recovers Initiative loss, but not the player’s Suppress opportunity.** If the GM disconnects after the Slow fact or combatant receipt lands but before the Suppress chat card is created, reconnect reconciliation only updates the combatant. Retrying `slowResult` also reconciles and returns immediately. The IC hangs, but the player never receives the button needed to suppress it before the round ends.  
+   **Fix:** Reconcile the current hang’s Suppress prompt from its durable fact/receipt, including on restart and duplicate resolution.
+
+I did not run live Quench tests or modify files.
+
+VERDICT: REVISE
+### p5-code3
+The persisted Track/Hog resistance and exact `"m0"` ordering address the two reported gaps. One blocker remains:
+
+**Slow’s Suppress prompt still has an interruption window** (`module/vr2ic.mjs:905–907`). `once()` persists its marker before `ChatMessage.create`. If the GM disconnects between those writes—or message creation fails—every subsequent reconciliation sees the marker and skips the missing prompt. The player again loses the opportunity to suppress the current hang.
+
+**Fix:** Create the prompt with a deterministic message ID derived from the Slow card and reconcile against the message’s existence, rather than a separately committed `once()` marker.
+
+Add a regression that interrupts after the current marker write but before message creation, then reconciles within the same round.
+
+VERDICT: REVISE
+### p5-code4
+The fix closes the interruption gap: the message itself is now the completion record, and reconciliation retries when it is absent. The Quench regression exercises recovery of a missing prompt.
+
+No material regression found in this commit. Live Quench was not run during this read-only review.
+
+VERDICT: APPROVED
+**Code APPROVED in round 4.** Declined: cross-client serialization of Restore (a duplicate repair is wasted, never banked).
