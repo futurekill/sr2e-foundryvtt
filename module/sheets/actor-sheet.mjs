@@ -2292,13 +2292,39 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
       matrixPerception: onMatrixPerception,
       vr2Maneuver: onVR2Maneuver,
       vr2Redetect: onVR2Redetect,
-      vr2ic: onVr2Ic
+      vr2ic: onVr2Ic,
+      // Part 4b: construct programs (p.52). Rows keep their id for life — effects are keyed by it.
+      addComponent: async function(event) {
+        event.preventDefault();
+        const rows = foundry.utils.deepClone(this.document._source.system.construct?.components ?? []);
+        rows.push({ id: foundry.utils.randomID(), program: "killer", rating: 1, psychotropic: "", scramble: "", worm: "" });
+        return this.document.update({ "system.construct.components": rows });
+      },
+      deleteComponent: async function(event, target) {
+        event.preventDefault();
+        const rows = (this.document._source.system.construct?.components ?? []).filter(c => c.id !== target.dataset.compId);
+        return this.document.update({ "system.construct.components": rows });
+      }
     }
   };
 
   static PARTS = {
     ic: { template: "systems/sr2e/templates/actor/ic-sheet.hbs" }
   };
+
+  /** Component rows edit the authored array by id (an ArrayField of objects; ids never change). */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    this.element.querySelectorAll("[data-comp-field]").forEach(el => el.addEventListener("change", async (ev) => {
+      ev.stopPropagation();
+      const rows = foundry.utils.deepClone(this.document._source.system.construct?.components ?? []);
+      const row = rows.find(c => c.id === el.dataset.compId);
+      if (!row) return;
+      row[el.dataset.compField] = el.type === "number" ? Math.max(1, parseInt(el.value) || 1) : el.value;
+      if (el.dataset.compField === "program" && el.value === "scramble" && !row.scramble) row.scramble = "poison";   // the only construct scramble
+      await this.document.update({ "system.construct.components": rows });
+    }));
+  }
 
   /** @override */
   async _prepareContext(options) {
@@ -2314,9 +2340,21 @@ export class SR2EICSheet extends SR2EBaseActorSheet {
     const Y = await import("../vr2ic.mjs");
     const { isProactive } = await import("../rules/vr2ic-rules.mjs");
     const ic = this.document;
-    context.optionalIC = { proactive: isProactive(ic.system.program),
-      cascade: ic.system.cascading && host?.type === "host" ? Y.cascadeOf(ic, host) : null,
+    const construct = Y.isConstruct(ic);
+    context.optionalIC = { proactive: construct || isProactive(ic.system.program), construct,
+      cascade: !construct && ic.system.cascading && host?.type === "host" ? Y.cascadeOf(ic, host) : null,
       party: Y.partyOf(ic), partyId: ic.system.party?.id ?? "" };
+    // Part 4b: the construct editor and its budget (p.52); a construct can't be a hidden trap (R8).
+    if (construct) {
+      const { CONSTRUCT_PROGRAMS } = await import("../rules/vr2ic-rules.mjs");
+      const b = Y.constructProblems(ic);
+      context.construct = { budget: b, threatCap: { blue: 0, green: 1, orange: 2, red: 3 }[ic.system.securityCode] ?? 0,
+        programs: [...CONSTRUCT_PROGRAMS].map(k => ({ key: k, label: CONFIG.SR2E.icPrograms[k] ?? k })),
+        rows: ic.system.construct.components.map(c => ({ ...c, available: Y.compAvailable(ic, c.id),
+          tar: /^tar-/.test(c.program), label: CONFIG.SR2E.icPrograms[c.program] ?? c.program })) };
+    }
+    const linked = ic.system.trapFor ? fromUuidSync(ic.system.trapFor) : null;
+    context.trapIsConstruct = Y.isConstruct(linked);
     return context;
   }
 }

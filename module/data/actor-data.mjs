@@ -2278,6 +2278,20 @@ export class ICData extends SR2EDataModel {
       party: new fields.SchemaField({
         id: new fields.StringField({ initial: "", blank: true }),
         size: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      }),
+      // Part 4b (docs/PLAN-vr2-part4b.md): a construct — one icon, one monitor, several IC programs (p.52).
+      // Component ids are set once when a row is added; effects are keyed `uuid#gen/<id>`.
+      construct: new fields.SchemaField({
+        enabled: new fields.BooleanField({ initial: false }),
+        threat: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 3 }),
+        components: new fields.ArrayField(new fields.SchemaField({
+          id: new fields.StringField({ initial: "", blank: true }),
+          program: new fields.StringField({ initial: "", blank: true }),
+          rating: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+          psychotropic: new fields.StringField({ initial: "", blank: true }),
+          scramble: new fields.StringField({ initial: "", blank: true }),
+          worm: new fields.StringField({ initial: "", blank: true })
+        }))
       })
     };
   }
@@ -2302,7 +2316,10 @@ export class ICData extends SR2EDataModel {
       // (Blue 1 … Red 4)D6 + IC Rating (p.120).
       this.effectiveRating = this.rating;
       this.conditionMonitor.max = 10;
-      this.initiative.base = this.rating;
+      // A construct's Initiative uses its LOWEST component rating (p.52, p.120).
+      this.isConstruct = !!this.construct?.enabled;
+      const comps = this.isConstruct ? this.construct.components.map(c => c.rating).filter(r => r > 0) : [];
+      this.initiative.base = comps.length ? Math.min(...comps) : this.rating;
       this.initiative.dice = icInitiativeDice(this.securityCode);
     } else {
       // Active/passive alerts boost all IC ratings by +50% (SR2E p.168).

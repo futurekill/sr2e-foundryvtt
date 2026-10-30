@@ -11,7 +11,8 @@
 import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
          boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod,
-         isProactive, cascadeOutcomes, cascadeBonus, partyBudget } from "./rules/vr2ic-rules.mjs";
+         isProactive, cascadeOutcomes, cascadeBonus, partyBudget, parseIcKey, iconKeyOf, constructBudget, THREAT_CAP } from "./rules/vr2ic-rules.mjs";
+import { icClass } from "./rules/sr2e-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -29,10 +30,14 @@ const codeLabel = (code) => game.i18n.localize(CONFIG.SR2E.securityCodes[code]?.
 
 export const recordsOf = (doc) => eventsOf(doc).filter(e => String(e.key).startsWith(P3));
 export const icGen = (uuid) => { const ic = sync(uuid); return ic?.type === "ic" ? (ic.system.generation ?? 0) : undefined; };
-export const icKeyOf = (ic) => `${ic.uuid}#${ic.system.generation ?? 0}`;
+/** The IC's key: the icon `uuid#gen`, or a construct component's effect `uuid#gen/<comp>` (part 4b §1). */
+export const icKeyOf = (ic, comp = "") => `${ic.uuid}#${ic.system.generation ?? 0}${comp ? `/${comp}` : ""}`;
+export { parseIcKey, iconKeyOf };
+/** The IC actor a key names (icon or component). */
+export const icOfKey = (key) => sync(parseIcKey(key).uuid);
 export function icCrashSeq(icKey) {
-  const i = String(icKey).lastIndexOf("#");
-  return sync(icKey.slice(0, i))?.flags?.sr2e?.vr2Crashes?.[icKey.slice(i + 1)]?.seq ?? null;
+  const { uuid, gen } = parseIcKey(icKey);
+  return sync(uuid)?.flags?.sr2e?.vr2Crashes?.[gen]?.seq ?? null;
 }
 export function foldOf(actor) {
   const tapeworms = (actor.system.vr2Deck?.worms ?? []).filter(w => w.kind === "tape").map(w => w.key);
@@ -161,8 +166,37 @@ const HANDLERS = {
 const LEVEL_NAMES = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly" };
 /** Is the decker's icon down (the persona monitor full)? */
 export const iconDown = (actor) => (actor?.system?.matrixPersona?.condition?.value ?? 0) >= MATRIX_MONITOR_MAX;
-/** A black IC's effective rating: +2 while the decker's icon is down (p.48). */
-export const blackRating = (ic, decker) => (ic?.system?.rating ?? 0) + (iconDown(decker) ? 2 : 0);
+/** A black IC's effective rating: +2 while the decker's icon is down (p.48). `rating` = a component's or a frozen one. */
+export const blackRating = (ic, decker, rating = null) => (rating ?? ic?.system?.rating ?? 0) + (iconDown(decker) ? 2 : 0);
+
+// ── Part 4b: constructs (docs/PLAN-vr2-part4b.md; p.52) ──────────────────────────
+export const isConstruct = (ic) => ic?.type === "ic" && !!ic.system.construct?.enabled;
+/** The program profile an IC acts with: a construct's component, or the IC itself. */
+export function icProfile(ic, comp = "") {
+  const c = isConstruct(ic) ? ic.system.construct.components.find(x => x.id === comp) : null;
+  const src = c ?? ic?.system ?? {};
+  return { comp: c ? comp : "", program: src.program ?? "", rating: src.rating ?? 0, icClass: c ? icClass(c.program, "white") : ic?.system?.icClass,
+    psychotropic: src.psychotropic ?? "", scramble: src.scramble ?? "", worm: src.worm ?? "" };
+}
+/** Threat dice (p.52): a construct's Threat Rating within its code's cap; none for other IC. Never on Initiative. */
+export const threatOf = (ic) => isConstruct(ic) ? Math.min(ic.system.construct.threat ?? 0, THREAT_CAP[ic.system.securityCode] ?? 0) : 0;
+/** The construct's budget and row problems (part 4b §6, R15). */
+export function constructProblems(ic) {
+  const host = sync(ic.system.hostUuid);
+  return constructBudget({ sv: host?.system.securityValue ?? 0, code: ic.system.securityCode, components: ic.system.construct.components,
+    defenses: (ic.system.armorDefense ? 1 : 0) + (ic.system.defense ? 1 : 0), threat: ic.system.construct.threat, icClassOf: (p) => icClass(p, "white") });
+}
+const compCrashKey = (gen, comp) => `${P3}comp-crash:${gen}:${comp}`;
+/** Can this construct component act now (R1)? Same generation, the row exists, not crashed, the icon not down, a valid build. */
+export function compAvailable(ic, comp, gen = ic?.system?.generation ?? 0, { budget = true } = {}) {
+  if (!isConstruct(ic) || gen !== (ic.system.generation ?? 0)) return false;
+  if (!ic.system.construct.components.some(c => c.id === comp)) return false;
+  if ((ic.system.conditionMonitor?.value ?? 0) >= MATRIX_MONITOR_MAX) return false;
+  if (recordsOf(ic).some(e => e.key === compCrashKey(gen, comp))) return false;
+  return !budget || constructProblems(ic).problems.length === 0;
+}
+/** Crash one component (tar won, disinfect): the construct goes on (R3, R5). */
+export const crashComponent = (ic, gen, comp, card = "") => recordEvent(ic, compCrashKey(gen, comp), { type: "compCrash", gen, comp, card });
 /** The kind of black IC a program is: lethal, non-lethal or psychotropic (null for others). */
 export const blackKind = (program) => String(program ?? "").startsWith("black-") ? program.slice(6) : null;
 
@@ -230,7 +264,7 @@ Object.assign(HANDLERS, {
     if (crashed) {
       const prog = r.program ?? "";
       if (prog === "blaster" || prog === "sparky") {
-        await fact(actor, `gray:${r.card}`, { type: "gray", conn: r.conn, card: r.card, kind: prog, rating: r.rating ?? 0,
+        await fact(actor, `gray:${r.card}`, { type: "gray", conn: r.conn, card: r.card, kind: prog, rating: r.rating ?? 0, threat: r.threat ?? 0,
           chipGen: chipGens(actor).mpcp, hardening: conn.open?.settings?.hardening ?? 0 });
       }
       lines.push(`${actor.name}'s persona crashes: dumped from the Matrix.`);
@@ -240,26 +274,64 @@ Object.assign(HANDLERS, {
     return { ok: true };
   },
 
-  /** A black hit: close the attack to Karma and freeze it (plan §3). */
+  /** A black hit: close the attack to Karma and freeze it (plan §3), after the decker's Shield decision (part 4b R10). */
   async black(actor, r, f) {
     const conn = f.conn(r.conn);
     if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
-    if (conn.hits.some(h => h.card === r.card)) return { ok: true };
-    const msg = game.messages.get(r.card), st = msg?.flags?.sr2e?.matrix;
-    if (!st) return { ok: false, why: "the attack card is gone" };
-    const tm = game.messages.get(st.testMessageId), test = tm?.flags?.sr2e?.test;
-    if (test && !test.closed) {
-      const { renderSuccessTestCard } = await import("./documents/actor.mjs");
-      const next = { ...test, closed: true };
-      await tm.update({ content: renderSuccessTestCard(next), "flags.sr2e.test": next });
-    }
-    const successes = test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
-    await fact(actor, `hit:${r.card}`, { type: "hit", conn: r.conn, card: r.card, icKey: st.icKey, icName: st.attackerName,
-      kind: blackKind(st.program), rating: st.power, level: st.level, attackSuccesses: successes,
-      cool: conn.open?.settings?.deckMode === "cool", hardening: conn.open?.settings?.hardening ?? 0 });
-    return { ok: true };
+    if (r.shieldDecided && !shieldOf(actor, r.card)) return { ok: false, why: "no Shield decision" };
+    return freezeBlack(actor, r.card, r.conn, { legacy: !r.shieldDecided });
   }
 });
+
+/** The decker's durable Shield decision for a black card (part 4b R10): first record wins. */
+export const shieldOf = (actor, card) => recordsOf(actor).find(e => e.key === `${P3}shield:${card}`) ?? null;
+
+/**
+ * Wear the Shield (once per card) and freeze a black hit — or, when the Shield took every success, end the
+ * attack with no hit (part 4b R10). Idempotent; run by the `black` handler and by `reconcileShieldFreeze`.
+ */
+async function freezeBlack(actor, card, connN, { legacy = false } = {}) {
+  const conn = foldOf(actor).conn(connN);
+  if (!conn?.admitted.some(a => a.card === card)) return { ok: false, why: "that attack wasn't admitted" };
+  if (conn.hits.some(h => h.card === card) || recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${card}`)) return { ok: true };
+  const msg = game.messages.get(card), st = msg?.flags?.sr2e?.matrix;
+  if (!st) return { ok: false, why: "the attack card is gone" };
+  const sh = shieldOf(actor, card);
+  if (!sh && !legacy) return { ok: false, why: "no Shield decision" };
+  if (sh?.itemId) {                                   // the sequencer alone wears it, once per card (R10.3)
+    const { addWear } = await import("./vr2.mjs");
+    await addWear(actor, { itemId: sh.itemId, loadGen: sh.loadGen ?? 0 }, card);
+  }
+  const tm = game.messages.get(st.testMessageId), test = tm?.flags?.sr2e?.test;
+  if (test && !test.closed) {
+    const { renderSuccessTestCard } = await import("./documents/actor.mjs");
+    const next = { ...test, closed: true };
+    await tm.update({ content: renderSuccessTestCard(next), "flags.sr2e.test": next });
+  }
+  const successes = test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
+  const net = Math.max(0, successes - (sh?.successes ?? 0));
+  if (net <= 0) {
+    await fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome: { boxes: 0, shieldCancelled: true } });
+    await postResolution(actor, card, `${actor.name}'s Shield stops ${st.attackerName}'s black IC.`, [`Shield ${sh?.successes ?? 0} against ${successes} attack success${successes === 1 ? "" : "es"} (VR2.0 p.100).`]);
+    return { ok: true };
+  }
+  await fact(actor, `hit:${card}`, { type: "hit", conn: connN, card, icKey: st.icKey, icName: st.attackerName,
+    kind: blackKind(st.program), rating: st.power, icRating: st.icRating ?? null, threat: st.threat ?? 0, psychotropic: st.psychotropic ?? "",
+    level: st.level, attackSuccesses: net, shield: sh?.successes ?? 0,
+    cool: conn.open?.settings?.deckMode === "cool", hardening: conn.open?.settings?.hardening ?? 0 });
+  return { ok: true };
+}
+
+/** Finish any black card with a Shield decision but no hit and no ack (part 4b R10.6). */
+async function reconcileShieldFreeze(actor) {
+  const f = foldOf(actor);
+  if (!f.live) return;
+  const recs = recordsOf(actor);
+  for (const a of f.live.admitted) {
+    if (!shieldOf(actor, a.card) || f.live.hits.some(h => h.card === a.card) || recs.some(e => e.type === "ack" && e.target === `attack:${a.card}`)) continue;
+    await freezeBlack(actor, a.card, f.liveN);
+  }
+}
 
 /** Apply each black resistance record once (plan §3): the icon's boxes, the meat damage. */
 async function applyResults(actor) {
@@ -326,7 +398,11 @@ export async function icDamage(ic, boxes, card = "") {
 /** A trap IC crashed or finished its trace: the hidden gray/black IC it guards wakes up (p.50–51). */
 async function fireTrap(ic, icKey) {
   const hidden = sync(ic.system.trapFor);
-  if (!hidden || !await once(ic, `${P3}trap:${icKey}`)) return;
+  if (!hidden || !await once(ic, `${P3}trap:${iconKeyOf(icKey)}`)) return;   // once per icon, however many effects reach it
+  if (isConstruct(hidden)) {
+    return ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      ${esc(ic.name)} was a trap for ${esc(hidden.name)}, but a construct can't be a hidden trap IC: wake it by hand if you want it (VR2.0 p.50, p.52).</div>` });
+  }
   await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
     <strong>Trap!</strong> ${esc(ic.name)} was a trap: <strong>${esc(hidden.name)}</strong> (${esc(hidden.system.program || hidden.system.icType)}, rating ${hidden.system.rating}) activates (VR2.0 p.50).</div>` });
 }
@@ -341,7 +417,7 @@ Object.assign(HANDLERS, {
     if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted", tell: false };
     if (!Number.isInteger(r.lost)) return { ok: false, why: "no committed attribute loss", tell: false };
     if (r.ripper && r.lost > 0) {
-      await fact(actor, `ripper:${r.card}`, { type: "ripper", conn: r.conn, card: r.card, attr: r.attr, rating: r.rating,
+      await fact(actor, `ripper:${r.card}`, { type: "ripper", conn: r.conn, card: r.card, attr: r.attr, rating: r.rating, threat: r.threat ?? 0,
         chipGen: chipGens(actor).persona, hardening: conn.open?.settings?.hardening ?? 0 });
     }
     if (!recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) {
@@ -357,7 +433,7 @@ async function applyRippers(actor) {
   for (const rp of recs.filter(e => e.type === "ripper" && !recs.some(a => a.type === "ack" && a.target === e.key))) {
     const conn = recs.find(e => e.type === "connOpen" && e.n === rp.conn);
     const tn = grayTN("ripper", actor.system.cyberdeck?.mpcp ?? 0, rp.hardening);
-    const r = await SR2ESuccessRoll.successTest(rp.rating ?? 0, tn);
+    const r = await SR2ESuccessRoll.successTest((rp.rating ?? 0) + (rp.threat ?? 0), tn);   // + a construct's threat (4b R2)
     const loss = mpcpLoss("ripper", r.successes);
     if (loss > 0) await recordEvent(deckDoc(actor, conn), `${DECK}dmg:ripper:${rp.card}`, { type: "deckDmg", attr: rp.attr, amount: loss, chipGen: rp.chipGen });
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: r.rolls, content: `<div class="sr2e-damage-result">
@@ -379,7 +455,7 @@ async function resolveGray(actor, f, s) {
   const conn = f.live.open;
   const mpcp = actor.system.cyberdeck?.mpcp ?? 0;
   const tn = grayTN(g.kind, mpcp, g.hardening);
-  const r = await SR2ESuccessRoll.successTest(g.rating ?? 0, tn);
+  const r = await SR2ESuccessRoll.successTest((g.rating ?? 0) + (g.threat ?? 0), tn);   // + a construct's threat (4b R2)
   const loss = Math.min(mpcp, mpcpLoss(g.kind, r.successes));
   await fact(actor, key, { type: "exitRes", n: f.live.n, step: "gray", ref: s.ref, successes: r.successes, loss, tn,
     sparky: g.kind === "sparky" ? { power: g.rating, level: matrixCombatOutcome("M", r.successes, 0).level ?? "M" } : null });
@@ -430,27 +506,33 @@ async function applySparky(actor) {
 export async function offerTar(message) {
   const st = message?.flags?.sr2e?.vr2SystemTest;
   if (!isSequencer() || st?.conn == null) return;
-  const onHost = (p) => game.actors.filter(a => a.type === "ic" && a.system.hostUuid === st.hostUuid && p(a.system.program));
+  // Reactive entries: ordinary IC, and each construct's usable reactive programs (part 4b §4).
+  const onHost = (p) => game.actors.filter(a => a.type === "ic" && a.system.hostUuid === st.hostUuid).flatMap(a => isConstruct(a)
+    ? a.system.construct.components.filter(c => p(c.program) && compAvailable(a, c.id)).map(c => ({ ic: a, comp: c.id, prof: icProfile(a, c.id) }))
+    : p(a.system.program) ? [{ ic: a, comp: "", prof: icProfile(a) }] : []);
+  const nameOf = (e) => e.comp ? `${e.ic.name} (${CONFIG.SR2E.icPrograms[e.prof.program] ?? e.prof.program})` : e.ic.name;
   const success = systemTestVerdict(st.successes, st.hostSuccesses).success;
-  const btn = (op, ic, label, title = "") => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.actorUuid)}" data-op="${op}"
-    data-arg="${esc(`${message.id}|${ic.uuid}`)}" title="${esc(title)}">${esc(label)}</button>`;
+  // card|icUuid|generation|component: the handler re-checks that the IC (or component) is still the same (R4).
+  const btn = (op, e, label, title = "") => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.actorUuid)}" data-op="${op}"
+    data-arg="${esc(`${message.id}|${e.ic.uuid}|${e.ic.system.generation ?? 0}|${e.comp ?? ""}`)}" title="${esc(title)}">${esc(label)}</button>`;
   const armed = (b) => !recordsOf(b).some(e => e.type === "bombEnd" && e.icKey === icKeyOf(b));
   const rows = [];
-  if (st.utilityRef) for (const t of onHost(p => /^tar-/.test(p))) rows.push(btn("tar", t, `${t.name} strikes ${st.utilityRef.name}`, "p.42"));
+  if (st.utilityRef) for (const t of onHost(p => /^tar-/.test(p))) rows.push(btn("tar", t, `${nameOf(t)} strikes ${st.utilityRef.name}`, "p.42"));
   for (const w of onHost(p => p === "worm")) {
-    rows.push(btn("worm", w, `${w.name}: infection test`, "Security Value vs MPCP (p.44)"));
-    if (st.operation === "disinfect" && success) rows.push(btn("wormGone", w, `Disinfect destroys ${w.name}`, "no tally (p.44)"));
+    rows.push(btn("worm", w, `${nameOf(w)}: infection test`, "Security Value vs MPCP (p.44)"));
+    if (st.operation === "disinfect" && success) rows.push(btn("wormGone", w, `Disinfect destroys ${nameOf(w)}`, "no tally (p.44)"));
   }
-  for (const b of onHost(p => p === "data-bomb").filter(armed)) {
+  // Data bombs are never construct programs (part 4b §4).
+  for (const b of onHost(p => p === "data-bomb").filter(e => !e.comp && armed(e.ic))) {
     if (st.operation === "defuse") {
-      if (success) rows.push(btn("defused", b, `${b.name} is defused`, "no tally (p.41)"));
-      else if (st.allOnes) rows.push(btn("explode", b, `All 1s: ${b.name} goes off`, "p.41"));
-    } else if (success) rows.push(btn("explode", b, `${b.name} goes off (this opened what it protects: ${b.system.protects || "?"})`, "p.41"));
+      if (success) rows.push(btn("defused", b, `${b.ic.name} is defused`, "no tally (p.41)"));
+      else if (st.allOnes) rows.push(btn("explode", b, `All 1s: ${b.ic.name} goes off`, "p.41"));
+    } else if (success) rows.push(btn("explode", b, `${b.ic.name} goes off (this opened what it protects: ${b.ic.system.protects || "?"})`, "p.41"));
   }
   if (/^decrypt/.test(st.operation)) for (const sc of onHost(p => p === "scramble")) {
-    if (!success && sc.system.scramble === "poison") rows.push(btn("poison", sc, `${sc.name}: Poison Test`, "rating dice vs the decker's Computer (p.42)"));
-    const bomb = sync(sc.system.bombUuid);
-    if (success && sc.system.scramble === "exploding" && bomb && armed(bomb)) rows.push(btn("explode", bomb, `${bomb.name} goes off (exploding scramble)`, "p.42"));
+    if (!success && sc.prof.scramble === "poison") rows.push(btn("poison", sc, `${nameOf(sc)}: Poison Test`, "rating dice vs the decker's Computer (p.42)"));
+    const bomb = sc.comp ? null : sync(sc.ic.system.bombUuid);
+    if (success && sc.prof.scramble === "exploding" && bomb && armed(bomb)) rows.push(btn("explode", { ic: bomb, comp: "" }, `${bomb.name} goes off (exploding scramble)`, "p.42"));
   }
   if (st.operation === "redirectDatatrail" && success) {
     const n = st.conn;
@@ -499,26 +581,33 @@ export async function bombEnd(actor, bomb, outcome, card) {
 }
 
 /** Poison scramble (p.42): rating dice vs the decker's Computer; a success destroys the data. */
-export async function poisonTest(actor, sc) {
+export async function poisonTest(actor, sc, comp = "") {
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
-  const r = await SR2ESuccessRoll.successTest(sc.system.rating ?? 0, Math.max(2, computer));
+  const r = await SR2ESuccessRoll.successTest(icProfile(sc, comp).rating + threatOf(sc), Math.max(2, computer));
   await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), rolls: r.rolls, content: `<div class="sr2e-item-card">
     ${esc(sc.name)}'s Poison Test against ${esc(actor.name)}'s Computer ${computer}: ${r.successes} success${r.successes === 1 ? "" : "es"},
     <strong>${r.successes > 0 ? `the data${sc.system.protects ? ` (${esc(sc.system.protects)})` : ""} is destroyed` : "the decker suppresses its destruct code"}</strong> (VR2.0 p.42).</div>` });
 }
 
 /** A worm's infection test (p.44): Security Value dice vs the deck's MPCP; more than the Hardening infects. */
-export async function wormTest(actor, worm, card) {
+export async function wormTest(actor, worm, card, comp = "", gen0 = null) {
   return sequencer(async () => {
+    // Re-checked here, in the queue: a crash or disinfect queued first wins (4b impl R1 #1).
+    if (isConstruct(worm) ? !compAvailable(worm, comp, gen0 ?? -1) : (gen0 != null && gen0 !== (worm.system.generation ?? 0))) {
+      return ui.notifications.warn(`${worm.name} has changed since that card.`);
+    }
     const conn = liveConn(actor);
     const host = sync(worm.system.hostUuid);
+    const prof = icProfile(worm, comp), gen = worm.system.generation ?? 0;
     const mpcp = actor.system.cyberdeck?.mpcp ?? 0, hardening = conn?.settings?.hardening ?? 0;
-    const r = await SR2ESuccessRoll.successTest(host?.system.securityValue ?? 0, Math.max(2, mpcp));
+    // Infection dice stay the host's Security Value (+ a construct's threat); the profile gives the kind (4b R3).
+    const r = await SR2ESuccessRoll.successTest((host?.system.securityValue ?? 0) + threatOf(worm), Math.max(2, mpcp));
     const infects = wormInfects(r.successes, hardening);
-    if (infects) await recordEvent(deckDoc(actor, conn), `${DECK}worm:${card}:${worm.id}`, { type: "worm", kind: worm.system.worm || "data", chipGen: chipGens(actor).mpcp, name: worm.name });
+    const wkey = comp ? `${DECK}worm:${card}:${worm.id}:${gen}:${comp}` : `${DECK}worm:${card}:${worm.id}`;
+    if (infects) await recordEvent(deckDoc(actor, conn), wkey, { type: "worm", kind: prof.worm || "data", chipGen: chipGens(actor).mpcp, name: worm.name });
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), rolls: r.rolls, content: `<div class="sr2e-item-card">
       ${esc(worm.name)} tries to infect ${esc(actor.name)}'s MPCP (Security Value vs MPCP ${mpcp}${hardening ? `, needs more than Hardening ${hardening}` : ""}):
-      ${r.successes} success${r.successes === 1 ? "" : "es"}, <strong>${infects ? `infected (${CONFIG.SR2E.icWorm[worm.system.worm] ?? "worm"})` : "no infection"}</strong>.
+      ${r.successes} success${r.successes === 1 ? "" : "es"}, <strong>${infects ? `infected (${CONFIG.SR2E.icWorm[prof.worm] ?? "worm"})` : "no infection"}</strong>.
       ${infects ? "Only a new MPCP chip removes it; a Computer task (base time 10 hours) detects it (VR2.0 p.44)." : ""}</div>` });
   });
 }
@@ -553,36 +642,54 @@ STEP_RESOLVERS.tapeworm = async (actor, f, s) => {
  * the utility and the tar itself (no tally); tar pit then corrupts every copy on the deck.
  * `ref` is the utility as it was used (a Swap Memory since leaves the fresh copy alone).
  */
-export async function tarStrike(actor, ic, ref, card) {
+export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
   if (!isSequencer()) return ui.notifications.warn("Tar strikes are the GM's (the active GM's client).");
   return sequencer(async () => {
-    const icKey = icKeyOf(ic), key = `tar:${card}:${icKey}`;
-    if (recordsOf(actor).some(e => e.key === P3 + key)) return ui.notifications.info("That tar has already struck.");
-    // Tar in a construct or party IC gets −2 TN (part-3 note; constructs are part 4b).
-    const tar = await SR2ESuccessRoll.successTest(ic.system.rating ?? 0, Math.max(2, ref.rating - (partyOf(ic) ? 2 : 0)));
-    const util = await SR2ESuccessRoll.successTest(ref.rating ?? 0, Math.max(2, ic.system.rating ?? 0));
+    const prof = icProfile(ic, comp), gen = ic.system.generation ?? 0;
+    const icKey = icKeyOf(ic, prof.comp), key = `tar:${card}:${icKey}`;
+    const done = recordsOf(actor).find(e => e.key === P3 + key);
+    if (done) { await reconcileTarFact(actor, done); return ui.notifications.info("That tar has already struck."); }
+    if (isConstruct(ic) ? !compAvailable(ic, prof.comp, gen0 ?? gen) : (gen0 != null && gen0 !== gen)) return ui.notifications.warn(`${ic.name}'s tar can't act right now.`);
+    const threat = threatOf(ic), cluster = partyOf(ic) || isConstruct(ic) ? 2 : 0;   // tar in a party or construct: −2 TN
+    const tar = await SR2ESuccessRoll.successTest(prof.rating + threat, Math.max(2, ref.rating - cluster));
+    const util = await SR2ESuccessRoll.successTest(ref.rating ?? 0, Math.max(2, prof.rating));
     const won = tarWins(tar.successes, util.successes);
-    const pit = won && ic.system.program === "tar-pit";
+    const pit = won && prof.program === "tar-pit";
     const conn = liveConn(actor);
     const item = actor.items.get(ref.itemId);
     const pKey = programKey({ source: item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId, name: ref.name });
     const g = actor.system.vr2Deck?.reloadGen?.(pKey) ?? 0;
-    const pitRoll = pit ? await SR2ESuccessRoll.successTest(ic.system.rating ?? 0, grayTN("tar-pit", actor.system.cyberdeck?.mpcp ?? 0, conn?.settings?.hardening ?? 0)) : null;
-    if (!await fact(actor, key, { type: "tar", card, icKey, won, tar: tar.successes, util: util.successes, pit: pitRoll?.successes ?? null, programKey: pKey, g })) return;
-    if (won) {
-      await recordEvent(actor, `${P3}crash:${ref.itemId}:${ref.loadGen}:tar-${card}`, { type: "crash", programId: ref.itemId, loadGen: ref.loadGen });
-      await crashIC(ic, card);
-      if (pitRoll?.successes > 0) await recordEvent(deckDoc(actor, conn), `${DECK}corrupt:${pKey}:${g}:tar-${card}`, { type: "corrupt", programKey: pKey, g });
-    }
-    const sensor = !won ? await SR2ESuccessRoll.successTest(actor.system.matrixPersona?.sensor ?? 0, Math.max(2, ic.system.rating ?? 0)) : null;
-    const notice = !sensor ? "" : sensor.successes >= 3 ? `notices ${esc(ic.name)} (rating ${ic.system.rating})` : sensor.successes === 2 ? "notices tar IC" : sensor.successes === 1 ? "notices it triggered IC" : "notices nothing";
+    const pitRoll = pit ? await SR2ESuccessRoll.successTest(prof.rating + threat, grayTN("tar-pit", actor.system.cyberdeck?.mpcp ?? 0, conn?.settings?.hardening ?? 0)) : null;
+    // Everything the consequences need, so `reconcileTar` can finish an interrupted strike (4b R5).
+    if (!await fact(actor, key, { v: 2, type: "tar", card, icKey, icUuid: ic.uuid, gen, comp: prof.comp, won, tar: tar.successes, util: util.successes,
+      pit: pitRoll?.successes ?? null, programKey: pKey, g, utility: { itemId: ref.itemId, loadGen: ref.loadGen, name: ref.name },
+      conn: conn?.n ?? null, deckUuid: deckDoc(actor, conn)?.uuid ?? null })) return;
+    await reconcileTarFact(actor, recordsOf(actor).find(e => e.key === P3 + key));
+    const sensor = !won ? await SR2ESuccessRoll.successTest(actor.system.matrixPersona?.sensor ?? 0, Math.max(2, prof.rating)) : null;
+    const who = prof.comp ? `${ic.name} (${CONFIG.SR2E.icPrograms[prof.program] ?? prof.program})` : ic.name;
+    const notice = !sensor ? "" : sensor.successes >= 3 ? `notices ${esc(who)} (rating ${prof.rating})` : sensor.successes === 2 ? "notices tar IC" : sensor.successes === 1 ? "notices it triggered IC" : "notices nothing";
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
-      <strong>${esc(ic.name)} vs ${esc(ref.name)}</strong>: ${tar.successes} against ${util.successes}.
-      ${won ? `The tar wins: ${esc(ref.name)} crashes (a Swap Memory reloads it) and so does the tar, with no tally.${pit
+      <strong>${esc(who)} vs ${esc(ref.name)}</strong>: ${tar.successes} against ${util.successes}.
+      ${won ? `The tar wins: ${esc(ref.name)} crashes (a Swap Memory reloads it) and so does the tar${prof.comp ? " program (the construct goes on)" : ""}, with no tally.${pit
         ? (pitRoll.successes > 0 ? ` <strong>Tar pit: every copy of ${esc(ref.name)} on the deck is corrupted</strong> until reloaded from outside after jacking out (p.43).` : " Tar pit: its viral code is defeated.") : ""}`
         : `The utility holds. The decker's secret Sensor test: ${sensor.successes} (${notice}; p.40).`}</div>` });
     if (won) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}'s ${esc(ref.name)} crashes (tar IC, VR2.0 p.42).</div>` });
   });
+}
+
+/** A winning v2 tar fact's consequences, each idempotent (4b R5): the utility, the tar itself, a pit's corruption. */
+async function reconcileTarFact(actor, t) {
+  if (t?.v !== 2 || !t.won) return;
+  await recordEvent(actor, `${P3}crash:${t.utility.itemId}:${t.utility.loadGen}:tar-${t.card}`, { type: "crash", programId: t.utility.itemId, loadGen: t.utility.loadGen });
+  const ic = sync(t.icUuid);
+  if (ic && t.comp) await crashComponent(ic, t.gen, t.comp, t.card);
+  else if (ic && (ic.system.generation ?? 0) === t.gen) await crashIC(ic, t.card);
+  const deck = sync(t.deckUuid);
+  if (t.pit > 0 && deck) await recordEvent(deck, `${DECK}corrupt:${t.programKey}:${t.g}:tar-${t.card}`, { type: "corrupt", programKey: t.programKey, g: t.g });
+}
+/** Sequencer pass step: finish every interrupted winning tar strike (older facts lack the context and are skipped). */
+async function reconcileTar(actor) {
+  for (const t of recordsOf(actor).filter(e => e.type === "tar" && e.v === 2 && e.won)) await reconcileTarFact(actor, t);
 }
 
 // ── Trace (plan §5) ────────────────────────────────────────────────────────────
@@ -673,7 +780,7 @@ async function noticeTraces(actor) {
       From now on: −1 TN to proactive IC attacks on ${esc(actor.name)}, and +1 to every tally increase (VR2.0 p.46).
       <br>Security Asset Response Times (minutes, p.47):
       <table><tr><th>Jackpoint</th><th>Public</th><th>Corp</th><th>Megacorp</th><th>Gov't</th></tr>${rows}</table></div>` });
-    const ic = sync(t.icKey.slice(0, t.icKey.lastIndexOf("#")));
+    const ic = icOfKey(t.icKey);
     if (ic) await fireTrap(ic, t.icKey);
   }
 }
@@ -725,7 +832,7 @@ STEP_RESOLVERS.datatrail = async (actor, f, s) => {
     ${esc(actor.name)}'s datatrail stays up ${left} turn${left === 1 ? "" : "s"} (1D6 − 1 = ${roll - 1}, min 1) against ${t?.turnsLeft ?? 0} left:
     <strong>${located ? "the trace still locates the jackpoint" : "the trace loses it"}</strong> (VR2.0 p.46).</div>` });
   if (located) {
-    const ic = sync(s.ref.slice(0, s.ref.lastIndexOf("#")));
+    const ic = icOfKey(s.ref);
     if (ic) await fireTrap(ic, s.ref);
   }
   await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
@@ -802,7 +909,8 @@ Object.assign(HANDLERS, {
     if (!hit || f.liveN !== r.conn) return { ok: false, why: "no such psychotropic hit on this connection" };
     const key = `exit-res:${f.liveN}:psychotropic:${r.icKey}`;
     if (!await fact(actor, key, { type: "exitRes", n: f.liveN, step: "psychotropic", ref: r.icKey, successes: r.successes })) return { ok: true };
-    const kind = sync(r.icKey.slice(0, r.icKey.lastIndexOf("#")))?.system?.psychotropic || "cyberphobia";
+    // The subtype frozen with the hit (part 4b R14); a legacy hit reads the live IC.
+    const kind = hit.psychotropic || icProfile(icOfKey(r.icKey), parseIcKey(r.icKey).comp).psychotropic || "cyberphobia";
     if (r.successes <= 0) {
       await fact(actor, `psy:${f.liveN}:${r.icKey}`, { type: "psy", kind, rating: hit.rating, icName: hit.icName });
       await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
@@ -816,12 +924,13 @@ Object.assign(HANDLERS, {
 /** PCPIC's grip (p.50): a voluntary exit needs Willpower (rating + the wound modifier). */
 export function pcpicTN(actor) {
   const f = foldOf(actor);
-  const pcpic = (f.live?.locks ?? []).filter(h => sync(h.icKey.slice(0, h.icKey.lastIndexOf("#")))?.system?.psychotropic === "pcpic");
+  const pcpic = (f.live?.locks ?? []).filter(h => (h.psychotropic || icProfile(icOfKey(h.icKey), parseIcKey(h.icKey).comp).psychotropic) === "pcpic");
   if (!pcpic.length) return null;
   const cm = actor.system.conditionMonitor ?? {};
   const boxes = Math.max(cm.physical?.value ?? 0, cm.stun?.value ?? 0);
   const level = boxes >= 10 ? "D" : boxes >= 6 ? "S" : boxes >= 3 ? "M" : boxes >= 1 ? "L" : "";
-  return Math.max(...pcpic.map(h => h.rating)) + pcpicMod(level);
+  // Frozen IC rating + the CURRENT icon-down +2 (4b R14); a legacy hit's rating already holds it.
+  return Math.max(...pcpic.map(h => h.icRating != null ? h.icRating + (iconDown(actor) ? 2 : 0) : h.rating)) + pcpicMod(level);
 }
 
 /** Recovery (p.50): Willpower vs the rating with the treatment modifiers; a success ends it. */
@@ -886,14 +995,14 @@ STEP_RESOLVERS.finalShot = async (actor, f, s) => {
   const conn = f.live.open;
   const mpcp = actor.system.cyberdeck?.mpcp ?? 0;
   const tn = grayTN("blaster", mpcp, conn?.settings?.hardening ?? 0);
-  const r = await SR2ESuccessRoll.successTest(2 * (hit?.rating ?? 0), tn);
+  const r = await SR2ESuccessRoll.successTest(2 * (hit?.rating ?? 0) + (hit?.threat ?? 0), tn);
   const loss = Math.min(mpcp, mpcpLoss("blaster", r.successes));
   const key = `exit-res:${f.live.n}:finalShot:${s.ref}`;
   await fact(actor, key, { type: "exitRes", n: f.live.n, step: "finalShot", ref: s.ref, successes: r.successes, loss, tn });
   if (loss > 0) await recordEvent(deckDoc(actor, conn), `${DECK}dmg:final:${s.ref}`, { type: "deckDmg", attr: "mpcp", amount: loss, chipGen: chipGens(actor).mpcp });
   if (await once(actor, `${P3}card:final:${s.ref}`)) {
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: r.rolls, content: `<div class="sr2e-damage-result">
-      <strong>${esc(hit?.icName ?? "Black IC")} takes its shot at ${esc(actor.name)}'s MPCP</strong> (as blaster, double rating: ${2 * (hit?.rating ?? 0)} dice vs TN ${tn}):
+      <strong>${esc(hit?.icName ?? "Black IC")} takes its shot at ${esc(actor.name)}'s MPCP</strong> (as blaster, double rating + threat: ${2 * (hit?.rating ?? 0) + (hit?.threat ?? 0)} dice vs TN ${tn}):
       ${r.successes} success${r.successes === 1 ? "" : "es"}, MPCP −${loss}.${loss >= mpcp && mpcp > 0 ? " <strong>The MPCP is destroyed: every file downloaded this run is deleted</strong> (VR2.0 p.48)." : ""}</div>` });
   }
   await fact(actor, `ack:${P3}${key}`, { type: "ack", target: P3 + key });
@@ -917,14 +1026,14 @@ async function advanceExit(actor) {
     if (s.res) continue;
     if (s.step === "lastAttack") {
       // The locking IC makes one more attack (the GM rolls it); destroyed meanwhile → cancelled (R5 #5).
-      const [u, g] = [s.ref.slice(0, s.ref.lastIndexOf("#")), Number(s.ref.slice(s.ref.lastIndexOf("#") + 1))];
+      const { uuid: u, gen: g, comp } = parseIcKey(s.ref);
       if (icGen(u) !== g) {
         await fact(actor, `exit-res:${f.live.n}:lastAttack:${s.ref}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: s.ref, cancelled: true });
         f = foldOf(actor);
       } else if (await once(actor, `${P3}card:last:${f.live.n}:${s.ref}`)) {
         await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u2 => u2.id), content: `<div class="sr2e-item-card">
-          <strong>${esc(sync(u)?.name ?? "Black IC")}</strong> makes one more attack on ${esc(actor.name)} before the link drops (VR2.0 p.48):
-          attack from the IC's sheet with ${esc(actor.name)} targeted.</div>` });
+          <strong>${esc(sync(u)?.name ?? "Black IC")}${comp ? ` (${esc(CONFIG.SR2E.icPrograms[icProfile(sync(u), comp).program] ?? "its black program")})` : ""}</strong> makes one more attack on ${esc(actor.name)} before the link drops (VR2.0 p.48):
+          attack from the IC's sheet with ${esc(actor.name)} targeted${comp ? ", with that program" : ""}.</div>` });
       }
       continue;
     }
@@ -966,8 +1075,9 @@ export function schedule(actor) {
 
 /** One sequencer pass for a decker (call only inside `sequencer`). */
 async function passFor(actor) {
-  await recoverResolved(actor);
-  await processRequests(actor); await applyResults(actor); await applyRippers(actor); await applySparky(actor);
+  await recoverResolved(actor); await reconcileTar(actor);
+  await processRequests(actor); await reconcileShieldFreeze(actor);
+  await applyResults(actor); await applyRippers(actor); await applySparky(actor);
   await noticeTraces(actor); await advanceExit(actor);
 }
 
@@ -992,7 +1102,7 @@ async function recoverResolved(actor) {
     if (reqs.some(q => !done.has(q.key))) continue;
     const last = Math.max(0, ...reqs.map(q => Number(done.get(q.key)?.at) || 0));
     if (reqs.length && now - last < 30000 * 2 ** Math.min(reqs.length - 1, 6)) continue;
-    await request(actor, "resolved", { card, conn: r.conn, lost: r.lost, attr: r.attr, rating: r.rating ?? 0,
+    await request(actor, "resolved", { card, conn: r.conn, lost: r.lost, attr: r.attr, rating: r.rating ?? 0, threat: r.threat ?? 0,
       ripper: String(r.program ?? "").startsWith("ripper-") });
   }
 }
@@ -1008,13 +1118,13 @@ export function flush() {
 // ── Part 4a: the optional IC (docs/PLAN-vr2-part4.md; p.51–53) ───────────────
 
 /** Expert IC (p.52) counts only for proactive programs, on attack and on resistance alike. */
-export const expertOf = (ic) => ic?.type === "ic" && isProactive(ic.system.program) ? (Number(ic.system.expert) || 0) : 0;
+export const expertOf = (ic) => ic?.type === "ic" && (isConstruct(ic) || isProactive(ic.system.program)) ? (Number(ic.system.expert) || 0) : 0;
 /** Party IC membership (p.52): a cluster id and its ORIGINAL size N ≥ 2; 0 = not in a party. */
-export const partyOf = (ic) => ic?.type === "ic" && ic.system.party?.id && (ic.system.party.size ?? 0) >= 2 ? ic.system.party.size : 0;
+export const partyOf = (ic) => ic?.type === "ic" && !isConstruct(ic) && ic.system.party?.id && (ic.system.party.size ?? 0) >= 2 ? ic.system.party.size : 0;
 
 /** The cascade baseline a new attack snapshots (plan §4): only the current one's outcomes count. */
 export function cascadeBaseline(ic, host) {
-  return { on: !!ic.system.cascading && isProactive(ic.system.program), gen: ic.system.generation ?? 0, epoch: ic.system.cascadeEpoch ?? 0,
+  return { on: !!ic.system.cascading && !isConstruct(ic) && isProactive(ic.system.program), gen: ic.system.generation ?? 0, epoch: ic.system.cascadeEpoch ?? 0,
     program: ic.system.program, hostUuid: host?.uuid ?? ic.system.hostUuid, code: host?.system.securityCode ?? ic.system.securityCode,
     sv0: host?.system.securityValue ?? 0, rating0: ic.system.rating ?? 0 };
 }
@@ -1034,6 +1144,7 @@ export function cascadeOf(ic, host) {
 export async function formParty(ics) {
   if (!game.user.isGM) { ui.notifications.warn("Only the GM forms party IC."); return null; }
   const list = [...new Map(ics.filter(a => a?.type === "ic").map(a => [a.uuid, a])).values()];
+  if (list.some(isConstruct)) { ui.notifications.warn("A construct can't join a party IC (VR2.0 p.52)."); return null; }
   const hosts = new Set(list.map(a => a.system.hostUuid));
   if (hosts.size !== 1 || !list[0]?.system.hostUuid) { ui.notifications.warn("Party IC must all defend the same host (set each IC's host first)."); return null; }
   const host = sync(list[0].system.hostUuid);
@@ -1070,7 +1181,7 @@ export function deckerContext(actor) {
   const f = foldOf(actor);
   const deck = actor.system.vr2Deck;
   const live = f.live;
-  const name = (icKey) => sync(String(icKey).slice(0, String(icKey).lastIndexOf("#")))?.name ?? "IC";
+  const name = (icKey) => icOfKey(icKey)?.name ?? "IC";
   const spoofs = recordsOf(actor).filter(e => e.type === "spoof");
   const freezes = recordsOf(actor).filter(e => e.type === "freeze" || e.type === "unfreeze");
   return {
@@ -1145,7 +1256,8 @@ export async function sheetOp(doc, op, arg) {
       content: `<select name="p">${progs.map(p => `<option value="${p.id}">${esc(p.name)} (${V.programRating(p)})</option>`).join("")}</select>`,
       ok: { callback: (e, b) => b.form.elements.p.value } }).catch(() => null);
     const p = target.items.get(id);
-    if (p) return tarStrike(target, doc, { itemId: p.id, loadGen: p.system.loadGen ?? 0, rating: V.programRating(p), name: p.name }, `sheet-${foundry.utils.randomID()}`);
+    // `arg` = the construct's tar program (part 4b R7); the card id is kept in the tar fact, so a retry finds it.
+    if (p) return tarStrike(target, doc, { itemId: p.id, loadGen: p.system.loadGen ?? 0, rating: V.programRating(p), name: p.name }, `sheet-${foundry.utils.randomID()}`, arg || "");
   }
 }
 
@@ -1156,20 +1268,28 @@ export async function icOp(uuid, op, arg) {
   if (op === "sparky") return resistSparky(actor, arg);
   if (op === "traceStart") return traceStart(actor, arg);
   if (op === "psy") return psyTest(actor, arg);
-  if (["worm", "wormGone", "defused", "explode", "poison"].includes(op)) {
-    const [card, icUuid] = arg.split("|");
+  if (["worm", "wormGone", "defused", "explode", "poison", "tar"].includes(op)) {
+    // card|icUuid|generation|component (part 4b R4); older buttons have only card|icUuid.
+    const [card, icUuid, genS, comp = ""] = arg.split("|");
     const ic = await fromUuid(icUuid);
     if (!ic) return;
-    if (op === "worm") return wormTest(actor, ic, card);
-    if (op === "wormGone") { await ic.update({ "system.generation": (ic.system.generation ?? 0) + 1 }); return ui.notifications.info(`${ic.name} destroyed (delete or reuse it).`); }
+    const gen = genS === undefined || genS === "" ? null : Number(genS);
+    if (isConstruct(ic) && !comp) return ui.notifications.warn(`${ic.name} is a construct now: use a newer card.`);
+    const stale = comp ? !compAvailable(ic, comp, gen ?? -1) : (gen != null && gen !== (ic.system.generation ?? 0));
+    if (stale) return ui.notifications.warn(`${ic.name} has changed since that card (crashed, reset or rebuilt).`);
+    if (op === "worm") return wormTest(actor, ic, card, comp, gen);
+    if (op === "wormGone") {
+      if (comp) { await sequencer(() => crashComponent(ic, gen, comp, card)); return ui.notifications.info(`${ic.name}'s worm program is destroyed; the construct goes on.`); }
+      await ic.update({ "system.generation": (ic.system.generation ?? 0) + 1 }); return ui.notifications.info(`${ic.name} destroyed (delete or reuse it).`);
+    }
+    if (isConstruct(ic) && ["defused", "explode"].includes(op)) return ui.notifications.warn("A construct holds no data bomb (part 4b).");
     if (op === "defused") return bombEnd(actor, ic, "defused", card);
     if (op === "explode") return bombEnd(actor, ic, "exploded", card);
-    if (op === "poison") return poisonTest(actor, ic);
-  }
-  if (op === "tar") {
-    const [card, icUuid] = arg.split("|");
-    const st = game.messages.get(card)?.flags?.sr2e?.vr2SystemTest, ic = await fromUuid(icUuid);
-    if (st?.utilityRef && ic) return tarStrike(actor, ic, st.utilityRef, card);
+    if (op === "poison") return poisonTest(actor, ic, comp);
+    if (op === "tar") {
+      const st = game.messages.get(card)?.flags?.sr2e?.vr2SystemTest;
+      if (st?.utilityRef) return tarStrike(actor, ic, st.utilityRef, card, comp, gen);
+    }
   }
 }
 

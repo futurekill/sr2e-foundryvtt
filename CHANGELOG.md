@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Added
+- **Constructs** (VR2.0 p.52). Tick *Construct* on an IC (VR2.0 rules) and add its programs: one
+  icon with one Condition Monitor.
+  - **Attacks.** It attacks with the program you pick in the attack dialog, rolling the host's
+    Security Value plus Threat dice.
+  - **Threat dice.** The Threat Rating (Green 1, Orange 2, Red 3 at most) adds dice to every
+    construct test except Initiative: attacks, resistance, maneuvers, tar, poison and worm tests,
+    and the gray, ripper and black follow-up tests.
+  - **Initiative** uses its lowest program rating.
+  - **Build limits.** The sheet checks the build: capacity 2 × Security Value; no program over
+    two-thirds of it; gray +1, black +2; armor, shield and shift 2 each; at least two programs.
+    An invalid construct can't act.
+  - **Reactive programs.** A construct's tar, worm and poison scramble programs are offered after
+    a System Test like ordinary reactive IC. A winning tar crashes only that program, and so does
+    destroying a worm; the construct goes on.
+  - **When it crashes** (its monitor fills), every program stops, including any black program's
+    hold on a decker.
+  - **Not allowed:** data bombs, exploding scramble, being a hidden trap, cascading, and party IC.
+  - **Crash tally.** Crashing a construct adds its highest program rating to the decker's tally.
+    The book doesn't say; this is our call.
+- **Shield works against black IC** (p.100). When resisting a black IC's hit, the decker may use
+  Shield first. Shield successes come off the attack. If none are left, the attack stops: no
+  damage and no hold on the decker. The Shield loses its point once.
+
+### Fixed
+- Black IC's psychotropic effect and PCPIC use the program's subtype as it was when the IC hit,
+  not its current setting.
+- A tar strike interrupted after it won, before its consequences were written, is finished by the
+  GM's client: the utility and the tar crash, and a tar pit's corruption lands.
+
 ## 0.126.0 — 2026-10-30
 
 ### Added

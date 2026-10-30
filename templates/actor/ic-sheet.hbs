@@ -68,12 +68,35 @@
   {{#if vr2}}
   <fieldset>
     <legend>VR2.0 program (p.41, p.50)</legend>
+    <label class="field" title="A construct: one icon and one Condition Monitor holding several IC programs; it attacks with any one of them (p.52)."><span>Construct</span>
+      <input type="checkbox" name="system.construct.enabled" {{checked system.construct.enabled}} /></label>
+    {{#if optionalIC.construct}}
+    <table class="npc-form-table construct-table">
+      <tr><th>Program</th><th>Rating</th><th>Variant</th><th></th><th></th></tr>
+      {{#each construct.rows as |c|}}
+      <tr class="{{#unless c.available}}other-form{{/unless}}">
+        <td><select data-comp-id="{{c.id}}" data-comp-field="program">{{#each ../construct.programs as |p|}}<option value="{{p.key}}" {{selected c.program p.key}}>{{p.label}}</option>{{/each}}</select></td>
+        <td><input type="number" min="1" value="{{c.rating}}" data-comp-id="{{c.id}}" data-comp-field="rating" /></td>
+        <td>{{#ifEquals c.program "black-psychotropic"}}<select data-comp-id="{{c.id}}" data-comp-field="psychotropic">{{#each @root.config.icPsychotropic as |label key|}}<option value="{{key}}" {{selected c.psychotropic key}}>{{label}}</option>{{/each}}</select>{{/ifEquals}}
+          {{#ifEquals c.program "worm"}}<select data-comp-id="{{c.id}}" data-comp-field="worm">{{#each @root.config.icWorm as |label key|}}<option value="{{key}}" {{selected c.worm key}}>{{label}}</option>{{/each}}</select>{{/ifEquals}}
+          {{#ifEquals c.program "scramble"}}<select data-comp-id="{{c.id}}" data-comp-field="scramble"><option value="poison" {{selected c.scramble "poison"}}>Poison</option></select>{{/ifEquals}}</td>
+        <td>{{#if c.tar}}<button type="button" data-action="vr2ic" data-op="strike" data-arg="{{c.id}}" title="GM: target the decker, then strike a utility (p.42)">Strike</button>{{/if}}</td>
+        <td><a data-action="deleteComponent" data-comp-id="{{c.id}}" title="Remove"><i class="fas fa-trash"></i></a></td>
+      </tr>
+      {{/each}}
+    </table>
+    <p class="rule-note"><button type="button" data-action="addComponent"><i class="fas fa-plus"></i> Program</button>
+      Capacity {{construct.budget.used}}/{{construct.budget.capacity}}, no program over {{construct.budget.perProgram}}.
+      <label>Threat <input type="number" name="system.construct.threat" value="{{system.construct.threat}}" min="0" max="3" style="width:3em" /></label> (max {{construct.threatCap}} here; +dice on every test but Initiative).</p>
+    {{#each construct.budget.problems as |p|}}<p class="rule-note alert-note">{{p}}</p>{{/each}}
+    <p class="rule-note">Data bombs, exploding scramble and per-program traps aren't construct programs; a construct can't be cascading or join a party IC.</p>
+    {{/if}}
     <div class="field-grid">
-      <label class="field"><span>Program</span>
+      {{#unless optionalIC.construct}}<label class="field"><span>Program</span>
         <select name="system.program">
           <option value="" {{selected system.program ""}}>— (class as set)</option>
           {{#each config.icPrograms as |label key|}}<option value="{{key}}" {{selected ../system.program key}}>{{label}}</option>{{/each}}
-        </select></label>
+        </select></label>{{/unless}}
       <label class="field"><span>Defense</span>
         <select name="system.defense">
           <option value="" {{selected system.defense ""}}>—</option>
@@ -94,21 +117,22 @@
         <select name="system.worm">{{#each config.icWorm as |label key|}}<option value="{{key}}" {{selected ../system.worm key}}>{{label}}</option>{{/each}}</select></label>{{/ifEquals}}
       <label class="field" title="A reactive white or trace IC can hide a gray or black IC: crashing it (or its trace finishing) wakes that IC (p.50)."><span>Trap for (hidden IC's UUID)</span>
         <input type="text" name="system.trapFor" value="{{system.trapFor}}" /></label>
+      {{#if trapIsConstruct}}<p class="rule-note alert-note">That's a construct: a construct can't be a hidden trap IC (part 4b) — it won't wake.</p>{{/if}}
       <label class="field" title="What a data bomb, scramble or trap protects: a file, a slave device, a subsystem (p.41–42)."><span>Protects</span>
         <input type="text" name="system.protects" value="{{system.protects}}" /></label>
     </div>
     <div class="field-grid">
       <label class="field" title="Expert IC (p.52): + raises the attack dice and lowers damage resistance by as much; − the reverse. Proactive IC only."><span>Expert (−3…+3)</span>
         <input type="number" name="system.expert" value="{{system.expert}}" min="-3" max="3" {{#unless optionalIC.proactive}}disabled{{/unless}} /></label>
-      <label class="field" title="Cascading IC (p.51): each miss adds 1 to the Security Value it attacks with; each hit the decker fully neutralizes adds 1 to its rating — up to the Cascading IC Table's cap. Proactive IC only."><span>Cascading</span>
-        <input type="checkbox" name="system.cascading" {{checked system.cascading}} {{#unless optionalIC.proactive}}disabled{{/unless}} /></label>
+      {{#unless optionalIC.construct}}<label class="field" title="Cascading IC (p.51): each miss adds 1 to the Security Value it attacks with; each hit the decker fully neutralizes adds 1 to its rating — up to the Cascading IC Table's cap. Proactive IC only."><span>Cascading</span>
+        <input type="checkbox" name="system.cascading" {{checked system.cascading}} {{#unless optionalIC.proactive}}disabled{{/unless}} /></label>{{/unless}}
     </div>
     {{#if optionalIC.cascade}}<p class="rule-note">Cascade now: Security Value +{{optionalIC.cascade.sv}}/{{optionalIC.cascade.capSV}}, rating +{{optionalIC.cascade.rating}}/{{optionalIC.cascade.capRating}}.
       {{#if isGM}}<button type="button" data-action="vr2ic" data-op="resetCascade" title="Start the cascade over (also happens when its program, rating or host changes, or it crashes).">Reset</button>{{/if}}</p>{{/if}}
-    <p class="rule-note">{{#if optionalIC.party}}Party IC: {{optionalIC.party}} programs — +{{optionalIC.party}} TN on its attacks and to hit it (an area-effect utility ignores that; p.52).
+    {{#unless optionalIC.construct}}<p class="rule-note">{{#if optionalIC.party}}Party IC: {{optionalIC.party}} programs — +{{optionalIC.party}} TN on its attacks and to hit it (an area-effect utility ignores that; p.52).
       {{#if isGM}}<button type="button" data-action="vr2ic" data-op="leaveParty">Leave party</button>{{/if}}
-      {{else}}{{#if isGM}}<button type="button" data-action="vr2ic" data-op="formParty" title="Select the other IC tokens on the canvas, then form a party with this one (p.52–53).">Form party IC with selected</button>{{/if}}{{/if}}</p>
-    {{#if (or (eq system.program "tar-baby") (eq system.program "tar-pit"))}}<p class="rule-note">
+      {{else}}{{#if isGM}}<button type="button" data-action="vr2ic" data-op="formParty" title="Select the other IC tokens on the canvas, then form a party with this one (p.52–53).">Form party IC with selected</button>{{/if}}{{/if}}</p>{{/unless}}
+    {{#if (and (not optionalIC.construct) (or (eq system.program "tar-baby") (eq system.program "tar-pit")))}}<p class="rule-note">
       <button type="button" data-action="vr2ic" data-op="strike" title="GM: target the decker first, then strike a utility they run outside a System Test (p.42).">Strike a utility</button></p>{{/if}}
   </fieldset>
   {{/if}}

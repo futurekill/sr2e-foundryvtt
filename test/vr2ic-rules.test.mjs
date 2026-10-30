@@ -198,3 +198,25 @@ describe("part 4a — optional IC (p.51–53)", () => {
       .toContain("PCPIC can't share a party with other black IC (p.50)");
   });
 });
+
+describe("part 4b — constructs (p.52)", () => {
+  it("parseIcKey / iconKeyOf: plain, component, dotted uuids", async () => {
+    const { parseIcKey, iconKeyOf } = await import("../module/rules/vr2ic-rules.mjs");
+    expect(parseIcKey("Actor.abc#3")).toEqual({ uuid: "Actor.abc", gen: 3, comp: "" });
+    expect(parseIcKey("Scene.x.Token.y.Actor.z#0/k1")).toEqual({ uuid: "Scene.x.Token.y.Actor.z", gen: 0, comp: "k1" });
+    expect(iconKeyOf("Actor.abc#2/k9")).toBe("Actor.abc#2");
+  });
+  it("constructBudget: SV 8 → 16, max 6; armor + shift → 12 left; gray +1, black +2; threat caps; rows", async () => {
+    const { constructBudget } = await import("../module/rules/vr2ic-rules.mjs");
+    const { icClass } = await import("../module/rules/sr2e-rules.mjs");
+    const c = (id, program, rating, o = {}) => ({ id, program, rating, ...o });
+    const b = constructBudget({ sv: 8, code: "red", components: [c("a", "killer", 6), c("b", "tar-baby", 6)], defenses: 2, icClassOf: icClass });
+    expect([b.capacity, b.perProgram, b.used, b.problems.length]).toEqual([16, 6, 16, 0]);
+    expect(constructBudget({ sv: 8, code: "red", components: [c("a", "blaster", 4), c("b", "black-lethal", 4)], icClassOf: icClass }).used).toBe(11);
+    expect(constructBudget({ sv: 8, code: "red", components: [c("a", "killer", 7), c("b", "killer", 1)] }).problems[0]).toMatch(/over 6/);
+    expect(constructBudget({ sv: 8, code: "green", components: [c("a", "killer", 2), c("b", "killer", 2)], threat: 2 }).problems[0]).toMatch(/Threat/);
+    expect(constructBudget({ sv: 8, code: "red", components: [c("a", "killer", 2)] }).problems).toContain("a construct needs at least 2 programs");
+    const bad = constructBudget({ sv: 8, code: "red", components: [c("a", "killer", 2), c("a", "data-bomb", 2), c("", "", 1), c("d", "scramble", 1, { scramble: "exploding" })] }).problems.join("|");
+    expect(bad).toMatch(/own id/); expect(bad).toMatch(/data-bomb can't/); expect(bad).toMatch(/no program/); expect(bad).toMatch(/exploding/);
+  });
+});

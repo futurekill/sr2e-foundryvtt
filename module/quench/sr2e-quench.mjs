@@ -11872,6 +11872,188 @@ export function registerSR2EQuenchTests() {
       });
     });
 
+    quench.registerBatch("sr2e.vr2-constructs", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [], tokens = [];
+      let prior = "core", V, Y;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn, setup = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => { setup?.(app.element); app.element?.querySelector(`button[data-action="${action}"]`)?.click(); }, 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const setTargets = async (ids) => {
+        for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+        return canvas.tokens.setTargets(ids);
+      };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const host = (name, code = "red", sv = 8) => mk({ name, type: "host", system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 6 } } });
+      const decker = async (name, programs = []) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 4 }, body: { base: 4 }, cyberdeck: { mpcp: 6, deckMode: "cool" },
+          matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          ...programs.map(([n, r, extra]) => ({ name: n, type: "program", system: { rating: r, loaded: true, category: "other", ...(extra ?? {}) } }))]);
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      const tokenFor = async (a, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ actorLink: true })).toObject(), x: d.sceneX + dx * d.size, y: d.sceneY }]);
+        tokens.push(t.id);
+        for (let i = 0; i < 100 && !canvas.tokens.get(t.id)?.targetArrows; i++) await wait(50);
+        return t;
+      };
+      const spy = (a) => { const seen = [], orig = a.rollSuccessTest.bind(a);
+        a.rollSuccessTest = (dice, tn, o) => { seen.push([dice, tn]); return orig(dice, tn, o); };
+        return { seen, off: () => { a.rollSuccessTest = orig; } }; };
+      const comp = (id, program, rating, o = {}) => ({ id, program, rating, psychotropic: "", scramble: "", worm: "", ...o });
+      const construct = (name, h, comps, threat = 0) => mk({ name, type: "ic", system: { rating: 1, icType: "white", hostUuid: h.uuid,
+        construct: { enabled: true, threat, components: comps } } });
+      /** An IC attack card on a connected decker, then its admission request (as attackOnce builds them). */
+      const card = async (ic, h, d, { program, rating, comp: c = "", successes = 1, level = "S" }) => {
+        const st = { ruleset: "vr2", attackerUuid: ic.uuid, attackerName: ic.name, attackerType: "ic", icType: "white", icClass: Y.icProfile(ic, c).icClass,
+          program, targetUuid: d.uuid, targetName: d.name, targetSession: V.sessionKey(d), attackerSession: V.sessionKey(ic), attackerComputer: h.system.securityValue,
+          hostUuid: h.uuid, hostName: h.name, securityCode: h.system.securityCode, securityValue: h.system.securityValue, status: "intruding",
+          power: rating, icRating: rating, threat: Y.threatOf(ic), psychotropic: Y.icProfile(ic, c).psychotropic, comp: c, level, successes, resolved: false,
+          icKey: Y.icKeyOf(ic, c), targetConn: d.system.vr2Conn?.n ?? null };
+        const m = await ChatMessage.create({ content: "Quench CON card", flags: { sr2e: { matrix: st } } });
+        await Y.request(d, "attack", { card: m.id, icKey: st.icKey, cls: st.icClass, program, successes });
+        await settle(() => Y.recordsOf(d).some(e => e.type === "admit" && e.card === m.id));
+        return m;
+      };
+      before(async () => {
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        V = await import("../vr2.mjs"); Y = await import("../vr2ic.mjs");
+      });
+      after(async () => {
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+        for (const m of game.messages.filter(m => /Quench CON/.test(m.content) || made.some(a => a.id === m.speaker?.actor))) { try { await m.delete(); } catch (e) { /* gone */ } }
+      });
+      afterEach(async () => {
+        await setTargets([]);
+        if (tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+      });
+
+      it("a construct: Initiative from the lowest program; each program attacks with SV + threat under its own key; over budget is refused (p.52)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench CON Host", "red", 8);
+        const c = await construct("Quench CON Construct", h, [comp("kil", "killer", 4), comp("blk", "black-psychotropic", 3, { psychotropic: "judas" }), comp("tar", "tar-baby", 3)], 2);
+        assert.equal(c.system.initiative.base, 3, "lowest program rating");
+        assert.deepEqual(Y.constructProblems(c).problems, []);
+        const d = await decker("Quench CON Decker");
+        const tD = await tokenFor(d, 0); await tokenFor(c, 2);
+        await setTargets([tD.id]);
+        for (const [id, prog] of [["kil", "killer"], ["blk", "black-psychotropic"]]) {
+          const sp = spy(c), n = game.messages.size;
+          await clicking("attack", () => withFaces(Array(12).fill(1), () => V.vr2MatrixAttack(c)), (el) => { const s = el?.querySelector('select[name="comp"]'); if (s) s.value = id; });
+          sp.off();
+          assert.equal(sp.seen[0]?.[0], 8 + 2, `${prog}: SV 8 + threat 2`);
+          const st = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.matrix)?.flags.sr2e.matrix;
+          assert.equal(st?.program, prog); assert.equal(st?.icKey, `${c.uuid}#0/${id}`);
+          await setTargets([tD.id]);
+        }
+        await c.update({ "system.construct.components": [...c._source.system.construct.components, comp("big", "killer", 7)] });
+        const n = game.messages.size;
+        await clicking("attack", () => V.vr2MatrixAttack(c));
+        assert.notOk(game.messages.contents.slice(n).some(m => m.flags?.sr2e?.matrix), "over budget: no attack");
+      });
+
+      it("a construct's black program: frozen subtype, threat and rating; the lock is the program's and ends when the construct crashes", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench CON Black Host", "red", 2);      // capacity 4: killer 1 + black 1 (+2)
+        const c = await construct("Quench CON Black", h, [comp("kil", "killer", 1), comp("blk", "black-psychotropic", 1, { psychotropic: "pcpic" })], 2);
+        assert.deepEqual(Y.constructProblems(c).problems, [], "a valid build");
+        const d = await decker("Quench CON Black Decker");
+        const tD = await tokenFor(d, 0); await tokenFor(c, 2);
+        await setTargets([tD.id]);
+        const n = game.messages.size;
+        await clicking("attack", () => withFaces(Array(16).fill(6), () => V.vr2MatrixAttack(c)), (el) => { const s2 = el?.querySelector('select[name="comp"]'); if (s2) s2.value = "blk"; });
+        const m = game.messages.contents.slice(n).find(x => x.flags?.sr2e?.matrix);
+        assert.equal(m?.flags.sr2e.matrix.program, "black-psychotropic", "the real attack path");
+        assert.isTrue(await settle(() => Y.recordsOf(d).some(e => e.type === "admit" && e.card === m.id)), "admitted");
+        await withFaces(Array(20).fill(1), () => V.vr2MatrixResist(d, m));
+        assert.isTrue(await settle(() => Y.recordsOf(d).some(e => e.type === "hit" && e.card === m.id)), "frozen");
+        const hit = Y.recordsOf(d).find(e => e.type === "hit" && e.card === m.id);
+        assert.deepEqual([hit.psychotropic, hit.threat, hit.icRating, hit.icKey], ["pcpic", 2, 1, `${c.uuid}#0/blk`]);
+        assert.equal(Y.foldOf(d).live.locks.length, 1);
+        assert.isNotNull(Y.pcpicTN(d), "PCPIC from the frozen subtype");
+        await Y.sequencer(() => Y.icDamage(c, 10));
+        assert.equal(Y.foldOf(d).live.locks.length, 0, "one monitor: the crash ends the program's lock");
+      });
+
+      it("a construct's tar program that wins crashes only itself; the construct goes on (p.42, p.52)", async () => {
+        const h = await host("Quench CON Tar Host", "red", 8);
+        const c = await construct("Quench CON Tarry", h, [comp("kil", "killer", 4), comp("tar", "tar-baby", 3)], 1);
+        const d = await decker("Quench CON Tar Decker", [["Browse", 3, {}]]);
+        const p = d.items.getName("Browse");
+        await withFaces([6, 1, 6, 1, 6, 1, 1, 1, 1, 1], () => Y.tarStrike(d, c, { itemId: p.id, loadGen: 0, rating: 3, name: "Browse" }, "qcon-tar", "tar"));
+        const t = Y.recordsOf(d).find(e => e.type === "tar");
+        assert.equal(t?.v, 2); assert.isTrue(t.won, "the tar won");
+        assert.isFalse(Y.compAvailable(c, "tar"), "the tar program crashed");
+        assert.isTrue(Y.compAvailable(c, "kil"), "the killer goes on");
+        assert.equal(c.system.generation, 0, "the construct didn't crash");
+        assert.ok(Y.recordsOf(d).some(e => e.type === "crash" && e.programId === p.id), "the utility crashed");
+      });
+
+      it("a construct resists with SV + threat; an ordinary IC unchanged", async () => {
+        const h = await host("Quench CON Resist Host", "orange", 6);
+        const c = await construct("Quench CON Resister", h, [comp("a", "killer", 3), comp("b", "killer", 3)], 2);
+        const d = await decker("Quench CON Resist Decker");
+        await V.sessionFor(d, h);
+        const st = { ruleset: "vr2", attackerUuid: d.uuid, attackerName: d.name, attackerType: "character", targetUuid: c.uuid, targetName: c.name,
+          targetSession: V.sessionKey(c), attackerSession: V.sessionKey(d), hostUuid: h.uuid, hostName: h.name, securityCode: "orange", securityValue: 6,
+          status: "legitimate", power: 4, level: "M", successes: 2, resolved: false, icKey: "", targetConn: null };
+        const m = await ChatMessage.create({ content: "Quench CON decker card", flags: { sr2e: { matrix: st } } });
+        const sp = spy(c);
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(c, m));
+        sp.off();
+        assert.equal(sp.seen[0]?.[0], 6 + 2);
+      });
+
+      it("Shield against black IC: cancelling every success → no hit, no lock, ack boxes 0, worn once (p.100)", async function () {
+        this.timeout(30000);
+        const h = await host("Quench CON Shield Host", "red", 4);
+        const b = await mk({ name: "Quench CON BlackIC", type: "ic", system: { rating: 4, icType: "white", program: "black-lethal", hostUuid: h.uuid } });
+        const d = await decker("Quench CON Shield Decker", [["Shield", 6, {}]]);
+        const m = await card(b, h, d, { program: "black-lethal", rating: 4, successes: 1 });
+        await clicking("yes", () => withFaces([5, 5, 5, 5, 5, 5], () => V.vr2MatrixResist(d, m)));
+        assert.isTrue(await settle(() => Y.recordsOf(d).some(e => e.type === "ack" && e.target === `attack:${m.id}`)), "ended");
+        assert.isTrue(Y.recordsOf(d).find(e => e.type === "ack" && e.target === `attack:${m.id}`).outcome.shieldCancelled);
+        assert.notOk(Y.recordsOf(d).some(e => e.type === "hit" && e.card === m.id), "no hit");
+        assert.equal(Y.foldOf(d).live.locks.length, 0, "no lock");
+        assert.equal((d.items.getName("Shield").system.wearEvents ?? []).length, 1, "worn once");
+      });
+
+      it("recovery: a Shield decision with no freeze request is frozen by the next pass; old and new tar facts reconcile safely", async () => {
+        const h = await host("Quench CON Rec Host", "red", 4);
+        const b = await mk({ name: "Quench CON BlackRec", type: "ic", system: { rating: 4, icType: "white", program: "black-lethal", hostUuid: h.uuid } });
+        const tar = await mk({ name: "Quench CON TarRec", type: "ic", system: { rating: 3, icType: "white", program: "tar-baby", hostUuid: h.uuid } });
+        const d = await decker("Quench CON Rec Decker", [["Browse", 3, {}]]);
+        const m = await card(b, h, d, { program: "black-lethal", rating: 4, successes: 2 });
+        const { recordEvent } = await import("../claims.mjs");
+        await recordEvent(d, `vr2:shield:${m.id}`, { type: "shield", card: m.id, successes: 0, none: true });
+        await recordEvent(d, "vr2:tar:old:legacy", { type: "tar", card: "old", icKey: Y.icKeyOf(tar), won: true, programKey: "x", g: 0 });
+        const p = d.items.getName("Browse");
+        await recordEvent(d, `vr2:tar:qcon-rec:${Y.icKeyOf(tar)}`, { v: 2, type: "tar", card: "qcon-rec", icKey: Y.icKeyOf(tar), icUuid: tar.uuid, gen: 0, comp: "",
+          won: true, utility: { itemId: p.id, loadGen: 0, name: "Browse" }, programKey: "browse", g: 0, pit: null, conn: d.system.vr2Conn.n, deckUuid: null });
+        await Y.flush();
+        assert.ok(Y.recordsOf(d).some(e => e.type === "hit" && e.card === m.id), "frozen by the pass");
+        assert.ok(Y.recordsOf(d).some(e => e.type === "crash" && e.programId === p.id), "the interrupted tar's utility crash is written");
+        assert.equal(tar.system.generation, 1, "and the tar crashed itself, once");
+        await Y.flush();
+        assert.equal(tar.system.generation, 1, "a second pass changes nothing");
+      });
+    });
+
     quench.registerBatch("sr2e.vr2-ic", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [];

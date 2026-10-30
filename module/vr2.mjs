@@ -512,7 +512,10 @@ async function promptAttack(actor, target, ms) {
       ${ms.parry ? `<p style="font-size:11px;color:#c99;">${esc(target.name)} parried you: +${ms.parry} TN (p.122).</p>` : ""}
       ${ms.pos ? `<div class="form-group"><label>Position bonus (+${ms.pos}, p.122):</label><select name="position">
         <option value="tn">−${ms.pos} TN</option><option value="power">+${ms.pos} Power</option></select></div>` : ""}
-      ${isIC ? `<p style="font-size:11px;color:#aaa1c0;">The IC rolls the host's Security Value; Power ${actor.system.rating}, Level by Security Code (VR2.0 p.40, p.124).${Y.expertOf(actor) ? ` Expert ${Y.expertOf(actor) > 0 ? "Offense" : "Defense"}-${Math.abs(Y.expertOf(actor))} (p.52).` : ""}${Y.partyOf(actor) ? ` Party IC: +${Y.partyOf(actor)} TN (p.52).` : ""}</p>` : `
+      ${isIC && Y.isConstruct(actor) ? `<div class="form-group"><label>Program (construct, p.52):</label><select name="comp">${
+        actor.system.construct.components.filter(c => isProactive(c.program) && Y.compAvailable(actor, c.id, undefined, { budget: false }))
+          .map(c => `<option value="${esc(c.id)}">${esc(CONFIG.SR2E.icPrograms[c.program] ?? c.program)}-${c.rating}</option>`).join("")}</select></div>` : ""}
+      ${isIC ? `<p style="font-size:11px;color:#aaa1c0;">The IC rolls the host's Security Value; Power ${Y.isConstruct(actor) ? "= the program's rating" : actor.system.rating}, Level by Security Code (VR2.0 p.40, p.124).${Y.threatOf(actor) ? ` Threat +${Y.threatOf(actor)} dice (p.52).` : ""}${Y.expertOf(actor) ? ` Expert ${Y.expertOf(actor) > 0 ? "Offense" : "Defense"}-${Math.abs(Y.expertOf(actor))} (p.52).` : ""}${Y.partyOf(actor) ? ` Party IC: +${Y.partyOf(actor)} TN (p.52).` : ""}</p>` : `
       <div class="form-group"><label>Attack utility:</label><select name="program">${programs}</select></div>
       ${Y.partyOf(target) ? `<div class="form-group"><label title="Party IC: +${Y.partyOf(target)} TN to hit, except with an area-effect combat utility (VR2.0 p.52)">Area-effect utility:</label>
         <input type="checkbox" name="area"></div>` : ""}
@@ -529,7 +532,7 @@ async function promptAttack(actor, target, ms) {
       { action: "attack", label: "Attack", default: true, callback: (ev, b) => {
         const f = b.form.elements;
         pick = { hostId: f.host.value, status: f.status.value, programId: f.program?.value ?? null, level: f.level?.value ?? "",
-          position: f.position?.value ?? "", area: !!f.area?.checked,
+          position: f.position?.value ?? "", area: !!f.area?.checked, comp: f.comp?.value ?? "",
           hacking: Math.max(0, Math.min(hackingMax, parseInt(f.hacking?.value) || 0)),
           karmaDice: Math.max(0, Math.min(karma, parseInt(f.karma_dice?.value) || 0)), ...readMiscDice(b.form) };
       } },
@@ -578,28 +581,40 @@ async function attackOnce(actor) {
   let tn = cybercombatTN(code, o.status) + ms.parry
     + (target.type === "ic" && ["shield", "shift"].includes(target.system.defense) ? 2 : 0);
   let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer;
-  let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null;
+  let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "";
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
     if (!actor.system.hostUuid && actor.isOwner) await actor.update({ "system.hostUuid": host.uuid });
+    // Part 4b: a construct attacks with one of its programs (p.52); everything below reads that profile.
+    if (Y.isConstruct(actor)) {
+      const why = Y.constructProblems(actor).problems;
+      if (why.length) return ui.notifications.warn(`${actor.name} isn't a valid construct: ${why.join("; ")}.`);
+      if (!o.comp || !Y.compAvailable(actor, o.comp) || !isProactive(Y.icProfile(actor, o.comp).program)) {
+        return ui.notifications.warn(`${actor.name} has no program that can attack right now.`);
+      }
+    }
+    prof = Y.icProfile(actor, Y.isConstruct(actor) ? o.comp : "");
+    threat = Y.threatOf(actor);
+    icKey0 = Y.icKeyOf(actor, prof.comp);   // the incarnation that attacks: a crash during the roll can't relabel it
     // Cascading IC (p.51; plan part 4a §4): derived from the deckers' records, so the active GM (the
     // sequencer) settles every pending admission and resolution first.
-    if (actor.system.cascading && isProactive(actor.system.program) && target.type === "character") {
+    if (actor.system.cascading && !Y.isConstruct(actor) && isProactive(actor.system.program) && target.type === "character") {
       if (!Y.isSequencer()) return ui.notifications.warn("Cascading IC attacks are rolled by the active GM.");
       await Y.flush();
       cascade0 = Y.cascadeBaseline(actor, host);
       cascade = Y.cascadeOf(actor, host);
     }
-    icRating = actor.system.rating + cascade.rating;
-    dice = expertDice(host.system.securityValue + cascade.sv, Y.expertOf(actor)).attack; level = icDamageLevel(code);
+    icRating = prof.rating + cascade.rating;
+    dice = expertDice(host.system.securityValue + cascade.sv, Y.expertOf(actor)).attack + threat; level = icDamageLevel(code);
     // Black IC is +2 while the decker's icon is down (p.48); others use their rating.
-    power = Y.blackKind(actor.system.program) && target.type === "character" ? Y.blackRating(actor, target) + cascade.rating : icRating;
+    power = Y.blackKind(prof.program) && target.type === "character" ? Y.blackRating(actor, target, prof.rating) + cascade.rating : icRating;
     tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
     // Trace IC hunts against the decker's Trace Factor (p.45), not the cybercombat table.
-    if (actor.system.program === "trace" && target.type === "character") {
+    if (prof.program === "trace" && target.type === "character") {
       const conn = target.system.vr2Conn;
       const jp = sync(conn?.jackpoint?.jackpoint);
-      const trapped = sync(actor.system.trapFor);
+      // A construct can't be a hidden trap (part 4b R8): it adds nothing to the Trace Factor.
+      const linked = sync(actor.system.trapFor), trapped = Y.isConstruct(linked) ? null : linked;
       tn = Math.max(2, traceFactor({ evasion: target.system.matrixPersona?.evasion ?? 0, rating: icRating,
         camo: loadedUtility(target, "camo"), redirects: conn ? (Y.foldOf(target).live?.redirects ?? 0) : 0,
         jackpoint: Number(jp?.system?.traceMod) || 0,
@@ -609,11 +624,11 @@ async function attackOnce(actor) {
     }
     // A traced decker: −1 to proactive IC attacks (p.46).
     if (target.type === "character" && target.system.vr2Conn && Y.foldOf(target).live?.traced) tn = Math.max(2, tn - 1);
-    const attr = CRIPPLER_ATTRIBUTE[actor.system.program];
+    const attr = CRIPPLER_ATTRIBUTE[prof.program];
     if (attr) {
       if (target.type !== "character") return ui.notifications.warn("A crippler attacks a decker's persona.");
       effect = { effect: "attribute", attr, floor: 1, rating: icRating,
-        effectName: `${CONFIG.SR2E.icPrograms?.[actor.system.program] ?? actor.system.program}-${icRating}` };
+        effectName: `${CONFIG.SR2E.icPrograms?.[prof.program] ?? prof.program}-${icRating}` };
     }
   } else {
     attackerComputer = computerOf(actor);
@@ -659,13 +674,14 @@ async function attackOnce(actor) {
   await commitAction(actor, startedBuild);
   // Posted even at 0 successes (inert), so Karma can still bring it to life.
   const state = { ruleset: "vr2", attackerUuid: actor.uuid, attackerName: actor.name, attackerType: actor.type,
-    icType: isIC ? actor.system.icType : "", icClass: isIC ? actor.system.icClass : "", program: isIC ? actor.system.program : "",
+    icType: isIC ? actor.system.icType : "", icClass: isIC ? prof.icClass : "", program: isIC ? prof.program : "",
     targetUuid: target.uuid, targetName: target.name, targetSession: sessionKey(target), attackerSession: sessionKey(actor),
     targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
     ...hostSnap(host), status: o.status, power, level, ...effect,
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
-    icKey: isIC ? Y.icKeyOf(actor) : "", targetConn: target.system?.vr2Conn?.n ?? null,
-    ...(isIC ? { icRating, expert: Y.expertOf(actor), cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area }) };
+    icKey: isIC ? icKey0 : "", targetConn: target.system?.vr2Conn?.n ?? null,
+    ...(isIC ? { icRating, threat, comp: prof.comp, psychotropic: prof.psychotropic, expert: Y.expertOf(actor),
+      cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area }) };
   const card = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
     flags: { sr2e: { matrix: state } } });
   // Part 3: an IC's attack on a decker on the connection log is ADMITTED by the sequencer
@@ -752,7 +768,7 @@ export async function vr2MatrixResist(defender, message) {
     if (!sameSession()) return ui.notifications.warn("That attack hit an earlier session.");
     let dice, tn, what, armorRef = null;
     if (defender.type === "ic") {
-      dice = expertDice(st.securityValue, Y.expertOf(defender)).resist; tn = st.power - (st.targetArmorDefense ? 2 : 0);
+      dice = expertDice(st.securityValue, Y.expertOf(defender)).resist + Y.threatOf(defender); tn = st.power - (st.targetArmorDefense ? 2 : 0);
       what = `host Security Value${st.targetArmorDefense ? ", IC armor" : ""}`;
     } else if (defender.type === "character") {
       armorRef = useRef(bestUtility(defender, "armor"));
@@ -820,7 +836,9 @@ export async function vr2MatrixResist(defender, message) {
         lines.push("The IC crashes, out of the fight.");
         if (st.attackerType === "character" && st.attackerSession) {
           crashChoiceFlag = { cardId: message.id, deckerUuid: st.attackerUuid, sessionId: st.attackerSession,
-            icUuid: defender.uuid, icName: defender.name, rating: defender.system.rating ?? 0 };
+            icUuid: defender.uuid, icName: defender.name,
+            // A construct's crash tally: its highest program rating (book silent; part 4b decision).
+            rating: Y.isConstruct(defender) ? Math.max(0, ...defender.system.construct.components.map(c => c.rating ?? 0)) : (defender.system.rating ?? 0) };
         }
       } else if (crashed && cls === "black") {
         lines.push(`${defender.name}'s icon is down, but black IC doesn't disconnect the decker: the connection stays, and the IC's rating is +2 while the icon is down (VR2.0 p.48, p.124).`);
@@ -860,10 +878,26 @@ async function resistOnLog(defender, message, st, liveAtk) {
     return ui.notifications.warn("That attack isn't admitted yet (a GM must be online), or was refused.");
   }
   if (Y.blackKind(st.program)) {
-    if (!recs().some(e => e.type === "hit" && e.card === message.id)) await Y.request(defender, "black", { card: message.id, conn: st.targetConn });
-    if (!await settle(() => recs().some(e => e.type === "hit" && e.card === message.id))) return ui.notifications.warn("Waiting for the GM to freeze the black IC's attack.");
-    const hit = recs().find(e => e.type === "hit" && e.card === message.id);
     const { recordEvent } = await import("./claims.mjs");
+    const card = message.id;
+    const hitOf = () => recs().find(e => e.type === "hit" && e.card === card);
+    const endOf = () => recs().find(e => e.type === "ack" && e.target === `attack:${card}`);
+    // Part 4b R10: Shield works against black IC too (p.100). One durable decision per card (the first
+    // record wins; a client that loses the race uses the winner's); the GM's sequencer applies the wear.
+    if (!hitOf() && !endOf()) {
+      if (!Y.shieldOf(defender, card)) {
+        let rec = { successes: 0, none: true };
+        if (bestUtility(defender, "shield")) {
+          const sh = await askShield(defender, st);
+          rec = sh ? { successes: sh.successes, itemId: sh.ref.itemId, loadGen: sh.ref.loadGen } : { successes: 0, declined: true };
+        }
+        await recordEvent(defender, `vr2:shield:${card}`, { type: "shield", card, ...rec });
+      }
+      await Y.request(defender, "black", { card, conn: st.targetConn, shieldDecided: true });
+    }
+    if (!await settle(() => hitOf() || endOf())) return ui.notifications.warn("Waiting for the GM to freeze the black IC's attack.");
+    const hit = hitOf();
+    if (!hit) return;                                   // the Shield stopped it: the GM's client posted the result
     const has = (side) => recs().some(e => e.type === "res" && e.card === message.id && e.side === side);
     if (!has("icon")) {
       const armor = bestUtility(defender, "armor"), ref = useRef(armor);
@@ -914,7 +948,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
   }
   lines.unshift(`${plural(atkS, "attack success")} vs ${plural(res.successes, "resistance success")}.`);
   await Y.request(defender, "apply", { card: message.id, conn: st.targetConn, boxes: out.boxes, level: out.level,
-    overloadStun, overloadCrash, program: st.program, rating: st.icRating ?? st.power, lines });
+    overloadStun, overloadCrash, program: st.program, rating: st.icRating ?? st.power, threat: st.threat ?? 0, lines });
   return res;
 }
 
@@ -965,7 +999,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
     // An IC's attack on the log also leaves a pending receipt OUTSIDE the session, in the same update, so a
     // lost `resolved` request is re-sent however many host switches follow (part 4a §6a).
     const pending = st.attackerType === "ic" && st.targetConn != null
-      ? { [`flags.sr2e.vr2AttrPending.${message.id}`]: { conn: st.targetConn, lost: l, attr: st.attr, rating: st.rating ?? 0, program: st.program ?? "" } } : {};
+      ? { [`flags.sr2e.vr2AttrPending.${message.id}`]: { conn: st.targetConn, lost: l, attr: st.attr, rating: st.rating ?? 0, program: st.program ?? "", threat: st.threat ?? 0 } } : {};
     await defender.update({ [`flags.sr2e.vr2Session.iconDamage.${message.id}`]: { attr: st.attr, lost: l, seq, source: st.effectName },
       "flags.sr2e.vr2Session.damageSeq": seq, ...pending });
     return l;
@@ -974,7 +1008,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
   // Part 3: the admitted attack is resolved; a ripper's permanent chip test follows (p.43).
   if (lost != null && st.targetConn != null && defender.system.vr2Conn?.n === st.targetConn) {
     const Y = await import("./vr2ic.mjs");
-    await Y.request(defender, "resolved", { card: message.id, conn: st.targetConn, lost, attr: st.attr, rating: st.rating,
+    await Y.request(defender, "resolved", { card: message.id, conn: st.targetConn, lost, attr: st.attr, rating: st.rating, threat: st.threat ?? 0,
       ripper: String(st.program ?? "").startsWith("ripper-") });
   }
   const text = lost == null ? `${defender.name}'s session changed: nothing applied.`
@@ -1043,7 +1077,8 @@ export async function vr2Maneuver(actor) {
   const lockOn = target.type === "character" ? loadedUtility(target, "lock") : 0;
   const tns = maneuverTNs({ evasion, sensor, cloak, lockOn });
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
-  const res = await actor.rollSuccessTest(Math.max(0, evasion), tns.maneuverer, {
+  // + a construct's threat dice on its maneuver tests (p.52; part 4b §5).
+  const res = await actor.rollSuccessTest(Math.max(0, evasion) + (actor.type === "ic" ? Y.threatOf(actor) : 0), tns.maneuverer, {
     label: RL("Maneuver", { maneuver: MANEUVERS[pick.kind], stat: RL(actor.type === "ic" ? "SecurityValue" : "Evasion"), tn: tns.maneuverer }),
     closed: true, tnContext: { kind: "other" } });
   if (!res) return;
@@ -1052,7 +1087,7 @@ export async function vr2Maneuver(actor) {
     opponentName: target.name, mS: res.successes, oppTN: tns.opponent, mSession: sessionKey(actor),
     oSession: sessionKey(target), testMessageId: res.testMessageId };
   if (target.type === "ic") {
-    const or = await SR2ESuccessRoll.successTest(sv, tns.opponent);
+    const or = await SR2ESuccessRoll.successTest(sv + Y.threatOf(target), tns.opponent);
     return postManeuverResult(st, or.successes, { rolls: or.rolls });
   }
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderManeuverCard(st),
@@ -1277,9 +1312,11 @@ async function leaveOnLog(actor, crash) {
   const f = Y.foldOf(actor);
   if (f.live?.exit) return ui.notifications.info(`${actor.name} is already jacking out.`);
   if (f.live?.locks.length) {
-    const ics = f.live.locks.map(h => sync(h.icKey.slice(0, h.icKey.lastIndexOf("#")))).filter(Boolean);
-    // PCPIC: Willpower (rating + the wound modifier) instead (p.50).
-    const rating = Y.pcpicTN(actor) ?? Math.max(...ics.map(ic => Y.blackRating(ic, actor)), 0);
+    const locks = f.live.locks.map(h => ({ h, ic: Y.icOfKey(h.icKey) })).filter(x => x.ic);
+    const ics = locks.map(x => x.ic);
+    // PCPIC: Willpower (rating + the wound modifier) instead (p.50). Each lock's frozen IC rating (part 4b R14)
+    // + the CURRENT icon-down bonus; a legacy hit uses the live IC.
+    const rating = Y.pcpicTN(actor) ?? Math.max(...locks.map(({ h, ic }) => Y.blackRating(ic, actor, h.icRating ?? null)), 0);
     const choice = await foundry.applications.api.DialogV2.wait({ window: { title: `Jack out — ${actor.name}` }, rejectClose: false,
       content: `<p>Black IC (${ics.map(i => esc(i.name)).join(", ")}) has its hooks in ${esc(actor.name)}'s ASIST interface (VR2.0 p.48).
         Jacking out is a Complex Action and a <strong>Willpower (${rating})</strong> test; on a success the IC makes one more attack before the link drops.

@@ -181,3 +181,14 @@ jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
   admission is the evidence); a legacy direct attack says so on its card.
 - Party IC: non-IC component programs aren't modelled. Constructs and black-IC Shield: part 4b.
 
+## VR2.0 part 4b — constructs, black-IC Shield (docs/PLAN-vr2-part4b.md)
+- Keys: the ICON is `uuid#gen`; a construct program's EFFECT key is `uuid#gen/<component id>` (hits, locks,
+  traces, psychotropic/last-attack steps). Always parse with `parseIcKey` / `iconKeyOf` / `icOfKey`.
+- Every IC effect reads `icProfile(ic, comp)` (program, rating, class, subtypes) — never `ic.system.program`
+  directly — and constructs gate on `compAvailable` (same generation, row exists, not crashed, monitor not
+  full, valid build). Component crashes are `vr2:comp-crash:<gen>:<comp>` records on the IC.
+- Threat dice: `threatOf(ic)`; snapshotted on the card and carried into hit/gray/ripper records.
+- Black Shield: the decker's `vr2:shield:<card>` decision (first record wins); the sequencer's `freezeBlack`
+  wears it once and either freezes a hit or ends the attack (`ack:attack` `shieldCancelled`);
+  `reconcileShieldFreeze` finishes interrupted ones. Tar facts are `v: 2` and `reconcileTar` finishes them.
+

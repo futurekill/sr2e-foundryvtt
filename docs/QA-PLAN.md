@@ -433,6 +433,14 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Shield that cancels every attack success: no Matrix damage at all.
 - [ ] A crippler on a connected decker: Resist waits for the GM's admission.
 
+### 10e. VR2.0 part 4b: constructs and black-IC Shield (`sr2e.vr2-constructs` batch; docs/PLAN-vr2-part4b.md)
+2026-10-30: batch 6/6 (real attack path); full sr2e.** 732/733 (sr2e.purchases timing flake, 16/16 on rerun).
+- [ ] IC sheet: tick **Construct**, add programs (killer, black, tar…), set Threat. The capacity line and its problems update; the program/Cascading/Party controls hide.
+- [ ] Attack from the construct: the dialog lists its attack programs; the roll is SV + Threat; the card names the program.
+- [ ] A construct's black program holds a decker; crashing the construct (fill its monitor) releases the hold.
+- [ ] After a decker's System Test with a utility, the GM card offers the construct's tar program; if it wins, only that program shows as crashed (dimmed row).
+- [ ] A decker with Shield resisting a black IC: the Shield prompt comes first; cancelling every success → "Shield stops … black IC", no damage, no hold.
+
 ## 10c. Map areas on Foundry v14 (v16 prep)
 - [ ] On v14: a grenade blast, a shotgun spread, an area spell, Poltergeist, Ice Sheet and a ritual area each appear as a Region of the right shape; a player's own area is theirs to move or delete.
 - [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.

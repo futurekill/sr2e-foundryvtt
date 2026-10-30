@@ -152,7 +152,8 @@ export function foldVr2Ic(events = [], ext = {}) {
   const opens = T("connOpen").sort((a, b) => a.n - b.n);
   const live = opens.filter(o => !ended.has(o.n)).at(-1) ?? null;
   const nextN = (opens.at(-1)?.n ?? 0) + 1;
-  const icAlive = (icKey) => { const [u, g] = String(icKey).split("#"); return icGen(u) === Number(g); };
+  // The ICON's generation decides (a construct program's key carries "/comp"; part 4b §1).
+  const icAlive = (icKey) => { const { uuid, gen } = parseIcKey(icKey); return icGen(uuid) === gen; };
 
   const conn = (n) => {
     if (n == null) return null;
@@ -312,4 +313,45 @@ export function partyBudget({ sv, members = [] }) {
   const black = members.filter(m => String(m.program).startsWith("black-"));
   if (black.some(m => m.psychotropic === "pcpic") && black.length > 1) problems.push("PCPIC can't share a party with other black IC (p.50)");
   return { capacity, used, maxMembers, problems };
+}
+
+// ── Part 4b: constructs (docs/PLAN-vr2-part4b.md; p.52) ─────────────────────────
+
+/** "<uuid>#<gen>" or "<uuid>#<gen>/<comp>" → parts. The ICON is uuid#gen; the suffix is a construct component. */
+export function parseIcKey(key) {
+  const k = String(key ?? ""), i = k.lastIndexOf("#");
+  if (i < 0) return { uuid: k, gen: NaN, comp: "" };
+  const rest = k.slice(i + 1), j = rest.indexOf("/");
+  return { uuid: k.slice(0, i), gen: Number(j < 0 ? rest : rest.slice(0, j)), comp: j < 0 ? "" : rest.slice(j + 1) };
+}
+/** The icon part of an IC key (drops a construct component). */
+export const iconKeyOf = (key) => { const p = parseIcKey(key); return `${p.uuid}#${p.gen}`; };
+
+/** Programs a construct may hold: the proactive set plus tar, worm and (poison) scramble — no data bombs. */
+export const CONSTRUCT_PROGRAMS = new Set([...PROACTIVE_IC, "tar-baby", "tar-pit", "worm", "scramble"]);
+/** Threat Rating caps by Security Code (p.52): Blue none, Green 1, Orange 2, Red 3. */
+export const THREAT_CAP = { blue: 0, green: 1, orange: 2, red: 3 };
+
+/**
+ * Construct budget (p.52): capacity 2 × SV; no program over ⌈2/3 SV⌉; gray +1, black +2; armor / shield /
+ * shift options 2 each; at least 2 programs; threat within the code's cap; valid, unique component rows.
+ * @param {{sv: number, code: string, components: {id: string, program: string, rating: number, scramble?: string}[],
+ *          defenses?: number, threat?: number}} c
+ */
+export function constructBudget({ sv, code, components = [], defenses = 0, threat = 0, icClassOf = () => "white" }) {
+  const v = Number(sv) || 0, capacity = 2 * v, perProgram = Math.ceil(2 * v / 3);
+  const extra = (p) => ({ gray: 1, black: 2 })[icClassOf(p)] ?? 0;
+  const used = components.reduce((t, c) => t + (Number(c.rating) || 0) + extra(c.program), 0) + 2 * (Number(defenses) || 0);
+  const problems = [], ids = new Set();
+  if (components.length < 2) problems.push("a construct needs at least 2 programs");
+  for (const c of components) {
+    if (!c.id || ids.has(c.id)) problems.push("every program needs its own id"); ids.add(c.id);
+    if (!c.program) problems.push("a program row has no program");
+    else if (!CONSTRUCT_PROGRAMS.has(c.program)) problems.push(`${c.program} can't be part of a construct`);
+    if (c.program === "scramble" && c.scramble === "exploding") problems.push("an exploding scramble needs its own bomb actor, not a construct");
+    if ((Number(c.rating) || 0) > perProgram) problems.push(`no program over ${perProgram} (two-thirds of the Security Value)`);
+  }
+  if (used > capacity) problems.push(`programs and options use ${used} of ${capacity} points (twice the Security Value)`);
+  if ((Number(threat) || 0) > (THREAT_CAP[code] ?? 0)) problems.push(`Threat Rating over ${THREAT_CAP[code] ?? 0} on ${code}`);
+  return { capacity, used, perProgram, problems: [...new Set(problems)] };
 }
