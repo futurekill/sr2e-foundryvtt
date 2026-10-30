@@ -766,6 +766,8 @@ const hogTicksOf = (actor, card) => recordsOf(actor).filter(e => e.type === "hog
 /** One hog application (p.98): the fact first (target and exact wear frozen), then its wear reconciled. */
 async function hogTick(actor, h, boundary) {
   if (recordsOf(actor).some(e => e.key === `${P3}hogtick:${h.card}:${boundary}`)) return;
+  if (recordsOf(actor).some(e => (e.type === "hogEnd" || e.type === "hogPurged") && e.card === h.card)) return;
+  if (boundary !== "m0" && !recordsOf(actor).some(e => e.key === `${P3}hogtick:${h.card}:m0`)) await hogTick(actor, h, "m0");
   await reconcileHog(actor);   // earlier ticks' wear first, so the victim is picked from real ratings (code review #6)
   const V = await import("./vr2.mjs");
   const prev = hogTicksOf(actor, h.card).at(-1) ?? null;
@@ -787,18 +789,62 @@ async function hogTick(actor, h, boundary) {
     by ${wear} (${Math.max(0, t.rating - wear)} left${t.rating - wear <= 0 ? ": crashed" : ""}).</div>` });
 }
 
-/** A track or hog whose effect landed but whose ack (or first tick) didn't (code review #4, #5). */
+/** Record the target's Track/Hog resistance once, then resolve from it. */
+async function utilityRequest(actor, r, f, kind) {
+  const conn = f.conn(r.conn);
+  if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
+  await fact(actor, `res:${r.card}:${kind}`, { type: "res", card: r.card, side: kind, conn: r.conn, successes: Number(r.successes) || 0 });
+  await resolveUtility(actor, recordsOf(actor).find(e => e.type === "res" && e.card === r.card && e.side === kind));
+  return { ok: true };
+}
+
+/**
+ * Settle one Track/Hog resistance, idempotently (every write has a fixed key; each step checks it). Run by the request
+ * and again by every pass until the card is acked, so no interruption leaves the attack pending (code review R2 #1).
+ */
+async function resolveUtility(actor, res) {
+  const recs = recordsOf(actor), card = res.card;
+  if (recs.some(e => e.type === "ack" && e.target === `attack:${card}`)) {
+    if (res.side === "hog") await hogInit(actor, card);
+    return;
+  }
+  const st = game.messages.get(card)?.flags?.sr2e?.matrix;
+  if (!st) return;
+  const atk = await freezeSuccesses(st), ev = res.successes;
+  const ack = (outcome) => fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome });
+  if (res.side === "track") {
+    if (!trackLocks(atk, ev)) { await ack({ evaded: true }); return postResolution(actor, card, `${actor.name} slips ${st.attackerName}'s Track.`, [`Evasion ${ev} against ${atk}.`]); }
+    const key = `track~${card}`;
+    if (!recs.some(e => e.type === "trace" && e.icKey === key)) {
+      if (attackerEnded(st.icKey, st.attackerInc)) { await ack({ attackerGone: true }); return postResolution(actor, card, `${st.attackerName} is gone: the Track never locks.`); }
+      await fact(actor, `trace:${res.conn}:${key}`, { type: "trace", conn: res.conn, icKey: key, track: true, attacker: st.icKey, attackerInc: st.attackerInc ?? 0,
+        rating: st.rating ?? 0, icName: st.attackerName, turns: locationTurns(atk - ev), clock: clockOf(actor) });
+    }
+    const turns = locationTurns(atk - ev);
+    await ack({ trace: turns });
+    return postResolution(actor, card, `${st.attackerName}'s Track locks onto ${actor.name}'s datatrail: ${turns === 0 ? "located at once" : `${turns} Combat Turn${turns === 1 ? "" : "s"} to locate`}.`,
+      [`10 ÷ ${atk - ev} net successes (VR2.0 p.97). Relocate against ${st.attackerName}'s Sensor breaks it.`]);
+  }
+  const points = hogPoints(atk, ev);
+  if (points < 1) { await ack({ resisted: true }); return postResolution(actor, card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${ev} against ${atk}.`]); }
+  if (!recs.some(e => e.type === "hog" && e.card === card)) {
+    await fact(actor, `hog:${res.conn}:${card}`, { type: "hog", conn: res.conn, card, points, rating: st.rating ?? 0, icName: st.attackerName, clock: clockOf(actor) });
+  }
+  await hogInit(actor, card);
+  await ack({ hog: points });
+  await postResolution(actor, card, `${st.attackerName}'s hog infects ${actor.name}'s deck: ${points} point${points === 1 ? "" : "s"} a turn.`,
+    ["It drains the highest-rated program until it crashes, then the next (VR2.0 p.98). Purge it from the Matrix tab."]);
+}
+
+/** The hit's own drain (`m0`), always before any later tick (code review R2 #2). */
+async function hogInit(actor, card) {
+  const h = recordsOf(actor).find(e => e.type === "hog" && e.card === card);
+  if (h && h.conn === actor.system.vr2Conn?.n) await hogTick(actor, h, "m0");
+}
+
+/** Resistances recorded but not yet settled (code review #4; R2 #1, #2). */
 async function reconcileUtilityAcks(actor) {
-  const recs = recordsOf(actor), acked = (card) => recs.some(e => e.type === "ack" && e.target === `attack:${card}`);
-  for (const t of recs.filter(e => e.type === "trace" && e.track)) {
-    const card = String(t.icKey).slice("track~".length);
-    if (!acked(card)) await fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome: { trace: t.turns } });
-  }
-  for (const h of recs.filter(e => e.type === "hog")) {
-    if (!acked(h.card)) await fact(actor, `ack:attack:${h.card}`, { type: "ack", target: `attack:${h.card}`, outcome: { hog: h.points } });
-    if (!recs.some(e => e.type === "hogTick" && e.card === h.card) && !recs.some(e => (e.type === "hogEnd" || e.type === "hogPurged") && e.card === h.card)
-      && h.conn === actor.system.vr2Conn?.n) await hogTick(actor, h, "m0");
-  }
+  for (const res of recordsOf(actor).filter(e => e.type === "res" && (e.side === "track" || e.side === "hog"))) await resolveUtility(actor, res);
 }
 
 /** Every hog fact's consequences, idempotently (R2 #11; R3 #6): wear keys, and a purge's unload bound to its load. */
@@ -848,10 +894,19 @@ export function slowResult(ic, card, resist, snap) {
     const hung = !!combat?.combatants.find(c => c.actor?.uuid === ic.uuid)?.getFlag("sr2e", `slowApplied.${card}`)?.hung;
     const text = !lost ? `${ic.name} shrugs off the Slow.` : `${ic.name} loses ${lost} action${lost === 1 ? "" : "s"}${hung ? ": it hangs this turn" : ""}${combat ? "" : " (no combat: the GM applies it)"}.`;
     await postResolution(ic, card, text, [`${atk} attack success${atk === 1 ? "" : "es"} against ${resist} (VR2.0 p.99).`]);
-    if (hung) await ChatMessage.create({ whisper: [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u => !u.isGM && sync(st.attackerUuid)?.testUserPermission(u, "OWNER"))].map(u => u.id),
-      content: `<div class="sr2e-item-card">${esc(ic.name)} has hung. Suppress it to keep it down (−1 Detection Factor, no tally), or it resumes next Combat Turn (p.99).
-      <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.attackerUuid)}" data-op="slowSuppress" data-arg="${esc(`${card}|${ic.uuid}`)}">Suppress</button></div></div>` });
   });
+}
+
+/** The Suppress offer for a CURRENT hang, posted once, from the durable receipt (code review R2 #3). */
+async function slowPrompt(ic, sl) {
+  const combat = game.combats.get(sl.combatId), cb = combat?.combatants.find(c => c.actor?.uuid === ic.uuid);
+  const rc = cb?.flags?.sr2e?.slowApplied?.[sl.card];
+  if (!rc?.hung || rc.round !== combat.round || rc.gen !== (ic.system.generation ?? 0)) return;
+  if (!await once(ic, `${P3}card:slowprompt:${sl.card}`)) return;
+  const owner = sync(sl.deckerUuid);
+  await ChatMessage.create({ whisper: [...ChatMessage.getWhisperRecipients("GM"), ...game.users.filter(u => !u.isGM && owner?.testUserPermission(u, "OWNER"))].map(u => u.id),
+    content: `<div class="sr2e-item-card">${esc(ic.name)} has hung. Suppress it to keep it down (−1 Detection Factor, no tally), or it resumes next Combat Turn (p.99).
+    <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(sl.deckerUuid)}" data-op="slowSuppress" data-arg="${esc(`${sl.card}|${ic.uuid}`)}">Suppress</button></div></div>` });
 }
 
 /** Apply each current Slow to the IC's combatant once (R3 #7, #8): stale facts never touch a later round or incarnation. */
@@ -863,6 +918,7 @@ async function reconcileSlow(ic) {
     const before = cb.initiative ?? 0, after = Math.max(0, before - 10 * sl.lost);
     await cb.update({ initiative: after, [`flags.sr2e.slowApplied.${sl.card}`]: { hung: before > 0 && after === 0, round: sl.round, gen: sl.gen } });
   }
+  for (const sl of recordsOf(ic).filter(e => e.type === "slow" && e.lost > 0)) await slowPrompt(ic, sl);
 }
 
 /** Live Slow suppressions on an IC (R3 #10): no release, same IC generation, the decker's session still live. */
@@ -883,53 +939,9 @@ export function icDisabled(ic) {
 }
 
 Object.assign(HANDLERS, {
-  /** Track (p.97): the target's Evasion successes against the attack; a lock is a trace cycle keyed by the card. */
-  async track(actor, r, f) {
-    const conn = f.conn(r.conn);
-    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
-    if (recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) return { ok: true };
-    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
-    if (!st) return { ok: false, why: "the attack card is gone" };
-    const atk = await freezeSuccesses(st), ev = Number(r.successes) || 0;
-    if (!trackLocks(atk, ev)) {
-      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { evaded: true } });
-      await postResolution(actor, r.card, `${actor.name} slips ${st.attackerName}'s Track.`, [`Evasion ${ev} against ${atk}.`]);
-      return { ok: true };
-    }
-    if (attackerEnded(st.icKey, st.attackerInc)) {
-      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { attackerGone: true } });
-      await postResolution(actor, r.card, `${st.attackerName} is gone: the Track never locks.`);
-      return { ok: true };
-    }
-    const key = `track~${r.card}`, turns = locationTurns(atk - ev);
-    await fact(actor, `trace:${r.conn}:${key}`, { type: "trace", conn: r.conn, icKey: key, track: true, attacker: st.icKey, attackerInc: st.attackerInc ?? 0,
-      rating: st.rating ?? 0, icName: st.attackerName, turns, clock: clockOf(actor) });
-    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { trace: turns } });
-    await postResolution(actor, r.card, `${st.attackerName}'s Track locks onto ${actor.name}'s datatrail: ${turns === 0 ? "located at once" : `${turns} Combat Turn${turns === 1 ? "" : "s"} to locate`}.`,
-      [`10 ÷ ${atk - ev} net successes (VR2.0 p.97). Relocate against ${st.attackerName}'s Sensor breaks it.`]);
-    return { ok: true };
-  },
-  /** Hog (p.98): the MPCP successes against the attack; an infection drains at once and every Combat Turn. */
-  async hog(actor, r, f) {
-    const conn = f.conn(r.conn);
-    if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted" };
-    if (recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) return { ok: true };
-    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
-    if (!st) return { ok: false, why: "the attack card is gone" };
-    const atk = await freezeSuccesses(st), points = hogPoints(atk, r.successes);
-    if (points < 1) {
-      await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { resisted: true } });
-      await postResolution(actor, r.card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${r.successes} against ${atk}.`]);
-      return { ok: true };
-    }
-    const h = { type: "hog", conn: r.conn, card: r.card, points, rating: st.rating ?? 0, icName: st.attackerName, clock: clockOf(actor) };
-    await fact(actor, `hog:${r.conn}:${r.card}`, h);
-    await hogTick(actor, { ...h, card: r.card }, "m0");
-    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { hog: points } });
-    await postResolution(actor, r.card, `${st.attackerName}'s hog infects ${actor.name}'s deck: ${points} point${points === 1 ? "" : "s"} a turn.`,
-      ["It drains the highest-rated program until it crashes, then the next (VR2.0 p.98). Purge it from the Matrix tab."]);
-    return { ok: true };
-  },
+  /** Track (p.97) and Hog (p.98): the resistance is persisted FIRST, then resolved from it (code review R2 #1). */
+  async track(actor, r, f) { return utilityRequest(actor, r, f, "track"); },
+  async hog(actor, r, f) { return utilityRequest(actor, r, f, "hog"); },
   /** A purge (p.98): validated against the infection's CURRENT target (R2 #10). */
   async hogPurge(actor, r) {
     const h = liveHogs(actor).find(x => x.card === r.card);
