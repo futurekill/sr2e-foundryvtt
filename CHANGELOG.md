@@ -2,9 +2,16 @@
 
 ## Unreleased
 
+## 0.127.1 — 2026-10-30
+
 ### Changed
 - **Award Nuyen: pay per runner.** Next to the payout, pick *per runner* and type the job's rate once
   (say 20,000¥): every ticked runner gets that much. *In total* still splits one sum.
+
+### Fixed
+- **Decker against decker in the Matrix (VR2.0 rules).** Since 0.116.0, a decker attacking another
+  decker who was connected never got the attack admitted, so the defender's Resist button waited and
+  then gave up. The GM's client now admits such attacks itself (a GM must be online, as for IC).
 
 ## 0.127.0 — 2026-10-30
 
