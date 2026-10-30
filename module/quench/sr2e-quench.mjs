@@ -12268,7 +12268,8 @@ export function registerSR2EQuenchTests() {
         const [ev] = await a.createEmbeddedDocuments("Item", [{ name: "Evaluate", type: "program", system: { rating: 6, loaded: true, category: "other" } }]);
         const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => app.element?.querySelector('button[data-action="yes"]')?.click(), 50));
         const n = game.messages.size;
-        try { await withFaces([6], () => game.sr2e.degradeEvaluate()); } finally { Hooks.off("renderDialogV2", id); }
+        // Scoped to the fixture: the real operation decays every evaluate program in the world.
+        try { await withFaces([6], () => game.sr2e.degradeEvaluate({ targets: [ev.uuid] })); } finally { Hooks.off("renderDialogV2", id); }
         const msg = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.evalRun);
         try {
           assert.equal(msg?.flags.sr2e.evalRun.loss, 3, "1D6 = 6 → 3");

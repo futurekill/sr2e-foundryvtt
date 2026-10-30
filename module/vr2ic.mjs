@@ -33,7 +33,9 @@ export const recordsOf = (doc) => eventsOf(doc).filter(e => String(e.key).starts
 export const icGen = (uuid) => { const ic = sync(uuid); return ic?.type === "ic" ? (ic.system.generation ?? 0) : undefined; };
 /** The IC's key: the icon `uuid#gen`, or a construct component's effect `uuid#gen/<comp>` (part 4b §1). */
 export const icKeyOf = (ic, comp = "") => `${ic.uuid}#${ic.system.generation ?? 0}${comp ? `/${comp}` : ""}`;
-export { parseIcKey, iconKeyOf };
+export { parseIcKey, iconKeyOf, isDeckKey, parseAttackerKey };
+/** Every IC: world actors and each unlinked token's own (code review #10). */
+export const allIC = () => allDocs().filter(a => a.type === "ic");
 /** The IC actor a key names (icon or component). */
 export const icOfKey = (key) => sync(parseIcKey(key).uuid);
 export function icCrashSeq(icKey) {
@@ -764,6 +766,7 @@ const hogTicksOf = (actor, card) => recordsOf(actor).filter(e => e.type === "hog
 /** One hog application (p.98): the fact first (target and exact wear frozen), then its wear reconciled. */
 async function hogTick(actor, h, boundary) {
   if (recordsOf(actor).some(e => e.key === `${P3}hogtick:${h.card}:${boundary}`)) return;
+  await reconcileHog(actor);   // earlier ticks' wear first, so the victim is picked from real ratings (code review #6)
   const V = await import("./vr2.mjs");
   const prev = hogTicksOf(actor, h.card).at(-1) ?? null;
   const progs = V.usablePrograms(actor).map(i => ({ id: i.id, loadGen: i.system.loadGen ?? 0, rating: V.programRating(i) }));
@@ -782,6 +785,20 @@ async function hogTick(actor, h, boundary) {
   const item = actor.items.get(t.id);
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">Hog drains ${esc(item?.name ?? "a program")}
     by ${wear} (${Math.max(0, t.rating - wear)} left${t.rating - wear <= 0 ? ": crashed" : ""}).</div>` });
+}
+
+/** A track or hog whose effect landed but whose ack (or first tick) didn't (code review #4, #5). */
+async function reconcileUtilityAcks(actor) {
+  const recs = recordsOf(actor), acked = (card) => recs.some(e => e.type === "ack" && e.target === `attack:${card}`);
+  for (const t of recs.filter(e => e.type === "trace" && e.track)) {
+    const card = String(t.icKey).slice("track~".length);
+    if (!acked(card)) await fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome: { trace: t.turns } });
+  }
+  for (const h of recs.filter(e => e.type === "hog")) {
+    if (!acked(h.card)) await fact(actor, `ack:attack:${h.card}`, { type: "ack", target: `attack:${h.card}`, outcome: { hog: h.points } });
+    if (!recs.some(e => e.type === "hogTick" && e.card === h.card) && !recs.some(e => (e.type === "hogEnd" || e.type === "hogPurged") && e.card === h.card)
+      && h.conn === actor.system.vr2Conn?.n) await hogTick(actor, h, "m0");
+  }
 }
 
 /** Every hog fact's consequences, idempotently (R2 #11; R3 #6): wear keys, and a purge's unload bound to its load. */
@@ -817,15 +834,16 @@ export async function vr2HogPurge(actor, card) {
 }
 
 /** A Slow result, once per card, by the sequencer (R2 #13): the IC's resistance successes against the attack. */
-export function slowResult(ic, card, resist) {
+export function slowResult(ic, card, resist, snap) {
   return sequencer(async () => {
-    if (recordsOf(ic).some(e => e.type === "slow" && e.card === card)) return ui.notifications.info("That Slow is already resolved.");
+    if (recordsOf(ic).some(e => e.type === "slow" && e.card === card)) { await reconcileSlow(ic); return ui.notifications.info("That Slow is already resolved."); }
     const st = game.messages.get(card)?.flags?.sr2e?.matrix;
     if (!st) return;
     const atk = await freezeSuccesses(st), lost = slowActionsLost(atk, resist);
-    const combat = combatOf(ic);
-    await fact(ic, `slow:${card}`, { type: "slow", card, lost, combatId: combat?.id ?? null, round: combat?.round ?? null,
-      gen: ic.system.generation ?? 0, deckerUuid: st.attackerUuid, session: st.attackerSession ?? "" });
+    const combat = game.combats.get(snap?.combatId) ?? null;
+    // The round and incarnation captured BEFORE the resistance roll (code review #7): stale ones never apply.
+    await fact(ic, `slow:${card}`, { type: "slow", card, lost, combatId: snap?.combatId ?? null, round: snap?.round ?? null,
+      gen: snap?.gen ?? (ic.system.generation ?? 0), deckerUuid: st.attackerUuid, session: st.attackerSession ?? "" });
     await reconcileSlow(ic);
     const hung = !!combat?.combatants.find(c => c.actor?.uuid === ic.uuid)?.getFlag("sr2e", `slowApplied.${card}`)?.hung;
     const text = !lost ? `${ic.name} shrugs off the Slow.` : `${ic.name} loses ${lost} action${lost === 1 ? "" : "s"}${hung ? ": it hangs this turn" : ""}${combat ? "" : " (no combat: the GM applies it)"}.`;
@@ -843,7 +861,7 @@ async function reconcileSlow(ic) {
     const cb = combat?.combatants.find(c => c.actor?.uuid === ic.uuid);
     if (!cb || combat.round !== sl.round || (ic.system.generation ?? 0) !== sl.gen || cb.getFlag("sr2e", `slowApplied.${sl.card}`)) continue;
     const before = cb.initiative ?? 0, after = Math.max(0, before - 10 * sl.lost);
-    await cb.update({ initiative: after, [`flags.sr2e.slowApplied.${sl.card}`]: { hung: before > 0 && after === 0, round: sl.round } });
+    await cb.update({ initiative: after, [`flags.sr2e.slowApplied.${sl.card}`]: { hung: before > 0 && after === 0, round: sl.round, gen: sl.gen } });
   }
 }
 
@@ -859,7 +877,7 @@ export function icDisabled(ic) {
   if (slowSuppressions(ic).length) return "suppressed";
   for (const c of game.combats) {
     const cb = c.combatants.find(x => x.actor?.uuid === ic.uuid);
-    if (Object.values(cb?.flags?.sr2e?.slowApplied ?? {}).some(v => v?.hung && v.round === c.round)) return "hung";
+    if (Object.values(cb?.flags?.sr2e?.slowApplied ?? {}).some(v => v?.hung && v.round === c.round && v.gen === (ic.system.generation ?? 0))) return "hung";
   }
   return "";
 }
@@ -906,10 +924,10 @@ Object.assign(HANDLERS, {
     }
     const h = { type: "hog", conn: r.conn, card: r.card, points, rating: st.rating ?? 0, icName: st.attackerName, clock: clockOf(actor) };
     await fact(actor, `hog:${r.conn}:${r.card}`, h);
+    await hogTick(actor, { ...h, card: r.card }, "m0");
     await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { hog: points } });
     await postResolution(actor, r.card, `${st.attackerName}'s hog infects ${actor.name}'s deck: ${points} point${points === 1 ? "" : "s"} a turn.`,
       ["It drains the highest-rated program until it crashes, then the next (VR2.0 p.98). Purge it from the Matrix tab."]);
-    await hogTick(actor, { ...h, card: r.card }, "m0");
     return { ok: true };
   },
   /** A purge (p.98): validated against the infection's CURRENT target (R2 #10). */
@@ -928,9 +946,12 @@ Object.assign(HANDLERS, {
     const ic = sync(r.icUuid);
     const sl = ic && recordsOf(ic).find(e => e.type === "slow" && e.card === r.card);
     if (!sl || sl.deckerUuid !== actor.uuid) return { ok: false, why: "not your Slow" };
-    if (icDisabled(ic) !== "hung" || (ic.system.generation ?? 0) !== sl.gen) return { ok: false, why: "it isn't hung any more" };
+    // THIS card's own hang, now (code review #9): same combat, round, generation, and the session that slowed it.
+    const combat = game.combats.get(sl.combatId), cb = combat?.combatants.find(c => c.actor?.uuid === ic.uuid);
+    const rc = cb?.flags?.sr2e?.slowApplied?.[r.card];
+    if (!rc?.hung || rc.round !== combat.round || (ic.system.generation ?? 0) !== sl.gen) return { ok: false, why: "it isn't hung any more" };
     const session = actor.flags?.sr2e?.vr2Session?.id;
-    if (!session) return { ok: false, why: "no live session" };
+    if (!session || session !== sl.session) return { ok: false, why: "that was another session" };
     await fact(ic, `slow-suppress:${r.card}`, { type: "slowSuppress", card: r.card, deckerUuid: actor.uuid, session, gen: sl.gen, icName: ic.name });
     return { ok: true };
   },
@@ -954,9 +975,9 @@ function evaluateTargets() {
   return [...out];
 }
 /** GM, at the end of a run: 1D6 ÷ 2 (round up) off every evaluate program. The card holds the roll and the population. */
-export async function degradeEvaluate() {
+export async function degradeEvaluate({ targets: only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn("Only the GM ends a run.");
-  const targets = evaluateTargets();
+  const targets = only ?? evaluateTargets();   // `targets`: tests pass their own fixtures, never the world
   if (!targets.length) return ui.notifications.info("No evaluate programs in this world.");
   const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "End of run: Evaluate decays" },
     content: `<p>Roll 1D6 ÷ 2 (round up) and take it off all ${targets.length} evaluate program${targets.length === 1 ? "" : "s"}, in play or not (VR2.0 p.97)?</p>` });
@@ -1328,8 +1349,8 @@ async function advanceExit(actor) {
       // The locking IC makes one more attack (the GM rolls it); destroyed meanwhile → cancelled (R5 #5).
       if (isDeckKey(s.ref)) {
         const { uuid: du } = parseAttackerKey(s.ref);
-        const hit = f.live.hits.find(h => h.icKey === s.ref);
-        if (attackerEnded(s.ref, hit?.attackerInc)) {
+        const hit = f.live.locks.find(h => h.icKey === s.ref);   // the SURVIVING lock (code review #3)
+        if (!hit || attackerEnded(s.ref, hit.attackerInc)) {
           await fact(actor, `exit-res:${f.live.n}:lastAttack:${s.ref}`, { type: "exitRes", n: f.live.n, step: "lastAttack", ref: s.ref, cancelled: true });
           f = foldOf(actor);
         } else if (await once(actor, `${P3}card:last:${f.live.n}:${s.ref}`)) {
@@ -1391,7 +1412,7 @@ export function schedule(actor) {
 
 /** One sequencer pass for a decker (call only inside `sequencer`). */
 async function passFor(actor) {
-  await reconcileHog(actor); await reconcileEvalKarma(actor);
+  await reconcileHog(actor); await reconcileEvalKarma(actor); await reconcileUtilityAcks(actor);
   await recoverResolved(actor); await reconcileTar(actor);
   await reconcileEnds(actor); await admitDeckerCards(actor); await processRequests(actor); await reconcileLastAttacks(actor); await reconcileShieldFreeze(actor);
   await applyResults(actor); await applyRippers(actor); await applySparky(actor);
@@ -1595,7 +1616,7 @@ export function deckerContext(actor) {
     // Part 5a: hog infections (p.98) and the IC this decker holds down with Slow (p.99).
     hogs: liveHogs(actor).map(h => { const last = hogTicksOf(actor, h.card).at(-1); return { card: h.card, from: h.icName, points: h.points,
       program: actor.items.get(last?.itemId)?.name ?? "—" }; }),
-    slowed: game.actors.filter(a => a.type === "ic").flatMap(ic => slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid)
+    slowed: allIC().flatMap(ic => slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid)
       .map(e => ({ name: ic.name, arg: `${e.card}|${ic.uuid}` }))),
     traces: (live?.traces ?? []).filter(t => !t.dead).map(t => {
       const mine = spoofs.filter(sp => sp.icKey === t.icKey && sp.conn === live.n);
@@ -1725,7 +1746,11 @@ export async function icOp(uuid, op, arg) {
 export function registerVr2IcHooks() {
   // Combat eligibility (SR2ECombatant#heldOut) reads this synchronously (part 5a §5).
   game.sr2e = Object.assign(game.sr2e ?? {}, { vr2SlowSuppressed: (ic) => slowSuppressions(ic).length > 0, degradeEvaluate });
-  const all = () => { for (const a of allDocs()) if (a.type === "character") schedule(a); };
+  const all = () => {
+    for (const a of allDocs()) if (a.type === "character") schedule(a);
+    // IC have their own pass (code review #8): Slow facts whose combatant update was interrupted.
+    if (isSequencer() && isVR2()) for (const ic of allIC()) if (recordsOf(ic).some(e => e.type === "slow")) sequencer(() => reconcileSlow(ic)).catch(err => console.error("SR2E | slow", err));
+  };
   Hooks.once("ready", all);
   Hooks.once("ready", rebuildJackpointEntries);
   Hooks.on("userConnected", all);

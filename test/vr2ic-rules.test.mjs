@@ -298,6 +298,12 @@ describe("part 5a: restore and evaluate (VR2.0 pp.97, 100)", () => {
     const st = restoreState([{ attr: "bod", lost: 6, rating: 5, seq: 1 }, { attr: "bod", lost: 6, rating: 5, seq: 3 }], [{ attr: "bod", points: 6, seq: 2 }]);
     expect(st.byAttr.bod).toBe(6);
   });
+  it("a repair never pre-pays a later loss (surplus discarded)", () => {
+    // Two repairs of the same 2 points (two clients), then a new 2-point loss: the new loss stands.
+    const st = restoreState([{ attr: "bod", lost: 2, rating: 4, seq: 1 }, { attr: "bod", lost: 2, rating: 4, seq: 4 }],
+      [{ attr: "bod", points: 2, seq: 2 }, { attr: "bod", points: 2, seq: 3 }]);
+    expect(st.byAttr.bod).toBe(2);
+  });
   it("restore points and evaluate decay", () => {
     expect(restorePoints(5, 10)).toBe(2);
     expect(restorePoints(9, 3)).toBe(3);

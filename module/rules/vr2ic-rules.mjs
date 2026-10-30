@@ -397,10 +397,15 @@ export const trackLocks = (attack, evasion) => (Number(attack) || 0) > (Number(e
  * attribute; null if none), unknown: an outstanding entry has no stored rating }`.
  */
 export function restoreState(damage = [], repairs = []) {
-  const left = [...damage].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).map(e => ({ ...e, left: Math.max(0, Number(e.lost) || 0) }));
-  for (const r of [...repairs].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) {
-    let pts = Math.max(0, Number(r.points) || 0);
-    for (const e of left) { if (!pts) break; if (e.attr !== r.attr || !e.left) continue; const d = Math.min(pts, e.left); e.left -= d; pts -= d; }
+  // One chronological stream (code review #11): a repair pays only what is outstanding AT THAT POINT,
+  // its surplus is discarded, so it can never pre-pay a later loss.
+  const stream = [...damage.map(e => ({ kind: "d", e })), ...repairs.map(e => ({ kind: "r", e }))]
+    .sort((a, b) => (a.e.seq ?? 0) - (b.e.seq ?? 0) || (a.kind === "d" ? -1 : 1));
+  const left = [];
+  for (const { kind, e } of stream) {
+    if (kind === "d") { left.push({ ...e, left: Math.max(0, Number(e.lost) || 0) }); continue; }
+    let pts = Math.max(0, Number(e.points) || 0);
+    for (const d of left) { if (!pts) break; if (d.attr !== e.attr || !d.left) continue; const x = Math.min(pts, d.left); d.left -= x; pts -= x; }
   }
   const out = left.filter(e => e.left > 0), byAttr = {};
   for (const e of out) byAttr[e.attr] = (byAttr[e.attr] ?? 0) + e.left;

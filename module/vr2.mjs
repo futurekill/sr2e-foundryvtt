@@ -305,7 +305,7 @@ export function releaseSuppressed(actor, key) {
 export function vr2DetectionFactor(actor) {
   // Part 2's per-session suppressions, plus part 3's frozen traces on the connection (p.46).
   // Part 5a §5: a Slow suppression's point is derived from the IC's own fact.
-  const slowHeld = game.actors.filter(a => a.type === "ic").reduce((n, ic) => n + Y.slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid).length, 0);
+  const slowHeld = Y.allIC().reduce((n, ic) => n + Y.slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid).length, 0);
   const suppressed = slowHeld + Object.keys(liveSession(actor)?.suppressed ?? {}).length
     + (actor.system?.vr2Conn ? (Y.foldOf(actor).live?.frozenCount ?? 0) : 0);
   return Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")) - suppressed);
@@ -427,11 +427,15 @@ async function resistUtility(defender, message, st) {
 /** Part 5a: an IC resists Slow with the host's Security Value (+ expert, threat) against the Slow rating (p.99). */
 async function resistSlow(ic, message, st) {
   if (ic.type !== "ic") return ui.notifications.warn("Slow attacks IC.");
+  if (!Y.isSequencer()) return ui.notifications.warn("Slow is resolved by the active GM (the sequencer's client).");
+  // The round and incarnation it was resisted in (code review #7).
+  const combat = game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === ic.uuid)) ?? null;
+  const snap = { combatId: combat?.id ?? null, round: combat?.round ?? null, gen: ic.system.generation ?? 0 };
   const dice = expertDice(st.securityValue, Y.expertOf(ic)).resist + Y.threatOf(ic);
   const r = await ic.rollSuccessTest(Math.max(0, dice), Math.max(2, st.rating ?? 0), {
     label: RL("ResistSlow", { tn: Math.max(2, st.rating ?? 0) }), isResistance: true, closed: true, tnContext: { kind: "other" } });
   if (!r) return;
-  await Y.slowResult(ic, message.id, r.successes);
+  await Y.slowResult(ic, message.id, r.successes, snap);
   return r;
 }
 
@@ -744,6 +748,8 @@ async function attackOnce(actor) {
   else if (ms.pos) tn -= ms.pos;
   tn = Math.max(2, tn);
   const attackerSession0 = sessionKey(actor);
+  // Who attacks whom, as of the roll (code review #1): a crash or reconnect while rolling can't relabel it.
+  const atkKey0 = isIC ? icKey0 : Y.attackerKeyOf(actor), atkInc0 = isIC ? null : Y.crashInc(actor), targetConn0 = target.system?.vr2Conn?.n ?? null;
   const res = await actor.rollSuccessTest(Math.max(0, dice), tn, {
     label: RL("MatrixAttack", { what: effect.effect ? effect.effectName : `${power}${level}`, tn, code: codeLabel(code), status: o.status }),
     poolDice: !isIC && o.hacking ? { hacking: o.hacking } : undefined,
@@ -767,7 +773,7 @@ async function attackOnce(actor) {
     targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
     ...hostSnap(host), status: o.status, power, level, ...effect,
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
-    icKey: isIC ? icKey0 : Y.attackerKeyOf(actor), attackerInc: isIC ? null : Y.crashInc(actor), targetConn: target.system?.vr2Conn?.n ?? null,
+    icKey: atkKey0, attackerInc: atkInc0, targetConn: targetConn0,
     ...(isIC ? { icRating, threat, comp: prof.comp, psychotropic: prof.psychotropic, expert: Y.expertOf(actor),
       cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area, ...special }) };
   const card = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
@@ -1437,7 +1443,7 @@ async function leaveOnLog(actor, crash) {
   const f = Y.foldOf(actor);
   if (f.live?.exit) return ui.notifications.info(`${actor.name} is already jacking out.`);
   if (f.live?.locks.length) {
-    const locks = f.live.locks.map(h => ({ h, ic: Y.icOfKey(h.icKey) })).filter(x => x.ic);
+    const locks = f.live.locks.map(h => ({ h, ic: Y.isDeckKey(h.icKey) ? sync(Y.parseAttackerKey(h.icKey).uuid) : Y.icOfKey(h.icKey) })).filter(x => x.ic);
     const ics = locks.map(x => x.ic);
     // PCPIC: Willpower (rating + the wound modifier) instead (p.50). Each lock's frozen IC rating (part 4b R14)
     // + the CURRENT icon-down bonus; a legacy hit uses the live IC.
