@@ -13647,6 +13647,29 @@ export function registerSR2EQuenchTests() {
         assert.equal(w.system.form, ""); assert.equal(w.system.material, "");
       });
 
+      it("core Shapeshifter critter: wolf form stats + natural attack only, bear form armor, printed block back (core p.234)", async () => {
+        const src = await game.packs.get("sr2e.critters").getDocument("bdaf020fcade8e21");
+        const a = await Actor.create({ ...src.toObject(), name: "Quench SS Core Critter" }); made.push(a);
+        assert.equal(a.system.essence.value, 8);
+        const unarmed = a.items.find(i => i.name === "Unarmed Strike"), bite = a.items.find(i => i.system.form === "wolf");
+        await SS.shiftForm(a, "wolf");
+        assert.deepEqual(["body", "quickness", "strength"].map(k => a.system[k].value), [7, 6, 6]);
+        assert.equal(a.system.reaction.value, 5); assert.equal(a.system.initiative.dice, 2);
+        assert.isFalse(SSR.weaponUsable(a.type, a.system, unarmed.system), "human-form strike stays behind");
+        assert.isTrue(SSR.weaponUsable(a.type, a.system, bite.system));
+        let ctx = await a.sheet._prepareContext({});
+        assert.isTrue(ctx.weapons.find(w => w.id === unarmed.id).otherForm);
+        assert.isFalse(ctx.weapons.find(w => w.id === bite.id).otherForm);
+        await SS.shiftForm(a, "bear");
+        ctx = await a.sheet._prepareContext({});
+        assert.deepEqual([ctx.armorBase.ballistic, ctx.armorBase.impact, a.system.armor.ballistic], [2, 2, 2]);
+        assert.isFalse(ctx.armorWorn, "the form's own armor isn't 'worn'");
+        await SS.shiftForm(a, "");
+        assert.deepEqual(["body", "quickness", "strength"].map(k => a.system[k].value), [5, 4, 5]);
+        assert.equal(a.system.armor.ballistic, 0);
+        assert.isTrue(SSR.weaponUsable(a.type, a.system, unarmed.system));
+      });
+
       it("form modifiers: bear human +1B +1S; animal +5B −1Q +5S −2W, armor stays behind, stable on a second preparation", async () => {
         const a = await shifter("Quench SS Bear");
         await a.createEmbeddedDocuments("Item", [{ name: "Quench SS Jacket", type: "armor", system: { ballistic: 5, impact: 3, equipped: true } }]);

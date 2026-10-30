@@ -1,7 +1,8 @@
 // Shapeshifters — Companion pp.36–38, core pp.72, 227–229. docs/PLAN-shapeshifters.md.
 import { describe, it, expect } from "vitest";
 import { SHAPESHIFTER_SPECIES, SHAPESHIFTER_PRIORITIES, formModifiers, isSocialSkill, dermalDice, reconcileBuckets,
-  applyDelta, regenStep, deathCheckFor, mergeDeath, killedOutright, deathRollKills, baneHit, emptyBuckets } from "../module/rules/shapeshift-rules.mjs";
+  applyDelta, regenStep, deathCheckFor, mergeDeath, killedOutright, deathRollKills, baneHit, emptyBuckets,
+  weaponUsable, formWeaponsOnly } from "../module/rules/shapeshift-rules.mjs";
 
 describe("species table (Companion p.36)", () => {
   it("bear animal form", () => {
@@ -126,5 +127,27 @@ describe("silver on a hit", () => {
   it("+2 Power, +1 Damage Level, capped at D (core p.229 example: 2L wood club → 2M)", () => {
     expect(baneHit(4, "L")).toEqual({ power: 6, level: "M" });
     expect(baneHit(9, "D")).toEqual({ power: 11, level: "D" });
+  });
+});
+
+describe("weaponUsable — NPC forms (core p.234, Companion p.36)", () => {
+  const forms = [{ key: "wolf" }];
+  const untagged = { form: "" }, wolf = { form: "wolf" };
+  const npc = (o) => ({ forms, activeForm: "", shapeshifter: { enabled: false }, ...o });
+  it("untagged weapon: printed form yes, shapeshifter's animal form no", () => {
+    expect(weaponUsable("npc", npc({ shapeshifter: { enabled: true } }), untagged)).toBe(true);
+    expect(weaponUsable("npc", npc({ shapeshifter: { enabled: true }, activeForm: "wolf" }), untagged)).toBe(false);
+  });
+  it("a non-shapeshifter NPC keeps untagged weapons in every form", () =>
+    expect(weaponUsable("npc", npc({ activeForm: "wolf" }), untagged)).toBe(true));
+  it("tagged weapon only in its form; an orphan tag stays refused with no forms", () => {
+    expect(weaponUsable("npc", npc({ activeForm: "wolf" }), wolf)).toBe(true);
+    expect(weaponUsable("npc", npc({}), wolf)).toBe(false);
+    expect(weaponUsable("npc", npc({ forms: [] }), wolf)).toBe(false);
+  });
+  it("formWeaponsOnly: shifted NPC shapeshifter or character in animal form", () => {
+    expect(formWeaponsOnly("npc", npc({ shapeshifter: { enabled: true }, activeForm: "wolf" }))).toBe(true);
+    expect(formWeaponsOnly("npc", npc({ shapeshifter: { enabled: true }, activeForm: "gone" }))).toBe(false);
+    expect(formWeaponsOnly("character", { race: "shapeshifter", shapeshifter: { species: "wolf", form: "animal" } })).toBe(true);
   });
 });

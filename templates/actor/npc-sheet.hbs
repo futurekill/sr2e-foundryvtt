@@ -200,8 +200,8 @@
       <fieldset>
         <legend>Weapons</legend>
         {{#each weapons as |weapon|}}
-        <div class="npc-weapon-row flexrow" data-item-id="{{weapon.id}}">
-          <span data-action="rollWeapon">{{weapon.name}}</span>
+        <div class="npc-weapon-row flexrow{{#if weapon.otherForm}} other-form{{/if}}" data-item-id="{{weapon.id}}">
+          <span data-action="rollWeapon"{{#if weapon.otherForm}} title="Not usable in this form"{{/if}}>{{weapon.name}}{{#if weapon.otherForm}} <em>(other form)</em>{{/if}}</span>
           <span>{{weapon.system.damageCode}}</span>
           <a data-action="editItem"><i class="fas fa-edit"></i></a>
         </div>

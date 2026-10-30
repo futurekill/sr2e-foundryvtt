@@ -4084,3 +4084,4 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .npc-form-table input { height: 22px; padding: 0 2px; font-size: 11px; }
 .npc-form-table input[type="number"] { width: 2.4em !important; min-width: 0; text-align: center; }
 .npc-form-table input[type="text"] { width: 100%; min-width: 4em; }
+.npc-weapon-row.other-form { opacity: 0.55; }

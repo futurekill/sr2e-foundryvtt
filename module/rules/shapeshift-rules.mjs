@@ -180,16 +180,20 @@ export const dermalDiceOf = (type, sys) => dermalDice({ race: sys?.race,
   species: type === "character" ? sys?.shapeshifter?.species : "", form: sys?.shapeshifter?.form });
 /** An NPC's active form record, or null ("" or an unknown key = the printed block). */
 export const activeFormOf = (sys) => (sys?.activeForm && (sys.forms ?? []).find(f => f.key === sys.activeForm)) || null;
+/** Only natural (form-tagged) weapons now: a character in animal form, or an NPC shapeshifter in an alternate form. */
+export const formWeaponsOnly = (type, sys) => inAnimalForm(type, sys)
+  || (type === "npc" && shapeshifterOf(type, sys) && !!activeFormOf(sys));
 /**
  * Can this actor use this weapon in its current form? A shapeshifter character in animal form only its
- * natural (`animal`) weapons — its gear didn't shift (Companion p.36); in human form not those. An NPC with
- * forms: untagged weapons always, tagged ones in their form only.
+ * natural (`animal`) weapons — its gear didn't shift (Companion p.36); in human form not those. An NPC:
+ * tagged weapons in their form only; untagged ones in every form, except an NPC shapeshifter's, which stay
+ * with the printed (human) form (core p.234: animal-form attacks are (A + 1)(A)).
  */
 export function weaponUsable(type, sys, weaponSys) {
   const tag = weaponSys?.form ?? "";
   if (type === "character" && shapeshifterOf(type, sys)) return sys.shapeshifter.form === "animal" ? tag === "animal" : tag !== "animal";
   if (type === "npc" && tag) return tag === (activeFormOf(sys)?.key ?? "");
-  return true;
+  return !formWeaponsOnly(type, sys);
 }
 /** Dual-natured: an NPC marked so, or any shapeshifter (Companion p.37 — it can't shut its astral presence off). */
 export const isDualNaturedSys = (type, sys) => (type === "npc" && !!sys?.dualNatured) || shapeshifterOf(type, sys);

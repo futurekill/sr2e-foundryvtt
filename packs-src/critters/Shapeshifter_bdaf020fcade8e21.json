@@ -4,7 +4,7 @@
   "type": "npc",
   "img": "systems/sr2e/assets/creature_portraits/shapeshifter.webp",
   "system": {
-    "biography": "<p>An animal that takes metahuman form (human-form statistics; in animal form use the animal's attributes +2 Body/+1 Quickness/+2 Strength).</p><p><strong>Powers:</strong> Enhanced Physical Attributes (in animal form), Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Silver, Severe), Vulnerability (Silver)</p><p>Shapeshifter is on: Regeneration (wounds vanish at the start of the next Combat Turn; a death check when it goes down), Allergy + Vulnerability to silver in damage resistance, dual-natured. Add its animal form under <strong>Forms</strong> (the animal's attributes +2 Body, +1 Quickness, +2 Strength).</p><p><em>Perception rating 3 (best sense); running multiplier ×5; dual-natured (astally active). Stats: SR2E p.233.</em></p>",
+    "biography": "<p>An animal that takes metahuman form. The sheet's printed block is the human form; its animal form is under <strong>Forms</strong>. Six common species are set up (Bear, Fox, Leopard, Seal, Tiger, Wolf): keep the one your shapeshifter is and delete the other five forms and their Natural Attacks.</p><p><strong>Animal form</strong> (core p.234): the animal's attributes (A, core p.233 — the large specimen where the table offers one, per p.230) with Body A + 2, Quickness A + 1, Strength A + 2, Charisma 5, Intelligence 3, Willpower 3, Essence (8), Reaction 5*, attack (A + 1)(A). Only the form's natural attack works in animal form; the Unarmed Strike and any gear stay with the human form.</p><p><strong>Powers:</strong> Enhanced Physical Attributes (in animal form), Regeneration</p><p><strong>Weaknesses:</strong> Allergy (Silver, Severe), Vulnerability (Silver)</p><p>Shapeshifter is on: Regeneration (wounds vanish at the start of the next Combat Turn; a death check when it goes down), Allergy + Vulnerability to silver in damage resistance, dual-natured.</p><p><em>Running multiplier: human ×5; animal = the animal's + 1 (Bear ×4, Fox ×5, Leopard ×5, Seal ×5 in water and ×3 on land, Tiger ×5, Wolf ×5) — the sheet uses ×3, apply by hand. Perception: the animal's (human form 3). Bear form keeps the bear's natural armor 2. Stats: SR2E p.234; species p.230.</em></p>",
     "race": "critter",
     "professionalRating": 0,
     "body": {
@@ -44,8 +44,8 @@
       "racial": 0
     },
     "essence": {
-      "value": 6,
-      "max": 6
+      "value": 8,
+      "max": 8
     },
     "magic": {
       "value": 0,
@@ -104,7 +104,100 @@
     "shapeshifter": {
       "enabled": true,
       "bane": "silver"
-    }
+    },
+    "forms": [
+      {
+        "key": "bear",
+        "name": "Bear form",
+        "img": "",
+        "body": 12,
+        "quickness": 5,
+        "strength": 14,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 3,
+        "reactionMod": 1,
+        "initiativeDice": 2,
+        "ballistic": 2,
+        "impact": 2
+      },
+      {
+        "key": "fox",
+        "name": "Fox form",
+        "img": "",
+        "body": 4,
+        "quickness": 5,
+        "strength": 3,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 3,
+        "reactionMod": 1,
+        "initiativeDice": 2,
+        "ballistic": 0,
+        "impact": 0
+      },
+      {
+        "key": "leopard",
+        "name": "Leopard form",
+        "img": "",
+        "body": 7,
+        "quickness": 6,
+        "strength": 7,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 3,
+        "reactionMod": 1,
+        "initiativeDice": 2,
+        "ballistic": 0,
+        "impact": 0
+      },
+      {
+        "key": "seal",
+        "name": "Seal form",
+        "img": "",
+        "body": 8,
+        "quickness": 6,
+        "strength": 6,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 3,
+        "reactionMod": 1,
+        "initiativeDice": 2,
+        "ballistic": 0,
+        "impact": 0
+      },
+      {
+        "key": "tiger",
+        "name": "Tiger form",
+        "img": "",
+        "body": 10,
+        "quickness": 7,
+        "strength": 10,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 3,
+        "reactionMod": 0,
+        "initiativeDice": 2,
+        "ballistic": 0,
+        "impact": 0
+      },
+      {
+        "key": "wolf",
+        "name": "Wolf form",
+        "img": "",
+        "body": 7,
+        "quickness": 6,
+        "strength": 6,
+        "charisma": 5,
+        "intelligence": 3,
+        "willpower": 3,
+        "reactionMod": 1,
+        "initiativeDice": 2,
+        "ballistic": 0,
+        "impact": 0
+      }
+    ],
+    "activeForm": ""
   },
   "items": [
     {
@@ -153,6 +246,408 @@
         "equipped": true,
         "accessories": [],
         "notes": ""
+      },
+      "effects": [],
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      },
+      "flags": {}
+    },
+    {
+      "_id": "a2c84523a0e581dc",
+      "name": "Natural Attack (Bear)",
+      "type": "weapon",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "10D",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 1,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": "Bear form only. The bear's attack with the Power +1 (core p.234: (A + 1)(A)).",
+        "form": "bear"
+      },
+      "effects": [],
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      },
+      "flags": {}
+    },
+    {
+      "_id": "d66812d0c5ea104f",
+      "name": "Natural Attack (Fox)",
+      "type": "weapon",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "4L",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": "Fox form only. The fox's attack with the Power +1 (core p.234: (A + 1)(A)). Printed −1 Reach (the sheet has no negative Reach; apply it by hand).",
+        "form": "fox"
+      },
+      "effects": [],
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      },
+      "flags": {}
+    },
+    {
+      "_id": "d555c8f0bc073772",
+      "name": "Natural Attack (Leopard)",
+      "type": "weapon",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "10S",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": "Leopard form only. The leopard's attack with the Power +1 (core p.234: (A + 1)(A)).",
+        "form": "leopard"
+      },
+      "effects": [],
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      },
+      "flags": {}
+    },
+    {
+      "_id": "389500d37dfd8e59",
+      "name": "Natural Attack (Seal)",
+      "type": "weapon",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "5M",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": "Seal form only. The seal's attack with the Power +1 (core p.234: (A + 1)(A)).",
+        "form": "seal"
+      },
+      "effects": [],
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      },
+      "flags": {}
+    },
+    {
+      "_id": "61579ed55fdb672f",
+      "name": "Natural Attack (Tiger)",
+      "type": "weapon",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "11S",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 1,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": "Tiger form only. The tiger's attack with the Power +1 (core p.234: (A + 1)(A)).",
+        "form": "tiger"
+      },
+      "effects": [],
+      "_stats": {
+        "coreVersion": "13.351",
+        "systemId": null,
+        "systemVersion": null,
+        "createdTime": null,
+        "modifiedTime": null,
+        "lastModifiedBy": null,
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "folder": null,
+      "sort": 0,
+      "ownership": {
+        "default": 0
+      },
+      "flags": {}
+    },
+    {
+      "_id": "23ff3651be7205e3",
+      "name": "Natural Attack (Wolf)",
+      "type": "weapon",
+      "img": "systems/sr2e/assets/item_icons/weapons/natural-attack.webp",
+      "system": {
+        "weaponType": "melee",
+        "skill": "",
+        "damageCode": "8M",
+        "damageType": "physical",
+        "concealability": 0,
+        "reach": 0,
+        "firingModes": {
+          "ss": false,
+          "sa": false,
+          "bf": false,
+          "fa": false
+        },
+        "ammo": {
+          "current": 0,
+          "max": 0,
+          "type": "",
+          "sourceId": "",
+          "loadedSourceId": "",
+          "loadedName": "",
+          "damageMod": 0,
+          "armorMod": 0,
+          "armorCalc": "standard",
+          "damageType": ""
+        },
+        "recoilComp": 0,
+        "smartgunCompatible": false,
+        "ranges": {
+          "short": 0,
+          "medium": 0,
+          "long": 0,
+          "extreme": 0
+        },
+        "strengthMin": 0,
+        "weight": 0,
+        "cost": 0,
+        "availability": "",
+        "legality": "",
+        "equipped": true,
+        "accessories": [],
+        "notes": "Wolf form only. The wolf's attack with the Power +1 (core p.234: (A + 1)(A)).",
+        "form": "wolf"
       },
       "effects": [],
       "_stats": {

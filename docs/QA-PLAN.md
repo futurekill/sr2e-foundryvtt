@@ -859,7 +859,7 @@ If those five all work, the core loop is healthy.
 - [ ] A second-hand item can't be fitted into a cybereye as an accessory row.
 
 ## Shapeshifters (docs/PLAN-shapeshifters.md)
-- [ ] Quench batch `sr2e.shapeshifters` passes (20 tests; 2026-10-29: passed; full sr2e.** 719/719).
+- [ ] Quench batch `sr2e.shapeshifters` passes (21 tests; 2026-10-29: 21 passed; full sr2e.** 720/720).
 - [ ] Drop the Companion's Shapeshifter (Bear) on a new character: header shows Species Bear, human form;
   priority panel uses the Shapeshifter table and warns until Race is A.
 - [ ] Shift to animal: Body/Strength up, worn armor drops out, a pistol can't be fired, a weapon with Form
@@ -871,4 +871,9 @@ If those five all work, the core loop is healthy.
 - [ ] NPC: add a form, set its stats, switch to it → the stat block shows the form and its inputs lock; switch
   back restores the printed block.
 - [ ] Not covered yet: a non-GM player trying to install cyberware on a human-form shapeshifter (refused).
+- [ ] (0.125.1) Drag the core Shapeshifter from Critters, shift to Wolf form: B7 Q6 S6 R5, 2D6; the Unarmed
+  Strike row reads "(other form)" and is refused; Natural Attack (Wolf) 8M rolls. Bear form shows armor 2/2 with
+  no "worn" difference. Printed form brings back B5 and the Unarmed Strike (Quench test covers this).
+- [ ] (0.125.1) Defend in melee as a wolf-form NPC shapeshifter: no "Unarmed" option; open the dialog in
+  human form, shift, then roll: warned, no roll.
 

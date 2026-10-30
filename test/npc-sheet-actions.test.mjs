@@ -85,7 +85,7 @@ describe("NPC sheet actions", () => {
     const ctx = SHEETS.slice(SHEETS.indexOf("class SR2ENPCSheet"));
     for (const key of ["spells", "foci", "skills", "weapons"]) {
       expect(TEMPLATE, `template never iterates ${key}`).toMatch(new RegExp(`\\b${key}\\b`));
-      expect(ctx.slice(0, 3000), `_prepareContext never sets context.${key}`)
+      expect(ctx.slice(0, 4000), `_prepareContext never sets context.${key}`)
         .toMatch(new RegExp(`context\\.${key}\\s*=`));
     }
   });

@@ -1,5 +1,5 @@
 import { shiftView } from "../shapeshift.mjs";
-import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
+import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf } from "../rules/shapeshift-rules.mjs";
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
 import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs";
 import { cyberDamageOn } from "../cyberdamage.mjs";
@@ -1884,7 +1884,9 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     const actor = this.document;
 
     context.skills = actor.items.filter(i => i.type === "skill");
-    context.weapons = actor.items.filter(i => i.isWeaponLike);
+    // Weapons this form can't use stay listed (to edit) but marked (Companion p.36, core p.234).
+    context.weapons = actor.items.filter(i => i.isWeaponLike)
+      .map(w => ({ id: w.id, name: w.name, system: w.system, otherForm: !weaponUsable(actor.type, actor.system, w.system) }));
     context.gear = actor.items.filter(i => i.type === "gear");
     context.drugs = context.gear.filter(i => drugOf(i));
     context.activeDrugs = activeDrugs(actor);
@@ -1896,7 +1898,9 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.spells = actor.items.filter(i => i.type === "spell");
     context.foci = actor.items.filter(i => i.type === "focus");
     // The armor inputs edit the stat-block base; system.armor is base + worn.
-    context.armorBase = actor._source.system.armor;
+    // An active form sets the base (its inputs are locked), so worn armor compares against the form.
+    const form = activeFormOf(actor.system);
+    context.armorBase = form ? { ballistic: form.ballistic, impact: form.impact } : actor._source.system.armor;
     context.armorWorn = actor.system.armor.ballistic !== context.armorBase.ballistic
       || actor.system.armor.impact !== context.armorBase.impact;
 

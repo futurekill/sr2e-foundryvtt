@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.125.1 — 2026-10-29
+
+### Added
+- **The core Shapeshifter critter has its animal forms** (core p.234). Bear, Fox, Leopard, Seal,
+  Tiger and Wolf forms are under *Forms*, each with its Natural Attack ((A + 1)(A)). Keep the one
+  your shapeshifter is and delete the others. Bear and dog use the "Large" stat block (p.230:
+  "a large, well-formed member of its species"). Its Essence is now the printed (8), and its cite
+  is p.234. The fox's printed −1 Reach is in its attack note, as on the core Fox, because the
+  sheet has no negative Reach.
+
+### Changed
+- **An NPC shapeshifter in an alternate form uses only that form's weapons.** Untagged weapons and
+  the Unarmed Strike stay with the printed (human) form. Other NPCs with forms keep untagged
+  weapons in every form, as before.
+- Melee defense offers a shifted NPC shapeshifter only its natural attacks, not generic Unarmed. A
+  defender who shifts while the dialog is open, or whose chosen weapon is deleted, gets a warning
+  instead of a roll. This also covers characters in animal form.
+- The NPC sheet marks weapons the current form can't use "(other form)". Its armor inputs show the
+  active form's armor, so "With worn armor" no longer counts a form's natural armor as worn.
+
 ## 0.125.0 — 2026-10-29
 
 ### Added

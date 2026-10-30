@@ -200,7 +200,8 @@ export class WeaponData extends SR2EDataModel {
       }}),
       concealability: new fields.NumberField({ integer: true, initial: 6, min: 0 }),
       reach: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-      // Which FORM can use it (shapeshifters, multi-form critters): "" = any form for an NPC, carried gear
+      // Which FORM can use it (shapeshifters, multi-form critters): "" = any form for an NPC (the printed form
+      // only for an NPC shapeshifter), carried gear
       // (human form only) for a shapeshifter character; "animal" = a natural weapon; else an NPC form key.
       form: new fields.StringField({ initial: "", blank: true }),
       // What it's made of ("silver", "gold", "wood"…) — a shapeshifter's bane (Companion p.38).

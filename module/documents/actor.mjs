@@ -2,7 +2,7 @@
  * Extended Actor document for the Shadowrun 2E system.
  */
 import { isShapeshifter } from "../shapeshift.mjs";
-import { dermalDiceOf, weaponUsable, inAnimalForm, isSocialSkill, shapeshifterAstral, baneHit } from "../rules/shapeshift-rules.mjs";
+import { dermalDiceOf, weaponUsable, formWeaponsOnly, inAnimalForm, isSocialSkill, shapeshifterAstral, baneHit } from "../rules/shapeshift-rules.mjs";
 import { moneyQueue, adjustNuyen } from "../money.mjs";
 import { careReceipt } from "../cybermancy.mjs";
 import { firstTarget } from "../targeting.mjs";
@@ -1685,7 +1685,7 @@ export class SR2EActor extends Actor {
     const meleeWeapons = this.items.filter(
       i => i.isWeaponLike && ["melee", "throwing"].includes(i.system.weaponType) && weaponUsable(this.type, this.system, i.system)
     );
-    const natural = inAnimalForm(this.type, this.system) && meleeWeapons.length;
+    const natural = formWeaponsOnly(this.type, this.system) && meleeWeapons.length;
     const weaponOptions = [
       ...(natural ? [] : [`<option value="">Unarmed — (Str)M Stun</option>`]),
       ...meleeWeapons.map(w =>
@@ -1783,6 +1783,12 @@ export class SR2EActor extends Actor {
     const weapon = choice.weaponId ? this.items.get(choice.weaponId) : null;
     // The form may have changed while the dialog was open.
     if (weapon && !weaponUsable(this.type, this.system, weapon.system)) return ui.notifications.warn(`${this.name} can't use ${weapon.name} in this form.`);
+    if (choice.weaponId && !weapon) return ui.notifications.warn("That weapon is no longer there.");
+    // Shifted into a natural-weapons form mid-dialog: no generic Unarmed while a natural weapon exists.
+    if (!weapon && formWeaponsOnly(this.type, this.system) && this.items.some(i => i.isWeaponLike
+      && ["melee", "throwing"].includes(i.system.weaponType) && weaponUsable(this.type, this.system, i.system))) {
+      return ui.notifications.warn(`${this.name} fights with its natural weapons in this form.`);
+    }
     const skillKey = weapon
       ? (weapon.system.weaponType === "throwing" ? "throwing_weapons" : "armed_combat")
       : "unarmed_combat";
