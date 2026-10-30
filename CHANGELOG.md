@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+- **Award Nuyen: pay per runner.** Next to the payout, pick *per runner* and type the job's rate once
+  (say 20,000¥): every ticked runner gets that much. *In total* still splits one sum.
+
 ## 0.127.0 — 2026-10-30
 
 ### Added

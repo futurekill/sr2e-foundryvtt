@@ -12702,7 +12702,7 @@ export function registerSR2EQuenchTests() {
           canvas.tokens?.releaseAll();
           const done = game.sr2e.awardNuyen();
           let d;
-          for (let i = 0; i < 40 && !(d = [...document.querySelectorAll(".application.dialog")].find(e => e.querySelector(".sr2e-award-row"))); i++) await new Promise(r => setTimeout(r, 50));
+          for (let i = 0; i < 40 && !(d = [...document.querySelectorAll(".application.dialog")].filter(e => e.querySelector(".sr2e-award-row") && !e.querySelector('[data-action="pay"]')?.dataset.used).at(-1)); i++) await new Promise(r => setTimeout(r, 50));
           const f = d.querySelector("form");
           const row = (x) => f.querySelector(`.sr2e-award-row[data-id="${x.id}"]`);
           for (const r of f.querySelectorAll(".sr2e-award-row")) {
@@ -12723,12 +12723,41 @@ export function registerSR2EQuenchTests() {
           amt.value = 600;
           amt.dispatchEvent(new Event("input", { bubbles: true }));
           assert.equal(row(b).querySelector(".amount").value, "401", "the other runner gets the rest");
+          d.querySelector('[data-action="pay"]').dataset.used = "1";
           d.querySelector('[data-action="pay"]').click();
           await done;
           const card = game.messages.contents.at(-1);
           if (card?.content.includes("sr2e-award")) await card.delete();
           assert.deepEqual([a.system.nuyen, b.system.nuyen], [600, 401]);
           assert.equal(game.settings.get("sr2e", "communalNuyen"), 0);
+        });
+        it("per runner: one amount, each ticked runner gets all of it", async function () {
+          const player = game.users.find(u => !u.isGM);
+          if (!player) this.skip();
+          const a = await buyer("Quench Money Each 1", 0), b = await buyer("Quench Money Each 2", 0);
+          for (const x of [a, b]) await x.update({ [`ownership.${player.id}`]: 3 });
+          await game.settings.set("sr2e", "communalNuyen", 0);
+          canvas.tokens?.releaseAll();
+          const done = game.sr2e.awardNuyen();
+          let d;
+          for (let i = 0; i < 40 && !(d = [...document.querySelectorAll(".application.dialog")].filter(e => e.querySelector(".sr2e-award-row") && !e.querySelector('[data-action="pay"]')?.dataset.used).at(-1)); i++) await new Promise(r => setTimeout(r, 50));
+          const f = d.querySelector("form");
+          for (const r of f.querySelectorAll(".sr2e-award-row")) {
+            const c = r.querySelector("input[type=checkbox]");
+            c.checked = [a.id, b.id].includes(r.dataset.id);
+            c.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+          f.elements.per.value = "each";
+          f.elements.per.dispatchEvent(new Event("change", { bubbles: true }));
+          f.elements.total.value = 20000;
+          f.elements.total.dispatchEvent(new Event("input", { bubbles: true }));
+          assert.match(f.querySelector(".sr2e-award-summary").textContent, /40,000¥/);
+          d.querySelector('[data-action="pay"]').dataset.used = "1";
+          d.querySelector('[data-action="pay"]').click();
+          await done;
+          const card = game.messages.contents.at(-1);
+          if (card?.content.includes("sr2e-award")) await card.delete();
+          assert.deepEqual([a.system.nuyen, b.system.nuyen], [20000, 20000]);
         });
       });
 

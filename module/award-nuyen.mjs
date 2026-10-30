@@ -19,7 +19,6 @@ function recipients() {
 
 /** Read the form: the pool, the ticked ids and the amounts the GM typed. */
 function readForm(form, pot) {
-  const pool = Math.max(0, parseInt(form.elements.total.value) || 0) + (form.elements.includePot?.checked ? pot : 0);
   const ids = [], pinned = {};
   for (const row of form.querySelectorAll(".sr2e-award-row")) {
     if (!row.querySelector("input[type=checkbox]").checked) continue;
@@ -27,6 +26,9 @@ function readForm(form, pot) {
     const amt = row.querySelector("input.amount");
     if (amt.dataset.pinned) pinned[row.dataset.id] = amt.value;
   }
+  // "Per runner": the job pays that much to each ticked runner, so the pool is that × the runners.
+  const amount = Math.max(0, parseInt(form.elements.total.value) || 0);
+  const pool = (form.elements.per.value === "each" ? amount * ids.length : amount) + (form.elements.includePot?.checked ? pot : 0);
   return { pool, ids, pinned, includePot: !!form.elements.includePot?.checked };
 }
 
@@ -52,7 +54,8 @@ export async function awardNuyenDialog() {
     rejectClose: false,
     content: `
       <div class="form-group"><label>Payout</label>
-        <input type="number" name="total" value="0" min="0" step="1" autofocus></div>
+        <input type="number" name="total" value="0" min="0" step="1" autofocus>
+        <select name="per" aria-label="Payout is"><option value="total">in total</option><option value="each">per runner</option></select></div>
       ${pot > 0 ? `<div class="form-group"><label>Add the communal pot (${yen(pot)})</label>
         <input type="checkbox" name="includePot"></div>` : ""}
       <p class="hint" style="margin:4px 0;">Split evenly. Type an amount to set someone's share; the others split the rest.</p>
