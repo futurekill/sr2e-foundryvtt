@@ -18,7 +18,7 @@ import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixC
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
-import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage } from "./rules/vr2ic-rules.mjs";
+import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage, restoreState, restorePoints } from "./rules/vr2ic-rules.mjs";
 import * as Y from "./vr2ic.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { matrixQueue, sessionHost } from "./jackpoints.mjs";
@@ -49,7 +49,7 @@ export function usablePrograms(actor) {
 }
 
 /** A program's rating as it counts now (VR2.0: what wear has left). */
-export const programRating = (item) => isVR2() ? (item.system.effectiveRating ?? 0) : (item.system.rating ?? 0);
+export const programRating = (item) => isVR2() ? (item.system.effectiveRating ?? 0) : Math.max(0, (item.system.rating ?? 0) - (item.system.degradation ?? 0));
 
 /** The best usable program whose name starts with `name`, or null. */
 export function bestUtility(actor, name) {
@@ -1096,7 +1096,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
     // lost `resolved` request is re-sent however many host switches follow (part 4a §6a).
     const pending = st.targetConn != null
       ? { [`flags.sr2e.vr2AttrPending.${message.id}`]: { conn: st.targetConn, lost: l, attr: st.attr, rating: st.rating ?? 0, program: st.program ?? "", threat: st.threat ?? 0 } } : {};
-    await defender.update({ [`flags.sr2e.vr2Session.iconDamage.${message.id}`]: { attr: st.attr, lost: l, seq, source: st.effectName },
+    await defender.update({ [`flags.sr2e.vr2Session.iconDamage.${message.id}`]: { attr: st.attr, lost: l, seq, source: st.effectName, rating: st.rating ?? null },
       "flags.sr2e.vr2Session.damageSeq": seq, ...pending });
     return l;
   });
@@ -1337,6 +1337,35 @@ export async function vr2BuildImprovised(actor) {
 }
 
 // ── Medic and Swap Memory (p.99–100; PLAN-vr2-part2 §4, §8) ───────────────────
+
+/** Restore (p.100): repair icon attribute damage; TN = the highest rating still outstanding, 1 point per 2 successes. */
+export async function vr2Restore(actor, item) {
+  if (!/^restore/i.test(item?.name ?? "") || !usablePrograms(actor).includes(item)) return ui.notifications.warn("That isn't a loaded Restore utility.");
+  const s = liveSession(actor);
+  const st = restoreState(Object.values(s?.iconDamage ?? {}), Object.values(s?.iconRepair ?? {}));
+  const attrs = Object.entries(st.byAttr).filter(([, v]) => v > 0);
+  if (!attrs.length) return ui.notifications.info(`${actor.name}'s icon has no attribute damage to restore.`);
+  const opts = attrs.map(([k, v]) => `<option value="${k}">${ATTR_LABEL[k]} (−${v})</option>`).join("");
+  const o = await foundry.applications.api.DialogV2.prompt({ window: { title: `${item.name}` },
+    content: `<div class="form-group"><label>Attribute</label><select name="attr">${opts}</select></div>
+      <div class="form-group"><label>Target Number</label><input type="number" name="tn" min="2" value="${st.tn ?? ""}" ${st.unknown ? "required" : "readonly"}></div>
+      <p class="hint">${st.unknown ? "Some damage predates the stored ratings: the GM sets the TN (the damaging program's rating). " : ""}TN = the rating of the program that did the damage, the higher if several (VR2.0 p.100).</p>`,
+    ok: { label: "Restore", callback: (e, b) => ({ attr: b.form.elements.attr.value, tn: Number(b.form.elements.tn.value) }) } }).catch(() => null);
+  if (!o || !(o.tn >= 2)) return;
+  const r = await actor.rollSuccessTest(programRating(item), Math.max(2, o.tn, st.tn ?? 2), { label: RL("Restore", { tn: Math.max(2, o.tn, st.tn ?? 2) }), tnContext: { kind: "matrix" } });
+  if (!r) return;
+  const points = await sessionQueue(actor, async () => {
+    const s1 = liveSession(actor);
+    if (!s1 || s1.id !== s?.id || s1.iconRepair?.[r.testMessageId]) return null;
+    const now = restoreState(Object.values(s1.iconDamage ?? {}), Object.values(s1.iconRepair ?? {}));
+    const pts = restorePoints(r.successes, now.byAttr[o.attr] ?? 0);
+    const seq = (s1.damageSeq ?? 0) + 1;
+    await actor.update({ [`flags.sr2e.vr2Session.iconRepair.${r.testMessageId}`]: { attr: o.attr, points: pts, seq }, "flags.sr2e.vr2Session.damageSeq": seq });
+    return pts;
+  });
+  if (points == null) return ui.notifications.warn(`${actor.name}'s session changed: nothing restored.`);
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)} restores ${points} point${points === 1 ? "" : "s"} of ${ATTR_LABEL[o.attr]} (VR2.0 p.100).</div>` });
+}
 
 /** Medic (a Complex Action): rating dice against 4/5/6 by the icon's wound level; a box per success. */
 export async function vr2Medic(actor, item) {

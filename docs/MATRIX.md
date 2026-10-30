@@ -192,3 +192,21 @@ jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
   wears it once and either freezes a hit or ends the attack (`ack:attack` `shieldCancelled`);
   `reconcileShieldFreeze` finishes interrupted ones. Tar facts are `v: 2` and `reconcileTar` finishes them.
 
+
+## VR2.0 part 5a — the utilities (docs/PLAN-vr2-part5.md)
+- Decker attacks on the connection log are ADMITTED by the sequencer finding the card (`admitDeckerCards`, before
+  `processRequests`, and a `createChatMessage` hook). Attacker keys: IC `uuid#gen[/comp]`, decker
+  `deck:<uuid>@<conn>` — parse with `parseAttackerKey`. A decker's incarnation ends on conn end or a crash
+  receipt (`flags.sr2e.vr2IconCrash.<conn>.<inc>`, written by `matrixDamage` in the monitor update);
+  cards snapshot `attackerInc`; `reconcileEnds` writes `lockEnd`/`traceDead` before any tick or admission.
+- Last attacks: one per lock key (`lastAttackOpen`), the admit carries `lastAttack`, `reconcileLastAttacks`
+  heals its exitRes; the GM's Waive writes `cancelled: true`.
+- Black hammer/killjoy: black cards with `noBlaster` (no finalShot step); a hit frozen after its attacker
+  ended is `lockless`.
+- Track: a trace record keyed `track~<card>` with `track: true` and `attacker`; Relocate kills it (`traceDead`).
+- Hog: `hog` + `hogTick` facts (target and exact wear frozen); wear lives in program flags
+  `hogWear.<loadGen>_<card>_<boundary>` (never `wearEvents`); purge → `hogPurged` → loadGen-bound unload.
+- Slow: `slow:<card>` on the IC (one result), applied to the combatant once with `slowApplied` receipts;
+  suppression is the IC's `slowSuppress` fact (DF derived); `SR2ECombatant#heldOut` keeps it out of turns.
+- Restore: `vr2Session.iconRepair`, folded FIFO by `restoreState`. Evaluate: `degradation` derived from
+  `flags.sr2e.evalRuns`/`evalRestores`; restores go through the sequencer's `evalRestore` request.

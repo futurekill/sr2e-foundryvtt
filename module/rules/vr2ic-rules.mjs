@@ -390,3 +390,27 @@ export function hogTarget(prev, programs) {
 export const slowActionsLost = (attack, resist) => Math.max(0, Math.floor(((Number(attack) || 0) - (Number(resist) || 0)) / 2));
 /** Track (p.97): it locks on when the Evasion successes fail to equal or beat the attack's. */
 export const trackLocks = (attack, evasion) => (Number(attack) || 0) > (Number(evasion) || 0);
+
+/**
+ * Restore (p.100): what icon damage is still outstanding after repairs. Repairs pay down the OLDEST loss of their
+ * attribute first (FIFO, by seq). → `{ byAttr: { attr: outstanding }, tn: highest rating still outstanding (any
+ * attribute; null if none), unknown: an outstanding entry has no stored rating }`.
+ */
+export function restoreState(damage = [], repairs = []) {
+  const left = [...damage].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).map(e => ({ ...e, left: Math.max(0, Number(e.lost) || 0) }));
+  for (const r of [...repairs].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) {
+    let pts = Math.max(0, Number(r.points) || 0);
+    for (const e of left) { if (!pts) break; if (e.attr !== r.attr || !e.left) continue; const d = Math.min(pts, e.left); e.left -= d; pts -= d; }
+  }
+  const out = left.filter(e => e.left > 0), byAttr = {};
+  for (const e of out) byAttr[e.attr] = (byAttr[e.attr] ?? 0) + e.left;
+  const rated = out.filter(e => Number.isFinite(e.rating));
+  return { byAttr, tn: rated.length ? Math.max(...rated.map(e => e.rating)) : null, unknown: out.some(e => !Number.isFinite(e.rating)) };
+}
+/** Restore repairs 1 point per 2 successes (p.100), never more than is outstanding. */
+export const restorePoints = (successes, outstanding) => Math.min(Math.floor(Math.max(0, Number(successes) || 0) / 2), Math.max(0, Number(outstanding) || 0));
+/** Evaluate's decay at the end of a run (p.97): 1D6 ÷ 2, round up. */
+export const evaluateLoss = (roll) => Math.ceil((Number(roll) || 0) / 2);
+/** Evaluate degradation, derived from per-run and per-restore receipts (R2 #14): never below 0. */
+export const evaluateDegradation = (flags = {}) => Math.max(0,
+  Object.values(flags.evalRuns ?? {}).reduce((n, v) => n + (Number(v) || 0), 0) - Object.values(flags.evalRestores ?? {}).reduce((n, v) => n + (Number(v) || 0), 0));

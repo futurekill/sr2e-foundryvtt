@@ -8,9 +8,13 @@
     {{#each ic.traces as |t|}}<p class="rule-note"><i class="fas fa-location-crosshairs"></i> Trace <strong>{{t.name}}</strong>:
       {{#if t.complete}}<strong>located</strong> (−1 TN to IC attacks, +1 tally){{else}}{{t.turnsLeft}} turn(s) to locate{{#if t.frozen}}, <strong>frozen</strong> (Detection Factor −1){{/if}}
         <button type="button" data-action="vr2ic" data-op="relocate" data-arg="{{t.icKey}}" title="Simple Action: Computer vs the trace's rating − Relocate; the host opposes (p.46)">Relocate</button>
-        {{#if t.canFreeze}}<button type="button" data-action="vr2ic" data-op="freeze" data-arg="{{t.spoofKey}}" title="Keep it suppressed: −1 Detection Factor while it lasts (p.46)">Keep frozen</button>{{/if}}
-        {{#if t.unfreezeKey}}<button type="button" data-action="vr2ic" data-op="unfreeze" data-arg="{{t.unfreezeKey}}">Release</button>{{/if}}
+        {{#unless t.track}}{{#if t.canFreeze}}<button type="button" data-action="vr2ic" data-op="freeze" data-arg="{{t.spoofKey}}" title="Keep it suppressed: −1 Detection Factor while it lasts (p.46)">Keep frozen</button>{{/if}}
+        {{#if t.unfreezeKey}}<button type="button" data-action="vr2ic" data-op="unfreeze" data-arg="{{t.unfreezeKey}}">Release</button>{{/if}}{{/unless}}
         {{#if t.manual}}{{#if ../ic.isGM}}<button type="button" data-action="vr2ic" data-op="advance" title="GM: end a Combat Turn (no combat is counting this trace)">Next turn</button>{{/if}}{{/if}}{{/if}}</p>{{/each}}
+    {{#each ic.hogs as |h|}}<p class="alert-note active"><i class="fas fa-virus"></i> Hog from <strong>{{h.from}}</strong> draining {{h.program}} ({{h.points}} a turn, VR2.0 p.98)
+      <button type="button" data-action="vr2ic" data-op="hogPurge" data-arg="{{h.card}}" title="Complex Action: Computer vs Hog − Hardening + the program's original rating; a success wipes the virus AND the program (Swap Memory reloads it)">Purge</button></p>{{/each}}
+    {{#each ic.slowed as |x|}}<p class="rule-note"><i class="fas fa-hourglass-half"></i> <strong>{{x.name}}</strong> held down by your Slow (Detection Factor −1)
+      <button type="button" data-action="vr2ic" data-op="slowRelease" data-arg="{{x.arg}}" title="Let it resume next Combat Turn (no tally, p.99)">Release</button></p>{{/each}}
   {{/if}}
   {{#each ic.psy as |c|}}<p class="alert-note passive"><i class="fas fa-brain"></i> {{c.kind}} (rating {{c.rating}}, VR2.0 p.49–50)
     <button type="button" data-action="vr2ic" data-op="psyRecover" data-arg="{{c.key}}" title="Willpower against the rating: daily for a Matrix maniac, weekly otherwise">Recovery test</button></p>{{/each}}

@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Added
+- **VR2.0 utilities** (VR2.0 pp.97–100), under the VR2.0 Matrix rules:
+  - **Black Hammer and Killjoy**: a decker's own black IC. Lethal (black hammer) or Stun (killjoy), Moderate
+    on Blue/Green hosts and Serious on Orange/Red. A hit hooks the target: jacking out takes a Willpower test
+    and the attacker gets one last attack. Unlike black IC there's no shot at the MPCP afterwards. The hook
+    lets go when the attacker crashes or jacks out.
+  - **Track**: a hit the target's Evasion can't match locks onto their datatrail (10 ÷ net successes turns,
+    like trace IC). Relocate, against the attacker's Sensor, breaks it completely.
+  - **Hog**: a virus that drains the highest-rated program on the target's deck at once and every Combat Turn,
+    one program after another. Purge it from the Matrix tab (it takes the infected program with it).
+  - **Slow**: costs proactive IC its actions (10 Initiative each). An IC left with none hangs for the turn;
+    suppress it (a point of Detection Factor, no tally) to keep it out of later turns.
+  - **Steamroller**: Deadly damage against tar baby and tar pit only, and tar can't strike it.
+  - **Restore**: repairs icon attribute damage (TN = the damaging program's rating).
+  - **Evaluate decay**: a GM macro (`macros/evaluate-decay.js`) rolls the end-of-run decay once for every
+    evaluate program; deckers buy points back with Karma from the program's row.
+  - The GM can **waive** a lock's last attack from its whisper (IC or decker), so a missing player can't
+    hold a jack-out open.
+- Swap Memory now also reloads a program that was unloaded (a hog purge).
+
+### Fixed
+- The character sheet's nuyen box is wider, so six- and seven-digit balances fit.
+
 ## 0.127.1 — 2026-10-30
 
 ### Changed

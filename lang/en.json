@@ -561,6 +561,7 @@
   "SR2E.RollLabel.Cyberphobia": "Cyberphobia: Willpower ({rating}) to jack in (VR2.0 p.49)",
   "SR2E.RollLabel.Sparky": "Resist sparky's jolt — Body (TN {tn})",
   "SR2E.RollLabel.Relocate": "Relocate against the trace (TN {tn}, VR2.0 p.46)",
+  "SR2E.RollLabel.Restore": "Restore the icon (TN {tn}, VR2.0 p.100)",
   "SR2E.RollLabel.ResistTrack": "Evasion against the Track (TN {tn}, VR2.0 p.97)",
   "SR2E.RollLabel.ResistHog": "MPCP against the hog (TN {tn}, VR2.0 p.98)",
   "SR2E.RollLabel.ResistSlow": "Security Value against Slow (TN {tn}, VR2.0 p.99)",

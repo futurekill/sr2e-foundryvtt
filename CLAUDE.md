@@ -196,8 +196,9 @@ ORDER matters (attack admission, exits, trace ticks/spoofs, IC crashes, acks, co
 are written ONLY by the world-wide sequencer (`sequencer()`, the active GM's client, `seq`);
 players' clients create `request`s. Monitors and IC are changed only there. Under part 3
 `matrixMode` is DERIVED from the connection log (`system.vr2Conn`); host sessions carry `conn`.
-Remaining deferred: VR2's optional IC (cascading, expert, constructs, party), the utilities
-chapter, grid topology.
+Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: decker attackers use
+`deck:<uuid>@<conn>` keys — parse with `parseAttackerKey`) are done. Remaining deferred: utility options and
+programming (part 5b), frames/SKs, grid topology.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;
 `test/roll-labels.test.mjs` fails on a key missing from lang/en.json). Still English:

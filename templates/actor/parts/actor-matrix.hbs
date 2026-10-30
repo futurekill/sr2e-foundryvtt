@@ -187,7 +187,9 @@
           <div class="item-controls">
             <a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>
             {{#if ../vr2}}<a data-action="vr2SwapMemory" title="Swap Memory: a fresh copy at full rating (VR2.0 p.99)"><i class="fas fa-rotate"></i></a>
-            {{#if program.isMedic}}<a data-action="vr2Medic" title="Medic: repair the icon (a Complex Action, VR2.0 p.100)"><i class="fas fa-kit-medical"></i></a>{{/if}}{{/if}}
+            {{#if program.isMedic}}<a data-action="vr2Medic" title="Medic: repair the icon (a Complex Action, VR2.0 p.100)"><i class="fas fa-kit-medical"></i></a>{{/if}}
+            {{#if program.isRestore}}<a data-action="vr2ic" data-op="restore" data-arg="{{program.id}}" title="Restore: repair icon attribute damage (VR2.0 p.100)"><i class="fas fa-wand-magic-sparkles"></i></a>{{/if}}
+            {{#if program.isEvaluate}}{{#if program.system.degradation}}<a data-action="vr2ic" data-op="evalRestore" data-arg="{{program.id}}" title="Decayed −{{program.system.degradation}} (VR2.0 p.97): restore with Karma, 1 per point"><i class="fas fa-arrow-trend-up"></i> −{{program.system.degradation}}</a>{{/if}}{{/if}}{{/if}}
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem"><i class="fas fa-trash"></i></a>
           </div>

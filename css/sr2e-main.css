@@ -561,6 +561,15 @@
   padding: 0;
 }
 
+/* Nuyen runs to six or seven digits: a wider column and an input that fills it. */
+.sr2e-sheet-header .header-stat.nuyen-stat {
+  flex: 1.5;
+}
+.sr2e-sheet-header .nuyen-stat .hstat-input {
+  width: 100%;
+  max-width: 100px;
+}
+
 .sr2e-sheet-header .hstat-input:focus {
   background: var(--sr2e-bg-input);
   box-shadow: none;

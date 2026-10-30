@@ -1,3 +1,4 @@
+import { evaluateDegradation } from "../rules/vr2ic-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
@@ -1087,7 +1088,9 @@ export class ProgramData extends SR2EDataModel {
     const hog = vr2 ? Object.entries(this.parent?.flags?.sr2e?.hogWear ?? {}).filter(([k]) => k.startsWith(`${this.loadGen}_`))
       .reduce((n, [, v]) => n + (Number(v) || 0), 0) : 0;
     const worn = vr2 ? (this.wearEvents ?? []).filter(e => e.startsWith(`${this.loadGen}:`)).length + hog : 0;
-    this.effectiveRating = Math.max(0, this.rating - worn);
+    // Evaluate's run-end decay (p.97), derived from receipts; applies in both rulesets (part 5a §7).
+    this.degradation = evaluateDegradation(this.parent?.flags?.sr2e ?? {});
+    this.effectiveRating = Math.max(0, this.rating - worn - this.degradation);
     // Program memory size = Rating² × Multiplier (same in both rulesets).
     this.size = programSize(this.rating, this.multiplier);
     // Cost: core book is a flat Size × 100 (p.174–177); VR2.0 tiers the price

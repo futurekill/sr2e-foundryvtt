@@ -441,6 +441,22 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] After a decker's System Test with a utility, the GM card offers the construct's tar program; if it wins, only that program shows as crashed (dimmed row).
 - [ ] A decker with Shield resisting a black IC: the Shield prompt comes first; cancelling every success → "Shield stops … black IC", no damage, no hold.
 
+### 10f. VR2.0 part 5a: the utilities (`sr2e.vr2-utilities` batch; docs/PLAN-vr2-part5.md)
+- [ ] Decker vs decker, both jacked in: the defender's Resist works (the GM's client admits the card).
+- [ ] Black Hammer (Orange host → Serious): a hit locks the target; jacking out takes Willpower; the attacker
+      gets ONE last attack (GM can Waive it from the whisper); a kill drops the link with NO MPCP shot. Killjoy: Stun.
+- [ ] The attacker crashing (or jacking out) ends their lock; a later hit is a new lock.
+- [ ] Track: a hit the target's Evasion doesn't match → "Track locks on" (10 ÷ net turns) on the Matrix tab;
+      Relocate (vs the attacker's Sensor) kills it outright.
+- [ ] Hog: drains the highest program at once and each Combat Turn, staying on it until it crashes; Purge on the
+      Matrix tab unloads the program and the virus; Swap Memory loads it again.
+- [ ] Slow vs a proactive IC in combat: Initiative −10 per lost action; at 0 it hangs (can't act); Suppress keeps it
+      out of the next turns (Detection Factor −1, never "defeated", no tally); Release brings it back next turn.
+- [ ] Steamroller: offered only against tar baby / tar pit, (Rating)D; tar can't strike it.
+- [ ] Restore (program row ✨): repairs Bod/Evasion/Masking/Sensor damage, TN = the damaging program's rating.
+- [ ] Evaluate: GM macro `macros/evaluate-decay.js` (or `game.sr2e.degradeEvaluate()`) takes ⌈1D6 ÷ 2⌉ off every
+      evaluate program once; Resume on the card adds nothing; the program row's "−N" buys points back for Karma.
+
 ## 10c. Map areas on Foundry v14 (v16 prep)
 - [ ] On v14: a grenade blast, a shotgun spread, an area spell, Poltergeist, Ice Sheet and a ritual area each appear as a Region of the right shape; a player's own area is theirs to move or delete.
 - [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.

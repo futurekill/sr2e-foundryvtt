@@ -12,7 +12,7 @@ import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
          boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod,
          isProactive, cascadeOutcomes, cascadeBonus, partyBudget, parseIcKey, iconKeyOf, constructBudget, THREAT_CAP,
-         isDeckKey, parseAttackerKey, hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks } from "./rules/vr2ic-rules.mjs";
+         isDeckKey, parseAttackerKey, hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks, evaluateLoss } from "./rules/vr2ic-rules.mjs";
 import { icClass } from "./rules/sr2e-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
@@ -942,6 +942,79 @@ Object.assign(HANDLERS, {
   }
 });
 
+// ── Part 5a §7: Evaluate's decay (p.97) ──────────────────────────────────────────
+
+const isEvaluate = (i) => i?.type === "program" && /^evaluate/i.test(i.name);
+/** Every evaluate program in play or not (R2 #15, R3 #12): world actors, each unlinked token's own actor, world items — by UUID. */
+function evaluateTargets() {
+  const out = new Set();
+  for (const a of game.actors) for (const i of a.items) if (isEvaluate(i)) out.add(i.uuid);
+  for (const sc of game.scenes) for (const t of sc.tokens) if (!t.actorLink && t.actor) for (const i of t.actor.items) if (isEvaluate(i)) out.add(i.uuid);
+  for (const i of game.items) if (isEvaluate(i)) out.add(i.uuid);
+  return [...out];
+}
+/** GM, at the end of a run: 1D6 ÷ 2 (round up) off every evaluate program. The card holds the roll and the population. */
+export async function degradeEvaluate() {
+  if (!game.user.isGM) return ui.notifications.warn("Only the GM ends a run.");
+  const targets = evaluateTargets();
+  if (!targets.length) return ui.notifications.info("No evaluate programs in this world.");
+  const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "End of run: Evaluate decays" },
+    content: `<p>Roll 1D6 ÷ 2 (round up) and take it off all ${targets.length} evaluate program${targets.length === 1 ? "" : "s"}, in play or not (VR2.0 p.97)?</p>` });
+  if (!ok) return;
+  const roll = await new Roll("1d6").evaluate();
+  const loss = evaluateLoss(roll.total), opId = foundry.utils.randomID();
+  const msg = await ChatMessage.create({ rolls: [roll], content: `<div class="sr2e-item-card"><strong>End of run: Evaluate decays</strong> — 1D6 = ${roll.total}, ÷ 2 = <strong>−${loss}</strong>
+    on ${targets.length} program${targets.length === 1 ? "" : "s"} (VR2.0 p.97). A point back costs 1 Karma.
+    <div class="sr2e-karma-actions"><button type="button" class="sr2e-evalrun-resume" title="Finish an interrupted run end">Resume</button></div></div>`,
+    flags: { sr2e: { evalRun: { opId, roll: roll.total, loss, targets } } } });
+  return applyEvalRun(msg);
+}
+export async function applyEvalRun(msg) {
+  const er = msg?.flags?.sr2e?.evalRun;
+  if (!er) return;
+  for (const uuid of er.targets) {
+    const i = sync(uuid);
+    if (!i || i.flags?.sr2e?.evalRuns?.[er.opId] != null) continue;
+    await i.update({ [`flags.sr2e.evalRuns.${er.opId}`]: er.loss });
+  }
+}
+/** The Karma half of a restore lands first; finish its item half (R3 #11). */
+async function reconcileEvalKarma(actor) {
+  for (const [tx, k] of Object.entries(actor.flags?.sr2e?.evalKarma ?? {})) {
+    const i = actor.items.get(k?.itemId);
+    if (i && i.flags?.sr2e?.evalRestores?.[tx] == null) await i.update({ [`flags.sr2e.evalRestores.${tx}`]: k.points });
+  }
+}
+/** Player: buy evaluate points back with Karma (p.97), through the sequencer. */
+export async function evalRestorePrompt(actor, itemId) {
+  const i = actor.items.get(itemId);
+  if (!isEvaluate(i) || !(i.system.degradation > 0)) return ui.notifications.info("Nothing to restore.");
+  const pts = await foundry.applications.api.DialogV2.prompt({ window: { title: `Restore ${i.name}` },
+    content: `<div class="form-group"><label>Points (1 Karma each, up to ${i.system.degradation})</label><input type="number" name="pts" min="1" max="${i.system.degradation}" value="${i.system.degradation}"></div>`,
+    ok: { label: "Spend Karma", callback: (e, b) => Number(b.form.elements.pts.value) } }).catch(() => null);
+  if (!(pts >= 1)) return;
+  return request(actor, "evalRestore", { itemId, points: Math.floor(pts) });
+}
+
+Object.assign(HANDLERS, {
+  /** One authoritative writer for restores (R3 #11): txId = the request's id, so a replay never debits twice (R5 #3). */
+  async evalRestore(actor, r) {
+    const tx = r.id;
+    if (!actor.flags?.sr2e?.evalKarma?.[tx]) {
+      const i = actor.items.get(r.itemId);
+      if (!isEvaluate(i)) return { ok: false, why: "no such evaluate program" };
+      const pending = Object.entries(actor.flags?.sr2e?.evalKarma ?? {}).filter(([t, k]) => k?.itemId === r.itemId && i.flags?.sr2e?.evalRestores?.[t] == null)
+        .reduce((n, [, k]) => n + (k.points ?? 0), 0);
+      const pts = Math.floor(Number(r.points) || 0), karma = actor.system.karma?.current ?? 0;
+      if (pts < 1 || pts > (i.system.degradation ?? 0) - pending) return { ok: false, why: "more points than it has lost" };
+      if (pts > karma) return { ok: false, why: "not enough Karma" };
+      await actor.update({ "system.karma.current": karma - pts, [`flags.sr2e.evalKarma.${tx}`]: { itemId: r.itemId, points: pts } });
+    }
+    await reconcileEvalKarma(actor);
+    return { ok: true };
+  }
+});
+
 Object.assign(HANDLERS, {
   /** Relocate (p.46): a success spoofs the turn in progress; refused once that turn has closed. */
   async relocate(actor, r, f) {
@@ -1318,7 +1391,7 @@ export function schedule(actor) {
 
 /** One sequencer pass for a decker (call only inside `sequencer`). */
 async function passFor(actor) {
-  await reconcileHog(actor);
+  await reconcileHog(actor); await reconcileEvalKarma(actor);
   await recoverResolved(actor); await reconcileTar(actor);
   await reconcileEnds(actor); await admitDeckerCards(actor); await processRequests(actor); await reconcileLastAttacks(actor); await reconcileShieldFreeze(actor);
   await applyResults(actor); await applyRippers(actor); await applySparky(actor);
@@ -1511,18 +1584,24 @@ export function deckerContext(actor) {
   const f = foldOf(actor);
   const deck = actor.system.vr2Deck;
   const live = f.live;
-  const name = (icKey) => icOfKey(icKey)?.name ?? "IC";
+  const name = (icKey) => isDeckKey(icKey) ? `${sync(parseAttackerKey(icKey).uuid)?.name ?? "A decker"}'s black utility` : icOfKey(icKey)?.name ?? "IC";
+  const traceName = (t) => t.track ? `${sync(parseAttackerKey(t.attacker).uuid)?.name ?? "A decker"}'s Track` : name(t.icKey);
   const spoofs = recordsOf(actor).filter(e => e.type === "spoof");
   const freezes = recordsOf(actor).filter(e => e.type === "freeze" || e.type === "unfreeze");
   return {
     isGM: game.user.isGM, n: live?.n ?? null,
     exit: live?.exit ? { trigger: live.exit.trigger, steps: live.steps.map(s => ({ step: s.step, done: s.applied })), pending: live.pending.length } : null,
     locks: (live?.locks ?? []).map(h => ({ name: name(h.icKey), rating: h.rating })),
+    // Part 5a: hog infections (p.98) and the IC this decker holds down with Slow (p.99).
+    hogs: liveHogs(actor).map(h => { const last = hogTicksOf(actor, h.card).at(-1); return { card: h.card, from: h.icName, points: h.points,
+      program: actor.items.get(last?.itemId)?.name ?? "—" }; }),
+    slowed: game.actors.filter(a => a.type === "ic").flatMap(ic => slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid)
+      .map(e => ({ name: ic.name, arg: `${e.card}|${ic.uuid}` }))),
     traces: (live?.traces ?? []).filter(t => !t.dead).map(t => {
       const mine = spoofs.filter(sp => sp.icKey === t.icKey && sp.conn === live.n);
       const lastSpoof = mine.sort((a, b) => b.seq - a.seq)[0];
       const frozenBy = freezes.filter(x => x.icKey === t.icKey).sort((a, b) => b.seq - a.seq)[0];
-      return { icKey: t.icKey, name: name(t.icKey), turnsLeft: t.turnsLeft, complete: t.complete, frozen: t.frozen, manual: !!t.clock?.manual,
+      return { icKey: t.icKey, name: traceName(t), track: t.track, turnsLeft: t.turnsLeft, complete: t.complete, frozen: t.frozen, manual: !!t.clock?.manual,
         canFreeze: !!lastSpoof && !t.frozen && !t.complete, spoofKey: lastSpoof?.key ?? "", unfreezeKey: frozenBy?.type === "freeze" ? frozenBy.spoof : "" };
     }),
     traced: !!live?.traced,
@@ -1539,6 +1618,8 @@ export async function sheetOp(doc, op, arg) {
   const gm = () => { if (!game.user.isGM) { ui.notifications.warn("That's the GM's."); return false; } return true; };
   if (op === "relocate") return relocate(doc, arg);
   if (op === "hogPurge") return vr2HogPurge(doc, arg);
+  if (op === "evalRestore") return evalRestorePrompt(doc, arg);
+  if (op === "restore") { const V = await import("./vr2.mjs"); return V.vr2Restore(doc, doc.items.get(arg)); }
   if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
   if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });
@@ -1643,7 +1724,7 @@ export async function icOp(uuid, op, arg) {
 
 export function registerVr2IcHooks() {
   // Combat eligibility (SR2ECombatant#heldOut) reads this synchronously (part 5a §5).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { vr2SlowSuppressed: (ic) => slowSuppressions(ic).length > 0 });
+  game.sr2e = Object.assign(game.sr2e ?? {}, { vr2SlowSuppressed: (ic) => slowSuppressions(ic).length > 0, degradeEvaluate });
   const all = () => { for (const a of allDocs()) if (a.type === "character") schedule(a); };
   Hooks.once("ready", all);
   Hooks.once("ready", rebuildJackpointEntries);
@@ -1695,6 +1776,7 @@ export function registerVr2IcHooks() {
     if (t) schedule(t);
   });
   Hooks.on("renderChatMessageHTML", (message, html) => {
+    html.querySelector?.(".sr2e-evalrun-resume")?.addEventListener("click", (ev) => { ev.preventDefault(); if (game.user.isGM) applyEvalRun(message); });
     html.querySelectorAll?.(".sr2e-vr2ic-btn").forEach(b => b.addEventListener("click", async (ev) => {
       ev.preventDefault();
       const arg = b.dataset.arg === "__CARD__" ? message.id : (b.dataset.arg ?? "");   // a card can't know its own id when rendered

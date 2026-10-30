@@ -3,7 +3,8 @@ import { describe, it, expect } from "vitest";
 import { blackDamage, grayTN, mpcpLoss, traceFactor, locationTurns, datatrailTurns, relocateTN, defuseTN, pcpicMod,
          psychoRecoveryTN, wormInfects, shutdownDice, finalWarning, traceTally, tarWins, personaVR2, foldDeck,
          foldVr2Ic, traceState, parseAttackerKey, isDeckKey,
-         hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks } from "../module/rules/vr2ic-rules.mjs";
+         hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks,
+         restoreState, restorePoints, evaluateLoss, evaluateDegradation } from "../module/rules/vr2ic-rules.mjs";
 import { matrixCombatOutcome } from "../module/rules/sr2e-rules.mjs";
 
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = (i * 7 + 3) % (i + 1); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -282,5 +283,26 @@ describe("part 5a: hog, slow, track (VR2.0 pp.97–99)", () => {
   it("track locks only when Evasion fails to equal or beat the attack", () => {
     expect(trackLocks(3, 2)).toBe(true);
     expect(trackLocks(3, 3)).toBe(false);
+  });
+});
+
+describe("part 5a: restore and evaluate (VR2.0 pp.97, 100)", () => {
+  it("restore pays down the oldest loss first; the TN is the highest rating still outstanding", () => {
+    const dmg = [{ attr: "bod", lost: 2, rating: 6, seq: 1 }, { attr: "bod", lost: 2, rating: 4, seq: 2 }, { attr: "evasion", lost: 1, rating: 3, seq: 3 }];
+    expect(restoreState(dmg, [])).toEqual({ byAttr: { bod: 4, evasion: 1 }, tn: 6, unknown: false });
+    expect(restoreState(dmg, [{ attr: "bod", points: 2, seq: 4 }]).tn).toBe(4);          // the Rating-6 loss is repaid
+    expect(restoreState(dmg, [{ attr: "bod", points: 4, seq: 4 }])).toEqual({ byAttr: { evasion: 1 }, tn: 3, unknown: false });
+    expect(restoreState([{ attr: "bod", lost: 1, seq: 1 }], []).unknown).toBe(true);
+  });
+  it("lose 6, restore 6, lose 6 → 6 outstanding (base 6 → 0)", () => {
+    const st = restoreState([{ attr: "bod", lost: 6, rating: 5, seq: 1 }, { attr: "bod", lost: 6, rating: 5, seq: 3 }], [{ attr: "bod", points: 6, seq: 2 }]);
+    expect(st.byAttr.bod).toBe(6);
+  });
+  it("restore points and evaluate decay", () => {
+    expect(restorePoints(5, 10)).toBe(2);
+    expect(restorePoints(9, 3)).toBe(3);
+    expect([1, 2, 3, 4, 5, 6].map(evaluateLoss)).toEqual([1, 1, 2, 2, 3, 3]);
+    expect(evaluateDegradation({ evalRuns: { a: 2, b: 3 }, evalRestores: { x: 1 } })).toBe(4);
+    expect(evaluateDegradation({ evalRuns: { a: 1 }, evalRestores: { x: 5 } })).toBe(0);
   });
 });

@@ -7,7 +7,7 @@ import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs"
 import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
-import { foldDeck, programKey, liveOpen } from "../rules/vr2ic-rules.mjs";
+import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
@@ -968,9 +968,9 @@ export class CharacterData extends SR2EDataModel {
     const s = this.parent?.flags?.sr2e?.vr2Session;
     if (!s?.id) return;
     const p = this.matrixPersona;
-    for (const e of Object.values(s.iconDamage ?? {}).sort((a, b) => a.seq - b.seq)) {
-      if (e.attr in p && e.lost > 0) p[e.attr] = Math.max(0, p[e.attr] - e.lost);
-    }
+    // Base minus what's still outstanding after Restore's repairs (part 5a §1: lose 6, restore 6, lose 6 → 0).
+    const { byAttr } = restoreState(Object.values(s.iconDamage ?? {}), Object.values(s.iconRepair ?? {}));
+    for (const [attr, out] of Object.entries(byAttr)) if (attr in p) p[attr] = Math.max(0, p[attr] - out);
     // Before the sacrifice: what attribute attacks and a new build measure against.
     p.preImprovised = { bod: p.bod, evasion: p.evasion, masking: p.masking, sensor: p.sensor };
     const imp = s.improvised;

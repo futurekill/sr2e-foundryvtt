@@ -12244,6 +12244,48 @@ export function registerSR2EQuenchTests() {
         } finally { await combat.delete(); }
       });
 
+      it("restore repairs a poison's Bod loss: TN = its rating, 1 point per 2 successes (p.100)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        await host("Quench UT Restore Host");
+        const a = await decker("Quench UT Poisoner", [["Poison", 4]]);
+        const b = await decker("Quench UT Restorer", [["Restore", 6]]);
+        await tokenFor(a, 0);
+        const card = await attack(a, b, "Poison");
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(b, game.messages.get(card.id)));
+        assert.isTrue(await settle(() => b.system.matrixPersona.bod === 2), "Bod 4 → 2 (4 net successes)");
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => {
+          const tn = app.element?.querySelector('input[name="tn"]');
+          if (tn) { assert.equal(tn.value, "4", "TN = the poison's rating"); app.element.querySelector('button[data-action="ok"]')?.click(); }
+        }, 50));
+        try { await withFaces(Array(10).fill(6), () => V.vr2Restore(b, b.items.getName("Restore"))); } finally { Hooks.off("renderDialogV2", id); }
+        assert.isTrue(await settle(() => b.system.matrixPersona.bod === 4), "6 successes → 3 points, capped at the 2 lost");
+      });
+
+      it("evaluate: run-end decay once per program (Resume adds nothing), Karma buys it back (p.97)", async function () {
+        this.timeout(30000);
+        const a = await mk({ name: "Quench UT Evaluator", type: "character", system: { karma: { current: 10, total: 10 } } });
+        const [ev] = await a.createEmbeddedDocuments("Item", [{ name: "Evaluate", type: "program", system: { rating: 6, loaded: true, category: "other" } }]);
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => app.element?.querySelector('button[data-action="yes"]')?.click(), 50));
+        const n = game.messages.size;
+        try { await withFaces([6], () => game.sr2e.degradeEvaluate()); } finally { Hooks.off("renderDialogV2", id); }
+        const msg = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.evalRun);
+        try {
+          assert.equal(msg?.flags.sr2e.evalRun.loss, 3, "1D6 = 6 → 3");
+          assert.equal(a.items.get(ev.id).system.degradation, 3);
+          const [late] = await a.createEmbeddedDocuments("Item", [{ name: "Evaluate (new)", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+          await Y.applyEvalRun(game.messages.get(msg.id));   // the card's Resume
+          assert.equal(a.items.get(ev.id).system.degradation, 3, "Resume never degrades twice");
+          assert.equal(a.items.get(late.id).system.degradation, 0, "nor a program made after the run end");
+          await Y.request(a, "evalRestore", { itemId: ev.id, points: 2 });
+          assert.isTrue(await settle(() => a.items.get(ev.id).system.degradation === 1), "2 points back");
+          assert.equal(a.system.karma.current, 8, "for 2 Karma");
+          await Y.request(a, "evalRestore", { itemId: ev.id, points: 2 });
+          await wait(1000);
+          assert.equal(a.system.karma.current, 8, "can't buy back more than it lost");
+        } finally { if (msg) await msg.delete(); }
+      });
+
       it("steamroller: only against tar, (Rating)D; immune to tar (p.99)", async function () {
         this.timeout(30000);
         if (!canvas?.ready) this.skip();
