@@ -1280,6 +1280,13 @@ function _registerSystemSettings() {
     requiresReload: true
   });
 
+  // VR2.0 optional rule "Utility Options" (pp.102–104; docs/PLAN-vr2-part5b.md). Reload: sizes and prices are derived.
+  game.settings.register("sr2e", "vr2UtilityOptions", {
+    name: "VR2.0 utility options",
+    hint: "Virtual Realities 2.0 only (optional rule, p.102): utilities may carry options (area, chaser, DINAB, limit, one-shot, optimization, penetration, sensitive, skulk, squeeze, targeting) that change their size, price and play.",
+    scope: "world", config: true, type: Boolean, default: false, requiresReload: true
+  });
+
   // Play-area background shown when no scene is active
   game.settings.register("sr2e", "sceneBackground", {
     name: "Play Area Background",
@@ -1422,6 +1429,20 @@ function placementFactsFor(item, link) {
 // Rating 4 with 4 spent, edited down to Rating 2 — writes only `force` and leaves
 // `spent: 4` above its ceiling, making `remaining` negative. Normalise here so
 // the invariant holds however the field is changed, not only on the spend path.
+// Squeeze (VR2.0 p.104): an unloaded copy is compressed again — its decompression receipt goes with the load.
+// Programming (plan 5b §4): the design is fixed while a task writes it.
+Hooks.on("preUpdateItem", (item, changes) => {
+  if (item.type !== "program") return;
+  if (changes.system?.loaded === false && item.flags?.sr2e?.decompressed != null) {
+    foundry.utils.setProperty(changes, "flags.sr2e.-=decompressed", null);
+  }
+  const task = item.flags?.sr2e?.programming;
+  if (task && !task.complete && ["rating", "multiplier", "options", "damageLevel"].some(k => k in (changes.system ?? {}))) {
+    ui.notifications.warn(`${item.name} is being programmed: its design is fixed until the task completes (or abandon the task).`);
+    return false;
+  }
+});
+
 Hooks.on("preUpdateItem", (item, changes) => {
   if (item.type !== "focus") return;
   const nextForce = changes.system?.force ?? item.system.force;
@@ -1467,7 +1488,7 @@ function repriceDelta(item, changed, paid) {
     limbOption: item.system.limbOption, costPerRating: item.system.costPerRating,
     costMultiplierOfBase: item.system.costMultiplierOfBase, linkedLimbId: item.system.linkedLimbId,
     limbSurcharge: item.system.limbSurcharge, limbAdjacent: item.system.limbAdjacent,
-    eyes: item.system.eyes, secondhand: item.system.secondhand,
+    eyes: item.system.eyes, secondhand: item.system.secondhand, activeOpts: item.system.activeOpts,
     ...over
   });
   const oldSys = sysFor({});

@@ -269,6 +269,7 @@ Object.assign(HANDLERS, {
       if (r.overloadStun > 0) await commitDamage(actor, "stun", r.overloadStun, { source: "vr2-overload" });
     }
     await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { crashed, boxes: r.boxes } });
+    if (!(r.boxes > 0)) await (await import("./vr2.mjs")).dinabZeroed(game.messages.get(r.card)?.flags?.sr2e?.matrix);
     if (crashed) {
       const prog = r.program ?? "";
       if (prog === "blaster" || prog === "sparky") {
@@ -316,7 +317,8 @@ async function freezeBlack(actor, card, connN, { legacy = false } = {}) {
     const next = { ...test, closed: true };
     await tm.update({ content: renderSuccessTestCard(next), "flags.sr2e.test": next });
   }
-  const successes = test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
+  // An area attack's count is frozen per card (part 5b); else the closed test's total.
+  const successes = st.areaSuccesses ?? (test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0));
   const net = Math.max(0, successes - (sh?.successes ?? 0));
   if (net <= 0) {
     await fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome: { boxes: 0, shieldCancelled: true } });
@@ -426,6 +428,7 @@ Object.assign(HANDLERS, {
     const conn = f.conn(r.conn);
     if (!conn?.admitted.some(a => a.card === r.card)) return { ok: false, why: "that attack wasn't admitted", tell: false };
     if (!Number.isInteger(r.lost)) return { ok: false, why: "no committed attribute loss", tell: false };
+    if (r.lost === 0) await (await import("./vr2.mjs")).dinabZeroed(game.messages.get(r.card)?.flags?.sr2e?.matrix);
     if (r.ripper && r.lost > 0) {
       await fact(actor, `ripper:${r.card}`, { type: "ripper", conn: r.conn, card: r.card, attr: r.attr, rating: r.rating, threat: r.threat ?? 0,
         chipGen: chipGens(actor).persona, hardening: conn.open?.settings?.hardening ?? 0 });
@@ -671,10 +674,17 @@ export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
     const item = actor.items.get(ref.itemId);
     const pKey = programKey({ source: item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId, name: ref.name });
     const g = actor.system.vr2Deck?.reloadGen?.(pKey) ?? 0;
+    // A trashed one-shot utility wipes EVERY one-shot copy of it in active memory (p.104): frozen here, so a copy
+    // loaded after the strike is never touched (plan 5b §3).
+    const V = await import("./vr2.mjs");
+    const victims = won && item?.system.activeOpts?.some(o => o.kind === "oneShot")
+      ? V.usablePrograms(actor).filter(i => i.id !== ref.itemId && i.system.activeOpts?.some(o => o.kind === "oneShot")
+          && programKey({ source: i._stats?.compendiumSource ?? i.flags?.core?.sourceId, name: i.name }) === pKey)
+        .map(i => ({ itemId: i.id, loadGen: i.system.loadGen ?? 0 })) : [];
     const pitRoll = pit ? await SR2ESuccessRoll.successTest(prof.rating + threat, grayTN("tar-pit", actor.system.cyberdeck?.mpcp ?? 0, conn?.settings?.hardening ?? 0)) : null;
     // Everything the consequences need, so `reconcileTar` can finish an interrupted strike (4b R5).
     if (!await fact(actor, key, { v: 2, type: "tar", card, icKey, icUuid: ic.uuid, gen, comp: prof.comp, won, tar: tar.successes, util: util.successes,
-      pit: pitRoll?.successes ?? null, programKey: pKey, g, utility: { itemId: ref.itemId, loadGen: ref.loadGen, name: ref.name },
+      pit: pitRoll?.successes ?? null, programKey: pKey, g, utility: { itemId: ref.itemId, loadGen: ref.loadGen, name: ref.name }, victims,
       conn: conn?.n ?? null, deckUuid: deckDoc(actor, conn)?.uuid ?? null })) return;
     await reconcileTarFact(actor, recordsOf(actor).find(e => e.key === P3 + key));
     const sensor = !won ? await SR2ESuccessRoll.successTest(actor.system.matrixPersona?.sensor ?? 0, Math.max(2, prof.rating)) : null;
@@ -693,6 +703,7 @@ export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
 async function reconcileTarFact(actor, t) {
   if (t?.v !== 2 || !t.won) return;
   await recordEvent(actor, `${P3}crash:${t.utility.itemId}:${t.utility.loadGen}:tar-${t.card}`, { type: "crash", programId: t.utility.itemId, loadGen: t.utility.loadGen });
+  for (const v of t.victims ?? []) await recordEvent(actor, `${P3}crash:${v.itemId}:${v.loadGen}:tar-${t.card}`, { type: "crash", programId: v.itemId, loadGen: v.loadGen });
   const ic = sync(t.icUuid);
   if (ic && t.comp) await crashComponent(ic, t.gen, t.comp, t.card);
   else if (ic && (ic.system.generation ?? 0) === t.gen) await crashIC(ic, t.card);
@@ -749,7 +760,7 @@ async function freezeSuccesses(st) {
     const { renderSuccessTestCard } = await import("./documents/actor.mjs");
     await tm.update({ content: renderSuccessTestCard({ ...test, closed: true }), "flags.sr2e.test": { ...test, closed: true } });
   }
-  return test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0);
+  return st.areaSuccesses ?? (test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0));
 }
 /** The combat an actor is fighting in, if any (its clock). */
 const combatOf = (actor) => game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid || (!actor.isToken && cb.actorId === actor.id))) ?? null;
@@ -826,7 +837,7 @@ async function resolveUtility(actor, res) {
       [`10 ÷ ${atk - ev} net successes (VR2.0 p.97). Relocate against ${st.attackerName}'s Sensor breaks it.`]);
   }
   const points = hogPoints(atk, ev);
-  if (points < 1) { await ack({ resisted: true }); return postResolution(actor, card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${ev} against ${atk}.`]); }
+  if (points < 1) { await ack({ resisted: true }); await (await import("./vr2.mjs")).dinabZeroed(st); return postResolution(actor, card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${ev} against ${atk}.`]); }
   if (!recs.some(e => e.type === "hog" && e.card === card)) {
     await fact(actor, `hog:${res.conn}:${card}`, { type: "hog", conn: res.conn, card, points, rating: st.rating ?? 0, icName: st.attackerName, clock: clockOf(actor) });
   }
@@ -891,6 +902,7 @@ export function slowResult(ic, card, resist, snap) {
     await fact(ic, `slow:${card}`, { type: "slow", card, lost, combatId: snap?.combatId ?? null, round: snap?.round ?? null,
       gen: snap?.gen ?? (ic.system.generation ?? 0), deckerUuid: st.attackerUuid, session: st.attackerSession ?? "" });
     await reconcileSlow(ic);
+    if (!lost) await (await import("./vr2.mjs")).dinabZeroed(st);   // DINAB: a Slow that did nothing (p.103)
     const hung = !!combat?.combatants.find(c => c.actor?.uuid === ic.uuid)?.getFlag("sr2e", `slowApplied.${card}`)?.hung;
     const text = !lost ? `${ic.name} shrugs off the Slow.` : `${ic.name} loses ${lost} action${lost === 1 ? "" : "s"}${hung ? ": it hangs this turn" : ""}${combat ? "" : " (no combat: the GM applies it)"}.`;
     await postResolution(ic, card, text, [`${atk} attack success${atk === 1 ? "" : "es"} against ${resist} (VR2.0 p.99).`]);
@@ -1354,8 +1366,7 @@ async function advanceExit(actor) {
   // An admitted attack nobody will resist (it missed, Karma included) resolves as a miss.
   for (const a of f.live.pending) {
     const st = game.messages.get(a.card)?.flags?.sr2e?.matrix;
-    const t = game.messages.get(st?.testMessageId)?.flags?.sr2e?.test;
-    const live = t ? testTotalSuccesses(t) : (st?.successes ?? 0);
+    const live = st ? (await import("./vr2.mjs")).attackSuccesses(st) : 0;
     if (st && live <= 0 && !f.live.hits.some(h => h.card === a.card)) {
       await fact(actor, `ack:attack:${a.card}`, { type: "ack", target: `attack:${a.card}`, outcome: { miss: true } });
     }
@@ -1659,6 +1670,9 @@ export async function sheetOp(doc, op, arg) {
   if (op === "hogPurge") return vr2HogPurge(doc, arg);
   if (op === "evalRestore") return evalRestorePrompt(doc, arg);
   if (op === "restore") { const V = await import("./vr2.mjs"); return V.vr2Restore(doc, doc.items.get(arg)); }
+  if (op === "decompress") { const V = await import("./vr2.mjs"); return V.vr2Decompress(doc, doc.items.get(arg)); }
+  if (op === "programming") { const P = await import("./programming.mjs"); return P.programmingDialog(doc, doc.items.get(arg)); }
+  if (op === "programAbandon") { const P = await import("./programming.mjs"); return P.abandon(doc, doc.items.get(arg)); }
   if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
   if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });

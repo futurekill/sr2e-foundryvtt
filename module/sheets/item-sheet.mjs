@@ -3,7 +3,8 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
-import { isVR2 } from "../vr2-mode.mjs";
+import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
+import { UTILITY_OPTION_KINDS, UTILITY_OPTIONS, LIMIT_TARGETS } from "../rules/vr2-options.mjs";
 import { hasRefundableStock, queuedQuantityEdit, moneyQueue, adjustNuyen, updated } from "../money.mjs";
 import { withRowIds } from "../rules/ware-rules.mjs";
 import { rollSecondhandTest } from "../secondhand.mjs";
@@ -26,6 +27,9 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removeRatingRow: SR2EItemSheet._removeRatingRow,
       addModuleRow:    SR2EItemSheet._addModuleRow,
       removeModuleRow: SR2EItemSheet._removeModuleRow,
+      // VR2.0 utility options (plan 5b §5): the whole small array is rewritten.
+      addOption:       function() { return this.document.update({ "system.options": [...(this.document._source.system.options ?? []), { kind: "", rating: 0, target: "" }] }); },
+      removeOption:    function(ev, el) { const i = Number(el.dataset.index); return this.document.update({ "system.options": (this.document._source.system.options ?? []).filter((o, j) => j !== i) }); },
       addEffect:       SR2EItemSheet._addEffect,
       editEffect:      SR2EItemSheet._editEffect,
       deleteEffect:    SR2EItemSheet._deleteEffect,
@@ -59,6 +63,9 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // Container rows: merge the submitted fields onto the rows BY ID, so fields the form
     // doesn't show (id, paid, listValue) survive and a stale form never rewrites a row
     // that changed meanwhile.
+    // Utility options arrive as {0: {...}, 1: {...}}: every field is on the form, so the array is replaced whole.
+    const so = submitData?.system?.options;
+    if (so && !Array.isArray(so)) submitData.system.options = Object.keys(so).sort((a, b) => a - b).map(k => so[k]);
     const sub = submitData?.system?.modules;
     if (sub !== undefined) {
       delete submitData.system.modules;
@@ -240,6 +247,14 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         break;
       case "program":
         context.programCategories = CONFIG.SR2E.programCategories;
+        // VR2.0 Utility Options (plan 5b §5): each row with its effect or why it's inert.
+        if (utilityOptionsOn()) {
+          const inert = item.system.inertOpts ?? [];
+          context.utilityOptions = { kinds: Object.keys(UTILITY_OPTION_KINDS), targets: LIMIT_TARGETS, allowed: UTILITY_OPTIONS[item.system.utility] ?? [],
+            utility: item.system.utility, design: item.system.designSize,
+            rows: (item.system.options ?? []).map((o, i) => ({ ...o, i, rated: !!UTILITY_OPTION_KINDS[o.kind]?.rated, isLimit: o.kind === "limit",
+              why: inert.find(x => x.i === i)?.why ?? "" })) };
+        }
         break;
       case "skill":
         context.skillCategories = CONFIG.SR2E.skillCategories;

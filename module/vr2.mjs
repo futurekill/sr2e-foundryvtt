@@ -11,12 +11,13 @@
  * - Leaving the Matrix (p.124): one path for the sheet, a jackpoint and a crash; dump
  *   shock unless the decker completed a Graceful Logoff.
  */
-import { once, pruneMarkers } from "./claims.mjs";
-import { cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixCombatOutcome,
+import { once, pruneMarkers, recordEvent } from "./claims.mjs";
+import { successesAtTN, cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixCombatOutcome,
          simsenseOverloadTN, systemTestVerdict, testTotalSuccesses, MATRIX_MONITOR_MAX,
          sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
-import { isVR2 } from "./vr2-mode.mjs";
+import { isVR2, utilityOptionsOn } from "./vr2-mode.mjs";
+import { defenseTN, skulkTally, limitAllows } from "./rules/vr2-options.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
 import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage, restoreState, restorePoints } from "./rules/vr2ic-rules.mjs";
 import * as Y from "./vr2ic.mjs";
@@ -51,10 +52,85 @@ export function usablePrograms(actor) {
 /** A program's rating as it counts now (VR2.0: what wear has left). */
 export const programRating = (item) => isVR2() ? (item.system.effectiveRating ?? 0) : Math.max(0, (item.system.rating ?? 0) - (item.system.degradation ?? 0));
 
-/** The best usable program whose name starts with `name`, or null. */
+// ── Part 5b: utility options (VR2.0 pp.102–104; docs/PLAN-vr2-part5b.md) ─────────────────
+
+/** An active option of this program ({kind, rating, target}) or null. Empty unless the setting is on. */
+export const optionOf = (item, kind) => item?.system?.activeOpts?.find(o => o.kind === kind) ?? null;
+const optKinds = (item) => (item?.system?.activeOpts ?? []).map(o => o.kind);
+/** Squeeze (p.104): unusable until decompressed for THIS load (a Swap Memory or unload compresses it again). */
+export const isCompressed = (item) => !!optionOf(item, "squeeze") && item.flags?.sr2e?.decompressed !== (item.system.loadGen ?? 0);
+/** Sensitive (p.104): useless on another manufacturer's host (blank on either side: no restriction). */
+function sensitiveBlocked(actor, item) {
+  if (!optionOf(item, "sensitive") || !item.system.manufacturer) return false;
+  const made = sync(liveSession(actor)?.hostUuid)?.system?.manufacturer;
+  return !!made && made.trim().toLowerCase() !== item.system.manufacturer.trim().toLowerCase();
+}
+/** Programs that can ACT now: usable, decompressed, and working on this host. (Hog and wear keep `usablePrograms`.) */
+export const activePrograms = (actor) => usablePrograms(actor).filter(i => !isCompressed(i) && !sensitiveBlocked(actor, i));
+/** DINAB rating left on the current load (p.103): −1 per failure receipt of this loadGen. */
+export function dinabLeft(item) {
+  const d = optionOf(item, "dinab");
+  if (!d) return 0;
+  const g = `${item.system.loadGen ?? 0}_`;
+  return Math.max(0, d.rating - Object.keys(item.flags?.sr2e?.dinabWear ?? {}).filter(k => k.startsWith(g)).length);
+}
+/** The combat phase `actor` acts in ("" outside combat): DINAB's one-run-per-phase key (p.103). */
+function phaseKey(actor) {
+  const c = game.combat;
+  if (!c?.started || !c.combatants.some(cb => cb.actor?.uuid === actor.uuid)) return "";
+  return `${c.id}:${c.round}:${c.turn}`;
+}
+/**
+ * DINAB's dice (p.103): its rating is a built-in Computer Skill, so it replaces Computer in a System Test; a test
+ * rolled with the program's own rating (attack p.123, Restore, Medic) keeps that rating. Never the decker's pools.
+ *
+ * A program executes (plan 5b §0): called BEFORE its roll at every use site. One-shot: the claim IS the spent
+ * record, so a second use (any device) is refused. DINAB: one run per phase, never in a phase the decker ran the
+ * program himself (and vice versa). Returns "" or why the use is refused.
+ */
+export async function spendUse(actor, item, { dinab = false } = {}) {
+  if (!item || !utilityOptionsOn()) return "";
+  const phase = phaseKey(actor);
+  if (phase && optionOf(item, "dinab")) {
+    if (dinab) {
+      if (item.flags?.sr2e?.programPhase === phase) return `${item.name} was run by ${actor.name} this phase: no DINAB run (VR2.0 p.103).`;
+      if (!await once(actor, `dinab:${item.id}:${phase}`)) return `${item.name}'s DINAB already ran this phase.`;
+    } else {
+      const { claimId } = await import("./rules/claim-rules.mjs");
+      if (actor.effects.has(claimId(`dinab:${item.id}:${phase}`))) return `${item.name}'s DINAB ran it this phase (VR2.0 p.103).`;
+      if (item.isOwner && item.flags?.sr2e?.programPhase !== phase) await item.setFlag("sr2e", "programPhase", phase);
+    }
+  }
+  if (optionOf(item, "oneShot") && !await once(actor, `oneshot:${item.id}:${item.system.loadGen ?? 0}`)) {
+    return `${item.name} (one-shot) has already fired: Swap Memory reloads it (VR2.0 p.104).`;
+  }
+  return "";
+}
+/** A DINAB run failed (p.103): one point per use, keyed to the CAPTURED load, so a late write never wears a fresh copy. */
+export async function dinabFail(actor, ref, useId) {
+  const item = actor?.items.get(ref?.itemId);
+  if (!item || !ref?.dinab) return;
+  const k = `${ref.loadGen}_${useId}`;
+  if (!item.flags?.sr2e?.dinabWear?.[k]) await item.update({ [`flags.sr2e.dinabWear.${k}`]: true });
+}
+/** All 1s on a DINAB run crashes the program (p.103): a crash record for the captured load (Swap Memory restores). */
+export async function dinabCrashCheck(actor, ref, useId, res) {
+  if (!ref?.dinab || !res?.dice?.length || !res.dice.every(d => (d.total ?? d.result) === 1)) return false;
+  await recordEvent(actor, `vr2:crash:${ref.itemId}:${ref.loadGen}:dinab-${useId}`, { type: "crash", programId: ref.itemId, loadGen: ref.loadGen });
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-damage-result">${esc(ref.name)}'s DINAB rolled all 1s: the program crashes (a Swap Memory restores it, VR2.0 p.103).</div>` });
+  return true;
+}
+/** An attack card's successes: an area attack's frozen per-target count, else its test's live total (plan 5b §3). */
+export function attackSuccesses(st) {
+  if (st?.areaSuccesses != null) return st.areaSuccesses;
+  const t = game.messages.get(st?.testMessageId)?.flags?.sr2e?.test;
+  return t ? testTotalSuccesses(t) : (st?.successes ?? 0);
+}
+
+/** The best active program whose name starts with `name`, or null. */
 export function bestUtility(actor, name) {
   const key = String(name).toLowerCase();
-  return usablePrograms(actor).filter(i => i.name.toLowerCase().startsWith(key))
+  return activePrograms(actor).filter(i => i.name.toLowerCase().startsWith(key))
     .sort((a, b) => programRating(b) - programRating(a))[0] ?? null;
 }
 
@@ -84,7 +160,8 @@ export function addWear(actor, ref, cardId) {
 }
 
 /** What to capture when a utility is used. */
-const useRef = (item) => item ? { itemId: item.id, loadGen: item.system.loadGen ?? 0, rating: programRating(item), name: item.name } : null;
+const useRef = (item, dinab = false) => item ? { itemId: item.id, loadGen: item.system.loadGen ?? 0, rating: programRating(item), name: item.name,
+  ...(dinab ? { dinab: true } : {}) } : null;
 
 const hostSnap = (host) => ({ hostUuid: host.uuid, hostName: host.name,
   securityCode: host.system.securityCode, securityValue: host.system.securityValue });
@@ -352,11 +429,14 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   if (!op || host?.type !== "host") return ui.notifications.warn("Choose a host and a System Operation.");
   if (Y.hostOffline(host)) return ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`);
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
-  const trained = (computer?.system?.rating ?? 0) > 0;
-  const dice = trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
   const sub = op.subsystem === "targeted" ? (opts.subsystem || "files") : op.subsystem;
   const subsystem = host.system.subsystemRating(sub);
   const utilityItem = bestUtility(actor, op.utility);
+  // DINAB (p.103): the utility runs itself with its own skill — no pools, no Karma, a Free Action.
+  const dinab = !!opts.dinab;
+  if (dinab && !dinabLeft(utilityItem)) return ui.notifications.warn(`No ${op.utility ?? "utility"} with DINAB left is loaded.`);
+  const trained = dinab || (computer?.system?.rating ?? 0) > 0;
+  const dice = dinab ? dinabLeft(utilityItem) : trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
   const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
   // A Graceful Logoff with trace IC locating is harder by each trace's rating (p.45).
@@ -369,13 +449,17 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const session = await sessionFor(actor, host);
   if (!session) return;
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
-  const res = await actor.rollSuccessTest(Math.max(1, dice), tn, {
-    label: RL("SystemOpVs", { op: op.label, subsystem: subsystemLabel, tn }), tnContext: skillTnContext("computer"),
-    poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
-    karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel
-  });
+  // The utility executes (part 5b): one-shot spent, DINAB's phase claimed — before the dice.
+  const useId = foundry.utils.randomID(), uref = useRef(utilityItem, dinab);
+  const refused = await spendUse(actor, utilityItem, { dinab });
+  if (refused) return ui.notifications.warn(refused);
+  const res = await actor.rollSuccessTest(Math.max(1, dice), tn, dinab
+    ? { label: RL("SystemOpVs", { op: `${op.label} (DINAB)`, subsystem: subsystemLabel, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true }
+    : { label: RL("SystemOpVs", { op: op.label, subsystem: subsystemLabel, tn }), tnContext: skillTnContext("computer"),
+        poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
+        karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
   if (!res) return;
-  await commitAction(actor, startedBuild);
+  if (!dinab) await commitAction(actor, startedBuild);   // a DINAB run is a Free Action: a build in progress goes on
   const df = vr2DetectionFactor(actor);
   const securityValue = host.system.securityValue;
   const hostRoll = await SR2ESuccessRoll.successTest(securityValue, df);
@@ -391,6 +475,10 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderSystemTestCard(st),
     rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st, vr2TallyEvent: ev } } });
   await applyTallyEvent(msg);
+  // DINAB (p.103): defeated by the host → −1; all 1s → the program crashes. Final at the roll (no Karma).
+  if (dinab && !await dinabCrashCheck(actor, uref, useId, res) && !systemTestVerdict(res.successes, hostRoll.successes).success) {
+    await dinabFail(actor, uref, useId);
+  }
   // Probe IC (p.42): its own roll against the Detection Factor, its own event; never the verdict.
   const probe = host.system.probe ?? 0;
   if (probe > 0) {
@@ -554,16 +642,27 @@ async function promptAttack(actor, target, ms) {
   const hosts = game.actors.filter(a => a.type === "host");
   if (!hosts.length) { ui.notifications.warn("Create a Host actor first: VR2.0 cybercombat runs on its Security Code and Value."); return null; }
   const preHost = isIC ? sync(actor.system.hostUuid) : (sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor));
-  let programs = "";
+  let programs = "", dinabAny = false;
+  const areaOthers = [];
   if (!isIC) {
-    const list = usablePrograms(actor).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
-      && !(utilityKindOf(i) && utilityTargetProblem(utilityKindOf(i), target)))
+    const list = activePrograms(actor).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
+      && !(utilityKindOf(i) && utilityTargetProblem(utilityKindOf(i), target))
+      && limitAllows(i.system.activeOpts ?? [], target.type === "ic" ? "ic" : "decker"))
       .sort((a, b) => programRating(b) - programRating(a));
     const imp = liveSession(actor)?.improvised;
     const improv = imp?.level ? `<option value="improv">Improvised attack (Power ${imp.power}, ${imp.level})</option>` : "";
     if (!list.length && !improv) {
       ui.notifications.warn("Load an attack utility, or build an improvised attack (VR2.0 p.123).");
       return null;
+    }
+    // Part 5b: an Area utility engages more of the user's targets with one test (p.103); DINAB runs it (p.103).
+    if (utilityOptionsOn()) {
+      const seen = new Set([target.uuid, actor.uuid]);
+      for (const t of game.user.targets ?? []) {
+        const a = t.actor;
+        if (a && ["ic", "character"].includes(a.type) && !seen.has(a.uuid)) { seen.add(a.uuid); areaOthers.push(a); }
+      }
+      dinabAny = list.some(p => dinabLeft(p) > 0);
     }
     programs = improv + list.map(p => `<option value="${p.id}">${esc(p.name)} (Rating ${programRating(p)}${utilityKindOf(p) ? `, ${KIND_LABEL[utilityKindOf(p)]}`
       : offenseOf(p) ? `, against ${ATTR_LABEL[OFFENSE_ATTRIBUTE[offenseOf(p)]]}`
@@ -588,7 +687,11 @@ async function promptAttack(actor, target, ms) {
           .map(c => `<option value="${esc(c.id)}">${esc(CONFIG.SR2E.icPrograms[c.program] ?? c.program)}-${c.rating}</option>`).join("")}</select></div>` : ""}
       ${isIC ? `<p style="font-size:11px;color:#aaa1c0;">The IC rolls the host's Security Value; Power ${Y.isConstruct(actor) ? "= the program's rating" : actor.system.rating}, Level by Security Code (VR2.0 p.40, p.124).${Y.threatOf(actor) ? ` Threat +${Y.threatOf(actor)} dice (p.52).` : ""}${Y.expertOf(actor) ? ` Expert ${Y.expertOf(actor) > 0 ? "Offense" : "Defense"}-${Math.abs(Y.expertOf(actor))} (p.52).` : ""}${Y.partyOf(actor) ? ` Party IC: +${Y.partyOf(actor)} TN (p.52).` : ""}</p>` : `
       <div class="form-group"><label>Attack utility:</label><select name="program">${programs}</select></div>
-      ${Y.partyOf(target) ? `<div class="form-group"><label title="Party IC: +${Y.partyOf(target)} TN to hit, except with an area-effect combat utility (VR2.0 p.52)">Area-effect utility:</label>
+      ${areaOthers.length ? `<div class="form-group"><label title="An Area utility attacks up to its Area Rating of targets with ONE test, each at +1 TN per target (VR2.0 p.103)">Area — also attack:</label>
+        <div>${areaOthers.map(a => `<label style="display:block;"><input type="checkbox" name="areaT" value="${esc(a.uuid)}"> ${esc(a.name)}</label>`).join("")}</div></div>` : ""}
+      ${dinabAny ? `<div class="form-group"><label title="The utility's DINAB runs it: a Free Action, no Hacking Pool or Karma; −1 DINAB when it misses or does nothing (VR2.0 p.103)">Run by DINAB:</label>
+        <input type="checkbox" name="dinab"></div>` : ""}
+      ${Y.partyOf(target) && !utilityOptionsOn() ? `<div class="form-group"><label title="Party IC: +${Y.partyOf(target)} TN to hit, except with an area-effect combat utility (VR2.0 p.52)">Area-effect utility:</label>
         <input type="checkbox" name="area"></div>` : ""}
       <div class="form-group"><label>Level if unset <span style="font-size:10px;color:#958ba8;">(saved to it, p.98)</span>:</label>
         <select name="level"><option value="">—</option><option value="L">Light</option><option value="M">Moderate</option>
@@ -603,7 +706,8 @@ async function promptAttack(actor, target, ms) {
       { action: "attack", label: "Attack", default: true, callback: (ev, b) => {
         const f = b.form.elements;
         pick = { hostId: f.host.value, status: f.status.value, programId: f.program?.value ?? null, level: f.level?.value ?? "",
-          position: f.position?.value ?? "", area: !!f.area?.checked, comp: f.comp?.value ?? "",
+          position: f.position?.value ?? "", area: !!f.area?.checked, comp: f.comp?.value ?? "", dinab: !!f.dinab?.checked,
+          areaUuids: [...b.form.querySelectorAll("input[name=areaT]:checked")].map(i => i.value),
           hacking: Math.max(0, Math.min(hackingMax, parseInt(f.hacking?.value) || 0)),
           karmaDice: Math.max(0, Math.min(karma, parseInt(f.karma_dice?.value) || 0)), ...readMiscDice(b.form) };
       } },
@@ -648,10 +752,11 @@ async function attackOnce(actor) {
   if (!host) return;
   const isIC = actor.type === "ic";
   const code = host.system.securityCode;
-  // Shield and shift defenses make IC harder to hit (p.50).
-  let tn = cybercombatTN(code, o.status) + ms.parry
-    + (target.type === "ic" && ["shield", "shift"].includes(target.system.defense) ? 2 : 0);
+  // Shield and shift defenses make IC harder to hit (p.50) — the term is added once the program (chaser,
+  // penetration) is known, below.
+  let tn = cybercombatTN(code, o.status) + ms.parry;
   let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer, special = {};
+  let prog = null, kinds = [], extras = [], dinabRef = null;
   let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "";
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
@@ -687,7 +792,7 @@ async function attackOnce(actor) {
       // A construct can't be a hidden trap (part 4b R8): it adds nothing to the Trace Factor.
       const linked = sync(actor.system.trapFor), trapped = Y.isConstruct(linked) ? null : linked;
       tn = Math.max(2, traceFactor({ evasion: target.system.matrixPersona?.evasion ?? 0, rating: icRating,
-        camo: loadedUtility(target, "camo"), redirects: conn ? (Y.foldOf(target).live?.redirects ?? 0) : 0,
+        camo: await camoFor(target), redirects: conn ? (Y.foldOf(target).live?.redirects ?? 0) : 0,
         jackpoint: Number(jp?.system?.traceMod) || 0,
         trapGray: trapped?.system?.icClass === "gray" ? trapped.system.rating : 0,
         trapBlack: trapped?.system?.icClass === "black" ? trapped.system.rating : 0 }));
@@ -710,11 +815,26 @@ async function attackOnce(actor) {
       if (!imp?.level) return ui.notifications.warn("No improvised attack is ready on this host.");
       dice = power = imp.power; level = imp.level; usedBuild = imp.id;
     } else {
-      const prog = actor.items.get(o.programId);
-      if (!prog || !usablePrograms(actor).includes(prog)) return ui.notifications.warn("That utility isn't loaded and usable any more.");
+      prog = actor.items.get(o.programId);
+      if (!prog || !activePrograms(actor).includes(prog)) return ui.notifications.warn("That utility isn't loaded and usable any more.");
       const offense = offenseOf(prog), kind = utilityKindOf(prog);
-      const kindWhy = kind ? utilityTargetProblem(kind, target) : "";
-      if (kindWhy) return ui.notifications.warn(`${prog.name} can't attack ${target.name}: ${kindWhy}.`);
+      kinds = optKinds(prog);
+      // Part 5b (p.103–104): every target must suit the program (its kind, Limit) and be in sight.
+      const area = optionOf(prog, "area");
+      extras = (o.areaUuids ?? []).map(sync).filter(a => a && ["ic", "character"].includes(a.type));
+      if (extras.length && !area) return ui.notifications.warn(`${prog.name} has no Area option: one target only.`);
+      if (area && 1 + extras.length > area.rating) return ui.notifications.warn(`${prog.name}'s Area-${area.rating} engages up to ${area.rating} targets (VR2.0 p.103).`);
+      for (const t of [target, ...extras]) {
+        const why = (kind ? utilityTargetProblem(kind, t) : "")
+          || (limitAllows(prog.system.activeOpts, t.type === "ic" ? "ic" : "decker") ? "" : "its Limit option rules that target type out (p.104)")
+          || (offense && t.type !== "character" ? "it attacks a persona, not IC" : "")
+          || (t !== target && maneuverState(actor, t).blind ? "you've lost sight of it" : "");
+        if (why) return ui.notifications.warn(`${prog.name} can't attack ${t.name}: ${why}.`);
+      }
+      if (o.dinab) {
+        if (!dinabLeft(prog)) return ui.notifications.warn(`${prog.name} has no DINAB left.`);
+        dinabRef = { ...useRef(prog, true), useId: foundry.utils.randomID() };
+      }
       const r = programRating(prog);
       if (kind === "blackHammer" || kind === "killjoy") {
         // A decker's black IC (p.98): the host's Security Code sets the level; +2 on a downed icon (p.48).
@@ -741,20 +861,38 @@ async function attackOnce(actor) {
     tnContext = { ...skillTnContext("computer"), kind: "attack" };
     tn += actor.system.vr2Deck?.deathwormTN ?? 0;   // deathworms in the deck (p.44)
   }
+  // Shield / shift (p.50), with chaser and penetration (p.103–104); targeting −2 (p.104).
+  const aimTerms = (t) => (t.type === "ic" ? defenseTN(t.system.defense, kinds) : 0) - (kinds.includes("targeting") ? 2 : 0);
+  tn += aimTerms(target);
   // Party IC (p.52): its members attack at +N; a decker hits a member at +N unless with an area-effect utility.
+  const areaOpt = optionOf(prog, "area");
   if (isIC) tn += Y.partyOf(actor);
-  else if (target.type === "ic" && !o.area) tn += Y.partyOf(target);
+  else if (target.type === "ic" && !o.area && !areaOpt) tn += Y.partyOf(target);
   if (ms.pos && o.position === "power" && power != null) power += ms.pos;
   else if (ms.pos) tn -= ms.pos;
-  tn = Math.max(2, tn);
+  // Area (p.103): every target's TN rises by the number of targets; the others' TNs are built the same way.
+  const nTargets = 1 + extras.length;
+  const others = extras.map(t => {
+    const m = maneuverState(actor, t);
+    return { t, m, tn: Math.max(2, cybercombatTN(code, o.status) + m.parry + aimTerms(t) + (actor.system.vr2Deck?.deathwormTN ?? 0) - m.pos + nTargets) };
+  });
+  tn = Math.max(2, tn + (areaOpt ? nTargets : 0));
+  const rollTN = Math.min(tn, ...others.map(x => x.tn));
   const attackerSession0 = sessionKey(actor);
   // Who attacks whom, as of the roll (code review #1): a crash or reconnect while rolling can't relabel it.
   const atkKey0 = isIC ? icKey0 : Y.attackerKeyOf(actor), atkInc0 = isIC ? null : Y.crashInc(actor), targetConn0 = target.system?.vr2Conn?.n ?? null;
-  const res = await actor.rollSuccessTest(Math.max(0, dice), tn, {
-    label: RL("MatrixAttack", { what: effect.effect ? effect.effectName : `${power}${level}`, tn, code: codeLabel(code), status: o.status }),
-    poolDice: !isIC && o.hacking ? { hacking: o.hacking } : undefined,
-    karmaDice: o.karmaDice ?? 0, miscDice: o.miscDice, miscLabel: o.miscLabel, tnContext
-  });
+  const otherConn0 = others.map(x => x.t.system?.vr2Conn?.n ?? null);
+  // The program executes (part 5b): one-shot spent, DINAB's phase claimed — before the dice.
+  if (prog) { const refused = await spendUse(actor, prog, { dinab: !!dinabRef }); if (refused) return ui.notifications.warn(refused); }
+  const what = effect.effect ? effect.effectName : `${power}${level}`;
+  const res = await actor.rollSuccessTest(Math.max(0, dice), rollTN, dinabRef
+    // DINAB (p.103): the program's own test — no Hacking Pool, no Karma, none of the decker's modifiers.
+    ? { label: RL("MatrixAttack", { what: `${what} (DINAB)`, tn: rollTN, code: codeLabel(code), status: o.status }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true, areaCast: !!others.length }
+    : { label: RL("MatrixAttack", { what, tn: rollTN, code: codeLabel(code), status: o.status }) + (others.length ? RL("TnVariesByTarget") : ""),
+        poolDice: !isIC && o.hacking ? { hacking: o.hacking } : undefined,
+        // One roll against several TNs (area, p.103): Karma rerolls/buys are GM adjudication, as for area spells.
+        areaCast: !!others.length,
+        karmaDice: o.karmaDice ?? 0, miscDice: o.miscDice, miscLabel: o.miscLabel, tnContext });
   if (!res) return;
   // An IC (or the construct program) that crashed or rebooted while the dice rolled doesn't attack.
   if (isIC && (Y.icKeyOf(actor, prof.comp) !== icKey0 || (actor.system.conditionMonitor?.value ?? 0) >= MATRIX_MONITOR_MAX
@@ -765,7 +903,15 @@ async function attackOnce(actor) {
   // Rolled = committed: the position bonus was "the next attack", a parry lasts "until the
   // next attack by the opposing icon" (p.122), an improvised attack is a one-shot (p.123).
   await spendAttackState(actor, ms, usedBuild);
-  await commitAction(actor, startedBuild);
+  for (const x of others) await spendAttackState(actor, x.m, null);
+  if (!dinabRef) await commitAction(actor, startedBuild);   // a DINAB run is a Free Action
+  // Area: each target scored from the one roll at its own TN, with the roll's own modifiers (wounds…) carried over.
+  const castDelta = (res.targetNumber ?? rollTN) - rollTN;
+  const scored = areaOpt ? [tn, ...others.map(x => x.tn)].map(t => successesAtTN(res.dice ?? [], t + castDelta)) : null;
+  if (dinabRef) {
+    if (await dinabCrashCheck(actor, dinabRef, dinabRef.useId, res)) return res;
+    if ((scored ?? [res.successes]).some(n => n <= 0)) await dinabFail(actor, dinabRef, dinabRef.useId);   // a miss (p.103)
+  }
   // Posted even at 0 successes (inert), so Karma can still bring it to life.
   const state = { ruleset: "vr2", attackerUuid: actor.uuid, attackerName: actor.name, attackerType: actor.type,
     icType: isIC ? actor.system.icType : "", icClass: isIC ? prof.icClass : "", program: isIC ? prof.program : "",
@@ -775,9 +921,18 @@ async function attackOnce(actor) {
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
     icKey: atkKey0, attackerInc: atkInc0, targetConn: targetConn0,
     ...(isIC ? { icRating, threat, comp: prof.comp, psychotropic: prof.psychotropic, expert: Y.expertOf(actor),
-      cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area, ...special }) };
-  const card = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(state),
-    flags: { sr2e: { matrix: state } } });
+      cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area || !!areaOpt, ...special,
+      // Part 5b snapshots: what resolution needs from the options, as of the roll.
+      ...(kinds.includes("penetration") ? { penetration: true } : {}), ...(optionOf(prog, "skulk") ? { skulk: optionOf(prog, "skulk").rating } : {}),
+      ...(areaOpt ? { areaOpt: true, areaN: nTargets, tn: tn + castDelta, areaSuccesses: scored[0], successes: scored[0] } : {}),
+      ...(dinabRef ? { dinab: dinabRef } : {}) }) };
+  // An area attack's cards go up in ONE create: no half-posted attack (plan 5b §3).
+  const states = [state, ...others.map((x, i) => ({ ...state, targetUuid: x.t.uuid, targetName: x.t.name, targetSession: sessionKey(x.t),
+    targetArmorDefense: x.t.type === "ic" && !!x.t.system.armorDefense, targetConn: otherConn0[i], power: state.power != null && o.position === "power" ? state.power - (ms.pos ?? 0) : state.power,
+    tn: x.tn + castDelta, areaSuccesses: scored[i + 1], successes: scored[i + 1] }))];
+  const cards = await ChatMessage.createDocuments(states.map(st => ({ speaker: ChatMessage.getSpeaker({ actor }), content: renderVR2MatrixCard(st),
+    flags: { sr2e: { matrix: st } } })));
+  const card = cards[0];
   // Part 3: an IC's attack on a decker on the connection log is ADMITTED by the sequencer
   // (refused while the decker is leaving, unless it's a locking IC's last attack; plan §3a).
   if (isIC && state.targetConn != null) {
@@ -823,9 +978,32 @@ export function matrixDamage(actor, boxes) {
   });
 }
 
+/**
+ * A DINAB attack the defender reduced to nothing (p.103): −1 DINAB. Written by whoever resolves the card, if they
+ * may write the attacker's program (the GM always can).
+ * shortcut: a player resolving a non-sequenced card for another player's decker can't write it, so that point is lost;
+ * route it through a request if that ever matters.
+ */
+export async function dinabZeroed(st) {
+  if (!st?.dinab) return;
+  const attacker = sync(st.attackerUuid);
+  if (attacker?.items.get(st.dinab.itemId)?.isOwner) await dinabFail(attacker, st.dinab, st.dinab.useId);
+}
+
+/** The Camo a trace hunt reads (p.97); a one-shot copy is spent by it (p.104). The GM's client: it may write the decker. */
+async function camoFor(target) {
+  const item = bestUtility(target, "camo");
+  if (item) await spendUse(target, item);
+  return item ? programRating(item) : 0;
+}
+
+/** A persona's Armor utility against this card: its rating, +2 against an area utility (p.103). */
+const armorVs = (ref, st) => ref ? ref.rating + (st.areaOpt ? 2 : 0) : 0;
+
 /** Offer the defender's Shield (p.100): rolled against the attacker's Computer (IC: Security Value). */
 async function askShield(defender, st) {
-  const item = defender.type === "character" ? bestUtility(defender, "shield") : null;
+  // Penetration defeats the Shield utility (p.104; user ruling: a decker's Shield too).
+  const item = defender.type === "character" && !st.penetration ? bestUtility(defender, "shield") : null;
   if (!item) return null;
   const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: `Shield — ${defender.name}` },
     content: `<p>Use ${esc(item.name)} (rating ${programRating(item)})? It loses a point whether it works or not (VR2.0 p.100).</p>`,
@@ -858,7 +1036,7 @@ export async function vr2MatrixResist(defender, message) {
     if (st.targetUuid && defender.uuid !== st.targetUuid && !game.user.isGM) {
       return ui.notifications.warn(`That attack is on ${st.targetName ?? "another icon"}.`);
     }
-    const liveAtk = () => { const t = game.messages.get(st.testMessageId)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : (st.successes ?? 0); };
+    const liveAtk = () => attackSuccesses(st);
     if (liveAtk() <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
     if (st.effect === "attribute") return await resistAttribute(defender, message, st, liveAtk);
     if (st.effect === "track" || st.effect === "hog") return await resistUtility(defender, message, st);
@@ -870,11 +1048,12 @@ export async function vr2MatrixResist(defender, message) {
     if (!sameSession()) return ui.notifications.warn("That attack hit an earlier session.");
     let dice, tn, what, armorRef = null;
     if (defender.type === "ic") {
-      dice = expertDice(st.securityValue, Y.expertOf(defender)).resist + Y.threatOf(defender); tn = st.power - (st.targetArmorDefense ? 2 : 0);
+      // Armor vs an area utility: +2 more (p.103).
+      dice = expertDice(st.securityValue, Y.expertOf(defender)).resist + Y.threatOf(defender); tn = st.power - (st.targetArmorDefense ? 2 + (st.areaOpt ? 2 : 0) : 0);
       what = `host Security Value${st.targetArmorDefense ? ", IC armor" : ""}`;
     } else if (defender.type === "character") {
       armorRef = useRef(bestUtility(defender, "armor"));
-      dice = defender.system.matrixPersona?.bod ?? 0; tn = st.power - (armorRef?.rating ?? 0);
+      dice = defender.system.matrixPersona?.bod ?? 0; tn = st.power - armorVs(armorRef, st);
       what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
     } else {
       return ui.notifications.warn("Only IC or a decker persona can resist a Matrix attack.");
@@ -904,6 +1083,7 @@ export async function vr2MatrixResist(defender, message) {
     let crashed = false, text, crashChoiceFlag = null;
     if (!out.level) {
       text = `${defender.name} resists the Matrix attack.`;
+      await dinabZeroed(st);
     } else {
       // Committed in the defender's session queue (serialized with session changes), and
       // only while it's still the connection that was hit.
@@ -940,7 +1120,8 @@ export async function vr2MatrixResist(defender, message) {
           crashChoiceFlag = { cardId: message.id, deckerUuid: st.attackerUuid, sessionId: st.attackerSession,
             icUuid: defender.uuid, icName: defender.name,
             // A construct's crash tally: its highest program rating (book silent; part 4b decision).
-            rating: Y.isConstruct(defender) ? Math.max(0, ...defender.system.construct.components.map(c => c.rating ?? 0)) : (defender.system.rating ?? 0) };
+            rating: skulkTally(Y.isConstruct(defender) ? Math.max(0, ...defender.system.construct.components.map(c => c.rating ?? 0)) : (defender.system.rating ?? 0), st.skulk ?? 0),
+            ...(st.skulk ? { skulk: st.skulk } : {}) };   // Skulk (p.104): the tally increase less its rating
         }
       } else if (crashed && cls === "black") {
         lines.push(`${defender.name}'s icon is down, but black IC doesn't disconnect the decker: the connection stays, and the IC's rating is +2 while the icon is down (VR2.0 p.48, p.124).`);
@@ -989,7 +1170,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
     if (!hitOf() && !endOf()) {
       if (!Y.shieldOf(defender, card)) {
         let rec = { successes: 0, none: true };
-        if (bestUtility(defender, "shield")) {
+        if (bestUtility(defender, "shield") && !st.penetration) {
           const sh = await askShield(defender, st);
           rec = sh ? { successes: sh.successes, itemId: sh.ref.itemId, loadGen: sh.ref.loadGen } : { successes: 0, declined: true };
         }
@@ -1025,7 +1206,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
   // Non-black: Shield, resistance and overload rolled here; one apply request.
   let dice, tn, what, armorRef = null;
   armorRef = useRef(bestUtility(defender, "armor"));
-  dice = defender.system.matrixPersona?.bod ?? 0; tn = Math.max(2, st.power - (armorRef?.rating ?? 0)) + (defender.system.vr2Deck?.deathwormTN ?? 0);
+  dice = defender.system.matrixPersona?.bod ?? 0; tn = Math.max(2, st.power - armorVs(armorRef, st)) + (defender.system.vr2Deck?.deathwormTN ?? 0);
   what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
   const shield = await askShield(defender, st);
   const res = await defender.rollSuccessTest(Math.max(0, dice), tn, {
@@ -1107,6 +1288,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
     return l;
   });
   if (shield) await addWear(defender, shield.ref, message.id);
+  if (lost === 0) await dinabZeroed(st);
   // Part 3: the admitted attack is resolved; a ripper's permanent chip test follows (p.43).
   if (lost != null && st.targetConn != null && defender.system.vr2Conn?.n === st.targetConn) {
     const Y = await import("./vr2ic.mjs");
@@ -1175,8 +1357,11 @@ export async function vr2Maneuver(actor) {
   const sv = host?.system.securityValue ?? 0;
   const evasion = actor.type === "ic" ? sv : (actor.system.matrixPersona?.evasion ?? 0);
   const sensor = target.type === "ic" ? sv : (target.system.matrixPersona?.sensor ?? 0);
-  const cloak = actor.type === "character" ? loadedUtility(actor, "cloak") : 0;
+  const cloakItem = actor.type === "character" ? bestUtility(actor, "cloak") : null;
+  const cloak = cloakItem ? programRating(cloakItem) : 0;
   const lockOn = target.type === "character" ? loadedUtility(target, "lock") : 0;
+  // A one-shot Cloak is spent by this test (p.104); the opponent's Lock-On by THEIR test (opposeManeuver).
+  if (cloakItem) await spendUse(actor, cloakItem);
   const tns = maneuverTNs({ evasion, sensor, cloak, lockOn });
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   // + a construct's threat dice on its maneuver tests (p.52; part 4b §5).
@@ -1207,6 +1392,8 @@ export async function opposeManeuver(message) {
     if (!st || isCardResolved(live, "vr2Maneuver")) return ui.notifications.warn("That maneuver has already been opposed.");
     const opp = sync(st.opponentUuid);
     if (!opp?.isOwner) return ui.notifications.warn(`Only ${st.opponentName}'s owner or the GM can oppose.`);
+    const lockItem = bestUtility(opp, "lock");
+    if (lockItem) await spendUse(opp, lockItem);   // a one-shot Lock-On fires here (p.104)
     const res = await opp.rollSuccessTest(Math.max(0, opp.system.matrixPersona?.sensor ?? 0), st.oppTN, {
       label: RL("OpposeManeuver", { maneuver: MANEUVERS[st.kind], tn: st.oppTN }), closed: true, tnContext: { kind: "other" } });
     if (!res) return;
@@ -1346,7 +1533,7 @@ export async function vr2BuildImprovised(actor) {
 
 /** Restore (p.100): repair icon attribute damage; TN = the highest rating still outstanding, 1 point per 2 successes. */
 export async function vr2Restore(actor, item) {
-  if (!/^restore/i.test(item?.name ?? "") || !usablePrograms(actor).includes(item)) return ui.notifications.warn("That isn't a loaded Restore utility.");
+  if (!/^restore/i.test(item?.name ?? "") || !activePrograms(actor).includes(item)) return ui.notifications.warn("That isn't a loaded, ready Restore utility.");
   const s = liveSession(actor);
   const st = restoreState(Object.values(s?.iconDamage ?? {}), Object.values(s?.iconRepair ?? {}));
   const attrs = Object.entries(st.byAttr).filter(([, v]) => v > 0);
@@ -1355,11 +1542,19 @@ export async function vr2Restore(actor, item) {
   const o = await foundry.applications.api.DialogV2.prompt({ window: { title: `${item.name}` },
     content: `<div class="form-group"><label>Attribute</label><select name="attr">${opts}</select></div>
       <div class="form-group"><label>Target Number</label><input type="number" name="tn" min="2" value="${st.tn ?? ""}" ${st.unknown ? "required" : "readonly"}></div>
-      <p class="hint">${st.unknown ? "Some damage predates the stored ratings: the GM sets the TN (the damaging program's rating). " : ""}TN = the rating of the program that did the damage, the higher if several (VR2.0 p.100).</p>`,
-    ok: { label: "Restore", callback: (e, b) => ({ attr: b.form.elements.attr.value, tn: Number(b.form.elements.tn.value) }) } }).catch(() => null);
+      <p class="hint">${st.unknown ? "Some damage predates the stored ratings: the GM sets the TN (the damaging program's rating). " : ""}TN = the rating of the program that did the damage, the higher if several (VR2.0 p.100).</p>
+      ${dinabLeft(item) ? `<div class="form-group"><label>Run by DINAB (${dinabLeft(item)} dice, a Free Action; p.103)</label><input type="checkbox" name="dinab"></div>` : ""}`,
+    ok: { label: "Restore", callback: (e, b) => ({ attr: b.form.elements.attr.value, tn: Number(b.form.elements.tn.value), dinab: !!b.form.elements.dinab?.checked }) } }).catch(() => null);
   if (!o || !(o.tn >= 2)) return;
-  const r = await actor.rollSuccessTest(programRating(item), Math.max(2, o.tn, st.tn ?? 2), { label: RL("Restore", { tn: Math.max(2, o.tn, st.tn ?? 2) }), tnContext: { kind: "matrix" } });
+  const useId = foundry.utils.randomID(), uref = useRef(item, o.dinab);
+  const refused = await spendUse(actor, item, { dinab: o.dinab });
+  if (refused) return ui.notifications.warn(refused);
+  const rtn = Math.max(2, o.tn, st.tn ?? 2);
+  const r = await actor.rollSuccessTest(programRating(item), rtn, o.dinab
+    ? { label: RL("Restore", { tn: rtn }) + " (DINAB)", tnContext: { kind: "other" }, tnPolicy: "table", closed: true }
+    : { label: RL("Restore", { tn: rtn }), tnContext: { kind: "matrix" } });
   if (!r) return;
+  if (await dinabCrashCheck(actor, uref, useId, r)) return;
   const points = await sessionQueue(actor, async () => {
     const s1 = liveSession(actor);
     if (!s1 || s1.id !== s?.id || s1.iconRepair?.[r.testMessageId]) return null;
@@ -1377,16 +1572,22 @@ export async function vr2Restore(actor, item) {
 export async function vr2Medic(actor, item) {
   { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   if (!/^medic/i.test(item?.name ?? "")) return ui.notifications.warn("That isn't a Medic utility.");
-  if (!usablePrograms(actor).includes(item)) return ui.notifications.warn(`${item.name} isn't usable: load it, or Swap Memory a fresh copy.`);
+  if (!activePrograms(actor).includes(item)) return ui.notifications.warn(`${item.name} isn't usable: load (or decompress) it, or Swap Memory a fresh copy.`);
   const boxes = actor.system.matrixPersona?.condition?.value ?? 0;
   const tn = medicTN(boxes);
   if (!tn) return ui.notifications.info(`${actor.name}'s icon has no damage.`);
-  const ref = useRef(item);
+  // DINAB (p.103): offered when the copy has some left; its own dice, a Free Action.
+  const dinab = dinabLeft(item) > 0 && await foundry.applications.api.DialogV2.confirm({ window: { title: item.name },
+    content: `<p>Run ${esc(item.name)} by its DINAB (${dinabLeft(item)} dice, a Free Action; VR2.0 p.103)? No: you run it yourself.</p>`, rejectClose: false });
+  const ref = useRef(item), useId = foundry.utils.randomID(), uref = useRef(item, dinab);
+  const refused = await spendUse(actor, item, { dinab });
+  if (refused) return ui.notifications.warn(refused);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const res = await actor.rollSuccessTest(Math.max(0, ref.rating), tn, {
-    label: RL("NameTN", { name: item.name, tn }), closed: true, tnContext: { kind: "other" } });
+    label: RL("NameTN", { name: item.name + (dinab ? " (DINAB)" : ""), tn }), closed: true, tnContext: { kind: "other" }, ...(dinab ? { tnPolicy: "table" } : {}) });
   if (!res) return;
-  await commitAction(actor, startedBuild);
+  if (await dinabCrashCheck(actor, uref, useId, res)) return;
+  if (!dinab) await commitAction(actor, startedBuild);
   const repaired = await enqueueAttack(`matrixmon:${actor.uuid}`, async () => {
     const v = actor.system.matrixPersona?.condition?.value ?? 0;
     const n = Math.min(v, res.successes);
@@ -1397,6 +1598,17 @@ export async function vr2Medic(actor, item) {
   ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}
     repairs ${repaired} box${repaired === 1 ? "" : "es"} of ${esc(actor.name)}'s icon, and loses a point (VR2.0 p.100).</div>` });
   return res;
+}
+
+/** Squeeze (p.104): decompress a self-compressed utility for this load — a Complex Action, no test. */
+export async function vr2Decompress(actor, item) {
+  { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
+  if (!item?.system.loaded || !isCompressed(item)) return ui.notifications.info(`${item?.name ?? "That program"} isn't compressed.`);
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
+  await item.setFlag("sr2e", "decompressed", item.system.loadGen ?? 0);
+  await commitAction(actor, startedBuild);
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
+    decompresses ${esc(item.name)} (a Complex Action, VR2.0 p.104).</div>` });
 }
 
 /** Swap Memory: reload a fresh copy (worn utilities back to full; a crashed one runs again). */

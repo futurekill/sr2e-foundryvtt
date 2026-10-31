@@ -22,44 +22,56 @@ export const UTILITY_OPTION_KINDS = {
 };
 
 const OPERATIONAL = ["dinab", "oneShot", "optimization", "squeeze"];
-/** Which options each utility may carry (its entry, pp.96–100). Keys: lower-case utility names. */
+/**
+ * Which options each utility may carry (its entry, pp.96–100), keyed by the utility's id — the same ids as
+ * vr2.mjs `utilityKindOf` (blackHammer…) and `offenseOf` (poison…), so every caller asks one identity.
+ */
 export const UTILITY_OPTIONS = {
   analyze: OPERATIONAL, browse: OPERATIONAL, commlink: OPERATIONAL, crash: OPERATIONAL, defuse: OPERATIONAL,
   deception: OPERATIONAL, decrypt: OPERATIONAL, disinfect: OPERATIONAL, evaluate: OPERATIONAL, mirrors: OPERATIONAL,
-  "read/write": OPERATIONAL, relocate: OPERATIONAL, scanner: OPERATIONAL, spoof: OPERATIONAL, validate: OPERATIONAL,
+  readWrite: OPERATIONAL, relocate: OPERATIONAL, scanner: OPERATIONAL, spoof: OPERATIONAL, validate: OPERATIONAL,
   attack: ["area", "chaser", "dinab", "limit", "oneShot", "optimization", "penetration", "skulk", "targeting"],
-  "black hammer": ["oneShot", "optimization", "targeting"], killjoy: ["oneShot", "optimization", "targeting"],
+  blackHammer: ["oneShot", "optimization", "targeting"], killjoy: ["oneShot", "optimization", "targeting"],
   hog: ["dinab", "oneShot", "optimization", "targeting"],
   poison: ["area", "dinab", "oneShot", "optimization", "targeting"], restrict: ["area", "dinab", "oneShot", "optimization", "targeting"],
   reveal: ["area", "dinab", "oneShot", "optimization", "targeting"], slow: ["area", "dinab", "oneShot", "optimization", "targeting"],
   steamroller: ["dinab", "oneShot", "optimization", "targeting"],
   armor: ["optimization"], shield: ["optimization"], camo: ["oneShot", "optimization"], cloak: ["oneShot", "optimization"],
-  "lock-on": ["oneShot", "optimization"], medic: ["dinab", "optimization"], restore: ["dinab", "oneShot", "optimization"],
+  lockOn: ["oneShot", "optimization"], medic: ["dinab", "optimization"], restore: ["dinab", "oneShot", "optimization"],
   compressor: [], sleaze: [], track: []
 };
+const NAME_IDS = { "black hammer": "blackHammer", "read/write": "readWrite", "lock-on": "lockOn" };
 
-/** The utility a program name is (the longest matching prefix), or "" (a program the table doesn't know). */
+/** The utility id a program name starts with (the longest match), or "" (a program the table doesn't know). */
 export function utilityOf(name) {
   const n = String(name ?? "").toLowerCase().trim();
-  return Object.keys(UTILITY_OPTIONS).filter(k => n.startsWith(k)).sort((a, b) => b.length - a.length)[0] ?? "";
+  const ids = Object.keys(UTILITY_OPTIONS).map(id => [Object.keys(NAME_IDS).find(k => NAME_IDS[k] === id) ?? id.toLowerCase(), id]);
+  return ids.filter(([prefix]) => n.startsWith(prefix)).sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? "";
 }
+
+/** Limit's target types (p.104). */
+export const LIMIT_TARGETS = { decker: "Deckers", ic: "IC programs", frame: "Frames", sk: "SKs" };
+/** May a program with these active options act against `targetType` (decker | ic)? */
+export const limitAllows = (active = [], targetType) => active.every(o => o.kind !== "limit" || o.target === targetType);
 
 /**
  * The options that take effect: allowed for this utility, rated ones with a rating 1..base rating, each kind once,
  * and never chaser together with penetration (p.103–104: both inert then). `unknown` utilities allow nothing.
- * @returns {{ active: {kind, rating}[], inert: {kind, rating, why}[] }}
+ * @returns {{ active: {kind, rating, i}[], inert: {kind, rating, i, why}[] }} (`i`: the row's index)
  */
 export function activeOptions(utility, baseRating, options = []) {
-  const allowed = new Set(UTILITY_OPTIONS[utility] ?? []);
+  // Sensitive is allowed on every utility: no entry lists it and its text speaks of "programs" (plan 5b Risks).
+  const allowed = new Set(UTILITY_OPTIONS[utility] ? [...UTILITY_OPTIONS[utility], "sensitive"] : []);
   const active = [], inert = [], seen = new Set();
-  for (const o of options) {
+  for (const [i, o] of options.entries()) {
     const def = UTILITY_OPTION_KINDS[o?.kind];
     const r = Math.floor(Number(o?.rating) || 0);
     let why = !def ? "unknown option" : !allowed.has(o.kind) ? "not an option of this utility"
-      : seen.has(o.kind) ? "taken twice" : def.rated && (r < 1 || r > baseRating) ? `rating must be 1–${baseRating}` : "";
-    if (why) { inert.push({ ...o, why }); continue; }
+      : seen.has(o.kind) ? "taken twice" : def.rated && (r < 1 || r > baseRating) ? `rating must be 1–${baseRating}`
+      : o.kind === "limit" && !LIMIT_TARGETS[o.target] ? "pick the one target type" : "";
+    if (why) { inert.push({ ...o, i, why }); continue; }
     seen.add(o.kind);
-    active.push({ kind: o.kind, rating: def.rated ? r : 0 });
+    active.push({ kind: o.kind, rating: def.rated ? r : 0, i, ...(o.kind === "limit" ? { target: o.target } : {}) });
   }
   if (seen.has("chaser") && seen.has("penetration")) {
     for (const k of ["chaser", "penetration"]) {
@@ -75,7 +87,8 @@ const modOf = (o) => { const d = UTILITY_OPTION_KINDS[o.kind]; return d.mod === 
 
 /**
  * Sizes and price with options (p.103): rating modifiers first (squeeze's only on the design side), below 1 → 1,
- * size = rating² × multiplier, then the percentage changes in order; price = design size × the BASE rating's band
+ * size = rating² × multiplier, then the percentage changes (multiplied together, rounded up ONCE so the order of
+ * the options never matters); price = design size × the BASE rating's band
  * (p.107). With no active options this is exactly `programSize` / `programCostVR2`.
  */
 export function programSizes({ rating, multiplier, options = [] }) {
@@ -83,12 +96,9 @@ export function programSizes({ rating, multiplier, options = [] }) {
   const mods = options.reduce((n, o) => n + (UTILITY_OPTION_KINDS[o.kind].designOnly ? 0 : modOf(o)), 0);
   const designMods = options.reduce((n, o) => n + modOf(o), 0);
   const effective = Math.max(1, base + mods), designRating = Math.max(1, base + designMods);
-  let actual = programSize(effective, multiplier), design = programSize(designRating, multiplier);
-  for (const o of options) {
-    const d = UTILITY_OPTION_KINDS[o.kind];
-    if (d.actual) actual = Math.ceil(actual * d.actual);
-    if (d.design) design = Math.ceil(design * d.design);
-  }
+  const factor = (k) => options.reduce((f, o) => f * (UTILITY_OPTION_KINDS[o.kind][k] ?? 1), 1);
+  const actual = Math.ceil(programSize(effective, multiplier) * factor("actual"));
+  const design = Math.ceil(programSize(designRating, multiplier) * factor("design"));
   return { effective, designRating, actual, design, price: design * matrixProgramMultiplierVR2(base) };
 }
 
@@ -145,3 +155,15 @@ export function teamTerms(skills = [], bonuses = []) {
 }
 /** A mainframe's Security Value must be at least half the program's rating (p.101). */
 export const mainframeAdequate = (sv, rating) => (Number(sv) || 0) * 2 >= (Number(rating) || 0);
+
+/**
+ * The highest base rating a programmer (or team) may write (p.101–102): their Computer skill; a team's highest + 1;
+ * Black Hammer and Killjoy ⌈skill ÷ 2⌉ (p.98) — for a team ⌈highest ÷ 2⌉, the team's +1 doesn't lift it.
+ */
+export function programmingCap(utility, skills = []) {
+  const top = Math.max(0, ...skills.map(Number));
+  if (utility === "blackHammer" || utility === "killjoy") return Math.ceil(top / 2);
+  return skills.length > 1 ? top + 1 : top;
+}
+/** Sensitive (p.104): the programming test uses the average of Computer and Computer/Matrix Theory, rounded up. */
+export const sensitiveSkill = (computer, theory) => Math.ceil(((Number(computer) || 0) + (Number(theory) || 0)) / 2);

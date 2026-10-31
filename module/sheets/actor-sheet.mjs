@@ -9,8 +9,10 @@ import { rowsListValue, wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscl
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
-import { isVR2 } from "../vr2-mode.mjs";
-import { liveSession } from "../vr2.mjs";
+import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
+import { liveSession, isCompressed, dinabLeft, optionOf } from "../vr2.mjs";
+import { taskOf, doneOf } from "../programming.mjs";
+import { programUnusable } from "../data/actor-data.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
 import { statusOf, presentDays, spendService, startFight, standDown, callElemental, sendAway, chargeDays } from "../spirit-services.mjs";
@@ -582,6 +584,15 @@ export function chargenBudgetOf(actor) {
     moduleListValue: rowsListValue(i.system.modules ?? [])
   }));
   return chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+}
+
+/** A program row's part-5b state (plan 5b §5). */
+function programBadges(actor, i) {
+  const task = taskOf(i);
+  const opts = utilityOptionsOn();
+  return { task: task ? { done: doneOf(task), period: task.period ?? null, complete: !!task.complete } : null,
+    compressed: opts && i.system.loaded && isCompressed(i), dinab: opts && optionOf(i, "dinab") ? dinabLeft(i) : null,
+    spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i) };
 }
 
 export class SR2ECharacterSheet extends SR2EBaseActorSheet {
@@ -1508,7 +1519,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.skillsoftCapacity = actor.system.skillsoft ?? { skillwiresRating: 0, activeUsed: 0, accessPorts: 0, knowAccess: false, memCapacity: 0, memUsed: 0 };
     context.programs = actor.items.filter(i => i.type === "program")
       .map(i => ({ id: i.id, name: i.name, img: i.img, system: i.system, isMedic: /^medic/i.test(i.name),
-        isRestore: /^restore/i.test(i.name), isEvaluate: /^evaluate/i.test(i.name) }));
+        isRestore: /^restore/i.test(i.name), isEvaluate: /^evaluate/i.test(i.name),
+        // Part 5b badges: programming progress (VR2.0 only), and the options' live state.
+        ...(isVR2() ? programBadges(actor, i) : {}) }));
     context.adeptPowers = actor.items.filter(i => i.type === "adept_power");
     const allContacts = actor.items.filter(i => i.type === "contact");
     context.contacts = allContacts.filter(i => i.system.contactType !== "enemy");

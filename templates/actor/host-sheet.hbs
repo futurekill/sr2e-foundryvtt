@@ -45,6 +45,9 @@
       <label class="field" title="The host's dice for System Tests and IC, and the dump-shock Power. 0 = the System Rating.">
         <span>Security Value <em>({{system.securityValue}})</em></span>
         <input type="number" name="system.securityValueOverride" value="{{system.securityValueOverride}}" min="0" /></label>
+      <label class="field" title="Who made the mainframe: a Sensitive utility of another maker is useless here (VR2.0 p.104). Blank = no restriction.">
+        <span>Manufacturer</span>
+        <input type="text" name="system.manufacturer" value="{{system.manufacturer}}" /></label>
     </div>
     <div class="field-grid">
       <label class="field" title="Probe IC (VR2.0 p.42): on every System Test, this many dice against the decker's Detection Factor, onto the tally.">

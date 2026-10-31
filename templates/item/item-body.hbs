@@ -896,13 +896,38 @@
     <input type="number" name="system.multiplier" value="{{authored.multiplier}}" min="0" step="0.1" />
     {{#if multiplierDerived}}<span class="hint">×{{system.multiplier}} from the Damage Level</span>{{/if}}
   </div>
+  {{#if utilityOptions}}
+  <fieldset class="sr2e-utility-options">
+    <legend title="VR2.0 optional rule (p.102–104). Allowed on {{#if utilityOptions.utility}}this utility{{else}}a program the table doesn't recognize: none{{/if}}: {{#each utilityOptions.allowed}}{{this}} {{/each}}sensitive">Utility options</legend>
+    {{#each utilityOptions.rows as |row|}}
+    <div class="form-group">
+      <select name="system.options.{{row.i}}.kind">
+        <option value="" {{selected row.kind ""}}>—</option>
+        {{#each ../utilityOptions.kinds as |k|}}<option value="{{k}}" {{selected row.kind k}}>{{k}}</option>{{/each}}
+      </select>
+      <input type="number" name="system.options.{{row.i}}.rating" value="{{row.rating}}" min="0" title="Area, DINAB and Skulk take a rating (1 to the program's rating)" {{#unless row.rated}}style="opacity:.4;"{{/unless}} />
+      <select name="system.options.{{row.i}}.target" title="Limit: the one target type (p.104)" {{#unless row.isLimit}}style="opacity:.4;"{{/unless}}>
+        <option value="" {{selected row.target ""}}>—</option>
+        {{#each ../utilityOptions.targets as |label key|}}<option value="{{key}}" {{selected row.target key}}>{{label}}</option>{{/each}}
+      </select>
+      <a data-action="removeOption" data-index="{{row.i}}" title="Remove"><i class="fas fa-trash"></i></a>
+    </div>
+    {{#if row.why}}<p class="hint" style="text-decoration:line-through;">{{row.kind}}: {{row.why}} (no effect)</p>{{/if}}
+    {{/each}}
+    <a data-action="addOption"><i class="fas fa-plus"></i> Add option</a>
+    <div class="form-group">
+      <label title="Sensitive (p.104): the manufacturer whose mainframes it works on">Manufacturer:</label>
+      <input type="text" name="system.manufacturer" value="{{system.manufacturer}}" />
+    </div>
+  </fieldset>
+  {{/if}}
   <div class="form-group">
     <label>Size (MP):</label>
-    <span>{{system.size}}</span>
+    <span>{{system.size}}{{#if utilityOptions}} <em style="opacity:.6;">(design {{utilityOptions.design}} Mp)</em>{{/if}}</span>
   </div>
   <div class="form-group">
     <label>Cost:</label>
-    <span>{{system.cost}}¥ <em style="opacity:.6;">(Size × 100)</em></span>
+    <span>{{system.cost}}¥ <em style="opacity:.6;">({{#if vr2}}design size × the rating's price band, p.107{{else}}Size × 100{{/if}})</em></span>
   </div>
   <div class="form-group">
     <label>Loaded:</label>

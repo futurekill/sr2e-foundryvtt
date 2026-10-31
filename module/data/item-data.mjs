@@ -1,12 +1,13 @@
 import { evaluateDegradation } from "../rules/vr2ic-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
-import { isVR2 } from "../vr2-mode.mjs";
+import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
+import { activeOptions, programSizes, utilityOf, UTILITY_OPTION_KINDS, LIMIT_TARGETS } from "../rules/vr2-options.mjs";
 import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
 import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
-import { programSize, skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
+import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -1072,6 +1073,14 @@ export class ProgramData extends SR2EDataModel {
       // VR2.0 attack utility Damage Level (p.98); "" = none / not an attack.
       // blank: true — a StringField with choices refuses "" otherwise, and every program fails validation.
       damageLevel: new fields.StringField({ initial: "", blank: true, choices: { "": "—", L: "L", M: "M", S: "S", D: "D" } }),
+      // VR2.0 Utility Options (pp.102–104, setting vr2UtilityOptions). Kept even when invalid (shown struck through).
+      options: new fields.ArrayField(new fields.SchemaField({
+        kind: new fields.StringField({ initial: "", blank: true, choices: { "": "—", ...Object.fromEntries(Object.keys(UTILITY_OPTION_KINDS).map(k => [k, k])) } }),
+        rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        target: new fields.StringField({ initial: "", blank: true, choices: { "": "—", ...LIMIT_TARGETS } })
+      })),
+      // Sensitive (p.104): the one manufacturer's mainframes it works on.
+      manufacturer: new fields.StringField({ initial: "", blank: true }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -1091,8 +1100,16 @@ export class ProgramData extends SR2EDataModel {
     // Evaluate's run-end decay (p.97), derived from receipts; applies in both rulesets (part 5a §7).
     this.degradation = evaluateDegradation(this.parent?.flags?.sr2e ?? {});
     this.effectiveRating = Math.max(0, this.rating - worn - this.degradation);
-    // Program memory size = Rating² × Multiplier (same in both rulesets).
-    this.size = programSize(this.rating, this.multiplier);
+    // The utility it is (one identity for combat, allow-lists, pricing, programming; plan 5b §0).
+    this.utility = this.offense || utilityOf(this.parent?.name);
+    // Utility Options (plan 5b §1): rebuilt every prepare; empty with the setting off.
+    const opts = utilityOptionsOn() ? activeOptions(this.utility, this.rating, this.options ?? []) : { active: [], inert: [] };
+    this.activeOpts = opts.active;
+    this.inertOpts = opts.inert;
+    // Program memory size = Rating² × Multiplier (same in both rulesets); options change it (p.103).
+    const sized = programSizes({ rating: this.rating, multiplier: this.multiplier, options: opts.active });
+    this.size = sized.actual;
+    this.designSize = sized.design;
     // Cost: core book is a flat Size × 100 (p.174–177); VR2.0 tiers the price
     // multiplier by rating (Program Prices Table, p.107). try/catch: data prep
     // can run before settings are registered (default to the core formula).
@@ -1100,7 +1117,7 @@ export class ProgramData extends SR2EDataModel {
     // module is Foundry-free and must not touch game.settings itself.
     this.cost = derivedItemCost({ type: "program", rating: this.rating,
                                   multiplier: this.multiplier,
-                                  category: this.category }, { vr2 });
+                                  category: this.category, activeOpts: opts.active }, { vr2 });
   }
 }
 

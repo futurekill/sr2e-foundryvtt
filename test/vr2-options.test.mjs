@@ -1,8 +1,8 @@
 // VR2.0 utility options and programming (pp.100–104): the book's own examples.
 import { describe, it, expect } from "vitest";
 import { activeOptions, programSizes, defenseTN, areaTN, skulkTally, utilityOf, toolBonus, baseTime, taskPeriod, workDone,
-         teamTerms, mainframeAdequate } from "../module/rules/vr2-options.mjs";
-import { programSize, programCostVR2 } from "../module/rules/sr2e-rules.mjs";
+         teamTerms, mainframeAdequate, limitAllows, programmingCap, sensitiveSkill } from "../module/rules/vr2-options.mjs";
+import { programSize, programCostVR2, derivedItemCost } from "../module/rules/sr2e-rules.mjs";
 
 describe("option sizes and price (p.103)", () => {
   it("no options = today's size and price", () => {
@@ -24,6 +24,16 @@ describe("option sizes and price (p.103)", () => {
     expect(programSizes({ rating: 4, multiplier: 2, options: [{ kind: "squeeze" }] })).toMatchObject({ actual: 32, design: 50 });
     expect(programSizes({ rating: 4, multiplier: 2, options: [{ kind: "oneShot" }] })).toMatchObject({ actual: 8, design: 48 });
   });
+  it("percentages round once: the options' order never changes the size", () => {
+    const a = programSizes({ rating: 1, multiplier: 3, options: [{ kind: "oneShot" }, { kind: "optimization" }] });
+    const b = programSizes({ rating: 1, multiplier: 3, options: [{ kind: "optimization" }, { kind: "oneShot" }] });
+    expect(a).toEqual(b);
+    expect(a.design).toBe(9);   // 3 × 1.5 × 2
+  });
+  it("the shared price path (itemBaseCost) prices the options too", () => {
+    expect(derivedItemCost({ type: "program", rating: 6, multiplier: 3, activeOpts: [{ kind: "skulk", rating: 4 }] }, { vr2: true })).toBe(60000);
+    expect(derivedItemCost({ type: "program", rating: 6, multiplier: 3, activeOpts: [] }, { vr2: true })).toBe(21600);
+  });
   it("an effective rating below 1 counts as 1", () => {
     expect(programSizes({ rating: 1, multiplier: 2, options: [{ kind: "limit" }] }).actual).toBe(2);
   });
@@ -32,13 +42,20 @@ describe("option sizes and price (p.103)", () => {
 describe("which options apply", () => {
   it("allow-lists, rating caps, chaser + penetration both inert", () => {
     expect(utilityOf("Attack-6M")).toBe("attack");
-    expect(utilityOf("Black Hammer 4")).toBe("black hammer");
+    expect(utilityOf("Black Hammer 4")).toBe("blackHammer");
+    expect(utilityOf("Read/Write-3")).toBe("readWrite");
+    expect(utilityOf("Lock-On 2")).toBe("lockOn");
     const a = activeOptions("attack", 6, [{ kind: "skulk", rating: 4 }, { kind: "area", rating: 7 }, { kind: "squeeze" }]);
     expect(a.active.map(o => o.kind)).toEqual(["skulk"]);
     expect(a.inert.map(o => o.kind)).toEqual(["area", "squeeze"]);   // Area-7 > Rating 6; squeeze isn't an attack option
     const cp = activeOptions("attack", 6, [{ kind: "chaser" }, { kind: "penetration" }, { kind: "targeting" }]);
     expect(cp.active.map(o => o.kind)).toEqual(["targeting"]);
     expect(activeOptions("", 6, [{ kind: "targeting" }]).active).toEqual([]);
+    expect(activeOptions("track", 4, [{ kind: "sensitive" }]).active.map(o => o.kind)).toEqual(["sensitive"]);
+    const lim = activeOptions("attack", 6, [{ kind: "limit" }]);
+    expect(lim.inert[0].why).toMatch(/target type/);
+    const ic = activeOptions("attack", 6, [{ kind: "limit", target: "ic" }]).active;
+    expect([limitAllows(ic, "ic"), limitAllows(ic, "decker"), limitAllows([], "decker")]).toEqual([true, false, true]);
   });
 });
 
@@ -80,5 +97,11 @@ describe("programming (pp.100–102)", () => {
     expect(t.skill).toBe(7);
     expect(t.bonus).toBe(5);
     expect(workDone(1, t.bonus)).toBe(6);
+    expect(workDone(1, teamTerms([6, 7, 6], [0, 0, 0]).bonus)).toBe(1);   // no bonuses: 1 day a day
+  });
+  it("caps: skill; team highest + 1; black hammer/killjoy half (round up); sensitive averages", () => {
+    expect([programmingCap("attack", [8]), programmingCap("attack", [8, 3]), programmingCap("blackHammer", [7]),
+      programmingCap("killjoy", [7, 6])]).toEqual([8, 9, 4, 4]);
+    expect(sensitiveSkill(6, 3)).toBe(5);
   });
 });

@@ -26,7 +26,7 @@ import { visibilityAlong } from "../spell-effects.mjs";
 import { areaDocs } from "../areas.mjs";
 import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost } from "../jackpoints.mjs";
-import { isVR2 } from "../vr2-mode.mjs";
+import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
   vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory } from "../vr2.mjs";
 import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
@@ -2537,6 +2537,7 @@ async function promptMatrixAttackOptions(actor) {
             tn:        Math.max(2, parseInt(f.tn?.value) || 4),
             node:      Math.max(0, parseInt(f.node?.value) || 0),
             karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+            dinab:     !!f.dinab?.checked,
             ...readMiscDice(button.form)
           };
         }
@@ -2755,6 +2756,8 @@ async function promptSystemOperationOptions(actor) {
         <label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${actor.system.karma.pool})</span>:</label>
         <input type="number" name="karma_dice" value="0" min="0" max="${actor.system.karma.pool}" style="width:52px;text-align:center;">
       </div>` : ""}
+      ${vr2 && utilityOptionsOn() ? `<div class="form-group"><label title="The utility's DINAB option runs it with its own skill: a Free Action, no pools or Karma (VR2.0 p.103)">Run by DINAB:</label>
+        <input type="checkbox" name="dinab"></div>` : ""}
       ${miscDiceHTML()}
     </div>`,
     buttons: [
@@ -2790,7 +2793,7 @@ async function onSystemOperation(event, target) {
   const opts = await promptSystemOperationOptions(actor);
   if (!opts || !opts.host) return;
   return actor.rollSystemOperation(opts.host, opts.operation, {
-    hacking: opts.hacking, karmaDice: opts.karmaDice, subsystem: opts.subsystem,
+    hacking: opts.hacking, karmaDice: opts.karmaDice, subsystem: opts.subsystem, dinab: opts.dinab,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel
   });
 }

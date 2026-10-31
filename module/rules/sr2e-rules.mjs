@@ -1480,6 +1480,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
 
 import { limbOptionPrice } from "./limb-stats.mjs";
 import { MUSCLE, muscleFactor } from "./ware-rules.mjs";
+import { programSizes } from "./vr2-options.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
 
@@ -2716,7 +2717,10 @@ export function derivedItemCost(sys, ctx = {}) {
   }
   if (sys.type === "program") {
     if (!num(sys.rating) || !num(sys.multiplier)) return null;
-    return ctx.vr2 ? programCostVR2(sys.rating, sys.multiplier)
+    // Utility Options (VR2.0 p.103): the design size × the base rating's band; `activeOpts` is resolved by the
+    // data model (setting + allow-list), so no options = programCostVR2 exactly.
+    return ctx.vr2 ? (sys.activeOpts?.length ? programSizes({ rating: sys.rating, multiplier: sys.multiplier, options: sys.activeOpts }).price
+                                             : programCostVR2(sys.rating, sys.multiplier))
                    : programCost(sys.rating, sys.multiplier, sys.category === "persona");
   }
   if (sys.type === "focus") {
