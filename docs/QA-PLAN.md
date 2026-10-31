@@ -457,7 +457,8 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Evaluate: GM macro `macros/evaluate-decay.js` (or `game.sr2e.degradeEvaluate()`) takes ⌈1D6 ÷ 2⌉ off every
       evaluate program once; Resume on the card adds nothing; the program row's "−N" buys points back for Karma.
 
-### 10g. VR2.0 part 5b: utility options and programming (`sr2e.vr2-options` batch; docs/PLAN-vr2-part5b.md)
+### 10g. VR2.0 part 5b: utility options and programming (`sr2e.vr2-options` batch, 10 tests; docs/PLAN-vr2-part5b.md)
+2026-10-30: batch 10/10; full sr2e.** 754/754; Vitest 1428.
 Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
 - [ ] Program sheet: Options section; Attack-6M with Skulk-4 shows size 300 (design 300 Mp) and 60,000¥; squeeze on an
       Attack is struck through ("not an option of this utility"); Limit without a target type is struck through.
