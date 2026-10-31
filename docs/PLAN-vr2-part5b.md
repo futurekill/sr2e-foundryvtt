@@ -1,5 +1,5 @@
 # Plan: VR2.0 part 5b — utility options and programming
-_Round 0 — initial draft by Claude_
+_Round 1 — revised after Codex round 1_
 
 ## Goal
 VR2.0's optional rule "Utility Options" (book pp.102–104) and the programming rules (pp.100–102) under
@@ -67,84 +67,128 @@ utility options"; default off), so tables that don't want options see nothing ne
   (bonus) days, or by 1 per member without bonuses.
 
 ## Approach
+_Round 1 revision: Codex round 1 (19 findings) folded in; see the REVIEW-LOG._
+
+### 0. One identity, one use lifecycle
+- **Identity:** `utilityIdentity(item)` (vr2.mjs) = `utilityKindOf` (blackHammer, killjoy, track, hog, slow,
+  steamroller) || `offenseOf` (poison, restrict, reveal) || the name prefix of the remaining utilities.
+  `UTILITY_OPTIONS` is re-keyed to exactly those ids (camelCase, `readWrite`, `lockOn`), so combat, the
+  allow-lists, pricing and programming all ask the same function (R1 #12).
+- **Two program sets:** `usablePrograms` stays as is (memory-resident copies: Hog's victims, wear, crashes;
+  R1 #14). A new `activePrograms(actor)` = usable minus a compressed squeeze copy minus a sensitive copy whose
+  manufacturer differs from the actor's live-session host (read from `liveSession(actor)`, so no caller passes
+  a host). `bestUtility`/`loadedUtility` and the attack, System Test, maneuver, Restore and Medic pickers use
+  `activePrograms`; Hog's tick (vr2ic.mjs:774) and the tar victim picker keep `usablePrograms`.
+- **Use sites** (where a program "executes", for one-shot and DINAB; R1 #9): the attack (attacker's program),
+  the System Test (its operational utility), Restore, Medic, Evaluate's run, and the PASSIVE reads made by a
+  roll: Camo in a trace hunt, Cloak/Lock-On in a maneuver test (the roller's and the opponent's). One helper
+  `spendUse(actor, item, useId)` is called at each, before the roll (below).
 
 ### 1. Data (`ProgramData`)
-- `options: ArrayField(SchemaField({ kind, rating }))`, `kind` from a fixed list, `rating` ≥ 1 for area,
-  DINAB, skulk; `manufacturer` StringField (sensitive). Validated against the per-utility allow-list
-  (`UTILITY_OPTIONS`, keyed by the program's identity: `utilityKindOf` / operational names /
-  `CONFIG.SR2E.vr2SystemOperations` utilities) — an option not allowed is shown struck through and has no
-  effect; chaser + penetration together: both inert, flagged.
-- Derived (both directions, CLAUDE.md derived-state rule): `effectiveRatingOpt`, `size` (actual),
-  `designSize`, `cost` = design size × the base rating's band. Without the setting, or with no options,
-  size and cost are exactly today's (a regression test pins it).
-- `dinab: { wear: [<loadGen>:<card>] }` style wear for the DINAB rating, current loadGen only (Swap Memory
-  resets it), and `squeezed` derived from a per-loadGen `flags.sr2e.decompressed.<loadGen>`.
+- `options: ArrayField(SchemaField({ kind: StringField(choices, blank: true), rating: NumberField(min 0),
+  target: StringField(choices decker/ic/frame/sk, blank: true) }))` (Limit's target type, R1 #11);
+  `manufacturer: StringField(blank)`. Invalid entries are kept and shown struck through (`activeOptions`
+  reports why); imported data never goes invalid. New fields default to empty: no migration.
+- Sensitive is allowed on every utility (no entry lists it; its text speaks of "programs" in general —
+  a reading, Risks).
+- Derived each prepare, from scratch (derived-state rule): `optionSizes = programSizes(...)` → actual size,
+  design size, price; inert entries' reasons. Without the setting, or with no options: exactly today's size and
+  price (a regression test pins it).
+- Pricing goes through the shared path (R1 #13): `itemBaseCost` takes `ctx.utility` and `ctx.utilityOptions`
+  and prices from `programSizes(...).price`; its four callers (actor-sheet ×2, eye-accessories, sr2e.mjs
+  repricing) pass them. `programSizes` multiplies all percentage factors and rounds ONCE (order-independent,
+  R1 #19; a permutation test).
 
-### 2. Pure rules (`module/rules/vr2-options.mjs`, Vitest)
-`optionModifiers(base, options)`, `programSizes({ rating, multiplier, options })` → `{ effective, actual,
-design }`, `optionsAllowed(kind)`, `areaTN(baseTN, targets)`, `defenseTN(defense, options)` (shield/shift
-with chaser/penetration), `skulkTally(rating, skulk)`, `dinabDice(...)`, `programmingTask(...)` (design
-size, base time, period from successes, per-day reduction incl. teams and tools), `teamLimits(...)`.
-Book examples pinned: Attack-6M(Skulk-4) 300/60,000¥; Attack-6M(Limit: IC) 5²×3; Slow-4 Area-4 TN 4 and
-cap; Selena's Attack-8S (design 256, base 512 days, 4 successes → 128, +1 → 98 days after 10 days, …
-→ 3 days at the end, the worked example p.101–102); the team example (6,7,6 → 7; +3,+2,+3 → +5).
+### 2. Pure rules (`module/rules/vr2-options.mjs`, Vitest — already written, amended)
+As before plus: identity-keyed allow-lists, `limitAllows(option, targetType)`, round-once sizes, programming
+caps (`programmingCap({ utility, skill, team })`: base ≤ skill, team ≤ highest + 1, Black Hammer/Killjoy
+≤ ⌈skill ÷ 2⌉ (part 5's deferred cap; with a team, ⌈highest ÷ 2⌉ — the +1 doesn't lift it), R1 #16),
+`sensitiveSkill(computer, theory)` = ⌈average⌉. Team work = `workDone(days, teamBonus)`: a team day is
+1 + the team bonus (the book's +5 team → 6 days; no bonuses → 1 day) — the round-0 text "1 per member" was
+my misreading; the book says 1 (p.102; R1 #17).
 
 ### 3. Option effects in play
 - **Targeting:** −2 TN on attacks with that program.
-- **Chaser / penetration:** the attack TN's shield/shift term uses `defenseTN`. Penetration also
-  "defeats the shield defensive utility": a decker defending with the Shield utility gets no Shield Test
-  against a penetration attack (Risks: reading).
-- **Limit:** the attack dialog offers the program only against its one target type (decker/IC).
-- **Area:** the attack dialog (decker attacker, area program) lets the decker tick up to Area Rating
-  targets among the current user targets. One roll (the dice pool once) at the HIGHEST of the targets'
-  TNs; each target gets its own attack card with `tn` = its own TN (+ number of targets) and
-  `successes` = count of the test's die totals ≥ that TN, plus bought successes. `liveAtk` for an area
-  card recomputes from the shared test (`dice[].total`) so Karma rerolls/buys flow to every card. Armor's
-  +2 vs area: the resisting persona/IC carrying Armor gets +2 armor against an `area` card. The party-IC
-  "area-effect" checkbox goes away when the setting is on (the area option is the source); stays as is
-  when off.
-- **One-shot:** after the program's test is rolled (attack or System Test), the copy is spent:
-  `flags.sr2e.oneShot.<loadGen>: card` and it counts as unloaded-and-crashed until Swap Memory (new
-  loadGen). Tar: a tar win on a one-shot utility crashes every one-shot copy of the same program key in
-  active memory (existing `programKey`).
-- **Skulk:** the crash choice's tally (+IC rating) becomes max(0, rating − Skulk) when the crashing card's
-  program had Skulk (snapshotted on the card); Steamroller's tar crash too.
-- **DINAB:** a "Run by DINAB" toggle in the System Test and attack dialogs for a program with DINAB: dice =
-  DINAB rating (current, after wear), no Hacking Pool, labelled a Free Action. Failure (System Test lost
-  to the host, attack with 0 successes, or the defender's resolution zeroing the damage) adds one DINAB
-  wear (`flags.sr2e.dinabWear.<loadGen>_<card>`); all 1s crashes the program (`crashed: true`). DINAB at 0
-  → the toggle disappears. Swap Memory (new loadGen) resets both.
-- **Squeeze:** after a load or Swap Memory a squeezed program is "compressed": unusable (excluded by
-  `usablePrograms`) until the decker clicks Decompress (Complex Action, no test) → the per-loadGen flag.
-- **Sensitive:** a host `manufacturer` field; a sensitive program on a host of another manufacturer (both
-  set) is unusable there (`usablePrograms` gets the host). Blank on either side = no restriction.
+- **Chaser / penetration:** the shield/shift TN term in `attackOnce` becomes `defenseTN(defense, kinds)`.
+  Penetration also skips the defending decker's Shield utility test (`resistOnLog`/`resistAttribute` see
+  `st.penetration`; snapshotted on the card).
+- **Limit:** the attack dialog lists the program only against its target type; `attackOnce` re-checks.
+  frame/sk targets don't exist yet → a Limit: frame/SK program is never offered (correct: useless).
+- **Area (R1 #1–#5), on the area-spell precedent (item.mjs `areaCast`):**
+  - The dialog lets the decker tick up to Area Rating targets among the user's targets. Per target, the TN is
+    built exactly as today's single-target TN (maneuver state, parry, party, `defenseTN`) + the number of
+    targets; position bonuses and parries are spent per target as today.
+  - ONE `rollSuccessTest` at the lowest of those TNs with `areaCast: true`: the existing card already refuses
+    post-roll Karma rerolls and bought successes on such a roll (GM adjudication) — so the roll is frozen the
+    moment it lands; Avoid an Oops still works (all 1s is all 1s). Karma dice bought BEFORE the roll still work.
+  - Per target: `tn_i + castDelta` (castDelta = the roll's final TN − its dialog TN: wounds, sustaining…, as
+    area spells do; R1 #4), `successes = successesAtTN(dice, tn)`, frozen on the card as `areaSuccesses`.
+  - All target cards are created in ONE `ChatMessage.createDocuments([...])` call (no half-posted attack;
+    R1 #5); deckers on the log get their `attack` request per card exactly as single attacks do (part 5a §0
+    discovery covers a card whose request was lost).
+  - One accessor `attackSuccesses(st)` (vr2.mjs, exported): `st.areaSuccesses ?? live test total`. EVERY
+    reader moves to it: `liveAtk`, `freezeSuccesses`, `advanceExit`, vr2ic.mjs:313/722/747/1357 (R1 #1).
+  - Armor +2 vs area: `resistOnLog`/IC armor read `st.area`. The old party-IC "area-effect" checkbox is
+    hidden when the setting is on (the option is the source); unchanged when off.
+- **One-shot (R1 #6, #10):** `spendUse` claims `once(actor, "oneshot:<itemId>:<loadGen>")` BEFORE the roll;
+  losing the claim refuses the use ("already fired"). The claim marker IS the durable spent record:
+  `programUnusable` treats a one-shot item with that marker for its current loadGen as spent. A disconnect
+  after the claim = the copy is spent (it executed). Tar: the tar fact gains `victims: [{itemId, loadGen}]` —
+  every one-shot copy with the same `programKey` usable at fact time — and `reconcileTarFact` crashes exactly
+  those (a copy loaded later is untouched).
+- **Skulk:** the crash choice's tally (+IC rating) becomes `skulkTally(rating, skulk)`, Skulk snapshotted on
+  the card at the roll; Steamroller's tar crash too.
+- **DINAB (R1 #7, #8):**
+  - A "Run by DINAB" toggle at the active use sites (attack, System Test, Restore, Medic). Dice = DINAB
+    rating left; no Hacking Pool, no Karma Pool (the program, not the character, makes the test — a reading,
+    Risks); a Free Action.
+  - Phase rule: in combat, `spendUse` claims `once(actor, "dinab:<itemId>:<combatId>:<round>:<turn>")` and
+    refuses if this program was run by the decker himself this phase (a `flags.sr2e.programPhase.<itemId>`
+    stamp written by manual uses), and vice versa. Out of combat: no phase limit.
+  - One outcome per use, key `<loadGen>_<useId>` in `flags.sr2e.dinabWear` (distinct keys only, never an
+    array): System Test lost to the host, or an attack with 0 successes → at the roll (no Karma, so final);
+    the defender's resolution leaving no effect (damage staged to 0, Hog 0 points, Slow 0 actions, attribute
+    0) → written by the resolving client. Area: the same key per use, so at most one point per use.
+  - All 1s → a crash fact `recordEvent(actor, "dinabcrash:<itemId>:<loadGen>:<useId>", {type: "crash",
+    programId, loadGen})` on the CAPTURED loadGen, so a late write never crashes a fresh Swap Memory copy.
+  - DINAB left = rating − wear of the current loadGen; Swap Memory (new loadGen) restores both.
+- **Squeeze (R1 #18):** one decompression. A squeezed copy is compressed until
+  `flags.sr2e.decompressed === loadGen`; an item `preUpdate` deletes the flag when `loaded` goes false, and
+  Swap Memory's new loadGen leaves it stale — both make it compressed again. "Decompress" (Complex Action,
+  no test) on the program row. Compressor-uploaded copies (two decompressions) need an upload mechanic the
+  system doesn't have: out of scope.
+- **Sensitive:** host `manufacturer` field; blank on either side = no restriction; `activePrograms` filters.
 
-### 4. Programming
-- A **Programming** dialog from a program's row (or a "New program" button on the Matrix tab): program
-  name, base rating, multiplier/level, options, the programmer (default: this character; Computer or
-  Software), tools (checkboxes from the p.102 table), team members (other characters, owner-selectable).
-  It shows design size, base time, the cap checks (rating ≤ skill; team: size ≤ ⌊max ÷ 2⌋, rating ≤
-  max + 1; mainframe SV ≥ ⌈rating ÷ 2⌉).
-- **Start:** rolls the Computer (Program Rating) Test (Karma Pool usable), stores the task on the program
-  item `flags.sr2e.programming = { baseTime, successes, period, done: 0, bonus, log: [] }`; 0 successes →
-  "try again" (no task).
-- **Work:** "Log days" (N days, current tools/team) → `done += N × (1 + bonus)` (team: the team rule),
-  appended to `log` with the tools used, so a mid-task tool change (the worked example) counts right.
-  `done ≥ period` → "complete": the program item becomes usable (until then it can't be loaded).
-- Costs of tools/mainframe time are shown, not charged (GM's call; Award/purchase flows unchanged).
+### 4. Programming (R1 #15)
+- A **Programming** dialog from a program's row: base rating, multiplier, options, the programmer
+  (Computer, or Software/Matrix Programming; Sensitive: `sensitiveSkill`), tools, team members. Shows design
+  size, base time, every cap from `programmingCap` (refuses to start over a cap) and mainframe adequacy.
+- **Start:** rolls Computer (Program Rating) (Karma usable) and stores `flags.sr2e.programming = { taskId,
+  testMessageId, design: { rating, multiplier, options, designSize }, baseTime }`.
+- **First Log days** freezes the period: successes read from the test, then a log chat message carrying
+  `closesTests: [testMessageId]` (no Karma after work starts). 0 successes → the task is void ("try again").
+- **Work:** each Log days writes a new key `flags.sr2e.programming.log.<randomId> = { days, bonus }`
+  (no read-modify-write; concurrent logs both land). `done` is derived (Σ days × (1 + bonus)).
+- **Complete** when done ≥ period: refused if the item's design (rating/multiplier/options) no longer matches
+  the task's snapshot ("the design changed: start a new task"); the sheet shows the design fields read-only
+  while a task is open. Until complete the program can't be loaded.
+- Tool and mainframe costs are shown, not charged.
 
 ### 5. UI
-- Program item sheet: an Options section (kind select + rating, allowed list, struck-through invalid),
-  manufacturer, the derived actual/design size and price.
-- Matrix tab program row: badges for DINAB (rating left), one-shot (spent), squeezed (Decompress button),
-  programming progress.
+- Program item sheet: Options (kind select, rating, Limit target; struck-through invalid with reason),
+  manufacturer, derived actual/design size and price. Host sheet: manufacturer.
+- Matrix tab row badges: DINAB left, one-shot spent, compressed (Decompress), programming progress.
 
 ### 6. Tests
-- Vitest: `vr2-options.test.mjs` with the book examples above + allow-lists + chaser/penetration exclusivity.
-- Quench `sr2e.vr2-options`: price/size on the sheet; targeting −2; penetration vs shield IC and vs a
-  decker's Shield; area against two IC (one roll, two cards, different TNs, Karma reroll flows to both);
-  one-shot spent and tar wiping copies; skulk tally; DINAB free run, degrade, all-1s crash, Swap restore;
-  squeeze decompress; sensitive refused on another manufacturer's host; programming start → log → done.
+- Vitest `vr2-options.test.mjs`: book examples + identity-keyed allow-lists + chaser/penetration + Limit
+  target + permutation-invariant sizes + caps (black hammer half, team) + team days (+5 → 6, none → 1).
+- Quench `sr2e.vr2-options` (all fixtures scoped, no world-wide ops): price/size on the sheet and in
+  `itemBaseCost`; targeting −2; penetration vs shield IC, vs shift IC (+4), vs a decker's Shield; area vs two
+  IC (one roll, two cards, per-target successes incl. castDelta, Karma reroll refused, `freezeSuccesses` uses
+  the card's count); one-shot spent + a second use refused + tar wiping only the captured copies; skulk tally;
+  DINAB free run, failure wear once per use, all-1s crash bound to the old loadGen, Swap restore, phase claim;
+  squeeze decompress and re-compress on unload; sensitive refused on another maker's host while Hog still
+  sees the copy; programming start → log (two logs) → design-change refusal → complete.
 
 ## Key decisions & tradeoffs
 - A world setting gates the whole optional rule; with it off, nothing changes (sizes, prices, dialogs).
@@ -169,6 +213,9 @@ cap; Selena's Attack-8S (design 256, base 512 days, 4 successes → 128, +1 → 
   (12 tests from the book's examples). Everything that touches Foundry waits for approval.
 - **Programming suite:** the table says task bonus 5, the text says it "adds a +1 task bonus to the
   mainframe host bonus" (4 + 1 = 5): consistent, +5 total on a mainframe with a suite.
-- DINAB's "fails a test" on a non-opposed test (e.g. a System Test is always opposed by the host): only
-  the three listed failures count.
+- DINAB's "fails a test": only the three listed failures count; for non-damage effects "reduces its damage
+  to zero" reads as "the resolution leaves no effect".
+- DINAB tests use no Karma Pool or Hacking Pool (the program runs itself, not the decker).
+- Area attacks: post-roll Karma rerolls/buys are GM adjudication, as for area spells (one roll, many TNs).
+- Sensitive is allowed on any utility (no utility entry lists it).
 - Area against deckers on the log: each card is admitted separately (part 5a §0).
