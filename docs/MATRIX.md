@@ -210,3 +210,19 @@ jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
   suppression is the IC's `slowSuppress` fact (DF derived); `SR2ECombatant#heldOut` keeps it out of turns.
 - Restore: `vr2Session.iconRepair`, folded FIFO by `restoreState`. Evaluate: `degradation` derived from
   `flags.sr2e.evalRuns`/`evalRestores`; restores go through the sequencer's `evalRestore` request.
+
+## VR2.0 part 5b — utility options and programming (docs/PLAN-vr2-part5b.md)
+- Setting `vr2UtilityOptions` (VR2.0 only; `utilityOptionsOn()`). Pure math: `module/rules/vr2-options.mjs`.
+  `ProgramData` derives `utility` (one identity), `activeOpts`/`inertOpts` (`activeOptions`, row index `i`),
+  `size`/`designSize`/`cost`; `derivedItemCost` prices `sys.activeOpts` (design size × base band).
+- Two program sets: `usablePrograms` (in memory: Hog victims, wear, tar) vs `activePrograms` (can act: not a
+  compressed squeeze copy, not a sensitive copy on another maker's session host). `bestUtility` uses the latter.
+- `spendUse(actor, item, {dinab})` before every roll where a program executes: one-shot = a `once()` claim
+  `oneshot:<id>:<loadGen>` (the spent record; `programUnusable` reads it); DINAB phase claim
+  `dinab:<id>:<combat>:<round>:<turn>` vs the manual `programPhase` stamp.
+- DINAB wear `flags.sr2e.dinabWear.<loadGen>_<useId>` (one per use); all 1s → a `vr2:crash:` record for the captured
+  loadGen. Zeroed outcomes call `dinabZeroed(st)` (IC resist, `apply`/`resolved` handlers, hog, slow).
+- Area: one `rollSuccessTest` with `areaCast` (post-roll Karma refused), per-target `tn + castDelta`,
+  `successesAtTN`; cards carry `areaSuccesses` — read every count through `attackSuccesses(st)` / `freezeSuccesses`.
+- Tar facts carry `victims` (other one-shot copies at strike time). Programming: `module/programming.mjs`,
+  `flags.sr2e.programming` with per-log keys; the design is locked by a `preUpdateItem` hook while a task is open.

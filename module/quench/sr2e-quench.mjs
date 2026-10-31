@@ -12310,6 +12310,247 @@ export function registerSR2EQuenchTests() {
       });
     });
 
+    quench.registerBatch("sr2e.vr2-options", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [], tokens = [];
+      let prior = "core", priorOpts = false, V, Y;
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn, setup = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => { setup?.(app.element); app.element?.querySelector(`button[data-action="${action}"]`)?.click(); }, 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const setTargets = async (ids) => {
+        for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+        return canvas.tokens.setTargets(ids);
+      };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const host = (name, code = "orange", sv = 6, extra = {}) => mk({ name, type: "host", system: { securityCode: code, systemRating: 4, securityValueOverride: sv, subsystems: { access: 6, index: 6 }, ...extra } });
+      const ic = (name, h, program, rating = 4, extra = {}) => mk({ name, type: "ic", system: { rating, icType: "white", program, hostUuid: h.uuid, ...extra } });
+      const decker = async (name, programs = []) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 4 }, body: { base: 4 }, cyberdeck: { mpcp: 6, deckMode: "hot" },
+          matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          ...programs.map(([n, r, extra]) => ({ name: n, type: "program", system: { rating: r, loaded: true, category: "other", ...(extra ?? {}) } }))]);
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      const tokenFor = async (a, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ actorLink: true })).toObject(), x: d.sceneX + dx * d.size, y: d.sceneY }]);
+        tokens.push(t.id);
+        for (let i = 0; i < 100 && !canvas.tokens.get(t.id)?.targetArrows; i++) await wait(50);
+        return t;
+      };
+      const tokenOf = async (b, dx) => canvas.tokens.placeables.find(t => t.actor?.uuid === b.uuid) ?? await tokenFor(b, dx);
+      /** A attacks the targets (the first is primary; the rest ticked as Area targets) through the real dialog. */
+      const attack = async (a, targets, programName, faces = Array(20).fill(6), { dinab = false } = {}) => {
+        const ids = [];
+        for (const [i, b] of targets.entries()) ids.push((await tokenOf(b, 2 + i)).id);
+        await setTargets(ids);
+        const p = a.items.getName(programName), n = game.messages.size;
+        await clicking("attack", () => withFaces(faces, () => V.vr2MatrixAttack(a)), (el) => {
+          const s = el?.querySelector('select[name="program"]'); if (s) s.value = p.id;
+          el?.querySelectorAll('input[name="areaT"]').forEach(c => { c.checked = true; });
+          const d = el?.querySelector('input[name="dinab"]'); if (d) d.checked = dinab;
+        });
+        return game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.matrix);
+      };
+      const testOf = (card) => game.messages.get(card.flags.sr2e.matrix.testMessageId)?.flags?.sr2e?.test;
+      before(async () => {
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        priorOpts = game.settings.get("sr2e", "vr2UtilityOptions");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        await game.settings.set("sr2e", "vr2UtilityOptions", true);
+        V = await import("../vr2.mjs"); Y = await import("../vr2ic.mjs");
+      });
+      after(async () => {
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+        await game.settings.set("sr2e", "vr2UtilityOptions", priorOpts);
+        for (const m of game.messages.filter(m => /Quench UO/.test(m.content) || made.some(a => a.id === m.speaker?.actor))) { try { await m.delete(); } catch (e) { /* gone */ } }
+      });
+      afterEach(async () => {
+        await setTargets([]);
+        if (tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+      });
+
+      it("sizes and price: Attack-6M(Skulk-4) is effective 10, design 300 Mp, 60,000¥; a disallowed option is inert (p.103)", async function () {
+        const a = await mk({ name: "Quench UO Sizes", type: "character" });
+        const [p] = await a.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program",
+          system: { rating: 6, damageLevel: "M", options: [{ kind: "skulk", rating: 4 }, { kind: "squeeze" }] } }]);
+        assert.deepEqual([p.system.size, p.system.designSize, p.system.cost], [300, 300, 60000]);
+        assert.deepEqual(p.system.inertOpts.map(o => o.kind), ["squeeze"], "squeeze isn't an Attack option");
+        const { itemBaseCost } = await import("../rules/sr2e-rules.mjs");
+        assert.equal(itemBaseCost({ type: "program", ...p.system }, { vr2: true }), 60000, "the shared price path agrees");
+      });
+
+      it("targeting −2; penetration ignores shield; chaser +2 more vs shield (p.103–104)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO Aim Host");
+        const k = await ic("Quench UO Shield IC", h, "killer", 4, { defense: "shield" });
+        const a = await decker("Quench UO Aimer", [["Attack Pen", 4, { damageLevel: "M", options: [{ kind: "penetration" }, { kind: "targeting" }] }],
+          ["Attack Chase", 4, { damageLevel: "M", options: [{ kind: "chaser" }] }]]);
+        await tokenFor(a, 0);
+        // Orange, legitimate IC: 5. Penetration: shield's +2 gone; targeting −2 → 3. Chaser: 5 + 2 + 2 = 9.
+        const [pen] = await attack(a, [k], "Attack Pen");
+        assert.equal(testOf(pen).tn, 3);
+        assert.isTrue(pen.flags.sr2e.matrix.penetration, "snapshotted for the defender");
+        const [ch] = await attack(a, [k], "Attack Chase");
+        assert.equal(testOf(ch).tn, 9);
+      });
+
+      it("penetration: the defending decker gets no Shield test (user ruling)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        await host("Quench UO Pen Host");
+        const a = await decker("Quench UO Penetrator", [["Attack", 4, { damageLevel: "M", options: [{ kind: "penetration" }] }]]);
+        const b = await decker("Quench UO Shielded", [["Shield", 4]]);
+        await tokenFor(a, 0);
+        const [card] = await attack(a, [b], "Attack");
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        // No Shield dialog is offered: the resolution would hang on it otherwise.
+        await withFaces(Array(10).fill(1), () => V.vr2MatrixResist(b, game.messages.get(card.id)));
+        assert.isTrue(await settle(() => Y.recordsOf(b).some(e => e.type === "ack" && e.target === `attack:${card.id}`)), "resolved");
+        assert.equal(b.items.getName("Shield").system.wearEvents.length, 0, "the Shield wasn't used");
+      });
+
+      it("area: one roll, a card per target, each scored at its own TN (+ the number of targets); Karma is GM adjudication (p.103)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO Area Host");
+        const k1 = await ic("Quench UO Plain IC", h, "killer", 4);
+        const k2 = await ic("Quench UO Shield IC", h, "killer", 4, { defense: "shield" });
+        const a = await decker("Quench UO Arear", [["Attack", 4, { damageLevel: "M", options: [{ kind: "area", rating: 2 }] }]]);
+        await tokenFor(a, 0);
+        // Dice 6+1=7, 6+4=10, 5, 2. Plain IC: 5 + 2 targets = 7 → 2 successes; shield IC: 9 → 1.
+        const cards = await attack(a, [k1, k2], "Attack", [6, 1, 6, 4, 5, 2]);
+        assert.equal(cards.length, 2, "one card per target");
+        const of = (ic) => cards.find(c => c.flags.sr2e.matrix.targetUuid === ic.uuid).flags.sr2e.matrix;
+        assert.deepEqual([of(k1).tn, of(k1).areaSuccesses, of(k2).tn, of(k2).areaSuccesses], [7, 2, 9, 1]);
+        assert.equal(cards[0].flags.sr2e.matrix.testMessageId, cards[1].flags.sr2e.matrix.testMessageId, "one Attack Test");
+        assert.isTrue(testOf(cards[0]).areaCast, "rerolls/buys refused on the shared roll");
+        assert.equal(V.attackSuccesses(of(k2)), 1, "every reader takes the card's own count");
+      });
+
+      it("one-shot: fires once, a second use is refused, Swap Memory reloads; a tar win wipes every one-shot copy (p.104)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO Shot Host");
+        const k = await ic("Quench UO Target", h, "killer", 4);
+        const a = await decker("Quench UO Shooter", [["Attack", 4, { damageLevel: "M", options: [{ kind: "oneShot" }] }]]);
+        await tokenFor(a, 0);
+        const p = a.items.getName("Attack");
+        assert.lengthOf(await attack(a, [k], "Attack"), 1, "fires");
+        assert.isFalse(V.usablePrograms(a).includes(a.items.get(p.id)), "gone from memory");
+        assert.lengthOf(await attack(a, [k], "Attack"), 0, "nothing left to fire");
+        await V.vr2SwapMemory(a, a.items.get(p.id));
+        assert.isTrue(V.usablePrograms(a).includes(a.items.get(p.id)), "Swap Memory reloads it");
+        // Two more copies; a tar baby trashes one: every copy in memory at the strike goes, a later one doesn't.
+        const [c2] = await a.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program", system: { rating: 4, loaded: true, damageLevel: "M", options: [{ kind: "oneShot" }] } }]);
+        const tar = await ic("Quench UO Tar", h, "tar-baby", 4);
+        const live = a.items.get(p.id);
+        await withFaces([5, 5, 5, 5, 1, 1, 1, 1], () => Y.tarStrike(a, tar, { itemId: live.id, loadGen: live.system.loadGen, rating: 4, name: "Attack" }, "quenchUOtar"));
+        assert.isTrue(await settle(() => !V.usablePrograms(a).some(i => i.name === "Attack")), "both copies crash");
+        const [c3] = await a.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program", system: { rating: 4, loaded: true, damageLevel: "M", options: [{ kind: "oneShot" }] } }]);
+        assert.isTrue(V.usablePrograms(a).includes(a.items.get(c3.id)), "a copy loaded after the strike is untouched");
+        assert.isFalse(V.usablePrograms(a).includes(a.items.get(c2.id)));
+      });
+
+      it("skulk: crashing IC adds its rating less the Skulk rating to the tally (p.104)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO Skulk Host");
+        const k = await ic("Quench UO Victim", h, "killer", 4);
+        const a = await decker("Quench UO Skulker", [["Attack", 4, { damageLevel: "D", options: [{ kind: "skulk", rating: 3 }] }]]);
+        await tokenFor(a, 0);
+        const [card] = await attack(a, [k], "Attack");
+        await k.update({ "system.conditionMonitor.value": 5 });   // Deadly is 6 boxes: this hit crashes it
+        await withFaces(Array(20).fill(1), () => V.vr2MatrixResist(k, game.messages.get(card.id)));
+        const crash = await settle(() => game.messages.some(m => m.flags?.sr2e?.vr2Crash?.cardId === card.id));
+        assert.isTrue(crash, "the IC crashed");
+        const c = game.messages.find(m => m.flags?.sr2e?.vr2Crash?.cardId === card.id).flags.sr2e.vr2Crash;
+        assert.equal(c.rating, 1, "4 − Skulk 3");
+      });
+
+      it("DINAB: a System Test with its own skill; lost → −1, all 1s → crash; Swap Memory restores; one run per phase (p.103)", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO DINAB Host");
+        const a = await decker("Quench UO Boxer", [["Browse", 4, { options: [{ kind: "dinab", rating: 2 }] }]]);
+        const p = () => a.items.getName("Browse");
+        await withFaces([2, 2], () => a.rollSystemOperation(h, "locateFile", { dinab: true }));
+        assert.equal(V.dinabLeft(p()), 1, "defeated by the host: −1");
+        await withFaces([1], () => a.rollSystemOperation(h, "locateFile", { dinab: true }));
+        assert.isFalse(V.usablePrograms(a).includes(p()), "all 1s: the program crashes");
+        await V.vr2SwapMemory(a, p());
+        assert.isTrue(V.usablePrograms(a).includes(p()) && V.dinabLeft(p()) === 2, "Swap Memory restores both");
+        // In combat: a DINAB run, then the decker's own run of it in the same phase is refused.
+        const tA = await tokenFor(a, 0);
+        const combat = await Combat.create({ scene: canvas.scene.id, active: true });
+        try {
+          await combat.createEmbeddedDocuments("Combatant", [{ tokenId: tA.id, sceneId: canvas.scene.id, actorId: a.id }]);
+          await combat.combatants.contents[0].update({ initiative: 10 });
+          await combat.update({ round: 1, turn: 0 });
+          await withFaces([6, 6, 6, 6], () => a.rollSystemOperation(h, "locateFile", { dinab: true }));
+          const n = game.messages.size;
+          await a.rollSystemOperation(h, "locateFile", {});
+          assert.isFalse(game.messages.contents.slice(n).some(m => m.flags?.sr2e?.vr2SystemTest), "no own run in the DINAB's phase");
+        } finally { await combat.delete(); }
+      });
+
+      it("squeeze: compressed until decompressed for this load; unloading compresses it again (p.104)", async function () {
+        const a = await decker("Quench UO Squeezer", [["Browse", 4, { options: [{ kind: "squeeze" }] }]]);
+        const p = () => a.items.getName("Browse");
+        assert.isFalse(V.activePrograms(a).includes(p()), "compressed");
+        assert.isTrue(V.usablePrograms(a).includes(p()), "but in memory");
+        await V.vr2Decompress(a, p());
+        assert.isTrue(V.activePrograms(a).includes(p()), "decompressed");
+        await p().update({ "system.loaded": false });
+        await p().update({ "system.loaded": true });
+        assert.isFalse(V.activePrograms(a).includes(p()), "compressed again");
+      });
+
+      it("sensitive: useless on another maker's host, still in memory (Hog sees it) (p.104)", async function () {
+        this.timeout(30000);
+        const h = await host("Quench UO Fuchi Host", "orange", 6, { manufacturer: "Fuchi" });
+        const a = await decker("Quench UO Sensitive", [["Browse", 4, { manufacturer: "Mitsuhama", options: [{ kind: "sensitive" }] }]]);
+        await a.rollSystemOperation(h, "locateFile", {});   // logs on to the host
+        const p = a.items.getName("Browse");
+        assert.isFalse(V.activePrograms(a).includes(p), "Mitsuhama code on a Fuchi host");
+        assert.isTrue(V.usablePrograms(a).includes(p), "still loaded");
+        await h.update({ "system.manufacturer": "Mitsuhama" });
+        assert.isTrue(V.activePrograms(a).includes(a.items.get(p.id)), "works on its maker's host");
+      });
+
+      it("programming: start, log days (the period freezes), the design locks, complete (p.100–102)", async function () {
+        this.timeout(30000);
+        const P = await import("../programming.mjs");
+        const a = await mk({ name: "Quench UO Coder", type: "character" });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          { name: "Browse", type: "program", system: { rating: 2, multiplier: 1, loaded: true } }]);
+        const p = a.items.getName("Browse");   // createEmbeddedDocuments returns them out of order
+        // Design 4 Mp → 8 days; 5 successes → a 2-day period.
+        await clicking("ok", () => withFaces([5, 5, 5, 5, 5], () => P.programmingDialog(a, p)));
+        const task = () => P.taskOf(a.items.get(p.id));
+        assert.equal(task()?.baseTime, 8);
+        assert.isFalse(V.usablePrograms(a).includes(a.items.get(p.id)), "not usable while being written");
+        await clicking("ok", () => P.programmingDialog(a, a.items.get(p.id)));
+        assert.deepEqual([task().period, P.doneOf(task())], [2, 1]);
+        await a.items.get(p.id).update({ "system.rating": 3 });
+        assert.equal(a.items.get(p.id).system.rating, 2, "the design is fixed while the task is open");
+        await clicking("ok", () => P.programmingDialog(a, a.items.get(p.id)));
+        assert.isTrue(task().complete, "written");
+        assert.isTrue(V.usablePrograms(a).includes(a.items.get(p.id)));
+      });
+    });
+
     quench.registerBatch("sr2e.vr2-ic", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [];

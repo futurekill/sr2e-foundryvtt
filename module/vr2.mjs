@@ -76,9 +76,8 @@ export function dinabLeft(item) {
 }
 /** The combat phase `actor` acts in ("" outside combat): DINAB's one-run-per-phase key (p.103). */
 function phaseKey(actor) {
-  const c = game.combat;
-  if (!c?.started || !c.combatants.some(cb => cb.actor?.uuid === actor.uuid)) return "";
-  return `${c.id}:${c.round}:${c.turn}`;
+  const c = game.combats.find(x => x.started && x.combatants.some(cb => cb.actor?.uuid === actor.uuid));
+  return c ? `${c.id}:${c.round}:${c.turn}` : "";
 }
 /**
  * DINAB's dice (p.103): its rating is a built-in Computer Skill, so it replaces Computer in a System Test; a test
@@ -924,7 +923,8 @@ async function attackOnce(actor) {
       cascade: cascade0 ? { ...cascade, on: true } : null, cascade0 } : { area: !!o.area || !!areaOpt, ...special,
       // Part 5b snapshots: what resolution needs from the options, as of the roll.
       ...(kinds.includes("penetration") ? { penetration: true } : {}), ...(optionOf(prog, "skulk") ? { skulk: optionOf(prog, "skulk").rating } : {}),
-      ...(areaOpt ? { areaOpt: true, areaN: nTargets, tn: tn + castDelta, areaSuccesses: scored[0], successes: scored[0] } : {}),
+      // Frozen only for a multi-target roll (Karma is refused there); one target keeps the live test.
+      ...(areaOpt ? { areaOpt: true, areaN: nTargets, tn: tn + castDelta, ...(others.length ? { areaSuccesses: scored[0], successes: scored[0] } : {}) } : {}),
       ...(dinabRef ? { dinab: dinabRef } : {}) }) };
   // An area attack's cards go up in ONE create: no half-posted attack (plan 5b §3).
   const states = [state, ...others.map((x, i) => ({ ...state, targetUuid: x.t.uuid, targetName: x.t.name, targetSession: sessionKey(x.t),

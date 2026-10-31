@@ -218,4 +218,8 @@ my misreading; the book says 1 (p.102; R1 #17).
 - DINAB tests use no Karma Pool or Hacking Pool (the program runs itself, not the decker).
 - Area attacks: post-roll Karma rerolls/buys are GM adjudication, as for area spells (one roll, many TNs).
 - Sensitive is allowed on any utility (no utility entry lists it).
+- **Built (implementation notes):** DINAB's rating replaces Computer only in Computer tests (System Tests); the attack
+  test is "a test with his offensive utility program" (p.123), so attacks, Restore and Medic keep the program's
+  rating and lose only the pools. Restore/Medic DINAB runs degrade only on all 1s (none of the three listed failures
+  applies). The design lock is a `preUpdateItem` refusal (with an Abandon button), not read-only inputs.
 - Area against deckers on the log: each card is admitted separately (part 5a §0).

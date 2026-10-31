@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added
+- **VR2.0 utility options** (VR2.0 pp.102–104), a new world setting *VR2.0 utility options* (off by default):
+  utilities carry options on their sheet, which change their size, design size and price (design size × the
+  rating's price band) and how they play:
+  - **Area**: one Attack Test against up to Area Rating targets, each at +1 TN per target; Armor gets +2 against it.
+  - **Chaser / Penetration**: chaser cancels shift's +2 (but +2 more vs shield); penetration cancels shield and the
+    defending decker's Shield utility (+2 more vs shift).
+  - **Targeting** −2 TN; **Limit** to one target type; **Skulk** lowers the tally from crashing IC.
+  - **One-shot**: fires once until Swap Memory; a tar win wipes every one-shot copy. **Optimization**: smaller.
+  - **DINAB**: the utility runs itself as a Free Action (its rating is the Computer Skill in a System Test); it loses
+    a point when it fails and crashes on all 1s; Swap Memory restores it.
+  - **Squeeze**: must be decompressed (a Complex Action) after loading. **Sensitive**: works only on its maker's hosts
+    (hosts have a Manufacturer field now).
+- **VR2.0 programming** (pp.100–102): write a program from its row — the Computer (rating) test sets the task period,
+  days of work are logged with tools or a team, and the program is usable once it's done. Rating caps (Black Hammer
+  and Killjoy: half your Computer, rounded up) and team limits are checked.
+
 ## 0.128.0 — 2026-10-30
 
 ### Added

@@ -457,6 +457,31 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Evaluate: GM macro `macros/evaluate-decay.js` (or `game.sr2e.degradeEvaluate()`) takes ⌈1D6 ÷ 2⌉ off every
       evaluate program once; Resume on the card adds nothing; the program row's "−N" buys points back for Karma.
 
+### 10g. VR2.0 part 5b: utility options and programming (`sr2e.vr2-options` batch; docs/PLAN-vr2-part5b.md)
+Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
+- [ ] Program sheet: Options section; Attack-6M with Skulk-4 shows size 300 (design 300 Mp) and 60,000¥; squeeze on an
+      Attack is struck through ("not an option of this utility"); Limit without a target type is struck through.
+- [ ] Buying an optioned program from a compendium charges the option price.
+- [ ] Attack with Targeting: −2 TN. Penetration vs shield IC: no +2; vs shift IC: +4. Chaser vs shift: no +2; vs shield: +4.
+- [ ] Penetration vs a decker with Shield loaded: no Shield prompt.
+- [ ] Area-2 Attack with two IC targeted: the dialog lists the second one to tick; one Attack Test, two cards, each with
+      its own TN (+2) and success count; the roll's Karma buttons say GM adjudication. Armor (IC armor or the persona's
+      Armor utility) gets +2 more against it.
+- [ ] Limit: IC program isn't offered against a decker.
+- [ ] One-shot: fires once ("spent" on the row), a second attack doesn't offer it; Swap Memory reloads. A one-shot
+      Camo spent by an IC trace hunt; a one-shot Cloak by your maneuver; a one-shot Lock-On by your Sensor test.
+- [ ] Tar wins against a one-shot utility: every one-shot copy of it crashes; a copy loaded afterwards doesn't.
+- [ ] Skulk-3 Attack crashes a Rating-4 IC: "Let it register (+1)".
+- [ ] DINAB: "Run by DINAB" in the System Operation dialog and the attack dialog (Free Action, no pools/Karma);
+      the row shows "DINAB n"; a lost System Test or a miss → n−1; all 1s → crashed; Swap Memory restores. In combat,
+      the DINAB run and your own run of the same program in one phase: the second is refused.
+- [ ] Squeeze: "compressed" on the row, not offered until Decompress (Complex Action); unload/reload → compressed again.
+- [ ] Sensitive (manufacturer Mitsuhama) on a host whose Manufacturer is Fuchi: not usable there; on a Mitsuhama host: usable.
+- [ ] Programming (</> on a program row): start → Computer (rating) test; Log days (tools / team bonuses) → the period
+      freezes on the first log ("writing d/p" on the row); rating edits refused while writing; complete → usable.
+      Black Hammer above ⌈Computer ÷ 2⌉ refused; a team over ⌊best ÷ 2⌋ members refused. Abandon (⊘) unlocks the design.
+- [ ] Setting off: no Options section, no Area/DINAB in dialogs, sizes and prices as before.
+
 ## 10c. Map areas on Foundry v14 (v16 prep)
 - [ ] On v14: a grenade blast, a shotgun spread, an area spell, Poltergeist, Ice Sheet and a ritual area each appear as a Region of the right shape; a player's own area is theirs to move or delete.
 - [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.
