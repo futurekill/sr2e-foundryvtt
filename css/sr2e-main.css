@@ -549,23 +549,12 @@
   color: var(--sr2e-essence);
 }
 
-.sr2e-sheet-header .hstat-input {
-  width: 52px;
-  font-size: 14px;
-  font-weight: bold;
-  font-family: var(--sr2e-font);
-  text-align: center;
-  background: transparent;
-  border: none;
-  color: var(--sr2e-gold);
-  padding: 0;
-}
-
 /* Nuyen runs to seven digits or more: a wider column, and the readout never wraps. */
 .sr2e-sheet-header .header-stat.nuyen-stat {
   flex: 1.5;
 }
-.sr2e-sheet-header .nuyen-value {
+.sr2e-sheet-header .nuyen-value,
+.sr2e-sheet-header .karma-value {
   white-space: nowrap;
 }
 .sr2e-sheet-header .hstat-edit {
@@ -579,13 +568,6 @@
 .sr2e-sheet-header .hstat-edit:hover,
 .sr2e-sheet-header .hstat-edit:focus-visible {
   color: var(--sr2e-highlight);
-}
-
-.sr2e-sheet-header .hstat-input:focus {
-  background: var(--sr2e-bg-input);
-  box-shadow: none;
-  border: 1px solid var(--sr2e-highlight);
-  border-radius: 2px;
 }
 
 /* Wound Level Colours */

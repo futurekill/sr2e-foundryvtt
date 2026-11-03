@@ -3792,6 +3792,20 @@ async function onClearBioHeal(event, target) {
   this.render();
 }
 
+/** The header readouts' pen buttons: add/subtract or set a whole number. Null if cancelled. */
+async function amountDialog(title, balance, unit) {
+  return foundry.applications.api.DialogV2.prompt({
+    window: { title },
+    content: `<div>
+      <p>Now: <strong>${(balance ?? 0).toLocaleString()}${unit}</strong></p>
+      <div class="form-group"><label><input type="radio" name="mode" value="add" checked> Add / subtract</label>
+        <label><input type="radio" name="mode" value="set"> Set to</label></div>
+      <div class="form-group"><label>Amount${unit ? ` (${unit})` : ""}:</label><input type="number" name="amount" step="1" autofocus placeholder="e.g. 5 or -2"></div>
+    </div>`,
+    ok: { label: "Apply", callback: (e, b) => ({ mode: b.form.elements.mode.value, amount: Math.round(Number(b.form.elements.amount.value) || 0) }) }
+  }).catch(() => null);
+}
+
 const SHARED_ACTIONS = {
   // Shapeshifters (Companion pp.36–38; docs/PLAN-shapeshifters.md)
   shiftForm: async function(event, target) {
@@ -4494,19 +4508,24 @@ const SHARED_ACTIONS = {
    */
   editNuyen: async function(event, target) {
     const actor = this.document;
-    const pick = await foundry.applications.api.DialogV2.prompt({
-      window: { title: `${actor.name}: Nuyen` },
-      content: `<div>
-        <p>Balance: <strong>${(actor.system.nuyen ?? 0).toLocaleString()}¥</strong></p>
-        <div class="form-group"><label><input type="radio" name="mode" value="add" checked> Add / subtract</label>
-          <label><input type="radio" name="mode" value="set"> Set to</label></div>
-        <div class="form-group"><label>Amount (¥):</label><input type="number" name="amount" step="1" autofocus placeholder="e.g. 5000 or -1200"></div>
-      </div>`,
-      ok: { label: "Apply", callback: (e, b) => ({ mode: b.form.elements.mode.value, amount: Math.round(Number(b.form.elements.amount.value) || 0) }) }
-    }).catch(() => null);
+    const pick = await amountDialog(`${actor.name}: Nuyen`, actor.system.nuyen, "¥");
     if (!pick) return;
     const ok = await moneyQueue(actor, () => adjustNuyen(actor, pick.mode === "set" ? pick.amount - (actor.system.nuyen ?? 0) : pick.amount), "nuyen edit");
     if (!ok) ui.notifications.warn("That would take nuyen below 0 — not changed.");
+  },
+
+  /**
+   * Change Good Karma by hand (add/subtract or set), against the live value. Total Earned stays
+   * the Bio tab's own field: this doesn't guess whether a change is an award or a correction.
+   * @this {ApplicationV2}
+   */
+  editKarma: async function(event, target) {
+    const actor = this.document;
+    const pick = await amountDialog(`${actor.name}: Good Karma`, actor.system.karma.current, "");
+    if (!pick) return;
+    const next = pick.mode === "set" ? pick.amount : (actor.system.karma.current ?? 0) + pick.amount;
+    if (next < 0) return ui.notifications.warn("That would take Good Karma below 0 — not changed.");
+    await actor.update({ "system.karma.current": next });
   },
 
   /**

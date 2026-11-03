@@ -881,6 +881,8 @@ If those five all work, the core loop is healthy.
 - Live: the header shows nuyen read-only with separators (12,345,678); its pen button adds/subtracts
   or sets it, against the live balance (verified 2026-11-03: −1,200 applied; money-queue 14/14,
   sheets/persistence/sheet-save 12/12).
+- Live: Good Karma's header pen works the same (verified 2026-11-03: 37 + 5 → 42, Total Earned
+  untouched; money-queue + sheets + persistence + sheet-save 27/27). Below 0 is refused.
 
 ## GitHub #19–#22 (0.117.0)
 - #19: a Knowledge skill at 4 in creation raises Skills spent by 4; a language marked

@@ -121,7 +121,7 @@
       </div>
       <div class="header-stat" title="Good Karma available to spend on advancement">
         <span class="hstat-label">Good Karma</span>
-        <input type="number" name="system.karma.current" value="{{system.karma.current}}" min="0" class="hstat-input" />
+        <span class="hstat-value karma-value">{{grouped system.karma.current}}{{#if editable}}<button type="button" class="hstat-edit" data-action="editKarma" data-tooltip="Add, subtract or set Good Karma" aria-label="Change Good Karma"><i class="fas fa-pen-to-square"></i></button>{{/if}}</span>
       </div>
       <div class="header-stat" title="Karma Pool — derived: Career Karma ÷ 10 rounded up, less Karma permanently spent buying successes. Returns each encounter (SR2E p.191).">
         <span class="hstat-label">Karma Pool</span>

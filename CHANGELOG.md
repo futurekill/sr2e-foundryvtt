@@ -20,9 +20,10 @@
   and Killjoy: half your Computer, rounded up) and team limits are checked.
 
 ### Changed
-- The character sheet shows nuyen as a read-only readout with thousands separators (no more
-  widening the box for big balances). The pen button next to it adds, subtracts or sets the
-  balance, through the money queue.
+- The character sheet header shows nuyen and Good Karma as read-only readouts with thousands
+  separators (no more widening the box for big balances). The pen button next to each adds,
+  subtracts or sets it; nuyen goes through the money queue. Total Earned is still edited on the
+  Bio tab.
 - The sound-effect generators pin ElevenLabs `eleven_text_to_sound_v3` (v2 is deprecated,
   retiring 2027-02-01). Shipped sounds are unchanged.
 

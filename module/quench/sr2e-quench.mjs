@@ -13209,6 +13209,24 @@ export function registerSR2EQuenchTests() {
           } finally { foundry.applications.api.DialogV2.prompt = prompt; }
           await a.sheet.close();
         });
+        it("Good Karma: a read-only readout; add, set, and a refusal below 0", async function () {
+          this.timeout(8000);
+          const a = await buyer("Quench Karma Field", 0);
+          await a.update({ "system.karma.current": 10 });
+          await a.sheet.render(true);
+          await settle(() => a.sheet.element?.querySelector('[data-action="editKarma"]'), 3000);
+          assert.notOk(a.sheet.element.querySelector('.sr2e-sheet-header input[name="system.karma.current"]'), "no editable header field");
+          const prompt = foundry.applications.api.DialogV2.prompt;
+          const answers = [{ mode: "add", amount: 5 }, { mode: "add", amount: -20 }, { mode: "set", amount: 3 }];
+          foundry.applications.api.DialogV2.prompt = async () => answers.shift();
+          try {
+            const run = () => a.sheet.options.actions.editKarma.call(a.sheet, new Event("click"), null);
+            await run(); assert.equal(a.system.karma.current, 15, "add");
+            await run(); assert.equal(a.system.karma.current, 15, "below 0 refused");
+            await run(); assert.equal(a.system.karma.current, 3, "set");
+          } finally { foundry.applications.api.DialogV2.prompt = prompt; }
+          await a.sheet.close();
+        });
       });
     }, { displayName: "SR2E: Money queue" });
 
