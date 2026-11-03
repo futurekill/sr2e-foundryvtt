@@ -24,8 +24,10 @@
   separators (no more widening the box for big balances). The pen button next to each adds,
   subtracts or sets it; nuyen goes through the money queue. Total Earned is still edited on the
   Bio tab.
-- The sound-effect generators pin ElevenLabs `eleven_text_to_sound_v3` (v2 is deprecated,
-  retiring 2027-02-01). Shipped sounds are unchanged.
+- Combat sounds: 26 of the 34 are regenerated with ElevenLabs `eleven_text_to_sound_v3` (picked
+  by ear against the old ones; heavy-auto, smg-burst, rifle-burst, rifle-auto, taser-single,
+  melee, thrown and spell-illusion keep their v2 sound). The sound-effect generators now pin v3
+  (v2 is deprecated, retiring 2027-02-01).
 
 ## 0.128.0 — 2026-10-30
 
