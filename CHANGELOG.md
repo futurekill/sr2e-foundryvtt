@@ -19,6 +19,13 @@
   days of work are logged with tools or a team, and the program is usable once it's done. Rating caps (Black Hammer
   and Killjoy: half your Computer, rounded up) and team limits are checked.
 
+### Changed
+- The character sheet shows nuyen as a read-only readout with thousands separators (no more
+  widening the box for big balances). The pen button next to it adds, subtracts or sets the
+  balance, through the money queue.
+- The sound-effect generators pin ElevenLabs `eleven_text_to_sound_v3` (v2 is deprecated,
+  retiring 2027-02-01). Shipped sounds are unchanged.
+
 ## 0.128.0 — 2026-10-30
 
 ### Added

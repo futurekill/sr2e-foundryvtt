@@ -878,7 +878,9 @@ If those five all work, the core loop is healthy.
 - Quench `sr2e.money-queue` and `sr2e.eye-accessory-drop` (delayed/failing writes are stubbed).
 - Live: drag Low-Light Vision from the Cyberware compendium onto a Cybereyes row on the Gear
   tab → a row in the eye, 3,750¥ charged, Essence unchanged; the row's × refunds it.
-- Live: type a new value into the nuyen field while a purchase settles → both land.
+- Live: the header shows nuyen read-only with separators (12,345,678); its pen button adds/subtracts
+  or sets it, against the live balance (verified 2026-11-03: −1,200 applied; money-queue 14/14,
+  sheets/persistence/sheet-save 12/12).
 
 ## GitHub #19–#22 (0.117.0)
 - #19: a Knowledge skill at 4 in creation raises Skills spent by 4; a language marked

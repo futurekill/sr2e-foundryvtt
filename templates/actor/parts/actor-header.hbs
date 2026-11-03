@@ -117,7 +117,7 @@
       </div>
       <div class="header-stat nuyen-stat">
         <span class="hstat-label">{{localize "SR2E.Nuyen"}} (¥)</span>
-        <input type="number" name="system.nuyen" value="{{system.nuyen}}" class="hstat-input" />
+        <span class="hstat-value nuyen-value">{{grouped system.nuyen}}{{#if editable}}<button type="button" class="hstat-edit" data-action="editNuyen" data-tooltip="Add, subtract or set nuyen" aria-label="Change nuyen"><i class="fas fa-pen-to-square"></i></button>{{/if}}</span>
       </div>
       <div class="header-stat" title="Good Karma available to spend on advancement">
         <span class="hstat-label">Good Karma</span>

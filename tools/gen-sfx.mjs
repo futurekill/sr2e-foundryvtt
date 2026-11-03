@@ -46,7 +46,7 @@ if (!process.argv.includes("--manifest") && !process.argv.includes("--normalize"
     if (existsSync(file)) continue;
     const res = await fetch("https://api.elevenlabs.io/v1/sound-generation", {
       method: "POST", headers: { "xi-api-key": KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ text, duration_seconds: Math.max(0.5, seconds), prompt_influence: 0.6 })
+      body: JSON.stringify({ text, duration_seconds: Math.max(0.5, seconds), prompt_influence: 0.6, model_id: "eleven_text_to_sound_v3" })
     });
     if (!res.ok) throw new Error(`${key}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
     const raw = path.join(OUT, `${key}.raw.mp3`);

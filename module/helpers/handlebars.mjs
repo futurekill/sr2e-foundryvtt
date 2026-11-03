@@ -55,6 +55,9 @@ export function registerHandlebarsHelpers() {
       `${street}¥ <span class="price-base" title="List price before Street Index ×${si}">(${base}¥ list)</span>`);
   });
 
+  /** A whole number with thousands separators, in the user's locale (12,345,678). */
+  Handlebars.registerHelper("grouped", (n) => Math.round(Number(n) || 0).toLocaleString(game.i18n.lang));
+
   /**
    * Math operations.
    */

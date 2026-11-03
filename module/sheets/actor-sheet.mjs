@@ -420,23 +420,6 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     for (const input of this.element.querySelectorAll("input[name], select[name], textarea[name]")) {
       if (input.closest("[data-item-id]")) continue;
       if (input.name !== "name" && !input.name.startsWith("system.")) continue;
-      // Nuyen is edited as a CHANGE against what this field last showed, applied to the
-      // live balance in the money queue — so a typed edit can't overwrite a charge that
-      // landed meanwhile, and quick successive edits chain (docs/PLAN-money-queue-…, A2).
-      if (input.name === "system.nuyen") {
-        input.dataset.prev = String(this.document.system.nuyen ?? 0);
-        input.addEventListener("change", (event) => {
-          event.stopPropagation();
-          const typed = Math.round(parseFloat(input.value) || 0);
-          const delta = typed - (Number(input.dataset.prev) || 0);
-          input.dataset.prev = String(typed);
-          if (!delta) return;
-          moneyQueue(this.document, () => adjustNuyen(this.document, delta), "nuyen field").then(ok => {
-            if (!ok) { ui.notifications.warn("That would take nuyen below 0 — not changed."); this.render(); }
-          });
-        });
-        continue;
-      }
       // NPC Essence: a blank or non-numeric entry saves nothing (the generic path would write 0, which
       // the substance rules read as death), and a refused update re-renders (docs/PLAN-npc-essence.md).
       if (input.name === "system.essence.value") {

@@ -4488,6 +4488,28 @@ const SHARED_ACTIONS = {
   },
 
   /**
+   * Change nuyen by hand: add/subtract an amount, or set the balance. Both run in the money
+   * queue against the LIVE balance, so a purchase landing meanwhile isn't overwritten.
+   * @this {ApplicationV2}
+   */
+  editNuyen: async function(event, target) {
+    const actor = this.document;
+    const pick = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `${actor.name}: Nuyen` },
+      content: `<div>
+        <p>Balance: <strong>${(actor.system.nuyen ?? 0).toLocaleString()}¥</strong></p>
+        <div class="form-group"><label><input type="radio" name="mode" value="add" checked> Add / subtract</label>
+          <label><input type="radio" name="mode" value="set"> Set to</label></div>
+        <div class="form-group"><label>Amount (¥):</label><input type="number" name="amount" step="1" autofocus placeholder="e.g. 5000 or -1200"></div>
+      </div>`,
+      ok: { label: "Apply", callback: (e, b) => ({ mode: b.form.elements.mode.value, amount: Math.round(Number(b.form.elements.amount.value) || 0) }) }
+    }).catch(() => null);
+    if (!pick) return;
+    const ok = await moneyQueue(actor, () => adjustNuyen(actor, pick.mode === "set" ? pick.amount - (actor.system.nuyen ?? 0) : pick.amount), "nuyen edit");
+    if (!ok) ui.notifications.warn("That would take nuyen below 0 — not changed.");
+  },
+
+  /**
    * Open a FilePicker to change the actor portrait.
    * In V13 ApplicationV2, data-edit="img" is not automatically handled,
    * so we wire it up via data-action="editImage".

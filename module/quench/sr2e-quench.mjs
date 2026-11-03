@@ -13189,18 +13189,24 @@ export function registerSR2EQuenchTests() {
         });
       });
 
-      describe("the sheet's nuyen field is a change, not a value", () => {
-        it("quick successive edits chain onto the live balance", async function () {
+      describe("the sheet's nuyen button adjusts the live balance", () => {
+        it("shows a read-only readout; add and set both land against the live balance", async function () {
           this.timeout(8000);
           const a = await buyer("Quench Money Field", 1000);
           await a.sheet.render(true);
-          await settle(() => a.sheet.element?.querySelector('input[name="system.nuyen"]'), 3000);
-          const input = a.sheet.element.querySelector('input[name="system.nuyen"]');
-          await game.sr2e.adjustNuyen(a, 5000);   // lands after the render: the field still shows 1000
-          input.value = "1100"; input.dispatchEvent(new Event("change", { bubbles: true }));
-          input.value = "1200"; input.dispatchEvent(new Event("change", { bubbles: true }));
-          await game.sr2e.moneySettled(a);
-          assert.equal(a.system.nuyen, 6200, "5000 + 100 + 100, nothing overwritten");
+          await settle(() => a.sheet.element?.querySelector('[data-action="editNuyen"]'), 3000);
+          assert.notOk(a.sheet.element.querySelector('input[name="system.nuyen"]'), "no editable field");
+          const prompt = foundry.applications.api.DialogV2.prompt;
+          const answers = [{ mode: "add", amount: 100 }, { mode: "set", amount: 250 }];
+          foundry.applications.api.DialogV2.prompt = async () => answers.shift();
+          try {
+            await game.sr2e.adjustNuyen(a, 5000);   // lands before the add: the add must chain onto it
+            const btn = a.sheet.element.querySelector('[data-action="editNuyen"]');
+            await a.sheet.options.actions.editNuyen.call(a.sheet, new Event("click"), btn);
+            assert.equal(a.system.nuyen, 6100, "5000 + 1000 + 100, nothing overwritten");
+            await a.sheet.options.actions.editNuyen.call(a.sheet, new Event("click"), btn);
+            assert.equal(a.system.nuyen, 250, "set");
+          } finally { foundry.applications.api.DialogV2.prompt = prompt; }
           await a.sheet.close();
         });
       });
