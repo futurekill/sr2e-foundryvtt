@@ -208,6 +208,12 @@ explained so the user can override them.
 
    Which Subsystem Test the set needs is the GM's pick, as the book says, with Control as the default.
 
+## Documentation (part of done)
+- **Wiki:** "The Matrix" section, plus a How-To-Guides walkthrough for anything that takes the GM or the decker more
+  than one step, with screenshots and a GIF of the flow in use.
+- **In Foundry:** `npm run gen-guides && npm run build-packs guides` ships the how-to, with its images, in the SR2E
+  Player Guides pack.
+
 ## Out of scope
 - True AI (p.141–142: GM fiat).
 - Otaku complex forms and sprites.

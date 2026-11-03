@@ -187,6 +187,14 @@ fails there), so the relay was removed. Don't re-add a socket relay without
 first confirming `system.*` messages actually deliver in the target deployment.
 See docs/PLAN-summon-placement-movement.md.
 
+## Documentation
+A feature isn't done until it's documented for users, with screenshots and (for anything with motion or several
+steps) an animated GIF: the GitHub wiki (`../sr2e-foundryvtt.wiki`, its own repo; push it WITH the release that ships
+the feature), and a How-To-Guides section for anything that takes the GM or a player more than one step. The wiki's
+How-To-Guides.md is the single source for the in-Foundry guides: `npm run gen-guides && npm run build-packs guides`
+turns it into the "How-To Guides" journal (SR2E Player Guides pack), copying its images to `assets/guides/`. Never
+edit that journal's packs-src JSON by hand.
+
 ## Known deferred work
 VR2.0 Matrix (optional `matrixRuleset`): parts 1–2 (docs/PLAN-vr2-core.md, PLAN-vr2-part2.md)
 and part 3, the rest of the IC (docs/PLAN-vr2-part3.md, `module/vr2ic.mjs`,

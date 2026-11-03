@@ -946,3 +946,7 @@ If those five all work, the core loop is healthy.
 - [ ] (0.125.1) Defend in melee as a wolf-form NPC shapeshifter: no "Unarmed" option; open the dialog in
   human form, shift, then roll: warned, no roll.
 
+## In-Foundry How-To Guides (tools/gen-guides.mjs)
+- `npm run gen-guides && npm run build-packs guides`: "How-To Guides" in SR2E Player Guides has one page per wiki
+  How-To-Guides section; images and GIFs load from systems/sr2e/assets/guides (verified 2026-11-03: 5 pages, the
+  jackpoint GIF plays); wiki links open the GitHub wiki.

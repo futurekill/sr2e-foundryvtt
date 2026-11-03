@@ -186,6 +186,12 @@ Sources (rendered, image-only PDF; book = PDF − 8):
 5. The PDF's North American / Overseas tables need a second careful pass at 300 dpi before transcription. Dense tables
    misalign ([[sr2e-source-captures]]).
 
+## Documentation (part of done)
+- **Wiki:** "The Matrix" section, plus a How-To-Guides walkthrough for anything that takes the GM or the decker more
+  than one step, with screenshots and a GIF of the flow in use.
+- **In Foundry:** `npm run gen-guides && npm run build-packs guides` ships the how-to, with its images, in the SR2E
+  Player Guides pack.
+
 ## Out of scope
 - The optional Bandwidth rule (p.90–91): a separate later part (deck construction).
 - Matrix Law (p.132).

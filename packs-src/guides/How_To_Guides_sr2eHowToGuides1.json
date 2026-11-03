@@ -1,0 +1,149 @@
+{
+  "_id": "sr2eHowToGuides1",
+  "name": "How-To Guides",
+  "folder": null,
+  "sort": 50000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.0.1",
+    "createdTime": 1782000000000,
+    "modifiedTime": 1782000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "pages": [
+    {
+      "_id": "2ee6f48dadf6f3ab",
+      "name": "Set up a Matrix jackpoint",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> the decker walks up to a terminal on the map, jacks in, and only their screen\nmoves to a Matrix map. Everyone else stays in meat space.</p>\n<p><img src=\"systems/sr2e/assets/guides/jackpoint-jack-in.gif\" alt=\"The decker walks to the desk terminal, opens the token HUD, clicks Jack in, and their view moves to the Matrix scene\"></p>\n<p><strong>GM, once per location</strong></p>\n<ol>\n<li><p><strong>Make the Matrix scene.</strong> A new scene with the host&#39;s map (any image works; a dark\nscene with a coloured grid is fine). Give the players <strong>Limited</strong> or <strong>Observer</strong>\npermission on it, or their view can&#39;t follow. Draw a <strong>Region</strong> where personas arrive\n(the &quot;entry area&quot;). No behaviour is needed on it.</p>\n</li>\n<li><p><strong>Mark the jackpoint.</strong> On the real scene, draw a Region over the terminal or data\nport, where the decker will stand. In its config, <strong>Behaviors → +</strong> and pick\n<strong>Matrix jackpoint</strong>, then fill in:</p>\n<ul>\n<li><strong>Entry area on the Matrix scene</strong>: drag the entry Region from step 1 onto the\nfield (or paste its UUID).</li>\n<li><strong>What it is</strong> (optional): the text on the Jack in button, e.g. &quot;Strice\nmainframe port&quot;.</li>\n<li><strong>Host</strong> (optional): the Host actor the decker is most likely working against.</li>\n<li><strong>Trace modifier (VR2.0)</strong> (optional): added to the decker&#39;s Trace Factor here\n(Virtual Realities 2.0 p.28).</li>\n</ul>\n<p>When you save, the system warns you if the entry area is missing or no player can\nsee the Matrix scene.</p>\n<p><img src=\"systems/sr2e/assets/guides/jackpoint-config.jpg\" alt=\"The Matrix jackpoint behaviour, pointing at the entry Region on the Matrix scene\"></p>\n</li>\n<li><p><strong>Place each decker&#39;s persona once.</strong> Drag the decker&#39;s character onto the Matrix\nscene (a linked token, inside or near the entry area). Right-click it and click the\n<strong>astronaut</strong> button: <strong>Matrix persona</strong>. That also turns its vision on. It stays\nthere for every run; while nobody is jacked in it is dimmed.</p>\n</li>\n</ol>\n<p><strong>At the table</strong></p>\n<ol>\n<li><p>The decker moves their token into the jackpoint Region.</p>\n</li>\n<li><p>They right-click their token: the HUD now has a <strong>network-port</strong> button, <strong>Jack in: (what\nit is)</strong>. If it&#39;s greyed out, hover it for the reason (no working cyberdeck, no\npersona placed, not standing in the Region, …).</p>\n</li>\n<li><p>They click it. Matrix mode goes on, a chat line says where they jacked in, and only\nthat player&#39;s screen switches to the Matrix scene, centred on their persona.</p>\n</li>\n<li><p>Their body stays on the map with a <strong>cyan outline</strong>, so everyone can see who is\njacked in (and vulnerable).</p>\n<p><img src=\"systems/sr2e/assets/guides/jackpoint-body.jpg\" alt=\"The body left behind at the desk, outlined in cyan\"></p>\n</li>\n<li><p>To come back: <strong>Jack out</strong> (the plug with an ✕, where the Jack in button was) on the persona or the body. Dump\nshock, or the GM turning off Matrix mode on the sheet, also brings them back.</p>\n<p><img src=\"systems/sr2e/assets/guides/jackpoint-persona-hud.jpg\" alt=\"The persona's token HUD: the GM's Matrix persona marker and the Jack out button\"></p>\n</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>Player characters with linked tokens only. For an NPC decker, use the Matrix mode\ntoggle on its sheet.</li>\n<li>The sheet&#39;s own <strong>Jack In</strong> button never moves anyone&#39;s view: it&#39;s for tables that\ndon&#39;t use Matrix maps.</li>\n<li>A player can only follow one jacked-in character per browser window. A reload while\njacked in puts them straight back on the Matrix scene.</li>\n<li>Deleting the jackpoint, its Region or the Matrix scene ends any live session there.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
+    },
+    {
+      "_id": "81ee9099e02867d6",
+      "name": "Set up a fat-bacteria zone",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a corp facility has fat bacteria (FAB) in its walls and air. Astral intruders\nslow to a crawl inside, assensing from inside is harder, and with FAB-UV the guards can\nlight it up and <em>see</em> a projecting mage (Corporate Security Handbook p.103).</p>\n<p><strong>GM, once per facility</strong></p>\n<ol>\n<li>On the scene, draw a <strong>Region</strong> over the FAB-filled space (a room, a vault, the\nwhole floor).</li>\n<li>In its config, <strong>Behaviors → +</strong> and pick <strong>Fat bacteria zone</strong>. Choose the\n<strong>Strain</strong>:<ul>\n<li><strong>FAB-1</strong>: restricts astral movement only.</li>\n<li><strong>FAB-UV (glows under UV)</strong>: also reveals astral intruders when the UV lights are on.</li>\n</ul>\n</li>\n<li>Optional: set the Region&#39;s <strong>Visibility</strong> to <em>Always</em> if the players should see the\nzone drawn on the map (by default only the GM sees Regions, on the Regions layer).</li>\n<li>If the FAB is also in the walls, give those walls <strong>Astral barrier → Fat bacteria</strong>\nin their wall config: they then stop astral forms like a living wall\n(<a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/Astral-Space\">Astral Space</a>).</li>\n</ol>\n<p><img src=\"systems/sr2e/assets/guides/fab-config.jpg\" alt=\"The Fat bacteria zone behaviour: strain, UV lights, and the search button\"></p>\n<p><strong>What it does on its own</strong></p>\n<ul>\n<li><strong>Movement:</strong> an astral form inside the zone is held to normal astral speed. Outside,\na projecting magician can switch on <strong>fast astral movement</strong> from the form&#39;s token\nHUD (the ⏩ button): Magic in kilometres per action, but they can&#39;t assense or see\ndetail. The speed caps are enforced in combat when <em>Limit movement in combat</em> is on\n(Game Settings).</li>\n<li><strong>Assensing:</strong> the <strong>eye</strong> button on an astrally active token&#39;s HUD rolls Assense\n(Sorcery or Conjuring, p.146). From inside the zone it takes <strong>+4</strong> to the TN, shown\non the roll.</li>\n<li>Spellcasting and astral combat are not affected (the book).</li>\n</ul>\n<p><img src=\"systems/sr2e/assets/guides/fab-astral-form.gif\" alt=\"An astral form moving into the zone; its HUD shows Assense (+4 inside) and fast astral movement\"></p>\n<p><strong>Lighting it up (FAB-UV only)</strong></p>\n<ol>\n<li>When the guards hit the UV, open the behaviour (Region config → the behaviour&#39;s\ngear) and tick <strong>UV lights on</strong>. Save.</li>\n<li>Select the guards doing the search (mundane tokens with an actor). Then click\n<strong>Search for astral intruders (selected tokens search)</strong> at the bottom of the\nbehaviour&#39;s config.</li>\n<li>In the dialog, pick who rolls (the others lower the TN) and tick any intruder that\nknows it&#39;s being searched for: an aware intruder rolls Stealth against it.</li>\n<li>The roll: <strong>Perception (Intelligence), TN 6, +1 per 50 m² of zone, −1 per two\nsearchers</strong>. The result goes to the GM in chat. Each intruder spotted becomes\n<strong>visible to everyone</strong> while it stays in the lit zone. Attacks against it are at\n+4, −1 per success beyond the first.</li>\n</ol>\n<p><img src=\"systems/sr2e/assets/guides/fab-uv-search.gif\" alt=\"The GM selects the guard, runs the search, and the spotted intruder shows up in the GM's chat\"></p>\n<p><img src=\"systems/sr2e/assets/guides/fab-uv-reveal.jpg\" alt=\"A player's view of the same zone before and after a successful search\"></p>\n<p><em>Tips</em></p>\n<ul>\n<li>The reveal ends as soon as the intruder leaves the zone, the UV goes off, or the\nbehaviour is disabled. Coming back in, or relighting, needs a new search.</li>\n<li>Astral tokens of <strong>friendly</strong> disposition, and ones a player owns, are always\nvisible to that player. Give an intruder <strong>hostile</strong> or <strong>neutral</strong> disposition, or\nthe players will see it before anyone searches.</li>\n<li>An unlinked NPC mage on the astral plane: mark its token <strong>astral-only</strong> from the\ntoken HUD (the crossed-out eye button) so mundane viewers can&#39;t see it.</li>\n</ul>\n"
+      }
+    },
+    {
+      "_id": "2f8dc1516aa0d4b3",
+      "name": "Run a ritual",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 300000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a magician (and anyone who knows the same spell) casts a non-combat spell by\nritual sorcery (p.133–137). The GM runs it; players roll when asked.</p>\n<p><img src=\"systems/sr2e/assets/guides/ritual-start.jpg\" alt=\"The ritual worksheet\"></p>\n<ol>\n<li><strong>Open the worksheet.</strong> On the leader&#39;s <strong>Magic</strong> tab, the GM clicks the ritual\nbutton (the circle of nodes) on the spell&#39;s row. Combat spells don&#39;t have one.</li>\n<li><strong>Fill it in.</strong><ul>\n<li><strong>Force</strong> and the <strong>leader&#39;s Magic Pool dice</strong>.</li>\n<li><strong>Members</strong>: every other character who knows the spell is listed. Tick the ones\ntaking part and set their pool dice. Pick an <strong>astral guide</strong> if one is used.</li>\n<li><strong>Subject</strong>: a targeted character, a specific place or object, or (area spells)\nan area you click on the map. Name it.</li>\n<li>Tick <strong>Target in sight or astrally observed</strong> if no material link is needed\n(p.136), and the <strong>lodge / circle</strong> box if one rated at least the Force is ready.</li>\n<li>The <strong>materials</strong> cost is shown: it&#39;s spent whatever happens.</li>\n</ul>\n</li>\n<li><strong>Start.</strong> The system checks the book&#39;s requirements and whispers the GM a ritual\ncard. Everything from here is on that card, so the ritual can always be resumed\nfrom chat.</li>\n<li><strong>Pay for materials.</strong> <strong>Charge materials</strong> takes the nuyen from the leader;\n<strong>Materials supplied</strong> if they&#39;re already on hand.</li>\n<li><strong>Material link</strong> (skipped if the target is in sight). The test is rolled; players\nmay spend Karma on it. Then <strong>Finalise link</strong>.</li>\n<li><strong>Sending.</strong> Roll, then <strong>Finalise sending</strong>. Each stage records the time it took.\nThe GM advances world time.</li>\n<li><strong>Determine the effect.</strong> Choose how many Ritual Magic Pool dice to use and the TN,\nroll, then <strong>Finalise effect</strong>. <strong>Publish the effect</strong> posts the result (resist\ncards, healing, an area).</li>\n<li><strong>Sustaining</strong> (sustained spells): <strong>Sustaining</strong> asks how. Not at all, with leftover\npool dice (dice × the leader&#39;s Magic in hours), by an elemental (Force days), or with\nthe team locked in (+2 to every member&#39;s Drain test).</li>\n<li><strong>Drain.</strong> Every member gets a <strong>Resist Drain</strong> button on the card. Each rolls,\nthen <strong>Finalise</strong> applies their damage.</li>\n</ol>\n<p><em>If something goes wrong:</em> <strong>Withdraw a member</strong>, <strong>Guide driven off</strong> and\n<strong>Terminate</strong> are on the card during the link, sending and effect stages. A stage with\nno successes aborts the ritual, and everyone still resists Drain (p.135).</p>\n"
+      }
+    },
+    {
+      "_id": "ae9f2b98ac95a667",
+      "name": "Conjure and use an elemental",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 400000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a hermetic mage summons an elemental (p.140–142) and uses its services.</p>\n<ol>\n<li><strong>Summon.</strong> On the Magic tab, click <strong>Summon Elemental</strong>. Pick the element and the\nForce. The rite&#39;s materials cost 1,000¥ × Force and are used up whether or not it\nworks (untick <strong>Pay materials</strong> if the GM supplies them). Roll Conjuring, then resist the\nCharisma-based Drain.<ul>\n<li>Players need the GM to give them <strong>Create New Actors</strong> (Game Settings → Configure\nPermissions), or the summon stops before anything is rolled.</li>\n</ul>\n</li>\n<li><strong>It arrives away.</strong> The bound elemental is listed under <strong>Spirits</strong> with its\nservices, but it has no token yet.</li>\n<li><strong>Call it.</strong> Open the elemental&#39;s sheet and click <strong>Call</strong>. It appears on the map\nand its 24-hour clock starts.</li>\n<li><strong>Use it.</strong><ul>\n<li><strong>Fight for me</strong>: one service for the whole fight. <strong>Stand down</strong> when it&#39;s over.</li>\n<li><strong>Aid Sorcery</strong>: when casting a spell of its element&#39;s category, the cast dialog\nhas an <strong>Aid Sorcery</strong> section. Choose the elemental and how many of its dice go\nto the spell test and to Drain. Each die lowers its Force; starting the aid costs\na service.</li>\n<li><strong>Aid Study</strong>: the Learn a spell dialog offers its Force in dice, once per spell\n(1 service).</li>\n<li><strong>Sustain a spell</strong>: on a sustained spell&#39;s row, click the hand icon. The\nelemental holds it (1 service), you lose the +2 TN, and it burns one point of\nForce per Combat Turn. Take the spell back (same icon) before its Force runs out,\nor the spell ends.</li>\n</ul>\n</li>\n<li><strong>Days.</strong> Each full day it&#39;s present costs a service: <strong>Charge day(s)</strong> when the\nsheet says it&#39;s owed.</li>\n<li><strong>Send away</strong> returns it to astral space, on call. <strong>Re-call (1 service)</strong> brings it\nback at full Force. When the last service is spent, it departs.</li>\n</ol>\n<p>See <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/Spirits-and-Conjuring\">Spirits and Conjuring</a> for nature spirits and banishing.</p>\n"
+      }
+    },
+    {
+      "_id": "31787ed8fedde570",
+      "name": "Track a character's addiction",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> the Shadowtech drug rules (p.85–88) run themselves on game time.\nNeeds the <strong>Shadowtech</strong> module.</p>\n<p><img src=\"systems/sr2e/assets/guides/substances.jpg\" alt=\"The Substances section\"></p>\n<ol>\n<li><strong>Take a dose.</strong> On the Gear tab, the syringe on the drug&#39;s row uses one dose: it\nrolls the duration and applies the effects. <strong>Active drugs</strong> shows the time left.</li>\n<li><strong>Addiction and Tolerance tests.</strong> When the effect ends, a card offers the tests.\nThe player rolls them from the card.</li>\n<li><strong>Watch the Substances section.</strong> It lists each drug: doses taken, current\nAddiction and Tolerance (the printed values in brackets), whether the character is\naddicted (Physical, Mental or both), and when the next dose is due.</li>\n<li><strong>Advance time.</strong> The section follows the GM&#39;s world clock. Advancing time in\nFoundry (or with Calendaria) makes doses come due, withdrawal start, and boxes or\nEssence go. &quot;Substance time waits for a GM to connect&quot; means no GM is online.</li>\n<li><strong>Hold out longer</strong> (player, the hourglass): Body (physical) or Willpower (mental)\nagainst Addiction, once per dose.</li>\n<li><strong>Recovery</strong> (GM): the walking figure starts recovery, Willpower vs Addiction +1\n(mental), +3 (physical) or +4 (both). One substance at a time. <strong>Cleansing therapy</strong>\n(the hand) clears physical addiction and returns lost boxes. <strong>Gene cleansing</strong>\n(DNA icon) clears immunity.</li>\n<li><strong>Corrections.</strong> The pencil records a hand correction. Nothing is deleted.</li>\n</ol>\n<p><strong>A character who was already a user:</strong> the GM gives them the drug item, then clicks\n<strong>Import history</strong> in the Substances header. Enter the doses taken so far, any boxes or\nEssence already lost, the hours since the last dose, and whether they&#39;re addicted now.\nLeave Addiction and Tolerance blank to have them worked out from the doses.</p>\n<p>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/Gear,-Buying-and-Drugs\">Gear, Buying and Drugs</a>.</p>\n"
+      }
+    }
+  ],
+  "_key": "!journal!sr2eHowToGuides1"
+}

@@ -19,6 +19,10 @@
   days of work are logged with tools or a team, and the program is usable once it's done. Rating caps (Black Hammer
   and Killjoy: half your Computer, rounded up) and team limits are checked.
 
+- **How-To Guides inside Foundry**: the wiki's step-by-step guides (Matrix jackpoints, fat-bacteria zones,
+  rituals, elementals, addiction), with their screenshots and animations, are now a journal in the
+  *SR2E Player Guides* compendium.
+
 ### Changed
 - The character sheet header shows nuyen and Good Karma as read-only readouts with thousands
   separators (no more widening the box for big balances). The pen button next to each adds,

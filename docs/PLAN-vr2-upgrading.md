@@ -87,6 +87,12 @@ Source: VR2.0 p.107 "Upgrading" and "Buying Programs" (PDF 115, rendered).
      without a Swap Memory.
    - Programming takes days, so this happens between runs, where reloading is free anyway.
 
+## Documentation (part of done)
+- **Wiki:** "The Matrix" section, plus a How-To-Guides walkthrough for anything that takes the GM or the decker more
+  than one step, with screenshots and a GIF of the flow in use.
+- **In Foundry:** `npm run gen-guides && npm run build-packs guides` ships the how-to, with its images, in the SR2E
+  Player Guides pack.
+
 ## Out of scope
 - Command sets (not upgradable, p.107).
 - Frame cores: covered by part 6, and a core's attributes can't be rearranged, so changing them is a rewrite.

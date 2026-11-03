@@ -14,13 +14,15 @@
     "fit-vehicles": "node tools/fit-vehicle-art.mjs",
     "dice-textures": "zsh tools/gen-dice-textures.sh",
     "dice-bumps": "node tools/make-dice-bumps.mjs",
-    "brighten-spirits": "node tools/brighten-spirit-art.mjs"
+    "brighten-spirits": "node tools/brighten-spirit-art.mjs",
+    "gen-guides": "node tools/gen-guides.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "classic-level": "^3.0.0",
     "eslint": "^9.39.5",
     "globals": "^17.12.0",
+    "marked": "^15.0.12",
     "vitest": "^2.1.0"
   }
 }

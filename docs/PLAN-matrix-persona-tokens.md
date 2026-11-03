@@ -54,9 +54,9 @@ Make jackpoints as easy as summoning:
      - deleteActor;
      - the GM's `ready` hook: a full pass over every Matrix scene, which cleans up after a crash or an offline GM.
 3. **Jack-in flow** (`jackpoints.mjs`):
-   - `canJackIn` no longer requires a persona. It requires EITHER a usable persona on the destination scene, OR an
-     active GM to create one. With neither, it refuses: "No GM is online to bring your persona into the Matrix — jack
-     in from the sheet, or ask the GM to place one."
+   - `canJackIn` no longer requires a persona. The GM is always playing along with the players (the user,
+     2026-11-03), so there's always a writer. If none is active at that moment, the jack-in still goes ahead and the
+     persona appears when the GM's client reconnects: its `ready` pass creates it.
    - `enter` writes the session as today. Before `showScene`, it waits up to ~5 s for `personaOn(actor, destScene)`.
      The wait is on the replicated token, not a socket.
      - If the persona appears, the view pans to it.
@@ -85,14 +85,14 @@ Make jackpoints as easy as summoning:
      - a hand-placed persona is used and kept;
      - two quick jack-ins converge on one token;
      - the GM `ready` pass removes a stale managed token;
-     - no active GM refuses with the new message (simulated through `canJackIn`'s seam);
+     - with no active GM, the jack-in proceeds and the GM's `ready` pass creates the persona;
      - VR2.0 dump shock removes it.
    - Live: a player client (Player2, no password) jacks in at a jackpoint with no hand-placed persona.
 
 ## Key decisions & trade-offs
 - **The GM's client is the only writer**, as astral forms are. It works whatever the table's TOKEN_CREATE setting is,
-  with no socket relay, which is unreliable at this table (CLAUDE.md). The cost: a GM must be online for the token to
-  appear. VR2.0 decking already needs one, and the core ruleset falls back to sheet decking.
+  with no socket relay, which is unreliable at this table (CLAUDE.md). A GM is always at the table (user, 2026-11-03),
+  so this costs nothing in practice.
 - **Managed tokens are disposable**, hand-placed ones are the GM's. Two flags rather than one, so the cleanup can
   never delete something the GM made.
 - **Removal on session end**, not just hiding: a hidden stale token would trip `personaUsable` and clutter the scene.
@@ -107,6 +107,13 @@ Make jackpoints as easy as summoning:
   entry region has no behaviour that reacts to the creation.
 - The token is created from the prototype, so the prototype's own ownership and vision settings carry over. Verify a
   player still owns it (actorLink makes ownership the actor's).
+
+## Documentation (part of done)
+- **Wiki:** update "The Matrix" and the "Set up a Matrix jackpoint" how-to: no persona to place any more, and the
+  optional Matrix icon. Include a new GIF of the persona appearing on jack-in and leaving on jack-out, and a screenshot
+  of the Matrix icon field (headless Chrome + puppeteer-core + a CDP screencast, as the jackpoint and fat-bacteria guides were made).
+- **In Foundry:** `npm run gen-guides && npm run build-packs guides` ships the updated how-to, with its images, in
+  the SR2E Player Guides pack.
 
 ## Out of scope
 - Drawing grid/host topology (part 7).
