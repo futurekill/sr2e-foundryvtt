@@ -5875,7 +5875,10 @@ export function registerSR2EQuenchTests() {
           const spell = (await pack.getDocument(idx.find(e => e.name === "Detect Enemies")._id)).toObject();
           const [sp] = await mage.createEmbeddedDocuments("Item", [spell,
             { name: "Sorcery", type: "skill", system: { rating: 6, category: "active" } }]).then(r => r.filter(i => i.type === "spell"));
-          await sp.roll({ force: 2, targetNumber: 4 });
+          // Never all 1s: a Rule of One would open the Avoid-an-Oops prompt and hang the test (1 run in 36 on 2 dice).
+          const orig = CONFIG.Dice.randomUniform;
+          CONFIG.Dice.randomUniform = () => (6.5 - 4) / 6;
+          try { await sp.roll({ force: 2, targetNumber: 4 }); } finally { CONFIG.Dice.randomUniform = orig; }
           return drainLabel();
         };
         it("always drains Physical while projecting, even at Force ≤ Magic", async () => {
@@ -12125,7 +12128,7 @@ export function registerSR2EQuenchTests() {
         await game.settings.set("sr2e", "matrixRuleset", prior);
         for (const m of game.messages.filter(m => /Quench UT/.test(m.content) || made.some(a => a.id === m.speaker?.actor))) { try { await m.delete(); } catch (e) { /* gone */ } }
       });
-      afterEach(async () => {
+      afterEach(async function () { this.timeout(15000);
         await setTargets([]);
         if (tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
         for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
@@ -12374,7 +12377,7 @@ export function registerSR2EQuenchTests() {
         await game.settings.set("sr2e", "vr2UtilityOptions", priorOpts);
         for (const m of game.messages.filter(m => /Quench UO/.test(m.content) || made.some(a => a.id === m.speaker?.actor))) { try { await m.delete(); } catch (e) { /* gone */ } }
       });
-      afterEach(async () => {
+      afterEach(async function () { this.timeout(15000);
         await setTargets([]);
         if (tokens.length) await canvas.scene.deleteEmbeddedDocuments("Token", tokens.splice(0).filter(id => canvas.scene.tokens.has(id)));
         for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
@@ -12548,6 +12551,58 @@ export function registerSR2EQuenchTests() {
         await clicking("ok", () => P.programmingDialog(a, a.items.get(p.id)));
         assert.isTrue(task().complete, "written");
         assert.isTrue(V.usablePrograms(a).includes(a.items.get(p.id)));
+      });
+
+      it("programming as a team: average skill, cap highest + 1, team bonus = Σ − programmers (p.102)", async function () {
+        this.timeout(30000);
+        const P = await import("../programming.mjs");
+        const a = await mk({ name: "Quench UO Lead", type: "character" });
+        const b = await mk({ name: "Quench UO Mate", type: "character" });
+        await b.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 6, category: "active" } }]);
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 4, category: "active" } },
+          { name: "Browse", type: "program", system: { rating: 5, multiplier: 1, loaded: true } }]);
+        const p = () => a.items.getName("Browse");
+        await clicking("ok", () => P.programmingDialog(a, p()));
+        assert.isNull(P.taskOf(p()), "Computer 4 alone can't write rating 5");
+        // Team skill ⌈(4 + 6) ÷ 2⌉ = 5 dice (all 5s vs TN 5 → 5 successes); design 25 Mp → 50 days → period 10.
+        await clicking("ok", () => withFaces(Array(5).fill(5), () => P.programmingDialog(a, p())),
+          (el) => { const c = el?.querySelector(`input[name="team"][value="${b.uuid}"]`); if (c) c.checked = true; });
+        assert.deepEqual([P.taskOf(p())?.baseTime, P.taskOf(p())?.team], [50, [b.uuid]]);
+        // Bonuses 3 + 3 − 2 programmers = 4: one day is worth 5.
+        await clicking("ok", () => P.programmingDialog(a, p()), (el) => { const i = el?.querySelector('input[name="bonuses"]'); if (i) i.value = "3, 3"; });
+        assert.deepEqual([P.taskOf(p()).period, P.doneOf(P.taskOf(p()))], [10, 5]);
+      });
+
+      it("one-shot Cloak fires at the maneuver, one-shot Lock-On at the opposing test (p.104)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const a = await decker("Quench UO Cloaker", [["Cloak", 1, { options: [{ kind: "oneShot" }] }]]);
+        const b = await decker("Quench UO Locker", [["Lock-On", 2, { options: [{ kind: "oneShot" }] }]]);
+        await tokenFor(a, 0);
+        await setTargets([(await tokenOf(b, 2)).id]);
+        const n = game.messages.size;
+        await clicking("go", () => withFaces(Array(10).fill(6), () => V.vr2Maneuver(a)));
+        const card = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.vr2Maneuver);
+        assert.ok(card, "maneuver posted");
+        // Sensor 4 − Cloak 1 = 3; Evasion 5 − Lock-On 2 = 3 (p.122).
+        assert.deepEqual([testOf({ flags: { sr2e: { matrix: { testMessageId: card.flags.sr2e.vr2Maneuver.testMessageId } } } })?.tn, card.flags.sr2e.vr2Maneuver.oppTN], [3, 3]);
+        assert.isFalse(V.activePrograms(a).some(i => i.name === "Cloak"), "the Cloak is spent");
+        assert.isTrue(V.activePrograms(b).some(i => i.name === "Lock-On"), "the Lock-On isn't, yet");
+        await withFaces(Array(10).fill(6), () => V.opposeManeuver(card));
+        assert.isFalse(V.activePrograms(b).some(i => i.name === "Lock-On"), "the Lock-On is spent by the opposing test");
+      });
+
+      it("DINAB attack the IC resists entirely: −1 DINAB (p.103)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO DINAB Atk Host");
+        const k = await ic("Quench UO Tank", h, "killer", 4);
+        const a = await decker("Quench UO DINAB Atk", [["Attack", 4, { damageLevel: "L", options: [{ kind: "dinab", rating: 2 }] }]]);
+        await tokenFor(a, 0);
+        const [card] = await attack(a, [k], "Attack", [6, 1, 1, 1, 1, 1], { dinab: true });   // one success (6 → 7)
+        assert.ok(card?.flags.sr2e.matrix.dinab, "a DINAB attack");
+        await withFaces(Array(20).fill(6), () => V.vr2MatrixResist(k, game.messages.get(card.id)));
+        assert.isTrue(await settle(() => V.dinabLeft(a.items.getName("Attack")) === 1), "no damage → −1");
       });
     });
 
