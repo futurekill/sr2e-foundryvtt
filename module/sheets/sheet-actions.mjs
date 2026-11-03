@@ -3795,11 +3795,11 @@ async function onClearBioHeal(event, target) {
 /** The header readouts' pen buttons: add/subtract or set a whole number. Null if cancelled. */
 async function amountDialog(title, balance, unit) {
   return foundry.applications.api.DialogV2.prompt({
-    window: { title },
+    window: { title }, position: { width: 340 },
     content: `<div>
       <p>Now: <strong>${(balance ?? 0).toLocaleString()}${unit}</strong></p>
-      <div class="form-group"><label><input type="radio" name="mode" value="add" checked> Add / subtract</label>
-        <label><input type="radio" name="mode" value="set"> Set to</label></div>
+      <div style="display:flex;gap:1.5em;margin:0.5em 0;"><label style="white-space:nowrap;"><input type="radio" name="mode" value="add" checked> Add / subtract</label>
+        <label style="white-space:nowrap;"><input type="radio" name="mode" value="set"> Set to</label></div>
       <div class="form-group"><label>Amount${unit ? ` (${unit})` : ""}:</label><input type="number" name="amount" step="1" autofocus placeholder="e.g. 5 or -2"></div>
     </div>`,
     ok: { label: "Apply", callback: (e, b) => ({ mode: b.form.elements.mode.value, amount: Math.round(Number(b.form.elements.amount.value) || 0) }) }
