@@ -188,10 +188,25 @@ attacked, take damage on a 10-box monitor, crash, and be targeted by the Limit o
   sequencer, so a logoff on one device and a command on another can't race.
 - **Scale:** many frames on a host make many combatants. Fine for table scale.
 
-## Questions for the user (to settle before Codex)
-1. Phasing: 6a/6b/6c as separate releases, or everything in one?
-2. Should smart frames always appear in the combat tracker, or only when combat starts?
-3. Command sets: worth automating (size + Control Test + hours card), or leave to the GM?
+## Decided (2026-11-03)
+The user isn't familiar with VR2.0 and asked for the most complete and correct reading, so these are Claude's calls,
+explained so the user can override them.
+1. **Separate releases:**
+   - 6a-0: the Decoy operation;
+   - 6a: frames;
+   - 6b: SKs;
+   - 6c: command sets and upgrading.
+
+   Each is smaller to review and test, and each is useful alone.
+2. **Combat tracker:** a smart frame is a combatant like any other icon, with its own Initiative (p.106–107). It joins
+   an active combat when it's uploaded, and outside combat it simply exists on the host. A dumb frame never joins: it
+   acts on the decker's Simple Action.
+3. **Command sets are automated.** Everything p.104 states is a rule:
+   - the 1D6 × 20 Mp size;
+   - the Control Test to load it;
+   - 24 ÷ the host's summed successes = hours undetected, 48 if none.
+
+   Which Subsystem Test the set needs is the GM's pick, as the book says, with Control as the default.
 
 ## Out of scope
 - True AI (p.141–142: GM fiat).

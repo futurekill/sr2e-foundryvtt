@@ -39,8 +39,8 @@ Source: VR2.0 p.107 "Upgrading" and "Buying Programs" (PDF 115, rendered).
    - Refusals:
      - object-code-only ("needs the source code, p.107");
      - target the same as now;
-     - target over `programmingCap` (the 5b caps, plus team rules);
-     - base time ≤ 0 (open question 1).
+     - target over `programmingCap` (the 5b caps, plus team rules).
+   - A base time ≤ 0 is not refused: see Decided 1.
    - Test: Computer (Sensitive: the 5b average) against the **target** rating. Successes freeze on the first logged
      day, as for new programs.
    - While upgrading, the program **keeps working at its current design**. The book doesn't say the old version stops
@@ -58,7 +58,7 @@ Source: VR2.0 p.107 "Upgrading" and "Buying Programs" (PDF 115, rendered).
    - Vitest:
      - upgrade base time: Browse-2 → Browse-4 = baseTime(16) − baseTime(4) = 32 − 8 = 24 days;
      - adding One-shot to an Attack-4M: design 48 → 72, so 144 − 96 = 48 days;
-     - a ≤ 0 base time refused;
+     - adding Limit gives a base time of 0, so it completes on the test with ≥ 1 success;
      - the 0.75 object-code price.
    - Quench `sr2e.vr2-options` (+3):
      - upgrade start → log → complete changes the rating;
@@ -71,12 +71,21 @@ Source: VR2.0 p.107 "Upgrading" and "Buying Programs" (PDF 115, rendered).
   in p.107 takes the current version away.
 - **Prices:** one 0.75 factor at the shared price path. No separate "source code" item.
 
-## Open questions (user)
-1. **An "upgrade" that shrinks the design**, e.g. adding Limit, which lowers the effective rating, or swapping options:
-   the base time is ≤ 0. Refuse it ("write a new version instead"), or allow it with a 1-day minimum? Plan: refuse,
-   since the book only describes raising a rating or adding options.
-2. **A loaded program** upgraded mid-run: treat it as a reload (new `loadGen`, so DINAB wear resets and one-shot can
-   fire again)? Plan: yes. The upgraded copy is new object code.
+## Decided (2026-11-03)
+1. **An upgrade whose design comes out smaller.**
+   - The only way this happens is adding **Limit** (rating −1, p.104). Adding an option is an upgrade by p.107's own
+     words, so it is allowed.
+   - The book has no comment on a base time ≤ 0 (current version's base time ≥ the new one's). Our reading:
+     base time = max(0, difference).
+   - The Computer Test against the upgraded rating is still rolled. With at least one success, the upgrade completes
+     immediately (period 0). With none, it fails, as any programming test does.
+   - The user asked "the rules don't have any commentary about this?" Confirmed: they don't. The refusal in draft 0 is
+     dropped.
+2. **Upgrading a loaded program:** decided in the plan, not a user question. The upgraded copy is new object code, so
+   completion bumps `loadGen`.
+   - In practice this only matters in two places: a spent one-shot fires again, and a DINAB's lost points come back,
+     without a Swap Memory.
+   - Programming takes days, so this happens between runs, where reloading is free anyway.
 
 ## Out of scope
 - Command sets (not upgradable, p.107).

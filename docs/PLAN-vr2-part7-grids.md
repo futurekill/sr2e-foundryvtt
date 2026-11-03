@@ -171,7 +171,13 @@ Sources (rendered, image-only PDF; book = PDF − 8):
 ## Risks / open questions
 1. Host tallies stay per host (today's rule). Confirm nothing in pp.26–36 carries a grid tally onto a host. The renders
    above say only RTG → PLTG and satellite → RTG.
-2. Is a visual network map wanted (drawing the links on the Matrix scene from the topology), or only the dialogs?
+2. ~~Visual map?~~ **Decided 2026-11-03.** The user's rule is the most complete and correct thing, so everything the
+   pages above describe is in scope: 7a, 7b and 7c, the optional Variable LTG Ratings (p.28, as its own world setting),
+   the satellite rules, and the hub/second-tier rules.
+   - The map itself isn't a rule. The places' own sheets list their links ("reachable from here") so the GM can check
+     the topology.
+   - Drawing them on the Matrix scene is a later nicety.
+   - The optional Bandwidth rule (p.90–91) stays a separate later part: it belongs to deck construction, not topology.
 3. **Migration:** `HostData.kind` defaults to "host", so existing hosts are unaffected. Grid actors are new. Check
    `invalidDocumentIds` after the schema add ([[sr2e-stringfield-blank-trap]]).
 4. **Concurrency:** navigation is admission. Two devices logging the same decker onto different places must resolve to
@@ -181,7 +187,7 @@ Sources (rendered, image-only PDF; book = PDF − 8):
    misalign ([[sr2e-source-captures]]).
 
 ## Out of scope
-- The optional Bandwidth rule (p.90–91).
+- The optional Bandwidth rule (p.90–91): a separate later part (deck construction).
 - Matrix Law (p.132).
 - Comcalls beyond the existing operations.
 - UV hosts' special reality (p.36–37).
