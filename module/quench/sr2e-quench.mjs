@@ -5860,7 +5860,15 @@ export function registerSR2EQuenchTests() {
       let before, msgsBefore;
       beforeEach(() => { before = new Set(game.actors.map(a => a.id)); msgsBefore = game.messages.size; });
       afterEach(async () => {
-        for (const a of game.actors.filter(a => !before.has(a.id))) await a.delete();
+        const made = game.actors.filter(a => !before.has(a.id));
+        // Catch-all: no token of this batch's actors outlives them, on any scene (a skipped token cleanup left
+        // orphan linked tokens on the user's active scene).
+        const ids = new Set(made.map(a => a.id));
+        for (const sc of game.scenes) {
+          const orphans = sc.tokens.filter(t => ids.has(t.actorId)).map(t => t.id);
+          if (orphans.length) await sc.deleteEmbeddedDocuments("Token", orphans).catch(() => {});
+        }
+        for (const a of made) await a.delete();
         await ChatMessage.deleteDocuments(game.messages.contents.slice(msgsBefore).map(m => m.id));
       });
       const drainLabel = () => game.messages.contents.slice(msgsBefore)
@@ -5902,7 +5910,7 @@ export function registerSR2EQuenchTests() {
           const t = (await canvas.scene.createEmbeddedDocuments("Token", [{
             ...(await actor.getTokenDocument()).toObject(), actorLink: true,
             x: canvas.dimensions.sceneX + (50 + dx) * g, y: canvas.dimensions.sceneY + 40 * g }]))[0];
-          toks.push(t.id); return t;
+          toks.push({ scene: canvas.scene.id, id: t.id }); return t;
         };
         const cards = (key) => game.messages.contents.slice(msgsBefore).filter(m => m.flags?.sr2e?.[key]);
         const mkMage = async (name = "Quench Astral Mage") => {
@@ -5922,10 +5930,20 @@ export function registerSR2EQuenchTests() {
         afterEach(async function () {
           this.timeout(10000);
           if (!canvas?.ready) return;
-          await canvas.tokens.setTargets([]);
-          await new Promise(r => setTimeout(r, 1500));   // floating damage numbers (PIXI)
-          await canvas.scene.deleteEmbeddedDocuments("Token", toks.filter(id => canvas.scene.tokens.has(id)));
-          toks = [];
+          const mine = toks; toks = [];
+          try {
+            // Drop dead targets first: Foundry's target refresh throws on a destroyed token's graphics.
+            for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+            await canvas.tokens.setTargets([]);
+            await new Promise(r => setTimeout(r, 1500));   // floating damage numbers (PIXI)
+          } finally {
+            // Always, on the scene each token was placed on (a throw above used to skip this).
+            for (const sceneId of new Set(mine.map(t => t.scene))) {
+              const sc = game.scenes.get(sceneId);
+              const ids = mine.filter(t => t.scene === sceneId && sc?.tokens.has(t.id)).map(t => t.id);
+              if (ids.length) await sc.deleteEmbeddedDocuments("Token", ids);
+            }
+          }
         });
 
         it("mage vs spirit: exchange → defence → the loser resists with Force, and the tests close", async function () {
@@ -6014,7 +6032,7 @@ export function registerSR2EQuenchTests() {
           assert.isUndefined(await attack(mage, gt, [5, 5, 5, 5, 5], {}), "depleted refused");
           assert.ok(await attack(mage, bt, [5, 5, 5, 5, 5], {}), "busy spirit can be attacked");
           const n = cards("astralMelee").length;
-          await canvas.tokens.setTargets([toks[0]]);
+          await canvas.tokens.setTargets([toks[0].id]);
           await game.sr2e.astralAttack(busy, {});
           assert.lengthOf(cards("astralMelee"), n, "busy spirit cannot attack");
         });
