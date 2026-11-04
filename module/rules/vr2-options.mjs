@@ -169,33 +169,44 @@ export function programmingCap(utility, skills = []) {
 export const sensitiveSkill = (computer, theory) => Math.ceil(((Number(computer) || 0) + (Number(theory) || 0)) / 2);
 
 /**
- * Programming lifecycle (plan 5b §4, Codex R3–R4): an append-only log of durable records on the program item, folded.
- * Nothing is overwritten, so a delayed write from another device can only ADD its own record:
- *   prog:new                 {type: "progNew"}                              a project that was never written
- *   prog:start:<t>           {type: "progStart", task, testMessageId, design, designSize, baseTime, team}
- *   prog:log:<t>:<id>        {type: "progLog", task, days, bonus}
- *   prog:period:<t>          {type: "progPeriod", task, successes, period}  ONE per task (server-arbitrated id)
- *   prog:end:<t>             {type: "progEnd", task, outcome}               ONE per task: complete | abandon | fail
- * The latest start is the current task; an earlier start left open is superseded. Usable: never-written projects
- * start unusable; a completed task makes the program usable; an abandoned or failed one leaves it as it was.
+ * Programming lifecycle (plan 5b §4, Codex R3–R5): an append-only log of durable records on the program item, folded.
+ * Nothing is overwritten, and every id that must be unique is one the server arbitrates:
+ *   prog:new                 {type: "progNew"}             a project never written (created WITH the item)
+ *   prog:start:<n>           {type: "progStart", gen: n, testMessageId, design, designSize, baseTime, team}
+ *                            n = the previous start's + 1: two devices starting at once collide, one is refused;
+ *                            order is causal (n), never a clock
+ *   prog:log:<n>:<id>        {type: "progLog", task: n, days, bonus}
+ *   prog:frozen:<n>          {type: "progFrozen", task: n, successes}   the first day of work closed the test
+ *   prog:end:<n>             {type: "progEnd", task: n, outcome}        ONE per task: complete | abandon
+ * Once frozen, the period is `baseTime ÷` the CLOSED test's successes, read live through `successesOf` (the record's
+ * snapshot if the message is gone): a Karma spend in flight as the test closed still lands on the test and counts.
+ * No successes = a failed task. Usable: a new project starts unusable; a completed task makes it usable; an abandoned
+ * or failed one leaves it as it was. The latest start is the current task.
  */
-export function foldProgramming(records = []) {
+export function foldProgramming(records = [], successesOf = () => null) {
   const recs = records.filter(r => String(r.key ?? "").startsWith("prog:"));
-  const starts = recs.filter(r => r.type === "progStart")
-    .sort((a, b) => ((a.at ?? 0) - (b.at ?? 0)) || String(a.task).localeCompare(String(b.task)));
+  const starts = recs.filter(r => r.type === "progStart" && Number.isInteger(r.gen)).sort((a, b) => a.gen - b.gen);
   const tasks = {};
-  for (const r of starts) tasks[r.task] = { ...r, log: {}, period: null, successes: null, end: null };
+  for (const r of starts) tasks[r.gen] = { ...r, task: r.gen, log: {}, frozen: false, successes: null, period: null, end: null };
   for (const r of recs) {
     const t = tasks[r.task];
     if (!t) continue;
     if (r.type === "progLog") t.log[r.key] = { days: r.days, bonus: r.bonus };
-    else if (r.type === "progPeriod") Object.assign(t, { period: r.period ?? null, successes: r.successes ?? 0 });
+    else if (r.type === "progFrozen") { t.frozen = true; t.snapshot = r.successes ?? 0; }
     else if (r.type === "progEnd") t.end = r.outcome;
   }
   let usable = !recs.some(r => r.type === "progNew");
-  for (const r of starts) if (tasks[r.task].end === "complete") usable = true;
-  const current = starts.at(-1)?.task ?? null, task = current ? tasks[current] : null;
+  for (const r of starts) {
+    const t = tasks[r.gen];
+    if (t.frozen) {
+      t.successes = successesOf(t.testMessageId) ?? t.snapshot;
+      t.period = taskPeriod(t.baseTime, t.successes);
+      if (t.period == null && !t.end) t.end = "fail";
+    }
+    t.complete = t.end === "complete";
+    if (t.complete) usable = true;
+  }
+  const task = starts.length ? tasks[starts.at(-1).gen] : null;
   const writing = !!task && !task.end;
-  if (task) task.complete = task.end === "complete";
-  return { tasks, current, task, writing, unfinished: writing || !usable };
+  return { tasks, current: task?.task ?? null, task, nextGen: (task?.task ?? 0) + 1, writing, unfinished: writing || !usable };
 }

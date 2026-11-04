@@ -251,7 +251,13 @@ my misreading; the book says 1 (p.102; R1 #17).
   - the period is read AFTER the closure;
   - team size uses Computer;
   - a "Write a new program" button creates an unwritten project.
-- **Round 4 (2026-11-04):** the programming lifecycle is durable records on the program item, folded by
-  `foldProgramming` (rules/vr2-options.mjs): `prog:new`, `prog:start:<t>`, `prog:log:<t>:<id>`, ONE
-  `prog:period:<t>` and ONE `prog:end:<t>` per task (server-arbitrated ids). No mutable programming state remains;
-  usability is derived.
+- **Rounds 4–5 (2026-11-04):** the programming lifecycle is durable records on the program item, folded by
+  `foldProgramming` (rules/vr2-options.mjs):
+  - `prog:new` is created WITH the item;
+  - `prog:start:<n>` uses generation n, server-arbitrated and causal;
+  - `prog:log:<n>:<id>`;
+  - ONE `prog:frozen:<n>`;
+  - ONE `prog:end:<n>`.
+
+  The period is the closed test's LIVE successes, so Karma landing as it closed counts. No mutable programming state
+  remains, and usability and failure are derived.

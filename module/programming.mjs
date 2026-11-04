@@ -7,9 +7,10 @@
  * design changed since the start.
  */
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
-import { baseTime, taskPeriod, workDone, toolBonus, teamTerms, programmingCap, sensitiveSkill, mainframeAdequate,
+import { baseTime, workDone, toolBonus, teamTerms, programmingCap, sensitiveSkill, mainframeAdequate,
   PROGRAMMING_TOOLS, foldProgramming } from "./rules/vr2-options.mjs";
 import { recordEvent, eventsOf } from "./claims.mjs";
+import { claimId } from "./rules/claim-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const skillOf = (actor, re) => actor?.items.find(i => i.type === "skill" && re.test(i.name))?.system?.rating ?? 0;
@@ -31,7 +32,11 @@ const designOf = (item) => ({ name: item.name, category: item.system.category, o
   rating: item.system.rating, multiplier: item.system.multiplier,
   options: (item.system.options ?? []).map(o => ({ kind: o.kind, rating: o.rating, target: o.target })) });
 const live = (item) => item.parent?.items.get(item.id) ?? item;
-const stateOf = (item) => foldProgramming(eventsOf(live(item)));
+/** A closed programming test's successes, live (Karma that landed as it closed counts), or null if it's gone. */
+const successesOf = (id) => { const t = globalThis.game?.messages?.get(id)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : null; };
+/** The folded programming state of a program item (also the data model's and the design lock's reader). */
+export const programmingState = (item) => foldProgramming(item?.effects ? eventsOf(item) : [], successesOf);
+const stateOf = (item) => programmingState(live(item));
 const say = (actor, html) => ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${html}</div>` });
 
 /** The current (latest) task, or null. */
@@ -55,10 +60,12 @@ export async function programmingDialog(actor, item) {
  */
 export async function newProject(actor) {
   if (!actor?.isOwner) return;
+  // The never-written record rides IN the creation, so there's no moment where the project looks written (Codex R5 #3).
   const [item] = await actor.createEmbeddedDocuments("Item", [{ name: "New program", type: "program",
-    system: { category: "other", rating: 1, multiplier: 1 } }]);
+    system: { category: "other", rating: 1, multiplier: 1 },
+    effects: [{ _id: claimId("prog:new"), name: "SR2E event record", img: "icons/svg/clockwork.svg", disabled: true, transfer: false,
+      flags: { sr2e: { claim: { key: "prog:new", at: game.time.serverTime, user: game.user.id, durable: true, event: { type: "progNew" } } } } }] }], { keepEmbeddedIds: true });
   if (!item) return;
-  await recordEvent(item, "prog:new", { type: "progNew" });
   item.sheet.render(true);
   return item;
 }
@@ -91,12 +98,16 @@ async function startDialog(actor, item) {
   const res = await actor.rollSuccessTest(Math.max(0, dice), Math.max(2, item.system.rating), {
     label: `Programming ${esc(item.name)}: Computer (${item.system.rating})`, tnContext: { kind: "other" } });
   if (!res) return;
-  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || stateOf(item).writing) {
+  const now = stateOf(item);
+  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing) {
     return ui.notifications.warn(`${item.name} changed (or another device started writing it) during the test: start again.`);
   }
-  const task = foundry.utils.randomID();
-  await recordEvent(live(item), `prog:start:${task}`, { type: "progStart", task, testMessageId: res.testMessageId, design: plan,
-    designSize: design, baseTime: base, team: team.map(a => a.uuid) });
+  // The next generation number: two devices starting at once claim the same id, and the server keeps one.
+  const gen = now.nextGen;
+  if (!await recordEvent(live(item), `prog:start:${gen}`, { type: "progStart", gen, testMessageId: res.testMessageId, design: plan,
+    designSize: design, baseTime: base, team: team.map(a => a.uuid) })) {
+    return ui.notifications.warn(`Another device started writing ${item.name} at the same moment: open it again.`);
+  }
   say(actor, `${esc(actor.name)} starts programming ${esc(item.name)}: base time ${base} days ÷ the test's successes
     (Karma may still change them, until the first day of work).`);
 }
@@ -127,7 +138,7 @@ async function workDialog(actor, item, id) {
   // A team pools its members' bonuses less one per programmer (p.102); solo, the tools' bonus.
   const n = (task.team ?? []).length + 1;
   const bonus = team ? teamTerms(Array(n).fill(0), pick.bonuses.split(",").slice(0, n).map(b => parseInt(b) || 0)).bonus : toolBonus(pick.tools);
-  if (stateOf(item).tasks[id].period == null && !await freezePeriod(actor, item, id)) return;
+  if (!stateOf(item).tasks[id].frozen && !await freezePeriod(actor, item, id)) return;
   // Its own record, tagged with its task: a log racing an abandon lands in the ended task, never a new one.
   await recordEvent(live(item), `prog:log:${id}:${foundry.utils.randomID()}`, { type: "progLog", task: id, days: pick.days, bonus });
   const now = stateOf(item).tasks[id];
@@ -137,25 +148,18 @@ async function workDialog(actor, item, id) {
 }
 
 /**
- * The first day of work fixes the period (p.100–101): close the test to Karma, THEN read its successes, then record
- * the period. The record's id is per task, so the first device's period is THE period; every reader uses it.
- * shortcut: a Karma spend already past its own closure check when the test closes can still land on the card; it
- * no longer changes the recorded period (that Karma is simply spent). A single Karma authority would remove even
- * that, if it ever matters at the table.
- * False if the task failed (no successes) or moved on.
+ * The first day of work fixes the period (p.100–101): close the test to Karma, then record that it's frozen. The period
+ * is then always the CLOSED test's successes (`foldProgramming`), so a Karma spend in flight as it closed still counts:
+ * nothing is spent for nothing, and every device reads the same test. False if the task failed (no successes).
  */
 async function freezePeriod(actor, item, id) {
   const task = stateOf(item).tasks[id];
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}: the first day of work
     fixes the programming test's successes (no more Karma on it).</div>`, flags: { sr2e: { closesTests: [task.testMessageId] } } });
-  const test = game.messages.get(task.testMessageId)?.flags?.sr2e?.test;
-  const successes = test ? testTotalSuccesses(test) : 0;
-  await recordEvent(live(item), `prog:period:${id}`, { type: "progPeriod", task: id, successes, period: taskPeriod(task.baseTime, successes) });
+  const won = await recordEvent(live(item), `prog:frozen:${id}`, { type: "progFrozen", task: id, successes: successesOf(task.testMessageId) ?? 0 });
   const t = stateOf(item).tasks[id];
-  if (t.period == null) {
-    if (await recordEvent(live(item), `prog:end:${id}`, { type: "progEnd", task: id, outcome: "fail" })) {
-      say(actor, `${esc(item.name)}: no successes on the programming test — the task fails; try again (p.100).`);
-    }
+  if (t.end === "fail") {
+    if (won) say(actor, `${esc(item.name)}: no successes on the programming test — the task fails; try again (p.100).`);
     return false;
   }
   return stateOf(item).current === id && !t.end;
@@ -177,7 +181,7 @@ async function complete(actor, item, id) {
 export async function abandon(actor, item) {
   const s = stateOf(item), id = s.current;
   if (!s.writing) return;
-  const usableBefore = !foldProgramming(eventsOf(live(item)).filter(r => !String(r.key).includes(id))).unfinished;
+  const usableBefore = !foldProgramming(eventsOf(live(item)).filter(r => (r.task ?? r.gen) !== id), successesOf).unfinished;
   if (!await foundry.applications.api.DialogV2.confirm({ window: { title: item.name }, content: `<p>Abandon programming ${esc(item.name)}? The work done is lost${usableBefore ? "" : ", and the program stays unwritten"}.</p>`, rejectClose: false })) return;
   // ONE end per task (server-arbitrated): an abandon racing a completion leaves exactly one of them.
   if (!await recordEvent(live(item), `prog:end:${id}`, { type: "progEnd", task: id, outcome: "abandon" })) {

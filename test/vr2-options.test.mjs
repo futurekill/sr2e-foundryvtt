@@ -106,38 +106,46 @@ describe("programming (pp.100–102)", () => {
   });
 });
 
-describe("foldProgramming (plan 5b §4, Codex R3–R4): the lifecycle is a log, folded", () => {
-  const start = (task, at) => ({ key: `prog:start:${task}`, type: "progStart", task, at, baseTime: 8 });
-  const end = (task, outcome, at) => ({ key: `prog:end:${task}`, type: "progEnd", task, outcome, at });
-  const log = (task, id, days, at) => ({ key: `prog:log:${task}:${id}`, type: "progLog", task, days, bonus: 0, at });
-  const NEW = { key: "prog:new", type: "progNew", at: 0 };
+describe("foldProgramming (plan 5b §4, Codex R3–R5): the lifecycle is a log, folded", () => {
+  const start = (gen, at = 0) => ({ key: `prog:start:${gen}`, type: "progStart", gen, at, baseTime: 8, testMessageId: `t${gen}` });
+  const end = (task, outcome, at = 0) => ({ key: `prog:end:${task}`, type: "progEnd", task, outcome, at });
+  const log = (task, id, days) => ({ key: `prog:log:${task}:${id}`, type: "progLog", task, days, bonus: 0 });
+  const frozen = (task, successes) => ({ key: `prog:frozen:${task}`, type: "progFrozen", task, successes });
+  const NEW = { key: "prog:new", type: "progNew" };
   const perms = (xs) => xs.length < 2 ? [xs] : xs.flatMap((x, i) => perms([...xs.slice(0, i), ...xs.slice(i + 1)]).map(p => [x, ...p]));
 
   it("a bought program is usable; a new project isn't until a task completes", () => {
     expect(foldProgramming([]).unfinished).toBe(false);
     expect(foldProgramming([NEW]).unfinished).toBe(true);
-    expect(foldProgramming([NEW, start("A", 1)]).writing).toBe(true);
-    expect(foldProgramming([NEW, start("A", 1), end("A", "complete", 2)]).unfinished).toBe(false);
+    expect(foldProgramming([NEW, start(1)]).writing).toBe(true);
+    expect(foldProgramming([NEW, start(1), end(1, "complete")]).unfinished).toBe(false);
   });
-  it("abandoning or failing leaves the program as it was: a new project stays unwritten, a bought copy stays usable", () => {
-    expect(foldProgramming([NEW, start("A", 1), end("A", "abandon", 2)]).unfinished).toBe(true);
-    expect(foldProgramming([start("A", 1), end("A", "fail", 2)]).unfinished).toBe(false);
-    expect(foldProgramming([NEW, start("A", 1), end("A", "complete", 2), start("B", 3), end("B", "abandon", 4)]).unfinished).toBe(false);
+  it("abandoning or failing leaves the program as it was", () => {
+    expect(foldProgramming([NEW, start(1), end(1, "abandon")]).unfinished).toBe(true);
+    expect(foldProgramming([start(1), frozen(1, 0)]).unfinished).toBe(false);
+    expect(foldProgramming([NEW, start(1), end(1, "complete"), start(2), end(2, "abandon")]).unfinished).toBe(false);
   });
-  it("whatever order the records arrive in: an abandon of A never ends B, and A's late log stays in A", () => {
-    const recs = [NEW, start("A", 1), end("A", "abandon", 2), start("B", 3), log("A", "x", 5, 4)];
-    for (const order of perms(recs)) {
+  it("whatever order the records arrive in: an abandon of 1 never ends 2, and 1's late log stays in 1", () => {
+    for (const order of perms([NEW, start(1), end(1, "abandon"), start(2), log(1, "x", 5)])) {
       const f = foldProgramming(order);
-      expect(f.current).toBe("B");
-      expect(f.writing).toBe(true);
-      expect(Object.keys(f.tasks.B.log)).toHaveLength(0);
-      expect(Object.keys(f.tasks.A.log)).toHaveLength(1);
+      expect([f.current, f.writing]).toEqual([2, true]);
+      expect(Object.keys(f.tasks[2].log)).toHaveLength(0);
+      expect(Object.keys(f.tasks[1].log)).toHaveLength(1);
     }
   });
-  it("the period is the task's one period record; a restart starts with none", () => {
-    const f = foldProgramming([start("A", 1), { key: "prog:period:A", type: "progPeriod", task: "A", successes: 4, period: 2, at: 2 },
-      end("A", "complete", 3), start("B", 4)]);
-    expect(f.tasks.A.period).toBe(2);
-    expect([f.task.period, f.task.end, f.task.complete]).toEqual([null, null, false]);
+  it("order is the generation, never the clock: tied or reversed timestamps can't make an old task current (R5 #2)", () => {
+    for (const recs of [[start(1, 5), end(1, "complete", 5), start(2, 5)], [start(1, 9), end(1, "complete", 9), start(2, 1)]]) {
+      const f = foldProgramming(recs);
+      expect([f.current, f.writing, f.unfinished]).toEqual([2, true, true]);
+    }
+  });
+  it("the period reads the CLOSED test live: Karma that landed as it closed counts; none at all is a failure (R5 #1)", () => {
+    const recs = [start(1), frozen(1, 2)];
+    expect(foldProgramming(recs).task.period).toBe(4);                   // 8 ÷ the snapshot's 2 (message gone)
+    expect(foldProgramming(recs, () => 4).task.period).toBe(2);          // the test's final 4 successes
+    const f = foldProgramming([start(1), frozen(1, 0)], () => 0);
+    expect([f.task.end, f.writing]).toEqual(["fail", false]);
+    expect(foldProgramming([start(1)]).task.period).toBe(null);          // not frozen yet: no period
+    expect(foldProgramming([start(1), end(1, "complete"), start(2)]).nextGen).toBe(3);
   });
 });

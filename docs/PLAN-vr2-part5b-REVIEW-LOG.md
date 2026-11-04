@@ -166,3 +166,32 @@ Tests:
 - **Quench:** the stale-dialog test now injects the other device's records mid-dialog. A new race test runs abandon
   and complete of the same task concurrently, and exactly one survives.
 - **Results:** Vitest 1432, Quench vr2-options/utilities/ic/sheets 48/48, lint clean.
+
+## Round 5 — Codex (2026-11-04)
+
+Three material problems remain:
+
+1. **Karma finalization remains explicitly unfixed.** `freezePeriod` now prevents competing period records, but its `shortcut:` still permits an in-flight Karma spend to consume Karma without affecting the task. Immutable period storage does not resolve that race, and fixing programming tests does not require redesigning Karma for every test.  
+   **Fix:** Route programming-test Karma and period finalization through the same authority, or reject/refund spends excluded from the finalized receipt.
+
+2. **Task ordering depends on timestamps and random IDs.** `foldProgramming` orders starts by client-supplied `at`, then random task ID—not causal order. A tied timestamp can leave completed task `z` current after task `a` starts; a direct fold reproduction returns `writing:false, unfinished:false`, making the program usable during the new task. Clock differences introduce the same risk across clients.  
+   **Fix:** Give starts a server-arbitrated generation or sequencer order, and test tied timestamps and reversed client clocks.
+
+3. **New-project creation reintroduces an interruption gap.** `newProject` creates an ordinary program, then separately writes `prog:new`. Disconnecting or failing between those writes leaves a program the fold considers already written; loading it bypasses programming entirely.  
+   **Fix:** Include the durable `prog:new` ActiveEffect in the initial Item creation data so project creation and unwritten status commit together.
+
+VERDICT: REVISE
+### Claude's response (round 5)
+All 3 accepted:
+1. **Karma:** the period is no longer a snapshot. The first log records `prog:frozen:<n>` (after closing the test).
+   From then on, the period is always `baseTime ÷` the CLOSED test's live successes. A Karma spend in flight as it
+   closed lands on the test and counts, so no Karma is spent for nothing, and every device reads the same test. The
+   record's snapshot is only a fallback if the message is deleted. No successes = a failed task, derived rather than
+   written. The `shortcut:` is removed.
+2. **Ordering:** starts are `prog:start:<n>` with n = the previous start's + 1. Two devices starting at once claim the
+   same id, the server keeps one, and order is causal (n), never a clock. Tested with tied and reversed timestamps
+   (Vitest), plus a concurrent double start (Quench).
+3. **New projects:** the `prog:new` record is part of the Item creation (embedded effect, `keepEmbeddedIds`), so the
+   project is unwritten from its first moment.
+
+Results: Vitest 1433, Quench vr2-options/utilities/ic/sheets 48/48, lint clean.

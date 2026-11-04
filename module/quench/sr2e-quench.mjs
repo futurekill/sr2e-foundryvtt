@@ -12673,23 +12673,26 @@ export function registerSR2EQuenchTests() {
         // Task A's log dialog is open; meanwhile another device abandons A and starts B (their records land first).
         const { recordEvent, eventsOf } = await import("../claims.mjs");
         const { foldProgramming } = await import("../rules/vr2-options.mjs");
-        const A = P.taskOf(p()).task, prompt = foundry.applications.api.DialogV2.prompt;
+        const A = P.taskOf(p()).task, B = A + 1, prompt = foundry.applications.api.DialogV2.prompt;
         foundry.applications.api.DialogV2.prompt = async () => {
           await recordEvent(p(), `prog:end:${A}`, { type: "progEnd", task: A, outcome: "abandon" });
-          await recordEvent(p(), "prog:start:QuenchTaskB00000", { type: "progStart", task: "QuenchTaskB00000", design: {}, designSize: 4, baseTime: 8, team: [] });
+          await recordEvent(p(), `prog:start:${B}`, { type: "progStart", gen: B, design: {}, designSize: 4, baseTime: 8, team: [] });
           return { days: 3, bonuses: "", sv: 0, tools: {} };
         };
         try { await P.programmingDialog(a, p()); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
         let f = foldProgramming(eventsOf(p()));
-        assert.equal(f.current, "QuenchTaskB00000");
-        assert.deepEqual([P.doneOf(f.tasks.QuenchTaskB00000), f.tasks.QuenchTaskB00000.period], [0, null], "B untouched");
+        assert.equal(f.current, B);
+        assert.deepEqual([P.doneOf(f.tasks[B]), f.tasks[B].frozen], [0, false], "B untouched");
         assert.equal(P.doneOf(f.tasks[A]), 0, "the stale dialog was refused outright");
         // An abandon and a completion of the SAME task at once: exactly one end record survives.
-        const both = await Promise.all([recordEvent(p(), "prog:end:QuenchTaskB00000", { type: "progEnd", task: "QuenchTaskB00000", outcome: "abandon" }),
-          recordEvent(p(), "prog:end:QuenchTaskB00000", { type: "progEnd", task: "QuenchTaskB00000", outcome: "complete" })]);
+        const both = await Promise.all([recordEvent(p(), `prog:end:${B}`, { type: "progEnd", task: B, outcome: "abandon" }),
+          recordEvent(p(), `prog:end:${B}`, { type: "progEnd", task: B, outcome: "complete" })]);
         assert.deepEqual(both.filter(Boolean).length, 1, "one winner");
         f = foldProgramming(eventsOf(p()));
-        assert.include(["abandon", "complete"], f.tasks.QuenchTaskB00000.end);
+        assert.include(["abandon", "complete"], f.tasks[B].end);
+        // Two devices starting at once claim the same generation: one start survives.
+        const C = B + 1, starts = await Promise.all([1, 2].map(() => recordEvent(p(), `prog:start:${C}`, { type: "progStart", gen: C, design: {}, designSize: 4, baseTime: 8, team: [] })));
+        assert.equal(starts.filter(Boolean).length, 1, "one start per generation");
       });
     });
 
