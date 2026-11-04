@@ -576,6 +576,7 @@ function programBadges(actor, i) {
   return { task: { done: doneOf(task), period: task?.period ?? null, writing,
       unwritten: !writing && unfinished(i) },
     compressed: opts && i.system.loaded && isCompressed(i), dinab: opts && optionOf(i, "dinab") ? dinabLeft(i) : null,
+    hasDinab: !!(opts && optionOf(i, "dinab")),
     spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i) };
 }
 

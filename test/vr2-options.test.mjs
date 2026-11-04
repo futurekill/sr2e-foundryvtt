@@ -147,3 +147,11 @@ describe("foldProgramming (plan 5b §4, Codex R3–R5): the lifecycle is a log, 
     expect(foldProgramming([start(1), end(1, "complete"), start(2)]).nextGen).toBe(3);
   });
 });
+
+describe("programSizes rounds once (code review R3 #1)", () => {
+  it("rating 3, multiplier 1.5, Optimization: design 27 Mp / 2,700¥, not 28", () => {
+    const s = programSizes({ rating: 3, multiplier: 1.5, options: [{ kind: "optimization", rating: 0 }] });
+    expect([s.design, s.price]).toEqual([27, 2700]);
+    expect(programSizes({ rating: 3, multiplier: 1.5 }).design).toBe(14);   // no options: ceil(13.5), as programSize
+  });
+});

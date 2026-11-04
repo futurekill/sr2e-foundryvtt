@@ -189,7 +189,7 @@
           <span>{{#if program.system.loaded}}<i class="fas fa-check text-success"></i> Loaded{{/if}}
             {{#if program.compressed}}<em title="Squeeze (VR2.0 p.104): decompress it (a Complex Action) before use">compressed</em>{{/if}}
             {{#if program.spent}}<em title="One-shot (p.104): fired; Swap Memory reloads it">spent</em>{{/if}}
-            {{#ifEquals program.dinab null}}{{else}}<em title="DINAB rating left on this load (p.103)">DINAB {{program.dinab}}</em>{{/ifEquals}}
+            {{#if program.hasDinab}}<em title="DINAB rating left on this load (p.103)">DINAB {{program.dinab}}</em>{{/if}}
             {{#if program.task.writing}}<em title="Programming (p.100–102)">writing{{#if program.task.period}} {{program.task.done}}/{{program.task.period}}d{{/if}}</em>{{/if}}{{#if program.task.unwritten}}<em title="Its programming failed or was abandoned: it was never written (p.100). Start programming again.">unwritten</em>{{/if}}</span>
           <div class="item-controls">
             <a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>

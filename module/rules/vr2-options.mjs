@@ -1,6 +1,6 @@
 // VR2.0 optional rule "Utility Options" (pp.102–104) and programming (pp.100–102): pure math, no Foundry.
 // docs/PLAN-vr2-part5b.md. Book examples are pinned in test/vr2-options.test.mjs.
-import { programSize, matrixProgramMultiplierVR2 } from "./sr2e-rules.mjs";
+import { matrixProgramMultiplierVR2 } from "./sr2e-rules.mjs";
 
 /**
  * The options (pp.103–104). `mod`: the rating modifier — a number, "rating" (+ the option's own rating), or 0 for
@@ -97,8 +97,10 @@ export function programSizes({ rating, multiplier, options = [] }) {
   const designMods = options.reduce((n, o) => n + modOf(o), 0);
   const effective = Math.max(1, base + mods), designRating = Math.max(1, base + designMods);
   const factor = (k) => options.reduce((f, o) => f * (UTILITY_OPTION_KINDS[o.kind][k] ?? 1), 1);
-  const actual = Math.ceil(programSize(effective, multiplier) * factor("actual"));
-  const design = Math.ceil(programSize(designRating, multiplier) * factor("design"));
+  // Rating² × multiplier × every factor, rounded up ONCE (a fractional multiplier mustn't round twice; code R3 #1).
+  // No factors → Math.ceil(r² × m) = `programSize`.
+  const sized = (r, k) => Math.ceil(r * r * (Number(multiplier) || 0) * factor(k));
+  const actual = sized(effective, "actual"), design = sized(designRating, "design");
   return { effective, designRating, actual, design, price: design * matrixProgramMultiplierVR2(base) };
 }
 

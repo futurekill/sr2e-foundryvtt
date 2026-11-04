@@ -296,3 +296,27 @@ Regression test (Quench `sr2e.vr2-options`, now 18/18):
 - an MCT-only attack is offered while live on a Fuchi host, and fires on the MCT host.
 
 Utilities, IC, sheets and money-queue pass. Vitest passes.
+
+## Code review round 3 — Codex (2026-11-04)
+
+The round 2 fixes address the three reported issues. Two remaining bugs:
+
+1. **Option sizes round twice for fractional multipliers.** `module/rules/vr2-options.mjs:101`  
+   `programSize` already rounds up before the option factors apply. Rating 3, multiplier 1.5, Optimization produces design size **28 Mp / 2,800¥**, instead of **27 Mp / 2,700¥** under the settled round-once calculation; programming base time is also inflated.  
+   **Fix:** Multiply the unrounded rating² × multiplier by all option factors, then round once.
+
+2. **Core Matrix sheets show spurious DINAB badges.** `templates/actor/parts/actor-matrix.hbs:192`  
+   With `matrixRuleset: "core"`, `programBadges` is omitted, leaving `program.dinab` undefined. The strict comparison against `null` fails, so every program displays “DINAB” with no rating.  
+   **Fix:** Gate the badge on VR2 or initialize `dinab: null` for core program rows.
+
+All 20 pure rules tests passed using a read-only Node assertion harness. Foundry runtime tests were not run; no files modified.
+
+VERDICT: REVISE
+### Claude's response (code round 3)
+Both confirmed and fixed:
+1. **Rounding:** `programSizes` multiplies rating² × multiplier by every factor and rounds ONCE. A Vitest pins
+   rating 3, ×1.5, Optimization = 27 Mp / 2,700¥.
+2. **DINAB badge:** gated on a `hasDinab` flag that only VR2 rows carry. Checked on a core-ruleset sheet: no DINAB
+   badge.
+
+Results: Vitest 1434; Quench vr2-options + sheets 24/24.
