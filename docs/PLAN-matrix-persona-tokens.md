@@ -102,9 +102,17 @@ Make jackpoints as easy as summoning:
 - The pause between the session write and the token appearing (the GM's debounce plus the round trip). The jack-in
   shouldn't feel broken; hence the wait-then-pan, and the later pan by reconcile.
 - A decker with sessions on two Matrix scenes: `winner()` already picks one live session, so there's one persona.
-- Movement limiter and region behaviours on the Matrix scene: creating a token inside a Region fires
-  `tokenMoveIn`-style events. The astral-forms work hit this: "Foundry splits a move at regions…". Check that the
-  entry region has no behaviour that reacts to the creation.
+- **Region events: PROBED 2026-11-04, live, on a throwaway scene.**
+  - Creating a linked token inside a Region fires that Region's behaviours with **`tokenEnter`** (not
+    `tokenMoveIn` or `tokenAnimateIn`), whether or not anyone views the scene. The created token's `regions` already
+    holds the Region.
+  - So a behaviour on the ENTRY Region reacting to `tokenEnter` runs once per jack-in. Examples: a Pause Game, a
+    Teleport, or a script.
+  - The jackpoint behaviour itself declares no events, so it's unaffected.
+  - Plan: document it as GM-facing ("anything on the entry area that reacts to a token entering runs when a decker
+    jacks in"). That's arguably what a GM wants, e.g. an alert script. Persona creation doesn't suppress it.
+- **Ownership: PROBED.** A token from `actor.getTokenDocument({ actorLink: true })` is linked, and ownership is the
+  actor's (the player keeps OWNER), so no ownership data goes on the token.
 - The token is created from the prototype, so the prototype's own ownership and vision settings carry over. Verify a
   player still owns it (actorLink makes ownership the actor's).
 
