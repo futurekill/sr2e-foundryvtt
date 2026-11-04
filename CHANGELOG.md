@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Persona tokens appear on jack-in.** A decker who jacks in at a Matrix jackpoint no longer needs a persona the GM
+  placed beforehand: their persona token appears in the jackpoint's entry area (on its own free square, wholly inside
+  the area) and the view pans to it; jacking out, a dump, or the session ending any other way removes it. The GM's
+  client makes and removes them, so it works whatever the table's token permissions; if the GM isn't logged in, the
+  jack-in still goes ahead and the persona appears when they are.
+  - A persona the GM places and marks by hand is used instead and stays between runs, as before. **Keep this
+    persona** (a pin on the token HUD) turns one that appeared on its own into a hand-placed one.
+  - New optional **Matrix icon** in the Persona box on the Matrix tab (VR2.0 p.84): the persona token's image.
+- How-To Guides: *Hit several IC with an Area attack (VR2.0)*.
+
+### Changed
+- A jackpoint session remembers its entry area: re-pointing the jackpoint mid-run doesn't move a decker who's
+  already in, and deleting that entry area ends the session.
+
 ## 0.129.0 — 2026-11-04
 
 ### Added

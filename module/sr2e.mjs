@@ -40,6 +40,7 @@ import { renderVR2MatrixCard, renderManeuverCard, wireVR2Buttons, vr2Ready } fro
 import { isVR2, utilityOptionsOn } from "./vr2-mode.mjs";
 import { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea } from "./areas.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
+import { registerPersonaTokenHooks } from "./persona-tokens.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
 import { registerPhoneLink } from "./companion/phone-link.mjs";
@@ -524,6 +525,7 @@ Hooks.once("init", async () => {
   registerShapeshifters();         // shapeshifters: forms, regeneration, death checks (Companion pp.36–38)
   registerJackpointBehavior();
   registerJackpointHooks();
+  registerPersonaTokenHooks();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();

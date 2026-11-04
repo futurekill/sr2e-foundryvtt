@@ -4537,13 +4537,15 @@ const SHARED_ACTIONS = {
   editImage: async function(event, target) {
     event.preventDefault();
     const actor = this.document;
+    // data-edit names another image field (the Matrix icon); the portrait by default.
+    const field = target?.dataset?.edit || "img";
     // V13: the global FilePicker is deprecated; use the namespaced implementation
     const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
     const fp = new FilePickerImpl({
       type: "image",
-      current: actor.img,
+      current: foundry.utils.getProperty(actor, field),
       callback: async (path) => {
-        await actor.update({ img: path });
+        await actor.update({ [field]: path });
       }
     });
     fp.browse();

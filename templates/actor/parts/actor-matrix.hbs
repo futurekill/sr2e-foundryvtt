@@ -145,6 +145,15 @@
           <input type="number" name="system.matrixPersona.sensor" value="{{authoredPersona.sensor}}" min="0" />{{#ifEquals authoredPersona.sensor system.matrixPersona.sensor}}{{else}}<span class="hint" title="Effective: loaded programs, icon damage, an improvised build">→ {{system.matrixPersona.sensor}}</span>{{/ifEquals}}
         </div>
       </div>
+      <div class="form-group matrix-icon" style="margin-top:6px;">
+        <label title="The persona token's image when this decker jacks in at a jackpoint (VR2.0 p.84). Blank: the token image.">Matrix icon:</label>
+        <div class="flexrow" style="align-items:center;gap:6px;">
+          <img src="{{#if system.matrixIcon}}{{system.matrixIcon}}{{else}}{{actor.prototypeToken.texture.src}}{{/if}}" alt="Matrix icon"
+               data-action="editImage" data-edit="system.matrixIcon" title="Choose the Matrix icon"
+               style="flex:0 0 36px;width:36px;height:36px;object-fit:contain;cursor:pointer;border:1px solid #33ddff55;border-radius:4px;" />
+          <input type="text" name="system.matrixIcon" value="{{system.matrixIcon}}" placeholder="Blank: the token image" />
+        </div>
+      </div>
       <div class="form-group" style="margin-top:6px;">
         <label>Persona Condition <span style="font-size:10px;color:#aaa1c0;">(10 = crash)</span>:</label>
         <div class="flexrow" style="align-items:center;gap:6px;">

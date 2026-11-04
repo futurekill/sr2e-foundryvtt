@@ -318,6 +318,8 @@ export class CharacterData extends SR2EDataModel {
       // Matrix state (SR2E p.178): jacked in → Matrix initiative (1d6 + Reaction,
       // +2 Reaction & +1d6 per response level; wired/magic/VCR do not apply).
       matrixMode: new fields.BooleanField({ initial: false }),
+      // The persona's icon on a Matrix scene (VR2.0 p.84); blank → the token image (PLAN-matrix-persona-tokens).
+      matrixIcon: new fields.FilePathField({ categories: ["IMAGE"], required: false, blank: true, initial: "" }),
       // Dump shock (p.180): +2 to all TNs after being dumped, until shaken off.
       dumpShock: new fields.BooleanField({ initial: false }),
 

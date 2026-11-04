@@ -840,15 +840,22 @@ If those five all work, the core loop is healthy.
 ## Matrix jackpoints (two clients: a GM and a player login)
 - [ ] GM: draw a Region over a terminal, add the **Matrix jackpoint** behaviour pointing
       at an entry Region on a separate Matrix scene; the player can view that scene
-      (Limited). Drag the decker onto the Matrix scene and mark it **Matrix persona**.
+      (Limited). Place NO persona.
 - [ ] Player: move the decker into the region → the HUD shows **Jack in: <name>**; outside
-      it, no button. With no persona placed, the button says to ask the GM.
-- [ ] Player clicks it → only the PLAYER's screen moves to the Matrix scene, centred on the
-      persona; the GM and a second player stay put. The body shows a cyan outline.
+      it, no button.
+- [ ] Player clicks it → a persona token appears inside the entry area (the Matrix icon if
+      set, else the token image), and only the PLAYER's screen moves to the Matrix scene,
+      centred on it; the GM and a second player stay put. The body shows a cyan outline.
+      Two deckers jacking in get separate squares. (`sr2e.persona-tokens` batch.)
+- [ ] GM logged out: the player jacks in → the view still switches, with a notice; the GM
+      logs in → the persona appears and the player's view jumps to it once.
+- [ ] Persona HUD as the GM: **Keep this persona** (pin) → after jack-out it stays. A
+      hand-placed persona (astronaut button) is used instead of a new one and stays.
 - [ ] Player reloads → back on the Matrix scene. Player navigates back to meat space
       by hand → stays there.
-- [ ] Jack out (persona HUD) → the player's screen returns; the outline goes. Repeat with
-      the sheet toggle, and with a dump (crash the persona with IC).
+- [ ] Jack out (persona HUD) → the player's screen returns, the outline and the persona go.
+      Repeat with the sheet toggle, and with a dump (crash the persona with IC); under
+      VR2.0 too.
 - [ ] GM disables the jackpoint mid-session → the player returns.
 - [ ] The sheet's plain Jack In on a character with no jackpoint → Matrix mode on, no
       screen change.

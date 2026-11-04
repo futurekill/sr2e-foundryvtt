@@ -9753,13 +9753,11 @@ export function registerSR2EQuenchTests() {
         return { a, body: meat.tokens.get(body.id) };
       };
 
-      it("the behaviour registers, and a body standing in it may jack in only with a usable persona", async () => {
+      it("the behaviour registers, and a body standing in it may jack in with or without a placed persona", async () => {
         assert.equal(behavior.type, "jackpoint");
-        const { a, body } = await decker({ persona: false });
+        const { body } = await decker({ persona: false });
         assert.include(J.jackpointsAt(body).map(b => b.id), behavior.id, "the token stands in the jackpoint");
-        assert.isFalse(J.canJackIn(body, behavior).ok, "no persona yet");
-        await matrix.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x: 350, y: 350, actorLink: true, sight: { enabled: true }, flags: { sr2e: { persona: true } } }]);
-        assert.isTrue(J.canJackIn(body, behavior).ok);
+        assert.isTrue(J.canJackIn(body, behavior).ok, "no persona needed: one appears on jack-in");
       });
 
       it("jacking in: one session, Matrix mode on, the view moves; Jack out ends it and brings the view back", async function () {
@@ -9876,6 +9874,277 @@ export function registerSR2EQuenchTests() {
         await a.update({ "system.matrixMode": false });
       });
     }, { displayName: "SR2E: Matrix jackpoints (perception shift)" });
+
+    // ── Persona tokens appear on jack-in (docs/PLAN-matrix-persona-tokens.md) ──
+    quench.registerBatch("sr2e.persona-tokens", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      let J, P, R, meat, matrix, entry, jackRegion, behavior, startScene;
+      const made = { actors: [] };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const tabKey = () => `sr2e.${game.world.id}.${game.user.id}.matrixView`;
+      before(async function () {
+        this.timeout(30000);
+        J = await import("../jackpoints.mjs");
+        P = await import("../persona-tokens.mjs");
+        R = await import("../rules/jackpoint-rules.mjs");
+        startScene = canvas.scene?.id;
+        [meat, matrix] = await Scene.createDocuments([
+          { name: "Quench Persona Meat", width: 1000, height: 800, grid: { size: 100, distance: 1, units: "m" }, navigation: false },
+          { name: "Quench Persona Matrix", width: 1400, height: 1000, grid: { size: 100, distance: 1, units: "m" }, navigation: false, tokenVision: true }]);
+        [entry] = await matrix.createEmbeddedDocuments("Region", [{ name: "Quench persona entry",
+          shapes: [{ type: "rectangle", x: 300, y: 300, width: 300, height: 200 }] }]);
+        [jackRegion] = await meat.createEmbeddedDocuments("Region", [{ name: "Quench persona terminal",
+          shapes: [{ type: "rectangle", x: 100, y: 100, width: 200, height: 200 }],
+          behaviors: [{ type: "jackpoint", name: "Jackpoint", system: { destination: entry.uuid, label: "Quench persona port" } }] }]);
+        behavior = jackRegion.behaviors.contents[0];
+        await meat.view(); await wait(800);
+      });
+      afterEach(async function () {
+        this.timeout(15000);
+        P.personaSeam.isWriter = null; P.personaSeam.beforeCreate = null;
+        for (const id of made.actors) { const a = game.actors.get(id); if (a?.system.matrixMode) await a.update({ "system.matrixMode": false }); }
+        await P.personaReconcileIdle();
+        try { sessionStorage.removeItem(tabKey()); } catch (e) { /* */ }
+        if (canvas.scene?.id !== meat.id) { await meat.view(); await wait(600); }
+      });
+      after(async function () {
+        this.timeout(30000);
+        const back = game.scenes.get(startScene);
+        if (back) await back.view();
+        await Scene.deleteDocuments([meat?.id, matrix?.id].filter(id => id && game.scenes.has(id)));
+        const ids = made.actors.filter(id => game.actors.has(id));
+        if (ids.length) await Actor.deleteDocuments(ids);
+      });
+      const decker = async (name = "Quench Persona Decker", x = 150) => {
+        const a = await Actor.create({ name, type: "character", system: { cyberdeck: { mpcp: 4 } }, prototypeToken: { actorLink: true } });
+        made.actors.push(a.id);
+        const [body] = await meat.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x, y: 150, actorLink: true }]);
+        await wait(300);
+        return { a, body: meat.tokens.get(body.id) };
+      };
+      const personas = (a, scene = matrix) => scene.tokens.filter(t => t.actorId === a.id && t.getFlag("sr2e", "persona"));
+      const managedOf = (a, scene = matrix) => personas(a, scene).filter(t => t.getFlag("sr2e", "personaManaged"));
+      const footprint = (t) => ({ x: t.x, y: t.y, w: t.width * 100, h: t.height * 100 });
+      const contained = (t, region) => R.rectInRegion(footprint(t), region.polygons.map(p => p.points), (x, y) => region.polygonTree.testPoint({ x, y }));
+      const handPlaced = async (a, extra = {}) => (await matrix.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(),
+        x: 1100, y: 800, actorLink: true, sight: { enabled: true }, flags: { sr2e: { persona: true } }, ...extra }]))[0];
+
+      it("jacking in creates one linked, sighted, visible persona inside the entry area, and the view pans to it; jack-out removes it", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        const [p, ...rest] = managedOf(a);
+        assert.ok(p, "a persona appeared");
+        assert.lengthOf(rest, 0, "exactly one");
+        assert.isTrue(p.actorLink, "linked: damage lands on the character");
+        assert.isTrue(p.sight.enabled, "it can see");
+        assert.isFalse(p.hidden);
+        assert.isTrue(contained(p, entry), "inside the entry area");
+        assert.isTrue(p.testUserPermission(game.user, "OWNER"));
+        assert.equal(canvas.scene.id, matrix.id, "the tab is in the Matrix");
+        assert.isTrue(J.readTab()?.panned, "it panned to the persona");
+        const s = Object.values(a.flags.sr2e.matrixSessions)[0];
+        assert.equal(s.destRegion, entry.uuid, "the session snapshots its entry area");
+        await J.jackOut(a);
+        await settle(() => !managedOf(a).length && canvas.scene.id === meat.id, 8000);
+        assert.lengthOf(managedOf(a), 0, "gone on jack-out");
+        assert.equal(canvas.scene.id, meat.id);
+      });
+
+      it("the Matrix icon becomes the persona's image", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await a.update({ "system.matrixIcon": "icons/svg/lightning.svg" });
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        assert.equal(managedOf(a)[0]?.texture.src, "icons/svg/lightning.svg");
+      });
+
+      it("a hand-placed persona is used and kept; none is created", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        const hand = await handPlaced(a);
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 0, "no managed one");
+        assert.equal(J.personaOn(a, matrix)?.id, hand.id);
+        await J.jackOut(a);
+        await settle(() => canvas.scene.id === meat.id, 8000);
+        await P.personaReconcileIdle();
+        assert.ok(matrix.tokens.get(hand.id), "the GM's token stays");
+      });
+
+      it("a hidden hand-placed persona doesn't block a managed one; un-hiding it removes the managed one", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        const hand = await handPlaced(a, { hidden: true });
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 1, "a managed persona beside the hidden one");
+        await hand.update({ hidden: false });
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 0, "the GM's usable one wins");
+        assert.ok(matrix.tokens.get(hand.id));
+      });
+
+      it("duplicates converge on one; a managed persona the GM hides or unlinks is replaced", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        const first = managedOf(a)[0];
+        await matrix.createEmbeddedDocuments("Token", [{ ...first.toObject(), _id: undefined, x: 500 }]);
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 1, "one left");
+        const keep = managedOf(a)[0];
+        await keep.update({ hidden: true });
+        await P.personaReconcileIdle();
+        const now = managedOf(a);
+        assert.lengthOf(now, 1, "replaced, not doubled");
+        assert.notEqual(now[0].id, keep.id);
+        assert.isFalse(now[0].hidden);
+      });
+
+      it("with no active writer the jack-in still goes ahead; the persona appears on handoff and the tab pans to it once", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        P.personaSeam.isWriter = false;
+        await J.jackIn(body, behavior);
+        assert.isTrue(a.system.matrixMode, "jacked in");
+        assert.equal(canvas.scene.id, matrix.id, "the view switched anyway");
+        assert.lengthOf(managedOf(a), 0, "no persona yet");
+        assert.isFalse(!!J.readTab()?.panned);
+        P.personaSeam.isWriter = null;
+        Hooks.callAll("userConnected", game.user, true);           // the handoff pass
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 1, "created by the new writer");
+        await settle(() => J.readTab()?.panned, 3000);
+        assert.isTrue(J.readTab()?.panned, "the late pan happened");
+      });
+
+      it("a jack-out on this client during the wait cancels: no scene switch", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        P.personaSeam.isWriter = false;                              // no persona: the jack-in waits
+        const entering = J.jackIn(body, behavior);
+        await wait(600);
+        await Promise.all([entering, J.jackOut(a)]);
+        await wait(500);
+        assert.equal(canvas.scene.id, meat.id, "never switched");
+        assert.isFalse(a.system.matrixMode);
+        assert.lengthOf(Object.keys(a.flags.sr2e?.matrixSessions ?? {}), 0);
+        assert.isNull(J.readTab());
+      });
+
+      it("a session that ends while the create is in flight leaves no orphan", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        P.personaSeam.beforeCreate = async () => { P.personaSeam.beforeCreate = null; await a.update({ "system.matrixMode": false }); };
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle(); await wait(300); await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 0, "the late token was removed");
+      });
+
+      it("a stale managed persona (no session) is removed by a full pass", async function () {
+        this.timeout(30000);
+        const { a } = await decker();
+        await matrix.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(), x: 300, y: 300, actorLink: true,
+          sight: { enabled: true }, flags: { sr2e: { persona: true, personaManaged: true } } }]);
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 0);
+      });
+
+      it("Keep this persona: an adopted persona survives jack-out", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        const p = managedOf(a)[0];
+        await P.adoptPersona(p);
+        await J.jackOut(a);
+        await settle(() => canvas.scene.id === meat.id, 8000);
+        await P.personaReconcileIdle();
+        const kept = matrix.tokens.get(p.id);
+        assert.ok(kept, "still there");
+        assert.isFalse(!!kept.getFlag("sr2e", "personaManaged"), "now hand-placed");
+        await kept.delete();
+      });
+
+      it("placement: an L-shaped area with a hole — every footprint inside, none overlapping", async function () {
+        this.timeout(45000);
+        const [L] = await matrix.createEmbeddedDocuments("Region", [{ name: "Quench L entry", shapes: [
+          { type: "polygon", points: [700, 100, 1200, 100, 1200, 300, 900, 300, 900, 700, 700, 700] },
+          { type: "rectangle", x: 720, y: 120, width: 20, height: 20, hole: true }] }]);
+        await behavior.update({ "system.destination": L.uuid });
+        try {
+          const ds = [await decker("Quench Persona L1", 120), await decker("Quench Persona L2", 160), await decker("Quench Persona L3", 200)];
+          for (const d of ds) {
+            await d.a.update({ "system.matrixMode": true, [`flags.sr2e.matrixSessions.q${d.a.id}`]: { jackpoint: behavior.uuid,
+              originToken: d.body.uuid, destScene: matrix.id, destRegion: L.uuid, user: game.user.id, since: Date.now() } });
+          }
+          await P.personaReconcileIdle(); await wait(300); await P.personaReconcileIdle();
+          const ps = ds.map(d => managedOf(d.a)[0]);
+          assert.isTrue(ps.every(Boolean), "three personas");
+          for (const p of ps) assert.isTrue(contained(p, L), `${p.name} at ${p.x},${p.y} is inside`);
+          assert.notInclude(ps.map(p => `${p.x},${p.y}`), "700,100", "not on the cell with the hole");
+          assert.equal(new Set(ps.map(p => `${p.x},${p.y}`)).size, 3, "no two share a cell");
+        } finally { await behavior.update({ "system.destination": entry.uuid }); }
+      });
+
+      it("retargeting the jackpoint leaves a live persona; deleting the entry area ends the session and removes it", async function () {
+        this.timeout(30000);
+        const [tmp] = await matrix.createEmbeddedDocuments("Region", [{ name: "Quench tmp entry",
+          shapes: [{ type: "rectangle", x: 100, y: 700, width: 200, height: 200 }] }]);
+        await behavior.update({ "system.destination": tmp.uuid });
+        try {
+          const { a, body } = await decker();
+          await J.jackIn(body, behavior);
+          await P.personaReconcileIdle();
+          const p = managedOf(a)[0];
+          assert.isTrue(contained(p, tmp));
+          await behavior.update({ "system.destination": entry.uuid });
+          await wait(600); await P.personaReconcileIdle();
+          assert.ok(matrix.tokens.get(p.id), "unmoved, still there");
+          assert.isTrue(a.system.matrixMode);
+          await tmp.delete();
+          await settle(() => !Object.keys(a.flags.sr2e?.matrixSessions ?? {}).length, 5000);
+          await P.personaReconcileIdle();
+          assert.lengthOf(managedOf(a), 0, "removed with its entry area");
+        } finally { await behavior.update({ "system.destination": entry.uuid }); }
+      });
+
+      it("dump shock (Matrix mode off through the queue) removes the persona", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        assert.lengthOf(managedOf(a), 1);
+        await J.matrixQueue(a, () => a.update({ "system.matrixMode": false, "system.dumpShock": true }));
+        await settle(() => !managedOf(a).length, 5000);
+        assert.lengthOf(managedOf(a), 0);
+      });
+
+      it("VR2.0: the persona appears with the connection and goes with a dump", async function () {
+        this.timeout(30000);
+        const prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        try {
+          const { a, body } = await decker("Quench Persona VR2");
+          await J.jackIn(body, behavior);
+          await P.personaReconcileIdle();
+          assert.ok(a.system.vr2Conn, "a live connection");
+          assert.lengthOf(managedOf(a), 1, "the persona appeared");
+          assert.equal(Object.values(a.flags.sr2e.matrixSessions)[0]?.destRegion, entry.uuid);
+          const { requestExit } = await import("../vr2ic.mjs");
+          await requestExit(a, { trigger: "dump" });
+          await settle(() => !a.system.matrixMode && !managedOf(a).length, 10000);
+          await P.personaReconcileIdle();
+          assert.isFalse(a.system.matrixMode, "dumped");
+          assert.lengthOf(managedOf(a), 0, "the persona went with the connection");
+        } finally { await game.settings.set("sr2e", "matrixRuleset", prior); }
+      });
+    }, { displayName: "SR2E: Persona tokens appear on jack-in" });
 
     // ── Astral movement through walls (docs/PLAN-astral-barriers.md, Stage 1) ──
     quench.registerBatch("sr2e.astral-walls", (context) => {

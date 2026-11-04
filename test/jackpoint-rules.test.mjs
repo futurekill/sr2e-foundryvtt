@@ -1,6 +1,6 @@
 // Matrix jackpoints — the pure decisions (docs/PLAN-matrix-jackpoints.md).
 import { describe, it, expect } from "vitest";
-import { winner, gmCleanup, tabDecision, bodyMarked, personaLit } from "../module/rules/jackpoint-rules.mjs";
+import { winner, gmCleanup, tabDecision, bodyMarked, personaLit, desiredPersonas, rectInRegion, placePersona } from "../module/rules/jackpoint-rules.mjs";
 
 const S = (since, extra = {}) => ({ jackpoint: "J", originToken: "Scene.o.Token.t", destScene: "matrix", user: "u", since, ...extra });
 
@@ -68,5 +68,71 @@ describe("markers", () => {
   it("a persona is lit only on its session's snapshot scene", () => {
     expect(personaLit({ sceneId: "matrix", sessions: { a: S(1) }, matrixMode: true })).toBe(true);
     expect(personaLit({ sceneId: "retargeted", sessions: { a: S(1) }, matrixMode: true })).toBe(false);
+  });
+});
+
+// ── Persona tokens (docs/PLAN-matrix-persona-tokens.md) ──
+describe("which personas a Matrix scene should have", () => {
+  const T = (id, actorId, extra = {}) => ({ id, actorId, actorLink: true, managed: true, usable: true, ...extra });
+  const live = (...ids) => new Set(ids);
+  it("creates one when a live decker has none; none when the session ended", () => {
+    expect(desiredPersonas({ tokens: [], live: live("a") })).toEqual({ create: ["a"], remove: [] });
+    expect(desiredPersonas({ tokens: [T("t1", "a")], live: live() }).remove).toEqual([{ id: "t1", reason: "ended" }]);
+  });
+  it("a usable hand-placed persona wins: no create, and a managed one goes", () => {
+    const hand = T("h", "a", { managed: false });
+    expect(desiredPersonas({ tokens: [hand], live: live("a") })).toEqual({ create: [], remove: [] });
+    expect(desiredPersonas({ tokens: [hand, T("m", "a")], live: live("a") }).remove).toEqual([{ id: "m", reason: "hand-placed" }]);
+  });
+  it("never removes a hand-placed persona, even with no session or unusable", () => {
+    const hand = T("h", "a", { managed: false, usable: false, actorLink: false });
+    expect(desiredPersonas({ tokens: [hand], live: live() }).remove).toEqual([]);
+  });
+  it("a hidden hand-placed persona doesn't block a managed one (R1 #6)", () => {
+    const hand = T("h", "a", { managed: false, usable: false });
+    expect(desiredPersonas({ tokens: [hand], live: live("a") }).create).toEqual(["a"]);
+    expect(desiredPersonas({ tokens: [hand, T("m", "a")], live: live("a") })).toEqual({ create: [], remove: [] });
+  });
+  it("duplicates keep the lowest USABLE id; unusable or unlinked managed ones are replaced (R2 #4)", () => {
+    expect(desiredPersonas({ tokens: [T("b", "a"), T("a1", "a")], live: live("a") }).remove).toEqual([{ id: "b", reason: "duplicate" }]);
+    const r = desiredPersonas({ tokens: [T("a0", "a", { usable: false }), T("b", "a")], live: live("a") });
+    expect(r).toEqual({ create: [], remove: [{ id: "a0", reason: "unusable" }] });
+    const u = desiredPersonas({ tokens: [T("a0", "a", { actorLink: false })], live: live("a") });
+    expect(u).toEqual({ create: ["a"], remove: [{ id: "a0", reason: "unlinked" }] });
+  });
+});
+
+describe("persona placement inside the entry area (R1 #8, R2 #5)", () => {
+  // Even-odd point test over every ring, as a region with holes behaves.
+  const evenOdd = (rings) => (x, y) => rings.reduce((inn, pts) => {
+    let c = false;
+    for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+      const [xi, yi, xj, yj] = [pts[i], pts[i + 1], pts[j], pts[j + 1]];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+    }
+    return inn !== c;
+  }, false);
+  const rect = (x, y, w, h) => [x, y, x + w, y, x + w, y + h, x, y + h];
+  it("a cell inside, on the boundary, and crossing it", () => {
+    const rings = [rect(0, 0, 300, 300)];
+    expect(rectInRegion({ x: 100, y: 100, w: 100, h: 100 }, rings, evenOdd(rings))).toBe(true);
+    expect(rectInRegion({ x: 0, y: 0, w: 100, h: 100 }, rings, evenOdd(rings))).toBe(true);
+    expect(rectInRegion({ x: 250, y: 0, w: 100, h: 100 }, rings, evenOdd(rings))).toBe(false);
+    expect(rectInRegion({ x: 400, y: 0, w: 100, h: 100 }, rings, evenOdd(rings))).toBe(false);
+  });
+  it("a small hole that misses the cell's centre and corners still disqualifies it", () => {
+    const rings = [rect(0, 0, 300, 300), rect(120, 120, 10, 10)];
+    expect(rectInRegion({ x: 100, y: 100, w: 100, h: 100 }, rings, evenOdd(rings))).toBe(false);
+    expect(rectInRegion({ x: 0, y: 0, w: 100, h: 100 }, rings, evenOdd(rings))).toBe(true);
+  });
+  it("an L-shaped region: a 2×2 token goes only where 2×2 fits; occupied cells are skipped, then stacked", () => {
+    const L = [[0, 0, 400, 0, 400, 100, 200, 100, 200, 300, 0, 300]];
+    const args = { bounds: { x: 0, y: 0, width: 400, height: 300 }, grid: 100, rings: L, inside: evenOdd(L) };
+    expect(placePersona({ ...args, w: 100, h: 100 })).toEqual({ x: 0, y: 0 });
+    expect(placePersona({ ...args, w: 200, h: 200 })).toEqual({ x: 0, y: 0 });
+    expect(placePersona({ ...args, w: 100, h: 100, occupied: [{ x: 0, y: 0, w: 100, h: 100 }] })).toEqual({ x: 100, y: 0 });
+    expect(placePersona({ ...args, w: 200, h: 200, occupied: [{ x: 0, y: 0, w: 100, h: 100 }] })).toEqual({ x: 0, y: 100 });
+    expect(placePersona({ ...args, w: 200, h: 200, occupied: [{ x: 0, y: 0, w: 200, h: 300 }] })).toEqual({ x: 0, y: 0 }, "full: stacked");
+    expect(placePersona({ ...args, w: 300, h: 300 })).toBeNull();
   });
 });

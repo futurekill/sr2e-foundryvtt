@@ -69,3 +69,83 @@ export function personaLit({ sceneId, sessions = {}, matrixMode }) {
   const w = winner(sessions);
   return !!matrixMode && !!w && w.destScene === sceneId;
 }
+
+// ── Persona tokens (docs/PLAN-matrix-persona-tokens.md) ───────────────────────
+
+/**
+ * Which persona tokens one Matrix scene should gain or lose. `tokens` are the scene's
+ * persona-flagged tokens `{id, actorId, actorLink, managed, usable}` (usability judged by the
+ * caller with the same predicate canJackIn uses, R1 #6); `live` is the set of actor ids whose
+ * winning, valid session targets this scene. Hand-placed personas are never removed; managed
+ * ones are disposable: unlinked or unusable ones go (R2 #4), duplicates keep the lowest id among
+ * usable ones, and all go when a usable hand-placed persona exists or the session ended.
+ * @returns {{create: string[], remove: {id: string, reason: string}[]}}
+ */
+export function desiredPersonas({ tokens = [], live = new Set() }) {
+  const create = [], remove = [];
+  const byActor = new Map();
+  for (const t of tokens) {
+    if (!t.managed) continue;
+    if (!t.actorLink) { remove.push({ id: t.id, reason: "unlinked" }); continue; }
+    if (!t.usable) { remove.push({ id: t.id, reason: "unusable" }); continue; }
+    if (!byActor.has(t.actorId)) byActor.set(t.actorId, []);
+    byActor.get(t.actorId).push(t);
+  }
+  const handUsable = (actorId) => tokens.some(t => !t.managed && t.actorLink && t.usable && t.actorId === actorId);
+  for (const [actorId, list] of byActor) {
+    list.sort((a, b) => cmp(a.id, b.id));
+    const reason = !live.has(actorId) ? "ended" : handUsable(actorId) ? "hand-placed" : null;
+    for (const [i, t] of list.entries()) if (reason || i > 0) remove.push({ id: t.id, reason: reason ?? "duplicate" });
+  }
+  for (const actorId of live) if (!byActor.has(actorId) && !handUsable(actorId)) create.push(actorId);
+  return { create, remove };
+}
+
+/**
+ * Is the rectangle `{x, y, w, h}` wholly inside a region? Exact, not sampled (R2 #5): if no
+ * boundary edge (`rings`: flat [x0, y0, x1, y1, …] point lists, holes included) crosses the
+ * rectangle's open interior, the rectangle is all in or all out, and its centre decides
+ * (`inside(x, y)`, the region's own point test, which knows the winding and holes).
+ */
+export function rectInRegion(rect, rings, inside) {
+  const eps = 1e-6;
+  const x0 = rect.x + eps, y0 = rect.y + eps, x1 = rect.x + rect.w - eps, y1 = rect.y + rect.h - eps;
+  // Liang–Barsky: does segment (ax, ay)→(bx, by) reach the (shrunk) rectangle?
+  const hits = (ax, ay, bx, by) => {
+    let t0 = 0, t1 = 1;
+    const dx = bx - ax, dy = by - ay;
+    for (const [p, q] of [[-dx, ax - x0], [dx, x1 - ax], [-dy, ay - y0], [dy, y1 - ay]]) {
+      if (p === 0) { if (q < 0) return false; continue; }
+      const r = q / p;
+      if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else { if (r < t0) return false; if (r < t1) t1 = r; }
+    }
+    return true;
+  };
+  for (const pts of rings) {
+    for (let i = 0; i < pts.length; i += 2) {
+      const j = (i + 2) % pts.length;
+      if (hits(pts[i], pts[i + 1], pts[j], pts[j + 1])) return false;
+    }
+  }
+  return !!inside(rect.x + rect.w / 2, rect.y + rect.h / 2);
+}
+
+/**
+ * Where a new persona goes: the first grid cell (row by row) whose footprint the region contains
+ * and no other token overlaps; else the first contained one (stacking beats landing outside);
+ * else null (the region is smaller than the token — the caller falls back to its centre).
+ */
+export function placePersona({ bounds, grid, w, h, rings, inside, occupied = [] }) {
+  const overlaps = (r) => occupied.some(o => r.x < o.x + o.w && o.x < r.x + r.w && r.y < o.y + o.h && o.y < r.y + r.h);
+  let first = null;
+  for (let y = Math.floor(bounds.y / grid) * grid; y + h <= bounds.y + bounds.height + 1e-6; y += grid) {
+    for (let x = Math.floor(bounds.x / grid) * grid; x + w <= bounds.x + bounds.width + 1e-6; x += grid) {
+      const r = { x, y, w, h };
+      if (!rectInRegion(r, rings, inside)) continue;
+      if (!overlaps(r)) return { x, y };
+      first ??= { x, y };
+    }
+  }
+  return first;
+}

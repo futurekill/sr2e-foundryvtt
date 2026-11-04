@@ -380,6 +380,12 @@ the driving client goes through `matrixQueue(actor, …)` — the sheet toggle a
 dump shock do; any new path must too. Reconciliation runs via
 `scheduleReconcile`, never directly. Never `await canvas.animatePan` (it never
 resolves in a hidden tab). See docs/PLAN-matrix-jackpoints.md.
+Persona tokens (`module/persona-tokens.mjs`, docs/PLAN-matrix-persona-tokens.md) are the
+astral-forms pattern: only the active GM's client creates/deletes `personaManaged` tokens,
+from `desiredPersonas` re-derived before every write; hand-placed personas are never touched.
+"Usable" is ONE predicate (`personaUsable`). `scheduleReconcile` schedules them OUTSIDE the
+Matrix queue (a jack-in on the GM's own client holds that queue while it waits for the token).
+Sessions snapshot `destRegion`; `sessionValid` checks it.
 
 ## Healing on the game clock
 `module/healing-clock.mjs` (+ pure `module/rules/healing-clock-rules.mjs`, docs/PLAN-healing-clock.md):

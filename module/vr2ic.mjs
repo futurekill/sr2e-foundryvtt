@@ -1636,7 +1636,7 @@ export async function rebuildJackpointEntries() {
     const jp = a.type === "character" && a.isOwner ? a.system.vr2Conn?.jackpoint : null;
     if (!jp?.session || jp.user !== game.user.id || a.flags?.sr2e?.matrixSessions?.[jp.session]) continue;
     await a.update({ [`flags.sr2e.matrixSessions.${jp.session}`]: { jackpoint: jp.jackpoint, originToken: jp.originToken,
-      destScene: jp.destScene, user: jp.user, since: Date.now() } });
+      destScene: jp.destScene, ...(jp.destRegion ? { destRegion: jp.destRegion } : {}), user: jp.user, since: Date.now() } });
   }
 }
 

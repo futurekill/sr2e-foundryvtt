@@ -3,8 +3,9 @@
  * (docs/PLAN-matrix-jackpoints.md: Round 1 design + Round 2–4 amendments).
  *
  * The GM draws a Region over a terminal and gives it the "Matrix jackpoint"
- * behaviour, pointing at an entry Region on a Matrix scene, and places each
- * decker's persona there once (a linked token, marked as a persona). A character
+ * behaviour, pointing at an entry Region on a Matrix scene. Each decker's persona
+ * token appears there on jack-in and goes on jack-out (module/persona-tokens.mjs,
+ * the active GM's client); a GM may still place and mark one by hand. A character
  * standing in the jackpoint gets "Jack in" on their token HUD: Matrix mode goes on,
  * a session record is added, and ONLY that tab switches to the Matrix scene.
  * Turning Matrix mode off in any way (Jack out, the sheet toggle, dump shock, the
@@ -20,6 +21,7 @@
 import { enqueueAttack } from "./engagement.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { winner, gmCleanup, tabDecision, bodyMarked, personaLit } from "./rules/jackpoint-rules.mjs";
+import { schedulePersonas, adoptPersona } from "./persona-tokens.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -64,17 +66,22 @@ export function resolveJackpoint(behavior) {
 
 // ── Personas, eligibility ────────────────────────────────────────────────────
 
-/** The actor's persona on a scene: the first GM-marked linked token (R3 #6). */
+/**
+ * The actor's persona on a scene: a linked persona-flagged token, preferring a usable one,
+ * then a hand-placed one over a managed one, then sort and id (R3 #6; persona plan R1 #6).
+ */
 export function personaOn(actor, scene) {
   const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const rank = (t) => (personaUsable(t, scene) ? 0 : 2) + (t.getFlag("sr2e", "personaManaged") ? 1 : 0);
   return (scene?.tokens?.contents ?? [])
     .filter(t => t.actorLink && t.actorId === actor.id && t.getFlag("sr2e", "persona"))
-    .sort((a, b) => ((a.sort ?? 0) - (b.sort ?? 0)) || cmp(a.id, b.id))[0] ?? null;
+    .sort((a, b) => (rank(a) - rank(b)) || ((a.sort ?? 0) - (b.sort ?? 0)) || cmp(a.id, b.id))[0] ?? null;
 }
-const personaUsable = (p, scene) => !!p && !p.hidden && (!scene.tokenVision || p.sight?.enabled !== false);
+/** THE usability test, shared by jack-in and the persona writer (persona plan R1 #6). */
+export const personaUsable = (p, scene) => !!p && !p.hidden && (!scene?.tokenVision || p.sight?.enabled !== false);
 
 const deckOk = (actor) => (Number(actor?.system?.cyberdeck?.mpcp) || 0) > 0;
-const sessionsOf = (actor) => actor?.flags?.sr2e?.matrixSessions ?? {};
+export const sessionsOf = (actor) => actor?.flags?.sr2e?.matrixSessions ?? {};
 const inSession = (actor) => !!actor?.system?.matrixMode && !!winner(sessionsOf(actor));
 
 /** Jackpoint behaviours the token document stands in. */
@@ -96,9 +103,8 @@ export function canJackIn(tokenDoc, behavior, user = game.user) {
   if (tab && tab.actorUuid !== actor.uuid) return { ok: false, reason: "This window is already following another jacked-in character." };
   const j = resolveJackpoint(behavior);
   if (j.error) return { ok: false, reason: j.error };
-  const p = personaOn(actor, j.scene);
-  if (!personaUsable(p, j.scene)) return { ok: false, reason: `No usable persona for ${actor.name} on ${j.scene.name} — ask the GM to place one (visible, with sight).` };
-  return { ok: true, ...j, persona: p };
+  // No persona needed: the active GM's client creates one on jack-in (persona plan).
+  return { ok: true, ...j };
 }
 
 // ── The tab's record (sessionStorage, per world and user) ────────────────────
@@ -144,6 +150,8 @@ const centreOf = (doc) => {
 
 /** Actors with a jack-in running on THIS client: reconciliation leaves them alone meanwhile. */
 const ENTERING = new Set();
+/** Actors this client is jacking out: ends a jack-in's wait for its persona (persona plan R2 #2). */
+const LEAVING = new Set();
 /** Reconciliations asked for while a jack-in was running, drained after it. */
 const DEFERRED = new Set();
 
@@ -177,27 +185,38 @@ async function enter(tokenDoc, behavior, actor) {
       const { openConnection, mayJackIn } = await import("./vr2ic.mjs");
       if (!await mayJackIn(actor, sync(behavior.system?.host))) { clearTab(); return; }
       const n = await openConnection(actor, { jackpoint: { jackpoint: behavior.uuid, originToken: tokenDoc.uuid,
-        originScene: tokenDoc.parent.id, destScene, user: game.user.id, session: id } });
+        originScene: tokenDoc.parent.id, destScene, destRegion: check.dest.uuid, user: game.user.id, session: id } });
       if (n == null) { clearTab(); return; }
     }
     await actor.update({ "system.matrixMode": true, [`flags.sr2e.matrixSessions.${id}`]: {
-      jackpoint: behavior.uuid, originToken: tokenDoc.uuid, destScene, user: game.user.id, since: Date.now() } });
+      jackpoint: behavior.uuid, originToken: tokenDoc.uuid, destScene, destRegion: check.dest.uuid, user: game.user.id, since: Date.now() } });
     // VR2.0: the connection's session (its tally, and what a crash ends), inside the queue.
     if (isVR2()) await (await import("./vr2.mjs")).startSession(actor);
-    // Re-check after the wait (R2 #3): still ours, still the winner, still on.
-    const w = winner(sessionsOf(actor));
-    if (!actor.system.matrixMode || w?.id !== id) {
+    // Still ours, still the winner, still on, still valid, not being jacked out here (R2 #3; persona R2 #2–#3).
+    const live = () => !LEAVING.has(actor.uuid) && actor.system.matrixMode && winner(sessionsOf(actor))?.id === id
+      && sessionValid(sessionsOf(actor)[id]);
+    // Wait (up to ~5 s) for the GM's client to create the persona; stop the moment the session isn't live (R1 #2).
+    const usable = () => { const p = personaOn(actor, game.scenes.get(destScene)); return personaUsable(p, game.scenes.get(destScene)) ? p : null; };
+    let persona = usable();
+    for (let i = 0; i < 50 && !persona && live(); i++) { await new Promise(r => setTimeout(r, 100)); persona = usable(); }
+    if (!live()) {
       if (sessionsOf(actor)[id]) await actor.update({ [`flags.sr2e.matrixSessions.-=${id}`]: null });
       clearTab();
       return ui.notifications.info("Jack-in cancelled.");
     }
-    const ok = await showScene(destScene, { pan: centreOf(check.persona) });
+    if (!persona) ui.notifications.info(`${actor.name}'s persona appears in the Matrix when the GM's client catches up.`);
+    const ok = await showScene(destScene, { pan: persona ? centreOf(persona) : null });
     // Still live and still ours after the switch? Otherwise reconciliation takes it from here.
     const rec = readTab();
-    const still = actor.system.matrixMode && winner(sessionsOf(actor))?.id === id && sessionValid(sessionsOf(actor)[id]);
+    const still = live();
     // Record the switch that happened, valid or not; if the session went bad on the
     // way, the queued reconciliation then takes the RETURN path (impl R2 #1).
-    if (ok && rec?.session === id) writeTab({ ...rec, phase: "entered" });
+    if (ok && rec?.session === id) {
+      // A persona created during the switch missed the late-pan hook (record still pending): pan now (R2 #1).
+      const late = !persona && still ? usable() : null;
+      if (late && canvas.scene?.id === destScene) canvas.pan(centreOf(late));
+      writeTab({ ...rec, phase: "entered", panned: !!(persona || late) });
+    }
     if (!still) DEFERRED.add(actor.uuid);
     try {
       await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
@@ -223,17 +242,36 @@ export function sessionHost(actor) {
 export function jackOut(actor) {
   if (!actor?.isOwner) return;
   // VR2.0: dump shock unless the decker logged off gracefully (dynamic: vr2.mjs imports this module).
+  // Its exit is a sequencer request, not this queue, and may be cancelled or fail (Black IC): a
+  // jack-in's wait ends only when the connection really does.
   if (isVR2()) return import("./vr2.mjs").then(m => m.vr2LeaveMatrix(actor));
-  return matrixQueue(actor, () => actor.update({ "system.matrixMode": false }));
+  // Before queueing: a jack-in waiting for its persona in the same queue sees it and cancels (persona R2 #2).
+  LEAVING.add(actor.uuid);
+  return matrixQueue(actor, () => actor.update({ "system.matrixMode": false })).finally(() => LEAVING.delete(actor.uuid));
 }
 
 // ── Reconciliation ───────────────────────────────────────────────────────────
 
-/** Is a session record still usable? (its jackpoint and snapshot scene exist) */
-const sessionValid = (rec) => {
+/**
+ * Is a session record still usable? Its jackpoint and snapshot scene exist, and so does its
+ * snapshot entry Region on that scene (persona R1 #7; records from before it have none).
+ */
+export const sessionValid = (rec) => {
   const b = sync(rec?.jackpoint);
-  return !!b && b.type === "jackpoint" && !b.disabled && !!game.scenes.get(rec?.destScene);
+  if (!b || b.type !== "jackpoint" || b.disabled || !game.scenes.get(rec?.destScene)) return false;
+  return !rec.destRegion || sync(rec.destRegion)?.parent?.id === rec.destScene;
 };
+/** The entry Region a session's persona goes in: its snapshot, else the jackpoint's current one on the same scene. */
+export function sessionRegion(rec) {
+  if (rec?.destRegion) return sync(rec.destRegion);
+  const dest = resolveJackpoint(sync(rec?.jackpoint)).dest;
+  return dest?.parent?.id === rec?.destScene ? dest : null;
+}
+/** The actor's live jackpoint session — Matrix mode on, the winner, valid — or null. */
+export function liveSession(actor) {
+  const w = actor?.system?.matrixMode ? winner(sessionsOf(actor)) : null;
+  return w && sessionValid(w) ? w : null;
+}
 
 /** This tab, for one actor (R3 #3, R4 #2–#4). */
 export async function reconcileTab(actor, { resume = false } = {}) {
@@ -267,6 +305,9 @@ export async function reconcileTab(actor, { resume = false } = {}) {
 /** One reconciliation at a time per actor, coalesced, through its Matrix queue (impl R1 #1). */
 const SCHEDULED = new Set();
 export function scheduleReconcile(actor, opts = {}) {
+  // The persona token, on the active GM's client — outside the Matrix queue, which a jack-in
+  // on this same client holds while it waits for that very token.
+  schedulePersonas(actor);
   if (!actor || SCHEDULED.has(actor.uuid)) return;
   SCHEDULED.add(actor.uuid);
   return matrixQueue(actor, async () => {
@@ -312,10 +353,16 @@ export function registerJackpointHooks() {
     const col = root?.querySelector(".col.left");
     if (!token || !actor || !col) return;
     // GM: mark a linked character token as that decker's persona on this scene.
-    if (game.user.isGM && actor.type === "character" && token.actorLink) {
+    if (game.user.isGM && actor.type === "character" && token.actorLink && token.getFlag("sr2e", "personaManaged")) {
+      // A persona made on jack-in: the GM may keep it (it becomes hand-placed), never unmark or delete it here (R1 #9).
+      const writer = !!game.user.isActiveGM;
+      col.appendChild(hudButton("fa-solid fa-thumbtack", writer ? "Keep this persona (it stays after jack-out, as a hand-placed one)"
+        : "Keep this persona — only the active GM's client can do this", async () => { await adoptPersona(token); hud.render(); },
+      { disabled: !writer }));
+    } else if (game.user.isGM && actor.type === "character" && token.actorLink) {
       const on = !!token.getFlag("sr2e", "persona");
       col.appendChild(hudButton("fa-solid fa-user-astronaut", on ? "Matrix persona (click to unmark)" :
-        "Mark as this character's Matrix persona on this scene (jackpoints need one)", async () => {
+        "Mark as this character's Matrix persona on this scene (otherwise one appears on jack-in)", async () => {
           // A persona needs to see: marking one switches its sight on (R3 #6).
           await token.update({ "flags.sr2e.persona": !on, ...(!on ? { "sight.enabled": true } : {}) }); hud.render();
         }, { active: on }));
@@ -361,6 +408,17 @@ export function registerJackpointHooks() {
     if (!touched) return;
     scheduleReconcile(actor);
     refreshActorTokens(actor);
+  });
+
+  // Late pan (persona R1 #1): the persona arrived after this tab entered — jump to it once.
+  Hooks.on("createToken", (doc) => {
+    const rec = readTab();
+    if (rec?.phase !== "entered" || rec.panned || doc.parent?.id !== rec.destScene || canvas.scene?.id !== rec.destScene) return;
+    const actor = doc.actor;
+    if (!doc.actorLink || actor?.uuid !== rec.actorUuid || !doc.getFlag("sr2e", "persona") || !personaUsable(doc, doc.parent)) return;
+    if (liveSession(actor)?.id !== rec.session) return;
+    canvas.pan(centreOf(doc));
+    writeTab({ ...rec, panned: true });
   });
 
   // A jackpoint or its destination going away invalidates live sessions (R3 #4).
