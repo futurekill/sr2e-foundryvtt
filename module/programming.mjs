@@ -1,14 +1,15 @@
 /**
- * VR2.0 programming (pp.100–102; docs/PLAN-vr2-part5b.md §4): tasks on the program item being written.
- * `flags.sr2e.programming = { current, tasks: { [taskId]: { testMessageId, design, designSize, baseTime, team, restore,
- * period?, log: {id: {days, bonus}}, complete? } }, unwritten? }` (readers: `progTask`/`progWriting`/`progUnfinished`).
- * Every write targets the task's OWN key, so a dialog left open across an abandon/restart can only touch its own,
- * stale task (Codex R3 #1, #3). The test is closed to Karma before its successes fix the period; completion is
- * refused if the design changed since the start.
+ * VR2.0 programming (pp.100–102; docs/PLAN-vr2-part5b.md §4). The lifecycle is an append-only log of durable records
+ * on the program item (`recordEvent`), folded by `foldProgramming` (rules/vr2-options.mjs). Nothing is overwritten:
+ * a log is its own record, and a task has ONE period record and ONE end record whose ids the server arbitrates, so
+ * two devices can't both freeze a period or both end a task, and a delayed write only adds a record to its own task
+ * (Codex R3–R4). The test is closed to Karma before its successes fix the period; completion is refused if the
+ * design changed since the start.
  */
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { baseTime, taskPeriod, workDone, toolBonus, teamTerms, programmingCap, sensitiveSkill, mainframeAdequate,
-  PROGRAMMING_TOOLS, progTask, progWriting, progUnfinished } from "./rules/vr2-options.mjs";
+  PROGRAMMING_TOOLS, foldProgramming } from "./rules/vr2-options.mjs";
+import { recordEvent, eventsOf } from "./claims.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const skillOf = (actor, re) => actor?.items.find(i => i.type === "skill" && re.test(i.name))?.system?.rating ?? 0;
@@ -30,29 +31,22 @@ const designOf = (item) => ({ name: item.name, category: item.system.category, o
   rating: item.system.rating, multiplier: item.system.multiplier,
   options: (item.system.options ?? []).map(o => ({ kind: o.kind, rating: o.rating, target: o.target })) });
 const live = (item) => item.parent?.items.get(item.id) ?? item;
-const stateOf = (item) => live(item)?.flags?.sr2e?.programming ?? null;
-const P = "flags.sr2e.programming";
+const stateOf = (item) => foldProgramming(eventsOf(live(item)));
+const say = (actor, html) => ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${html}</div>` });
 
-/** The task being written (or last written), or null. */
-export const taskOf = (item) => progTask(item?.flags?.sr2e?.programming);
+/** The current (latest) task, or null. */
+export const taskOf = (item) => stateOf(item).task;
 /** Days of work done on a task: Σ days × (1 + bonus) over its log (p.101–102). */
 export const doneOf = (task) => Object.values(task?.log ?? {}).reduce((n, l) => n + workDone(l.days, l.bonus), 0);
 /** Not usable yet: being written, or never written. */
-export const unfinished = (item) => progUnfinished(item?.flags?.sr2e?.programming);
-export const writingOf = (item) => progWriting(item?.flags?.sr2e?.programming);
-
-/** End task `id` without a program: a copy usable before it goes back to that; one never written stays unwritten. */
-async function endTask(item, id) {
-  const s = stateOf(item);
-  if (s?.current !== id) return;   // another task took over meanwhile: this one is history already
-  await live(item).update({ [`${P}.current`]: null, [`${P}.unwritten`]: !s.tasks?.[id]?.restore });
-}
+export const unfinished = (item) => stateOf(item).unfinished;
+export const writingOf = (item) => stateOf(item).writing;
 
 export async function programmingDialog(actor, item) {
   if (!item || item.type !== "program") return;
   if (!item.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can program.`);
   const s = stateOf(item);
-  return progWriting(s) ? workDialog(actor, item, s.current) : startDialog(actor, item);
+  return s.writing ? workDialog(actor, item, s.current) : startDialog(actor, item);
 }
 
 /**
@@ -62,16 +56,19 @@ export async function programmingDialog(actor, item) {
 export async function newProject(actor) {
   if (!actor?.isOwner) return;
   const [item] = await actor.createEmbeddedDocuments("Item", [{ name: "New program", type: "program",
-    system: { category: "other", rating: 1, multiplier: 1 }, flags: { sr2e: { programming: { current: null, tasks: {}, unwritten: true } } } }]);
-  item?.sheet.render(true);
+    system: { category: "other", rating: 1, multiplier: 1 } }]);
+  if (!item) return;
+  await recordEvent(item, "prog:new", { type: "progNew" });
+  item.sheet.render(true);
+  return item;
 }
 
 /** Start (p.100–101): base time from the design size; the Computer (Program Rating) Test sets the task period. */
 async function startDialog(actor, item) {
   const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && computerOf(a) > 0);
   const sensitive = item.system.activeOpts?.some(o => o.kind === "sensitive");
-  // The design is captured BEFORE the dialog and the roll, and re-checked before the task is written.
-  const plan = designOf(item), restore = !unfinished(item);
+  // The design is captured BEFORE the dialog and the roll, and re-checked before the task is recorded.
+  const plan = designOf(item);
   const design = item.system.designSize ?? item.system.size, base = baseTime(design);
   const pick = await foundry.applications.api.DialogV2.prompt({ window: { title: `Program ${item.name}` },
     content: `<div>
@@ -94,14 +91,14 @@ async function startDialog(actor, item) {
   const res = await actor.rollSuccessTest(Math.max(0, dice), Math.max(2, item.system.rating), {
     label: `Programming ${esc(item.name)}: Computer (${item.system.rating})`, tnContext: { kind: "other" } });
   if (!res) return;
-  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || progWriting(stateOf(item))) {
+  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || stateOf(item).writing) {
     return ui.notifications.warn(`${item.name} changed (or another device started writing it) during the test: start again.`);
   }
-  const id = foundry.utils.randomID();
-  await live(item).update({ [`${P}.current`]: id, [`${P}.tasks.${id}`]: { testMessageId: res.testMessageId, design: plan,
-    designSize: design, baseTime: base, team: team.map(a => a.uuid), log: {}, restore } });
-  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)} starts programming
-    ${esc(item.name)}: base time ${base} days ÷ the test's successes (Karma may still change them, until the first day of work).</div>` });
+  const task = foundry.utils.randomID();
+  await recordEvent(live(item), `prog:start:${task}`, { type: "progStart", task, testMessageId: res.testMessageId, design: plan,
+    designSize: design, baseTime: base, team: team.map(a => a.uuid) });
+  say(actor, `${esc(actor.name)} starts programming ${esc(item.name)}: base time ${base} days ÷ the test's successes
+    (Karma may still change them, until the first day of work).`);
 }
 
 /** Log work on task `id` (p.101–102), or complete it. */
@@ -123,7 +120,7 @@ async function workDialog(actor, item, id) {
       return { days: Math.max(1, parseInt(f.days.value) || 1), bonuses: String(f.bonuses?.value ?? ""), sv: parseInt(f.sv?.value) || 0,
         tools: Object.fromEntries(Object.keys(PROGRAMMING_TOOLS).map(k => [k, !!f[k]?.checked])) }; } } }).catch(() => null);
   if (!pick) return;
-  if (stateOf(item)?.current !== id || !progWriting(stateOf(item))) return ui.notifications.warn(`${item.name}'s programming task changed meanwhile: open it again.`);
+  if (stateOf(item).current !== id || !stateOf(item).writing) return ui.notifications.warn(`${item.name}'s programming task changed meanwhile: open it again.`);
   if (!team && pick.tools.mainframe && !mainframeAdequate(pick.sv, item.system.rating)) {
     return ui.notifications.warn(`A mainframe needs a Security Value of at least half the program's rating (${Math.ceil(item.system.rating / 2)}; p.101).`);
   }
@@ -131,48 +128,59 @@ async function workDialog(actor, item, id) {
   const n = (task.team ?? []).length + 1;
   const bonus = team ? teamTerms(Array(n).fill(0), pick.bonuses.split(",").slice(0, n).map(b => parseInt(b) || 0)).bonus : toolBonus(pick.tools);
   if (stateOf(item).tasks[id].period == null && !await freezePeriod(actor, item, id)) return;
-  await live(item).update({ [`${P}.tasks.${id}.log.${foundry.utils.randomID()}`]: { days: pick.days, bonus } });
+  // Its own record, tagged with its task: a log racing an abandon lands in the ended task, never a new one.
+  await recordEvent(live(item), `prog:log:${id}:${foundry.utils.randomID()}`, { type: "progLog", task: id, days: pick.days, bonus });
   const now = stateOf(item).tasks[id];
-  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)} works ${pick.days} day${pick.days === 1 ? "" : "s"} on
-    ${esc(item.name)} (task bonus +${bonus}): ${doneOf(now)} of ${now.period} days done.</div>` });
+  say(actor, `${esc(actor.name)} works ${pick.days} day${pick.days === 1 ? "" : "s"} on ${esc(item.name)} (task bonus +${bonus}):
+    ${doneOf(now)} of ${now.period} days done.`);
   if (doneOf(now) >= now.period) return complete(actor, item, id);
 }
 
 /**
- * The first day of work fixes the period (p.100–101): close the test to Karma FIRST, THEN read its final successes,
- * then write the period once (a period already there wins). False if the task fails (no successes) or moved on.
+ * The first day of work fixes the period (p.100–101): close the test to Karma, THEN read its successes, then record
+ * the period. The record's id is per task, so the first device's period is THE period; every reader uses it.
+ * shortcut: a Karma spend already past its own closure check when the test closes can still land on the card; it
+ * no longer changes the recorded period (that Karma is simply spent). A single Karma authority would remove even
+ * that, if it ever matters at the table.
+ * False if the task failed (no successes) or moved on.
  */
 async function freezePeriod(actor, item, id) {
   const task = stateOf(item).tasks[id];
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}: the first day of work
     fixes the programming test's successes (no more Karma on it).</div>`, flags: { sr2e: { closesTests: [task.testMessageId] } } });
   const test = game.messages.get(task.testMessageId)?.flags?.sr2e?.test;
-  const p = taskPeriod(task.baseTime, test ? testTotalSuccesses(test) : 0);
-  if (stateOf(item)?.current !== id) return false;
-  if (p == null) {
-    ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}: no successes on the programming test — the task fails; try again (p.100).</div>` });
-    await endTask(item, id);
+  const successes = test ? testTotalSuccesses(test) : 0;
+  await recordEvent(live(item), `prog:period:${id}`, { type: "progPeriod", task: id, successes, period: taskPeriod(task.baseTime, successes) });
+  const t = stateOf(item).tasks[id];
+  if (t.period == null) {
+    if (await recordEvent(live(item), `prog:end:${id}`, { type: "progEnd", task: id, outcome: "fail" })) {
+      say(actor, `${esc(item.name)}: no successes on the programming test — the task fails; try again (p.100).`);
+    }
     return false;
   }
-  if (stateOf(item).tasks[id].period == null) await live(item).update({ [`${P}.tasks.${id}.period`]: p });
-  return true;
+  return stateOf(item).current === id && !t.end;
 }
 
 async function complete(actor, item, id) {
-  const s = stateOf(item), task = s?.tasks?.[id];
-  if (s?.current !== id || !task) return ui.notifications.warn(`${item.name}'s programming task changed meanwhile.`);
+  const s = stateOf(item), task = s.tasks[id];
+  if (!task || task.end) return ui.notifications.warn(`${item.name}'s programming task already ended.`);
   if (!foundry.utils.objectsEqual(designOf(live(item)), task.design)) {
     return ui.notifications.warn(`${item.name}'s design changed since the task started: start a new task for the new design.`);
   }
-  await live(item).update({ [`${P}.tasks.${id}.complete`]: true, [`${P}.unwritten`]: false });
-  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card"><strong>${esc(item.name)} is written</strong>
-    (${task.period} days of work; VR2.0 p.101).</div>` });
+  if (!await recordEvent(live(item), `prog:end:${id}`, { type: "progEnd", task: id, outcome: "complete" })) {
+    return ui.notifications.warn(`${item.name}'s programming task ended on another device (${stateOf(item).tasks[id]?.end ?? "?"}).`);
+  }
+  say(actor, `<strong>${esc(item.name)} is written</strong> (${task.period} days of work; VR2.0 p.101).`);
 }
 
 /** Abandon the task being written (the design unlocks; the work is lost). */
 export async function abandon(actor, item) {
-  const s = stateOf(item), id = s?.current, task = progTask(s);
-  if (!progWriting(s)) return;
-  if (!await foundry.applications.api.DialogV2.confirm({ window: { title: item.name }, content: `<p>Abandon programming ${esc(item.name)}? The work done is lost${task.restore ? "" : ", and the program stays unwritten"}.</p>`, rejectClose: false })) return;
-  await endTask(item, id);
+  const s = stateOf(item), id = s.current;
+  if (!s.writing) return;
+  const usableBefore = !foldProgramming(eventsOf(live(item)).filter(r => !String(r.key).includes(id))).unfinished;
+  if (!await foundry.applications.api.DialogV2.confirm({ window: { title: item.name }, content: `<p>Abandon programming ${esc(item.name)}? The work done is lost${usableBefore ? "" : ", and the program stays unwritten"}.</p>`, rejectClose: false })) return;
+  // ONE end per task (server-arbitrated): an abandon racing a completion leaves exactly one of them.
+  if (!await recordEvent(live(item), `prog:end:${id}`, { type: "progEnd", task: id, outcome: "abandon" })) {
+    ui.notifications.warn(`${item.name}'s programming task already ended (${stateOf(item).tasks[id]?.end ?? "?"}).`);
+  }
 }

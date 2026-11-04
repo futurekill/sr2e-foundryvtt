@@ -8,7 +8,7 @@ import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
-import { progUnfinished } from "../rules/vr2-options.mjs";
+import { foldProgramming } from "../rules/vr2-options.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
@@ -31,7 +31,7 @@ import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstres
 export function programUnusable(actor, item) {
   if (item?.system?.crashed) return true;
   // Being written (VR2.0 programming, plan 5b §4): not a program yet.
-  if (progUnfinished(item?.flags?.sr2e?.programming)) return true;
+  if (item?.effects && foldProgramming(eventsOf(item)).unfinished) return true;
   const gen = item?.system?.loadGen ?? 0;
   const crashed = eventsOf(actor).some(e => e.type === "crash" && String(e.key).startsWith("vr2:") && e.programId === item.id && e.loadGen === gen);
   if (crashed) return true;

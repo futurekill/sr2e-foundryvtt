@@ -85,7 +85,8 @@ import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "
 import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
-import { progWriting } from "./rules/vr2-options.mjs";
+import { foldProgramming } from "./rules/vr2-options.mjs";
+import { eventsOf } from "./claims.mjs";
 
 /**
  * Delete every world document a Quench run leaves behind. Quench doesn't clean
@@ -1438,7 +1439,7 @@ Hooks.on("preUpdateItem", (item, changes) => {
     foundry.utils.setProperty(changes, "flags.sr2e.-=decompressed", null);
   }
   // Everything `designOf` (programming.mjs) captures, identity included, while a task is writing it.
-  if (progWriting(item.flags?.sr2e?.programming) && ("name" in changes
+  if (foldProgramming(eventsOf(item)).writing && ("name" in changes
       || ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category"].some(k => k in (changes.system ?? {})))) {
     ui.notifications.warn(`${item.name} is being programmed: its design is fixed until the task completes (or abandon the task).`);
     return false;

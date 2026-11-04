@@ -1,7 +1,7 @@
 // VR2.0 utility options and programming (pp.100–104): the book's own examples.
 import { describe, it, expect } from "vitest";
 import { activeOptions, programSizes, defenseTN, areaTN, skulkTally, utilityOf, toolBonus, baseTime, taskPeriod, workDone,
-         teamTerms, mainframeAdequate, limitAllows, programmingCap, sensitiveSkill } from "../module/rules/vr2-options.mjs";
+         teamTerms, mainframeAdequate, limitAllows, programmingCap, sensitiveSkill, foldProgramming } from "../module/rules/vr2-options.mjs";
 import { programSize, programCostVR2, derivedItemCost } from "../module/rules/sr2e-rules.mjs";
 
 describe("option sizes and price (p.103)", () => {
@@ -103,5 +103,41 @@ describe("programming (pp.100–102)", () => {
     expect([programmingCap("attack", [8]), programmingCap("attack", [8, 3]), programmingCap("blackHammer", [7]),
       programmingCap("killjoy", [7, 6])]).toEqual([8, 9, 4, 4]);
     expect(sensitiveSkill(6, 3)).toBe(5);
+  });
+});
+
+describe("foldProgramming (plan 5b §4, Codex R3–R4): the lifecycle is a log, folded", () => {
+  const start = (task, at) => ({ key: `prog:start:${task}`, type: "progStart", task, at, baseTime: 8 });
+  const end = (task, outcome, at) => ({ key: `prog:end:${task}`, type: "progEnd", task, outcome, at });
+  const log = (task, id, days, at) => ({ key: `prog:log:${task}:${id}`, type: "progLog", task, days, bonus: 0, at });
+  const NEW = { key: "prog:new", type: "progNew", at: 0 };
+  const perms = (xs) => xs.length < 2 ? [xs] : xs.flatMap((x, i) => perms([...xs.slice(0, i), ...xs.slice(i + 1)]).map(p => [x, ...p]));
+
+  it("a bought program is usable; a new project isn't until a task completes", () => {
+    expect(foldProgramming([]).unfinished).toBe(false);
+    expect(foldProgramming([NEW]).unfinished).toBe(true);
+    expect(foldProgramming([NEW, start("A", 1)]).writing).toBe(true);
+    expect(foldProgramming([NEW, start("A", 1), end("A", "complete", 2)]).unfinished).toBe(false);
+  });
+  it("abandoning or failing leaves the program as it was: a new project stays unwritten, a bought copy stays usable", () => {
+    expect(foldProgramming([NEW, start("A", 1), end("A", "abandon", 2)]).unfinished).toBe(true);
+    expect(foldProgramming([start("A", 1), end("A", "fail", 2)]).unfinished).toBe(false);
+    expect(foldProgramming([NEW, start("A", 1), end("A", "complete", 2), start("B", 3), end("B", "abandon", 4)]).unfinished).toBe(false);
+  });
+  it("whatever order the records arrive in: an abandon of A never ends B, and A's late log stays in A", () => {
+    const recs = [NEW, start("A", 1), end("A", "abandon", 2), start("B", 3), log("A", "x", 5, 4)];
+    for (const order of perms(recs)) {
+      const f = foldProgramming(order);
+      expect(f.current).toBe("B");
+      expect(f.writing).toBe(true);
+      expect(Object.keys(f.tasks.B.log)).toHaveLength(0);
+      expect(Object.keys(f.tasks.A.log)).toHaveLength(1);
+    }
+  });
+  it("the period is the task's one period record; a restart starts with none", () => {
+    const f = foldProgramming([start("A", 1), { key: "prog:period:A", type: "progPeriod", task: "A", successes: 4, period: 2, at: 2 },
+      end("A", "complete", 3), start("B", 4)]);
+    expect(f.tasks.A.period).toBe(2);
+    expect([f.task.period, f.task.end, f.task.complete]).toEqual([null, null, false]);
   });
 });

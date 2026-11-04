@@ -247,8 +247,11 @@ my misreading; the book says 1 (p.102; R1 #17).
       Computer;
   - Area targets are deduplicated by actor uuid at validation (the dialog already did).
 - **Round 3 (2026-11-04):**
-  - programming state is `{ current, tasks: { [taskId]: … }, unwritten? }`. Every write targets its task's own key,
-    and transitions re-check `current`;
+  - programming state is `{ current, tasks: { [taskId]: … }, unwritten? }`, superseded in round 4 below;
   - the period is read AFTER the closure;
   - team size uses Computer;
   - a "Write a new program" button creates an unwritten project.
+- **Round 4 (2026-11-04):** the programming lifecycle is durable records on the program item, folded by
+  `foldProgramming` (rules/vr2-options.mjs): `prog:new`, `prog:start:<t>`, `prog:log:<t>:<id>`, ONE
+  `prog:period:<t>` and ONE `prog:end:<t>` per task (server-arbitrated ids). No mutable programming state remains;
+  usability is derived.

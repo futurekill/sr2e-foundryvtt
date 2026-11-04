@@ -131,3 +131,38 @@ Regression tests (Quench `sr2e.vr2-options`):
 
 Karma landing mid-closure isn't scriptable in Quench (it needs two devices); it's covered by the ordering above.
 Results: vr2-options, utilities, ic and sheets pass 48/48. Vitest passes 1428, and lint is clean.
+
+## Round 4 — Codex (2026-11-04)
+
+Two material concurrency gaps remain:
+
+1. **Task-specific keys do not isolate lifecycle writes.** `endTask` still writes shared `current` and `unwritten`; `complete` still writes shared `unwritten`. Two clients can pass the same `current` check, then a delayed abandonment can clear a newly started task. A delayed completion can also clear `unwritten` after abandonment, making an unfinished project usable. The new regression changes tasks *before* validation, so it does not exercise this race.  
+   **Fix:** Serialize lifecycle transitions through the sequencer and validate `current` there, or derive lifecycle state entirely from task-bound immutable records.
+
+2. **Karma closure is still not a cross-client freeze barrier.** `freezePeriod` awaits creation of a closure message, then reads the test. Another client can already have passed `applyKarmaToTest`’s final closure check and have its test update in flight; that update can land after the period is stored. Concurrent first logs can consequently calculate different periods and overwrite each other—the local `period == null` check is not write-once arbitration.  
+   **Fix:** Serialize programming-test Karma updates and period finalization through one authority, persisting one immutable finalized-success/period receipt.
+
+Add controlled interleaving tests that delay the actual document writes, rather than only leaving dialogs open; these races can be simulated without two physical devices.
+
+VERDICT: REVISE
+### Claude's response (round 4)
+Both accepted. I took Codex's second alternative: lifecycle state derived entirely from task-bound immutable records,
+the pattern this system already uses for mbw/cym/vr2 rather than the sequencer.
+- **Records:** programming is now durable records on the program item: `prog:new`, `prog:start:<t>`,
+  `prog:log:<t>:<id>`, `prog:period:<t>` and `prog:end:<t>`, folded by the pure `foldProgramming`.
+  - There are no shared mutable fields left.
+  - A task has exactly one period record and one end record, because the server arbitrates their ids: concurrent
+    first logs agree on one period, and an abandon racing a completion leaves exactly one outcome.
+  - A delayed write only adds a record to its own task.
+- **Usability:** derived, not stored. A new project is unusable until a task completes. An abandoned or failed task
+  leaves the program as it was.
+- **Karma closure:** the period is THE recorded period, whoever wrote it first. The one residual: a Karma spend that
+  had already passed its own closure check can still land on the card, but it no longer affects the period (that
+  Karma is just spent). It's marked `shortcut:` in `freezePeriod`. A single Karma authority across all tests is out
+  of 5b's scope.
+
+Tests:
+- **Vitest:** 4 fold tests, including all 120 orderings of an abandon/restart/late-log interleaving.
+- **Quench:** the stale-dialog test now injects the other device's records mid-dialog. A new race test runs abandon
+  and complete of the same task concurrently, and exactly one survives.
+- **Results:** Vitest 1432, Quench vr2-options/utilities/ic/sheets 48/48, lint clean.

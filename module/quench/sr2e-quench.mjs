@@ -12670,18 +12670,26 @@ export function registerSR2EQuenchTests() {
         assert.isTrue(P.taskOf(p())?.complete, "written");
         await clicking("ok", () => withFaces([5, 5, 5, 5, 5], () => P.programmingDialog(a, p())));
         assert.deepEqual([P.taskOf(p()).complete ?? false, P.taskOf(p()).period ?? null, P.doneOf(P.taskOf(p()))], [false, null, 0], "a fresh task: nothing carried over");
-        // Task A's log dialog is open; meanwhile another device abandons A and starts B.
-        const A = p().flags.sr2e.programming.current, prompt = foundry.applications.api.DialogV2.prompt;
+        // Task A's log dialog is open; meanwhile another device abandons A and starts B (their records land first).
+        const { recordEvent, eventsOf } = await import("../claims.mjs");
+        const { foldProgramming } = await import("../rules/vr2-options.mjs");
+        const A = P.taskOf(p()).task, prompt = foundry.applications.api.DialogV2.prompt;
         foundry.applications.api.DialogV2.prompt = async () => {
-          await p().update({ "flags.sr2e.programming.current": "QuenchTaskB00000", "flags.sr2e.programming.tasks.QuenchTaskB00000":
-            { testMessageId: null, design: {}, designSize: 4, baseTime: 8, team: [], log: {}, restore: true } });
+          await recordEvent(p(), `prog:end:${A}`, { type: "progEnd", task: A, outcome: "abandon" });
+          await recordEvent(p(), "prog:start:QuenchTaskB00000", { type: "progStart", task: "QuenchTaskB00000", design: {}, designSize: 4, baseTime: 8, team: [] });
           return { days: 3, bonuses: "", sv: 0, tools: {} };
         };
         try { await P.programmingDialog(a, p()); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
-        const st = p().flags.sr2e.programming;
-        assert.equal(P.doneOf(st.tasks.QuenchTaskB00000), 0, "B untouched");
-        assert.isNull(st.tasks.QuenchTaskB00000.period ?? null, "B's period untouched");
-        assert.equal(P.doneOf(st.tasks[A]), 0, "the stale dialog was refused outright");
+        let f = foldProgramming(eventsOf(p()));
+        assert.equal(f.current, "QuenchTaskB00000");
+        assert.deepEqual([P.doneOf(f.tasks.QuenchTaskB00000), f.tasks.QuenchTaskB00000.period], [0, null], "B untouched");
+        assert.equal(P.doneOf(f.tasks[A]), 0, "the stale dialog was refused outright");
+        // An abandon and a completion of the SAME task at once: exactly one end record survives.
+        const both = await Promise.all([recordEvent(p(), "prog:end:QuenchTaskB00000", { type: "progEnd", task: "QuenchTaskB00000", outcome: "abandon" }),
+          recordEvent(p(), "prog:end:QuenchTaskB00000", { type: "progEnd", task: "QuenchTaskB00000", outcome: "complete" })]);
+        assert.deepEqual(both.filter(Boolean).length, 1, "one winner");
+        f = foldProgramming(eventsOf(p()));
+        assert.include(["abandon", "complete"], f.tasks.QuenchTaskB00000.end);
       });
     });
 

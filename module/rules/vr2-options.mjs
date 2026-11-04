@@ -169,11 +169,33 @@ export function programmingCap(utility, skills = []) {
 export const sensitiveSkill = (computer, theory) => Math.ceil(((Number(computer) || 0) + (Number(theory) || 0)) / 2);
 
 /**
- * Programming state on a program's `flags.sr2e.programming` (plan 5b §4, Codex R3):
- * `{ current: taskId|null, tasks: { [taskId]: {...} }, unwritten?: true }`. Each task is its own key, so a write from a
- * stale dialog lands in ITS task, never the current one, and no transition relies on a nested-object merge.
+ * Programming lifecycle (plan 5b §4, Codex R3–R4): an append-only log of durable records on the program item, folded.
+ * Nothing is overwritten, so a delayed write from another device can only ADD its own record:
+ *   prog:new                 {type: "progNew"}                              a project that was never written
+ *   prog:start:<t>           {type: "progStart", task, testMessageId, design, designSize, baseTime, team}
+ *   prog:log:<t>:<id>        {type: "progLog", task, days, bonus}
+ *   prog:period:<t>          {type: "progPeriod", task, successes, period}  ONE per task (server-arbitrated id)
+ *   prog:end:<t>             {type: "progEnd", task, outcome}               ONE per task: complete | abandon | fail
+ * The latest start is the current task; an earlier start left open is superseded. Usable: never-written projects
+ * start unusable; a completed task makes the program usable; an abandoned or failed one leaves it as it was.
  */
-export const progTask = (p) => (p?.current ? p.tasks?.[p.current] ?? null : null);
-export const progWriting = (p) => { const t = progTask(p); return !!t && !t.complete; };
-/** Not usable: being written, or never written (a new project, or one whose writing failed or was abandoned). */
-export const progUnfinished = (p) => !!p?.unwritten || progWriting(p);
+export function foldProgramming(records = []) {
+  const recs = records.filter(r => String(r.key ?? "").startsWith("prog:"));
+  const starts = recs.filter(r => r.type === "progStart")
+    .sort((a, b) => ((a.at ?? 0) - (b.at ?? 0)) || String(a.task).localeCompare(String(b.task)));
+  const tasks = {};
+  for (const r of starts) tasks[r.task] = { ...r, log: {}, period: null, successes: null, end: null };
+  for (const r of recs) {
+    const t = tasks[r.task];
+    if (!t) continue;
+    if (r.type === "progLog") t.log[r.key] = { days: r.days, bonus: r.bonus };
+    else if (r.type === "progPeriod") Object.assign(t, { period: r.period ?? null, successes: r.successes ?? 0 });
+    else if (r.type === "progEnd") t.end = r.outcome;
+  }
+  let usable = !recs.some(r => r.type === "progNew");
+  for (const r of starts) if (tasks[r.task].end === "complete") usable = true;
+  const current = starts.at(-1)?.task ?? null, task = current ? tasks[current] : null;
+  const writing = !!task && !task.end;
+  if (task) task.complete = task.end === "complete";
+  return { tasks, current, task, writing, unfinished: writing || !usable };
+}
