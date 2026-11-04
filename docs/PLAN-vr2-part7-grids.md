@@ -1,5 +1,6 @@
 # Plan: VR2.0 part 7: grid topology
-_Draft 0 (2026-11-03). Not yet Codex-reviewed. No code before review._
+_Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson): "7a in detail" below is the part under review;
+7b and 7c get their own detailed sections and reviews later. No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
 - Matrix Topology pp.14–15;
@@ -160,6 +161,226 @@ Sources (rendered, image-only PDF; book = PDF − 8):
      - grid trace persists across LTGs and dumps when governing;
      - topology off = no change.
 
+## 7a in detail: places, navigation, grid tallies, jackpoint kinds (the part under review)
+
+Extra pages read for this section (rendered 2026-11-04): Logon to Host / LTG / RTG and Graceful Logoff (p.114, p.116),
+Locate Access Node (p.114), Matrix Topology (p.14–15), Operations on Grids (p.29–30).
+- **Logon to LTG (p.116):** "If the decker loses the test, his log-on attempt fails. The decker can try again, but his
+  security tally remains on the grid for some time (typically, public LTGs 'remember' unauthorized access attempts
+  for 1D3 × 5 minutes)." Another jackpoint before the next attempt → the grid starts a new tally.
+- **Logon to RTG (p.116):** from an LTG, to its controlling RTG. He MUST do it to reach a different LTG of the same
+  RTG, or another RTG. The test uses the RTG's own Access Rating ("local" LTG changes don't carry over).
+- **Graceful Logoff (p.114):** disconnects "from a host and the LTG where he logged on": it leaves the Matrix. There is
+  no operation for "back to the grid". Open access (p.14) is how a decker moves between hosts: "he can disconnect
+  from that host and access another host without terminating his Matrix run".
+- **Locate Access Node (p.114):** Index/Browse. It finds the LTG codes of the hosts he wants: TN +1 for a vague goal,
+  +0 for a more specific one, −1 for a definite one. "Once a decker has located an LTG code, he need not repeat the
+  operation … unless its owners change the address."
+- **On a grid (p.29–30):** the RTG list includes Retrain and Tap Comcall, but the system has no such operations
+  today. They stay out of scope; 7a only gates the operations that exist.
+
+### 1. Places
+**Schema.** `HostData` gains the fields below. All of them are inert unless `vr2Topology` is on.
+- `kind` StringField: `host` | `ltg` | `rtg` | `pltg`, initial `host`, `blank: false`. The `satellite` kind arrives in
+  7c, with its own schema change.
+- `grid` DocumentUUIDField (an Actor, nullable). It is the grid this place hangs from:
+  - an LTG's grid is its parent RTG;
+  - an open-access or first-tier host's grid is its LTG or PLTG;
+  - a second-tier host and an RTG have none.
+- `links` ArrayField of Actor UUIDs: host↔host links, **undirected**. A link stored on either end counts. The tiered
+  diagram (A↔B, A↔C, A↔D) and the host-host diagram (A↔B, B↔C, B↔D, C↔D, D↔E) are both undirected; going B → C in a
+  tiered network means re-entering A (p.14).
+- `entryPoints` ArrayField of LTG UUIDs: where a PLTG can be entered (p.28).
+- `unlisted` BooleanField: the address isn't public, so the decker must find it (below).
+- `ratingShift` NumberField, an integer from −1 to +1, initial 0. It is the Variable LTG roll (p.28). The
+  `securityValue` getter and `subsystemRating(key)` add it, min 1. That is the ONE place every test reads ratings from,
+  so the shift reaches all of them. Rolling again replaces the shift; clearing it restores the printed ratings.
+
+**Sheet.** The Host sheet gets a **Grid** section: kind, grid, links, entry points and unlisted. It also shows a read-only
+**Reachable from here** list from `reachable()`, so the GM can check the topology. The section is hidden when topology
+is off.
+
+**Presets.** `module/rules/vr2-grids.mjs` holds the 50 rows of `tools/data/vr2-rtg-ratings.tsv`, copied into code. A
+build check fails if the two differ.
+- **New RTG…** (Actors directory, GM only) is a picker. It creates a `kind: rtg` host with the row's code,
+  `securityValueOverride` = level, and the five subsystems.
+- **Unlisted** gives the Easy rule: each rating −2, range 6–8. The GM picks the code.
+- On an RTG's sheet, **Create LTG** copies the RTG's code and ratings into a new `kind: ltg` host with `grid` = the RTG.
+- For the Germany-style indented rows (the LTGs in the table), the picker creates the LTG under its RTG with the
+  table's own ratings.
+- **Roll variable ratings** (on an LTG, when the separate `vr2VariableLTG` setting is on) posts a visible 1D6 and writes
+  `ratingShift`: 1–2 gives −1, 3–4 gives 0, 5–6 gives +1. The GM can also set the shift by hand ("specific changes").
+
+### 2. Where the decker is
+**The derived place.** `currentPlace(actor)` is derived, never stored.
+- The live session (`liveSession`) names a place (`hostUuid`).
+- The decker is **on** that place when either:
+  - the session was not opened by a logon attempt (it came from the sheet, a jackpoint entry, or an operation on the
+    place he is already on), or
+  - its `logon` record shows success.
+
+  A success is read live from the logon card (`systemTestVerdict` on the card's current successes), so Karma counts.
+  If the card is gone, the roll-time verdict stored as `logon.ok` decides. A GM tidying chat must not bump a decker
+  back.
+- Otherwise he is still on `logon.from`: the place he was on when he attempted. It is null at a jackpoint.
+
+**The jackpoint.**
+- A connection with no place yet is **at its jackpoint**: the part-3 connection record names it.
+- With no jackpoint (the sheet's plain Jack In), the decker counts as at an *illegal trid* jackpoint that is wired to
+  no particular LTG.
+
+**Logon attempts.**
+- `vr2SystemTest` for a logon operation calls `sessionFor(actor, target)` as today. Under topology it passes
+  `{ logon: { from: currentPlace(actor)?.uuid ?? null } }` into the new session.
+- After the card is posted, the same session queue writes `logon.card` and `logon.ok` (a session-id check, as
+  `tallyUpdate` does).
+- A failed attempt leaves the decker where he was. The tally he earned stays with the target's scope (§4).
+
+**Operations that aren't logons.**
+- An operation that isn't a logon must target `currentPlace(actor)`. When that place differs from the live session's
+  host (after a failed attempt), `sessionFor` switches back to it, seeded from the ledger (§4).
+
+### 3. Navigation: `reachable(place, op, target, topo)`
+**What it is.** `reachable` is a pure function in `module/rules/vr2-grids.mjs`, tested with Vitest.
+- `topo` is a plain snapshot of every place: `{uuid, kind, grid, links, entryPoints, unlisted}`. The caller also passes
+  the jackpoint's kind and wired place, and the decker's known addresses.
+- It returns `{ok, why}`.
+
+**Graceful Logoff** is always allowed (p.29).
+
+**Where each operation is allowed**, by where the decker is (the p.29–30 table plus p.116):
+
+| Where the decker is | Logon to LTG | Logon to RTG | Logon to Host | Other operations |
+|---|---|---|---|---|
+| Trid jackpoint (legal or illegal) | the jackpoint's wired LTG; any LTG if it has none | — | — | none |
+| Workstation, remote-device or console jackpoint | — | — | only the jackpoint's wired host | none |
+| LTG L | a PLTG with L among its `entryPoints` | L's `grid` (the parent RTG) | any host with `grid` = L | Redirect Datatrail |
+| RTG R | any LTG with `grid` = R | any other RTG | — | Locate Access Node, Make Comcall, Redirect Datatrail |
+| PLTG P | P's entry-point LTGs | any RTG | any host with `grid` = P | everything allowed on an LTG or an RTG |
+| Host H on grid G | as from G | as from G | hosts with `grid` = G (open access, p.14) and H's links | every host operation, against H only |
+| Second-tier host H (no grid) | — | — | H's links only | every host operation, against H only |
+
+A host on grid G works "as from G" because of p.14: he disconnects from H and is back on G. Grid-only operations (for
+example Locate Access Node) are not allowed from a host. **A host operation on a grid is refused:** grids run only the
+operations in the table.
+
+**Addresses (p.114, p.116):** a place with `unlisted` is reachable only once the decker knows its address:
+- `flags.sr2e.vr2Known.<actorId>`, durable across runs, as the book says;
+- the GM always passes.
+
+**Locate Access Node:**
+- Its dialog gets a goal picker that sets the TN: vague +1, specific 0, definite −1.
+- The success card gives the GM a **Reveal address…** button. It picks an unlisted place and adds it to the decker's
+  known list.
+- The GM can also tick known addresses on the decker's sheet ("he got it from a fixer").
+
+**The System Operation dialog:**
+- Under topology, the target list shows only places where `reachable().ok`, plus the current place for operations
+  that aren't logons.
+- Each refused target lists its reason in a GM-only "Why not?" fold-out.
+- `vr2SystemTest` re-checks before anything is spent or rolled, inside the session queue. A stale dialog or a macro is
+  refused there with the same `why`.
+
+**Topology off:** nothing changes. Any host, any operation, as today.
+
+### 4. Tallies across grids (p.29, p.116)
+**Scope keys.** Every place has a tally scope:
+- a public LTG or RTG: `rtg_<RTG actor id>`, found by following `grid` up to the RTG;
+- an LTG with no RTG set: `ltg_<id>`;
+- a PLTG: `pltg_<id>`;
+- a host: `host_<id>`.
+
+Actor ids, not UUIDs, because a UUID's dots would split the flag path.
+
+**The ledger.**
+- `flags.sr2e.vr2Tallies.<scope> = { conn, tally, forgetAt? }`.
+- `replaceSessions` writes the outgoing session's tally into its scope's entry in the SAME update that installs the new
+  session, so a tally is never in neither place.
+- A new session for a place seeds its tally from the ledger entry of its scope, when that entry has the same `conn`
+  and hasn't passed `forgetAt`.
+- A new jackpoint means a new connection, and so a fresh ledger (p.116).
+- Topology off: no ledger. Today's per-session tally stays exactly as it is.
+
+**Whose sheaf.** The p.29 example (2 + 1 + 2 = 5) is one tally across the RTG and its LTGs, so it fires one set of
+triggers: the RTG's (`tallyUpdate` reads the sheaf of the scope's owner). An LTG's own sheaf is ignored under topology,
+and its sheet says so.
+
+**Into a PLTG (p.29):** "his Security Tally on the PLTG begins at 5, plus any points he incurs while logging on", and
+the triggers that crosses "go off as soon as he finishes the log-on".
+- The PLTG's first session starts at 0. In the same queue it applies a carried tally event (`carry-<sessionId>`, base =
+  the public scope's tally) through `tallyUpdate`, so the PLTG's sheaf rows at or below that are crossed and fire.
+- Re-entering a PLTG later in the same connection gives max(its ledger, the public tally now). The book is silent on
+  re-entry; this never lowers a tally the decker has earned.
+
+**Failed Logon to LTG (p.116):**
+- The card rolls a visible 1D3 × 5 minutes and writes `forgetAt` = world time + that onto the scope's entry.
+- An attempt after that starts fresh.
+- (Game time moves only when the GM or combat moves it. The card says "the grid forgets at …".)
+
+**Hosts:** a host's tally is kept for the connection, so stepping out to another host and back doesn't wipe it.
+- **Open question 1, answered here:** nothing in pp.14–36 carries a GRID tally onto a host, so a host's scope starts
+  at 0.
+- Clearing a host's tally on a successful Graceful Logoff from it comes with the hub rules (7b, p.36).
+
+### 5. Jackpoint kinds (p.28–29): VR2.0 whether or not topology is on
+**Kind.**
+- `JackpointBehaviorData.kind`: `legal` | `illegal` | `satellite` | `workstation` | `remote` | `console`, initial
+  `illegal` (+0/+0). Existing jackpoints therefore keep today's numbers.
+- Satellite is selectable but does nothing until 7c: its Trace is "see p.30".
+
+**Wiring.** The existing `host` field is relabelled **Wired to**:
+- an LTG for trid kinds;
+- a host for device kinds.
+
+With topology off it seeds the session as today.
+
+**Trace and Access.** The kind's Trace value plus `traceMod` (now "extra GM adjustment") feeds `traceFactor` at
+vr2.mjs:842.
+
+The kind's Access modifier is added to the TN of every **Access Test**: a System Test whose operation's subsystem is
+`access`. That covers the Logons, Graceful Logoff and Decrypt Access. It is shown on the card.
+
+**Console:**
+- the Access subsystem rating and the host's Security Value are both halved in Access Tests (rounding: open question
+  6);
+- the Security Value is halved only for Access Tests, and it is the Security Value the host rolls for that test;
+- unlimited bandwidth matters only to the out-of-scope Bandwidth rule.
+
+**Where the kind is read.** One helper reads the kind from the live connection's own record (`vr2Conn.jackpoint`, as
+`sessionHost` does), so a jackpoint edited mid-run can't re-price a running connection.
+- The record gains `kind` at `openConnection`.
+- An old record with no kind reads as `illegal`.
+
+### 6. IC on grids (7a's share)
+- A grid's IC are IC actors whose host is the grid. For the public RTG and its LTGs, that host is the RTG.
+- Today's attack admission doesn't compare the decker's session host with the IC's host (`HANDLERS.attack`,
+  vr2ic.mjs:246). So RTG IC already reaches a decker on any of its LTGs: no change. *Codex: please check that claim.*
+- Grid trace persistence and dump-on-locate are 7b.
+
+### 7. Tests (7a)
+**Vitest:**
+- every TSV row, compared with the code copy;
+- the Easy rule;
+- the variable-LTG table;
+- `ratingShift` floor;
+- `reachable()` for every cell of the table above, including: unlisted with and without the address, open access
+  between hosts, a tiered host reached only through the hub and back (B → A → C), and the host-host chain
+  LTG → A → B → D → E;
+- the scope key for each kind;
+- the p.29 example (2 + 1 + 2 = 5; carried into a PLTG and crossing its trigger; not carried to another RTG);
+- `forgetAt` expiry;
+- the jackpoint table and console halving.
+
+**Quench `sr2e.vr2-grids`:**
+- an illegal jackpoint: Logon to LTG, then a host on it;
+- an unreachable host refused, with nothing spent;
+- a failed logon leaves the decker on the LTG, and a retry continues the tally;
+- the LTG → RTG → LTG tally carry, firing the RTG sheaf once;
+- a PLTG entry with an inherited tally that fires the PLTG trigger;
+- Karma turning a failed logon into success moves the decker;
+- deleting the logon card keeps him there;
+- topology off: unchanged.
+
 ## Key decisions & trade-offs
 - **Grids are Host actors**, not a new type: zero changes to System Tests, IC and alerts. The cost: a GM must create
   an actor per grid they care about. Presets make that one click.
@@ -188,6 +409,10 @@ Sources (rendered, image-only PDF; book = PDF − 8):
    - Germany's bold entries are RTGs, and the indented ones are LTGs under them.
    - The asterisk (PLTG entry point) is kept, and so is the spelling: "Tir Tairngire" without an accent in the North
      American table.
+
+6. **Console halving: rounding (open).** p.29 says "halve the opposing system's Access Rating and Security Value" and
+   doesn't say how to round. Provisional: round up, so the system keeps the odd point. The user rules on it before
+   code.
 
 ## Documentation (part of done)
 - **Wiki:** "The Matrix" section, plus a How-To-Guides walkthrough for anything that takes the GM or the decker more
