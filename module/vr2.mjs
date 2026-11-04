@@ -11,7 +11,7 @@
  * - Leaving the Matrix (p.124): one path for the sheet, a jackpoint and a crash; dump
  *   shock unless the decker completed a Graceful Logoff.
  */
-import { once, pruneMarkers, recordEvent } from "./claims.mjs";
+import { once, pruneMarkers, recordEvent, markersOf } from "./claims.mjs";
 import { successesAtTN, cybercombatTN, icDamageLevel, dumpShockDamage, detectionFactor, matrixCombatOutcome,
          simsenseOverloadTN, systemTestVerdict, testTotalSuccesses, MATRIX_MONITOR_MAX,
          sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
@@ -60,13 +60,16 @@ const optKinds = (item) => (item?.system?.activeOpts ?? []).map(o => o.kind);
 /** Squeeze (p.104): unusable until decompressed for THIS load (a Swap Memory or unload compresses it again). */
 export const isCompressed = (item) => !!optionOf(item, "squeeze") && item.flags?.sr2e?.decompressed !== (item.system.loadGen ?? 0);
 /** Sensitive (p.104): useless on another manufacturer's host (blank on either side: no restriction). */
-function sensitiveBlocked(actor, item) {
+function sensitiveBlocked(actor, item, host) {
   if (!optionOf(item, "sensitive") || !item.system.manufacturer) return false;
-  const made = sync(liveSession(actor)?.hostUuid)?.system?.manufacturer;
+  const made = (host ?? sync(liveSession(actor)?.hostUuid))?.system?.manufacturer;
   return !!made && made.trim().toLowerCase() !== item.system.manufacturer.trim().toLowerCase();
 }
-/** Programs that can ACT now: usable, decompressed, and working on this host. (Hog and wear keep `usablePrograms`.) */
-export const activePrograms = (actor) => usablePrograms(actor).filter(i => !isCompressed(i) && !sensitiveBlocked(actor, i));
+/**
+ * Programs that can ACT now: usable, decompressed, and working on `host` (default: the live session's). A test on a
+ * named host passes it, since its session switch comes later. (Hog and wear keep `usablePrograms`.)
+ */
+export const activePrograms = (actor, host = null) => usablePrograms(actor).filter(i => !isCompressed(i) && !sensitiveBlocked(actor, i, host));
 /** DINAB rating left on the current load (p.103): −1 per failure receipt of this loadGen. */
 export function dinabLeft(item) {
   const d = optionOf(item, "dinab");
@@ -74,10 +77,13 @@ export function dinabLeft(item) {
   const g = `${item.system.loadGen ?? 0}_`;
   return Math.max(0, d.rating - Object.keys(item.flags?.sr2e?.dinabWear ?? {}).filter(k => k.startsWith(g)).length);
 }
-/** The combat phase `actor` acts in ("" outside combat): DINAB's one-run-per-phase key (p.103). */
+/**
+ * The combat phase `actor` acts in ("" outside combat): DINAB's one-run-per-phase key (p.103). The combat's monotonic
+ * `phaseSeq` (engagement.mjs), not round:turn, which repeats when initiative passes re-sort the tracker.
+ */
 function phaseKey(actor) {
   const c = game.combats.find(x => x.started && x.combatants.some(cb => cb.actor?.uuid === actor.uuid));
-  return c ? `${c.id}:${c.round}:${c.turn}` : "";
+  return c ? `${c.id}:${Number(c.getFlag("sr2e", "phaseSeq")) || 0}` : "";
 }
 /**
  * DINAB's dice (p.103): its rating is a built-in Computer Skill, so it replaces Computer in a System Test; a test
@@ -91,16 +97,18 @@ export async function spendUse(actor, item, { dinab = false } = {}) {
   if (!item || !utilityOptionsOn()) return "";
   const phase = phaseKey(actor);
   if (phase && optionOf(item, "dinab")) {
-    if (dinab) {
-      if (item.flags?.sr2e?.programPhase === phase) return `${item.name} was run by ${actor.name} this phase: no DINAB run (VR2.0 p.103).`;
-      if (!await once(actor, `dinab:${item.id}:${phase}`)) return `${item.name}'s DINAB already ran this phase.`;
-    } else {
-      const { claimId } = await import("./rules/claim-rules.mjs");
-      if (actor.effects.has(claimId(`dinab:${item.id}:${phase}`))) return `${item.name}'s DINAB ran it this phase (VR2.0 p.103).`;
-      if (item.isOwner && item.flags?.sr2e?.programPhase !== phase) await item.setFlag("sr2e", "programPhase", phase);
+    // ONE record per program per phase names who ran it, the decker or the DINAB; the server takes the first, so
+    // the two can't both win on different devices (p.103). The decker's own later uses that phase see their own mode.
+    const key = `phaseuse:${item.id}:${phase}`;
+    if (!await once(actor, key, { mode: dinab ? "dinab" : "own" })) {
+      const had = markersOf(actor).find(m => m.key === key)?.event?.mode;
+      if (!had) return `${item.name} is being run on another device this phase: try again.`;
+      if (dinab) return had === "dinab" ? `${item.name}'s DINAB already ran this phase.` : `${item.name} was run by ${actor.name} this phase: no DINAB run (VR2.0 p.103).`;
+      if (had === "dinab") return `${item.name}'s DINAB ran it this phase (VR2.0 p.103).`;
     }
   }
-  if (optionOf(item, "oneShot") && !await once(actor, `oneshot:${item.id}:${item.system.loadGen ?? 0}`)) {
+  // One-shot: a DURABLE record (never pruned), so the spent copy stays spent until Swap Memory bumps its loadGen.
+  if (optionOf(item, "oneShot") && !await recordEvent(actor, `oneshot:${item.id}:${item.system.loadGen ?? 0}`, { type: "oneshot", itemId: item.id })) {
     return `${item.name} (one-shot) has already fired: Swap Memory reloads it (VR2.0 p.104).`;
   }
   return "";
@@ -127,9 +135,9 @@ export function attackSuccesses(st) {
 }
 
 /** The best active program whose name starts with `name`, or null. */
-export function bestUtility(actor, name) {
+export function bestUtility(actor, name, host = null) {
   const key = String(name).toLowerCase();
-  return activePrograms(actor).filter(i => i.name.toLowerCase().startsWith(key))
+  return activePrograms(actor, host).filter(i => i.name.toLowerCase().startsWith(key))
     .sort((a, b) => programRating(b) - programRating(a))[0] ?? null;
 }
 
@@ -430,7 +438,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
   const sub = op.subsystem === "targeted" ? (opts.subsystem || "files") : op.subsystem;
   const subsystem = host.system.subsystemRating(sub);
-  const utilityItem = bestUtility(actor, op.utility);
+  const utilityItem = bestUtility(actor, op.utility, host);   // Sensitive is judged on THIS host, not the last session's
   // DINAB (p.103): the utility runs itself with its own skill — no pools, no Karma, a Free Action.
   const dinab = !!opts.dinab;
   if (dinab && !dinabLeft(utilityItem)) return ui.notifications.warn(`No ${op.utility ?? "utility"} with DINAB left is loaded.`);
@@ -820,7 +828,8 @@ async function attackOnce(actor) {
       kinds = optKinds(prog);
       // Part 5b (p.103–104): every target must suit the program (its kind, Limit) and be in sight.
       const area = optionOf(prog, "area");
-      extras = (o.areaUuids ?? []).map(sync).filter(a => a && ["ic", "character"].includes(a.type));
+      // One icon per actor: two tokens of one persona are one target (and one +1 TN), never the primary twice.
+      extras = [...new Set(o.areaUuids ?? [])].filter(u => u !== target.uuid).map(sync).filter(a => a && ["ic", "character"].includes(a.type));
       if (extras.length && !area) return ui.notifications.warn(`${prog.name} has no Area option: one target only.`);
       if (area && 1 + extras.length > area.rating) return ui.notifications.warn(`${prog.name}'s Area-${area.rating} engages up to ${area.rating} targets (VR2.0 p.103).`);
       for (const t of [target, ...extras]) {
@@ -993,8 +1002,8 @@ export async function dinabZeroed(st) {
 /** The Camo a trace hunt reads (p.97); a one-shot copy is spent by it (p.104). The GM's client: it may write the decker. */
 async function camoFor(target) {
   const item = bestUtility(target, "camo");
-  if (item) await spendUse(target, item);
-  return item ? programRating(item) : 0;
+  if (!item) return 0;
+  return await spendUse(target, item) ? 0 : programRating(item);   // a refused (already spent) one-shot gives nothing
 }
 
 /** A persona's Armor utility against this card: its rating, +2 against an area utility (p.103). */
@@ -1358,10 +1367,11 @@ export async function vr2Maneuver(actor) {
   const evasion = actor.type === "ic" ? sv : (actor.system.matrixPersona?.evasion ?? 0);
   const sensor = target.type === "ic" ? sv : (target.system.matrixPersona?.sensor ?? 0);
   const cloakItem = actor.type === "character" ? bestUtility(actor, "cloak") : null;
-  const cloak = cloakItem ? programRating(cloakItem) : 0;
-  const lockOn = target.type === "character" ? loadedUtility(target, "lock") : 0;
-  // A one-shot Cloak is spent by this test (p.104); the opponent's Lock-On by THEIR test (opposeManeuver).
-  if (cloakItem) await spendUse(actor, cloakItem);
+  // A one-shot Cloak is spent by this test (p.104); refused (spent elsewhere), it gives nothing.
+  const cloak = cloakItem && !(await spendUse(actor, cloakItem)) ? programRating(cloakItem) : 0;
+  // The opponent's Lock-On is spent by THEIR test (opposeManeuver): bind that copy, whose rating sets their TN.
+  const lockItem = target.type === "character" ? bestUtility(target, "lock") : null;
+  const lockOn = lockItem ? programRating(lockItem) : 0;
   const tns = maneuverTNs({ evasion, sensor, cloak, lockOn });
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   // + a construct's threat dice on its maneuver tests (p.52; part 4b §5).
@@ -1371,7 +1381,8 @@ export async function vr2Maneuver(actor) {
   if (!res) return;
   await commitAction(actor, startedBuild);
   const st = { kind: pick.kind, maneuvererUuid: actor.uuid, maneuvererName: actor.name, opponentUuid: target.uuid,
-    opponentName: target.name, mS: res.successes, oppTN: tns.opponent, mSession: sessionKey(actor),
+    opponentName: target.name, mS: res.successes, oppTN: tns.opponent, mEvasion: evasion,
+    lock: lockItem ? { id: lockItem.id, loadGen: lockItem.system.loadGen ?? 0 } : null, mSession: sessionKey(actor),
     oSession: sessionKey(target), testMessageId: res.testMessageId };
   if (target.type === "ic") {
     const or = await SR2ESuccessRoll.successTest(sv + Y.threatOf(target), tns.opponent);
@@ -1392,10 +1403,13 @@ export async function opposeManeuver(message) {
     if (!st || isCardResolved(live, "vr2Maneuver")) return ui.notifications.warn("That maneuver has already been opposed.");
     const opp = sync(st.opponentUuid);
     if (!opp?.isOwner) return ui.notifications.warn(`Only ${st.opponentName}'s owner or the GM can oppose.`);
-    const lockItem = bestUtility(opp, "lock");
-    if (lockItem) await spendUse(opp, lockItem);   // a one-shot Lock-On fires here (p.104)
-    const res = await opp.rollSuccessTest(Math.max(0, opp.system.matrixPersona?.sensor ?? 0), st.oppTN, {
-      label: RL("OpposeManeuver", { maneuver: MANEUVERS[st.kind], tn: st.oppTN }), closed: true, tnContext: { kind: "other" } });
+    // The Lock-On whose rating set this TN fires here (p.104). Gone, reloaded or refused (spent elsewhere): no Lock-On.
+    const lockItem = st.lock ? opp.items.get(st.lock.id) : null;
+    const lockLive = !!lockItem && (lockItem.system.loadGen ?? 0) === st.lock.loadGen && activePrograms(opp).includes(lockItem)
+      && !(await spendUse(opp, lockItem));
+    const oppTN = st.lock && !lockLive ? maneuverTNs({ evasion: st.mEvasion ?? 0, sensor: 0 }).opponent : st.oppTN;
+    const res = await opp.rollSuccessTest(Math.max(0, opp.system.matrixPersona?.sensor ?? 0), oppTN, {
+      label: RL("OpposeManeuver", { maneuver: MANEUVERS[st.kind], tn: oppTN }), closed: true, tnContext: { kind: "other" } });
     if (!res) return;
     if (isCardResolved(game.messages.get(message.id), "vr2Maneuver")) return ui.notifications.warn("Opposed on another device meanwhile.");
     return postManeuverResult(st, res.successes, { resolves: message.id, oppTestId: res.testMessageId });

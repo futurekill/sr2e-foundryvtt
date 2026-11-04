@@ -573,7 +573,8 @@ export function chargenBudgetOf(actor) {
 function programBadges(actor, i) {
   const task = taskOf(i);
   const opts = utilityOptionsOn();
-  return { task: task ? { done: doneOf(task), period: task.period ?? null, complete: !!task.complete } : null,
+  return { task: task ? { done: doneOf(task), period: task.period ?? null, complete: !!task.complete,
+      writing: !!task.taskId && !task.complete, unwritten: !!task.unwritten } : null,
     compressed: opts && i.system.loaded && isCompressed(i), dinab: opts && optionOf(i, "dinab") ? dinabLeft(i) : null,
     spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i) };
 }

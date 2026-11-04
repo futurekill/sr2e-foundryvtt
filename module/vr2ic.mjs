@@ -268,8 +268,9 @@ Object.assign(HANDLERS, {
       if (r.overloadCrash) crashed = true;
       if (r.overloadStun > 0) await commitDamage(actor, "stun", r.overloadStun, { source: "vr2-overload" });
     }
-    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { crashed, boxes: r.boxes } });
+    // DINAB wear BEFORE the ack (idempotent per use): a retry stops at the ack, so wear after it could be lost.
     if (!(r.boxes > 0)) await (await import("./vr2.mjs")).dinabZeroed(game.messages.get(r.card)?.flags?.sr2e?.matrix);
+    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { crashed, boxes: r.boxes } });
     if (crashed) {
       const prog = r.program ?? "";
       if (prog === "blaster" || prog === "sparky") {
@@ -837,7 +838,7 @@ async function resolveUtility(actor, res) {
       [`10 ÷ ${atk - ev} net successes (VR2.0 p.97). Relocate against ${st.attackerName}'s Sensor breaks it.`]);
   }
   const points = hogPoints(atk, ev);
-  if (points < 1) { await ack({ resisted: true }); await (await import("./vr2.mjs")).dinabZeroed(st); return postResolution(actor, card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${ev} against ${atk}.`]); }
+  if (points < 1) { await (await import("./vr2.mjs")).dinabZeroed(st); await ack({ resisted: true }); return postResolution(actor, card, `${actor.name}'s MPCP keeps the hog out.`, [`MPCP ${ev} against ${atk}.`]); }
   if (!recs.some(e => e.type === "hog" && e.card === card)) {
     await fact(actor, `hog:${res.conn}:${card}`, { type: "hog", conn: res.conn, card, points, rating: st.rating ?? 0, icName: st.attackerName, clock: clockOf(actor) });
   }
@@ -897,12 +898,12 @@ export function slowResult(ic, card, resist, snap) {
     const st = game.messages.get(card)?.flags?.sr2e?.matrix;
     if (!st) return;
     const atk = await freezeSuccesses(st), lost = slowActionsLost(atk, resist);
+    if (!lost) await (await import("./vr2.mjs")).dinabZeroed(st);   // DINAB: a Slow that did nothing (p.103); before the fact
     const combat = game.combats.get(snap?.combatId) ?? null;
     // The round and incarnation captured BEFORE the resistance roll (code review #7): stale ones never apply.
     await fact(ic, `slow:${card}`, { type: "slow", card, lost, combatId: snap?.combatId ?? null, round: snap?.round ?? null,
       gen: snap?.gen ?? (ic.system.generation ?? 0), deckerUuid: st.attackerUuid, session: st.attackerSession ?? "" });
     await reconcileSlow(ic);
-    if (!lost) await (await import("./vr2.mjs")).dinabZeroed(st);   // DINAB: a Slow that did nothing (p.103)
     const hung = !!combat?.combatants.find(c => c.actor?.uuid === ic.uuid)?.getFlag("sr2e", `slowApplied.${card}`)?.hung;
     const text = !lost ? `${ic.name} shrugs off the Slow.` : `${ic.name} loses ${lost} action${lost === 1 ? "" : "s"}${hung ? ": it hangs this turn" : ""}${combat ? "" : " (no combat: the GM applies it)"}.`;
     await postResolution(ic, card, text, [`${atk} attack success${atk === 1 ? "" : "es"} against ${resist} (VR2.0 p.99).`]);

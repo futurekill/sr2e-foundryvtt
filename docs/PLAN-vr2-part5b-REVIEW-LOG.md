@@ -22,3 +22,67 @@ Accepted all 19, with these choices:
 - `usablePrograms` untouched; a new `activePrograms` for action pickers.
 - #17: the code (1 + team bonus per team day) matches the book (p.102, rendered); the plan text was wrong.
 - #18: narrowed to one decompression (no Compressor upload mechanic exists).
+
+## Round 2 — Codex (2026-11-04, after the build)
+
+Material problems remain in the revised plan and built implementation:
+
+1. **One-shot spending is not durable.** `spendUse` uses `once()`, whose markers are pruned after 24 hours; `programUnusable` then treats the same generation as usable again. The plan explicitly—but incorrectly—calls this a durable record.  
+   **Fix:** Claim one-shot consumption with `recordEvent`, preserving the deterministic item/generation key.
+
+2. **DINAB’s phase key repeats across actions.** `vr2.mjs:phaseKey` uses combat round and turn index, but `SR2ECombat.nextTurn` re-sorts initiative and can keep the same index across successive phases. DINAB therefore remains blocked on later legitimate actions.  
+   **Fix:** Use the existing monotonic `flags.sr2e.phaseSeq` phase identity.
+
+3. **Manual use and DINAB use can both win concurrently.** Manual use checks for a DINAB marker and writes `programPhase`; DINAB checks that flag and creates its marker. Two clients can both pass their checks before either write lands.  
+   **Fix:** Serialize both modes through the sequencer or arbitrate their shared phase admission with one deterministic record.
+
+4. **Passive one-shot consumers ignore claim failures.** `camoFor`, the Cloak maneuver path, and `opposeManeuver` discard `spendUse`’s refusal and still apply the utility. Lock-On additionally uses a TN frozen from an earlier copy while spending whichever copy is best at resolution.  
+   **Fix:** Bind each passive benefit to its captured copy and successful admission; recompute or refuse when that admission fails.
+
+5. **Sensitive checks the wrong host during System Tests.** `vr2SystemTest` selects `bestUtility` before `sessionFor(actor, host)` switches sessions; `activePrograms` reads the previous session’s manufacturer. A utility restricted to the old host can benefit a test on the new one.  
+   **Fix:** Establish the requested session before selecting utilities, or pass the actual host explicitly to eligibility checks.
+
+6. **DINAB degradation can disappear after an acknowledged resolution.** The sequencer’s `apply` handler writes the attack ack before `dinabZeroed`; interruption between them permanently skips wear because retries return immediately on the ack. Hog similarly acknowledges before applying wear.  
+   **Fix:** Reconcile DINAB wear from durable resolution outcomes independently of request completion.
+
+7. **Programming still lacks task-bound concurrency.** `workDialog` retains an old task across its dialog, then writes into the current `programming.log` without checking `taskId`; abandoning and starting another task allows old work and an old period into the new task. The first-log period write and Karma closure are also separate, with no recovery step.  
+   **Fix:** Serialize task transitions, validate the captured task ID, and persist a recoverable freeze record before accepting work.
+
+8. **Programming snapshots the design too late and incompletely.** `startDialog` calculates design size before awaiting user input and rolling, but captures `designOf(item)` afterward. An intervening edit can pair a cheap old base time with a larger new design. Identity and manufacturer are absent from both the snapshot and design lock.  
+   **Fix:** Capture the entire design before the dialog, revalidate before committing, and lock identity/manufacturer alongside its numeric fields.
+
+9. **Abandoning or failing programming makes an unfinished program usable.** Both paths delete the task; `programUnusable` interprets “no task” as finished. A loaded item becomes immediately usable, and an unloaded one can simply be loaded without completing any work.  
+   **Fix:** Preserve an explicit unwritten state after failure/abandonment, or restore the pre-task program when cancelling work on an existing copy.
+
+10. **The promised programming skill choices are missing.** `programming.mjs` reads only a skill named exactly Computer; neither Software nor Matrix Programming can substitute, despite both the plan and rules section promising them.  
+    **Fix:** Resolve the selected programming skill through the existing skill hierarchy, keeping Computer-specific caps separate.
+
+11. **Area target identities are not deduplicated.** Extra targets resolve token selections to actors without deduplicating actor UUIDs. Two linked tokens representing one actor can generate multiple damage cards against the same persona and inflate the target-count penalty.  
+    **Fix:** Deduplicate by actor UUID, excluding the primary target, before checking the Area cap or calculating TNs.
+
+The plan also retains contradictory descriptions—highest-TN Karma-enabled area rolls versus the implemented lowest-TN frozen approach, and DINAB-rating attack dice versus the Built notes. Those should be consolidated so implementation and future review have one authoritative specification.
+
+VERDICT: REVISE
+### Claude's response (round 2)
+All 11 points checked against the code and accepted. The fixes are in the code, with the plan updated to match
+("Round 2 fixes" under Built; the One-shot, DINAB and Key-decisions passages rewritten, which removes the two
+contradictions Codex named):
+1. **Durable one-shot:** `recordEvent`, not `once`.
+2. **Phase:** `phaseSeq`.
+3. **Own vs DINAB:** one per-phase marker with a mode, created by the server once (`once` now takes a payload).
+4. **Passive one-shots:** a refused spend gives nothing. Lock-On is bound to the copy on the card, with the TN
+   recomputed when that copy is gone.
+5. **Sensitive:** judged on the tested host.
+6. **DINAB wear:** written before the acknowledgements.
+7. **Programming concurrency:** the taskId is re-checked and the test is closed before the period is written. Full
+   serialization of task transitions isn't added: the taskId check refuses stale work, and two simultaneous starts
+   leave one task.
+8. **Design snapshot:** taken before the dialog and re-checked; the lock covers identity, manufacturer and the rest.
+9. **Failed or abandoned tasks:** they restore a program that was usable before, else leave it `unwritten`.
+10. **Skill:** Software / Matrix Programming roll where higher. The caps stay on Computer.
+11. **Area targets:** deduplicated at validation. Partly moot: the dialog already deduplicated, but the check is
+    cheap.
+
+Tests: Quench `sr2e.vr2-options` gained 2 tests: a durable one-shot plus Sensitive on the tested host, and
+programming abandon/restore/unwritten plus the Software concentration. vr2-options, vr2-utilities, vr2-ic and
+money-queue pass 56/56. Vitest passes 1428, and lint is clean.

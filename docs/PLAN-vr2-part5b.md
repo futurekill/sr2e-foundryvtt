@@ -130,8 +130,9 @@ my misreading; the book says 1 (p.102; R1 #17).
     reader moves to it: `liveAtk`, `freezeSuccesses`, `advanceExit`, vr2ic.mjs:313/722/747/1357 (R1 #1).
   - Armor +2 vs area: `resistOnLog`/IC armor read `st.area`. The old party-IC "area-effect" checkbox is
     hidden when the setting is on (the option is the source); unchanged when off.
-- **One-shot (R1 #6, #10):** `spendUse` claims `once(actor, "oneshot:<itemId>:<loadGen>")` BEFORE the roll;
-  losing the claim refuses the use ("already fired"). The claim marker IS the durable spent record:
+- **One-shot (R1 #6, #10; R2 #1):** `spendUse` records `recordEvent(actor, "oneshot:<itemId>:<loadGen>")` BEFORE
+  the roll; losing it refuses the use ("already fired"). That record is DURABLE (never pruned, unlike `once`
+  markers, which go after 24 h) and IS the spent record:
   `programUnusable` treats a one-shot item with that marker for its current loadGen as spent. A disconnect
   after the claim = the copy is spent (it executed). Tar: the tar fact gains `victims: [{itemId, loadGen}]` —
   every one-shot copy with the same `programKey` usable at fact time — and `reconcileTarFact` crashes exactly
@@ -139,12 +140,16 @@ my misreading; the book says 1 (p.102; R1 #17).
 - **Skulk:** the crash choice's tally (+IC rating) becomes `skulkTally(rating, skulk)`, Skulk snapshotted on
   the card at the roll; Steamroller's tar crash too.
 - **DINAB (R1 #7, #8):**
-  - A "Run by DINAB" toggle at the active use sites (attack, System Test, Restore, Medic). Dice = DINAB
-    rating left; no Hacking Pool, no Karma Pool (the program, not the character, makes the test — a reading,
-    Risks); a Free Action.
-  - Phase rule: in combat, `spendUse` claims `once(actor, "dinab:<itemId>:<combatId>:<round>:<turn>")` and
-    refuses if this program was run by the decker himself this phase (a `flags.sr2e.programPhase.<itemId>`
-    stamp written by manual uses), and vice versa. Out of combat: no phase limit.
+  - A "Run by DINAB" toggle at the active use sites (attack, System Test, Restore, Medic). Dice: the DINAB rating
+    left replaces Computer in a System Test; an attack, Restore and Medic keep the program's own rating ("a test
+    with his offensive utility program", p.123). Always no Hacking Pool and no Karma Pool (the program, not the
+    character, makes the test — a reading, Risks); a Free Action.
+  - Phase rule (R2 #2, #3): in combat, the phase is the combat's monotonic `phaseSeq` (engagement.mjs), not
+    round:turn, which repeats when initiative passes re-sort. ONE marker per program per phase,
+    `once(actor, "phaseuse:<itemId>:<combatId>:<phaseSeq>", {mode: "own"|"dinab"})`: the server takes the first,
+    so the decker's own run and the DINAB run can't both win on different devices; a DINAB loses to any existing
+    marker, an own use loses only to a DINAB one, and an unseen winner (another device, not replicated yet)
+    refuses with "try again". Out of combat: no phase limit.
   - One outcome per use, key `<loadGen>_<useId>` in `flags.sr2e.dinabWear` (distinct keys only, never an
     array): System Test lost to the host, or an attack with 0 successes → at the roll (no Karma, so final);
     the defender's resolution leaving no effect (damage staged to 0, Hog 0 points, Slow 0 actions, attribute
@@ -192,7 +197,8 @@ my misreading; the book says 1 (p.102; R1 #17).
 
 ## Key decisions & tradeoffs
 - A world setting gates the whole optional rule; with it off, nothing changes (sizes, prices, dialogs).
-- Area rolls ONCE at the highest TN and scores each card from the stored die totals, so Karma flows.
+- Area rolls ONCE at the LOWEST target TN (`areaCast`: post-roll Karma refused, GM adjudication as for area spells)
+  and scores each card at its own TN; a card's count is frozen in `areaSuccesses` when there are other targets.
 - Option allow-lists are enforced by inertness (shown, struck through), not refusal to save — imported
   data never becomes invalid.
 - The programming task lives on the program item being written (unusable until complete), not a new
@@ -223,3 +229,20 @@ my misreading; the book says 1 (p.102; R1 #17).
   rating and lose only the pools. Restore/Medic DINAB runs degrade only on all 1s (none of the three listed failures
   applies). The design lock is a `preUpdateItem` refusal (with an Abandon button), not read-only inputs.
 - Area against deckers on the log: each card is admitted separately (part 5a §0).
+- **Round 2 fixes (2026-11-04):**
+  - one-shot spends are durable records;
+  - DINAB phases use `phaseSeq`, and one shared per-phase marker arbitrates own vs DINAB use;
+  - Camo, Cloak and Lock-On give nothing when their one-shot spend is refused. Lock-On is bound to the copy whose
+    rating set the TN (captured on the maneuver card, with the maneuverer's Evasion to recompute the TN without it);
+  - System Tests judge Sensitive on the host being tested (`activePrograms(actor, host)`);
+  - DINAB wear is written BEFORE the attack/hog/slow acknowledgements (it's idempotent per use);
+  - programming:
+    - the design (identity, category, offense, damage level, manufacturer, rating, multiplier, options) is captured
+      before the dialog and re-checked before the task is written, and the lock covers the same fields;
+    - work logs only into the task they were opened for (taskId re-checked);
+    - the first log closes the test to Karma BEFORE writing the period;
+    - a failed or abandoned task restores a program that was usable before it, else leaves it `unwritten`
+      (unusable);
+    - the Software concentration / Matrix Programming specialization roll where higher, with the caps still on
+      Computer;
+  - Area targets are deduplicated by actor uuid at validation (the dialog already did).

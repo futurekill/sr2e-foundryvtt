@@ -1437,7 +1437,9 @@ Hooks.on("preUpdateItem", (item, changes) => {
     foundry.utils.setProperty(changes, "flags.sr2e.-=decompressed", null);
   }
   const task = item.flags?.sr2e?.programming;
-  if (task && !task.complete && ["rating", "multiplier", "options", "damageLevel"].some(k => k in (changes.system ?? {}))) {
+  // Everything `designOf` (programming.mjs) captures, identity included; a failed/abandoned task (no taskId) is unlocked.
+  if (task?.taskId && !task.complete && ("name" in changes
+      || ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category"].some(k => k in (changes.system ?? {})))) {
     ui.notifications.warn(`${item.name} is being programmed: its design is fixed until the task completes (or abandon the task).`);
     return false;
   }

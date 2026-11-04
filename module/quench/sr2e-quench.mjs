@@ -12604,6 +12604,56 @@ export function registerSR2EQuenchTests() {
         await withFaces(Array(20).fill(6), () => V.vr2MatrixResist(k, game.messages.get(card.id)));
         assert.isTrue(await settle(() => V.dinabLeft(a.items.getName("Attack")) === 1), "no damage → −1");
       });
+
+      it("round 2: a one-shot's spent record is durable; Sensitive is judged on the host being tested (p.104)", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO R2 Host");
+        const k = await ic("Quench UO R2 IC", h, "killer", 4);
+        const a = await decker("Quench UO R2 Shooter", [["Attack", 4, { damageLevel: "M", options: [{ kind: "oneShot" }] }]]);
+        await tokenFor(a, 0);
+        await attack(a, [k], "Attack");
+        const { markersOf } = await import("../claims.mjs");
+        assert.isTrue(markersOf(a).some(m => m.key?.startsWith("oneshot:") && m.durable), "never pruned");
+        // A Mitsuhama-only Browse, live on a Mitsuhama host, then a test on a Fuchi host: no Browse there.
+        const mct = await host("Quench UO R2 MCT", "orange", 6, { manufacturer: "Mitsuhama" });
+        const fuchi = await host("Quench UO R2 Fuchi", "orange", 6, { manufacturer: "Fuchi" });
+        await a.createEmbeddedDocuments("Item", [{ name: "Browse", type: "program", system: { rating: 4, loaded: true, manufacturer: "Mitsuhama", options: [{ kind: "sensitive" }] } }]);
+        await a.rollSystemOperation(mct, "locateFile", {});
+        const n = game.messages.size;
+        await a.rollSystemOperation(fuchi, "locateFile", {});
+        const st = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.vr2SystemTest)?.flags.sr2e.vr2SystemTest;
+        assert.equal(st?.utility, 0, "the Mitsuhama Browse doesn't help on the Fuchi host");
+      });
+
+      it("round 2: programming — abandon leaves a new program unwritten, restores a bought one; Software concentration rolls (p.100)", async function () {
+        this.timeout(30000);
+        const P = await import("../programming.mjs");
+        const a = await mk({ name: "Quench UO R2 Coder", type: "character" });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 3, category: "active", concentration: { name: "Software", rating: 6 } } },
+          { name: "Browse", type: "program", system: { rating: 2, multiplier: 1, loaded: true } }]);
+        const p = () => a.items.getName("Browse");
+        const confirm = foundry.applications.api.DialogV2.confirm;
+        foundry.applications.api.DialogV2.confirm = async () => true;
+        try {
+          // A bought (usable) program: start, then abandon → usable again.
+          const n = game.messages.size;
+          await clicking("ok", () => withFaces(Array(6).fill(5), () => P.programmingDialog(a, p())));
+          const t = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.test)?.flags.sr2e.test;
+          assert.equal(t?.dice?.length, 5, "the Software concentration rolls (capped at Computer + 2 = 5), not Computer 3");
+          await P.abandon(a, p());
+          assert.isNull(P.taskOf(p()), "a bought copy goes back to usable");
+          assert.isTrue(V.usablePrograms(a).includes(p()));
+          // Now as a program that was never written: mark it unwritten (as a failed first task leaves it).
+          await p().setFlag("sr2e", "programming", { unwritten: true });
+          assert.isFalse(V.usablePrograms(a).includes(p()), "unwritten: unusable");
+          await clicking("ok", () => withFaces(Array(6).fill(5), () => P.programmingDialog(a, p())));
+          assert.isTrue(!!P.taskOf(p())?.taskId, "programming starts again");
+          await P.abandon(a, p());
+          assert.isTrue(P.taskOf(p())?.unwritten, "abandoning an unwritten program keeps it unwritten");
+          assert.isFalse(V.usablePrograms(a).includes(p()));
+        } finally { foundry.applications.api.DialogV2.confirm = confirm; }
+      });
     });
 
     quench.registerBatch("sr2e.vr2-ic", (context) => {

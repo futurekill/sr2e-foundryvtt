@@ -10,14 +10,14 @@ export const markerOf = (e) => e?.flags?.sr2e?.claim ?? null;
 /** This actor's markers: [{id, key, at, user}]. */
 export const markersOf = (actor) => (actor?.effects ?? []).filter(e => markerOf(e)).map(e => ({ id: e.id, ...markerOf(e), ct: e._stats?.createdTime ?? null }));
 
-/** Did THIS call win `key` on this actor? Rethrows anything but a duplicate-id rejection. */
-export async function once(actor, key) {
+/** Did THIS call win `key` on this actor? `event` rides on the marker for readers. Rethrows anything but a duplicate-id rejection. */
+export async function once(actor, key, event = null) {
   const id = claimId(key);
   if (!actor || actor.effects.has(id)) return false;
   try {
     const [doc] = await actor.createEmbeddedDocuments("ActiveEffect", [{ _id: id, name: "SR2E step marker",
       img: "icons/svg/clockwork.svg", disabled: true, transfer: false,
-      flags: { sr2e: { claim: { key, at: game.time.serverTime, user: game.user.id } } } }], { keepId: true });
+      flags: { sr2e: { claim: { key, at: game.time.serverTime, user: game.user.id, ...(event ? { event } : {}) } } } }], { keepId: true });
     return doc?.id === id;
   } catch (err) {
     if (actor.effects.has(id) || /already exists/i.test(err?.message ?? "")) return false;
