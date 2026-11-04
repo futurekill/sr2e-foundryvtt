@@ -167,3 +167,13 @@ export function programmingCap(utility, skills = []) {
 }
 /** Sensitive (p.104): the programming test uses the average of Computer and Computer/Matrix Theory, rounded up. */
 export const sensitiveSkill = (computer, theory) => Math.ceil(((Number(computer) || 0) + (Number(theory) || 0)) / 2);
+
+/**
+ * Programming state on a program's `flags.sr2e.programming` (plan 5b §4, Codex R3):
+ * `{ current: taskId|null, tasks: { [taskId]: {...} }, unwritten?: true }`. Each task is its own key, so a write from a
+ * stale dialog lands in ITS task, never the current one, and no transition relies on a nested-object merge.
+ */
+export const progTask = (p) => (p?.current ? p.tasks?.[p.current] ?? null : null);
+export const progWriting = (p) => { const t = progTask(p); return !!t && !t.complete; };
+/** Not usable: being written, or never written (a new project, or one whose writing failed or was abandoned). */
+export const progUnfinished = (p) => !!p?.unwritten || progWriting(p);

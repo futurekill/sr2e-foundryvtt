@@ -169,7 +169,10 @@
     <div class="programs-category">
       <div class="category-header flexrow">
         <h3>Programs</h3>
-        <button type="button" data-action="addItem" data-type="program" class="btn-add">
+        {{#if vr2}}<button type="button" data-action="vr2ic" data-op="programNew" class="btn-add" title="Write a new program: an unwritten project you design, then program (VR2.0 p.100)">
+          <i class="fas fa-code"></i>
+        </button>{{/if}}
+        <button type="button" data-action="addItem" data-type="program" class="btn-add" title="Add a program you already have">
           <i class="fas fa-plus"></i>
         </button>
       </div>

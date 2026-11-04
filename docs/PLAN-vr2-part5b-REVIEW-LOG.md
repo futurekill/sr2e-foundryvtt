@@ -86,3 +86,48 @@ contradictions Codex named):
 Tests: Quench `sr2e.vr2-options` gained 2 tests: a durable one-shot plus Sensitive on the tested host, and
 programming abandon/restore/unwritten plus the Software concentration. vr2-options, vr2-utilities, vr2-ic and
 money-queue pass 56/56. Vitest passes 1428, and lint is clean.
+
+## Round 3 — Codex (2026-11-04)
+
+Remaining material flaws are concentrated in programming:
+
+1. **Task-ID checks still do not prevent stale writes.** In `programming.mjs:105–127`, a first log validates task A, then awaits `ChatMessage.create`; another client can abandon A and start B during that await, after which A’s period and work are written into B. `complete` likewise never validates the current task ID.  
+   **Fix:** Serialize start/log/complete/abandon through the sequencer, validating the task ID inside that serialized operation.
+
+2. **The period is still calculated before Karma closes.** Lines 118–123 read successes and calculate `p` before awaiting the closure card, despite the comment claiming the reverse. A Karma spend committed during that interval leaves the frozen period inconsistent with the final test.  
+   **Fix:** Close the test first, then read its finalized successes and persist an idempotent period receipt.
+
+3. **Task transitions assume `setFlag` replaces nested objects.** Foundry merges these updates: `endTask(..., {unwritten:true})` leaves the old `taskId`, so `writing()` still considers it active; starting over a completed task can retain `complete`, `period`, and old log entries because `{log:{}}` does not delete them.  
+   **Fix:** Explicitly delete obsolete task fields/log entries when transitioning, within the serialized task operation.
+
+4. **Team size now incorrectly uses specialized or Sensitive-adjusted skill.** `teamTerms(skills).maxSize` at lines 68–72 uses Software/Matrix Programming or the theory average, although the plan limits membership using highest **Computer**. Computer 4 with Software 6 can admit three members instead of two.  
+   **Fix:** Calculate membership limits from `members.map(computerOf)` and use adjusted skills only for the test’s dice.
+
+5. **The unwritten lifecycle has no normal entry path.** `restore = !unfinished(item)` treats every newly created program without a task flag as previously written; abandoning its first task therefore makes it usable. The new Quench test manually injects `{unwritten:true}`, bypassing this missing workflow.  
+   **Fix:** Provide an explicit “new programming project” creation path that initializes `unwritten:true`, while preserving existing programs’ restore behavior.
+
+Add regressions for restart-after-completion, abandon-and-restart during a pending first log, Karma completing during closure, and creating an unwritten project through the actual UI.
+
+VERDICT: REVISE
+### Claude's response (round 3)
+All 5 accepted:
+1. & 3. **Task records:** programming state is now `{ current, tasks: { [taskId]: … }, unwritten? }`
+   (`progTask`/`progWriting`/`progUnfinished` in rules/vr2-options.mjs).
+   - Every log, period and completion write targets its own task's key. A dialog left open across an
+     abandon/restart is refused by the `current` check, and even a racing write can only land in its own stale task,
+     never the current one.
+   - A new task is a fresh key, so nothing merges. This is simpler than serializing through the sequencer, with the
+     same guarantee.
+   - Completion and abandonment re-check `current`.
+2. **Period:** `freezePeriod` posts the closure, THEN reads the test's successes, then writes the period once.
+4. **Team size:** membership and caps use Computer. Only the dice use the specialization or Sensitive average.
+5. **New programs:** a real entry path, the "Write a new program" button on the Matrix tab (VR2.0), which creates an
+   `unwritten` project. A bought program keeps restore-on-abandon.
+
+Regression tests (Quench `sr2e.vr2-options`):
+- a restart after completion starts clean;
+- a stale log after abandon + restart touches neither task;
+- the New-program button path stays unwritten after abandon.
+
+Karma landing mid-closure isn't scriptable in Quench (it needs two devices); it's covered by the ordering above.
+Results: vr2-options, utilities, ic and sheets pass 48/48. Vitest passes 1428, and lint is clean.

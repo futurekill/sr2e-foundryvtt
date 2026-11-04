@@ -246,3 +246,9 @@ my misreading; the book says 1 (p.102; R1 #17).
     - the Software concentration / Matrix Programming specialization roll where higher, with the caps still on
       Computer;
   - Area targets are deduplicated by actor uuid at validation (the dialog already did).
+- **Round 3 (2026-11-04):**
+  - programming state is `{ current, tasks: { [taskId]: … }, unwritten? }`. Every write targets its task's own key,
+    and transitions re-check `current`;
+  - the period is read AFTER the closure;
+  - team size uses Computer;
+  - a "Write a new program" button creates an unwritten project.

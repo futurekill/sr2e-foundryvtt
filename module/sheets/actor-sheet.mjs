@@ -11,7 +11,7 @@ import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
 import { liveSession, isCompressed, dinabLeft, optionOf } from "../vr2.mjs";
-import { taskOf, doneOf } from "../programming.mjs";
+import { taskOf, doneOf, writingOf, unfinished } from "../programming.mjs";
 import { programUnusable } from "../data/actor-data.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
@@ -571,10 +571,10 @@ export function chargenBudgetOf(actor) {
 
 /** A program row's part-5b state (plan 5b §5). */
 function programBadges(actor, i) {
-  const task = taskOf(i);
+  const task = taskOf(i), writing = writingOf(i);
   const opts = utilityOptionsOn();
-  return { task: task ? { done: doneOf(task), period: task.period ?? null, complete: !!task.complete,
-      writing: !!task.taskId && !task.complete, unwritten: !!task.unwritten } : null,
+  return { task: { done: doneOf(task), period: task?.period ?? null, writing,
+      unwritten: !writing && unfinished(i) },
     compressed: opts && i.system.loaded && isCompressed(i), dinab: opts && optionOf(i, "dinab") ? dinabLeft(i) : null,
     spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i) };
 }

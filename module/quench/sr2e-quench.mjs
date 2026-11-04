@@ -12626,7 +12626,7 @@ export function registerSR2EQuenchTests() {
         assert.equal(st?.utility, 0, "the Mitsuhama Browse doesn't help on the Fuchi host");
       });
 
-      it("round 2: programming — abandon leaves a new program unwritten, restores a bought one; Software concentration rolls (p.100)", async function () {
+      it("programming lifecycle: Software concentration; abandon restores a bought copy; a New program stays unwritten (p.100)", async function () {
         this.timeout(30000);
         const P = await import("../programming.mjs");
         const a = await mk({ name: "Quench UO R2 Coder", type: "character" });
@@ -12636,23 +12636,52 @@ export function registerSR2EQuenchTests() {
         const confirm = foundry.applications.api.DialogV2.confirm;
         foundry.applications.api.DialogV2.confirm = async () => true;
         try {
-          // A bought (usable) program: start, then abandon → usable again.
           const n = game.messages.size;
           await clicking("ok", () => withFaces(Array(6).fill(5), () => P.programmingDialog(a, p())));
           const t = game.messages.contents.slice(n).find(m => m.flags?.sr2e?.test)?.flags.sr2e.test;
           assert.equal(t?.dice?.length, 5, "the Software concentration rolls (capped at Computer + 2 = 5), not Computer 3");
           await P.abandon(a, p());
-          assert.isNull(P.taskOf(p()), "a bought copy goes back to usable");
+          assert.isFalse(P.unfinished(p()), "a bought copy goes back to usable");
           assert.isTrue(V.usablePrograms(a).includes(p()));
-          // Now as a program that was never written: mark it unwritten (as a failed first task leaves it).
-          await p().setFlag("sr2e", "programming", { unwritten: true });
-          assert.isFalse(V.usablePrograms(a).includes(p()), "unwritten: unusable");
-          await clicking("ok", () => withFaces(Array(6).fill(5), () => P.programmingDialog(a, p())));
-          assert.isTrue(!!P.taskOf(p())?.taskId, "programming starts again");
-          await P.abandon(a, p());
-          assert.isTrue(P.taskOf(p())?.unwritten, "abandoning an unwritten program keeps it unwritten");
-          assert.isFalse(V.usablePrograms(a).includes(p()));
+          // The real entry path for a program that doesn't exist yet.
+          await P.newProject(a);
+          const np = () => a.items.getName("New program");
+          for (const app of [...foundry.applications.instances.values()]) if (app.document?.id === np()?.id) await app.close();
+          await np().update({ "system.loaded": true });
+          assert.isTrue(P.unfinished(np()) && !V.usablePrograms(a).includes(np()), "a new project is unwritten: unusable");
+          await clicking("ok", () => withFaces(Array(6).fill(5), () => P.programmingDialog(a, np())));
+          assert.isTrue(P.writingOf(np()), "programming starts");
+          await P.abandon(a, np());
+          assert.isTrue(P.unfinished(np()) && !P.writingOf(np()), "abandoning a never-written program keeps it unwritten");
         } finally { foundry.applications.api.DialogV2.confirm = confirm; }
+      });
+
+      it("programming: a restart after completion starts clean; a stale log after abandon + restart touches only its own task (Codex R3)", async function () {
+        this.timeout(30000);
+        const P = await import("../programming.mjs");
+        const a = await mk({ name: "Quench UO R3 Coder", type: "character" });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          { name: "Browse", type: "program", system: { rating: 2, multiplier: 1, loaded: true } }]);
+        const p = () => a.items.getName("Browse");
+        // Design 4 Mp → 8 days; 5 successes → 2 days. Two logs complete it.
+        await clicking("ok", () => withFaces([5, 5, 5, 5, 5], () => P.programmingDialog(a, p())));
+        await clicking("ok", () => P.programmingDialog(a, p()));
+        await clicking("ok", () => P.programmingDialog(a, p()));
+        assert.isTrue(P.taskOf(p())?.complete, "written");
+        await clicking("ok", () => withFaces([5, 5, 5, 5, 5], () => P.programmingDialog(a, p())));
+        assert.deepEqual([P.taskOf(p()).complete ?? false, P.taskOf(p()).period ?? null, P.doneOf(P.taskOf(p()))], [false, null, 0], "a fresh task: nothing carried over");
+        // Task A's log dialog is open; meanwhile another device abandons A and starts B.
+        const A = p().flags.sr2e.programming.current, prompt = foundry.applications.api.DialogV2.prompt;
+        foundry.applications.api.DialogV2.prompt = async () => {
+          await p().update({ "flags.sr2e.programming.current": "QuenchTaskB00000", "flags.sr2e.programming.tasks.QuenchTaskB00000":
+            { testMessageId: null, design: {}, designSize: 4, baseTime: 8, team: [], log: {}, restore: true } });
+          return { days: 3, bonuses: "", sv: 0, tools: {} };
+        };
+        try { await P.programmingDialog(a, p()); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
+        const st = p().flags.sr2e.programming;
+        assert.equal(P.doneOf(st.tasks.QuenchTaskB00000), 0, "B untouched");
+        assert.isNull(st.tasks.QuenchTaskB00000.period ?? null, "B's period untouched");
+        assert.equal(P.doneOf(st.tasks[A]), 0, "the stale dialog was refused outright");
       });
     });
 

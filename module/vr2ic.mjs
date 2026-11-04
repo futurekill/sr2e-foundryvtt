@@ -1673,6 +1673,7 @@ export async function sheetOp(doc, op, arg) {
   if (op === "restore") { const V = await import("./vr2.mjs"); return V.vr2Restore(doc, doc.items.get(arg)); }
   if (op === "decompress") { const V = await import("./vr2.mjs"); return V.vr2Decompress(doc, doc.items.get(arg)); }
   if (op === "programming") { const P = await import("./programming.mjs"); return P.programmingDialog(doc, doc.items.get(arg)); }
+  if (op === "programNew") { const P = await import("./programming.mjs"); return P.newProject(doc); }
   if (op === "programAbandon") { const P = await import("./programming.mjs"); return P.abandon(doc, doc.items.get(arg)); }
   if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
