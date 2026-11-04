@@ -37,7 +37,7 @@ import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.
 import { registerAstralWalls, registerAstralWallHooks } from "./astral-walls.mjs";
 import { registerNetHooks, wireNetButtons, renderNetCard } from "./nets.mjs";
 import { renderVR2MatrixCard, renderManeuverCard, wireVR2Buttons, vr2Ready } from "./vr2.mjs";
-import { isVR2 } from "./vr2-mode.mjs";
+import { isVR2, utilityOptionsOn } from "./vr2-mode.mjs";
 import { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea } from "./areas.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
@@ -86,6 +86,7 @@ import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 import { programmingState } from "./programming.mjs";
+import { activeOptions } from "./rules/vr2-options.mjs";
 
 /**
  * Delete every world document a Quench run leaves behind. Quench doesn't clean
@@ -1490,7 +1491,10 @@ function repriceDelta(item, changed, paid) {
     limbOption: item.system.limbOption, costPerRating: item.system.costPerRating,
     costMultiplierOfBase: item.system.costMultiplierOfBase, linkedLimbId: item.system.linkedLimbId,
     limbSurcharge: item.system.limbSurcharge, limbAdjacent: item.system.limbAdjacent,
-    eyes: item.system.eyes, secondhand: item.system.secondhand, activeOpts: item.system.activeOpts,
+    eyes: item.system.eyes, secondhand: item.system.secondhand,
+    // Utility options (VR2.0 p.103): which are active depends on the rating, so each side gets its own (code review R1 #4).
+    activeOpts: item.type === "program" && utilityOptionsOn()
+      ? activeOptions(item.system.utility, over.rating ?? item.system.rating, over.options ?? item.system.options ?? []).active : item.system.activeOpts,
     ...over
   });
   const oldSys = sysFor({});

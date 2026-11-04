@@ -986,6 +986,16 @@ Object.assign(HANDLERS, {
     await fact(ic, `slow-suppress:${r.card}`, { type: "slowSuppress", card: r.card, deckerUuid: actor.uuid, session, gen: sl.gen, icName: ic.name });
     return { ok: true };
   },
+  /** A DINAB attack this defender resisted entirely (p.103), resolved where its attacker's program couldn't be written. */
+  async dinabWear(actor, r) {
+    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
+    // Only the attack's own target may file it, and the wear is once per use; the request can arrive before the
+    // resolution card is posted, so it isn't required here.
+    if (!st?.dinab || st.targetUuid !== actor.uuid) return { ok: false, why: "not a DINAB attack on this icon", tell: false };
+    const attacker = sync(st.attackerUuid);
+    if (attacker) await (await import("./vr2.mjs")).dinabFail(attacker, st.dinab, st.dinab.useId);
+    return { ok: true };
+  },
   async slowRelease(actor, r) {
     const ic = sync(r.icUuid);
     if (!ic || !recordsOf(ic).some(e => e.type === "slowSuppress" && e.card === r.card && e.deckerUuid === actor.uuid)) return { ok: false, why: "no such suppression" };
@@ -1151,7 +1161,10 @@ export async function relocate(actor, icKey) {
   if (!t) return;
   const V = await import("./vr2.mjs");
   const { relocateTN } = await import("./rules/vr2ic-rules.mjs");
-  const rel = V.loadedUtility(actor, "relocate");
+  // The utility executes (part 5b): a one-shot is spent and the DINAB phase claimed BEFORE the roll; a refused use
+  // (spent on another device, or its DINAB ran this phase) gives no Relocate bonus (code review R1 #2).
+  const relItem = V.bestUtility(actor, "relocate");
+  const rel = relItem && !(await V.spendUse(actor, relItem)) ? V.programRating(relItem) : 0;
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
   // Against a track (p.97–98): the attacking decker's Sensor instead of the system's rating.
   const tn = t.track ? Math.max(2, (sync(parseAttackerKey(t.attacker).uuid)?.system?.matrixPersona?.sensor ?? 0) - rel) : relocateTN(t.rating, rel);

@@ -12605,6 +12605,47 @@ export function registerSR2EQuenchTests() {
         assert.isTrue(await settle(() => V.dinabLeft(a.items.getName("Attack")) === 1), "no damage → −1");
       });
 
+      it("code review R1: DINAB from the System Operation dialog; the GM's dinabWear request; a downgrade reprices its options", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench UO CR Host");
+        const a = await decker("Quench UO CR Boxer", [["Browse", 4, { options: [{ kind: "dinab", rating: 2 }] }]]);
+        const p = () => a.items.getName("Browse");
+        // #1: the checkbox in the sheet's dialog runs the DINAB (2 dice, lost → −1), not the decker's Computer.
+        await clicking("run", () => withFaces([2, 2], () => a.sheet.options.actions.systemOperation.call(a.sheet, new Event("click"), null)), (el) => {
+          const hs = el?.querySelector('select[name="host"]'); if (hs) hs.value = h.id;
+          const op = el?.querySelector('select[name="operation"]'); if (op) op.value = "locateFile";
+          const d = el?.querySelector('input[name="dinab"]'); if (d) d.checked = true;
+        });
+        assert.equal(V.dinabLeft(p()), 1, "the dialog's DINAB ran and lost a point");
+        // #3: the defender's request makes the GM's sequencer write the wear of a DINAB attack it resisted entirely.
+        // (Requests come from a player's own decker; IC is resolved by the GM, who writes the wear directly.)
+        const b = await decker("Quench UO CR Gunner", [["Attack", 4, { damageLevel: "L", options: [{ kind: "dinab", rating: 2 }] }]]);
+        const c = await decker("Quench UO CR Target");
+        await tokenFor(b, 0);
+        const [card] = await attack(b, [c], "Attack", [6, 1, 1, 1, 1, 1], { dinab: true });
+        assert.isTrue(await settle(() => Y.recordsOf(c).some(e => e.type === "admit" && e.card === card.id)), "admitted");
+        await Y.request(c, "dinabWear", { card: card.id });
+        assert.isTrue(await settle(() => V.dinabLeft(b.items.getName("Attack")) === 1), "worn by the sequencer");
+        // #4: Attack-4M with Skulk-4 bought, then downgraded to 3: Skulk-4 goes inert, and the refund prices that.
+        const priorAuto = game.settings.get("sr2e", "autoChargePurchases");
+        await game.settings.set("sr2e", "autoChargePurchases", true);
+        try {
+        const buyer = await mk({ name: "Quench UO CR Buyer", type: "character", system: { nuyen: 0, chargen: { inProgress: false } } });
+        const [prog] = await buyer.createEmbeddedDocuments("Item", [{ name: "Attack", type: "program",
+          system: { rating: 4, damageLevel: "M", options: [{ kind: "skulk", rating: 4 }] } }], { sr2eNoCharge: true });
+        const before = prog.system.cost;
+        await prog.setFlag("sr2e", "paid", before);
+        await prog.update({ "system.rating": 3 });
+        await game.sr2e.moneySettled(buyer);
+        const after = buyer.items.get(prog.id);
+        assert.equal(after.system.rating, 3);
+        assert.equal(after.system.inertOpts.length, 1, "Skulk-4 is inert on a rating-3 program");
+        assert.equal(buyer.system.nuyen, before - after.getFlag("sr2e", "paid"), "refunded the difference");
+        assert.isBelow(after.getFlag("sr2e", "paid"), 5000, "priced without the inert Skulk (2,700¥ list, not 14,700¥)");
+        } finally { await game.settings.set("sr2e", "autoChargePurchases", priorAuto); }
+      });
+
       it("round 2: a one-shot's spent record is durable; Sensitive is judged on the host being tested (p.104)", async function () {
         this.timeout(30000);
         if (!canvas?.ready) this.skip();

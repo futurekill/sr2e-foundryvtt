@@ -226,3 +226,42 @@ Results: Vitest 1433; Quench sheets, karma-pool, karma-card-sync, karma-damage-s
 vr2-options and combat-spells pass 75/75; lint clean.
 
 The loop has reached its round cap. Per the review process this goes to the user to break the tie instead of a seventh round.
+
+## Code review round 1 — Codex (2026-11-04, git diff 95dc218..HEAD)
+
+1. **System Operations ignore “Run by DINAB.”** `module/sheets/sheet-actions.mjs:2768`  
+   The dialog callback never copies `f.dinab.checked` into its result. Checking it still rolls the character’s Computer, permits pools, and commits the normal action. The checkbox read was added to the unrelated attack dialog instead.  
+   **Fix:** Add `dinab: !!f.dinab?.checked` to the System Operation dialog result.
+
+2. **Relocate bypasses one-shot consumption and DINAB phase restrictions.** `module/vr2ic.mjs:1154`  
+   The trace-escape action reads `loadedUtility("relocate")` and rolls without calling `spendUse`. A one-shot Relocate therefore provides its bonus repeatedly; manual use also bypasses a DINAB use already recorded for that phase.  
+   **Fix:** Capture the Relocate item, obtain successful `spendUse` admission before rolling, and use that admitted copy’s rating.
+
+3. **Non-GM resolution silently loses DINAB degradation.** `module/vr2.mjs:999`  
+   When a player completely resists another player’s DINAB attack through the non-sequenced resolution path, `dinabZeroed` skips wear because the defender cannot update the attacker’s item. The attack becomes resolved without recording the required degradation.  
+   **Fix:** Route the generation-bound wear receipt through an authorized GM/owner request before completing resolution.
+
+4. **Rating changes charge/refund against stale active options.** `module/sr2e.mjs:1493`  
+   `repriceDelta` uses the existing `activeOpts` for both ratings, although changing rating can activate or invalidate rated options. Reproduced with Attack-4M/Skulk-4 downgraded to rating 3: repricing calculates **14,700¥**, while the prepared item correctly costs **2,700¥** because Skulk-4 becomes inert. The refund is short by **12,000¥** at list price.  
+   **Fix:** Recompute active options separately for the old and proposed configurations before pricing each.
+
+No files modified. Findings come from caller tracing and a read-only pricing reproduction; Foundry runtime tests were not run.
+
+VERDICT: REVISE
+### Claude's response (code round 1)
+All 4 confirmed and fixed:
+1. **System Operation dialog:** it now returns `dinab`. A stray read in the core-ruleset attack dialog, which has no
+   DINAB box, is removed.
+2. **Relocate:** it captures its utility and spends it (`spendUse`) before the roll. A refused use gives no bonus.
+3. **DINAB wear:** `dinabZeroed(st, {card, requester})`. When the resolver can't write the attacker's program, the
+   defender files a `dinabWear` request, and the GM's sequencer writes the wear (only for the attack's own target;
+   idempotent per use). The old `shortcut:` is removed. Requests come from deckers; IC is resolved by the GM, who
+   writes directly.
+4. **Repricing:** `repriceDelta` recomputes active options for each side's own rating (and options).
+
+Regression test (Quench `sr2e.vr2-options`):
+- DINAB through the real System Operation dialog;
+- the sequencer writing a requested wear;
+- the Attack-4M/Skulk-4 → 3 downgrade refunding the right amount (Skulk inert).
+
+Results: options/utilities/ic/karma-pool/money-queue/purchases 90/90; Vitest 1433; lint clean.

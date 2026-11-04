@@ -2537,7 +2537,6 @@ async function promptMatrixAttackOptions(actor) {
             tn:        Math.max(2, parseInt(f.tn?.value) || 4),
             node:      Math.max(0, parseInt(f.node?.value) || 0),
             karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
-            dinab:     !!f.dinab?.checked,
             ...readMiscDice(button.form)
           };
         }
@@ -2771,6 +2770,7 @@ async function promptSystemOperationOptions(actor) {
             subsystem: f.subsystem?.value ?? null,
             hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
             karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
+            dinab:     !!f.dinab?.checked,
             ...readMiscDice(button.form)
           };
         }

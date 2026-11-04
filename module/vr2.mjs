@@ -988,15 +988,15 @@ export function matrixDamage(actor, boxes) {
 }
 
 /**
- * A DINAB attack the defender reduced to nothing (p.103): −1 DINAB. Written by whoever resolves the card, if they
- * may write the attacker's program (the GM always can).
- * shortcut: a player resolving a non-sequenced card for another player's decker can't write it, so that point is lost;
- * route it through a request if that ever matters.
+ * A DINAB attack the defender reduced to nothing (p.103): −1 DINAB. Written by whoever resolves the card if they may
+ * write the attacker's program (the GM always can); a player resolving another player's DINAB attack instead files a
+ * request, and the GM's sequencer writes it (code review R1 #3). Idempotent per use either way.
  */
-export async function dinabZeroed(st) {
+export async function dinabZeroed(st, { card = null, requester = null } = {}) {
   if (!st?.dinab) return;
   const attacker = sync(st.attackerUuid);
-  if (attacker?.items.get(st.dinab.itemId)?.isOwner) await dinabFail(attacker, st.dinab, st.dinab.useId);
+  if (attacker?.items.get(st.dinab.itemId)?.isOwner) return dinabFail(attacker, st.dinab, st.dinab.useId);
+  if (card && requester?.isOwner) await (await import("./vr2ic.mjs")).request(requester, "dinabWear", { card });
 }
 
 /** The Camo a trace hunt reads (p.97); a one-shot copy is spent by it (p.104). The GM's client: it may write the decker. */
@@ -1092,7 +1092,7 @@ export async function vr2MatrixResist(defender, message) {
     let crashed = false, text, crashChoiceFlag = null;
     if (!out.level) {
       text = `${defender.name} resists the Matrix attack.`;
-      await dinabZeroed(st);
+      await dinabZeroed(st, { card: message.id, requester: defender });
     } else {
       // Committed in the defender's session queue (serialized with session changes), and
       // only while it's still the connection that was hit.
@@ -1297,7 +1297,7 @@ async function resistAttribute(defender, message, st, liveAtk) {
     return l;
   });
   if (shield) await addWear(defender, shield.ref, message.id);
-  if (lost === 0) await dinabZeroed(st);
+  if (lost === 0) await dinabZeroed(st, { card: message.id, requester: defender });
   // Part 3: the admitted attack is resolved; a ripper's permanent chip test follows (p.43).
   if (lost != null && st.targetConn != null && defender.system.vr2Conn?.n === st.targetConn) {
     const Y = await import("./vr2ic.mjs");
