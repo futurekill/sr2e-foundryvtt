@@ -2286,6 +2286,14 @@ export class SR2EItem extends Item {
   async _rollProgramAction(options = {}) {
     const actor = this.parent;
     if (!actor) return;
+    // Under VR2.0 a program row's roll is a use like any other (plan 5b §0): only an active copy, admitted first
+    // (one-shot spent, DINAB phase claimed) — code review R2 #1.
+    if (actor.type === "character" && (await import("../vr2-mode.mjs")).isVR2()) {
+      const V = await import("../vr2.mjs");
+      if (!V.activePrograms(actor).includes(this)) return ui.notifications.warn(`${this.name} isn't usable now: load (or decompress) it, write it, or Swap Memory a fresh copy.`);
+      const refused = await V.spendUse(actor, this);
+      if (refused) return ui.notifications.warn(refused);
+    }
 
     const rating = this.system.rating;
     const targetNumber = options.targetNumber || 4;

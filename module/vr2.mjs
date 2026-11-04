@@ -135,9 +135,9 @@ export function attackSuccesses(st) {
 }
 
 /** The best active program whose name starts with `name`, or null. */
-export function bestUtility(actor, name, host = null) {
+export function bestUtility(actor, name, host = null, pred = () => true) {
   const key = String(name).toLowerCase();
-  return activePrograms(actor, host).filter(i => i.name.toLowerCase().startsWith(key))
+  return activePrograms(actor, host).filter(i => i.name.toLowerCase().startsWith(key) && pred(i))
     .sort((a, b) => programRating(b) - programRating(a))[0] ?? null;
 }
 
@@ -438,7 +438,8 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
   const sub = op.subsystem === "targeted" ? (opts.subsystem || "files") : op.subsystem;
   const subsystem = host.system.subsystemRating(sub);
-  const utilityItem = bestUtility(actor, op.utility, host);   // Sensitive is judged on THIS host, not the last session's
+  // Sensitive is judged on THIS host, not the last session's; a DINAB run takes the best copy with DINAB left (R2 #2).
+  const utilityItem = bestUtility(actor, op.utility, host, opts.dinab ? (i => dinabLeft(i) > 0) : undefined);
   // DINAB (p.103): the utility runs itself with its own skill — no pools, no Karma, a Free Action.
   const dinab = !!opts.dinab;
   if (dinab && !dinabLeft(utilityItem)) return ui.notifications.warn(`No ${op.utility ?? "utility"} with DINAB left is loaded.`);
@@ -652,7 +653,8 @@ async function promptAttack(actor, target, ms) {
   let programs = "", dinabAny = false;
   const areaOthers = [];
   if (!isIC) {
-    const list = activePrograms(actor).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
+    // Not yet filtered for Sensitive: the host is picked in this dialog, and the attack re-checks on THAT host (R2 #3).
+    const list = usablePrograms(actor).filter(i => !isCompressed(i)).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
       && !(utilityKindOf(i) && utilityTargetProblem(utilityKindOf(i), target))
       && limitAllows(i.system.activeOpts ?? [], target.type === "ic" ? "ic" : "decker"))
       .sort((a, b) => programRating(b) - programRating(a));
@@ -823,7 +825,10 @@ async function attackOnce(actor) {
       dice = power = imp.power; level = imp.level; usedBuild = imp.id;
     } else {
       prog = actor.items.get(o.programId);
-      if (!prog || !activePrograms(actor).includes(prog)) return ui.notifications.warn("That utility isn't loaded and usable any more.");
+      if (!prog || !activePrograms(actor).includes(prog)) {
+        return ui.notifications.warn(prog && usablePrograms(actor).includes(prog) && !isCompressed(prog)
+          ? `${prog.name} is Sensitive: it doesn't work on ${host.name}'s manufacturer (VR2.0 p.104).` : "That utility isn't loaded and usable any more.");
+      }
       const offense = offenseOf(prog), kind = utilityKindOf(prog);
       kinds = optKinds(prog);
       // Part 5b (p.103–104): every target must suit the program (its kind, Limit) and be in sight.

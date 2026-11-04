@@ -12646,6 +12646,41 @@ export function registerSR2EQuenchTests() {
         } finally { await game.settings.set("sr2e", "autoChargePurchases", priorAuto); }
       });
 
+      it("code review R2: a program-row roll is a use; DINAB picks a copy with DINAB left; Sensitive attacks offered for the chosen host", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        // #1: clicking a one-shot program's name spends it; the second click is refused.
+        const a = await decker("Quench UO CR2 Clicker", [["Evaluate", 3, { options: [{ kind: "oneShot" }] }]]);
+        const ev = () => a.items.getName("Evaluate");
+        const n0 = game.messages.size;
+        await ev().roll();
+        await ev().roll();
+        assert.equal(game.messages.contents.slice(n0).filter(m => m.flags?.sr2e?.test).length, 1, "one roll, then refused");
+        // #2: Browse-6 (no DINAB) and Browse-4/DINAB-2: a DINAB run uses the copy that has it.
+        const h = await host("Quench UO CR2 Host");
+        const b = await decker("Quench UO CR2 Boxer", [["Browse", 6], ["Browse", 4, { options: [{ kind: "dinab", rating: 2 }] }]]);
+        const dinabCopy = () => b.items.find(i => i.name === "Browse" && i.system.rating === 4);
+        await withFaces([2, 2], () => b.rollSystemOperation(h, "locateFile", { dinab: true }));
+        assert.equal(V.dinabLeft(dinabCopy()), 1, "the DINAB copy ran (and lost a point)");
+        // #3: live on a Fuchi host, an MCT-only attack is still offered, and works when the MCT host is picked.
+        const fuchi = await host("Quench UO CR2 Fuchi", "orange", 6, { manufacturer: "Fuchi" });
+        const mct = await host("Quench UO CR2 MCT", "orange", 6, { manufacturer: "Mitsuhama" });
+        const k = await ic("Quench UO CR2 IC", mct, "killer", 4);
+        const c = await decker("Quench UO CR2 Sensitive", [["Attack", 4, { damageLevel: "M", manufacturer: "Mitsuhama", options: [{ kind: "sensitive" }] }]]);
+        await c.rollSystemOperation(fuchi, "locateFile", {});
+        await tokenFor(c, 0);
+        await setTargets([(await tokenOf(k, 2)).id]);
+        let offered = false;
+        const n1 = game.messages.size;
+        await clicking("attack", () => withFaces(Array(20).fill(6), () => V.vr2MatrixAttack(c)), (el) => {
+          const s = el?.querySelector('select[name="program"]'); offered = !!s && [...s.options].some(o => o.value === c.items.getName("Attack").id);
+          if (s) s.value = c.items.getName("Attack").id;
+          const hs = el?.querySelector('select[name="host"]'); if (hs) hs.value = mct.id;
+        });
+        assert.isTrue(offered, "offered before the host is picked");
+        assert.isTrue(game.messages.contents.slice(n1).some(m => m.flags?.sr2e?.matrix), "the attack on the MCT host went through");
+      });
+
       it("round 2: a one-shot's spent record is durable; Sensitive is judged on the host being tested (p.104)", async function () {
         this.timeout(30000);
         if (!canvas?.ready) this.skip();

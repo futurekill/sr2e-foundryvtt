@@ -265,3 +265,34 @@ Regression test (Quench `sr2e.vr2-options`):
 - the Attack-4M/Skulk-4 → 3 downgrade refunding the right amount (Skulk inert).
 
 Results: options/utilities/ic/karma-pool/money-queue/purchases 90/90; Vitest 1433; lint clean.
+
+## Code review round 2 — Codex (2026-11-04)
+
+1. **Program-name clicks bypass the new use lifecycle.** `module/documents/item.mjs:2293`  
+   The Matrix row’s `rollProgram` action reaches `_rollProgramAction`, which rolls directly without eligibility checks or `spendUse`. A one-shot Evaluate can run repeatedly; compressed, Sensitive-blocked, and unfinished programs also roll normally.  
+   **Fix:** Route VR2 program-row rolls through active-program validation and successful `spendUse` admission before rolling.
+
+2. **A non-DINAB copy blocks an available DINAB copy.** `module/vr2.mjs:441`  
+   With Browse-6 without DINAB and Browse-4/DINAB-2 loaded, checking “Run by DINAB” selects Browse-6 first, then incorrectly reports that no Browse with DINAB remains. The same happens when the higher-rated copy’s DINAB is exhausted.  
+   **Fix:** Filter candidates for remaining DINAB before choosing the utility when `opts.dinab` is true.
+
+3. **Sensitive attack selection uses the previous host.** `module/vr2.mjs:655`  
+   While the current session is on manufacturer A’s host, an attack utility restricted to manufacturer B is excluded before the attack dialog offers its host selector. If it is the only attack utility, the dialog aborts entirely—even when the intended attack is on B’s host.  
+   **Fix:** Build and refresh attack-utility choices against the selected host, and defer the empty-program rejection until that host is chosen.
+
+Read-only method reproductions confirmed findings 1–2. No files modified; Foundry runtime tests were not run.
+
+VERDICT: REVISE
+### Claude's response (code round 2)
+All 3 confirmed and fixed:
+1. **Program-row rolls:** under VR2.0 they require an active copy and a successful `spendUse` first.
+2. **DINAB copy choice:** a DINAB System Test picks the best copy with DINAB left (`bestUtility` gained a predicate).
+3. **Sensitive attacks:** the attack dialog lists programs without the Sensitive filter, because the host is chosen in
+   that dialog. The attack re-checks on the chosen host, with a Sensitive-specific message.
+
+Regression test (Quench `sr2e.vr2-options`, now 18/18):
+- a one-shot program-row roll is refused the second time;
+- a DINAB run uses the copy with DINAB;
+- an MCT-only attack is offered while live on a Fuchi host, and fires on the MCT host.
+
+Utilities, IC, sheets and money-queue pass. Vitest passes.
