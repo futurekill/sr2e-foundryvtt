@@ -74,8 +74,10 @@ export function personaLit({ sceneId, sessions = {}, matrixMode }) {
 
 /**
  * Which persona tokens one Matrix scene should gain or lose. `tokens` are the scene's
- * persona-flagged tokens `{id, actorId, actorLink, managed, usable}` (usability judged by the
- * caller with the same predicate canJackIn uses, R1 #6); `live` is the set of actor ids whose
+ * persona-flagged or managed tokens `{id, actorId, actorLink, managed, usable, marked, stale}`
+ * (usability judged by the caller with the same predicate canJackIn uses, R1 #6; `marked`: the
+ * persona flag is still on; `stale`: made for a session that isn't the actor's live one now —
+ * impl R1 #1); `live` is the set of actor ids whose
  * winning, valid session targets this scene. Hand-placed personas are never removed; managed
  * ones are disposable: unlinked or unusable ones go (R2 #4), duplicates keep the lowest id among
  * usable ones, and all go when a usable hand-placed persona exists or the session ended.
@@ -86,12 +88,15 @@ export function desiredPersonas({ tokens = [], live = new Set() }) {
   const byActor = new Map();
   for (const t of tokens) {
     if (!t.managed) continue;
+    // A managed token stripped of its persona flag is still ours to clear away (impl R1 #2).
+    if (t.marked === false) { remove.push({ id: t.id, reason: "unmarked" }); continue; }
+    if (t.stale) { remove.push({ id: t.id, reason: "stale" }); continue; }
     if (!t.actorLink) { remove.push({ id: t.id, reason: "unlinked" }); continue; }
     if (!t.usable) { remove.push({ id: t.id, reason: "unusable" }); continue; }
     if (!byActor.has(t.actorId)) byActor.set(t.actorId, []);
     byActor.get(t.actorId).push(t);
   }
-  const handUsable = (actorId) => tokens.some(t => !t.managed && t.actorLink && t.usable && t.actorId === actorId);
+  const handUsable = (actorId) => tokens.some(t => !t.managed && t.marked !== false && t.actorLink && t.usable && t.actorId === actorId);
   for (const [actorId, list] of byActor) {
     list.sort((a, b) => cmp(a.id, b.id));
     const reason = !live.has(actorId) ? "ended" : handUsable(actorId) ? "hand-placed" : null;

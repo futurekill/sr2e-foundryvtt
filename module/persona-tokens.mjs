@@ -24,9 +24,13 @@ const managed = (t) => !!t.getFlag("sr2e", "personaManaged");
 
 /** The pure rule's view of a scene. */
 function input(scene) {
-  const tokens = scene.tokens.filter(t => t.getFlag("sr2e", "persona")).map(t => ({
-    id: t.id, actorId: t.actorId, actorLink: !!t.actorLink, managed: managed(t), usable: personaUsable(t, scene) }));
-  const live = new Set(game.actors.filter(a => a.type === "character" && liveSession(a)?.destScene === scene.id).map(a => a.id));
+  const sessions = new Map(game.actors.filter(a => a.type === "character").map(a => [a.id, liveSession(a)]));
+  const tokens = scene.tokens.filter(t => t.getFlag("sr2e", "persona") || managed(t)).map(t => {
+    const made = t.getFlag("sr2e", "personaSession");
+    return { id: t.id, actorId: t.actorId, actorLink: !!t.actorLink, managed: managed(t), usable: personaUsable(t, scene),
+      marked: !!t.getFlag("sr2e", "persona"), stale: managed(t) && !!made && made !== sessions.get(t.actorId)?.id };
+  });
+  const live = new Set([...sessions].filter(([, s]) => s?.destScene === scene.id).map(([id]) => id));
   return { tokens, live };
 }
 
@@ -52,7 +56,7 @@ async function personaData(actor, scene, session) {
   const icon = actor.system?.matrixIcon;
   return foundry.utils.mergeObject(data, {
     x, y, actorLink: true, hidden: false, disposition: CONST.TOKEN_DISPOSITIONS.FRIENDLY,
-    sight: { enabled: true }, flags: { sr2e: { persona: true, personaManaged: true } },
+    sight: { enabled: true }, flags: { sr2e: { persona: true, personaManaged: true, personaSession: session.id } },
     ...(icon ? { texture: { src: icon } } : {})
   });
 }
@@ -71,9 +75,12 @@ async function reconcileScene(scene) {
     if (!isWriter()) return;
     if (!desiredPersonas(input(scene)).create.includes(actorId)) continue;
     const actor = game.actors.get(actorId);
-    const data = actor ? await personaData(actor, scene, liveSession(actor)) : null;
+    const session = actor ? liveSession(actor) : null;
+    const data = session ? await personaData(actor, scene, session) : null;
     if (!data) continue;
     await personaSeam.beforeCreate?.();
+    // The awaits above: still the writer, still wanted, still the SAME session (impl R1 #1)?
+    if (!isWriter() || !desiredPersonas(input(scene)).create.includes(actorId) || liveSession(actor)?.id !== session.id) continue;
     await scene.createEmbeddedDocuments("Token", [data]);
   }
 }
@@ -124,7 +131,7 @@ export function registerPersonaTokenHooks() {
   Hooks.on("deleteActor", (actor) => {
     for (const s of game.scenes) if (s.tokens.some(t => t.actorId === actor.id && managed(t))) schedulePersonaScene(s);
   });
-  const personaToken = (doc) => !!doc.getFlag?.("sr2e", "persona") || !!doc.flags?.sr2e?.persona;
+  const personaToken = (doc) => !!doc.flags?.sr2e?.persona || !!doc.flags?.sr2e?.personaManaged;
   Hooks.on("createToken", (doc) => { if (personaToken(doc)) schedulePersonaScene(doc.parent); });
   Hooks.on("deleteToken", (doc) => { if (personaToken(doc)) schedulePersonaScene(doc.parent); });
   // Marking, adopting, hiding, unlinking — never plain movement (R1 #5).

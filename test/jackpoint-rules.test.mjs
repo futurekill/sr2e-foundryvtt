@@ -102,6 +102,23 @@ describe("which personas a Matrix scene should have", () => {
   });
 });
 
+describe("managed personas that lost their flag or their session (code review R1)", () => {
+  const T = (id, actorId, extra = {}) => ({ id, actorId, actorLink: true, managed: true, usable: true, marked: true, ...extra });
+  it("a managed token with its persona flag cleared is removed, and doesn't count as the actor's persona", () => {
+    expect(desiredPersonas({ tokens: [T("m", "a", { marked: false })], live: new Set(["a"]) }))
+      .toEqual({ create: ["a"], remove: [{ id: "m", reason: "unmarked" }] });
+    expect(desiredPersonas({ tokens: [T("m", "a", { marked: false })], live: new Set() }).remove).toEqual([{ id: "m", reason: "unmarked" }]);
+  });
+  it("a managed token made for an earlier session is replaced", () => {
+    expect(desiredPersonas({ tokens: [T("m", "a", { stale: true })], live: new Set(["a"]) }))
+      .toEqual({ create: ["a"], remove: [{ id: "m", reason: "stale" }] });
+  });
+  it("a hand-placed token with its flag cleared is not a persona and is never removed", () => {
+    expect(desiredPersonas({ tokens: [T("h", "a", { managed: false, marked: false })], live: new Set(["a"]) }))
+      .toEqual({ create: ["a"], remove: [] });
+  });
+});
+
 describe("persona placement inside the entry area (R1 #8, R2 #5)", () => {
   // Even-odd point test over every ring, as a region with holes behaves.
   const evenOdd = (rings) => (x, y) => rings.reduce((inn, pts) => {

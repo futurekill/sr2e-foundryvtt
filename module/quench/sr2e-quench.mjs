@@ -10046,6 +10046,19 @@ export function registerSR2EQuenchTests() {
         assert.lengthOf(managedOf(a), 0, "the late token was removed");
       });
 
+      it("a managed persona with its persona flag cleared is removed, and replaced while the decker is in", async function () {
+        this.timeout(30000);
+        const { a, body } = await decker();
+        await J.jackIn(body, behavior);
+        await P.personaReconcileIdle();
+        const p = managedOf(a)[0];
+        assert.equal(p.getFlag("sr2e", "personaSession"), J.liveSession(a)?.id, "it records its session");
+        await p.update({ "flags.sr2e.persona": false });
+        await P.personaReconcileIdle(); await wait(200); await P.personaReconcileIdle();
+        assert.notOk(matrix.tokens.get(p.id), "the unmarked managed token went");
+        assert.lengthOf(managedOf(a), 1, "a fresh persona replaced it");
+      });
+
       it("a stale managed persona (no session) is removed by a full pass", async function () {
         this.timeout(30000);
         const { a } = await decker();
