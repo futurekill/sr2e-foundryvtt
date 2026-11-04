@@ -215,26 +215,45 @@ build check fails if the two differ.
 **The derived place.** `currentPlace(actor)` is derived, never stored.
 - The live session (`liveSession`) names a place (`hostUuid`).
 - The decker is **on** that place when either:
-  - the session was not opened by a logon attempt (it came from the sheet, a jackpoint entry, or an operation on the
-    place he is already on), or
-  - its `logon` record shows success.
-
-  A success is read live from the logon card (`systemTestVerdict` on the card's current successes), so Karma counts.
-  If the card is gone, the roll-time verdict stored as `logon.ok` decides. A GM tidying chat must not bump a decker
-  back.
+  - the session was not opened by a logon attempt (a "Disconnect to grid", §3, or an operation on the place he is
+    already on), or
+  - its `logon.ok` is true.
 - Otherwise he is still on `logon.from`: the place he was on when he attempted. It is null at a jackpoint.
 
-**The jackpoint.**
-- A connection with no place yet is **at its jackpoint**: the part-3 connection record names it.
+**`logon.ok` is the one source of truth (R1 #3).**
+- It is written when the card is posted.
+- An `updateChatMessage` hook rewrites it whenever a Karma reroll changes the logon card's verdict. The hook runs on
+  the client that made the change, inside the session queue, and only if `logon.card` is still that card on the live
+  session.
+- Deleting the card changes nothing: the GM tidying chat never moves a decker.
+
+**The jackpoint (R1 #1).**
+- Under topology, `startSession` opens a **hostless** session (`hostUuid: ""`): the decker is at his jackpoint, on no
+  place. He reaches the jackpoint's wired place only through a successful logon.
+- With topology off, the session is seeded from the jackpoint's host, as today.
 - With no jackpoint (the sheet's plain Jack In), the decker counts as at an *illegal trid* jackpoint that is wired to
   no particular LTG.
 
-**Logon attempts.**
-- `vr2SystemTest` for a logon operation calls `sessionFor(actor, target)` as today. Under topology it passes
-  `{ logon: { from: currentPlace(actor)?.uuid ?? null } }` into the new session.
-- After the card is posted, the same session queue writes `logon.card` and `logon.ok` (a session-id check, as
-  `tallyUpdate` does).
+**Logon attempts (R1 #2).**
+- Every logon calls `sessionFor(actor, target, { logon: { id, from, carry } })`, where `from` is
+  `currentPlace(actor)?.uuid ?? null`.
+- Each of `sessionFor`'s three paths writes a fresh attempt record over any old one, so a retry never keeps the
+  previous card:
+  - the same target;
+  - adopting a hostless session;
+  - starting a new session.
+- `from` and `carry` are snapshots taken at the attempt.
+- After the card is posted, the same session queue writes `logon.card` and `logon.ok`. It checks the session id and
+  `logon.id`, as `tallyUpdate` checks its session.
 - A failed attempt leaves the decker where he was. The tally he earned stays with the target's scope (§4).
+
+**One operation at a time (R1 #5).** Every `vr2SystemTest` runs whole inside a new per-actor operation queue,
+`enqueueAttack("vr2op:<uuid>")`, from admission through the roll, card, tally and logon write. The queue applies
+whether or not topology is on.
+- Two quick clicks can no longer switch the session between the first test's roll and its tally. Today the second
+  click would silently drop the first test's tally event.
+- It's a separate key from `sessionQueue`, so the queued helpers inside it can't deadlock.
+- A roll dialog that's cancelled returns, and the queue moves on.
 
 **Operations that aren't logons.**
 - An operation that isn't a logon must target `currentPlace(actor)`. When that place differs from the live session's
@@ -257,12 +276,17 @@ build check fails if the two differ.
 | LTG L | a PLTG with L among its `entryPoints` | L's `grid` (the parent RTG) | any host with `grid` = L | Redirect Datatrail |
 | RTG R | any LTG with `grid` = R | any other RTG | — | Locate Access Node, Make Comcall, Redirect Datatrail |
 | PLTG P | P's entry-point LTGs | any RTG | any host with `grid` = P | everything allowed on an LTG or an RTG |
-| Host H on grid G | as from G | as from G | hosts with `grid` = G (open access, p.14) and H's links | every host operation, against H only |
+| Host H on grid G | — | — | hosts with `grid` = G (open access, p.14) and H's links | every host operation, against H only; **Disconnect to grid** |
 | Second-tier host H (no grid) | — | — | H's links only | every host operation, against H only |
 
-A host on grid G works "as from G" because of p.14: he disconnects from H and is back on G. Grid-only operations (for
-example Locate Access Node) are not allowed from a host. **A host operation on a grid is refused:** grids run only the
-operations in the table.
+**Disconnect to grid (R1 #4).** p.14: "he can disconnect from that host and access another host without terminating
+his Matrix run".
+- It is a button on the Matrix tab. It is no test, and it isn't a Graceful Logoff (which leaves the Matrix, p.114).
+- From a host H with a grid G, it opens a session on G with no logon: he is on G, with its tally seeded as in §4.
+- A second-tier host has no grid. The decker goes back through its links instead (the tiered rule).
+- Grid-level operations need the decker to be on the grid. From a host, he disconnects first.
+
+**A host operation on a grid is refused:** grids run only the operations in the table.
 
 **Addresses (p.114, p.116):** a place with `unlisted` is reachable only once the decker knows its address:
 - `flags.sr2e.vr2Known.<actorId>`, durable across runs, as the book says;
@@ -292,30 +316,49 @@ operations in the table.
 
 Actor ids, not UUIDs, because a UUID's dots would split the flag path.
 
-**The ledger.**
-- `flags.sr2e.vr2Tallies.<scope> = { conn, tally, forgetAt? }`.
-- `replaceSessions` writes the outgoing session's tally into its scope's entry in the SAME update that installs the new
-  session, so a tally is never in neither place.
-- A new session for a place seeds its tally from the ledger entry of its scope, when that entry has the same `conn`
-  and hasn't passed `forgetAt`.
-- A new jackpoint means a new connection, and so a fresh ledger (p.116).
-- Topology off: no ledger. Today's per-session tally stays exactly as it is.
+**The ledger.** `flags.sr2e.vr2Tallies.<scope> = { conn, jackpoint, tally, forgetAt? }`.
+
+**One atomic switch (R1 #6, #7).** `replaceSessions` becomes ONE update:
+- `flags.sr2e.==vr2Session` (Foundry v13's forced replacement, `helpers.mjs` "=="), or `-=` when there's no next
+  session;
+- `==lastSession`;
+- the outgoing session's ledger entry.
+
+So no failure window drops a tally, and no merge carries old receipts along.
+
+**The seed for a new session**, in order:
+1. the OUTGOING live session's tally, if it is in the same scope (an LTG → RTG move);
+2. the scope's ledger entry, if it has this `conn`;
+3. a failed-access memory (below);
+4. 0.
+
+Topology off: no ledger. Today's per-session tally stays exactly as it is.
 
 **Whose sheaf.** The p.29 example (2 + 1 + 2 = 5) is one tally across the RTG and its LTGs, so it fires one set of
 triggers: the RTG's (`tallyUpdate` reads the sheaf of the scope's owner). An LTG's own sheaf is ignored under topology,
 and its sheet says so.
 
-**Into a PLTG (p.29):** "his Security Tally on the PLTG begins at 5, plus any points he incurs while logging on", and
-the triggers that crosses "go off as soon as he finishes the log-on".
-- The PLTG's first session starts at 0. In the same queue it applies a carried tally event (`carry-<sessionId>`, base =
-  the public scope's tally) through `tallyUpdate`, so the PLTG's sheaf rows at or below that are crossed and fire.
-- Re-entering a PLTG later in the same connection gives max(its ledger, the public tally now). The book is silent on
-  re-entry; this never lowers a tally the decker has earned.
+**Into a PLTG (p.29; R1 #9):** "his Security Tally on the PLTG begins at 5, plus any points he incurs while logging
+on", and the triggers that crosses "go off as soon as he finishes the log-on".
+- The attempt snapshots `carry = { scope, tally }` from the public scope he's on.
+- The attempt's own points land on the PLTG session as usual.
+- **When `logon.ok` first becomes true** (at the card, or later through Karma), the queue applies one carry event,
+  `carry-<logon.id>` (one receipt, so it happens once). Its amount is `max(0, carry.tally − the PLTG's seeded tally)`.
+  - `tallyUpdate` gains `{ exact: true }`, so this event skips the trace acceleration (`traceTally`): the inherited
+    points are already counted.
+  - It crosses the PLTG sheaf from the current tally upward, so the rows fire at the finished logon.
+- Re-entry in the same connection therefore gives max(the PLTG's ledger, the public tally) plus the new attempt. The
+  book is silent on re-entry; this never lowers an earned tally.
 
-**Failed Logon to LTG (p.116):**
-- The card rolls a visible 1D3 × 5 minutes and writes `forgetAt` = world time + that onto the scope's entry.
-- An attempt after that starts fresh.
-- (Game time moves only when the GM or combat moves it. The card says "the grid forgets at …".)
+**Failed Logon to LTG (p.116; R1 #8):** "his security tally remains on the grid for some time (… 1D3 × 5 minutes)",
+unless he switches to a different jackpoint.
+- The failed card rolls a visible 1D3 × 5 minutes and writes the scope's entry with `forgetAt` = world time + that,
+  and the jackpoint's UUID. It goes into the ledger right away, not only when the session switches.
+- **Every** Logon to LTG attempt checks it, including a retry on the same live session. If `forgetAt` has passed and
+  he never got on, the attempt resets the session's tally to 0 first.
+- **Across connections:** a new connection from the SAME jackpoint seeds from an unexpired failed-access memory. A
+  different jackpoint, or a no-jackpoint sheet entry, never does.
+- Game time moves only when the GM or combat moves it. The card says "the grid forgets at …".
 
 **Hosts:** a host's tally is kept for the connection, so stepping out to another host and back doesn't wipe it.
 - **Open question 1, answered here:** nothing in pp.14–36 carries a GRID tally onto a host, so a host's scope starts
@@ -334,6 +377,13 @@ the triggers that crosses "go off as soon as he finishes the log-on".
 
 With topology off it seeds the session as today.
 
+**Legacy wiring (R1 #11).** Existing jackpoints have `host` pointing at an ordinary host. Under topology, a trid
+jackpoint wired to a non-LTG place reads as wired to that place's grid when it has one, or else as "no LTG" (any LTG).
+- The jackpoint config shows a warning when the wiring doesn't fit the kind.
+- Turning `vr2Topology` on posts a GM-only chat list of every jackpoint whose wiring doesn't fit its kind, each with
+  a link to fix it.
+- No silent migration: the schema default can't tell a deliberate configuration from an old one.
+
 **Trace and Access.** The kind's Trace value plus `traceMod` (now "extra GM adjustment") feeds `traceFactor` at
 vr2.mjs:842.
 
@@ -341,15 +391,20 @@ The kind's Access modifier is added to the TN of every **Access Test**: a System
 `access`. That covers the Logons, Graceful Logoff and Decrypt Access. It is shown on the card.
 
 **Console:**
-- the Access subsystem rating and the host's Security Value are both halved in Access Tests (rounding: open question
-  6);
+- the Access subsystem rating and the host's Security Value are both halved in Access Tests, **rounded up** (user
+  ruling 2026-11-04);
 - the Security Value is halved only for Access Tests, and it is the Security Value the host rolls for that test;
 - unlimited bandwidth matters only to the out-of-scope Bandwidth rule.
 
-**Where the kind is read.** One helper reads the kind from the live connection's own record (`vr2Conn.jackpoint`, as
-`sessionHost` does), so a jackpoint edited mid-run can't re-price a running connection.
-- The record gains `kind` at `openConnection`.
-- An old record with no kind reads as `illegal`.
+**Where the kind is read (R1 #10).** `openConnection` snapshots `{ kind, wired, traceMod }` into the durable
+`connOpen` record, beside the jackpoint UUID.
+- One helper, `connJackpoint(actor)`, reads that snapshot. It is used by:
+  - `sessionHost`;
+  - the trace TN (vr2.mjs:842);
+  - the Access modifier;
+  - `reachable`.
+- A jackpoint edited mid-run can't re-wire or re-price a running connection.
+- An old record with no snapshot falls back to the live behaviour, as today, and to `illegal`.
 
 ### 6. IC on grids (7a's share)
 - A grid's IC are IC actors whose host is the grid. For the public RTG and its LTGs, that host is the RTG.
@@ -374,9 +429,13 @@ The kind's Access modifier is added to the TN of every **Access Test**: a System
 **Quench `sr2e.vr2-grids`:**
 - an illegal jackpoint: Logon to LTG, then a host on it;
 - an unreachable host refused, with nothing spent;
-- a failed logon leaves the decker on the LTG, and a retry continues the tally;
+- a failed logon leaves the decker on the LTG, and a retry continues the tally; an expired `forgetAt` resets it on the
+  retry, and a reconnect from the same jackpoint keeps an unexpired one;
+- Disconnect to grid from a host, then Logon to RTG;
+- two System Operations clicked together: both tallies land (the op queue);
 - the LTG → RTG → LTG tally carry, firing the RTG sheaf once;
-- a PLTG entry with an inherited tally that fires the PLTG trigger;
+- a PLTG entry with an inherited tally that fires the PLTG trigger only at the successful logon, unaccelerated for
+  a traced decker;
 - Karma turning a failed logon into success moves the decker;
 - deleting the logon card keeps him there;
 - topology off: unchanged.
@@ -410,9 +469,7 @@ The kind's Access modifier is added to the TN of every **Access Test**: a System
    - The asterisk (PLTG entry point) is kept, and so is the spelling: "Tir Tairngire" without an accent in the North
      American table.
 
-6. **Console halving: rounding (open).** p.29 says "halve the opposing system's Access Rating and Security Value" and
-   doesn't say how to round. Provisional: round up, so the system keeps the odd point. The user rules on it before
-   code.
+6. ~~Console rounding~~ **Decided 2026-11-04 (user):** round up (Access 7 → 4, Security Value 5 → 3).
 
 ## Documentation (part of done)
 - **Wiki:** "The Matrix" section, plus a How-To-Guides walkthrough for anything that takes the GM or the decker more
