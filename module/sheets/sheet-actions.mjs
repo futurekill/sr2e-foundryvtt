@@ -10,6 +10,7 @@ import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibi
          footprintDistance, areaTargetEligible, blastRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
+import { nullInactivityMod } from "../rules/vr2-decoy-rules.mjs";
 import { mbwOp, reflexCheck } from "../mbw.mjs";
 import { cymOp, unfinishedCymImplant } from "../cybermancy.mjs";
 import { postWoundCard } from "../cyberdamage.mjs";
@@ -28,7 +29,7 @@ import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost } from "../jackpoints.mjs";
 import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
-  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory } from "../vr2.mjs";
+  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon } from "../vr2.mjs";
 import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
@@ -2635,6 +2636,7 @@ async function onVR2Maneuver(event) { event.preventDefault(); return vr2Maneuver
 async function onVR2Improvise(event) { event.preventDefault(); return vr2BuildImprovised(this.document); }
 /** @this {ApplicationV2} */
 async function onVR2Redetect(event) { event.preventDefault(); return vr2Redetect(this.document); }
+async function onVR2ScanIcon(event) { event.preventDefault(); return vr2ScanIcon(this.document); }
 /** @this {ApplicationV2} */
 async function onVR2Release(event, target) { event.preventDefault(); return releaseSuppressed(this.document, target.dataset.key); }
 /** VR2.0 part 3's sheet buttons (traces, psychotropic recovery, deck chips, shutdown, tar). @this {ApplicationV2} */
@@ -2739,7 +2741,12 @@ async function promptSystemOperationOptions(actor) {
         <select name="operation">${opOptions}</select>
       </div>
       ${vr2 ? `<div class="form-group"><label>Targeted subsystem <span style="color:#958ba8;font-size:10px;">(Analyze Subsystem, Disinfect, Defuse)</span>:</label>
-        <select name="subsystem">${["access", "control", "index", "files", "slave"].map(k => `<option value="${k}" ${k === "files" ? "selected" : ""}>${CONFIG.SR2E.vr2Subsystems[k]}</option>`).join("")}</select></div>` : ""}
+        <select name="subsystem">${["access", "control", "index", "files", "slave"].map(k => `<option value="${k}" ${k === "files" ? "selected" : ""}>${CONFIG.SR2E.vr2Subsystems[k]}</option>`).join("")}</select></div>
+      <div class="form-group"><label title="How long the decker waits: the host's Security Value rises +1 (10 s+), +2 (1 min+), +4 (1 h+), +1 per 12 h more (VR2.0 p.117)">Waiting period <span style="color:#958ba8;font-size:10px;">(Null Operation)</span>:</label>
+        <input type="number" name="wait" value="0" min="0" style="width:60px;text-align:center;">
+        <select name="waitUnit"><option value="1">seconds</option><option value="60" selected>minutes</option><option value="3600">hours</option></select></div>
+      ${game.user.isGM ? `<div class="form-group"><label title="The GM may roll a Null Operation secretly for the decker: every message goes to the GMs only (p.117)">Roll it secretly <span style="color:#958ba8;font-size:10px;">(Null Operation, GM)</span>:</label>
+        <input type="checkbox" name="secret"></div>` : ""}` : ""}
       <div style="font-size:11px;color:#aaa1c0;padding:0 4px 6px;">
         ${vr2 ? `Computer Test vs the subsystem rating less the utility; the host rolls its Security Value
         against your Detection Factor, and you need more successes. Its successes go on the security tally (VR2.0 p.19).`
@@ -2771,6 +2778,9 @@ async function promptSystemOperationOptions(actor) {
             hacking:   Math.max(0, parseInt(f.hacking?.value) || 0),
             karmaDice: Math.max(0, parseInt(f.karma_dice?.value) || 0),
             dinab:     !!f.dinab?.checked,
+            waitSeconds: Math.max(0, Number(f.wait?.value) || 0) * (Number(f.waitUnit?.value) || 1),
+            waitLabel: `${Math.max(0, Number(f.wait?.value) || 0)} ${f.waitUnit?.selectedOptions?.[0]?.text ?? ""}`.trim(),
+            secret:    !!f.secret?.checked,
             ...readMiscDice(button.form)
           };
         }
@@ -2792,9 +2802,11 @@ async function onSystemOperation(event, target) {
   const actor = this.document;
   const opts = await promptSystemOperationOptions(actor);
   if (!opts || !opts.host) return;
+  const nul = opts.operation === "nullOp";
   return actor.rollSystemOperation(opts.host, opts.operation, {
     hacking: opts.hacking, karmaDice: opts.karmaDice, subsystem: opts.subsystem, dinab: opts.dinab,
-    miscDice: opts.miscDice, miscLabel: opts.miscLabel
+    miscDice: opts.miscDice, miscLabel: opts.miscLabel,
+    ...(nul ? { svMod: nullInactivityMod(opts.waitSeconds), waited: opts.waitLabel, secret: opts.secret } : {})
   });
 }
 
@@ -3958,6 +3970,7 @@ const SHARED_ACTIONS = {
   vr2Maneuver: onVR2Maneuver,
   vr2Improvise: onVR2Improvise,
   vr2Redetect: onVR2Redetect,
+  vr2ScanIcon: onVR2ScanIcon,
   vr2Release: onVR2Release,
   vr2ic: onVr2Ic,
   vr2Medic: onVR2Medic,

@@ -20,6 +20,7 @@ import { commitDamage } from "./drugs.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { RL } from "./util/roll-label.mjs";
+import { liveDecoy, decoyBoxes } from "./rules/vr2-decoy-rules.mjs";
 
 export const P3 = "vr2:";
 export const DECK = "vr2deck:";
@@ -248,7 +249,8 @@ Object.assign(HANDLERS, {
     const exit = f.live.exit;
     if (exit && !(r.lastAttack && lastAttackOpen(actor, f, r.icKey))) return { ok: false, why: "the decker is leaving" };
     await fact(actor, `admit:${r.card}`, { type: "admit", conn: f.live.n, card: r.card, icKey: r.icKey, cls: r.cls, program: r.program,
-      cascade0: r.cascade0 ?? null, successes: Number.isInteger(r.successes) ? r.successes : null, ...(exit ? { lastAttack: r.icKey } : {}) });
+      cascade0: r.cascade0 ?? null, successes: Number.isInteger(r.successes) ? r.successes : null, ...(exit ? { lastAttack: r.icKey } : {}),
+      ...(r.decoy ? { decoy: r.decoy } : {}) });
     await reconcileLastAttacks(actor);
     return { ok: true };
   },
@@ -763,6 +765,39 @@ async function freezeSuccesses(st) {
   }
   return st.areaSuccesses ?? (test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0));
 }
+// ── Part 6a-0: Decoy (docs/PLAN-vr2-part6-frames.md; p.112) ─────────────────────
+
+/** The decker's live decoy (folded; its successes read live from the Decoy card), or null. */
+export function liveDecoyOf(actor) {
+  if (actor?.type !== "character" || !actor.system.vr2Conn) return null;
+  return liveDecoy({ records: recordsOf(actor), conn: actor.system.vr2Conn.n, sessionId: actor.flags?.sr2e?.vr2Session?.id ?? null,
+    cardOf: (id) => {
+      const st = game.messages.get(id)?.flags?.sr2e?.vr2SystemTest;
+      return st ? { success: systemTestVerdict(st.successes, st.hostSuccesses).success, successes: st.successes ?? 0 } : null;
+    } });
+}
+
+Object.assign(HANDLERS, {
+  /** "Hit the decoy" (R2 #2–#3): only an attack admitted against THAT decoy; one hit and the ack, once. */
+  async decoyHit(actor, r, f) {
+    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
+    const adm = f.live?.admitted.find(a => a.card === r.card);
+    if (!st?.decoy || !adm || adm.decoy !== st.decoy.key) return { ok: false, why: "that attack wasn't admitted against a decoy on the live connection" };
+    if (recordsOf(actor).some(e => e.type === "ack" && e.target === `attack:${r.card}`)) return { ok: true };
+    const successes = await freezeSuccesses(st);
+    const alive = liveDecoyOf(actor)?.key === st.decoy.key;
+    // A vanished decoy (full, replaced, another host): the attack is spent on nothing.
+    const boxes = alive ? decoyBoxes(st.level, successes) : 0;
+    if (boxes) await fact(actor, `decoyhit:${f.live.n}:${r.card}`, { type: "decoyHit", conn: f.live.n, decoy: st.decoy.key, card: r.card, boxes });
+    await fact(actor, `ack:attack:${r.card}`, { type: "ack", target: `attack:${r.card}`, outcome: { decoy: st.decoy.key, boxes } });
+    const gone = alive && !liveDecoyOf(actor);
+    await postResolution(actor, r.card, !alive ? `${st.attackerName} hits only the remains of ${actor.name}'s decoy.`
+      : successes <= 0 ? `${st.attackerName} misses ${actor.name}'s decoy.`
+      : `${actor.name}'s decoy takes ${boxes} box${boxes === 1 ? "" : "es"}${gone ? " and disappears" : ""}.`);
+    return { ok: true };
+  }
+});
+
 /** The combat an actor is fighting in, if any (its clock). */
 const combatOf = (actor) => game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid || (!actor.isToken && cb.actorId === actor.id))) ?? null;
 const clockOf = (actor) => { const c = combatOf(actor); return c ? { combatId: c.id, startRound: c.round } : { manual: true }; };
@@ -1762,6 +1797,7 @@ export async function icOp(uuid, op, arg) {
   if (!actor) return;
   if (op === "sparky") return resistSparky(actor, arg);
   if (op === "traceStart") return traceStart(actor, arg);
+  if (op === "decoyHit") return game.user.isGM ? request(actor, "decoyHit", { card: arg }) : ui.notifications.warn("The GM resolves an attack on a decoy.");
   if (op === "waive") return waiveLastAttack(actor, arg);
   if (op === "slowSuppress") { const [card, icUuid] = arg.split("|"); return request(actor, "slowSuppress", { card, icUuid }); }
   if (op === "psy") return psyTest(actor, arg);

@@ -13470,6 +13470,207 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: VR2.0 part 3 (IC)" });
 
+    // ── VR2.0 part 6a-0: Decoy, Null Operation, Scan Icon (docs/PLAN-vr2-part6-frames.md) ──
+    quench.registerBatch("sr2e.vr2-decoy", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [], tokens = [];
+      let prior = "core", Y, V, n0 = 0;
+      const wait = (ms = 600) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => app.element?.querySelector(`button[data-action="${action}"]`)?.click(), 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const setTargets = async (ids) => {
+        for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+        return canvas.tokens.setTargets(ids);
+      };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const host = (name, code = "green", sv = 4) => mk({ name, type: "host", system: { securityCode: code, systemRating: 4, securityValueOverride: sv,
+        subsystems: { access: 6, control: 6, index: 6, files: 6, slave: 6 } } });
+      const decker = async (name, programs = [], persona = {}) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 4 }, cyberdeck: { mpcp: 6, response: 1, deckMode: "hot" },
+          matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3, ...persona } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          ...programs.map(([nm, r, extra]) => ({ name: nm, type: "program", system: { rating: r, loaded: true, category: "other", ...(extra ?? {}) } }))]);
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      const ic = (name, h, program = "killer", rating = 4) => mk({ name, type: "ic", system: { rating, icType: "white", program, hostUuid: h.uuid } });
+      const tokenFor = async (a, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument({ actorLink: true })).toObject(), x: d.sceneX + dx * d.size, y: d.sceneY }]);
+        tokens.push(t.id);
+        for (let i = 0; i < 100 && !canvas.tokens.get(t.id)?.targetArrows; i++) await wait(50);
+        return t;
+      };
+      const recs = (a, type) => Y.recordsOf(a).filter(e => e.type === type);
+      /** A successful Decoy: Computer 5 at five 5s vs Control 6 − Mirrors 4 = TN 2; the host rolls all 1s. */
+      const decoyOp = (a, h, faces = [5, 5, 5, 5, 5]) => withFaces([...faces, 1, 1, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "decoy"));
+      /** The IC attacks the targeted decker: `faces` starts with the decoy's 1D6, then the attack dice. */
+      const icAttack = (killer, faces) => clicking("attack", () => withFaces(faces, () => V.vr2MatrixAttack(killer)));
+      const lastMatrixCard = () => game.messages.contents.slice(n0).reverse().find(m => m.flags?.sr2e?.matrix);
+
+      before(async function () {
+        this.timeout(10000);
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        Y = await import("../vr2ic.mjs"); V = await import("../vr2.mjs");
+        n0 = game.messages.size;
+      });
+      afterEach(async function () {
+        this.timeout(20000);
+        if (canvas?.ready) { await setTargets([]); const ids = tokens.splice(0).filter(id => canvas.scene.tokens.has(id)); if (ids.length) await canvas.scene.deleteEmbeddedDocuments("Token", ids); }
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+      });
+      after(async function () {
+        this.timeout(20000);
+        for (const m of game.messages.contents.slice(n0)) { try { await m.delete(); } catch (e) { /* gone */ } }
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+      });
+
+      it("Decoy: a success makes a decoy with the test's successes; a newer success replaces it; another host ends it", async function () {
+        this.timeout(20000);
+        const h = await host("Quench Decoy Host"), h2 = await host("Quench Decoy Host 2");
+        const a = await decker("Quench Decoy Decker", [["Mirrors", 4]]);
+        await V.sessionFor(a, h);
+        await decoyOp(a, h, [5, 5, 5, 1, 1]);
+        const d1 = Y.liveDecoyOf(a);
+        assert.equal(d1?.successes, 3, "three successes recorded");
+        await decoyOp(a, h);
+        const d2 = Y.liveDecoyOf(a);
+        assert.notEqual(d2?.key, d1.key, "replaced");
+        assert.equal(d2.successes, 5);
+        // A Karma reroll that turns the newer test into a failure: the older decoy stands.
+        const card = game.messages.get(recs(a, "decoy").find(r => r.key === d2.key).card);
+        await card.update({ "flags.sr2e.vr2SystemTest.successes": 0 });
+        assert.equal(Y.liveDecoyOf(a)?.key, d1.key, "a failed attempt leaves the old decoy");
+        await V.sessionFor(a, h2);
+        assert.isNull(Y.liveDecoyOf(a), "logging on to another host ends it");
+      });
+
+      it("a proactive IC's attack goes to the decoy on 1D6 ≤ its successes; Hit the decoy lands once, with the ack", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench Decoy Red", "green", 4);
+        const a = await decker("Quench Decoy Target", [["Mirrors", 4]]);
+        await V.sessionFor(a, h);
+        await decoyOp(a, h);
+        const killer = await ic("Quench Decoy Killer", h);
+        const tA = await tokenFor(a, 0);
+        await setTargets([tA.id]);
+        await icAttack(killer, [3, 5, 5, 5, 5, 1, 1, 1, 1]);
+        const card = lastMatrixCard();
+        const st = card?.flags.sr2e.matrix;
+        assert.ok(st?.decoy, "the decoy drew it");
+        assert.equal(st.decoy.roll, 3);
+        assert.match(st.targetName, /decoy/);
+        assert.isTrue(await settle(() => recs(a, "admit").some(r => r.card === card.id && r.decoy === st.decoy.key)), "admitted against the decoy");
+        await V.vr2MatrixResist(a, card);
+        assert.lengthOf(recs(a, "ack"), 0, "the decker's own resistance is refused");
+        await Y.icOp(a.uuid, "decoyHit", card.id);
+        await Y.icOp(a.uuid, "decoyHit", card.id);
+        assert.isTrue(await settle(() => recs(a, "ack").some(r => r.target === `attack:${card.id}`)), "acked");
+        await wait(600);
+        assert.lengthOf(recs(a, "decoyHit"), 1, "one hit, however many clicks");
+        assert.isAbove(recs(a, "decoyHit")[0].boxes, 0);
+        assert.equal(Y.liveDecoyOf(a)?.damage, recs(a, "decoyHit")[0].boxes);
+        assert.equal(a.system.matrixPersona.condition.value, 0, "the decker's icon is untouched");
+      });
+
+      it("a roll above the successes attacks the decker; a decoyed miss acks with no damage", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench Decoy Miss", "green", 4);
+        const a = await decker("Quench Decoy Miss Target", [["Mirrors", 4]]);
+        await V.sessionFor(a, h);
+        await decoyOp(a, h, [5, 5, 1, 1, 1]);                     // 2 successes
+        const killer = await ic("Quench Decoy Killer 2", h);
+        const tA = await tokenFor(a, 0);
+        await setTargets([tA.id]);
+        await icAttack(killer, [6, 1, 1, 1, 1, 1, 1]);
+        assert.notOk(lastMatrixCard()?.flags.sr2e.matrix.decoy, "a 6 isn't ≤ 2: the decker is attacked");
+        await icAttack(killer, [1, 1, 1, 1, 1, 1, 1]);
+        const card = lastMatrixCard();
+        assert.ok(card.flags.sr2e.matrix.decoy);
+        assert.isTrue(await settle(() => recs(a, "admit").some(r => r.card === card.id)));
+        await Y.icOp(a.uuid, "decoyHit", card.id);
+        assert.isTrue(await settle(() => recs(a, "ack").some(r => r.target === `attack:${card.id}`)));
+        assert.lengthOf(recs(a, "decoyHit"), 0, "a miss does nothing");
+        assert.equal(recs(a, "ack").find(r => r.target === `attack:${card.id}`).outcome.boxes, 0);
+      });
+
+      it("trace IC is never decoyed; an attack that wasn't admitted can't be hit onto the decoy", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench Decoy Trace", "green", 4);
+        const a = await decker("Quench Decoy Traced", [["Mirrors", 4]]);
+        await V.sessionFor(a, h);
+        await decoyOp(a, h);
+        const tracer = await ic("Quench Decoy Tracer", h, "trace");
+        const tA = await tokenFor(a, 0);
+        await setTargets([tA.id]);
+        const rolls0 = game.messages.size;
+        await icAttack(tracer, [1, 1, 1, 1, 1, 1, 1]);
+        assert.notOk(lastMatrixCard()?.flags.sr2e.matrix.decoy, "not effective against trace IC");
+        assert.notOk(game.messages.contents.slice(rolls0).some(m => /decoy: 1D6/.test(m.flavor ?? "")), "no decoy roll at all");
+        // A forged decoy card with no admission: refused, nothing written.
+        const d = Y.liveDecoyOf(a);
+        const fake = await ChatMessage.create({ content: "Quench decoy forged", flags: { sr2e: { matrix: { ruleset: "vr2", attackerName: "X", targetUuid: a.uuid,
+          level: "M", successes: 3, testMessageId: "", decoy: { key: d.key, roll: 1, successes: 5 } } } } });
+        await Y.icOp(a.uuid, "decoyHit", fake.id);
+        await wait(1200);
+        assert.notOk(recs(a, "ack").some(r => r.target === `attack:${fake.id}`), "refused");
+        assert.lengthOf(recs(a, "decoyHit"), 0);
+      });
+
+      it("Null Operation: the wait raises the base Security Value; a secret one whispers everything to the GMs and still adds to the tally", async function () {
+        this.timeout(20000);
+        const h = await host("Quench Null Host", "green", 4);
+        const a = await decker("Quench Null Decker", [["Deception", 4]]);
+        await V.sessionFor(a, h);
+        const before = V.liveSession(a).tally ?? 0;
+        const n = game.messages.size;
+        const { nullInactivityMod } = await import("../rules/vr2-decoy-rules.mjs");
+        await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], () => V.vr2SystemTest(a, h, "nullOp", { svMod: nullInactivityMod(7 * 60), waited: "7 minutes", secret: true }));
+        const posted = game.messages.contents.slice(n);
+        const card = posted.find(m => m.flags?.sr2e?.vr2SystemTest);
+        assert.equal(card.flags.sr2e.vr2SystemTest.securityValue, 6, "SV 4 + 2 for seven minutes");
+        assert.isTrue(posted.length >= 2 && posted.every(m => m.whisper?.length), "every message is whispered");
+        assert.isTrue(posted.every(m => m.whisper.every(id => game.users.get(id)?.isGM)), "to GMs only");
+        assert.isTrue(await settle(() => (V.liveSession(a).tally ?? 0) > before), "the tally still rises");
+      });
+
+      it("Scan Icon: spends Scanner, reveals only what's chosen, never past the successes or after a reconnect", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const h = await host("Quench Scan Host", "green", 4), h2 = await host("Quench Scan Host 2", "green", 4);
+        const a = await decker("Quench Scanner", [["Scanner", 1]]);
+        const b = await decker("Quench Scanned", [], { masking: 6, bod: 7 });
+        await V.sessionFor(a, h); await V.sessionFor(b, h);
+        const tB = await tokenFor(b, 2);
+        await setTargets([tB.id]);
+        await clicking("scan", () => withFaces([5, 5, 1, 1, 1], () => V.vr2ScanIcon(a)));   // TN 6 − 1 = 5: two successes
+        const card = game.messages.contents.slice(n0).reverse().find(m => m.flags?.sr2e?.vr2Scan);
+        assert.equal(card.flags.sr2e.vr2Scan.tn, 5);
+        assert.isTrue(card.whisper.length > 0, "private to the decker and the GM");
+        assert.notMatch(card.content, /Bod|Masking:/, "nothing shown before it's bought");
+        await clicking("bod", () => V.vr2ScanPick(card));
+        assert.match(game.messages.get(card.id).content, /Bod: <strong>7<\/strong>/);
+        assert.notMatch(game.messages.get(card.id).content, /Masking:/, "only the chosen fact");
+        const pick = Y.recordsOf(a).find(e => e.type === "scanPick");
+        assert.ok(a.effects.find(e => e.flags?.sr2e?.claim?.key === pick.key)?.flags.sr2e.claim.durable, "a durable record, never pruned");
+        await V.sessionFor(b, h2);                                 // the target moves on: its incarnation changes
+        await clicking("masking", () => V.vr2ScanPick(game.messages.get(card.id)));
+        assert.lengthOf(Y.recordsOf(a).filter(e => e.type === "scanPick"), 1, "a stale scan buys nothing");
+      });
+    }, { displayName: "SR2E: VR2.0 part 6a-0 (Decoy, Null Operation, Scan Icon)" });
+
 
 
 

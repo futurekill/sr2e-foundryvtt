@@ -30,6 +30,7 @@ import { miscDiceHTML, readMiscDice } from "./dialogs/roll-modifiers.mjs";
 import { skillTnContext } from "./documents/actor.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { RL, AL } from "./util/roll-label.mjs";
+import { decoyFooled, scanIconTN, SCAN_FACTS } from "./rules/vr2-decoy-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -418,10 +419,12 @@ export function renderSystemTestCard(st) {
   return `<div class="sr2e-item-card sr2e-vr2-systest">
     <strong>${esc(st.actorName)} — ${esc(st.opLabel)}</strong>
     <br>vs ${esc(st.hostName)}: ${esc(st.subsystemLabel)} ${st.subsystem}${st.utility ? ` − ${esc(st.utilityName)} ${st.utility}` : ""} → TN ${st.tn}.
-    <br>The host rolls Security Value ${st.securityValue} vs Detection Factor ${st.df}: ${plural(st.hostSuccesses, "success")}.
+    <br>The host rolls Security Value ${st.securityValue}${st.svMod ? ` (base ${st.securityValue - st.svMod} +${st.svMod} for ${esc(st.waited ?? "the wait")}, p.117)` : ""} vs Detection Factor ${st.df}: ${plural(st.hostSuccesses, "success")}.
     <br>${v.success ? `<strong style="color:#7a8;">Succeeds</strong>` : `<strong style="color:#c44;">Fails</strong>`}
     (${st.successes} vs the host's ${st.hostSuccesses}; the decker needs more).
     <br><em>+${st.hostSuccesses} to the security tally (VR2.0 p.19).</em>
+    ${st.operation === "nullOp" && st.hostSuccesses ? "<br><em>If this crosses a trigger, the GM decides when in the waiting period the host responds (p.117).</em>" : ""}
+    ${st.operation === "decoy" ? `<br><em>${v.success ? `A decoy copy of the icon: a proactive IC attacking ${esc(st.actorName)} hits it on 1D6 ≤ ${st.successes} (not trace IC; p.112).` : "No decoy."}</em>` : ""}
   </div>`;
 }
 
@@ -461,15 +464,20 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const useId = foundry.utils.randomID(), uref = useRef(utilityItem, dinab);
   const refused = await spendUse(actor, utilityItem, { dinab });
   if (refused) return ui.notifications.warn(refused);
+  // A Null Operation the GM rolls secretly (p.117): every message it posts goes to the GMs only.
+  const secret = !!opts.secret && game.user.isGM;
+  const gmOnly = secret ? { whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id) } : {};
   const res = await actor.rollSuccessTest(Math.max(1, dice), tn, dinab
-    ? { label: RL("SystemOpVs", { op: `${op.label} (DINAB)`, subsystem: subsystemLabel, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true }
+    ? { label: RL("SystemOpVs", { op: `${op.label} (DINAB)`, subsystem: subsystemLabel, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true, whisperGM: secret }
     : { label: RL("SystemOpVs", { op: op.label, subsystem: subsystemLabel, tn }), tnContext: skillTnContext("computer"),
-        poolDice: opts.hacking ? { hacking: opts.hacking } : undefined,
+        poolDice: opts.hacking ? { hacking: opts.hacking } : undefined, whisperGM: secret,
         karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
   if (!res) return;
   if (!dinab) await commitAction(actor, startedBuild);   // a DINAB run is a Free Action: a build in progress goes on
   const df = vr2DetectionFactor(actor);
-  const securityValue = host.system.securityValue;
+  // Null Operation (p.117): the host's BASE Security Value plus the inactivity modifier.
+  const svMod = operation === "nullOp" ? Math.max(0, Number(opts.svMod) || 0) : 0;
+  const securityValue = host.system.securityValue + svMod;
   const hostRoll = await SR2ESuccessRoll.successTest(securityValue, df);
   const st = { actorUuid: actor.uuid, actorName: actor.name, operation, opLabel: op.label, hostName: host.name,
     subsystemLabel, subsystem, utilityName: op.utility, utility, tn, df, securityValue,
@@ -477,12 +485,17 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
     // Part 3: what reactive IC (tar, worms, bombs) needs to act on this test (plan §4).
     hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem), sub,
     allOnes: (res.dice ?? []).length > 0 && res.dice.every(d => d.total === 1),
-    deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null };
+    deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null,
+    ...(svMod ? { svMod, waited: opts.waited ?? "" } : {}), ...(secret ? { secret: true } : {}) };
   const ev = { eventId: `st-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: session.id,
     base: hostRoll.successes, source: "system-test" };
   const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderSystemTestCard(st),
-    rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st, vr2TallyEvent: ev } } });
+    rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st, vr2TallyEvent: ev } }, ...gmOnly });
   await applyTallyEvent(msg);
+  // Decoy (p.112): always recorded; whether it IS a decoy is read live from this card (Karma included; plan R2 #4).
+  if (operation === "decoy" && st.conn != null) {
+    await recordEvent(actor, `vr2:decoy:${st.conn}:${msg.id}`, { type: "decoy", conn: st.conn, card: msg.id, host: host.uuid, sessionId: session.id });
+  }
   // DINAB (p.103): defeated by the host → −1; all 1s → the program crashes. Final at the roll (no Karma).
   if (dinab && !await dinabCrashCheck(actor, uref, useId, res) && !systemTestVerdict(res.successes, hostRoll.successes).success) {
     await dinabFail(actor, uref, useId);
@@ -491,7 +504,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const probe = host.system.probe ?? 0;
   if (probe > 0) {
     const pr = await SR2ESuccessRoll.successTest(probe, df);
-    const pm = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: pr.rolls,
+    const pm = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: pr.rolls, ...gmOnly,
       content: `<div class="sr2e-item-card">Probe-${probe} on ${esc(host.name)} vs Detection Factor ${df}:
         ${plural(pr.successes, "success")} onto ${esc(actor.name)}'s tally (VR2.0 p.42).</div>`,
       flags: { sr2e: { vr2TallyEvent: { eventId: `probe-${foundry.utils.randomID()}`, actorUuid: actor.uuid,
@@ -593,6 +606,15 @@ export function renderVR2MatrixCard(st) {
       <br>${hit ? `<em>The target tests ${esc(test)}.</em>` : "<em>The attack misses.</em>"}
       ${st.resolution ?? ""}
       ${!st.resolved && hit ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-matrixresist-btn">🖧 Resist (Matrix)</button></div>` : ""}</div>`;
+  }
+  // Part 6a-0: an attack the decoy drew is the GM's to resolve on the decoy, never the decker's resistance.
+  if (st.decoy) {
+    return `<div class="sr2e-damage-result"><strong>${esc(st.attackerName)} attacks ${esc(st.targetName ?? "")}</strong> — ${plural(st.successes ?? 0, "success")}
+      <br>${st.power}${st.level} on ${esc(st.hostName)}; the decoy drew it (1D6 ${st.decoy.roll} ≤ ${st.decoy.successes}, VR2.0 p.112).
+      <br><em>${hit ? "No defenses, no resistance: full damage, staged up 1 level per 2 successes." : "The attack misses."}</em>
+      ${st.resolution ?? ""}
+      ${!st.resolved ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.targetUuid)}" data-op="decoyHit"
+        data-arg="__CARD__" title="GM: apply this attack to the decoy">Hit the decoy</button></div>` : ""}</div>`;
   }
   const button = !st.resolved && hit ? `
     <div class="sr2e-karma-actions">
@@ -766,7 +788,7 @@ async function attackOnce(actor) {
   let tn = cybercombatTN(code, o.status) + ms.parry;
   let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer, special = {};
   let prog = null, kinds = [], extras = [], dinabRef = null;
-  let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "";
+  let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "", decoy = null;
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
     if (!actor.system.hostUuid && actor.isOwner) await actor.update({ "system.hostUuid": host.uuid });
@@ -781,9 +803,23 @@ async function attackOnce(actor) {
     prof = Y.icProfile(actor, Y.isConstruct(actor) ? o.comp : "");
     threat = Y.threatOf(actor);
     icKey0 = Y.icKeyOf(actor, prof.comp);   // the incarnation that attacks: a crash during the roll can't relabel it
+    // Part 6a-0 (p.112): a proactive IC attacking a decker with a decoy rolls 1D6 FIRST, on the active GM's client;
+    // ≤ the decoy's successes, it attacks the decoy instead — none of the decker's own terms apply then (R1 #1).
+    const d = target.type === "character" && isProactive(prof.program) && prof.program !== "trace" ? Y.liveDecoyOf(target) : null;
+    if (d) {
+      if (!Y.isSequencer()) return ui.notifications.warn(`${target.name} has a decoy: the active GM rolls this attack.`);
+      const roll = await new Roll("1d6").evaluate();
+      await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }),
+        flavor: `${esc(actor.name)} vs ${esc(target.name)}'s decoy: 1D6 ≤ ${d.successes} hits the decoy (VR2.0 p.112).` });
+      if (decoyFooled(roll.total, d.successes)) {
+        decoy = { key: d.key, roll: roll.total, successes: d.successes };
+        tn -= ms.parry; ms.parry = 0; ms.pos = 0;     // a decoy has no defenses, and no maneuvers of the decker's apply
+      }
+    }
     // Cascading IC (p.51; plan part 4a §4): derived from the deckers' records, so the active GM (the
     // sequencer) settles every pending admission and resolution first.
-    if (actor.system.cascading && !Y.isConstruct(actor) && isProactive(actor.system.program) && target.type === "character") {
+    // A decoyed attack never touches the decker, so it doesn't cascade off the decker's record either.
+    if (actor.system.cascading && !decoy && !Y.isConstruct(actor) && isProactive(actor.system.program) && target.type === "character") {
       if (!Y.isSequencer()) return ui.notifications.warn("Cascading IC attacks are rolled by the active GM.");
       await Y.flush();
       cascade0 = Y.cascadeBaseline(actor, host);
@@ -792,7 +828,7 @@ async function attackOnce(actor) {
     icRating = prof.rating + cascade.rating;
     dice = expertDice(host.system.securityValue + cascade.sv, Y.expertOf(actor)).attack + threat; level = icDamageLevel(code);
     // Black IC is +2 while the decker's icon is down (p.48); others use their rating.
-    power = Y.blackKind(prof.program) && target.type === "character" ? Y.blackRating(actor, target, prof.rating) + cascade.rating : icRating;
+    power = Y.blackKind(prof.program) && target.type === "character" && !decoy ? Y.blackRating(actor, target, prof.rating) + cascade.rating : icRating;
     tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
     // Trace IC hunts against the decker's Trace Factor (p.45), not the cybercombat table.
     if (prof.program === "trace" && target.type === "character") {
@@ -808,9 +844,9 @@ async function attackOnce(actor) {
       effect = { effect: "trace" };
     }
     // A traced decker: −1 to proactive IC attacks (p.46).
-    if (target.type === "character" && target.system.vr2Conn && Y.foldOf(target).live?.traced) tn = Math.max(2, tn - 1);
+    if (target.type === "character" && target.system.vr2Conn && !decoy && Y.foldOf(target).live?.traced) tn = Math.max(2, tn - 1);
     const attr = CRIPPLER_ATTRIBUTE[prof.program];
-    if (attr) {
+    if (attr && !decoy) {
       if (target.type !== "character") return ui.notifications.warn("A crippler attacks a decker's persona.");
       effect = { effect: "attribute", attr, floor: 1, rating: icRating,
         effectName: `${CONFIG.SR2E.icPrograms?.[prof.program] ?? prof.program}-${icRating}` };
@@ -928,7 +964,8 @@ async function attackOnce(actor) {
   // Posted even at 0 successes (inert), so Karma can still bring it to life.
   const state = { ruleset: "vr2", attackerUuid: actor.uuid, attackerName: actor.name, attackerType: actor.type,
     icType: isIC ? actor.system.icType : "", icClass: isIC ? prof.icClass : "", program: isIC ? prof.program : "",
-    targetUuid: target.uuid, targetName: target.name, targetSession: sessionKey(target), attackerSession: attackerSession0,
+    targetUuid: target.uuid, targetName: decoy ? `${target.name}'s decoy` : target.name, targetSession: sessionKey(target), attackerSession: attackerSession0,
+    ...(decoy ? { decoy } : {}),
     targetArmorDefense: target.type === "ic" && !!target.system.armorDefense, attackerComputer,
     ...hostSnap(host), status: o.status, power, level, ...effect,
     successes: res.successes, testMessageId: res.testMessageId, resolved: false,
@@ -952,7 +989,7 @@ async function attackOnce(actor) {
   if (isIC && state.targetConn != null) {
     const exit = Y.foldOf(target).live?.exit;
     await Y.request(target, "attack", { card: card.id, conn: state.targetConn, icKey: state.icKey, cls: state.icClass || state.icType, program: state.program,
-      lastAttack: !!exit && (exit.locks ?? []).includes(state.icKey), cascade0, successes: res.successes });
+      lastAttack: !!exit && (exit.locks ?? []).includes(state.icKey), cascade0, successes: res.successes, ...(decoy ? { decoy: decoy.key } : {}) });
   }
   return res;
 }
@@ -1046,6 +1083,7 @@ export async function vr2MatrixResist(defender, message) {
     const live = game.messages.get(message.id);
     const st = live?.flags?.sr2e?.matrix;
     if (!st || isCardResolved(live, "matrix")) return ui.notifications.warn("That attack has already been resisted.");
+    if (st.decoy) return ui.notifications.warn("The decoy drew that attack: the GM resolves it with Hit the decoy.");
     if (!defender.isOwner) return ui.notifications.warn(`Only ${defender.name}'s owner or the GM can resist for them.`);
     if (st.targetUuid && defender.uuid !== st.targetUuid && !game.user.isGM) {
       return ui.notifications.warn(`That attack is on ${st.targetName ?? "another icon"}.`);
@@ -1644,8 +1682,81 @@ export async function vr2SwapMemory(actor, item) {
     swaps in a fresh copy of ${esc(item.name)} (rating ${item.system.rating}).</div>` });
 }
 
+// ── Part 6a-0: Scan Icon (docs/PLAN-vr2-part6-frames.md; p.117) ──────────────────
+
+/** Scan Icon: Computer vs the targeted icon's Masking less (Scanner − its Sleaze); a Simple Action. */
+export async function vr2ScanIcon(actor) {
+  const why = Y.vr2ActionGuard(actor);
+  if (why) return ui.notifications.warn(why);
+  const target = firstTarget()?.actor ?? null;
+  if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you scan first.");
+  if (target.type !== "character" || !target.system.matrixMode) return ui.notifications.warn("Scan Icon reads a decker's persona in the Matrix (frames and SKs come later).");
+  if (maneuverState(actor, target).blind) return ui.notifications.warn(`${actor.name} has lost ${target.name}: re-detect it first.`);
+  const host = sync(liveSession(actor)?.hostUuid);
+  if (host?.type !== "host") return ui.notifications.warn("Log on to a host first (a System Operation): Scan Icon works on the system you're on.");
+  const scanner = bestUtility(actor, "Scanner", host);
+  if (!scanner) return ui.notifications.warn("Scan Icon needs a Scanner utility loaded (VR2.0 p.117).");
+  const sleazeItem = bestUtility(target, "Sleaze", sync(liveSession(target)?.hostUuid));
+  const tn = scanIconTN({ masking: target.system.matrixPersona?.masking ?? 0, scanner: programRating(scanner), sleaze: sleazeItem ? programRating(sleazeItem) : 0 });
+  const hackingMax = actor.system.dicePools?.hacking?.value ?? 0;
+  const o = await foundry.applications.api.DialogV2.wait({ window: { title: `Scan Icon — ${target.name}` }, rejectClose: false,
+    content: `<p>Computer against ${esc(target.name)}'s Masking, lowered by your Scanner less its Sleaze: <strong>TN ${tn}</strong>.
+      Each success buys one fact: its MPCP, one Persona Rating, or its Response Increase (VR2.0 p.117).</p>
+      <div class="form-group"><label>Hacking Pool dice (max ${hackingMax}):</label><input type="number" name="hacking" value="0" min="0" max="${hackingMax}"></div>
+      ${miscDiceHTML()}`,
+    buttons: [{ action: "scan", label: "Scan", default: true, callback: (ev, b) => ({ hacking: Math.max(0, Math.min(hackingMax, parseInt(b.form.elements.hacking.value) || 0)), ...readMiscDice(b.form) }) },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+  if (!o || o === "cancel") return;
+  const startedBuild = liveSession(actor)?.improvised?.id ?? null;
+  const refused = await spendUse(actor, scanner);
+  if (refused) return ui.notifications.warn(refused);
+  const res = await actor.rollSuccessTest(Math.max(1, computerOf(actor)), tn, { label: RL("ScanIcon", { target: target.name, tn }),
+    tnContext: skillTnContext("computer"), poolDice: o.hacking ? { hacking: o.hacking } : undefined, miscDice: o.miscDice, miscLabel: o.miscLabel });
+  if (!res) return;
+  await commitAction(actor, startedBuild);
+  // What the decker learns stays between the decker and the GM (R1 #4).
+  const whisper = game.users.filter(u => u.isGM || actor.testUserPermission(u, "OWNER")).map(u => u.id);
+  const st = { actorUuid: actor.uuid, actorName: actor.name, targetUuid: target.uuid, targetName: target.name,
+    targetSession: sessionKey(target), testMessageId: res.testMessageId, tn };
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), whisper, content: renderScanCard(st, []), flags: { sr2e: { vr2Scan: st } } });
+}
+
+/** The facts already bought on a scan card (durable records on the scanner, R2 #5). */
+const scanPicks = (actor, card) => Y.recordsOf(actor).filter(e => e.type === "scanPick" && e.card === card).sort((a, b) => a.slot - b.slot);
+
+function renderScanCard(st, picks) {
+  return `<div class="sr2e-item-card"><strong>${esc(st.actorName)} scans ${esc(st.targetName)}</strong> (TN ${st.tn}, VR2.0 p.117)
+    ${picks.map(p => `<br>${esc(SCAN_FACTS[p.pick] ?? p.pick)}: <strong>${p.value}</strong>`).join("")}
+    <div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2-scanpick" title="Spend one success on one fact">Choose a fact</button></div></div>`;
+}
+
+/** Buy one fact: checked at the claim against the CURRENT successes and the target's incarnation (R2 #6). */
+export async function vr2ScanPick(message) {
+  const st = message.flags?.sr2e?.vr2Scan, actor = sync(st?.actorUuid), target = sync(st?.targetUuid);
+  if (!actor?.isOwner) return ui.notifications.warn("Only the scanning decker chooses.");
+  const left = () => attackSuccesses(st) - scanPicks(actor, message.id).length;
+  if (left() <= 0) return ui.notifications.info("No successes left on this scan.");
+  if (!target || sessionKey(target) !== st.targetSession) return ui.notifications.warn(`${st.targetName} has reconnected or gone since the scan.`);
+  const taken = new Set(scanPicks(actor, message.id).map(p => p.pick));
+  const pick = await foundry.applications.api.DialogV2.wait({ window: { title: "Scan Icon: choose a fact" }, rejectClose: false,
+    content: `<p>${left()} success${left() === 1 ? "" : "es"} left.</p>`,
+    buttons: Object.entries(SCAN_FACTS).filter(([k]) => !taken.has(k)).map(([k, label]) => ({ action: k, label })) });
+  if (!pick || !(pick in SCAN_FACTS)) return;
+  if (left() <= 0 || sessionKey(target) !== st.targetSession) return ui.notifications.warn("The scan changed while you chose: nothing bought.");
+  const value = { mpcp: target.system.cyberdeck?.mpcp ?? 0, response: target.system.cyberdeck?.response ?? 0 }[pick]
+    ?? target.system.matrixPersona?.[pick] ?? 0;
+  const slot = scanPicks(actor, message.id).length;
+  if (!await recordEvent(actor, `vr2:scan:${message.id}:${slot}`, { type: "scanPick", card: message.id, slot, pick, value })) {
+    return ui.notifications.warn("Another choice took that success: try again.");
+  }
+  await message.update({ content: renderScanCard(st, scanPicks(actor, message.id)) });
+}
+
 /** Card buttons (wired from renderChatMessageHTML). */
 export function wireVR2Buttons(message, html) {
+  html.querySelectorAll?.(".sr2e-vr2-scanpick").forEach(btn => btn.addEventListener("click", (ev) => {
+    ev.preventDefault(); return vr2ScanPick(message).catch(err => ui.notifications.error(err.message));
+  }));
   html.querySelectorAll?.(".sr2e-vr2-crashchoice").forEach(btn => btn.addEventListener("click", (ev) => {
     ev.preventDefault(); return crashChoice(message, btn.dataset.choice);
   }));

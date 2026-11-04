@@ -207,7 +207,11 @@ players' clients create `request`s. Monitors and IC are changed only there. Unde
 Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: decker attackers use
 `deck:<uuid>@<conn>` keys — parse with `parseAttackerKey`) are done, and so are utility options and programming
 (part 5b, docs/PLAN-vr2-part5b.md: act through `activePrograms`/`spendUse`, read counts via `attackSuccesses`).
-Remaining deferred: frames/SKs, grid topology.
+Part 6a-0 (Decoy, Null Operation, Scan Icon; `module/rules/vr2-decoy-rules.mjs`) is done: the live decoy is FOLDED
+from `decoy` records + the Decoy card's live verdict (newest successful-or-deleted record only, never a fall-back);
+a decoyed IC attack is still admitted (`admit.decoy`) and resolved only by the `decoyHit` handler.
+Remaining deferred: frames (6a), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
+requirements in docs/PLAN-vr2-part6-frames.md — and grid topology.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;
 `test/roll-labels.test.mjs` fails on a key missing from lang/en.json). Still English:

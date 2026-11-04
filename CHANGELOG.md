@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **VR2.0 Decoy** (VR2.0 p.112), a new System Operation (Control, Mirrors): a decoy copy of the decker's icon, as
+  strong as the test's successes. When a proactive IC attacks the decker (not trace IC), the active GM's client rolls
+  1D6 first; at or below the decoy's successes the IC attacks the decoy instead, with none of the decker's defences or
+  maneuvers. **Hit the decoy** (the GM) puts the full damage on the decoy's 10-box monitor; at 10 it's gone. One decoy
+  at a time; a new success replaces it, and logging on to another host or jacking out ends it. A Karma reroll on the
+  Decoy test changes its strength.
+- **VR2.0 Null Operation** (p.117), a System Operation (Control, Deception) for waiting: the dialog's waiting period
+  adds +1/+2/+4 (+1 per further 12 hours) to the host's base Security Value, and the GM can roll it secretly (every
+  message goes to the GMs only).
+- **VR2.0 Scan Icon** (p.117), a new Matrix-tab button: Computer against the targeted decker's Masking, lowered by
+  your Scanner less its Sleaze. Each success buys one fact (MPCP, one Persona rating or Response Increase), chosen on
+  the card; only what's chosen is shown, to the decker and the GM.
+- How-To Guides: *Draw IC off with a Decoy (VR2.0)*.
+
 ## 0.130.0 — 2026-11-04
 
 ### Added

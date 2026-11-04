@@ -193,6 +193,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> one Attack Test that hits more than one icon (Virtual Realities 2.0 p.103).</p>\n<p><img src=\"systems/sr2e/assets/guides/area-attack.gif\" alt=\"The decker targets two IC, ticks the second one in the attack dialog and attacks; each IC then resists its own card\"></p>\n<p><strong>Needs:</strong> the Matrix ruleset on <em>Virtual Realities 2.0</em> and <strong>VR2.0 utility options</strong> ticked (GM settings), and an\nattack utility with the <strong>Area</strong> option. Its rating is how many icons it can hit; give it a rating on the\nprogram&#39;s sheet. Write it yourself (<a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/How-To-Guides#write-a-program-vr20\">Write a program</a>) or add the option to one you have.</p>\n<p><strong>The decker</strong></p>\n<ol>\n<li><strong>Target the icons.</strong> Target the main one, then shift-click the others (up to the Area rating in all).</li>\n<li><strong>Attack.</strong> Click <strong>Matrix Attack</strong>, pick the host and the Area program. The dialog lists your other targets\nunder <strong>Area — also attack</strong>: tick the ones to include.</li>\n<li><strong>One roll, a card per target.</strong> The dice are rolled once. Each target gets its own card, with its own target\nnumber (+1 for every target engaged) and its own successes.</li>\n</ol>\n<p><strong>The GM</strong>\n4. <strong>Resist each card.</strong> Each target resists on its own card. IC armor (or a decker&#39;s Armor utility) gets +2 against\n   an Area attack.</p>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Karma Pool on that shared roll is the GM&#39;s call, as for area spells.</li>\n<li>Shield, Targeting, Penetration and the other options still apply per target.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "77173a5e0017f762",
+      "name": "Draw IC off with a Decoy (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 800000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a decker puts up a decoy copy of their icon so proactive IC attack it instead of them (Virtual Realities\n2.0 p.112).</p>\n<p><img src=\"systems/sr2e/assets/guides/decoy.gif\" alt=\"The decker runs Decoy; the killer IC's attack goes to the decoy, and the GM clicks Hit the decoy\"></p>\n<p><strong>The decker</strong></p>\n<ol>\n<li>On the Matrix tab, click <strong>System Operation</strong>, pick the host and <strong>Decoy (Control, Mirrors)</strong>, and click <strong>Run</strong>.\nYou need Mirrors loaded.</li>\n<li>If the test succeeds, the card says how strong the decoy is: your successes.</li>\n</ol>\n<p><strong>The GM, when IC attack</strong></p>\n<ol>\n<li>Attack the decker as usual (target their token, then <strong>Matrix Attack</strong> on the IC). With a decoy up, the attack\nmust come from the active GM&#39;s client.</li>\n<li>The system rolls 1D6 first. At or below the decoy&#39;s successes, the card says <strong>the decoy drew it</strong>.</li>\n<li>Click <strong>Hit the decoy</strong>: the damage goes on the decoy, not the decker. At 10 boxes the decoy is gone.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>Trace IC ignores decoys.</li>\n<li>One decoy at a time: a new successful Decoy replaces it. A failed one leaves the old decoy up.</li>\n<li>The decoy lasts until it&#39;s destroyed, the decker logs on to another host, or jacks out.</li>\n<li>A Karma reroll on the Decoy test changes the decoy&#39;s strength too.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"

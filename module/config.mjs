@@ -850,7 +850,10 @@ SR2E.vr2SystemOperations = {
   decryptSlave:       { label: "Decrypt Slave",       subsystem: "slave",   utility: "Decrypt" },
   disinfect:          { label: "Disinfect",           subsystem: "targeted", utility: "Disinfect" },
   redirectDatatrail:  { label: "Redirect Datatrail",  subsystem: "control", utility: "Camo" },
-  defuse:             { label: "Defuse Data Bomb",    subsystem: "targeted", utility: "Defuse" }
+  defuse:             { label: "Defuse Data Bomb",    subsystem: "targeted", utility: "Defuse" },
+  // Part 6a-0 (docs/PLAN-vr2-part6-frames.md; p.112, p.117).
+  decoy:              { label: "Decoy",               subsystem: "control", utility: "Mirrors" },
+  nullOp:             { label: "Null Operation",      subsystem: "control", utility: "Deception" }
 };
 
 // Alert states (SR2E p.168). Passive adds +50% to IC ratings (applied by the

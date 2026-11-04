@@ -543,6 +543,7 @@
   "SR2E.RollLabel.ElementalAidUnavailable": " (elemental aid unavailable)",
   "SR2E.RollLabel.ResistSpell": "Resist {spell} — {attr}{notes} (TN {tn})",
   "SR2E.RollLabel.SystemOpVs": "{op} — Computer vs {subsystem} (TN {tn})",
+  "SR2E.RollLabel.ScanIcon": "Scan Icon — Computer vs {target}'s Masking (TN {tn})",
   "SR2E.RollLabel.MatrixAttack": "Matrix Attack {what} (TN {tn}, {code} vs {status})",
   "SR2E.RollLabel.Shield": "Shield {rating} (TN {tn})",
   "SR2E.RollLabel.ResistMatrixDamage": "Resist Matrix damage — {what} (TN {tn})",

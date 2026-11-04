@@ -837,6 +837,17 @@ If those five all work, the core loop is healthy.
 - [ ] Two devices, one dose (docs/PLAN-same-user-writers.md): take a second Kamikaze dose (overuse) on the computer; one dose card and one Light Stun, on both devices.
 - [ ] Close the computer's tab during a dose (or stub a step to fail): the phone's sheet lists it under Unfinished doses; after 2 minutes the GM's open sheet shows Force finish without a refresh; it lands once.
 
+## VR2.0 Decoy, Null Operation, Scan Icon (`sr2e.vr2-decoy` batch)
+- [ ] Decker (Mirrors loaded): System Operation → Decoy → a success card says the decoy's strength.
+- [ ] GM: a killer IC attacks the decker → a 1D6 roll; at or below the strength the card says the decoy drew it, and
+      only **Hit the decoy** resolves it (the decker's Resist is refused); the decoy's damage adds up; at 10 it's gone.
+      Above it, a normal attack on the decker.
+- [ ] Trace IC: no decoy roll. A second Decoy success replaces the first; the decker logging on to another host ends it.
+- [ ] Null Operation with a 7-minute wait → Security Value +2 on the card; GM with *Roll it secretly* → the player
+      sees nothing, the tally still rises.
+- [ ] Scan Icon on a targeted decker → a card only the decker and GM see; **Choose a fact** shows only the picks, never
+      more than the successes; after the target logs on elsewhere, no more picks.
+
 ## Matrix jackpoints (two clients: a GM and a player login)
 - [ ] GM: draw a Region over a terminal, add the **Matrix jackpoint** behaviour pointing
       at an entry Region on a separate Matrix scene; the player can view that scene
