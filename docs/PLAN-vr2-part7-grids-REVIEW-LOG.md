@@ -66,3 +66,12 @@ VERDICT: REVISE
 - **#3 accepted.** A decker with no place has no icon loaded yet (p.28), so leaving needs no Graceful Logoff. A new
   part-3 exit trigger, `unplaced`, checked by the sequencer: no dump shock, no test, and refused under black-IC
   locks.
+
+## Round 3 — Codex (fresh session, brief + 7a; ~111k input tokens)
+
+No new material problems or broken fixes found in 7a. The queued disconnect and sequencer-validated `unplaced` exit address the outstanding findings.
+
+VERDICT: APPROVED
+
+**7a APPROVED in round 3.** 7b (grid trace, dump-on-locate, host networks) and 7c (satellites) each need their own
+detailed section and review before code.

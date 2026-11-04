@@ -1,5 +1,5 @@
 # Plan: VR2.0 part 7: grid topology
-_Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson): "7a in detail" below is the part under review;
+_Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson). **7a Codex-APPROVED round 3 (2026-11-04).**
 7b and 7c get their own detailed sections and reviews later. No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
