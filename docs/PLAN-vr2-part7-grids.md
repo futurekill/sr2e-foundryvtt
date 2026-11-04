@@ -253,6 +253,11 @@ whether or not topology is on.
 - Two quick clicks can no longer switch the session between the first test's roll and its tally. Today the second
   click would silently drop the first test's tally event.
 - It's a separate key from `sessionQueue`, so the queued helpers inside it can't deadlock.
+- **Disconnect to grid (§3) runs in the same `vr2op` queue (R2 #2)**, so it can't switch the session under a System
+  Test that is still rolling.
+- The queue is per client. That's the system-wide contract: one person drives an actor (jackpoints.mjs header, the
+  part-3 plan). A second device driving the same decker at the same moment is out of contract, as it is for every
+  session write today (R2 #1, rejected).
 - A roll dialog that's cancelled returns, and the queue moves on.
 
 **Operations that aren't logons.**
@@ -287,6 +292,15 @@ his Matrix run".
 - Grid-level operations need the decker to be on the grid. From a host, he disconnects first.
 
 **A host operation on a grid is refused:** grids run only the operations in the table.
+
+**Leaving from the jackpoint (R2 #3).** p.28: "When a decker first connects to the public grid … his deck loads his
+icon onto an LTG". So before his first successful logon, no icon is loaded anywhere, and nothing can dump him.
+- Under topology, a decker with no place (at the jackpoint, or after failed first attempts) leaves without dump shock
+  and without a test.
+- It is a new part-3 exit trigger, `unplaced`. The sequencer accepts it only if, on its own client, topology is on and
+  `currentPlace(actor)` is null.
+- `unplaced` is refused while black IC holds the connection, as `voluntary` and `graceful` are.
+- Jack Out offers it automatically. A Graceful Logoff needs a place to test against, so it isn't offered there.
 
 **Addresses (p.114, p.116):** a place with `unlisted` is reachable only once the decker knows its address:
 - `flags.sr2e.vr2Known.<actorId>`, durable across runs, as the book says;

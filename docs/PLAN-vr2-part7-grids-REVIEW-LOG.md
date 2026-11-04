@@ -48,3 +48,21 @@ All twelve findings were accepted. The user ruled on #12: round up.
 - **#11:** legacy wiring reads through the place's grid. A warning plus a GM chat list when topology is turned on; no
   silent migration.
 - **#12:** the user ruled round up.
+
+## Round 2 — Codex (fresh session, brief + 7a; ~146k input tokens)
+
+- **§2, R1 #5 — Cross-client races remain.** `enqueueAttack` uses a client-local `Map`; two clients controlling one decker can still overwrite sessions and lose tally events. **Fix:** Serialize operations through one authoritative executor per actor.
+
+- **§3 — Disconnect bypasses the operation queue.** “Disconnect to grid” can replace the session while a System Test is rolling, causing its tally and logon writes to be discarded—the R1 #5 failure remains through this new action. **Fix:** Put disconnection admission and session replacement inside the same `vr2op` queue.
+
+- **§§2–3 — Hostless Graceful Logoff has no executable path.** At the initial jackpoint or after a failed first logon, `currentPlace()` is null; non-logons must target it, but `vr2SystemTest` requires a Host actor. “Always allowed” therefore fails. **Fix:** Define a hostless logoff path that closes the connection without requiring a place or System Test.
+
+VERDICT: REVISE
+
+### Claude's response
+- **#1 rejected.** Under the system-wide contract one person drives an actor (jackpoints.mjs header, part 3). Every
+  session write today relies on that same per-client queue. The plan now says so.
+- **#2 accepted.** Disconnect to grid runs in the `vr2op` queue.
+- **#3 accepted.** A decker with no place has no icon loaded yet (p.28), so leaving needs no Graceful Logoff. A new
+  part-3 exit trigger, `unplaced`, checked by the sequencer: no dump shock, no test, and refused under black-IC
+  locks.
