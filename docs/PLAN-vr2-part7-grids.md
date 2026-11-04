@@ -183,8 +183,11 @@ Sources (rendered, image-only PDF; book = PDF − 8):
 4. **Concurrency:** navigation is admission. Two devices logging the same decker onto different places must resolve to
    one session. The existing `sessionQueue` and the server-ordered connection log already serialize this; the plan
    relies on them, and Codex should probe it.
-5. The PDF's North American / Overseas tables need a second careful pass at 300 dpi before transcription. Dense tables
-   misalign ([[sr2e-source-captures]]).
+5. ~~Tables at 300 dpi~~ **Done 2026-11-04:** both tables are transcribed to `tools/data/vr2-rtg-ratings.tsv` from
+   300-dpi renders, 50 rows.
+   - Germany's bold entries are RTGs, and the indented ones are LTGs under them.
+   - The asterisk (PLTG entry point) is kept, and so is the spelling: "Tir Tairngire" without an accent in the North
+     American table.
 
 ## Documentation (part of done)
 - **Wiki:** "The Matrix" section, plus a How-To-Guides walkthrough for anything that takes the GM or the decker more

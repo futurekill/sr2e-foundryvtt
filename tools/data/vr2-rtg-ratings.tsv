@@ -1,0 +1,54 @@
+# VR2.0 RTG System Ratings (Virtual Realities 2.0 p.26 North American, p.27 Overseas), transcribed from 300-dpi
+# renders 2026-11-04 for docs/PLAN-vr2-part7-grids.md. kind: rtg (a regional grid) or ltg (a local grid under the
+# preceding rtg of its group). pltgEntry: the book's asterisk ("an entry point to a PLTG"). Not yet used by code.
+group	name	kind	parent	code	level	access	control	index	files	slave	pltgEntry
+North America	Aztlan	rtg		orange	3	8	8	6	7	7	
+California	Free State	rtg		green	4	6	8	6	6	7	
+Caribbean League	Bermuda	rtg		green	2	6	6	6	6	6	
+Caribbean League	Cuba	rtg		orange	3	8	8	7	8	7	
+Caribbean League	Grenada	rtg		orange	4	8	8	8	8	8	
+Caribbean League	Jamaica	rtg		green	3	6	7	6	6	6	
+Caribbean League	South Florida	rtg		green	2	6	7	6	6	6	
+Caribbean League	Virgin Islands	rtg		green	2	6	7	6	6	6	
+North America	CAS	rtg		green	3	6	8	7	8	8	
+NAN	Algonkian-Manitou	rtg		green	4	7	8	7	6	6	
+NAN	Athabascan	rtg		green	3	6	8	6	6	6	
+NAN	Pueblo	rtg		orange	4	8	8	8	8	8	
+NAN	Salish-Sidhe	rtg		green	3	6	8	7	6	6	
+NAN	Sioux	rtg		orange	3	7	8	8	7	7	
+NAN	Trans-Polar Aleut	rtg		green	2	6	6	6	6	6	
+NAN	Ute	rtg		orange	3	7	8	7	7	7	
+North America	Québec	rtg		green	2	6	8	8	7	7	
+North America	Tir Tairngire	rtg		orange	5	7	8	8	7	7	
+North America	Tsimshian	rtg		orange	5	8	8	8	8	8	
+North America	UCAS	rtg		green	4	6	8	6	6	6	
+Germany	Greater Frankfurt	rtg		green	4	6	8	6	6	6	
+Germany	AG Chemie	ltg	Greater Frankfurt	red	5	10	10	9	9	9	yes
+Germany	Frankfurt	ltg	Greater Frankfurt	orange	3	6	8	6	7	7	
+Germany	Frankfurt Bank Assn.	ltg	Greater Frankfurt	red	5	10	10	8	9	9	yes
+Germany	Mainz/Wiesbaden	ltg	Greater Frankfurt	green	4	6	8	6	7	7	
+Germany	Mannheim/Ludwigshafen	ltg	Greater Frankfurt	green	4	6	8	6	7	7	
+Germany	Northern Germany	rtg		green	3	6	8	6	7	7	
+Germany	Arkoblock 1-4	ltg	Northern Germany	red	4	8	10	8	8	8	yes
+Germany	Berlin	ltg	Northern Germany	orange	3	6	8	7	6	6	
+Germany	Bremen	ltg	Northern Germany	green	5	6	8	6	7	7	
+Germany	Hamburg	ltg	Northern Germany	green	4	6	8	6	7	7	
+Germany	Hannover	ltg	Northern Germany	orange	5	6	8	7	8	8	
+Germany	Rügen	ltg	Northern Germany	orange	5	8	10	9	9	9	
+Germany	Rhine-Ruhr	rtg		green	4	6	8	6	6	6	
+Germany	Cologne	ltg	Rhine-Ruhr	green	3	6	8	6	6	6	
+Germany	Dortmund	ltg	Rhine-Ruhr	green	2	6	8	6	6	6	
+Germany	Düsseldorf	ltg	Rhine-Ruhr	green	4	6	8	6	6	6	
+Germany	Essen	ltg	Rhine-Ruhr	green	4	6	8	6	6	6	
+Germany	Ruhrmetall	ltg	Rhine-Ruhr	orange	5	8	9	8	9	10	yes
+Germany	Ruhr Uni.	ltg	Rhine-Ruhr	orange	4	6	8	6	7	7	
+Germany	Saeder-Krupp	ltg	Rhine-Ruhr	red	5	8	10	9	10	10	yes
+Germany	Southern Germany	rtg		green	4	6	8	6	6	6	
+Germany	Heidelberg	ltg	Southern Germany	green	3	6	8	6	6	6	
+Germany	Munich	ltg	Southern Germany	green	4	6	8	6	6	6	
+Germany	Nuremberg	ltg	Southern Germany	green	3	6	8	6	6	6	
+Germany	Stuttgart	ltg	Southern Germany	green	4	6	8	6	6	6	
+Germany	SOX	rtg		red	4	9	10	8	8	8	yes
+Germany	SOX-Öffnet	ltg	SOX	green	3	6	8	6	6	6	
+Overseas	Great Britain	rtg		orange	5	7	8	6	7	7	
+Overseas	Tír na nÓg	rtg		red	5	9	9	7	8	8	
