@@ -11747,7 +11747,11 @@ export function registerSR2EQuenchTests() {
         const tD = await tokenFor(d, 0); await tokenFor(k, 2);
         await setTargets([tD.id]);
         const dice = [];
-        for (let i = 0; i < 4; i++) { const sp = spy(k); await attack(k, Array(12).fill(1)); sp.off(); dice.push(sp.seen[0]?.[0]); }
+        for (let i = 0; i < 4; i++) {
+          const sp = spy(k); await attack(k, Array(12).fill(1)); sp.off(); dice.push(sp.seen[0]?.[0]);
+          // The miss counts once the GM's sequencer records it; under load that lags, so wait before the next attack.
+          await settle(() => Y.cascadeOf(k, h).sv >= Math.min(i + 1, 2), 10000);
+        }
         assert.deepEqual(dice, [6, 7, 8, 8], "misses raise the SV, up to the cap");
         assert.equal(Y.cascadeOf(k, h).sv, 2);
         await k.update({ "system.cascadeEpoch": k.system.cascadeEpoch + 1 });
