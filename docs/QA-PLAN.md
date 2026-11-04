@@ -460,6 +460,8 @@ A GM must be online: the GM's client sequences every part-3 event.
 ### 10g. VR2.0 part 5b: utility options and programming (`sr2e.vr2-options` batch, 13 tests; docs/PLAN-vr2-part5b.md)
 2026-10-30: batch 10/10; full sr2e.** 754/754; Vitest 1428.
 2026-11-03: +3 tests (team programming; one-shot Cloak/Lock-On; DINAB attack resisted to nothing → −1): batch 13/13.
+2026-11-04: after Codex plan rounds 2–6 + code review rounds 1–3 (approved): batch 18/18; full sr2e.** 762/763 in one
+run (vr2-optional-ic cascading timed out under load; 7/7 alone); Vitest 1434; lint clean.
 Still manual only: a one-shot Camo spent by an IC trace hunt.
 Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
 - [ ] Program sheet: Options section; Attack-6M with Skulk-4 shows size 300 (design 300 Mp) and 60,000¥; squeeze on an

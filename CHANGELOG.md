@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.129.0 — 2026-11-04
 
 ### Added
 - **VR2.0 utility options** (VR2.0 pp.102–104), a new world setting *VR2.0 utility options* (off by default):
@@ -15,13 +15,16 @@
     a point when it fails and crashes on all 1s; Swap Memory restores it.
   - **Squeeze**: must be decompressed (a Complex Action) after loading. **Sensitive**: works only on its maker's hosts
     (hosts have a Manufacturer field now).
-- **VR2.0 programming** (pp.100–102): write a program from its row — the Computer (rating) test sets the task period,
-  days of work are logged with tools or a team, and the program is usable once it's done. Rating caps (Black Hammer
-  and Killjoy: half your Computer, rounded up) and team limits are checked.
+- **VR2.0 programming** (pp.100–102): **Write a new program** on the Matrix tab starts a project that doesn't exist
+  until it's written; the code button on any program row writes (or rewrites) it. The Computer (rating) test sets
+  the task period (your Software concentration or Matrix Programming specialization rolls if higher), days of work
+  are logged with tools or a team, and the program is usable once it's done. The first day of work locks the test's
+  successes. Rating caps (Black Hammer and Killjoy: half your Computer, rounded up) and team limits are checked;
+  the design is locked while it's being written, and an abandoned or failed new program stays unwritten.
 
 - **How-To Guides inside Foundry**: the wiki's step-by-step guides (Matrix jackpoints, fat-bacteria zones,
-  rituals, elementals, addiction), with their screenshots and animations, are now a journal in the
-  *SR2E Player Guides* compendium.
+  rituals, elementals, addiction, and the new *Write a program*), with their screenshots and animations, are now a
+  journal in the *SR2E Player Guides* compendium.
 
 ### Changed
 - The character sheet header shows nuyen and Good Karma as read-only readouts with thousands
@@ -32,6 +35,7 @@
   by ear against the old ones; heavy-auto, smg-burst, rifle-burst, rifle-auto, taser-single,
   melee, thrown and spell-illusion keep their v2 sound). The sound-effect generators now pin v3
   (v2 is deprecated, retiring 2027-02-01).
+- Karma Pool buttons on a test card run one at a time on each device.
 
 ## 0.128.0 — 2026-10-30
 
