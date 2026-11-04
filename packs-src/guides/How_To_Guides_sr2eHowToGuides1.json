@@ -168,6 +168,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> a decker writes their own utility, with options, and logs the days of work until it&#39;s done\n(Virtual Realities 2.0 pp.100–104).</p>\n<p><img src=\"systems/sr2e/assets/guides/programming.gif\" alt=\"The decker clicks Write a new program, sets the design, rolls the programming test, and logs days of work until the program is written\"></p>\n<p><strong>GM, once:</strong> in <strong>Settings → Configure Settings → SR2E</strong>, set <strong>Matrix ruleset</strong> to <em>Virtual Realities 2.0</em>.\nFor the options, also tick <strong>VR2.0 utility options</strong>. Everyone&#39;s client reloads.</p>\n<p><strong>The decker</strong></p>\n<ol>\n<li><strong>Start a project.</strong> On the Matrix tab, click the code button on the <strong>Programs</strong> header (<strong>Write a new\nprogram</strong>). A &quot;New program&quot; opens; it shows as <em>unwritten</em> until it&#39;s done.</li>\n<li><strong>Design it.</strong> Name it after the utility (Attack, Browse, Armor…), set its <strong>Rating</strong>, and for an attack its\n<strong>Damage Level</strong>. With utility options on, <strong>+ Add option</strong> adds options. One the utility can&#39;t take is struck\nthrough with the reason. The sheet shows the size and design size, and the price.</li>\n<li><strong>Roll the test.</strong> Click the code button on the program&#39;s row. Tick any team members, then <strong>Roll</strong>: Computer\nagainst the program&#39;s rating. The card shows the base time ÷ your successes. You can still spend Karma on it.</li>\n<li><strong>Log the work.</strong> Click the code button again for each stretch of work: days worked, and your tools (or each\nteam member&#39;s bonus). The first log locks the test&#39;s successes. The row shows <em>writing 4/10d</em>.</li>\n<li><strong>Done.</strong> When the days reach the period, the program is written and works like any other.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>The design is locked while it&#39;s being written. The ⊘ button abandons the work.</li>\n<li>A program that fails its test (no successes) or is abandoned stays unwritten. Roll again to retry.</li>\n<li>Black Hammer and Killjoy can&#39;t be written above half your Computer (rounded up). A team writes one point higher\nthan its best member, with at most half that member&#39;s Computer in members.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "053780d8d28d0772",
+      "name": "Hit several IC with an Area attack (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 700000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> one Attack Test that hits more than one icon (Virtual Realities 2.0 p.103).</p>\n<p><img src=\"systems/sr2e/assets/guides/area-attack.gif\" alt=\"The decker targets two IC, ticks the second one in the attack dialog and attacks; each IC then resists its own card\"></p>\n<p><strong>Needs:</strong> the Matrix ruleset on <em>Virtual Realities 2.0</em> and <strong>VR2.0 utility options</strong> ticked (GM settings), and an\nattack utility with the <strong>Area</strong> option. Its rating is how many icons it can hit; give it a rating on the\nprogram&#39;s sheet. Write it yourself (<a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/How-To-Guides#write-a-program-vr20\">Write a program</a>) or add the option to one you have.</p>\n<p><strong>The decker</strong></p>\n<ol>\n<li><strong>Target the icons.</strong> Target the main one, then shift-click the others (up to the Area rating in all).</li>\n<li><strong>Attack.</strong> Click <strong>Matrix Attack</strong>, pick the host and the Area program. The dialog lists your other targets\nunder <strong>Area — also attack</strong>: tick the ones to include.</li>\n<li><strong>One roll, a card per target.</strong> The dice are rolled once. Each target gets its own card, with its own target\nnumber (+1 for every target engaged) and its own successes.</li>\n</ol>\n<p><strong>The GM</strong>\n4. <strong>Resist each card.</strong> Each target resists on its own card. IC armor (or a decker&#39;s Armor utility) gets +2 against\n   an Area attack.</p>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Karma Pool on that shared roll is the GM&#39;s call, as for area spells.</li>\n<li>Shield, Targeting, Penetration and the other options still apply per target.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"
