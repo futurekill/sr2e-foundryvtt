@@ -259,5 +259,7 @@ my misreading; the book says 1 (p.102; R1 #17).
   - ONE `prog:frozen:<n>`;
   - ONE `prog:end:<n>`.
 
-  The period is the closed test's LIVE successes, so Karma landing as it closed counts. No mutable programming state
-  remains, and usability and failure are derived.
+  ONE `prog:frozen:<n>` carries the test's FINAL successes: recorded after the test closes and this device's Karma
+  queue for it drains (round 6). The period and failure derive from it, never the card. No mutable programming state
+  remains. Residual (user decision): a same-instant Karma spend on another device can land uncounted (`shortcut:`
+  in `freezePeriod`).

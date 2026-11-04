@@ -139,13 +139,11 @@ describe("foldProgramming (plan 5b §4, Codex R3–R5): the lifecycle is a log, 
       expect([f.current, f.writing, f.unfinished]).toEqual([2, true, true]);
     }
   });
-  it("the period reads the CLOSED test live: Karma that landed as it closed counts; none at all is a failure (R5 #1)", () => {
-    const recs = [start(1), frozen(1, 2)];
-    expect(foldProgramming(recs).task.period).toBe(4);                   // 8 ÷ the snapshot's 2 (message gone)
-    expect(foldProgramming(recs, () => 4).task.period).toBe(2);          // the test's final 4 successes
-    const f = foldProgramming([start(1), frozen(1, 0)], () => 0);
+  it("the period is the recorded FINAL successes, never the card: a failure stays failed (R5 #1, R6)", () => {
+    expect(foldProgramming([start(1), frozen(1, 2)]).task.period).toBe(4);   // 8 ÷ 2
+    const f = foldProgramming([start(1), frozen(1, 0)]);
     expect([f.task.end, f.writing]).toEqual(["fail", false]);
-    expect(foldProgramming([start(1)]).task.period).toBe(null);          // not frozen yet: no period
+    expect(foldProgramming([start(1)]).task.period).toBe(null);              // not frozen yet: no period
     expect(foldProgramming([start(1), end(1, "complete"), start(2)]).nextGen).toBe(3);
   });
 });

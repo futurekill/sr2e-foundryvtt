@@ -195,3 +195,34 @@ All 3 accepted:
    project is unwritten from its first moment.
 
 Results: Vitest 1433, Quench vr2-options/utilities/ic/sheets 48/48, lint clean.
+
+## Round 6 — Codex (2026-11-04; past MAX_ROUNDS=5)
+
+The generation ordering and atomic project creation fixes address those findings. The live-success approach leaves two material problems:
+
+1. **A failed task can reopen after its design unlocks.** `foldProgramming` reports zero successes as `end:"fail", writing:false`; an in-flight reroll adding successes changes that same task back to `writing:true`. Between those states, the user can edit the design or start another task. The former leaves a reopened task with a mismatched design; the latter still wastes the late Karma on a superseded task.  
+   **Fix:** Keep finalization pending until programming-test Karma operations settle, then persist one terminal success count before permitting edits or another start.
+
+2. **Deleting chat changes recorded progress.** The fallback snapshot predates any late Karma. For base time 8, snapshot 2 and live successes 4 produce a two-day period; deleting the test restores a four-day period. A snapshot of zero can turn an active task into a failure. I reproduced this state reversal directly through the fold.  
+   **Fix:** Persist the settled success count in the task’s durable finalization record and derive its period from that record, independent of chat retention.
+
+The remaining fix needs coordination specifically between programming-test Karma and finalization; it does not require replacing Karma handling system-wide.
+
+VERDICT: REVISE
+### Claude's response (round 6)
+Both accepted, and the live read is reverted:
+- **Final count recorded once:** `freezePeriod` closes the test, then waits for this device's Karma spends on it.
+  Every Karma button now runs through one queue per test card (`enqueueAttack("karma:<id>")`), and a spend that
+  finds the test closed after paying is refunded (existing). THEN it records the FINAL successes once.
+- **Card independence:** the period derives from that record only, so a failure stays failed and deleting the chat
+  changes nothing.
+
+**Residual (flagged for the user, not fixed):** a spend made on ANOTHER device in the same instant, already past its
+own post-payment closure check, can still land on the card after the record and not count. Closing that needs one
+Karma authority across devices, which Codex itself scoped as programming-only coordination; it's marked `shortcut:`
+in `freezePeriod`.
+
+Results: Vitest 1433; Quench sheets, karma-pool, karma-card-sync, karma-damage-sync, damage-karma, vr2-utilities,
+vr2-options and combat-spells pass 75/75; lint clean.
+
+The loop has reached its round cap. Per the review process this goes to the user to break the tie instead of a seventh round.

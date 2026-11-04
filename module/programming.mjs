@@ -11,6 +11,7 @@ import { baseTime, workDone, toolBonus, teamTerms, programmingCap, sensitiveSkil
   PROGRAMMING_TOOLS, foldProgramming } from "./rules/vr2-options.mjs";
 import { recordEvent, eventsOf } from "./claims.mjs";
 import { claimId } from "./rules/claim-rules.mjs";
+import { enqueueAttack } from "./engagement.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const skillOf = (actor, re) => actor?.items.find(i => i.type === "skill" && re.test(i.name))?.system?.rating ?? 0;
@@ -32,10 +33,9 @@ const designOf = (item) => ({ name: item.name, category: item.system.category, o
   rating: item.system.rating, multiplier: item.system.multiplier,
   options: (item.system.options ?? []).map(o => ({ kind: o.kind, rating: o.rating, target: o.target })) });
 const live = (item) => item.parent?.items.get(item.id) ?? item;
-/** A closed programming test's successes, live (Karma that landed as it closed counts), or null if it's gone. */
-const successesOf = (id) => { const t = globalThis.game?.messages?.get(id)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : null; };
+const successesOf = (id) => { const t = game.messages.get(id)?.flags?.sr2e?.test; return t ? testTotalSuccesses(t) : 0; };
 /** The folded programming state of a program item (also the data model's and the design lock's reader). */
-export const programmingState = (item) => foldProgramming(item?.effects ? eventsOf(item) : [], successesOf);
+export const programmingState = (item) => foldProgramming(item?.effects ? eventsOf(item) : []);
 const stateOf = (item) => programmingState(live(item));
 const say = (actor, html) => ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${html}</div>` });
 
@@ -148,15 +148,20 @@ async function workDialog(actor, item, id) {
 }
 
 /**
- * The first day of work fixes the period (p.100–101): close the test to Karma, then record that it's frozen. The period
- * is then always the CLOSED test's successes (`foldProgramming`), so a Karma spend in flight as it closed still counts:
- * nothing is spent for nothing, and every device reads the same test. False if the task failed (no successes).
+ * The first day of work fixes the period (p.100–101): close the test to Karma, let this device's Karma spends on it
+ * settle (they share one queue, and a spend that finds the test closed after paying is refunded), then record the
+ * FINAL successes once. The period derives from that record only, never the card.
+ * shortcut: a spend made on ANOTHER device in the same instant, already past its own post-payment closure check,
+ * can still land on the card after the record; it's then not counted (that Karma is spent). Closing it fully needs
+ * one Karma authority across devices; revisit if a table ever hits it.
+ * False if the task failed (no successes).
  */
 async function freezePeriod(actor, item, id) {
   const task = stateOf(item).tasks[id];
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}: the first day of work
     fixes the programming test's successes (no more Karma on it).</div>`, flags: { sr2e: { closesTests: [task.testMessageId] } } });
-  const won = await recordEvent(live(item), `prog:frozen:${id}`, { type: "progFrozen", task: id, successes: successesOf(task.testMessageId) ?? 0 });
+  await enqueueAttack(`karma:${task.testMessageId}`, () => true);   // this device's spends on the test have landed
+  const won = await recordEvent(live(item), `prog:frozen:${id}`, { type: "progFrozen", task: id, successes: successesOf(task.testMessageId) });
   const t = stateOf(item).tasks[id];
   if (t.end === "fail") {
     if (won) say(actor, `${esc(item.name)}: no successes on the programming test — the task fails; try again (p.100).`);
@@ -181,7 +186,7 @@ async function complete(actor, item, id) {
 export async function abandon(actor, item) {
   const s = stateOf(item), id = s.current;
   if (!s.writing) return;
-  const usableBefore = !foldProgramming(eventsOf(live(item)).filter(r => (r.task ?? r.gen) !== id), successesOf).unfinished;
+  const usableBefore = !foldProgramming(eventsOf(live(item)).filter(r => (r.task ?? r.gen) !== id)).unfinished;
   if (!await foundry.applications.api.DialogV2.confirm({ window: { title: item.name }, content: `<p>Abandon programming ${esc(item.name)}? The work done is lost${usableBefore ? "" : ", and the program stays unwritten"}.</p>`, rejectClose: false })) return;
   // ONE end per task (server-arbitrated): an abandon racing a completion leaves exactly one of them.
   if (!await recordEvent(live(item), `prog:end:${id}`, { type: "progEnd", task: id, outcome: "abandon" })) {

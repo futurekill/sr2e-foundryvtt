@@ -176,14 +176,13 @@ export const sensitiveSkill = (computer, theory) => Math.ceil(((Number(computer)
  *                            n = the previous start's + 1: two devices starting at once collide, one is refused;
  *                            order is causal (n), never a clock
  *   prog:log:<n>:<id>        {type: "progLog", task: n, days, bonus}
- *   prog:frozen:<n>          {type: "progFrozen", task: n, successes}   the first day of work closed the test
+ *   prog:frozen:<n>          {type: "progFrozen", task: n, successes}   the test's FINAL successes, recorded once
  *   prog:end:<n>             {type: "progEnd", task: n, outcome}        ONE per task: complete | abandon
- * Once frozen, the period is `baseTime ÷` the CLOSED test's successes, read live through `successesOf` (the record's
- * snapshot if the message is gone): a Karma spend in flight as the test closed still lands on the test and counts.
- * No successes = a failed task. Usable: a new project starts unusable; a completed task makes it usable; an abandoned
+ * Once frozen, the period is `baseTime ÷` the recorded successes, never the chat card (which may change or be deleted),
+ * so a failed task stays failed and a period never moves. No successes = a failed task. Usable: a new project starts unusable; a completed task makes it usable; an abandoned
  * or failed one leaves it as it was. The latest start is the current task.
  */
-export function foldProgramming(records = [], successesOf = () => null) {
+export function foldProgramming(records = []) {
   const recs = records.filter(r => String(r.key ?? "").startsWith("prog:"));
   const starts = recs.filter(r => r.type === "progStart" && Number.isInteger(r.gen)).sort((a, b) => a.gen - b.gen);
   const tasks = {};
@@ -192,14 +191,13 @@ export function foldProgramming(records = [], successesOf = () => null) {
     const t = tasks[r.task];
     if (!t) continue;
     if (r.type === "progLog") t.log[r.key] = { days: r.days, bonus: r.bonus };
-    else if (r.type === "progFrozen") { t.frozen = true; t.snapshot = r.successes ?? 0; }
+    else if (r.type === "progFrozen") { t.frozen = true; t.successes = r.successes ?? 0; }
     else if (r.type === "progEnd") t.end = r.outcome;
   }
   let usable = !recs.some(r => r.type === "progNew");
   for (const r of starts) {
     const t = tasks[r.gen];
     if (t.frozen) {
-      t.successes = successesOf(t.testMessageId) ?? t.snapshot;
       t.period = taskPeriod(t.baseTime, t.successes);
       if (t.period == null && !t.end) t.end = "fail";
     }

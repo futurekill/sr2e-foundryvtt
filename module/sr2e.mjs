@@ -70,7 +70,7 @@ import { blastSound } from "./rules/combat-sound-rules.mjs";
 import "./banter.mjs";        // Shadowtalk banter on chat cards + sheet header
 import "./astral.mjs";        // Astral-only token visibility (SR2E p.145)
 import { registerMovementLimit } from "./movement.mjs";  // In-combat movement cap (SR2E p.83)
-import { injectPhaseSeq } from "./engagement.mjs";
+import { injectPhaseSeq, enqueueAttack } from "./engagement.mjs";
 import { proportionalRefund } from "./rules/sr2e-rules.mjs";
 import { rowsPaid } from "./rules/ware-rules.mjs";
 import { spellDamageType } from "./rules/spell-rules.mjs";
@@ -3038,7 +3038,8 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       if (!actor.isOwner) {
         return ui.notifications.warn("Only this character's owner can spend their Karma Pool.");
       }
-      return actor.applyKarmaToTest(message, btn.dataset.karmaAction);
+      // One queue per test card: spends on it are serialized, and a programming freeze waits for them (programming.mjs).
+      return enqueueAttack(`karma:${message.id}`, () => actor.applyKarmaToTest(message, btn.dataset.karmaAction));
     });
   });
 });
