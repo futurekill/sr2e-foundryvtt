@@ -316,7 +316,15 @@ VERDICT: REVISE
 Both confirmed and fixed:
 1. **Rounding:** `programSizes` multiplies rating² × multiplier by every factor and rounds ONCE. A Vitest pins
    rating 3, ×1.5, Optimization = 27 Mp / 2,700¥.
-2. **DINAB badge:** gated on a `hasDinab` flag that only VR2 rows carry. Checked on a core-ruleset sheet: no DINAB
-   badge.
+2. **DINAB badge:** gated on a `hasDinab` flag that only VR2 rows carry. Core rows have no `programBadges`, so the
+   flag is undefined there. A live core-sheet spot check didn't render a program row (the scratch character wasn't a
+   decker), so this rests on the template logic plus the sheets batch passing.
 
 Results: Vitest 1434; Quench vr2-options + sheets 24/24.
+
+## Code review round 4 — Codex (2026-11-04)
+
+No remaining concrete bugs found within the agreed scope. Round 3 fixes verified. (21 pure rules tests via Node
+assertions, 200 no-option size/price comparisons, syntax checks of all 17 changed JS files.)
+
+**VERDICT: APPROVED**
