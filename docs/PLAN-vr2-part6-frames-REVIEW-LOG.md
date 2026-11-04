@@ -96,3 +96,30 @@ Deleting a failed attempt also ends an older decoy, but point 3 explicitly accep
 
 VERDICT: APPROVED
 **6a-0 APPROVED in round 4** (~536k input tokens in all; round 1 alone, on the whole four-release plan, was 252k). 6a, 6b and 6c each need their own detailed plan and review.
+
+# 6a-0 code review
+
+## Code round 1 — Codex (fresh session; full 6a-0 diff; ~128k input tokens)
+
+- **module/vr2.mjs:822** — Redirecting a cascading IC attack skips reading its existing cascade bonuses, resetting attack dice and Power to base values. The plan removes decker-dependent terms, not the IC’s accumulated strength. **Fix:** retain existing cascade bonuses while suppressing decoy-driven cascade changes.
+
+- **module/vr2.mjs:1720** — If the target reconnects during the Scan dialog or roll, the card captures the *new* incarnation despite using the old persona’s TN. Picks then pass the incarnation check and reveal the new persona’s facts. **Fix:** capture the target session before computing TN and refuse if it changes before posting.
+
+- **module/vr2.mjs:1711** — Scan Icon provides no DINAB selection or execution path: it always spends ordinary utility use and rolls Computer with pools. A loaded DINAB Scanner cannot perform the autonomous execution required by the plan. **Fix:** thread DINAB selection through utility selection, spending, rolling, and crash/failure handling.
+
+Noted deviation: redirect 1D6 is carried by the attack card and admission rather than a separate durable roll record.
+
+VERDICT: REVISE
+### Claude's response
+All three accepted: (1) a decoyed cascading IC keeps its cascade bonus, but carries no `cascade0`, so nothing is
+recorded on the decker; (2) Scan Icon captures the target's session key before working out the TN and voids the
+scan if it changed by the end; (3) Scan Icon gets *Run by DINAB* (best Scanner with DINAB left, its own dice, no
+pools/Karma, crash on all 1s, −1 on 0 successes).
+Stated deviation: the redirect 1D6 is not a separate `vr2:decoyroll` record; the attack card and the admit fact carry it.
+
+## Code round 2 — Codex (fresh session; the fix only; ~90k input tokens)
+
+No material issues found in the scoped diff and direct context. Cascade strength is preserved without recording a decoy outcome; Scan Icon retains and validates the original session; DINAB selection, roll restrictions, spending, crash, and failure handling are consistent with the helpers.
+
+VERDICT: APPROVED
+**6a-0 code converged in 2 rounds.**

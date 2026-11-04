@@ -222,8 +222,8 @@ attacked, take damage on a 10-box monitor, crash, and be targeted by the Limit o
      downed icon, no crippler attribute effect (a decoy has no attributes: the attack just does its damage). TN is the
      cybercombat table for the host's code and the IC's status; dice and Power are the IC's.
    - The card carries `decoy: { key, roll, successes }` and `targetUuid` stays the decker (for the admission below).
-   - The roll goes in a durable record too, `vr2:decoyroll:<card>` (written in the same sequencer step), so the
-     redirect is a fact, not just card text.
+   - *(Built differently: the roll is carried on the attack card and in the `admit:<card>` fact, not a separate
+     `vr2:decoyroll` record; noted in code review round 1.)*
 5. **Admission and resolution (R1 #1, R2 #2–#3).** A decoyed attack is still requested and admitted as an IC attack
    on that decker (`Y.request(target, "attack", …, decoy: key)`), so exits, locks and the Black IC last-attack
    bookkeeping see it exactly as before. `HANDLERS.attack` copies `decoy` into the `admit:<card>` fact (today it

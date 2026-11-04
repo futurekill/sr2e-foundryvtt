@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.131.0 — 2026-11-04
 
 ### Added
 - **VR2.0 Decoy** (VR2.0 p.112), a new System Operation (Control, Mirrors): a decoy copy of the decker's icon, as
@@ -14,7 +14,7 @@
   message goes to the GMs only).
 - **VR2.0 Scan Icon** (p.117), a new Matrix-tab button: Computer against the targeted decker's Masking, lowered by
   your Scanner less its Sleaze. Each success buys one fact (MPCP, one Persona rating or Response Increase), chosen on
-  the card; only what's chosen is shown, to the decker and the GM.
+  the card; only what's chosen is shown, to the decker and the GM. A DINAB Scanner can run it on its own.
 - How-To Guides: *Draw IC off with a Decoy (VR2.0)*.
 
 ## 0.130.0 — 2026-11-04
