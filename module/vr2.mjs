@@ -818,11 +818,12 @@ async function attackOnce(actor) {
     }
     // Cascading IC (p.51; plan part 4a §4): derived from the deckers' records, so the active GM (the
     // sequencer) settles every pending admission and resolution first.
-    // A decoyed attack never touches the decker, so it doesn't cascade off the decker's record either.
-    if (actor.system.cascading && !decoy && !Y.isConstruct(actor) && isProactive(actor.system.program) && target.type === "character") {
+    // A decoyed cascading IC keeps the strength it has built up against this decker (code review R1 #1); the
+    // attack itself never touches the decker, so it carries no cascade baseline and records no cascade outcome.
+    if (actor.system.cascading && !Y.isConstruct(actor) && isProactive(actor.system.program) && target.type === "character") {
       if (!Y.isSequencer()) return ui.notifications.warn("Cascading IC attacks are rolled by the active GM.");
       await Y.flush();
-      cascade0 = Y.cascadeBaseline(actor, host);
+      cascade0 = decoy ? null : Y.cascadeBaseline(actor, host);
       cascade = Y.cascadeOf(actor, host);
     }
     icRating = prof.rating + cascade.rating;
@@ -1694,30 +1695,48 @@ export async function vr2ScanIcon(actor) {
   if (maneuverState(actor, target).blind) return ui.notifications.warn(`${actor.name} has lost ${target.name}: re-detect it first.`);
   const host = sync(liveSession(actor)?.hostUuid);
   if (host?.type !== "host") return ui.notifications.warn("Log on to a host first (a System Operation): Scan Icon works on the system you're on.");
-  const scanner = bestUtility(actor, "Scanner", host);
+  // The icon scanned is THIS incarnation: a reconnect before the card is posted voids the scan (code review R1 #2).
+  const targetSession = sessionKey(target);
+  const tnWith = (scanner) => { const sleazeItem = bestUtility(target, "Sleaze", sync(liveSession(target)?.hostUuid));
+    return scanIconTN({ masking: target.system.matrixPersona?.masking ?? 0, scanner: programRating(scanner), sleaze: sleazeItem ? programRating(sleazeItem) : 0 }); };
+  let scanner = bestUtility(actor, "Scanner", host);
   if (!scanner) return ui.notifications.warn("Scan Icon needs a Scanner utility loaded (VR2.0 p.117).");
-  const sleazeItem = bestUtility(target, "Sleaze", sync(liveSession(target)?.hostUuid));
-  const tn = scanIconTN({ masking: target.system.matrixPersona?.masking ?? 0, scanner: programRating(scanner), sleaze: sleazeItem ? programRating(sleazeItem) : 0 });
+  let tn = tnWith(scanner);
   const hackingMax = actor.system.dicePools?.hacking?.value ?? 0;
   const o = await foundry.applications.api.DialogV2.wait({ window: { title: `Scan Icon — ${target.name}` }, rejectClose: false,
     content: `<p>Computer against ${esc(target.name)}'s Masking, lowered by your Scanner less its Sleaze: <strong>TN ${tn}</strong>.
       Each success buys one fact: its MPCP, one Persona Rating, or its Response Increase (VR2.0 p.117).</p>
       <div class="form-group"><label>Hacking Pool dice (max ${hackingMax}):</label><input type="number" name="hacking" value="0" min="0" max="${hackingMax}"></div>
+      ${utilityOptionsOn() ? `<div class="form-group"><label title="The Scanner's DINAB option runs it with its own skill: a Free Action, no pools or Karma (VR2.0 p.103)">Run by DINAB:</label>
+        <input type="checkbox" name="dinab"></div>` : ""}
       ${miscDiceHTML()}`,
-    buttons: [{ action: "scan", label: "Scan", default: true, callback: (ev, b) => ({ hacking: Math.max(0, Math.min(hackingMax, parseInt(b.form.elements.hacking.value) || 0)), ...readMiscDice(b.form) }) },
+    buttons: [{ action: "scan", label: "Scan", default: true, callback: (ev, b) => ({ hacking: Math.max(0, Math.min(hackingMax, parseInt(b.form.elements.hacking.value) || 0)),
+      dinab: !!b.form.elements.dinab?.checked, ...readMiscDice(b.form) }) },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!o || o === "cancel") return;
+  // DINAB (p.103): the best copy with DINAB left runs itself — its own dice, no pools or Karma, a Free Action (R1 #3).
+  const dinab = !!o.dinab;
+  if (dinab) {
+    scanner = bestUtility(actor, "Scanner", host, (i) => dinabLeft(i) > 0);
+    if (!scanner) return ui.notifications.warn("No Scanner with DINAB left is loaded.");
+    tn = tnWith(scanner);
+  }
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
-  const refused = await spendUse(actor, scanner);
+  const useId = foundry.utils.randomID(), uref = useRef(scanner, dinab);
+  const refused = await spendUse(actor, scanner, { dinab });
   if (refused) return ui.notifications.warn(refused);
-  const res = await actor.rollSuccessTest(Math.max(1, computerOf(actor)), tn, { label: RL("ScanIcon", { target: target.name, tn }),
-    tnContext: skillTnContext("computer"), poolDice: o.hacking ? { hacking: o.hacking } : undefined, miscDice: o.miscDice, miscLabel: o.miscLabel });
+  const res = await actor.rollSuccessTest(Math.max(1, dinab ? dinabLeft(scanner) : computerOf(actor)), tn, dinab
+    ? { label: RL("ScanIcon", { target: `${target.name} (DINAB)`, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true }
+    : { label: RL("ScanIcon", { target: target.name, tn }), tnContext: skillTnContext("computer"),
+        poolDice: o.hacking ? { hacking: o.hacking } : undefined, miscDice: o.miscDice, miscLabel: o.miscLabel });
   if (!res) return;
-  await commitAction(actor, startedBuild);
+  if (dinab) { if (!await dinabCrashCheck(actor, uref, useId, res) && res.successes <= 0) await dinabFail(actor, uref, useId); }
+  else await commitAction(actor, startedBuild);
+  if (sessionKey(target) !== targetSession) return ui.notifications.warn(`${target.name} reconnected during the scan: nothing learned.`);
   // What the decker learns stays between the decker and the GM (R1 #4).
   const whisper = game.users.filter(u => u.isGM || actor.testUserPermission(u, "OWNER")).map(u => u.id);
   const st = { actorUuid: actor.uuid, actorName: actor.name, targetUuid: target.uuid, targetName: target.name,
-    targetSession: sessionKey(target), testMessageId: res.testMessageId, tn };
+    targetSession, testMessageId: res.testMessageId, tn };
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), whisper, content: renderScanCard(st, []), flags: { sr2e: { vr2Scan: st } } });
 }
 
