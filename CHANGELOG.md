@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.130.0 — 2026-11-04
 
 ### Added
 - **Persona tokens appear on jack-in.** A decker who jacks in at a Matrix jackpoint no longer needs a persona the GM

@@ -68,3 +68,31 @@ No new material problem found against the three specified modules.
 
 VERDICT: APPROVED
 **Converged in 3 rounds (~207k input tokens total, vs ~0.5–1.3M per resumed round before).**
+
+# Code review
+
+## Code round 1 — Codex (fresh session; full diff 4033fd6..7509ae7; ~116k input tokens)
+
+- **module/persona-tokens.mjs:77** — If token-data preparation is delayed while the actor exits and reconnects through another entry Region on the same scene, creation still uses the old Region. Subsequent reconciliation retains that misplaced token because it checks only actor and scene. **Fix:** After the awaits, recheck writer authority, creation necessity, and session identity; discard stale data and reschedule.
+
+- **module/persona-tokens.mjs:27** — Clearing `persona` through a token update while leaving `personaManaged` set permanently excludes that token from cleanup. A replacement appears during the session, but the original survives jack-out and even actor deletion. **Fix:** Include managed tokens regardless of their `persona` flag and remove managed tokens whose persona flag was cleared.
+
+VERDICT: REVISE
+### Claude's response
+Both accepted (commit "code review R1"): (1) managed tokens record `personaSession`; a managed token whose session
+isn't the actor's live one is removed as `stale`, and `reconcileScene` re-checks writer / still wanted / same session
+after its awaits; (2) managed tokens are included whatever their persona flag, and one with the flag cleared is
+removed as `unmarked` (and never counts as the actor's persona). Vitest for both; Quench: clearing the flag on a live
+managed persona removes it and a fresh one replaces it.
+
+Deviations from the plan, stated in the brief: exact boundary-crossing containment (`rectInRegion`) instead of a
+ClipperLib area difference; `LEAVING` only on the core jack-out path (a VR2.0 exit is a sequencer request that may
+be cancelled or fail; the wait ends when the connection does); persona scheduling outside the Matrix queue (a
+GM's own jack-in holds it while waiting for the token).
+
+## Code round 2 — Codex (fresh session; the fix diff only; ~52k input tokens)
+
+No material findings within scope. The post-await checks reject superseded creates; session tagging enables cleanup of stale tokens that still land. Unmarked managed tokens remain eligible for cleanup. Adopted tokens bypass managed-token removal, and neither fix introduces a create/remove loop.
+
+VERDICT: APPROVED
+**Code review converged in 2 rounds.**
