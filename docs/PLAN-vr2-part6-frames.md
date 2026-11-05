@@ -1106,7 +1106,7 @@ Nothing is rolled: p.107 states no test.
 
 ## 6a-2c in detail: smart frames
 
-**Status: plan under review.**
+**Status: plan Codex-APPROVED round 3 (2026-11-05); not built.**
 
 Builds on 6a-2a (0.136.0: the frame actor, upload, lifecycle, frames as targets) and 6a-2b (0.137.0: the command
 context, weapon carriers, DINAB on a core, decoy frames, event triggers).

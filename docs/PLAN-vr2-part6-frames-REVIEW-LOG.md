@@ -498,3 +498,10 @@ VERDICT: REVISE
   once, and removing it again is final.
 - **#2 accepted.** Hooks on the active GM schedule owners when a combat starts, when an owner's combatant is created,
   and (already) when a frame's token is created.
+
+## 6a-2c Round 3 — Codex (fresh session, fix only; ~63k input tokens)
+
+No findings. The two receipts preserve interrupted-join recovery and respect removal after completion, with the pre-completion deletion window explicitly documented. The added triggers cover combat starts, owner-combatant creation, and frame-token creation; scheduling also supports logged-off owners. No new defect identified within scope.
+
+VERDICT: APPROVED
+**6a-2c plan APPROVED in round 3.**
