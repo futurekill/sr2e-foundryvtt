@@ -265,3 +265,13 @@ All three findings were accepted.
 - **#2:** `wiredPlace` and `wiringFits` gain a satellite branch.
 - **#3:** the lag comes off the final Matrix Reaction (after tortoise and Response), before wounds, with the
   existing floor of 0.
+
+## 7c Round 2 — Codex (fresh session, brief; ~54k input tokens)
+
+- §3, “Successes > 0”: the explicit lock write still uses `{ conn, card, ok: true }`, omitting `sat`; the new `reachable` check would reject that successful lock. Fix: include the selected satellite UUID as `sat` in the write and preserve it during Karma updates.
+
+VERDICT: REVISE
+
+### Claude's response
+- **#1 accepted.** The lock write includes `sat`. The card carries `{ conn, sat }`, and a Karma rewrite rebuilds the
+  whole record from the card.

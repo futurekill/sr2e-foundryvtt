@@ -782,11 +782,13 @@ with no place yet. Its dialog:
 It is a Computer Test with Hacking Pool and Karma, as other Computer Tests (a skill test, not a System Test: no host
 rolls, no tally).
 - **Successes > 0:** locked. The card says "isolated and locked on in 3 minutes ÷ successes" (SR2 base time).
-  The test runs in the `vr2op` queue, and the decker's client writes `vr2SatLock { conn, card, ok: true }`.
+  The test runs in the `vr2op` queue, and the decker's client writes `vr2SatLock { conn, card, ok: true, sat }` (R2 #1).
+  The card's `flags.sr2e.satLock` carries `{ conn, sat }`.
 - **0 successes:** the card says "no lock; another try in about five minutes (sooner in dire situations)". The
   timing is the GM's (p.30: "as a rule of thumb"). Retrying replaces the lock record.
-- **Karma:** 7a's `updateChatMessage` hook also watches this card (`flags.sr2e.satLock` on the message). A reroll
-  that turns 0 into a success rewrites `ok` for the same `card` and `conn`. Deleting the card changes nothing.
+- **Karma:** 7a's `updateChatMessage` hook also watches this card. A reroll that turns 0 into a success rewrites the
+  whole record from the card's own `{ conn, sat }`, with `ok: true` for that `card`, so `sat` is never lost. It does
+  so only while the record (if any) has that same `card`. Deleting the card changes nothing.
 - A new connection needs a new lock. The record carries `conn`.
 
 ### 4. On the satellite
