@@ -64,13 +64,14 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Is the core written AS IT IS NOW (6a-1 §1; a core-only rule)? The latest completed programming task's captured
- * design must equal the current design. A core never completed here counts as written exactly when 5b says so (bought:
- * no `prog:new`), as any bought program does.
+ * design must equal the current design. No completed task: not written (code R1 #1).
  */
 export function coreWritten(records = [], design) {
   const f = foldProgramming(records, "prog:");
   const done = Object.values(f.tasks).filter(t => t.complete).sort((a, b) => b.task - a.task)[0];
-  if (!done) return !f.unfinished;
+  // A core is written only by a completed task matching its design (code R1 #1): an ordinary program turned into a
+  // core, or a bought core rearranged, can't skip writing.
+  if (!done) return false;
   return eq(done.design, design);
 }
 

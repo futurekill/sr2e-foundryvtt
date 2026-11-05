@@ -81,12 +81,12 @@ describe("written cores and the active load (derived, never stored)", () => {
   const loaded = (gen, design, ratings, outcome = "complete") => [rec(`load:start:${gen}`, "progStart", { gen, design, baseTime: 10 }),
     rec(`load:frozen:${gen}`, "progFrozen", { task: gen, successes: 2 }),
     rec(`load:end:${gen}`, "progEnd", { task: gen, outcome, ...(outcome === "complete" ? { payload: { copies: ratings.map((r, i) => ({ name: `P${i}`, system: { rating: r } })), coreDesign: design, loadingRating: 3 } } : {}) })];
-  it("written means the current design, for a core (R1 #7); a bought core counts as written", () => {
+  it("written means a completed task of the current design, for a core (R1 #7; code R1 #1: no task, not written)", () => {
     const recs = [rec("prog:new", "progNew"), ...wrote(1, D1)];
     expect(coreWritten(recs, D1)).toBe(true);
     expect(coreWritten(recs, D2)).toBe(false);
     expect(coreWritten([rec("prog:new", "progNew")], D1)).toBe(false);
-    expect(coreWritten([], D1)).toBe(true);
+    expect(coreWritten([], D1)).toBe(false);
   });
   it("the fold keeps a terminal record's payload; the latest COMPLETE load wins; an abandon keeps the old one", () => {
     expect(foldProgramming(loaded(1, D1, [4]), "load:").tasks[1].payload.loadingRating).toBe(3);

@@ -82,32 +82,42 @@ async function startLoad(actor, core) {
   const progs = actor.items.filter(i => i.type === "program" && i.id !== core.id && !i.system.frameCore?.kind && !unfinished(i));
   if (!progs.length) return ui.notifications.warn(`${actor.name} has no written programs to load.`);
   const cap = core.system.capacity;
+  // Every design captured BEFORE the picker, and all of it re-checked after the roll (code R1 #2).
+  const plan = designOf(core), before = new Map(progs.map(p => [p.id, designOf(p)]));
+  const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && computerOf(a) > 0);
   const pick = await foundry.applications.api.DialogV2.prompt({ window: { title: `Load ${core.name}` },
     content: `<div>
       <p>Object-code copies of whole programs go onto the core; their ratings (options not counted) may total ${cap}
         (Core ${core.system.rating}${core.system.frameCore.initPoints ? ` − ${core.system.frameCore.initPoints} Initiative` : ""}; VR2.0 p.105–106).</p>
       ${progs.map(p => `<label style="display:block;"><input type="checkbox" name="prog" value="${p.id}"> ${esc(p.name)} (rating ${p.system.rating})</label>`).join("")}
+      ${others.length ? `<div class="form-group"><label title="Team (p.102): loading is a task like programming (p.106)">Team:</label>
+        <div>${others.map(a => `<label style="display:block;"><input type="checkbox" name="team" value="${esc(a.uuid)}"> ${esc(a.name)} (Computer ${computerOf(a)})</label>`).join("")}</div></div>` : ""}
     </div>`,
-    ok: { label: "Choose", callback: (e, b) => [...b.form.querySelectorAll("input[name=prog]:checked")].map(i => i.value) } }).catch(() => null);
+    ok: { label: "Choose", callback: (e, b) => ({ ids: [...b.form.querySelectorAll("input[name=prog]:checked")].map(i => i.value),
+      team: [...b.form.querySelectorAll("input[name=team]:checked")].map(i => i.value) }) } }).catch(() => null);
   if (!pick) return;
-  const chosen = pick.map(id => actor.items.get(id)).filter(Boolean);
+  const chosen = pick.ids.map(id => actor.items.get(id)).filter(Boolean);
   const ratings = chosen.map(p => p.system.rating);
   const why = loadProblems(ratings, cap);
   if (why.length) return ui.notifications.warn(why[0]);
-  // The core's and every source program's design, captured before the roll and re-checked after (6a-1 §3.6).
-  const plan = designOf(core), sources = chosen.map(p => [p.id, designOf(p)]);
+  // A team (p.102, via p.106 "similar to programming"): its size from the best Computer, the average skill rounded up.
+  const team = pick.team.map(u => fromUuidSync(u)).filter(Boolean);
+  const members = [actor, ...team], computers = members.map(computerOf);
+  if (members.length > 1 && members.length > teamTerms(computers).maxSize) return ui.notifications.warn(`A team led by Computer ${Math.max(...computers)} has at most ${teamTerms(computers).maxSize} members (p.102).`);
+  const skills = members.map(programmingSkillOf);
   const copies = chosen.map(copyOf);
   const terms = loadingTerms(ratings);
-  const res = await actor.rollSuccessTest(Math.max(0, programmingSkillOf(actor)), terms.tn, {
+  const res = await actor.rollSuccessTest(Math.max(0, members.length > 1 ? teamTerms(skills).skill : skills[0]), terms.tn, {
     label: `Loading ${esc(core.name)}: Computer (${terms.tn})`, tnContext: { kind: "other" } });
   if (!res) return;
   const now = stateOf(core, LOAD);
+  const fresh = (id) => { const p = actor.items.get(id); return p && !p.system.frameCore?.kind && !unfinished(p) && foundry.utils.objectsEqual(designOf(p), before.get(id)); };
   const changed = !foundry.utils.objectsEqual(designOf(live(core)), plan) || now.writing || stateOf(core).writing
-    || sources.some(([id, d]) => !actor.items.get(id) || !foundry.utils.objectsEqual(designOf(actor.items.get(id)), d));
+    || chosen.some(p => !fresh(p.id)) || loadProblems(chosen.map(p => actor.items.get(p.id).system.rating), live(core).system.capacity).length;
   if (changed) return ui.notifications.warn(`${core.name} or one of its programs changed (or another device started loading it) during the test: start again.`);
   const gen = now.nextGen;
   if (!await recordEvent(live(core), `${LOAD}start:${gen}`, { type: "progStart", gen, testMessageId: res.testMessageId, design: plan,
-    designSize: terms.size, baseTime: terms.baseTime, team: [], load: copies, loadingRating: terms.loadingRating, tn: terms.tn })) {
+    designSize: terms.size, baseTime: terms.baseTime, team: team.map(a => a.uuid), load: copies, loadingRating: terms.loadingRating, tn: terms.tn })) {
     return ui.notifications.warn(`Another device started loading ${core.name} at the same moment: open it again.`);
   }
   say(actor, `${esc(actor.name)} starts loading ${esc(core.name)} with ${copies.map(c => esc(c.name)).join(", ")}: Loading Rating
@@ -132,6 +142,8 @@ export async function newProject(actor) {
 
 /** Start (p.100–101): base time from the design size; the Computer (Program Rating) Test sets the task period. */
 async function startDialog(actor, item) {
+  // A core being loaded can't be programmed at the same time (code R1 #3).
+  if (stateOf(item, LOAD).writing) return ui.notifications.warn(`${item.name} is being loaded: finish or abandon that first.`);
   const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && computerOf(a) > 0);
   const sensitive = item.system.activeOpts?.some(o => o.kind === "sensitive");
   // The design is captured BEFORE the dialog and the roll, and re-checked before the task is recorded.
@@ -164,7 +176,7 @@ async function startDialog(actor, item) {
     label: `Programming ${esc(item.name)}: Computer (${item.system.rating})`, tnContext: { kind: "other" } });
   if (!res) return;
   const now = stateOf(item);
-  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing) {
+  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing || stateOf(item, LOAD).writing) {
     return ui.notifications.warn(`${item.name} changed (or another device started writing it) during the test: start again.`);
   }
   // The next generation number: two devices starting at once claim the same id, and the server keeps one.
