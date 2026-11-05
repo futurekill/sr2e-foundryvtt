@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.133.0 — 2026-11-04
+
+### Added
+- **VR2.0 trace on a grid, host networks and redirects** (VR2.0 p.36, p.47, p.117), part of the *VR2.0 grid topology*
+  setting:
+  - **A grid's trace IC loses interest** when the decker leaves its RTG's grids. It keeps hunting while they move
+    between the RTG and its LTGs, and stops once they log on to a host, a PLTG or another RTG. Even a quick trip out
+    and straight back counts. The GM gets a card. A trace that has already located the jackpoint stays located.
+  - **Dump on locate:** when a trace from the RTG governing the decker's jackpoint (or one of its LTGs) locates them,
+    the located card has **Dump the decker (GM)**. No killer is needed (p.47).
+  - **Host networks:**
+    - Logging on from a hub to a host behind it needs the connections found first: a successful Analyze Subsystem
+      on the hub's Access, or on the subsystem the GM picks in the host's Grid section (*Connections hidden in*).
+    - A logon along a host link, either way, counts as a Graceful Logoff from the host left behind. Its running
+      trace IC add their ratings to the TN, and on success they crash and that host forgets the decker's tally.
+    - Locate File and Locate Slave on a hub cover the whole network.
+  - **One Redirect Datatrail per grid** (p.117). The host's opposing test is rolled against the Detection Factor
+    less the jackpoint's trace modifier.
+  - Suppressed IC stay suppressed while the decker moves between an RTG and its LTGs (p.47). They are also kept
+    through a failed log-on elsewhere.
+  - Dump shock after a failed log-on comes from the place the decker was really on.
+
+### Fixed
+- A spoofed-and-frozen trace that dies no longer keeps costing a point of Detection Factor.
+
 ## 0.132.0 — 2026-11-04
 
 ### Added

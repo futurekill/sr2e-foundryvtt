@@ -215,9 +215,12 @@ Host actors with `system.kind`; where a decker is = `currentPlace()` (derived fr
 never stored); a scope's tally moves via the `flags.sr2e.vr2Tallies` ledger written by `replaceSessions` (ONE update,
 `==` forced replacement); every `vr2SystemTest` runs in the per-actor `vr2op:` queue — never call it from inside
 that queue. Jackpoint kind/wiring are snapshotted in `connOpen`: read them through `connJackpoint()`.
+Part 7b: place changes write durable `flags.sr2e.vr2Moves` entries in the SAME update; `syncMoves` (sequencer) turns
+them into seq-ordered `move` facts before passes/ticks/traces, and the fold (`traceLostAt`) ends traces — never write
+`traceDead` for grid interest. Ledger entries are written with `vr2Tallies.==<scope>` (nested maps).
 Remaining deferred: frames (6a), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
-requirements in docs/PLAN-vr2-part6-frames.md — and grid topology 7b (grid trace, hubs) and 7c (satellites), each
-needing its own detailed section + review in docs/PLAN-vr2-part7-grids.md.
+requirements in docs/PLAN-vr2-part6-frames.md — and grid topology 7c (satellites), which needs its own detailed
+section + review in docs/PLAN-vr2-part7-grids.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;
 `test/roll-labels.test.mjs` fails on a key missing from lang/en.json). Still English:
