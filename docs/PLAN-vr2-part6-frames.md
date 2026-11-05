@@ -1,6 +1,6 @@
 # Plan: VR2.0 part 6: frames and SKs
 _Draft 5 (2026-11-05): 6a-0 released in 0.131.0. **6a-1 (frame cores and loading) Codex-APPROVED round 2; BUILT and released in 0.135.0 (code review approved round 3).** 6a-2 is outlined in three sub-parts
-(6a-2a/b/c), each to be detailed and reviewed. **"6a-2a in detail" is under review (2026-11-05).**
+(6a-2a/b/c), each to be detailed and reviewed. **6a-2a Codex-APPROVED round 3 (2026-11-05), not built.**
 6a-2 (running frames), 6b and 6c each get their own detailed section and review, meeting the requirements Codex R1
 raised (listed below). Codex review: docs/PLAN-vr2-part6-frames-REVIEW-LOG.md. No code before review._
 
@@ -506,7 +506,7 @@ bandwidth. Multiplexing and Retrain stay out of scope, as part of the Bandwidth 
   - A basic order as a Free Action, then actions on their own turns with DINAB as the skill.
   - Existence independent of the owner ("whether their creator is logged on or not").
 
-## 6a-2a in detail: the frame actor, upload, lifecycle, frames as targets (the part under review)
+## 6a-2a in detail: the frame actor, upload, lifecycle, frames as targets
 
 Builds on 6a-1 (0.135.0): a written core with an active load (`activeLoad`). The pages were rendered for this
 section (2026-11-05): Running a Frame and Dumb Frames (p.106–107), Smart Frames (p.107), I/O bandwidth (p.91),

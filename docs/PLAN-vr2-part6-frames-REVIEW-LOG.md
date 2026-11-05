@@ -258,3 +258,10 @@ VERDICT: REVISE
 ### Claude's response
 - **#1 accepted.** A frame is ended by any shutdown run that went offline after its start, even one reset since.
 - **#2 accepted.** The Armor/Shield wear is replayed from the winning `frameHit` receipt; `addWear` is card-keyed.
+
+## 6a-2a Round 3 — Codex (fresh session, brief; ~83k input tokens)
+
+VERDICT: APPROVED
+
+**6a-2a APPROVED in round 3.** 6a-2b (commands, decoy frames, event triggers) and 6a-2c (smart frames) still need
+their own detailed sections and reviews.
