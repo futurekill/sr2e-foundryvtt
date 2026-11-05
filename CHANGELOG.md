@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.137.0 — 2026-11-05
+
+### Added
+- **VR2.0 commanding dumb frames** (VR2.0 pp.106–107), the third part of frames:
+  - **Command…** on each running dumb frame (Matrix tab, *Frames running*) gives it an order: a System Operation, an
+    attack, Scan Icon, a combat maneuver, or an event trigger.
+    - A command is your **Simple Action**, even for a Complex operation, and one command is one action: a second
+      attack needs a second command (p.106).
+    - You roll your own Computer, Hacking Pool and Karma; the frame's programs and attributes count (its Masking
+      and Sleaze for the Detection Factor, its Sensor for Analyze Icon, its Evasion and Cloak for maneuvers).
+    - The frame shares your datatrail: the host's successes go on **your** tally, and you must be on the frame's host.
+    - A frame only executes programs: an operation needs its utility on the frame. It never logs on, logs off or
+      waits for you.
+  - **Weapon carriers** (p.107): a frame attacks with its own attack and attribute programs. Locks, Slow and an IC's
+    crash tally treat the attack as yours; a Track run through a frame uses the frame's Sensor and dies with it.
+  - **A frame core's DINAB** runs one of the frame's programs by itself, once per action of yours (a Free Action, no
+    pools): a failed run costs the frame a point of DINAB, and all 1s crash that program (p.103, p.106).
+  - **Decoy frames** (p.107): a Decoy command through a frame makes security go after the frame — every proactive IC
+    attack on you goes to it, with no die — for as long as you stay inactive. Your own action (anything but a Null
+    Operation) ends it for good, and so does the frame crashing. Trace IC still hunts you (same datatrail).
+  - **Event triggers** (p.107): a frame with Sensor, and analyze (host events) or scanner (other users), at half the
+    host's Security Value or more watches for an event you describe. The GM fires it from the frame's sheet; the
+    report reaches you if you're on that host.
+  - **Attribute attacks on frames:** cripplers and attribute utilities now lower a frame's Bod, Evasion, Masking or
+    Sensor (its sheet shows the loss). Track, hog and black utilities still target only deckers.
+  - Tar striking a frame's command crashes the frame's copy, not your deck's; a data bomb it sets off hits the frame.
+- How-To Guides: *Command a dumb frame (VR2.0)*.
+
 ## 0.136.0 — 2026-11-05
 
 **Restart the Foundry server after updating:** this release adds a new actor type (Frame).

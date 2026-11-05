@@ -10,15 +10,18 @@
   <p class="rule-note">Running on <strong>{{frame.host}}</strong> for <strong>{{frame.owner}}</strong> (VR2.0 p.105–107).
     {{#ifEquals system.kind "dumb"}}A dumb frame crashes when its decker leaves this host.{{else}}A smart frame runs on whether its decker is logged on or not.{{/ifEquals}}</p>
   <div class="field-grid">
-    <label class="field"><span>Bod</span><strong>{{system.bod}}</strong></label>
-    <label class="field"><span>Evasion</span><strong>{{system.evasion}}</strong></label>
-    <label class="field"><span>Masking</span><strong>{{system.masking}}</strong></label>
-    <label class="field"><span>Sensor</span><strong>{{system.sensor}}</strong></label>
-    {{#if system.dinab}}<label class="field" title="A smart frame's Computer skill (p.106)"><span>DINAB</span><strong>{{system.dinab}}</strong></label>{{/if}}
+    <label class="field"><span>Bod</span><strong>{{frame.attrs.bod}}{{#ifEquals frame.attrs.bod system.bod}}{{else}} <small>of {{system.bod}}</small>{{/ifEquals}}</strong></label>
+    <label class="field"><span>Evasion</span><strong>{{frame.attrs.evasion}}{{#ifEquals frame.attrs.evasion system.evasion}}{{else}} <small>of {{system.evasion}}</small>{{/ifEquals}}</strong></label>
+    <label class="field"><span>Masking</span><strong>{{frame.attrs.masking}}{{#ifEquals frame.attrs.masking system.masking}}{{else}} <small>of {{system.masking}}</small>{{/ifEquals}}</strong></label>
+    <label class="field"><span>Sensor</span><strong>{{frame.attrs.sensor}}{{#ifEquals frame.attrs.sensor system.sensor}}{{else}} <small>of {{system.sensor}}</small>{{/ifEquals}}</strong></label>
+    {{#if system.dinab}}<label class="field" title="A smart frame's Computer skill; a dumb core's DINAB runs one program per action of its decker's, −1 when a run fails (p.103, p.106)"><span>DINAB</span><strong>{{frame.dinabLeft}}{{#ifEquals frame.dinabLeft system.dinab}}{{else}} <small>of {{system.dinab}}</small>{{/ifEquals}}</strong></label>{{/if}}
     {{#ifEquals system.kind "smart"}}<label class="field" title="Reaction = Core Rating; 1D6 + 1 per Initiative point (p.106)"><span>Initiative</span><strong>{{system.coreRating}} + {{frame.initDice}}D6</strong></label>{{/ifEquals}}
   </div>
   <p class="rule-note"><strong>Condition</strong> (10 boxes, p.124):
     {{#each frame.boxes as |b|}}<i class="fas {{#if b}}fa-square{{else}}fa-square-o far fa-square{{/if}}"></i>{{/each}} {{frame.state.monitor}}/10</p>
   <p class="rule-note"><strong>Programs</strong> (object-code copies; they can't be changed):
     {{#each frame.programs as |p|}}<br>{{p.name}} {{p.effective}}{{#ifEquals p.effective p.rating}}{{else}} of {{p.rating}}{{/ifEquals}}{{#if p.crashed}} (crashed){{/if}}{{else}} none.{{/each}}</p>
+  {{#if frame.triggers.length}}<p class="rule-note"><strong>Event triggers</strong> (VR2.0 p.107; the decker must be on this host to get the message):
+    {{#each frame.triggers as |t|}}<br>{{t.note}} <em>({{t.watch}})</em>{{#if ../frame.isGM}} <button type="button" data-action="vr2ic" data-op="triggerFire" data-arg="{{../actor.id}}|{{t.key}}"
+      title="The event happened: the frame reports it to its decker, if the frame can still see it and the decker is on this host.">Fire</button>{{/if}}{{/each}}</p>{{/if}}
 </section>

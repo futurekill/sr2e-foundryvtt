@@ -89,7 +89,9 @@ export function dinabLeft(item) {
  * The combat phase `actor` acts in ("" outside combat): DINAB's one-run-per-phase key (p.103). The combat's monotonic
  * `phaseSeq` (engagement.mjs), not round:turn, which repeats when initiative passes re-sort the tracker.
  */
-function phaseKey(actor) {
+export function phaseKey(actor) {
+  // Part 6a-2b §5: a frame acts on its OWNER's actions (it's in no combat of its own).
+  if (actor?.type === "frame") actor = sync(actor.system.ownerUuid) ?? actor;
   const c = game.combats.find(x => x.started && x.combatants.some(cb => cb.actor?.uuid === actor.uuid));
   return c ? `${c.id}:${Number(c.getFlag("sr2e", "phaseSeq")) || 0}` : "";
 }
@@ -123,6 +125,12 @@ export async function spendUse(actor, item, { dinab = false } = {}) {
 }
 /** A DINAB run failed (p.103): one point per use, keyed to the CAPTURED load, so a late write never wears a fresh copy. */
 export async function dinabFail(actor, ref, useId) {
+  // Part 6a-2b §5: a frame core's DINAB wears the frame (one point per run, keyed by the use).
+  if (ref?.core && actor?.type === "frame") {
+    const k = `${ref.upload}_${useId}`;
+    if (!actor.flags?.sr2e?.coreDinabWear?.[k]) await actor.update({ [`flags.sr2e.coreDinabWear.${k}`]: true });
+    return;
+  }
   const item = actor?.items.get(ref?.itemId);
   if (!item || !ref?.dinab) return;
   const k = `${ref.loadGen}_${useId}`;
@@ -176,7 +184,9 @@ export function addWear(actor, ref, cardId) {
 
 /** What to capture when a utility is used. */
 const useRef = (item, dinab = false) => item ? { itemId: item.id, loadGen: item.system.loadGen ?? 0, rating: programRating(item), name: item.name,
-  ...(dinab ? { dinab: true } : {}) } : null;
+  ...(dinab ? { dinab: true } : {}),
+  // Part 6a-2b §1: a frame's copy names its frame, so tar, wear and crashes find the right holder.
+  ...(item.parent?.type === "frame" ? { icon: { uuid: item.parent.uuid, upload: item.parent.system.uploadId || item.parent.id } } : {}) } : null;
 
 const hostSnap = (host) => ({ hostUuid: host.uuid, hostName: host.name,
   securityCode: host.system.securityCode, securityValue: host.system.securityValue });
@@ -640,13 +650,14 @@ export function releaseSuppressed(actor, key) {
 }
 
 /** Detection Factor (p.17–18), less one per suppressed IC (p.40); TN floor 2. */
-export function vr2DetectionFactor(actor) {
+export function vr2DetectionFactor(actor, icon = actor) {
   // Part 2's per-session suppressions, plus part 3's frozen traces on the connection (p.46).
   // Part 5a §5: a Slow suppression's point is derived from the IC's own fact.
   const slowHeld = Y.allIC().reduce((n, ic) => n + Y.slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid).length, 0);
   const suppressed = slowHeld + Object.keys(placeSuppressed(actor)).length
     + (actor.system?.vr2Conn ? (Y.foldOf(actor).live?.frozenCount ?? 0) : 0);
-  return Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")) - suppressed);
+  // Part 6a-2b §1: Masking and Sleaze are the acting icon's; the suppressions are the datatrail's (the commander's).
+  return Math.max(2, detectionFactor(icon.system.matrixPersona?.masking ?? 0, loadedUtility(icon, "sleaze")) - suppressed);
 }
 
 // ── Action boundary (improvised builds, PLAN-vr2-part2 §7) ────────────────────
@@ -670,7 +681,8 @@ export function commitAction(actor, startedWithBuildId) {
 export function renderSystemTestCard(st) {
   const v = systemTestVerdict(st.successes, st.hostSuccesses);
   return `<div class="sr2e-item-card sr2e-vr2-systest">
-    <strong>${esc(st.actorName)} — ${esc(st.opLabel)}</strong>
+    <strong>${esc(st.actorName)} — ${esc(st.opLabel)}${st.icon ? ` through ${esc(st.icon.name)}` : ""}</strong>
+    ${st.icon ? `<br><em>${st.coreDinab ? `${esc(st.icon.name)}'s core DINAB runs it (a Free Action, p.106)` : `A command to ${esc(st.icon.name)}: a Simple Action (p.106)`}; the frame's programs and attributes, ${esc(st.actorName)}'s datatrail.</em>` : ""}
     <br>vs ${esc(st.hostName)}: ${esc(st.subsystemLabel)} ${st.subsystem}${st.console ? " (halved: console access)" : ""}${st.utility ? ` − ${esc(st.utilityName)} ${st.utility}` : ""}${st.jackAccess ? ` ${st.jackAccess > 0 ? "+" : "−"} ${Math.abs(st.jackAccess)} jackpoint` : ""}${st.goal ? ` ${st.goal > 0 ? "+ 1 vague goal" : "− 1 definite goal"}` : ""} → TN ${st.tn}.
     <br>The host rolls Security Value ${st.securityValue}${st.svMod ? ` (base ${st.securityValue - st.svMod} +${st.svMod} for ${esc(st.waited ?? "the wait")}, p.117)` : ""} vs Detection Factor ${st.df}${st.redirectDf ? " (less the jackpoint's trace modifier, p.117)" : ""}: ${plural(st.hostSuccesses, "success")}.
     <br>${v.success ? `<strong style="color:#7a8;">Succeeds</strong>` : `<strong style="color:#c44;">Fails</strong>`}
@@ -681,7 +693,8 @@ export function renderSystemTestCard(st) {
     ${st.hubNote ? `<br><em>On the hub: this covers the whole host network; the GM says which host has it (p.36).</em>` : ""}
     ${st.logon ? `<br><em>${v.success ? `${esc(st.actorName)} is on ${esc(st.hostName)}.` : `Log-on refused: ${esc(st.actorName)} stays where they were.`}</em>` : ""}
     ${st.operation === "locateAccessNode" && v.success ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2-reveal" data-actor="${esc(st.actorUuid)}">Reveal an address… (GM, p.114)</button></div>` : ""}
-    ${st.operation === "decoy" ? `<br><em>${v.success ? `A decoy copy of the icon: a proactive IC attacking ${esc(st.actorName)} hits it on 1D6 ≤ ${st.successes} (not trace IC; p.112).` : "No decoy."}</em>` : ""}
+    ${st.operation === "decoy" && st.icon ? `<br><em>${v.success ? `A decoy frame: while ${esc(st.actorName)} stays inactive, security goes after ${esc(st.icon.name)} (not trace IC; p.107).` : "No decoy frame."}</em>` : ""}
+    ${st.operation === "decoy" && !st.icon ? `<br><em>${v.success ? `A decoy copy of the icon: a proactive IC attacking ${esc(st.actorName)} hits it on 1D6 ≤ ${st.successes} (not trace IC; p.112).` : "No decoy."}</em>` : ""}
   </div>`;
 }
 
@@ -696,13 +709,21 @@ export function vr2SystemTest(actor, host, operation, opts = {}) {
 async function systemTestNow(actor, host, operation, opts) {
   if (operation !== "gracefulLogoff") { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   const op = CONFIG.SR2E.vr2SystemOperations[operation];
+  // Part 6a-2b §1: a command to a dumb frame — the decker rolls, the frame's copies and attributes act, on its host.
+  const ctx = opts.ctx ?? null, icon = ctx?.frame ?? actor;
+  const F = ctx ? await import("./frames.mjs") : null;
+  if (ctx) {
+    host = sync(icon.system.hostUuid);
+    const why = F.commandProblem(actor, icon, { op: operation });
+    if (why) return ui.notifications.warn(why);
+  }
   if (!op || host?.type !== "host") return ui.notifications.warn("Choose a host and a System Operation.");
   if (Y.hostOffline(host)) return ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`);
   // Part 7a: under grid topology only what the book allows from where the decker is (p.14–30), checked before
   // anything is spent or rolled; a logon carries its attempt record.
   const conn = actor.system.vr2Conn;
   let logon = null;
-  if (topologyOn() && conn) {
+  if (topologyOn() && conn && !ctx) {
     const topo = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null;
     const r = reachable({ at, op: operation, target: host.uuid, topo, jack: connJackpoint(actor), known: knownPlaces(actor), gm: game.user.isGM,
       mapped: mappedHubs(actor), sat: satOf(actor) });
@@ -713,7 +734,8 @@ async function systemTestNow(actor, host, operation, opts) {
       network: !!at && operation === "logonHost" && isNetworkMove(at, host.uuid, topo) };
   }
   // Jackpoint Access modifier (p.28–29), every Access Test; a console halves Access and Security Value, rounded up.
-  const jk = conn && op.subsystem === "access" ? jackpointKind(connJackpoint(actor).kind) : null;
+  // A frame is already on the host: the decker's jackpoint plays no part in its tests.
+  const jk = conn && !ctx && op.subsystem === "access" ? jackpointKind(connJackpoint(actor).kind) : null;
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
   const sub = op.subsystem === "targeted" ? (opts.subsystem || "files") : op.subsystem;
   const subsystem = jk?.halve ? halveUp(host.system.subsystemRating(sub)) : host.system.subsystemRating(sub);
@@ -721,12 +743,17 @@ async function systemTestNow(actor, host, operation, opts) {
   // Locate Access Node (p.114): +1 for a vague goal, −1 for a definite one.
   const goal = operation === "locateAccessNode" ? Math.max(-1, Math.min(1, Number(opts.goal) || 0)) : 0;
   // Sensitive is judged on THIS host, not the last session's; a DINAB run takes the best copy with DINAB left (R2 #2).
-  const utilityItem = bestUtility(actor, op.utility, host, opts.dinab ? (i => dinabLeft(i) > 0) : undefined);
-  // DINAB (p.103): the utility runs itself with its own skill — no pools, no Karma, a Free Action.
-  const dinab = !!opts.dinab;
-  if (dinab && !dinabLeft(utilityItem)) return ui.notifications.warn(`No ${op.utility ?? "utility"} with DINAB left is loaded.`);
+  const utilityItem = bestUtility(icon, op.utility, host, opts.dinab ? (i => dinabLeft(i) > 0) : undefined);
+  // A frame only executes programs (p.106): an operation through it needs its utility.
+  if (ctx && !utilityItem) return ui.notifications.warn(`${icon.name} carries no ${op.utility ?? "utility"} for ${op.label}.`);
+  // DINAB (p.103): the utility runs itself with its own skill — no pools, no Karma, a Free Action. A frame core's
+  // DINAB (6a-2b §5) runs a copy the same way, with the core's DINAB left as its dice.
+  const coreDinab = !!ctx && !!opts.coreDinab;
+  const dinab = !!opts.dinab || coreDinab;
+  if (coreDinab && !(icon.system.dinabLeft > 0)) return ui.notifications.warn(`${icon.name}'s core has no DINAB left.`);
+  if (dinab && !coreDinab && !dinabLeft(utilityItem)) return ui.notifications.warn(`No ${op.utility ?? "utility"} with DINAB left is loaded.`);
   const trained = dinab || (computer?.system?.rating ?? 0) > 0;
-  const dice = dinab ? dinabLeft(utilityItem) : trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
+  const dice = coreDinab ? icon.system.dinabLeft : dinab ? dinabLeft(utilityItem) : trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
   const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
   // A Graceful Logoff with trace IC locating is harder by each trace's rating (p.45).
@@ -735,15 +762,20 @@ async function systemTestNow(actor, host, operation, opts) {
     ? (Y.foldOf(actor).live?.traces ?? []).filter(t => !t.complete && !t.dead && !t.track && (!logon?.network || t.place === logon.from))
       .reduce((n, t) => n + (t.rating ?? 0), 0) : 0;
   // Analyze Icon: the Sensor rating lowers the TN too, never below 2 (p.111).
-  const sensor = operation === "analyzeIcon" ? (actor.system.matrixPersona?.sensor ?? 0) : 0;
+  const sensor = operation === "analyzeIcon" ? (icon.system.matrixPersona?.sensor ?? 0) : 0;
   const tn = Math.max(2, subsystem - utility - sensor + jackAccess + goal) + (trained ? 0 : 4) + tracing;
   const subsystemLabel = CONFIG.SR2E.vr2Subsystems[sub] ?? sub;
-  const session = await sessionFor(actor, host, { logon });
+  // A frame command never switches the decker's session: it must already be on the frame's host (6a-2b §1).
+  const session = ctx ? liveSession(actor) : await sessionFor(actor, host, { logon });
   if (!session) return;
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   // The utility executes (part 5b): one-shot spent, DINAB's phase claimed — before the dice.
-  const useId = foundry.utils.randomID(), uref = useRef(utilityItem, dinab);
-  const refused = await spendUse(actor, utilityItem, { dinab });
+  const useId = foundry.utils.randomID();
+  const uref = coreDinab ? { ...useRef(utilityItem, true), core: true, upload: icon.system.uploadId || icon.id } : useRef(utilityItem, dinab);
+  if (ctx) { const why = F.commandProblem(actor, icon, { op: operation, copy: utilityItem }); if (why) return ui.notifications.warn(why); }
+  else if (operation !== "nullOp") await (await import("./frames.mjs")).ownAction(actor, op.label);   // 6a-2b §4
+  if (coreDinab) { const why = await F.claimCoreDinab(icon, actor); if (why) return ui.notifications.warn(why); }
+  const refused = await spendUse(icon, utilityItem, { dinab: dinab && !coreDinab });
   if (refused) return ui.notifications.warn(refused);
   // A Null Operation the GM rolls secretly (p.117): every message it posts goes to the GMs only.
   const secret = !!opts.secret && game.user.isGM;
@@ -754,9 +786,10 @@ async function systemTestNow(actor, host, operation, opts) {
         poolDice: opts.hacking ? { hacking: opts.hacking } : undefined, whisperGM: secret,
         karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
   if (!res) return;
+  if (ctx) { const why = F.commandProblem(actor, icon, { op: operation, after: true }); if (why) return ui.notifications.warn(`${why} The command is lost.`); }
   if (!dinab) await commitAction(actor, startedBuild);   // a DINAB run is a Free Action: a build in progress goes on
   // Redirect Datatrail under topology (p.117): the opposing test's TN less the jackpoint's trace modifier.
-  const df = topologyOn() && operation === "redirectDatatrail" && conn ? redirectTN(vr2DetectionFactor(actor), connJackpoint(actor).kind) : vr2DetectionFactor(actor);
+  const df = topologyOn() && operation === "redirectDatatrail" && conn ? redirectTN(vr2DetectionFactor(actor, icon), connJackpoint(actor).kind) : vr2DetectionFactor(actor, icon);
   // Null Operation (p.117): the host's BASE Security Value plus the inactivity modifier.
   const svMod = operation === "nullOp" ? Math.max(0, Number(opts.svMod) || 0) : 0;
   const securityValue = (jk?.halve ? halveUp(host.system.securityValue) : host.system.securityValue) + svMod;
@@ -766,6 +799,7 @@ async function systemTestNow(actor, host, operation, opts) {
     successes: res.successes, hostSuccesses: hostRoll.successes, sessionId: session.id, testMessageId: res.testMessageId,
     // Part 3: what reactive IC (tar, worms, bombs) needs to act on this test (plan §4).
     hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem), sub,
+    ...(ctx ? { icon: { uuid: icon.uuid, upload: icon.system.uploadId || icon.id, name: icon.name }, command: true } : {}), ...(coreDinab ? { coreDinab: true } : {}),
     allOnes: (res.dice ?? []).length > 0 && res.dice.every(d => d.total === 1),
     deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null,
     ...(svMod ? { svMod, waited: opts.waited ?? "" } : {}), ...(secret ? { secret: true } : {}),
@@ -780,13 +814,18 @@ async function systemTestNow(actor, host, operation, opts) {
   await applyTallyEvent(msg);
   if (logon) await settleLogon(actor, { sessionId: session.id, logonId: logon.id, card: msg.id, ok: systemTestVerdict(st.successes, st.hostSuccesses).success });
   await settleMapping(actor, st);
+  // A decoy frame (6a-2b §4): the same, its own record; live-ness folded from the card.
+  if (operation === "decoy" && st.conn != null && ctx) {
+    await recordEvent(actor, `vr2:decoyframe:${st.conn}:${msg.id}`, { type: "decoyFrame", conn: st.conn, card: msg.id, frame: icon.system.uploadId || icon.id,
+      host: host.uuid, sessionId: session.id });
+  }
   // Decoy (p.112): always recorded; whether it IS a decoy is read live from this card (Karma included; plan R2 #4).
-  if (operation === "decoy" && st.conn != null) {
+  if (operation === "decoy" && st.conn != null && !ctx) {
     await recordEvent(actor, `vr2:decoy:${st.conn}:${msg.id}`, { type: "decoy", conn: st.conn, card: msg.id, host: host.uuid, sessionId: session.id });
   }
   // DINAB (p.103): defeated by the host → −1; all 1s → the program crashes. Final at the roll (no Karma).
-  if (dinab && !await dinabCrashCheck(actor, uref, useId, res) && !systemTestVerdict(res.successes, hostRoll.successes).success) {
-    await dinabFail(actor, uref, useId);
+  if (dinab && !await dinabCrashCheck(icon, uref, useId, res) && !systemTestVerdict(res.successes, hostRoll.successes).success) {
+    await dinabFail(icon, uref, useId);
   }
   // Probe IC (p.42): its own roll against the Detection Factor, its own event; never the verdict.
   const probe = host.system.probe ?? 0;
@@ -878,6 +917,12 @@ function offenseOf(item) {
 
 /** The VR2.0 attack card (state in flags.sr2e.matrix, ruleset "vr2"). */
 export function renderVR2MatrixCard(st) {
+  // Part 6a-2b: who's behind a frame's attack, and a decoy frame that drew an IC's.
+  const note = (st.command ? `<br><em>A command from ${esc(st.commanderName ?? "its decker")}: a Simple Action (VR2.0 p.106–107).</em>` : "")
+    + (st.decoyFrame ? `<br><em>${esc(st.attackerName)} goes after ${esc(st.targetName ?? "")} (decoy frame, VR2.0 p.107).</em>` : "");
+  return renderMatrixCardBody(st).replace(/<\/div>\s*$/, `${note}</div>`);
+}
+function renderMatrixCardBody(st) {
   const hit = (st.successes ?? 0) > 0;
   const attr = st.effect === "attribute";
   if (st.effect === "trace") {
@@ -936,6 +981,9 @@ export function renderVR2MatrixCard(st) {
  * attacker, are valid only while both sides are the same connections, and an IC
  * observer's lost sight expires lazily (rounds in that combat + tally gained since).
  */
+/** Whose session tally an icon's evasion counts against (6a-2b R1 #4): a frame's is its owner's datatrail. */
+const tallyHolder = (a) => (a?.type === "frame" ? sync(a.system.ownerUuid) : a);
+
 function maneuverState(attacker, target) {
   const mv = attacker.flags?.sr2e?.vr2Maneuvers ?? {};
   const mine = sessionKey(attacker), theirs = sessionKey(target), k = keyOf(target.uuid);
@@ -946,7 +994,7 @@ function maneuverState(attacker, target) {
     if (lost.observer === "ic") {
       const combat = lost.combatId ? game.combats?.get(lost.combatId) : null;
       const rounds = combat ? Math.max(0, combat.round - lost.roundAtStart) : 0;
-      const tally = Math.max(0, (liveSession(target)?.tally ?? 0) - (lost.tallyAtStart ?? 0));
+      const tally = Math.max(0, (liveSession(tallyHolder(target))?.tally ?? 0) - (lost.tallyAtStart ?? 0));
       if (rounds + tally >= lost.turns) expired = true; else blind = true;
     } else blind = true;
   }
@@ -956,20 +1004,21 @@ function maneuverState(attacker, target) {
   return { blind, expired, parry, pos, k };
 }
 
-async function promptAttack(actor, target, ms) {
+async function promptAttack(actor, target, ms, icon = actor, ctx = null) {
   const isIC = actor.type === "ic";
-  const hosts = game.actors.filter(a => a.type === "host");
+  // A frame attacks on its own host (6a-2b §1): the only choice.
+  const hosts = ctx ? [sync(icon.system.hostUuid)].filter(h => h?.type === "host") : game.actors.filter(a => a.type === "host");
   if (!hosts.length) { ui.notifications.warn("Create a Host actor first: VR2.0 cybercombat runs on its Security Code and Value."); return null; }
-  const preHost = isIC ? sync(actor.system.hostUuid) : (sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor));
+  const preHost = ctx ? hosts[0] : isIC ? sync(actor.system.hostUuid) : (sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor));
   let programs = "", dinabAny = false;
   const areaOthers = [];
   if (!isIC) {
     // Not yet filtered for Sensitive: the host is picked in this dialog, and the attack re-checks on THAT host (R2 #3).
-    const list = usablePrograms(actor).filter(i => !isCompressed(i)).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
+    const list = usablePrograms(icon).filter(i => !isCompressed(i)).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
       && !(utilityKindOf(i) && utilityTargetProblem(utilityKindOf(i), target))
       && limitAllows(i.system.activeOpts ?? [], limitClass(target.type)))
       .sort((a, b) => programRating(b) - programRating(a));
-    const imp = liveSession(actor)?.improvised;
+    const imp = ctx ? null : liveSession(actor)?.improvised;
     const improv = imp?.level ? `<option value="improv">Improvised attack (Power ${imp.power}, ${imp.level})</option>` : "";
     if (!list.length && !improv) {
       ui.notifications.warn("Load an attack utility, or build an improvised attack (VR2.0 p.123).");
@@ -977,7 +1026,7 @@ async function promptAttack(actor, target, ms) {
     }
     // Part 5b: an Area utility engages more of the user's targets with one test (p.103); DINAB runs it (p.103).
     if (utilityOptionsOn()) {
-      const seen = new Set([target.uuid, actor.uuid]);
+      const seen = new Set([target.uuid, actor.uuid, icon.uuid]);
       for (const t of game.user.targets ?? []) {
         const a = t.actor;
         if (a && ["ic", "character", "frame"].includes(a.type) && !seen.has(a.uuid)) { seen.add(a.uuid); areaOthers.push(a); }
@@ -1009,6 +1058,8 @@ async function promptAttack(actor, target, ms) {
       <div class="form-group"><label>Attack utility:</label><select name="program">${programs}</select></div>
       ${areaOthers.length ? `<div class="form-group"><label title="An Area utility attacks up to its Area Rating of targets with ONE test, each at +1 TN per target (VR2.0 p.103)">Area — also attack:</label>
         <div>${areaOthers.map(a => `<label style="display:block;"><input type="checkbox" name="areaT" value="${esc(a.uuid)}"> ${esc(a.name)}</label>`).join("")}</div></div>` : ""}
+      ${ctx && icon.system.dinabLeft > 0 ? `<div class="form-group"><label title="The frame core's DINAB runs the copy: a Free Action, once per action of yours; −1 DINAB when it misses or does nothing (VR2.0 p.103, p.106)">Run by the core's DINAB (${icon.system.dinabLeft}):</label>
+        <input type="checkbox" name="coreDinab"></div>` : ""}
       ${dinabAny ? `<div class="form-group"><label title="The utility's DINAB runs it: a Free Action, no Hacking Pool or Karma; −1 DINAB when it misses or does nothing (VR2.0 p.103)">Run by DINAB:</label>
         <input type="checkbox" name="dinab"></div>` : ""}
       ${Y.partyOf(target) && !utilityOptionsOn() ? `<div class="form-group"><label title="Party IC: +${Y.partyOf(target)} TN to hit, except with an area-effect combat utility (VR2.0 p.52)">Area-effect utility:</label>
@@ -1026,7 +1077,7 @@ async function promptAttack(actor, target, ms) {
       { action: "attack", label: "Attack", default: true, callback: (ev, b) => {
         const f = b.form.elements;
         pick = { hostId: f.host.value, status: f.status.value, programId: f.program?.value ?? null, level: f.level?.value ?? "",
-          position: f.position?.value ?? "", area: !!f.area?.checked, comp: f.comp?.value ?? "", dinab: !!f.dinab?.checked,
+          position: f.position?.value ?? "", area: !!f.area?.checked, comp: f.comp?.value ?? "", dinab: !!f.dinab?.checked, coreDinab: !!f.coreDinab?.checked,
           areaUuids: [...b.form.querySelectorAll("input[name=areaT]:checked")].map(i => i.value),
           hacking: Math.max(0, Math.min(hackingMax, parseInt(f.hacking?.value) || 0)),
           karmaDice: Math.max(0, Math.min(karma, parseInt(f.karma_dice?.value) || 0)), ...readMiscDice(b.form) };
@@ -1045,32 +1096,36 @@ const computerOf = (actor) => actor.items.find(i => i.type === "skill" && i.name
  * IC (the host's Security Value). Needs a target: maneuvers and defenses apply to it.
  */
 const ATTACK_IN_FLIGHT = new Set();
-export async function vr2MatrixAttack(actor) {
+export async function vr2MatrixAttack(actor, ctx = null) {
   // One attack at a time per actor: a one-shot build or a position bonus is used once.
   if (ATTACK_IN_FLIGHT.has(actor.uuid)) return ui.notifications.warn(`${actor.name} is already attacking.`);
   ATTACK_IN_FLIGHT.add(actor.uuid);
-  try { return await attackOnce(actor); } finally { ATTACK_IN_FLIGHT.delete(actor.uuid); }
+  try { return await attackOnce(actor, ctx); } finally { ATTACK_IN_FLIGHT.delete(actor.uuid); }
 }
 
-async function attackOnce(actor) {
+async function attackOnce(actor, ctx = null) {
   const why = Y.vr2ActionGuard(actor);
   if (why) return ui.notifications.warn(why);
-  const target = firstTarget()?.actor ?? null;
-  if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you attack first.");
+  // Part 6a-2b §3: a weapon carrier — the frame attacks with its copies, the decker rolls (a Simple Action).
+  const icon = ctx?.frame ?? actor;
+  const F = ctx ? await import("./frames.mjs") : null;
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "attack" }); if (w) return ui.notifications.warn(w); }
+  let target = firstTarget()?.actor ?? null;
+  if (!target || target.uuid === actor.uuid || target.uuid === icon.uuid) return ui.notifications.warn("Target the icon you attack first.");
   if (!["ic", "character", "frame"].includes(target.type)) return ui.notifications.warn("Only IC, a decker's persona or a frame can be attacked in the Matrix.");
   // Part 6a-2a: a frame that has ended is gone.
   if (target.type === "frame" && (await import("./frames.mjs")).frameState(target).ended) return ui.notifications.warn(`${target.name} has crashed.`);
-  const ms = maneuverState(actor, target);
-  if (ms.blind) return ui.notifications.warn(`${actor.name} has lost ${target.name} (evade detection, VR2.0 p.122): re-detect it first.`);
+  const ms = maneuverState(icon, target);
+  if (ms.blind) return ui.notifications.warn(`${icon.name} has lost ${target.name} (evade detection, VR2.0 p.122): re-detect it first.`);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
-  const o = await promptAttack(actor, target, ms);
+  const o = await promptAttack(actor, target, ms, icon, ctx);
   if (!o) return;
   // Re-read: the target may have evaded or parried while the dialog was open.
-  const ms2 = maneuverState(actor, target);
-  if (ms2.blind) return ui.notifications.warn(`${actor.name} has lost ${target.name} (evade detection, VR2.0 p.122).`);
+  const ms2 = maneuverState(icon, target);
+  if (ms2.blind) return ui.notifications.warn(`${icon.name} has lost ${target.name} (evade detection, VR2.0 p.122).`);
   if (ms2.pos !== ms.pos) o.position = "";
   Object.assign(ms, ms2);
-  const host = game.actors.get(o.hostId);
+  const host = ctx ? sync(icon.system.hostUuid) : game.actors.get(o.hostId);
   if (!host) return;
   const isIC = actor.type === "ic";
   const code = host.system.securityCode;
@@ -1079,7 +1134,7 @@ async function attackOnce(actor) {
   let tn = cybercombatTN(code, o.status) + ms.parry;
   let dice, power, level, tnContext, effect = {}, usedBuild = null, attackerComputer, special = {};
   let prog = null, kinds = [], extras = [], dinabRef = null;
-  let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "", decoy = null;
+  let cascade = { sv: 0, rating: 0 }, cascade0 = null, icRating = null, prof = null, threat = 0, icKey0 = "", decoy = null, decoyFrame = null;
   if (isIC) {
     // An IC with no host keeps the one picked, so its initiative uses it too.
     if (!actor.system.hostUuid && actor.isOwner) await actor.update({ "system.hostUuid": host.uuid });
@@ -1094,9 +1149,28 @@ async function attackOnce(actor) {
     prof = Y.icProfile(actor, Y.isConstruct(actor) ? o.comp : "");
     threat = Y.threatOf(actor);
     icKey0 = Y.icKeyOf(actor, prof.comp);   // the incarnation that attacks: a crash during the roll can't relabel it
+    // Part 6a-2b §4 (p.107): a decoy frame draws ALL security measures but trace, with no die. Decided on the
+    // sequencer AFTER every pending own-action request is processed, so the decker's action and this attack have one
+    // order (R1 #8); bound to the card before any target term.
+    if (target.type === "character" && isProactive(prof.program) && prof.program !== "trace" && target.system.vr2Conn) {
+      const DF = await import("./frames.mjs");
+      if (DF.hasOpenDecoyFrame(target)) {
+        if (!Y.isSequencer()) return ui.notifications.warn(`${target.name} has a decoy frame: the active GM rolls this attack.`);
+        await Y.flush();
+        const live = DF.liveDecoyFrameOf(target), frame = live ? game.actors.get(live.frame) : null;
+        if (frame && !DF.frameState(frame).ended) {
+          decoyFrame = { key: live.key, decker: target.uuid };
+          target = frame;
+          const m = maneuverState(actor, target);
+          tn += m.parry - ms.parry;
+          Object.assign(ms, m);
+          if (o.position && !ms.pos) o.position = "";
+        }
+      }
+    }
     // Part 6a-0 (p.112): a proactive IC attacking a decker with a decoy rolls 1D6 FIRST, on the active GM's client;
     // ≤ the decoy's successes, it attacks the decoy instead — none of the decker's own terms apply then (R1 #1).
-    const d = target.type === "character" && isProactive(prof.program) && prof.program !== "trace" ? Y.liveDecoyOf(target) : null;
+    const d = !decoyFrame && target.type === "character" && isProactive(prof.program) && prof.program !== "trace" ? Y.liveDecoyOf(target) : null;
     if (d) {
       if (!Y.isSequencer()) return ui.notifications.warn(`${target.name} has a decoy: the active GM rolls this attack.`);
       const roll = await new Roll("1d6").evaluate();
@@ -1123,8 +1197,8 @@ async function attackOnce(actor) {
     power = Y.blackKind(prof.program) && target.type === "character" && !decoy ? Y.blackRating(actor, target, prof.rating) + cascade.rating : icRating;
     tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
     // Trace IC hunts against the decker's Trace Factor (p.45), not the cybercombat table.
-    // Part 6a-2a: a trace on a frame (its owner's datatrail) comes with decoy frames in 6a-2b.
-    if (prof.program === "trace" && target.type === "frame") return ui.notifications.warn("Trace IC against a frame: not yet (frames, part 6a-2b).");
+    // Part 6a-2b §4: trace hunts a datatrail, and a frame's is its owner's (p.107): target the decker.
+    if (prof.program === "trace" && target.type === "frame") return ui.notifications.warn("Trace IC hunts a datatrail: target the frame's owner (VR2.0 p.107).");
     if (prof.program === "trace" && target.type === "character") {
       const conn = target.system.vr2Conn;
       const jp = connJackpoint(target);
@@ -1141,7 +1215,8 @@ async function attackOnce(actor) {
     if (target.type === "character" && target.system.vr2Conn && !decoy && Y.foldOf(target).live?.traced) tn = Math.max(2, tn - 1);
     const attr = CRIPPLER_ATTRIBUTE[prof.program];
     if (attr && !decoy) {
-      if (target.type !== "character") return ui.notifications.warn("A crippler attacks a decker's persona.");
+      // Part 6a-2b §6: a frame is an icon with the four attributes.
+      if (!["character", "frame"].includes(target.type)) return ui.notifications.warn("A crippler attacks a persona's or a frame's attributes.");
       effect = { effect: "attribute", attr, floor: 1, rating: icRating,
         effectName: `${CONFIG.SR2E.icPrograms?.[prof.program] ?? prof.program}-${icRating}` };
     }
@@ -1150,20 +1225,22 @@ async function attackOnce(actor) {
     // Log on to the chosen host FIRST: a build made on another host ends with that session. Behind any
     // System Operation still running, so it can't switch the session under that test's tally; under grid
     // topology a decker attacks only where he is, checked there (code R1 #1, R2 #1).
-    const here = await opQueue(actor, async () => {
+    // A frame command never switches sessions: the decker is already on its host (commandProblem, 6a-2b §1).
+    const here = ctx ? true : await opQueue(actor, async () => {
       if (topologyOn() && actor.system.vr2Conn && currentPlace(actor)?.uuid !== host.uuid) return false;
       await sessionFor(actor, host);
       return true;
     });
     if (!here) return ui.notifications.warn(`${actor.name} isn't logged on to ${host.name}.`);
+    if (o.programId === "improv" && ctx) return ui.notifications.warn("A frame attacks with its own programs.");
     if (o.programId === "improv") {
       const imp = liveSession(actor)?.improvised;
       if (!imp?.level) return ui.notifications.warn("No improvised attack is ready on this host.");
       dice = power = imp.power; level = imp.level; usedBuild = imp.id;
     } else {
-      prog = actor.items.get(o.programId);
-      if (!prog || !activePrograms(actor).includes(prog)) {
-        return ui.notifications.warn(prog && usablePrograms(actor).includes(prog) && !isCompressed(prog)
+      prog = icon.items.get(o.programId);
+      if (!prog || !activePrograms(icon).includes(prog)) {
+        return ui.notifications.warn(prog && usablePrograms(icon).includes(prog) && !isCompressed(prog)
           ? `${prog.name} is Sensitive: it doesn't work on ${host.name}'s manufacturer (VR2.0 p.104).` : "That utility isn't loaded and usable any more.");
       }
       const offense = offenseOf(prog), kind = utilityKindOf(prog);
@@ -1177,11 +1254,15 @@ async function attackOnce(actor) {
       for (const t of [target, ...extras]) {
         const why = (kind ? utilityTargetProblem(kind, t) : "")
           || (limitAllows(prog.system.activeOpts, limitClass(t.type)) ? "" : "its Limit option rules that target type out (p.104)")
-          || (offense && t.type !== "character" ? "it attacks a persona, not IC" : "")
-          || (t !== target && maneuverState(actor, t).blind ? "you've lost sight of it" : "");
+          || (offense && !["character", "frame"].includes(t.type) ? "it attacks a persona's or a frame's attributes, not IC" : "")
+          || (t !== target && maneuverState(icon, t).blind ? "you've lost sight of it" : "");
         if (why) return ui.notifications.warn(`${prog.name} can't attack ${t.name}: ${why}.`);
       }
-      if (o.dinab) {
+      if (o.coreDinab && ctx) {
+        // A frame core's DINAB runs the copy (6a-2b §5): the copy's rating rolls, the core's DINAB wears.
+        if (!(icon.system.dinabLeft > 0)) return ui.notifications.warn(`${icon.name}'s core has no DINAB left.`);
+        dinabRef = { ...useRef(prog, true), core: true, upload: icon.system.uploadId || icon.id, useId: foundry.utils.randomID() };
+      } else if (o.dinab) {
         if (!dinabLeft(prog)) return ui.notifications.warn(`${prog.name} has no DINAB left.`);
         dinabRef = { ...useRef(prog, true), useId: foundry.utils.randomID() };
       }
@@ -1198,7 +1279,7 @@ async function attackOnce(actor) {
         dice = power = r; level = "D";   // (Rating)D against tar (p.99)
         special = { utility: kind };
       } else if (offense) {
-        if (target.type !== "character") return ui.notifications.warn(`${prog.name} attacks a persona, not IC.`);
+        if (!["character", "frame"].includes(target.type)) return ui.notifications.warn(`${prog.name} attacks a persona's or a frame's attributes, not IC.`);
         dice = programRating(prog);
         effect = { effect: "attribute", attr: OFFENSE_ATTRIBUTE[offense], floor: 0, rating: programRating(prog), effectName: prog.name };
       } else {
@@ -1209,7 +1290,7 @@ async function attackOnce(actor) {
       }
     }
     tnContext = { ...skillTnContext("computer"), kind: "attack" };
-    tn += actor.system.vr2Deck?.deathwormTN ?? 0;   // deathworms in the deck (p.44)
+    if (!ctx) tn += actor.system.vr2Deck?.deathwormTN ?? 0;   // deathworms in the deck (p.44); a frame isn't the deck
   }
   // Shield / shift (p.50), with chaser and penetration (p.103–104); targeting −2 (p.104).
   const aimTerms = (t) => (t.type === "ic" ? defenseTN(t.system.defense, kinds) : 0) - (kinds.includes("targeting") ? 2 : 0);
@@ -1223,17 +1304,21 @@ async function attackOnce(actor) {
   // Area (p.103): every target's TN rises by the number of targets; the others' TNs are built the same way.
   const nTargets = 1 + extras.length;
   const others = extras.map(t => {
-    const m = maneuverState(actor, t);
-    return { t, m, tn: Math.max(2, cybercombatTN(code, o.status) + m.parry + aimTerms(t) + (actor.system.vr2Deck?.deathwormTN ?? 0) - m.pos + nTargets) };
+    const m = maneuverState(icon, t);
+    return { t, m, tn: Math.max(2, cybercombatTN(code, o.status) + m.parry + aimTerms(t) + (ctx ? 0 : actor.system.vr2Deck?.deathwormTN ?? 0) - m.pos + nTargets) };
   });
   tn = Math.max(2, tn + (areaOpt ? nTargets : 0));
   const rollTN = Math.min(tn, ...others.map(x => x.tn));
-  const attackerSession0 = sessionKey(actor);
+  const attackerSession0 = sessionKey(icon);
   // Who attacks whom, as of the roll (code review #1): a crash or reconnect while rolling can't relabel it.
   const atkKey0 = isIC ? icKey0 : Y.attackerKeyOf(actor), atkInc0 = isIC ? null : Y.crashInc(actor), targetConn0 = target.system?.vr2Conn?.n ?? null;
   const otherConn0 = others.map(x => x.t.system?.vr2Conn?.n ?? null);
+  // Re-checked right before anything is spent (6a-2b R1 #5); the decker's own attack ends a decoy frame (§4).
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "attack", copy: prog }); if (w) return ui.notifications.warn(w); }
+  else if (!isIC) await (await import("./frames.mjs")).ownAction(actor, "attack");
+  if (dinabRef?.core) { const w = await F.claimCoreDinab(icon, actor); if (w) return ui.notifications.warn(w); }
   // The program executes (part 5b): one-shot spent, DINAB's phase claimed — before the dice.
-  if (prog) { const refused = await spendUse(actor, prog, { dinab: !!dinabRef }); if (refused) return ui.notifications.warn(refused); }
+  if (prog) { const refused = await spendUse(icon, prog, { dinab: !!dinabRef && !dinabRef.core }); if (refused) return ui.notifications.warn(refused); }
   const what = effect.effect ? effect.effectName : `${power}${level}`;
   const res = await actor.rollSuccessTest(Math.max(0, dice), rollTN, dinabRef
     // DINAB (p.103): the program's own test — no Hacking Pool, no Karma, none of the decker's modifiers.
@@ -1250,20 +1335,25 @@ async function attackOnce(actor) {
     ui.notifications.warn(`${actor.name} crashed during its attack roll: the attack is lost.`);
     return;
   }
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "attack", after: true }); if (w) return ui.notifications.warn(`${w} The command is lost.`); }
   // Rolled = committed: the position bonus was "the next attack", a parry lasts "until the
   // next attack by the opposing icon" (p.122), an improvised attack is a one-shot (p.123).
-  await spendAttackState(actor, ms, usedBuild);
-  for (const x of others) await spendAttackState(actor, x.m, null);
+  await spendAttackState(icon, ms, usedBuild);
+  for (const x of others) await spendAttackState(icon, x.m, null);
   if (!dinabRef) await commitAction(actor, startedBuild);   // a DINAB run is a Free Action
   // Area: each target scored from the one roll at its own TN, with the roll's own modifiers (wounds…) carried over.
   const castDelta = (res.targetNumber ?? rollTN) - rollTN;
   const scored = areaOpt ? [tn, ...others.map(x => x.tn)].map(t => successesAtTN(res.dice ?? [], t + castDelta)) : null;
   if (dinabRef) {
-    if (await dinabCrashCheck(actor, dinabRef, dinabRef.useId, res)) return res;
-    if ((scored ?? [res.successes]).some(n => n <= 0)) await dinabFail(actor, dinabRef, dinabRef.useId);   // a miss (p.103)
+    if (await dinabCrashCheck(icon, dinabRef, dinabRef.useId, res)) return res;
+    if ((scored ?? [res.successes]).some(n => n <= 0)) await dinabFail(icon, dinabRef, dinabRef.useId);   // a miss (p.103)
   }
   // Posted even at 0 successes (inert), so Karma can still bring it to life.
-  const state = { ruleset: "vr2", attackerUuid: actor.uuid, attackerName: actor.name, attackerType: actor.type,
+  // 6a-2b §3 (R1 #1): the ICON attacks (maneuvers, parry, position are per icon); the COMMANDER's key, incarnation and
+  // session are what admission, locks, Slow and an IC crash's tally read — the frame shares his datatrail.
+  const state = { ruleset: "vr2", attackerUuid: icon.uuid, attackerName: icon.name, attackerType: icon.type,
+    ...(ctx ? { commanderUuid: actor.uuid, commanderName: actor.name, commanderSession: liveSession(actor)?.id ?? "", command: true } : {}),
+    ...(decoyFrame ? { decoyFrame } : {}),
     icType: isIC ? actor.system.icType : "", icClass: isIC ? prof.icClass : "", program: isIC ? prof.program : "",
     targetUuid: target.uuid, targetName: decoy ? `${target.name}'s decoy` : target.name, targetSession: sessionKey(target), attackerSession: attackerSession0,
     ...(decoy ? { decoy } : {}),
@@ -1414,7 +1504,7 @@ export async function vr2MatrixResist(defender, message) {
       // Part 6a-2a: a frame resists like a persona, with its own Bod and its own Armor copy (p.124).
       if ((await import("./frames.mjs")).frameState(defender).ended) return ui.notifications.warn(`${defender.name} has crashed.`);
       armorRef = useRef(bestUtility(defender, "armor"));
-      dice = defender.system.bod ?? 0; tn = st.power - armorVs(armorRef, st);
+      dice = defender.system.matrixPersona?.bod ?? 0; tn = st.power - armorVs(armorRef, st);
       what = `frame Bod${armorRef ? `, ${armorRef.name}` : ""}`;
     } else {
       return ui.notifications.warn("Only IC or a decker persona can resist a Matrix attack.");
@@ -1493,8 +1583,10 @@ export async function vr2MatrixResist(defender, message) {
         lines.push("The frame crashes (VR2.0 p.124).");
       } else if (crashed && defender.type === "ic") {
         lines.push("The IC crashes, out of the fight.");
-        if (st.attackerType === "character" && st.attackerSession) {
-          crashChoiceFlag = { cardId: message.id, deckerUuid: st.attackerUuid, sessionId: st.attackerSession,
+        // A frame's kill is its commander's: the crashed IC's tally lands on his datatrail (6a-2b R1 #1).
+        const dk = st.attackerType === "frame" ? { uuid: st.commanderUuid, session: st.commanderSession } : { uuid: st.attackerUuid, session: st.attackerSession };
+        if (["character", "frame"].includes(st.attackerType) && dk.uuid && dk.session) {
+          crashChoiceFlag = { cardId: message.id, deckerUuid: dk.uuid, sessionId: dk.session,
             icUuid: defender.uuid, icName: defender.name,
             // A construct's crash tally: its highest program rating (book silent; part 4b decision).
             rating: skulkTally(Y.isConstruct(defender) ? Math.max(0, ...defender.system.construct.components.map(c => c.rating ?? 0)) : (defender.system.rating ?? 0), st.skulk ?? 0),
@@ -1618,6 +1710,7 @@ async function resistOnLog(defender, message, st, liveAtk) {
  * lands, committed once per card in the defender's session (PLAN-vr2-part2 §5, §9).
  */
 async function resistAttribute(defender, message, st, liveAtk) {
+  if (defender.type === "frame") return resistFrameAttribute(defender, message, st, liveAtk);
   if (defender.type !== "character") return ui.notifications.warn("Only a decker's persona can be attacked that way.");
   const s0 = liveSession(defender);
   if (!s0) return ui.notifications.warn(`${defender.name} isn't in a VR2.0 session.`);
@@ -1684,6 +1777,27 @@ async function resistAttribute(defender, message, st, liveAtk) {
   return res;
 }
 
+/**
+ * Part 6a-2b §6: a frame resists a crippler or an attribute utility with the attacked attribute (+ its Shield copy).
+ * The loss is computed by the sequencer in its own order (R1 #12) and its resolution posted from the receipt.
+ */
+async function resistFrameAttribute(frame, message, st, liveAtk) {
+  const F = await import("./frames.mjs");
+  if (F.frameState(frame).ended) return ui.notifications.warn(`${frame.name} has crashed.`);
+  const value = frame.system.matrixPersona?.[st.attr] ?? 0;
+  const shield = await askShield(frame, st);
+  const tn = Math.max(2, st.rating ?? 2);
+  const res = await frame.rollSuccessTest(Math.max(0, value), tn, {
+    label: RL("ResistEffect", { effect: st.effectName, attr: ATTR_LABEL[st.attr], tn }), isResistance: true, closed: true, tnContext: { kind: "other" } });
+  if (!res) return;
+  if (liveAtk() <= 0) return ui.notifications.warn("The attack missed: there is nothing to resist.");
+  if (isCardResolved(game.messages.get(message.id), "matrix")) return ui.notifications.warn("That attack was resolved on another device while you rolled.");
+  const out = await F.attrFrame(frame, message.id, { attr: st.attr, defense: res.successes + (shield?.successes ?? 0), floor: st.floor ?? 0,
+    shield: shield?.ref ?? null, shieldS: shield?.successes ?? 0, res: res.successes, closes: [st.testMessageId, res.testMessageId, shield?.testMessageId].filter(Boolean) });
+  if (!out) return ui.notifications.warn("The loss wasn't recorded: a GM must be online.");
+  return res;
+}
+
 // ── Combat maneuvers (p.121–122; PLAN-vr2-part2 §6) ───────────────────────────
 
 const MANEUVERS = { evade: "Evade detection", parry: "Parry attack", position: "Position attack" };
@@ -1706,16 +1820,21 @@ export function renderManeuverCard(st) {
 }
 
 /** Perform a combat maneuver (a Simple Action) against the targeted icon. */
-export async function vr2Maneuver(actor) {
+export async function vr2Maneuver(actor, ctx = null) {
   { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
+  // Part 6a-2b §2: a frame maneuvers on its decker's command — its Evasion and Cloak, the decker's Simple Action.
+  const icon = ctx?.frame ?? actor;
+  const F = ctx ? await import("./frames.mjs") : null;
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "maneuver" }); if (w) return ui.notifications.warn(w); }
   const target = firstTarget()?.actor ?? null;
-  if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you maneuver against first.");
-  if (!["ic", "character"].includes(target.type)) return ui.notifications.warn("Only IC or a decker's persona can maneuver.");
+  if (!target || target.uuid === actor.uuid || target.uuid === icon.uuid) return ui.notifications.warn("Target the icon you maneuver against first.");
+  if (!["ic", "character", "frame"].includes(target.type)) return ui.notifications.warn("Only IC, a decker's persona or a frame can maneuver.");
+  if (target.type === "frame" && (await import("./frames.mjs")).frameState(target).ended) return ui.notifications.warn(`${target.name} has crashed.`);
   if (actor.type === "character" && !liveSession(actor)) return ui.notifications.warn(`${actor.name} isn't jacked in.`);
   const icSide = actor.type === "ic" ? actor : target.type === "ic" ? target : null;
-  const hosts = game.actors.filter(a => a.type === "host");
+  const hosts = ctx && icSide ? [sync(icon.system.hostUuid)].filter(Boolean) : game.actors.filter(a => a.type === "host");
   if (icSide && !hosts.length) return ui.notifications.warn("IC maneuvers on its host's Security Value: create a Host actor first.");
-  const preHost = icSide ? sync(icSide.system.hostUuid) : null;
+  const preHost = ctx ? hosts[0] : icSide ? sync(icSide.system.hostUuid) : null;
   let pick = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: `Combat maneuver — ${actor.name} vs ${target.name}` }, rejectClose: false,
@@ -1732,13 +1851,15 @@ export async function vr2Maneuver(actor) {
   if (action !== "go" || !pick) return;
   const host = icSide ? game.actors.get(pick.hostId) : null;
   const sv = host?.system.securityValue ?? 0;
-  const evasion = actor.type === "ic" ? sv : (actor.system.matrixPersona?.evasion ?? 0);
+  const evasion = icon.type === "ic" ? sv : (icon.system.matrixPersona?.evasion ?? 0);
   const sensor = target.type === "ic" ? sv : (target.system.matrixPersona?.sensor ?? 0);
-  const cloakItem = actor.type === "character" ? bestUtility(actor, "cloak") : null;
+  const cloakItem = ["character", "frame"].includes(icon.type) ? bestUtility(icon, "cloak") : null;
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "maneuver" }); if (w) return ui.notifications.warn(w); }
+  else if (actor.type === "character") await (await import("./frames.mjs")).ownAction(actor, "maneuver");
   // A one-shot Cloak is spent by this test (p.104); refused (spent elsewhere), it gives nothing.
-  const cloak = cloakItem && !(await spendUse(actor, cloakItem)) ? programRating(cloakItem) : 0;
+  const cloak = cloakItem && !(await spendUse(icon, cloakItem)) ? programRating(cloakItem) : 0;
   // The opponent's Lock-On is spent by THEIR test (opposeManeuver): bind that copy, whose rating sets their TN.
-  const lockItem = target.type === "character" ? bestUtility(target, "lock") : null;
+  const lockItem = ["character", "frame"].includes(target.type) ? bestUtility(target, "lock") : null;
   const lockOn = lockItem ? programRating(lockItem) : 0;
   const tns = maneuverTNs({ evasion, sensor, cloak, lockOn });
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
@@ -1747,10 +1868,11 @@ export async function vr2Maneuver(actor) {
     label: RL("Maneuver", { maneuver: MANEUVERS[pick.kind], stat: RL(actor.type === "ic" ? "SecurityValue" : "Evasion"), tn: tns.maneuverer }),
     closed: true, tnContext: { kind: "other" } });
   if (!res) return;
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "maneuver", after: true }); if (w) return ui.notifications.warn(`${w} The command is lost.`); }
   await commitAction(actor, startedBuild);
-  const st = { kind: pick.kind, maneuvererUuid: actor.uuid, maneuvererName: actor.name, opponentUuid: target.uuid,
+  const st = { kind: pick.kind, maneuvererUuid: icon.uuid, maneuvererName: icon.name, opponentUuid: target.uuid,
     opponentName: target.name, mS: res.successes, oppTN: tns.opponent, mEvasion: evasion,
-    lock: lockItem ? { id: lockItem.id, loadGen: lockItem.system.loadGen ?? 0 } : null, mSession: sessionKey(actor),
+    lock: lockItem ? { id: lockItem.id, loadGen: lockItem.system.loadGen ?? 0 } : null, mSession: sessionKey(icon),
     oSession: sessionKey(target), testMessageId: res.testMessageId };
   if (target.type === "ic") {
     const or = await SR2ESuccessRoll.successTest(sv + Y.threatOf(target), tns.opponent);
@@ -1796,7 +1918,7 @@ async function postManeuverResult(st, oS, { rolls = [], resolves = null, oppTest
     const combat = game.combat;
     const observer = sync(st.opponentUuid);
     writes.push({ actorUuid: st.opponentUuid, set: {
-      [`flags.sr2e.vr2Maneuvers.lostSight.${kM}`]: { turns: out.net, tallyAtStart: liveSession(sync(st.maneuvererUuid))?.tally ?? 0,
+      [`flags.sr2e.vr2Maneuvers.lostSight.${kM}`]: { turns: out.net, tallyAtStart: liveSession(tallyHolder(sync(st.maneuvererUuid)))?.tally ?? 0,
         combatId: combat?.id ?? "", roundAtStart: combat?.round ?? 0, mySession: st.oSession, theirSession: st.mSession,
         observer: observer?.type === "ic" ? "ic" : "decker" },
       [`flags.sr2e.vr2Maneuvers.parriedBy.-=${kM}`]: null } });
@@ -1886,6 +2008,7 @@ export async function vr2BuildImprovised(actor) {
     return ui.notifications.warn(`Take 1 to ${mpcp} points in all, no more than each rating has.`);
   }
   const computer = computerOf(actor);
+  await (await import("./frames.mjs")).ownAction(actor, "Build improvised");   // 6a-2b §4: the decker acts
   const res = await actor.rollSuccessTest(computer > 0 ? computer : (actor.system.intelligence?.value ?? 0),
     power + (computer > 0 ? 0 : 4), {
       label: RL("Improvised", { tn: power, untrained: computer > 0 ? "" : RL("UntrainedTag") }),
@@ -1929,6 +2052,7 @@ export async function vr2Restore(actor, item) {
     ok: { label: "Restore", callback: (e, b) => ({ attr: b.form.elements.attr.value, tn: Number(b.form.elements.tn.value), dinab: !!b.form.elements.dinab?.checked }) } }).catch(() => null);
   if (!o || !(o.tn >= 2)) return;
   const useId = foundry.utils.randomID(), uref = useRef(item, o.dinab);
+  await (await import("./frames.mjs")).ownAction(actor, "Restore");   // 6a-2b §4: the decker acts
   const refused = await spendUse(actor, item, { dinab: o.dinab });
   if (refused) return ui.notifications.warn(refused);
   const rtn = Math.max(2, o.tn, st.tn ?? 2);
@@ -1962,6 +2086,7 @@ export async function vr2Medic(actor, item) {
   const dinab = dinabLeft(item) > 0 && await foundry.applications.api.DialogV2.confirm({ window: { title: item.name },
     content: `<p>Run ${esc(item.name)} by its DINAB (${dinabLeft(item)} dice, a Free Action; VR2.0 p.103)? No: you run it yourself.</p>`, rejectClose: false });
   const ref = useRef(item), useId = foundry.utils.randomID(), uref = useRef(item, dinab);
+  await (await import("./frames.mjs")).ownAction(actor, "Medic");   // 6a-2b §4: the decker acts
   const refused = await spendUse(actor, item, { dinab });
   if (refused) return ui.notifications.warn(refused);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
@@ -1988,6 +2113,7 @@ export async function vr2Decompress(actor, item) {
   if (!item?.system.loaded || !isCompressed(item)) return ui.notifications.info(`${item?.name ?? "That program"} isn't compressed.`);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   await item.setFlag("sr2e", "decompressed", item.system.loadGen ?? 0);
+  await (await import("./frames.mjs")).ownAction(actor, "vr2Decompress");   // 6a-2b §4: the decker acts
   await commitAction(actor, startedBuild);
   ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
     decompresses ${esc(item.name)} (a Complex Action, VR2.0 p.104).</div>` });
@@ -2002,6 +2128,7 @@ export async function vr2SwapMemory(actor, item) {
   if (actor.system.vr2Deck?.corrupted?.has(key)) return ui.notifications.warn(`${item.name} is corrupted on this deck: reload it from storage after jacking out (VR2.0 p.43).`);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   await enqueueAttack(`program:${item.uuid}`, () => item.update({ "system.loadGen": (item.system.loadGen ?? 0) + 1, "system.crashed": false, "system.loaded": true }));
+  await (await import("./frames.mjs")).ownAction(actor, "vr2SwapMemory");   // 6a-2b §4: the decker acts
   await commitAction(actor, startedBuild);
   ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}
     swaps in a fresh copy of ${esc(item.name)} (rating ${item.system.rating}).</div>` });
@@ -2010,23 +2137,27 @@ export async function vr2SwapMemory(actor, item) {
 // ── Part 6a-0: Scan Icon (docs/PLAN-vr2-part6-frames.md; p.117) ──────────────────
 
 /** Scan Icon: Computer vs the targeted icon's Masking less (Scanner − its Sleaze); a Simple Action. */
-export async function vr2ScanIcon(actor) {
+export async function vr2ScanIcon(actor, ctx = null) {
   const why = Y.vr2ActionGuard(actor);
   if (why) return ui.notifications.warn(why);
+  // Part 6a-2b §2: a frame scans with its Scanner copy; the decker rolls his Computer.
+  const icon = ctx?.frame ?? actor;
+  const F = ctx ? await import("./frames.mjs") : null;
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "scanIcon" }); if (w) return ui.notifications.warn(w); }
   const target = firstTarget()?.actor ?? null;
-  if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you scan first.");
+  if (!target || target.uuid === actor.uuid || target.uuid === icon.uuid) return ui.notifications.warn("Target the icon you scan first.");
   // Part 6a-2a: frames too (SKs come with 6b).
   if (target.type === "frame" ? (await import("./frames.mjs")).frameState(target).ended : (target.type !== "character" || !target.system.matrixMode)) {
     return ui.notifications.warn("Scan Icon reads a decker's persona in the Matrix, or a running frame.");
   }
-  if (maneuverState(actor, target).blind) return ui.notifications.warn(`${actor.name} has lost ${target.name}: re-detect it first.`);
-  const host = sync(liveSession(actor)?.hostUuid);
+  if (maneuverState(icon, target).blind) return ui.notifications.warn(`${icon.name} has lost ${target.name}: re-detect it first.`);
+  const host = sync(ctx ? icon.system.hostUuid : liveSession(actor)?.hostUuid);
   if (host?.type !== "host") return ui.notifications.warn("Log on to a host first (a System Operation): Scan Icon works on the system you're on.");
   // The icon scanned is THIS incarnation: a reconnect before the card is posted voids the scan (code review R1 #2).
   const targetSession = sessionKey(target);
   const tnWith = (scanner) => { const sleazeItem = bestUtility(target, "Sleaze", sync(liveSession(target)?.hostUuid));
     return scanIconTN({ masking: target.system.matrixPersona?.masking ?? 0, scanner: programRating(scanner), sleaze: sleazeItem ? programRating(sleazeItem) : 0 }); };
-  let scanner = bestUtility(actor, "Scanner", host);
+  let scanner = bestUtility(icon, "Scanner", host);
   if (!scanner) return ui.notifications.warn("Scan Icon needs a Scanner utility loaded (VR2.0 p.117).");
   let tn = tnWith(scanner);
   const hackingMax = actor.system.dicePools?.hacking?.value ?? 0;
@@ -2044,20 +2175,23 @@ export async function vr2ScanIcon(actor) {
   // DINAB (p.103): the best copy with DINAB left runs itself — its own dice, no pools or Karma, a Free Action (R1 #3).
   const dinab = !!o.dinab;
   if (dinab) {
-    scanner = bestUtility(actor, "Scanner", host, (i) => dinabLeft(i) > 0);
+    scanner = bestUtility(icon, "Scanner", host, (i) => dinabLeft(i) > 0);
     if (!scanner) return ui.notifications.warn("No Scanner with DINAB left is loaded.");
     tn = tnWith(scanner);
   }
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   const useId = foundry.utils.randomID(), uref = useRef(scanner, dinab);
-  const refused = await spendUse(actor, scanner, { dinab });
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "scanIcon", copy: scanner }); if (w) return ui.notifications.warn(w); }
+  else await (await import("./frames.mjs")).ownAction(actor, "Scan Icon");
+  const refused = await spendUse(icon, scanner, { dinab });
   if (refused) return ui.notifications.warn(refused);
   const res = await actor.rollSuccessTest(Math.max(1, dinab ? dinabLeft(scanner) : computerOf(actor)), tn, dinab
     ? { label: RL("ScanIcon", { target: `${target.name} (DINAB)`, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true }
     : { label: RL("ScanIcon", { target: target.name, tn }), tnContext: skillTnContext("computer"),
         poolDice: o.hacking ? { hacking: o.hacking } : undefined, miscDice: o.miscDice, miscLabel: o.miscLabel });
   if (!res) return;
-  if (dinab) { if (!await dinabCrashCheck(actor, uref, useId, res) && res.successes <= 0) await dinabFail(actor, uref, useId); }
+  if (ctx) { const w = F.commandProblem(actor, icon, { op: "scanIcon", after: true }); if (w) return ui.notifications.warn(`${w} The command is lost.`); }
+  if (dinab) { if (!await dinabCrashCheck(icon, uref, useId, res) && res.successes <= 0) await dinabFail(icon, uref, useId); }
   else await commitAction(actor, startedBuild);
   if (sessionKey(target) !== targetSession) return ui.notifications.warn(`${target.name} reconnected during the scan: nothing learned.`);
   // What the decker learns stays between the decker and the GM (R1 #4).

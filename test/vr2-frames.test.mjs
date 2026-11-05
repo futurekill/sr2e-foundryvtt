@@ -148,3 +148,45 @@ describe("6a-2a: running frames (p.91, p.105–107, p.124)", () => {
     expect(limitClass("frame")).toBe("frame");
   });
 });
+
+describe("part 6a-2b", () => {
+  const rec = (o) => ({ conn: 1, sessionId: "s1", ...o });
+  const cards = { a: { success: true }, b: { success: false }, c: { success: true } };
+  const cardOf = (id) => cards[id] ?? null;
+  it("liveDecoyFrame: newest success wins; a newer failure keeps the old; off/ended/session end it", async () => {
+    const { liveDecoyFrame } = await import("../module/rules/vr2-frames.mjs");
+    const A = rec({ type: "decoyFrame", key: "kA", card: "a", frame: "F1", ct: 1 });
+    expect(liveDecoyFrame({ records: [A], conn: 1, sessionId: "s1", cardOf })?.key).toBe("kA");
+    const B = rec({ type: "decoyFrame", key: "kB", card: "b", frame: "F2", ct: 2 });
+    expect(liveDecoyFrame({ records: [A, B], conn: 1, sessionId: "s1", cardOf })?.key).toBe("kA");
+    expect(liveDecoyFrame({ records: [A], conn: 1, sessionId: "s2", cardOf })).toBe(null);
+    expect(liveDecoyFrame({ records: [A, { type: "decoyFrameOff", decoy: "kA" }], conn: 1, sessionId: "s1", cardOf })).toBe(null);
+    // A newer success that crashes leaves NO decoy: the older one isn't resurrected (R1 #10).
+    const C = rec({ type: "decoyFrame", key: "kC", card: "c", frame: "F3", ct: 3 });
+    expect(liveDecoyFrame({ records: [A, C], conn: 1, sessionId: "s1", cardOf, frameEnded: (f) => f === "F3" })).toBe(null);
+    // A newer card deleted: a barrier, and then none.
+    const D = rec({ type: "decoyFrame", key: "kD", card: "gone", frame: "F4", ct: 4 });
+    expect(liveDecoyFrame({ records: [A, D], conn: 1, sessionId: "s1", cardOf })).toBe(null);
+  });
+  it("openDecoyFrames lists un-off records whatever their card says (R1 #9)", async () => {
+    const { openDecoyFrames } = await import("../module/rules/vr2-frames.mjs");
+    const B = rec({ type: "decoyFrame", key: "kB", card: "b" });
+    expect(openDecoyFrames([B], 1).map(e => e.key)).toEqual(["kB"]);
+    expect(openDecoyFrames([B, { type: "decoyFrameOff", decoy: "kB" }], 1)).toEqual([]);
+  });
+  it("triggerProblems: half the Security Value, analyze for host events, scanner for users (p.107)", async () => {
+    const { triggerProblems } = await import("../module/rules/vr2-frames.mjs");
+    expect(triggerProblems({ sensor: 3, analyze: 3, securityValue: 6, watch: "host" })).toEqual([]);
+    expect(triggerProblems({ sensor: 2, analyze: 3, securityValue: 6, watch: "host" })).toHaveLength(1);
+    expect(triggerProblems({ sensor: 4, analyze: 0, securityValue: 7, watch: "host" })).toHaveLength(1);
+    expect(triggerProblems({ sensor: 4, scanner: 4, securityValue: 7, watch: "users" })).toEqual([]);
+    expect(triggerProblems({ sensor: 4, analyze: 4, scanner: 3, securityValue: 7, watch: "both" })).toHaveLength(1);
+  });
+  it("frameAttrLosses counts one loss per card; coreDinabLeft counts this upload's wear", async () => {
+    const { frameAttrLosses, coreDinabLeft } = await import("../module/rules/vr2-frames.mjs");
+    const recs = [{ type: "frameAttr", upload: "U", card: "c1", attr: "bod", lost: 1 }, { type: "frameAttr", upload: "U", card: "c1", attr: "bod", lost: 1 },
+      { type: "frameAttr", upload: "U", card: "c2", attr: "sensor", lost: 2 }, { type: "frameAttr", upload: "V", card: "c3", attr: "bod", lost: 3 }];
+    expect(frameAttrLosses(recs, "U")).toEqual({ bod: 1, evasion: 0, masking: 0, sensor: 2 });
+    expect(coreDinabLeft(4, { U_a: true, U_b: true, V_c: true }, "U")).toBe(2);
+  });
+});

@@ -146,3 +146,60 @@ export function frameEnds({ ownerExists = true, hostExists = true, kind = "dumb"
 export const iconKind = (type) => (type === "character" ? "decker" : type === "frame" ? "frame" : type === "ic" ? "ic" : null);
 /** The Limit option's target type for an icon (p.104). */
 export const limitClass = (type) => iconKind(type) ?? "decker";
+
+// ── Part 6a-2b: commands, decoy frames, attribute effects, event triggers ──────────────
+
+/**
+ * The live decoy frame (p.107), folded from the owner's records, never stored. Two steps (R1 #10): SELECT the newest
+ * `decoyFrame` record of the live connection whose card shows a success or is gone, then TEST that record alone — a
+ * missing card, another session, an ended frame or an off fact means none, never a fall-back to an older one.
+ * @param {object} a
+ * @param {object[]} a.records  the owner's records
+ * @param {(card: string) => {success: boolean}|null} a.cardOf the card's verdict now; null = gone
+ * @param {(upload: string) => boolean} a.frameEnded
+ * @returns {{key: string, card: string, frame: string}|null}
+ */
+export function liveDecoyFrame({ records = [], conn = null, sessionId = null, cardOf = () => null, frameEnded = () => false }) {
+  if (conn == null) return null;
+  const d = records.filter(e => e.type === "decoyFrame" && e.conn === conn)
+    .sort((a, b) => ((b.ct ?? 0) - (a.ct ?? 0)) || String(b.key).localeCompare(String(a.key)))
+    .find(e => { const c = cardOf(e.card); return !c || c.success; });
+  if (!d || !cardOf(d.card) || d.sessionId !== sessionId || frameEnded(d.frame)) return null;
+  if (records.some(e => e.type === "decoyFrameOff" && e.decoy === d.key)) return null;
+  return { key: d.key, card: d.card, frame: d.frame };
+}
+/** Decoy-frame records of this connection with no off fact yet: what an own action ends (R1 #9). */
+export const openDecoyFrames = (records = [], conn = null) => records.filter(e => e.type === "decoyFrame" && e.conn === conn
+  && !records.some(o => o.type === "decoyFrameOff" && o.decoy === e.key));
+
+/**
+ * Why a frame can't serve as this event trigger (p.107), as reasons; empty = it can. "Equal to or exceeding half the
+ * host's Security Value": 2 × rating ≥ Security Value. Host events need analyze; other users' events need scanner.
+ * @param {{sensor: number, analyze: number, scanner: number, securityValue: number, watch: "host"|"users"|"both"}} p
+ */
+export function triggerProblems({ sensor = 0, analyze = 0, scanner = 0, securityValue = 0, watch = "host" } = {}) {
+  const half = (r) => 2 * (Number(r) || 0) >= (Number(securityValue) || 0);
+  const out = [];
+  if (!half(sensor)) out.push(`Sensor ${sensor} is under half the Security Value ${securityValue}.`);
+  if (watch !== "users" && !half(analyze)) out.push(analyze ? `Analyze-${analyze} is under half the Security Value ${securityValue}.` : "Host events need an analyze utility.");
+  if (watch !== "host" && !half(scanner)) out.push(scanner ? `Scanner-${scanner} is under half the Security Value ${securityValue}.` : "Other users' events need a scanner utility.");
+  return out;
+}
+
+/** A frame's attribute losses (§6), summed per attribute from its card-keyed `frameAttr` facts (one per card). */
+export function frameAttrLosses(records = [], uploadId) {
+  const seen = new Set(), out = { bod: 0, evasion: 0, masking: 0, sensor: 0 };
+  for (const e of records) {
+    if (e.type !== "frameAttr" || e.upload !== uploadId || seen.has(e.card)) continue;
+    seen.add(e.card);
+    if (e.attr in out) out[e.attr] += Number(e.lost) || 0;
+  }
+  return out;
+}
+
+/** Core DINAB left (§5): the rating less one point per failed run (wear keys `<upload>_<useId>`). */
+export const coreDinabLeft = (rating, wear = {}, uploadId = "") =>
+  Math.max(0, (Number(rating) || 0) - Object.keys(wear ?? {}).filter(k => k.startsWith(`${uploadId}_`)).length);
+
+/** Operations a frame never runs (§2): it doesn't move, and Null Operation is the decker's own waiting. */
+export const NO_FRAME_OPS = new Set(["logonHost", "logonLTG", "logonRTG", "gracefulLogoff", "nullOp"]);

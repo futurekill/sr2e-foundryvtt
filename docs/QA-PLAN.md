@@ -1000,7 +1000,7 @@ If those five all work, the core loop is healthy.
 - [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
       button.
 
-## VR2.0 frame cores and loading (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1)
+## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b)
 - [ ] New program → Frame core *Smart*, rating 6, Bod 2 / Evasion 2 / Masking 1 / Sensor 1, DINAB-4: size (6 + 4)² × 3
       = 300 Mp. Without DINAB the sheet lists the problem and programming refuses.
 - [ ] Write it (the code button), then **Load programs…**: pick two programs over the capacity → refused; within it →
@@ -1014,4 +1014,17 @@ If those five all work, the core loop is healthy.
 - [ ] Log on to another host: a dumb frame is gone (chat says why); a smart one stays.
 - [ ] Attack a frame with IC: it resists with Bod (+ Armor); at 10 boxes it crashes and its token goes.
 - [ ] Scan Icon on a frame; Locate Frame on its host lists smart frames for the GM.
+- [ ] 6a-2b: on the frame's host, **Command…** on a dumb frame with an Analyze copy → Locate IC: the card says "through
+      <frame>", rolls your Computer against the frame's Analyze, and the host's successes land on YOUR tally.
+- [ ] Command an operation the frame has no utility for, or Graceful Logoff: not offered / refused. A smart frame has
+      no Command button.
+- [ ] A frame with an Attack copy: Command → Attack on an IC; the card's attacker is the frame, "a command from <you>".
+- [ ] A frame with Mirrors: Command → Decoy (success). The row says *decoy frame*. A killer IC attacking you (GM rolls)
+      goes after the frame. Run a Null Operation: still covered. Run any other operation yourself: chat says the decoy
+      frame no longer covers you, and the next IC attack hits you.
+- [ ] A dumb core with DINAB: Command with *Run by the core's DINAB*: no pools; a failure shows DINAB 1 of 2 on the
+      frame's sheet.
+- [ ] A crippler (Acid) on a frame: resist from the frame's sheet token; the sheet shows "Bod 1 of 3".
+- [ ] Command → Set an event trigger with Sensor under half the Security Value: refused. With enough: listed on the
+      frame's sheet; the GM's **Fire** whispers "<frame> reports: …" to you while you're on the host.
 

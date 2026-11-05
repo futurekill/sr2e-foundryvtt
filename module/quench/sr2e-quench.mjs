@@ -14192,6 +14192,7 @@ export function registerSR2EQuenchTests() {
       });
       afterEach(async function () {
         this.timeout(20000);
+        await dropTokens();
         for (const d of made) if (d.type === "character" && d.system.vr2Conn) { await Y.requestExit(d, { trigger: "plug" }); for (let i = 0; i < 40 && d.system.vr2Conn; i++) await new Promise(r => setTimeout(r, 100)); }
         for (const f of game.actors.filter(x => x.type === "frame" && /Quench Core/.test(x.name))) { try { await f.delete({ sr2eFrameCleanup: true }); } catch (e) { /* gone */ } }
         for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
@@ -14366,6 +14367,185 @@ export function registerSR2EQuenchTests() {
         await Y.resetShutdown(h);
         Y.schedule(a);
         assert.ok(await settle(() => !game.actors.get(id3)), "gone, and a reset doesn't bring it back");
+        await cleanupFrames();
+      });
+
+      // ── 6a-2b: commanding dumb frames ──
+      const tokens = [];
+      const setTargets = async (ids) => {
+        for (const t of [...game.user.targets]) if (t.destroyed || !canvas.tokens.get(t.id)) game.user.targets.delete(t);
+        return canvas.tokens.setTargets(ids);
+      };
+      const tokenFor = async (actor, dx = 0) => {
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await actor.getTokenDocument({ actorLink: true })).toObject(), x: d.sceneX + dx * d.size, y: d.sceneY + 3 * d.size }]);
+        tokens.push(t.id);
+        for (let i = 0; i < 100 && !canvas.tokens.get(t.id)?.targetArrows; i++) await wait(50);
+        return t;
+      };
+      const dropTokens = async () => {
+        if (!canvas?.ready) return;
+        await setTargets([]);
+        const ids = tokens.splice(0).filter(id => canvas.scene.tokens.has(id));
+        if (ids.length) await canvas.scene.deleteEmbeddedDocuments("Token", ids);
+      };
+      const ic = async (name, h, program = "killer", rating = 4) => { const x = await Actor.create({ name, type: "ic", system: { rating, icType: "white", program, hostUuid: h.uuid } }); made.push(x); return x; };
+      const sysCards = () => game.messages.contents.slice(n0).filter(m => m.flags?.sr2e?.vr2SystemTest);
+      const lastMatrix = () => game.messages.contents.slice(n0).reverse().find(m => m.flags?.sr2e?.matrix);
+      /** A running dumb frame on `h`, with these copies. */
+      const dumbFrame = async (a, h, copies, extra = {}) => { await V.sessionFor(a, h); return game.actors.get(await runFrame(a, await readyCore(a, { copies, ...extra }))); };
+
+      it("6a-2b: a command runs the operation with the decker's Computer and the frame's copy, on his tally; what a frame can't do is refused", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        const fr = await dumbFrame(a, h, [["Analyze", 3]]);
+        const t0 = V.liveSession(a).tally ?? 0, n = sysCards().length;
+        // Computer 4 vs Control 6 − Analyze-3 = TN 3: four 5s; the host's SV 4: two 5s.
+        await withFaces([5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "locateIC", { ctx: { frame: fr } }));
+        const st = sysCards()[n]?.flags.sr2e.vr2SystemTest;
+        assert.ok(st, "a card");
+        assert.deepEqual([st.actorUuid, st.icon?.uuid, st.utility, st.successes], [a.uuid, fr.uuid, 3, 4], "his roll, the frame's Analyze");
+        assert.equal(st.utilityRef.icon?.uuid, fr.uuid, "the copy names its frame");
+        assert.equal((V.liveSession(a).tally ?? 0) - t0, st.hostSuccesses, "the tally is the decker's (the same datatrail)");
+        // Refused: an operation that moves; one whose utility it lacks; a smart frame.
+        await V.vr2SystemTest(a, h, "gracefulLogoff", { ctx: { frame: fr } });
+        await V.vr2SystemTest(a, h, "locateFile", { ctx: { frame: fr } });
+        assert.equal(sysCards().length, n + 1, "nothing else was rolled");
+        assert.match(F.commandProblem(a, fr, { op: "logonHost" }), /doesn't move/);
+        const smart = game.actors.get(await runFrame(a, await readyCore(a, { kind: "smart", options: [{ kind: "dinab", rating: 4, target: "" }] })));
+        assert.match(F.commandProblem(a, smart), /6a-2c/);
+        await cleanupFrames();
+      });
+
+      it("6a-2b: a weapon carrier attacks with its copy; the card's icon is the frame and its key the decker's", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        const h = await host();
+        const a = await decker();
+        const fr = await dumbFrame(a, h, [["Attack", 4, { damageLevel: "S", category: "combat" }]]);
+        const killer = await ic("Quench Frames Killer", h);
+        await setTargets([(await tokenFor(killer, 2)).id]);
+        await clicking("attack", () => withFaces([5, 5, 5, 5], () => V.vr2MatrixAttack(a, { frame: fr })));
+        const st = lastMatrix()?.flags.sr2e.matrix;
+        assert.ok(st, "an attack card");
+        assert.deepEqual([st.attackerUuid, st.attackerType, st.commanderUuid, st.power, st.level], [fr.uuid, "frame", a.uuid, 4, "S"]);
+        assert.match(st.icKey, new RegExp(`^deck:${a.uuid.replaceAll(".", "\\.")}@`), "the commander's key");
+        await dropTokens();
+        await cleanupFrames();
+      });
+
+      it("6a-2b: a decoy frame takes a killer IC's attack with no die; a Null Operation keeps it; the decker's own action ends it for good", async function () {
+        this.timeout(50000);
+        if (!canvas?.ready) this.skip();
+        const h = await host();
+        const a = await decker();
+        const fr = await dumbFrame(a, h, [["Mirrors", 4]]);
+        // Computer 4 vs Control 6 − Mirrors-4 = TN 2; the host rolls 1s.
+        await withFaces([5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "decoy", { ctx: { frame: fr } }));
+        assert.equal(F.liveDecoyFrameOf(a)?.frame, fr.id, "a decoy frame");
+        const killer = await ic("Quench Frames Decoyed Killer", h);
+        await setTargets([(await tokenFor(a, 0)).id]);
+        await clicking("attack", () => withFaces([5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2MatrixAttack(killer)));
+        let st = lastMatrix()?.flags.sr2e.matrix;
+        assert.equal(st?.targetUuid, fr.uuid, "all security measures go after the decoy frame (p.107)");
+        assert.ok(st.decoyFrame && st.decoy == null, "no 1D6: not 6a-0's decoy");
+        // The decker waits (a Null Operation): still covered.
+        await withFaces([1, 1, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "nullOp"));
+        assert.equal(F.liveDecoyFrameOf(a)?.frame, fr.id, "waiting isn't acting");
+        // The decker's own action, then at once an IC attack: the sequencer's order puts his action first.
+        await F.ownAction(a, "test");
+        await clicking("attack", () => withFaces([5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2MatrixAttack(killer)));
+        st = lastMatrix()?.flags.sr2e.matrix;
+        assert.equal(st?.targetUuid, a.uuid, "back on the decker");
+        assert.isNull(F.liveDecoyFrameOf(a));
+        // A failed Decoy, then an own action, then Karma turning it into a success: still off (R1 #9).
+        const n = sysCards().length;
+        await withFaces([1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "decoy", { ctx: { frame: fr } }));
+        await F.ownAction(a, "test");
+        assert.ok(await settle(() => recs(a, "decoyFrameOff").length === 2), "both records off");
+        await sysCards()[n].update({ "flags.sr2e.vr2SystemTest.successes": 4, "flags.sr2e.vr2SystemTest.hostSuccesses": 0 });
+        assert.isNull(F.liveDecoyFrameOf(a), "a decoy he acted past never comes back");
+        await dropTokens();
+        await cleanupFrames();
+      });
+
+      it("6a-2b: the core's DINAB runs a copy by itself; a failure wears the frame's DINAB, all 1s crash the copy", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        const fr = await dumbFrame(a, h, [["Analyze", 3]], { options: [{ kind: "dinab", rating: 2, target: "" }] });
+        assert.equal(fr.system.dinabLeft, 2);
+        const n = sysCards().length;
+        // DINAB 2 dice vs TN 3: 2s miss; the host's 5s win → −1 DINAB.
+        await withFaces([2, 2, 5, 5, 5, 5], () => V.vr2SystemTest(a, h, "locateIC", { ctx: { frame: fr }, coreDinab: true }));
+        assert.isTrue(sysCards()[n]?.flags.sr2e.vr2SystemTest.coreDinab, "run by the core");
+        assert.equal(game.actors.get(fr.id).system.dinabLeft, 1, "worn on the frame");
+        await withFaces([1, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "locateIC", { ctx: { frame: fr }, coreDinab: true }));
+        const copy = game.actors.get(fr.id).items.getName("Analyze");
+        assert.isFalse(V.activePrograms(game.actors.get(fr.id)).includes(copy), "all 1s crash the copy it ran (p.103)");
+        assert.isTrue(V.activePrograms(a).every(i => i.name !== "Analyze"), "nothing on the decker's deck");
+        await cleanupFrames();
+      });
+
+      it("6a-2b: a crippler lowers a frame's attribute once per card, computed by the sequencer", async function () {
+        this.timeout(40000);
+        if (!canvas?.ready) this.skip();
+        const h = await host();
+        const a = await decker();
+        const fr = await dumbFrame(a, h, [["Armor", 2]]);
+        const acid = await ic("Quench Frames Acid", h, "crippler-acid", 4);
+        await setTargets([(await tokenFor(fr, 1)).id]);
+        await clicking("attack", () => withFaces([5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2MatrixAttack(acid)));
+        const card = lastMatrix();
+        assert.equal(card?.flags.sr2e.matrix.effect, "attribute");
+        // Bod 3 vs TN 4: all 1s → 4 attack successes − 0 = 2 points: Bod 3 → 1 (the crippler's floor is 1).
+        await withFaces([1, 1, 1], () => V.vr2MatrixResist(fr, card));
+        assert.ok(await settle(() => recs(a, "frameAttr").length === 1));
+        assert.equal(game.actors.get(fr.id).system.matrixPersona.bod, 1, "derived from the owner's fact");
+        await withFaces([1, 1, 1], () => V.vr2MatrixResist(fr, card));
+        await wait(500);
+        assert.equal(recs(a, "frameAttr").length, 1, "once per card");
+        assert.ok(await settle(() => game.messages.contents.some(m => m.flags?.sr2e?.resolves === card.id)), "the sequencer resolves the card");
+        await dropTokens();
+        await cleanupFrames();
+      });
+
+      it("6a-2b: tar striking a frame command crashes the frame's copy, never the decker's", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        await a.createEmbeddedDocuments("Item", [{ name: "Analyze", type: "program", system: { rating: 3, loaded: true } }]);
+        const fr = await dumbFrame(a, h, [["Analyze", 3]]);
+        const n = sysCards().length;
+        await withFaces([5, 5, 5, 5, 1, 1, 1, 1], () => V.vr2SystemTest(a, h, "locateIC", { ctx: { frame: fr } }));
+        const card = sysCards()[n];
+        const tar = await ic("Quench Frames Tar", h, "tar-baby", 5);
+        // Tar 5 dice at 6s vs the copy's 3 dice at 1s: the tar wins.
+        await withFaces([6, 6, 6, 6, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], () => Y.tarStrike(a, tar, card.flags.sr2e.vr2SystemTest.utilityRef, card.id));
+        const copy = game.actors.get(fr.id).items.getName("Analyze");
+        assert.ok(await settle(() => !V.activePrograms(game.actors.get(fr.id)).includes(copy)), "the frame's copy crashed");
+        assert.ok(V.activePrograms(a).some(i => i.name === "Analyze"), "the decker's own Analyze runs on");
+        await cleanupFrames();
+      });
+
+      it("6a-2b: an event trigger needs half the Security Value; the GM fires it and the decker on the host gets the report once", async function () {
+        this.timeout(40000);
+        const h = await host();   // Security Value 4
+        const a = await decker();
+        const blind = await dumbFrame(a, h, [["Analyze", 3]], { attrs: { bod: 1, evasion: 1, masking: 1, sensor: 1 } });
+        await clicking("go", () => F.setTrigger(a, blind), (el) => { el.querySelector('input[name="note"]').value = "the vault opens"; });
+        assert.equal(F.triggersOf(blind).length, 0, "Sensor 1 < 4 ÷ 2: refused");
+        const fr = await dumbFrame(a, h, [["Analyze", 3]], { attrs: { bod: 1, evasion: 1, masking: 1, sensor: 2 } });
+        await clicking("go", () => F.setTrigger(a, fr), (el) => { el.querySelector('input[name="note"]').value = "the vault opens"; });
+        const [t] = F.triggersOf(fr);
+        assert.equal(t?.note, "the vault opens");
+        await F.fireTrigger(fr, t.key);
+        assert.ok(await settle(() => recs(a, "triggerFire").length === 1), "fired");
+        assert.isTrue(recs(a, "triggerFire")[0].delivered, "the decker is on the host");
+        assert.ok(await settle(() => game.messages.contents.filter(m => m.flags?.sr2e?.triggerFire).length === 1));
+        await Y.sequencer(() => F.reconcileOwner(a));
+        assert.equal(game.messages.contents.filter(m => m.flags?.sr2e?.triggerFire).length, 1, "replayed once only");
         await cleanupFrames();
       });
 

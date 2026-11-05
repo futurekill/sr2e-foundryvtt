@@ -1603,7 +1603,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       context.vr2ic = deckerContext(actor);
       // Part 6a-2a: the frames this decker is running.
       { const F = await import("../frames.mjs"); const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
-        context.vr2Frames = F.framesOf(actor).map(f => ({ id: f.id, name: f.name, kind: f.system.kind, host: sync(f.system.hostUuid)?.name ?? "?", monitor: F.frameState(f).monitor })); }
+        const decoy = F.liveDecoyFrameOf(actor)?.frame;
+        context.vr2Frames = F.framesOf(actor).map(f => ({ id: f.id, name: f.name, kind: f.system.kind, host: sync(f.system.hostUuid)?.name ?? "?", monitor: F.frameState(f).monitor,
+          decoy: decoy === (f.system.uploadId || f.id) })); }
       // Part 7a: where the decker is on the grids, and (GM) the unlisted addresses he knows (p.114).
       if (topologyOn()) {
         const at = currentPlace(actor), topo = topoSnapshot();
@@ -2444,13 +2446,17 @@ export class SR2EFrameSheet extends SR2EBaseActorSheet {
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const { frameState } = await import("../frames.mjs");
+    const { frameState, triggersOf } = await import("../frames.mjs");
+    const { programUnusable } = await import("../data/actor-data.mjs");
     const s = this.document.system, st = frameState(this.document);
     const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
     context.frame = { state: st, boxes: Array.from({ length: 10 }, (_, i) => i < st.monitor), initDice: 1 + (s.initPoints ?? 0),
       owner: sync(s.ownerUuid)?.name ?? "(gone)", host: sync(s.hostUuid)?.name ?? "(gone)",
       programs: this.document.items.filter(i => i.type === "program").map(i => ({ name: i.name, rating: i.system.rating, effective: i.system.effectiveRating,
-        crashed: !!i.system.crashed })) };
+        crashed: programUnusable(this.document, i) })),
+      // Part 6a-2b: the attributes after crippler losses, core DINAB left, and event triggers (the GM fires them).
+      attrs: s.matrixPersona ?? {}, dinabLeft: s.dinabLeft ?? 0, isGM: game.user.isGM,
+      triggers: triggersOf(this.document).map(t => ({ key: t.key, note: t.note, watch: { host: "host events", users: "users", both: "host events and users" }[t.watch] ?? t.watch })) };
     return context;
   }
 }

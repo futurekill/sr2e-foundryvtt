@@ -123,7 +123,9 @@
     </div>
     {{#if vr2Frames.length}}
     <p class="rule-note"><i class="fas fa-cubes"></i> <strong>Frames running</strong> (VR2.0 p.105–107):
-      {{#each vr2Frames as |f|}}<br><a data-action="vr2ic" data-op="frameOpen" data-arg="{{f.id}}">{{f.name}}</a> ({{f.kind}}) on {{f.host}}, {{f.monitor}}/10{{/each}}</p>
+      {{#each vr2Frames as |f|}}<br><a data-action="vr2ic" data-op="frameOpen" data-arg="{{f.id}}">{{f.name}}</a> ({{f.kind}}) on {{f.host}}, {{f.monitor}}/10{{#if f.decoy}} — <strong>decoy frame</strong>{{/if}}
+        {{#ifEquals f.kind "dumb"}}<button type="button" class="vr2-frame-cmd" data-action="vr2ic" data-op="frameCommand" data-arg="{{f.id}}"
+          title="Give {{f.name}} a command: a Simple Action of yours. You roll your Computer; its programs and attributes count (VR2.0 p.106–107)."><i class="fas fa-terminal"></i> Command…</button>{{/ifEquals}}{{/each}}</p>
     {{/if}}
     {{#if vr2Topo}}
     <div class="flexrow vr2-topo-row" style="align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">

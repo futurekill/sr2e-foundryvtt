@@ -12,10 +12,15 @@
  * The frame actor (`_id` = the upload id) and its token are created and removed by the same client from those facts,
  * idempotently, as persona-tokens.mjs does.
  */
-import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers } from "./vr2ic.mjs";
-import { liveSession, currentPlace, addWear, commitAction, dinabZeroed } from "./vr2.mjs";
+import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers, freezeSuccesses, flush } from "./vr2ic.mjs";
+import { liveSession, currentPlace, addWear, commitAction, dinabZeroed, activePrograms, bestUtility, programRating, phaseKey,
+  vr2SystemTest, vr2MatrixAttack, vr2Maneuver, vr2ScanIcon } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
-import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflineSeqs, frameEnds, copyStats } from "./rules/vr2-frames.mjs";
+import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflineSeqs, frameEnds, copyStats,
+  liveDecoyFrame, openDecoyFrames, triggerProblems, frameAttrLosses, NO_FRAME_OPS } from "./rules/vr2-frames.mjs";
+import { attributeLoss, systemTestVerdict } from "./rules/sr2e-rules.mjs";
+import { once, recordEvent } from "./claims.mjs";
+import { miscDiceHTML, readMiscDice } from "./dialogs/roll-modifiers.mjs";
 import { GRID_KINDS } from "./rules/vr2-grids.mjs";
 import { personaOn } from "./jackpoints.mjs";
 
@@ -147,6 +152,51 @@ addHandlers({
     await replayWear(actor);
     await replayResolutions(actor);
     return { ok: true };
+  },
+  /** 6a-2b §4: the decker acted — that decoy frame is over for good (R1 #8, #9). Once per record. */
+  async decoyFrameOff(actor, r, f) {
+    if (!f.live || f.live.n !== r.conn) return { ok: false, why: "not on that connection" };
+    const d = recordsOf(actor).find(e => e.type === "decoyFrame" && e.key === r.decoy && e.conn === r.conn);
+    if (!d) return { ok: false, why: "no such decoy frame" };
+    const wasLive = liveDecoyFrameOf(actor)?.key === d.key;
+    if (await fact(actor, `decoyframe-off:${r.conn}:${d.card}`, { type: "decoyFrameOff", conn: r.conn, decoy: d.key, why: r.why ?? "" }) && wasLive) {
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)} acts (${esc(r.why || "an action")}):
+        the decoy frame no longer covers them, and security reacts to ${esc(actor.name)} again (VR2.0 p.107).</div>` });
+    }
+    return { ok: true };
+  },
+  /** 6a-2b §6 (R1 #12): a crippler's loss on a frame, computed HERE from the current folded attribute, once per card. */
+  async frameAttr(actor, r) {
+    if (recordsOf(actor).some(e => e.type === "frameAttr" && e.card === r.card)) return { ok: true };
+    const frame = game.actors.get(r.upload);
+    if (!frame || frame.type !== "frame" || frame.system.ownerUuid !== actor.uuid) return { ok: false, why: "no such frame" };
+    if (frameState(frame).ended) return { ok: false, why: `${frame.name} has crashed` };
+    const st = game.messages.get(r.card)?.flags?.sr2e?.matrix;
+    if (!st || st.targetUuid !== frame.uuid || st.effect !== "attribute" || !(st.attr in (frame.system.matrixPersona ?? {}))) return { ok: false, why: "not an attribute attack on this frame" };
+    const atk = await freezeSuccesses(st), def = Math.max(0, Number(r.defense) || 0);
+    const cur = Math.max(0, (frame.system[st.attr] ?? 0) - frameAttrLosses(recordsOf(actor), r.upload)[st.attr]);
+    const lost = attributeLoss(cur, Math.max(0, Math.floor((atk - def) / 2)), st.floor ?? 0);
+    await fact(actor, `frame-attr:${r.card}`, { type: "frameAttr", upload: r.upload, card: r.card, attr: st.attr, lost, atk, def, res: r.res ?? 0,
+      shield: r.shield ?? null, shieldS: r.shieldS ?? 0, nonce: r.nonce ?? null, closes: r.closes ?? [], effectName: st.effectName ?? "" });
+    refreshFrames(actor);
+    await replayWear(actor);
+    await replayResolutions(actor);
+    return { ok: true };
+  },
+  /** 6a-2b §7: the GM fires an event trigger; the outcome goes in the fact, the report is replayed from it. */
+  async triggerFire(actor, r) {
+    if (!game.users.get(r.user)?.isGM) return { ok: false, why: "the GM fires an event trigger" };
+    const t = recordsOf(actor).find(e => e.type === "trigger" && e.key === r.key);
+    if (!t) return { ok: false, why: "no such trigger" };
+    const frame = game.actors.get(t.upload);
+    const w = frame ? watchers(frame) : null;
+    const here = topologyOn() ? currentPlace(actor)?.uuid : liveSession(actor)?.hostUuid;
+    const why = !frame || frameState(frame).ended ? `${t.frameName ?? "the frame"} has crashed`
+      : triggerProblems({ ...w, watch: t.watch })[0] ?? (here !== frame.system.hostUuid ? `they aren't on ${w.host?.name ?? "its host"} (VR2.0 p.107)` : "");
+    await fact(actor, `trigger-fire:${t.upload}:${r.fire ?? foundry.utils.randomID()}`, { type: "triggerFire", trigger: t.key, upload: t.upload,
+      delivered: !why, why, note: t.note, frameName: t.frameName ?? frame?.name ?? "A frame" });
+    await replayTriggerReports(actor);
+    return { ok: true };
   }
 });
 
@@ -197,11 +247,23 @@ async function replayResolutions(owner) {
       ${lines.map(l => `<br>${esc(l)}`).join("")}</div>`,
       flags: { sr2e: { resolves: h.card, closesTests: h.closes ?? [], matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}` } } });
   }
+  // 6a-2b §6: attribute losses, the same way.
+  const ATTR = { bod: "Bod", evasion: "Evasion", masking: "Masking", sensor: "Sensor" };
+  for (const h of recordsOf(owner).filter(e => e.type === "frameAttr")) {
+    const st = game.messages.get(h.card)?.flags?.sr2e?.matrix;
+    if (!h.lost && st) await dinabZeroed(st, { card: h.card, requester: owner });
+    if (game.messages.some(m => m.flags?.sr2e?.resolves === h.card)) continue;
+    const name = game.actors.get(h.upload)?.name ?? of(recordsOf(owner), "uploadOpen", h.upload)?.snapshot?.coreName ?? "The frame";
+    const text = h.lost > 0 ? `${name}'s ${ATTR[h.attr]} drops by ${h.lost}.` : `${name}'s ${ATTR[h.attr]} holds.`;
+    await ChatMessage.create({ speaker: { alias: name }, content: `<div class="sr2e-damage-result"><strong>${esc(text)}</strong>
+      <br><em>${h.atk} attack success${h.atk === 1 ? "" : "es"} vs ${h.def} success${h.def === 1 ? "" : "es"}${h.shield ? ` (Shield ${h.shieldS})` : ""}${h.effectName ? `, ${esc(h.effectName)}` : ""}.</em></div>`,
+      flags: { sr2e: { resolves: h.card, closesTests: h.closes ?? [], matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}` } } });
+  }
 }
 
-/** Re-apply Armor/Shield wear named in each hit (idempotent, card-keyed: R2 #2). */
+/** Re-apply Armor/Shield wear named in each hit or attribute loss (idempotent, card-keyed: R2 #2). */
 async function replayWear(owner) {
-  for (const h of recordsOf(owner).filter(e => e.type === "frameHit")) {
+  for (const h of recordsOf(owner).filter(e => e.type === "frameHit" || e.type === "frameAttr")) {
     const frame = game.actors.get(h.upload);
     if (!frame) continue;
     for (const ref of [h.armor, h.shield]) if (ref) await addWear(frame, ref, h.card);
@@ -227,7 +289,9 @@ export async function reconcileOwner(actor) {
   }
   await replayWear(actor);
   await replayResolutions(actor);
+  await replayTriggerReports(actor);
   await reconcileDocs(actor);
+  refreshFrames(actor);
 }
 
 /** Combat Turns of the uploads on this combat's clock (from the updateCombat hook; sequencer). */
@@ -335,6 +399,192 @@ export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = 
   return { before, after: frameState(frame).monitor, mine: r.nonce === nonce };
 }
 
+// ── Part 6a-2b: commanding dumb frames (docs/PLAN-vr2-part6-frames.md, "6a-2b in detail"; VR2.0 pp.106–107) ──────
+
+/**
+ * Why `actor` can't command `frame` now, or "" (§1–§2). Checked before anything is spent; `after` re-checks only the
+ * incarnation once the dice are rolled, so this command's own one-shot spend or DINAB crash doesn't void it (R2 #1).
+ */
+export function commandProblem(actor, frame, { op = "", copy = null, after = false } = {}) {
+  if (frame?.type !== "frame") return "That isn't a running frame.";
+  if (frame.system.ownerUuid !== actor?.uuid) return `${frame.name} isn't ${actor?.name ?? "yours"}'s.`;
+  if (frameState(frame).ended) return `${frame.name} has crashed.`;
+  if (frame.system.kind === "smart") return "Smart frames act on their own (part 6a-2c).";
+  const host = sync(frame.system.hostUuid);
+  // The frame shares the decker's datatrail: he must be on its host, on its connection (§1).
+  if (actor.system.vr2Conn?.n !== frame.system.conn || liveSession(actor)?.hostUuid !== frame.system.hostUuid
+    || (topologyOn() && currentPlace(actor)?.uuid !== frame.system.hostUuid)) return `You must be on ${host?.name ?? "its host"} to command ${frame.name}.`;
+  if (after) return "";
+  if (NO_FRAME_OPS.has(op)) return `${frame.name} can't do that: a frame doesn't move, and waiting is the decker's own (VR2.0 p.106, p.117).`;
+  if (copy && !activePrograms(frame).some(i => i.id === copy.id)) return `${copy.name} isn't running on ${frame.name} any more.`;
+  return "";
+}
+
+/** The core's DINAB runs once per the OWNER's action (§5): claimed on the frame, keyed by his combat phase. */
+export async function claimCoreDinab(frame, owner) {
+  if (!(frame.system.dinabLeft > 0)) return `${frame.name}'s core has no DINAB left.`;
+  const phase = phaseKey(owner);
+  if (!phase) return "";   // outside combat there's no phase: a run is always allowed (as 5b's DINAB)
+  return await once(frame, `coredinab:${frame.system.uploadId || frame.id}:${phase}`) ? "" : `${frame.name}'s core DINAB already ran on this action (VR2.0 p.106).`;
+}
+
+/** The decker's live decoy frame (§4; folded, never stored), or null. */
+export function liveDecoyFrameOf(decker) {
+  const n = decker?.system?.vr2Conn?.n;
+  if (n == null) return null;
+  return liveDecoyFrame({ records: recordsOf(decker), conn: n, sessionId: liveSession(decker)?.id ?? null,
+    cardOf: (id) => { const st = game.messages.get(id)?.flags?.sr2e?.vr2SystemTest; return st ? { success: systemTestVerdict(st.successes, st.hostSuccesses).success } : null; },
+    frameEnded: (u) => stateFor(decker, u).ended });
+}
+/** Has the live connection a decoy-frame record not yet switched off (whatever its card says)? */
+export const hasOpenDecoyFrame = (decker) => openDecoyFrames(recordsOf(decker), decker?.system?.vr2Conn?.n ?? null).length > 0;
+
+/**
+ * "As long as the decker himself remains inactive" (p.107): any action of his own icon ends every decoy frame of the
+ * connection for good — a sequencer fact (R1 #8), sent for ANY open record, so a later Karma success can't revive
+ * one he has acted past (R1 #9). Not awaited by the sequencer: the order is the sequencer's.
+ */
+export async function ownAction(actor, why = "") {
+  if (actor?.type !== "character" || !actor.system.vr2Conn) return;
+  const n = actor.system.vr2Conn.n;
+  for (const d of openDecoyFrames(recordsOf(actor), n)) await request(actor, "decoyFrameOff", { conn: n, decoy: d.key, why });
+}
+
+/**
+ * Who security answers (R1 #7): a test made BY a frame is answered on that frame; the decker's own test while a
+ * decoy frame lives goes to the frame. null = the frame is gone (nothing to hit). Never call inside the sequencer.
+ */
+export async function securityTarget(decker, st) {
+  if (st?.icon) { const f = game.actors.get(st.icon.upload); return f && !frameState(f).ended ? f : null; }
+  if (hasOpenDecoyFrame(decker)) {
+    await flush();
+    const live = liveDecoyFrameOf(decker), f = live ? game.actors.get(live.frame) : null;
+    if (f && !frameState(f).ended) return f;
+  }
+  return decker;
+}
+
+/** Re-prepare an owner's frames after a fact about them landed on the owner (R1 #13). */
+export function refreshFrames(owner) {
+  for (const f of game.actors.filter(a => a.type === "frame" && a.system.ownerUuid === owner?.uuid)) {
+    f.reset();
+    if (f.sheet?.rendered) f.sheet.render();
+  }
+}
+
+/** A crippler's loss on a frame (§6): the sequencer computes it; waits for the receipt like `hitFrame`. */
+export async function attrFrame(frame, card, data) {
+  const owner = sync(frame.system.ownerUuid);
+  if (!owner) return null;
+  const nonce = foundry.utils.randomID();
+  const receipt = () => recordsOf(owner).find(e => e.type === "frameAttr" && e.card === card);
+  if (!receipt()) await request(owner, "frameAttr", { upload: frame.system.uploadId || frame.id, card, nonce, ...data });
+  const t0 = Date.now();
+  while (!receipt() && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
+  const r = receipt();
+  return r ? { lost: r.lost, mine: r.nonce === nonce } : null;
+}
+
+const OPS_WITHOUT = new Set(["scanIcon"]);
+/** The frame's Command dialog (§2): a System Operation, an attack, Scan Icon, a maneuver, or an event trigger. */
+export async function commandFrame(actor, frame) {
+  const why = commandProblem(actor, frame);
+  if (why) return ui.notifications.warn(why);
+  const host = sync(frame.system.hostUuid);
+  const ops = Object.entries(CONFIG.SR2E.vr2SystemOperations).filter(([k, op]) => !NO_FRAME_OPS.has(k) && !OPS_WITHOUT.has(k)
+    && op.utility && bestUtility(frame, op.utility, host));
+  const hackingMax = actor.system.dicePools?.hacking?.value ?? 0, karma = actor.system.karma?.pool ?? 0;
+  const core = frame.system.dinabLeft > 0;
+  const kinds = [...(ops.length ? [["op", "System Operation"]] : []), ["attack", "Attack (the targeted icon)"], ["scan", "Scan Icon (the targeted icon)"],
+    ["maneuver", "Maneuver (the targeted icon)"], ["trigger", "Set an event trigger"]];
+  const o = await foundry.applications.api.DialogV2.wait({ window: { title: `Command ${frame.name}` }, rejectClose: false,
+    content: `<p style="font-size:11px;color:#aaa1c0;">A command is your Simple Action, even for a Complex operation; one command, one action (VR2.0 p.106).
+      You roll your Computer; the frame's programs and attributes count; your datatrail takes the tally.</p>
+      <div class="form-group"><label>Command:</label><select name="kind">${kinds.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
+      ${ops.length ? `<div class="form-group"><label>Operation:</label><select name="operation">${ops.map(([k, op]) =>
+        `<option value="${k}">${esc(op.label)} (${esc(op.utility)}-${programRating(bestUtility(frame, op.utility, host))})</option>`).join("")}</select></div>
+      <div class="form-group"><label>Targeted subsystem <span style="color:#958ba8;font-size:10px;">(Analyze Subsystem, Disinfect, Defuse)</span>:</label>
+        <select name="subsystem">${["access", "control", "index", "files", "slave"].map(k => `<option value="${k}" ${k === "files" ? "selected" : ""}>${CONFIG.SR2E.vr2Subsystems[k]}</option>`).join("")}</select></div>
+      <div class="form-group"><label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(${hackingMax} left)</span>:</label>
+        <input type="number" name="hacking" value="0" min="0" max="${hackingMax}" style="width:52px;text-align:center;"></div>
+      ${karma > 0 ? `<div class="form-group"><label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${karma})</span>:</label>
+        <input type="number" name="karma_dice" value="0" min="0" max="${karma}" style="width:52px;text-align:center;"></div>` : ""}
+      ${core ? `<div class="form-group"><label title="The core's DINAB runs the program itself: a Free Action, once per action of yours, no pools or Karma (VR2.0 p.106)">Run by the core's DINAB (${frame.system.dinabLeft}):</label>
+        <input type="checkbox" name="coreDinab"></div>` : ""}
+      ${miscDiceHTML()}` : ""}`,
+    buttons: [{ action: "go", label: "Command", default: true, callback: (ev, b) => {
+      const f = b.form.elements;
+      return { kind: f.kind.value, operation: f.operation?.value ?? null, subsystem: f.subsystem?.value ?? null,
+        hacking: Math.max(0, Math.min(hackingMax, parseInt(f.hacking?.value) || 0)), karmaDice: Math.max(0, Math.min(karma, parseInt(f.karma_dice?.value) || 0)),
+        coreDinab: !!f.coreDinab?.checked, ...readMiscDice(b.form) };
+    } }, { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+  if (!o || o === "cancel") return;
+  const ctx = { frame };
+  if (o.kind === "attack") return vr2MatrixAttack(actor, ctx);
+  if (o.kind === "scan") return vr2ScanIcon(actor, ctx);
+  if (o.kind === "maneuver") return vr2Maneuver(actor, ctx);
+  if (o.kind === "trigger") return setTrigger(actor, frame);
+  return vr2SystemTest(actor, host, o.operation, { ctx, subsystem: o.subsystem, hacking: o.coreDinab ? 0 : o.hacking,
+    karmaDice: o.coreDinab ? 0 : o.karmaDice, coreDinab: o.coreDinab, miscDice: o.miscDice, miscLabel: o.miscLabel });
+}
+
+/** What the frame's watchers are worth on its host (§7): its Sensor and its best analyze and scanner copies. */
+function watchers(frame) {
+  const host = sync(frame.system.hostUuid), r = (n) => { const u = bestUtility(frame, n, host); return u ? programRating(u) : 0; };
+  return { sensor: frame.system.matrixPersona?.sensor ?? 0, analyze: r("analyze"), scanner: r("scanner"), securityValue: host?.system?.securityValue ?? 0, host };
+}
+
+/** Set an event trigger (§7): a command (the decker's Simple Action) that writes a durable record on his log. */
+export async function setTrigger(actor, frame) {
+  const why = commandProblem(actor, frame, { op: "trigger" });
+  if (why) return ui.notifications.warn(why);
+  const o = await foundry.applications.api.DialogV2.wait({ window: { title: `Event trigger — ${frame.name}` }, rejectClose: false,
+    content: `<p style="font-size:11px;color:#aaa1c0;">The frame needs Sensor and the utility for what it watches at half the host's Security Value or more:
+      analyze for the host and its programs, scanner for other deckers and users (VR2.0 p.107). The GM fires it when the event happens.</p>
+      <div class="form-group"><label>Watch for:</label><select name="watch"><option value="host">events of the host or its programs</option>
+        <option value="users">other deckers or legitimate users</option><option value="both">both</option></select></div>
+      <div class="form-group"><label>The event:</label><input type="text" name="note" placeholder="e.g. the vault's slave node goes active"></div>`,
+    buttons: [{ action: "go", label: "Set", default: true, callback: (ev, b) => ({ watch: b.form.elements.watch.value, note: b.form.elements.note.value.trim() }) },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+  if (!o || o === "cancel") return;
+  const w = watchers(frame), problems = triggerProblems({ ...w, watch: o.watch });
+  if (problems.length) return ui.notifications.warn(`${frame.name} can't watch for that: ${problems.join(" ")}`);
+  if (commandProblem(actor, frame, { op: "trigger" })) return ui.notifications.warn(commandProblem(actor, frame, { op: "trigger" }));
+  const started = liveSession(actor)?.improvised?.id ?? null;
+  const id = foundry.utils.randomID();
+  await recordEvent(actor, `vr2:trigger:${frame.system.uploadId || frame.id}:${id}`, { type: "trigger", upload: frame.system.uploadId || frame.id,
+    watch: o.watch, note: o.note || "an event", frameName: frame.name });
+  await commitAction(actor, started);
+  if (frame.sheet?.rendered) frame.sheet.render();
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), whisper: whisperOwner(actor), content: `<div class="sr2e-item-card">
+    ${esc(actor.name)} sets <strong>${esc(frame.name)}</strong> to watch for: ${esc(o.note || "an event")} (a Simple Action, VR2.0 p.107).
+    <br><em>The GM fires it from the frame's sheet. The decker must be on ${esc(w.host?.name ?? "the host")} to get the message; waiting for it may need Null Operations (p.117).</em></div>` });
+}
+
+/** The triggers a frame carries (its owner's records). */
+export const triggersOf = (frame) => { const o = sync(frame?.system?.ownerUuid); const u = frame?.system?.uploadId || frame?.id;
+  return o ? recordsOf(o).filter(e => e.type === "trigger" && e.upload === u) : []; };
+
+/** The GM fires a trigger (§7): a sequencer request, refused for anyone else (R1 #14). */
+export function fireTrigger(frame, key) {
+  if (!game.user.isGM) return ui.notifications.warn("The GM fires an event trigger.");
+  const o = sync(frame.system.ownerUuid);
+  if (o) return request(o, "triggerFire", { key, fire: foundry.utils.randomID() });
+}
+
+const whisperOwner = (actor) => game.users.filter(u => u.isGM || actor.testUserPermission(u, "OWNER")).map(u => u.id);
+
+/** Post each trigger firing's report from its fact (R2 #2): the sequencer, once per fact (an existence check). */
+async function replayTriggerReports(owner) {
+  for (const t of recordsOf(owner).filter(e => e.type === "triggerFire")) {
+    if (game.messages.some(m => m.flags?.sr2e?.triggerFire === t.key)) continue;
+    await ChatMessage.create({ speaker: { alias: t.frameName ?? "A frame" }, whisper: t.delivered ? whisperOwner(owner) : ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+      content: `<div class="sr2e-item-card">${t.delivered ? `<strong>${esc(t.frameName)} reports:</strong> ${esc(t.note)} (event trigger, VR2.0 p.107).`
+        : `${esc(t.frameName)}'s trigger (${esc(t.note)}) fired, but ${esc(owner.name)} doesn't get it: ${esc(t.why)}.`}</div>`,
+      flags: { sr2e: { triggerFire: t.key } } });
+  }
+}
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export function registerFrameHooks() {
@@ -363,6 +613,8 @@ export function registerFrameHooks() {
   Hooks.on("updateActor", (a, changes) => {
     if (a.type === "character" && foundry.utils.hasProperty(changes, "flags.sr2e.vr2Session")) schedule(a);
   });
+  // 6a-2b R1 #13: a fact about a frame lands on its OWNER; re-prepare that owner's frames on every client.
+  Hooks.on("createActiveEffect", (e) => { const a = e.parent; if (a?.type === "character" && e.flags?.sr2e?.claim?.event?.type === "frameAttr") refreshFrames(a); });
   // An owner or a host deleted: their frames end (derived) and are swept at once (code R1 #3).
   Hooks.on("deleteActor", (a) => { if (["character", "host"].includes(a.type)) reconcileAllFrames(); });
   Hooks.once("ready", reconcileAllFrames);

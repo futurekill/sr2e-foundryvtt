@@ -13,6 +13,7 @@ import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rul
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2, variableLTGOn } from "../vr2-mode.mjs";
+import { frameAttrLosses, coreDinabLeft } from "../rules/vr2-frames.mjs";
 import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
@@ -2464,8 +2465,16 @@ export class FrameData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
+    // Part 6a-2b §6: attribute losses are card-keyed facts on the OWNER's log (records are its embedded effects, so
+    // they're there whatever order the actors prepare in). Rebuilt from scratch each pass.
+    let owner = null;
+    try { owner = this.ownerUuid ? fromUuidSync(this.ownerUuid) : null; } catch (e) { owner = null; }
+    const upload = this.uploadId || this.parent?.id;
+    const lost = owner ? frameAttrLosses(eventsOf(owner), upload) : { bod: 0, evasion: 0, masking: 0, sensor: 0 };
     // Persona-shaped (p.105: "the Core Rating is used in place of an MPCP Rating"), so persona readers use one accessor.
-    this.matrixPersona = { bod: this.bod, evasion: this.evasion, masking: this.masking, sensor: this.sensor };
+    this.matrixPersona = Object.fromEntries(["bod", "evasion", "masking", "sensor"].map(k => [k, Math.max(0, this[k] - lost[k])]));
     this.mpcp = this.coreRating;
+    // Core DINAB left (§5): one point per failed run, worn on this frame.
+    this.dinabLeft = coreDinabLeft(this.dinab, this.parent?.flags?.sr2e?.coreDinabWear, upload);
   }
 }

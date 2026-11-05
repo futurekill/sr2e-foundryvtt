@@ -589,7 +589,8 @@ export async function offerTar(message) {
   const armed = (b) => !recordsOf(b).some(e => e.type === "bombEnd" && e.icKey === icKeyOf(b));
   const rows = [];
   if (st.utilityRef) for (const t of onHost(p => /^tar-/.test(p))) rows.push(btn("tar", t, `${nameOf(t)} strikes ${st.utilityRef.name}`, "p.42"));
-  for (const w of onHost(p => p === "worm")) {
+  // A frame has no deck or MPCP chip to infect (6a-2b): worms answer only the decker's own tests.
+  for (const w of st.icon ? [] : onHost(p => p === "worm")) {
     rows.push(btn("worm", w, `${nameOf(w)}: infection test`, "Security Value vs MPCP (p.44)"));
     if (st.operation === "disinfect" && success) rows.push(btn("wormGone", w, `Disinfect destroys ${nameOf(w)}`, "no tally (p.44)"));
   }
@@ -637,6 +638,9 @@ export async function offerTar(message) {
 
 /** A bomb's end: ONE terminal record per incarnation; only an explosion hits (p.41). */
 export async function bombEnd(actor, bomb, outcome, card) {
+  // 6a-2b §4 (R1 #7): the explosion hits the icon that set it off — a frame's command hits the frame, and the decker's
+  // own test during a decoy frame goes to the frame. Decided BEFORE the sequencer queue (it may flush).
+  const target = outcome === "exploded" ? await (await import("./frames.mjs")).securityTarget(actor, game.messages.get(card)?.flags?.sr2e?.vr2SystemTest) : actor;
   return sequencer(async () => {
     const icKey = icKeyOf(bomb);
     if (!await recordEvent(bomb, `${P3}bomb-end:${icKey}`, { type: "bombEnd", icKey, outcome, card, seq: nextSeq() })) {
@@ -647,11 +651,12 @@ export async function bombEnd(actor, bomb, outcome, card) {
       return ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">${esc(bomb.name)} is defused (no tally, p.41).</div>` });
     }
     const host = sync(bomb.system.hostUuid);
+    if (!target) return ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">${esc(bomb.name)} explodes, but the frame that set it off has already crashed.</div>` });
     const st = { ruleset: "vr2", attackerUuid: bomb.uuid, attackerName: bomb.name, attackerType: "ic", icType: "white", icClass: "white",
-      program: "data-bomb", targetUuid: actor.uuid, targetName: actor.name, targetSession: (await import("./vr2.mjs")).sessionKey(actor),
+      program: "data-bomb", targetUuid: target.uuid, targetName: target.name, targetSession: (await import("./vr2.mjs")).sessionKey(target),
       hostUuid: host?.uuid ?? "", hostName: host?.name ?? "the host", securityCode: host?.system.securityCode ?? "green",
       securityValue: host?.system.securityValue ?? 0, status: "intruding", power: bomb.system.rating, level: "M",
-      successes: 1, resolved: false, icKey, targetConn: actor.system.vr2Conn?.n ?? null, autoHit: true };
+      successes: 1, resolved: false, icKey, targetConn: target.type === "character" ? (target.system.vr2Conn?.n ?? null) : null, autoHit: true };
     const { renderVR2MatrixCard } = await import("./vr2.mjs");
     const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: bomb }),
       content: renderVR2MatrixCard(st).replace("</strong>", "</strong> <em>(the data bomb explodes: an automatic hit, VR2.0 p.41)</em>"),
@@ -745,39 +750,47 @@ export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
     const won = tarWins(tar.successes, util.successes);
     const pit = won && prof.program === "tar-pit";
     const conn = liveConn(actor);
-    const item = actor.items.get(ref.itemId);
+    // 6a-2b R1 #6: a frame command's copy lives on the frame; the fact stays on the decker's log, the recipient frozen.
+    const holder = ref.icon ? sync(ref.icon.uuid) : actor;
+    const item = holder?.items.get(ref.itemId);
     const pKey = programKey({ source: item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId, name: ref.name });
     const g = actor.system.vr2Deck?.reloadGen?.(pKey) ?? 0;
     // A trashed one-shot utility wipes EVERY one-shot copy of it in active memory (p.104): frozen here, so a copy
     // loaded after the strike is never touched (plan 5b §3).
     const V = await import("./vr2.mjs");
-    const victims = won && item?.system.activeOpts?.some(o => o.kind === "oneShot")
-      ? V.usablePrograms(actor).filter(i => i.id !== ref.itemId && i.system.activeOpts?.some(o => o.kind === "oneShot")
+    const victims = won && holder && item?.system.activeOpts?.some(o => o.kind === "oneShot")
+      ? V.usablePrograms(holder).filter(i => i.id !== ref.itemId && i.system.activeOpts?.some(o => o.kind === "oneShot")
           && programKey({ source: i._stats?.compendiumSource ?? i.flags?.core?.sourceId, name: i.name }) === pKey)
         .map(i => ({ itemId: i.id, loadGen: i.system.loadGen ?? 0 })) : [];
-    const pitRoll = pit ? await SR2ESuccessRoll.successTest(prof.rating + threat, grayTN("tar-pit", actor.system.cyberdeck?.mpcp ?? 0, conn?.settings?.hardening ?? 0)) : null;
+    // A frame: Core Rating as MPCP, no Hardening (it has no deck).
+    const pitRoll = pit ? await SR2ESuccessRoll.successTest(prof.rating + threat, ref.icon ? grayTN("tar-pit", holder?.system?.mpcp ?? 0, 0)
+      : grayTN("tar-pit", actor.system.cyberdeck?.mpcp ?? 0, conn?.settings?.hardening ?? 0)) : null;
     // Everything the consequences need, so `reconcileTar` can finish an interrupted strike (4b R5).
     if (!await fact(actor, key, { v: 2, type: "tar", card, icKey, icUuid: ic.uuid, gen, comp: prof.comp, won, tar: tar.successes, util: util.successes,
-      pit: pitRoll?.successes ?? null, programKey: pKey, g, utility: { itemId: ref.itemId, loadGen: ref.loadGen, name: ref.name }, victims,
-      conn: conn?.n ?? null, deckUuid: deckDoc(actor, conn)?.uuid ?? null })) return;
+      pit: pitRoll?.successes ?? null, programKey: pKey, g, utility: { itemId: ref.itemId, loadGen: ref.loadGen, name: ref.name, icon: ref.icon ?? null }, victims,
+      conn: conn?.n ?? null, deckUuid: ref.icon ? null : (deckDoc(actor, conn)?.uuid ?? null) })) return;
     await reconcileTarFact(actor, recordsOf(actor).find(e => e.key === P3 + key));
-    const sensor = !won ? await SR2ESuccessRoll.successTest(actor.system.matrixPersona?.sensor ?? 0, Math.max(2, prof.rating)) : null;
+    const sensor = !won ? await SR2ESuccessRoll.successTest((holder ?? actor).system.matrixPersona?.sensor ?? 0, Math.max(2, prof.rating)) : null;
     const who = prof.comp ? `${ic.name} (${CONFIG.SR2E.icPrograms[prof.program] ?? prof.program})` : ic.name;
     const notice = !sensor ? "" : sensor.successes >= 3 ? `notices ${esc(who)} (rating ${prof.rating})` : sensor.successes === 2 ? "notices tar IC" : sensor.successes === 1 ? "notices it triggered IC" : "notices nothing";
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
       <strong>${esc(who)} vs ${esc(ref.name)}</strong>: ${tar.successes} against ${util.successes}.
       ${won ? `The tar wins: ${esc(ref.name)} crashes (a Swap Memory reloads it) and so does the tar${prof.comp ? " program (the construct goes on)" : ""}, with no tally.${pit
-        ? (pitRoll.successes > 0 ? ` <strong>Tar pit: every copy of ${esc(ref.name)} on the deck is corrupted</strong> until reloaded from outside after jacking out (p.43).` : " Tar pit: its viral code is defeated.") : ""}`
+        ? (ref.icon ? " Tar pit: a frame has no storage, so nothing else is corrupted." : pitRoll.successes > 0 ? ` <strong>Tar pit: every copy of ${esc(ref.name)} on the deck is corrupted</strong> until reloaded from outside after jacking out (p.43).` : " Tar pit: its viral code is defeated.") : ""}`
         : `The utility holds. The decker's secret Sensor test: ${sensor.successes} (${notice}; p.40).`}</div>` });
-    if (won) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)}'s ${esc(ref.name)} crashes (tar IC, VR2.0 p.42).</div>` });
+    if (won) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc((holder ?? actor).name)}'s ${esc(ref.name)} crashes (tar IC, VR2.0 p.42).</div>` });
   });
 }
 
 /** A winning v2 tar fact's consequences, each idempotent (4b R5): the utility, the tar itself, a pit's corruption. */
 async function reconcileTarFact(actor, t) {
   if (t?.v !== 2 || !t.won) return;
-  await recordEvent(actor, `${P3}crash:${t.utility.itemId}:${t.utility.loadGen}:tar-${t.card}`, { type: "crash", programId: t.utility.itemId, loadGen: t.utility.loadGen });
-  for (const v of t.victims ?? []) await recordEvent(actor, `${P3}crash:${v.itemId}:${v.loadGen}:tar-${t.card}`, { type: "crash", programId: v.itemId, loadGen: v.loadGen });
+  // The recipient frozen in the receipt (6a-2b R1 #6): a frame's copy crashes on the frame; a frame gone, on nothing.
+  const holder = t.utility.icon ? sync(t.utility.icon.uuid) : actor;
+  if (holder) {
+    await recordEvent(holder, `${P3}crash:${t.utility.itemId}:${t.utility.loadGen}:tar-${t.card}`, { type: "crash", programId: t.utility.itemId, loadGen: t.utility.loadGen });
+    for (const v of t.victims ?? []) await recordEvent(holder, `${P3}crash:${v.itemId}:${v.loadGen}:tar-${t.card}`, { type: "crash", programId: v.itemId, loadGen: v.loadGen });
+  }
   const ic = sync(t.icUuid);
   if (ic && t.comp) await crashComponent(ic, t.gen, t.comp, t.card);
   else if (ic && (ic.system.generation ?? 0) === t.gen) await crashIC(ic, t.card);
@@ -831,7 +844,7 @@ export async function traceStart(actor, card) {
 // ── Part 5a: Track, Hog, Slow (docs/PLAN-vr2-part5.md §3–§5) ───────────────────────
 
 /** Close an attack card's test and return its successes as they stand (Karma included). */
-async function freezeSuccesses(st) {
+export async function freezeSuccesses(st) {
   const tm = game.messages.get(st.testMessageId), test = tm?.flags?.sr2e?.test;
   if (test && !test.closed) {
     const { renderSuccessTestCard } = await import("./documents/actor.mjs");
@@ -938,7 +951,9 @@ async function resolveUtility(actor, res) {
     const key = `track~${card}`;
     if (!recs.some(e => e.type === "trace" && e.icKey === key)) {
       if (attackerEnded(st.icKey, st.attackerInc)) { await ack({ attackerGone: true }); return postResolution(actor, card, `${st.attackerName} is gone: the Track never locks.`); }
-      await fact(actor, `trace:${res.conn}:${key}`, { type: "trace", conn: res.conn, icKey: key, track: true, attacker: st.icKey, attackerInc: st.attackerInc ?? 0,
+      // A Track through a frame (6a-2b R1 #3): the frame's Sensor sets the Relocate TN, and the track dies with it.
+      const via = st.attackerType === "frame" ? { uuid: st.attackerUuid, upload: String(st.attackerUuid).split(".").pop() } : null;
+      await fact(actor, `trace:${res.conn}:${key}`, { type: "trace", conn: res.conn, icKey: key, track: true, attacker: st.icKey, attackerInc: st.attackerInc ?? 0, via,
         rating: st.rating ?? 0, icName: st.attackerName, turns: locationTurns(atk - ev), clock: clockOf(actor) });
     }
     const turns = locationTurns(atk - ev);
@@ -1011,7 +1026,8 @@ export function slowResult(ic, card, resist, snap) {
     const combat = game.combats.get(snap?.combatId) ?? null;
     // The round and incarnation captured BEFORE the resistance roll (code review #7): stale ones never apply.
     await fact(ic, `slow:${card}`, { type: "slow", card, lost, combatId: snap?.combatId ?? null, round: snap?.round ?? null,
-      gen: snap?.gen ?? (ic.system.generation ?? 0), deckerUuid: st.attackerUuid, session: st.attackerSession ?? "" });
+      // A frame's Slow suppresses on its COMMANDER's datatrail (6a-2b R1 #2).
+      gen: snap?.gen ?? (ic.system.generation ?? 0), deckerUuid: st.commanderUuid ?? st.attackerUuid, session: (st.commanderUuid ? st.commanderSession : st.attackerSession) ?? "" });
     await reconcileSlow(ic);
     const hung = !!combat?.combatants.find(c => c.actor?.uuid === ic.uuid)?.getFlag("sr2e", `slowApplied.${card}`)?.hung;
     const text = !lost ? `${ic.name} shrugs off the Slow.` : `${ic.name} loses ${lost} action${lost === 1 ? "" : "s"}${hung ? ": it hangs this turn" : ""}${combat ? "" : " (no combat: the GM applies it)"}.`;
@@ -1301,7 +1317,9 @@ export async function relocate(actor, icKey) {
   const rel = relItem && !(await V.spendUse(actor, relItem)) ? V.programRating(relItem) : 0;
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
   // Against a track (p.97–98): the attacking decker's Sensor instead of the system's rating.
-  const tn = t.track ? Math.max(2, (sync(parseAttackerKey(t.attacker).uuid)?.system?.matrixPersona?.sensor ?? 0) - rel) : relocateTN(t.rating, rel);
+  await (await import("./frames.mjs")).ownAction(actor, "Relocate");   // 6a-2b §4: the decker acts
+  const tracker = t.track ? (sync(recordsOf(actor).find(e => e.type === "trace" && e.icKey === icKey)?.via?.uuid) ?? sync(parseAttackerKey(t.attacker).uuid)) : null;
+  const tn = t.track ? Math.max(2, (tracker?.system?.matrixPersona?.sensor ?? 0) - rel) : relocateTN(t.rating, rel);
   const boundary = openBoundaryOf(actor, t);
   const r = await actor.rollSuccessTest(computer, tn, { label: RL("Relocate", { tn }), tnContext: { kind: "matrix" } });
   if (!r) return;
@@ -1618,7 +1636,8 @@ async function admitDeckerCards(actor) {
   const seen = new Set(recs.filter(e => e.type === "admit" || e.type === "refuse").map(e => e.card));
   const cards = game.messages.contents.filter(m => {
     const st = m.flags?.sr2e?.matrix;
-    return st?.ruleset === "vr2" && st.attackerType === "character" && st.targetUuid === actor.uuid && st.targetConn != null && !seen.has(m.id);
+    // A frame's attack is admitted like its commander's (6a-2b R1 #1): the card's key and incarnation are his.
+    return st?.ruleset === "vr2" && ["character", "frame"].includes(st.attackerType) && st.targetUuid === actor.uuid && st.targetConn != null && !seen.has(m.id);
   });
   for (const m of cards) {
     const st = m.flags.sr2e.matrix, f = foldOf(actor);
@@ -1685,7 +1704,8 @@ async function reconcileEnds(actor) {
     if (recs.some(e => e.type === "traceDead" && e.icKey === t.icKey)) continue;
     const st = f.live.traces.find(x => x.icKey === t.icKey);
     if (st?.complete) continue;
-    if (attackerEnded(t.attacker, t.attackerInc)) await fact(actor, `trace-dead:${t.conn}:${t.icKey}`, { type: "traceDead", conn: t.conn, icKey: t.icKey, why: "attacker" });
+    const viaGone = t.via && (!sync(t.via.uuid) || (await import("./frames.mjs")).frameState(sync(t.via.uuid)).ended);
+    if (viaGone || attackerEnded(t.attacker, t.attackerInc)) await fact(actor, `trace-dead:${t.conn}:${t.icKey}`, { type: "traceDead", conn: t.conn, icKey: t.icKey, why: "attacker" });
   }
 }
 
@@ -1832,6 +1852,9 @@ export async function sheetOp(doc, op, arg) {
   if (op === "frameLoad") { const P = await import("./programming.mjs"); return P.loadDialog(doc, doc.items.get(arg)); }
   if (op === "frameUpload") { const F = await import("./frames.mjs"); return F.uploadFrame(doc, doc.items.get(arg)); }
   if (op === "frameOpen") return game.actors.get(arg)?.sheet.render(true);
+  // Part 6a-2b: command a dumb frame (§2); the GM fires an event trigger (§7, `arg` = frameId|triggerKey).
+  if (op === "frameCommand") { const F = await import("./frames.mjs"); return F.commandFrame(doc, game.actors.get(arg)); }
+  if (op === "triggerFire") { const F = await import("./frames.mjs"); const [fid, key] = arg.split("|"); const fr = game.actors.get(fid); return fr && F.fireTrigger(fr, key); }
   if (op === "frameDecompress") { const F = await import("./frames.mjs"); return F.decompressFrame(doc, doc.items.get(arg)); }
   if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
@@ -1995,7 +2018,7 @@ export function registerVr2IcHooks() {
   // Part 5a §0: a decker's attack on a decker on the log is admitted by the sequencer finding the card.
   Hooks.on("createChatMessage", (m) => {
     const st = m.flags?.sr2e?.matrix;
-    if (st?.ruleset !== "vr2" || st.attackerType !== "character" || st.targetConn == null) return;
+    if (st?.ruleset !== "vr2" || !["character", "frame"].includes(st.attackerType) || st.targetConn == null) return;
     const t = sync(st.targetUuid);
     if (t) schedule(t);
   });
