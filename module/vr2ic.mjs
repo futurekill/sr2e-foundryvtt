@@ -1943,6 +1943,10 @@ export function registerVr2IcHooks() {
     }
   };
   Hooks.on("createActiveEffect", onRecord);
+  // Part 7b: a move entry is a flag write, not a record: wake the sequencer so the move is sequenced now.
+  Hooks.on("updateActor", (actor, changes) => {
+    if (foundry.utils.hasProperty(changes, "flags.sr2e.vr2Moves")) schedule(actor);
+  });
   // The end of each Combat Turn (a round change) ticks every trace on that combat's clock.
   Hooks.on("updateCombat", (combat, changes) => {
     if (!("round" in (changes ?? {})) || !isSequencer() || !isVR2()) return;

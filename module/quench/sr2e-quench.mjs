@@ -13731,7 +13731,8 @@ export function registerSR2EQuenchTests() {
         return icKey;
       };
       const traceOf = (a, k) => Y.foldOf(a).live?.traces.find(t => t.icKey === k);
-      const synced = async (a) => { Y.schedule(a); await wait(500); };
+      // No manual nudge: a move entry wakes the sequencer by itself (updateActor hook).
+      const synced = async () => { await wait(600); };
       // Computer 5 vs Access 6 − Deception 4 = TN 2. `hostHits` of the host's 4 Security Value dice succeed.
       const op = (a, h, operation, { win = true, hostHits = 0, opts = {} } = {}) => withFaces([...(win ? [5, 5, 5, 5, 5] : [5, 1, 1, 1, 1]),
         ...Array.from({ length: 4 }, (_, i) => (i < (win ? hostHits : 4) ? 5 : 1)), 1, 1, 1, 1], () => V.vr2SystemTest(a, h, operation, opts));
