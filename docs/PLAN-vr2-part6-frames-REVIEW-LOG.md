@@ -207,3 +207,42 @@ No findings in c7e73ac. Selected sources are validated before copying, with no i
 VERDICT: APPROVED
 
 **6a-1 code APPROVED in round 3.**
+
+# Part 6a-2a (frame actor, upload, lifecycle, frames as targets)
+
+## 6a-2a Round 1 — Codex (fresh session, 6a-2a only, named code; ~172k input tokens)
+
+- **§1–2 — Decompression is lost on creation.** `frameDecompressed` on the core does not satisfy `isCompressed(copy)`, which checks each item’s `flags.sr2e.decompressed` against `loadGen`; squeezed Armor/Shield remain unusable. **Fix:** initialize each runtime copy’s decompression flag for its load generation.
+
+- **§1/5 — Sensitive defenses use the wrong host context.** `bestUtility(frame, …)` defaults to `liveSession(frame)`, but frames store `system.hostUuid`; manufacturer restrictions can silently disappear. **Fix:** pass the frame’s host explicitly or teach the utility accessor to resolve it.
+
+- **§2 — Admission lacks the captured connection and authoritative upload validation.** The request omits `conn` (`request()` does not supply it), while admission checks neither the core/load/decompression nor the submitted duration and snapshot. **Fix:** capture `conn` and have admission validate the generation and derive the accepted snapshot/duration.
+
+- **§2/4 — Current-location checks can miss a departure and return.** A debounced pass can see the owner back on the same host; §4 also ignores `sessionId`, allowing a dumb frame to survive a replacement host session. **Fix:** latch termination from departure/session transitions, using durable movement records where topology applies.
+
+- **§3 — Pre-create checks do not close the creation/cleanup race.** Departure can occur while `Actor.create` or token creation is in flight, after cleanup found nothing; the plan omits the persona writer’s create/delete-triggered reconciliation and surplus-token removal. **Fix:** reschedule on creation/deletion and reconcile late arrivals and duplicate tokens after every write.
+
+- **§4 — Owner deletion destroys the only terminal-fact store.** Once the owner is deleted, `frame-end` cannot be written there, yet “nothing else ends a frame.” **Fix:** keep lifecycle facts on a durable GM-owned document that outlives the owner.
+
+- **§4 — Shutdown cleanup is not replayable.** `tickShutdown` returns once the host is offline; interruption after its final tick can skip frame termination, including completed uploads whose actors are not created yet. **Fix:** reconcile shutdown termination from durable shutdown history against uploads as well as existing actors.
+
+- **§5 — A full monitor can persist without a crash fact.** Damage and `frameCrash` are separate writes; interruption between them leaves a 10-box frame whose `ended` guard remains false. **Fix:** have reconciliation derive and write the terminal fact whenever the monitor is full.
+
+- **§5 — The existing resistance path is not cross-client idempotent.** Its in-flight guard and monitor queue are client-local, and damage precedes resolution marking; simultaneous player/GM resolution or retry after interruption can apply damage twice. **Fix:** send resistance results to the GM and commit a card-keyed, replay-safe damage receipt.
+
+VERDICT: REVISE
+
+### Claude's response
+All nine findings were accepted. The common fix is to derive more from durable facts.
+- **#1:** copies are created decompressed when the frame was.
+- **#2:** `activePrograms` resolves a frame's host from `system.hostUuid`.
+- **#3:** the request carries `conn` and nothing else trusted. Admission validates the core and load generation,
+  and builds the snapshot and duration itself.
+- **#4:** departure is a durable transition. Under topology that's 7b `move` facts after the start; with topology
+  off, a different session id. A trip out and back counts.
+- **#5:** create, delete and token hooks reschedule. Late-created ended actors and tokens, and surplus tokens, are
+  deleted.
+- **#6–#8:** `ended` is derived from the owner or host missing, the host offline, the derived monitor, or
+  departure. The `frame-end` fact is for the record only.
+- **#9:** frame damage is a card-keyed `frameHit` fact written once by the sequencer, and the monitor is derived
+  from those facts.

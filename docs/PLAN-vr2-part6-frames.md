@@ -531,8 +531,10 @@ so), with a `FrameData` model and a sheet (`SR2EFrameSheet`). After the schema a
 - `ownerUuid`: the decker;
 - `coreUuid`: the core item, for display only;
 - `uploadId`: the incarnation id (§2);
-- `hostUuid`, plus `conn` and `sessionId`: the owner's connection and host session at upload;
-- `condition { value }`, a 10-box monitor (p.124).
+- `hostUuid`, plus `conn` and `sessionId`: the owner's connection and host session at upload.
+
+**The monitor is DERIVED, not stored (R1 #9).** A frame's damage is the sum of its `frameHit:<card>` facts on the
+owner's log (§5): 10 boxes per p.124, and full means crashed (§4).
 
 **Ownership.** The frame actor copies the owner actor's ownership levels, so the decker's player owns it. The GM
 writes it (§3).
@@ -546,6 +548,12 @@ writes it (§3).
   and deletion, except by the GM's cleanup. "Programs are object-code copies" (p.106), so a running frame's programs
   never change.
 - A frame core's own derivation doesn't apply to these items: they are ordinary programs.
+- **Decompressed copies stay decompressed (R1 #1).** When the frame was decompressed (§2), each copy is created with
+  `flags.sr2e.decompressed` = its own `loadGen` (0), so `isCompressed(copy)` is false. Otherwise a squeezed Armor
+  copy would be unusable.
+- **The frame's host is its context (R1 #2).** `activePrograms(actor, host)` (and so `bestUtility`) resolves the
+  host of a `frame` actor from `system.hostUuid`, not from a live session (frames have none), so Sensitive
+  copies are judged on the frame's own host.
 
 **The frame's derived data:**
 - `matrixPersona`-shaped attributes (`bod`, `evasion`, `masking`, `sensor`) and `mpcp` = `coreRating` ("the Core
@@ -564,16 +572,19 @@ refuses unless:
   Action, as `vr2Decompress`). It writes `flags.sr2e.frameDecompressed = <load gen>` on the core, and a newer load
   needs it again.
 
-**The request.** The decker's client sends `upload` with:
-- `{ id, core, gen, host, sessionId, seconds }`, where `id` is a fresh `randomID(16)`;
-- `seconds = ⌈frameSize ÷ the deck's I/O speed⌉`, refused if the I/O speed is 0;
-- the full creation snapshot `{ kind, coreRating, attrs, initPoints, dinab, copies, coreName, frameSize }`, taken
-  from the core and its `activeLoad` at that moment.
+**The request.** The decker's client sends `upload` with `{ id, conn, core, gen, host, sessionId }` (R1 #3: `conn`
+is captured explicitly; `request()` doesn't add it). `id` is a fresh `randomID(16)`. No snapshot and no duration:
+the client's word on either isn't trusted.
 
-**Admission (sequencer).** `HANDLERS.upload`:
-- **validates on its own client:** the decker's live connection is `conn`; the live session is `sessionId`, and it is
-  on `host`; the host is online; the decker is ON that host (`currentPlace`, under topology);
-- **writes `upload-open:<id>`** `{ type: "upload", conn, sessionId, host, seconds, snapshot, clock }`. The clock is
+**Admission (sequencer; R1 #3).** `HANDLERS.upload` **derives** everything on its own client:
+- it validates that the decker's live connection is `conn`; the live session is `sessionId`, on `host`; the host is
+  online; under topology the decker is ON that host;
+- the core item (read from the owner actor) must be written, with no `coreProblems`, and an `activeLoad` of
+  generation `gen` with no `void`; if squeezed, `frameDecompressed === gen`;
+- it builds the snapshot itself from that core and load: `{ kind, coreRating, attrs, initPoints, dinab, copies,
+  coreName, frameSize }`;
+- `seconds = ⌈frameSize ÷ the owner's deck I/O speed⌉`, refused at 0;
+- it **writes `upload-open:<id>`** `{ type: "upload", conn, sessionId, host, seconds, snapshot, clock }`. The clock is
   the decker's started combat if he is in one (`{ combatId, startRound }`, as traces do); otherwise
   `{ manual: true }`.
 
@@ -588,9 +599,16 @@ The card says the upload takes N seconds, which is ⌈N ÷ 3⌉ Combat Turns.
   `upload-done:<id>`.
 - If at any check he is not, it writes `upload-end:<id>` `{ why: "left the host" }`, and the upload is lost: "As
   soon as the upload completes, the frame starts running", and an interrupted upload never completes.
-- **Departure is checked, not waited for:** `passFor` runs `reconcileUploads(actor)`. A new `updateActor` hook
-  schedules the decker on any `flags.sr2e.vr2Session` change, because session switches are flag writes, not records
-  (the 7b lesson).
+- **Departure is a durable transition, not a current-location check (R1 #4)**, so a quick trip away and back still
+  counts. The same rule decides uploads and dumb frames (§4), `departedSince(owner, { conn, sessionId, host, since })`:
+  - **the connection** ended or changed;
+  - **under topology:** any 7b `move` fact on that connection after `since` (the upload's or the frame's start seq).
+    Moves are written only for real place changes, so a failed logon elsewhere isn't a departure;
+  - **topology off:** the live session's id isn't `sessionId`. Session ids are never reused, so leaving and coming
+    back still differs.
+
+  `passFor` runs `reconcileUploads(actor)`. A new `updateActor` hook also schedules the decker on any
+  `flags.sr2e.vr2Session` change, because session switches are flag writes, not records (the 7b lesson).
 
 ### 3. Creation, idempotent (requirement: "actor/token creation reconciled idempotently against a departure")
 **The writer.** The active GM's client runs `reconcileFrames()` from `passFor` and on `ready` and `userConnected`, as
@@ -609,22 +627,30 @@ actor already exists.
 - Otherwise there's no token: the frame lives on its sheet, and the GM may drag it out.
 - The token is reconciled the same way: one per frame, created only while the frame isn't ended.
 
-**Re-checks.** Before creating, the writer checks again, after each await, that the upload is done and not ended,
-that no actor with that id exists, and that it is still the writer (the persona-token pattern).
+**Re-checks and late arrivals (R1 #5).**
+- Before creating, the writer checks again, after each await, that the upload is done and not ended, that no actor
+  with that id exists, and that it is still the writer (the persona-token pattern).
+- A departure can still land while `Actor.create` is in flight. So, as in persona-tokens, `createActor`,
+  `deleteActor`, `createToken` and `deleteToken` hooks on frames reschedule the owner's reconcile, and every pass
+  re-derives:
+  - an ended frame's late-created actor or token is deleted;
+  - surplus tokens (more than one for a frame) are deleted, keeping the oldest.
 
 ### 4. Lifecycle (requirement: "stable incarnation id, host shutdown/deletion, replayable cleanup")
-**One terminal fact per frame.** `frame-end:<uploadId>` `{ why }` on the OWNER's record log, written by the
-sequencer. `ended` is derived from it, and nothing else ends a frame.
+**`ended` is DERIVED, by a pure `frameEnds(...)`, from durable state (R1 #6–#8).** The sequencer records a
+`frame-end:<uploadId>` `{ why }` fact on the owner's log when it notices, for the card and history. But nothing
+depends on that write having happened: an interrupted pass is simply redone.
 
 **What ends a frame:**
-- **dumb, the owner leaves:** "If a decker logs off a host, any dumb frames he is running on that host crash … don't
-  follow the decker to other systems" (p.106). `reconcileFrames` ends a dumb frame whenever the owner's live
-  connection isn't the frame's `conn`, or his current place (topology) or live session's host isn't the frame's
-  host. A brief failed logon elsewhere doesn't count, because under topology he is still ON the host.
-- **its monitor fills** (§5): `why: "crashed"`;
-- **its host shuts down:** `tickShutdown` (vr2ic ~1368), which today enumerates deckers, also ends every frame whose
-  `hostUuid` is that host (p.53: "a shutdown wipes out all frames");
-- **its host is deleted, or its owner is deleted:** reconciled;
+- **dumb, the owner leaves** ("If a decker logs off a host, any dumb frames he is running on that host crash …
+  don't follow the decker to other systems", p.106): `departedSince(owner, …)` since the frame's `upload-done` seq
+  (§2).
+- **its monitor is full (R1 #8):** derived from its `frameHit` facts, so a crash can't be missed between two writes;
+- **its host is offline** (`hostShutdown(host).offline`; R1 #7): derived from the host's own shutdown records, so it
+  replays even if `tickShutdown` was interrupted. It applies to uploads too: an upload to an offline host ends. p.53:
+  "a shutdown wipes out all frames";
+- **its host or its owner is deleted (R1 #6):** derived from the missing document. The owner's log is gone then,
+  so no fact is needed or written;
 - **the GM deletes it:** a `deleteActor` hook on a frame writes `frame-end … why: "deleted"` if none exists.
 - **Smart frames don't end with the owner's departure** ("independent existence … whether their creator is logged
   on or not", p.105). Their acting is 6a-2c, so in 6a-2a a smart frame simply persists until one of the other
@@ -650,8 +676,8 @@ helpers:
 | black IC hitting a frame | biofeedback on a decker | plain Matrix damage at the IC's level/Power: "as an icon, no biofeedback" (a Risks decision in this plan) |
 | attribute / track / hog / slow effects | personas or IC | refused vs a frame until 6a-2b |
 | resistance (`vr2MatrixResist` ~1373) | ic / character | frame: Bod (+ its Armor copy) vs Power, Shield copy via `askShield`; resisted by the frame's owner or the GM |
-| damage write (`matrixDamage` ~1307) | ic / persona path | frame: `system.condition.value`, in the frame's own queue |
-| crash at 10 boxes | IC crash / persona dump | the frame's crash: a `frameCrash` request, then the sequencer writes `frame-end … crashed` |
+| damage write (`matrixDamage` ~1307) | ic / persona path | frame (R1 #9): the resolver sends `frameHit { uploadId, card, boxes, armorRef, shieldRef }`; the sequencer writes `frameHit:<card>` ONCE (keyed by the card, server-arbitrated), and the wear of the Armor/Shield copy with it. A second resolution of the same card (player and GM at once, or a retry) writes nothing |
+| crash at 10 boxes | IC crash / persona dump | derived: the monitor is full (§4) |
 | Scan Icon (6a-0) | deckers | + frames: MPCP = Core Rating, persona ratings, Response Increase 0 |
 | Locate Frame (system op) | no frames existed | on success, a GM whisper listing the SMART frames on that host ("locates any smart frames or SKs running on the host", p.115) |
 | host shutdown (~1368) | deckers | + frames (§4) |
@@ -662,7 +688,9 @@ has crashed".
 ### 6. Tests (6a-2a)
 **Vitest** (pure, in `module/rules/vr2-frames.mjs`):
 - upload seconds (Genie's 1,392 Mp at 20 MePS → 70 s → 24 turns), and an I/O speed of 0 refused;
-- `frameEnds({ frame, owner })` for every dumb and smart cause;
+- `frameEnds(...)` for every dumb and smart cause, and `departedSince` (a move after the start, a move before
+  it, topology off with a new session, a failed logon's session switch not counted under topology);
+- the derived monitor from `frameHit` facts, with a duplicate card counted once;
 - `limitClass` and `iconKind`.
 
 **Quench `sr2e.vr2-frames` additions:**
@@ -673,6 +701,10 @@ has crashed".
 - leaving the host mid-upload ends it with no frame;
 - a dumb frame crashes when the owner logs onto another host; a smart one persists;
 - IC attacks a frame: Bod + Armor resist, 10 boxes crash it, and cleanup removes the actor and its token;
+- the same attack resolved twice (owner and GM): damage lands once;
+- a squeezed Armor copy is usable after the frame's decompression, and a Sensitive copy is judged on the frame's
+  host;
+- the owner out to another host and straight back (topology on and off): the dumb frame is ended;
 - a Limit:frame attack works on a frame and is refused on a decker;
 - host shutdown ends the frames on it;
 - deleting the frame by hand writes its end.
