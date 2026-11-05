@@ -1,6 +1,6 @@
 # Plan: VR2.0 part 7: grid topology
 _Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson). **7a Codex-APPROVED round 3; BUILT and released in 0.132.0 (code review approved round 4).**
-7b and 7c get their own detailed sections and reviews later. No code before review._
+**"7b in detail" is under review** (2026-11-04); 7c gets its own section later. No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
 - Matrix Topology pp.14–15;
@@ -453,6 +453,182 @@ The kind's Access modifier is added to the TN of every **Access Test**: a System
 - Karma turning a failed logon into success moves the decker;
 - deleting the logon card keeps him there;
 - topology off: unchanged.
+
+## 7b in detail: trace on a grid, host networks, one redirect per grid (the part under review)
+
+Builds on 7a as released in 0.132.0: `currentPlace()`, `logon` records, the `vr2Tallies` ledger, `vr2op` queue. The
+pages behind it were rendered again for this section (2026-11-04):
+- **Trace on a Grid (p.47).** "Trace triggered by a grid keeps working against the decker as long as he remains on
+  any grid controlled by the same RTG. If he defeats the IC on an LTG, he must keep it suppressed or keep relocating
+  as long as he is on that LTG, its parent RTG, or any other LTG governed by that RTG … the IC loses interest in
+  tracking the decker once he has logged onto a host or another RTG or PLTG."
+- **Dump on locate (p.47).** "If the trace IC has been triggered by the RTG that governs the decker's jackpoint, or by
+  an LTG attached to that RTG, then the IC can immediately dump the decker once it detects his jackpoint … a
+  killer-type attack is not necessary … not available to a trace originating on other grids or hosts."
+- **Host networks (p.36).**
+  - "To travel from the hub to a second-tier system, a decker must perform an Analyze Subsystem operation on the
+    Access subsystem of the first-tier host (unless the designers … hid the connection … on a different subsystem)
+    to find the connections, then perform a Logon to Host to the second-tier host."
+  - "These operations include the equivalent of a Graceful Logoff on the first-tier hub, so if the system is running
+    Trace IC, add the IC rating to the decker's target number for the logon to the new host … if the decker
+    successfully logs on to the second-tier host, the hub loses his datatrail, and any Trace running against him in
+    the hub crashes."
+  - "To pass from any single host in a network to another, the decker must perform a Logon to Host operation from the
+    second-tier machine back onto the hub, and then another Logon to Host to get to the next computer."
+  - "Deckers on a hub can perform operations such as Locate File or Locate Slave for the entire host network …
+    identify which second-tier host contains a specific datafile or controls a certain remote device."
+- **Graceful Logoff (p.114)** "clears all traces of the decker and his actions from the security and memory systems of
+  the host."
+- **Redirect Datatrail (p.117).**
+  - "Deckers may perform Redirect Datatrail operations on any grid. Reduce the target number for the opposing
+    Security Test by the decker's trace modifier (see Jackpoints, p.28)."
+  - "Deckers can leave only one redirect on a grid. For each grid where a decker leaves a redirect, reduce his trace
+    factor by 1."
+  - The system already counts redirects into the Trace Factor (part 3; the stated reading that redirects ADD stays).
+
+All of 7b applies only when `vr2Topology` is on. Off, traces, logons and redirects behave as today.
+
+### 1. Which place a trace belongs to
+**Recording the place.** The `trace` fact (vr2ic.mjs ~754, written by the sequencer when the trace hits) gains
+`place`: the IC's host UUID at that moment. An older trace fact without it reads the IC's current host.
+
+**`traceScope(trace)`** classifies the trace from that place, using 7a's `scopeOf`:
+- a public-grid trace: the place is an LTG or RTG, so the scope is `rtg_<id>` or `ltg_<id>`;
+- a host trace: anything else, including a PLTG. The book's grid rule names public RTGs and LTGs only.
+- A Track (part 5a, a decker's utility) is neither. 7b never touches it.
+
+### 2. A grid trace loses interest (p.47)
+**The pure decision.** `traceLost({ trace, place, topo })` in `module/rules/vr2-grids.mjs` returns `"left the grid"`
+or null:
+- it applies to a public-grid trace that is neither complete nor dead;
+- the decker's current place is a host, a PLTG, or a grid in another scope.
+
+The case "still at the jackpoint" can't arise, because a hit needs a place.
+
+**Applying it, in the sequencer on the active GM's client:**
+- `tickTraces` (vr2ic.mjs ~1154) first runs `reconcileInterest(actor)`, just as it already runs `reconcileEnds`
+  first. For every live trace that `traceLost` says is lost, it writes `trace-dead:<conn>:<icKey>` `{ why }`.
+  `traceState` already ends any trace that has a `traceDead`.
+- Because the check runs before every tick, a boundary that comes after the move can never count. The GM's client
+  reads the decker's replicated session flags.
+- The decker's client also sends a new `moved` request after each place change: a successful logon (in
+  `settleLogon`) and Disconnect to grid. Its handler runs `reconcileInterest` right away, so the trace dies at the
+  move, and its card says so: "Grid trace loses interest: <decker> left <grid> (p.47)".
+- `moved` carries no authority of its own: the handler re-derives the place from the flags.
+
+**Keeping a suppression across the grid (p.47: "keep it suppressed … as long as he is on that LTG, its parent RTG, or
+any other LTG").**
+- Today the suppressed and released IC live on the session, so a new session drops them silently.
+- Under topology, `newSession` copies `suppressed` and `released` from the outgoing session when it is in the SAME
+  scope, as the tally is copied.
+- Leaving the scope ends them, as today. The grid trace has lost interest by then anyway.
+
+**A complete trace (one that has located the jackpoint) stays complete.** The decker is still traced: the tally and
+attack effects of p.46 continue, as they do today. Losing interest stops only a hunt that is still running.
+
+### 3. Dump on locate (p.47)
+**When the option exists.** Traces are "governing" when:
+- the trace's scope is a public RTG scope; and
+- the decker's jackpoint governs it: `connJackpoint(actor).wired`, read through 7a's `wiredPlace`, is an LTG whose
+  scope is that same `rtg_` scope.
+
+  A device jackpoint, no jackpoint, or an LTG with no RTG means never.
+
+**The GM's option.** `noticeTraces` (~1167) adds a **Dump the decker (GM, p.47)** button to the "locates the
+jackpoint" card. It is an option, because the book says the IC *can*. The button sends a sequencer op, `gridDump`:
+- it re-checks that the trace is complete, governing, and that the decker is still on its connection;
+- it also re-checks that the decker is still somewhere in that RTG scope. The book allows the dump "once it detects
+  his jackpoint", and a decker who left the grid has left its switchers.
+- Then it runs `openExit(actor, "dump")`: dump shock, figured from the session's place, as any dump is.
+- One exit per connection already makes a double click harmless.
+
+### 4. Host networks (p.36)
+**Network moves.** A *network move* is a Logon to Host from host P to a host T that is linked to it (7a's undirected
+`links`). Open-access moves between hosts on one grid are not network moves: p.14 describes them as a disconnect
+followed by a logon, and has no hub.
+
+**Finding the connections.**
+- `HostData.hubSubsystem`, a StringField from `access | control | index | files | slave`, initial `access`
+  (`blank: false`): "unless the designers … hid the connection … on a different subsystem".
+- Moving from a first-tier host (one with a `grid`) to a second-tier one (no `grid`) needs the decker to have found
+  the connections: a successful **Analyze Subsystem** on P's `hubSubsystem`, on this connection.
+  - The record is `flags.sr2e.vr2Mapped.<P id> = conn`. It is written in the `vr2op` queue when that card is posted,
+    and again by 7a's Karma `updateChatMessage` hook when a reroll turns it into a success.
+  - It is never removed: Karma only adds successes.
+- `reachable` gets a `mapped` set. Without it the move is refused: "Find the connections first: Analyze Subsystem
+  (<subsystem>) on <hub> (p.36)."
+- The GM is NOT exempt. The topology check on the host sheet passes "everything mapped".
+- Going back from a second-tier host to the hub needs no mapping.
+
+**Leaving counts as a Graceful Logoff from P** (every network move, in both directions: **user ruling 2026-11-04**).
+p.36 states it for the hub's departure, and the return trip is the same act of logging off one host and on to the
+next.
+- **The TN:** the logon's TN adds the rating of every live trace, neither complete nor dead, whose `place` is P. That
+  is the same term `vr2SystemTest` already adds to a Graceful Logoff (`tracing`). The card shows it.
+- **On success** (`settleLogon` with `ok`, so Karma counts):
+  1. the `moved` request carries `{ network: true, from: P }`. The sequencer writes `trace-dead … why: "the hub
+     lost his datatrail"` for every incomplete trace placed on P.
+  2. P's ledger tally is cleared in the same update as the logon verdict ("clears all traces … from the security …
+     of the host", p.114). The decker comes back to a fresh P.
+- `traceLost` also covers this at tick time: a live trace placed on host P is lost when the session's current
+  logon is an ok network move whose `from` is P. So a boundary between the success and the `moved` request can't
+  count either.
+- **A failed network move** leaves the decker on P, and P's traces keep running.
+
+**Locate File / Locate Slave on a hub** (a host with a `grid` and at least one second-tier link): the card adds
+"On the hub: this covers the whole network; the GM says which host has it (p.36)". Files and slaves aren't modelled,
+so the answer is the GM's.
+
+### 5. One redirect per grid (p.117)
+- Under topology, Redirect Datatrail runs only on a grid (7a's reachability table already says so).
+- **One per grid:** the redirect fact is keyed by the grid: `redirect:<conn>:<place id>`, replacing today's running
+  count `k`. A second success on the same grid writes nothing, and its card says "one redirect per grid already left
+  on <grid>".
+  - Different grids, even in one scope, each take one: "for each grid where a decker leaves a redirect".
+  - The fold's `redirects` count is unchanged: the number of redirect facts on the connection.
+- **The opposing Security Test:** "Reduce the target number for the opposing Security Test by the decker's trace
+  modifier". The host's TN is the Detection Factor, so for Redirect Datatrail under topology the host rolls against
+  `max(2, DF − jackpointKind(kind).trace)`, read literally (**user ruling 2026-11-04**): a legal jackpoint (trace −2)
+  makes it 2 higher and a remote device (+4) 4 lower. The card shows it.
+- Topology off: as today (the GM's call).
+
+### 6. Tests (7b)
+**Vitest:**
+- `traceLost` for each case:
+  - LTG → RTG → another LTG of the same RTG: kept;
+  - → a host, a PLTG, or another RTG: lost;
+  - a host trace and a Track: never by this rule;
+  - a complete trace: never;
+  - a network move from its place: lost.
+- `traceScope` with and without `place`.
+- Governing (dump), true when:
+  - a trid jackpoint wired to an LTG of that RTG, with a trace placed on that LTG or on the RTG.
+
+  False when:
+  - a trace on another RTG;
+  - a device jackpoint;
+  - an unwired jackpoint.
+- `reachable` with `mapped`:
+  - hub → second tier refused unmapped, allowed mapped;
+  - second tier → hub never needs it;
+  - an open-access move never needs it.
+- The redirect TN.
+
+**Quench `sr2e.vr2-grids` additions:**
+- a grid trace on the LTG survives LTG → RTG → LTG (still ticking), and dies on Logon to Host, with a "loses
+  interest" card;
+- a tick boundary between a successful logon to a host and the `moved` request doesn't count;
+- a suppression carries LTG → RTG and is gone on another RTG;
+- a governing trace completes: the GM's **Dump the decker** exits with dump shock. A non-governing one has no button;
+- hub → second tier:
+  - refused until Analyze Subsystem (Access) succeeds;
+  - a hidden-on-Control hub needs Control;
+  - the logon TN includes the hub trace's rating;
+  - success kills the hub trace and clears the hub's tally;
+- a failed network move keeps the hub trace;
+- two redirects on one LTG count once; on two LTGs, twice. The redirect card's TN uses the jackpoint's trace
+  modifier;
+- topology off: the trace, redirects and hosts are unchanged.
 
 ## Key decisions & trade-offs
 - **Grids are Host actors**, not a new type: zero changes to System Tests, IC and alerts. The cost: a GM must create
