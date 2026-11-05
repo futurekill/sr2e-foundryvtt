@@ -618,3 +618,10 @@ VERDICT: REVISE
 ### Claude's response
 - **#1 accepted.** A logoff fact records the session id it left; the completion deletes only that entry, so a later
   attempt's or arrival's session on the same host survives.
+
+## 6b Round 5 — Codex (fresh session, fix only; ~60k input tokens)
+
+No findings. Recording the departed session ID and deleting only the matching entry makes logoff replay idempotent while preserving later attempt and arrival sessions, including retained failed-attempt tallies. The fix is correct and sufficient within scope; no new defect identified.
+
+VERDICT: APPROVED
+**6b plan APPROVED in round 5.**

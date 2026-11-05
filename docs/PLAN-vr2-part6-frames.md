@@ -1351,7 +1351,7 @@ st.actorUuid`), so every reactive fact goes on the OWNER's log, which the sequen
 
 ## 6b in detail: semi-autonomous knowbots (SKs)
 
-**Status: plan under review.**
+**Status: plan Codex-APPROVED round 5 (2026-11-05); not built.**
 
 The pages were rendered for this section (2026-11-05): Semi-Autonomous Knowbots, SKs and Native Hosts, SK Ratings,
 Utility Pool, SK Response and Running an SK (pp.140–141).
