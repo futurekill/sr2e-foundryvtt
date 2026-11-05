@@ -325,3 +325,6 @@ No findings. The guard stops replay requests when the attacker or program is gon
 VERDICT: APPROVED
 
 **6a-2a code APPROVED in round 5.**
+
+# 6a-2b plan review (commanding dumb frames, DINAB cores, decoy frames, event triggers)
+Started 2026-11-05. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round, brief names the code locations.
