@@ -123,3 +123,35 @@ No material issues found in the scoped diff and direct context. Cascade strength
 
 VERDICT: APPROVED
 **6a-0 code converged in 2 rounds.**
+
+# Part 6a-1 (frame cores and loading)
+6a is split into 6a-1 (cores and loading) and 6a-2 (running frames), reviewed one phase at a time. User rulings
+(2026-11-05): the Loading Rating and the loading TN both round up.
+
+## 6a-1 Round 1 — Codex (fresh session, 6a-1 only, named code; ~119k input tokens)
+
+- **§2 — DINAB is incorrectly limited by Core Rating.** `activeOptions` rejects DINAB above the base rating, so Core-4/DINAB-6 written by Computer-6 fails despite satisfying the quoted cap. **Fix:** exempt core DINAB from the base-rating ceiling; validate it against Computer when writing.
+
+- **§§1–2 — Smart cores depend on the optional utility-options setting.** `ProgramData` empties `activeOpts` when that setting is off, removing mandatory DINAB and its size contribution. **Fix:** explicitly define core-option processing independently of that setting, or gate frame functionality on it.
+
+- **§3 — Rewriting can resurrect an incompatible load.** Load 10 points onto Core-12, change it to Core-6, then finish rewriting: `written` becomes true and the old completed load becomes usable again. **Fix:** require the winning load’s captured core design to match the current design and revalidate capacity.
+
+- **§3 — Completion omits the required durable payload.** The plan puts copies only in `load:start`; existing `complete` writes only an outcome, and `foldProgramming` retains only that outcome from terminal records. This fails the carried requirement for a self-contained winning terminal record. **Fix:** atomically include the load snapshot and core design in `load:end`, retain that payload in the fold, and derive the active load from it.
+
+- **§3 — Snapshot sizing bypasses existing derivation.** Authored multipliers can differ from Damage Level multipliers; raw options can include inert entries. Passing snapshot data directly to `programSizes` therefore gives incorrect sizes, potentially even throwing on unknown options. **Fix:** share `ProgramData`’s multiplier and active-option derivation with snapshot sizing.
+
+- **§§1, 3 — Loading does not acquire the design lock.** Adding `frameCore` to the hook’s keys still checks only `programmingState(item).writing`, which defaults to `prog:`. Editing during loading can strand completion after work is spent. **Fix:** lock design edits during either task family and explicitly route abandonment through the selected prefix.
+
+- **§1 — “Same rule 5b applies” misstates current behavior.** Ordinary programs remain written after design edits; `foldProgramming` only remembers completion. **Fix:** describe design-sensitive written status as a new core-only rule, preserving the ordinary-program fold and its default `prog:` behavior.
+
+VERDICT: REVISE
+
+### Claude's response
+All seven findings were accepted.
+- **#1:** a core's DINAB is exempt from the base-rating ceiling, and is capped by Computer.
+- **#2:** core options are frame rules, processed under VR2.0 whatever the Utility Options setting.
+- **#3:** a load counts only if its captured core design equals the current design and it fits the capacity.
+- **#4:** `load:end` carries the whole load, and the fold keeps end payloads.
+- **#5:** a pure `deriveProgram` is shared by `ProgramData` and the copies.
+- **#6:** the lock covers both task families, and Abandon takes the prefix.
+- **#7:** "written means the current design" is a new rule for cores only.
