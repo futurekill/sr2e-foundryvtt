@@ -409,6 +409,7 @@ export function vr2LocateSatellite(actor) {
     const sats = wired?.system?.kind === "satellite" ? [wired] : game.actors.filter(a => a.type === "host" && a.system.kind === "satellite");
     if (!sats.length) return ui.notifications.warn("No satellite to lock onto: the GM creates one (Actors → New grid → Satellite).");
     const dish = actor.system.cyberdeck?.satDish ?? "standard";
+    const conn = actor.system.vr2Conn?.n ?? null;   // 7c code R1 #2: the attempt belongs to THIS connection
     const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
     let pick = null;
     await foundry.applications.api.DialogV2.wait({ window: { title: `Locate satellite — ${actor.name}` }, rejectClose: false,
@@ -431,9 +432,21 @@ export function vr2LocateSatellite(actor) {
       label: RL("LocateSatellite", { name: sat?.name ?? "satellite", tn }), tnContext: skillTnContext("computer"),
       poolDice: pick.hacking ? { hacking: pick.hacking } : undefined });
     if (!res) return;
-    const conn = actor.system.vr2Conn?.n ?? null;
-    await game.messages.get(res.testMessageId)?.update({ "flags.sr2e.satLock": { conn, sat: pick.sat, actorUuid: actor.uuid } });
-    return settleSatLock(actor, { conn, sat: pick.sat, card: res.testMessageId, successes: res.successes, first: true });
+    if ((actor.system.vr2Conn?.n ?? null) !== conn) return ui.notifications.warn(`${actor.name}'s connection changed: that lock is lost.`);
+    const card = game.messages.get(res.testMessageId);
+    await card?.update({ "flags.sr2e.satLock": { conn, sat: pick.sat, actorUuid: actor.uuid } });
+    return settleSatLock(actor, { conn, sat: pick.sat, card: res.testMessageId, successes: card?.flags?.sr2e?.test ? testTotalSuccesses(card.flags.sr2e.test) : res.successes, first: true });
+  });
+}
+/**
+ * A Karma reroll on a Locate satellite card (7c code R1 #1): behind any locate still running (the op queue), and from
+ * the card's LATEST successes, so a reroll that lands before the first write still counts.
+ */
+export function satLockKarma(actor, cardId) {
+  return opQueue(actor, async () => {
+    const m = game.messages.get(cardId), l = m?.flags?.sr2e?.satLock;
+    if (!l || l.conn !== (actor.system.vr2Conn?.n ?? null)) return;
+    return settleSatLock(actor, { conn: l.conn, sat: l.sat, card: cardId, successes: testTotalSuccesses(m.flags.sr2e.test ?? {}) });
   });
 }
 /** Write (or, after Karma, rewrite) the satellite lock from its test card (7c R2 #1: the whole record, sat included). */

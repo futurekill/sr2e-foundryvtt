@@ -5,8 +5,8 @@
  */
 import { RTG_TABLE, easyGridRatings, variableShift, reachable, wiringFits, LOGON_OPS, GRID_KINDS, satelliteRatings, satelliteFormula } from "./rules/vr2-grids.mjs";
 import { topologyOn, variableLTGOn } from "./vr2-mode.mjs";
-import { topoSnapshot, settleLogon, knownPlaces, settleMapping, settleSatLock } from "./vr2.mjs";
-import { systemTestVerdict, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
+import { topoSnapshot, settleLogon, knownPlaces, settleMapping, satLockKarma } from "./vr2.mjs";
+import { systemTestVerdict } from "./rules/sr2e-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -189,7 +189,7 @@ export function registerGridHooks() {
     const lock = msg.flags?.sr2e?.satLock;
     if (lock && userId === game.user.id && foundry.utils.hasProperty(changes, "flags.sr2e.test")) {
       const who = sync(lock.actorUuid);
-      if (who?.isOwner) settleSatLock(who, { conn: lock.conn, sat: lock.sat, card: msg.id, successes: testTotalSuccesses(msg.flags.sr2e.test) });
+      if (who?.isOwner) satLockKarma(who, msg.id);
     }
     const st = msg.flags?.sr2e?.vr2SystemTest;
     if (!st || userId !== game.user.id || !foundry.utils.hasProperty(changes, "flags.sr2e.vr2SystemTest")) return;
