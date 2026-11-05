@@ -1,6 +1,6 @@
 # Plan: VR2.0 part 7: grid topology
 _Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson). **7a Codex-APPROVED round 3; BUILT and released in 0.132.0 (code review approved round 4).**
-**"7b in detail" is under review** (2026-11-04); 7c gets its own section later. No code before review._
+**7b Codex-APPROVED round 4 (2026-11-04), not built**; 7c gets its own section later. No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
 - Matrix Topology pp.14–15;
@@ -454,7 +454,7 @@ The kind's Access modifier is added to the TN of every **Access Test**: a System
 - deleting the logon card keeps him there;
 - topology off: unchanged.
 
-## 7b in detail: trace on a grid, host networks, one redirect per grid (the part under review)
+## 7b in detail: trace on a grid, host networks, one redirect per grid
 
 Builds on 7a as released in 0.132.0: `currentPlace()`, `logon` records, the `vr2Tallies` ledger, `vr2op` queue. The
 pages behind it were rendered again for this section (2026-11-04):

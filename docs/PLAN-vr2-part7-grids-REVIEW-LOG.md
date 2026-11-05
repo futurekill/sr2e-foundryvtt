@@ -204,3 +204,11 @@ VERDICT: REVISE
 - **#1 accepted, and generalised.** Under topology, every `exitOpen` records `place` (`currentPlace` when it
   opens). The dump-shock step reads it before `exitHost`, so any dump after a failed logon comes from where the
   decker really was.
+
+## 7b Round 4 — Codex (fresh session, brief; ~61k input tokens)
+
+No broken fix or new material problem found in §7b against the specified exit paths.
+
+VERDICT: APPROVED
+
+**7b APPROVED in round 4.** 7c (satellites) still needs its own detailed section and review.
