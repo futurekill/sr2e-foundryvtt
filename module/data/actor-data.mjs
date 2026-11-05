@@ -2390,6 +2390,8 @@ export class HostData extends SR2EDataModel {
       entryPoints: new fields.ArrayField(new fields.DocumentUUIDField({ type: "Actor" })),
       unlisted: new fields.BooleanField({ initial: false }),
       ratingShift: new fields.NumberField({ integer: true, initial: 0, min: -1, max: 1 }),
+      // Part 7b: the subsystem a hub hides its second-tier connections in (p.36).
+      hubSubsystem: new fields.StringField({ initial: "access", blank: false, choices: { access: "Access", control: "Control", index: "Index", files: "Files", slave: "Slave" } }),
       // VR2.0: probe IC on the host (p.42) and its security sheaf (p.150; PLAN-vr2-part2 §10).
       probe: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       sheaf: new fields.ArrayField(new fields.SchemaField({

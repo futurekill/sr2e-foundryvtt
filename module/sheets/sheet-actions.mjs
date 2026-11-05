@@ -29,7 +29,7 @@ import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost, connJackpoint } from "../jackpoints.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
-  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon, vr2DisconnectToGrid, currentPlace, topoSnapshot, knownPlaces } from "../vr2.mjs";
+  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon, vr2DisconnectToGrid, currentPlace, topoSnapshot, knownPlaces, mappedHubs } from "../vr2.mjs";
 import { reachable } from "../rules/vr2-grids.mjs";
 import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
@@ -2727,12 +2727,12 @@ async function promptSystemOperationOptions(actor) {
   const ops = vr2 ? CONFIG.SR2E.vr2SystemOperations : CONFIG.SR2E.systemOperations;
   // Part 7a: under grid topology, each operation lists only the places it can reach from where the decker is (p.14–30).
   const topo = vr2 && topologyOn() && actor.system.vr2Conn ? (() => {
-    const t = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null, jack = connJackpoint(actor), known = knownPlaces(actor);
+    const t = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null, jack = connJackpoint(actor), known = knownPlaces(actor), mapped = mappedHubs(actor);
     const ok = {}, why = {};
     for (const k of Object.keys(ops)) {
       ok[k] = []; why[k] = [];
       for (const h of hosts) {
-        const r = reachable({ at, op: k, target: h.uuid, topo: t, jack, known, gm: game.user.isGM });
+        const r = reachable({ at, op: k, target: h.uuid, topo: t, jack, known, gm: game.user.isGM, mapped });
         if (r.ok) ok[k].push(h.id); else why[k].push(`${h.name}: ${r.why}`);
       }
     }

@@ -4,6 +4,7 @@
  * matters carry the world-wide GM sequencer's `seq`. Folds never trust a client's clock.
  */
 import { icDamageLevel } from "./sr2e-rules.mjs";
+import { traceLostAt } from "./vr2-grids.mjs";
 
 // ── Arithmetic (each with the book's example in test/vr2ic-rules.test.mjs) ─────
 
@@ -203,7 +204,7 @@ export function foldVr2Ic(events = [], ext = {}) {
     return { n, open, exit, admitted, pending, hits, locks, dead, traces, traced, steps,
       barrier: !!exit && steps.every(s => s.applied) && pending.length === 0,
       redirects: events.filter(e => e.type === "redirect" && e.conn === n).length,
-      frozenCount: traces.filter(t => t.frozen && !t.complete).length };
+      frozenCount: traces.filter(t => t.frozen && !t.complete && !t.dead).length };
   };
 
   const crashedPrograms = new Set(T("crash").map(c => `${c.programId}:${c.loadGen}`));
@@ -224,7 +225,10 @@ export function traceState(t, events, crashSeq = () => null) {
   const freezes = events.filter(e => (e.type === "freeze" || e.type === "unfreeze") && mine(e)).sort(bySeq);
   // A track (part 5a §3) ends by its sequenced `traceDead`; an IC trace by its IC's crash.
   const td = events.filter(e => e.type === "traceDead" && mine(e)).sort(bySeq)[0];
-  const crash = td ? td.seq : crashSeq(t.icKey);
+  // Part 7b: a grid trace loses interest, or the hub loses the datatrail, at a sequenced move (p.36, p.47).
+  const lostAt = traceLostAt(t, events.filter(e => e.type === "move" && e.conn === t.conn));
+  const ended = [td?.seq ?? crashSeq(t.icKey), lostAt?.seq].filter(x => x != null);
+  const crash = ended.length ? Math.min(...ended) : null;
   const frozenAt = (seq) => {
     const open = new Set();
     for (const f of freezes) { if (f.seq > seq) break; if (f.type === "freeze") open.add(f.spoof); else open.delete(f.spoof); }
@@ -243,6 +247,8 @@ export function traceState(t, events, crashSeq = () => null) {
   return { icKey: t.icKey, conn: t.conn, rating: t.rating, startSeq: t.seq, turnsLeft: Math.max(0, left), complete,
     track: !!t.track, attacker: t.attacker ?? null,
     dead: !complete && crash != null, frozen: frozenAt(Infinity), clock: t.clock,
+    place: t.place ?? null, scope: t.scope ?? null, grid: !!t.grid,
+    lost: !complete && lostAt && lostAt.seq === crash ? (t.grid ? "grid" : "network") : null,
     lastBoundary: ticks.at(-1)?.boundary ?? null };
 }
 

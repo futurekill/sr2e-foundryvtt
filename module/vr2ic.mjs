@@ -21,6 +21,7 @@ import { isVR2, topologyOn } from "./vr2-mode.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { RL } from "./util/roll-label.mjs";
 import { liveDecoy, decoyBoxes } from "./rules/vr2-decoy-rules.mjs";
+import { traceClass, governsJackpoint } from "./rules/vr2-grids.mjs";
 
 export const P3 = "vr2:";
 export const DECK = "vr2deck:";
@@ -168,7 +169,7 @@ const HANDLERS = {
       const g = recordsOf(actor).find(e => e.type === "gate" && e.key === r.gateKey);
       if (!g?.success || g.n !== f.live.n) return { ok: false, why: "no successful Willpower test" };
     }
-    await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger,
+    await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger, place: await exitPlace(actor),
       locks: trigger === "gate" || trigger === "plug" ? locks : [] });
     return { ok: true };
   }
@@ -246,10 +247,46 @@ async function openExit(actor, trigger) {
   if (!f.live || f.live.exit) return;
   // A damage dump or a black kill owes no last attack (p.48: the link just drops); only a
   // gate or pulled plug does, and those come through the exit request.
-  await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger, locks: [] });
+  await fact(actor, `exit-open:${f.live.n}`, { type: "exitOpen", n: f.live.n, trigger, locks: [], place: await exitPlace(actor) });
+}
+/** 7b (R3 #1): under grid topology an exit remembers where the decker really was, for its dump shock. */
+async function exitPlace(actor) {
+  if (!topologyOn()) return null;
+  return (await import("./vr2.mjs")).currentPlace(actor)?.uuid ?? null;
+}
+
+/**
+ * 7b §2: turn the decker's durable move entries (written with each place change) into sequenced `move` facts, in
+ * order, once each. Before every pass, tick and new trace, so the fold can end traces at the move.
+ */
+async function syncMoves(actor) {
+  const n = liveConn(actor)?.n;
+  if (n == null) return;
+  const done = new Set(recordsOf(actor).filter(e => e.type === "move" && e.conn === n).map(e => e.k));
+  const todo = Object.values(actor.flags?.sr2e?.vr2Moves ?? {}).filter(e => e?.conn === n && !done.has(e.k)).sort((a, b) => a.k - b.k);
+  if (!todo.length) return;
+  const topo = (await import("./vr2.mjs")).topoSnapshot();
+  for (const e of todo) {
+    const c = traceClass(e.place, topo);
+    await fact(actor, `move:${n}:${e.k}`, { type: "move", conn: n, k: e.k, place: e.place, from: e.from ?? null, network: !!e.network, scope: c.scope, grid: c.grid });
+  }
 }
 
 Object.assign(HANDLERS, {
+  /** 7b §3: dump on locate (p.47): a complete trace from the governing grid, the decker still on its grids. */
+  async gridDump(actor, r, f) {
+    if (!f.live) return { ok: false, why: "not connected" };
+    if (f.live.exit) return { ok: true, why: "already leaving" };
+    const t = f.live.traces.find(x => x.icKey === r.icKey);
+    if (!topologyOn() || !t?.complete) return { ok: false, why: "no completed trace" };
+    const V = await import("./vr2.mjs"), { connJackpoint } = await import("./jackpoints.mjs");
+    const topo = V.topoSnapshot();
+    if (!governsJackpoint(t, connJackpoint(actor), topo)) return { ok: false, why: "that trace isn't from the RTG governing the jackpoint" };
+    const here = V.currentPlace(actor);
+    if (!here || traceClass(here.uuid, topo).scope !== t.scope) return { ok: false, why: "the decker has left that RTG's grids" };
+    await openExit(actor, "dump");
+    return { ok: true };
+  },
   /** An IC's attack on a connected decker: admitted unless the decker is leaving (a listed last attack is). */
   async attack(actor, r, f) {
     if (!f.live) return { ok: false, why: "not connected", tell: false };
@@ -559,10 +596,20 @@ export async function offerTar(message) {
     if (success && sc.prof.scramble === "exploding" && bomb && armed(bomb)) rows.push(btn("explode", { ic: bomb, comp: "" }, `${bomb.name} goes off (exploding scramble)`, "p.42"));
   }
   if (st.operation === "redirectDatatrail" && success) {
-    const n = st.conn;
-    const k = recordsOf(sync(st.actorUuid)).filter(e => e.type === "redirect" && e.conn === n).length + 1;
-    await sequencer(() => fact(sync(st.actorUuid), `redirect:${n}:${k}:${message.id}`, { type: "redirect", conn: n, card: message.id }));
-    rows.push(`<em>Redirect recorded (+1 Trace Factor; one per grid, the GM's call).</em>`);
+    const n = st.conn, decker = sync(st.actorUuid);
+    if (topologyOn()) {
+      // 7b §5: one redirect per grid (p.117), keyed by the grid it was left on.
+      const placeId = String(st.hostUuid).split(".").pop();
+      const left = await sequencer(async () => {
+        if (recordsOf(decker).some(e => e.type === "redirect" && e.conn === n && e.place === st.hostUuid)) return false;
+        return fact(decker, `redirect:${n}:place:${placeId}`, { type: "redirect", conn: n, card: message.id, place: st.hostUuid });
+      });
+      rows.push(left ? `<em>Redirect left on ${esc(st.hostName)} (+1 Trace Factor).</em>` : `<em>One redirect per grid: ${esc(st.hostName)} already has one (p.117).</em>`);
+    } else {
+      const k = recordsOf(decker).filter(e => e.type === "redirect" && e.conn === n).length + 1;
+      await sequencer(() => fact(decker, `redirect:${n}:${k}:${message.id}`, { type: "redirect", conn: n, card: message.id }));
+      rows.push(`<em>Redirect recorded (+1 Trace Factor; one per grid, the GM's call).</em>`);
+    }
   }
   if (!rows.length) return;
   await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
@@ -751,8 +798,11 @@ export async function traceStart(actor, card) {
     const turns = locationTurns(successes);
     // The decker's own combat clock, only if they're actually fighting in one; else the manual clock.
     const combat = game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid || (!actor.isToken && cb.actorId === actor.id))) ?? null;
+    // 7b §1: where the trace started, so the fold can tell a grid trace from a host trace; moves come first.
+    await syncMoves(actor);
+    const where = topologyOn() ? traceClass(icOfKey(st.icKey)?.system?.hostUuid ?? st.hostUuid ?? null, (await import("./vr2.mjs")).topoSnapshot()) : {};
     await fact(actor, `trace:${f.live.n}:${st.icKey}`, { type: "trace", conn: f.live.n, icKey: st.icKey, rating: st.icRating ?? st.power ?? 0,
-      icName: st.attackerName, turns, clock: combat ? { combatId: combat.id, startRound: combat.round } : { manual: true } });
+      icName: st.attackerName, turns, clock: combat ? { combatId: combat.id, startRound: combat.round } : { manual: true }, ...where });
     await fact(actor, `ack:attack:${card}`, { type: "ack", target: `attack:${card}`, outcome: { trace: turns } });
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
       <strong>${esc(st.attackerName)}</strong> has ${esc(actor.name)}'s datatrail: ${turns === 0 ? "located at once" : `${turns} Combat Turn${turns === 1 ? "" : "s"} to locate`}
@@ -1153,19 +1203,40 @@ Object.assign(HANDLERS, {
 /** The turn's end for every locating trace on this clock: one tick per boundary, in seq. */
 async function tickTraces(actor, boundaryFor) {
   await reconcileEnds(actor);   // part 5a: an ended attacker's track dies BEFORE any tick (R3 #3)
+  await syncMoves(actor);       // 7b §2: a move the GM can see is ordered before the tick
   const f = foldOf(actor);
   for (const t of f.live?.traces ?? []) {
     if (t.complete || t.dead) continue;
     const ticks = recordsOf(actor).filter(e => e.type === "tick" && e.conn === t.conn && e.icKey === t.icKey);
     for (const b of boundaryFor(t, ticks)) {
+      await syncMoves(actor);   // 7b R2 #1: and one that arrives mid-pass, before the next tick
+      if (foldOf(actor).live?.traces.find(x => x.icKey === t.icKey)?.dead) break;
       await fact(actor, `tick:${t.conn}:${t.icKey}:${b}`, { type: "tick", conn: t.conn, icKey: t.icKey, boundary: b });
     }
   }
 }
 
+/** 7b §3: the GM's Dump the decker button, for a trace from the grid that governs his jackpoint (p.47). */
+async function dumpButton(actor, t) {
+  if (!topologyOn()) return "";
+  const { topoSnapshot } = await import("./vr2.mjs");
+  const { connJackpoint } = await import("./jackpoints.mjs");
+  if (!governsJackpoint(t, connJackpoint(actor), topoSnapshot())) return "";
+  return `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(actor.uuid)}" data-op="gridDump" data-arg="${esc(t.icKey)}"
+    title="The RTG's switchers take orders from its trace IC: no killer needed (VR2.0 p.47).">Dump the decker (GM)</button></div>`;
+}
+
 /** Completions, once each: the GM's response card and a trapped trace's hidden IC (p.46–47). */
 async function noticeTraces(actor) {
   const f = foldOf(actor);
+  // 7b §2: a grid trace that lost interest, or a host trace the hub lost.
+  for (const t of f.live?.traces ?? []) {
+    if (!t.lost || !await once(actor, `${P3}card:lost:${t.conn}:${t.icKey}`)) continue;
+    const tr = recordsOf(actor).find(e => e.type === "trace" && e.conn === t.conn && e.icKey === t.icKey);
+    await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
+      <strong>${esc(tr?.icName ?? "Trace IC")}</strong> ${t.lost === "grid" ? `loses interest: ${esc(actor.name)} left ${esc(sync(t.place)?.name ?? "its grid")}'s grids (VR2.0 p.47)`
+        : `crashes: ${esc(sync(t.place)?.name ?? "the host")} lost ${esc(actor.name)}'s datatrail (VR2.0 p.36)`}.</div>` });
+  }
   for (const t of f.live?.traces ?? []) {
     if (!t.complete || !await once(actor, `${P3}card:traced:${t.conn}:${t.icKey}`)) continue;
     if (t.track) {
@@ -1181,7 +1252,7 @@ async function noticeTraces(actor) {
       <strong>${esc(trace?.icName ?? "Trace IC")} locates ${esc(actor.name)}'s jackpoint</strong>: network address and physical location go into the security logs.
       From now on: −1 TN to proactive IC attacks on ${esc(actor.name)}, and +1 to every tally increase (VR2.0 p.46).
       <br>Security Asset Response Times (minutes, p.47):
-      <table><tr><th>Jackpoint</th><th>Public</th><th>Corp</th><th>Megacorp</th><th>Gov't</th></tr>${rows}</table></div>` });
+      <table><tr><th>Jackpoint</th><th>Public</th><th>Corp</th><th>Megacorp</th><th>Gov't</th></tr>${rows}</table>${await dumpButton(actor, t)}</div>` });
     const ic = icOfKey(t.icKey);
     if (ic) await fireTrap(ic, t.icKey);
   }
@@ -1378,7 +1449,8 @@ async function processRequests(actor) {
 Object.assign(STEP_RESOLVERS, {
   gray: (actor, f, s) => resolveGray(actor, f, s),
   async dumpShock(actor, f, s) {
-    const host = exitHost(actor);
+    // 7b (R3 #1): from where the decker really was when the exit opened.
+    const host = (f.live.exit?.place ? sync(f.live.exit.place) : null) ?? exitHost(actor);
     const set = f.live.open?.settings ?? {};
     const dmg = host ? dumpShockDamage(host.system.securityCode, host.system.securityValue,
       { coolDeck: set.deckMode === "cool", iccm: !!set.iccm, tortoise: set.deckMode === "tortoise" }) : null;
@@ -1498,6 +1570,7 @@ export function schedule(actor) {
 
 /** One sequencer pass for a decker (call only inside `sequencer`). */
 async function passFor(actor) {
+  await syncMoves(actor);
   await reconcileHog(actor); await reconcileEvalKarma(actor); await reconcileUtilityAcks(actor);
   await recoverResolved(actor); await reconcileTar(actor);
   await reconcileEnds(actor); await admitDeckerCards(actor); await processRequests(actor); await reconcileLastAttacks(actor); await reconcileShieldFreeze(actor);
@@ -1806,6 +1879,7 @@ export async function icOp(uuid, op, arg) {
   if (op === "sparky") return resistSparky(actor, arg);
   if (op === "traceStart") return traceStart(actor, arg);
   if (op === "decoyHit") return game.user.isGM ? request(actor, "decoyHit", { card: arg }) : ui.notifications.warn("The GM resolves an attack on a decoy.");
+  if (op === "gridDump") return game.user.isGM ? request(actor, "gridDump", { icKey: arg }) : ui.notifications.warn("The GM dumps a decker.");
   if (op === "waive") return waiveLastAttack(actor, arg);
   if (op === "slowSuppress") { const [card, icUuid] = arg.split("|"); return request(actor, "slowSuppress", { card, icUuid }); }
   if (op === "psy") return psyTest(actor, arg);

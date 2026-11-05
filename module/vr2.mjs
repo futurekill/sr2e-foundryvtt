@@ -17,7 +17,8 @@ import { successesAtTN, cybercombatTN, icDamageLevel, dumpShockDamage, detection
          sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "./vr2-mode.mjs";
-import { reachable, scopeOf, seedTally, carryAmount, LOGON_OPS, jackpointKind, halveUp, disconnectTarget, forgetSeconds } from "./rules/vr2-grids.mjs";
+import { reachable, scopeOf, seedTally, carryAmount, LOGON_OPS, jackpointKind, halveUp, disconnectTarget, forgetSeconds,
+  isNetworkMove, redirectTN } from "./rules/vr2-grids.mjs";
 import { defenseTN, skulkTally, limitAllows } from "./rules/vr2-options.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
 import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage, restoreState, restorePoints } from "./rules/vr2ic-rules.mjs";
@@ -200,6 +201,10 @@ export function closeSession(actor) {
   return sessionQueue(actor, async () => {
     const cur = actor?.flags?.sr2e?.vr2Session;
     if (cur?.id) await replaceSessions(actor, null, cur);
+    // Part 7b: move entries of ended connections are spent.
+    const n = actor.system?.vr2Conn?.n ?? null;
+    const old = Object.entries(actor.flags?.sr2e?.vr2Moves ?? {}).filter(([, e]) => e?.conn !== n).map(([k]) => [`flags.sr2e.vr2Moves.-=${k}`, null]);
+    if (old.length) await actor.update(Object.fromEntries(old));
   });
 }
 
@@ -220,11 +225,33 @@ async function replaceSessions(actor, live, last) {
 export function topoSnapshot() {
   return new Map(game.actors.filter(a => a.type === "host").map(a => [a.uuid, { uuid: a.uuid, name: a.name,
     kind: a.system.kind ?? "host", grid: a.system.grid ?? null, links: a.system.links ?? [],
-    entryPoints: a.system.entryPoints ?? [], unlisted: !!a.system.unlisted }]));
+    entryPoints: a.system.entryPoints ?? [], unlisted: !!a.system.unlisted, hubSubsystem: a.system.hubSubsystem ?? "access" }]));
 }
 /** The addresses a decker knows (p.114): durable across runs. */
 export const knownPlaces = (actor) => new Set(Object.entries(actor?.flags?.sr2e?.vr2Known ?? {}).filter(([, v]) => v).map(([id]) => `Actor.${id}`));
-const ledgerEntry = (s) => ({ conn: s.conn ?? null, jackpoint: s.jackpoint ?? null, tally: s.tally ?? 0, forgetAt: s.forgetAt ?? null });
+// Part 7b (R1 #2): suppressions travel with the tally ("keep it suppressed … as long as he is on that LTG", p.47).
+const ledgerEntry = (s) => ({ conn: s.conn ?? null, jackpoint: s.jackpoint ?? null, tally: s.tally ?? 0, forgetAt: s.forgetAt ?? null,
+  suppressed: s.suppressed ?? {}, released: s.released ?? {} });
+/** Hubs whose second-tier connections the decker found this connection (p.36). */
+export const mappedHubs = (actor) => new Set(Object.entries(actor?.flags?.sr2e?.vr2Mapped ?? {})
+  .filter(([, n]) => n === (actor.system?.vr2Conn?.n ?? null)).map(([id]) => `Actor.${id}`));
+/** A durable move entry (7b §2): written in the same update as the place change it records. */
+function moveEntry(actor, s, { place, from, network = false, logonId = null }) {
+  const k = Object.values(actor.flags?.sr2e?.vr2Moves ?? {}).filter(e => e?.conn === s.conn).length + 1;
+  return { [`flags.sr2e.vr2Moves.${s.conn}_${k}`]: { conn: s.conn, k, place, from: from ?? null, network, logonId } };
+}
+/**
+ * The suppressed IC that count for the decker where he IS (R2 #2): the live session's when it is the current place's,
+ * else that place's ledger entry (during an attempt elsewhere).
+ */
+export function placeSuppressed(actor) {
+  const s = liveSession(actor);
+  if (!topologyOn() || !s?.logon || s.logon.ok) return s?.suppressed ?? {};
+  const here = currentPlace(actor);
+  const sc = here ? scopeOf(here.uuid, topoSnapshot()) : null;
+  const e = sc ? actor.flags?.sr2e?.vr2Tallies?.[sc.key] : null;
+  return e && e.conn === s.conn ? e.suppressed ?? {} : {};
+}
 
 /**
  * Where the decker is (derived, never stored): the live session's place once he is ON it — a session no logon opened,
@@ -260,7 +287,10 @@ function newSession(actor, host, outgoing, extra = {}) {
   const tally = seedTally({ scope: sc.key, outgoing: out, ledger, conn, jackpoint, now: game.time.worldTime });
   // A failed-logon memory keeps its clock when it is what the tally came from.
   const forgetAt = !tally ? null : out?.scope === sc.key ? out.forgetAt : ledger[sc.key]?.forgetAt ?? null;
-  return { ...base, tally, seed: tally, scope: sc.key, owner: sc.owner, forgetAt };
+  // Suppressions by the same rule (7b §2): the outgoing session in this scope, else this connection's ledger entry.
+  const src = out?.scope === sc.key ? outgoing : ledger[sc.key]?.conn === conn ? ledger[sc.key] : null;
+  return { ...base, tally, seed: tally, scope: sc.key, owner: sc.owner, forgetAt,
+    ...(src ? { suppressed: foundry.utils.deepClone(src.suppressed ?? {}), released: foundry.utils.deepClone(src.released ?? {}) } : {}) };
 }
 
 /**
@@ -332,6 +362,13 @@ export function settleLogon(actor, { sessionId, logonId, card, ok }) {
     if (ok) {
       update["flags.sr2e.vr2Session.forgetAt"] = null;
       if (s.scope) update[`flags.sr2e.vr2Entered.${s.scope}`] = s.conn;
+      if (!s.logon.ok) {
+        // 7b §2: the move, durably, in this same update; a network move leaves its host like a Graceful Logoff
+        // (p.36, p.114): that host forgets him — tally and suppressions.
+        Object.assign(update, moveEntry(actor, s, { place: s.hostUuid, from: s.logon.from, network: !!s.logon.network, logonId }));
+        const fromScope = s.logon.network ? scopeOf(s.logon.from, topoSnapshot())?.key : null;
+        if (fromScope && actor.flags?.sr2e?.vr2Tallies?.[fromScope]) update[`flags.sr2e.vr2Tallies.-=${fromScope}`] = null;
+      }
       if (s.scope && actor.flags?.sr2e?.vr2Tallies?.[s.scope]?.forgetAt != null) update[`flags.sr2e.vr2Tallies.${s.scope}.forgetAt`] = null;
       const carryId = `carry-${logonId}`;
       const add = s.logon.carry ? carryAmount(s.logon.carry.tally, s.seed ?? 0) : 0;
@@ -350,6 +387,26 @@ export function settleLogon(actor, { sessionId, logonId, card, ok }) {
   });
 }
 
+/** On a hub, Locate File / Locate Slave cover the whole network (p.36). */
+function hubNote(host, operation) {
+  if (!topologyOn() || !["locateFile", "locateSlave"].includes(operation) || !host.system.grid) return false;
+  return game.actors.some(a => a.type === "host" && !a.system.grid && ((a.system.links ?? []).includes(host.uuid) || (host.system.links ?? []).includes(a.uuid)));
+}
+
+/**
+ * Finding a hub's connections (p.36): a successful Analyze Subsystem on its hubSubsystem, this connection. At the card,
+ * and again by the Karma hook (Karma only adds successes, so it's never taken back).
+ */
+export async function settleMapping(actor, st) {
+  if (!topologyOn() || st?.operation !== "analyzeSubsystem" || st.conn == null || st.conn !== actor.system.vr2Conn?.n) return;
+  const host = sync(st.hostUuid);
+  if (!host || (host.system.hubSubsystem ?? "access") !== st.sub || !systemTestVerdict(st.successes, st.hostSuccesses).success) return;
+  if (actor.flags?.sr2e?.vr2Mapped?.[host.id] === st.conn) return;
+  await actor.update({ [`flags.sr2e.vr2Mapped.${host.id}`]: st.conn });
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), whisper: [...ChatMessage.getWhisperRecipients("GM").map(u => u.id), game.user.id],
+    content: `<div class="sr2e-item-card">${esc(actor.name)} finds ${esc(host.name)}'s connections to the hosts behind it (VR2.0 p.36).</div>` });
+}
+
 /** Disconnect to grid (p.14; R1 #4, R2 #2): from a host back onto its grid, no test, in the operation queue. */
 export function vr2DisconnectToGrid(actor) {
   return opQueue(actor, async () => {
@@ -358,9 +415,10 @@ export function vr2DisconnectToGrid(actor) {
     if (!grid) return ui.notifications.warn("Disconnect to grid works from a host attached to a grid (VR2.0 p.14).");
     const s = await sessionFor(actor, grid);
     if (!s) return;
-    // On the grid now: entered, so no failed-access clock (code R3 #1).
+    // On the grid now: entered, so no failed-access clock (code R3 #1); and the move, durably (7b §2).
     if (s.scope) await actor.update({ [`flags.sr2e.vr2Entered.${s.scope}`]: s.conn, "flags.sr2e.vr2Session.forgetAt": null,
-      ...(actor.flags?.sr2e?.vr2Tallies?.[s.scope]?.forgetAt != null ? { [`flags.sr2e.vr2Tallies.${s.scope}.forgetAt`]: null } : {}) });
+      ...(actor.flags?.sr2e?.vr2Tallies?.[s.scope]?.forgetAt != null ? { [`flags.sr2e.vr2Tallies.${s.scope}.forgetAt`]: null } : {}),
+      ...moveEntry(actor, s, { place: grid.uuid, from: at.uuid }) });
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
       ${esc(actor.name)} disconnects from ${esc(at.name)} and is back on ${esc(grid.name)} (VR2.0 p.14).</div>` });
     return s;
@@ -473,6 +531,7 @@ export async function crashChoice(message, choice) {
     return await sessionQueue(actor, async () => {
       const s = liveSession(actor);
       if (!s || s.id !== c.sessionId) return ui.notifications.warn("That crash belongs to an earlier session.");
+      if (topologyOn() && s.logon && !s.logon.ok) return ui.notifications.warn(`${actor.name} isn't on ${s.hostName} (a log-on there is pending or failed).`);
       const k = c.cardId;
       if (s.receipts?.[`crash:${k}`] != null || s.suppressed?.[k] || s.released?.[k]) {
         return ui.notifications.warn("That crash has already been decided.");
@@ -495,6 +554,7 @@ export function releaseSuppressed(actor, key) {
     const s = liveSession(actor);
     const e = s?.suppressed?.[key];
     if (!e) return false;
+    if (topologyOn() && s.logon && !s.logon.ok) { ui.notifications.warn(`${actor.name} isn't on ${s.hostName}: release it from there.`); return false; }
     await actor.update({ ...tallyUpdate(actor, s, e.rating, `release:${key}`),
       [`flags.sr2e.vr2Session.suppressed.-=${key}`]: null, [`flags.sr2e.vr2Session.released.${key}`]: true });
     return true;
@@ -506,7 +566,7 @@ export function vr2DetectionFactor(actor) {
   // Part 2's per-session suppressions, plus part 3's frozen traces on the connection (p.46).
   // Part 5a §5: a Slow suppression's point is derived from the IC's own fact.
   const slowHeld = Y.allIC().reduce((n, ic) => n + Y.slowSuppressions(ic).filter(e => e.deckerUuid === actor.uuid).length, 0);
-  const suppressed = slowHeld + Object.keys(liveSession(actor)?.suppressed ?? {}).length
+  const suppressed = slowHeld + Object.keys(placeSuppressed(actor)).length
     + (actor.system?.vr2Conn ? (Y.foldOf(actor).live?.frozenCount ?? 0) : 0);
   return Math.max(2, detectionFactor(actor.system.matrixPersona?.masking ?? 0, loadedUtility(actor, "sleaze")) - suppressed);
 }
@@ -534,11 +594,13 @@ export function renderSystemTestCard(st) {
   return `<div class="sr2e-item-card sr2e-vr2-systest">
     <strong>${esc(st.actorName)} — ${esc(st.opLabel)}</strong>
     <br>vs ${esc(st.hostName)}: ${esc(st.subsystemLabel)} ${st.subsystem}${st.console ? " (halved: console access)" : ""}${st.utility ? ` − ${esc(st.utilityName)} ${st.utility}` : ""}${st.jackAccess ? ` ${st.jackAccess > 0 ? "+" : "−"} ${Math.abs(st.jackAccess)} jackpoint` : ""}${st.goal ? ` ${st.goal > 0 ? "+ 1 vague goal" : "− 1 definite goal"}` : ""} → TN ${st.tn}.
-    <br>The host rolls Security Value ${st.securityValue}${st.svMod ? ` (base ${st.securityValue - st.svMod} +${st.svMod} for ${esc(st.waited ?? "the wait")}, p.117)` : ""} vs Detection Factor ${st.df}: ${plural(st.hostSuccesses, "success")}.
+    <br>The host rolls Security Value ${st.securityValue}${st.svMod ? ` (base ${st.securityValue - st.svMod} +${st.svMod} for ${esc(st.waited ?? "the wait")}, p.117)` : ""} vs Detection Factor ${st.df}${st.redirectDf ? " (less the jackpoint's trace modifier, p.117)" : ""}: ${plural(st.hostSuccesses, "success")}.
     <br>${v.success ? `<strong style="color:#7a8;">Succeeds</strong>` : `<strong style="color:#c44;">Fails</strong>`}
     (${st.successes} vs the host's ${st.hostSuccesses}; the decker needs more).
     <br><em>+${st.hostSuccesses} to the security tally (VR2.0 p.19).</em>
     ${st.operation === "nullOp" && st.hostSuccesses ? "<br><em>If this crosses a trigger, the GM decides when in the waiting period the host responds (p.117).</em>" : ""}
+    ${st.netTrace ? `<br><em>Leaving the host counts as a Graceful Logoff: +${st.netTrace} TN for the trace IC running there (p.36).</em>` : ""}
+    ${st.hubNote ? `<br><em>On the hub: this covers the whole host network; the GM says which host has it (p.36).</em>` : ""}
     ${st.logon ? `<br><em>${v.success ? `${esc(st.actorName)} is on ${esc(st.hostName)}.` : `Log-on refused: ${esc(st.actorName)} stays where they were.`}</em>` : ""}
     ${st.operation === "locateAccessNode" && v.success ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2-reveal" data-actor="${esc(st.actorUuid)}">Reveal an address… (GM, p.114)</button></div>` : ""}
     ${st.operation === "decoy" ? `<br><em>${v.success ? `A decoy copy of the icon: a proactive IC attacking ${esc(st.actorName)} hits it on 1D6 ≤ ${st.successes} (not trace IC; p.112).` : "No decoy."}</em>` : ""}
@@ -564,10 +626,12 @@ async function systemTestNow(actor, host, operation, opts) {
   let logon = null;
   if (topologyOn() && conn) {
     const topo = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null;
-    const r = reachable({ at, op: operation, target: host.uuid, topo, jack: connJackpoint(actor), known: knownPlaces(actor), gm: game.user.isGM });
+    const r = reachable({ at, op: operation, target: host.uuid, topo, jack: connJackpoint(actor), known: knownPlaces(actor), gm: game.user.isGM,
+      mapped: mappedHubs(actor) });
     if (!r.ok) return ui.notifications.warn(r.why);
     if (LOGON_OPS.has(operation)) logon = { id: foundry.utils.randomID(), op: operation, from: at,
-      carry: host.system.kind === "pltg" && at ? { tally: scopeTally(actor, at) } : null };
+      carry: host.system.kind === "pltg" && at ? { tally: scopeTally(actor, at) } : null,
+      network: !!at && operation === "logonHost" && isNetworkMove(at, host.uuid, topo) };
   }
   // Jackpoint Access modifier (p.28–29), every Access Test; a console halves Access and Security Value, rounded up.
   const jk = conn && op.subsystem === "access" ? jackpointKind(connJackpoint(actor).kind) : null;
@@ -587,8 +651,10 @@ async function systemTestNow(actor, host, operation, opts) {
   const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
   // A Graceful Logoff with trace IC locating is harder by each trace's rating (p.45).
-  const tracing = operation === "gracefulLogoff" && actor.system.vr2Conn
-    ? (Y.foldOf(actor).live?.traces ?? []).filter(t => !t.complete && !t.dead).reduce((n, t) => n + (t.rating ?? 0), 0) : 0;
+  // 7b §4: a network move leaves its host like a Graceful Logoff (p.36): that host's running traces count. Never a Track.
+  const tracing = (operation === "gracefulLogoff" || logon?.network) && actor.system.vr2Conn
+    ? (Y.foldOf(actor).live?.traces ?? []).filter(t => !t.complete && !t.dead && !t.track && (!logon?.network || t.place === logon.from))
+      .reduce((n, t) => n + (t.rating ?? 0), 0) : 0;
   // Analyze Icon: the Sensor rating lowers the TN too, never below 2 (p.111).
   const sensor = operation === "analyzeIcon" ? (actor.system.matrixPersona?.sensor ?? 0) : 0;
   const tn = Math.max(2, subsystem - utility - sensor + jackAccess + goal) + (trained ? 0 : 4) + tracing;
@@ -610,7 +676,8 @@ async function systemTestNow(actor, host, operation, opts) {
         karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
   if (!res) return;
   if (!dinab) await commitAction(actor, startedBuild);   // a DINAB run is a Free Action: a build in progress goes on
-  const df = vr2DetectionFactor(actor);
+  // Redirect Datatrail under topology (p.117): the opposing test's TN less the jackpoint's trace modifier.
+  const df = topologyOn() && operation === "redirectDatatrail" && conn ? redirectTN(vr2DetectionFactor(actor), connJackpoint(actor).kind) : vr2DetectionFactor(actor);
   // Null Operation (p.117): the host's BASE Security Value plus the inactivity modifier.
   const svMod = operation === "nullOp" ? Math.max(0, Number(opts.svMod) || 0) : 0;
   const securityValue = (jk?.halve ? halveUp(host.system.securityValue) : host.system.securityValue) + svMod;
@@ -624,13 +691,16 @@ async function systemTestNow(actor, host, operation, opts) {
     deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null,
     ...(svMod ? { svMod, waited: opts.waited ?? "" } : {}), ...(secret ? { secret: true } : {}),
     ...(jk && (jackAccess || jk.halve) ? { jackAccess, console: !!jk.halve } : {}), ...(goal ? { goal } : {}),
-    ...(logon ? { logon: { id: logon.id, op: operation } } : {}) };
+    ...(logon ? { logon: { id: logon.id, op: operation } } : {}), ...(tracing && logon?.network ? { netTrace: tracing } : {}),
+    ...(hubNote(host, operation) ? { hubNote: true } : {}),
+    ...(topologyOn() && operation === "redirectDatatrail" && conn ? { redirectDf: true } : {}) };
   const ev = { eventId: `st-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: session.id,
     base: hostRoll.successes, source: "system-test" };
   const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderSystemTestCard(st),
     rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st, vr2TallyEvent: ev } }, ...gmOnly });
   await applyTallyEvent(msg);
   if (logon) await settleLogon(actor, { sessionId: session.id, logonId: logon.id, card: msg.id, ok: systemTestVerdict(st.successes, st.hostSuccesses).success });
+  await settleMapping(actor, st);
   // Decoy (p.112): always recorded; whether it IS a decoy is read live from this card (Karma included; plan R2 #4).
   if (operation === "decoy" && st.conn != null) {
     await recordEvent(actor, `vr2:decoy:${st.conn}:${msg.id}`, { type: "decoy", conn: st.conn, card: msg.id, host: host.uuid, sessionId: session.id });

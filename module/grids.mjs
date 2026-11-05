@@ -5,7 +5,7 @@
  */
 import { RTG_TABLE, easyGridRatings, variableShift, reachable, wiringFits, LOGON_OPS, GRID_KINDS } from "./rules/vr2-grids.mjs";
 import { topologyOn, variableLTGOn } from "./vr2-mode.mjs";
-import { topoSnapshot, settleLogon, knownPlaces } from "./vr2.mjs";
+import { topoSnapshot, settleLogon, knownPlaces, settleMapping } from "./vr2.mjs";
 import { systemTestVerdict } from "./rules/sr2e-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -95,6 +95,9 @@ export function gridSheetContext(host) {
       .map(a => ({ uuid: a.uuid, name: a.name })),
     hasGrid: s.kind === "ltg" || isHost,
     isHost, isPltg: s.kind === "pltg", isRtg: s.kind === "rtg", isLtg: s.kind === "ltg",
+    // A first-tier host with hosts behind it: where the connections are hidden (p.36).
+    isHub: isHost && !!s.grid && others.some(a => !a.system.grid && !GRID_KINDS.has(a.system.kind) && ((s.links ?? []).includes(a.uuid) || (a.system.links ?? []).includes(me))),
+    subsystems: CONFIG.SR2E.vr2Subsystems,
     links: (s.links ?? []).map(u => ({ uuid: u, name: name(u) })),
     linkChoices: others.filter(a => !GRID_KINDS.has(a.system.kind) && !(s.links ?? []).includes(a.uuid) && !(a.system.links ?? []).includes(me))
       .map(a => ({ uuid: a.uuid, name: a.name })),
@@ -165,10 +168,12 @@ export function registerGridHooks() {
   // A Karma reroll that changes a logon card's verdict moves the decker (R1 #3); the client that changed it writes.
   Hooks.on("updateChatMessage", (msg, changes, options, userId) => {
     const st = msg.flags?.sr2e?.vr2SystemTest;
-    if (!st?.logon || userId !== game.user.id || !foundry.utils.hasProperty(changes, "flags.sr2e.vr2SystemTest")) return;
+    if (!st || userId !== game.user.id || !foundry.utils.hasProperty(changes, "flags.sr2e.vr2SystemTest")) return;
     const actor = sync(st.actorUuid);
     if (!actor?.isOwner) return;
-    settleLogon(actor, { sessionId: st.sessionId, logonId: st.logon.id, card: msg.id, ok: systemTestVerdict(st.successes, st.hostSuccesses).success });
+    if (st.logon) settleLogon(actor, { sessionId: st.sessionId, logonId: st.logon.id, card: msg.id, ok: systemTestVerdict(st.successes, st.hostSuccesses).success });
+    // 7b: a Karma reroll can turn a hub's Analyze Subsystem into a success (p.36).
+    settleMapping(actor, st);
   });
   Hooks.on("renderActorDirectory", (app, html) => {
     if (!game.user.isGM || !topologyOn()) return;

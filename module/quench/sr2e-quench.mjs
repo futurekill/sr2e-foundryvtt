@@ -13715,10 +13715,23 @@ export function registerSR2EQuenchTests() {
           matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
         await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
           { name: "Deception", type: "program", system: { rating: 4, loaded: true, category: "other" } },
-          { name: "Browse", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+          { name: "Browse", type: "program", system: { rating: 4, loaded: true, category: "other" } },
+          { name: "Camo", type: "program", system: { rating: 4, loaded: true, category: "other" } },
+          { name: "Analyze", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
         await V.vr2EnterMatrix(a);
         return a;
       };
+      // 7b: a trace already locating, started by IC on `place` (the sequencer's fact, as a trace hit writes it).
+      const traceOn = async (a, place, turns = 3, rating = 4) => {
+        const ic = await mk({ name: "Quench Grid Trace", type: "ic", system: { rating, icType: "white", program: "trace", hostUuid: place.uuid } });
+        const icKey = Y.icKeyOf(ic), n = a.system.vr2Conn.n;
+        const { traceClass } = await import("../rules/vr2-grids.mjs");
+        await Y.sequencer(() => Y.fact(a, `trace:${n}:${icKey}`, { type: "trace", conn: n, icKey, rating, icName: ic.name, turns,
+          clock: { manual: true }, ...traceClass(place.uuid, V.topoSnapshot()) }));
+        return icKey;
+      };
+      const traceOf = (a, k) => Y.foldOf(a).live?.traces.find(t => t.icKey === k);
+      const synced = async (a) => { Y.schedule(a); await wait(500); };
       // Computer 5 vs Access 6 − Deception 4 = TN 2. `hostHits` of the host's 4 Security Value dice succeed.
       const op = (a, h, operation, { win = true, hostHits = 0, opts = {} } = {}) => withFaces([...(win ? [5, 5, 5, 5, 5] : [5, 1, 1, 1, 1]),
         ...Array.from({ length: 4 }, (_, i) => (i < (win ? hostHits : 4) ? 5 : 1)), 1, 1, 1, 1], () => V.vr2SystemTest(a, h, operation, opts));
@@ -13864,7 +13877,9 @@ export function registerSR2EQuenchTests() {
         await op(a, ltg, "logonLTG");
         await op(a, b, "logonHost");
         assert.equal(at(a), ltg.uuid, "a second-tier host isn't on the LTG");
-        await op(a, hub, "logonHost"); await op(a, b, "logonHost");
+        await op(a, hub, "logonHost");
+        await op(a, hub, "analyzeSubsystem", { opts: { subsystem: "access" } });   // 7b: find the connections (p.36)
+        await op(a, b, "logonHost");
         assert.equal(at(a), b.uuid);
         await op(a, c, "logonHost");
         assert.equal(at(a), b.uuid, "B → C needs the hub");
@@ -13920,6 +13935,121 @@ export function registerSR2EQuenchTests() {
         assert.equal(st.subsystem, 4, "Access 7 halved, rounded up");
         assert.equal(st.securityValue, 3, "Security Value 5 halved, rounded up");
         assert.equal(at(a), h.uuid, "the console's host");
+      });
+
+      it("7b: a grid trace hunts across its RTG's grids and loses interest on a host; ticks after that don't count", async function () {
+        this.timeout(30000);
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const l1 = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid }), l2 = await place("Quench Grid LTG 2", "ltg", { grid: rtg.uuid });
+        const h = await place("Quench Grid Host", "host", { grid: l2.uuid });
+        const a = await decker("Quench Grid Decker");
+        await op(a, l1, "logonLTG");
+        const k = await traceOn(a, l1, 4);
+        await Y.advanceManual(a); await Y.advanceManual(a);   // m0 (the hit's own turn), m1
+        await op(a, rtg, "logonRTG"); await op(a, l2, "logonLTG");
+        await synced(a);
+        assert.equal(traceOf(a, k).turnsLeft, 3, "still hunting on the RTG's other LTG");
+        assert.isFalse(traceOf(a, k).dead);
+        await op(a, h, "logonHost");
+        await Y.advanceManual(a);
+        const t = traceOf(a, k);
+        assert.isTrue(t.dead, "logged on to a host: it loses interest (p.47)");
+        assert.equal(t.lost, "grid");
+        assert.equal(t.turnsLeft, 3, "no tick after the move counted");
+        assert.ok(await settle(() => game.messages.contents.slice(n0).some(m => /loses interest/.test(m.content)), 3000), "the GM's card");
+      });
+
+      it("7b: out to a host and straight back still loses the grid trace; suppressions ride the grid's tally", async function () {
+        this.timeout(30000);
+        const rtg = await place("Quench Grid RTG", "rtg"), other = await place("Quench Grid Other RTG", "rtg");
+        const l1 = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid });
+        const h = await place("Quench Grid Host", "host", { grid: l1.uuid });
+        const a = await decker("Quench Grid Decker");
+        await op(a, l1, "logonLTG");
+        await a.update({ "flags.sr2e.vr2Session.suppressed.qx": { icUuid: "", name: "Quench IC", rating: 3 } });
+        const k = await traceOn(a, l1, 4);
+        await op(a, h, "logonHost"); await V.vr2DisconnectToGrid(a);
+        await synced(a);
+        assert.isTrue(traceOf(a, k).dead, "the departure counted even though he came back");
+        await op(a, rtg, "logonRTG");
+        assert.ok(V.liveSession(a).suppressed?.qx, "the suppression came back with the grid's tally and stayed across LTG → RTG");
+        await op(a, other, "logonRTG");
+        assert.notOk(V.liveSession(a).suppressed?.qx, "not on another RTG");
+      });
+
+      it("7b: a trace from the RTG governing the jackpoint can dump the decker; another can't", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const rtg = await place("Quench Grid RTG", "rtg"), l1 = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid });
+        const far = await place("Quench Grid Far RTG", "rtg");
+        const [region] = await canvas.scene.createEmbeddedDocuments("Region", [{ name: "Quench Grid Jackpoint",
+          shapes: [{ type: "rectangle", x: 0, y: 0, width: 100, height: 100 }],
+          behaviors: [{ type: "jackpoint", name: "Jackpoint", system: { kind: "illegal", host: l1.uuid } }] }]);
+        regions.push(region);
+        const a = await mk({ name: "Quench Grid Decker", type: "character", system: { willpower: { base: 4 }, body: { base: 4 }, cyberdeck: { mpcp: 6, deckMode: "hot" }, matrixPersona: { masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          { name: "Deception", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+        await Y.openConnection(a, { jackpoint: { jackpoint: region.behaviors.contents[0].uuid } });
+        await a.update({ "system.matrixMode": true }); await V.startSession(a);
+        await op(a, l1, "logonLTG"); await op(a, rtg, "logonRTG"); await op(a, far, "logonRTG");
+        const kFar = await traceOn(a, far, 0);
+        await Y.request(a, "gridDump", { icKey: kFar }); await synced(a);
+        assert.notOk(Y.foldOf(a).live?.exit, "a trace from another RTG can't dump him");
+        await op(a, rtg, "logonRTG");
+        const k = await traceOn(a, rtg, 0);
+        await synced(a);
+        assert.isTrue(traceOf(a, k).complete);
+        assert.ok(await settle(() => game.messages.contents.slice(n0).some(m => /Dump the decker/.test(m.content)), 3000), "the located card offers the dump");
+        await Y.request(a, "gridDump", { icKey: k });
+        assert.ok(await settle(() => Y.foldOf(a).live?.exit?.trigger === "dump", 4000), "dumped");
+        assert.equal(Y.foldOf(a).live?.exit?.place, rtg.uuid, "from where he was");
+      });
+
+      it("7b: a hub hides its connections; leaving it is a Graceful Logoff (TN, crashed trace, cleared tally); a failed move keeps the trace", async function () {
+        this.timeout(30000);
+        const ltg = await place("Quench Grid LTG", "ltg");
+        const hub = await place("Quench Grid Hub", "host", { grid: ltg.uuid, hubSubsystem: "control" });
+        const b = await place("Quench Grid Tier B", "host", { links: [hub.uuid] });
+        const a = await decker("Quench Grid Decker");
+        await op(a, ltg, "logonLTG"); await op(a, hub, "logonHost", { hostHits: 2 });
+        const before = cards().length;
+        await op(a, b, "logonHost");
+        assert.equal(cards().length, before, "refused until the connections are found");
+        await op(a, hub, "analyzeSubsystem", { opts: { subsystem: "access" } });
+        await op(a, b, "logonHost");
+        assert.equal(at(a), hub.uuid, "Access isn't where this hub hides them");
+        await op(a, hub, "analyzeSubsystem", { opts: { subsystem: "control" } });
+        assert.ok(V.mappedHubs(a).has(hub.uuid), "found (Control)");
+        const k = await traceOn(a, hub, 5, 1);
+        await op(a, b, "logonHost", { win: false });
+        assert.equal(at(a), hub.uuid);
+        assert.equal(cards().at(-1).flags.sr2e.vr2SystemTest.netTrace, 1, "+1 TN for the hub's Trace-1");
+        await synced(a);
+        assert.isFalse(traceOf(a, k).dead, "a failed move leaves the hub's trace running");
+        await op(a, b, "logonHost");
+        assert.equal(at(a), b.uuid);
+        await synced(a);
+        assert.equal(traceOf(a, k).lost, "network", "the hub lost his datatrail (p.36)");
+        assert.notOk(a.flags.sr2e.vr2Tallies?.[`host_${hub.id}`], "the hub forgot him");
+        await op(a, hub, "logonHost");
+        assert.equal(at(a), hub.uuid, "back to the hub needs no mapping");
+        assert.equal(V.liveSession(a).tally, 0, "a fresh hub");
+      });
+
+      it("7b: one redirect per grid; its opposing test uses the jackpoint's trace modifier", async function () {
+        this.timeout(30000);
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const l1 = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid }), l2 = await place("Quench Grid LTG 2", "ltg", { grid: rtg.uuid });
+        const a = await decker("Quench Grid Decker");
+        await op(a, l1, "logonLTG");
+        await op(a, l1, "redirectDatatrail"); await op(a, l1, "redirectDatatrail");
+        assert.ok(await settle(() => Y.foldOf(a).live?.redirects === 1, 4000));
+        await wait(800);
+        assert.equal(Y.foldOf(a).live.redirects, 1, "one per grid");
+        await op(a, rtg, "logonRTG"); await op(a, l2, "logonLTG");
+        await op(a, l2, "redirectDatatrail");
+        assert.ok(await settle(() => Y.foldOf(a).live?.redirects === 2, 4000), "another grid takes one more");
+        assert.isTrue(cards().at(-1).flags.sr2e.vr2SystemTest.redirectDf);
       });
 
       it("topology off: any host, any operation, as before", async function () {

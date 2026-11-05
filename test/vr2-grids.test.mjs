@@ -194,3 +194,75 @@ describe("tally scopes and seeds (p.29, p.116)", () => {
     expect(seedTally({ scope: "rtg_SEA", ledger: { rtg_SEA: { conn: 1, jackpoint: "JP1", tally: 3 } }, conn: 2, jackpoint: "JP1" })).toBe(0);
   });
 });
+
+// ── Part 7b ─────────────────────────────────────────────────────────────────
+import { traceLostAt, traceClass, governsJackpoint, isNetworkMove, redirectTN } from "../module/rules/vr2-grids.mjs";
+import { traceState } from "../module/rules/vr2ic-rules.mjs";
+
+describe("7b: a trace's class and where it stops (p.36, p.47)", () => {
+  const gridTrace = { seq: 10, ...traceClass("Actor.L2206", topo) };
+  const hostTrace = { seq: 10, ...traceClass("Actor.A", topo) };
+  const mv = (seq, place, extra = {}) => ({ seq, place, ...traceClass(place, topo), network: false, from: null, ...extra });
+  it("classes: an LTG or RTG trace is a grid trace in its RTG scope; a PLTG or host trace isn't", () => {
+    expect(gridTrace).toMatchObject({ grid: true, scope: "rtg_SEA" });
+    expect(traceClass("Actor.SK", topo).grid).toBe(false);
+    expect(traceClass("Actor.A", topo)).toMatchObject({ grid: false, scope: "host_A" });
+  });
+  it("a grid trace keeps hunting across its RTG's grids, and loses interest on a host, a PLTG or another RTG", () => {
+    expect(traceLostAt(gridTrace, [mv(11, "Actor.SEA"), mv(12, "Actor.L4206")])).toBeNull();
+    for (const p of ["Actor.Open1", "Actor.SK", "Actor.TIR"]) expect(traceLostAt(gridTrace, [mv(11, "Actor.SEA"), mv(12, p)])?.seq).toBe(12);
+  });
+  it("a departure then a return still ends it at the departure; a move before it started doesn't", () => {
+    expect(traceLostAt(gridTrace, [mv(12, "Actor.Open1"), mv(13, "Actor.L2206")])?.seq).toBe(12);
+    expect(traceLostAt(gridTrace, [mv(5, "Actor.Open1"), mv(11, "Actor.L2206")])).toBeNull();
+  });
+  it("a host trace ends only when a network move leaves its host; a Track and a complete trace never", () => {
+    expect(traceLostAt(hostTrace, [mv(11, "Actor.Open1")])).toBeNull();
+    expect(traceLostAt(hostTrace, [mv(11, "Actor.B", { network: true, from: "Actor.A" })])?.seq).toBe(11);
+    expect(traceLostAt(hostTrace, [mv(11, "Actor.A", { network: true, from: "Actor.B" })])).toBeNull();
+    expect(traceLostAt({ ...gridTrace, track: true }, [mv(11, "Actor.Open1")])).toBeNull();
+  });
+  it("the fold: a lost trace is dead before the next tick, frees its frozen point, and a complete one stays complete", () => {
+    const tr = { type: "trace", conn: 1, icKey: "Actor.T:0", turns: 2, seq: 10, ...traceClass("Actor.L2206", topo) };
+    const tick = (seq, b) => ({ type: "tick", conn: 1, icKey: "Actor.T:0", boundary: b, seq });
+    const move = (seq, place) => ({ type: "move", conn: 1, seq, place, ...traceClass(place, topo), network: false });
+    const lost = traceState(tr, [tick(11, "r2"), move(12, "Actor.Open1"), tick(13, "r3"), tick(14, "r4")]);
+    expect(lost).toMatchObject({ complete: false, dead: true, lost: "grid", turnsLeft: 1 });
+    const done = traceState(tr, [tick(11, "r2"), tick(12, "r3"), move(13, "Actor.Open1")]);
+    expect(done).toMatchObject({ complete: true, dead: false, lost: null });
+  });
+});
+
+describe("7b: dump on locate, network moves, redirects (p.36, p.47, p.117)", () => {
+  const t = (place) => ({ ...traceClass(place, topo) });
+  it("only a trace from the RTG governing the jackpoint, or one of its LTGs, can dump the decker", () => {
+    const jack = { kind: "illegal", wired: "Actor.L4206" };
+    expect(governsJackpoint(t("Actor.L2206"), jack, topo)).toBe(true);
+    expect(governsJackpoint(t("Actor.SEA"), jack, topo)).toBe(true);
+    expect(governsJackpoint(t("Actor.TIR"), jack, topo)).toBe(false);
+    expect(governsJackpoint(t("Actor.A"), jack, topo)).toBe(false);
+    expect(governsJackpoint(t("Actor.L2206"), { kind: "remote", wired: "Actor.B" }, topo)).toBe(false);
+    expect(governsJackpoint(t("Actor.L2206"), { kind: "illegal", wired: null }, topo)).toBe(false);
+    expect(governsJackpoint(t("Actor.LX"), { kind: "illegal", wired: "Actor.LX" }, topo)).toBe(false);
+  });
+  it("network moves are logons along host links, not open access", () => {
+    expect(isNetworkMove("Actor.A", "Actor.B", topo)).toBe(true);
+    expect(isNetworkMove("Actor.B", "Actor.A", topo)).toBe(true);
+    expect(isNetworkMove("Actor.Open1", "Actor.Open2", topo)).toBe(false);
+    expect(isNetworkMove("Actor.L4206", "Actor.A", topo)).toBe(false);
+  });
+  it("hub → second tier needs the connections found; never the way back, never open access", () => {
+    const m = (mapped) => reachable({ at: "Actor.A", op: "logonHost", target: "Actor.B", topo, jack: { kind: "illegal" }, mapped }).ok;
+    expect(m(new Set())).toBe(false);
+    expect(m(new Set(["Actor.A"]))).toBe(true);
+    expect(m(null)).toBe(true);
+    expect(reachable({ at: "Actor.B", op: "logonHost", target: "Actor.A", topo, jack: {}, mapped: new Set() }).ok).toBe(true);
+    expect(reachable({ at: "Actor.Open1", op: "logonHost", target: "Actor.Open2", topo, jack: {}, mapped: new Set() }).ok).toBe(true);
+  });
+  it("Redirect Datatrail's opposing TN: DF less the jackpoint's trace modifier (literal), min 2", () => {
+    expect(redirectTN(5, "legal")).toBe(7);
+    expect(redirectTN(5, "illegal")).toBe(5);
+    expect(redirectTN(5, "remote")).toBe(2);
+    expect(redirectTN(3, "remote")).toBe(2);
+  });
+});

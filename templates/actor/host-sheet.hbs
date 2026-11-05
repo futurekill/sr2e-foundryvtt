@@ -88,6 +88,11 @@
         {{#if grid.linkChoices.length}}<br><select>{{#each grid.linkChoices as |c|}}<option value="{{c.uuid}}">{{c.name}}</option>{{/each}}</select>
         <button type="button" data-action="grid" data-op="addLink"><i class="fas fa-link"></i> Link</button>{{/if}}</p>
       {{/if}}
+      {{#if grid.isHub}}
+      <div class="field-grid"><label class="field" title="A decker on this hub must find the connections to the hosts behind it with Analyze Subsystem on this subsystem before logging on to them (VR2.0 p.36).">
+        <span>Connections hidden in</span>
+        <select name="system.hubSubsystem">{{#each grid.subsystems as |label key|}}<option value="{{key}}" {{selected ../system.hubSubsystem key}}>{{label}}</option>{{/each}}</select></label></div>
+      {{/if}}
       {{#if grid.isPltg}}
       <p class="rule-note"><strong>Entry points</strong> (the LTGs this PLTG is entered from, p.28):
         {{#each grid.entries as |l|}}<br>{{l.name}} <a data-action="grid" data-op="removeEntry" data-arg="{{l.uuid}}" title="Remove"><i class="fas fa-trash"></i></a>{{/each}}

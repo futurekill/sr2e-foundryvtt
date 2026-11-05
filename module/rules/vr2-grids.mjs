@@ -149,9 +149,10 @@ export function wiringFits(jack, topo) {
  * @param {{kind: string, wired: string|null}} a.jack
  * @param {Set<string>} [a.known] uuids whose address the decker knows
  * @param {boolean} [a.gm]        the GM always knows every address
+ * @param {Set<string>|null} [a.mapped] hubs whose second-tier connections the decker has found (7b, p.36); null = all
  * @returns {{ok: boolean, why?: string}}
  */
-export function reachable({ at, op, target, topo, jack, known = new Set(), gm = false }) {
+export function reachable({ at, op, target, topo, jack, known = new Set(), gm = false, mapped = null }) {
   const P = at ? topo.get(at) : null;
   const T = topo.get(target);
   const no = (why) => ({ ok: false, why });
@@ -183,6 +184,10 @@ export function reachable({ at, op, target, topo, jack, known = new Set(), gm = 
   } else {
     ok = op === "logonHost" && isHost && T.uuid !== P.uuid && ((!!P.grid && T.grid === P.grid) || linked(P, T));
     if (!ok && op !== "logonHost") why = "From a host, Disconnect to grid first (p.14).";
+    // Part 7b: hub → second tier needs the connections found first (p.36); never the way back.
+    if (ok && needsMapping(P, T, topo) && mapped && !mapped.has(P.uuid)) {
+      return no(`Find the connections first: Analyze Subsystem (${HUB_SUBSYSTEM_LABEL[P.hubSubsystem] ?? "Access"}) on ${P.name ?? "the hub"} (p.36).`);
+    }
   }
   if (!ok) return no(why);
   // The place a jackpoint is physically wired to needs no address.
@@ -212,3 +217,51 @@ export function seedTally({ scope, outgoing = null, ledger = {}, conn, jackpoint
 
 /** The PLTG carry (p.29): what a successful logon adds so the PLTG's tally is at least the public one. */
 export const carryAmount = (carried, seeded) => Math.max(0, (carried ?? 0) - (seeded ?? 0));
+
+// ── Part 7b: trace on a grid, host networks, redirects (docs/PLAN-vr2-part7-grids.md, "7b in detail") ──
+
+const HUB_SUBSYSTEM_LABEL = { access: "Access", control: "Control", index: "Index", files: "Files", slave: "Slave" };
+
+/** A network move (p.36): a Logon to Host along a host link. Open access on one grid isn't one (p.14). */
+export function isNetworkMove(from, to, topo) {
+  const P = topo.get(from), T = topo.get(to);
+  return !!P && !!T && !GRID_KINDS.has(P.kind) && !GRID_KINDS.has(T.kind) && linked(P, T) && !(P.grid && T.grid === P.grid);
+}
+/** Hub → second tier: from a first-tier host (on a grid) to a linked host on none (p.36). */
+export function needsMapping(P, T, topo) {
+  return !!P.grid && !T.grid && isNetworkMove(P.uuid, T.uuid, topo);
+}
+
+/** A trace's class from where it started (§1): a public LTG/RTG is a grid trace; anything else a host trace. */
+export function traceClass(place, topo) {
+  const p = topo.get(place);
+  const sc = scopeOf(place, topo);
+  return { place: place ?? null, scope: sc?.key ?? null, grid: !!p && (p.kind === "ltg" || p.kind === "rtg") };
+}
+
+/**
+ * Where a trace stops (§2), purely: the first `move` fact after it whose kind ends it. A grid trace loses interest when
+ * the decker goes to a host, a PLTG or another RTG (p.47); a host trace when he leaves its host by a network move (the
+ * hub loses his datatrail, p.36). Never a Track. Returns that move (its seq is the trace's crash), or null.
+ * @param {{seq: number, track?: boolean, place?: string, scope?: string, grid?: boolean}} trace the trace fact
+ * @param {{seq: number, grid: boolean, scope: string, network: boolean, from: string}[]} moves this connection's
+ */
+export function traceLostAt(trace, moves) {
+  if (trace.track || !trace.place) return null;
+  return [...moves].sort((a, b) => a.seq - b.seq).find(m => m.seq > trace.seq && (trace.grid
+    ? (!m.grid || m.scope !== trace.scope)
+    : (m.network && m.from === trace.place))) ?? null;
+}
+
+/**
+ * Dump on locate (p.47): a trace from the RTG governing the decker's jackpoint, or an LTG of that RTG. The jackpoint
+ * governs through the LTG it is wired to; a device jackpoint, no jackpoint or an RTG-less LTG never does.
+ */
+export function governsJackpoint(trace, jack, topo) {
+  if (!trace?.grid || !trace.scope?.startsWith("rtg_") || jackpointKind(jack?.kind).device) return false;
+  const w = wiredPlace(jack, topo);
+  return !!w && scopeOf(w, topo)?.key === trace.scope;
+}
+
+/** Redirect Datatrail's opposing Security Test (p.117): the TN reduced by the jackpoint's trace modifier (user ruling: literal). */
+export const redirectTN = (df, jackKind) => Math.max(2, (Number(df) || 0) - jackpointKind(jackKind).trace);
