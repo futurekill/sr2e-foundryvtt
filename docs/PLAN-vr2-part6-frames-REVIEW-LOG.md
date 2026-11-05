@@ -426,3 +426,27 @@ No findings. The post-roll check permits the command’s own consumption or copy
 
 VERDICT: APPROVED
 **6a-2b plan APPROVED in round 3.**
+
+## 6a-2b Code round 1 — Codex (fresh session, commit 11988d9; ~424k input tokens)
+
+1. **module/frames.mjs:447 — Uploading or decompressing a frame leaves decoy mode active.** Neither path calls `ownAction`, and `commitAction` does not call it either. A decker can perform these actions while security continues targeting the decoy, contrary to §4’s explicit action boundaries. **Fix:** Call `ownAction` when committing frame upload and decompression.
+
+2. **module/frames.mjs:408 — Command validation omits `vr2ActionGuard`.** `setTrigger` relies exclusively on `commandProblem`, so an icon-down or jacking-out commander can still set triggers. Attack, maneuver, and scan also fail to recheck this guard after their dialogs, allowing a command after the commander becomes incapacitated. **Fix:** Include `vr2ActionGuard(actor)` in pre-expenditure command validation, including trigger setting.
+
+3. **module/vr2ic.mjs:789 — Tar replay ignores the captured frame’s incarnation and ended state.** `reconcileTarFact` checks only whether the UUID resolves. If the frame has ended but awaits sequencer cleanup, replay still writes crash records to it; `tarStrike` also reports a successful copy crash even when the frame is already gone. This misses §1’s explicit ended-frame handling. **Fix:** Validate the captured upload and `frameState` before applying frame crashes, and report “already crashed” when that recipient has ended.
+
+VERDICT: REVISE
+### Claude's response (fix 61ba1c3)
+- **#1 accepted.** Upload frame and Decompress frame call `ownAction`.
+- **#2 accepted.** `commandProblem` checks `vr2ActionGuard` first (before and after the roll), so every command path,
+  Set event trigger included, refuses a commander who is jacking out or whose icon is down.
+- **#3 accepted.** `tarStrike` and `reconcileTarFact` use a frame recipient only if it is still that upload and not
+  ended; otherwise the strike lands on nothing and the card says so.
+
+## 6a-2b Code round 2 — Codex (fresh session, fix only; ~134k input tokens)
+
+No findings. All three fixes are correct and complete within the requested scope. The added calls introduce no apparent deadlock, import-cycle issue, or refusal of a legitimate command. Tar replay now checks both frame incarnation and ended state before recording copy crashes.
+
+VERDICT: APPROVED
+
+**6a-2b code APPROVED in round 2.**
