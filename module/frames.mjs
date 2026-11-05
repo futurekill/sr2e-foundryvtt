@@ -180,8 +180,11 @@ async function settleUpload(actor, open, manual = false) {
 async function replayResolutions(owner) {
   const LEVELS = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly" };
   for (const h of recordsOf(owner).filter(e => e.type === "frameHit")) {
-    if (game.messages.some(m => m.flags?.sr2e?.resolves === h.card)) continue;
     const st = game.messages.get(h.card)?.flags?.sr2e?.matrix;
+    // A full resist's DINAB wear first, every pass (it's keyed, so idempotent): an interruption after the card was
+    // posted can't lose it (code R3 #1).
+    if (!h.boxes && st) await dinabZeroed(st, { card: h.card, requester: owner });
+    if (game.messages.some(m => m.flags?.sr2e?.resolves === h.card)) continue;
     const frame = game.actors.get(h.upload);
     const name = frame?.name ?? of(recordsOf(owner), "uploadOpen", h.upload)?.snapshot?.coreName ?? "The frame";
     const after = frameMonitor(recordsOf(owner).filter(e => (e.seq ?? 0) <= (h.seq ?? 0)), h.upload);
@@ -193,7 +196,6 @@ async function replayResolutions(owner) {
       <br><em>${h.atk} attack success${h.atk === 1 ? "" : "es"} vs ${h.res} resistance success${h.res === 1 ? "" : "es"}.</em>
       ${lines.map(l => `<br>${esc(l)}`).join("")}</div>`,
       flags: { sr2e: { resolves: h.card, closesTests: h.closes ?? [], matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}` } } });
-    if (!h.boxes && st) await dinabZeroed(st, { card: h.card, requester: owner });
   }
 }
 
