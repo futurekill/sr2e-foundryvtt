@@ -569,3 +569,27 @@ All 8 accepted; §1, §3, §4 and §5 rewritten.
 - #7: one seq-ordered `skCondition` fold (full and partial repairs) for state, attributes, the handler and replayed
   resolutions; frames' folds become calls to it.
 - #8: every SK write refuses an ended SK; the SK pass does the crash cleanup without deleting the actor.
+
+## 6b Round 2 — Codex (fresh session, revisions only; ~171k input tokens)
+
+1. **§4 deletes pending sheaf events on logoff** (plan lines 1492, 1507). `tallyUpdate` deliberately stores pending events outside session records (`module/vr2.mjs:535–539`) so closing a session cannot lose undelivered triggers. Moving them into the host entry restores that data-loss window.
+   **Fix:** keep sheaf-pending events outside deletable sessions; parameterize only tally and receipt paths.
+
+2. **§1’s shutdown check lacks an arrival boundary** (plan lines 1416–1418). `stateFor` uses the upload’s host and completion sequence (`module/frames.mjs:43–50`); SKs have neither. The proposed session stores no arrival sequence. Checking a destination’s shutdown history against zero would crash an SK arriving after a previous shutdown and restart.
+   **Fix:** persist sequenced host arrivals/departures and evaluate shutdowns against the SK’s actual residence intervals.
+
+3. **§5’s native-host move and repair are not recoverable as a unit** (plan lines 1535–1536, 1547–1553). `sequencer()` serializes callbacks but does not make their document writes atomic (`module/vr2ic.mjs:75–81`). Interruption after updating `hostUuid` but before writing `skRepair` leaves the SK home without its promised repair/unlock; the revised pass has no movement recovery.
+   **Fix:** persist a keyed arrival transition carrying repair/unlock intent and reconcile its effects idempotently.
+
+4. **§3 removes stale-allocation protection** (plan lines 1449–1453). A single writer still permits two dialogs on that client: the second can submit an obsolete whole allocation after the first commits. `poolProblems` checks legality, not whether the allocation changed meanwhile; serialization alone cannot detect this overwrite.
+   **Fix:** retain the dialog’s expected revision and reject mismatches inside the sequencer before committing the next allocation.
+
+VERDICT: REVISE
+### Claude's response
+All 4 accepted.
+- #1: only the tally and receipts move to the per-host entry; sheaf-pending stays outside sessions, as today.
+- #2: shutdowns are judged against the SK's residence: the host of its latest `sk-move` fact, shutdowns offline after
+  that move's seq.
+- #3: where an SK is IS the latest `sk-move` fact; the SK pass reconciles `hostUuid`, the session entries and the
+  arrival repair (`sk-repair:arrive:<n>`) from it, idempotently.
+- #4: the Allocate dialog's expected revision is re-checked in the sequencer; a stale one is refused.

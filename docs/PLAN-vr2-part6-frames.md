@@ -1413,9 +1413,11 @@ on the SK by the sequencer. Every frame function that reads "the owner's records
 - `replayResolutions`, `replayWear`, and the `frameHit`/`frameAttr` handlers (§5).
 
 **Where it differs from a frame:**
-- **Ended** only by its monitor (§5) or deletion: no upload, departure, owner or host shutdown. A host shutdown dumps
-  every icon on it (p.53), so an SK ON that host at the shutdown also ends; the existing `shutdownOfflineSeqs` check
-  reads the host it was on.
+- **Ended** only by its monitor (§5), deletion, or a host shutdown: no upload, departure or owner.
+  - A host shutdown dumps every icon on it (p.53), so an SK ON that host also ends.
+  - The check is against its residence: the host of its latest `sk-move` fact (§4), and only shutdowns that went
+    offline AFTER that move's `seq` (`shutdownOfflineSeqs(host).some(s => s > arrivalSeq)`). An SK arriving after an
+    old shutdown and restart is unaffected (R2 #2).
 - **No upload or combat joining:** `reconcileDocs`, `reconcileOwner`, `reconcileAllFrames` and `joinCombats` skip
   `kind: "sk"`. The GM adds an SK to combat from its token, as with IC. Its own pass is §5.
 - **Checks:** `smartProblem` treats an SK like a smart frame, with the SK operation list (§4) and the "between
@@ -1447,7 +1449,8 @@ needed. A non-sequencer client's button says "the active GM allocates for an SK"
   - Initiative points must be 0, 1, 3 or 5 ("5 points provides 4D6 — the maximum");
   - a restore or medic allocation may not drop below its locked rating.
 - **Inside the sequencer:**
-  1. re-check `poolProblems` and the SK not ended;
+  1. re-check the dialog's expected revision against the latest `sk-alloc` fact (R2 #4): a stale dialog is refused
+     ("allocated elsewhere meanwhile: reopen"). Then `poolProblems`, and the SK not ended;
   2. write the fact `sk-alloc:<rev>` with the whole allocation **and its item identities** (R1 #6):
      `{ rev, init, locked, items: [{ id, name, rating }] }`;
   3. reconcile.
@@ -1489,7 +1492,9 @@ tally, receipts }`:
 - `liveSession(sk)` returns the entry for the host it's ON (`system.hostUuid`), or null between hosts;
 - `applyTallyEvent` finds an SK's session by the event's `sessionId` among these entries, not only the live one.
   This is one SK branch in `eventOf`/`applyTallyEvent`;
-- `tallyUpdate` takes the session's flag path, so the sheaf-pending entry and receipts land on that host's entry.
+- `tallyUpdate` takes the session's flag path for the tally and receipts only. The sheaf-pending entry stays where it
+  is today, OUTSIDE any session (`flags.sr2e.vr2SheafPending`, keyed by session), so closing a session can never
+  lose an undelivered trigger (R2 #1).
 
 **Logon to Host (dest):**
 1. **The attempt session first:** the sequencer creates `skSessions[dest]` if it doesn't exist (tally 0). A failed
@@ -1497,14 +1502,23 @@ tally, receipts }`:
 2. **The test:** Access, with the pool's Deception. It runs `systemTestNow` for the SK with a `dest` option: the host
    is `dest`, not the SK's current host, and the session is `skSessions[dest]`. So the tally event and the sheaf are
    the DESTINATION's (p.19: the host being logged on to rolls).
-3. **Success:** the sequencer sets `system.hostUuid = dest` (one update).
+3. **Success:** the sequencer writes the fact `sk-move:<n>` `{ to: dest, from, repair: dest === native }`.
 
-   **Failure:** it stays where it was.
-- **Its native host takes no test** ("passcodes for their native host systems", p.140): it moves at once, and the
-  repair follows (§5).
+   **Failure:** no fact; it stays where it was.
+- **Its native host takes no test** ("passcodes for their native host systems", p.140): the fact is written at once,
+  with `repair: true`.
+
+**Where it is is a FACT (R2 #3).** The latest `sk-move` fact is the source of truth. `system.hostUuid` (which the
+frame code reads) and the session entries are reconciled from it by the SK pass, idempotently:
+- the field set to the fact's `to`;
+- the arrival host's session ensured;
+- for a fact with `repair`, the `sk-repair:arrive:<n>` fact (§5) written if missing.
+
+An interruption anywhere after the fact is finished by the next pass, and a repeat changes nothing.
 
 **Graceful Logoff:** a System Test on its current host, its tally on that host's session.
-- **Success:** the sequencer sets `hostUuid = ""` and deletes that host's entry (a later visit is a new session).
+- **Success:** the fact `sk-move:<n>` `{ to: "", from }`. The pass sets `hostUuid = ""` and deletes the left host's
+  session entry (a later visit is a new session); the sheaf-pending entries survive (R2 #1).
 - **Failure:** it stays.
 - Between hosts, an SK can only Logon.
 
@@ -1532,8 +1546,8 @@ current value, and `replayResolutions`' "after this hit" monitor, which folds th
 a frame (no repairs) it equals today's `frameMonitor` and `frameAttrLosses`, which become thin calls to it.
 
 **Repair (p.140):**
-- **Arriving at its native host** writes `sk-repair:<n>` `{ full: true, unlock: true }` in the same sequencer task as
-  the move.
+- **Arriving at its native host:** the arrival's `sk-repair:arrive:<n>` `{ full: true, unlock: true }`, written by the
+  pass from the move fact (§4), so it can't be lost to an interruption (R2 #3).
 - **Regenerate** is a Complex Action button while ON its native host and damaged. It rolls MPCP dice:
   - against `medicTN(boxes)` for Medic, which writes `{ boxes: successes }`;
   - or against the restore TN for Restore (`restoreState`'s rule), which writes `{ attr, points }`.
@@ -1545,6 +1559,7 @@ steps, without deleting the actor): the actor stays as the GM's record, marked c
 frame key's `attackerEnded`).
 
 **The SK pass (R1 #5).** `skPass(sk)` runs in the sequencer and is idempotent:
+- the location from the latest move fact: `hostUuid`, sessions, and the arrival repair (R2 #3);
 - `reconcileSkItems`;
 - replay resolutions and wear;
 - the crash cleanup.
