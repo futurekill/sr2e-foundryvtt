@@ -421,7 +421,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // document (the spirit sheet's `spiritPower` picker) are UI state.
     for (const input of this.element.querySelectorAll("input[name], select[name], textarea[name]")) {
       if (input.closest("[data-item-id]")) continue;
-      if (input.name !== "name" && !input.name.startsWith("system.")) continue;
+      if (input.name !== "name" && !input.name.startsWith("system.") && !input.name.startsWith("flags.sr2e.")) continue;
       // NPC Essence: a blank or non-numeric entry saves nothing (the generic path would write 0, which
       // the substance rules read as death), and a refused update re-renders (docs/PLAN-npc-essence.md).
       if (input.name === "system.essence.value") {

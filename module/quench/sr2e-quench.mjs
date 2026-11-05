@@ -13785,6 +13785,12 @@ export function registerSR2EQuenchTests() {
         assert.equal(V.liveSession(a).tally, 1, "past the memory, the tally started over");
         assert.equal(at(a), ltg.uuid);
         assert.isNull(V.liveSession(a).forgetAt, "a success clears the memory");
+        // A failed move inside a scope he's already in puts no expiry on what he earned (code R1 #3).
+        await op(a, rtg, "logonRTG", { hostHits: 0 });
+        const ltg2 = await place("Quench Grid LTG 2", "ltg", { grid: rtg.uuid });
+        await op(a, ltg2, "logonLTG", { win: false });
+        assert.equal(at(a), rtg.uuid);
+        assert.isNull(V.liveSession(a).forgetAt, "no memory clock on an already-entered grid");
       });
 
       it("the p.29 example: LTG → RTG → LTG is one tally (2 + 1 + 2 = 5), firing the RTG's sheaf once", async function () {

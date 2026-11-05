@@ -168,7 +168,7 @@ export function reachable({ at, op, target, topo, jack, known = new Set(), gm = 
   if (!P) {
     const k = jackpointKind(jack?.kind);
     wired = wiredPlace(jack, topo);
-    if (k.device) { ok = op === "logonHost" && isHost && (!wired || T.uuid === wired); why = "This jackpoint reaches only the host controlling its device (p.29)."; }
+    if (k.device) { ok = op === "logonHost" && isHost && !!wired && T.uuid === wired; why = wired ? "This jackpoint reaches only the host controlling its device (p.29)." : "This jackpoint isn't wired to a host (GM: set its \"Wired to\")."; }
     else { ok = op === "logonLTG" && T.kind === "ltg" && (!wired || T.uuid === wired); why = wired ? "This jackpoint connects to its own LTG (p.29)." : "From a trid jackpoint, only Logon to LTG (p.29)."; }
   } else if (P.kind === "ltg") {
     ok = (op === "logonLTG" && T.kind === "pltg" && (T.entryPoints ?? []).includes(P.uuid))
@@ -202,7 +202,7 @@ export function disconnectTarget(at, topo) {
  * Ledger entries: { conn, jackpoint, tally, forgetAt? } — forgetAt marks a failed-logon memory (p.116).
  */
 export function seedTally({ scope, outgoing = null, ledger = {}, conn, jackpoint = null, now = 0 }) {
-  if (outgoing && outgoing.scope === scope) return outgoing.tally ?? 0;
+  if (outgoing && outgoing.scope === scope) return outgoing.forgetAt != null && now >= outgoing.forgetAt ? 0 : outgoing.tally ?? 0;
   const e = ledger[scope];
   if (!e) return 0;
   const live = e.forgetAt == null || now < e.forgetAt;

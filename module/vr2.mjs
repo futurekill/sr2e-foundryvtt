@@ -256,10 +256,10 @@ function newSession(actor, host, outgoing, extra = {}) {
   const sc = host ? scopeOf(host.uuid, topoSnapshot()) : null;
   if (!sc) return base;
   const ledger = actor.flags?.sr2e?.vr2Tallies ?? {};
-  const out = outgoing?.scope ? { scope: outgoing.scope, tally: outgoing.tally } : null;
+  const out = outgoing?.scope ? { scope: outgoing.scope, tally: outgoing.tally, forgetAt: outgoing.forgetAt ?? null } : null;
   const tally = seedTally({ scope: sc.key, outgoing: out, ledger, conn, jackpoint, now: game.time.worldTime });
   // A failed-logon memory keeps its clock when it is what the tally came from.
-  const forgetAt = !tally ? null : out?.scope === sc.key ? outgoing.forgetAt ?? null : ledger[sc.key]?.forgetAt ?? null;
+  const forgetAt = !tally ? null : out?.scope === sc.key ? out.forgetAt : ledger[sc.key]?.forgetAt ?? null;
   return { ...base, tally, seed: tally, scope: sc.key, owner: sc.owner, forgetAt };
 }
 
@@ -335,7 +335,10 @@ export function settleLogon(actor, { sessionId, logonId, card, ok }) {
       const carryId = `carry-${logonId}`;
       const add = s.logon.carry ? carryAmount(s.logon.carry.tally, s.seed ?? 0) : 0;
       if (add > 0 && s.receipts?.[carryId] == null) Object.assign(update, tallyUpdate(actor, s, add, carryId, { exact: true }));
-    } else if (first && s.logon.op === "logonLTG" && sync(s.hostUuid)?.system?.kind === "ltg") {
+    } else if (first && s.logon.op === "logonLTG" && sync(s.hostUuid)?.system?.kind === "ltg"
+      // Only a failed first access is "remembered" (code R1 #3): a failed move inside a scope he's already in
+      // must not put an expiry on the tally he earned there.
+      && (!s.logon.from || scopeOf(s.logon.from, topoSnapshot())?.key !== s.scope)) {
       const roll = await new Roll("1d3").evaluate();
       const forgetAt = game.time.worldTime + forgetSeconds(roll.total);
       update["flags.sr2e.vr2Session.forgetAt"] = forgetAt;
@@ -987,8 +990,13 @@ async function attackOnce(actor) {
     }
   } else {
     attackerComputer = computerOf(actor);
-    // Log on to the chosen host FIRST: a build made on another host ends with that session.
-    await sessionFor(actor, host);
+    // Part 7a (code R1 #1): under grid topology a decker attacks only where he is.
+    if (topologyOn() && actor.system.vr2Conn && currentPlace(actor)?.uuid !== host.uuid) {
+      return ui.notifications.warn(`${actor.name} isn't logged on to ${host.name}.`);
+    }
+    // Log on to the chosen host FIRST: a build made on another host ends with that session. Behind any
+    // System Operation still running, so it can't switch the session under that test's tally.
+    await opQueue(actor, () => sessionFor(actor, host));
     if (o.programId === "improv") {
       const imp = liveSession(actor)?.improvised;
       if (!imp?.level) return ui.notifications.warn("No improvised attack is ready on this host.");

@@ -12,7 +12,7 @@ import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
-import { isVR2 } from "../vr2-mode.mjs";
+import { isVR2, variableLTGOn } from "../vr2-mode.mjs";
 import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
@@ -2418,7 +2418,8 @@ export class HostData extends SR2EDataModel {
    * Rating when not overridden. Inert in the core-book Matrix.
    */
   get securityValue() {
-    return shifted(this.securityValueOverride > 0 ? this.securityValueOverride : this.systemRating, this.ratingShift);
+    const v = this.securityValueOverride > 0 ? this.securityValueOverride : this.systemRating;
+    return this.ratingShift && variableLTGOn() ? shifted(v, this.ratingShift) : v;
   }
 
   /**
@@ -2429,6 +2430,7 @@ export class HostData extends SR2EDataModel {
    * @returns {number}
    */
   subsystemRating(key) {
-    return shifted(this.subsystems?.[key] ?? this.systemRating, this.ratingShift);
+    const v = this.subsystems?.[key] ?? this.systemRating;
+    return this.ratingShift && variableLTGOn() ? shifted(v, this.ratingShift) : v;
   }
 }

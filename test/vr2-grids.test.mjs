@@ -74,6 +74,9 @@ describe("reachable (p.14–15, p.29–30, p.116)", () => {
     const jack = { kind: "legal", wired: "Actor.L4206" };
     expect(R(null, "logonLTG", "Actor.L4206", jack)).toBe(true);
     expect(R(null, "logonLTG", "Actor.L2206", jack)).toBe(false);
+    // Unwired (or wired to a deleted host): nothing (code R1 #4).
+    expect(R(null, "logonHost", "Actor.B", { kind: "console", wired: null })).toBe(false);
+    expect(R(null, "logonHost", "Actor.B", { kind: "console", wired: "Actor.Gone" })).toBe(false);
   });
   it("device jackpoint: only Logon to Host, onto its wired host", () => {
     const jack = { kind: "workstation", wired: "Actor.B" };
@@ -171,6 +174,10 @@ describe("tally scopes and seeds (p.29, p.116)", () => {
     // Into the PLTG: it starts at 0, and the finished logon carries the 5 (plus what the attempt earned).
     expect(carryAmount(5, seedTally({ scope: "pltg_SK", conn: 1 }))).toBe(5);
     expect(carryAmount(5, 7)).toBe(0);   // a re-entry never lowers what the PLTG already holds
+  });
+  it("an expired failed-access memory doesn't ride along a same-scope switch (code R1 #2)", () => {
+    expect(seedTally({ scope: "rtg_SEA", outgoing: { scope: "rtg_SEA", tally: 4, forgetAt: 100 }, conn: 1, now: 100 })).toBe(0);
+    expect(seedTally({ scope: "rtg_SEA", outgoing: { scope: "rtg_SEA", tally: 4, forgetAt: 100 }, conn: 1, now: 99 })).toBe(4);
   });
   it("the outgoing same-scope session beats a stale ledger entry (R1 #6)", () => {
     expect(seedTally({ scope: "rtg_SEA", outgoing: { scope: "rtg_SEA", tally: 5 }, ledger: { rtg_SEA: { conn: 1, tally: 2 } }, conn: 1 })).toBe(5);
