@@ -219,7 +219,11 @@ Part 7b: place changes write durable `flags.sr2e.vr2Moves` entries in the SAME u
 them into seq-ordered `move` facts before passes/ticks/traces, and the fold (`traceLostAt`) ends traces — never write
 `traceDead` for grid interest. Ledger entries are written with `vr2Tallies.==<scope>` (nested maps).
 Grid topology is complete (7a 0.132.0, 7b 0.133.0, 7c satellites 0.134.0; satlink lock = `flags.sr2e.vr2SatLock`).
-Remaining deferred: frames (6a), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
+Part 6a-1 (frame cores + loading, 0.135.0; `module/rules/vr2-frames.mjs`): a core is a program with `frameCore.kind`;
+ALL program derivation goes through `deriveProgram` (vr2-options.mjs), for items and loaded copies alike; loading is
+the programming task under `load:` records and the active load is derived from the winning `load:end` payload.
+6a-2a/b/c (running frames) are outlined in docs/PLAN-vr2-part6-frames.md and need their own plan + review.
+Remaining deferred: running frames (6a-2), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
 requirements in docs/PLAN-vr2-part6-frames.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;

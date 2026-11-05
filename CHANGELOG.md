@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.135.0 — 2026-11-05
+
+### Added
+- **VR2.0 frame cores and loading** (VR2.0 pp.105–106), the first part of frames:
+  - **A frame core is a program:** on a program's sheet, set **Frame core** to *Dumb* or *Smart* and give it Bod,
+    Evasion, Masking and Sensor. Their total may not exceed the Core Rating (the program's rating).
+    - A smart core can put Core points into Initiative: Reaction = Core Rating, 1D6 + 1 die per point.
+    - Its size is Core² × 2 (dumb) or × 3 (smart). DINAB raises the rating it's sized at: the book's Genie core,
+      12 with DINAB-8, is 1,200 Mp.
+    - Only DINAB, optimization and squeeze go on a core, whether or not *VR2.0 utility options* is on. A smart core
+      must carry DINAB: it's the frame's Computer skill.
+    - Write it with the programming button as any program. The Core Rating is capped at the programmer's Computer ×
+      1.5 (rounded down), and DINAB at their Computer.
+    - Changing a written core's attributes means writing it again (p.105).
+  - **Loading:** **Load programs…** on a written core's row picks whole copies of your written programs.
+    - Their ratings (options not counted) may total the Core Rating less its Initiative points.
+    - It's a task like programming: Loading Rating = the total ÷ 2, rounded up; base time = LR² × 2 days; a Computer
+      Test against the average rating, rounded up; tools and teams work as in programming.
+    - The finished load is a copy: later changes to the programs don't touch it. A newer load replaces it, an
+      abandoned one leaves it.
+    - The core's row and sheet show the loaded programs and the frame's size: the book's Genie frame is 1,392 Mp.
+  - Running frames (uploading, commanding, smart frames) come in a later release.
+- How-To Guides: *Build and load a frame core (VR2.0)*.
+
+### Changed
+- A frame core never counts as a loaded utility on the deck.
+
 ## 0.134.0 — 2026-11-05
 
 ### Added

@@ -166,3 +166,44 @@ round 2 is re-run below.
 VERDICT: APPROVED
 
 **6a-1 APPROVED in round 2.** 6a-2 (running frames) is detailed and reviewed next.
+
+## 6a-1 Code round 1 — Codex (fresh session, the 6a-1 diff with named functions; ~174k input tokens)
+
+- **module/rules/vr2-frames.mjs:73** — Cores without programming records always count as written. Convert an ordinary purchased program into a core, or rearrange a purchased core’s attributes: loading remains allowed without rewriting. **Fix:** require a completed task matching the current design, as approved.
+
+- **module/programming.mjs:98** — Designs are captured after the picker closes, while eligibility and capacity were checked before it opened. During the picker, a selected utility can become a core or enter programming; it is then copied without revalidation. **Fix:** capture designs before opening the picker and revalidate current core/source eligibility and capacity before recording.
+
+- **module/programming.mjs:167** — Starting programming never checks `loadingState`. Start loading, then click programming: both task families open, and `loadDialog` refuses further loading work until programming ends. **Fix:** reject programming starts during loading, both before the dialog and after the roll.
+
+- **module/programming.mjs:110** — Loading hardcodes `team: []` and rolls only the initiating actor’s skill, so the approved team-loading behavior is unavailable. **Fix:** reuse programming’s team selection, skill calculation, and recorded membership.
+
+VERDICT: REVISE
+
+### Claude's response (fix 8a64d18)
+- **#1 accepted.** It was my deviation from the approved plan: I had let a bought core with no records count as
+  written. Now a core is written only by a completed task of its current design.
+- **#2 accepted.** Designs are captured before the picker. After the roll, each chosen program must still be a
+  written non-core with the same design, and the total must still fit.
+- **#3 accepted.** Programming refuses a core that is loading, both before the dialog and after the roll.
+- **#4 accepted.** Loading takes a team as programming does: size from the best Computer, the average skill rounded
+  up, and the team recorded.
+
+## 6a-1 Code round 2 — Codex (fresh session, fix only; ~215k input tokens)
+
+- **module/programming.mjs:114–116** — The validated design can differ from the saved copy. Reproduced: source rating is 4 before the picker, changes to 6 before selection, then returns to 4 during the roll. Validation passes, but loading records a rating-6 copy. **Fix:** validate selected sources against the pre-picker snapshots before capturing copies and rolling, retaining the post-roll checks.
+
+The other fixes hold within the reviewed scope.
+
+VERDICT: REVISE
+
+### Claude's response (fix c7e73ac)
+- **#1 accepted.** The chosen programs are checked against their pre-picker designs BEFORE they are copied, and the
+  post-roll checks stay.
+
+## 6a-1 Code round 3 — Codex (fresh session, fix only; ~85k input tokens)
+
+No findings in c7e73ac. Selected sources are validated before copying, with no intervening `await`; post-roll checks remain. This closes the reported rating 4 → 6 → 4 failure.
+
+VERDICT: APPROVED
+
+**6a-1 code APPROVED in round 3.**

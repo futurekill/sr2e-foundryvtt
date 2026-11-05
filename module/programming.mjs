@@ -239,7 +239,7 @@ async function workDialog(actor, item, id, fam = PROG) {
 async function freezePeriod(actor, item, id, fam = PROG) {
   const task = stateOf(item, fam).tasks[id];
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(item.name)}: the first day of work
-    fixes the programming test's successes (no more Karma on it).</div>`, flags: { sr2e: { closesTests: [task.testMessageId] } } });
+    fixes the ${fam === LOAD ? "loading" : "programming"} test's successes (no more Karma on it).</div>`, flags: { sr2e: { closesTests: [task.testMessageId] } } });
   await enqueueAttack(`karma:${task.testMessageId}`, () => true);   // this device's spends on the test have landed
   const won = await recordEvent(live(item), `${fam}frozen:${id}`, { type: "progFrozen", task: id, successes: successesOf(task.testMessageId) });
   const t = stateOf(item, fam).tasks[id];

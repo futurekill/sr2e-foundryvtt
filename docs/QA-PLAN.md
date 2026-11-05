@@ -1000,3 +1000,12 @@ If those five all work, the core loop is healthy.
 - [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
       button.
 
+## VR2.0 frame cores and loading (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1)
+- [ ] New program → Frame core *Smart*, rating 6, Bod 2 / Evasion 2 / Masking 1 / Sensor 1, DINAB-4: size (6 + 4)² × 3
+      = 300 Mp. Without DINAB the sheet lists the problem and programming refuses.
+- [ ] Write it (the code button), then **Load programs…**: pick two programs over the capacity → refused; within it →
+      a loading task (Loading Rating, base time on the chat card); log the days → "loaded" with the copies listed.
+- [ ] Edit a source program: the core's load is unchanged. Change the core's Bod: "not written", and the load is void
+      until it's written and loaded again.
+- [ ] A core can't be ticked as a loaded utility (no power toggle on its row).
+

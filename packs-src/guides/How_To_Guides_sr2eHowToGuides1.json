@@ -293,6 +293,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> jack in through a communications satellite, so a trace can find the satellite but never the decker\n(Virtual Realities 2.0 p.30). Needs <em>VR2.0 grid topology</em> on.</p>\n<p><img src=\"systems/sr2e/assets/guides/satellite.gif\" alt=\"A decker at a satellite uplink locks onto ComSat 7, logs on to it, then reaches an RTG on the far side of the world\"></p>\n<p><strong>The GM, once</strong></p>\n<ol>\n<li>In the Actors directory, <strong>New grid → Create satellite</strong>. Pick Orange-Average for a communications satellite, or\nRed-Hard for a military or corporate one.</li>\n<li>Draw a Region where the dish is and give it the <strong>Matrix jackpoint</strong> behaviour. Set <strong>Kind</strong> to <em>Satellite\nuplink</em>, and <strong>Wired to</strong> to the satellite (or leave it empty for any satellite).</li>\n</ol>\n<p><strong>The decker</strong></p>\n<ol>\n<li>On the deck (or the Matrix tab&#39;s cyberdeck block), tick <strong>Satlink</strong> and pick your dish.</li>\n<li>Jack in at the uplink. The Matrix tab shows <strong>Locate satellite</strong>: pick the satellite and the conditions (downtown is\nhardest; a large dish or a fixed-base station helps). Bad weather adds 2.</li>\n<li>On a success you lock onto it. On a miss, try again in about five minutes; Karma can buy the success.</li>\n<li><strong>System Operation → Logon to LTG</strong> onto the satellite, then <strong>Logon to RTG</strong> to any RTG on earth.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>The uplink is +2 to every Access Test, and signal lag costs −2 Reaction.</li>\n<li>The satellite&#39;s security tally follows you into the RTG you log on to.</li>\n<li>A trace that completes finds only the satellite: no physical response, and the grid can&#39;t dump you.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "dd8bc72c14805121",
+      "name": "Build and load a frame core (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> write a frame core and load programs onto it (Virtual Realities 2.0 pp.105–106). Running frames on a host\ncomes in a later release.</p>\n<p><img src=\"systems/sr2e/assets/guides/frame-load.gif\" alt=\"Load programs onto a frame core: pick the programs, roll the loading test, log the days\"></p>\n<p><strong>Write the core</strong></p>\n<ol>\n<li>On the Matrix tab, add a new program and open it. Set <strong>Frame core</strong> to <em>Dumb</em> or <em>Smart</em> and its rating (the\nCore Rating).</li>\n<li>Give it Bod, Evasion, Masking and Sensor: together no more than the Core Rating. A smart core needs a <strong>DINAB</strong>\noption (no higher than your Computer) and can put points into Initiative.</li>\n<li>Click the programming button (&lt;/&gt;) on its row and write it as any program.</li>\n</ol>\n<p><strong>Load it</strong></p>\n<ol>\n<li>Click <strong>Load programs…</strong> (the box icon) on the core&#39;s row and tick the programs: their ratings may total the\nCore Rating less its Initiative points.</li>\n<li>Roll the loading test, then log days with the same button until it&#39;s done.</li>\n<li>The row lists the loaded copies and the frame&#39;s size.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>The copies are frozen: improving a program later doesn&#39;t change a loaded frame. Load again to take the new version.</li>\n<li>Changing the core&#39;s attributes means writing a new core, and its old load no longer counts.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"
