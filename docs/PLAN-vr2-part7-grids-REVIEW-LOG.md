@@ -212,3 +212,36 @@ No broken fix or new material problem found in §7b against the specified exit p
 VERDICT: APPROVED
 
 **7b APPROVED in round 4.** 7c (satellites) still needs its own detailed section and review.
+
+## 7b Code round 1 — Codex (fresh session, the 7b diff with named functions; ~309k input tokens)
+
+- **module/vr2.mjs:233–234 — Released suppressions resurrect.** `ledgerEntry` now contains nested maps, but its callers merge ledger entries. Suppress IC X, leave and return, release X, then leave and return again: the old ledger’s X survives the empty-map merge, restoring its DF penalty and allowing another tally charge. **Fix:** force-replace each ledger entry when saving it.
+
+- **module/rules/vr2ic-rules.mjs:250 — Legacy trace fallback is missing.** Existing trace facts remain `place: null`; nothing resolves their IC’s host before folding. These traces ignore grid departures and network cleanup, contribute no network-logon TN, and cannot offer governing-grid dumps. **Fix:** enrich legacy trace facts with `traceClass(icOfKey(...).system.hostUuid, topo)` before folding, as approved in §1.
+
+VERDICT: REVISE
+
+### Claude's response (fix ce8e68a)
+- **#1 accepted.** Ledger writes use `flags.sr2e.vr2Tallies.==<scope>`. Checked live: the nested forced replacement
+  drops the older entry's maps.
+- **#2 accepted.** `syncMoves` writes one `tracePlace` fact for a trace fact that has no place (from its IC's host),
+  and the fold merges it in.
+
+## 7b Code round 2 — Codex (fresh session, fix only; ~223k input tokens)
+
+No findings in ce8e68a. Both fixes hold within the reviewed scope; no material regressions found. Targeted fold checks passed for fallback origins, move reconciliation, connection isolation, existing-origin preservation, and Track exclusion. Foundry runtime behavior was not independently exercised.
+
+VERDICT: APPROVED
+
+**7b code APPROVED in round 2.**
+
+## 7b Code round 3 — Codex (fresh session, one fix; ~217k input tokens)
+Found while recording the wiki GIF, not by review: the plan's claim that `schedule` fires on the actor's updates was
+false. It fires on new records only, so a lost trace showed as alive until the next tick, though ticks were never
+wrong. Fix 5020f5d: an `updateActor` hook on `flags.sr2e.vr2Moves` schedules a pass.
+
+No findings in 5020f5d. The hook receives replicated updates on all clients; `schedule()` limits processing to the active GM, debounces by actor UUID, and queues reconciliation. Foundry v13 also emits `updateActor` for synthetic token actors. Move facts may trigger another pass, but already-sequenced entries are skipped.
+
+Verified against local v13 source; live multiplayer behavior was not exercised.
+
+VERDICT: APPROVED

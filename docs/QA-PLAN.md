@@ -985,4 +985,12 @@ If those five all work, the core loop is healthy.
 - [ ] Console jackpoint: the logon card says Access is halved, and the Security Value is halved too.
 - [ ] Locate Access Node success: the GM's **Reveal an address…** makes an unlisted host reachable.
 - [ ] Jack out at the jackpoint: no dump shock. Topology off: any host, any operation, as before.
+- [ ] 7b: trace IC on an LTG hits the decker; move LTG → RTG → another LTG: still hunting. Log on to a host: the
+      GM's card says it loses interest.
+- [ ] 7b: a jackpoint wired to an LTG; a trace from that RTG completes: **Dump the decker (GM)** dumps them, with dump
+      shock. A trace from another RTG has no button.
+- [ ] 7b: a hub with a second-tier host: refused until Analyze Subsystem (Access, or the hub's *Connections hidden
+      in*) succeeds. With the hub's trace running, the logon card shows its +TN, and on success the trace crashes.
+- [ ] 7b: Redirect Datatrail twice on one LTG: only one redirect counts. The card's Detection Factor notes the
+      jackpoint's trace modifier.
 
