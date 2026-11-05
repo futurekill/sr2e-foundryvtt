@@ -1276,19 +1276,33 @@ The smart frame's sheet gets the action buttons its owner and the GM use:
 ### 7. Initiative and combat (p.106; Decided #2)
 - **Initiative:** `SR2EActor#_getInitiativeParts` gets a `frame` branch. A smart frame is `{ base: coreRating, dice:
   1 + initPoints, matrix: true }`, with the note "smart frame". A dumb frame has none; it's never a combatant.
-- **Joining combat** ("it joins an active combat when it's uploaded"), reconciled like the frame's other documents
-  (R1 #4):
-  - **Intent, derived:** a running smart frame with a token belongs in every started combat on that token's scene
-    in which its OWNER is a combatant, unless there's a `frame-left:<uploadId>:<combatId>` fact on the owner's log.
-    It is derived each pass and never stored, so an interruption loses nothing.
-  - **Identity, deterministic:** the combatant's `_id` is the upload id, created with `keepId`. An embedded keepId
-    create of an existing id is rejected, so two passes or two GM clients never make two.
+- **Joining combat** ("it joins an active combat when it's uploaded"). A frame joins each eligible combat AT MOST
+  ONCE, by two receipts on the owner's log, so the GM removing it never needs a hook (R1 #4, R2 #1):
+  - **Eligible:** a running smart frame with a token belongs in a started combat on that token's scene in which its
+    OWNER is a combatant.
+  - **Step 1, intent:** the sequencer writes `frame-joining:<uploadId>:<combatId>` BEFORE anything is created.
+  - **Step 2, create:** the combatant, `_id` = the upload id, created with `keepId`. An embedded keepId create of an
+    existing id is rejected, so two passes or two GM clients never make two.
+  - **Step 3, done:** `frame-joined:<uploadId>:<combatId>`.
+  - **A pass:**
+    - with no `joining`: does steps 1–3 when eligible;
+    - with `joining` but no `joined`: an interrupted join. It creates the combatant if it's missing, then writes
+      `joined`;
+    - with `joined`: never creates again. A GM who removes the combatant from the tracker is therefore respected with
+      no hook and no race. A GM who wants it back adds it from its token.
+  - **The one gap is benign.** A GM who deletes the combatant in the instant between step 2 and step 3 gets it back
+    once; removing it again is final.
   - **Initiative, recovered:** each pass rolls initiative (`combat.rollInitiative([id])`) for the frame's combatant
-    whose initiative is still null. An interruption between the create and the roll is finished on the next pass.
-  - **The GM removing it** is respected. A `deleteCombatant` hook on the active GM writes `frame-left:<upload>:<combat>`
-    unless the delete is 6a-2a's cleanup (`sr2eFrameCleanup`). The derived intent then excludes that combat.
+    whose initiative is still null.
   - **Ended:** after creating, the pass re-checks `frameState`, and an ended frame is removed at once (6a-2a's
     pattern).
+  - **Triggers (R2 #2).** A pass runs whenever eligibility can newly arise. New hooks on the active GM schedule the
+    owner of every running smart frame whose owner is a combatant there:
+    - `updateCombat` when a combat starts (`started` changes to true);
+    - `createCombatant` for an owner's combatant;
+    - `createToken` for a frame's token (6a-2a already schedules this).
+
+    A logged-off owner is still scheduled: `schedule` and `passFor` run for any character, whatever its connection.
   - This also enlists a smart frame in a combat its owner starts later. That is the reading of "a combatant like any
     other icon" (Decided #2).
 - **Passes:** SR2ECombat's passes already work per combatant.
@@ -1328,7 +1342,8 @@ st.actorUuid`), so every reactive fact goes on the OWNER's log, which the sequen
   R1 #3);
 - (R1 #1–#2) a smart frame's System Test gets the GM's reactive-IC offer; a tar strike's fact lands on the owner's
   log and crashes the frame's copy;
-- (R1 #4) a combatant created twice at once → one; one with null initiative is rolled on the next pass;
+- (R1 #4, R2) a combatant created twice at once → one; one with null initiative is rolled on the next pass; removed by
+  the GM after `joined` → never re-added; a combat started after the upload, with the owner in it → the frame joins;
 - an Order… is refused off the frame's host, and accepted on it: one record, shown on the sheet;
 - initiative: Core 6 with 2 points → base 6, 3D6; uploaded while its decker is in a started combat, it joins once,
   and stays out after the GM removes it;

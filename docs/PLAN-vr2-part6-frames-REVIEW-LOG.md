@@ -480,3 +480,21 @@ All 4 accepted (marked "R1 #n" in the section).
 - #4: combat joining is reconciled: derived intent (owner in a started combat on the token's scene, no `frame-left`
   fact), deterministic combatant id (= upload id, keepId), initiative rolled whenever still null, the GM's removal
   recorded by a `deleteCombatant` hook, ended re-checked after creating.
+
+## 6a-2c Round 2 — Codex (fresh session, revisions only; ~132k input tokens)
+
+1. **R1 #4: manual removal still has an interruption gap.** The combatant is deleted before `deleteCombatant` writes `frame-left`. If the active GM disconnects between those operations, the next reconciliation derives join intent again and recreates it. Deterministic IDs prevent duplicates, but cannot preserve an unrecorded removal.
+   **Fix:** Persist removal intent before deletion, then reconcile deletion from that fact; recheck the fact after any concurrent creation.
+
+2. **R1 #4: joining a combat started later lacks a reconciliation trigger.** The hooks in `module/frames.mjs:608–626` do not schedule owners when combats start or owner combatants join. The `updateCombat` hook in `module/vr2ic.mjs:2003` ticks uploads and traces but does not call `reconcileOwner`. Derived intent therefore need not be evaluated when the newly promised eligibility arises.
+   **Fix:** Schedule affected owners on combat start and owner-combatant creation, including owners whose smart frames persist after logout.
+
+VERDICT: REVISE
+### Claude's response
+- **#1 accepted, differently.** Instead of a removal record written by a hook (which can't come before the delete),
+  joining is at most once per combat by two receipts: `frame-joining` (intent, before creating) then `frame-joined`
+  (done). After `joined` a pass never creates it again, so a GM removal needs no record at all. An interrupted join
+  (joining, no joined) is completed. The only window is a GM deleting it between create and `joined`: it comes back
+  once, and removing it again is final.
+- **#2 accepted.** Hooks on the active GM schedule owners when a combat starts, when an owner's combatant is created,
+  and (already) when a frame's token is created.
