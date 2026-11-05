@@ -526,6 +526,12 @@ It runs:
 So every move the GM's client can see is ordered before any later tick or new trace. A `moved` request is
 unnecessary and isn't added.
 
+**The order is the sequencer's (R2 #1).**
+- `tickTraces` also runs `syncMoves` again immediately before EACH tick fact it writes, so a move that arrives
+  during a tick pass is sequenced before the next tick.
+- A move that becomes visible only after a tick was written happened after that boundary, by definition. The
+  sequencer's seq is the one order every client agrees on, as it already is for ticks and crashes (part 3).
+
 **The fold decides, purely (`traceState`).** A trace ends ("lost") at the first `move` fact with a seq after its own:
 - a **public-grid trace** (not a Track) is lost when the move's `grid` is false, or its `scope` differs from the
   trace's: a host, a PLTG or another RTG (p.47);
@@ -550,7 +556,14 @@ any other LTG"; R1 #2).**
     ledger entry for this connection.
 - So a failed attempt elsewhere, which installs the target's session while the decker is still on P, loses nothing:
   the return to P restores them.
-- On another place they don't count. Detection Factor reads only the live session's.
+- On another place they don't count.
+- **Detection Factor reads the CURRENT place's suppressions (R2 #2):**
+  - the live session's, when its scope is the current place's;
+  - otherwise (a pending or failed attempt elsewhere) the current place's ledger entry for this connection.
+
+  A helper `placeSuppressed(actor)` replaces the direct `liveSession(actor)?.suppressed` read in
+  `vr2DetectionFactor`. Release and suppress still act on the live session, and are refused unless it is the current
+  place's.
 
 **A complete trace (one that has located the jackpoint) stays complete.** The decker is still traced: the tally and
 attack effects of p.46 continue, as they do today. Losing interest stops only a hunt that is still running.

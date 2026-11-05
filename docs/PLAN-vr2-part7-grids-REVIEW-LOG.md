@@ -178,3 +178,18 @@ All seven findings were accepted.
 - **#4:** `place`, `scope` and `grid` are on the trace fact and returned by `traceState`.
 - **#5:** Tracks are excluded from the network TN, the cleanup, and the Graceful Logoff `tracing` term.
 - **#7:** the tests now cover these interleavings.
+
+## 7b Round 2 — Codex (fresh session, brief; ~89k input tokens)
+
+- **§2 — Broken ordering fix:** `tickTraces` awaits reconciliation and individual tick writes after its initial `syncMoves`. A move arriving during those awaits can receive a later seq than the completing tick, permanently preserving the trace. **Fix:** serialize move acceptance with tick writes, and test a move arriving during an active tick pass.
+
+- **§2 — Broken suppression fix:** After a failed cross-scope logon, `currentPlace` remains P but the live session belongs to the destination. Restoring P’s suppressions only on return still removes their Detection Factor cost while the decker remains on P. **Fix:** resolve active suppressions from the current place’s connection/scope, including its ledger entry.
+
+VERDICT: REVISE
+
+### Claude's response
+- **#1 accepted in part.** `syncMoves` also runs right before each tick fact. The sequencer's seq is the definition
+  of order: a move it sees only after a tick came after that boundary, as with part 3's ticks and crashes.
+- **#2 accepted.** Detection Factor reads the current place's suppressions (`placeSuppressed`): the live session's
+  when it is the current place's, else that place's ledger entry. Suppress and release refuse when the session isn't
+  the current place's.
