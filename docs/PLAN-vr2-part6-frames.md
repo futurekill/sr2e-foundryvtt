@@ -1434,7 +1434,10 @@ on the SK by the sequencer. Every frame function that reads "the owner's records
 - **Utility Pool:** MPCP + 1D6 (a visible roll), or set by hand;
 - **a preset** from the p.141 table fills the persona ratings.
 
-It is created ON its native host (§4's session), with GM ownership.
+It is created ON its native host, with GM ownership. In the sequencer, the GM writes the actor (keepId), then its
+first move fact `sk-move:0` `{ to: native, from: "", initial: true }`, so its residence and shutdown boundary exist
+from the start (R3 #1). The SK pass writes that initial move if an interruption lost it: an SK with no move fact is on
+its native host as of its first pass.
 
 ### 3. The Utility Pool (p.141): one writer, replay-safe
 **All allocation runs in the sequencer, on the active GM's client.** SKs are the GM's (§ above), so no request is
@@ -1508,13 +1511,20 @@ tally, receipts }`:
 - **Its native host takes no test** ("passcodes for their native host systems", p.140): the fact is written at once,
   with `repair: true`.
 
-**Where it is is a FACT (R2 #3).** The latest `sk-move` fact is the source of truth. `system.hostUuid` (which the
-frame code reads) and the session entries are reconciled from it by the SK pass, idempotently:
-- the field set to the fact's `to`;
-- the arrival host's session ensured;
-- for a fact with `repair`, the `sk-repair:arrive:<n>` fact (§5) written if missing.
+**Where it is is a FACT (R2 #3).** The `sk-move` facts are the source of truth, and the latest one says where it is.
+`system.hostUuid` (which the frame code reads) and the session entries are reconciled from them by the SK pass,
+idempotently.
 
-An interruption anywhere after the fact is finished by the next pass, and a repeat changes nothing.
+**Every move fact is completed IN ORDER (R3 #2)**, never only the latest:
+- for a logoff, its left host's session entry is deleted (it skips a session a LATER arrival made);
+- for an arrival with `repair`, the `sk-repair:arrive:<n>` fact is written if missing. That fact carries
+  `at: <the move fact's seq>`, and the fold places it there (§5), so a hit that landed after the arrival but before
+  the pass is never healed by it;
+- then `system.hostUuid` is set to the latest fact's `to`, and its session is ensured.
+
+**Every other SK write runs this completion FIRST, inside the same sequencer task**: a hit, a repair, a move, an
+allocation or a test's admission. So no write is admitted against an unfinished transition. An interruption is
+finished by the next pass, and a repeat changes nothing.
 
 **Graceful Logoff:** a System Test on its current host, its tally on that host's session.
 - **Success:** the fact `sk-move:<n>` `{ to: "", from }`. The pass sets `hostUuid = ""` and deletes the left host's
@@ -1536,7 +1546,8 @@ An interruption anywhere after the fact is finished by the next pass, and a repe
 walks the SK's `frameHit`, `frameAttr` and `skRepair` facts in `seq` order:
 - **a hit** adds its boxes (cap 10);
 - **an attribute loss** adds to that attribute's loss;
-- **a full repair** (`{ full: true }`, its native host) zeroes the monitor and every loss;
+- **a full repair** (`{ full: true }`, its native host) zeroes the monitor and every loss. It sits at its `at` seq
+  (its move's), not at the seq its fact was written with (R3 #2);
 - **a partial repair:**
   - `{ boxes }` (Regenerate as Medic) subtracts that many boxes, floor 0;
   - `{ attr, points }` (Regenerate as Restore) subtracts from that loss, floor 0.

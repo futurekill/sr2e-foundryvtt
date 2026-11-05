@@ -593,3 +593,19 @@ All 4 accepted.
 - #3: where an SK is IS the latest `sk-move` fact; the SK pass reconciles `hostUuid`, the session entries and the
   arrival repair (`sk-repair:arrive:<n>`) from it, idempotently.
 - #4: the Allocate dialog's expected revision is re-checked in the sequencer; a stale one is refused.
+
+## 6b Round 3 — Codex (fresh session, fix only; ~96k input tokens)
+
+1. **§1–§2: initial residence has no move fact.** Creation specifies the native host and session, but no initial `sk-move`. The new location source and shutdown arrival boundary are therefore undefined until the first move, leaving shutdown handling incomplete for a newly created SK.  
+   **Fix:** Persist an initial sequenced native-host arrival as part of recoverable creation.
+
+2. **§4–§5: reconciling only the latest move can lose or misorder transition effects.** The plan does not require pending movement reconciliation before admitting another write. A subsequent move can hide an unreconciled arrival repair or logoff session deletion; a hit before the repair pass can also be incorrectly healed by a repair sequenced after it. Serialization alone does not prevent these interleavings.  
+   **Fix:** Complete pending transitions in order before admitting subsequent SK writes, preserving arrival-time repair ordering and replaying each transition’s effects.
+
+VERDICT: REVISE
+### Claude's response
+Both accepted.
+- #1: creation writes `sk-move:0 { to: native, initial: true }` after the actor; the SK pass writes it if lost.
+- #2: the pass completes EVERY move fact in order (logoff deletions skip sessions a later arrival made; arrival
+  repairs carry `at` = the move's seq and fold there); every other SK write runs this completion first in the same
+  sequencer task.
