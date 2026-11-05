@@ -193,3 +193,14 @@ VERDICT: REVISE
 - **#2 accepted.** Detection Factor reads the current place's suppressions (`placeSuppressed`): the live session's
   when it is the current place's, else that place's ledger entry. Suppress and release refuse when the session isn't
   the current place's.
+
+## 7b Round 3 — Codex (fresh session, brief; ~181k input tokens)
+
+- **§3 — Dump shock uses the wrong place after a failed logon.** The decker remains on governing grid P, so `gridDump` passes, but `exitHost()` reads the attempted destination’s session and calculates shock from that destination. **Fix:** capture `currentPlace(actor)` when accepting `gridDump` and use it for that exit’s dump shock.
+
+VERDICT: REVISE
+
+### Claude's response
+- **#1 accepted, and generalised.** Under topology, every `exitOpen` records `place` (`currentPlace` when it
+  opens). The dump-shock step reads it before `exitHost`, so any dump after a failed logon comes from where the
+  decker really was.

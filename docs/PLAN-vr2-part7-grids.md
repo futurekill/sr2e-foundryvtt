@@ -581,7 +581,16 @@ jackpoint" card. It is an option, because the book says the IC *can*. The button
 - it re-checks that the trace is complete, governing, and that the decker is still on its connection;
 - it also re-checks that the decker is still somewhere in that RTG scope. The book allows the dump "once it detects
   his jackpoint", and a decker who left the grid has left its switchers.
-- Then it runs `openExit(actor, "dump")`: dump shock, figured from the session's place, as any dump is.
+- Then it runs `openExit(actor, "dump")`: dump shock, as any dump.
+
+**Which host's dump shock (R3 #1; every exit under topology, not only this one).**
+- `exitHost` (vr2ic.mjs ~132) reads the live session's host. After a failed logon, that session is the attempted
+  destination, not where the decker is.
+- Under topology, the exit records the place where it opened: `exitOpen` gains `place`, set to
+  `currentPlace(actor)?.uuid` and captured by the sequencer when it writes the fact.
+- The dump-shock step (~1381) reads that `place` first, then falls back to `exitHost`, so a dump comes from the grid
+  or host the decker was really on.
+- Topology off: unchanged.
 - One exit per connection already makes a double click harmless.
 
 ### 4. Host networks (p.36)
