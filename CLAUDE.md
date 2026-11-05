@@ -229,8 +229,12 @@ Part 6a-2b (0.137.0): commands run through the SAME `systemTestNow`/`attackOnce`
 `ctx = { frame }` — the decker (commander) rolls and owns the session/tally/action, the frame (icon) supplies copies,
 attributes and maneuver state; cards carry `icon` (System Tests) or `attackerType: "frame"` + `commanderUuid/Session`
 (attacks; key = the commander's). A decker's own action calls `ownAction` (ends decoy frames via the sequencer); an IC
-attack on a decker with an open decoy frame is rolled by the GM after `flush()`. 6a-2c (smart frames) needs its plan.
-Remaining deferred: running frames (6a-2), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
+attack on a decker with an open decoy frame is rolled by the GM after `flush()`.
+Part 6a-2c (0.138.0): a SMART frame acts as itself — `ctx = { frame, smart: true }` with the FRAME as the actor (DINAB =
+Computer, no pools), its OWN session/tally (`flags.sr2e.vr2Session`, created with it), attacker key `frame:<uuid>@<upload>`
+(`isActorKey`/`attackerEnded`). Requests about a frame go on its OWNER's log (frames have no pass); combat joining is
+two receipts (frameJoining → combatant `_id` = upload id → frameJoined), never re-added after.
+Remaining deferred: SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
 requirements in docs/PLAN-vr2-part6-frames.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;

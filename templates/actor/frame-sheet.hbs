@@ -17,6 +17,12 @@
     {{#if system.dinab}}<label class="field" title="A smart frame's Computer skill; a dumb core's DINAB runs one program per action of its decker's, −1 when a run fails (p.103, p.106)"><span>DINAB</span><strong>{{frame.dinabLeft}}{{#ifEquals frame.dinabLeft system.dinab}}{{else}} <small>of {{system.dinab}}</small>{{/ifEquals}}</strong></label>{{/if}}
     {{#ifEquals system.kind "smart"}}<label class="field" title="Reaction = Core Rating; 1D6 + 1 per Initiative point (p.106)"><span>Initiative</span><strong>{{system.coreRating}} + {{frame.initDice}}D6</strong></label>{{/ifEquals}}
   </div>
+  {{#if frame.smart}}<p class="rule-note"><strong>Its own tally</strong> on this host: {{frame.tally}}
+    {{#if frame.order}}<br><strong>Order:</strong> {{frame.order}}{{/if}}
+    {{#each frame.suppressions as |x|}}<br>Suppressing {{x.name}} (−1 Detection Factor) <button type="button" data-action="vr2ic" data-op="slowRelease" data-arg="{{x.arg}}"
+      title="Release it: its rating goes on the tally (VR2.0 p.99)">Release</button>{{/each}}
+    {{#if frame.canAct}}<br><button type="button" data-action="vr2ic" data-op="frameAct" data-arg=""
+      title="The frame acts on its own: a System Operation, an attack, Scan Icon or a maneuver. Its DINAB is its skill; its own tally rises (VR2.0 p.107)."><i class="fas fa-terminal"></i> Act…</button>{{/if}}</p>{{/if}}
   <p class="rule-note"><strong>Condition</strong> (10 boxes, p.124):
     {{#each frame.boxes as |b|}}<i class="fas {{#if b}}fa-square{{else}}fa-square-o far fa-square{{/if}}"></i>{{/each}} {{frame.state.monitor}}/10</p>
   <p class="rule-note"><strong>Programs</strong> (object-code copies; they can't be changed):

@@ -12,7 +12,7 @@ import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
          boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod,
          isProactive, cascadeOutcomes, cascadeBonus, partyBudget, parseIcKey, iconKeyOf, constructBudget, THREAT_CAP,
-         isDeckKey, parseAttackerKey, hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks, evaluateLoss } from "./rules/vr2ic-rules.mjs";
+         isDeckKey, isActorKey, parseAttackerKey, hogPoints, hogPurgeTN, hogTarget, slowActionsLost, trackLocks, evaluateLoss } from "./rules/vr2ic-rules.mjs";
 import { icClass } from "./rules/sr2e-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
@@ -35,7 +35,7 @@ export const recordsOf = (doc) => eventsOf(doc).filter(e => String(e.key).starts
 export const icGen = (uuid) => { const ic = sync(uuid); return ic?.type === "ic" ? (ic.system.generation ?? 0) : undefined; };
 /** The IC's key: the icon `uuid#gen`, or a construct component's effect `uuid#gen/<comp>` (part 4b §1). */
 export const icKeyOf = (ic, comp = "") => `${ic.uuid}#${ic.system.generation ?? 0}${comp ? `/${comp}` : ""}`;
-export { parseIcKey, iconKeyOf, isDeckKey, parseAttackerKey };
+export { parseIcKey, iconKeyOf, isDeckKey, isActorKey, parseAttackerKey };
 /** Every IC: world actors and each unlinked token's own (code review #10). */
 export const allIC = () => allDocs().filter(a => a.type === "ic");
 /** The IC actor a key names (icon or component). */
@@ -386,7 +386,7 @@ async function freezeBlack(actor, card, connN, { legacy = false } = {}) {
   await fact(actor, `hit:${card}`, { type: "hit", conn: connN, card, icKey: st.icKey, icName: st.attackerName,
     kind: blackKind(st.program), rating: st.power, icRating: st.icRating ?? null, threat: st.threat ?? 0, psychotropic: st.psychotropic ?? "",
     level: st.level, attackSuccesses: net, shield: sh?.successes ?? 0,
-    ...(st.noBlaster ? { noBlaster: true } : {}), ...(isDeckKey(st.icKey) ? { attackerInc: st.attackerInc ?? 0,
+    ...(st.noBlaster ? { noBlaster: true } : {}), ...(isActorKey(st.icKey) ? { attackerInc: st.attackerInc ?? 0,
       ...(attackerEnded(st.icKey, st.attackerInc) ? { lockless: true } : {}) } : {}),
     cool: conn.open?.settings?.deckMode === "cool", hardening: conn.open?.settings?.hardening ?? 0 });
   return { ok: true };
@@ -576,7 +576,10 @@ async function applySparky(actor) {
  */
 export async function offerTar(message) {
   const st = message?.flags?.sr2e?.vr2SystemTest;
-  if (!isSequencer() || st?.conn == null) return;
+  // A smart frame's own test (6a-2c R1 #1): no connection, but its live frame and session stand in.
+  const smart = st?.byFrame ? game.actors.get(st.icon?.upload) : null;
+  if (!isSequencer() || (st?.conn == null && !(smart && smart.flags?.sr2e?.vr2Session?.id === st.sessionId
+    && !(await import("./frames.mjs")).frameState(smart).ended))) return;
   // Reactive entries: ordinary IC, and each construct's usable reactive programs (part 4b §4).
   const onHost = (p) => game.actors.filter(a => a.type === "ic" && a.system.hostUuid === st.hostUuid).flatMap(a => isConstruct(a)
     ? a.system.construct.components.filter(c => p(c.program) && compAvailable(a, c.id)).map(c => ({ ic: a, comp: c.id, prof: icProfile(a, c.id) }))
@@ -584,13 +587,14 @@ export async function offerTar(message) {
   const nameOf = (e) => e.comp ? `${e.ic.name} (${CONFIG.SR2E.icPrograms[e.prof.program] ?? e.prof.program})` : e.ic.name;
   const success = systemTestVerdict(st.successes, st.hostSuccesses).success;
   // card|icUuid|generation|component: the handler re-checks that the IC (or component) is still the same (R4).
-  const btn = (op, e, label, title = "") => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.actorUuid)}" data-op="${op}"
+  // Reactive facts go on the OWNER's log for a smart frame's test (6a-2c R1 #2): the log the sequencer passes.
+  const btn = (op, e, label, title = "") => `<button type="button" class="sr2e-vr2ic-btn" data-actor="${esc(st.owner ?? st.actorUuid)}" data-op="${op}"
     data-arg="${esc(`${message.id}|${e.ic.uuid}|${e.ic.system.generation ?? 0}|${e.comp ?? ""}`)}" title="${esc(title)}">${esc(label)}</button>`;
   const armed = (b) => !recordsOf(b).some(e => e.type === "bombEnd" && e.icKey === icKeyOf(b));
   const rows = [];
   if (st.utilityRef) for (const t of onHost(p => /^tar-/.test(p))) rows.push(btn("tar", t, `${nameOf(t)} strikes ${st.utilityRef.name}`, "p.42"));
   // A frame has no deck or MPCP chip to infect (6a-2b): worms answer only the decker's own tests.
-  for (const w of st.icon ? [] : onHost(p => p === "worm")) {
+  for (const w of st.icon || st.byFrame ? [] : onHost(p => p === "worm")) {
     rows.push(btn("worm", w, `${nameOf(w)}: infection test`, "Security Value vs MPCP (p.44)"));
     if (st.operation === "disinfect" && success) rows.push(btn("wormGone", w, `Disinfect destroys ${nameOf(w)}`, "no tally (p.44)"));
   }
@@ -662,19 +666,23 @@ export async function bombEnd(actor, bomb, outcome, card) {
       content: renderVR2MatrixCard(st).replace("</strong>", "</strong> <em>(the data bomb explodes: an automatic hit, VR2.0 p.41)</em>"),
       flags: { sr2e: { matrix: st } } });
     if (st.targetConn != null) await request(actor, "attack", { card: msg.id, icKey, cls: "white", program: "data-bomb" });
-    const s = (await import("./vr2.mjs")).liveSession(actor);
-    if (s) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
-      The explosion adds ${bomb.system.rating} to ${esc(actor.name)}'s tally, unless a point of Detection Factor suppresses it (p.41).
+    // Whose tally (6a-2c R1 #2): a smart frame's own; a dumb frame's or the decker's own test, the decker's.
+    const holder = target.type === "frame" && target.system.kind === "smart" ? target : actor;
+    const s = (await import("./vr2.mjs")).liveSession(holder);
+    if (s) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: holder }), content: `<div class="sr2e-item-card">
+      The explosion adds ${bomb.system.rating} to ${esc(holder.name)}'s tally, unless a point of Detection Factor suppresses it (p.41).
       <div class="sr2e-karma-actions">
         <button type="button" class="sr2e-vr2-crashchoice" data-choice="suppress">Suppress (−1 Detection Factor)</button>
         <button type="button" class="sr2e-vr2-crashchoice" data-choice="register">Let it register (+${bomb.system.rating})</button></div></div>`,
-      flags: { sr2e: { vr2Crash: { cardId: msg.id, deckerUuid: actor.uuid, sessionId: s.id, icUuid: bomb.uuid, icName: bomb.name, rating: bomb.system.rating } } } });
+      flags: { sr2e: { vr2Crash: { cardId: msg.id, deckerUuid: holder.uuid, sessionId: s.id, icUuid: bomb.uuid, icName: bomb.name, rating: bomb.system.rating } } } });
   });
 }
 
 /** Poison scramble (p.42): rating dice vs the decker's Computer; a success destroys the data. */
-export async function poisonTest(actor, sc, comp = "") {
-  const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
+export async function poisonTest(actor, sc, comp = "", st = null) {
+  // A smart frame's test (6a-2c §8): its skill is its DINAB.
+  const smart = st?.byFrame ? game.actors.get(st.icon?.upload) : null;
+  const computer = smart ? (smart.system.dinab ?? 0) : actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
   const r = await SR2ESuccessRoll.successTest(icProfile(sc, comp).rating + threatOf(sc), Math.max(2, computer));
   await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), rolls: r.rolls, content: `<div class="sr2e-item-card">
     ${esc(sc.name)}'s Poison Test against ${esc(actor.name)}'s Computer ${computer}: ${r.successes} success${r.successes === 1 ? "" : "es"},
@@ -1107,16 +1115,19 @@ Object.assign(HANDLERS, {
   },
   /** Suppress / release a hung IC (R5 #5): filed on the decker's own log; the IC's fact is authoritative. */
   async slowSuppress(actor, r) {
+    // 6a-2c §3: a smart frame's suppression is filed on its owner's log; the frame is who suppresses.
+    const who = r.frame ? game.actors.get(r.frame) : actor;
+    if (r.frame && (who?.type !== "frame" || who.system.ownerUuid !== actor.uuid)) return { ok: false, why: "not your frame" };
     const ic = sync(r.icUuid);
     const sl = ic && recordsOf(ic).find(e => e.type === "slow" && e.card === r.card);
-    if (!sl || sl.deckerUuid !== actor.uuid) return { ok: false, why: "not your Slow" };
+    if (!sl || sl.deckerUuid !== who.uuid) return { ok: false, why: "not your Slow" };
     // THIS card's own hang, now (code review #9): same combat, round, generation, and the session that slowed it.
     const combat = game.combats.get(sl.combatId), cb = combat?.combatants.find(c => c.actor?.uuid === ic.uuid);
     const rc = cb?.flags?.sr2e?.slowApplied?.[r.card];
     if (!rc?.hung || rc.round !== combat.round || (ic.system.generation ?? 0) !== sl.gen) return { ok: false, why: "it isn't hung any more" };
-    const session = actor.flags?.sr2e?.vr2Session?.id;
+    const session = who.flags?.sr2e?.vr2Session?.id;
     if (!session || session !== sl.session) return { ok: false, why: "that was another session" };
-    await fact(ic, `slow-suppress:${r.card}`, { type: "slowSuppress", card: r.card, deckerUuid: actor.uuid, session, gen: sl.gen, icName: ic.name });
+    await fact(ic, `slow-suppress:${r.card}`, { type: "slowSuppress", card: r.card, deckerUuid: who.uuid, session, gen: sl.gen, icName: ic.name });
     return { ok: true };
   },
   /** A DINAB attack this defender resisted entirely (p.103), resolved where its attacker's program couldn't be written. */
@@ -1130,8 +1141,10 @@ Object.assign(HANDLERS, {
     return { ok: true };
   },
   async slowRelease(actor, r) {
+    const who = r.frame ? game.actors.get(r.frame) : actor;
+    if (r.frame && (who?.type !== "frame" || who.system.ownerUuid !== actor.uuid)) return { ok: false, why: "not your frame" };
     const ic = sync(r.icUuid);
-    if (!ic || !recordsOf(ic).some(e => e.type === "slowSuppress" && e.card === r.card && e.deckerUuid === actor.uuid)) return { ok: false, why: "no such suppression" };
+    if (!ic || !recordsOf(ic).some(e => e.type === "slowSuppress" && e.card === r.card && e.deckerUuid === who.uuid)) return { ok: false, why: "no such suppression" };
     await fact(ic, `slow-release:${r.card}`, { type: "slowRelease", card: r.card });
     return { ok: true };
   }
@@ -1554,7 +1567,7 @@ async function advanceExit(actor) {
     if (s.res) continue;
     if (s.step === "lastAttack") {
       // The locking IC makes one more attack (the GM rolls it); destroyed meanwhile → cancelled (R5 #5).
-      if (isDeckKey(s.ref)) {
+      if (isActorKey(s.ref)) {
         const { uuid: du } = parseAttackerKey(s.ref);
         const hit = f.live.locks.find(h => h.icKey === s.ref);   // the SURVIVING lock (code review #3)
         if (!hit || attackerEnded(s.ref, hit.attackerInc)) {
@@ -1630,7 +1643,11 @@ async function passFor(actor) {
 }
 
 /** A decker's attacker key (part 5a §0.5): `deck:<uuid>@<conn>`, "" off the connection log. */
-export const attackerKeyOf = (actor) => actor?.system?.vr2Conn ? `deck:${actor.uuid}@${actor.system.vr2Conn.n}` : "";
+export const attackerKeyOf = (actor) => actor?.type === "frame" ? `frame:${actor.uuid}@${actor.system.uploadId || actor.id}`
+  : actor?.system?.vr2Conn ? `deck:${actor.uuid}@${actor.system.vr2Conn.n}` : "";
+/** frames.mjs's frameState, loaded lazily (a static import would cycle): set by registerFrameHooks. */
+let frameEndedSync = () => false;
+export const setFrameEnded = (fn) => { frameEndedSync = fn; };
 /** How many times this decker's icon has crashed on its live connection (part 5a §0.8). */
 export const crashInc = (actor) => Object.keys(actor?.flags?.sr2e?.vr2IconCrash?.[actor?.system?.vr2Conn?.n] ?? {}).length;
 
@@ -1693,6 +1710,11 @@ async function reconcileLastAttacks(actor) {
 /** Has the decker incarnation that rolled a card ended (part 5a §0.8): its connection over, or its icon crashed since? */
 export function attackerEnded(key, inc) {
   const p = parseAttackerKey(key);
+  // A smart frame (6a-2c §3, R1 #3): gone, another upload at that uuid, or ended.
+  if (p.kind === "frame") {
+    const fr = sync(p.uuid);
+    return fr?.type !== "frame" || (fr.system.uploadId || fr.id) !== p.upload || frameEndedSync(fr);
+  }
   if (p.kind !== "deck") return false;
   const a = sync(p.uuid);
   if (!a) return true;
@@ -1706,7 +1728,7 @@ async function reconcileEnds(actor) {
   if (!f.live) return;
   const recs = recordsOf(actor);
   for (const h of f.live.locks) {
-    if (isDeckKey(h.icKey) && attackerEnded(h.icKey, h.attackerInc)) await fact(actor, `lock-end:${h.card}`, { type: "lockEnd", conn: f.live.n, card: h.card });
+    if (isActorKey(h.icKey) && attackerEnded(h.icKey, h.attackerInc)) await fact(actor, `lock-end:${h.card}`, { type: "lockEnd", conn: f.live.n, card: h.card });
   }
   for (const t of recs.filter(e => e.type === "trace" && e.track && e.conn === f.live.n)) {
     if (recs.some(e => e.type === "traceDead" && e.icKey === t.icKey)) continue;
@@ -1817,7 +1839,7 @@ export function deckerContext(actor) {
   const f = foldOf(actor);
   const deck = actor.system.vr2Deck;
   const live = f.live;
-  const name = (icKey) => isDeckKey(icKey) ? `${sync(parseAttackerKey(icKey).uuid)?.name ?? "A decker"}'s black utility` : icOfKey(icKey)?.name ?? "IC";
+  const name = (icKey) => isActorKey(icKey) ? `${sync(parseAttackerKey(icKey).uuid)?.name ?? "A decker"}'s black utility` : icOfKey(icKey)?.name ?? "IC";
   const traceName = (t) => t.track ? `${sync(parseAttackerKey(t.attacker).uuid)?.name ?? "A decker"}'s Track` : name(t.icKey);
   const spoofs = recordsOf(actor).filter(e => e.type === "spoof");
   const freezes = recordsOf(actor).filter(e => e.type === "freeze" || e.type === "unfreeze");
@@ -1862,9 +1884,16 @@ export async function sheetOp(doc, op, arg) {
   if (op === "frameOpen") return game.actors.get(arg)?.sheet.render(true);
   // Part 6a-2b: command a dumb frame (§2); the GM fires an event trigger (§7, `arg` = frameId|triggerKey).
   if (op === "frameCommand") { const F = await import("./frames.mjs"); return F.commandFrame(doc, game.actors.get(arg)); }
+  // Part 6a-2c: a basic order to a smart frame (the decker's sheet); the smart frame acting (its own sheet).
+  if (op === "frameOrder") { const F = await import("./frames.mjs"); return F.orderFrame(doc, game.actors.get(arg)); }
+  if (op === "frameAct") { const F = await import("./frames.mjs"); return F.commandFrame(doc, doc); }
   if (op === "triggerFire") { const F = await import("./frames.mjs"); const [fid, key] = arg.split("|"); const fr = game.actors.get(fid); return fr && F.fireTrigger(fr, key); }
   if (op === "frameDecompress") { const F = await import("./frames.mjs"); return F.decompressFrame(doc, doc.items.get(arg)); }
-  if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
+  if (op === "slowRelease") {
+    const [card, icUuid] = arg.split("|");
+    if (doc.type === "frame") { const o = sync(doc.system.ownerUuid); return o && request(o, "slowRelease", { card, icUuid, frame: doc.system.uploadId || doc.id }); }
+    return request(doc, "slowRelease", { card, icUuid });
+  }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
   if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });
   if (op === "advance") return gm() && advanceManual(doc);
@@ -1941,7 +1970,12 @@ export async function icOp(uuid, op, arg) {
   if (op === "decoyHit") return game.user.isGM ? request(actor, "decoyHit", { card: arg }) : ui.notifications.warn("The GM resolves an attack on a decoy.");
   if (op === "gridDump") return game.user.isGM ? request(actor, "gridDump", { icKey: arg }) : ui.notifications.warn("The GM dumps a decker.");
   if (op === "waive") return waiveLastAttack(actor, arg);
-  if (op === "slowSuppress") { const [card, icUuid] = arg.split("|"); return request(actor, "slowSuppress", { card, icUuid }); }
+  if (op === "slowSuppress") {
+    const [card, icUuid] = arg.split("|");
+    // A smart frame has no log the sequencer passes: its requests go on its owner's, naming it (6a-2c §3).
+    if (actor.type === "frame") { const o = sync(actor.system.ownerUuid); return o && request(o, "slowSuppress", { card, icUuid, frame: actor.system.uploadId || actor.id }); }
+    return request(actor, "slowSuppress", { card, icUuid });
+  }
   if (op === "psy") return psyTest(actor, arg);
   if (["worm", "wormGone", "defused", "explode", "poison", "tar"].includes(op)) {
     // card|icUuid|generation|component (part 4b R4); older buttons have only card|icUuid.
@@ -1960,7 +1994,7 @@ export async function icOp(uuid, op, arg) {
     if (isConstruct(ic) && ["defused", "explode"].includes(op)) return ui.notifications.warn("A construct holds no data bomb (part 4b).");
     if (op === "defused") return bombEnd(actor, ic, "defused", card);
     if (op === "explode") return bombEnd(actor, ic, "exploded", card);
-    if (op === "poison") return poisonTest(actor, ic, comp);
+    if (op === "poison") return poisonTest(actor, ic, comp, game.messages.get(card)?.flags?.sr2e?.vr2SystemTest);
     if (op === "tar") {
       const st = game.messages.get(card)?.flags?.sr2e?.vr2SystemTest;
       if (st?.utilityRef) return tarStrike(actor, ic, st.utilityRef, card, comp, gen);

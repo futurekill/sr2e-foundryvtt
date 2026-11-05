@@ -190,3 +190,25 @@ describe("part 6a-2b", () => {
     expect(coreDinabLeft(4, { U_a: true, U_b: true, V_c: true }, "U")).toBe(2);
   });
 });
+
+describe("part 6a-2c", () => {
+  it("frame attacker keys parse and are actor keys", async () => {
+    const { parseAttackerKey, isFrameKey, isActorKey, isDeckKey } = await import("../module/rules/vr2ic-rules.mjs");
+    const k = "frame:Actor.abc@UP123";
+    expect(isFrameKey(k) && isActorKey(k) && !isDeckKey(k)).toBe(true);
+    expect(parseAttackerKey(k)).toEqual({ kind: "frame", uuid: "Actor.abc", upload: "UP123" });
+    expect(parseAttackerKey("deck:Actor.d@3")).toEqual({ kind: "deck", uuid: "Actor.d", conn: 3 });
+  });
+  it("initiative: smart = Core + (1 + points)D6; dumb has none (p.106)", async () => {
+    const { frameInitiativeParts } = await import("../module/rules/vr2-frames.mjs");
+    expect(frameInitiativeParts({ kind: "smart", coreRating: 6, initPoints: 2 })).toEqual({ base: 6, dice: 3 });
+    expect(frameInitiativeParts({ kind: "dumb", coreRating: 6 })).toBe(null);
+  });
+  it("joining combat: once, by two receipts", async () => {
+    const { joinStep } = await import("../module/rules/vr2-frames.mjs");
+    expect(joinStep({ eligible: true })).toBe("start");
+    expect(joinStep({ eligible: false })).toBe("none");
+    expect(joinStep({ eligible: true, joining: true })).toBe("finish");
+    expect(joinStep({ eligible: true, joining: true, joined: true })).toBe("none");
+  });
+});

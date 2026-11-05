@@ -1,6 +1,7 @@
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
+import { frameInitiativeParts } from "../rules/vr2-frames.mjs";
 import { isShapeshifter } from "../shapeshift.mjs";
 import { dermalDiceOf, weaponUsable, formWeaponsOnly, inAnimalForm, isSocialSkill, shapeshifterAstral, baneHit } from "../rules/shapeshift-rules.mjs";
 import { moneyQueue, adjustNuyen } from "../money.mjs";
@@ -967,6 +968,12 @@ export class SR2EActor extends Actor {
       const base = system.initiative?.base ?? 0;
       notes.push(`IC Rating ${system.rating}`);
       return { base, dice: Math.max(1, system.initiative?.dice ?? 1), rigged: false, matrix: true, notes };
+    }
+    // VR2.0 part 6a-2c (p.106): a smart frame's Reaction = Core Rating, 1D6 + 1 per Initiative point; a dumb one has none.
+    if (this.type === "frame") {
+      const p = frameInitiativeParts(system);
+      notes.push(p ? "smart frame" : "a dumb frame has no Initiative");
+      return { base: p?.base ?? 0, dice: p?.dice ?? 0, rigged: false, matrix: true, notes };
     }
 
     if (system.matrixMode && (system.cyberdeck?.mpcp ?? 0) > 0) {

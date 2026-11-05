@@ -14549,6 +14549,105 @@ export function registerSR2EQuenchTests() {
         await cleanupFrames();
       });
 
+      // ── 6a-2c: smart frames ──
+      const smartCore = (a, copies = [["Analyze", 3]], extra = {}) => readyCore(a, { kind: "smart", options: [{ kind: "dinab", rating: 4, target: "" }], copies, ...extra });
+      const smartFrame = async (a, h, copies, extra) => { await V.sessionFor(a, h); return game.actors.get(await runFrame(a, await smartCore(a, copies, extra))); };
+      const SMART = (fr) => ({ ctx: { frame: fr, smart: true } });
+
+      it("6a-2c: a smart frame acts as itself — its DINAB as skill, its OWN tally — even with its decker jacked out", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        const fr = await smartFrame(a, h);
+        const s0 = fr.flags.sr2e?.vr2Session;
+        assert.ok(s0?.id && s0.hostUuid === h.uuid && s0.conn == null, "its own session, created with it");
+        const dt0 = V.liveSession(a).tally ?? 0, n = sysCards().length;
+        // DINAB-4 dice at 5s vs Control 6 − Analyze-3 = TN 3; the host's SV 4: two 5s.
+        await withFaces([5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(fr, h, "locateIC", SMART(fr)));
+        const st = sysCards()[n]?.flags.sr2e.vr2SystemTest;
+        assert.ok(st?.byFrame, "a smart frame's card");
+        assert.deepEqual([st.actorUuid, st.successes, st.owner], [fr.uuid, 4, a.uuid], "four DINAB dice, rolled by the frame");
+        assert.equal(V.liveSession(game.actors.get(fr.id)).tally, st.hostSuccesses, "its own tally");
+        assert.equal(V.liveSession(a).tally ?? 0, dt0, "not the decker's");
+        // Its decker jacks out: a smart frame runs on, and still acts.
+        await Y.requestExit(a, { trigger: "plug" });
+        assert.ok(await settle(() => !a.system.vr2Conn));
+        assert.ok(await settle(() => !!game.actors.get(fr.id)), "still running (p.105)");
+        await withFaces([5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(game.actors.get(fr.id), h, "locateIC", SMART(game.actors.get(fr.id))));
+        assert.equal(sysCards().length, n + 2, "it acted without its decker");
+        // Out of scope for a smart frame.
+        assert.match(F.commandProblem(fr, fr, { op: "decoy" }), /dumb/);
+        assert.match(F.commandProblem(fr, fr, { op: "redirectDatatrail" }), /datatrail/);
+        await cleanupFrames();
+      });
+
+      it("6a-2c: an order needs the decker on the frame's host; trace IC can't trace a smart frame; its key ends with it", async function () {
+        this.timeout(40000);
+        const h = await host(), h2 = await host("Quench Frames Host 2");
+        const a = await decker();
+        const fr = await smartFrame(a, h);
+        await clicking("go", () => F.orderFrame(a, fr), (el) => { el.querySelector('input[name="text"]').value = "find the slave node"; });
+        assert.equal(F.orderOf(fr)?.text, "find the slave node", "ordered on its host");
+        await V.sessionFor(a, h2);
+        await clicking("go", () => F.orderFrame(a, game.actors.get(fr.id)), (el) => { el.querySelector('input[name="text"]').value = "come home"; });
+        assert.equal(F.orderOf(fr)?.text, "find the slave node", "refused from another host");
+        const key = Y.attackerKeyOf(fr);
+        assert.match(key, /^frame:/);
+        assert.isFalse(Y.attackerEnded(key), "running");
+        if (canvas?.ready) {
+          const tracer = await ic("Quench Frames Tracer", h, "trace", 4);
+          await setTargets([(await tokenFor(fr, 1)).id]);
+          const n = game.messages.size;
+          await clicking("attack", () => withFaces([5, 5, 5, 5], () => V.vr2MatrixAttack(tracer)));
+          assert.equal(game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.matrix).length, 0, "no trace card: no jackpoint to trace");
+          await dropTokens();
+        }
+        await game.actors.get(fr.id).delete();
+        assert.isTrue(Y.attackerEnded(key), "the frame gone: its locks and tracks end");
+        await cleanupFrames();
+      });
+
+      it("6a-2c: initiative is Core + (1 + points)D6; a combat its decker starts enlists it once; the GM's removal stands", async function () {
+        this.timeout(50000);
+        if (!canvas?.ready) this.skip();
+        const h = await host();
+        const a = await decker();
+        const fr = await smartFrame(a, h, [["Analyze", 3]], { attrs: { bod: 1, evasion: 1, masking: 1, sensor: 1 } });
+        const id = fr.id;
+        const p = fr._getInitiativeParts();
+        assert.deepEqual([p.base, p.dice], [6, 1], "Core 6, no points: 6 + 1D6 (p.106)");
+        // Tokens (the decker has no persona scene here, so place both by hand), then the decker's combat starts.
+        const tA = await tokenFor(a, 0);
+        if (!canvas.scene.tokens.some(t => t.actorId === id)) await tokenFor(fr, 2);
+        const combat = await Combat.create({ scene: canvas.scene.id, active: false });
+        made.push(combat);
+        await combat.createEmbeddedDocuments("Combatant", [{ actorId: a.id, tokenId: tA.id, sceneId: canvas.scene.id }]);
+        await combat.startCombat();
+        assert.ok(await settle(() => combat.combatants.has(id), 8000), "joined when the combat started");
+        assert.ok(await settle(() => combat.combatants.get(id)?.initiative != null), "initiative rolled");
+        await combat.combatants.get(id).delete();
+        await Promise.all([Y.sequencer(() => F.reconcileOwner(a)), Y.sequencer(() => F.reconcileOwner(a))]);
+        await wait(500);
+        assert.isFalse(combat.combatants.has(id), "the GM's removal stands");
+        assert.equal(recs(a, "frameJoined").filter(e => e.upload === id).length, 1);
+        await dropTokens();
+        await cleanupFrames();
+      });
+
+      it("6a-2c: the host's reactive IC answers a smart frame's test, with its facts on the owner's log", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        const fr = await smartFrame(a, h);
+        await ic("Quench Frames Tar", h, "tar-baby", 4);
+        const n = game.messages.size;
+        await withFaces([5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1], () => V.vr2SystemTest(fr, h, "locateIC", SMART(fr)));
+        assert.ok(await settle(() => game.messages.contents.slice(n).some(m => /data-op="tar"/.test(m.content))), "the GM's reactive offer");
+        const offer = game.messages.contents.slice(n).find(m => /data-op="tar"/.test(m.content));
+        assert.include(offer.content, `data-actor="${a.uuid}"`, "acted on the owner's log");
+        await cleanupFrames();
+      });
+
       it("changing a written core's design unwrites it and voids its load until it is written and loaded again", async function () {
         this.timeout(40000);
         const a = await coder();

@@ -342,9 +342,14 @@ export function parseIcKey(key) {
 }
 /** A decker attacker's key (part 5a §0.5): `deck:<uuid>@<conn>`. */
 export const isDeckKey = (key) => String(key ?? "").startsWith("deck:");
-/** Either kind of attacker key → `{ kind: "ic", uuid, gen, comp }` or `{ kind: "deck", uuid, conn }`. */
+/** A smart frame attacker's key (part 6a-2c §3): `frame:<uuid>@<uploadId>`. */
+export const isFrameKey = (key) => String(key ?? "").startsWith("frame:");
+/** A key naming an attacking ACTOR (a decker or a smart frame), not an IC. */
+export const isActorKey = (key) => isDeckKey(key) || isFrameKey(key);
+/** Any attacker key → `{ kind: "ic", uuid, gen, comp }`, `{ kind: "deck", uuid, conn }` or `{ kind: "frame", uuid, upload }`. */
 export function parseAttackerKey(key) {
   const k = String(key ?? "");
+  if (isFrameKey(k)) { const body = k.slice(6), i = body.lastIndexOf("@"); return { kind: "frame", uuid: i < 0 ? body : body.slice(0, i), upload: i < 0 ? "" : body.slice(i + 1) }; }
   if (!isDeckKey(k)) return { kind: "ic", ...parseIcKey(k) };
   const body = k.slice(5), i = body.lastIndexOf("@");
   return { kind: "deck", uuid: i < 0 ? body : body.slice(0, i), conn: i < 0 ? NaN : Number(body.slice(i + 1)) };

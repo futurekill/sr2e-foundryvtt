@@ -1000,7 +1000,7 @@ If those five all work, the core loop is healthy.
 - [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
       button.
 
-## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b)
+## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c)
 - [ ] New program → Frame core *Smart*, rating 6, Bod 2 / Evasion 2 / Masking 1 / Sensor 1, DINAB-4: size (6 + 4)² × 3
       = 300 Mp. Without DINAB the sheet lists the problem and programming refuses.
 - [ ] Write it (the code button), then **Load programs…**: pick two programs over the capacity → refused; within it →
@@ -1027,4 +1027,10 @@ If those five all work, the core loop is healthy.
 - [ ] A crippler (Acid) on a frame: resist from the frame's sheet token; the sheet shows "Bod 1 of 3".
 - [ ] Command → Set an event trigger with Sensor under half the Security Value: refused. With enough: listed on the
       frame's sheet; the GM's **Fire** whispers "<frame> reports: …" to you while you're on the host.
+- [ ] 6a-2c: upload a SMART frame: its sheet shows its own tally and **Act…**. Act → an operation: the card says "A smart
+      frame acting on its own", rolls its DINAB dice, and the frame's tally rises (yours doesn't).
+- [ ] Jack out: the smart frame stays; Act still works.
+- [ ] **Order…** from another host: refused; on its host: the order shows on the frame's sheet.
+- [ ] Start a combat with your decker in it: the smart frame joins with Core + 1D6 (+1 per point). Remove it: it stays out.
+- [ ] Trace IC targeting a smart frame: refused (no jackpoint).
 

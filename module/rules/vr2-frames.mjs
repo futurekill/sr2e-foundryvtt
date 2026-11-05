@@ -203,3 +203,19 @@ export const coreDinabLeft = (rating, wear = {}, uploadId = "") =>
 
 /** Operations a frame never runs (§2): it doesn't move, and Null Operation is the decker's own waiting. */
 export const NO_FRAME_OPS = new Set(["logonHost", "logonLTG", "logonRTG", "gracefulLogoff", "nullOp"]);
+
+// ── Part 6a-2c: smart frames ─────────────────────────────────────────────────────────
+
+/** Operations a SMART frame never runs (§ out of scope): decoy frames are dumb; it has no datatrail to redirect. */
+export const NO_SMART_OPS = new Set([...NO_FRAME_OPS, "decoy", "redirectDatatrail"]);
+
+/** A smart frame's initiative parts (p.106): Reaction = Core Rating, 1D6 + 1 per point; a dumb frame has none. */
+export const frameInitiativeParts = ({ kind, coreRating = 0, initPoints = 0 } = {}) => (kind === "smart"
+  ? { base: Number(coreRating) || 0, dice: 1 + (Number(initPoints) || 0) } : null);
+
+/** Should this frame join this combat (§7, R2)? Eligible, and never joined before (two receipts). */
+export function joinStep({ eligible = false, joining = false, joined = false } = {}) {
+  if (joined) return "none";
+  if (joining) return "finish";
+  return eligible ? "start" : "none";
+}

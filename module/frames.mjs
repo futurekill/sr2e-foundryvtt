@@ -12,12 +12,12 @@
  * The frame actor (`_id` = the upload id) and its token are created and removed by the same client from those facts,
  * idempotently, as persona-tokens.mjs does.
  */
-import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers, freezeSuccesses, flush, vr2ActionGuard } from "./vr2ic.mjs";
+import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers, freezeSuccesses, flush, vr2ActionGuard, setFrameEnded } from "./vr2ic.mjs";
 import { liveSession, currentPlace, addWear, commitAction, dinabZeroed, activePrograms, bestUtility, programRating, phaseKey,
   vr2SystemTest, vr2MatrixAttack, vr2Maneuver, vr2ScanIcon } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
 import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflineSeqs, frameEnds, copyStats,
-  liveDecoyFrame, openDecoyFrames, triggerProblems, frameAttrLosses, NO_FRAME_OPS } from "./rules/vr2-frames.mjs";
+  liveDecoyFrame, openDecoyFrames, triggerProblems, frameAttrLosses, NO_FRAME_OPS, NO_SMART_OPS, joinStep } from "./rules/vr2-frames.mjs";
 import { attributeLoss, systemTestVerdict } from "./rules/sr2e-rules.mjs";
 import { once, recordEvent } from "./claims.mjs";
 import { miscDiceHTML, readMiscDice } from "./dialogs/roll-modifiers.mjs";
@@ -341,6 +341,8 @@ async function reconcileDocs(owner) {
           system: { kind: sn.kind, coreRating: sn.coreRating, bod: sn.bod, evasion: sn.evasion, masking: sn.masking, sensor: sn.sensor,
             initPoints: sn.initPoints, dinab: sn.dinab, ownerUuid: owner.uuid, coreUuid: sn.coreUuid, uploadId: id, hostUuid: open.host,
             conn: open.conn, sessionId: open.sessionId },
+          // 6a-2c §2 (user ruling): a smart frame keeps its OWN session and tally on its host, created with it.
+          ...(sn.kind === "smart" ? { flags: { sr2e: { vr2Session: smartSession(open) } } } : {}),
           items: (sn.copies ?? []).map(c => ({ name: c.name, type: "program", system: { ...foundry.utils.deepClone(c.system), loaded: true },
             ...(c.source ? { _stats: { compendiumSource: c.source } } : {}),
             flags: { sr2e: { frameCopy: { uploadId: id, source: c.source ?? null }, ...(sn.decompressed ? { decompressed: 0 } : {}) } } })) },
@@ -359,8 +361,44 @@ async function reconcileDocs(owner) {
         await spot.scene.createEmbeddedDocuments("Token", [data]);
       }
     }
+    // 6a-2c: a smart frame from before 0.138.0 gets its session; then it joins its owner's combats (§7).
+    if (frame.system.kind === "smart" && !frame.flags?.sr2e?.vr2Session?.id) await frame.update({ "flags.sr2e.vr2Session": smartSession(open) });
+    if (frame.system.kind === "smart") await joinCombats(owner, frame);
     // A departure that landed while we wrote (R1 #5): undo it at once.
     if (ended()) await removeFrame(game.actors.get(id));
+  }
+}
+
+/** A smart frame's own session (6a-2c §2): on its host, no connection, never moved. */
+function smartSession(open) {
+  const host = sync(open.host);
+  return { id: foundry.utils.randomID(), hostUuid: open.host, hostName: host?.name ?? "", tally: 0, receipts: {}, conn: null };
+}
+
+/**
+ * Join each started combat its owner fights in, on the frame token's scene, AT MOST ONCE (6a-2c §7, R1 #4, R2 #1):
+ * `frame-joining` before creating, the combatant's id = the upload id (keepId: never two), `frame-joined` after. Once
+ * joined, a combatant the GM removed is never re-added. Initiative still null is rolled on every pass.
+ */
+async function joinCombats(owner, frame) {
+  const id = frame.system.uploadId || frame.id;
+  for (const combat of game.combats.filter(c => c.started)) {
+    const ownerCb = combat.combatants.find(cb => cb.actor?.uuid === owner.uuid);
+    const scene = ownerCb ? game.scenes.get(ownerCb.sceneId) : null;
+    const tok = scene?.tokens.find(t => t.actorId === frame.id) ?? null;
+    const recs = recordsOf(owner), has = (type) => recs.some(e => e.type === type && e.upload === id && e.combat === combat.id);
+    const step = joinStep({ eligible: !!tok, joining: has("frameJoining"), joined: has("frameJoined") });
+    if (step === "none") continue;
+    if (step === "start") await fact(owner, `frame-joining:${id}:${combat.id}`, { type: "frameJoining", upload: id, combat: combat.id });
+    if (tok && !combat.combatants.has(id)) {
+      try { await combat.createEmbeddedDocuments("Combatant", [{ _id: id, tokenId: tok.id, sceneId: scene.id, actorId: frame.id }], { keepId: true }); }
+      catch (e) { /* another pass or client made it (the id is the arbiter) */ }
+    }
+    await fact(owner, `frame-joined:${id}:${combat.id}`, { type: "frameJoined", upload: id, combat: combat.id });
+  }
+  for (const combat of game.combats.filter(c => c.started)) {
+    const cb = combat.combatants.get(id);
+    if (cb && cb.initiative == null && !frameState(frame).ended) await combat.rollInitiative([id]);
   }
 }
 
@@ -409,6 +447,8 @@ export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = 
  */
 export function commandProblem(actor, frame, { op = "", copy = null, after = false } = {}) {
   if (frame?.type !== "frame") return "That isn't a running frame.";
+  // A smart frame acting as itself (6a-2c §1): its own checks, no decker needed.
+  if (actor?.uuid === frame.uuid) return smartProblem(frame, { op, copy, after });
   // Jacking out, or an icon down: the decker can't command anything (code R1 #2).
   const guard = vr2ActionGuard(actor);
   if (guard) return guard;
@@ -421,6 +461,25 @@ export function commandProblem(actor, frame, { op = "", copy = null, after = fal
     || (topologyOn() && currentPlace(actor)?.uuid !== frame.system.hostUuid)) return `You must be on ${host?.name ?? "its host"} to command ${frame.name}.`;
   if (after) return "";
   if (NO_FRAME_OPS.has(op)) return `${frame.name} can't do that: a frame doesn't move, and waiting is the decker's own (VR2.0 p.106, p.117).`;
+  if (copy && !activePrograms(frame).some(i => i.id === copy.id)) return `${copy.name} isn't running on ${frame.name} any more.`;
+  return "";
+}
+
+/**
+ * Why a SMART frame can't act now, or "" (6a-2c §1). Its own session must be on its host; its decker can be anywhere,
+ * or logged off ("whether their creator is logged on or not", p.105).
+ */
+export function smartProblem(frame, { op = "", copy = null, after = false } = {}) {
+  if (frame?.type !== "frame" || frame.system.kind !== "smart") return "Only a smart frame acts on its own.";
+  if (frameState(frame).ended) return `${frame.name} has crashed.`;
+  if (!frame.isOwner) return `Only ${frame.name}'s owner or the GM runs it.`;
+  const host = sync(frame.system.hostUuid);
+  if (liveSession(frame)?.hostUuid !== frame.system.hostUuid || host?.type !== "host") return `${frame.name} has no session on its host.`;
+  if (hostOffline(host)) return `${host.name} is shut down (VR2.0 p.53).`;
+  if (after) return "";
+  if (op === "decoy") return "Decoy frames are dumb frames (VR2.0 p.107).";
+  if (op === "redirectDatatrail") return `${frame.name} has no datatrail of its own to redirect.`;
+  if (NO_SMART_OPS.has(op)) return `${frame.name} can't do that: a frame doesn't move, or wait (VR2.0 p.106, p.117).`;
   if (copy && !activePrograms(frame).some(i => i.id === copy.id)) return `${copy.name} isn't running on ${frame.name} any more.`;
   return "";
 }
@@ -495,24 +554,27 @@ const OPS_WITHOUT = new Set(["scanIcon"]);
 export async function commandFrame(actor, frame) {
   const why = commandProblem(actor, frame);
   if (why) return ui.notifications.warn(why);
+  // 6a-2c §6: a smart frame acting as itself reuses this dialog (actor = frame): no pools, its DINAB is its skill.
+  const smart = actor.uuid === frame.uuid;
   const host = sync(frame.system.hostUuid);
-  const ops = Object.entries(CONFIG.SR2E.vr2SystemOperations).filter(([k, op]) => !NO_FRAME_OPS.has(k) && !OPS_WITHOUT.has(k)
+  const ops = Object.entries(CONFIG.SR2E.vr2SystemOperations).filter(([k, op]) => !(smart ? NO_SMART_OPS : NO_FRAME_OPS).has(k) && !OPS_WITHOUT.has(k)
     && op.utility && bestUtility(frame, op.utility, host));
   const hackingMax = actor.system.dicePools?.hacking?.value ?? 0, karma = actor.system.karma?.pool ?? 0;
-  const core = frame.system.dinabLeft > 0;
+  const core = !smart && frame.system.dinabLeft > 0;
   const kinds = [...(ops.length ? [["op", "System Operation"]] : []), ["attack", "Attack (the targeted icon)"], ["scan", "Scan Icon (the targeted icon)"],
-    ["maneuver", "Maneuver (the targeted icon)"], ["trigger", "Set an event trigger"]];
-  const o = await foundry.applications.api.DialogV2.wait({ window: { title: `Command ${frame.name}` }, rejectClose: false,
-    content: `<p style="font-size:11px;color:#aaa1c0;">A command is your Simple Action, even for a Complex operation; one command, one action (VR2.0 p.106).
-      You roll your Computer; the frame's programs and attributes count; your datatrail takes the tally.</p>
+    ["maneuver", "Maneuver (the targeted icon)"], ...(smart ? [] : [["trigger", "Set an event trigger"]])];
+  const o = await foundry.applications.api.DialogV2.wait({ window: { title: smart ? `${frame.name} acts` : `Command ${frame.name}` }, rejectClose: false,
+    content: `<p style="font-size:11px;color:#aaa1c0;">${smart
+      ? `A smart frame acts on its own (VR2.0 p.107): its DINAB-${frame.system.dinab} is its skill, its programs and attributes count, and its own tally rises.`
+      : "A command is your Simple Action, even for a Complex operation; one command, one action (VR2.0 p.106). You roll your Computer; the frame's programs and attributes count; your datatrail takes the tally."}</p>
       <div class="form-group"><label>Command:</label><select name="kind">${kinds.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
       ${ops.length ? `<div class="form-group"><label>Operation:</label><select name="operation">${ops.map(([k, op]) =>
         `<option value="${k}">${esc(op.label)} (${esc(op.utility)}-${programRating(bestUtility(frame, op.utility, host))})</option>`).join("")}</select></div>
       <div class="form-group"><label>Targeted subsystem <span style="color:#958ba8;font-size:10px;">(Analyze Subsystem, Disinfect, Defuse)</span>:</label>
         <select name="subsystem">${["access", "control", "index", "files", "slave"].map(k => `<option value="${k}" ${k === "files" ? "selected" : ""}>${CONFIG.SR2E.vr2Subsystems[k]}</option>`).join("")}</select></div>
-      <div class="form-group"><label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(${hackingMax} left)</span>:</label>
-        <input type="number" name="hacking" value="0" min="0" max="${hackingMax}" style="width:52px;text-align:center;"></div>
-      ${karma > 0 ? `<div class="form-group"><label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${karma})</span>:</label>
+      ${smart ? "" : `<div class="form-group"><label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(${hackingMax} left)</span>:</label>
+        <input type="number" name="hacking" value="0" min="0" max="${hackingMax}" style="width:52px;text-align:center;"></div>`}
+      ${karma > 0 && !smart ? `<div class="form-group"><label>Karma dice <span style="color:#958ba8;font-size:10px;">(pool ${karma})</span>:</label>
         <input type="number" name="karma_dice" value="0" min="0" max="${karma}" style="width:52px;text-align:center;"></div>` : ""}
       ${core ? `<div class="form-group"><label title="The core's DINAB runs the program itself: a Free Action, once per action of yours, no pools or Karma (VR2.0 p.106)">Run by the core's DINAB (${frame.system.dinabLeft}):</label>
         <input type="checkbox" name="coreDinab"></div>` : ""}
@@ -524,7 +586,7 @@ export async function commandFrame(actor, frame) {
         coreDinab: !!f.coreDinab?.checked, ...readMiscDice(b.form) };
     } }, { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!o || o === "cancel") return;
-  const ctx = { frame };
+  const ctx = smart ? { frame, smart: true } : { frame };
   if (o.kind === "attack") return vr2MatrixAttack(actor, ctx);
   if (o.kind === "scan") return vr2ScanIcon(actor, ctx);
   if (o.kind === "maneuver") return vr2Maneuver(actor, ctx);
@@ -532,6 +594,44 @@ export async function commandFrame(actor, frame) {
   return vr2SystemTest(actor, host, o.operation, { ctx, subsystem: o.subsystem, hacking: o.coreDinab ? 0 : o.hacking,
     karmaDice: o.coreDinab ? 0 : o.karmaDice, coreDinab: o.coreDinab, miscDice: o.miscDice, miscLabel: o.miscLabel });
 }
+
+/**
+ * A basic order to a smart frame (6a-2c §5): the decker's Free Action, given ON the frame's host (user ruling), recorded
+ * on his log. Its effect is narrative — the player runs the frame. With "watch for", it also sets an event trigger.
+ */
+export async function orderFrame(actor, frame) {
+  const problem = () => {
+    const guard = vr2ActionGuard(actor);
+    if (guard) return guard;
+    if (frame?.type !== "frame" || frame.system.kind !== "smart" || frame.system.ownerUuid !== actor.uuid) return "Only your own smart frame takes orders.";
+    if (frameState(frame).ended) return `${frame.name} has crashed.`;
+    const here = topologyOn() ? currentPlace(actor)?.uuid : liveSession(actor)?.hostUuid;
+    return here === frame.system.hostUuid ? "" : `Log on to ${sync(frame.system.hostUuid)?.name ?? "its host"} to give ${frame.name} an order.`;
+  };
+  if (problem()) return ui.notifications.warn(problem());
+  const o = await foundry.applications.api.DialogV2.wait({ window: { title: `Order ${frame.name}` }, rejectClose: false,
+    content: `<p style="font-size:11px;color:#aaa1c0;">A basic order is a Free Action; the frame carries it out on its own actions (VR2.0 p.107).</p>
+      <div class="form-group"><label>Order:</label><input type="text" name="text" placeholder="e.g. find and crash the Blaster IC"></div>
+      <div class="form-group"><label>Also watch for it (event trigger):</label><select name="watch"><option value="">no</option>
+        <option value="host">events of the host or its programs</option><option value="users">other deckers or users</option><option value="both">both</option></select></div>`,
+    buttons: [{ action: "go", label: "Order", default: true, callback: (ev, b) => ({ text: b.form.elements.text.value.trim(), watch: b.form.elements.watch.value }) },
+      { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+  if (!o || o === "cancel" || !o.text) return;
+  if (problem()) return ui.notifications.warn(problem());
+  const upload = frame.system.uploadId || frame.id;
+  if (o.watch) {
+    const w = watchers(frame), why = triggerProblems({ ...w, watch: o.watch });
+    if (why.length) return ui.notifications.warn(`${frame.name} can't watch for that: ${why.join(" ")}`);
+    await recordEvent(actor, `vr2:trigger:${upload}:${foundry.utils.randomID()}`, { type: "trigger", upload, watch: o.watch, note: o.text, frameName: frame.name });
+  }
+  await recordEvent(actor, `vr2:order:${upload}:${foundry.utils.randomID()}`, { type: "frameOrder", upload, text: o.text, at: game.time.worldTime });
+  if (frame.sheet?.rendered) frame.sheet.render();
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), whisper: whisperOwner(actor), content: `<div class="sr2e-item-card">
+    ${esc(actor.name)} orders <strong>${esc(frame.name)}</strong>: ${esc(o.text)} (a Free Action, VR2.0 p.107).${o.watch ? " It watches for it as an event trigger." : ""}</div>` });
+}
+/** The latest order a smart frame was given (its owner's records). */
+export const orderOf = (frame) => { const o = sync(frame?.system?.ownerUuid), u = frame?.system?.uploadId || frame?.id;
+  return o ? recordsOf(o).filter(e => e.type === "frameOrder" && e.upload === u).sort((a, b) => (b.ct ?? 0) - (a.ct ?? 0))[0] ?? null : null; };
 
 /** What the frame's watchers are worth on its host (§7): its Sensor and its best analyze and scanner copies. */
 function watchers(frame) {
@@ -593,6 +693,11 @@ async function replayTriggerReports(owner) {
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export function registerFrameHooks() {
+  setFrameEnded((fr) => frameState(fr).ended);
+  // 6a-2c §7 (R2 #2): a smart frame may newly belong in a combat — when one starts, or its owner joins one.
+  const ownsSmart = (a) => a?.type === "character" && game.actors.some(f => f.type === "frame" && f.system.kind === "smart" && f.system.ownerUuid === a.uuid);
+  Hooks.on("updateCombat", (c, ch) => { if (ch?.started === true || ("round" in (ch ?? {}) && c.started)) for (const cb of c.combatants) if (ownsSmart(cb.actor)) schedule(cb.actor); });
+  Hooks.on("createCombatant", (cb) => { if (ownsSmart(cb.actor)) schedule(cb.actor); });
   // A frame's programs are object-code copies: never edited or removed while it runs (p.106), but wear/crash/load
   // state still changes as for any program.
   const DESIGN = ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore"];

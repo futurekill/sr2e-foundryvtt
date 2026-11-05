@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.138.0 — 2026-11-05
+
+### Added
+- **VR2.0 smart frames** (VR2.0 pp.105–107), the last part of frames:
+  - **A smart frame acts on its own.** Its sheet has **Act…**: a System Operation, an attack, Scan Icon or a
+    maneuver. It rolls its DINAB rating as its Computer skill (no Hacking Pool or Karma), with its own programs and
+    attributes, and none of these are the decker's actions. It works even after the decker jacks out (p.105).
+  - **Its own security tally** on its host: its tests raise it, its sheet shows it, and the host's sheaf fires from
+    it. IC it triggers goes after the frame, and trace IC can't trace it: it has no jackpoint of its own.
+  - **Order…** on the decker's row gives it a basic order, a Free Action, while the decker is on the frame's host
+    (p.107). The latest order shows on its sheet; it can also set an event trigger.
+  - **Initiative:** Reaction = Core Rating, 1D6 + 1 per point given to Initiative (p.106). A smart frame joins a
+    started combat its decker fights in, once; if the GM removes it, it stays out.
+  - Its attacks have their own attacker identity: a lock or Track it holds ends when it crashes. Its Slow can
+    suppress a hung IC on its own Detection Factor (released from its sheet).
+  - The host's reactive IC (tar, data bombs, poison scramble) answers its tests; tar crashes its copy.
+  - Decoy and Redirect Datatrail stay dumb-frame/decker operations.
+- How-To Guides: *Run a smart frame (VR2.0)*.
+
 ## 0.137.0 — 2026-11-05
 
 ### Added

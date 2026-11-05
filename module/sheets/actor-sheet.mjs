@@ -2446,7 +2446,8 @@ export class SR2EFrameSheet extends SR2EBaseActorSheet {
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const { frameState, triggersOf } = await import("../frames.mjs");
+    const { frameState, triggersOf, orderOf } = await import("../frames.mjs");
+    const Y = await import("../vr2ic.mjs");
     const { programUnusable } = await import("../data/actor-data.mjs");
     const s = this.document.system, st = frameState(this.document);
     const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
@@ -2456,6 +2457,10 @@ export class SR2EFrameSheet extends SR2EBaseActorSheet {
         crashed: programUnusable(this.document, i) })),
       // Part 6a-2b: the attributes after crippler losses, core DINAB left, and event triggers (the GM fires them).
       attrs: s.matrixPersona ?? {}, dinabLeft: s.dinabLeft ?? 0, isGM: game.user.isGM,
+      // Part 6a-2c: a smart frame acts from here, with its own tally, latest order and Slow suppressions.
+      smart: s.kind === "smart", canAct: s.kind === "smart" && this.document.isOwner && !st.ended,
+      tally: this.document.flags?.sr2e?.vr2Session?.tally ?? 0, order: orderOf(this.document)?.text ?? "",
+      suppressions: Y.allIC().flatMap(ic => Y.slowSuppressions(ic).filter(e => e.deckerUuid === this.document.uuid).map(e => ({ name: ic.name, arg: `${e.card}|${ic.uuid}` }))),
       triggers: triggersOf(this.document).map(t => ({ key: t.key, note: t.note, watch: { host: "host events", users: "users", both: "host events and users" }[t.watch] ?? t.watch })) };
     return context;
   }
