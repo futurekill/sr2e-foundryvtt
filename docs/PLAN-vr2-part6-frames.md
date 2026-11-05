@@ -1,5 +1,6 @@
 # Plan: VR2.0 part 6: frames and SKs
-_Draft 5 (2026-11-05): 6a-0 released in 0.131.0. **6a-1 (frame cores and loading) Codex-APPROVED round 2, not built.**
+_Draft 5 (2026-11-05): 6a-0 released in 0.131.0. **6a-1 (frame cores and loading) Codex-APPROVED round 2, not built.** 6a-2 is outlined in three sub-parts
+(6a-2a/b/c), each to be detailed and reviewed.
 6a-2 (running frames), 6b and 6c each get their own detailed section and review, meeting the requirements Codex R1
 raised (listed below). Codex review: docs/PLAN-vr2-part6-frames-REVIEW-LOG.md. No code before review._
 
@@ -472,6 +473,38 @@ upload.
 - rewriting a core to another design voids its old load;
 - changing the core's attributes makes it unwritten;
 - a core never counts as a usable utility.
+
+## 6a-2: running frames (outline; each sub-part gets its own detailed section and review)
+6a-2 meets most of the "Requirements carried" list, and touches the IC/sequencer, combat and session code. One review
+of all of it would be expensive (the part-6 R1 lesson), so it is split.
+
+**Rule found for upload time (p.91, rendered 2026-11-05):** "A deck with an I/O bandwidth of 10 MePS can upload or
+download 10 Mp of data per second". So uploading a frame takes ⌈frame actual size ÷ the deck's I/O bandwidth⌉
+seconds: Genie's 1,392 Mp at 20 MePS is 70 seconds, about 24 Combat Turns. The deck's I/O speed field is the I/O
+bandwidth. Multiplexing and Retrain stay out of scope, as part of the Bandwidth rule.
+
+- **6a-2a: the frame actor, upload and lifecycle.**
+  - The `frame` actor type: schema, sheet, a stable incarnation id equal to the upload id.
+  - Upload as a sequencer-admitted, timed record, bound to the connection and the host session. Completion is the
+    sequencer seeing world time pass the upload's seconds. Creating the actor, token and combatant is reconciled
+    idempotently against a departure.
+  - Decompress before upload.
+  - Dumb frames end when the owner leaves that host; host shutdown and deletion end frames too; cleanup is
+    replayable.
+  - Frames as targets: attack and maneuver targeting, admission, resistance (Bod + the copies' Armor and Shield), the
+    10-box monitor and crash, attribute effects, Limit `frame`, Scan Icon, Locate Frame.
+- **6a-2b: commanding a dumb frame.**
+  - The execution context: commander, acting icon, skill, utilities, host session, tally and trace owner.
+  - Commands as the decker's Simple Action, one action each.
+  - The copies as runtime programs for `activePrograms`, `spendUse` and wear.
+  - Dumb-core DINAB, claimed against the owner's action.
+  - Decoy frames: a separate mode from plain decoys.
+  - Event triggers: Sensor and analyze/scanner ≥ half the Security Value, same-host delivery.
+  - Cutting program ratings when the Core Rating drops.
+- **6a-2c: smart frames.**
+  - Their own Reaction and Initiative, and a combatant.
+  - A basic order as a Free Action, then actions on their own turns with DINAB as the skill.
+  - Existence independent of the owner ("whether their creator is logged on or not").
 
 ## Requirements carried to the 6a / 6b / 6c plans (Codex R1, accepted)
 Each phase gets its own detailed plan, Codex-reviewed before code. It must answer:
