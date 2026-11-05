@@ -419,3 +419,10 @@ VERDICT: REVISE
   DINAB crash doesn't void it.
 - **#2 accepted.** No `once` for the trigger report: the sequencer posts it tagged with the fact key and replays any
   fact no message carries, as `replayResolutions` does.
+
+## 6a-2b Round 3 — Codex (fresh session, fix only; ~62k input tokens)
+
+No findings. The post-roll check permits the command’s own consumption or copy crash while preserving frame-incarnation validation. Trigger-report replay removes the permanent claim gap and follows the specified sequencer message-existence pattern. Both fixes are sufficient within scope and introduce no identified defect.
+
+VERDICT: APPROVED
+**6a-2b plan APPROVED in round 3.**

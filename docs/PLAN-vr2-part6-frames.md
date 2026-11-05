@@ -715,6 +715,8 @@ has crashed".
 
 ## 6a-2b in detail: commanding dumb frames, DINAB cores, decoy frames, event triggers
 
+**Status: plan Codex-APPROVED round 3 (2026-11-05); not built.**
+
 Builds on 6a-2a (0.136.0): a running `frame` actor whose loaded copies are locked embedded program items, with every
 lifecycle fact on the OWNER's log. The pages were rendered again for this section (2026-11-05): Dumb Frames, Decoy
 Frames, Event Triggers, Weapon Carriers and Smart Frames (pp.106–107).
