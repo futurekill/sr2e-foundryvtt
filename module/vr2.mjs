@@ -18,7 +18,7 @@ import { successesAtTN, cybercombatTN, icDamageLevel, dumpShockDamage, detection
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "./vr2-mode.mjs";
 import { reachable, scopeOf, seedTally, carryAmount, LOGON_OPS, jackpointKind, halveUp, disconnectTarget, forgetSeconds,
-  isNetworkMove, redirectTN } from "./rules/vr2-grids.mjs";
+  isNetworkMove, redirectTN, satLocateTN, SATLINK_CONDITIONS } from "./rules/vr2-grids.mjs";
 import { defenseTN, skulkTally, limitAllows } from "./rules/vr2-options.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
 import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage, restoreState, restorePoints } from "./rules/vr2ic-rules.mjs";
@@ -388,6 +388,67 @@ export function settleLogon(actor, { sessionId, logonId, card, ok }) {
   });
 }
 
+/** 7c: the deck's satlink and the satellite it has locked onto on this connection (p.30, p.88). */
+export function satOf(actor) {
+  const l = actor?.flags?.sr2e?.vr2SatLock;
+  return { satlink: !!actor?.system?.cyberdeck?.satlink, lock: l?.ok && l.conn === (actor.system?.vr2Conn?.n ?? null) ? l.sat : null };
+}
+/** At a satellite uplink with no place yet: the Locate satellite button applies. */
+export const atSatUplink = (actor) => topologyOn() && !!actor?.system?.vr2Conn && connJackpoint(actor).kind === "satellite" && !currentPlace(actor);
+
+/**
+ * Locate satellite (p.30): isolate a satellite and lock onto its transponder. A Computer Test against the Satlink TN
+ * table (+2 bad weather, less the dish, p.88); base time 3 minutes. The lock names ONE satellite (7c R1 #1), on this
+ * connection; a Karma reroll on the test card can turn a miss into a lock (module/grids.mjs hook).
+ */
+export function vr2LocateSatellite(actor) {
+  return opQueue(actor, async () => {
+    if (!atSatUplink(actor)) return ui.notifications.warn("Locate satellite needs a satellite uplink jackpoint, before logging on to anything (VR2.0 p.30).");
+    if (!actor.system.cyberdeck?.satlink) return ui.notifications.warn("This deck has no satlink interface (VR2.0 p.88).");
+    const wired = sync(connJackpoint(actor).wired);
+    const sats = wired?.system?.kind === "satellite" ? [wired] : game.actors.filter(a => a.type === "host" && a.system.kind === "satellite");
+    if (!sats.length) return ui.notifications.warn("No satellite to lock onto: the GM creates one (Actors → New grid → Satellite).");
+    const dish = actor.system.cyberdeck?.satDish ?? "standard";
+    const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
+    let pick = null;
+    await foundry.applications.api.DialogV2.wait({ window: { title: `Locate satellite — ${actor.name}` }, rejectClose: false,
+      content: `<p>Isolate the satellite and lock onto its transponder: a Computer Test, base time 3 minutes (VR2.0 p.30).
+        Your dish: ${esc(dish)}${dish === "large" ? " (−1)" : dish === "fixed" ? " (−2)" : ""}.</p>
+        <div class="form-group"><label>Satellite:</label><select name="sat">${sats.map(a => `<option value="${a.uuid}">${esc(a.name)}</option>`).join("")}</select></div>
+        <div class="form-group"><label>Conditions:</label><select name="cond">${Object.entries(SATLINK_CONDITIONS).map(([k, c]) => `<option value="${k}">${esc(c.label)} (${c.tn})</option>`).join("")}</select></div>
+        <div class="form-group"><label>Bad weather (more than overcast, +2):</label><input type="checkbox" name="weather"></div>
+        <div class="form-group"><label>Hacking Pool dice <span style="color:#958ba8;font-size:10px;">(max ${hackingMax})</span>:</label>
+          <input type="number" name="hacking" value="0" min="0" max="${hackingMax}" style="width:52px;text-align:center;"></div>`,
+      buttons: [{ action: "ok", label: "Locate", default: true, callback: (e, b) => { const f = b.form.elements;
+        pick = { sat: f.sat.value, condition: f.cond.value, badWeather: f.weather.checked, hacking: Math.max(0, parseInt(f.hacking.value) || 0) }; } },
+        { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
+    if (!pick) return;
+    const sat = sync(pick.sat);
+    const tn = satLocateTN({ condition: pick.condition, badWeather: pick.badWeather, dish });
+    const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
+    const trained = (computer?.system?.rating ?? 0) > 0;
+    const res = await actor.rollSuccessTest(trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1), tn + (trained ? 0 : 4), {
+      label: RL("LocateSatellite", { name: sat?.name ?? "satellite", tn }), tnContext: skillTnContext("computer"),
+      poolDice: pick.hacking ? { hacking: pick.hacking } : undefined });
+    if (!res) return;
+    const conn = actor.system.vr2Conn?.n ?? null;
+    await game.messages.get(res.testMessageId)?.update({ "flags.sr2e.satLock": { conn, sat: pick.sat, actorUuid: actor.uuid } });
+    return settleSatLock(actor, { conn, sat: pick.sat, card: res.testMessageId, successes: res.successes, first: true });
+  });
+}
+/** Write (or, after Karma, rewrite) the satellite lock from its test card (7c R2 #1: the whole record, sat included). */
+export async function settleSatLock(actor, { conn, sat, card, successes, first = false }) {
+  const cur = actor.flags?.sr2e?.vr2SatLock;
+  if (!first && cur?.card !== card) return;
+  const ok = successes > 0;
+  if (!first && cur?.ok === ok) return;
+  await actor.update({ "flags.sr2e.==vr2SatLock": { conn, card, ok, sat } });
+  const name = sync(sat)?.name ?? "the satellite";
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${ok
+    ? `${esc(actor.name)} isolates ${esc(name)} and locks onto its transponder in ${Math.round(180 / successes)} seconds (3 minutes ÷ ${successes}, VR2.0 p.30): Logon to LTG onto it.`
+    : `${esc(actor.name)} can't find ${esc(name)}'s transponder. Another try in about five minutes (sooner in dire situations; p.30).`}</div>` });
+}
+
 /** On a hub, Locate File / Locate Slave cover the whole network (p.36). */
 function hubNote(host, operation) {
   if (!topologyOn() || !["locateFile", "locateSlave"].includes(operation) || !host.system.grid) return false;
@@ -628,10 +689,11 @@ async function systemTestNow(actor, host, operation, opts) {
   if (topologyOn() && conn) {
     const topo = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null;
     const r = reachable({ at, op: operation, target: host.uuid, topo, jack: connJackpoint(actor), known: knownPlaces(actor), gm: game.user.isGM,
-      mapped: mappedHubs(actor) });
+      mapped: mappedHubs(actor), sat: satOf(actor) });
     if (!r.ok) return ui.notifications.warn(r.why);
     if (LOGON_OPS.has(operation)) logon = { id: foundry.utils.randomID(), op: operation, from: at,
-      carry: host.system.kind === "pltg" && at ? { tally: scopeTally(actor, at) } : null,
+      // A PLTG inherits the public tally (p.29); an RTG reached from a satellite inherits the satellite's (p.30).
+      carry: at && (host.system.kind === "pltg" || (operation === "logonRTG" && topo.get(at)?.kind === "satellite")) ? { tally: scopeTally(actor, at) } : null,
       network: !!at && operation === "logonHost" && isNetworkMove(at, host.uuid, topo) };
   }
   // Jackpoint Access modifier (p.28–29), every Access Test; a console halves Access and Security Value, rounded up.

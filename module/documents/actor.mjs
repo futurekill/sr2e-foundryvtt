@@ -987,8 +987,11 @@ export class SR2EActor extends Actor {
         }
       }
       const bonus = plusReaction ? 2 * response : 0;
-      const base = Math.max(0, naturalReaction + bonus - woundPenalty);
+      // VR2.0 part 7c (p.30): satlink signal lag, off the final Matrix Reaction (plan R1 #3).
+      const lag = isVR2() && system.vr2Conn?.jackpoint?.kind === "satellite" ? 2 : 0;
+      const base = Math.max(0, naturalReaction + bonus - lag - woundPenalty);
       notes.unshift(`Matrix: Reaction ${naturalReaction}${bonus ? ` +${bonus} response` : ""}`);
+      if (lag) notes.push("satlink lag −2");
       if (woundPenalty) notes.push(`−${woundPenalty} wound`);
       return { base, dice: Math.max(1, 1 + response - lessDice), rigged: false, matrix: true, notes };
     }

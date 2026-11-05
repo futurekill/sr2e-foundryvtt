@@ -266,3 +266,54 @@ describe("7b: dump on locate, network moves, redirects (p.36, p.47, p.117)", () 
     expect(redirectTN(3, "remote")).toBe(2);
   });
 });
+
+// ── Part 7c ─────────────────────────────────────────────────────────────────
+import { satLocateTN, satelliteRatings } from "../module/rules/vr2-grids.mjs";
+
+describe("7c: satellite links (p.30, p.31, p.88)", () => {
+  const sTopo = new Map([...topo, ...[P("Actor.SAT", "satellite"), P("Actor.SAT2", "satellite"), P("Actor.Orbit", "host", { grid: "Actor.SAT" })].map(p => [p.uuid, p])]);
+  const R7 = (at, op, target, jack, sat) => reachable({ at, op, target, topo: sTopo, jack, sat }).ok;
+  const up = { kind: "satellite", wired: null };
+  it("locate TN: the conditions, +2 bad weather, less the dish; never below 2", () => {
+    expect(satLocateTN({ condition: "downtown" })).toBe(8);
+    expect(satLocateTN({ condition: "downtown", badWeather: true, dish: "fixed" })).toBe(8);
+    expect(satLocateTN({ condition: "lightUrban", dish: "large" })).toBe(5);
+    expect(satLocateTN({ condition: "clear", dish: "fixed" })).toBe(2);
+    expect(satLocateTN({ condition: "suburban", dish: "temporary" })).toBe(3);
+  });
+  it("satellite ratings with no reduction: Average SV 1D3+6 and 2D3+9; Hard 2D3+6 and 1D6+12", () => {
+    expect(satelliteRatings("orangeAverage", Array(11).fill(1))).toEqual({ code: "orange", sv: 7, subsystems: { access: 11, control: 11, index: 11, files: 11, slave: 11 } });
+    expect(satelliteRatings("orangeAverage", Array(11).fill(3))).toMatchObject({ sv: 9, subsystems: { access: 15 } });
+    expect(satelliteRatings("redHard", [1, 1, 1, 1, 1, 1, 1])).toEqual({ code: "red", sv: 8, subsystems: { access: 13, control: 13, index: 13, files: 13, slave: 13 } });
+    expect(satelliteRatings("orangeHard", [3, 3, 6, 6, 6, 6, 6])).toMatchObject({ code: "orange", sv: 12, subsystems: { slave: 18 } });
+  });
+  it("a satellite is a grid of its own: scope, trace class, LTG operations", () => {
+    expect(scopeOf("Actor.SAT", sTopo).key).toBe("satellite_SAT");
+    expect(traceClass("Actor.SAT", sTopo)).toMatchObject({ grid: true, scope: "satellite_SAT" });
+    expect(R7("Actor.SAT", "redirectDatatrail", "Actor.SAT")).toBe(true);
+    expect(R7("Actor.SAT", "locateAccessNode", "Actor.SAT")).toBe(false);
+  });
+  it("from an uplink: a satlink deck and a lock on THAT satellite; then Logon to LTG onto it only", () => {
+    expect(R7(null, "logonLTG", "Actor.SAT", up, { satlink: false, lock: "Actor.SAT" })).toBe(false);
+    expect(R7(null, "logonLTG", "Actor.SAT", up, { satlink: true, lock: null })).toBe(false);
+    expect(R7(null, "logonLTG", "Actor.SAT2", up, { satlink: true, lock: "Actor.SAT" })).toBe(false);
+    expect(R7(null, "logonLTG", "Actor.SAT", up, { satlink: true, lock: "Actor.SAT" })).toBe(true);
+    expect(R7(null, "logonLTG", "Actor.L2206", up, { satlink: true, lock: "Actor.L2206" })).toBe(false);
+    const wired = { kind: "satellite", wired: "Actor.SAT2" };
+    expect(R7(null, "logonLTG", "Actor.SAT", wired, { satlink: true, lock: "Actor.SAT" })).toBe(false);
+  });
+  it("on a satellite: any RTG, its own hosts, no LTG", () => {
+    expect(R7("Actor.SAT", "logonRTG", "Actor.TIR")).toBe(true);
+    expect(R7("Actor.SAT", "logonRTG", "Actor.SEA")).toBe(true);
+    expect(R7("Actor.SAT", "logonHost", "Actor.Orbit")).toBe(true);
+    expect(R7("Actor.SAT", "logonHost", "Actor.Open1")).toBe(false);
+    expect(R7("Actor.SAT", "logonLTG", "Actor.L2206")).toBe(false);
+  });
+  it("wiring: a satellite uplink is wired to a satellite (R1 #2)", () => {
+    expect(wiredPlace({ kind: "satellite", wired: "Actor.SAT" }, sTopo)).toBe("Actor.SAT");
+    expect(wiredPlace({ kind: "satellite", wired: "Actor.L2206" }, sTopo)).toBeNull();
+    expect(wiringFits({ kind: "satellite", wired: "Actor.SAT" }, sTopo)).toBe(true);
+    expect(wiringFits({ kind: "satellite", wired: "Actor.L2206" }, sTopo)).toBe(false);
+    expect(governsJackpoint(traceClass("Actor.SAT", sTopo), { kind: "satellite", wired: "Actor.SAT" }, sTopo)).toBe(false);
+  });
+});

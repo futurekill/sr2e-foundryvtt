@@ -1256,11 +1256,15 @@ async function noticeTraces(actor) {
     }
     const rows = RESPONSE_TIMES.rows.map((r, i) => `<tr><td>${r}</td>${["public", "corporate", "megacorp", "government"].map(k => `<td>${RESPONSE_TIMES[k][i] ?? "NA"}</td>`).join("")}</tr>`).join("");
     const trace = recordsOf(actor).find(e => e.type === "trace" && e.conn === t.conn && e.icKey === t.icKey);
+    // 7c (p.30): over a satlink the trace finds the satellite, never the decker's body.
+    const viaSat = (await import("./jackpoints.mjs")).connJackpoint(actor).kind === "satellite";
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
-      <strong>${esc(trace?.icName ?? "Trace IC")} locates ${esc(actor.name)}'s jackpoint</strong>: network address and physical location go into the security logs.
+      <strong>${esc(trace?.icName ?? "Trace IC")} locates ${esc(actor.name)}'s ${viaSat ? "satellite uplink" : "jackpoint"}</strong>: ${viaSat
+        ? "no physical location, so no physical response is possible (VR2.0 p.30)."
+        : "network address and physical location go into the security logs."}
       From now on: −1 TN to proactive IC attacks on ${esc(actor.name)}, and +1 to every tally increase (VR2.0 p.46).
-      <br>Security Asset Response Times (minutes, p.47):
-      <table><tr><th>Jackpoint</th><th>Public</th><th>Corp</th><th>Megacorp</th><th>Gov't</th></tr>${rows}</table>${await dumpButton(actor, t)}</div>` });
+      ${viaSat ? "" : `<br>Security Asset Response Times (minutes, p.47):
+      <table><tr><th>Jackpoint</th><th>Public</th><th>Corp</th><th>Megacorp</th><th>Gov't</th></tr>${rows}</table>${await dumpButton(actor, t)}`}</div>` });
     const ic = icOfKey(t.icKey);
     if (ic) await fireTrap(ic, t.icKey);
   }
@@ -1317,7 +1321,8 @@ STEP_RESOLVERS.datatrail = async (actor, f, s) => {
   await fact(actor, key, { type: "exitRes", n: f.live.n, step: "datatrail", ref: s.ref, roll, left, located });
   await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), content: `<div class="sr2e-item-card">
     ${esc(actor.name)}'s datatrail stays up ${left} turn${left === 1 ? "" : "s"} (1D6 − 1 = ${roll - 1}, min 1) against ${t?.turnsLeft ?? 0} left:
-    <strong>${located ? "the trace still locates the jackpoint" : "the trace loses it"}</strong> (VR2.0 p.46).</div>` });
+    <strong>${located ? "the trace still locates the jackpoint" : "the trace loses it"}</strong> (VR2.0 p.46).${located && (await import("./jackpoints.mjs")).connJackpoint(actor).kind === "satellite"
+      ? " It finds only the satellite uplink: no physical location (p.30)." : ""}</div>` });
   if (located) {
     const ic = icOfKey(s.ref);
     if (ic) await fireTrap(ic, s.ref);

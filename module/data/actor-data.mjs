@@ -46,7 +46,10 @@ export function deckModeFields() {
   return {
     deckMode: new fields.StringField({ initial: "hot", choices: { hot: "hot", cool: "cool", tortoise: "tortoise" } }),
     dniOnly: new fields.BooleanField({ initial: false }),
-    iccm: new fields.BooleanField({ initial: false })
+    iccm: new fields.BooleanField({ initial: false }),
+    // VR2.0 part 7c: a satlink interface and its dish (p.88, p.30).
+    satlink: new fields.BooleanField({ initial: false }),
+    satDish: new fields.StringField({ initial: "standard", blank: false, choices: { standard: "Standard portable", large: "Large portable (−1 TN)", fixed: "Fixed-base earth station (−2 TN)", temporary: "Temporary (spray polymer)" } })
   };
 }
 
@@ -896,8 +899,8 @@ export class CharacterData extends SR2EDataModel {
     // cyberdecks", so it snapshots through this identical path and the whole
     // Matrix tab / persona / cybercombat stack works on it unchanged.
     const keys = ["mpcp", "hardening", "activeMemory", "storageMemory", "loadSpeed", "ioSpeed", "response",
-                  "deckMode", "dniOnly", "iccm"];
-    const blank = { deckMode: "hot", dniOnly: false, iccm: false };
+                  "deckMode", "dniOnly", "iccm", "satlink", "satDish"];
+    const blank = { deckMode: "hot", dniOnly: false, iccm: false, satlink: false, satDish: "standard" };
     // Both directions (CLAUDE.md, derived state): start from the AUTHORED
     // fallback every prepare, so a deck that stops working (Kamikaze) or is
     // switched off doesn't leave its stats behind.
@@ -2384,7 +2387,7 @@ export class HostData extends SR2EDataModel {
       // VR2.0 part 7a, grid topology (inert unless the vr2Topology setting is on): what kind of place this is,
       // the grid it hangs from, its host↔host links (undirected), a PLTG's entry-point LTGs, an unpublished
       // address, and the optional Variable LTG Ratings shift (p.14–30).
-      kind: new fields.StringField({ initial: "host", blank: false, choices: { host: "Host", ltg: "LTG", rtg: "RTG", pltg: "PLTG" } }),
+      kind: new fields.StringField({ initial: "host", blank: false, choices: { host: "Host", ltg: "LTG", rtg: "RTG", pltg: "PLTG", satellite: "Satellite" } }),
       grid: new fields.DocumentUUIDField({ type: "Actor", nullable: true, initial: null }),
       links: new fields.ArrayField(new fields.DocumentUUIDField({ type: "Actor" })),
       entryPoints: new fields.ArrayField(new fields.DocumentUUIDField({ type: "Actor" })),

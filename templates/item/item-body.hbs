@@ -741,6 +741,14 @@
     <input type="checkbox" name="system.deck.dniOnly" {{checked system.deck.dniOnly}} /></div>
   <div class="form-group"><label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
     <input type="checkbox" name="system.deck.iccm" {{checked system.deck.iccm}} /></div>
+  <div class="form-group"><label title="Satlink interface (VR2.0 p.88): jack in through a communications satellite (p.30)">Satlink:</label>
+    <input type="checkbox" name="system.deck.satlink" {{checked system.deck.satlink}} />
+    <select name="system.deck.satDish" title="The dish: a large portable one is −1 to locate a satellite, a fixed-base earth station −2 (p.88)">
+      <option value="standard" {{selected system.deck.satDish "standard"}}>Standard dish</option>
+      <option value="large" {{selected system.deck.satDish "large"}}>Large dish (−1)</option>
+      <option value="fixed" {{selected system.deck.satDish "fixed"}}>Fixed-base station (−2)</option>
+      <option value="temporary" {{selected system.deck.satDish "temporary"}}>Temporary dish</option>
+    </select></div>
   {{/if}}
   {{/if}}
 
@@ -1061,6 +1069,14 @@
     <input type="checkbox" name="system.deck.dniOnly" {{checked system.deck.dniOnly}} /></div>
   <div class="form-group"><label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
     <input type="checkbox" name="system.deck.iccm" {{checked system.deck.iccm}} /></div>
+  <div class="form-group"><label title="Satlink interface (VR2.0 p.88): jack in through a communications satellite (p.30)">Satlink:</label>
+    <input type="checkbox" name="system.deck.satlink" {{checked system.deck.satlink}} />
+    <select name="system.deck.satDish" title="The dish: a large portable one is −1 to locate a satellite, a fixed-base earth station −2 (p.88)">
+      <option value="standard" {{selected system.deck.satDish "standard"}}>Standard dish</option>
+      <option value="large" {{selected system.deck.satDish "large"}}>Large dish (−1)</option>
+      <option value="fixed" {{selected system.deck.satDish "fixed"}}>Fixed-base station (−2)</option>
+      <option value="temporary" {{selected system.deck.satDish "temporary"}}>Temporary dish</option>
+    </select></div>
   {{/if}}
   {{/ifEquals}}
   {{#ifEquals system.category "skillsoft"}}

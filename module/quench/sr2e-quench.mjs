@@ -14053,6 +14053,75 @@ export function registerSR2EQuenchTests() {
         assert.isTrue(cards().at(-1).flags.sr2e.vr2SystemTest.redirectDf);
       });
 
+      // 7c: a decker at a satellite uplink jackpoint (`satlink` on the deck or not).
+      const uplinkDecker = async (satlink, wired = null) => {
+        const [region] = await canvas.scene.createEmbeddedDocuments("Region", [{ name: "Quench Grid Uplink",
+          shapes: [{ type: "rectangle", x: 0, y: 0, width: 100, height: 100 }],
+          behaviors: [{ type: "jackpoint", name: "Jackpoint", system: { kind: "satellite", host: wired } }] }]);
+        regions.push(region);
+        const a = await mk({ name: "Quench Grid Decker", type: "character", system: { willpower: { base: 4 }, reaction: { base: 1 },
+          cyberdeck: { mpcp: 6, response: 3, deckMode: "hot", satlink, satDish: "standard" }, matrixPersona: { masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          { name: "Deception", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+        await Y.openConnection(a, { jackpoint: { jackpoint: region.behaviors.contents[0].uuid } });
+        await a.update({ "system.matrixMode": true }); await V.startSession(a);
+        return a;
+      };
+      /** Locate satellite with the dialog filled in: `cond` from the Satlink table; the Computer dice are `faces`. */
+      const locate = async (a, faces, cond = "clear") => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => {
+          const c = app.element?.querySelector('select[name="cond"]'); if (c) c.value = cond;
+          app.element?.querySelector('button[data-action="ok"]')?.click();
+        }, 50));
+        try { return await withFaces(faces, () => V.vr2LocateSatellite(a)); } finally { Hooks.off("renderDialogV2", id); }
+      };
+
+      it("7c: an uplink needs a satlink deck and a lock on that satellite; Karma can turn a miss into a lock", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const sat = await place("Quench Grid Satellite", "satellite");
+        const a = await uplinkDecker(false);
+        const before = cards().length;
+        await op(a, sat, "logonLTG");
+        assert.equal(cards().length, before, "no satlink interface: refused");
+        await a.update({ "system.cyberdeck.satlink": true });
+        await op(a, sat, "logonLTG");
+        assert.equal(cards().length, before, "no lock: refused");
+        await locate(a, [5, 5, 5, 5, 5], "downtown");            // TN 8: no successes
+        assert.isNull(V.satOf(a).lock, "a miss: no lock");
+        const test = game.messages.get(a.flags.sr2e.vr2SatLock.card);
+        await test.update({ "flags.sr2e.test.boughtSuccesses": 1 });
+        assert.ok(await settle(() => V.satOf(a).lock === sat.uuid, 3000), "Karma bought a success: locked on, to that satellite");
+        await op(a, sat, "logonLTG");
+        assert.equal(at(a), sat.uuid, "on the satellite");
+        assert.equal(cards().at(-1).flags.sr2e.vr2SystemTest.jackAccess, 2, "Access +2 from the uplink");
+        const ini = a._getInitiativeParts();
+        assert.equal(ini.base, Math.max(0, (a.system.reaction?.base ?? 0) + 6 - 2), "Reaction + 6 (Response 3) − 2 satlink lag");
+        assert.include(ini.notes.join(" "), "satlink lag −2");
+      });
+
+      it("7c: the satellite's tally carries to the RTG when that logon succeeds; a trace finds only the uplink", async function () {
+        this.timeout(30000);
+        if (!canvas?.ready) this.skip();
+        const sat = await place("Quench Grid Satellite", "satellite");
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const a = await uplinkDecker(true, sat.uuid);
+        await locate(a, [5, 5, 5, 5, 5]);
+        await op(a, sat, "logonLTG", { hostHits: 3 });
+        assert.equal(V.liveSession(a).tally, 3);
+        await op(a, rtg, "logonRTG", { win: false });
+        assert.equal(at(a), sat.uuid);
+        assert.equal(V.liveSession(a).tally, 4, "a failed attempt carries nothing (only its own 4)");
+        await op(a, rtg, "logonRTG", { hostHits: 1 });
+        assert.equal(at(a), rtg.uuid);
+        assert.equal(V.liveSession(a).tally, 4 + 1 + 3, "its own 5, then the satellite's 3 carried in");
+        const k = await traceOn(a, rtg, 0);
+        await synced();
+        assert.isTrue(traceOf(a, k).complete, "still traced: the other effects apply");
+        assert.ok(await settle(() => game.messages.contents.slice(n0).some(m => /satellite uplink<\/strong>: no physical location/.test(m.content)), 3000));
+        assert.notOk(game.messages.contents.slice(n0).some(m => /satellite uplink/.test(m.content) && /Dump the decker/.test(m.content)), "no dump");
+      });
+
       it("topology off: any host, any operation, as before", async function () {
         this.timeout(20000);
         await game.settings.set("sr2e", "vr2Topology", false);

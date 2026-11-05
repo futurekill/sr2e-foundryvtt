@@ -29,7 +29,7 @@ import { startRitual } from "../ritual.mjs";
 import { matrixQueue, sessionHost, connJackpoint } from "../jackpoints.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
-  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon, vr2DisconnectToGrid, currentPlace, topoSnapshot, knownPlaces, mappedHubs } from "../vr2.mjs";
+  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon, vr2DisconnectToGrid, currentPlace, topoSnapshot, knownPlaces, mappedHubs, satOf, vr2LocateSatellite } from "../vr2.mjs";
 import { reachable } from "../rules/vr2-grids.mjs";
 import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
@@ -2638,6 +2638,8 @@ async function onVR2Improvise(event) { event.preventDefault(); return vr2BuildIm
 /** @this {ApplicationV2} */
 async function onVR2Redetect(event) { event.preventDefault(); return vr2Redetect(this.document); }
 async function onVR2ScanIcon(event) { event.preventDefault(); return vr2ScanIcon(this.document); }
+/** Part 7c: Locate satellite (VR2.0 p.30). @this {ApplicationV2} */
+async function onVR2LocateSatellite(event) { event.preventDefault(); return vr2LocateSatellite(this.document); }
 /** Part 7a: Disconnect to grid (VR2.0 p.14). @this {ApplicationV2} */
 async function onVR2Disconnect(event) { event.preventDefault(); return vr2DisconnectToGrid(this.document); }
 /** @this {ApplicationV2} */
@@ -2732,7 +2734,7 @@ async function promptSystemOperationOptions(actor) {
     for (const k of Object.keys(ops)) {
       ok[k] = []; why[k] = [];
       for (const h of hosts) {
-        const r = reachable({ at, op: k, target: h.uuid, topo: t, jack, known, gm: game.user.isGM, mapped });
+        const r = reachable({ at, op: k, target: h.uuid, topo: t, jack, known, gm: game.user.isGM, mapped, sat: satOf(actor) });
         if (r.ok) ok[k].push(h.id); else why[k].push(`${h.name}: ${r.why}`);
       }
     }
@@ -4007,6 +4009,7 @@ const SHARED_ACTIONS = {
   vr2Redetect: onVR2Redetect,
   vr2ScanIcon: onVR2ScanIcon,
   vr2Disconnect: onVR2Disconnect,
+  vr2LocateSatellite: onVR2LocateSatellite,
   vr2Release: onVR2Release,
   vr2ic: onVr2Ic,
   vr2Medic: onVR2Medic,

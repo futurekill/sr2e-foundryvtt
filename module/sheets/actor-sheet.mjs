@@ -11,7 +11,7 @@ import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { gridSheetContext, gridEdit } from "../grids.mjs";
-import { liveSession, isCompressed, dinabLeft, optionOf, currentPlace, topoSnapshot } from "../vr2.mjs";
+import { liveSession, isCompressed, dinabLeft, optionOf, currentPlace, topoSnapshot, atSatUplink } from "../vr2.mjs";
 import { disconnectTarget } from "../rules/vr2-grids.mjs";
 import { taskOf, doneOf, writingOf, unfinished } from "../programming.mjs";
 import { programUnusable } from "../data/actor-data.mjs";
@@ -1599,7 +1599,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         const at = currentPlace(actor), topo = topoSnapshot();
         const known = actor.flags?.sr2e?.vr2Known ?? {};
         context.vr2Topo = { place: at?.name ?? null, connected: !!system.vr2Conn,
-          disconnect: !!(at && disconnectTarget(at.uuid, topo)),
+          disconnect: !!(at && disconnectTarget(at.uuid, topo)), satUplink: atSatUplink(actor),
           known: game.actors.filter(a => a.type === "host" && a.system.unlisted).map(a => ({ id: a.id, name: a.name, known: !!known[a.id] })) };
       }
     }

@@ -11,7 +11,9 @@ const GRID_OPS = {
   rtg: new Set(["locateAccessNode", "makeComcall", "redirectDatatrail"])
 };
 GRID_OPS.pltg = new Set([...GRID_OPS.ltg, ...GRID_OPS.rtg]);
-export const GRID_KINDS = new Set(["ltg", "rtg", "pltg"]);
+// 7c: a satellite "functions as an LTG" (p.30).
+GRID_OPS.satellite = GRID_OPS.ltg;
+export const GRID_KINDS = new Set(["ltg", "rtg", "pltg", "satellite"]);
 
 /** Jackpoints (p.28–29): Trace Factor and Access modifiers. Satellite's trace is p.30 (part 7c). */
 export const JACKPOINT_KINDS = {
@@ -126,6 +128,7 @@ export function scopeOf(uuid, topo) {
 export function wiredPlace(jack, topo) {
   const w = topo.get(jack?.wired);
   if (!w) return null;
+  if (jack.kind === "satellite") return w.kind === "satellite" ? w.uuid : null;   // 7c (R1 #2)
   if (jackpointKind(jack.kind).device) return GRID_KINDS.has(w.kind) ? null : w.uuid;
   if (w.kind === "ltg") return w.uuid;
   return topo.get(w.grid)?.kind === "ltg" ? w.grid : null;
@@ -135,6 +138,7 @@ export function wiringFits(jack, topo) {
   const w = topo.get(jack?.wired);
   if (!jack?.wired) return true;
   if (!w) return false;
+  if (jack.kind === "satellite") return w.kind === "satellite";
   return jackpointKind(jack.kind).device ? !GRID_KINDS.has(w.kind) : w.kind === "ltg";
 }
 
@@ -150,9 +154,10 @@ export function wiringFits(jack, topo) {
  * @param {Set<string>} [a.known] uuids whose address the decker knows
  * @param {boolean} [a.gm]        the GM always knows every address
  * @param {Set<string>|null} [a.mapped] hubs whose second-tier connections the decker has found (7b, p.36); null = all
+ * @param {{satlink?: boolean, lock?: string|null}} [a.sat] 7c: the deck's satlink and the satellite it has locked onto
  * @returns {{ok: boolean, why?: string}}
  */
-export function reachable({ at, op, target, topo, jack, known = new Set(), gm = false, mapped = null }) {
+export function reachable({ at, op, target, topo, jack, known = new Set(), gm = false, mapped = null, sat = {} }) {
   const P = at ? topo.get(at) : null;
   const T = topo.get(target);
   const no = (why) => ({ ok: false, why });
@@ -169,7 +174,13 @@ export function reachable({ at, op, target, topo, jack, known = new Set(), gm = 
   if (!P) {
     const k = jackpointKind(jack?.kind);
     wired = wiredPlace(jack, topo);
-    if (k.device) { ok = op === "logonHost" && isHost && !!wired && T.uuid === wired; why = wired ? "This jackpoint reaches only the host controlling its device (p.29)." : "This jackpoint isn't wired to a host (GM: set its \"Wired to\")."; }
+    if (jack?.kind === "satellite") {
+      // 7c (p.30, p.88): a satlink deck, locked onto that satellite, logs on to it as an LTG.
+      if (op !== "logonLTG" || T.kind !== "satellite" || (wired && T.uuid !== wired)) return no(wired ? "This uplink reaches only its own satellite (p.30)." : "From a satellite uplink, only Logon to LTG onto a satellite (p.30).");
+      if (!sat.satlink) return no("This deck has no satlink interface (VR2.0 p.88).");
+      if (sat.lock !== T.uuid) return no(`Lock on to ${T.name ?? "the satellite"} first: Locate satellite (p.30).`);
+      ok = true;
+    } else if (k.device) { ok = op === "logonHost" && isHost && !!wired && T.uuid === wired; why = wired ? "This jackpoint reaches only the host controlling its device (p.29)." : "This jackpoint isn't wired to a host (GM: set its \"Wired to\")."; }
     else { ok = op === "logonLTG" && T.kind === "ltg" && (!wired || T.uuid === wired); why = wired ? "This jackpoint connects to its own LTG (p.29)." : "From a trid jackpoint, only Logon to LTG (p.29)."; }
   } else if (P.kind === "ltg") {
     ok = (op === "logonLTG" && T.kind === "pltg" && (T.entryPoints ?? []).includes(P.uuid))
@@ -177,6 +188,9 @@ export function reachable({ at, op, target, topo, jack, known = new Set(), gm = 
       || (op === "logonHost" && isHost && T.grid === P.uuid);
   } else if (P.kind === "rtg") {
     ok = (op === "logonLTG" && T.kind === "ltg" && T.grid === P.uuid) || (op === "logonRTG" && T.kind === "rtg" && T.uuid !== P.uuid);
+  } else if (P.kind === "satellite") {
+    // "From the satellite, a decker can perform a Logon to RTG … to any RTG on earth" and reach the hosts using it (p.30).
+    ok = (op === "logonRTG" && T.kind === "rtg") || (op === "logonHost" && isHost && T.grid === P.uuid);
   } else if (P.kind === "pltg") {
     ok = (op === "logonLTG" && T.kind === "ltg" && (P.entryPoints ?? []).includes(T.uuid))
       || (op === "logonRTG" && T.kind === "rtg")
@@ -236,7 +250,7 @@ export function needsMapping(P, T, topo) {
 export function traceClass(place, topo) {
   const p = topo.get(place);
   const sc = scopeOf(place, topo);
-  return { place: place ?? null, scope: sc?.key ?? null, grid: !!p && (p.kind === "ltg" || p.kind === "rtg") };
+  return { place: place ?? null, scope: sc?.key ?? null, grid: !!p && ["ltg", "rtg", "satellite"].includes(p.kind) };
 }
 
 /**
@@ -265,3 +279,37 @@ export function governsJackpoint(trace, jack, topo) {
 
 /** Redirect Datatrail's opposing Security Test (p.117): the TN reduced by the jackpoint's trace modifier (user ruling: literal). */
 export const redirectTN = (df, jackKind) => Math.max(2, (Number(df) || 0) - jackpointKind(jackKind).trace);
+
+// ── Part 7c: satellite links (docs/PLAN-vr2-part7-grids.md, "7c in detail") ──────────────────
+
+/** The Satlink Target Numbers Table (p.30). */
+export const SATLINK_CONDITIONS = {
+  clear: { label: "Open country, clear view of horizon", tn: 2 },
+  obstructed: { label: "Open country, some obstructions", tn: 3 },
+  forest: { label: "Open country, mountains or heavy forest", tn: 6 },
+  suburban: { label: "Suburban", tn: 3 },
+  lightUrban: { label: "Light urban", tn: 6 },
+  downtown: { label: "Downtown urban", tn: 8 }
+};
+/** The dish (p.88): a large portable dish −1, a fixed-base earth station −2. */
+export const SATLINK_DISH = { standard: 0, large: -1, fixed: -2, temporary: 0 };
+/** Locate a satellite (p.30): the conditions' TN, +2 in bad weather, less the dish; never below 2. */
+export const satLocateTN = ({ condition = "clear", badWeather = false, dish = "standard" } = {}) =>
+  Math.max(2, (SATLINK_CONDITIONS[condition]?.tn ?? 2) + (badWeather ? 2 : 0) + (SATLINK_DISH[dish] ?? 0));
+
+/**
+ * A satellite's ratings (p.30–31): Orange-Average, Orange-Hard or Red-Hard, rolled on the Random Host System-Rating Table
+ * with no reduction. `dice` = the Security Value's dice, then each subsystem's: Average 1D3+6 and 2D3+9 (two d3 each),
+ * Hard 2D3+6 (two d3) and 1D6+12 (one d6).
+ */
+export const SATELLITE_KINDS = { orangeAverage: { code: "orange", hard: false }, orangeHard: { code: "orange", hard: true }, redHard: { code: "red", hard: true } };
+export function satelliteRatings(kind, dice) {
+  const k = SATELLITE_KINDS[kind] ?? SATELLITE_KINDS.orangeAverage;
+  const q = [...dice], take = (n) => q.splice(0, n).reduce((a, b) => a + b, 0);
+  const sv = k.hard ? take(2) + 6 : take(1) + 6;
+  const keys = ["access", "control", "index", "files", "slave"];
+  const subsystems = Object.fromEntries(keys.map(key => [key, k.hard ? take(1) + 12 : take(2) + 9]));
+  return { code: k.code, sv, subsystems };
+}
+/** The roll a satellite kind needs, in the order `satelliteRatings` reads it. */
+export const satelliteFormula = (kind) => (SATELLITE_KINDS[kind]?.hard ? "2d3 + 1d6 + 1d6 + 1d6 + 1d6 + 1d6" : "1d3 + 2d3 + 2d3 + 2d3 + 2d3 + 2d3");

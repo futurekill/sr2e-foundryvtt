@@ -51,6 +51,16 @@
           <label title="ICCM filter: −2 to simsense-overload TNs; −2 Power and −1 level of dump shock (VR2.0 p.124)">ICCM:</label>
           <input type="checkbox" name="system.cyberdeck.iccm" {{checked authoredDeck.iccm}} />
         </div>
+        <div class="form-group">
+          <label title="Satlink interface (VR2.0 p.88): jack in through a communications satellite (p.30)">Satlink:</label>
+          <input type="checkbox" name="system.cyberdeck.satlink" {{checked authoredDeck.satlink}} />
+          <select name="system.cyberdeck.satDish" title="The dish: a large portable one is −1 to locate a satellite, a fixed-base earth station −2 (p.88)">
+            <option value="standard" {{selected authoredDeck.satDish "standard"}}>Standard dish</option>
+            <option value="large" {{selected authoredDeck.satDish "large"}}>Large dish (−1)</option>
+            <option value="fixed" {{selected authoredDeck.satDish "fixed"}}>Fixed-base station (−2)</option>
+            <option value="temporary" {{selected authoredDeck.satDish "temporary"}}>Temporary dish</option>
+          </select>
+        </div>
         {{/if}}
       </div>
     </fieldset>
@@ -119,6 +129,8 @@
       </span>
       {{#if vr2Topo.disconnect}}<button type="button" data-action="vr2Disconnect" title="Disconnect from this host and go back to its grid, without ending the run: no test (VR2.0 p.14).">
         <i class="fas fa-arrow-up-from-bracket"></i> Disconnect to grid</button>{{/if}}
+      {{#if vr2Topo.satUplink}}<button type="button" data-action="vr2LocateSatellite" title="Isolate a satellite and lock onto its transponder: Computer vs the Satlink TN table, base time 3 minutes (VR2.0 p.30).">
+        <i class="fas fa-satellite-dish"></i> Locate satellite</button>{{/if}}
       {{/if}}
       {{#if (and isGM vr2Topo.known.length)}}
       <details class="vr2-known"><summary title="Unlisted addresses this decker knows (VR2.0 p.114): found by Locate Access Node, or told by the GM.">Known addresses</summary>

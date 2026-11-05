@@ -3,14 +3,14 @@
  * The decisions are pure (module/rules/vr2-grids.mjs); where a decker is and the tally ledger live with the
  * sessions in module/vr2.mjs. Grids are Host actors with a `kind`.
  */
-import { RTG_TABLE, easyGridRatings, variableShift, reachable, wiringFits, LOGON_OPS, GRID_KINDS } from "./rules/vr2-grids.mjs";
+import { RTG_TABLE, easyGridRatings, variableShift, reachable, wiringFits, LOGON_OPS, GRID_KINDS, satelliteRatings, satelliteFormula } from "./rules/vr2-grids.mjs";
 import { topologyOn, variableLTGOn } from "./vr2-mode.mjs";
-import { topoSnapshot, settleLogon, knownPlaces, settleMapping } from "./vr2.mjs";
-import { systemTestVerdict } from "./rules/sr2e-rules.mjs";
+import { topoSnapshot, settleLogon, knownPlaces, settleMapping, settleSatLock } from "./vr2.mjs";
+import { systemTestVerdict, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
-const KIND_LABEL = { host: "Host", ltg: "LTG", rtg: "RTG", pltg: "PLTG" };
+const KIND_LABEL = { host: "Host", ltg: "LTG", rtg: "RTG", pltg: "PLTG", satellite: "Satellite" };
 const OP_LABEL = { logonLTG: "Logon to LTG", logonRTG: "Logon to RTG", logonHost: "Logon to Host" };
 const places = () => game.actors.filter(a => a.type === "host");
 
@@ -30,12 +30,17 @@ export async function newGridDialog() {
       <div class="form-group"><label>From the table:</label><select name="row">${opts}</select></div>
       <hr><div class="form-group"><label>Or an unlisted public grid (Easy less 2, p.26):</label><input type="text" name="name" placeholder="Grid name"></div>
       <div class="form-group"><label>Its kind:</label><select name="kind"><option value="rtg">RTG</option><option value="ltg">LTG</option><option value="pltg">PLTG (private grid)</option></select></div>
-      <div class="form-group"><label>Security Code:</label><select name="code">${codes}</select></div>`,
+      <div class="form-group"><label>Security Code:</label><select name="code">${codes}</select></div>
+      <hr><div class="form-group"><label>Or a satellite (p.30; rolled on p.31, no reduction):</label><input type="text" name="satName" placeholder="Satellite name"></div>
+      <div class="form-group"><label>Its class:</label><select name="satKind"><option value="orangeAverage">Orange-Average (communications)</option>
+        <option value="orangeHard">Orange-Hard</option><option value="redHard">Red-Hard (military or corporate comsat)</option></select></div>`,
     buttons: [{ action: "table", label: "Create from the table", default: true, callback: (e, b) => ({ row: Number(b.form.elements.row.value) }) },
       { action: "custom", label: "Create unlisted (roll ratings)", callback: (e, b) => ({ name: b.form.elements.name.value.trim(), kind: b.form.elements.kind.value, code: b.form.elements.code.value }) },
+      { action: "satellite", label: "Create satellite (roll ratings)", callback: (e, b) => ({ satellite: b.form.elements.satKind.value, name: b.form.elements.satName.value.trim() }) },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!pick || pick === "cancel") return;
   if (pick.row != null) return createFromTable(RTG_TABLE[pick.row]);
+  if (pick.satellite) return createSatellite(pick.name || "Satellite", pick.satellite);
   if (!pick.name) return ui.notifications.warn("Give the grid a name.");
   const roll = await new Roll("6d3").evaluate();
   const r = easyGridRatings(roll.dice[0].results.map(d => d.result));
@@ -43,6 +48,19 @@ export async function newGridDialog() {
     Access ${r.subsystems.access}, Control ${r.subsystems.control}, Index ${r.subsystems.index}, Files ${r.subsystems.files}, Slave ${r.subsystems.slave}.`,
     whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id) });
   const a = await Actor.create({ name: pick.name, type: "host", system: { kind: pick.kind, ...ratingsData(pick.code, r.sv, r.subsystems) } });
+  a?.sheet.render(true);
+  return a;
+}
+
+/** A satellite place (p.30): "functions as an LTG", rated Orange-Average/Hard or Red-Hard, rolled with no reduction. */
+async function createSatellite(name, kind) {
+  const roll = await new Roll(satelliteFormula(kind)).evaluate();
+  const r = satelliteRatings(kind, roll.dice.flatMap(d => d.results.map(x => x.result)));
+  const cls = { orangeAverage: "Orange-Average", orangeHard: "Orange-Hard", redHard: "Red-Hard" }[kind] ?? kind;
+  await roll.toMessage({ flavor: `${esc(name)}: a ${cls} satellite (VR2.0 p.30–31): Security Value ${r.sv}, Access ${r.subsystems.access},
+    Control ${r.subsystems.control}, Index ${r.subsystems.index}, Files ${r.subsystems.files}, Slave ${r.subsystems.slave}.`,
+    whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id) });
+  const a = await Actor.create({ name, type: "host", system: { kind: "satellite", ...ratingsData(r.code, r.sv, r.subsystems) } });
   a?.sheet.render(true);
   return a;
 }
@@ -91,7 +109,7 @@ export function gridSheetContext(host) {
   const isHost = !GRID_KINDS.has(s.kind);
   return {
     kinds: KIND_LABEL,
-    gridChoices: others.filter(a => (s.kind === "ltg" ? a.system.kind === "rtg" : isHost ? ["ltg", "pltg"].includes(a.system.kind) : false))
+    gridChoices: others.filter(a => (s.kind === "ltg" ? a.system.kind === "rtg" : isHost ? ["ltg", "pltg", "satellite"].includes(a.system.kind) : false))
       .map(a => ({ uuid: a.uuid, name: a.name })),
     hasGrid: s.kind === "ltg" || isHost,
     isHost, isPltg: s.kind === "pltg", isRtg: s.kind === "rtg", isLtg: s.kind === "ltg",
@@ -167,6 +185,12 @@ export async function reportJackpointWiring() {
 export function registerGridHooks() {
   // A Karma reroll that changes a logon card's verdict moves the decker (R1 #3); the client that changed it writes.
   Hooks.on("updateChatMessage", (msg, changes, options, userId) => {
+    // 7c: a Karma reroll on a Locate satellite test can turn a miss into a lock (p.30).
+    const lock = msg.flags?.sr2e?.satLock;
+    if (lock && userId === game.user.id && foundry.utils.hasProperty(changes, "flags.sr2e.test")) {
+      const who = sync(lock.actorUuid);
+      if (who?.isOwner) settleSatLock(who, { conn: lock.conn, sat: lock.sat, card: msg.id, successes: testTotalSuccesses(msg.flags.sr2e.test) });
+    }
     const st = msg.flags?.sr2e?.vr2SystemTest;
     if (!st || userId !== game.user.id || !foundry.utils.hasProperty(changes, "flags.sr2e.vr2SystemTest")) return;
     const actor = sync(st.actorUuid);
