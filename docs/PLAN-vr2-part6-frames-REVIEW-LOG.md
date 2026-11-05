@@ -609,3 +609,12 @@ Both accepted.
 - #2: the pass completes EVERY move fact in order (logoff deletions skip sessions a later arrival made; arrival
   repairs carry `at` = the move's seq and fold there); every other SK write runs this completion first in the same
   sequencer task.
+
+## 6b Round 4 — Codex (fresh session, fix only; ~63k input tokens)
+
+1. **§4: replaying every logoff deletes later logon-attempt sessions.** After logging off host A, a new Logon attempt creates A’s session before test admission. The newly required completion at admission replays the old logoff and deletes that session: no later *arrival* exists yet. This breaks the test’s destination tally context and can erase retained failed-attempt tallies on subsequent writes. **Fix:** Record the departing session ID in each logoff fact and delete only that session, preserving sessions created by later attempts as well as arrivals.
+
+VERDICT: REVISE
+### Claude's response
+- **#1 accepted.** A logoff fact records the session id it left; the completion deletes only that entry, so a later
+  attempt's or arrival's session on the same host survives.

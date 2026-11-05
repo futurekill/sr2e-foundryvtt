@@ -1516,7 +1516,8 @@ tally, receipts }`:
 idempotently.
 
 **Every move fact is completed IN ORDER (R3 #2)**, never only the latest:
-- for a logoff, its left host's session entry is deleted (it skips a session a LATER arrival made);
+- for a logoff, the session entry it LEFT is deleted, identified by the session id the fact records
+  (`{ to: "", from, sessionId }`), so a later attempt's or arrival's new session on that host is never touched (R4 #1);
 - for an arrival with `repair`, the `sk-repair:arrive:<n>` fact is written if missing. That fact carries
   `at: <the move fact's seq>`, and the fold places it there (§5), so a hit that landed after the arrival but before
   the pass is never healed by it;
@@ -1527,8 +1528,8 @@ allocation or a test's admission. So no write is admitted against an unfinished 
 finished by the next pass, and a repeat changes nothing.
 
 **Graceful Logoff:** a System Test on its current host, its tally on that host's session.
-- **Success:** the fact `sk-move:<n>` `{ to: "", from }`. The pass sets `hostUuid = ""` and deletes the left host's
-  session entry (a later visit is a new session); the sheaf-pending entries survive (R2 #1).
+- **Success:** the fact `sk-move:<n>` `{ to: "", from, sessionId }`. The pass sets `hostUuid = ""` and deletes that
+  session entry, and only that one (a later visit is a new session). The sheaf-pending entries survive (R2 #1).
 - **Failure:** it stays.
 - Between hosts, an SK can only Logon.
 
