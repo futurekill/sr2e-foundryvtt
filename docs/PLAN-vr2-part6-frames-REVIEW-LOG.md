@@ -531,3 +531,6 @@ Static review only; Foundry runtime tests were not run.
 VERDICT: APPROVED
 
 **6a-2c code APPROVED in round 2.**
+
+# 6b plan review (SKs)
+Started 2026-11-05. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round, brief names the code locations.

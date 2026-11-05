@@ -1349,6 +1349,197 @@ st.actorUuid`), so every reactive fact goes on the OWNER's log, which the sequen
   and stays out after the GM removes it;
 - a copy's own DINAB on a smart combatant frame claims the frame's own phase.
 
+## 6b in detail: semi-autonomous knowbots (SKs)
+
+**Status: plan under review.**
+
+The pages were rendered for this section (2026-11-05): Semi-Autonomous Knowbots, SKs and Native Hosts, SK Ratings,
+Utility Pool, SK Response and Running an SK (pp.140–141).
+- **p.140:**
+  - SKs "are mobile virtual machines, personas without cyberdecks". They "can move".
+  - Native host: "All SKs repair any damage to their Condition Monitors and Persona Ratings by logging on to their
+    native hosts. If an SK is damaged while on its native host, it may receive the effects of a medic or restore
+    program at a rating equal to its MPCP by spending a Complex Action. Such repairs do not require points from the
+    SK's Utility Pool. Naturally, SKs have passcodes for their native host systems."
+  - Ratings: "MPCP Rating of an SK equals 1D6 + 6. The MPCP Rating multiplied by 3 equals the maximum total of the
+    SK's Bod, Evasion, Masking, and Sensor programs. No single Persona Rating may exceed the MPCP Rating. All SKs have
+    a Computer Skill equal to their MPCP Ratings."
+- **p.141:**
+  - "SKs do not load utility programs. Instead, every SK has a Utility Pool of points equal to its MPCP Rating + 1D6."
+  - **The sample table has one misprint.** MPCP-8 prints "Pool: 9 to 17". MPCP + 1D6 is 9 to 14, and every other row
+    matches the formula (8–13, 10–15, 11–16, 12–17, 13–18). The table's six persona splits each total exactly MPCP × 3.
+  - **Utility Pool:**
+    - "Allocating points is a Free Action". "Each point from the pool acts as 1 Program Rating Point. The maximum
+      rating for any utility is equal to the SK's MPCP Rating."
+    - "Black hammer and killjoy programs require 2 Utility Pool points for each Program Rating Point."
+    - "Any Utility Pool points allocated to restore or medic programs cannot be re-allocated until the SK returns to
+      its native host and regenerates its code."
+    - Points may go to the SK's Initiative.
+  - **SK Response:** "base Reaction Rating equals its MPCP Rating, with 1D6 for initiative": 1 point → 2D6, 3 points →
+    3D6, 5 points → 4D6, "the maximum increase allowed".
+  - **Running an SK:**
+    - "SKs behave like fanatically dedicated deckers".
+    - "When the SK's Condition Monitor is filled, the program crashes and is gone."
+    - "SKs cannot jack out … They must perform Graceful Logoff operations to leave hosts and Logon to Host operations
+      to access their native hosts".
+
+**Who runs an SK (Claude's reading, flagged in Risks).** SKs are major-power assets ("should be limited to major
+adventures", p.140), so in this system an SK is the GM's icon, like IC. Its writes (damage, repair, allocation) go
+through the active GM's sequencer. A GM who gives a player OWNER permission lets that player roll its tests, but the
+facts are still written by the sequencer.
+
+**Out of 6b:** True AI (p.141–142: GM fiat), and building SKs by programming (p.140: a Red-10 mainframe and six top
+programmers is a story, not a test). The GM creates an SK directly.
+
+### 1. An SK is a frame actor with `kind: "sk"`
+SKs reuse 6a-2c's machinery: a smart frame that acts as itself, with its own session and tally, an `Act…` dialog,
+attacker keys, Initiative and the frame-target paths. What an SK changes is listed here.
+- **Schema:** `FrameData.kind` gains `sk`. Choices are added to an existing StringField whose initial value is
+  `dumb`, so existing documents stay valid. Check `invalidDocumentIds` after the change.
+  - New fields: `nativeHostUuid` (string) and `pool` (integer ≥ 0, the rolled Utility Pool total).
+  - `coreRating` is the **MPCP**, `dinab` is its **Computer** (= MPCP), `initPoints` is unused (§3), and `uploadId` is
+    the SK's **incarnation id**: a fresh random id at creation.
+  - No owner: `ownerUuid` is "".
+- **Every frame-only rule that assumes an owner or an upload gets an SK branch.** Grepped:
+  - `stateFor`/`frameState`: an SK's facts are on the SK ITSELF (§5), not an owner's log. It ends only by crashing
+    (its monitor) or deletion. No upload, departure or owner.
+  - `commandProblem`/`smartProblem`: an SK passes `smartProblem` like a smart frame, with an SK op list (§4).
+  - `reconcileDocs`/`reconcileOwner`/`reconcileAllFrames`: an SK has no upload and isn't swept for a missing owner.
+    `reconcileAllFrames` skips `kind: "sk"`.
+  - `joinCombats`: an SK has no owner to follow. The GM adds it to a combat from its token, as with IC.
+  - `liveSession(sk)`: its session record, as a smart frame's.
+  - `phaseKey`, `tallyHolder`: as a smart frame's (itself).
+  - The frame sheet shows SK sections (§6).
+
+### 2. Creating an SK (the GM)
+**New SK…** is a button in the Actor Directory (GM only, beside **New grid…**). Its dialog:
+- **native host** (a host);
+- **MPCP:** roll 1D6 + 6 (a visible chat roll), or set 7–12 by hand;
+- **Bod, Evasion, Masking, Sensor**, validated by the pure `skProblems({ mpcp, bod, evasion, masking, sensor })`:
+  - each ≤ MPCP;
+  - the total ≤ MPCP × 3;
+- **Utility Pool:** MPCP + 1D6 (a visible roll), or set by hand;
+- **a preset** from the p.141 table fills the persona ratings (MPCP-7/6/5/5/5 … MPCP-12/9/9/9/9).
+
+The SK is created with its session on the native host, `flags.sr2e.vr2Session = { id, hostUuid: native, hostName,
+tally: 0, receipts: {}, conn: null }` (6a-2c §2), its own token prototype, and GM ownership.
+
+### 3. The Utility Pool (p.141)
+**Allocations are records on the SK**, written by the sequencer so two GM devices can't race (requirement:
+"serialized allocation"):
+- **Allocate…** on the SK's sheet is a Free Action. It edits the whole allocation as a table: utility name → rating,
+  plus Initiative points.
+- **The pure `poolProblems({ pool, mpcp, alloc, locked })`:**
+  - cost = Σ rating, except black hammer and killjoy at 2 points per rating point;
+  - plus Initiative points;
+  - the cost must be ≤ the pool;
+  - each rating must be ≤ MPCP;
+  - Initiative points must be 0, 1, 3 or 5 (the table's steps; "5 points provides 4D6 — the maximum");
+  - **locked:** a restore or medic allocation may not drop below its locked rating.
+- **The request** `skAlloc { alloc, init, rev }` is checked by the sequencer against the SK's current allocation
+  revision. A stale dialog is refused ("allocated elsewhere meanwhile: reopen"), and the fact `sk-alloc:<rev+1>`
+  records the whole allocation.
+- **The allocation is materialized as program items (requirement: "versioned virtual utilities").** The sequencer
+  turns the new allocation into embedded `program` items on the SK, one per utility (name, rating, `loaded: true`,
+  `flags.sr2e.skPool: { rev }`):
+  - a utility whose rating changed, or that was crashed, is REPLACED by a fresh item. Wear, crash records and the
+    one-shot/DINAB markers all key on the item and its loadGen, so the new version starts clean, as a Swap Memory
+    does for a deck;
+  - an unchanged utility keeps its item, wear included;
+  - a dropped utility's item is deleted.
+  - These items are design-locked like frame copies (6a-2a's `preUpdateItem` guard), except to the sequencer's own
+    writes (an option flag).
+  - So `activePrograms`, `bestUtility`, `spendUse`, wear and tar all work on an SK unchanged.
+- **Restore and medic lock (p.141):** a restore or medic allocation sets `locked[name] = rating` in the same fact.
+  The lock clears only with a **regeneration** (§5).
+- **Initiative points:** `_getInitiativeParts` for an SK is base MPCP, dice from `skInitDice(points)` (0 → 1, 1 → 2,
+  3 → 3, 5 → 4).
+
+### 4. Acting and moving (p.141)
+- **Act…** (the SK's sheet) is 6a-2c's dialog with `ctx = { frame: sk, smart: true }`:
+  - its Computer is MPCP (`dinab` = MPCP);
+  - no pools or Karma;
+  - its programs are the pool's items;
+  - its own tally.
+- **The SK's operation list:** everything a smart frame has, plus **Logon to Host** and **Graceful Logoff**:
+  - "SKs cannot jack out": no Jack out, no Disconnect;
+  - no Logon to LTG/RTG: grid travel is the GM's narration for an SK. *Topology rules don't model a deckless icon's
+    route, so a Logon to Host on any host is allowed, flagged in Risks*;
+  - Decoy and Redirect Datatrail are refused, as for smart frames.
+- **Logon to Host** is a System Test like a decker's (Access, Deception from its pool):
+  - **success:** the SK's session moves to that host. A new session record (tally 0; ledger rules don't apply) and
+    `frame.system.hostUuid` = the new host, in ONE update by the sequencer;
+  - **to its native host:** no test ("passcodes for their native host systems", p.140). It moves at once and is
+    REPAIRED (§5).
+- **Graceful Logoff** (a System Test): success leaves the SK on no host (`hostUuid` ""). Its session is closed, and it
+  can then only Logon to Host. A failure keeps it where it is.
+- **Trace IC can't trace an SK:** it has no jackpoint (6a-2c's rule).
+
+### 5. Damage, repair and crash: facts on the SK itself
+**Every fact is written by the sequencer on the SK** (`fact(sk, …)`). The SK is GM-owned, so the active GM writes it
+directly in the sequencer queue. A non-sequencer client sends nothing, and the button says "the active GM resolves
+an SK" (requirement: one writer).
+- **Hits and attribute losses:** 6a-2a's `frameHit` and 6a-2b's `frameAttr`, with the facts on the SK, not an
+  owner. `hitFrame` and `attrFrame` gain the SK branch.
+- **The monitor and attributes are folded** from those facts, **since the latest `skRepair` fact**:
+  - `frameMonitor` and `frameAttrLosses` take a `since` seq;
+  - a repair zeroes what came before it.
+- **Repair (p.140), arriving at its native host:** the sequencer writes `sk-repair:<n>` `{ why: "native host",
+  unlock: true }` in the same pass as the move.
+  - It ends all damage and restores every attribute.
+  - It clears the restore and medic locks: "until the SK returns to its native host and regenerates its code".
+- **Regenerate (p.140)** is a Complex Action button while ON its native host:
+  - "the effects of a medic or restore program at a rating equal to its MPCP", with no pool;
+  - it rolls MPCP dice against the Medic TN for its wound level (as `vr2Medic`) and writes
+    `sk-repair:<n>` `{ boxes, why: "regenerate" }`;
+  - or, for Restore, MPCP dice against the restore TN, with `{ attr, points }`.
+  - A partial repair is a fact that lowers the fold, not a reset.
+- **Crash:** "When the SK's Condition Monitor is filled, the program crashes and is gone": 10 boxes → `frameState`
+  ended → 6a-2a's cleanup removes its tokens and combatants. The actor is NOT deleted: it stays as the GM's record,
+  marked crashed. Its locks and Tracks end (the frame key).
+- **A pass for SKs.** `schedule` runs only for characters. A `createActiveEffect` hook on an SK's record effects
+  schedules `skPass(sk)` in the sequencer: replay resolutions and wear (6a-2a's functions, pointed at the SK), and
+  apply a pending move.
+
+### 6. The SK's sheet (the frame sheet with `kind: "sk"`)
+- MPCP, Computer, the persona ratings (after losses), Initiative (MPCP + nD6);
+- the monitor;
+- the Utility Pool: total, allocated, free, locked;
+- its own tally and current host, or "between hosts";
+- buttons:
+  - **Act…**;
+  - **Allocate…**;
+  - **Regenerate** (on its native host, while damaged);
+  - **Logon to native host** (no test, when not there).
+
+### 7. Tests (6b)
+**Vitest:**
+- `skProblems`: each rule, plus every p.141 sample;
+- `poolProblems`:
+  - black hammer at 2:1;
+  - Initiative steps 1/3/5 only;
+  - a rating above MPCP;
+  - a cost over the pool;
+  - a locked medic lowered;
+- `skInitDice`;
+- the monitor and attribute fold with a repair in the middle;
+- the pool roll range (MPCP + 1D6; the MPCP-8 "9 to 17" misprint noted).
+
+**Quench `sr2e.vr2-frames` additions:**
+- New SK… creates one on its native host with its own session; persona validation refuses 13/…;
+- allocate Attack-6, Armor-3, Initiative 3:
+  - items appear;
+  - Initiative is MPCP + 3D6;
+  - a stale revision is refused;
+  - re-allocating Attack to 4 replaces its item, and Armor keeps its wear;
+- medic allocated, then lowered: refused until a repair;
+- the SK acts (Locate IC) with MPCP dice, and its tally rises;
+- Graceful Logoff, then Logon to a host: the session moves and the tally starts at 0;
+- damage from an IC attack lands on the SK; Logon to native host repairs it and unlocks;
+- Regenerate on the native host heals boxes;
+- 10 boxes: crashed, the token removed, the actor kept and marked crashed;
+- trace IC targeting an SK is refused.
+
 ## Requirements carried to the 6a / 6b / 6c plans (Codex R1, accepted)
 Each phase gets its own detailed plan, Codex-reviewed before code. It must answer:
 - **6a, frame decoys:** a separate mode from plain decoys (security goes after the frame, the decker stays inactive,
@@ -1399,6 +1590,9 @@ Each phase gets its own detailed plan, Codex-reviewed before code. It must answe
   measures"), and outranks a 6a-0 decoy while it lives; cripplers hit a frame's attributes (it is an icon with them).
 - **6a-2c reading (Claude's, flagged for the user):** a smart frame's own DINAB-as-skill doesn't wear on failure
   (p.103's wear is the option running a program; p.106 makes a smart core's DINAB its Computer skill).
+- **6b readings (Claude's, flagged for the user):** SKs are the GM's icons (writes through the sequencer); an SK's
+  Logon to Host isn't limited by grid topology (the book gives a deckless icon no route rules); logging on to its
+  native host needs no test (its passcode); a crashed SK's actor is kept as the GM's record.
 - **Concurrency:** a frame actor created by the GM client for a player's upload, and its crash on logoff through the
   sequencer, so a logoff on one device and a command on another can't race.
 - **Scale:** many frames on a host make many combatants. Fine for table scale.
