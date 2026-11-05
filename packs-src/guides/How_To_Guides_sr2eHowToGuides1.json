@@ -368,6 +368,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> make a running dumb frame work for you: run an operation, attack, or act as a decoy (Virtual Realities 2.0\npp.106–107).</p>\n<p><img src=\"systems/sr2e/assets/guides/frame-command.gif\" alt=\"A decker commands a frame: an operation through it, then a Decoy that makes it a decoy frame\"></p>\n<p><strong>The decker</strong></p>\n<ol>\n<li>Upload a dumb frame and stay on its host (see <em>Upload and run a frame</em>).</li>\n<li>On the Matrix tab, click <strong>Command…</strong> on the frame&#39;s row.</li>\n<li>Pick what it does: a System Operation, an attack or Scan Icon or a maneuver (target the icon first), or an event\ntrigger. Set your Hacking Pool and Karma as for your own tests.</li>\n<li>Each command is a Simple Action of yours. For another attack, give another command.</li>\n</ol>\n<p><strong>A decoy frame</strong></p>\n<ol>\n<li>Command the frame to run <strong>Decoy</strong> (it needs a Mirrors program).</li>\n<li>While you stay inactive, every IC attack on you goes to the frame instead. A Null Operation still counts as waiting.</li>\n<li>Your own next action ends it: chat says so.</li>\n</ol>\n<p><strong>The GM</strong></p>\n<ul>\n<li>Roll IC attacks on a decker with a decoy frame yourself: the system sends them to the frame.</li>\n<li>Fire an event trigger from the frame&#39;s sheet when the event happens.</li>\n</ul>\n<p><em>Tips</em></p>\n<ul>\n<li>A core with DINAB can run a program for free once per action: tick <em>Run by the core&#39;s DINAB</em>.</li>\n<li>Cripplers lower a frame&#39;s attributes; its sheet shows &quot;Bod 1 of 3&quot; and so on.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "03ea079cb785287f",
+      "name": "Run a smart frame (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> put a smart frame to work: it acts on its own turns, with its own skill and tally (Virtual Realities 2.0\npp.105–107).</p>\n<p><img src=\"systems/sr2e/assets/guides/smart-frame.gif\" alt=\"A smart frame takes an order, then acts on its own from its sheet\"></p>\n<p><strong>The decker</strong></p>\n<ol>\n<li>Build, load and upload a <strong>smart</strong> frame core (see <em>Build and load a frame core</em> and <em>Upload and run a frame</em>).</li>\n<li>On its host, click <strong>Order…</strong> on the frame&#39;s row and type its basic order. It&#39;s a Free Action.</li>\n</ol>\n<p><strong>Running the frame</strong> (the decker&#39;s player, or the GM)</p>\n<ol>\n<li>Open the frame&#39;s sheet and click <strong>Act…</strong>.</li>\n<li>Pick a System Operation, or target an icon and pick an attack, Scan Icon or a maneuver.</li>\n<li>The frame rolls its DINAB rating; its own tally rises on its sheet.</li>\n</ol>\n<p><strong>In combat</strong></p>\n<ul>\n<li>The frame joins a combat its decker fights in, with Core Rating + 1D6 (+1 die per Initiative point), and acts on its\nown turns. Remove it from the tracker and it stays out.</li>\n</ul>\n<p><em>Tips</em></p>\n<ul>\n<li>It keeps running after the decker jacks out, until it crashes or its host shuts down.</li>\n<li>Trace IC can&#39;t trace a smart frame. Decoy needs a dumb frame.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"

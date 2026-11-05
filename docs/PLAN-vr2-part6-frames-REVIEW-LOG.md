@@ -505,3 +505,29 @@ No findings. The two receipts preserve interrupted-join recovery and respect rem
 
 VERDICT: APPROVED
 **6a-2c plan APPROVED in round 3.**
+
+## 6a-2c Code round 1 — Codex (fresh session, commit 7cc88cf; ~873k input tokens)
+
+1. **module/frames.mjs:397 — Combat joining can be permanently lost.** An interrupted join resumes with `joining=true` even when its token is unavailable. The code skips creation but still writes `frameJoined`; it also writes completion after any creation error. Later passes never retry, even when eligibility returns.  
+   **Fix:** Write `frameJoined` only after confirming the expected combatant exists; otherwise retain the pending intent.
+
+2. **module/vr2.mjs:787 — Smart-frame System Tests silently discard miscellaneous dice.** `commandFrame` displays and forwards `miscDice`/`miscLabel`, but the `dinab || smart` branch drops both. A DINAB-6 smart frame given a −2 dice modifier still rolls six dice.  
+   **Fix:** Forward miscellaneous modifiers for smart-frame skill tests while continuing to exclude pools and Karma.
+
+VERDICT: REVISE
+### Claude's response (fix afad66c)
+- **#1 accepted.** `frameJoined` is written only when the combatant exists; otherwise the `joining` intent stays and a
+  later pass retries.
+- **#2 accepted.** A smart frame's own skill test forwards the GM's misc dice (pools and Karma stay out).
+- Found while recording the GIF (same fix commit): the frame sheet never registered its buttons' `vr2ic` action, so
+  **Act…**, **Release** and 0.137.0's GM **Fire** did nothing. Registered; the trigger test now clicks the real button.
+
+## 6a-2c Code round 2 — Codex (fresh session, fix only; ~212k input tokens)
+
+No findings. All three fixes are correct within scope: joins retain retryability without introducing loops or duplicates; smart-frame System Tests preserve misc dice; sheet actions retain permission enforcement.
+
+Static review only; Foundry runtime tests were not run.
+
+VERDICT: APPROVED
+
+**6a-2c code APPROVED in round 2.**
