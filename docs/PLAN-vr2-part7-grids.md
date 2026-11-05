@@ -1,6 +1,6 @@
 # Plan: VR2.0 part 7: grid topology
 _Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson). **7a Codex-APPROVED round 3; BUILT and released in 0.132.0 (code review approved round 4).**
-**7b Codex-APPROVED round 4; BUILT and released in 0.133.0 (code review approved round 2)**; **"7c in detail" is under review** (2026-11-05). No code before review._
+**7b Codex-APPROVED round 4; BUILT and released in 0.133.0 (code review approved round 2)**; **7c Codex-APPROVED round 3 (2026-11-05), not built**. No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
 - Matrix Topology pp.14–15;
@@ -689,7 +689,7 @@ so the answer is the GM's.
   modifier;
 - topology off: the trace, redirects and hosts are unchanged.
 
-## 7c in detail: satellite links (the part under review)
+## 7c in detail: satellite links
 
 Builds on 7a and 7b as released (0.132.0, 0.133.0). The pages behind it were rendered for this section (2026-11-05):
 **Satellite Links** (p.30), **Satlink Interface** (p.88), and the Random Host System-Rating Table (p.31).

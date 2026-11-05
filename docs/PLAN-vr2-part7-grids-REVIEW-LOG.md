@@ -275,3 +275,11 @@ VERDICT: REVISE
 ### Claude's response
 - **#1 accepted.** The lock write includes `sat`. The card carries `{ conn, sat }`, and a Karma rewrite rebuilds the
   whole record from the card.
+
+## 7c Round 3 — Codex (fresh session, brief; ~57k input tokens)
+
+§3’s revised lock write and Karma reconstruction preserve both `conn` and `sat`. No broken fix or new material problem found.
+
+VERDICT: APPROVED
+
+**7c APPROVED in round 3.**
