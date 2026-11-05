@@ -328,3 +328,78 @@ VERDICT: APPROVED
 
 # 6a-2b plan review (commanding dumb frames, DINAB cores, decoy frames, event triggers)
 Started 2026-11-05. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round, brief names the code locations.
+
+## 6a-2b Round 1 — Codex (fresh session; ~319k input tokens — read widely despite the brief)
+
+1. **Frame attacks lack an admission path.** Plan §1 table and §3 (lines 767, 820–824); `vr2ic.mjs:1616–1621` and the `createChatMessage` hook near 1996. Both admission readers require `attackerType === "character"`. Setting the attack’s identity to the frame without updating these readers leaves attacks on connected deckers unadmitted; resistance waits and refuses. `attackerInc` also needs the commander’s crash incarnation to match the commander’s key.  
+   **Fix:** Explicitly distinguish icon identity from commander identity, and update both admission readers and the incarnation snapshot.
+
+2. **Slow suppression is assigned to the frame instead of its commander.** Plan §1/§3 (lines 767, 820–827); `slowResult`, `slowPrompt`, and `slowSuppress` in `vr2ic.mjs:1003–1096`. Slow stores `st.attackerUuid` as `deckerUuid` and `st.attackerSession` as the suppression session. The proposed frame values route suppression to an actor with no live decker session, so suppression fails and cannot debit the commander’s Detection Factor.  
+   **Fix:** Preserve separate commander UUID/session fields and use those for Slow’s suppression bookkeeping.
+
+3. **The Track Sensor change lacks a durable source.** Plan §3 (lines 823–824); `vr2ic.mjs:941–942,1304`. Relocate reads a folded trace, not the attack card. The trace receipt currently retains neither the card ID nor `via`, so adding `via` only to the card cannot implement the proposed read.  
+   **Fix:** Carry the tracking-icon reference into the trace receipt and define its handling when that frame ends.
+
+4. **Maneuver context omits both attribute rules and tally readers.** Plan §1 table and §2 (lines 768, 792–794); `vr2.mjs:1735–1752,1799` and `maneuverState`. The claim that `vr2Maneuver` rolls Computer is false: it rolls Evasion. Cloak and Lock-On are also restricted to character actors. Moreover, evade records/readers obtain tally through the maneuvering actor’s session; a frame has none, so its commander’s rising tally will not shorten evasion.  
+   **Fix:** Specify frame Evasion/Cloak and opponent Sensor/Lock-On explicitly, retain existing no-context dice, and resolve evade tally through the commander while keeping maneuver identity on the frame.
+
+5. **The command refusals lack an execution-time boundary.** Plan §2 (lines 787–814); `systemTestNow`, `attackOnce`, and `vr2ScanIcon` in `vr2.mjs`. Filtering the Command dialog does not prevent a utility crashing, the frame ending, or the owner leaving while a subsequent dialog is open. System Tests explicitly permit a missing utility, and attack execution can call `sessionFor` using the dialog-selected host.  
+   **Fix:** Revalidate the frame, owner connection/session, fixed host, allowed operation, and active copy inside each execution path immediately before spending, with an incarnation check before posting results.
+
+6. **Tar needs more than item lookup redirection.** Plan §1 (lines 775–782); `tarStrike` and `reconcileTarFact`, `vr2ic.mjs:732–789`. These functions use their actor for Sensor, one-shot victims, crash records, tar receipts, MPCP/Hardening, and corruption destinations. Merely resolving `utilityRef` on the frame still crashes the owner’s log; passing the frame wholesale instead changes connection/deck semantics and moves receipts outside the owner reconciliation path.  
+   **Fix:** Give tar an explicit commander/icon context and persist the copy recipient in its owner-log receipt so replay uses the same recipient.
+
+7. **“All security measures” misses attacks outside `attackOnce`.** Plan §4 (lines 875–895); `offerTar`, `bombEnd`, and reactive dispatch in `vr2ic.mjs:577–605,639–668,1912–1935`. Data bombs—including exploding scramble—create their attack cards directly against the commander. They never enter the proposed redirect and therefore damage the decker during frame-decoy mode.  
+   **Fix:** Apply the decoy-frame target decision to reactive attack creation too, retaining tally ownership on the commander.
+
+8. **A deterministic fold does not serialize redirect against own actions.** Plan §4 (lines 865–887); `attackOnce` in `vr2.mjs:1055–1297`, `recordEvent` in `claims.mjs:33`. One client can capture the frame target before another client’s off record arrives, then finish its dialog and roll after the decker acts. There is no admission or shared ordering point to settle that race.  
+   **Fix:** Serialize redirect selection and own-action termination through a shared authoritative boundary, then bind the attack to that decision before calculating target terms.
+
+9. **Own-action termination can be bypassed or retroactively undone.** Plan §4 (lines 849, 859–867); `vr2Decompress` at `vr2.mjs:1986`, `relocate` at `vr2ic.mjs:1290`. Both are omitted from the own-action list. Also, writing an off record only when a decoy is currently successful lets a failed Decoy later become successful through Karma *after* an intervening own action, activating a mode that should already have ended.  
+   **Fix:** Record every qualifying own-action boundary regardless of current decoy success, include these action paths, and compare decoy establishment against that durable history.
+
+10. **The decoy fold can resurrect an older frame.** Plan §4 (lines 851–857). Selecting the newest record that also has a surviving frame and no off record skips a newer successful decoy once it crashes or is switched off, exposing an older successful record again.  
+    **Fix:** Select the newest success/deleted-card barrier first, then test that selected record for termination without falling back to earlier decoys.
+
+11. **Core-DINAB failure handling is incomplete.** Plan §5 (lines 908–913); `dinabZeroed` at `vr2.mjs:1338`, `dinabWear` at `vr2ic.mjs:1098`, and `programUnusable` at `actor-data.mjs:32`. The plan covers misses but not attacks fully defeated by resistance, which existing DINAB wears. Its stated crash call also supplies no payload; `programUnusable` requires `type`, `programId`, and matching `loadGen`, not merely the key.  
+    **Fix:** Add an explicit core-DINAB source to resolution receipts and wear dispatch, and write complete crash payloads using the captured copy generation.
+
+12. **Attribute loss must be calculated in sequencer order.** Plan §6 (lines 924–929); `resistAttribute` at `vr2.mjs:1655–1672`. Card-keyed deduplication prevents duplicate application of one card, but not two different cards calculating capped loss from the same old attribute. Two concurrent crippler hits can each claim the same remaining points and push the aggregate below their floor of 1.  
+    **Fix:** Send attack/resistance results and floor to `frameAttr`, and calculate the actual loss against current folded attributes inside the sequencer.
+
+13. **Owner-log attribute changes will not automatically refresh frame derived data.** Plan §6 (lines 927–929); `FrameData.prepareDerivedData` at `actor-data.mjs:2468`, frame hooks in `frames.mjs`. Adding an effect to the owner prepares the owner, not the separate frame actor. Merely reading `frameState` during frame preparation can leave `matrixPersona` stale after damage.  
+    **Fix:** Explicitly invalidate/reprepare affected frame actors when owner attribute facts change, including initial load and reconciliation.
+
+14. **Trigger firing is GM-only only in the UI.** Plan §7 (lines 954–962); `processRequests` at `vr2ic.mjs:1454–1470`, versus `uploadDone` in `frames.mjs`. The request dispatcher does not enforce GM authority; the listed handler checks omit `r.user`. An owner can submit `triggerFire` directly and manufacture a report.  
+    **Fix:** Require a GM requester in the handler, and resolve the trigger’s existence, frame, watch, and note from its durable setting record.
+
+15. **Trigger delivery and inactivity have no recoverable receipt contract.** Plan §7 (lines 956–969); `processRequests`, `frames.mjs:180` (`replayResolutions`), and `vr2.mjs:659` (`commitAction`). A fire fact followed by an interrupted chat creation can lose the report; a retry can duplicate it unless card creation is idempotent. The inactivity annotation also cannot be derived from `commitAction`, which only clears a failed improvised build and records no general action history.  
+    **Fix:** Persist the firing outcome/recipients in a receipt, replay a deterministically identified report, and derive inactivity from explicit action-boundary records.
+
+VERDICT: REVISE
+### Claude's response
+All 15 accepted; the section is revised in place (each change marked "R1 #n").
+- #1–#3: the card carries TWO identities, the icon (`attackerUuid` = frame, `attackerType: "frame"`) and the
+  commander (`commanderUuid`, `commanderSession`, the decker's key and crash incarnation). Every reader branching on
+  `attackerType === "character"` (admission, the admission hook, Slow's suppression, key parsers) treats a frame the
+  same and reads the commander. A Track through a frame keeps `via` in its trace receipt, reads that frame's Sensor
+  and ends with the frame.
+- #4: corrected. A maneuver is Evasion vs Sensor (not Computer): the frame's Evasion and Cloak, a frame opponent's
+  Sensor and Lock-On; an evasion's tally clock reads the commander's session; the type checks gain `frame`.
+- #5: `ctx.check()` re-derives the command's preconditions just before `spendUse` and before the card is posted.
+- #6: tar gets an explicit context: the fact stays on the owner's log with the recipient frozen in the receipt, a
+  complete crash record on the frame, the Core Rating as MPCP, no Hardening, no corruption destination.
+- #7: `securityTarget()` routes reactive measures (tar, bombs, scramble): a test by a frame is answered on the frame;
+  the decker's own test during a decoy frame goes to the frame.
+- #8: the off record is a sequencer fact (request), and an IC attack on a decker with an un-off decoy frame is rolled
+  by the active GM after `Y.flush()`, so the two have one order.
+- #9: `ownAction` covers every `commitAction` caller, every DINAB branch, relocate and decompress; it ends ANY
+  un-off decoy-frame record, so a later Karma success can't revive it.
+- #10: the fold selects the newest barrier record first and tests it alone; no fallback.
+- #11: the core-DINAB ref rides the card like 5b's, so `dinabFail`, `dinabZeroed` and `dinabWear` all reach it; the
+  crash record has the full payload.
+- #12: `frameAttr` is computed by the sequencer from the current folded attribute.
+- #13: `reconcileOwner` and the owner's record-effect hook re-prepare and re-render the owner's frames.
+- #14: `triggerFire` refuses a non-GM requester and reads the trigger from its durable record.
+- #15: the firing outcome is in the fact and the report is a `once` card replayed on the owner's pass; the derived
+  "inactivity" note is dropped (it's the GM's call).

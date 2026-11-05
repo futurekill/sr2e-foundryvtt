@@ -763,23 +763,46 @@ The plan names each read, so none is missed:
 
 | Function | Reads that become `icon` | Reads that stay `commander` |
 |---|---|---|
-| `systemTestNow` (vr2.mjs ~696) | `bestUtility`, `dinabLeft`, `spendUse`, `useRef`, `dinabFail`/`dinabCrashCheck` recipient, Analyze Icon's Sensor, `vr2DetectionFactor`'s Masking and Sleaze | `vr2ActionGuard`, `computer`, the roll, pools, Karma, `sessionFor`, `commitAction`, the tally event, `settleLogon`/`settleMapping`, the card's `actorUuid`, the Decoy record (§4) |
-| `attackOnce` (vr2.mjs ~1055) | the program list and pick, `activePrograms`, `spendUse`, `dinabRef`, `maneuverState`, `spendAttackState`, the card's `attackerUuid` and `attackerSession` | the roll, pools, Karma, `attackerComputer` (Shield TN, p.100), `commitAction`, `attackerKeyOf` (§3) |
-| `vr2Maneuver` (vr2.mjs ~1709) | the maneuvering icon and its record | the roll and `commitAction` |
-| `vr2ScanIcon` (vr2.mjs ~2013) | Scanner, `spendUse`, located check | the roll |
+| `systemTestNow` (vr2.mjs ~696) | `bestUtility` (REQUIRED for a frame: §2), `dinabLeft`, `spendUse`, `useRef`, `dinabFail`/`dinabCrashCheck` recipient, Analyze Icon's Sensor, `vr2DetectionFactor`'s Masking and Sleaze | `vr2ActionGuard`, `computer`, the roll, pools, Karma, `sessionFor` (never called with a context: the session must already be on the frame's host, §1), `commitAction`, the tally event, the card's `actorUuid`, the Decoy record (§4) |
+| `attackOnce` (vr2.mjs ~1055) | the program list and pick, `activePrograms`, `spendUse`, `dinabRef`, `maneuverState`, `spendAttackState`, the card's `attackerUuid` and `attackerSession` | the roll, pools, Karma, `attackerComputer` (Shield TN, p.100), `commitAction`, and the card's COMMANDER fields (§3) |
+| `vr2Maneuver` (vr2.mjs ~1709) | the maneuvering icon: its **Evasion** (the dice: the existing test is Evasion against the opponent's Sensor, p.122), its Cloak copy, the record and `mSession` | `commitAction` and the roller (the commander's client rolls the frame's Evasion; the decker's Computer plays no part) |
+| `opposeManeuver` / `maneuverState`'s evade expiry (vr2.mjs ~939, ~1765) | a frame OPPONENT's Sensor and Lock-On copy | the tally that shortens an evasion: an icon's tally is its commander's session tally (`tallyOf(icon)` = the owner's `liveSession` tally for a frame) |
+| `vr2ScanIcon` (vr2.mjs ~2013) | Scanner, `spendUse`, the located check | the roll |
+
+`vr2Maneuver` today accepts only IC and character opponents and restricts Cloak and Lock-On to characters: both
+checks gain `frame`.
+
+**Checked at execution, not just in the dialog (R1 #5).** `ctx.check()` re-derives everything a command needs:
+- the frame not ended, the same upload id;
+- the commander's connection is the frame's `conn` and his live session is on the frame's host;
+- the operation is allowed through a frame (§2), and the copy it runs is still in `activePrograms(frame)`.
+
+Each path calls it right before `spendUse` (nothing is spent for a refused command) and again before it posts its
+card. A frame that crashed while the dice rolled posts "the frame crashed: the command is lost", as a crashed IC's
+attack is lost today.
 
 **`vr2DetectionFactor(commander, icon)`.** The Masking and Sleaze come from `icon`. The suppressions (frozen traces,
 slowed IC, place suppressions) come from `commander`, because they belong to his datatrail. With one argument,
 `icon` = `commander`, as today.
 
-**Every card carries `iconUuid`** when the icon isn't the commander. Every reader of a card's `utilityRef` resolves
-the item on `iconUuid ?? actorUuid`:
-- tar's strike (vr2ic.mjs ~591, ~1935);
-- the DINAB wear and crash calls;
-- `addWear`.
+**Every card carries `icon: { uuid, upload }`** when the icon isn't the commander. `utilityRef` gains the same
+`icon`, so the copy's recipient travels with the reference.
 
-A tar baby that hits a frame command crashes the frame's copy, not a program of the same id on the decker's deck.
-Grepped: `utilityRef` has three readers today (vr2.mjs 768, vr2ic.mjs 591, 1935).
+**Tar (R1 #6) gets an explicit context, not just a redirected item lookup.** `offerTar`, `tarStrike` and
+`reconcileTarFact` (vr2ic.mjs ~577–605, ~732–789) read their actor for several things. With a frame copy:
+- **the fact stays on the OWNER's log**, so the owner's reconciliation replays it. The receipt records the recipient
+  `icon: { uuid, upload, copyId, loadGen }`, and a replay uses that recipient, never a re-derived one;
+- **the crash** is a complete crash record on the FRAME:
+  `recordEvent(frame, "vr2:crash:<copyId>:<loadGen>:tar-<card>", { type: "crash", programId, loadGen })`, which
+  `programUnusable(frame, …)` reads;
+- **the frame's numbers** stand in for the decker's: Core Rating as MPCP, no Hardening (a frame has no deck), and
+  its Sensor where tar reads one;
+- **tar pit's corruption** (p.42: the program's copies in the deck's storage) has no destination: a frame has no
+  storage, and the decker's deck isn't the frame. The copy crashes; nothing is corrupted. The card says so;
+- **a one-shot victim** is picked from the frame's copies.
+
+If the frame has ended when the fact replays, the receipt still completes with no crash, and the card says "<frame>
+had already crashed".
 
 ### 2. Commands (p.106–107)
 **The button.** On the decker's Matrix tab, each running DUMB frame row (6a-2a's `vr2Frames` list) gets **Command…**.
@@ -789,9 +812,9 @@ The dialog offers:
   operation without its utility, but a frame can't;
 - **Attack** (the targeted icon) with one of the frame's attack or attribute copies: the weapon carrier (p.107);
 - **Scan Icon** (the targeted icon), with a Scanner copy;
-- a **maneuver** (evade, parry, position) against the targeted icon. Maneuvers are actions, and a maneuver's TN and
-  dice come from the icons (p.121–122). The frame is the icon, and the commander rolls with his Computer as
-  `vr2Maneuver` does;
+- a **maneuver** (evade, parry, position) against the targeted icon. Maneuvers are actions, and the test is the
+  icon's Evasion against the opponent's Sensor (p.121–122), so they're "attribute-related": the frame's Evasion and
+  Cloak copy, rolled by the commander's client (§1's table);
 - **Decoy** (§4) when the frame carries Mirrors.
 
 **Never through a frame:**
@@ -817,11 +840,26 @@ by construction; the card says so on an attack ("a second attack needs a second 
 - **Dice and Power** are the copy's rating, as for a decker's attack utility (p.123). The decker's Computer is the
   roller's skill only for System Tests.
 - **Pools:** the commander's Hacking Pool and Karma, as for his own attacks.
-- **The attacker identity.** The attack card's `attackerUuid` is the FRAME: maneuvers, parry and position are kept
-  per icon. The attacker KEY used by admission and the trace and black-utility bookkeeping is the commander's
-  `deck:<uuid>@<conn>`, plus `via: frameUuid`. The frame shares his datatrail, so anything that locates or locks
-  "the attacker" finds the decker. One exception: **Track** (p.97) reads the tracking icon's Sensor. That read
-  (vr2ic.mjs ~1304) uses the card's `via` icon when present.
+- **Two identities on the card (R1 #1–#3).**
+  - **The icon:** `attackerUuid` = the frame, `attackerType: "frame"`, `attackerSession` = the frame's `sessionKey`.
+    Maneuvers, parry and position are kept per icon, and they read these.
+  - **The commander:** `commanderUuid`, `commanderSession` (his live session id), the key `icKey` = his
+    `attackerKeyOf` (`deck:<uuid>@<conn>`), and `attackerInc` = HIS `crashInc`. The frame shares his datatrail, so
+    everything that locates, locks, admits or suppresses "the attacker" uses these.
+- **Every reader that today branches on `attackerType === "character"` treats `"frame"` the same way and reads the
+  commander fields.** Grepped:
+  - `admitDeckerCards` (vr2ic.mjs ~1616);
+  - the `createChatMessage` admission hook (vr2ic.mjs ~1996);
+  - Slow's suppression (`slowResult` ~1003: `deckerUuid` and `session` come from `commanderUuid` and
+    `commanderSession`, so the suppression lowers HIS Detection Factor);
+  - the black-utility and lock bookkeeping that parses the key (vr2.mjs ~2137, vr2ic.mjs ~1532, ~1668, ~1792).
+
+  The build greps `attackerType` and `attackerUuid` again and lists every reader in the code-review brief.
+- **Track through a frame (R1 #3).** p.97: the Relocate TN uses the tracking icon's Sensor (vr2ic.mjs ~1304), and
+  that reads a folded trace, not the card. So the trace receipt written at admission carries
+  `via: { uuid, upload }`, and Relocate reads that frame's Sensor. "If the frame crashes, the decker loses the
+  programs" (p.107): a Track whose `via` frame has ended ends with it, by the same fold rule that ends a trace whose
+  IC crashed.
 - **Targets:** IC, frames, and deckers. Cybercombat is with any icon (p.124), and the special utilities keep
   `utilityTargetProblem` unchanged: track, hog and black utilities hit a connected decker; slow and steamroller hit
   IC.
@@ -849,22 +887,33 @@ by construction; the card says so on an attack ("a second attack needs a second 
 - whether it IS a decoy frame is read live from the card's verdict (Karma included), as 6a-0 does.
 
 **The live decoy frame** is folded, never stored, in a pure `liveDecoyFrame({ records, conn, sessionId, cardOf,
-frameEnded })` in `module/rules/vr2-frames.mjs`. It is the newest `decoyFrame` record of the live connection that:
-- has a card that shows a success, or a card that no longer exists. As in 6a-0, a deleted card still blocks older
-  records, then counts as no decoy;
-- is on the commander's current session;
-- has a frame that hasn't ended (`stateFor`): "once a decoy frame crashes";
-- has NO `decoyFrameOff` record after it (next point).
+frameEnded })` in `module/rules/vr2-frames.mjs`. It works in two steps, so an older decoy is never resurrected
+(R1 #10):
+1. **Select:** the newest `decoyFrame` record of the live connection whose card shows a success or no longer exists
+   (6a-0's barrier: a deleted card still blocks older records).
+2. **Test that record alone:**
+   - a missing card means no decoy;
+   - it must be on the commander's current session;
+   - its frame must not have ended (`stateFor`): "once a decoy frame crashes";
+   - it must have no `decoyFrameOff` fact (next point).
 
-**"As long as the decker himself remains inactive."** The decker's own action ends the mode for good. One helper,
-`ownAction(actor)`, runs where an action of the decker's OWN icon is committed:
-- `systemTestNow` (DINAB runs included: his deck's program acts as his icon);
-- `attackOnce`, `vr2Maneuver`, `vr2ScanIcon`, `vr2BuildImprovised`, `vr2Restore`, `vr2Medic`, `vr2SwapMemory`,
-  `decompressFrame`, and Upload frame.
+   If it fails, there is NO decoy frame: the fold never falls back to an older record.
 
-It runs before the roll, so a test can't be rolled against the frame while it ends the mode. When a decoy frame is
-live, it writes `vr2:decoyframe-off:<conn>:<key>` `{ type: "decoyFrameOff", conn, decoy: key, why }` (one per decoy:
-a deterministic id). The fold sees that record from then on.
+**"As long as the decker himself remains inactive."** The decker's own action ends the mode for good, as a sequencer
+fact, so it has a place in the one order the IC attack is also decided in (R1 #8):
+- **The helper `ownAction(actor, why)`** runs where an action of the decker's OWN icon is committed:
+  - every caller of `commitAction`;
+  - every DINAB branch, which skips `commitAction`: his deck's program acts as his icon;
+  - `relocate` (vr2ic.mjs ~1290) and `vr2Decompress` (vr2.mjs ~1986) (R1 #9);
+  - Upload frame.
+
+  The build greps `commitAction(` and `dinab` and lists every site in the code-review brief.
+- **When it acts:** if the live connection has ANY `decoyFrame` record with no `decoyFrameOff` fact, it sends
+  `request(actor, "decoyFrameOff", { conn, decoy: <that record's key>, why })`. "Any record", not "a live one" (R1
+  #9): a failed Decoy that Karma later turns into a success is already off, because the decker acted after it.
+- **The handler** writes `decoyframe-off:<conn>:<key>` `{ type: "decoyFrameOff", conn, decoy, why }` once.
+- **The decker doesn't wait for the fact:** his action goes on, and the GM is always present. The order between his
+  action and an IC attack is the sequencer's order (next point).
 
 What doesn't end it:
 - **a command to the frame** (§2): the frame acts, not the decker;
@@ -882,9 +931,20 @@ live decoy frame goes to the frame, BEFORE any target term is computed:
   - the resistance button resolved by the frame's owner or the GM;
   - `hitFrame` facts.
 
-  The card says "<IC> goes after <frame> (decoy frame, VR2.0 p.107)". It's decided on the client that rolls the
-  attack. The fold is deterministic from durable records and the card, so every client agrees, and the active GM
-  isn't needed (unlike 6a-0's die).
+  The card says "<IC> goes after <frame> (decoy frame, VR2.0 p.107)".
+- **Who decides, and in what order (R1 #8).** An IC attack on a decker whose live connection has an un-off
+  `decoyFrame` record must be rolled by the active GM, the sequencer, as 6a-0's decoyed and cascading attacks are.
+  Before folding, the GM awaits `Y.flush()`, so every `decoyFrameOff` request already sent is processed first. Then
+  it folds and binds the decision onto the card (`decoyFrame: key`) BEFORE any target term. An own action whose
+  request arrives after the flush comes later in the sequencer's order, so that attack correctly goes to the frame.
+- **Reactive security too (R1 #7).** Tar, data bombs and exploding scramble create their attack cards directly
+  (`offerTar`, `bombEnd`, the reactive dispatch, vr2ic.mjs ~577–668, ~1912–1935). One helper,
+  `securityTarget(decker, st)`, decides their target:
+  - a test made BY a frame (`st.icon`) is answered on that frame: the frame did it;
+  - a test made by the decker's own icon while a decoy frame is live goes to the frame, by the same flush-and-fold
+    on the sequencer. Such a test is only a Null Operation, because any other action has ended the mode.
+
+  The tally stays on the decker's session either way.
 - **trace IC is never redirected** (6a-0's rule 4 and p.107: the frame "doesn't help … when facing trace IC"). It
   hunts the decker as today. A trace IC that targets a frame directly (6a-2a refused it) is still refused: "trace IC
   hunts a datatrail: target the frame's owner".
@@ -905,12 +965,21 @@ live decoy frame goes to the frame, BEFORE any target term is computed:
 core, not the frame's empty combat phase"). The claim is `once(frame, "coredinab:<uploadId>:<phase>")`, where
 `phase` = `phaseKey(commander)`. Outside combat there's no phase, and a run is always allowed, as 5b's DINAB is.
 
-**Wear and crash, with an explicit recipient: the FRAME actor.**
-- A failed run (defeated by the host, or an attack that misses) writes one point of core-DINAB wear,
-  `flags.sr2e.coreDinabWear.<uploadId>_<useId>`, on the frame. DINAB left = `frame.system.dinab` − those points.
-- All 1s crashes the COPY it ran: `recordEvent(frame, "vr2:crash:<copyId>:0:coredinab-<useId>")`. 6a-2a's
-  `programUnusable(frame, item)` already reads crash records on the frame actor. There's no Swap Memory on a frame
-  (programs are fixed), so the copy stays crashed for the frame's life.
+**Wear and crash, with an explicit recipient: the FRAME actor (R1 #11).** The run's reference is
+`dinabRef = { core: true, frame: uuid, upload, copyId, loadGen, useId }`. It is carried on the card exactly where 5b
+carries a program's `dinab` ref, so every existing DINAB outcome reaches it:
+- **a miss, or a System Test the host defeats** (the roll-time paths, `dinabFail`);
+- **an attack that hits but is fully resisted** (`dinabZeroed`, vr2.mjs ~1338, including 6a-2a's frame-resolution
+  replay), and its request form `dinabWear` (vr2ic.mjs ~1098).
+
+`dinabFail`, `dinabZeroed` and `dinabWear` gain one branch: a `core` ref writes core-DINAB wear on the frame,
+`flags.sr2e.coreDinabWear.<upload>_<useId>`. It is keyed by the use, so a replay writes nothing new. DINAB left =
+`frame.system.dinab` − those points.
+
+**All 1s** crashes the COPY it ran, with a complete crash record on the frame:
+`recordEvent(frame, "vr2:crash:<copyId>:<loadGen>:coredinab-<useId>", { type: "crash", programId: copyId, loadGen })`.
+That is the shape `programUnusable` matches. There's no Swap Memory on a frame (programs are fixed), so the copy
+stays crashed for the frame's life.
 
 **A copy's OWN DINAB option** (a copy loaded with DINAB) works through 5b's `spendUse(frame, item, { dinab: true })`.
 `phaseKey` gets one change: for a frame actor it returns the OWNER's phase. Without it, the frame is in no combat,
@@ -921,12 +990,23 @@ the key is "", and the per-phase limit is silently skipped.
 A frame has those four attributes (p.105), so they work on frames:
 - **Resisting:** `resistAttribute` gets a frame branch, as `vr2MatrixResist` got one in 6a-2a. It rolls the frame's
   attribute plus the Shield copy against the rating. The frame's owner or the GM rolls it.
-- **The loss:** a fact on the OWNER's log, written by the sequencer through a new handler `frameAttr`:
-  `frame-attr:<card>` `{ type: "frameAttr", upload, card, attr, lost }`. It's keyed by card, so there's one per card,
-  as `frameHit` is.
-- **The frame's attributes are derived:** the snapshot less the sum of its `frameAttr` losses, floor 0 (the attack's
-  `floor`, as for deckers). `FrameData.prepareDerivedData` reads them through `frameState`, which already folds the
-  owner's records.
+- **The loss is computed by the sequencer, in its order (R1 #12).** The resolver sends a new request `frameAttr`
+  `{ card, upload, attr, defense: <its successes + Shield's> }`. The handler:
+  1. freezes the attack successes (`freezeSuccesses`);
+  2. computes `points = ⌊(attack − defense) ÷ 2⌋`;
+  3. computes the loss with `attributeLoss` against the frame's CURRENT folded attribute and the card's `floor`;
+  4. writes `frame-attr:<card>` `{ type: "frameAttr", upload, card, attr, lost }`, once per card.
+
+  Two cripplers resolved at once are applied one after the other, so the second sees the first's loss and the floor
+  holds.
+- **The frame's attributes are derived:** the snapshot less the sum of its `frameAttr` losses.
+- **Re-preparing the frame (R1 #13).** A fact lands on the OWNER, which re-prepares the owner, not the frame actor.
+  6a-2a's `reconcileOwner` re-renders the owner's sheet; it also gets `frame.reset()` (prepare again) plus a
+  re-render of the frame's open sheet, for every frame of that owner. The same happens on the owner's `createActiveEffect`
+  hook for record effects, so every client, not only the sequencer's, sees the new numbers. The frame's
+  `prepareDerivedData` folds `frameAttr` facts from the owner's records, which are prepared first. World actors
+  prepare in order, so a frame prepared before its owner has its owner's records already, because records are the
+  owner's embedded effects and need no derivation.
 - **The resolution** is posted by the sequencer from the fact's receipt, as 6a-2a does for hits
   (`replayResolutions`).
 
@@ -953,9 +1033,18 @@ decker's frame row list its triggers.
 
 **Firing it (the GM).** Only the GM knows what happens on the host, so the GM fires a trigger:
 - the frame sheet's trigger list has a **Fire** button (GM only);
-- it goes through the sequencer as a new request `triggerFire`, which writes `trigger-fire:<key>:<n>`.
+- it goes through the sequencer as a new request `triggerFire { key, n }`.
 
-The handler checks at the moment of firing, from live state:
+**The handler refuses unless the requester is a GM** (`game.users.get(r.user)?.isGM`, R1 #14), as `uploadDone`
+does. It reads the trigger's frame, watch and note from the durable setting record named by `key`, never from the
+request. It writes `trigger-fire:<key>:<n>` `{ type: "triggerFire", key, n, delivered, why }`: the outcome is in the
+fact.
+
+**The report is replayed from the fact (R1 #15).** It is posted through `once(owner, "card:trigger:<key>:<n>")`, as
+`postResolution` does, and the owner's pass replays any fact whose card is missing. An interrupted post is finished,
+and a retry never posts twice.
+
+The outcome is decided at the moment of firing, from live state:
 - the frame isn't ended;
 - `triggerProblems` still passes (its copies may have crashed, or its Sensor dropped through §6);
 - **same-host delivery:** "The decker must be present on the same system to receive the frame's message". The owner
@@ -965,8 +1054,9 @@ A dumb frame whose owner left has ended, so this bites only on smart frames (6a-
 inherits it.
 
 **The result:**
-- **delivered:** a card whispered to the owner and the GMs: "<frame> reports: <note>". It adds "(the decker may need
-  a Null Operation while waiting, p.117)" when the owner has made no action since the trigger was set;
+- **delivered:** a card whispered to the owner and the GMs: "<frame> reports: <note>". The trigger's own card, when
+  it's set, notes that "a decker waiting for it may need Null Operations (p.117)". That is the GM's call, so nothing
+  is derived about the decker's waiting (R1 #15);
 - **not delivered:** a GM-only card saying why.
 
 Nothing is rolled: p.107 states no test.
@@ -993,7 +1083,20 @@ Nothing is rolled: p.107 states no test.
 - a copy's own DINAB respects the owner's phase;
 - a crippler on a frame lowers its attribute (one loss per card, even when resolved twice);
 - an event trigger: refused under the Security Value; set; the GM fires it; delivered while the decker is on the
-  host.
+  host;
+- (R1) a frame's attack on a connected decker is admitted (the commander's key and incarnation); a frame's Slow
+  suppresses on the COMMANDER's Detection Factor; a Track through a frame reads the frame's Sensor and ends when the
+  frame crashes;
+- (R1) a frame maneuver rolls the frame's Evasion and Cloak copy; a frame opponent opposes with its Sensor;
+- (R1) the frame crashing between dialog and roll: nothing is spent, no card;
+- (R1) the decoy fold: a newer successful decoy frame that crashes leaves NO decoy (the older one isn't resurrected);
+  a failed Decoy, then an own action, then Karma turning it into a success: still off;
+- (R1) the order: the decker's own action request sent, then an IC attack rolled on the GM: the attack goes to the
+  decker (the flush processes the off first);
+- (R1) a data bomb set off by a frame command hits the frame;
+- (R1) a fully resisted core-DINAB attack wears the core DINAB once, even when replayed;
+- (R1) two cripplers resolved at once on a frame at Bod 2 (floor 1): the second sees the first's loss;
+- (R1) a non-GM `triggerFire` request is refused; an interrupted trigger report is posted once on the next pass.
 
 ## Requirements carried to the 6a / 6b / 6c plans (Codex R1, accepted)
 Each phase gets its own detailed plan, Codex-reviewed before code. It must answer:
