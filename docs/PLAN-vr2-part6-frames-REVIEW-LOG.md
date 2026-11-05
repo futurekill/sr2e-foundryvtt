@@ -403,3 +403,19 @@ All 15 accepted; the section is revised in place (each change marked "R1 #n").
 - #14: `triggerFire` refuses a non-GM requester and reads the trigger from its durable record.
 - #15: the firing outcome is in the fact and the report is a `once` card replayed on the owner's pass; the derived
   "inactivity" note is dropped (it's the GM's call).
+
+## 6a-2b Round 2 — Codex (fresh session, revisions only; ~178k input tokens)
+
+1. **R1 #5’s post-roll check rejects successfully consumed one-shot copies.** Plan: `docs/PLAN-vr2-part6-frames.md:775–783`. Code: `module/vr2.mjs:741–745`, `1235–1237`, `2051–2053`. The same `ctx.check()` requires the copy to remain in `activePrograms(frame)` both before spending and before posting. `spendUse` consumes a one-shot before rolling, so the command’s own successful expenditure makes its final check fail and discards its result.  
+   **Fix:** Separate pre-use eligibility validation from post-roll incarnation validation; the latter must allow consumption by this command.
+
+2. **R1 #15’s `once` gate defeats interrupted-report recovery.** Plan: `docs/PLAN-vr2-part6-frames.md:1043–1045`. Code: `module/frames.mjs:180–201` (`replayResolutions`). If execution stops after claiming `once(owner, "card:trigger:…")` but before creating the message, replay finds a missing card but cannot reacquire the claim. The named frame-resolution replay instead checks for an existing message and creates the missing result without that permanent gate. The revision therefore still permits a permanently lost trigger report.  
+   **Fix:** Replay reports on the sequencer using a durable trigger-fire identifier on the message and an existence check, without a permanent pre-creation `once` claim.
+
+VERDICT: REVISE
+### Claude's response
+- **#1 accepted.** The check is split: before `spendUse` the full check (the copy active); after the roll only the
+  incarnation (frame alive, same upload, commander on host and connection), so this command's own one-shot spend or
+  DINAB crash doesn't void it.
+- **#2 accepted.** No `once` for the trigger report: the sequencer posts it tagged with the fact key and replays any
+  fact no message carries, as `replayResolutions` does.

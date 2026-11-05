@@ -777,8 +777,11 @@ checks gain `frame`.
 - the commander's connection is the frame's `conn` and his live session is on the frame's host;
 - the operation is allowed through a frame (§2), and the copy it runs is still in `activePrograms(frame)`.
 
-Each path calls it right before `spendUse` (nothing is spent for a refused command) and again before it posts its
-card. A frame that crashed while the dice rolled posts "the frame crashed: the command is lost", as a crashed IC's
+Each path calls it right before `spendUse`: nothing is spent for a refused command. After the roll, a lighter
+`ctx.check({ after: true })` re-checks only the incarnation: the frame not ended, the same upload, and the commander
+still on the frame's host and connection. It does NOT ask the copy to still be active. A one-shot copy is consumed by
+this very command's `spendUse`, and a DINAB crash from this roll is this command's own outcome (R2 #1). The card
+binds the copy as it was used (`utilityRef` with its `loadGen`). A frame that crashed while the dice rolled posts "the frame crashed: the command is lost", as a crashed IC's
 attack is lost today.
 
 **`vr2DetectionFactor(commander, icon)`.** The Masking and Sleaze come from `icon`. The suppressions (frozen traces,
@@ -1040,9 +1043,10 @@ does. It reads the trigger's frame, watch and note from the durable setting reco
 request. It writes `trigger-fire:<key>:<n>` `{ type: "triggerFire", key, n, delivered, why }`: the outcome is in the
 fact.
 
-**The report is replayed from the fact (R1 #15).** It is posted through `once(owner, "card:trigger:<key>:<n>")`, as
-`postResolution` does, and the owner's pass replays any fact whose card is missing. An interrupted post is finished,
-and a retry never posts twice.
+**The report is replayed from the fact (R1 #15, R2 #2).** The sequencer posts it with `flags.sr2e.triggerFire =
+<fact key>`, and no `once` claim. On every owner pass the sequencer posts any `triggerFire` fact that no message
+carries yet. This is 6a-2a's `replayResolutions` pattern (an existence check on the message, on the sequencer's
+client only), so an interrupted post is finished on the next pass and a finished one is never posted again.
 
 The outcome is decided at the moment of firing, from live state:
 - the frame isn't ended;
