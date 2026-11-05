@@ -755,6 +755,10 @@ connection's jackpoint kind is satellite (the kind's numbers already apply then)
   `satelliteRatings(difficulty, dice)` is tested on every boundary.
 
 ### 3. Reaching the satellite
+**Wiring (R1 #2).** For a `satellite` jackpoint, `wiredPlace` returns the wired place when it is a satellite, else
+null (any satellite). `wiringFits` requires a satellite. Before this, both helpers treated a satellite jackpoint as
+trid and wanted an LTG; Vitest covers the new branch.
+
 **From a satellite jackpoint.** At a satellite-kind jackpoint (7a's snapshot, `connJackpoint(actor).kind ===
 "satellite"`), `reachable` with no place allows only Logon to LTG, and only to a `kind: satellite` place. That
 replaces 7a's interim "a satellite jackpoint acts as trid". If the jackpoint is wired to a satellite, it must be that
@@ -763,14 +767,17 @@ one; unwired, any satellite.
 Two conditions, both checked in `reachable`, with the caller passing them in:
 - **a satlink deck:** `actor.system.cyberdeck.satlink`. Without it: "This deck has no satlink interface (VR2.0
   p.88)";
-- **a lock on the satellite:** `flags.sr2e.vr2SatLock = { conn, card, ok }` with this connection's `conn` and `ok`
-  true. Without it: "Lock on to the satellite first (Locate satellite, p.30)".
+- **a lock on that satellite (R1 #1):** `flags.sr2e.vr2SatLock = { conn, card, ok, sat }` with this connection's
+  `conn`, `ok` true, and `sat` equal to the target. A lock is on ONE satellite: the transponder the decker isolated.
+  Without it: "Lock on to <satellite> first (Locate satellite, p.30)".
 
 **Locate satellite.** A new Matrix-tab button, shown under topology while the decker is at a satellite jackpoint
 with no place yet. Its dialog:
 - **Conditions:** the six rows of the table, with their TN;
 - **Bad weather:** a checkbox for +2;
 - **Dish:** from the deck's `satDish`. Large −1, fixed-base −2, never below 2.
+- **Satellite (R1 #1):** the one to lock onto. It is fixed to the jackpoint's wired satellite when it has one, and
+  otherwise picked from the `kind: satellite` places. The record keeps its UUID as `sat`.
 
 It is a Computer Test with Hacking Pool and Karma, as other Computer Tests (a skill test, not a System Test: no host
 rolls, no tally).
@@ -790,9 +797,12 @@ rolls, no tally).
     acceleration), crossing the RTG's sheaf then;
   - the condition in `systemTestNow` becomes: target is a PLTG, OR the decker is on a satellite and the operation is
     Logon to RTG.
-- **Reaction −2** (signal lag; VR2.0, satellite jackpoint, topology on or off): in the Matrix-initiative branch of
-  `getInitiative` (documents/actor.mjs ~972), `naturalReaction − 2`, min 1, with the note "satlink lag −2". It is read
-  from `connJackpoint(actor).kind`.
+- **Reaction −2** (signal lag; VR2.0, satellite jackpoint, topology on or off; R1 #3): in the Matrix-initiative branch
+  of `getInitiative` (documents/actor.mjs ~972). It is read from `connJackpoint(actor).kind`.
+  - It applies to the FINAL Matrix Reaction: after tortoise halving and Response Increase, before the wound
+    penalty. That gives `base = max(0, naturalReaction + bonus − 2 − woundPenalty)`, the existing floor, so the full
+    2 always counts (Reaction 1 + Response 3: 7 → 5).
+  - The note says "satlink lag −2". The dice are unchanged.
 - **Trace finds the satellite, not the decker** (p.30):
   - a trace that completes on a connection whose jackpoint kind is satellite still marks the decker traced (the tally
     acceleration and the −1 to IC attacks; "the other effects … still apply");
@@ -808,8 +818,10 @@ rolls, no tally).
 - `satelliteRatings` on the min and max of every die;
 - `scopeOf` and `traceClass` for a satellite;
 - `reachable`:
-  - from a satellite jackpoint, refused without a satlink, refused without a lock, then allowed only to a satellite
-    (only its wired one when wired);
+  - from a satellite jackpoint, refused without a satlink, refused without a lock, refused for a satellite other
+    than the locked one, then allowed (only its wired one when wired);
+  - `wiredPlace` and `wiringFits` for satellite jackpoints;
+  - the Reaction lag on Reaction 1 with Response 3, and on a tortoise deck;
   - on a satellite: any RTG, its hosts, no LTG;
 - `GRID_OPS.satellite`;
 - the locate TN from conditions, weather and dish, floored at 2.

@@ -245,3 +245,23 @@ No findings in 5020f5d. The hook receives replicated updates on all clients; `sc
 Verified against local v13 source; live multiplayer behavior was not exercised.
 
 VERDICT: APPROVED
+
+# Part 7c
+
+## 7c Round 1 — Codex (fresh session, 7c only, named code locations; ~129k input tokens)
+
+- **§3 — Lock has no satellite identity.** `{conn, card, ok}` lets one successful locate test unlock every satellite at an unwired jackpoint. **Fix:** select a satellite before rolling, store its UUID, and require the logon target to match.
+
+- **§3 — Existing wiring helpers reject satellites.** `wiredPlace()` resolves only LTGs for non-device jackpoints, so a satellite wired to a satellite resolves to `null`; `wiringFits()` also flags that valid wiring. **Fix:** add explicit satellite-to-satellite handling in both helpers.
+
+- **§4 — The Reaction floor can cancel part of the penalty.** Applying `max(1, naturalReaction − 2)` before Response Increase makes natural Reaction 1 with Response 3 fall from 7 to 7, rather than 5; placement relative to tortoise halving is also unspecified. **Fix:** subtract lag after calculating mode-adjusted Matrix Reaction and Response Increase, with an explicit final floor.
+
+VERDICT: REVISE
+
+### Claude's response
+All three findings were accepted.
+- **#1:** a lock names its satellite. The dialog picks it (fixed to the wired one), and `reachable` requires the
+  target to match.
+- **#2:** `wiredPlace` and `wiringFits` gain a satellite branch.
+- **#3:** the lag comes off the final Matrix Reaction (after tortoise and Response), before wounds, with the
+  existing floor of 0.
