@@ -534,3 +534,38 @@ VERDICT: APPROVED
 
 # 6b plan review (SKs)
 Started 2026-11-05. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round, brief names the code locations.
+
+## 6b Round 1 — Codex (fresh session; ~187k input tokens)
+
+1. **Plan §1/§5 — incarnation IDs are still treated as actor IDs.** Code: `module/frames.mjs:148,173,239,269`. The plan gives `uploadId` a fresh random value, but hit/attribute handlers and replay functions resolve it with `game.actors.get(upload)`. Unless creation explicitly uses that same actor `_id`, damage is refused and wear is skipped. **Fix:** explicitly distinguish actor identity from incarnation identity in SK handlers and replay.
+
+2. **Plan §1/§5 — derived attributes still read the absent owner.** Code: `module/data/actor-data.mjs:2470–2475`. `prepareDerivedData` returns zero losses when `ownerUuid` is empty; changing `frameState` and the pure fold alone leaves an injured SK’s effective persona ratings intact. **Fix:** add an SK branch that folds its own records, including repairs, into `matrixPersona`.
+
+3. **Plan §4 — the reused action path cannot perform the proposed movement.** Code: `module/frames.mjs:473–483,555–563,590–596`; `module/vr2.mjs:717–720,773–774`. The dialog supplies the current host, `systemTestNow` overwrites any destination with that host, and both the guard and session check reject a hostless SK. Merely extending the operation list cannot support logging onto another host or returning from “between hosts.” **Fix:** specify destination selection and SK-specific logon guards/session handling, preserving existing frame behavior.
+
+4. **Plan §4 — destination security has no defined tally/session context.** Code: `module/vr2.mjs:773,805–823,548–556`. A reused SK logon test tags its tally event with the source session; that charges the source host’s tally/sheaf. Moving first instead makes the old-session event fail the live-session check. Failed attempts from between hosts have no session at all. **Fix:** define an SK logon-attempt session and order security, tally/sheaf processing, and successful movement explicitly.
+
+5. **Plan §3/§5 — requests and recovery are missing from `skPass`.** Code: `module/vr2ic.mjs:80–86,1622–1641`; `module/frames.mjs:415–421`. `skAlloc` is described as a request, but the proposed pass only replays damage/wear and moves; the existing request processor runs through character-only scheduling. Also, skipping SKs during reconciliation leaves interrupted work unrecovered after reload or GM handoff unless another effect happens to arrive. **Fix:** have the SK pass process its admitted requests and reconcile pending work, scheduled both by effects and ready/handoff scans.
+
+6. **Plan §3 — allocation materialization is not replay-safe.** Code: `module/vr2ic.mjs:80–81`; `module/frames.mjs:705–712`. Recording an allocation and then replacing items requires multiple writes. An interruption can leave the committed revision with missing or duplicate utilities; retrying the request is then stale. The referenced update guard also does not bypass the separate unconditional deletion lock. **Fix:** persist replacement identities in the allocation fact, reconcile items idempotently, and explicitly allow sequencer replacements through both item guards.
+
+7. **Plan §5 — repair-fold instructions contradict partial repair semantics.** Code: `module/rules/vr2-frames.mjs:114–118,190–198`; `module/frames.mjs:179,241–242`. Folding “since the latest `skRepair`” erases all earlier damage even when that repair heals only some boxes or one attribute. Replaying resolution messages with the existing cumulative fold also reports false crashes after repairs. **Fix:** define one sequence-ordered fold with full resets versus bounded partial healing, used for state, attribute-loss calculation, and historical resolution reporting.
+
+8. **Plan §5 — crash cleanup and permanence lack an executable path.** Code: `module/frames.mjs:328–336,355,406–421`. Existing cleanup is reached through upload records and deletes the actor; SKs have no upload and are explicitly skipped by reconciliation. The proposed `skPass` does not include cleanup, and repair/move admission does not explicitly reject an already-crashed incarnation. **Fix:** reconcile terminal SK crashes in `skPass`, remove only tokens/combatants, and reject subsequent repair or movement for that incarnation.
+
+VERDICT: REVISE
+### Claude's response
+All 8 accepted; §1, §3, §4 and §5 rewritten.
+- #1: an SK's `_id` IS its incarnation id (`uploadId` = the actor id, keepId); one `factsOf(frame)` accessor gives the
+  SK's own records or a frame's owner's, used by every reader.
+- #2: `FrameData`'s attribute fold reads `factsOf` (the SK's own records) through the one fold.
+- #3–#4: movement is its own `skMove` with two buttons, not the Act dialog. SK sessions are per host
+  (`flags.sr2e.skSessions`); a logon creates the DESTINATION's session first and the test's tally lands there;
+  success moves it, failure stays; Graceful Logoff ends that host's session. `applyTallyEvent`/`tallyUpdate` get an
+  SK session lookup and flag path.
+- #5–#6: allocation runs directly in the sequencer (SKs are the GM's: no requests); the fact carries item ids, and an
+  idempotent `reconcileSkItems` (keepId creates, flagged deletes, guards bypassed only by its option) runs after the
+  fact and on every SK pass, scheduled by effect hooks and ready/userConnected scans.
+- #7: one seq-ordered `skCondition` fold (full and partial repairs) for state, attributes, the handler and replayed
+  resolutions; frames' folds become calls to it.
+- #8: every SK write refuses an ended SK; the SK pass does the crash cleanup without deleting the actor.

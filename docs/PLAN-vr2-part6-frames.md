@@ -1392,24 +1392,35 @@ facts are still written by the sequencer.
 programmers is a story, not a test). The GM creates an SK directly.
 
 ### 1. An SK is a frame actor with `kind: "sk"`
-SKs reuse 6a-2c's machinery: a smart frame that acts as itself, with its own session and tally, an `Act…` dialog,
-attacker keys, Initiative and the frame-target paths. What an SK changes is listed here.
-- **Schema:** `FrameData.kind` gains `sk`. Choices are added to an existing StringField whose initial value is
-  `dumb`, so existing documents stay valid. Check `invalidDocumentIds` after the change.
-  - New fields: `nativeHostUuid` (string) and `pool` (integer ≥ 0, the rolled Utility Pool total).
-  - `coreRating` is the **MPCP**, `dinab` is its **Computer** (= MPCP), `initPoints` is unused (§3), and `uploadId` is
-    the SK's **incarnation id**: a fresh random id at creation.
-  - No owner: `ownerUuid` is "".
-- **Every frame-only rule that assumes an owner or an upload gets an SK branch.** Grepped:
-  - `stateFor`/`frameState`: an SK's facts are on the SK ITSELF (§5), not an owner's log. It ends only by crashing
-    (its monitor) or deletion. No upload, departure or owner.
-  - `commandProblem`/`smartProblem`: an SK passes `smartProblem` like a smart frame, with an SK op list (§4).
-  - `reconcileDocs`/`reconcileOwner`/`reconcileAllFrames`: an SK has no upload and isn't swept for a missing owner.
-    `reconcileAllFrames` skips `kind: "sk"`.
-  - `joinCombats`: an SK has no owner to follow. The GM adds it to a combat from its token, as with IC.
-  - `liveSession(sk)`: its session record, as a smart frame's.
-  - `phaseKey`, `tallyHolder`: as a smart frame's (itself).
-  - The frame sheet shows SK sections (§6).
+SKs reuse 6a-2c's machinery: a smart frame that acts as itself, with an `Act…` dialog, attacker keys, Initiative and
+the frame-target paths. What an SK changes is listed here.
+
+**Schema.** `FrameData.kind` gains `sk`. Choices are added to an existing StringField whose initial value is `dumb`,
+so existing documents stay valid; check `invalidDocumentIds` after the change.
+- New fields: `nativeHostUuid` (string) and `pool` (integer ≥ 0, the rolled Utility Pool total).
+- `coreRating` is the **MPCP**, `dinab` is its **Computer** (= MPCP), and `initPoints` is unused (§3).
+- `hostUuid` is where it IS ("" between hosts, §4). No owner: `ownerUuid` is "".
+
+**Identity (R1 #1).** An SK is ONE incarnation for its whole life: "if an SK is destroyed … its creators can generate
+another one", which is a new SK. So it is created with `_id` = a fresh random id and `keepId`, and `uploadId` = that
+same id. Every `game.actors.get(upload)` in the frame code then finds it.
+
+**Its facts are on itself.** A frame's facts live on its owner's log; an SK has no owner, so its facts are written
+on the SK by the sequencer. Every frame function that reads "the owner's records" gets one accessor,
+`factsOf(frame)`: the SK's own records, or for a frame its owner's. Grepped, and each changed to use it:
+- `stateFor`/`frameState`;
+- `FrameData.prepareDerivedData`'s attribute fold (R1 #2): for an SK, `eventsOf(this.parent)`;
+- `replayResolutions`, `replayWear`, and the `frameHit`/`frameAttr` handlers (§5).
+
+**Where it differs from a frame:**
+- **Ended** only by its monitor (§5) or deletion: no upload, departure, owner or host shutdown. A host shutdown dumps
+  every icon on it (p.53), so an SK ON that host at the shutdown also ends; the existing `shutdownOfflineSeqs` check
+  reads the host it was on.
+- **No upload or combat joining:** `reconcileDocs`, `reconcileOwner`, `reconcileAllFrames` and `joinCombats` skip
+  `kind: "sk"`. The GM adds an SK to combat from its token, as with IC. Its own pass is §5.
+- **Checks:** `smartProblem` treats an SK like a smart frame, with the SK operation list (§4) and the "between
+  hosts" state.
+- **The rest is shared:** `phaseKey` and `tallyHolder` treat it as a smart frame (itself).
 
 ### 2. Creating an SK (the GM)
 **New SK…** is a button in the Actor Directory (GM only, beside **New grid…**). Its dialog:
@@ -1419,87 +1430,128 @@ attacker keys, Initiative and the frame-target paths. What an SK changes is list
   - each ≤ MPCP;
   - the total ≤ MPCP × 3;
 - **Utility Pool:** MPCP + 1D6 (a visible roll), or set by hand;
-- **a preset** from the p.141 table fills the persona ratings (MPCP-7/6/5/5/5 … MPCP-12/9/9/9/9).
+- **a preset** from the p.141 table fills the persona ratings.
 
-The SK is created with its session on the native host, `flags.sr2e.vr2Session = { id, hostUuid: native, hostName,
-tally: 0, receipts: {}, conn: null }` (6a-2c §2), its own token prototype, and GM ownership.
+It is created ON its native host (§4's session), with GM ownership.
 
-### 3. The Utility Pool (p.141)
-**Allocations are records on the SK**, written by the sequencer so two GM devices can't race (requirement:
-"serialized allocation"):
-- **Allocate…** on the SK's sheet is a Free Action. It edits the whole allocation as a table: utility name → rating,
+### 3. The Utility Pool (p.141): one writer, replay-safe
+**All allocation runs in the sequencer, on the active GM's client.** SKs are the GM's (§ above), so no request is
+needed. A non-sequencer client's button says "the active GM allocates for an SK".
+- **Allocate…** (the SK's sheet) is a Free Action. It edits the whole allocation as a table: utility name → rating,
   plus Initiative points.
-- **The pure `poolProblems({ pool, mpcp, alloc, locked })`:**
+- **The pure `poolProblems({ pool, mpcp, alloc, init, locked })`:**
   - cost = Σ rating, except black hammer and killjoy at 2 points per rating point;
   - plus Initiative points;
   - the cost must be ≤ the pool;
   - each rating must be ≤ MPCP;
-  - Initiative points must be 0, 1, 3 or 5 (the table's steps; "5 points provides 4D6 — the maximum");
-  - **locked:** a restore or medic allocation may not drop below its locked rating.
-- **The request** `skAlloc { alloc, init, rev }` is checked by the sequencer against the SK's current allocation
-  revision. A stale dialog is refused ("allocated elsewhere meanwhile: reopen"), and the fact `sk-alloc:<rev+1>`
-  records the whole allocation.
-- **The allocation is materialized as program items (requirement: "versioned virtual utilities").** The sequencer
-  turns the new allocation into embedded `program` items on the SK, one per utility (name, rating, `loaded: true`,
-  `flags.sr2e.skPool: { rev }`):
-  - a utility whose rating changed, or that was crashed, is REPLACED by a fresh item. Wear, crash records and the
-    one-shot/DINAB markers all key on the item and its loadGen, so the new version starts clean, as a Swap Memory
-    does for a deck;
-  - an unchanged utility keeps its item, wear included;
-  - a dropped utility's item is deleted.
-  - These items are design-locked like frame copies (6a-2a's `preUpdateItem` guard), except to the sequencer's own
-    writes (an option flag).
-  - So `activePrograms`, `bestUtility`, `spendUse`, wear and tar all work on an SK unchanged.
-- **Restore and medic lock (p.141):** a restore or medic allocation sets `locked[name] = rating` in the same fact.
-  The lock clears only with a **regeneration** (§5).
-- **Initiative points:** `_getInitiativeParts` for an SK is base MPCP, dice from `skInitDice(points)` (0 → 1, 1 → 2,
-  3 → 3, 5 → 4).
+  - Initiative points must be 0, 1, 3 or 5 ("5 points provides 4D6 — the maximum");
+  - a restore or medic allocation may not drop below its locked rating.
+- **Inside the sequencer:**
+  1. re-check `poolProblems` and the SK not ended;
+  2. write the fact `sk-alloc:<rev>` with the whole allocation **and its item identities** (R1 #6):
+     `{ rev, init, locked, items: [{ id, name, rating }] }`;
+  3. reconcile.
+- **Item identities:**
+  - a utility that's unchanged keeps its item id;
+  - one whose rating changed, or whose item is crashed, gets a NEW random id: a fresh version, so wear, crash
+    records and one-shot/DINAB markers start clean, as a Swap Memory does for a deck.
+- **The reconcile (`reconcileSkItems`, idempotent; run after the fact and on every SK pass):**
+  - every item in the latest `sk-alloc` fact exists, created with that id and `keepId`;
+  - every item flagged `skPool` that the fact doesn't list is deleted.
+
+  So an interruption between the fact and the items is finished by the next pass, and nothing is duplicated (the id
+  is the arbiter).
+- **The item locks:** 6a-2a's `preUpdateItem` and `preDeleteItem` locks on frame items both let a write through when
+  it carries the option `sr2eSkPool: true`. Only the reconcile passes it.
+- **The restore and medic lock (p.141):** an allocation fact records `locked[name] = max(old lock, new rating)` for
+  restore and medic. The next `sk-repair` with `unlock` (§5) clears it.
+- **Initiative:** the latest allocation's `init` points. `_getInitiativeParts` for an SK is base MPCP, dice from
+  `skInitDice(points)` (0 → 1, 1 → 2, 3 → 3, 5 → 4).
 
 ### 4. Acting and moving (p.141)
-- **Act…** (the SK's sheet) is 6a-2c's dialog with `ctx = { frame: sk, smart: true }`:
-  - its Computer is MPCP (`dinab` = MPCP);
-  - no pools or Karma;
-  - its programs are the pool's items;
-  - its own tally.
-- **The SK's operation list:** everything a smart frame has, plus **Logon to Host** and **Graceful Logoff**:
-  - "SKs cannot jack out": no Jack out, no Disconnect;
-  - no Logon to LTG/RTG: grid travel is the GM's narration for an SK. *Topology rules don't model a deckless icon's
-    route, so a Logon to Host on any host is allowed, flagged in Risks*;
-  - Decoy and Redirect Datatrail are refused, as for smart frames.
-- **Logon to Host** is a System Test like a decker's (Access, Deception from its pool):
-  - **success:** the SK's session moves to that host. A new session record (tally 0; ledger rules don't apply) and
-    `frame.system.hostUuid` = the new host, in ONE update by the sequencer;
-  - **to its native host:** no test ("passcodes for their native host systems", p.140). It moves at once and is
-    REPAIRED (§5).
-- **Graceful Logoff** (a System Test): success leaves the SK on no host (`hostUuid` ""). Its session is closed, and it
-  can then only Logon to Host. A failure keeps it where it is.
-- **Trace IC can't trace an SK:** it has no jackpoint (6a-2c's rule).
+**Act…** (the SK's sheet) is 6a-2c's dialog with `ctx = { frame: sk, smart: true }`:
+- its Computer is MPCP;
+- no pools or Karma;
+- its programs are the pool's items;
+- it uses its session on the host it's ON.
 
-### 5. Damage, repair and crash: facts on the SK itself
-**Every fact is written by the sequencer on the SK** (`fact(sk, …)`). The SK is GM-owned, so the active GM writes it
-directly in the sequencer queue. A non-sequencer client sends nothing, and the button says "the active GM resolves
-an SK" (requirement: one writer).
-- **Hits and attribute losses:** 6a-2a's `frameHit` and 6a-2b's `frameAttr`, with the facts on the SK, not an
-  owner. `hitFrame` and `attrFrame` gain the SK branch.
-- **The monitor and attributes are folded** from those facts, **since the latest `skRepair` fact**:
-  - `frameMonitor` and `frameAttrLosses` take a `since` seq;
-  - a repair zeroes what came before it.
-- **Repair (p.140), arriving at its native host:** the sequencer writes `sk-repair:<n>` `{ why: "native host",
-  unlock: true }` in the same pass as the move.
-  - It ends all damage and restores every attribute.
-  - It clears the restore and medic locks: "until the SK returns to its native host and regenerates its code".
-- **Regenerate (p.140)** is a Complex Action button while ON its native host:
-  - "the effects of a medic or restore program at a rating equal to its MPCP", with no pool;
-  - it rolls MPCP dice against the Medic TN for its wound level (as `vr2Medic`) and writes
-    `sk-repair:<n>` `{ boxes, why: "regenerate" }`;
-  - or, for Restore, MPCP dice against the restore TN, with `{ attr, points }`.
-  - A partial repair is a fact that lowers the fold, not a reset.
-- **Crash:** "When the SK's Condition Monitor is filled, the program crashes and is gone": 10 boxes → `frameState`
-  ended → 6a-2a's cleanup removes its tokens and combatants. The actor is NOT deleted: it stays as the GM's record,
-  marked crashed. Its locks and Tracks end (the frame key).
-- **A pass for SKs.** `schedule` runs only for characters. A `createActiveEffect` hook on an SK's record effects
-  schedules `skPass(sk)` in the sequencer: replay resolutions and wear (6a-2a's functions, pointed at the SK), and
-  apply a pending move.
+Decoy and Redirect Datatrail are refused, as for smart frames. "SKs cannot jack out": there's no jack-out.
+
+**Movement has its own two buttons, not the Act dialog (R1 #3):**
+- **Logon to Host…**, with a host picker;
+- **Graceful Logoff**.
+
+Both go through one function, `skMove(sk, op, dest)`, written for a deckless icon. It uses no topology: grid travel is
+the GM's narration for an SK, flagged in Risks.
+
+**SK sessions are per host (R1 #4).** The SK keeps `flags.sr2e.skSessions.<hostId> = { id, hostUuid, hostName,
+tally, receipts }`:
+- `liveSession(sk)` returns the entry for the host it's ON (`system.hostUuid`), or null between hosts;
+- `applyTallyEvent` finds an SK's session by the event's `sessionId` among these entries, not only the live one.
+  This is one SK branch in `eventOf`/`applyTallyEvent`;
+- `tallyUpdate` takes the session's flag path, so the sheaf-pending entry and receipts land on that host's entry.
+
+**Logon to Host (dest):**
+1. **The attempt session first:** the sequencer creates `skSessions[dest]` if it doesn't exist (tally 0). A failed
+   attempt's tally stays on it: the host remembers the intruder until the SK leaves.
+2. **The test:** Access, with the pool's Deception. It runs `systemTestNow` for the SK with a `dest` option: the host
+   is `dest`, not the SK's current host, and the session is `skSessions[dest]`. So the tally event and the sheaf are
+   the DESTINATION's (p.19: the host being logged on to rolls).
+3. **Success:** the sequencer sets `system.hostUuid = dest` (one update).
+
+   **Failure:** it stays where it was.
+- **Its native host takes no test** ("passcodes for their native host systems", p.140): it moves at once, and the
+  repair follows (§5).
+
+**Graceful Logoff:** a System Test on its current host, its tally on that host's session.
+- **Success:** the sequencer sets `hostUuid = ""` and deletes that host's entry (a later visit is a new session).
+- **Failure:** it stays.
+- Between hosts, an SK can only Logon.
+
+**Trace IC can't trace an SK:** it has no jackpoint (6a-2c's rule).
+
+### 5. Damage, repair and crash: facts on the SK, one fold, one pass
+**Every fact is written by the sequencer on the SK** (`fact(sk, …)`), on the active GM's client; others are refused
+(one writer).
+- `hitFrame` and `attrFrame` get an SK branch: instead of a request on an owner's log, they run the
+  `frameHit`/`frameAttr` handler bodies directly in `sequencer()` with the SK as the log.
+- **Refused once ended (R1 #8):** every SK write checks `frameState(sk).ended` inside the sequencer. That covers hits,
+  repairs, moves and allocations.
+
+**One sequence-ordered fold (R1 #7).** `skCondition(records)` in vr2-frames.mjs replaces "since the last repair". It
+walks the SK's `frameHit`, `frameAttr` and `skRepair` facts in `seq` order:
+- **a hit** adds its boxes (cap 10);
+- **an attribute loss** adds to that attribute's loss;
+- **a full repair** (`{ full: true }`, its native host) zeroes the monitor and every loss;
+- **a partial repair:**
+  - `{ boxes }` (Regenerate as Medic) subtracts that many boxes, floor 0;
+  - `{ attr, points }` (Regenerate as Restore) subtracts from that loss, floor 0.
+
+Everything reads this one fold: `frameState` (monitor, ended), `FrameData`'s attributes, the `frameAttr` handler's
+current value, and `replayResolutions`' "after this hit" monitor, which folds the facts up to that hit's `seq`. For
+a frame (no repairs) it equals today's `frameMonitor` and `frameAttrLosses`, which become thin calls to it.
+
+**Repair (p.140):**
+- **Arriving at its native host** writes `sk-repair:<n>` `{ full: true, unlock: true }` in the same sequencer task as
+  the move.
+- **Regenerate** is a Complex Action button while ON its native host and damaged. It rolls MPCP dice:
+  - against `medicTN(boxes)` for Medic, which writes `{ boxes: successes }`;
+  - or against the restore TN for Restore (`restoreState`'s rule), which writes `{ attr, points }`.
+
+  Neither uses the pool.
+
+**The crash:** at 10 boxes the fold says ended. The SK pass then removes its tokens and combatants (6a-2a's cleanup
+steps, without deleting the actor): the actor stays as the GM's record, marked crashed. Its locks and Tracks end (the
+frame key's `attackerEnded`).
+
+**The SK pass (R1 #5).** `skPass(sk)` runs in the sequencer and is idempotent:
+- `reconcileSkItems`;
+- replay resolutions and wear;
+- the crash cleanup.
+
+It is scheduled by a `createActiveEffect` hook on an SK's record effects, and by a scan of every SK on `ready` and
+`userConnected`. That is the GM handoff: an interrupted allocation, resolution or cleanup is finished by the new
+active GM.
 
 ### 6. The SK's sheet (the frame sheet with `kind: "sk"`)
 - MPCP, Computer, the persona ratings (after losses), Initiative (MPCP + nD6);
@@ -1522,7 +1574,7 @@ an SK" (requirement: one writer).
   - a cost over the pool;
   - a locked medic lowered;
 - `skInitDice`;
-- the monitor and attribute fold with a repair in the middle;
+- `skCondition`: hits, a partial Medic, a loss, a full repair, more hits, in seq order (R1 #7);
 - the pool roll range (MPCP + 1D6; the MPCP-8 "9 to 17" misprint noted).
 
 **Quench `sr2e.vr2-frames` additions:**
@@ -1536,6 +1588,8 @@ an SK" (requirement: one writer).
 - the SK acts (Locate IC) with MPCP dice, and its tally rises;
 - Graceful Logoff, then Logon to a host: the session moves and the tally starts at 0;
 - damage from an IC attack lands on the SK; Logon to native host repairs it and unlocks;
+- (R1) a Logon to another host puts its tally on the DESTINATION's session; a failure stays; an allocation
+  interrupted after its fact is completed by the next pass; a crashed SK refuses moves and allocations;
 - Regenerate on the native host heals boxes;
 - 10 boxes: crashed, the token removed, the actor kept and marked crashed;
 - trace IC targeting an SK is refused.
