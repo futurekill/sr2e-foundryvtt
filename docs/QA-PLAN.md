@@ -993,4 +993,10 @@ If those five all work, the core loop is healthy.
       in*) succeeds. With the hub's trace running, the logon card shows its +TN, and on success the trace crashes.
 - [ ] 7b: Redirect Datatrail twice on one LTG: only one redirect counts. The card's Detection Factor notes the
       jackpoint's trace modifier.
+- [ ] 7c: New grid → Create satellite (Orange-Average): a GM-whispered roll, and a satellite host.
+- [ ] 7c: a satellite-uplink jackpoint, deck without Satlink: Logon to LTG isn't offered. Tick Satlink: **Locate
+      satellite** appears; a success locks on, then Logon to LTG onto that satellite. Initiative shows "satlink lag −2".
+- [ ] 7c: from the satellite, Logon to RTG (any RTG): the satellite's tally carries into the RTG.
+- [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
+      button.
 

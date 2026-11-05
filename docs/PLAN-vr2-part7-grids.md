@@ -1,6 +1,6 @@
 # Plan: VR2.0 part 7: grid topology
 _Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson). **7a Codex-APPROVED round 3; BUILT and released in 0.132.0 (code review approved round 4).**
-**7b Codex-APPROVED round 4; BUILT and released in 0.133.0 (code review approved round 2)**; **7c Codex-APPROVED round 3 (2026-11-05), not built**. No code before review._
+**7b Codex-APPROVED round 4; BUILT and released in 0.133.0 (code review approved round 2)**; **7c Codex-APPROVED round 3; BUILT and released in 0.134.0 (code review approved round 2)**. No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
 - Matrix Topology pp.14–15;

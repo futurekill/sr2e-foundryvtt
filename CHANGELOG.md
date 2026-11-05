@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.134.0 — 2026-11-05
+
+### Added
+- **VR2.0 satellite links** (VR2.0 p.30, p.88), part of the *VR2.0 grid topology* setting:
+  - **Satlink decks:** a **Satlink** checkbox and a dish choice on decks and the manual cyberdeck block, beside ICCM.
+    A large portable dish is −1 to locate a satellite; a fixed-base earth station −2.
+  - **Satellites are places:** **New grid → Create satellite** rolls an Orange-Average, Orange-Hard or Red-Hard
+    (military or corporate) satellite's ratings on the p.31 table, with no reduction.
+  - **Getting on:**
+    - At a satellite-uplink jackpoint, **Locate satellite** on the Matrix tab is a Computer Test against the
+      Satlink table: open country 2–6, suburban 3, light urban 6, downtown 8, +2 in bad weather, less the dish.
+    - A success locks onto that one satellite (base time 3 minutes); a Karma reroll can turn a miss into a lock.
+    - Then Logon to LTG puts the decker on it.
+  - **On the satellite:**
+    - Logon to RTG reaches any RTG on earth, and Logon to Host reaches the hosts that use that satellite.
+    - Its security tally carries into the RTG when that logon succeeds.
+  - **Trace over a satlink** finds only the uplink. The decker is still traced, but there's no physical location,
+    no response-times table and no dump.
+- **Satlink signal lag:** −2 Matrix Reaction while connected through a satellite uplink jackpoint, whenever the Matrix
+  uses VR2.0.
+
 ## 0.133.0 — 2026-11-04
 
 ### Added

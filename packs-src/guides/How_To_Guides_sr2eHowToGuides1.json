@@ -268,6 +268,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> reach a host that sits behind a corporate hub, and shake the hub&#39;s trace IC on the way (Virtual Realities\n2.0 p.36). Needs <em>VR2.0 grid topology</em> on.</p>\n<p><img src=\"systems/sr2e/assets/guides/hub.gif\" alt=\"A decker on a hub finds its connections with Analyze Subsystem, then logs on to the host behind it; the hub's trace IC crashes\"></p>\n<p><strong>The GM, once</strong></p>\n<ol>\n<li>Attach the hub to its LTG (<strong>Attached to</strong> in its Grid section).</li>\n<li>On each host behind it, leave <strong>Attached to</strong> empty and <strong>Link</strong> it to the hub.</li>\n<li>Optional: on the hub, set <strong>Connections hidden in</strong> to a subsystem other than Access.</li>\n</ol>\n<p><strong>The decker</strong></p>\n<ol>\n<li>Log on to the hub.</li>\n<li><strong>System Operation → Analyze Subsystem</strong> on the hub, with the targeted subsystem set to Access (or wherever the GM\nhid the connections). On a success, a card says you&#39;ve found them.</li>\n<li><strong>System Operation → Logon to Host</strong> and pick the host behind the hub. If the hub&#39;s trace IC is hunting you, its\nrating is added to the TN: leaving counts as a Graceful Logoff.</li>\n<li>On a success the hub loses your datatrail: its trace crashes, and the hub forgets your tally.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>To reach another host behind the hub, log on back to the hub first, then onward. Hosts behind it aren&#39;t linked to\neach other.</li>\n<li>Locate File or Locate Slave on the hub searches the whole network.</li>\n<li>On a public grid, a trace IC loses interest as soon as you log on to a host.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "1a15d509c6bc3049",
+      "name": "Deck through a satellite (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> jack in through a communications satellite, so a trace can find the satellite but never the decker\n(Virtual Realities 2.0 p.30). Needs <em>VR2.0 grid topology</em> on.</p>\n<p><img src=\"systems/sr2e/assets/guides/satellite.gif\" alt=\"A decker at a satellite uplink locks onto ComSat 7, logs on to it, then reaches an RTG on the far side of the world\"></p>\n<p><strong>The GM, once</strong></p>\n<ol>\n<li>In the Actors directory, <strong>New grid → Create satellite</strong>. Pick Orange-Average for a communications satellite, or\nRed-Hard for a military or corporate one.</li>\n<li>Draw a Region where the dish is and give it the <strong>Matrix jackpoint</strong> behaviour. Set <strong>Kind</strong> to <em>Satellite\nuplink</em>, and <strong>Wired to</strong> to the satellite (or leave it empty for any satellite).</li>\n</ol>\n<p><strong>The decker</strong></p>\n<ol>\n<li>On the deck (or the Matrix tab&#39;s cyberdeck block), tick <strong>Satlink</strong> and pick your dish.</li>\n<li>Jack in at the uplink. The Matrix tab shows <strong>Locate satellite</strong>: pick the satellite and the conditions (downtown is\nhardest; a large dish or a fixed-base station helps). Bad weather adds 2.</li>\n<li>On a success you lock onto it. On a miss, try again in about five minutes; Karma can buy the success.</li>\n<li><strong>System Operation → Logon to LTG</strong> onto the satellite, then <strong>Logon to RTG</strong> to any RTG on earth.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>The uplink is +2 to every Access Test, and signal lag costs −2 Reaction.</li>\n<li>The satellite&#39;s security tally follows you into the RTG you log on to.</li>\n<li>A trace that completes finds only the satellite: no physical response, and the grid can&#39;t dump you.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"

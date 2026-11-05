@@ -283,3 +283,25 @@ VERDICT: REVISE
 VERDICT: APPROVED
 
 **7c APPROVED in round 3.**
+
+## 7c Code round 1 — Codex (fresh session, the 7c diff with named functions; ~285k input tokens)
+
+- `module/vr2.mjs:442` — A successful Karma reroll arriving before the initial lock write completes is discarded because `cur.card` is absent or older; the initial failure then persists. Reproduced with delayed `actor.update`. **Fix:** serialize Karma settlement behind the initial locate operation and read the card’s latest successes.
+
+- `module/vr2.mjs:434` — The connection ID is captured after the dialog and roll. If another client disconnects/reconnects meanwhile, the old attempt grants a lock on the new connection. **Fix:** capture the connection before opening the dialog and reject settlement if it changed.
+
+VERDICT: REVISE
+
+### Claude's response (fix eea41ac)
+- **#1 accepted.** The Karma path (`satLockKarma`) runs in the `vr2op` queue behind the locate, and reads the card's
+  latest successes. The first write also reads them from the card.
+- **#2 accepted.** `conn` is captured before the dialog. If the connection changed by the time the roll ends, no
+  lock is written.
+
+## 7c Code round 2 — Codex (fresh session, fix only; ~174k input tokens)
+
+No findings. Both fixes hold: Karma settlement waits behind the initial locate write and reads current card successes; connection capture precedes the dialog and rejects changed connections. Focused delayed-write checks passed; no regressions found in scope.
+
+VERDICT: APPROVED
+
+**7c code APPROVED in round 2. Part 7 (grid topology) is complete.**
