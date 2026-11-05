@@ -751,7 +751,9 @@ export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
     const pit = won && prof.program === "tar-pit";
     const conn = liveConn(actor);
     // 6a-2b R1 #6: a frame command's copy lives on the frame; the fact stays on the decker's log, the recipient frozen.
-    const holder = ref.icon ? sync(ref.icon.uuid) : actor;
+    // A frame that has ended is no recipient (code R1 #3): the strike lands on nothing.
+    const F = ref.icon ? await import("./frames.mjs") : null;
+    const holder = ref.icon ? (sync(ref.icon.uuid) && !F.frameState(sync(ref.icon.uuid)).ended ? sync(ref.icon.uuid) : null) : actor;
     const item = holder?.items.get(ref.itemId);
     const pKey = programKey({ source: item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId, name: ref.name });
     const g = actor.system.vr2Deck?.reloadGen?.(pKey) ?? 0;
@@ -778,7 +780,8 @@ export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
       ${won ? `The tar wins: ${esc(ref.name)} crashes (a Swap Memory reloads it) and so does the tar${prof.comp ? " program (the construct goes on)" : ""}, with no tally.${pit
         ? (ref.icon ? " Tar pit: a frame has no storage, so nothing else is corrupted." : pitRoll.successes > 0 ? ` <strong>Tar pit: every copy of ${esc(ref.name)} on the deck is corrupted</strong> until reloaded from outside after jacking out (p.43).` : " Tar pit: its viral code is defeated.") : ""}`
         : `The utility holds. The decker's secret Sensor test: ${sensor.successes} (${notice}; p.40).`}</div>` });
-    if (won) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc((holder ?? actor).name)}'s ${esc(ref.name)} crashes (tar IC, VR2.0 p.42).</div>` });
+    if (won) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${holder
+      ? `${esc(holder.name)}'s ${esc(ref.name)} crashes (tar IC, VR2.0 p.42).` : `The frame running ${esc(ref.name)} had already crashed: the tar strikes nothing.`}</div>` });
   });
 }
 
@@ -786,7 +789,12 @@ export async function tarStrike(actor, ic, ref, card, comp = "", gen0 = null) {
 async function reconcileTarFact(actor, t) {
   if (t?.v !== 2 || !t.won) return;
   // The recipient frozen in the receipt (6a-2b R1 #6): a frame's copy crashes on the frame; a frame gone, on nothing.
-  const holder = t.utility.icon ? sync(t.utility.icon.uuid) : actor;
+  // A frame recipient must still be that upload, running (code R1 #3).
+  let holder = actor;
+  if (t.utility.icon) {
+    const fr = sync(t.utility.icon.uuid);
+    holder = fr?.type === "frame" && (fr.system.uploadId || fr.id) === t.utility.icon.upload && !(await import("./frames.mjs")).frameState(fr).ended ? fr : null;
+  }
   if (holder) {
     await recordEvent(holder, `${P3}crash:${t.utility.itemId}:${t.utility.loadGen}:tar-${t.card}`, { type: "crash", programId: t.utility.itemId, loadGen: t.utility.loadGen });
     for (const v of t.victims ?? []) await recordEvent(holder, `${P3}crash:${v.itemId}:${v.loadGen}:tar-${t.card}`, { type: "crash", programId: v.itemId, loadGen: v.loadGen });

@@ -12,7 +12,7 @@
  * The frame actor (`_id` = the upload id) and its token are created and removed by the same client from those facts,
  * idempotently, as persona-tokens.mjs does.
  */
-import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers, freezeSuccesses, flush } from "./vr2ic.mjs";
+import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers, freezeSuccesses, flush, vr2ActionGuard } from "./vr2ic.mjs";
 import { liveSession, currentPlace, addWear, commitAction, dinabZeroed, activePrograms, bestUtility, programRating, phaseKey,
   vr2SystemTest, vr2MatrixAttack, vr2Maneuver, vr2ScanIcon } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
@@ -80,6 +80,7 @@ export async function decompressFrame(actor, core) {
   { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   if (!core?.system?.isCore || !squeezed(core)) return ui.notifications.info(`${core?.name ?? "That"} isn't compressed.`);
   const started = liveSession(actor)?.improvised?.id ?? null;
+  await ownAction(actor, "Decompress frame");   // 6a-2b §4: the decker acts (code R1 #1)
   await core.setFlag("sr2e", "frameDecompressed", loadGen(core));
   await commitAction(actor, started);
   ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">${esc(actor.name)} decompresses
@@ -96,6 +97,7 @@ export async function uploadFrame(actor, core) {
   if (why) return ui.notifications.warn(why);
   if (!(Number(actor.system.cyberdeck?.ioSpeed) > 0)) return ui.notifications.warn("Your deck has no I/O bandwidth to upload with (p.91).");
   const s = liveSession(actor);
+  await ownAction(actor, "Upload frame");   // 6a-2b §4: the decker acts (code R1 #1)
   const id = foundry.utils.randomID(16);
   await request(actor, "upload", { upload: id, conn: actor.system.vr2Conn.n, core: core.id, gen: loadGen(core), host: host.uuid, sessionId: s?.id ?? "" });
   ui.notifications.info(`Uploading ${core.name} to ${host.name}…`);
@@ -407,6 +409,9 @@ export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = 
  */
 export function commandProblem(actor, frame, { op = "", copy = null, after = false } = {}) {
   if (frame?.type !== "frame") return "That isn't a running frame.";
+  // Jacking out, or an icon down: the decker can't command anything (code R1 #2).
+  const guard = vr2ActionGuard(actor);
+  if (guard) return guard;
   if (frame.system.ownerUuid !== actor?.uuid) return `${frame.name} isn't ${actor?.name ?? "yours"}'s.`;
   if (frameState(frame).ended) return `${frame.name} has crashed.`;
   if (frame.system.kind === "smart") return "Smart frames act on their own (part 6a-2c).";
