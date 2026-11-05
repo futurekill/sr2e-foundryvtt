@@ -492,36 +492,65 @@ All of 7b applies only when `vr2Topology` is on. Off, traces, logons and redirec
 **Recording the place.** The `trace` fact (vr2ic.mjs ~754, written by the sequencer when the trace hits) gains
 `place`: the IC's host UUID at that moment. An older trace fact without it reads the IC's current host.
 
+The sequencer also records the place's scope and class in the fact: `scope` and `grid: true` for a public LTG or RTG.
+`traceState` returns `place`, `scope` and `grid` with the trace, so the fold and every predicate can see them
+(R1 #4). The legacy fallback is computed by the sequencer when it reads an old fact.
+
 **`traceScope(trace)`** classifies the trace from that place, using 7a's `scopeOf`:
 - a public-grid trace: the place is an LTG or RTG, so the scope is `rtg_<id>` or `ltg_<id>`;
 - a host trace: anything else, including a PLTG. The book's grid rule names public RTGs and LTGs only.
 - A Track (part 5a, a decker's utility) is neither. 7b never touches it.
 
-### 2. A grid trace loses interest (p.47)
-**The pure decision.** `traceLost({ trace, place, topo })` in `module/rules/vr2-grids.mjs` returns `"left the grid"`
-or null:
-- it applies to a public-grid trace that is neither complete nor dead;
-- the decker's current place is a host, a PLTG, or a grid in another scope.
+### 2. A grid trace loses interest (p.47): durable, ordered moves (R1 #1, #6)
+**Move entries.** Every place change is written by the decker's client in the SAME actor update that makes it.
+- The entry is `flags.sr2e.vr2Moves.<conn>_<k> = { conn, k, place, from, network, logonId }`, where `k` is a
+  per-connection counter (one person drives an actor).
+- The place changes that write one:
+  - the first `ok` of a logon (`settleLogon`, at the card or through Karma);
+  - Disconnect to grid.
+- No state exists where the decker has moved and the entry is missing, and a departure followed by a return leaves
+  two entries.
+- Entries of older connections are pruned when a session closes.
 
-The case "still at the jackpoint" can't arise, because a hit needs a place.
+**Sequencing them.** `syncMoves(actor)` runs in the sequencer. For each entry of the live connection with no `move`
+fact yet, in `k` order, it writes `move:<conn>:<k>`:
+- `{ type: "move", conn, k, place, from, network, scope, grid }`, with the scope and class computed then;
+- the fact gets a `seq`.
 
-**Applying it, in the sequencer on the active GM's client:**
-- `tickTraces` (vr2ic.mjs ~1154) first runs `reconcileInterest(actor)`, just as it already runs `reconcileEnds`
-  first. For every live trace that `traceLost` says is lost, it writes `trace-dead:<conn>:<icKey>` `{ why }`.
-  `traceState` already ends any trace that has a `traceDead`.
-- Because the check runs before every tick, a boundary that comes after the move can never count. The GM's client
-  reads the decker's replicated session flags.
-- The decker's client also sends a new `moved` request after each place change: a successful logon (in
-  `settleLogon`) and Disconnect to grid. Its handler runs `reconcileInterest` right away, so the trace dies at the
-  move, and its card says so: "Grid trace loses interest: <decker> left <grid> (p.47)".
-- `moved` carries no authority of its own: the handler re-derives the place from the flags.
+It runs:
+- at the start of `passFor`. `schedule` already fires on the actor's updates, so a move is sequenced moments after
+  it happens;
+- at the start of `tickTraces`;
+- before any `trace` fact is written.
+
+So every move the GM's client can see is ordered before any later tick or new trace. A `moved` request is
+unnecessary and isn't added.
+
+**The fold decides, purely (`traceState`).** A trace ends ("lost") at the first `move` fact with a seq after its own:
+- a **public-grid trace** (not a Track) is lost when the move's `grid` is false, or its `scope` differs from the
+  trace's: a host, a PLTG or another RTG (p.47);
+- a **host trace** placed on P (not a Track) is lost when the move is a `network` move whose `from` is P (§4).
+
+Its `crash` becomes the earlier of the existing crash and that move's seq, so a tick sequenced after the move never
+counts. Like any crash, this doesn't undo a trace that completed before the move. The rules are pure, in
+`module/rules/vr2-grids.mjs` (`traceLostAt(trace, moves)`), and `traceState` calls them.
+
+**The card.** `noticeTraces` posts it once per trace (`once`), whispered to the GM: "<IC> loses interest: <decker>
+left <grid> (p.47)", or "the hub lost his datatrail (p.36)".
+
+**Frozen dead traces (R1 #3).** The fold's `frozenCount` excludes dead traces as well as complete ones, so a lost or
+crashed frozen trace stops costing Detection Factor.
 
 **Keeping a suppression across the grid (p.47: "keep it suppressed … as long as he is on that LTG, its parent RTG, or
-any other LTG").**
+any other LTG"; R1 #2).**
 - Today the suppressed and released IC live on the session, so a new session drops them silently.
-- Under topology, `newSession` copies `suppressed` and `released` from the outgoing session when it is in the SAME
-  scope, as the tally is copied.
-- Leaving the scope ends them, as today. The grid trace has lost interest by then anyway.
+- Under topology they travel with the tally:
+  - 7a's ledger entry stores `suppressed` and `released`;
+  - `newSession` restores them by the same seed rule as the tally: the outgoing session in the same scope, else the
+    ledger entry for this connection.
+- So a failed attempt elsewhere, which installs the target's session while the decker is still on P, loses nothing:
+  the return to P restores them.
+- On another place they don't count. Detection Factor reads only the live session's.
 
 **A complete trace (one that has located the jackpoint) stays complete.** The decker is still traced: the tally and
 attack effects of p.46 continue, as they do today. Losing interest stops only a hunt that is still running.
@@ -565,14 +594,14 @@ p.36 states it for the hub's departure, and the return trip is the same act of l
 next.
 - **The TN:** the logon's TN adds the rating of every live trace, neither complete nor dead, whose `place` is P. That
   is the same term `vr2SystemTest` already adds to a Graceful Logoff (`tracing`). The card shows it.
-- **On success** (`settleLogon` with `ok`, so Karma counts):
-  1. the `moved` request carries `{ network: true, from: P }`. The sequencer writes `trace-dead … why: "the hub
-     lost his datatrail"` for every incomplete trace placed on P.
-  2. P's ledger tally is cleared in the same update as the logon verdict ("clears all traces … from the security …
-     of the host", p.114). The decker comes back to a fresh P.
-- `traceLost` also covers this at tick time: a live trace placed on host P is lost when the session's current
-  logon is an ok network move whose `from` is P. So a boundary between the success and the `moved` request can't
-  count either.
+- - **Tracks are excluded** (R1 #5). The TN term and the cleanup both skip `track` traces: a Track is another decker's
+  utility, not P's IC. Today's Graceful Logoff `tracing` term gets the same exclusion, as p.45 speaks of trace IC.
+- **On success** (`settleLogon` with `ok`, so Karma counts), in that same update:
+  1. the move entry has `network: true, from: P`. The fold then ends every incomplete trace placed on P that
+     started before the move (§2): "the hub loses his datatrail". The entry belongs to this connection and this
+     logon, and only earlier traces are affected, so a late or duplicate sync can't touch a later trace (R1 #6).
+  2. P's ledger tally and its suppressions are cleared ("clears all traces … from the security … of the host",
+     p.114). The decker comes back to a fresh P.
 - **A failed network move** leaves the decker on P, and P's traces keep running.
 
 **Locate File / Locate Slave on a hub** (a host with a `grid` and at least one second-tier link): the card adds
@@ -594,12 +623,16 @@ so the answer is the GM's.
 
 ### 6. Tests (7b)
 **Vitest:**
-- `traceLost` for each case:
+- `traceLostAt` for each case, ordered by seq:
   - LTG → RTG → another LTG of the same RTG: kept;
   - → a host, a PLTG, or another RTG: lost;
   - a host trace and a Track: never by this rule;
   - a complete trace: never;
-  - a network move from its place: lost.
+  - a network move from its place: lost;
+  - a departure then a return: lost at the departure;
+  - a move before the trace started: ignored;
+  - a Track: never.
+- `frozenCount` excludes dead traces.
 - `traceScope` with and without `place`.
 - Governing (dump), true when:
   - a trid jackpoint wired to an LTG of that RTG, with a trace placed on that LTG or on the RTG.
@@ -617,7 +650,11 @@ so the answer is the GM's.
 **Quench `sr2e.vr2-grids` additions:**
 - a grid trace on the LTG survives LTG → RTG → LTG (still ticking), and dies on Logon to Host, with a "loses
   interest" card;
-- a tick boundary between a successful logon to a host and the `moved` request doesn't count;
+- a tick right after a successful logon to a host doesn't count, even when the move is synced in that tick's pass;
+- out to a host and back to the LTG before the GM's pass: the trace is still lost;
+- a failed attempt on another scope, then back: the suppression is still there;
+- a frozen trace that loses interest gives the Detection Factor point back;
+- a Track is untouched by grid moves and network moves, and adds nothing to a network move's TN;
 - a suppression carries LTG → RTG and is gone on another RTG;
 - a governing trace completes: the GM's **Dump the decker** exits with dump shock. A non-governing one has no button;
 - hub → second tier:

@@ -143,3 +143,38 @@ No new findings. The fix clears both session and ledger `forgetAt` when marking 
 VERDICT: APPROVED
 
 **7a code APPROVED in round 4.**
+
+# Part 7b
+
+User rulings before review (2026-11-04):
+- Redirect Datatrail's opposing TN is the literal DF − the jackpoint's trace modifier.
+- Network moves count as a Graceful Logoff in both directions.
+
+## 7b Round 1 — Codex (fresh session, 7b only, named code locations; ~106k input tokens)
+
+- **§§2,4 — Moves are not ordered with ticks.** Replicated flags can still show P when the GM ticks; a final tick completes the trace before `moved`, after which reconciliation exempts it. A quick departure and return can also erase evidence of leaving. **Fix:** sequence durable, connection-bound move records with ticks and reconcile each transition exactly once.
+
+- **§2 — Failed logons discard suppression.** `newSession` installs the destination session before the verdict; a failed cross-scope attempt therefore drops P’s suppressions while `currentPlace` still returns P. **Fix:** retain suppression by connection/scope and clear it only on successful departure.
+
+- **§§2,4 — Dead frozen traces still cost Detection Factor.** `traceState` preserves `frozen` after `traceDead`, and the fold’s `frozenCount` excludes complete traces but not dead ones. **Fix:** exclude dead traces from `frozenCount`.
+
+- **§§1,4 — The fold drops the proposed `place`.** Adding it only to the trace fact leaves `f.live.traces` without it, defeating frozen-origin classification and P-specific TN filtering. **Fix:** propagate `place` through `traceState`, with the stated legacy fallback.
+
+- **§4 — Track can be penalized or killed as Trace IC.** The existing `tracing` expression includes Tracks; the proposed network cleanup says “every incomplete trace” despite §1 promising never to touch Track. **Fix:** explicitly exclude `track` from network TN and cleanup predicates.
+
+- **§4 — Network cleanup lacks durable validation.** `request()` generates a fresh ID each time; `{ network: true, from: P }` neither identifies the successful logon nor proves its connection. Delayed or duplicate requests can kill a later trace on P. **Fix:** bind cleanup to a persisted successful logon ID and connection, validate its endpoints, and affect only traces predating that departure.
+
+- **§6 — Tests omit the critical interleavings.** The proposed boundary test does not cover stale GM flags, departure-and-return before reconciliation, failed-logon suppression loss, or frozen-trace cleanup. **Fix:** add those cases plus duplicate/delayed network requests and Track exclusion.
+
+VERDICT: REVISE
+
+### Claude's response
+All seven findings were accepted.
+- **#1, #6:** the `moved` request is gone. Each place change writes a durable move entry in the same update.
+  `syncMoves` sequences them into `move` facts before every pass, tick and new trace. The fold ends a trace
+  purely, at the first qualifying move after its start, so a departure followed by a return still counts.
+- **#2:** suppressions ride in the ledger entry and are restored by the tally's seed rule.
+- **#3:** `frozenCount` excludes dead traces.
+- **#4:** `place`, `scope` and `grid` are on the trace fact and returned by `traceState`.
+- **#5:** Tracks are excluded from the network TN, the cleanup, and the Graceful Logoff `tracing` term.
+- **#7:** the tests now cover these interleavings.
