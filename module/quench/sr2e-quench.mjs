@@ -13791,6 +13791,12 @@ export function registerSR2EQuenchTests() {
         await op(a, ltg2, "logonLTG", { win: false });
         assert.equal(at(a), rtg.uuid);
         assert.isNull(V.liveSession(a).forgetAt, "no memory clock on an already-entered grid");
+        // Out to a PLTG and back: L's grid was entered this connection, so still no clock (code R2 #2).
+        const pl = await place("Quench Grid PLTG", "pltg", { entryPoints: [ltg.uuid] });
+        await op(a, ltg, "logonLTG"); await op(a, pl, "logonLTG");
+        await op(a, ltg, "logonLTG", { win: false });
+        assert.equal(at(a), pl.uuid);
+        assert.isNull(V.liveSession(a).forgetAt, "no memory clock coming back from a PLTG");
       });
 
       it("the p.29 example: LTG → RTG → LTG is one tally (2 + 1 + 2 = 5), firing the RTG's sheaf once", async function () {

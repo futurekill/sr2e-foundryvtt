@@ -331,14 +331,14 @@ export function settleLogon(actor, { sessionId, logonId, card, ok }) {
     const update = { "flags.sr2e.vr2Session.logon.card": card, "flags.sr2e.vr2Session.logon.ok": ok };
     if (ok) {
       update["flags.sr2e.vr2Session.forgetAt"] = null;
+      if (s.scope) update[`flags.sr2e.vr2Entered.${s.scope}`] = s.conn;
       if (s.scope && actor.flags?.sr2e?.vr2Tallies?.[s.scope]?.forgetAt != null) update[`flags.sr2e.vr2Tallies.${s.scope}.forgetAt`] = null;
       const carryId = `carry-${logonId}`;
       const add = s.logon.carry ? carryAmount(s.logon.carry.tally, s.seed ?? 0) : 0;
       if (add > 0 && s.receipts?.[carryId] == null) Object.assign(update, tallyUpdate(actor, s, add, carryId, { exact: true }));
     } else if (first && s.logon.op === "logonLTG" && sync(s.hostUuid)?.system?.kind === "ltg"
-      // Only a failed first access is "remembered" (code R1 #3): a failed move inside a scope he's already in
-      // must not put an expiry on the tally he earned there.
-      && (!s.logon.from || scopeOf(s.logon.from, topoSnapshot())?.key !== s.scope)) {
+      // Only a failed first access is "remembered" (code R1 #3, R2 #2): never a scope he has been on this connection.
+      && actor.flags?.sr2e?.vr2Entered?.[s.scope] !== s.conn) {
       const roll = await new Roll("1d3").evaluate();
       const forgetAt = game.time.worldTime + forgetSeconds(roll.total);
       update["flags.sr2e.vr2Session.forgetAt"] = forgetAt;
@@ -358,6 +358,7 @@ export function vr2DisconnectToGrid(actor) {
     if (!grid) return ui.notifications.warn("Disconnect to grid works from a host attached to a grid (VR2.0 p.14).");
     const s = await sessionFor(actor, grid);
     if (!s) return;
+    if (s.scope) await actor.update({ [`flags.sr2e.vr2Entered.${s.scope}`]: s.conn });
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
       ${esc(actor.name)} disconnects from ${esc(at.name)} and is back on ${esc(grid.name)} (VR2.0 p.14).</div>` });
     return s;
@@ -990,13 +991,15 @@ async function attackOnce(actor) {
     }
   } else {
     attackerComputer = computerOf(actor);
-    // Part 7a (code R1 #1): under grid topology a decker attacks only where he is.
-    if (topologyOn() && actor.system.vr2Conn && currentPlace(actor)?.uuid !== host.uuid) {
-      return ui.notifications.warn(`${actor.name} isn't logged on to ${host.name}.`);
-    }
     // Log on to the chosen host FIRST: a build made on another host ends with that session. Behind any
-    // System Operation still running, so it can't switch the session under that test's tally.
-    await opQueue(actor, () => sessionFor(actor, host));
+    // System Operation still running, so it can't switch the session under that test's tally; under grid
+    // topology a decker attacks only where he is, checked there (code R1 #1, R2 #1).
+    const here = await opQueue(actor, async () => {
+      if (topologyOn() && actor.system.vr2Conn && currentPlace(actor)?.uuid !== host.uuid) return false;
+      await sessionFor(actor, host);
+      return true;
+    });
+    if (!here) return ui.notifications.warn(`${actor.name} isn't logged on to ${host.name}.`);
     if (o.programId === "improv") {
       const imp = liveSession(actor)?.improvised;
       if (!imp?.level) return ui.notifications.warn("No improvised attack is ready on this host.");
