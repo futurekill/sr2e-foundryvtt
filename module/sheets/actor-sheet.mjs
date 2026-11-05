@@ -13,7 +13,7 @@ import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { gridSheetContext, gridEdit } from "../grids.mjs";
 import { liveSession, isCompressed, dinabLeft, optionOf, currentPlace, topoSnapshot, atSatUplink } from "../vr2.mjs";
 import { disconnectTarget } from "../rules/vr2-grids.mjs";
-import { taskOf, doneOf, writingOf, unfinished } from "../programming.mjs";
+import { taskOf, doneOf, writingOf, unfinished, loadingState } from "../programming.mjs";
 import { programUnusable } from "../data/actor-data.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
@@ -579,7 +579,13 @@ function programBadges(actor, i) {
       unwritten: !writing && unfinished(i) },
     compressed: opts && i.system.loaded && isCompressed(i), dinab: opts && optionOf(i, "dinab") ? dinabLeft(i) : null,
     hasDinab: !!(opts && optionOf(i, "dinab")),
-    spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i) };
+    spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i),
+    // Part 6a-1: a frame core's row (p.105–106).
+    core: i.system.isCore ? (() => { const lt = taskOf(i, "load:");
+      return { kind: i.system.frameCore.kind, rating: i.system.rating, size: i.system.frameSize,
+        copies: (i.system.activeLoad?.copies ?? []).map(c => `${c.name} ${c.system?.rating}`).join(", "),
+        void: i.system.activeLoad?.void ?? "", written: i.system.coreWritten,
+        loading: loadingState(i).writing ? { done: doneOf(lt), period: lt?.period ?? null } : null }; })() : null };
 }
 
 export class SR2ECharacterSheet extends SR2EBaseActorSheet {

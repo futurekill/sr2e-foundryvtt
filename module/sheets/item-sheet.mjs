@@ -248,12 +248,20 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       case "program":
         context.programCategories = CONFIG.SR2E.programCategories;
         // VR2.0 Utility Options (plan 5b §5): each row with its effect or why it's inert.
-        if (utilityOptionsOn()) {
+        // A frame core's options (DINAB, optimization, squeeze) are frame rules: shown whatever the setting (6a-1 R1 #2).
+        if (utilityOptionsOn() || item.system.isCore) {
           const inert = item.system.inertOpts ?? [];
           context.utilityOptions = { kinds: Object.keys(UTILITY_OPTION_KINDS), targets: LIMIT_TARGETS, allowed: UTILITY_OPTIONS[item.system.utility] ?? [],
             utility: item.system.utility, design: item.system.designSize,
             rows: (item.system.options ?? []).map((o, i) => ({ ...o, i, rated: !!UTILITY_OPTION_KINDS[o.kind]?.rated, isLimit: o.kind === "limit",
               why: inert.find(x => x.i === i)?.why ?? "" })) };
+        }
+        // Part 6a-1: a frame core (VR2.0 p.105–106).
+        if (isVR2()) {
+          const s = item.system;
+          context.frameCore = { on: !!s.isCore, smart: s.frameCore?.kind === "smart", problems: s.coreProblems ?? [], capacity: s.capacity,
+            initiative: s.initiative, written: s.coreWritten, frameSize: s.frameSize,
+            load: s.activeLoad ? { void: s.activeLoad.void ?? "", copies: (s.activeLoad.copies ?? []).map(c => `${c.name} ${c.system?.rating}`) } : null };
         }
         break;
       case "skill":

@@ -1,6 +1,6 @@
 // VR2.0 optional rule "Utility Options" (pp.102–104) and programming (pp.100–102): pure math, no Foundry.
 // docs/PLAN-vr2-part5b.md. Book examples are pinned in test/vr2-options.test.mjs.
-import { matrixProgramMultiplierVR2 } from "./sr2e-rules.mjs";
+import { matrixProgramMultiplierVR2, attackMultiplier } from "./sr2e-rules.mjs";
 
 /**
  * The options (pp.103–104). `mod`: the rating modifier — a number, "rating" (+ the option's own rating), or 0 for
@@ -38,7 +38,9 @@ export const UTILITY_OPTIONS = {
   steamroller: ["dinab", "oneShot", "optimization", "targeting"],
   armor: ["optimization"], shield: ["optimization"], camo: ["oneShot", "optimization"], cloak: ["oneShot", "optimization"],
   lockOn: ["oneShot", "optimization"], medic: ["dinab", "optimization"], restore: ["dinab", "oneShot", "optimization"],
-  compressor: [], sleaze: [], track: []
+  compressor: [], sleaze: [], track: [],
+  // Part 6a-1 (p.105): "Frame cores may be equipped with … DINAB, optimization, and squeeze" — a closed list.
+  frameCore: ["dinab", "optimization", "squeeze"]
 };
 const NAME_IDS = { "black hammer": "blackHammer", "read/write": "readWrite", "lock-on": "lockOn" };
 
@@ -61,13 +63,16 @@ export const limitAllows = (active = [], targetType) => active.every(o => o.kind
  */
 export function activeOptions(utility, baseRating, options = []) {
   // Sensitive is allowed on every utility: no entry lists it and its text speaks of "programs" (plan 5b Risks).
-  const allowed = new Set(UTILITY_OPTIONS[utility] ? [...UTILITY_OPTIONS[utility], "sensitive"] : []);
+  // A frame core's list is closed (p.105), and its DINAB is capped by the programmer's Computer, not the Core
+  // Rating (p.106; part 6a-1 R1 #1): checked when the core is written.
+  const core = utility === "frameCore";
+  const allowed = new Set(UTILITY_OPTIONS[utility] ? [...UTILITY_OPTIONS[utility], ...(core ? [] : ["sensitive"])] : []);
   const active = [], inert = [], seen = new Set();
   for (const [i, o] of options.entries()) {
     const def = UTILITY_OPTION_KINDS[o?.kind];
     const r = Math.floor(Number(o?.rating) || 0);
     let why = !def ? "unknown option" : !allowed.has(o.kind) ? "not an option of this utility"
-      : seen.has(o.kind) ? "taken twice" : def.rated && (r < 1 || r > baseRating) ? `rating must be 1–${baseRating}`
+      : seen.has(o.kind) ? "taken twice" : def.rated && (r < 1 || (r > baseRating && !(core && o.kind === "dinab"))) ? `rating must be 1–${baseRating}`
       : o.kind === "limit" && !LIMIT_TARGETS[o.target] ? "pick the one target type" : "";
     if (why) { inert.push({ ...o, i, why }); continue; }
     seen.add(o.kind);
@@ -165,6 +170,9 @@ export const mainframeAdequate = (sv, rating) => (Number(sv) || 0) * 2 >= (Numbe
 export function programmingCap(utility, skills = []) {
   const top = Math.max(0, ...skills.map(Number));
   if (utility === "blackHammer" || utility === "killjoy") return Math.ceil(top / 2);
+  // A frame core (p.105): "Core Ratings may not exceed the programmer's Computer Skill × 1.5 (round fractions down)";
+  // a team's +1 doesn't lift it.
+  if (utility === "frameCore") return Math.floor(top * 1.5);
   return skills.length > 1 ? top + 1 : top;
 }
 /** Sensitive (p.104): the programming test uses the average of Computer and Computer/Matrix Theory, rounded up. */
@@ -184,8 +192,9 @@ export const sensitiveSkill = (computer, theory) => Math.ceil(((Number(computer)
  * so a failed task stays failed and a period never moves. No successes = a failed task. Usable: a new project starts unusable; a completed task makes it usable; an abandoned
  * or failed one leaves it as it was. The latest start is the current task.
  */
-export function foldProgramming(records = []) {
-  const recs = records.filter(r => String(r.key ?? "").startsWith("prog:"));
+export function foldProgramming(records = [], prefix = "prog:") {
+  // Part 6a-1: frame loading is the same lifecycle under "load:" (its end record carries the load's payload).
+  const recs = records.filter(r => String(r.key ?? "").startsWith(prefix));
   const starts = recs.filter(r => r.type === "progStart" && Number.isInteger(r.gen)).sort((a, b) => a.gen - b.gen);
   const tasks = {};
   for (const r of starts) tasks[r.gen] = { ...r, task: r.gen, log: {}, frozen: false, successes: null, period: null, end: null };
@@ -194,7 +203,7 @@ export function foldProgramming(records = []) {
     if (!t) continue;
     if (r.type === "progLog") t.log[r.key] = { days: r.days, bonus: r.bonus };
     else if (r.type === "progFrozen") { t.frozen = true; t.successes = r.successes ?? 0; }
-    else if (r.type === "progEnd") t.end = r.outcome;
+    else if (r.type === "progEnd") { t.end = r.outcome; if (r.payload) t.payload = r.payload; }
   }
   let usable = !recs.some(r => r.type === "progNew");
   for (const r of starts) {
@@ -209,4 +218,23 @@ export function foldProgramming(records = []) {
   const task = starts.length ? tasks[starts.at(-1).gen] : null;
   const writing = !!task && !task.end;
   return { tasks, current: task?.task ?? null, task, nextGen: (task?.task ?? 0) + 1, writing, unfinished: writing || !usable };
+}
+
+/**
+ * Everything a program's data derives from its authored fields (part 6a-1 R1 #5): the size multiplier (an attack's
+ * Damage Level, p.98; a frame core's dumb 2 / smart 3, p.105), its utility id, its options and sizes. ONE function for
+ * a program item and for a loaded copy's snapshot, so the two can never disagree.
+ * @param {string} name
+ * @param {object} system the authored system data (rating, multiplier, damageLevel, offense, options, frameCore)
+ * @param {{vr2: boolean, optionsOn: boolean}} mode
+ */
+export function deriveProgram(name, system = {}, { vr2 = false, optionsOn = false } = {}) {
+  const kind = vr2 ? system.frameCore?.kind || "" : "";
+  const core = !!kind;
+  const multiplier = core ? (kind === "smart" ? 3 : 2) : (vr2 ? attackMultiplier(system.damageLevel ?? "") : null) ?? system.multiplier ?? 1;
+  const utility = core ? "frameCore" : (system.offense || utilityOf(name));
+  // A core's options are frame rules, under VR2.0 whatever the optional Utility Options setting (R1 #2).
+  const opts = optionsOn || core ? activeOptions(utility, system.rating ?? 1, system.options ?? []) : { active: [], inert: [] };
+  const sized = programSizes({ rating: system.rating ?? 1, multiplier, options: opts.active });
+  return { multiplier, utility, activeOpts: opts.active, inertOpts: opts.inert, size: sized.actual, designSize: sized.design };
 }

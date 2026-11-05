@@ -899,10 +899,42 @@
     </select>
   </div>
   {{/if}}
+  {{#if frameCore}}
+  <fieldset class="sr2e-frame-core">
+    <legend title="A frame core is the master control program of a frame: write it, load copies of programs onto it, then upload it to a host (VR2.0 p.105–106)">Frame core</legend>
+    <div class="form-group">
+      <label title="Dumb: acts on its decker's commands (size ×2). Smart: acts on its own, with DINAB as its Computer skill (size ×3). Fixed when written.">Kind:</label>
+      <select name="system.frameCore.kind">
+        <option value="" {{selected system.frameCore.kind ""}}>— (an ordinary program)</option>
+        <option value="dumb" {{selected system.frameCore.kind "dumb"}}>Dumb</option>
+        <option value="smart" {{selected system.frameCore.kind "smart"}}>Smart</option>
+      </select>
+    </div>
+    {{#if frameCore.on}}
+    <div class="form-group" title="Bod + Evasion + Masking + Sensor may not exceed the Core Rating; any may be 0 (p.105)">
+      <label>Bod / Evasion / Masking / Sensor:</label>
+      <input type="number" name="system.frameCore.bod" value="{{system.frameCore.bod}}" min="0" style="width:44px;" />
+      <input type="number" name="system.frameCore.evasion" value="{{system.frameCore.evasion}}" min="0" style="width:44px;" />
+      <input type="number" name="system.frameCore.masking" value="{{system.frameCore.masking}}" min="0" style="width:44px;" />
+      <input type="number" name="system.frameCore.sensor" value="{{system.frameCore.sensor}}" min="0" style="width:44px;" />
+    </div>
+    {{#if frameCore.smart}}
+    <div class="form-group" title="Each Core point given to Initiative adds a die (1D6 base) and is taken from what the programs may total; fixed when written (p.106)">
+      <label>Initiative points:</label>
+      <input type="number" name="system.frameCore.initPoints" value="{{system.frameCore.initPoints}}" min="0" style="width:44px;" />
+      <span class="hint">Reaction {{frameCore.initiative.reaction}}, {{frameCore.initiative.dice}}D6</span>
+    </div>
+    {{/if}}
+    {{#each frameCore.problems as |p|}}<p class="hint" style="color:#c44;">{{p}}</p>{{/each}}
+    <p class="hint">Programs may total {{frameCore.capacity}}. {{#if frameCore.written}}Written.{{else}}Not written as it is now: program it (p.105).{{/if}}
+      {{#if frameCore.load}}{{#if frameCore.load.void}}<br><span style="color:#c44;">Its load doesn't count: {{frameCore.load.void}}</span>{{else}}<br>Loaded: {{#each frameCore.load.copies as |c|}}{{c}}{{#unless @last}}, {{/unless}}{{/each}}. Frame size {{frameCore.frameSize}} Mp (p.106).{{/if}}{{/if}}</p>
+    {{/if}}
+  </fieldset>
+  {{/if}}
   <div class="form-group">
     <label>Multiplier:</label>
     <input type="number" name="system.multiplier" value="{{authored.multiplier}}" min="0" step="0.1" />
-    {{#if multiplierDerived}}<span class="hint">×{{system.multiplier}} from the Damage Level</span>{{/if}}
+    {{#if multiplierDerived}}<span class="hint">×{{system.multiplier}} from the {{#if frameCore.on}}core kind{{else}}Damage Level{{/if}}</span>{{/if}}
   </div>
   {{#if utilityOptions}}
   <fieldset class="sr2e-utility-options">

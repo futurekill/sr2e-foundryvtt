@@ -14135,6 +14135,134 @@ export function registerSR2EQuenchTests() {
       });
     });
 
+    // VR2.0 part 6a-1: frame cores and loading (docs/PLAN-vr2-part6-frames.md, "6a-1 in detail").
+    quench.registerBatch("sr2e.vr2-frames", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [];
+      let prior = "core", P, V, n0 = 0;
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const clicking = async (action, fn, setup = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(() => { setup?.(app.element); app.element?.querySelector(`button[data-action="${action}"]`)?.click(); }, 50));
+        try { return await fn(); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const days = (n) => (el) => { const i = el?.querySelector('input[name="days"]'); if (i) i.value = String(n); };
+      /** A decker with Computer 4 and two bought (written) programs: Attack-4 (Serious) and Cloak-2. */
+      const coder = async () => {
+        const a = await Actor.create({ name: "Quench Frames Coder", type: "character" }); made.push(a);
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 4, category: "active" } },
+          { name: "Attack", type: "program", system: { rating: 4, damageLevel: "S", category: "combat" } },
+          { name: "Cloak", type: "program", system: { rating: 2, multiplier: 3 } }]);
+        return a;
+      };
+      /** A new core project (p.105): smart Core 6 with DINAB-4 unless told otherwise. */
+      const project = async (a, data = {}) => {
+        const c = await P.newProject(a);
+        await c.sheet.close();
+        await c.update({ name: "Quench Core", "system.rating": 6, "system.frameCore.kind": "smart", "system.options": [{ kind: "dinab", rating: 4, target: "" }], ...data });
+        return a.items.get(c.id);
+      };
+      /** Write it: Computer 4 vs TN 6, four 6s (each explodes into a 1: 7s) = 4 successes; then log the whole period. */
+      const write = async (a, c) => {
+        await clicking("ok", () => withFaces([6, 6, 6, 6, 1, 1, 1, 1], () => P.programmingDialog(a, c)));
+        const t = P.taskOf(a.items.get(c.id));
+        if (!t) return null;
+        await clicking("ok", () => P.programmingDialog(a, a.items.get(c.id)), days(Math.ceil(t.baseTime / 4)));
+        return P.taskOf(a.items.get(c.id));
+      };
+      /** Load the named programs: Computer 4 vs the average (5s succeed), then log the period. */
+      const load = async (a, c, names, { finish = true } = {}) => {
+        await clicking("ok", () => withFaces([5, 5, 5, 5], () => P.loadDialog(a, c)), (el) => {
+          for (const box of el?.querySelectorAll('input[name="prog"]') ?? []) box.checked = names.includes(a.items.get(box.value)?.name);
+        });
+        const t = P.taskOf(a.items.get(c.id), "load:");
+        if (finish && t && !t.end) await clicking("ok", () => P.loadDialog(a, a.items.get(c.id)), days(Math.ceil(t.baseTime / 4)));
+        return P.taskOf(a.items.get(c.id), "load:");
+      };
+      const coreOf = (a) => a.items.getName("Quench Core");
+
+      before(async function () {
+        prior = game.settings.get("sr2e", "matrixRuleset");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        P = await import("../programming.mjs"); V = await import("../vr2.mjs");
+        n0 = game.messages.size;
+      });
+      afterEach(async function () { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      after(async function () {
+        this.timeout(20000);
+        for (const m of game.messages.contents.slice(n0)) { try { await m.delete(); } catch (e) { /* gone */ } }
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+      });
+
+      it("a smart core: size ×3 with DINAB counted (with utility options off), written; the caps refuse what the book forbids", async function () {
+        this.timeout(30000);
+        const a = await coder();
+        const c = await project(a);
+        assert.equal(c.system.size, (6 + 4) ** 2 * 3, "(Core + DINAB)² × 3 (p.106)");
+        assert.isTrue(c.system.isCore);
+        assert.isFalse(c.system.coreWritten);
+        const t = await write(a, c);
+        assert.isTrue(t?.complete, "written");
+        assert.isTrue(coreOf(a).system.coreWritten);
+        // A smart core without DINAB, and DINAB above Computer 4, are refused before any task.
+        const bare = await project(a, { name: "Quench Bare", "system.options": [] });
+        assert.isNull(await write(a, bare), "smart needs DINAB");
+        const hot = await project(a, { name: "Quench Hot", "system.options": [{ kind: "dinab", rating: 5, target: "" }] });
+        assert.isNull(await write(a, hot), "DINAB-5 > Computer 4");
+        const big = await project(a, { name: "Quench Big", "system.rating": 7 });
+        assert.isNull(await write(a, big), "Core 7 > ⌊4 × 1.5⌋ = 6");
+        await coreOf(a).update({ "system.loaded": true });
+        assert.isFalse(V.usablePrograms(a).includes(coreOf(a)), "a core is never a utility on the deck");
+      });
+
+      it("loading: whole copies in the winning record; later edits to the source don't touch it; a new load replaces it", async function () {
+        this.timeout(40000);
+        const a = await coder();
+        await write(a, await project(a));
+        // Attack-4 + Cloak-2 = 6 → LR 3 → 9 Mp → 18 days; TN 3; 4 successes → 5 days.
+        const t = await load(a, coreOf(a), ["Attack", "Cloak"]);
+        assert.deepEqual([t.baseTime, t.period, t.complete], [18, 5, true]);
+        const al = () => coreOf(a).system.activeLoad;
+        assert.deepEqual(al().copies.map(x => [x.name, x.system.rating, x.system.damageLevel ?? ""]), [["Attack", 4, "S"], ["Cloak", 2, ""]]);
+        assert.equal(coreOf(a).system.frameSize, coreOf(a).system.size + 64 + 12, "core + Attack-4 S (16 × 4) + Cloak-2 (4 × 3)");
+        await a.items.getName("Attack").update({ "system.rating": 3 });
+        assert.equal(al().copies[0].system.rating, 4, "a copy, not a link");
+        await load(a, coreOf(a), ["Cloak"]);
+        assert.deepEqual(al().copies.map(x => x.name), ["Cloak"], "the newer complete load wins");
+      });
+
+      it("while loading the design is locked; Abandon ends the LOADING task and the old load stays", async function () {
+        this.timeout(40000);
+        const a = await coder();
+        await write(a, await project(a));
+        await load(a, coreOf(a), ["Cloak"]);
+        await load(a, coreOf(a), ["Attack"], { finish: false });
+        assert.isTrue(P.loadingState(coreOf(a)).writing, "loading");
+        await coreOf(a).update({ "system.frameCore.bod": 1 });
+        assert.equal(coreOf(a).system.frameCore.bod, 0, "the design is fixed while loading");
+        await clicking("yes", () => P.abandon(a, coreOf(a)));
+        assert.isFalse(P.loadingState(coreOf(a)).writing);
+        assert.isFalse(P.programmingState(coreOf(a)).writing);
+        assert.deepEqual(coreOf(a).system.activeLoad.copies.map(x => x.name), ["Cloak"], "the previous load stays");
+      });
+
+      it("changing a written core's design unwrites it and voids its load until it is written and loaded again", async function () {
+        this.timeout(40000);
+        const a = await coder();
+        await write(a, await project(a));
+        await load(a, coreOf(a), ["Cloak"]);
+        await coreOf(a).update({ "system.frameCore.bod": 2 });
+        assert.isFalse(coreOf(a).system.coreWritten, "attributes can't be rearranged: write a new core (p.105)");
+        assert.match(coreOf(a).system.activeLoad.void, /isn't written/);
+        await write(a, coreOf(a));
+        assert.isTrue(coreOf(a).system.coreWritten);
+        assert.match(coreOf(a).system.activeLoad.void, /another design/, "the old load never comes back");
+      });
+    });
+
     quench.registerBatch("sr2e.money-queue", (context) => {
       const { describe, it, assert, before, after } = context;
       const made = [];

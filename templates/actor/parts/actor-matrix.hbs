@@ -230,9 +230,15 @@
             {{#if program.compressed}}<em title="Squeeze (VR2.0 p.104): decompress it (a Complex Action) before use">compressed</em>{{/if}}
             {{#if program.spent}}<em title="One-shot (p.104): fired; Swap Memory reloads it">spent</em>{{/if}}
             {{#if program.hasDinab}}<em title="DINAB rating left on this load (p.103)">DINAB {{program.dinab}}</em>{{/if}}
-            {{#if program.task.writing}}<em title="Programming (p.100–102)">writing{{#if program.task.period}} {{program.task.done}}/{{program.task.period}}d{{/if}}</em>{{/if}}{{#if program.task.unwritten}}<em title="Its programming failed or was abandoned: it was never written (p.100). Start programming again.">unwritten</em>{{/if}}</span>
+            {{#if program.task.writing}}<em title="Programming (p.100–102)">writing{{#if program.task.period}} {{program.task.done}}/{{program.task.period}}d{{/if}}</em>{{/if}}{{#if program.task.unwritten}}<em title="Its programming failed or was abandoned: it was never written (p.100). Start programming again.">unwritten</em>{{/if}}
+            {{#if program.core}}<em class="sr2e-core-badge" title="A frame core (VR2.0 p.105–106): load programs onto it, then upload it to a host">Core: {{program.core.kind}} {{program.core.rating}}{{#unless program.core.written}}, not written{{/unless}}</em>
+              {{#if program.core.loading}}<em title="Loading programs (p.106)">loading{{#if program.core.loading.period}} {{program.core.loading.done}}/{{program.core.loading.period}}d{{/if}}</em>{{/if}}
+              {{#if program.core.copies}}<em title="Loaded copies; frame size {{program.core.size}} Mp (p.106)">[{{program.core.copies}}]</em>{{/if}}
+              {{#if program.core.void}}<em style="color:#c44;" title="{{program.core.void}}">load void</em>{{/if}}{{/if}}</span>
           <div class="item-controls">
-            <a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>
+            {{#if program.core}}<a data-action="vr2ic" data-op="frameLoad" data-arg="{{program.id}}" title="Load programs onto this frame core (a task, VR2.0 p.106)"><i class="fas fa-box-open"></i></a>
+            {{#if program.core.loading}}<a data-action="vr2ic" data-op="programAbandon" data-arg="{{program.id}}" title="Abandon the loading task (the previous load stays)"><i class="fas fa-ban"></i></a>{{/if}}
+            {{else}}<a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>{{/if}}
             {{#if ../vr2}}<a data-action="vr2SwapMemory" title="Swap Memory: a fresh copy at full rating (VR2.0 p.99)"><i class="fas fa-rotate"></i></a>
             {{#if program.isMedic}}<a data-action="vr2Medic" title="Medic: repair the icon (a Complex Action, VR2.0 p.100)"><i class="fas fa-kit-medical"></i></a>{{/if}}
             {{#if program.compressed}}<a data-action="vr2ic" data-op="decompress" data-arg="{{program.id}}" title="Decompress (a Complex Action, VR2.0 p.104)"><i class="fas fa-up-right-and-down-left-from-center"></i></a>{{/if}}

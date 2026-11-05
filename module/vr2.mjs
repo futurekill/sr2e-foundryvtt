@@ -50,7 +50,8 @@ const opQueue = (actor, fn) => enqueueAttack(`vr2op:${actor.uuid}`, fn);
  */
 export function usablePrograms(actor) {
   const vr2 = isVR2();
-  return actor.items.filter(i => i.type === "program" && i.system.loaded
+  // A frame core is never a utility on the deck (part 6a-1): it runs only as an uploaded frame.
+  return actor.items.filter(i => i.type === "program" && i.system.loaded && !i.system.isCore
     && (!vr2 || (!programUnusable(actor, i) && (i.system.effectiveRating ?? 0) > 0)));
 }
 

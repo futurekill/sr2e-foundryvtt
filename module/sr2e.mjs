@@ -87,7 +87,7 @@ import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "
 import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
-import { programmingState } from "./programming.mjs";
+import { programmingState, loadingState } from "./programming.mjs";
 import { activeOptions } from "./rules/vr2-options.mjs";
 
 /**
@@ -1455,9 +1455,10 @@ Hooks.on("preUpdateItem", (item, changes) => {
     foundry.utils.setProperty(changes, "flags.sr2e.-=decompressed", null);
   }
   // Everything `designOf` (programming.mjs) captures, identity included, while a task is writing it.
-  if (programmingState(item).writing && ("name" in changes
-      || ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category"].some(k => k in (changes.system ?? {})))) {
-    ui.notifications.warn(`${item.name} is being programmed: its design is fixed until the task completes (or abandon the task).`);
+  // Part 6a-1: a frame core's design too, and while it is being LOADED as well as written (R1 #6).
+  if ((programmingState(item).writing || loadingState(item).writing) && ("name" in changes
+      || ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore"].some(k => k in (changes.system ?? {})))) {
+    ui.notifications.warn(`${item.name} is being ${loadingState(item).writing ? "loaded" : "programmed"}: its design is fixed until the task completes (or abandon the task).`);
     return false;
   }
 });

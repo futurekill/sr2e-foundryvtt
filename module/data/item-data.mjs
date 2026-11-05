@@ -2,12 +2,15 @@ import { evaluateDegradation } from "../rules/vr2ic-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
-import { activeOptions, programSizes, utilityOf, UTILITY_OPTION_KINDS, LIMIT_TARGETS } from "../rules/vr2-options.mjs";
+import { UTILITY_OPTION_KINDS, LIMIT_TARGETS, deriveProgram } from "../rules/vr2-options.mjs";
+import { coreProblems, programCapacity, frameInitiative, coreWritten, activeLoad, frameActualSize } from "../rules/vr2-frames.mjs";
+import { eventsOf } from "../claims.mjs";
+import { designOf } from "../programming.mjs";
 import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
 import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
-import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, attackMultiplier } from "../rules/sr2e-rules.mjs";
+import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -1081,6 +1084,15 @@ export class ProgramData extends SR2EDataModel {
       })),
       // Sensitive (p.104): the one manufacturer's mainframes it works on.
       manufacturer: new fields.StringField({ initial: "", blank: true }),
+      // VR2.0 part 6a-1: a frame core (pp.105–106). kind "" = an ordinary program (blank: the StringField trap).
+      frameCore: new fields.SchemaField({
+        kind: new fields.StringField({ initial: "", blank: true, choices: { "": "—", dumb: "Dumb", smart: "Smart" } }),
+        bod: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        evasion: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        masking: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+        initPoints: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+      }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -1088,10 +1100,12 @@ export class ProgramData extends SR2EDataModel {
   /** @override */
   prepareDerivedData() {
     const vr2 = isVR2();
-    // VR2.0: an attack utility's size multiplier follows its Damage Level (p.98).
-    // Both directions: otherwise the authored multiplier (CLAUDE.md, derived state).
-    const levelMult = vr2 ? attackMultiplier(this.damageLevel) : null;
-    this.multiplier = levelMult ?? this.parent?._source?.system?.multiplier ?? this.multiplier;
+    // One derivation for a program and a loaded copy (part 6a-1 R1 #5): the multiplier (an attack's Damage Level,
+    // p.98; a frame core's 2/3, p.105) — both directions, else the authored one — utility id, options, sizes.
+    const src = this.parent?._source?.system ?? {};
+    const d = deriveProgram(this.parent?.name, { ...src, multiplier: src.multiplier ?? this.multiplier, rating: this.rating,
+      options: this.options ?? [], frameCore: this.frameCore }, { vr2, optionsOn: utilityOptionsOn() });
+    this.multiplier = d.multiplier;
     // Rating left on the loaded copy (VR2.0 only; core ignores wear entirely).
     // Hog drain (part 5a §4) is per-tick flag keys `<loadGen>_<card>_<boundary>`, subtracted the same way.
     const hog = vr2 ? Object.entries(this.parent?.flags?.sr2e?.hogWear ?? {}).filter(([k]) => k.startsWith(`${this.loadGen}_`))
@@ -1101,15 +1115,25 @@ export class ProgramData extends SR2EDataModel {
     this.degradation = evaluateDegradation(this.parent?.flags?.sr2e ?? {});
     this.effectiveRating = Math.max(0, this.rating - worn - this.degradation);
     // The utility it is (one identity for combat, allow-lists, pricing, programming; plan 5b §0).
-    this.utility = this.offense || utilityOf(this.parent?.name);
-    // Utility Options (plan 5b §1): rebuilt every prepare; empty with the setting off.
-    const opts = utilityOptionsOn() ? activeOptions(this.utility, this.rating, this.options ?? []) : { active: [], inert: [] };
+    this.utility = d.utility;
+    // Utility Options (plan 5b §1): rebuilt every prepare; empty with the setting off (a frame core's: always).
+    const opts = { active: d.activeOpts, inert: d.inertOpts };
     this.activeOpts = opts.active;
     this.inertOpts = opts.inert;
     // Program memory size = Rating² × Multiplier (same in both rulesets); options change it (p.103).
-    const sized = programSizes({ rating: this.rating, multiplier: this.multiplier, options: opts.active });
-    this.size = sized.actual;
-    this.designSize = sized.design;
+    this.size = d.size;
+    this.designSize = d.designSize;
+    // Part 6a-1: a frame core's checks, capacity, Initiative, written state and active load — derived, never stored.
+    this.isCore = vr2 && !!this.frameCore?.kind;
+    if (this.isCore) {
+      const recs = this.parent?.effects ? eventsOf(this.parent) : [];
+      this.coreProblems = coreProblems({ rating: this.rating, frameCore: this.frameCore, activeOpts: opts.active });
+      this.capacity = programCapacity(this.rating, this.frameCore);
+      this.initiative = frameInitiative(this.rating, this.frameCore);
+      this.coreWritten = this.parent ? coreWritten(recs, designOf(this.parent)) : false;
+      this.activeLoad = activeLoad(recs, { design: this.parent ? designOf(this.parent) : null, capacity: this.capacity, written: this.coreWritten });
+      this.frameSize = frameActualSize(this.size, this.activeLoad?.copies ?? [], { vr2, optionsOn: utilityOptionsOn() });
+    }
     // Cost: core book is a flat Size × 100 (p.174–177); VR2.0 tiers the price
     // multiplier by rating (Program Prices Table, p.107). try/catch: data prep
     // can run before settings are registered (default to the core formula).
