@@ -455,3 +455,28 @@ VERDICT: APPROVED
 Started 2026-11-05. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round, brief names the code locations.
 User rulings before review: a smart frame keeps its own tally (trace can't trace it); orders need the decker on the
 frame's host.
+
+## 6a-2c Round 1 — Codex (fresh session; ~305k input tokens)
+
+1. **Plan §8: reactive security never reaches the proposed handling.** Code: `module/vr2ic.mjs:579`, `offerTar` returns when `st.conn == null`. Smart frames have no connection, so Tar, poison scramble, and data-bomb offers are all skipped.
+   **Fix:** Admit validated smart-frame session cards through this gate while preserving the existing character connection check.
+
+2. **Plan §8: Tar loses interrupted-operation recovery.** Code: `module/vr2ic.mjs:732–810` writes the Tar fact on its `actor` argument; `schedule/passFor` at `1609–1627` only reconciles characters. Calling `tarStrike(frame, …)` therefore puts the durable fact on an unreconciled log. Disconnecting after that write can leave the utility or Tar IC uncrashed indefinitely.
+   **Fix:** Keep the Tar fact on the owning character’s log, with the frame upload and copy frozen as its recipient.
+
+3. **Plan §3: frame-key expiry omits identity validation.** Code: `module/vr2ic.mjs:1694–1716`; `module/frames.mjs:368–372` deletes ended frame actors. Checking only `frameState` does not specify how a missing actor or a different upload at the parsed UUID ends the captured attacker incarnation. Old locks and Tracks must not survive either case.
+   **Fix:** Treat a missing/non-frame actor, upload mismatch, or ended frame as an ended frame attacker.
+
+4. **Plan §7: one join fact does not establish recoverable combat joining.** Code: `module/frames.mjs:328–364` repeatedly reconciles documents, with separate awaited creation operations. The proposed combatant creation, join fact, and initiative roll likewise cannot be atomic: writing the fact first can permanently skip creation after interruption; writing it afterward can duplicate or re-add a combatant before the receipt lands.
+   **Fix:** Specify a durable join intent, deterministic combatant identity, and completion/removal state, with recovery of an unrolled existing combatant and an ended-frame recheck after creation.
+
+VERDICT: REVISE
+### Claude's response
+All 4 accepted (marked "R1 #n" in the section).
+- #1: `offerTar` accepts a `byFrame` card with a live frame and matching session.
+- #2: smart-frame cards carry `owner` and `icon`; the reactive buttons act on the OWNER (the log the sequencer passes),
+  with the frame as the frozen recipient; the bomb's tally prompt goes on `tallyHolder(target)`.
+- #3: a frame key is ended when its actor is missing or not a frame, its upload differs, or it has ended.
+- #4: combat joining is reconciled: derived intent (owner in a started combat on the token's scene, no `frame-left`
+  fact), deterministic combatant id (= upload id, keepId), initiative rolled whenever still null, the GM's removal
+  recorded by a `deleteCombatant` hook, ended re-checked after creating.

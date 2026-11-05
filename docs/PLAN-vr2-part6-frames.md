@@ -1171,7 +1171,9 @@ It does NOT need the decker anywhere: smart frames act "whether their creator is
 p.106 makes it "the core's Computer Skill". A smart frame's test with its own skill is a skill test, so nothing wears.
 *Claude's reading, flagged in Risks.* A COPY carrying its own DINAB option still runs and wears as 5b, on the frame.
 
-**Every card a smart frame makes** carries `byFrame: true`. Its `actorUuid` and `attackerUuid` are the frame itself.
+**Every card a smart frame makes** carries `byFrame: true`, `icon: { uuid, upload }` (the frame) and
+`owner: <owner uuid>`. Its `actorUuid` and `attackerUuid` are the frame itself. The owner's uuid is where any
+sequencer fact about it goes (R1 #2).
 
 ### 2. The smart frame's own session (ruling 1)
 **Created with the frame.** `reconcileDocs` (6a-2a) creates a smart frame with
@@ -1197,8 +1199,9 @@ smart-frame message: "a smart frame has no jackpoint to trace (its own existence
 - an IC that a smart frame's attack crashes offers the suppress/register choice on the FRAME's session. The card's
   `commanderUuid` and `commanderSession` are the frame's own (see §3), and `crashChoice` works on any actor with a
   live session;
-- a data bomb that a smart frame sets off: `securityTarget(frame, st)` already returns the frame. The bomb's tally
-  prompt is the frame's session.
+- a data bomb that a smart frame sets off: `securityTarget(owner, st)` returns the frame (the card's `icon`). The
+  bomb's tally prompt goes on `tallyHolder(target)`: a smart frame's own session, or, for a dumb frame or the decker,
+  the decker's (R1 #2).
 
 ### 3. Attacks by a smart frame
 `attackOnce(frame, { frame, smart: true })`:
@@ -1211,8 +1214,12 @@ smart-frame message: "a smart frame has no jackpoint to trace (its own existence
 **A frame attacker key.** `attackerKeyOf(frame)` is "" today (no `vr2Conn`), and an empty key would break locks and
 tracks. A smart frame's key is `frame:<frameUuid>@<uploadId>`:
 - in vr2ic-rules.mjs, `isFrameKey(key)`, and `parseAttackerKey` returns `{ kind: "frame", uuid, upload }` for it;
-- `attackerEnded(key)` treats a frame key as ended when the frame has ended (`frameState`). So a smart frame's lock
-  or Track ends with it, as a decker's does with his connection;
+- `attackerEnded(key)` treats a frame key as ended (R1 #3) when:
+  - the actor at its uuid is missing or isn't a frame;
+  - its `uploadId` isn't the key's upload;
+  - or `frameState` says it has ended.
+
+  So a smart frame's lock or Track ends with that incarnation, as a decker's does with his connection;
 - every site that branches on `isDeckKey` to name or find the attacker gains the frame branch. Grepped:
   - vr2.mjs ~2271, the leave/lock listing;
   - vr2ic.mjs ~389 (the attacker's incarnation snapshot), ~1557, ~1709 and ~1820.
@@ -1269,12 +1276,21 @@ The smart frame's sheet gets the action buttons its owner and the GM use:
 ### 7. Initiative and combat (p.106; Decided #2)
 - **Initiative:** `SR2EActor#_getInitiativeParts` gets a `frame` branch. A smart frame is `{ base: coreRating, dice:
   1 + initPoints, matrix: true }`, with the note "smart frame". A dumb frame has none; it's never a combatant.
-- **Joining combat** ("it joins an active combat when it's uploaded"):
-  - when the GM client (`reconcileDocs`) has created a smart frame's token, and its OWNER is a combatant in a started
-    combat on that token's scene, the frame becomes a combatant of that combat;
-  - this happens once, as the fact `frame-joined:<uploadId>:<combatId>` on the owner's log. A GM who removes the
-    combatant isn't overridden, and a restart doesn't re-add it;
-  - its initiative is rolled at once with the combat's own `rollInitiative`, as a late joiner's would be.
+- **Joining combat** ("it joins an active combat when it's uploaded"), reconciled like the frame's other documents
+  (R1 #4):
+  - **Intent, derived:** a running smart frame with a token belongs in every started combat on that token's scene
+    in which its OWNER is a combatant, unless there's a `frame-left:<uploadId>:<combatId>` fact on the owner's log.
+    It is derived each pass and never stored, so an interruption loses nothing.
+  - **Identity, deterministic:** the combatant's `_id` is the upload id, created with `keepId`. An embedded keepId
+    create of an existing id is rejected, so two passes or two GM clients never make two.
+  - **Initiative, recovered:** each pass rolls initiative (`combat.rollInitiative([id])`) for the frame's combatant
+    whose initiative is still null. An interruption between the create and the roll is finished on the next pass.
+  - **The GM removing it** is respected. A `deleteCombatant` hook on the active GM writes `frame-left:<upload>:<combat>`
+    unless the delete is 6a-2a's cleanup (`sr2eFrameCleanup`). The derived intent then excludes that combat.
+  - **Ended:** after creating, the pass re-checks `frameState`, and an ended frame is removed at once (6a-2a's
+    pattern).
+  - This also enlists a smart frame in a combat its owner starts later. That is the reading of "a combatant like any
+    other icon" (Decided #2).
 - **Passes:** SR2ECombat's passes already work per combatant.
 - **Its own actions:** the frame acts on its own turns from its sheet. The system doesn't police action counts for
   any actor, and frames are no exception.
@@ -1284,11 +1300,15 @@ The smart frame's sheet gets the action buttons its owner and the GM use:
 - **Ended:** 6a-2a's cleanup already deletes the combatants of an ended frame.
 
 ### 8. Reactive security on a smart frame's tests
-`offerTar` (vr2ic.mjs ~577): its buttons' `data-actor` is the card's `actorUuid`, which is the frame.
-- **Tar:** `tarStrike(frame, …)`. `ref.icon` is the frame (`useRef`), so 6a-2b's frame recipient applies.
-  `liveConn(frame)` is null and the deck is null, so there's no corruption (a frame has no storage).
+`offerTar` (vr2ic.mjs ~577) returns today when `st.conn == null` (R1 #1). It also accepts a `byFrame` card whose
+frame is live and whose session is the card's. Its buttons' `data-actor` is the card's `owner` (`st.owner ??
+st.actorUuid`), so every reactive fact goes on the OWNER's log, which the sequencer passes (R1 #2).
+- **Tar:** `tarStrike(owner, …)`. The fact is on the owner's log, and the recipient is frozen from `ref.icon`. This is
+  6a-2b's path unchanged: a frame recipient that's ended or a different upload lands on nothing. `liveConn` and the
+  deck play no part for a frame recipient, so there's no corruption (a frame has no storage).
 - **Worms:** never offered for a card with `byFrame` (no MPCP chip, as in 6a-2b).
-- **Poison scramble:** `poisonTest` reads Computer from skill items. For a frame it reads its DINAB (its skill).
+- **Poison scramble:** `poisonTest` reads Computer from skill items. For a `byFrame` card it reads the frame's
+  DINAB (its skill) from `st.icon`.
 - **Data bombs:** above (§2).
 
 ### 9. Tests (6a-2c)
@@ -1304,7 +1324,11 @@ The smart frame's sheet gets the action buttons its owner and the GM use:
 - a smart frame's Decoy and Redirect Datatrail are refused; a dumb frame's Command is unchanged;
 - trace IC vs a smart frame is refused with the no-jackpoint message;
 - an IC its attack crashes offers the choice on the frame's session;
-- a black-hammer lock from a smart frame ends when the frame crashes (the frame key);
+- a black-hammer lock from a smart frame ends when the frame crashes, or when its actor is gone (the frame key,
+  R1 #3);
+- (R1 #1–#2) a smart frame's System Test gets the GM's reactive-IC offer; a tar strike's fact lands on the owner's
+  log and crashes the frame's copy;
+- (R1 #4) a combatant created twice at once → one; one with null initiative is rolled on the next pass;
 - an Order… is refused off the frame's host, and accepted on it: one record, shown on the sheet;
 - initiative: Core 6 with 2 points → base 6, 3D6; uploaded while its decker is in a started combat, it joins once,
   and stays out after the GM removes it;
