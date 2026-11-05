@@ -1338,7 +1338,9 @@ export function matrixDamage(actor, boxes) {
 export async function dinabZeroed(st, { card = null, requester = null } = {}) {
   if (!st?.dinab) return;
   const attacker = sync(st.attackerUuid);
-  if (attacker?.items.get(st.dinab.itemId)?.isOwner) return dinabFail(attacker, st.dinab, st.dinab.useId);
+  // The attacker or its program gone: nothing to wear (and no request that could loop; 6a-2a code R4 #1).
+  if (!attacker?.items.get(st.dinab.itemId)) return;
+  if (attacker.items.get(st.dinab.itemId).isOwner) return dinabFail(attacker, st.dinab, st.dinab.useId);
   if (card && requester?.isOwner) await (await import("./vr2ic.mjs")).request(requester, "dinabWear", { card });
 }
 
