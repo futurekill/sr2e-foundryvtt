@@ -160,3 +160,9 @@ All seven findings were accepted.
 The plan edit failed to apply (a text anchor didn't match), so Codex reviewed the unrevised plan plus this log and
 approved by "treating the log's fixes as amendments". That approval doesn't count. The edits are now applied, and
 round 2 is re-run below.
+
+## 6a-1 Round 2 (re-run) — Codex (fresh session, brief; ~90k input tokens)
+
+VERDICT: APPROVED
+
+**6a-1 APPROVED in round 2.** 6a-2 (running frames) is detailed and reviewed next.

@@ -1,5 +1,5 @@
 # Plan: VR2.0 part 6: frames and SKs
-_Draft 5 (2026-11-05): 6a-0 released in 0.131.0. **"6a-1 in detail" (frame cores and loading) is under review**;
+_Draft 5 (2026-11-05): 6a-0 released in 0.131.0. **6a-1 (frame cores and loading) Codex-APPROVED round 2, not built.**
 6a-2 (running frames), 6b and 6c each get their own detailed section and review, meeting the requirements Codex R1
 raised (listed below). Codex review: docs/PLAN-vr2-part6-frames-REVIEW-LOG.md. No code before review._
 
@@ -291,7 +291,7 @@ attacked, take damage on a 10-box monitor, crash, and be targeted by the Limit o
 - Quench: Scan Icon spends Scanner, reveals only claimed slots, a second click on a claimed slot changes nothing,
   a pick beyond the current successes or after the target reconnects is refused, and picks survive a marker prune.
 
-## 6a-1 in detail: frame cores and loading (the part under review)
+## 6a-1 in detail: frame cores and loading
 
 6a is split in two, as part 7 was:
 - **6a-1** is the frame core as a program and the loading task. It covers items only, with nothing running.
