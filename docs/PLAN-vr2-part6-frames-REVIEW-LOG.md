@@ -155,3 +155,8 @@ All seven findings were accepted.
 - **#5:** a pure `deriveProgram` is shared by `ProgramData` and the copies.
 - **#6:** the lock covers both task families, and Abandon takes the prefix.
 - **#7:** "written means the current design" is a new rule for cores only.
+
+## 6a-1 Round 2 (void)
+The plan edit failed to apply (a text anchor didn't match), so Codex reviewed the unrevised plan plus this log and
+approved by "treating the log's fixes as amendments". That approval doesn't count. The edits are now applied, and
+round 2 is re-run below.

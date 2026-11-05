@@ -322,6 +322,13 @@ The **Core Rating** is the program's `rating`.
 - **The utility id** is `frameCore`. `UTILITY_OPTIONS.frameCore = ["dinab", "optimization", "squeeze"]`.
 - `activeOptions` adds Sensitive to every utility today. It doesn't for `frameCore`: "Frame cores may be equipped with
   any of the following options: DINAB, optimization, and squeeze" is a closed list.
+- **A core's DINAB isn't capped by the Core Rating (R1 #1).** Its cap is the programmer's Computer (§2), so
+  `activeOptions` exempts `frameCore` DINAB from its "1 to the base rating" ceiling. Core-4 with DINAB-6 by
+  Computer 6 is legal.
+- **Core options are frame rules, not the optional Utility Options rule (R1 #2).**
+  - DINAB is mandatory on smart cores, and its size counts.
+  - `ProgramData` computes a core's active options under VR2.0 whether or not *VR2.0 utility options* is on.
+  - With the setting off, ordinary programs still get none, as today.
 - **Sizes** go through the existing `programSizes`. DINAB's "rating" modifier already raises both the design and the
   actual rating. Genie's smart core 12 + DINAB-8 → (12 + 8)² × 3 = 1,200 Mp, which becomes a Vitest case.
 - `frameCheck`, a pure `coreProblems(core)` in a new `module/rules/vr2-frames.mjs`, lists what's wrong. A core with
@@ -336,16 +343,18 @@ The **Core Rating** is the program's `rating`.
 in storage is never "loaded" onto the deck: the row shows no loaded toggle, and a stray `loaded: true` counts for
 nothing. Cores take storage memory like any program, at their actual size.
 
-**The design lock.**
-- `designOf` (programming.mjs) adds `frameCore` (kind, the four attributes, initPoints), so a design change during a
-  task is refused.
+**The design lock (R1 #6).**
+- `designOf` (programming.mjs) adds `frameCore` (kind, the four attributes, initPoints).
 - The `preUpdateItem` lock in sr2e.mjs adds `frameCore` to its key list.
-- "A core's attributes may not be rearranged … the programmer must write a new frame core": after a successful write,
-  changing `frameCore` makes the core unwritten. This is the same rule 5b applies to any program design change: the
-  design snapshot of the last completed task no longer matches, so it's unusable until written again.
-  - 5b's fold today only knows "written once". 6a-1 adds `written = the latest COMPLETED task's design equals the
-    current design`, for cores only.
-  - Ordinary programs keep today's behaviour. Upgrading is its own plan.
+- The lock refuses a design edit while EITHER task family is open: `programmingState(item).writing ||
+  loadingState(item).writing`.
+- Abandon takes the family's prefix, so "Abandon" on a loading task ends that task, not a programming one.
+
+**Written means the current design, for cores only (R1 #7: a new rule, not 5b's).**
+- 5b's fold keeps "written once" for ordinary programs, unchanged: they stay usable after a design edit, as today.
+- For a frame core, "A core's attributes may not be rearranged … the programmer must write a new frame core" adds a
+  core-only check: `coreWritten = the latest COMPLETED prog: task's captured design equals designOf(core) now`.
+- Changing a written core's design leaves it unwritten until a new programming task completes.
 
 ### 2. Writing a core (the programming caps)
 `programmingCap(utility, skills)` gains the core's rules (p.105–106):
@@ -395,13 +404,29 @@ server-arbitrated ids, the freeze-before-work rule and its recorded shortcut are
 - `complete` refuses if the core's design changed since the start.
 - Changes to the source programs after the start don't matter: the copies are already in the record.
 
-**The active load is derived, never written (requirement: loading completion).** `activeLoad(core)` is the snapshot of
-the latest load task with outcome `complete`, plus its task number (the load generation).
+**The winning terminal record is self-contained (R1 #4; the carried "loading completion" requirement).**
+- `load:end:<n>` with outcome `complete` carries the whole load: the copies, `coreDesign` (the core's design at the
+  start) and the `loadingRating`. They are copied from the start record in the same write.
+- `foldProgramming` keeps an end record's `payload` (today it keeps only `outcome`). Ordinary programs never write
+  one.
+
+**The active load is derived, never written.** `activeLoad(core)` is the payload of the latest `load:` task with
+outcome `complete`, plus its task number (the load generation).
 - A newer completed load replaces it.
 - An abandoned or failed load leaves the previous one in place.
 - No separate "loaded" field exists that could be lost or overwrite a newer load.
-- A core whose design changed after the load completed ("written" false, §1) shows the load as unusable: "write
-  the core again".
+- **It counts only if its `coreDesign` equals the core's design now (R1 #3), its total still fits the core's
+  `programCapacity`, and the core is written (§1).**
+- Rewriting a core to a different design never revives a load made for the old one: the load reads "made for
+  another design of this core: load again".
+
+**Copies are sized and read exactly like programs (R1 #5).**
+- `ProgramData`'s derivation (the Damage-Level multiplier, the utility id, active options under the setting, sizes)
+  moves into a pure `deriveProgram(name, system, { vr2, optionsOn })` in `module/rules/vr2-options.mjs`.
+- `ProgramData.prepareDerivedData` calls it, unchanged in result: a pure refactor with Vitest pinning today's
+  outputs.
+- `copyStats(copy)` calls the same function on a snapshot. Inert or unknown options are dropped by `activeOptions`
+  as they are for a live program, never thrown on.
 
 **Frame actual size (p.106)** = the core's actual size + Σ each copy's actual size with its options. Each copy's size
 comes from `programSizes` on its snapshot data. Genie: 1,200 + 144 + 48 = 1,392 Mp, a Vitest case. 6a-2 uses it for
@@ -428,7 +453,11 @@ upload.
 - the Loading Rating and TN roundings (11 → 6; 4.5 → 5);
 - the Genie loading (10 → 25 Mp → 50 days; ÷ 5 successes → 10 days);
 - the capacity with initPoints;
-- `activeLoad`: latest complete wins, an abandon keeps the old one;
+- `activeLoad`: latest complete wins, an abandon keeps the old one, a changed core design voids it, an over-capacity
+  load voids it;
+- `deriveProgram` gives the same results as today's `ProgramData`: attack multipliers, inert options, setting off;
+- a core's DINAB above its rating but within Computer;
+- smart-core DINAB counting with utility options off;
 - the frame actual size, 1,392.
 
 **Quench `sr2e.vr2-frames`:**
@@ -439,6 +468,8 @@ upload.
 - edit the source Attack afterwards: the load unchanged;
 - a second load replaces the first;
 - an abandoned load keeps the first;
+- design edits refused while loading, and Abandon ends the loading task;
+- rewriting a core to another design voids its old load;
 - changing the core's attributes makes it unwritten;
 - a core never counts as a usable utility.
 
