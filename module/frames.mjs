@@ -394,7 +394,8 @@ async function joinCombats(owner, frame) {
       try { await combat.createEmbeddedDocuments("Combatant", [{ _id: id, tokenId: tok.id, sceneId: scene.id, actorId: frame.id }], { keepId: true }); }
       catch (e) { /* another pass or client made it (the id is the arbiter) */ }
     }
-    await fact(owner, `frame-joined:${id}:${combat.id}`, { type: "frameJoined", upload: id, combat: combat.id });
+    // Done only once the combatant really exists; otherwise the intent stays pending and a later pass retries (code R1 #1).
+    if (combat.combatants.has(id)) await fact(owner, `frame-joined:${id}:${combat.id}`, { type: "frameJoined", upload: id, combat: combat.id });
   }
   for (const combat of game.combats.filter(c => c.started)) {
     const cb = combat.combatants.get(id);

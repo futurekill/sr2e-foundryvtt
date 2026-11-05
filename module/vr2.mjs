@@ -785,7 +785,9 @@ async function systemTestNow(actor, host, operation, opts) {
   const secret = !!opts.secret && game.user.isGM;
   const gmOnly = secret ? { whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id) } : {};
   const res = await actor.rollSuccessTest(Math.max(1, dice), tn, dinab || smart
-    ? { label: RL("SystemOpVs", { op: dinab ? `${op.label} (DINAB)` : op.label, subsystem: subsystemLabel, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true, whisperGM: secret }
+    ? { label: RL("SystemOpVs", { op: dinab ? `${op.label} (DINAB)` : op.label, subsystem: subsystemLabel, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true, whisperGM: secret,
+        // A smart frame's own skill test takes the GM's situational dice (code R1 #2); a DINAB run takes none.
+        ...(smart && !dinab ? { miscDice: opts.miscDice, miscLabel: opts.miscLabel } : {}) }
     : { label: RL("SystemOpVs", { op: op.label, subsystem: subsystemLabel, tn }), tnContext: skillTnContext("computer"),
         poolDice: opts.hacking ? { hacking: opts.hacking } : undefined, whisperGM: secret,
         karmaDice: opts.karmaDice ?? 0, miscDice: opts.miscDice, miscLabel: opts.miscLabel });

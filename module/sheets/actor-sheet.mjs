@@ -2436,7 +2436,9 @@ async function onGridEdit(event, target) {
 export class SR2EFrameSheet extends SR2EBaseActorSheet {
   static DEFAULT_OPTIONS = {
     classes: ["sr2e", "sheet", "actor", "frame"],
-    position: { width: 420, height: "auto" }
+    position: { width: 420, height: "auto" },
+    // Part 6a-2c: a smart frame acts, fires triggers and releases suppressions from here.
+    actions: { vr2ic: onVr2Ic }
   };
 
   static PARTS = {

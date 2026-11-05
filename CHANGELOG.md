@@ -19,6 +19,10 @@
   - Decoy and Redirect Datatrail stay dumb-frame/decker operations.
 - How-To Guides: *Run a smart frame (VR2.0)*.
 
+### Fixed
+- The GM's **Fire** button for a frame's event trigger (0.137.0) did nothing: the frame sheet hadn't registered its
+  buttons' action.
+
 ## 0.137.0 — 2026-11-05
 
 ### Added

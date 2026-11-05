@@ -14540,8 +14540,12 @@ export function registerSR2EQuenchTests() {
         await clicking("go", () => F.setTrigger(a, fr), (el) => { el.querySelector('input[name="note"]').value = "the vault opens"; });
         const [t] = F.triggersOf(fr);
         assert.equal(t?.note, "the vault opens");
-        await F.fireTrigger(fr, t.key);
+        // The GM's real button on the frame's sheet (0.138.0 fix: the sheet hadn't registered its action).
+        await fr.sheet.render(true);
+        assert.ok(await settle(() => !!fr.sheet.element?.querySelector('[data-op="triggerFire"]')), "the Fire button");
+        fr.sheet.element.querySelector('[data-op="triggerFire"]').click();
         assert.ok(await settle(() => recs(a, "triggerFire").length === 1), "fired");
+        await fr.sheet.close();
         assert.isTrue(recs(a, "triggerFire")[0].delivered, "the decker is on the host");
         assert.ok(await settle(() => game.messages.contents.filter(m => m.flags?.sr2e?.triggerFire).length === 1));
         await Y.sequencer(() => F.reconcileOwner(a));
