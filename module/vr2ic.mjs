@@ -262,10 +262,18 @@ async function exitPlace(actor) {
 async function syncMoves(actor) {
   const n = liveConn(actor)?.n;
   if (n == null) return;
-  const done = new Set(recordsOf(actor).filter(e => e.type === "move" && e.conn === n).map(e => e.k));
+  const recs = recordsOf(actor);
+  // A trace written before 7b (no place): its IC's host now, once, as a `tracePlace` fact the fold reads (code R1 #2).
+  const bare = topologyOn() ? recs.filter(e => e.type === "trace" && e.conn === n && !e.place && !e.track
+    && !recs.some(p => p.type === "tracePlace" && p.conn === n && p.icKey === e.icKey)) : [];
+  const done = new Set(recs.filter(e => e.type === "move" && e.conn === n).map(e => e.k));
   const todo = Object.values(actor.flags?.sr2e?.vr2Moves ?? {}).filter(e => e?.conn === n && !done.has(e.k)).sort((a, b) => a.k - b.k);
-  if (!todo.length) return;
+  if (!todo.length && !bare.length) return;
   const topo = (await import("./vr2.mjs")).topoSnapshot();
+  for (const t of bare) {
+    const host = icOfKey(t.icKey)?.system?.hostUuid;
+    if (host) await fact(actor, `trace-place:${n}:${t.icKey}`, { type: "tracePlace", conn: n, icKey: t.icKey, ...traceClass(host, topo) });
+  }
   for (const e of todo) {
     const c = traceClass(e.place, topo);
     await fact(actor, `move:${n}:${e.k}`, { type: "move", conn: n, k: e.k, place: e.place, from: e.from ?? null, network: !!e.network, scope: c.scope, grid: c.grid });

@@ -215,7 +215,8 @@ export function closeSession(actor) {
 async function replaceSessions(actor, live, last) {
   const update = live ? { "flags.sr2e.==vr2Session": live } : { "flags.sr2e.-=vr2Session": null };
   if (last) update["flags.sr2e.==lastSession"] = last;
-  if (last?.scope) update[`flags.sr2e.vr2Tallies.${last.scope}`] = ledgerEntry(last);
+  // Forced replacement: the entry's nested suppression maps must not merge with an older entry's (7b code R1 #1).
+  if (last?.scope) update[`flags.sr2e.vr2Tallies.==${last.scope}`] = ledgerEntry(last);
   await actor.update(update);
 }
 
@@ -379,7 +380,7 @@ export function settleLogon(actor, { sessionId, logonId, card, ok }) {
       const roll = await new Roll("1d3").evaluate();
       const forgetAt = game.time.worldTime + forgetSeconds(roll.total);
       update["flags.sr2e.vr2Session.forgetAt"] = forgetAt;
-      if (s.scope) update[`flags.sr2e.vr2Tallies.${s.scope}`] = ledgerEntry({ ...s, forgetAt });
+      if (s.scope) update[`flags.sr2e.vr2Tallies.==${s.scope}`] = ledgerEntry({ ...s, forgetAt });
       await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: `${esc(s.hostName)} remembers the failed log-on for
         ${roll.total * 5} minutes of game time (VR2.0 p.116): a retry before then keeps the security tally.` });
     }

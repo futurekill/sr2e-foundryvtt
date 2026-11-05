@@ -177,7 +177,9 @@ export function foldVr2Ic(events = [], ext = {}) {
     const locks = hits.filter(h => !h.lockless && !lockEnded.has(h.card) && (isDeckKey(h.icKey) || icAlive(h.icKey)));
     const dead = hits.some(h => { const r = res(h.card, "meat"); return r && acks.get(r.key)?.outcome?.down; });
     // Traces.
-    const traces = T("trace").filter(t => t.conn === n).map(t => traceState(t, events, crashSeq));
+    // 7b §1: an older trace fact without its place reads the sequencer's later `tracePlace` fact (code R1 #2).
+    const placeOf = (t) => (t.place ? {} : (({ place, scope, grid }) => ({ place, scope, grid }))(T("tracePlace").find(p => p.conn === t.conn && p.icKey === t.icKey) ?? {}));
+    const traces = T("trace").filter(t => t.conn === n).map(t => traceState({ ...t, ...placeOf(t) }, events, crashSeq));
     const traced = traces.some(t => t.complete);
     // Derived exit steps (plan §3a).
     let steps = [];
