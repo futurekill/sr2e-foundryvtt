@@ -2447,7 +2447,7 @@ export class SR2EFrameSheet extends SR2EBaseActorSheet {
     const { frameState } = await import("../frames.mjs");
     const s = this.document.system, st = frameState(this.document);
     const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
-    context.frame = { state: st, boxes: Array.from({ length: 10 }, (_, i) => i < st.monitor),
+    context.frame = { state: st, boxes: Array.from({ length: 10 }, (_, i) => i < st.monitor), initDice: 1 + (s.initPoints ?? 0),
       owner: sync(s.ownerUuid)?.name ?? "(gone)", host: sync(s.hostUuid)?.name ?? "(gone)",
       programs: this.document.items.filter(i => i.type === "program").map(i => ({ name: i.name, rating: i.system.rating, effective: i.system.effectiveRating,
         crashed: !!i.system.crashed })) };

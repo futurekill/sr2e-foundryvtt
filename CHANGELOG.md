@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.136.0 — 2026-11-05
+
+**Restart the Foundry server after updating:** this release adds a new actor type (Frame).
+
+### Added
+- **VR2.0 running frames** (VR2.0 pp.105–107), the second part of frames:
+  - **Upload frame** (the upload icon on a written, loaded frame core's row) sends the frame to the host you're
+    logged on to.
+    - It takes the frame's size ÷ your deck's I/O bandwidth in seconds (p.91). In combat each round counts 3
+      seconds; outside combat the GM clicks **Upload finished**.
+    - A squeezed frame needs **Decompress frame** first (a Complex Action).
+    - Leave the host before it finishes and the upload is lost.
+  - The frame then **runs as its own actor** (a new *Frame* type), owned by the decker's player. Its loaded
+    programs are real, locked copies with their own wear.
+    - If your persona token is on a Matrix scene, its token appears beside it.
+    - The Matrix tab lists the frames you're running; each opens its sheet.
+  - **When a frame ends:**
+    - a dumb frame crashes when its decker leaves that host (p.106), even on a quick trip away and back;
+    - a smart frame runs on without its decker (p.105);
+    - any frame ends when its 10-box monitor fills, its host shuts down (p.53), or its host or decker is deleted;
+    - the GM can delete one by hand.
+
+    Its actor, token and combatants are then removed.
+  - **Frames can be attacked** by IC and deckers, including with Limit: frame utilities. They resist with their Bod
+    plus their Armor copy, and can use their Shield copy. Black IC does plain Matrix damage to a frame: it has no
+    body to hurt.
+    - Damage lands once per attack, even if the player and the GM both resolve it.
+    - Effects other than damage (attribute attacks, track, hog, slow, trace) on frames come in a later release.
+  - **Scan Icon** works on frames, and **Locate Frame** lists the smart frames on the host for the GM (p.115).
+  - Commanding dumb frames and smart frames' own actions come in later releases.
+- How-To Guides: *Upload and run a frame (VR2.0)*.
+
 ## 0.135.0 — 2026-11-05
 
 ### Added

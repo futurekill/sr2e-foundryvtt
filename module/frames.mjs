@@ -349,7 +349,8 @@ export function registerFrameHooks() {
     if (item.parent?.type === "frame") { ui.notifications.warn("A running frame's programs can't be removed."); return false; }
   });
   const ownerOf = (a) => (a?.type === "frame" ? sync(a.system.ownerUuid) : null);
-  for (const h of ["createActor", "deleteActor"]) Hooks.on(h, (a) => { const o = ownerOf(a); if (o) schedule(o); });
+  // The owner's open sheet lists its running frames: refresh it when one appears or goes.
+  for (const h of ["createActor", "deleteActor"]) Hooks.on(h, (a) => { const o = ownerOf(a); if (o) { schedule(o); if (o.sheet?.rendered) o.sheet.render(); } });
   for (const h of ["createToken", "deleteToken"]) Hooks.on(h, (t) => { const o = ownerOf(t.actor ?? game.actors.get(t.actorId)); if (o) schedule(o); });
   // The GM deleting a frame by hand: its end, for the record (§4).
   Hooks.on("deleteActor", (a, options) => {

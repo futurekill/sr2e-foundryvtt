@@ -318,6 +318,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> write a frame core and load programs onto it (Virtual Realities 2.0 pp.105–106). Running frames on a host\ncomes in a later release.</p>\n<p><img src=\"systems/sr2e/assets/guides/frame-load.gif\" alt=\"Load programs onto a frame core: pick the programs, roll the loading test, log the days\"></p>\n<p><strong>Write the core</strong></p>\n<ol>\n<li>On the Matrix tab, add a new program and open it. Set <strong>Frame core</strong> to <em>Dumb</em> or <em>Smart</em> and its rating (the\nCore Rating).</li>\n<li>Give it Bod, Evasion, Masking and Sensor: together no more than the Core Rating. A smart core needs a <strong>DINAB</strong>\noption (no higher than your Computer) and can put points into Initiative.</li>\n<li>Click the programming button (&lt;/&gt;) on its row and write it as any program.</li>\n</ol>\n<p><strong>Load it</strong></p>\n<ol>\n<li>Click <strong>Load programs…</strong> (the box icon) on the core&#39;s row and tick the programs: their ratings may total the\nCore Rating less its Initiative points.</li>\n<li>Roll the loading test, then log days with the same button until it&#39;s done.</li>\n<li>The row lists the loaded copies and the frame&#39;s size.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>The copies are frozen: improving a program later doesn&#39;t change a loaded frame. Load again to take the new version.</li>\n<li>Changing the core&#39;s attributes means writing a new core, and its old load no longer counts.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "525144a94a5edff8",
+      "name": "Upload and run a frame (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1300000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> put a frame you&#39;ve built onto a host, where it runs as its own icon (Virtual Realities 2.0 pp.105–107).\nThe server must have been restarted since the update to 0.136.0 (a new actor type).</p>\n<p><img src=\"systems/sr2e/assets/guides/frame-upload.gif\" alt=\"A decker uploads a frame; the GM finishes the upload and the frame appears, with its sheet\"></p>\n<p><strong>The decker</strong></p>\n<ol>\n<li>Build and load a frame core (see <em>Build and load a frame core</em>).</li>\n<li>Jack in and log on to the host where it should run.</li>\n<li>Click the upload icon on the core&#39;s row. If the core is squeezed, click <strong>Decompress frame</strong> first.</li>\n<li>Stay on the host until the upload finishes. The chat card says how long it takes.</li>\n</ol>\n<p><strong>The GM</strong></p>\n<ul>\n<li>In combat, the upload counts down by itself, 3 seconds per round.</li>\n<li>Outside combat, click <strong>Upload finished (GM)</strong> on the card when that time has passed.</li>\n<li>The frame appears as a Frame actor, and as a token beside the decker&#39;s persona if it has one on a Matrix scene.</li>\n</ul>\n<p><em>Tips</em></p>\n<ul>\n<li>A dumb frame crashes as soon as its decker leaves that host. A smart one keeps running.</li>\n<li>Frames can be attacked: they resist with their own Bod and their Armor copy, and crash at 10 boxes.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"

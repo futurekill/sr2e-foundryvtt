@@ -15,7 +15,7 @@
     <label class="field"><span>Masking</span><strong>{{system.masking}}</strong></label>
     <label class="field"><span>Sensor</span><strong>{{system.sensor}}</strong></label>
     {{#if system.dinab}}<label class="field" title="A smart frame's Computer skill (p.106)"><span>DINAB</span><strong>{{system.dinab}}</strong></label>{{/if}}
-    {{#ifEquals system.kind "smart"}}<label class="field" title="Reaction = Core Rating; 1D6 + 1 per Initiative point (p.106)"><span>Initiative</span><strong>{{system.coreRating}} + {{system.initPoints}}D6+1D6</strong></label>{{/ifEquals}}
+    {{#ifEquals system.kind "smart"}}<label class="field" title="Reaction = Core Rating; 1D6 + 1 per Initiative point (p.106)"><span>Initiative</span><strong>{{system.coreRating}} + {{frame.initDice}}D6</strong></label>{{/ifEquals}}
   </div>
   <p class="rule-note"><strong>Condition</strong> (10 boxes, p.124):
     {{#each frame.boxes as |b|}}<i class="fas {{#if b}}fa-square{{else}}fa-square-o far fa-square{{/if}}"></i>{{/each}} {{frame.state.monitor}}/10</p>

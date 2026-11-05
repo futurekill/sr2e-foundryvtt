@@ -222,7 +222,10 @@ Grid topology is complete (7a 0.132.0, 7b 0.133.0, 7c satellites 0.134.0; satlin
 Part 6a-1 (frame cores + loading, 0.135.0; `module/rules/vr2-frames.mjs`): a core is a program with `frameCore.kind`;
 ALL program derivation goes through `deriveProgram` (vr2-options.mjs), for items and loaded copies alike; loading is
 the programming task under `load:` records and the active load is derived from the winning `load:end` payload.
-6a-2a/b/c (running frames) are outlined in docs/PLAN-vr2-part6-frames.md and need their own plan + review.
+Part 6a-2a (0.136.0; `module/frames.mjs`): a `frame` actor (_id = upload id; loaded copies are locked embedded
+programs); uploads/frames are facts on the OWNER's log (uploadOpen/Tick/Done/End, frameHit per card, frameEnd); `ended`,
+the monitor and departure are DERIVED (`stateFor`); the sequencer posts frame hit resolutions from receipts.
+6a-2b (commands, decoy frames) and 6a-2c (smart frames) need their own plan + review.
 Remaining deferred: running frames (6a-2), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
 requirements in docs/PLAN-vr2-part6-frames.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll

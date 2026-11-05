@@ -1008,4 +1008,10 @@ If those five all work, the core loop is healthy.
 - [ ] Edit a source program: the core's load is unchanged. Change the core's Bod: "not written", and the load is void
       until it's written and loaded again.
 - [ ] A core can't be ticked as a loaded utility (no power toggle on its row).
+- [ ] 6a-2a (server restarted): on a host, Upload frame on a written, loaded core → a card with the time and
+      *Upload finished (GM)* → a Frame actor with the core's name, its programs listed and locked, and a token
+      beside the persona if there is one.
+- [ ] Log on to another host: a dumb frame is gone (chat says why); a smart one stays.
+- [ ] Attack a frame with IC: it resists with Bod (+ Armor); at 10 boxes it crashes and its token goes.
+- [ ] Scan Icon on a frame; Locate Frame on its host lists smart frames for the GM.
 

@@ -265,3 +265,63 @@ VERDICT: APPROVED
 
 **6a-2a APPROVED in round 3.** 6a-2b (commands, decoy frames, event triggers) and 6a-2c (smart frames) still need
 their own detailed sections and reviews.
+
+## 6a-2a Code round 1 — Codex (fresh session, the 6a-2a diff with named functions; ~391k input tokens)
+
+- **module/vr2.mjs:1443–1455** — Fully resisted frame attacks never call `hitFrame`, so they leave no durable receipt. Interruption before the resolution message allows a retry to roll damage and commit it for the same card. **Fix:** sequence every frame resolution, including zero damage, through the card-keyed receipt.
+
+- **module/frames.mjs:302; module/vr2.mjs:1440,1462** — A competing resolver receives success when another resolver’s receipt won, then reports its own rolled damage and applies its own defensive wear. For example, a losing resolver can consume Shield even though the winning resolution declined it. **Fix:** return and render the winning receipt; apply frame Armor/Shield wear exclusively through sequencer replay.
+
+- **module/frames.mjs:318–325** — Deleting a frame’s owner or host triggers no frame cleanup: these deletion hooks only handle deleted **frames**, and orphan sweeping runs only on ready/user connection. Tokens, combatants and frame actors therefore remain after owner/host deletion. **Fix:** handle owner/host deletion by scheduling affected owners and immediately sweeping orphaned frames.
+
+VERDICT: REVISE
+
+### Claude's response (fix 8aed488)
+- **#1 accepted.** A full resist writes the card's receipt too, with 0 boxes.
+- **#2 accepted.** `hitFrame` returns `mine` (a nonce in the receipt). A losing resolver warns and stops. The
+  frame's Armor/Shield wear is applied only by the sequencer's replay of the winning receipt, never by the resolver.
+- **#3 accepted.** Deleting a character or host sweeps frames whose owner or host is gone, and reschedules the
+  owners.
+
+## 6a-2a Code round 2 — Codex (fresh session, fix only; ~134k input tokens)
+
+- **module/vr2.mjs:1448; module/frames.mjs:298–305** — Recovery is permanently blocked if the winning resolver disconnects after its receipt commits but before posting resolution. Every retry generates a different nonce and exits, leaving the card unresolved; a fully resisted DINAB attack also permanently skips `dinabZeroed`. **Fix:** persist the winning resolution data and replay its remaining effects and resolution message idempotently, including on retries.
+
+The zero-damage receipt, exclusive Armor/Shield wear replay, and owner/host deletion cleanup otherwise hold.
+
+VERDICT: REVISE
+
+### Claude's response (fix 9301219)
+- **#1 accepted.** The receipt carries what the resolution card says: level, attack and resistance successes,
+  Shield successes, and the tests to close. The sequencer posts that card itself (`replayResolutions`), from the
+  handler and from every owner pass, skipping any card that already has its `resolves` message. It also runs a
+  full resist's `dinabZeroed`. The resolver posts nothing for a frame, so its survival doesn't matter.
+
+## 6a-2a Code round 3 — Codex (fresh session, fix only; ~88k input tokens)
+
+- **module/frames.mjs:196** — DINAB wear still has an interruption gap: if the sequencer disconnects after creating the resolution message but before `dinabZeroed` completes, line 183 skips that receipt forever, permanently losing the wear. **Fix:** replay the idempotent `dinabZeroed` before the existing-resolution skip.
+
+VERDICT: REVISE
+
+### Claude's response (fix 07cbef6)
+- **#1 accepted.** `dinabZeroed` is keyed by the use id (`dinabFail`) or the card (the `dinabWear` request), so
+  it's idempotent. It now runs on every pass for 0-box receipts, before the "already resolved" skip.
+
+## 6a-2a Code round 4 — Codex (fresh session, fix only; ~148k input tokens)
+
+- **module/frames.mjs:186; module/vr2.mjs:1341–1342** — After a fully resisted DINAB attack, deleting the attacker or its program makes every replay create a fresh `dinabWear` request, even for an already resolved card. Each request schedules another owner pass, producing an endless loop and unbounded records; requests use random IDs, so they are not card-idempotent. **Fix:** return from `dinabZeroed` when the attacker or referenced item no longer exists.
+
+VERDICT: REVISE
+
+### Claude's response (fix c0ace86)
+- **#1 accepted.** `dinabZeroed` returns when the attacker or its program no longer exists; such a request could
+  never wear anything. On the sequencer's client the GM owns the item, so the path is the keyed `dinabFail`, never
+  a request.
+
+## 6a-2a Code round 5 — Codex (fresh session, fix only; ~89k input tokens)
+
+No findings. The guard stops replay requests when the attacker or program is gone. Existing programs retain both direct wear and GM-request paths; all callers tolerate the early return.
+
+VERDICT: APPROVED
+
+**6a-2a code APPROVED in round 5.**
