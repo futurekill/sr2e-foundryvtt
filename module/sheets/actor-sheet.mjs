@@ -585,6 +585,7 @@ function programBadges(actor, i) {
       return { kind: i.system.frameCore.kind, rating: i.system.rating, size: i.system.frameSize,
         copies: (i.system.activeLoad?.copies ?? []).map(c => `${c.name} ${c.system?.rating}`).join(", "),
         void: i.system.activeLoad?.void ?? "", written: i.system.coreWritten,
+        squeezed: (i.system.activeOpts ?? []).some(o => o.kind === "squeeze") || (i.system.activeLoad?.copies ?? []).some(c => (c.system?.options ?? []).some(o => o.kind === "squeeze")),
         loading: loadingState(i).writing ? { done: doneOf(lt), period: lt?.period ?? null } : null }; })() : null };
 }
 
@@ -1600,6 +1601,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       context.vr2Improvised = context.vr2Session?.improvised ?? null;
       context.vr2LostSight = Object.keys(actor.flags?.sr2e?.vr2Maneuvers?.lostSight ?? {}).length;
       context.vr2ic = deckerContext(actor);
+      // Part 6a-2a: the frames this decker is running.
+      { const F = await import("../frames.mjs"); const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
+        context.vr2Frames = F.framesOf(actor).map(f => ({ id: f.id, name: f.name, kind: f.system.kind, host: sync(f.system.hostUuid)?.name ?? "?", monitor: F.frameState(f).monitor })); }
       // Part 7a: where the decker is on the grids, and (GM) the unlisted addresses he knows (p.114).
       if (topologyOn()) {
         const at = currentPlace(actor), topo = topoSnapshot();
@@ -2422,3 +2426,32 @@ async function onGridEdit(event, target) {
   const pick = target.dataset.op?.startsWith("add") ? target.previousElementSibling?.value : target.dataset.arg;
   return gridEdit(this.document, target.dataset.op, pick);
 }
+
+/**
+ * VR2.0 part 6a-2a: a running frame (docs/PLAN-vr2-part6-frames.md, "6a-2a in detail"). Read-only: everything on it
+ * was written once from the upload; its monitor and whether it has ended are derived (module/frames.mjs).
+ */
+export class SR2EFrameSheet extends SR2EBaseActorSheet {
+  static DEFAULT_OPTIONS = {
+    classes: ["sr2e", "sheet", "actor", "frame"],
+    position: { width: 420, height: "auto" }
+  };
+
+  static PARTS = {
+    frame: { template: "systems/sr2e/templates/actor/frame-sheet.hbs" }
+  };
+
+  /** @override */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    const { frameState } = await import("../frames.mjs");
+    const s = this.document.system, st = frameState(this.document);
+    const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
+    context.frame = { state: st, boxes: Array.from({ length: 10 }, (_, i) => i < st.monitor),
+      owner: sync(s.ownerUuid)?.name ?? "(gone)", host: sync(s.hostUuid)?.name ?? "(gone)",
+      programs: this.document.items.filter(i => i.type === "program").map(i => ({ name: i.name, rating: i.system.rating, effective: i.system.effectiveRating,
+        crashed: !!i.system.crashed })) };
+    return context;
+  }
+}
+

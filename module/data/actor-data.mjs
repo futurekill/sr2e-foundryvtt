@@ -2439,3 +2439,33 @@ export class HostData extends SR2EDataModel {
     return this.ratingShift && variableLTGOn() ? shifted(v, this.ratingShift) : v;
   }
 }
+
+/**
+ * VR2.0 part 6a-2a: a running frame (docs/PLAN-vr2-part6-frames.md, "6a-2a in detail"; VR2.0 pp.105–107). Written ONCE
+ * by the GM's client from the sequencer's upload snapshot; its loaded programs are locked embedded program items. Its
+ * monitor, and whether it has ended, are derived from the owner's records (module/frames.mjs `frameState`).
+ */
+export class FrameData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    const n = () => new fields.NumberField({ integer: true, initial: 0, min: 0 });
+    return {
+      kind: new fields.StringField({ initial: "dumb", blank: false, choices: { dumb: "Dumb", smart: "Smart" } }),
+      coreRating: n(), bod: n(), evasion: n(), masking: n(), sensor: n(), initPoints: n(), dinab: n(),
+      ownerUuid: new fields.StringField({ initial: "", blank: true }),
+      coreUuid: new fields.StringField({ initial: "", blank: true }),
+      uploadId: new fields.StringField({ initial: "", blank: true }),
+      hostUuid: new fields.StringField({ initial: "", blank: true }),
+      conn: new fields.NumberField({ integer: true, nullable: true, initial: null }),
+      sessionId: new fields.StringField({ initial: "", blank: true }),
+      notes: new fields.HTMLField({ initial: "" })
+    };
+  }
+
+  /** @override */
+  prepareDerivedData() {
+    // Persona-shaped (p.105: "the Core Rating is used in place of an MPCP Rating"), so persona readers use one accessor.
+    this.matrixPersona = { bod: this.bod, evasion: this.evasion, masking: this.masking, sensor: this.sensor };
+    this.mpcp = this.coreRating;
+  }
+}

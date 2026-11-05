@@ -42,6 +42,7 @@ import { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs,
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerPersonaTokenHooks } from "./persona-tokens.mjs";
 import { registerGridHooks } from "./grids.mjs";
+import { registerFrameHooks } from "./frames.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
 import { registerPhoneLink } from "./companion/phone-link.mjs";
@@ -54,6 +55,7 @@ import {
   SR2ESpiritSheet,
   SR2EICSheet,
   SR2EHostSheet,
+  SR2EFrameSheet,
   chargenBudgetOf
 } from "./sheets/actor-sheet.mjs";
 import { SR2EItemSheet } from "./sheets/item-sheet.mjs";
@@ -528,6 +530,7 @@ Hooks.once("init", async () => {
   registerJackpointHooks();
   registerPersonaTokenHooks();
   registerGridHooks();
+  registerFrameHooks();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();
@@ -586,7 +589,8 @@ Hooks.once("init", async () => {
     vehicle: dataModels.VehicleData,
     spirit: dataModels.SpiritData,
     ic: dataModels.ICData,
-    host: dataModels.HostData
+    host: dataModels.HostData,
+    frame: dataModels.FrameData
   };
 
   // Token resource bars: curate the bar-attribute dropdown to the condition
@@ -665,6 +669,12 @@ Hooks.once("init", async () => {
     types: ["host"],
     makeDefault: true,
     label: "SR2E.Sheets.Host"
+  });
+
+  SheetConfig.registerSheet(Actor, "sr2e", SR2EFrameSheet, {
+    types: ["frame"],
+    makeDefault: true,
+    label: "SR2E.Sheets.Frame"
   });
 
   // ---------------------------------------------------------------------------

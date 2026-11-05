@@ -14139,7 +14139,7 @@ export function registerSR2EQuenchTests() {
     quench.registerBatch("sr2e.vr2-frames", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [];
-      let prior = "core", P, V, n0 = 0;
+      let prior = "core", P, V, Y, F, n0 = 0;
       const withFaces = async (faces, fn) => {
         const orig = CONFIG.Dice.randomUniform; const q = [...faces];
         CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
@@ -14187,10 +14187,15 @@ export function registerSR2EQuenchTests() {
       before(async function () {
         prior = game.settings.get("sr2e", "matrixRuleset");
         await game.settings.set("sr2e", "matrixRuleset", "vr2");
-        P = await import("../programming.mjs"); V = await import("../vr2.mjs");
+        P = await import("../programming.mjs"); V = await import("../vr2.mjs"); Y = await import("../vr2ic.mjs"); F = await import("../frames.mjs");
         n0 = game.messages.size;
       });
-      afterEach(async function () { for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } } });
+      afterEach(async function () {
+        this.timeout(20000);
+        for (const d of made) if (d.type === "character" && d.system.vr2Conn) { await Y.requestExit(d, { trigger: "plug" }); for (let i = 0; i < 40 && d.system.vr2Conn; i++) await new Promise(r => setTimeout(r, 100)); }
+        for (const f of game.actors.filter(x => x.type === "frame" && /Quench Core/.test(x.name))) { try { await f.delete({ sr2eFrameCleanup: true }); } catch (e) { /* gone */ } }
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+      });
       after(async function () {
         this.timeout(20000);
         for (const m of game.messages.contents.slice(n0)) { try { await m.delete(); } catch (e) { /* gone */ } }
@@ -14247,6 +14252,120 @@ export function registerSR2EQuenchTests() {
         assert.isFalse(P.loadingState(coreOf(a)).writing);
         assert.isFalse(P.programmingState(coreOf(a)).writing);
         assert.deepEqual(coreOf(a).system.activeLoad.copies.map(x => x.name), ["Cloak"], "the previous load stays");
+      });
+
+      // ── 6a-2a: running frames ──
+      /** A written core with a completed load, by records (the tasks themselves are tested above). */
+      const readyCore = async (a, { kind = "dumb", rating = 6, attrs = { bod: 3, evasion: 1, masking: 1, sensor: 1 }, options = [], copies = [["Armor", 2]] } = {}) => {
+        const { recordEvent } = await import("../claims.mjs");
+        const c0 = await P.newProject(a); await c0.sheet.close();
+        await c0.update({ name: "Quench Core", "system.rating": rating, "system.frameCore": { kind, ...attrs, initPoints: 0 }, "system.options": options });
+        const c = a.items.get(c0.id), design = P.designOf(c);
+        await recordEvent(c, "prog:start:1", { type: "progStart", gen: 1, design, designSize: 1, baseTime: 2, team: [] });
+        await recordEvent(c, "prog:frozen:1", { type: "progFrozen", task: 1, successes: 2 });
+        await recordEvent(c, "prog:end:1", { type: "progEnd", task: 1, outcome: "complete" });
+        const load = copies.map(([name, r, extra]) => ({ sourceId: "", name, source: null, system: { rating: r, multiplier: 1, category: "defense", offense: "", damageLevel: "", options: [], manufacturer: "", ...(extra ?? {}) } }));
+        const D = P.designOf(a.items.get(c.id));
+        await recordEvent(c, "load:start:1", { type: "progStart", gen: 1, design: D, designSize: 1, baseTime: 2, team: [], load, loadingRating: 1, tn: 2 });
+        await recordEvent(c, "load:frozen:1", { type: "progFrozen", task: 1, successes: 2 });
+        await recordEvent(c, "load:end:1", { type: "progEnd", task: 1, outcome: "complete", payload: { copies: load, coreDesign: D, loadingRating: 1 } });
+        return a.items.get(c.id);
+      };
+      const wait = (ms = 300) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const host = async (name = "Quench Frames Host") => { const h = await Actor.create({ name, type: "host", system: { securityCode: "green", systemRating: 4,
+        securityValueOverride: 4, subsystems: { access: 6, control: 6, index: 6, files: 6, slave: 6 } } }); made.push(h); return h; };
+      const decker = async () => {
+        const a = await coder();
+        await a.update({ "system.cyberdeck": { mpcp: 6, ioSpeed: 20, deckMode: "hot" } });
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      const recs = (a, type) => Y.recordsOf(a).filter(e => e.type === type);
+      /** Upload the core and let the GM finish it (no combat: the manual clock). */
+      const runFrame = async (a, core, { finish = true } = {}) => {
+        const before = new Set(recs(a, "uploadOpen").map(e => e.upload));
+        await F.uploadFrame(a, core);
+        assert.ok(await settle(() => recs(a, "uploadOpen").some(e => !before.has(e.upload))), "admitted");
+        const id = recs(a, "uploadOpen").find(e => !before.has(e.upload)).upload;
+        if (finish) { await Y.request(a, "uploadDone", { upload: id }); await settle(() => !!game.actors.get(id)); }
+        return id;
+      };
+      const cleanupFrames = async () => { for (const f of game.actors.filter(x => x.type === "frame" && /Quench Core/.test(x.name))) { try { await f.delete({ sr2eFrameCleanup: true }); } catch (e) { /* gone */ } } };
+
+      it("6a-2a: an upload is refused off-host, unwritten, or compressed; it runs once, with locked copies", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        const core = await readyCore(a);
+        await F.uploadFrame(a, core);
+        await wait(600);
+        assert.equal(recs(a, "uploadOpen").length, 0, "not on a host yet");
+        await V.sessionFor(a, h);
+        const id = await runFrame(a, core);
+        const fr = game.actors.get(id);
+        assert.ok(fr, "the frame actor exists, its id the upload's");
+        assert.deepEqual([fr.system.kind, fr.system.coreRating, fr.system.bod, fr.system.hostUuid], ["dumb", 6, 3, h.uuid]);
+        assert.equal(fr.items.getName("Armor")?.system.rating, 2, "its copy is a real program");
+        await fr.items.getName("Armor").update({ "system.rating": 5 });
+        assert.equal(fr.items.getName("Armor").system.rating, 2, "copies can't be changed");
+        // Two passes at once: still one actor.
+        await Promise.all([Y.sequencer(() => F.reconcileOwner(a)), Y.sequencer(() => F.reconcileOwner(a))]);
+        assert.equal(game.actors.filter(x => x.type === "frame" && x.system.uploadId === id).length, 1);
+        // A squeezed core needs decompressing first.
+        const sq = await readyCore(a, { options: [{ kind: "squeeze", rating: 0, target: "" }] });
+        const before = recs(a, "uploadOpen").length;
+        await F.uploadFrame(a, sq); await wait(600);
+        assert.equal(recs(a, "uploadOpen").length, before, "compressed: refused");
+        await F.decompressFrame(a, a.items.get(sq.id));
+        await F.uploadFrame(a, a.items.get(sq.id));
+        assert.ok(await settle(() => recs(a, "uploadOpen").length === before + 1), "decompressed: admitted");
+        await cleanupFrames();
+      });
+
+      it("6a-2a: leaving mid-upload loses it; a dumb frame crashes when its decker leaves the host; a smart one stays", async function () {
+        this.timeout(40000);
+        const h = await host(), h2 = await host("Quench Frames Host 2");
+        const a = await decker();
+        await V.sessionFor(a, h);
+        const id0 = await runFrame(a, await readyCore(a), { finish: false });
+        await V.sessionFor(a, h2); await V.sessionFor(a, h);   // away and straight back
+        assert.ok(await settle(() => recs(a, "uploadEnd").some(e => e.upload === id0)), "the upload is lost");
+        assert.notOk(game.actors.get(id0), "no frame");
+        const dumb = await runFrame(a, await readyCore(a));
+        const smart = await runFrame(a, await readyCore(a, { kind: "smart", options: [{ kind: "dinab", rating: 4, target: "" }] }));
+        assert.ok(game.actors.get(dumb) && game.actors.get(smart), "both running");
+        await V.sessionFor(a, h2);
+        assert.ok(await settle(() => !game.actors.get(dumb)), "the dumb frame crashed and was removed (p.106)");
+        assert.ok(recs(a, "frameEnd").some(e => e.upload === dumb));
+        assert.ok(game.actors.get(smart), "the smart frame runs on (p.105)");
+        await cleanupFrames();
+      });
+
+      it("6a-2a: damage lands once per card; 10 boxes crash the frame; the GM deleting one, and a host shutdown, end them", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await decker();
+        await V.sessionFor(a, h);
+        const id = await runFrame(a, await readyCore(a, { kind: "smart", options: [{ kind: "dinab", rating: 4, target: "" }] }));
+        const fr = () => game.actors.get(id);
+        await F.hitFrame(fr(), "card-1", 4);
+        await F.hitFrame(fr(), "card-1", 4);
+        assert.equal(F.frameState(fr()).monitor, 4, "the same card twice: once");
+        await F.hitFrame(fr(), "card-2", 6);
+        assert.ok(await settle(() => !fr()), "10 boxes: crashed and removed (p.124)");
+        // The GM deleting a frame by hand records its end.
+        const id2 = await runFrame(a, await readyCore(a, { kind: "smart", options: [{ kind: "dinab", rating: 4, target: "" }] }));
+        await game.actors.get(id2).delete();
+        assert.ok(await settle(() => recs(a, "frameEnd").some(e => e.upload === id2 && /GM/.test(e.why))));
+        // A host shutdown wipes out its frames (p.53), derived even after a reset.
+        const id3 = await runFrame(a, await readyCore(a, { kind: "smart", options: [{ kind: "dinab", rating: 4, target: "" }] }));
+        await Y.startShutdown(h);
+        for (let i = 0; i < 40 && !Y.hostOffline(h); i++) await Y.advanceShutdown(h);
+        await Y.resetShutdown(h);
+        Y.schedule(a);
+        assert.ok(await settle(() => !game.actors.get(id3)), "gone, and a reset doesn't bring it back");
+        await cleanupFrames();
       });
 
       it("changing a written core's design unwrites it and voids its load until it is written and loaded again", async function () {

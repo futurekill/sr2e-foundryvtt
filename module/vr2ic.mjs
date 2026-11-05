@@ -147,6 +147,8 @@ export function requestExit(actor, { trigger = "voluntary", gracefulCard = null,
 /** Exit steps the sequencer resolves by itself (filled below); the rest wait on players or the GM. */
 const STEP_RESOLVERS = {};
 
+/** Part 6a-2a: other modules add their sequencer request handlers (frames.mjs). */
+export function addHandlers(h) { Object.assign(HANDLERS, h); }
 const HANDLERS = {
   /** Open the exit (one per connection; plan §3a). */
   async exit(actor, r, f) {
@@ -602,6 +604,12 @@ export async function offerTar(message) {
     if (!success && sc.prof.scramble === "poison") rows.push(btn("poison", sc, `${nameOf(sc)}: Poison Test`, "rating dice vs the decker's Computer (p.42)"));
     const bomb = sc.comp ? null : sync(sc.ic.system.bombUuid);
     if (success && sc.prof.scramble === "exploding" && bomb && armed(bomb)) rows.push(btn("explode", { ic: bomb, comp: "" }, `${bomb.name} goes off (exploding scramble)`, "p.42"));
+  }
+  // Part 6a-2a: Locate Frame "locates any smart frames or SKs running on the host" (p.115).
+  if (st.operation === "locateFrame" && success) {
+    const F = await import("./frames.mjs");
+    const smart = game.actors.filter(a => a.type === "frame" && a.system.kind === "smart" && a.system.hostUuid === st.hostUuid && !F.frameState(a).ended);
+    rows.push(`<em>Smart frames on ${esc(st.hostName)}: ${smart.length ? smart.map(a => esc(a.name)).join(", ") : "none"} (p.115).</em>`);
   }
   if (st.operation === "redirectDatatrail" && success) {
     const n = st.conn, decker = sync(st.actorUuid);
@@ -1366,6 +1374,8 @@ async function tickShutdown(host, boundary) {
   }
   if (!now.offline) return;
   for (const a of deckers) await openExit(a, "shutdown");
+  // Part 6a-2a: "a shutdown wipes out all frames" (p.53): their owners' passes see it (derived, so it replays).
+  for (const f of game.actors.filter(x => x.type === "frame" && x.system.hostUuid === host.uuid)) { const o = sync(f.system.ownerUuid); if (o) schedule(o); }
   await ChatMessage.create({ content: `<div class="sr2e-item-card"><strong>${esc(host.name)} shuts down.</strong> Every decker still on it is dumped; frames and running programs crash (VR2.0 p.53).</div>` });
   for (const a of deckers) schedule(a);
 }
@@ -1589,6 +1599,8 @@ async function passFor(actor) {
   await reconcileEnds(actor); await admitDeckerCards(actor); await processRequests(actor); await reconcileLastAttacks(actor); await reconcileShieldFreeze(actor);
   await applyResults(actor); await applyRippers(actor); await applySparky(actor);
   await noticeTraces(actor); await advanceExit(actor);
+  // Part 6a-2a: uploads and frames follow this decker's facts.
+  await (await import("./frames.mjs")).reconcileOwner(actor);
 }
 
 /** A decker's attacker key (part 5a §0.5): `deck:<uuid>@<conn>`, "" off the connection log. */
@@ -1818,6 +1830,9 @@ export async function sheetOp(doc, op, arg) {
   if (op === "programNew") { const P = await import("./programming.mjs"); return P.newProject(doc); }
   if (op === "programAbandon") { const P = await import("./programming.mjs"); return P.abandon(doc, doc.items.get(arg)); }
   if (op === "frameLoad") { const P = await import("./programming.mjs"); return P.loadDialog(doc, doc.items.get(arg)); }
+  if (op === "frameUpload") { const F = await import("./frames.mjs"); return F.uploadFrame(doc, doc.items.get(arg)); }
+  if (op === "frameOpen") return game.actors.get(arg)?.sheet.render(true);
+  if (op === "frameDecompress") { const F = await import("./frames.mjs"); return F.decompressFrame(doc, doc.items.get(arg)); }
   if (op === "slowRelease") { const [card, icUuid] = arg.split("|"); return request(doc, "slowRelease", { card, icUuid }); }
   if (op === "freeze") return request(doc, "freeze", { spoof: arg });
   if (op === "unfreeze") return request(doc, "unfreeze", { spoof: arg });
@@ -1961,6 +1976,7 @@ export function registerVr2IcHooks() {
       sequencer(async () => {
         await tickTraces(a, (t, ticks) => t.clock?.combatId === combat.id ? boundariesToTick(t, ticks, combat.round) : []);
         await noticeTraces(a);
+        await (await import("./frames.mjs")).tickUploads(a, combat);   // part 6a-2a: uploads count Combat Turns
         for (const h of liveHogs(a).filter(x => x.clock?.combatId === combat.id)) {
           for (let r = h.clock.startRound; r < combat.round; r++) await hogTick(a, h, r);
         }

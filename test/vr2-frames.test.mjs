@@ -103,3 +103,48 @@ describe("written cores and the active load (derived, never stored)", () => {
     expect(activeLoad([], { design: D1, capacity: 6, written: true })).toBeNull();
   });
 });
+
+// ── Part 6a-2a ───────────────────────────────────────────────────────────────
+import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflineSeqs, frameEnds, iconKind, limitClass } from "../module/rules/vr2-frames.mjs";
+
+describe("6a-2a: running frames (p.91, p.105–107, p.124)", () => {
+  it("upload time: size ÷ I/O MePS seconds, in Combat Turns of 3 s; no bandwidth, no upload", () => {
+    expect(uploadSeconds(1392, 20)).toBe(70);
+    expect(uploadTurns(70)).toBe(24);
+    expect(uploadSeconds(1392, 0)).toBeNull();
+  });
+  it("departure is a durable transition (R1 #4)", () => {
+    const base = { live: 1, conn: 1, sessionId: "s1", since: 10 };
+    expect(departedSince({ ...base, live: null })).toBe(true);
+    expect(departedSince({ ...base, live: 2 })).toBe(true);
+    expect(departedSince({ ...base, topology: true, moves: [{ type: "move", conn: 1, seq: 12 }] })).toBe(true);    // away (and back)
+    expect(departedSince({ ...base, topology: true, moves: [{ type: "move", conn: 1, seq: 9 }] })).toBe(false);    // before it started
+    expect(departedSince({ ...base, topology: true, liveSessionId: "s9", moves: [] })).toBe(false);               // a failed logon's session switch
+    expect(departedSince({ ...base, liveSessionId: "s2" })).toBe(true);                                           // topology off: a new session
+    expect(departedSince({ ...base, liveSessionId: "s1" })).toBe(false);
+  });
+  it("the monitor is derived from card-keyed hits, a duplicate card counted once, capped at 10 (R1 #9)", () => {
+    const h = (card, boxes, upload = "F") => ({ type: "frameHit", upload, card, boxes });
+    expect(frameMonitor([h("a", 3), h("a", 6), h("b", 2), h("c", 9, "G")], "F")).toBe(5);
+    expect(frameMonitor([h("a", 6), h("b", 6)], "F")).toBe(10);
+  });
+  it("shutdowns: the seq each run went offline, resets included (R2 #1)", () => {
+    const recs = [{ type: "shutdown", n: 1, turns: 2 }, { type: "shutdownTick", n: 1, seq: 5 }, { type: "shutdownTick", n: 1, seq: 7 },
+      { type: "shutdownReset", n: 1 }, { type: "shutdown", n: 2, turns: 3 }, { type: "shutdownTick", n: 2, seq: 9 }];
+    expect(shutdownOfflineSeqs(recs)).toEqual([7]);
+  });
+  it("frameEnds: every cause; a smart frame outlives its decker's departure (p.105)", () => {
+    expect(frameEnds({ ownerExists: false })).toMatch(/decker is gone/);
+    expect(frameEnds({ hostExists: false })).toMatch(/host is gone/);
+    expect(frameEnds({ endFact: { why: "deleted by the GM" } })).toBe("deleted by the GM");
+    expect(frameEnds({ monitor: 10 })).toBe("crashed");
+    expect(frameEnds({ shutdownSeqs: [7], since: 5 })).toMatch(/shut down/);
+    expect(frameEnds({ shutdownSeqs: [3], since: 5 })).toBeNull();
+    expect(frameEnds({ kind: "dumb", departed: true })).toMatch(/left/);
+    expect(frameEnds({ kind: "smart", departed: true })).toBeNull();
+  });
+  it("icon kinds and Limit classes", () => {
+    expect([iconKind("character"), iconKind("ic"), iconKind("frame"), iconKind("host")]).toEqual(["decker", "ic", "frame", null]);
+    expect(limitClass("frame")).toBe("frame");
+  });
+});

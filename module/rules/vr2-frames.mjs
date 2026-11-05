@@ -91,3 +91,58 @@ export function activeLoad(records = [], { design, capacity, written }) {
   if (total > capacity) return { gen: t.task, void: `The programs total ${total}: the core now holds ${capacity}.` };
   return { gen: t.task, copies: p.copies ?? [], loadingRating: p.loadingRating };
 }
+
+// ── Part 6a-2a: running frames (docs/PLAN-vr2-part6-frames.md, "6a-2a in detail") ──────────────
+
+/** Upload time (p.91): "10 MePS can upload … 10 Mp of data per second". Null when the deck has no I/O bandwidth. */
+export const uploadSeconds = (size, io) => (Number(io) > 0 ? Math.ceil((Number(size) || 0) / Number(io)) : null);
+/** Seconds → Combat Turns (3 seconds each). */
+export const uploadTurns = (seconds) => Math.ceil((Number(seconds) || 0) / 3);
+
+/**
+ * Has the owner left since `since` (a seq)? A durable transition, never a current-location check (R1 #4): the
+ * connection ended or changed; under grid topology any 7b move on that connection after `since` (a failed logon
+ * elsewhere writes none); otherwise a different host session (session ids are never reused).
+ */
+export function departedSince({ live = null, conn, sessionId, liveSessionId = null, topology = false, moves = [], since = 0 }) {
+  if (live == null || live !== conn) return true;
+  if (topology) return moves.some(m => m.type === "move" && m.conn === conn && (m.seq ?? 0) > since);
+  return liveSessionId !== sessionId;
+}
+
+/** A frame's monitor (p.124), derived from its card-keyed hits (R1 #9): one per card, 10 boxes at most. */
+export function frameMonitor(hits = [], uploadId) {
+  const byCard = new Map();
+  for (const h of hits) if (h.type === "frameHit" && h.upload === uploadId && !byCard.has(h.card)) byCard.set(h.card, Number(h.boxes) || 0);
+  return Math.min(10, [...byCard.values()].reduce((n, b) => n + b, 0));
+}
+
+/** The seqs at which a host's shutdown runs went offline (p.53), resets included (R2 #1). */
+export function shutdownOfflineSeqs(records = []) {
+  const out = [];
+  for (const run of records.filter(e => e.type === "shutdown")) {
+    const ticks = records.filter(e => e.type === "shutdownTick" && e.n === run.n).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+    const t = ticks[Math.max(0, (run.turns ?? 0) - 1)];
+    if (ticks.length >= (run.turns ?? 0) && t) out.push(t.seq ?? 0);
+  }
+  return out;
+}
+
+/**
+ * Why a frame (or an upload) has ended, or null (§4; derived, so nothing depends on a write having happened).
+ * Smart frames don't end with their owner's departure (p.105).
+ */
+export function frameEnds({ ownerExists = true, hostExists = true, kind = "dumb", departed = false, monitor = 0, shutdownSeqs = [], since = 0, endFact = null } = {}) {
+  if (!ownerExists) return "its decker is gone";
+  if (!hostExists) return "its host is gone";
+  if (endFact) return endFact.why ?? "ended";
+  if (monitor >= 10) return "crashed";
+  if (shutdownSeqs.some(s => s > since)) return "its host shut down";
+  if (kind !== "smart" && departed) return "its decker left the host";
+  return null;
+}
+
+/** An icon's kind (§5): ic | decker | frame. */
+export const iconKind = (type) => (type === "character" ? "decker" : type === "frame" ? "frame" : type === "ic" ? "ic" : null);
+/** The Limit option's target type for an icon (p.104). */
+export const limitClass = (type) => iconKind(type) ?? "decker";

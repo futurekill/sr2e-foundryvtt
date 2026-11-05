@@ -33,6 +33,7 @@ import { skillTnContext } from "./documents/actor.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { RL, AL } from "./util/roll-label.mjs";
 import { decoyFooled, scanIconTN, SCAN_FACTS } from "./rules/vr2-decoy-rules.mjs";
+import { limitClass } from "./rules/vr2-frames.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -68,7 +69,8 @@ export const isCompressed = (item) => !!optionOf(item, "squeeze") && item.flags?
 /** Sensitive (p.104): useless on another manufacturer's host (blank on either side: no restriction). */
 function sensitiveBlocked(actor, item, host) {
   if (!optionOf(item, "sensitive") || !item.system.manufacturer) return false;
-  const made = (host ?? sync(liveSession(actor)?.hostUuid))?.system?.manufacturer;
+  // A running frame's context is its own host (part 6a-2a R1 #2): it has no session.
+  const made = (host ?? sync(actor?.type === "frame" ? actor.system.hostUuid : liveSession(actor)?.hostUuid))?.system?.manufacturer;
   return !!made && made.trim().toLowerCase() !== item.system.manufacturer.trim().toLowerCase();
 }
 /**
@@ -837,7 +839,8 @@ async function resistSlow(ic, message, st) {
 // ── Cybercombat (p.123–124) ──────────────────────────────────────────────────
 
 /** Who an icon is right now, for maneuver records: a decker's session, or an IC's generation. */
-export const sessionKey = (a) => a?.type === "ic" ? `${a.uuid}:${a.system.generation ?? 0}` : (liveSession(a)?.id ?? "");
+export const sessionKey = (a) => a?.type === "ic" ? `${a.uuid}:${a.system.generation ?? 0}`
+  : a?.type === "frame" ? `${a.uuid}:${a.system.uploadId || a.id}` : (liveSession(a)?.id ?? "");
 
 const ATTR_LABEL = { bod: "Bod", evasion: "Evasion", masking: "Masking", sensor: "Sensor" };
 const OFFENSE_ATTRIBUTE = { poison: "bod", restrict: "evasion", reveal: "masking" };
@@ -964,7 +967,7 @@ async function promptAttack(actor, target, ms) {
     // Not yet filtered for Sensitive: the host is picked in this dialog, and the attack re-checks on THAT host (R2 #3).
     const list = usablePrograms(actor).filter(i => !isCompressed(i)).filter(i => (i.system.damageLevel || offenseOf(i) || /attack|blaster/i.test(i.name) || utilityKindOf(i))
       && !(utilityKindOf(i) && utilityTargetProblem(utilityKindOf(i), target))
-      && limitAllows(i.system.activeOpts ?? [], target.type === "ic" ? "ic" : "decker"))
+      && limitAllows(i.system.activeOpts ?? [], limitClass(target.type)))
       .sort((a, b) => programRating(b) - programRating(a));
     const imp = liveSession(actor)?.improvised;
     const improv = imp?.level ? `<option value="improv">Improvised attack (Power ${imp.power}, ${imp.level})</option>` : "";
@@ -977,7 +980,7 @@ async function promptAttack(actor, target, ms) {
       const seen = new Set([target.uuid, actor.uuid]);
       for (const t of game.user.targets ?? []) {
         const a = t.actor;
-        if (a && ["ic", "character"].includes(a.type) && !seen.has(a.uuid)) { seen.add(a.uuid); areaOthers.push(a); }
+        if (a && ["ic", "character", "frame"].includes(a.type) && !seen.has(a.uuid)) { seen.add(a.uuid); areaOthers.push(a); }
       }
       dinabAny = list.some(p => dinabLeft(p) > 0);
     }
@@ -1054,7 +1057,9 @@ async function attackOnce(actor) {
   if (why) return ui.notifications.warn(why);
   const target = firstTarget()?.actor ?? null;
   if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you attack first.");
-  if (!["ic", "character"].includes(target.type)) return ui.notifications.warn("Only IC or a decker's persona can be attacked in the Matrix.");
+  if (!["ic", "character", "frame"].includes(target.type)) return ui.notifications.warn("Only IC, a decker's persona or a frame can be attacked in the Matrix.");
+  // Part 6a-2a: a frame that has ended is gone.
+  if (target.type === "frame" && (await import("./frames.mjs")).frameState(target).ended) return ui.notifications.warn(`${target.name} has crashed.`);
   const ms = maneuverState(actor, target);
   if (ms.blind) return ui.notifications.warn(`${actor.name} has lost ${target.name} (evade detection, VR2.0 p.122): re-detect it first.`);
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
@@ -1118,6 +1123,8 @@ async function attackOnce(actor) {
     power = Y.blackKind(prof.program) && target.type === "character" && !decoy ? Y.blackRating(actor, target, prof.rating) + cascade.rating : icRating;
     tnContext = { kind: "other" }; attackerComputer = host.system.securityValue;
     // Trace IC hunts against the decker's Trace Factor (p.45), not the cybercombat table.
+    // Part 6a-2a: a trace on a frame (its owner's datatrail) comes with decoy frames in 6a-2b.
+    if (prof.program === "trace" && target.type === "frame") return ui.notifications.warn("Trace IC against a frame: not yet (frames, part 6a-2b).");
     if (prof.program === "trace" && target.type === "character") {
       const conn = target.system.vr2Conn;
       const jp = connJackpoint(target);
@@ -1164,12 +1171,12 @@ async function attackOnce(actor) {
       // Part 5b (p.103–104): every target must suit the program (its kind, Limit) and be in sight.
       const area = optionOf(prog, "area");
       // One icon per actor: two tokens of one persona are one target (and one +1 TN), never the primary twice.
-      extras = [...new Set(o.areaUuids ?? [])].filter(u => u !== target.uuid).map(sync).filter(a => a && ["ic", "character"].includes(a.type));
+      extras = [...new Set(o.areaUuids ?? [])].filter(u => u !== target.uuid).map(sync).filter(a => a && ["ic", "character", "frame"].includes(a.type));
       if (extras.length && !area) return ui.notifications.warn(`${prog.name} has no Area option: one target only.`);
       if (area && 1 + extras.length > area.rating) return ui.notifications.warn(`${prog.name}'s Area-${area.rating} engages up to ${area.rating} targets (VR2.0 p.103).`);
       for (const t of [target, ...extras]) {
         const why = (kind ? utilityTargetProblem(kind, t) : "")
-          || (limitAllows(prog.system.activeOpts, t.type === "ic" ? "ic" : "decker") ? "" : "its Limit option rules that target type out (p.104)")
+          || (limitAllows(prog.system.activeOpts, limitClass(t.type)) ? "" : "its Limit option rules that target type out (p.104)")
           || (offense && t.type !== "character" ? "it attacks a persona, not IC" : "")
           || (t !== target && maneuverState(actor, t).blind ? "you've lost sight of it" : "");
         if (why) return ui.notifications.warn(`${prog.name} can't attack ${t.name}: ${why}.`);
@@ -1348,7 +1355,7 @@ const armorVs = (ref, st) => ref ? ref.rating + (st.areaOpt ? 2 : 0) : 0;
 /** Offer the defender's Shield (p.100): rolled against the attacker's Computer (IC: Security Value). */
 async function askShield(defender, st) {
   // Penetration defeats the Shield utility (p.104; user ruling: a decker's Shield too).
-  const item = defender.type === "character" && !st.penetration ? bestUtility(defender, "shield") : null;
+  const item = ["character", "frame"].includes(defender.type) && !st.penetration ? bestUtility(defender, "shield") : null;
   if (!item) return null;
   const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: `Shield — ${defender.name}` },
     content: `<p>Use ${esc(item.name)} (rating ${programRating(item)})? It loses a point whether it works or not (VR2.0 p.100).</p>`,
@@ -1401,6 +1408,12 @@ export async function vr2MatrixResist(defender, message) {
       armorRef = useRef(bestUtility(defender, "armor"));
       dice = defender.system.matrixPersona?.bod ?? 0; tn = st.power - armorVs(armorRef, st);
       what = `persona Bod${armorRef ? `, ${armorRef.name}` : ""}`;
+    } else if (defender.type === "frame") {
+      // Part 6a-2a: a frame resists like a persona, with its own Bod and its own Armor copy (p.124).
+      if ((await import("./frames.mjs")).frameState(defender).ended) return ui.notifications.warn(`${defender.name} has crashed.`);
+      armorRef = useRef(bestUtility(defender, "armor"));
+      dice = defender.system.bod ?? 0; tn = st.power - armorVs(armorRef, st);
+      what = `frame Bod${armorRef ? `, ${armorRef.name}` : ""}`;
     } else {
       return ui.notifications.warn("Only IC or a decker persona can resist a Matrix attack.");
     }
@@ -1438,6 +1451,8 @@ export async function vr2MatrixResist(defender, message) {
       const Y = await import("./vr2ic.mjs");
       const hit = defender.type === "character"
         ? await sessionQueue(defender, () => sameSession() ? matrixDamage(defender, out.boxes) : null)
+        // Part 6a-2a (R1 #9): ONE card-keyed fact via the sequencer; a second resolution writes nothing.
+        : defender.type === "frame" ? await (await import("./frames.mjs")).hitFrame(defender, message.id, out.boxes, armorRef, shield?.ref ?? null)
         : (Y.isSequencer() ? await Y.sequencer(() => Y.icDamage(defender, out.boxes, message.id)) : await matrixDamage(defender, out.boxes));
       if (!hit) return ui.notifications.warn("That attack hit an earlier session: nothing applied.");
       const { before, after } = hit;
@@ -1460,7 +1475,9 @@ export async function vr2MatrixResist(defender, message) {
           else { await commitDamage(defender, "stun", 1); lines.push("Simsense overload: 1 box of Stun (VR2.0 p.124)."); }
         }
       }
-      if (crashed && defender.type === "ic") {
+      if (crashed && defender.type === "frame") {
+        lines.push("The frame crashes (VR2.0 p.124).");
+      } else if (crashed && defender.type === "ic") {
         lines.push("The IC crashes, out of the fight.");
         if (st.attackerType === "character" && st.attackerSession) {
           crashChoiceFlag = { cardId: message.id, deckerUuid: st.attackerUuid, sessionId: st.attackerSession,
@@ -1984,7 +2001,10 @@ export async function vr2ScanIcon(actor) {
   if (why) return ui.notifications.warn(why);
   const target = firstTarget()?.actor ?? null;
   if (!target || target.uuid === actor.uuid) return ui.notifications.warn("Target the icon you scan first.");
-  if (target.type !== "character" || !target.system.matrixMode) return ui.notifications.warn("Scan Icon reads a decker's persona in the Matrix (frames and SKs come later).");
+  // Part 6a-2a: frames too (SKs come with 6b).
+  if (target.type === "frame" ? (await import("./frames.mjs")).frameState(target).ended : (target.type !== "character" || !target.system.matrixMode)) {
+    return ui.notifications.warn("Scan Icon reads a decker's persona in the Matrix, or a running frame.");
+  }
   if (maneuverState(actor, target).blind) return ui.notifications.warn(`${actor.name} has lost ${target.name}: re-detect it first.`);
   const host = sync(liveSession(actor)?.hostUuid);
   if (host?.type !== "host") return ui.notifications.warn("Log on to a host first (a System Operation): Scan Icon works on the system you're on.");
@@ -2055,7 +2075,7 @@ export async function vr2ScanPick(message) {
     buttons: Object.entries(SCAN_FACTS).filter(([k]) => !taken.has(k)).map(([k, label]) => ({ action: k, label })) });
   if (!pick || !(pick in SCAN_FACTS)) return;
   if (left() <= 0 || sessionKey(target) !== st.targetSession) return ui.notifications.warn("The scan changed while you chose: nothing bought.");
-  const value = { mpcp: target.system.cyberdeck?.mpcp ?? 0, response: target.system.cyberdeck?.response ?? 0 }[pick]
+  const value = (target.type === "frame" ? { mpcp: target.system.mpcp ?? 0, response: 0 } : { mpcp: target.system.cyberdeck?.mpcp ?? 0, response: target.system.cyberdeck?.response ?? 0 })[pick]
     ?? target.system.matrixPersona?.[pick] ?? 0;
   const slot = scanPicks(actor, message.id).length;
   if (!await recordEvent(actor, `vr2:scan:${message.id}:${slot}`, { type: "scanPick", card: message.id, slot, pick, value })) {

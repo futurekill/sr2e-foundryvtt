@@ -1,0 +1,24 @@
+<section class="sr2e-matrix-sheet sr2e-frame-sheet">
+  <header class="sr2e-matrix-header">
+    <img src="{{actor.img}}" alt="{{actor.name}}" />
+    <div class="title-block">
+      <span class="actor-name">{{actor.name}}</span>
+      <span class="subtitle">{{#ifEquals system.kind "smart"}}Smart{{else}}Dumb{{/ifEquals}} frame — Core {{system.coreRating}}</span>
+    </div>
+  </header>
+  {{#if frame.state.ended}}<p class="rule-note" style="color:#c44;"><strong>Gone:</strong> {{frame.state.why}}.</p>{{/if}}
+  <p class="rule-note">Running on <strong>{{frame.host}}</strong> for <strong>{{frame.owner}}</strong> (VR2.0 p.105–107).
+    {{#ifEquals system.kind "dumb"}}A dumb frame crashes when its decker leaves this host.{{else}}A smart frame runs on whether its decker is logged on or not.{{/ifEquals}}</p>
+  <div class="field-grid">
+    <label class="field"><span>Bod</span><strong>{{system.bod}}</strong></label>
+    <label class="field"><span>Evasion</span><strong>{{system.evasion}}</strong></label>
+    <label class="field"><span>Masking</span><strong>{{system.masking}}</strong></label>
+    <label class="field"><span>Sensor</span><strong>{{system.sensor}}</strong></label>
+    {{#if system.dinab}}<label class="field" title="A smart frame's Computer skill (p.106)"><span>DINAB</span><strong>{{system.dinab}}</strong></label>{{/if}}
+    {{#ifEquals system.kind "smart"}}<label class="field" title="Reaction = Core Rating; 1D6 + 1 per Initiative point (p.106)"><span>Initiative</span><strong>{{system.coreRating}} + {{system.initPoints}}D6+1D6</strong></label>{{/ifEquals}}
+  </div>
+  <p class="rule-note"><strong>Condition</strong> (10 boxes, p.124):
+    {{#each frame.boxes as |b|}}<i class="fas {{#if b}}fa-square{{else}}fa-square-o far fa-square{{/if}}"></i>{{/each}} {{frame.state.monitor}}/10</p>
+  <p class="rule-note"><strong>Programs</strong> (object-code copies; they can't be changed):
+    {{#each frame.programs as |p|}}<br>{{p.name}} {{p.effective}}{{#ifEquals p.effective p.rating}}{{else}} of {{p.rating}}{{/ifEquals}}{{#if p.crashed}} (crashed){{/if}}{{else}} none.{{/each}}</p>
+</section>

@@ -121,6 +121,10 @@
       </button>
       {{/if}}
     </div>
+    {{#if vr2Frames.length}}
+    <p class="rule-note"><i class="fas fa-cubes"></i> <strong>Frames running</strong> (VR2.0 p.105–107):
+      {{#each vr2Frames as |f|}}<br><a data-action="vr2ic" data-op="frameOpen" data-arg="{{f.id}}">{{f.name}}</a> ({{f.kind}}) on {{f.host}}, {{f.monitor}}/10{{/each}}</p>
+    {{/if}}
     {{#if vr2Topo}}
     <div class="flexrow vr2-topo-row" style="align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
       {{#if vr2Topo.connected}}
@@ -237,6 +241,8 @@
               {{#if program.core.void}}<em style="color:#c44;" title="{{program.core.void}}">load void</em>{{/if}}{{/if}}</span>
           <div class="item-controls">
             {{#if program.core}}<a data-action="vr2ic" data-op="frameLoad" data-arg="{{program.id}}" title="Load programs onto this frame core (a task, VR2.0 p.106)"><i class="fas fa-box-open"></i></a>
+            {{#if ../vr2}}<a data-action="vr2ic" data-op="frameUpload" data-arg="{{program.id}}" title="Upload this frame to the host you're on: it runs when the upload completes (VR2.0 p.106)"><i class="fas fa-upload"></i></a>
+            {{#if program.core.squeezed}}<a data-action="vr2ic" data-op="frameDecompress" data-arg="{{program.id}}" title="Decompress the frame before uploading it (a Complex Action, VR2.0 p.106)"><i class="fas fa-up-right-and-down-left-from-center"></i></a>{{/if}}{{/if}}
             {{#if program.core.loading}}<a data-action="vr2ic" data-op="programAbandon" data-arg="{{program.id}}" title="Abandon the loading task (the previous load stays)"><i class="fas fa-ban"></i></a>{{/if}}
             {{else}}<a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>{{/if}}
             {{#if ../vr2}}<a data-action="vr2SwapMemory" title="Swap Memory: a fresh copy at full rating (VR2.0 p.99)"><i class="fas fa-rotate"></i></a>
