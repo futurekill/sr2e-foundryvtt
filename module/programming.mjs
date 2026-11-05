@@ -96,6 +96,9 @@ async function startLoad(actor, core) {
     ok: { label: "Choose", callback: (e, b) => ({ ids: [...b.form.querySelectorAll("input[name=prog]:checked")].map(i => i.value),
       team: [...b.form.querySelectorAll("input[name=team]:checked")].map(i => i.value) }) } }).catch(() => null);
   if (!pick) return;
+  const fresh = (id) => { const p = actor.items.get(id); return p && !p.system.frameCore?.kind && !unfinished(p) && foundry.utils.objectsEqual(designOf(p), before.get(id)); };
+  // The copies must be of the designs captured before the picker (code R2 #1): checked before they are taken.
+  if (pick.ids.some(id => !fresh(id))) return ui.notifications.warn("A program changed while you were choosing: start again.");
   const chosen = pick.ids.map(id => actor.items.get(id)).filter(Boolean);
   const ratings = chosen.map(p => p.system.rating);
   const why = loadProblems(ratings, cap);
@@ -111,7 +114,6 @@ async function startLoad(actor, core) {
     label: `Loading ${esc(core.name)}: Computer (${terms.tn})`, tnContext: { kind: "other" } });
   if (!res) return;
   const now = stateOf(core, LOAD);
-  const fresh = (id) => { const p = actor.items.get(id); return p && !p.system.frameCore?.kind && !unfinished(p) && foundry.utils.objectsEqual(designOf(p), before.get(id)); };
   const changed = !foundry.utils.objectsEqual(designOf(live(core)), plan) || now.writing || stateOf(core).writing
     || chosen.some(p => !fresh(p.id)) || loadProblems(chosen.map(p => actor.items.get(p.id).system.rating), live(core).system.capacity).length;
   if (changed) return ui.notifications.warn(`${core.name} or one of its programs changed (or another device started loading it) during the test: start again.`);
