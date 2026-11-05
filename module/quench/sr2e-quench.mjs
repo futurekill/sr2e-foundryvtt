@@ -14231,10 +14231,11 @@ export function registerSR2EQuenchTests() {
         const t = await load(a, coreOf(a), ["Attack", "Cloak"]);
         assert.deepEqual([t.baseTime, t.period, t.complete], [18, 5, true]);
         const al = () => coreOf(a).system.activeLoad;
-        assert.deepEqual(al().copies.map(x => [x.name, x.system.rating, x.system.damageLevel ?? ""]), [["Attack", 4, "S"], ["Cloak", 2, ""]]);
+        // Item order isn't guaranteed (createEmbeddedDocuments): compare by name.
+        assert.deepEqual(al().copies.map(x => [x.name, x.system.rating, x.system.damageLevel ?? ""]).sort(), [["Attack", 4, "S"], ["Cloak", 2, ""]]);
         assert.equal(coreOf(a).system.frameSize, coreOf(a).system.size + 64 + 12, "core + Attack-4 S (16 × 4) + Cloak-2 (4 × 3)");
         await a.items.getName("Attack").update({ "system.rating": 3 });
-        assert.equal(al().copies[0].system.rating, 4, "a copy, not a link");
+        assert.equal(al().copies.find(x => x.name === "Attack").system.rating, 4, "a copy, not a link");
         await load(a, coreOf(a), ["Cloak"]);
         assert.deepEqual(al().copies.map(x => x.name), ["Cloak"], "the newer complete load wins");
       });

@@ -1443,11 +1443,15 @@ export async function vr2MatrixResist(defender, message) {
     const isFrame = defender.type === "frame";
     let frameHit = null;
     if (isFrame) {
-      frameHit = await (await import("./frames.mjs")).hitFrame(defender, message.id, out.level ? out.boxes : 0, out.level ? armorRef : null, shield?.ref ?? null);
+      // The sequencer posts the resolution card from the receipt (code R2 #1), so nothing here depends on this
+      // client surviving: a retry after a lost resolver simply finds the receipt and the card it posted.
+      frameHit = await (await import("./frames.mjs")).hitFrame(defender, message.id, out.level ? out.boxes : 0, out.level ? armorRef : null, shield?.ref ?? null,
+        { level: out.level, atk: atkS, res: res.successes, shieldS: shield?.successes ?? 0, closes });
       if (!frameHit) return ui.notifications.warn(`${defender.name} is gone, or no GM is online: nothing applied.`);
       if (!frameHit.mine) return ui.notifications.warn("That attack was resolved on another device while you rolled.");
+      return res;
     }
-    if (shield) { lines.push(`Shield: −${shield.successes} attack success${shield.successes === 1 ? "" : "es"}.`); if (!isFrame) await addWear(defender, shield.ref, message.id); }
+    if (shield) { lines.push(`Shield: −${shield.successes} attack success${shield.successes === 1 ? "" : "es"}.`); await addWear(defender, shield.ref, message.id); }
     const cls = st.icClass || st.icType;
     let crashed = false, text, crashChoiceFlag = null;
     if (!out.level) {
@@ -1461,15 +1465,13 @@ export async function vr2MatrixResist(defender, message) {
       const Y = await import("./vr2ic.mjs");
       const hit = defender.type === "character"
         ? await sessionQueue(defender, () => sameSession() ? matrixDamage(defender, out.boxes) : null)
-        // Part 6a-2a (R1 #9): already written above, ONCE per card, by the sequencer.
-        : isFrame ? frameHit
         : (Y.isSequencer() ? await Y.sequencer(() => Y.icDamage(defender, out.boxes, message.id)) : await matrixDamage(defender, out.boxes));
       if (!hit) return ui.notifications.warn("That attack hit an earlier session: nothing applied.");
       const { before, after } = hit;
       crashed = before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX;
       text = `${defender.name} takes ${LEVEL_NAMES[out.level]} Matrix damage: ${out.boxes} box${out.boxes === 1 ? "" : "es"} (${after}/${MATRIX_MONITOR_MAX}).`;
       // The Armor utility loses a point each time it fails to absorb a hit completely (p.99).
-      if (armorRef) { if (!isFrame) await addWear(defender, armorRef, message.id); lines.push(`${armorRef.name} loses a point.`); }
+      if (armorRef) { await addWear(defender, armorRef, message.id); lines.push(`${armorRef.name} loses a point.`); }
       const deck = defender.system.cyberdeck ?? {};
       if (defender.type === "character" && ["white", "gray"].includes(cls) && (deck.deckMode ?? "hot") === "hot") {
         if (out.level === "D") {

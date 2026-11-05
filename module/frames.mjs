@@ -13,7 +13,7 @@
  * idempotently, as persona-tokens.mjs does.
  */
 import { recordsOf, fact, sequencer, isSequencer, request, schedule, hostOffline, addHandlers } from "./vr2ic.mjs";
-import { liveSession, currentPlace, addWear, commitAction } from "./vr2.mjs";
+import { liveSession, currentPlace, addWear, commitAction, dinabZeroed } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
 import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflineSeqs, frameEnds, copyStats } from "./rules/vr2-frames.mjs";
 import { GRID_KINDS } from "./rules/vr2-grids.mjs";
@@ -142,8 +142,10 @@ addHandlers({
     if (!frame || frame.type !== "frame" || frame.system.ownerUuid !== actor.uuid) return { ok: false, why: "no such frame" };
     if (frameState(frame).ended) return { ok: false, why: `${frame.name} has crashed` };
     await fact(actor, `frame-hit:${r.card}`, { type: "frameHit", upload: r.upload, card: r.card, boxes: Math.max(0, Number(r.boxes) || 0),
-      armor: r.armor ?? null, shield: r.shield ?? null, nonce: r.nonce ?? null });
+      armor: r.armor ?? null, shield: r.shield ?? null, nonce: r.nonce ?? null, level: r.level ?? null,
+      atk: r.atk ?? 0, res: r.res ?? 0, shieldS: r.shieldS ?? 0, closes: r.closes ?? [] });
     await replayWear(actor);
+    await replayResolutions(actor);
     return { ok: true };
   }
 });
@@ -167,6 +169,31 @@ async function settleUpload(actor, open, manual = false) {
   if (await fact(actor, `upload-done:${id}`, { type: "uploadDone", upload: id })) {
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">The <strong>${esc(open.snapshot.coreName)}</strong>
       frame is uploaded to ${esc(host.name)} and starts running (VR2.0 p.106).</div>` });
+  }
+}
+
+/**
+ * The resolution card of each frame hit, posted by the sequencer from its receipt (code R2 #1): so a resolver that
+ * vanished after its receipt was written still gets its attack card resolved, and a full resist's DINAB wear happens.
+ * Idempotent: a card that already has its `resolves` message is skipped.
+ */
+async function replayResolutions(owner) {
+  const LEVELS = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly" };
+  for (const h of recordsOf(owner).filter(e => e.type === "frameHit")) {
+    if (game.messages.some(m => m.flags?.sr2e?.resolves === h.card)) continue;
+    const st = game.messages.get(h.card)?.flags?.sr2e?.matrix;
+    const frame = game.actors.get(h.upload);
+    const name = frame?.name ?? of(recordsOf(owner), "uploadOpen", h.upload)?.snapshot?.coreName ?? "The frame";
+    const after = frameMonitor(recordsOf(owner).filter(e => (e.seq ?? 0) <= (h.seq ?? 0)), h.upload);
+    const crashed = h.boxes > 0 && after >= 10;
+    const text = h.boxes > 0 ? `${name} takes ${LEVELS[h.level] ?? ""} Matrix damage: ${h.boxes} box${h.boxes === 1 ? "" : "es"} (${after}/10).` : `${name} resists the Matrix attack.`;
+    const lines = [...(h.shield ? [`Shield: −${h.shieldS} attack success${h.shieldS === 1 ? "" : "es"}.`] : []),
+      ...(h.armor ? [`${h.armor.name} loses a point.`] : []), ...(crashed ? ["The frame crashes (VR2.0 p.124)."] : [])];
+    await ChatMessage.create({ speaker: { alias: name }, content: `<div class="sr2e-damage-result"><strong>${esc(text)}</strong>
+      <br><em>${h.atk} attack success${h.atk === 1 ? "" : "es"} vs ${h.res} resistance success${h.res === 1 ? "" : "es"}.</em>
+      ${lines.map(l => `<br>${esc(l)}`).join("")}</div>`,
+      flags: { sr2e: { resolves: h.card, closesTests: h.closes ?? [], matrixResolution: `<br><strong>Resolved:</strong> ${esc(text)}` } } });
+    if (!h.boxes && st) await dinabZeroed(st, { card: h.card, requester: owner });
   }
 }
 
@@ -197,6 +224,7 @@ export async function reconcileOwner(actor) {
     }
   }
   await replayWear(actor);
+  await replayResolutions(actor);
   await reconcileDocs(actor);
 }
 
@@ -292,12 +320,12 @@ export function reconcileAllFrames() {
  * too: 0 boxes). Waits for it (a GM is always online) and returns the monitor before and after, and whether THIS
  * resolution's receipt won (code R1 #2); null if nothing was written.
  */
-export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = null) {
+export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = null, report = {}) {
   const owner = sync(frame.system.ownerUuid);
   if (!owner) return null;
   const before = frameState(frame).monitor, nonce = foundry.utils.randomID();
   const receipt = () => recordsOf(owner).find(e => e.type === "frameHit" && e.card === card);
-  if (!receipt()) await request(owner, "frameHit", { upload: frame.system.uploadId || frame.id, card, boxes, armor: armorRef, shield: shieldRef, nonce });
+  if (!receipt()) await request(owner, "frameHit", { upload: frame.system.uploadId || frame.id, card, boxes, armor: armorRef, shield: shieldRef, nonce, ...report });
   const t0 = Date.now();
   while (!receipt() && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
   const r = receipt();
