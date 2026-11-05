@@ -210,8 +210,14 @@ Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: dec
 Part 6a-0 (Decoy, Null Operation, Scan Icon; `module/rules/vr2-decoy-rules.mjs`) is done: the live decoy is FOLDED
 from `decoy` records + the Decoy card's live verdict (newest successful-or-deleted record only, never a fall-back);
 a decoyed IC attack is still admitted (`admit.decoy`) and resolved only by the `decoyHit` handler.
+Part 7a (grid topology, setting `vr2Topology`; `module/rules/vr2-grids.mjs` + `module/grids.mjs`) is done: grids are
+Host actors with `system.kind`; where a decker is = `currentPlace()` (derived from the live session's `logon.ok`,
+never stored); a scope's tally moves via the `flags.sr2e.vr2Tallies` ledger written by `replaceSessions` (ONE update,
+`==` forced replacement); every `vr2SystemTest` runs in the per-actor `vr2op:` queue — never call it from inside
+that queue. Jackpoint kind/wiring are snapshotted in `connOpen`: read them through `connJackpoint()`.
 Remaining deferred: frames (6a), SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
-requirements in docs/PLAN-vr2-part6-frames.md — and grid topology.
+requirements in docs/PLAN-vr2-part6-frames.md — and grid topology 7b (grid trace, hubs) and 7c (satellites), each
+needing its own detailed section + review in docs/PLAN-vr2-part7-grids.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;
 `test/roll-labels.test.mjs` fails on a key missing from lang/en.json). Still English:

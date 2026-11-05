@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.132.0 — 2026-11-04
+
+### Added
+- **VR2.0 grid topology** (VR2.0 pp.14–30), a new world setting *VR2.0 grid topology* (off by default). Grids are
+  Host actors with a **kind**: LTG, RTG or PLTG.
+  - **Where a decker can go:** a decker logs on only where the book allows from where they are.
+    - From a trid jackpoint, only an LTG.
+    - From a workstation, remote-device or console jackpoint, only the host it's wired to.
+    - From an LTG, its RTG, its hosts, or a PLTG it's an entry point of.
+    - From an RTG, its LTGs or another RTG.
+    - Between hosts, by open access on one grid, or along the links of a tiered or host-to-host network.
+
+    The System Operation dialog lists only the places each operation can reach, and the GM can see why the others
+    can't. Grids run only their own operations (logons, Locate Access Node, Make Comcall, Redirect Datatrail).
+  - **Logons and moving around:**
+    - A failed logon leaves the decker where they were.
+    - A Karma reroll that turns it into a success moves them.
+    - The Matrix tab shows where they are, and a new **Disconnect to grid** button takes them from a host back to
+      its grid with no test (p.14).
+    - Jacking out before logging on to anything is clean: no Graceful Logoff, no dump shock.
+  - **Security tallies across grids** (p.29, p.116):
+    - An RTG and all its LTGs share one tally, which sets off the RTG's sheaf.
+    - A PLTG picks up the public tally when the logon into it succeeds, and its triggers fire then.
+    - Another RTG starts fresh.
+    - After a failed first logon, a public LTG remembers the attempt for 1D3 × 5 minutes of game time. A different
+      jackpoint gets a fresh tally.
+    - A host's tally is kept for the run, so stepping out and back in doesn't wipe it.
+  - **Unlisted addresses** (p.114): a decker can only log on to an unlisted place once they know its address.
+    - A successful Locate Access Node lets the GM reveal one.
+    - Locate Access Node's dialog has a goal picker: +1 for a vague goal, −1 for a definite one.
+    - The GM can tick known addresses on the decker's Matrix tab.
+  - **The host sheet's Grid section:** kind, parent grid, links, PLTG entry points and unlisted, plus a *Reachable
+    from here* list. An RTG's sheet has **Create LTG**.
+  - **New grid** in the Actors directory (GM) creates any of the 50 printed RTGs and German LTGs (p.26–27) with their
+    ratings, or an unlisted grid rolled as Easy less 2.
+  - **Variable LTG ratings** (p.28), a separate optional setting: an LTG's sheet rolls 1D6 for −1, 0 or +1 to every
+    rating.
+- **Jackpoint kinds** (p.28–29) on the Matrix jackpoint behaviour, whenever the Matrix uses VR2.0:
+  - Each kind sets the Trace Factor and the Access modifier: legal −2/−2, illegal +0/+0, workstation −4/−4, remote
+    device +4/+4, satellite (Access +2), console (Trace −6).
+  - The Access modifier applies to every Access Test (the logons, Graceful Logoff, Decrypt Access).
+  - A console halves the system's Access Rating and Security Value in Access Tests, rounded up.
+  - A jackpoint's kind, wiring and trace adjustment are fixed when the decker connects.
+  - Existing jackpoints count as illegal access (+0/+0), so nothing changes for them.
+  - Turning topology on lists, for the GM, any jackpoint whose wiring doesn't fit its kind.
+- How-To Guides: *Set up the grids (VR2.0)*.
+
+### Fixed
+- Two System Operations started at once no longer lose the first one's security tally: a decker's operations now
+  run one at a time.
+- The GM's security-tally box on a decker's Matrix tab now saves.
+
 ## 0.131.0 — 2026-11-04
 
 ### Added

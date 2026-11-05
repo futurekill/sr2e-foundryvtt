@@ -75,3 +75,71 @@ VERDICT: APPROVED
 
 **7a APPROVED in round 3.** 7b (grid trace, dump-on-locate, host networks) and 7c (satellites) each need their own
 detailed section and review before code.
+
+## Code round 1 — Codex (fresh session, full 7a diff 2403ce1; ~712k input tokens: it read widely)
+
+- `module/vr2.mjs:991` — Matrix Attack still accepts any host and calls `sessionFor` without a logon, placing the decker there without successful admission. It also switches sessions outside `opQueue`, potentially dropping an overlapping System Test’s tally. **Fix:** Under topology, require the current place and serialize session-changing attack work with operations.
+
+- `module/vr2.mjs:260` — After failing LTG A, waiting past `forgetAt`, then attempting LTG B under the same RTG, the outgoing-scope seed preserves A’s expired tally. Expiry is checked only on same-target retries. **Fix:** Apply failed-access expiry before seeding every LTG attempt, including same-scope switches.
+
+- `module/vr2.mjs:338` — Successfully enter an RTG, then fail entry to one of its LTGs: the failure puts an expiry on the entire already-established public tally. Retrying after expiry resets that earned tally to zero. **Fix:** Distinguish failed initial access from a failed move within an already-entered scope; only the former may expire the scope’s tally.
+
+- `module/rules/vr2-grids.mjs:171` — An unwired device jackpoint—or one whose wired host was deleted—allows Logon to Host against **any** host, including with console bonuses. The approved rule permits only its controlling host. **Fix:** Require a valid wired host matching the target for device kinds.
+
+- `templates/actor/parts/actor-matrix.hbs:114` — Known-address checkboxes never save: the sheet’s change handlers exclude `flags.*`, and `_prepareSubmitData()` returns `{}`. **Fix:** Add an explicit change handler that persists `flags.sr2e.vr2Known.<id>`.
+
+- `templates/actor/host-sheet.hbs:75` — Selecting “—” sends `system.grid: ""`; Foundry’s `DocumentUUIDField` permits `null`, not blank strings. Clearing an attachment therefore fails validation. **Fix:** Convert the empty selection to `null` before updating.
+
+- `module/data/actor-data.mjs:2421` — Rating shifts remain active with topology disabled, contrary to the promised inert fields. Even a zero shift now clamps previously valid zero subsystem ratings to one. **Fix:** Preserve the original getters outside the enabled topology/variable-LTG rules.
+
+VERDICT: REVISE
+
+### Claude's response (fix 76cb349)
+- **#1 accepted.** Under topology, Matrix Attack works only where the decker is. Its `sessionFor` now runs behind
+  the op queue.
+- **#2 accepted.** `seedTally` drops an outgoing same-scope tally once its `forgetAt` has passed.
+- **#3 accepted.** Only a failed FIRST access is remembered: a logon whose `from` is already in the target's scope
+  sets no `forgetAt`.
+- **#4 accepted.** A device jackpoint reaches only its wired host. An unwired one, or one wired to a deleted host,
+  reaches nothing.
+- **#5 accepted.** The sheet's change handler now saves `flags.sr2e.*` inputs. That also fixes the GM tally box,
+  which never saved before.
+- **#6 rejected.** Tested live: `update({"system.grid": ""})` stores `null` with no error.
+- **#7 accepted.** The shift applies only when non-zero and with variable LTG ratings on, so a 0 subsystem stays 0.
+
+Tests: Vitest +3 assertions, and the Quench check for #3. sr2e.vr2-grids passes 10/10.
+
+## Code round 2 — Codex (fresh session, fix 76cb349 + callers; ~152k input tokens)
+
+- `module/vr2.mjs:994–999` — Location validation runs before `opQueue`. While a logon A→B is pending, an attack against A passes validation; after successful entry to B, queued `sessionFor(A)` silently moves the decker back without logon. **Fix:** Validate location inside the queued callback before calling `sessionFor`, and abort the attack on rejection.
+
+- `module/vr2.mjs:341` — Enter LTG L, accumulate public tally, enter PLTG P, then fail returning to L: the different source scope causes the already-earned public tally to expire. **Fix:** Track successful scope entry for the connection and allow failed-access expiry only for scopes never entered.
+
+The other fixes hold on inspection.
+
+VERDICT: REVISE
+
+### Claude's response (fix b0bdebb)
+- **#1 accepted.** The place check moved inside the op-queue callback.
+- **#2 accepted.** `flags.sr2e.vr2Entered.<scope> = conn` is written when a logon succeeds and on Disconnect to grid.
+  Failed-access memory applies only to a scope that hasn't been entered this connection. The Quench test covers the
+  return from a PLTG.
+
+## Code round 3 — Codex (fresh session, fix only; ~95k input tokens)
+
+- `module/vr2.mjs:361` — Disconnect marks the scope entered but retains its failed-access expiry. Fail entry to LTG B from a PLTG, reach a host attached to B through host links, then disconnect to B: its inherited `forgetAt` still expires earned tally. **Fix:** Clear both session and ledger `forgetAt` when recording successful grid entry.
+
+The queued attack place check holds.
+
+VERDICT: REVISE
+
+### Claude's response (fix de34570)
+- **#1 accepted.** Disconnect to grid clears the session's and the ledger's `forgetAt` along with the entered marker.
+
+## Code round 4 — Codex (fresh session, fix only; ~56k input tokens)
+
+No new findings. The fix clears both session and ledger `forgetAt` when marking the grid scope entered, addressing Code round 3’s failure.
+
+VERDICT: APPROVED
+
+**7a code APPROVED in round 4.**

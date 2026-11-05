@@ -218,6 +218,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> a decker puts up a decoy copy of their icon so proactive IC attack it instead of them (Virtual Realities\n2.0 p.112).</p>\n<p><img src=\"systems/sr2e/assets/guides/decoy.gif\" alt=\"The decker runs Decoy; the killer IC's attack goes to the decoy, and the GM clicks Hit the decoy\"></p>\n<p><strong>The decker</strong></p>\n<ol>\n<li>On the Matrix tab, click <strong>System Operation</strong>, pick the host and <strong>Decoy (Control, Mirrors)</strong>, and click <strong>Run</strong>.\nYou need Mirrors loaded.</li>\n<li>If the test succeeds, the card says how strong the decoy is: your successes.</li>\n</ol>\n<p><strong>The GM, when IC attack</strong></p>\n<ol>\n<li>Attack the decker as usual (target their token, then <strong>Matrix Attack</strong> on the IC). With a decoy up, the attack\nmust come from the active GM&#39;s client.</li>\n<li>The system rolls 1D6 first. At or below the decoy&#39;s successes, the card says <strong>the decoy drew it</strong>.</li>\n<li>Click <strong>Hit the decoy</strong>: the damage goes on the decoy, not the decker. At 10 boxes the decoy is gone.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>Trace IC ignores decoys.</li>\n<li>One decoy at a time: a new successful Decoy replaces it. A failed one leaves the old decoy up.</li>\n<li>The decoy lasts until it&#39;s destroyed, the decker logs on to another host, or jacks out.</li>\n<li>A Karma reroll on the Decoy test changes the decoy&#39;s strength too.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "d8dc8a19c07b1752",
+      "name": "Set up the grids (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 900000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> give the Matrix its shape, so deckers move from jackpoint to grid to host as the book describes (Virtual\nRealities 2.0 pp.14–30).</p>\n<p><img src=\"systems/sr2e/assets/guides/grids.gif\" alt=\"A decker at a trid jackpoint logs on to the LTG, then to a host on it\"></p>\n<p><strong>The GM, once</strong></p>\n<ol>\n<li><strong>Settings → Configure Settings → VR2.0 grid topology</strong>: tick it.</li>\n<li>In the Actors directory, click <strong>New grid</strong> and pick the RTG (or a German LTG) from the book&#39;s table. For a local\ngrid of your own, open the RTG and click <strong>Create LTG</strong>.</li>\n<li>Open each host. In its <strong>Grid</strong> section, set <strong>Attached to</strong> its LTG. For a host reached only through another\n(a tiered network), leave that empty and <strong>Link</strong> it to the host in front of it.</li>\n<li>For a corporate PLTG, set the host&#39;s <strong>Kind</strong> to PLTG and add its <strong>Entry points</strong> (LTGs).</li>\n<li>Tick <strong>Unlisted address</strong> on anything the deckers must find first.</li>\n<li>On each jackpoint behaviour, set its <strong>kind</strong>. Set <strong>Wired to</strong> to its LTG (a trid jackpoint) or to the host it\ncontrols (a workstation, remote device or console).</li>\n</ol>\n<p><strong>The decker</strong></p>\n<ol>\n<li>Jack in. The Matrix tab says <strong>At the jackpoint</strong>.</li>\n<li><strong>System Operation</strong>: the dialog offers only what you can reach. Log on to the LTG, then to a host on it.</li>\n<li>To move to another host on the same grid, log on to it directly. To go back up, click <strong>Disconnect to grid</strong>.</li>\n</ol>\n<p><em>Tips</em></p>\n<ul>\n<li>An RTG and its LTGs share one security tally, so the RTG&#39;s sheaf is the one to fill in.</li>\n<li>A PLTG inherits the public tally when you get in, and its triggers can go off at once.</li>\n<li>Can&#39;t find a host? Run <strong>Locate Access Node</strong> on the RTG. On a success, the GM reveals its address.</li>\n<li>Jacking out at the jackpoint, before logging on to anything, is free.</li>\n<li>Each host&#39;s sheet lists what&#39;s <strong>Reachable from here</strong>.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"

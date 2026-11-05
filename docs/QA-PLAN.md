@@ -970,3 +970,19 @@ If those five all work, the core loop is healthy.
 - `npm run gen-guides && npm run build-packs guides`: "How-To Guides" in SR2E Player Guides has one page per wiki
   How-To-Guides section; images and GIFs load from systems/sr2e/assets/guides (verified 2026-11-03: 5 pages, the
   jackpoint GIF plays); wiki links open the GitHub wiki.
+
+## VR2.0 grid topology (`sr2e.vr2-grids` batch; docs/PLAN-vr2-part7-grids.md 7a)
+- [ ] Settings → VR2.0 grid topology on: the GM gets a chat list of any jackpoint whose wiring doesn't fit its kind.
+- [ ] Actors directory → **New grid** → Rhine-Ruhr › Essen (LTG): both the RTG and the LTG are created with the
+      table's ratings, the LTG under the RTG.
+- [ ] A host's Grid section: attach it to the LTG. Link a second-tier host to it. *Reachable from here* lists them.
+- [ ] Jack in (sheet): the Matrix tab says *At the jackpoint*. The System Operation dialog offers only Logon to LTG.
+- [ ] Logon to LTG fails: still at the jackpoint, and a chat roll says how long the grid remembers. It succeeds:
+      *On Essen*.
+- [ ] From the LTG: Logon to Host (attached host), then the second-tier host. **Disconnect to grid** is shown only on
+      the attached host.
+- [ ] LTG → RTG → another LTG: the tally carries; the RTG sheet's tally list shows the decker.
+- [ ] Console jackpoint: the logon card says Access is halved, and the Security Value is halved too.
+- [ ] Locate Access Node success: the GM's **Reveal an address…** makes an unlisted host reachable.
+- [ ] Jack out at the jackpoint: no dump shock. Topology off: any host, any operation, as before.
+
