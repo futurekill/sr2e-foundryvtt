@@ -9,8 +9,10 @@ import { rowsListValue, wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscl
 import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
-import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
-import { liveSession, isCompressed, dinabLeft, optionOf } from "../vr2.mjs";
+import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
+import { gridSheetContext, gridEdit } from "../grids.mjs";
+import { liveSession, isCompressed, dinabLeft, optionOf, currentPlace, topoSnapshot } from "../vr2.mjs";
+import { disconnectTarget } from "../rules/vr2-grids.mjs";
 import { taskOf, doneOf, writingOf, unfinished } from "../programming.mjs";
 import { programUnusable } from "../data/actor-data.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
@@ -1592,6 +1594,14 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       context.vr2Improvised = context.vr2Session?.improvised ?? null;
       context.vr2LostSight = Object.keys(actor.flags?.sr2e?.vr2Maneuvers?.lostSight ?? {}).length;
       context.vr2ic = deckerContext(actor);
+      // Part 7a: where the decker is on the grids, and (GM) the unlisted addresses he knows (p.114).
+      if (topologyOn()) {
+        const at = currentPlace(actor), topo = topoSnapshot();
+        const known = actor.flags?.sr2e?.vr2Known ?? {};
+        context.vr2Topo = { place: at?.name ?? null, connected: !!system.vr2Conn,
+          disconnect: !!(at && disconnectTarget(at.uuid, topo)),
+          known: game.actors.filter(a => a.type === "host" && a.system.unlisted).map(a => ({ id: a.id, name: a.name, known: !!known[a.id] })) };
+      }
     }
     context.isRigger = system.isRigger;
 
@@ -2370,7 +2380,8 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
       resetHostTally: onResetHostTally,
       hostSheafAdd: onHostSheafAdd,
       hostSheafRemove: onHostSheafRemove,
-      vr2ic: onVr2Ic
+      vr2ic: onVr2Ic,
+      grid: onGridEdit
     }
   };
 
@@ -2388,11 +2399,20 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
       context.subsystems = Object.entries(CONFIG.SR2E.vr2Subsystems).map(([key, label]) =>
         ({ key, label, value: this.document.system.subsystems?.[key] ?? 0 }));
       context.sheaf = (this.document.system.sheaf ?? []).map(r => ({ ...r, label: CONFIG.SR2E.vr2SheafEvents[r.event] || "Other" }));
-      context.tallies = game.actors.filter(a => liveSession(a)?.hostUuid === uuid)
+      // Part 7a: an RTG's tally lives on its LTG sessions too (the scope's owner).
+      context.tallies = game.actors.filter(a => liveSession(a)?.hostUuid === uuid || liveSession(a)?.owner === uuid)
         .map(a => ({ name: a.name, tally: liveSession(a).tally ?? 0 }));
+      if (topologyOn()) context.grid = gridSheetContext(this.document);
       const run = hostShutdown(this.document);
       context.shutdown = run ? { left: run.left, turns: run.turns, warning: run.warning, offline: run.offline, manual: !!run.clock?.manual } : null;
     }
     return context;
   }
+}
+
+/** Part 7a: a place's links and entry points, Create LTG, the variable-ratings roll (module/grids.mjs). */
+async function onGridEdit(event, target) {
+  event.preventDefault();
+  const pick = target.dataset.op?.startsWith("add") ? target.previousElementSibling?.value : target.dataset.arg;
+  return gridEdit(this.document, target.dataset.op, pick);
 }

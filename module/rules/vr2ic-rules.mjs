@@ -186,8 +186,10 @@ export function foldVr2Ic(events = [], ext = {}) {
       for (const h of hits) { const r = res(h.card, "meat"); if (!h.noBlaster && r && acks.get(r.key)?.outcome?.down) steps.push({ step: "finalShot", ref: h.card }); }
       for (const c of events.filter(e => e.type === "gray" && e.conn === n)) steps.push({ step: "gray", ref: c.card });
       // A Graceful Logoff stops location cycles (p.45); any other exit leaves a datatrail.
-      if (exit.trigger !== "graceful") for (const t of traces) if (!t.complete && !t.dead && (t.startSeq ?? 0) < exit.seq) steps.push({ step: "datatrail", ref: t.icKey });
-      if (exit.trigger !== "graceful" && open?.settings?.deckMode !== "tortoise" && !dead) steps.push({ step: "dumpShock", ref: "" });
+      // "unplaced" (part 7a): no icon was ever loaded, so like a graceful exit no trail and no dump shock.
+      const clean = exit.trigger === "graceful" || exit.trigger === "unplaced";
+      if (!clean) for (const t of traces) if (!t.complete && !t.dead && (t.startSeq ?? 0) < exit.seq) steps.push({ step: "datatrail", ref: t.icKey });
+      if (!clean && open?.settings?.deckMode !== "tortoise" && !dead) steps.push({ step: "dumpShock", ref: "" });
       for (const h of hits) if (h.kind === "psychotropic") steps.push({ step: "psychotropic", ref: h.icKey });
       for (const w of ext.tapeworms ?? []) steps.push({ step: "tapeworm", ref: w });
       const seen = new Set();

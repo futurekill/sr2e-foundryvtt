@@ -17,7 +17,7 @@ import { icClass } from "./rules/sr2e-rules.mjs";
 import { dumpShockDamage, systemTestVerdict, matrixCombatOutcome, damageBoxes, testTotalSuccesses, MATRIX_MONITOR_MAX } from "./rules/sr2e-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { commitDamage } from "./drugs.mjs";
-import { isVR2 } from "./vr2-mode.mjs";
+import { isVR2, topologyOn } from "./vr2-mode.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { RL } from "./util/roll-label.mjs";
 import { liveDecoy, decoyBoxes } from "./rules/vr2-decoy-rules.mjs";
@@ -99,6 +99,9 @@ export async function openConnection(actor, { jackpoint = null } = {}) {
   if (lo.open) { ui.notifications.warn(`${actor.name} is already in the Matrix: jack out first.`); return null; }
   const d = actor.system.cyberdeck ?? {};
   const n = lo.nextN;
+  // Part 7a (R1 #10): the jackpoint's kind, wiring and trace adjustment are fixed for the run, here.
+  const jb = jackpoint?.jackpoint ? sync(jackpoint.jackpoint) : null;
+  if (jackpoint) jackpoint = { ...jackpoint, kind: jb?.system?.kind ?? "illegal", wired: jb?.system?.host ?? null, traceMod: Number(jb?.system?.traceMod) || 0 };
   const ok = await recordEvent(actor, `${P3}conn-open:${n}`, { type: "connOpen", n, user: game.user.id, jackpoint,
     deck: actor.system.vr2Deck?.uuid ?? null, settings: { hardening: d.hardening ?? 0, deckMode: d.deckMode ?? "hot", iccm: !!d.iccm } });
   return ok ? n : null;
@@ -154,8 +157,13 @@ const HANDLERS = {
       const good = st?.operation === "gracefulLogoff" && st.actorUuid === actor.uuid && systemTestVerdict(st.successes, st.hostSuccesses).success;
       if (!good) return { ok: false, why: "no successful Graceful Logoff" };
     }
+    // Part 7a (R2 #3): no place yet under grid topology = no icon loaded: out with no test and no dump shock.
+    if (trigger === "unplaced") {
+      const V = await import("./vr2.mjs");
+      if (!topologyOn() || V.currentPlace(actor)) return { ok: false, why: "logged on somewhere: Graceful Logoff or jack out" };
+    }
     const locks = [...new Set(f.live.locks.map(h => h.icKey))];
-    if (locks.length && (trigger === "voluntary" || trigger === "graceful")) return { ok: false, why: "black IC holds the connection: test Willpower, or pull the plug" };
+    if (locks.length && (trigger === "voluntary" || trigger === "graceful" || trigger === "unplaced")) return { ok: false, why: "black IC holds the connection: test Willpower, or pull the plug" };
     if (trigger === "gate") {
       const g = recordsOf(actor).find(e => e.type === "gate" && e.key === r.gateKey);
       if (!g?.success || g.n !== f.live.n) return { ok: false, why: "no successful Willpower test" };
@@ -1469,7 +1477,7 @@ export async function afterEnd(actor, n) {
   const exit = recordsOf(actor).find(e => e.type === "exitOpen" && e.n === n);
   if (await once(actor, `${P3}card:left:${n}`)) {
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
-      content: `<div class="sr2e-damage-result"><strong>⌁ ${esc(actor.name)} ${exit?.trigger === "graceful" ? "logs off gracefully" : "is out of the Matrix"}.</strong></div>` });
+      content: `<div class="sr2e-damage-result"><strong>⌁ ${esc(actor.name)} ${exit?.trigger === "graceful" ? "logs off gracefully" : exit?.trigger === "unplaced" ? "jacks out from the jackpoint" : "is out of the Matrix"}.</strong></div>` });
   }
 }
 

@@ -11,3 +11,11 @@ export function isVR2() {
 export function utilityOptionsOn() {
   try { return isVR2() && game.settings.get("sr2e", "vr2UtilityOptions") === true; } catch (e) { return false; }
 }
+
+/** VR2.0 grid topology (part 7a; docs/PLAN-vr2-part7-grids.md): its own world setting, off by default. */
+export function topologyOn() {
+  try { return isVR2() && game.settings.get("sr2e", "vr2Topology") === true; } catch (e) { return false; }
+}
+export function variableLTGOn() {
+  try { return topologyOn() && game.settings.get("sr2e", "vr2VariableLTG") === true; } catch (e) { return false; }
+}

@@ -16,13 +16,14 @@ import { successesAtTN, cybercombatTN, icDamageLevel, dumpShockDamage, detection
          simsenseOverloadTN, systemTestVerdict, testTotalSuccesses, MATRIX_MONITOR_MAX,
          sheafCrossed, attributeLoss, CRIPPLER_ATTRIBUTE, maneuverTNs, maneuverOutcome,
          improvisedLevel, medicTN } from "./rules/sr2e-rules.mjs";
-import { isVR2, utilityOptionsOn } from "./vr2-mode.mjs";
+import { isVR2, utilityOptionsOn, topologyOn } from "./vr2-mode.mjs";
+import { reachable, scopeOf, seedTally, carryAmount, LOGON_OPS, jackpointKind, halveUp, disconnectTarget, forgetSeconds } from "./rules/vr2-grids.mjs";
 import { defenseTN, skulkTally, limitAllows } from "./rules/vr2-options.mjs";
 import { programUnusable } from "./data/actor-data.mjs";
 import { programKey, traceTally, traceFactor, expertDice, isProactive, blackDamage, restoreState, restorePoints } from "./rules/vr2ic-rules.mjs";
 import * as Y from "./vr2ic.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
-import { matrixQueue, sessionHost } from "./jackpoints.mjs";
+import { matrixQueue, sessionHost, connJackpoint } from "./jackpoints.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { firstTarget } from "./targeting.mjs";
@@ -39,6 +40,8 @@ const LEVEL_NAMES = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly" };
 const codeLabel = (code) => game.i18n.localize(CONFIG.SR2E.securityCodes[code]?.label ?? code);
 const RESIST_IN_FLIGHT = new Set();
 const sessionQueue = (actor, fn) => enqueueAttack(`vr2session:${actor.uuid}`, fn);
+// Part 7a (R1 #5): one System Operation at a time per decker, start to finish. A separate key from sessionQueue.
+const opQueue = (actor, fn) => enqueueAttack(`vr2op:${actor.uuid}`, fn);
 
 /**
  * The ONE rule for which programs count (docs/PLAN-vr2-part2.md §4). Core: every loaded
@@ -200,25 +203,75 @@ export function closeSession(actor) {
   });
 }
 
-/** Replace the session records whole (a merge would carry old receipts along). */
+/**
+ * Replace the session records whole, in ONE update (part 7a, R1 #6–#7): v13's forced replacement ("==") so no merge
+ * carries old receipts along, and the outgoing session's tally goes into its scope's ledger entry in the same write.
+ */
 async function replaceSessions(actor, live, last) {
-  await actor.update({ "flags.sr2e.-=vr2Session": null, ...(last ? { "flags.sr2e.-=lastSession": null } : {}) });
-  const set = {};
-  if (live) set["flags.sr2e.vr2Session"] = live;
-  if (last) set["flags.sr2e.lastSession"] = last;
-  if (Object.keys(set).length) await actor.update(set);
+  const update = live ? { "flags.sr2e.==vr2Session": live } : { "flags.sr2e.-=vr2Session": null };
+  if (last) update["flags.sr2e.==lastSession"] = last;
+  if (last?.scope) update[`flags.sr2e.vr2Tallies.${last.scope}`] = ledgerEntry(last);
+  await actor.update(update);
+}
+
+// ── Part 7a: grid topology (docs/PLAN-vr2-part7-grids.md, "7a in detail") ────
+
+/** Every place (a Host actor of any kind) as the pure rules see it. */
+export function topoSnapshot() {
+  return new Map(game.actors.filter(a => a.type === "host").map(a => [a.uuid, { uuid: a.uuid, name: a.name,
+    kind: a.system.kind ?? "host", grid: a.system.grid ?? null, links: a.system.links ?? [],
+    entryPoints: a.system.entryPoints ?? [], unlisted: !!a.system.unlisted }]));
+}
+/** The addresses a decker knows (p.114): durable across runs. */
+export const knownPlaces = (actor) => new Set(Object.entries(actor?.flags?.sr2e?.vr2Known ?? {}).filter(([, v]) => v).map(([id]) => `Actor.${id}`));
+const ledgerEntry = (s) => ({ conn: s.conn ?? null, jackpoint: s.jackpoint ?? null, tally: s.tally ?? 0, forgetAt: s.forgetAt ?? null });
+
+/**
+ * Where the decker is (derived, never stored): the live session's place once he is ON it — a session no logon opened,
+ * or one whose logon succeeded — else the place he attempted from. Null at the jackpoint.
+ */
+export function currentPlace(actor) {
+  const s = liveSession(actor);
+  if (!s?.hostUuid) return null;
+  return sync(!s.logon || s.logon.ok ? s.hostUuid : s.logon.from);
+}
+
+/** The tally the decker has in `uuid`'s scope right now: the live session's, else the ledger's (this connection). */
+function scopeTally(actor, uuid) {
+  const sc = scopeOf(uuid, topoSnapshot());
+  if (!sc) return 0;
+  const s = liveSession(actor);
+  if (s?.scope === sc.key) return s.tally ?? 0;
+  const e = actor.flags?.sr2e?.vr2Tallies?.[sc.key];
+  return e && e.conn === (actor.system.vr2Conn?.n ?? null) ? e.tally ?? 0 : 0;
+}
+
+/** A new session record on `host` (null = hostless); under topology its tally is seeded from its scope (§4). */
+function newSession(actor, host, outgoing, extra = {}) {
+  const conn = actor.system.vr2Conn?.n ?? null;
+  const base = { id: foundry.utils.randomID(), hostUuid: host?.uuid ?? "", hostName: host?.name ?? "", tally: 0, receipts: {}, conn, ...extra };
+  if (!topologyOn()) return base;
+  const jackpoint = connJackpoint(actor).jackpoint;
+  base.jackpoint = jackpoint;
+  const sc = host ? scopeOf(host.uuid, topoSnapshot()) : null;
+  if (!sc) return base;
+  const ledger = actor.flags?.sr2e?.vr2Tallies ?? {};
+  const out = outgoing?.scope ? { scope: outgoing.scope, tally: outgoing.tally } : null;
+  const tally = seedTally({ scope: sc.key, outgoing: out, ledger, conn, jackpoint, now: game.time.worldTime });
+  // A failed-logon memory keeps its clock when it is what the tally came from.
+  const forgetAt = !tally ? null : out?.scope === sc.key ? outgoing.forgetAt ?? null : ledger[sc.key]?.forgetAt ?? null;
+  return { ...base, tally, seed: tally, scope: sc.key, owner: sc.owner, forgetAt };
 }
 
 /**
  * A new session for a decker entering the Matrix (the old one kept as lastSession);
  * the jackpoint's host if it names one. Every way in awaits it INSIDE matrixQueue
  * (the sheet toggle, a jackpoint), so a crash can tell this connection from a later one.
+ * Under grid topology it is hostless: the decker is at his jackpoint until a logon succeeds (R1 #1).
  */
 export function startSession(actor) {
   return sessionQueue(actor, async () => {
-    const h = sessionHost(actor);
-    const next = { id: foundry.utils.randomID(), hostUuid: h?.uuid ?? "", hostName: h?.name ?? "", tally: 0, receipts: {},
-      conn: actor.system.vr2Conn?.n ?? null };
+    const next = newSession(actor, topologyOn() ? null : sessionHost(actor), null);
     await replaceSessions(actor, next, liveSession(actor));
     return next;
   });
@@ -236,20 +289,75 @@ export function vr2EnterMatrix(actor) {
   });
 }
 
-/** The live session against `host`: a session with no host yet adopts it; another host starts a new one (the old kept as lastSession). */
-export function sessionFor(actor, host) {
+/**
+ * The live session against `host`: a session with no host yet adopts it; another host starts a new one (the old kept
+ * as lastSession). Part 7a: a logon passes its attempt record `{id, op, from, carry}`, written fresh on every path so a
+ * retry never keeps the previous card (R1 #2); a retry past a failed logon's forgetAt starts the tally over (R1 #8).
+ */
+export function sessionFor(actor, host, { logon = null } = {}) {
   if (Y.hostOffline(host)) { ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`); return Promise.resolve(null); }
   return sessionQueue(actor, async () => {
     const s = liveSession(actor);
-    if (s?.hostUuid === host.uuid) return s;
-    if (s && !s.hostUuid) {
+    const attempt = logon ? { ...logon, card: null, ok: null } : null;
+    if (s?.hostUuid === host.uuid) {
+      if (!attempt) return s;
+      const update = { "flags.sr2e.vr2Session.logon": attempt };
+      if (s.forgetAt != null && game.time.worldTime >= s.forgetAt) Object.assign(update, { "flags.sr2e.vr2Session.tally": 0, "flags.sr2e.vr2Session.forgetAt": null });
+      await actor.update(update);
+      return liveSession(actor);
+    }
+    if (s && !s.hostUuid && !topologyOn()) {
       await actor.update({ "flags.sr2e.vr2Session.hostUuid": host.uuid, "flags.sr2e.vr2Session.hostName": host.name });
       return { ...s, hostUuid: host.uuid, hostName: host.name };
     }
-    const next = { id: foundry.utils.randomID(), hostUuid: host.uuid, hostName: host.name, tally: 0, receipts: {},
-      conn: actor.system.vr2Conn?.n ?? null };
+    const next = newSession(actor, host, s, attempt ? { logon: attempt } : {});
     await replaceSessions(actor, next, s);
     return next;
+  });
+}
+
+/**
+ * Settle a logon attempt's verdict (R1 #3): at the card, and again whenever Karma changes it. `logon.ok` is the one
+ * source of truth for where the decker is; deleting the card changes nothing. The first success into a PLTG carries
+ * the public tally in, unaccelerated, crossing the PLTG's triggers then (p.29, R1 #9). A first failed Logon to LTG
+ * leaves a 1D3 × 5 minute memory on the grid (p.116, R1 #8).
+ */
+export function settleLogon(actor, { sessionId, logonId, card, ok }) {
+  return sessionQueue(actor, async () => {
+    const s = liveSession(actor);
+    if (!s || s.id !== sessionId || s.logon?.id !== logonId) return;
+    const first = s.logon.card == null;
+    if (!first && s.logon.ok === ok && s.logon.card === card) return;
+    const update = { "flags.sr2e.vr2Session.logon.card": card, "flags.sr2e.vr2Session.logon.ok": ok };
+    if (ok) {
+      update["flags.sr2e.vr2Session.forgetAt"] = null;
+      if (s.scope && actor.flags?.sr2e?.vr2Tallies?.[s.scope]?.forgetAt != null) update[`flags.sr2e.vr2Tallies.${s.scope}.forgetAt`] = null;
+      const carryId = `carry-${logonId}`;
+      const add = s.logon.carry ? carryAmount(s.logon.carry.tally, s.seed ?? 0) : 0;
+      if (add > 0 && s.receipts?.[carryId] == null) Object.assign(update, tallyUpdate(actor, s, add, carryId, { exact: true }));
+    } else if (first && s.logon.op === "logonLTG" && sync(s.hostUuid)?.system?.kind === "ltg") {
+      const roll = await new Roll("1d3").evaluate();
+      const forgetAt = game.time.worldTime + forgetSeconds(roll.total);
+      update["flags.sr2e.vr2Session.forgetAt"] = forgetAt;
+      if (s.scope) update[`flags.sr2e.vr2Tallies.${s.scope}`] = ledgerEntry({ ...s, forgetAt });
+      await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: `${esc(s.hostName)} remembers the failed log-on for
+        ${roll.total * 5} minutes of game time (VR2.0 p.116): a retry before then keeps the security tally.` });
+    }
+    await actor.update(update);
+  });
+}
+
+/** Disconnect to grid (p.14; R1 #4, R2 #2): from a host back onto its grid, no test, in the operation queue. */
+export function vr2DisconnectToGrid(actor) {
+  return opQueue(actor, async () => {
+    const at = currentPlace(actor);
+    const grid = topologyOn() && at ? sync(disconnectTarget(at.uuid, topoSnapshot())) : null;
+    if (!grid) return ui.notifications.warn("Disconnect to grid works from a host attached to a grid (VR2.0 p.14).");
+    const s = await sessionFor(actor, grid);
+    if (!s) return;
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
+      ${esc(actor.name)} disconnects from ${esc(at.name)} and is back on ${esc(grid.name)} (VR2.0 p.14).</div>` });
+    return s;
   });
 }
 
@@ -257,13 +365,14 @@ export function sessionFor(actor, host) {
  * The tally update for `base` more host successes, with its receipt and every sheaf row it
  * crosses, as ONE update (docs/PLAN-vr2-part2.md §1). Call inside the session queue.
  */
-function tallyUpdate(actor, s, base, eventId) {
-  // Part 3: a traced decker's tally accelerates, +1 per increase (p.46).
-  const traced = actor.system?.vr2Conn ? !!Y.foldOf(actor).live?.traced : false;
-  const add = traceTally(Math.max(0, Number(base) || 0), traced);
+function tallyUpdate(actor, s, base, eventId, { exact = false } = {}) {
+  // Part 3: a traced decker's tally accelerates, +1 per increase (p.46); a carried tally is already counted (part 7a).
+  const traced = !exact && actor.system?.vr2Conn ? !!Y.foldOf(actor).live?.traced : false;
+  const add = exact ? Math.max(0, Number(base) || 0) : traceTally(Math.max(0, Number(base) || 0), traced);
   const tally = (s.tally ?? 0) + add;
   const update = { "flags.sr2e.vr2Session.tally": tally, [`flags.sr2e.vr2Session.receipts.${eventId}`]: add };
-  const host = sync(s.hostUuid);
+  // Part 7a: one tally across an RTG and its LTGs fires the RTG's sheaf (the scope's owner).
+  const host = sync(s.owner ?? s.hostUuid);
   for (const row of sheafCrossed(host?.system?.sheaf, s.tally ?? 0, tally)) {
     // Outside the session records, so no session change can drop it before delivery.
     const key = `${host.id}_${s.id}_${row.id}`;
@@ -418,12 +527,14 @@ export function renderSystemTestCard(st) {
   const v = systemTestVerdict(st.successes, st.hostSuccesses);
   return `<div class="sr2e-item-card sr2e-vr2-systest">
     <strong>${esc(st.actorName)} — ${esc(st.opLabel)}</strong>
-    <br>vs ${esc(st.hostName)}: ${esc(st.subsystemLabel)} ${st.subsystem}${st.utility ? ` − ${esc(st.utilityName)} ${st.utility}` : ""} → TN ${st.tn}.
+    <br>vs ${esc(st.hostName)}: ${esc(st.subsystemLabel)} ${st.subsystem}${st.console ? " (halved: console access)" : ""}${st.utility ? ` − ${esc(st.utilityName)} ${st.utility}` : ""}${st.jackAccess ? ` ${st.jackAccess > 0 ? "+" : "−"} ${Math.abs(st.jackAccess)} jackpoint` : ""}${st.goal ? ` ${st.goal > 0 ? "+ 1 vague goal" : "− 1 definite goal"}` : ""} → TN ${st.tn}.
     <br>The host rolls Security Value ${st.securityValue}${st.svMod ? ` (base ${st.securityValue - st.svMod} +${st.svMod} for ${esc(st.waited ?? "the wait")}, p.117)` : ""} vs Detection Factor ${st.df}: ${plural(st.hostSuccesses, "success")}.
     <br>${v.success ? `<strong style="color:#7a8;">Succeeds</strong>` : `<strong style="color:#c44;">Fails</strong>`}
     (${st.successes} vs the host's ${st.hostSuccesses}; the decker needs more).
     <br><em>+${st.hostSuccesses} to the security tally (VR2.0 p.19).</em>
     ${st.operation === "nullOp" && st.hostSuccesses ? "<br><em>If this crosses a trigger, the GM decides when in the waiting period the host responds (p.117).</em>" : ""}
+    ${st.logon ? `<br><em>${v.success ? `${esc(st.actorName)} is on ${esc(st.hostName)}.` : `Log-on refused: ${esc(st.actorName)} stays where they were.`}</em>` : ""}
+    ${st.operation === "locateAccessNode" && v.success ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2-reveal" data-actor="${esc(st.actorUuid)}">Reveal an address… (GM, p.114)</button></div>` : ""}
     ${st.operation === "decoy" ? `<br><em>${v.success ? `A decoy copy of the icon: a proactive IC attacking ${esc(st.actorName)} hits it on 1D6 ≤ ${st.successes} (not trace IC; p.112).` : "No decoy."}</em>` : ""}
   </div>`;
 }
@@ -433,14 +544,33 @@ export function renderSystemTestCard(st) {
  * operation uses; the host rolls its Security Value against the decker's Detection
  * Factor once, here, and its successes go on the tally whether the decker wins or not.
  */
-export async function vr2SystemTest(actor, host, operation, opts = {}) {
+export function vr2SystemTest(actor, host, operation, opts = {}) {
+  return opQueue(actor, () => systemTestNow(actor, host, operation, opts));
+}
+async function systemTestNow(actor, host, operation, opts) {
   if (operation !== "gracefulLogoff") { const why = (await import("./vr2ic.mjs")).vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }
   const op = CONFIG.SR2E.vr2SystemOperations[operation];
   if (!op || host?.type !== "host") return ui.notifications.warn("Choose a host and a System Operation.");
   if (Y.hostOffline(host)) return ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`);
+  // Part 7a: under grid topology only what the book allows from where the decker is (p.14–30), checked before
+  // anything is spent or rolled; a logon carries its attempt record.
+  const conn = actor.system.vr2Conn;
+  let logon = null;
+  if (topologyOn() && conn) {
+    const topo = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null;
+    const r = reachable({ at, op: operation, target: host.uuid, topo, jack: connJackpoint(actor), known: knownPlaces(actor), gm: game.user.isGM });
+    if (!r.ok) return ui.notifications.warn(r.why);
+    if (LOGON_OPS.has(operation)) logon = { id: foundry.utils.randomID(), op: operation, from: at,
+      carry: host.system.kind === "pltg" && at ? { tally: scopeTally(actor, at) } : null };
+  }
+  // Jackpoint Access modifier (p.28–29), every Access Test; a console halves Access and Security Value, rounded up.
+  const jk = conn && op.subsystem === "access" ? jackpointKind(connJackpoint(actor).kind) : null;
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
   const sub = op.subsystem === "targeted" ? (opts.subsystem || "files") : op.subsystem;
-  const subsystem = host.system.subsystemRating(sub);
+  const subsystem = jk?.halve ? halveUp(host.system.subsystemRating(sub)) : host.system.subsystemRating(sub);
+  const jackAccess = jk?.access ?? 0;
+  // Locate Access Node (p.114): +1 for a vague goal, −1 for a definite one.
+  const goal = operation === "locateAccessNode" ? Math.max(-1, Math.min(1, Number(opts.goal) || 0)) : 0;
   // Sensitive is judged on THIS host, not the last session's; a DINAB run takes the best copy with DINAB left (R2 #2).
   const utilityItem = bestUtility(actor, op.utility, host, opts.dinab ? (i => dinabLeft(i) > 0) : undefined);
   // DINAB (p.103): the utility runs itself with its own skill — no pools, no Karma, a Free Action.
@@ -455,9 +585,9 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
     ? (Y.foldOf(actor).live?.traces ?? []).filter(t => !t.complete && !t.dead).reduce((n, t) => n + (t.rating ?? 0), 0) : 0;
   // Analyze Icon: the Sensor rating lowers the TN too, never below 2 (p.111).
   const sensor = operation === "analyzeIcon" ? (actor.system.matrixPersona?.sensor ?? 0) : 0;
-  const tn = Math.max(2, subsystem - utility - sensor) + (trained ? 0 : 4) + tracing;
+  const tn = Math.max(2, subsystem - utility - sensor + jackAccess + goal) + (trained ? 0 : 4) + tracing;
   const subsystemLabel = CONFIG.SR2E.vr2Subsystems[sub] ?? sub;
-  const session = await sessionFor(actor, host);
+  const session = await sessionFor(actor, host, { logon });
   if (!session) return;
   const startedBuild = liveSession(actor)?.improvised?.id ?? null;
   // The utility executes (part 5b): one-shot spent, DINAB's phase claimed — before the dice.
@@ -477,7 +607,7 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
   const df = vr2DetectionFactor(actor);
   // Null Operation (p.117): the host's BASE Security Value plus the inactivity modifier.
   const svMod = operation === "nullOp" ? Math.max(0, Number(opts.svMod) || 0) : 0;
-  const securityValue = host.system.securityValue + svMod;
+  const securityValue = (jk?.halve ? halveUp(host.system.securityValue) : host.system.securityValue) + svMod;
   const hostRoll = await SR2ESuccessRoll.successTest(securityValue, df);
   const st = { actorUuid: actor.uuid, actorName: actor.name, operation, opLabel: op.label, hostName: host.name,
     subsystemLabel, subsystem, utilityName: op.utility, utility, tn, df, securityValue,
@@ -486,12 +616,15 @@ export async function vr2SystemTest(actor, host, operation, opts = {}) {
     hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem), sub,
     allOnes: (res.dice ?? []).length > 0 && res.dice.every(d => d.total === 1),
     deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null,
-    ...(svMod ? { svMod, waited: opts.waited ?? "" } : {}), ...(secret ? { secret: true } : {}) };
+    ...(svMod ? { svMod, waited: opts.waited ?? "" } : {}), ...(secret ? { secret: true } : {}),
+    ...(jk && (jackAccess || jk.halve) ? { jackAccess, console: !!jk.halve } : {}), ...(goal ? { goal } : {}),
+    ...(logon ? { logon: { id: logon.id, op: operation } } : {}) };
   const ev = { eventId: `st-${foundry.utils.randomID()}`, actorUuid: actor.uuid, sessionId: session.id,
     base: hostRoll.successes, source: "system-test" };
   const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: renderSystemTestCard(st),
     rolls: hostRoll.rolls, flags: { sr2e: { vr2SystemTest: st, vr2TallyEvent: ev } }, ...gmOnly });
   await applyTallyEvent(msg);
+  if (logon) await settleLogon(actor, { sessionId: session.id, logonId: logon.id, card: msg.id, ok: systemTestVerdict(st.successes, st.hostSuccesses).success });
   // Decoy (p.112): always recorded; whether it IS a decoy is read live from this card (Karma included; plan R2 #4).
   if (operation === "decoy" && st.conn != null) {
     await recordEvent(actor, `vr2:decoy:${st.conn}:${msg.id}`, { type: "decoy", conn: st.conn, card: msg.id, host: host.uuid, sessionId: session.id });
@@ -834,12 +967,12 @@ async function attackOnce(actor) {
     // Trace IC hunts against the decker's Trace Factor (p.45), not the cybercombat table.
     if (prof.program === "trace" && target.type === "character") {
       const conn = target.system.vr2Conn;
-      const jp = sync(conn?.jackpoint?.jackpoint);
+      const jp = connJackpoint(target);
       // A construct can't be a hidden trap (part 4b R8): it adds nothing to the Trace Factor.
       const linked = sync(actor.system.trapFor), trapped = Y.isConstruct(linked) ? null : linked;
       tn = Math.max(2, traceFactor({ evasion: target.system.matrixPersona?.evasion ?? 0, rating: icRating,
         camo: await camoFor(target), redirects: conn ? (Y.foldOf(target).live?.redirects ?? 0) : 0,
-        jackpoint: Number(jp?.system?.traceMod) || 0,
+        jackpoint: jackpointKind(jp.kind).trace + jp.traceMod,
         trapGray: trapped?.system?.icClass === "gray" ? trapped.system.rating : 0,
         trapBlack: trapped?.system?.icClass === "black" ? trapped.system.rating : 0 }));
       effect = { effect: "trace" };
@@ -1782,6 +1915,9 @@ export function wireVR2Buttons(message, html) {
   html.querySelectorAll?.(".sr2e-vr2-oppose-btn").forEach(btn => btn.addEventListener("click", (ev) => {
     ev.preventDefault(); return opposeManeuver(message);
   }));
+  html.querySelectorAll?.(".sr2e-vr2-reveal").forEach(btn => btn.addEventListener("click", (ev) => {
+    ev.preventDefault(); return import("./grids.mjs").then(m => m.revealAddress(sync(btn.dataset.actor)));
+  }));
 }
 
 /** On load (each client): its own tally events; the GM's sheaf deliveries and maneuver results. */
@@ -1825,7 +1961,12 @@ async function leaveOnLog(actor, crash) {
     if (r.successes <= 0) return ui.notifications.info(`${actor.name} can't break free this time.`);
     return requestExit(actor, { trigger: "gate", gateKey: key });
   }
-  const known = sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor);
+  // Part 7a (R2 #3): logged on to nothing yet, no icon is loaded (p.28): nothing to log off from, nothing to dump.
+  if (topologyOn() && !currentPlace(actor)) {
+    ui.notifications.info(`${actor.name} isn't logged on to anything yet: jacking out cleanly.`);
+    return requestExit(actor, { trigger: "unplaced" });
+  }
+  const known = topologyOn() ? currentPlace(actor) : sync(liveSession(actor)?.hostUuid) ?? sessionHost(actor);
   const pick = await promptLeave(actor, known);
   if (!pick) return;
   if (!pick.graceful) return requestExit(actor, { trigger: "voluntary" });

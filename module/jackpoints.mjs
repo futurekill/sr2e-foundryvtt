@@ -22,6 +22,7 @@ import { enqueueAttack } from "./engagement.mjs";
 import { isVR2 } from "./vr2-mode.mjs";
 import { winner, gmCleanup, tabDecision, bodyMarked, personaLit } from "./rules/jackpoint-rules.mjs";
 import { schedulePersonas, adoptPersona } from "./persona-tokens.mjs";
+import { JACKPOINT_KINDS } from "./rules/vr2-grids.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const sync = (uuid) => { try { return uuid ? fromUuidSync(uuid) : null; } catch (e) { return null; } };
@@ -39,10 +40,13 @@ export class JackpointBehaviorData extends foundry.data.regionBehaviors.RegionBe
       destination: new f.DocumentUUIDField({ type: "Region", nullable: true, initial: null,
         label: "Entry area on the Matrix scene", hint: "A Region on the Matrix scene where this jackpoint's personas are." }),
       label: new f.StringField({ initial: "", label: "What it is", hint: "Shown on the Jack in button, e.g. \"Strice mainframe port\"." }),
+      kind: new f.StringField({ initial: "illegal", blank: false, label: "Jackpoint kind (VR2.0)",
+        hint: "Virtual Realities 2.0 p.28–29: sets the Trace Factor and Access modifiers, and (with grid topology on) what the decker can log on to first.",
+        choices: Object.fromEntries(Object.entries(JACKPOINT_KINDS).map(([k, v]) => [k, `${v.label} (Trace ${v.trace >= 0 ? "+" : ""}${v.trace}, Access ${k === "console" ? "halved" : (v.access >= 0 ? "+" : "") + v.access})`])) }),
       host: new f.DocumentUUIDField({ type: "Actor", nullable: true, initial: null,
-        label: "Host (optional)", hint: "The Host actor a decker here is most likely working against." }),
-      traceMod: new f.NumberField({ integer: true, initial: 0, label: "Trace modifier (VR2.0)",
-        hint: "Added to a decker's Trace Factor when jacked in here (Virtual Realities 2.0 p.28, p.45)." })
+        label: "Wired to (optional)", hint: "The Host actor a decker here works against. With VR2.0 grid topology on: the LTG a trid jackpoint connects to, or the host a workstation, remote device or console controls." }),
+      traceMod: new f.NumberField({ integer: true, initial: 0, label: "Extra trace adjustment (VR2.0)",
+        hint: "Added to a decker's Trace Factor on top of the kind's (Virtual Realities 2.0 p.28, p.45)." })
     };
   }
   static events = {};
@@ -227,15 +231,27 @@ async function enter(tokenDoc, behavior, actor) {
 
 /** The Host the actor's live jackpoint session points at, for system operations (impl R1 #9). */
 export function sessionHost(actor) {
-  // VR2.0 part 3: the live connection's own record names its jackpoint (plan §0, R6 #2).
+  // VR2.0 part 3: the live connection's own record names its jackpoint (plan §0, R6 #2); part 7a snapshots its wiring.
   const conn = actor?.system?.vr2Conn;
   if (conn?.jackpoint?.jackpoint) {
-    const h = sync(sync(conn.jackpoint.jackpoint)?.system?.host);
+    const h = sync(connJackpoint(actor).wired);
     return h?.type === "host" ? h : null;
   }
   const w = actor?.system?.matrixMode ? winner(sessionsOf(actor)) : null;
   const host = sync(sync(w?.jackpoint)?.system?.host);
   return host?.type === "host" ? host : null;
+}
+
+/**
+ * The live connection's jackpoint as it was when the decker connected (part 7a, R1 #10): kind, wiring, extra trace.
+ * An older record without the snapshot reads the behaviour live, as before; no jackpoint is illegal trid access.
+ */
+export function connJackpoint(actor) {
+  const rec = actor?.system?.vr2Conn?.jackpoint;
+  if (!rec?.jackpoint) return { jackpoint: null, kind: "illegal", wired: null, traceMod: 0 };
+  if ("kind" in rec) return { jackpoint: rec.jackpoint, kind: rec.kind, wired: rec.wired ?? null, traceMod: rec.traceMod ?? 0 };
+  const b = sync(rec.jackpoint);
+  return { jackpoint: rec.jackpoint, kind: b?.system?.kind ?? "illegal", wired: b?.system?.host ?? null, traceMod: Number(b?.system?.traceMod) || 0 };
 }
 
 /** Jack out: any owner of the ACTOR, no body token needed (R3 #5). */

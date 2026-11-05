@@ -41,6 +41,7 @@ import { isVR2, utilityOptionsOn } from "./vr2-mode.mjs";
 import { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea } from "./areas.mjs";
 import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerPersonaTokenHooks } from "./persona-tokens.mjs";
+import { registerGridHooks } from "./grids.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
 import { registerPhoneLink } from "./companion/phone-link.mjs";
@@ -526,6 +527,7 @@ Hooks.once("init", async () => {
   registerJackpointBehavior();
   registerJackpointHooks();
   registerPersonaTokenHooks();
+  registerGridHooks();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();
@@ -1289,6 +1291,18 @@ function _registerSystemSettings() {
     name: "VR2.0 utility options",
     hint: "Virtual Realities 2.0 only (optional rule, p.102): utilities may carry options (area, chaser, DINAB, limit, one-shot, optimization, penetration, sensitive, skulk, squeeze, targeting) that change their size, price and play.",
     scope: "world", config: true, type: Boolean, default: false, requiresReload: true
+  });
+
+  game.settings.register("sr2e", "vr2Topology", {
+    name: "VR2.0 grid topology",
+    hint: "Virtual Realities 2.0 only (p.14–30): grids (LTG, RTG, PLTG) are Host actors, and a decker can only log on to the places the book allows from where he is; one security tally spans an RTG and its LTGs. Off: log on to any host from anywhere.",
+    scope: "world", config: true, type: Boolean, default: false,
+    onChange: (v) => { if (v && game.user.isActiveGM) import("./grids.mjs").then(m => m.reportJackpointWiring()); }
+  });
+  game.settings.register("sr2e", "vr2VariableLTG", {
+    name: "VR2.0 variable LTG ratings",
+    hint: "Virtual Realities 2.0 optional rule (p.28): an LTG's System Ratings may drift by ±1 (a roll button on the LTG's sheet).",
+    scope: "world", config: true, type: Boolean, default: false
   });
 
   // Play-area background shown when no scene is active

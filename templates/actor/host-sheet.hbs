@@ -63,6 +63,45 @@
         <a data-action="hostSheafRemove" data-id="{{row.id}}" title="Remove this step"><i class="fas fa-trash"></i></a>
       {{else}} no steps.{{/each}}
       <br><button type="button" data-action="hostSheafAdd"><i class="fas fa-plus"></i> Add step</button></p>
+    {{#if grid}}
+    <fieldset class="vr2-grid">
+      <legend>Grid (VR2.0 p.14–30)</legend>
+      <div class="field-grid">
+        <label class="field"><span>Kind</span>
+          <select name="system.kind">{{#each grid.kinds as |label key|}}<option value="{{key}}" {{selected ../system.kind key}}>{{label}}</option>{{/each}}</select></label>
+        {{#if grid.hasGrid}}
+        <label class="field" title="{{#if grid.isLtg}}The RTG this LTG belongs to.{{else}}The LTG or PLTG this host is attached to (open access). Leave empty for a second-tier host reached only through its links.{{/if}}">
+          <span>{{#if grid.isLtg}}Parent RTG{{else}}Attached to{{/if}}</span>
+          <select name="system.grid"><option value="">—</option>{{#each grid.gridChoices as |g|}}<option value="{{g.uuid}}" {{selected ../system.grid g.uuid}}>{{g.name}}</option>{{/each}}</select></label>
+        {{/if}}
+        <label class="field" title="Its address isn't public: a decker must find it with Locate Access Node, or be told (p.114)."><span>Unlisted address</span>
+          <input type="checkbox" name="system.unlisted" {{checked system.unlisted}} /></label>
+        {{#if grid.variable}}
+        <label class="field" title="Optional Variable LTG Ratings (p.28): −1, 0 or +1 to every System Rating."><span>Rating shift</span>
+          <input type="number" name="system.ratingShift" value="{{system.ratingShift}}" min="-1" max="1" /></label>
+        {{/if}}
+      </div>
+      {{#if grid.isHost}}
+      <p class="rule-note"><strong>Linked hosts</strong> (tiered or host-host, p.14–15; links work both ways):
+        {{#each grid.links as |l|}}<br>{{l.name}} <a data-action="grid" data-op="removeLink" data-arg="{{l.uuid}}" title="Remove the link"><i class="fas fa-trash"></i></a>{{/each}}
+        {{#each grid.backLinks as |n|}}<br>{{n}} <em>(linked from there)</em>{{/each}}
+        {{#if grid.linkChoices.length}}<br><select>{{#each grid.linkChoices as |c|}}<option value="{{c.uuid}}">{{c.name}}</option>{{/each}}</select>
+        <button type="button" data-action="grid" data-op="addLink"><i class="fas fa-link"></i> Link</button>{{/if}}</p>
+      {{/if}}
+      {{#if grid.isPltg}}
+      <p class="rule-note"><strong>Entry points</strong> (the LTGs this PLTG is entered from, p.28):
+        {{#each grid.entries as |l|}}<br>{{l.name}} <a data-action="grid" data-op="removeEntry" data-arg="{{l.uuid}}" title="Remove"><i class="fas fa-trash"></i></a>{{/each}}
+        {{#if grid.entryChoices.length}}<br><select>{{#each grid.entryChoices as |c|}}<option value="{{c.uuid}}">{{c.name}}</option>{{/each}}</select>
+        <button type="button" data-action="grid" data-op="addEntry"><i class="fas fa-plus"></i> Add</button>{{/if}}</p>
+      {{/if}}
+      {{#if grid.isRtg}}<p class="rule-note">Its LTGs share one security tally, fired by this RTG's sheaf (p.29).
+        <button type="button" data-action="grid" data-op="createLTG"><i class="fas fa-plus"></i> Create LTG</button></p>{{/if}}
+      {{#if grid.isLtg}}<p class="rule-note">Under an RTG, this LTG's own sheaf is ignored: the RTG's fires (p.29).
+        {{#if grid.variable}}<button type="button" data-action="grid" data-op="rollVariable"><i class="fas fa-dice"></i> Roll variable ratings</button>{{/if}}</p>{{/if}}
+      <p class="rule-note"><strong>Reachable from here:</strong>
+        {{#each grid.reach as |r|}}<br>{{r.op}}: {{r.name}}{{#if r.unlisted}} <em>(unlisted)</em>{{/if}}{{else}} nothing.{{/each}}</p>
+    </fieldset>
+    {{/if}}
     <p class="rule-note">Security tallies (the host's System Test successes, p.19):
       {{#each tallies as |t|}}<br><strong>{{t.name}}</strong>: {{t.tally}}{{else}}no decker in session.{{/each}}</p>
   </fieldset>

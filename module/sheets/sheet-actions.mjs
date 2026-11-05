@@ -26,10 +26,11 @@ import { combatSpellMode, combatTargetRows, snapshotTargets, casterSituationHTML
 import { visibilityAlong } from "../spell-effects.mjs";
 import { areaDocs } from "../areas.mjs";
 import { startRitual } from "../ritual.mjs";
-import { matrixQueue, sessionHost } from "../jackpoints.mjs";
-import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
+import { matrixQueue, sessionHost, connJackpoint } from "../jackpoints.mjs";
+import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
-  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon } from "../vr2.mjs";
+  vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon, vr2DisconnectToGrid, currentPlace, topoSnapshot, knownPlaces } from "../vr2.mjs";
+import { reachable } from "../rules/vr2-grids.mjs";
 import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
@@ -2637,6 +2638,8 @@ async function onVR2Improvise(event) { event.preventDefault(); return vr2BuildIm
 /** @this {ApplicationV2} */
 async function onVR2Redetect(event) { event.preventDefault(); return vr2Redetect(this.document); }
 async function onVR2ScanIcon(event) { event.preventDefault(); return vr2ScanIcon(this.document); }
+/** Part 7a: Disconnect to grid (VR2.0 p.14). @this {ApplicationV2} */
+async function onVR2Disconnect(event) { event.preventDefault(); return vr2DisconnectToGrid(this.document); }
 /** @this {ApplicationV2} */
 async function onVR2Release(event, target) { event.preventDefault(); return releaseSuppressed(this.document, target.dataset.key); }
 /** VR2.0 part 3's sheet buttons (traces, psychotropic recovery, deck chips, shutdown, tar). @this {ApplicationV2} */
@@ -2722,8 +2725,21 @@ async function promptSystemOperationOptions(actor) {
 
   const vr2 = isVR2();
   const ops = vr2 ? CONFIG.SR2E.vr2SystemOperations : CONFIG.SR2E.systemOperations;
+  // Part 7a: under grid topology, each operation lists only the places it can reach from where the decker is (p.14–30).
+  const topo = vr2 && topologyOn() && actor.system.vr2Conn ? (() => {
+    const t = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null, jack = connJackpoint(actor), known = knownPlaces(actor);
+    const ok = {}, why = {};
+    for (const k of Object.keys(ops)) {
+      ok[k] = []; why[k] = [];
+      for (const h of hosts) {
+        const r = reachable({ at, op: k, target: h.uuid, topo: t, jack, known, gm: game.user.isGM });
+        if (r.ok) ok[k].push(h.id); else why[k].push(`${h.name}: ${r.why}`);
+      }
+    }
+    return { ok, why, first: Object.keys(ops).find(k => ok[k].length) ?? null };
+  })() : null;
   const opOptions = Object.entries(ops).map(([k, op]) =>
-    `<option value="${k}">${game.i18n.localize(op.label)}${vr2 ? ` (${CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? "targeted subsystem"}, ${op.utility})` : ""}</option>`).join("");
+    `<option value="${k}" ${topo?.first === k ? "selected" : ""}>${game.i18n.localize(op.label)}${vr2 ? ` (${CONFIG.SR2E.vr2Subsystems[op.subsystem] ?? "targeted subsystem"}, ${op.utility})` : ""}</option>`).join("");
 
   const hackingMax = actor.system.dicePools?.hacking?.max ?? 0;
 
@@ -2740,6 +2756,10 @@ async function promptSystemOperationOptions(actor) {
         <label>Operation:</label>
         <select name="operation">${opOptions}</select>
       </div>
+      ${topo ? `<p class="sr2e-topo-none" style="display:none;color:#c44;font-size:11px;">Nothing this operation can reach from where you are (VR2.0 p.29–30).</p>
+        ${game.user.isGM ? `<details><summary style="font-size:11px;">Why not? (GM)</summary><div class="sr2e-topo-why" style="font-size:11px;color:#aaa1c0;"></div></details>` : ""}` : ""}
+      ${vr2 ? `<div class="form-group"><label title="Locate Access Node (VR2.0 p.114): the decker's stated goal sets the TN">Goal <span style="color:#958ba8;font-size:10px;">(Locate Access Node)</span>:</label>
+        <select name="goal"><option value="1">vague (+1)</option><option value="0" selected>more specific (+0)</option><option value="-1">definite (−1)</option></select></div>` : ""}
       ${vr2 ? `<div class="form-group"><label>Targeted subsystem <span style="color:#958ba8;font-size:10px;">(Analyze Subsystem, Disinfect, Defuse)</span>:</label>
         <select name="subsystem">${["access", "control", "index", "files", "slave"].map(k => `<option value="${k}" ${k === "files" ? "selected" : ""}>${CONFIG.SR2E.vr2Subsystems[k]}</option>`).join("")}</select></div>
       <div class="form-group"><label title="How long the decker waits: the host's Security Value rises +1 (10 s+), +2 (1 min+), +4 (1 h+), +1 per 12 h more (VR2.0 p.117)">Waiting period <span style="color:#958ba8;font-size:10px;">(Null Operation)</span>:</label>
@@ -2781,12 +2801,27 @@ async function promptSystemOperationOptions(actor) {
             waitSeconds: Math.max(0, Number(f.wait?.value) || 0) * (Number(f.waitUnit?.value) || 1),
             waitLabel: `${Math.max(0, Number(f.wait?.value) || 0)} ${f.waitUnit?.selectedOptions?.[0]?.text ?? ""}`.trim(),
             secret:    !!f.secret?.checked,
+            goal:      Number(f.goal?.value) || 0,
             ...readMiscDice(button.form)
           };
         }
       },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }
-    ]
+    ],
+    // Part 7a: re-filter the targets whenever the operation changes.
+    render: topo ? (event, dialog) => {
+      const root = dialog.element, opSel = root.querySelector('select[name="operation"]'), hostSel = root.querySelector('select[name="host"]');
+      const sync = () => {
+        const ok = new Set(topo.ok[opSel.value] ?? []);
+        for (const o of hostSel.options) { o.hidden = o.disabled = !ok.has(o.value); }
+        if (!ok.has(hostSel.value)) hostSel.value = [...hostSel.options].find(o => !o.disabled)?.value ?? "";
+        root.querySelector(".sr2e-topo-none").style.display = ok.size ? "none" : "";
+        const w = root.querySelector(".sr2e-topo-why");
+        if (w) w.innerHTML = (topo.why[opSel.value] ?? []).map(t => foundry.utils.escapeHTML(t)).join("<br>") || "—";
+      };
+      opSel.addEventListener("change", sync);
+      sync();
+    } : undefined
   });
   if (action !== "run" || !result) return null;
   result.host = hosts.find(h => h.id === result.hostId) ?? null;
@@ -2804,7 +2839,7 @@ async function onSystemOperation(event, target) {
   if (!opts || !opts.host) return;
   const nul = opts.operation === "nullOp";
   return actor.rollSystemOperation(opts.host, opts.operation, {
-    hacking: opts.hacking, karmaDice: opts.karmaDice, subsystem: opts.subsystem, dinab: opts.dinab,
+    hacking: opts.hacking, karmaDice: opts.karmaDice, subsystem: opts.subsystem, dinab: opts.dinab, goal: opts.goal,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel,
     ...(nul ? { svMod: nullInactivityMod(opts.waitSeconds), waited: opts.waitLabel, secret: opts.secret } : {})
   });
@@ -3971,6 +4006,7 @@ const SHARED_ACTIONS = {
   vr2Improvise: onVR2Improvise,
   vr2Redetect: onVR2Redetect,
   vr2ScanIcon: onVR2ScanIcon,
+  vr2Disconnect: onVR2Disconnect,
   vr2Release: onVR2Release,
   vr2ic: onVr2Ic,
   vr2Medic: onVR2Medic,

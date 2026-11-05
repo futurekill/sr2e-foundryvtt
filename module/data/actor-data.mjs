@@ -13,6 +13,7 @@ import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rul
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2 } from "../vr2-mode.mjs";
+import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
@@ -2380,6 +2381,15 @@ export class HostData extends SR2EDataModel {
         slave:   new fields.NumberField({ integer: true, initial: 2, min: 0 })
       }),
       securityValueOverride: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // VR2.0 part 7a, grid topology (inert unless the vr2Topology setting is on): what kind of place this is,
+      // the grid it hangs from, its host↔host links (undirected), a PLTG's entry-point LTGs, an unpublished
+      // address, and the optional Variable LTG Ratings shift (p.14–30).
+      kind: new fields.StringField({ initial: "host", blank: false, choices: { host: "Host", ltg: "LTG", rtg: "RTG", pltg: "PLTG" } }),
+      grid: new fields.DocumentUUIDField({ type: "Actor", nullable: true, initial: null }),
+      links: new fields.ArrayField(new fields.DocumentUUIDField({ type: "Actor" })),
+      entryPoints: new fields.ArrayField(new fields.DocumentUUIDField({ type: "Actor" })),
+      unlisted: new fields.BooleanField({ initial: false }),
+      ratingShift: new fields.NumberField({ integer: true, initial: 0, min: -1, max: 1 }),
       // VR2.0: probe IC on the host (p.42) and its security sheaf (p.150; PLAN-vr2-part2 §10).
       probe: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       sheaf: new fields.ArrayField(new fields.SchemaField({
@@ -2408,7 +2418,7 @@ export class HostData extends SR2EDataModel {
    * Rating when not overridden. Inert in the core-book Matrix.
    */
   get securityValue() {
-    return this.securityValueOverride > 0 ? this.securityValueOverride : this.systemRating;
+    return shifted(this.securityValueOverride > 0 ? this.securityValueOverride : this.systemRating, this.ratingShift);
   }
 
   /**
@@ -2419,6 +2429,6 @@ export class HostData extends SR2EDataModel {
    * @returns {number}
    */
   subsystemRating(key) {
-    return this.subsystems?.[key] ?? this.systemRating;
+    return shifted(this.subsystems?.[key] ?? this.systemRating, this.ratingShift);
   }
 }

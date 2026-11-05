@@ -13695,6 +13695,234 @@ export function registerSR2EQuenchTests() {
 
 
     // ── The money queue (docs/PLAN-money-queue-and-eye-accessories.md, Part A) ──────
+    // VR2.0 part 7a: grid topology (docs/PLAN-vr2-part7-grids.md, "7a in detail").
+    quench.registerBatch("sr2e.vr2-grids", (context) => {
+      const { it, assert, before, after, afterEach } = context;
+      const made = [], regions = [];
+      let prior = "core", priorTopo = false, Y, V, n0 = 0;
+      const wait = (ms = 600) => new Promise(r => setTimeout(r, ms));
+      const settle = async (pred, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await wait(100); } return false; };
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform; const q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const mk = async (data) => { const a = await Actor.create(data); made.push(a); return a; };
+      const place = (name, kind, extra = {}, subs = 6, sv = 4) => mk({ name, type: "host", system: { kind, securityCode: "green", systemRating: sv,
+        securityValueOverride: sv, subsystems: { access: subs, control: subs, index: subs, files: subs, slave: subs }, ...extra } });
+      const decker = async (name) => {
+        const a = await mk({ name, type: "character", system: { willpower: { base: 4 }, cyberdeck: { mpcp: 6, response: 1, deckMode: "hot" },
+          matrixPersona: { bod: 4, evasion: 5, sensor: 4, masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } },
+          { name: "Deception", type: "program", system: { rating: 4, loaded: true, category: "other" } },
+          { name: "Browse", type: "program", system: { rating: 4, loaded: true, category: "other" } }]);
+        await V.vr2EnterMatrix(a);
+        return a;
+      };
+      // Computer 5 vs Access 6 − Deception 4 = TN 2. `hostHits` of the host's 4 Security Value dice succeed.
+      const op = (a, h, operation, { win = true, hostHits = 0, opts = {} } = {}) => withFaces([...(win ? [5, 5, 5, 5, 5] : [5, 1, 1, 1, 1]),
+        ...Array.from({ length: 4 }, (_, i) => (i < (win ? hostHits : 4) ? 5 : 1)), 1, 1, 1, 1], () => V.vr2SystemTest(a, h, operation, opts));
+      const at = (a) => V.currentPlace(a)?.uuid ?? null;
+      const cards = () => game.messages.contents.slice(n0).filter(m => m.flags?.sr2e?.vr2SystemTest);
+
+      before(async function () {
+        this.timeout(10000);
+        prior = game.settings.get("sr2e", "matrixRuleset"); priorTopo = game.settings.get("sr2e", "vr2Topology");
+        await game.settings.set("sr2e", "matrixRuleset", "vr2");
+        await game.settings.set("sr2e", "vr2Topology", true);
+        Y = await import("../vr2ic.mjs"); V = await import("../vr2.mjs");
+        n0 = game.messages.size;
+      });
+      afterEach(async function () {
+        this.timeout(20000);
+        for (const d of made) if (d.type === "character" && d.system.vr2Conn) { await Y.requestExit(d, { trigger: "plug" }); await settle(() => !d.system.vr2Conn, 4000); }
+        for (const d of made.splice(0)) { try { await d.delete(); } catch (e) { /* gone */ } }
+        for (const r of regions.splice(0)) { try { await r.delete(); } catch (e) { /* gone */ } }
+      });
+      after(async function () {
+        this.timeout(20000);
+        for (const m of game.messages.contents.slice(n0)) { try { await m.delete(); } catch (e) { /* gone */ } }
+        await game.settings.set("sr2e", "vr2Topology", priorTopo);
+        await game.settings.set("sr2e", "matrixRuleset", prior);
+      });
+
+      it("from the jackpoint: only Logon to LTG; then the LTG's hosts; a refused target spends and rolls nothing", async function () {
+        this.timeout(20000);
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const ltg = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid });
+        const h = await place("Quench Grid Host", "host", { grid: ltg.uuid });
+        const far = await place("Quench Grid Far", "host");
+        const a = await decker("Quench Grid Decker");
+        assert.isNull(at(a), "at the jackpoint, on nothing");
+        const before = cards().length;
+        await op(a, h, "logonHost");
+        assert.equal(cards().length, before, "a host from a trid jackpoint is refused before any roll");
+        await op(a, ltg, "logonLTG");
+        assert.equal(at(a), ltg.uuid, "on the LTG");
+        await op(a, far, "logonHost");
+        assert.equal(at(a), ltg.uuid, "a host not on this LTG is unreachable");
+        await op(a, ltg, "locateFile");
+        assert.equal(cards().length, before + 1, "grids run no host operations");
+        await op(a, h, "logonHost");
+        assert.equal(at(a), h.uuid, "on the host");
+      });
+
+      it("a failed logon leaves the decker where he was; a retry continues the tally; an expired memory starts it over", async function () {
+        this.timeout(20000);
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const ltg = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid });
+        const a = await decker("Quench Grid Decker");
+        await op(a, ltg, "logonLTG", { win: false });
+        assert.isNull(at(a), "still at the jackpoint");
+        const s = V.liveSession(a);
+        assert.equal(s.tally, 4, "the attempt's tally is on the grid");
+        assert.isAbove(s.forgetAt, game.time.worldTime, "the grid remembers it 1D3 × 5 minutes (p.116)");
+        assert.equal(a.flags.sr2e.vr2Tallies?.[s.scope]?.tally, 4, "in the ledger at once");
+        await op(a, ltg, "logonLTG", { win: false });
+        assert.equal(V.liveSession(a).tally, 8, "a retry keeps it");
+        await a.update({ "flags.sr2e.vr2Session.forgetAt": game.time.worldTime - 1 });
+        await op(a, ltg, "logonLTG", { hostHits: 1 });
+        assert.equal(V.liveSession(a).tally, 1, "past the memory, the tally started over");
+        assert.equal(at(a), ltg.uuid);
+        assert.isNull(V.liveSession(a).forgetAt, "a success clears the memory");
+      });
+
+      it("the p.29 example: LTG → RTG → LTG is one tally (2 + 1 + 2 = 5), firing the RTG's sheaf once", async function () {
+        this.timeout(20000);
+        const rtg = await place("Quench Grid RTG", "rtg", { sheaf: [{ id: "r5", step: 5, event: "passive", note: "" }] });
+        const l1 = await place("Quench Grid 2206", "ltg", { grid: rtg.uuid, sheaf: [{ id: "l3", step: 3, event: "active", note: "" }] });
+        const l2 = await place("Quench Grid 4206", "ltg", { grid: rtg.uuid });
+        const other = await place("Quench Grid Other RTG", "rtg");
+        const a = await decker("Quench Grid Decker");
+        await op(a, l1, "logonLTG", { hostHits: 2 });
+        await op(a, rtg, "logonRTG", { hostHits: 1 });
+        await op(a, l2, "logonLTG", { hostHits: 2 });
+        assert.equal(at(a), l2.uuid);
+        assert.equal(V.liveSession(a).tally, 5, "2 + 1 + 2");
+        await settle(() => rtg.flags?.sr2e?.sheafApplied && Object.keys(rtg.flags.sr2e.sheafApplied).length, 4000);
+        assert.equal(Object.keys(rtg.flags?.sr2e?.sheafApplied ?? {}).length, 1, "the RTG's step 5 fired once");
+        assert.equal(rtg.system.alert, "passive");
+        assert.notOk(l1.flags?.sr2e?.sheafApplied, "the LTG's own sheaf is ignored under its RTG");
+        await op(a, rtg, "logonRTG", { hostHits: 0 });
+        await op(a, other, "logonRTG", { hostHits: 0 });
+        assert.equal(V.liveSession(a).tally, 0, "the tally doesn't follow him to another RTG");
+      });
+
+      it("a PLTG inherits the public tally only when the logon succeeds, and its trigger fires then", async function () {
+        this.timeout(25000);
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const ltg = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid });
+        const pltg = await place("Quench Grid PLTG", "pltg", { entryPoints: [ltg.uuid], sheaf: [{ id: "p5", step: 5, event: "passive", note: "" }] });
+        const a = await decker("Quench Grid Decker");
+        await op(a, ltg, "logonLTG", { hostHits: 4 });
+        assert.equal(V.liveSession(a).tally, 4);
+        await op(a, pltg, "logonLTG", { win: false });
+        assert.equal(at(a), ltg.uuid, "a refused PLTG logon leaves him on the LTG");
+        assert.equal(V.liveSession(a).tally, 4, "a failed attempt carries nothing in (only its own 4)");
+        assert.notOk(pltg.flags?.sr2e?.sheafApplied, "no trigger before the logon finishes");
+        await op(a, pltg, "logonLTG", { hostHits: 1 });
+        assert.equal(at(a), pltg.uuid, "on the PLTG");
+        // The PLTG's own 4 + 1 from its attempts, and the public 4 carried in on top (max(0, 4 − seed 0)).
+        assert.equal(V.liveSession(a).tally, 9);
+        assert.ok(await settle(() => pltg.system.alert === "passive", 4000), "its trigger fired at the finished logon");
+      });
+
+      it("Karma turning a failed logon into a success moves the decker; deleting the card keeps him there", async function () {
+        this.timeout(20000);
+        const ltg = await place("Quench Grid LTG", "ltg");
+        const a = await decker("Quench Grid Decker");
+        await op(a, ltg, "logonLTG", { win: false });
+        assert.isNull(at(a));
+        const card = cards().at(-1);
+        await card.update({ "flags.sr2e.vr2SystemTest.successes": 9 });
+        assert.ok(await settle(() => at(a) === ltg.uuid, 3000), "the Karma reroll moved him onto the LTG");
+        await card.delete();
+        await wait(300);
+        assert.equal(at(a), ltg.uuid, "a deleted card changes nothing");
+      });
+
+      it("Disconnect to grid, then Logon to RTG; second-tier hosts only through their links", async function () {
+        this.timeout(25000);
+        const rtg = await place("Quench Grid RTG", "rtg");
+        const ltg = await place("Quench Grid LTG", "ltg", { grid: rtg.uuid });
+        const hub = await place("Quench Grid Hub", "host", { grid: ltg.uuid });
+        const b = await place("Quench Grid Tier B", "host", { links: [hub.uuid] });
+        const c = await place("Quench Grid Tier C", "host", { links: [hub.uuid] });
+        const a = await decker("Quench Grid Decker");
+        await op(a, ltg, "logonLTG");
+        await op(a, b, "logonHost");
+        assert.equal(at(a), ltg.uuid, "a second-tier host isn't on the LTG");
+        await op(a, hub, "logonHost"); await op(a, b, "logonHost");
+        assert.equal(at(a), b.uuid);
+        await op(a, c, "logonHost");
+        assert.equal(at(a), b.uuid, "B → C needs the hub");
+        await V.vr2DisconnectToGrid(a);
+        assert.equal(at(a), b.uuid, "a second-tier host has no grid to disconnect to");
+        await op(a, hub, "logonHost");
+        await V.vr2DisconnectToGrid(a);
+        assert.equal(at(a), ltg.uuid, "back on the LTG with no test");
+        await op(a, rtg, "logonRTG");
+        assert.equal(at(a), rtg.uuid);
+      });
+
+      it("two System Operations at once: both tallies land (one operation at a time)", async function () {
+        this.timeout(20000);
+        const ltg = await place("Quench Grid LTG", "ltg");
+        const a = await decker("Quench Grid Decker");
+        await op(a, ltg, "logonLTG");
+        const orig = CONFIG.Dice.randomUniform;
+        CONFIG.Dice.randomUniform = () => (6.5 - 5) / 6;   // every die a 5: each test's host gets 4
+        try { await Promise.all([V.vr2SystemTest(a, ltg, "redirectDatatrail"), V.vr2SystemTest(a, ltg, "redirectDatatrail")]); }
+        finally { CONFIG.Dice.randomUniform = orig; }
+        assert.equal(V.liveSession(a).tally, 8, "4 + 4");
+      });
+
+      it("leaving from the jackpoint: no Graceful Logoff needed, no dump shock", async function () {
+        this.timeout(20000);
+        const a = await decker("Quench Grid Decker");
+        const n = a.system.vr2Conn.n;
+        await V.vr2LeaveMatrix(a);
+        assert.ok(await settle(() => !a.system.vr2Conn, 6000), "out");
+        const exit = Y.recordsOf(a).find(e => e.type === "exitOpen" && e.n === n);
+        assert.equal(exit?.trigger, "unplaced");
+        assert.notOk(game.messages.contents.slice(n0).some(m => m.speaker?.actor === a.id && /dump shock/i.test(m.content)), "no dump shock");
+      });
+
+      it("console jackpoint: Access and Security Value halved (rounded up), its kind fixed at connection", async function () {
+        this.timeout(25000);
+        if (!canvas?.ready) this.skip();
+        const h = await place("Quench Grid Console Host", "host", {}, 7, 5);
+        const [region] = await canvas.scene.createEmbeddedDocuments("Region", [{ name: "Quench Grid Jackpoint",
+          shapes: [{ type: "rectangle", x: 0, y: 0, width: 100, height: 100 }],
+          behaviors: [{ type: "jackpoint", name: "Jackpoint", system: { kind: "console", host: h.uuid } }] }]);
+        regions.push(region);
+        const a = await mk({ name: "Quench Grid Decker", type: "character", system: { cyberdeck: { mpcp: 6, deckMode: "hot" }, matrixPersona: { masking: 3 } } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 5, category: "active" } }]);
+        const beh = region.behaviors.contents[0];
+        assert.ok(await Y.openConnection(a, { jackpoint: { jackpoint: beh.uuid } }) != null);
+        await a.update({ "system.matrixMode": true });
+        await V.startSession(a);
+        await beh.update({ "system.kind": "illegal" });   // edited mid-run: the snapshot holds
+        await op(a, h, "logonHost");
+        const st = cards().at(-1).flags.sr2e.vr2SystemTest;
+        assert.equal(st.subsystem, 4, "Access 7 halved, rounded up");
+        assert.equal(st.securityValue, 3, "Security Value 5 halved, rounded up");
+        assert.equal(at(a), h.uuid, "the console's host");
+      });
+
+      it("topology off: any host, any operation, as before", async function () {
+        this.timeout(20000);
+        await game.settings.set("sr2e", "vr2Topology", false);
+        try {
+          const h = await place("Quench Grid Host", "host", { grid: null });
+          const a = await decker("Quench Grid Decker");
+          await op(a, h, "locateFile");
+          assert.equal(V.liveSession(a).hostUuid, h.uuid);
+          assert.equal(cards().at(-1).flags.sr2e.vr2SystemTest.hostName, h.name);
+        } finally { await game.settings.set("sr2e", "vr2Topology", true); }
+      });
+    });
+
     quench.registerBatch("sr2e.money-queue", (context) => {
       const { describe, it, assert, before, after } = context;
       const made = [];
