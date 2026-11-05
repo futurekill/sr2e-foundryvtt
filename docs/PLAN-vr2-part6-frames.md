@@ -1,8 +1,7 @@
 # Plan: VR2.0 part 6: frames and SKs
-_Draft 4 (2026-11-04): **6a-0 Codex-APPROVED in round 4.** **This review covers 6a-0 only** (detailed below); 6a, 6b and 6c each get
-their own detailed plan and review before they're built, which must meet the requirements Codex R1 raised (listed below).
-Null operation and Scan Icon read (p.117) and added to 6a-0; upgrading moved to its own plan.
-Codex review: docs/PLAN-vr2-part6-frames-REVIEW-LOG.md. No code before review._
+_Draft 5 (2026-11-05): 6a-0 released in 0.131.0. **"6a-1 in detail" (frame cores and loading) is under review**;
+6a-2 (running frames), 6b and 6c each get their own detailed section and review, meeting the requirements Codex R1
+raised (listed below). Codex review: docs/PLAN-vr2-part6-frames-REVIEW-LOG.md. No code before review._
 
 Sources (all rendered from the image-only PDF, `Shadowrun 2e - Virtual Realities 2.0 {FASA7904}.pdf`; book page = PDF − 8
 here): Frames pp.105–107 (PDF 113–115), DINAB p.103–104, Command Sets p.104, Upgrading p.107, Buying Programs p.107,
@@ -190,7 +189,7 @@ attacked, take damage on a 10-box monitor, crash, and be targeted by the Limit o
    - Quench `sr2e.vr2-frames`: write, load and upload a dumb frame; command an attack; IC kills the frame; logoff crashes
      it; smart frame initiative; decoy redirect; SK allocation; Limit:frame.
 
-## 6a-0 in detail: Decoy, Null Operation, Scan Icon (the part under review)
+## 6a-0 in detail: Decoy, Null Operation, Scan Icon (released 0.131.0)
 
 **Decoy (p.112): Control, Mirrors, Complex.**
 1. A system operation (`decoy: control / Mirrors` in config.mjs) run through `vr2SystemTest` like any other. After
@@ -291,6 +290,157 @@ attacked, take damage on a 10-box monitor, crash, and be targeted by the Limit o
 - Quench: a secret Null Operation posts only GM-whispered messages and still raises the tally; the modifier shows.
 - Quench: Scan Icon spends Scanner, reveals only claimed slots, a second click on a claimed slot changes nothing,
   a pick beyond the current successes or after the target reconnects is refused, and picks survive a marker prune.
+
+## 6a-1 in detail: frame cores and loading (the part under review)
+
+6a is split in two, as part 7 was:
+- **6a-1** is the frame core as a program and the loading task. It covers items only, with nothing running.
+- **6a-2** is running frames: the frame actor, upload, lifecycle, combat, dumb and smart frames, and decoy frames.
+  It gets its own detailed section and review. The "Requirements carried" list below is mostly 6a-2's. 6a-1 answers
+  the "loaded programs", "loading completion" and "core design" requirements.
+
+The pages were rendered again for this section (2026-11-05): Frames, Frame Core, DINAB and Cores, Smart Frame
+Initiative and Frame Loading (pp.105–106).
+
+**User rulings (2026-11-05):**
+- the Loading Rating (Σ ratings ÷ 2) rounds UP: 11 → 6;
+- the loading test's TN (the average rating) rounds UP: 4.5 → 5.
+
+### 1. A frame core is a program item
+**Schema.** `ProgramData` gains
+`frameCore: SchemaField { kind, bod, evasion, masking, sensor, initPoints }`:
+- `kind` is a StringField from `"" | dumb | smart`, initial `""`, `blank: true` (the blank trap). `""` means not a
+  core, which is every existing program, so there's no migration;
+- the four attributes and `initPoints` are integers, min 0, initial 0.
+
+The **Core Rating** is the program's `rating`.
+
+**Derived data (`prepareDerivedData`, VR2.0 only; core-book Matrix: inert):**
+- **The multiplier:** 2 (dumb) or 3 (smart), "the size multiplier for all dumb frame cores is 2; … 3 for smart cores".
+  It overrides the authored multiplier exactly as an attack's Damage Level does today, and the authored multiplier is
+  restored when `kind` is cleared.
+- **The utility id** is `frameCore`. `UTILITY_OPTIONS.frameCore = ["dinab", "optimization", "squeeze"]`.
+- `activeOptions` adds Sensitive to every utility today. It doesn't for `frameCore`: "Frame cores may be equipped with
+  any of the following options: DINAB, optimization, and squeeze" is a closed list.
+- **Sizes** go through the existing `programSizes`. DINAB's "rating" modifier already raises both the design and the
+  actual rating. Genie's smart core 12 + DINAB-8 → (12 + 8)² × 3 = 1,200 Mp, which becomes a Vitest case.
+- `frameCheck`, a pure `coreProblems(core)` in a new `module/rules/vr2-frames.mjs`, lists what's wrong. A core with
+  a problem can't be programmed, and later can't be loaded or uploaded:
+  - Bod + Evasion + Masking + Sensor ≤ Core Rating (any may be 0);
+  - `initPoints` ≤ Core Rating, and 0 on a dumb core (only smart frames have Initiative);
+  - a smart core must carry an active DINAB.
+- **`programCapacity`** = Core Rating − initPoints: what the loaded programs may total.
+- **Frame Initiative** (for 6a-2, derived here): smart = (1 + initPoints)D6 and Reaction = Core Rating; dumb = none.
+
+**Not a utility.** `usablePrograms`, the ONE rule every utility lookup goes through, excludes `frameCore.kind`. A core
+in storage is never "loaded" onto the deck: the row shows no loaded toggle, and a stray `loaded: true` counts for
+nothing. Cores take storage memory like any program, at their actual size.
+
+**The design lock.**
+- `designOf` (programming.mjs) adds `frameCore` (kind, the four attributes, initPoints), so a design change during a
+  task is refused.
+- The `preUpdateItem` lock in sr2e.mjs adds `frameCore` to its key list.
+- "A core's attributes may not be rearranged … the programmer must write a new frame core": after a successful write,
+  changing `frameCore` makes the core unwritten. This is the same rule 5b applies to any program design change: the
+  design snapshot of the last completed task no longer matches, so it's unusable until written again.
+  - 5b's fold today only knows "written once". 6a-1 adds `written = the latest COMPLETED task's design equals the
+    current design`, for cores only.
+  - Ordinary programs keep today's behaviour. Upgrading is its own plan.
+
+### 2. Writing a core (the programming caps)
+`programmingCap(utility, skills)` gains the core's rules (p.105–106):
+- **Core Rating ≤ ⌊Computer × 1.5⌋.** The cap uses the highest Computer of a team, and a team's usual +1 doesn't lift
+  it: the book ties the cap to "the programmer's Computer Skill × 1.5", as it ties black hammer's ⌈skill ÷ 2⌉.
+- **DINAB rating ≤ Computer** (the same highest Computer), set when written ("cannot be altered later" is the design
+  lock).
+  - `activeOptions` caps a rated option at the base rating. A core's DINAB is checked against the programmer at
+    `startDialog`.
+  - The DINAB cap is part of the cap check: "DINAB-9 exceeds Computer 8 (p.106)".
+- **Smart cores need DINAB:** `startDialog` refuses with `coreProblems`.
+
+Everything else is 5b programming unchanged: the test against the Core Rating, base time from the design size, the
+task period, tools, teams, freeze and Karma.
+
+### 3. Loading: a programming-like task on the core (p.106)
+**Its own record family on the core item**, folded like 5b's `prog:` records: `load:start:<n>`, `load:log:<n>:<id>`,
+`load:frozen:<n>`, `load:end:<n>`. `foldProgramming` takes a prefix (`"prog:"` or `"load:"`). The append-only design,
+server-arbitrated ids, the freeze-before-work rule and its recorded shortcut are all inherited, not re-invented.
+
+**The start (`loadDialog`)** is a button on a written core's row: "Load programs…".
+1. Pick programs from the decker's own program items: written, not frame cores. "Object-code copies of any programs
+   he has available" means the decker's own copies; worn or loaded state is irrelevant.
+2. **Checks (pure, in `module/rules/vr2-frames.mjs`):**
+   - **The total:** Σ base ratings (options excluded: "not including Option Ratings") ≤ `programCapacity`.
+   - **Whole programs only:** a program is copied at its own rating, and there is no partial-copy input.
+   - At least one program.
+3. **Loading Rating** = ⌈Σ ÷ 2⌉ (user ruling). Loading size = LR², and base time = size × 2 days. Genie: 6 + 4 = 10
+   → 5 → 25 Mp → 50 days, the printed example with the ÷ misprint fixed.
+4. **The test:** a Computer Test against ⌈the average base rating⌉ (user ruling). It uses `programmingSkillOf`, so the
+   Software concentration or Matrix Programming specialization may stand in, as p.106 says. Teams and tools work as
+   in programming ("Loading … is a task, similar to programming").
+5. **The start record carries the WHOLE load (requirement: loaded programs as full immutable copies).**
+   `load: [{ sourceId, name, source, system }]`:
+   - `system` is the program's source data, the authored fields from `item.toObject().system`: rating, multiplier,
+     category, offense, damageLevel, options, manufacturer;
+   - `source` is its compendium identity (`_stats.compendiumSource` or the core's sourceId flag), for
+     `programKey`-style identity checks;
+   - `sourceId` is the item id it was copied from, for display only.
+
+   Also `loadingRating`, `tn`, `baseTime`, and the core's design snapshot (`designOf(core)`).
+6. **The design is captured before the dialog and re-checked before the record,** as `startDialog` does for programs.
+   The core's design and every source program's design are both checked: a program edited during the roll means
+   "start again".
+
+**Work and completion** reuse 5b's `workDialog`, `freezePeriod` and `complete`, generalized by the prefix.
+- `complete` refuses if the core's design changed since the start.
+- Changes to the source programs after the start don't matter: the copies are already in the record.
+
+**The active load is derived, never written (requirement: loading completion).** `activeLoad(core)` is the snapshot of
+the latest load task with outcome `complete`, plus its task number (the load generation).
+- A newer completed load replaces it.
+- An abandoned or failed load leaves the previous one in place.
+- No separate "loaded" field exists that could be lost or overwrite a newer load.
+- A core whose design changed after the load completed ("written" false, §1) shows the load as unusable: "write
+  the core again".
+
+**Frame actual size (p.106)** = the core's actual size + Σ each copy's actual size with its options. Each copy's size
+comes from `programSizes` on its snapshot data. Genie: 1,200 + 144 + 48 = 1,392 Mp, a Vitest case. 6a-2 uses it for
+upload.
+
+### 4. UI (VR2.0)
+- **The program sheet** gets a **Frame core** section:
+  - kind (— / dumb / smart), Bod, Evasion, Masking, Sensor;
+  - Initiative points (smart only);
+  - the `coreProblems` list;
+  - capacity, the size line, and the loaded snapshot (read-only).
+- **The Matrix tab's program rows:** a core shows a **Core** badge with "dumb/smart, Core N", its loaded programs and
+  the frame's actual size. It shows **Load programs…** instead of the loaded toggle. Loading progress uses the
+  existing programming progress display with the `load:` fold.
+- **Prices:** a core is priced by `programSizes` like any program (p.107: price from rating and design size).
+
+### 5. Tests (6a-1)
+**Vitest:**
+- the Genie core size (1,200);
+- the dumb/smart multipliers;
+- `coreProblems` on each rule;
+- `UTILITY_OPTIONS.frameCore` with Sensitive refused;
+- `programmingCap` for cores: ⌊C × 1.5⌋, team, and the DINAB ≤ C check;
+- the Loading Rating and TN roundings (11 → 6; 4.5 → 5);
+- the Genie loading (10 → 25 Mp → 50 days; ÷ 5 successes → 10 days);
+- the capacity with initPoints;
+- `activeLoad`: latest complete wins, an abandon keeps the old one;
+- the frame actual size, 1,392.
+
+**Quench `sr2e.vr2-frames`:**
+- write a smart core with DINAB;
+- a smart core without DINAB refused;
+- DINAB above Computer refused;
+- load Attack + Cloak and complete, with the snapshot equal to the sources;
+- edit the source Attack afterwards: the load unchanged;
+- a second load replaces the first;
+- an abandoned load keeps the first;
+- changing the core's attributes makes it unwritten;
+- a core never counts as a usable utility.
 
 ## Requirements carried to the 6a / 6b / 6c plans (Codex R1, accepted)
 Each phase gets its own detailed plan, Codex-reviewed before code. It must answer:
