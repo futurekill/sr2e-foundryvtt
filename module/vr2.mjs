@@ -1437,7 +1437,17 @@ export async function vr2MatrixResist(defender, message) {
     const out = atkS > 0 ? matrixCombatOutcome(st.level, atkS, res.successes) : { level: null, boxes: 0 };
     const closes = [st.testMessageId, res.testMessageId, shield?.testMessageId].filter(Boolean);
     const lines = [];
-    if (shield) { lines.push(`Shield: −${shield.successes} attack success${shield.successes === 1 ? "" : "es"}.`); await addWear(defender, shield.ref, message.id); }
+    // Part 6a-2a (code R1 #1–#2): EVERY frame resolution — a full resist too — is one card-keyed receipt written by
+    // the sequencer; a resolver whose receipt lost reports nothing of its own, and the frame's Armor/Shield wear
+    // comes only from the winning receipt (replayed there). Armor wears only when it failed to absorb the hit (p.99).
+    const isFrame = defender.type === "frame";
+    let frameHit = null;
+    if (isFrame) {
+      frameHit = await (await import("./frames.mjs")).hitFrame(defender, message.id, out.level ? out.boxes : 0, out.level ? armorRef : null, shield?.ref ?? null);
+      if (!frameHit) return ui.notifications.warn(`${defender.name} is gone, or no GM is online: nothing applied.`);
+      if (!frameHit.mine) return ui.notifications.warn("That attack was resolved on another device while you rolled.");
+    }
+    if (shield) { lines.push(`Shield: −${shield.successes} attack success${shield.successes === 1 ? "" : "es"}.`); if (!isFrame) await addWear(defender, shield.ref, message.id); }
     const cls = st.icClass || st.icType;
     let crashed = false, text, crashChoiceFlag = null;
     if (!out.level) {
@@ -1451,15 +1461,15 @@ export async function vr2MatrixResist(defender, message) {
       const Y = await import("./vr2ic.mjs");
       const hit = defender.type === "character"
         ? await sessionQueue(defender, () => sameSession() ? matrixDamage(defender, out.boxes) : null)
-        // Part 6a-2a (R1 #9): ONE card-keyed fact via the sequencer; a second resolution writes nothing.
-        : defender.type === "frame" ? await (await import("./frames.mjs")).hitFrame(defender, message.id, out.boxes, armorRef, shield?.ref ?? null)
+        // Part 6a-2a (R1 #9): already written above, ONCE per card, by the sequencer.
+        : isFrame ? frameHit
         : (Y.isSequencer() ? await Y.sequencer(() => Y.icDamage(defender, out.boxes, message.id)) : await matrixDamage(defender, out.boxes));
       if (!hit) return ui.notifications.warn("That attack hit an earlier session: nothing applied.");
       const { before, after } = hit;
       crashed = before < MATRIX_MONITOR_MAX && after >= MATRIX_MONITOR_MAX;
       text = `${defender.name} takes ${LEVEL_NAMES[out.level]} Matrix damage: ${out.boxes} box${out.boxes === 1 ? "" : "es"} (${after}/${MATRIX_MONITOR_MAX}).`;
       // The Armor utility loses a point each time it fails to absorb a hit completely (p.99).
-      if (armorRef) { await addWear(defender, armorRef, message.id); lines.push(`${armorRef.name} loses a point.`); }
+      if (armorRef) { if (!isFrame) await addWear(defender, armorRef, message.id); lines.push(`${armorRef.name} loses a point.`); }
       const deck = defender.system.cyberdeck ?? {};
       if (defender.type === "character" && ["white", "gray"].includes(cls) && (deck.deckMode ?? "hot") === "hot") {
         if (out.level === "D") {

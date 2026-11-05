@@ -142,7 +142,7 @@ addHandlers({
     if (!frame || frame.type !== "frame" || frame.system.ownerUuid !== actor.uuid) return { ok: false, why: "no such frame" };
     if (frameState(frame).ended) return { ok: false, why: `${frame.name} has crashed` };
     await fact(actor, `frame-hit:${r.card}`, { type: "frameHit", upload: r.upload, card: r.card, boxes: Math.max(0, Number(r.boxes) || 0),
-      armor: r.armor ?? null, shield: r.shield ?? null });
+      armor: r.armor ?? null, shield: r.shield ?? null, nonce: r.nonce ?? null });
     await replayWear(actor);
     return { ok: true };
   }
@@ -280,7 +280,7 @@ async function removeFrame(frame) {
 export function reconcileAllFrames() {
   if (!isSequencer() || !isVR2()) return;
   sequencer(async () => {
-    for (const f of game.actors.filter(a => a.type === "frame")) if (!sync(f.system.ownerUuid)) await removeFrame(f);
+    for (const f of game.actors.filter(a => a.type === "frame")) if (!sync(f.system.ownerUuid) || sync(f.system.hostUuid)?.type !== "host") await removeFrame(f);
   }).catch(err => console.error("SR2E | frames", err));
   for (const f of game.actors.filter(a => a.type === "frame")) { const o = sync(f.system.ownerUuid); if (o) schedule(o); }
 }
@@ -288,18 +288,21 @@ export function reconcileAllFrames() {
 // ── Damage (the resist path calls this) ──────────────────────────────────────
 
 /**
- * Apply a resolved hit to a frame (§5, R1 #9): a request the sequencer turns into ONE card-keyed fact. Waits for it
- * (a GM is always online) and returns the monitor before and after, or null.
+ * Apply a resolved hit to a frame (§5, R1 #9): a request the sequencer turns into ONE card-keyed fact (a full resist
+ * too: 0 boxes). Waits for it (a GM is always online) and returns the monitor before and after, and whether THIS
+ * resolution's receipt won (code R1 #2); null if nothing was written.
  */
 export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = null) {
   const owner = sync(frame.system.ownerUuid);
   if (!owner) return null;
-  const before = frameState(frame).monitor;
-  await request(owner, "frameHit", { upload: frame.system.uploadId || frame.id, card, boxes, armor: armorRef, shield: shieldRef });
+  const before = frameState(frame).monitor, nonce = foundry.utils.randomID();
+  const receipt = () => recordsOf(owner).find(e => e.type === "frameHit" && e.card === card);
+  if (!receipt()) await request(owner, "frameHit", { upload: frame.system.uploadId || frame.id, card, boxes, armor: armorRef, shield: shieldRef, nonce });
   const t0 = Date.now();
-  while (!recordsOf(owner).some(e => e.type === "frameHit" && e.card === card) && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
-  if (!recordsOf(owner).some(e => e.type === "frameHit" && e.card === card)) return null;
-  return { before, after: frameState(frame).monitor };
+  while (!receipt() && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
+  const r = receipt();
+  if (!r) return null;
+  return { before, after: frameState(frame).monitor, mine: r.nonce === nonce };
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
@@ -329,6 +332,8 @@ export function registerFrameHooks() {
   Hooks.on("updateActor", (a, changes) => {
     if (a.type === "character" && foundry.utils.hasProperty(changes, "flags.sr2e.vr2Session")) schedule(a);
   });
+  // An owner or a host deleted: their frames end (derived) and are swept at once (code R1 #3).
+  Hooks.on("deleteActor", (a) => { if (["character", "host"].includes(a.type)) reconcileAllFrames(); });
   Hooks.once("ready", reconcileAllFrames);
   Hooks.on("userConnected", () => reconcileAllFrames());
   Hooks.on("renderChatMessageHTML", (message, html) => {
