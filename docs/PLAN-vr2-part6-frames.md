@@ -646,9 +646,10 @@ depends on that write having happened: an interrupted pass is simply redone.
   don't follow the decker to other systems", p.106): `departedSince(owner, …)` since the frame's `upload-done` seq
   (§2).
 - **its monitor is full (R1 #8):** derived from its `frameHit` facts, so a crash can't be missed between two writes;
-- **its host is offline** (`hostShutdown(host).offline`; R1 #7): derived from the host's own shutdown records, so it
-  replays even if `tickShutdown` was interrupted. It applies to uploads too: an upload to an offline host ends. p.53:
-  "a shutdown wipes out all frames";
+- **its host has shut down since it started** (R1 #7, R2 #1): derived from the host's own shutdown records: any shutdown
+  run that went offline after the frame's (or the upload's) start seq, even if it was since reset. It's not just
+  "offline now", so a reset can't revive a frame the shutdown wiped. It replays even if `tickShutdown` was
+  interrupted, and it applies to uploads too. p.53: "a shutdown wipes out all frames";
 - **its host or its owner is deleted (R1 #6):** derived from the missing document. The owner's log is gone then,
   so no fact is needed or written;
 - **the GM deletes it:** a `deleteActor` hook on a frame writes `frame-end … why: "deleted"` if none exists.
@@ -676,7 +677,10 @@ helpers:
 | black IC hitting a frame | biofeedback on a decker | plain Matrix damage at the IC's level/Power: "as an icon, no biofeedback" (a Risks decision in this plan) |
 | attribute / track / hog / slow effects | personas or IC | refused vs a frame until 6a-2b |
 | resistance (`vr2MatrixResist` ~1373) | ic / character | frame: Bod (+ its Armor copy) vs Power, Shield copy via `askShield`; resisted by the frame's owner or the GM |
-| damage write (`matrixDamage` ~1307) | ic / persona path | frame (R1 #9): the resolver sends `frameHit { uploadId, card, boxes, armorRef, shieldRef }`; the sequencer writes `frameHit:<card>` ONCE (keyed by the card, server-arbitrated), and the wear of the Armor/Shield copy with it. A second resolution of the same card (player and GM at once, or a retry) writes nothing |
+| damage write (`matrixDamage` ~1307) | ic / persona path | frame (R1 #9): the resolver sends `frameHit { uploadId, card, boxes, armorRef, shieldRef }`; the sequencer writes `frameHit:<card>` ONCE (keyed by the card, server-arbitrated), and the wear of the Armor/Shield copy with it. A second resolution of the same card (player and GM at once, or a retry) writes nothing. The copy's wear goes to
+another document, so the sequencer replays it from the winning receipt (R2 #2): `addWear` is card-keyed and
+idempotent, and `reconcileFrames` re-applies the wear named in every `frameHit` whose card isn't in the copy's
+wear yet |
 | crash at 10 boxes | IC crash / persona dump | derived: the monitor is full (§4) |
 | Scan Icon (6a-0) | deckers | + frames: MPCP = Core Rating, persona ratings, Response Increase 0 |
 | Locate Frame (system op) | no frames existed | on success, a GM whisper listing the SMART frames on that host ("locates any smart frames or SKs running on the host", p.115) |

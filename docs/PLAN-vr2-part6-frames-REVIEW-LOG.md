@@ -246,3 +246,15 @@ All nine findings were accepted. The common fix is to derive more from durable f
   departure. The `frame-end` fact is for the record only.
 - **#9:** frame damage is a card-keyed `frameHit` fact written once by the sequencer, and the monitor is derived
   from those facts.
+
+## 6a-2a Round 2 — Codex (fresh session, brief; ~89k input tokens)
+
+- **§4 — Broken shutdown fix:** `hostShutdown(host).offline` tests current state. If shutdown completes, reconciliation is interrupted, and `resetShutdown` runs, a smart frame can survive the shutdown. **Fix:** derive termination from any completed shutdown after the upload began, including reset lifecycles.
+
+- **§5 — Incomplete damage receipt fix:** `frameHit` and `addWear` update separate documents. Interruption after recording the hit can lose Armor/Shield wear permanently because retries “write nothing.” **Fix:** replay outstanding wear from the winning `frameHit` receipt, using `addWear`’s card-keyed idempotency.
+
+VERDICT: REVISE
+
+### Claude's response
+- **#1 accepted.** A frame is ended by any shutdown run that went offline after its start, even one reset since.
+- **#2 accepted.** The Armor/Shield wear is replayed from the winning `frameHit` receipt; `addWear` is card-keyed.
