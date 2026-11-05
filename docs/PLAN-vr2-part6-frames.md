@@ -1104,6 +1104,212 @@ Nothing is rolled: p.107 states no test.
 - (R1) two cripplers resolved at once on a frame at Bod 2 (floor 1): the second sees the first's loss;
 - (R1) a non-GM `triggerFire` request is refused; an interrupted trigger report is posted once on the next pass.
 
+## 6a-2c in detail: smart frames
+
+**Status: plan under review.**
+
+Builds on 6a-2a (0.136.0: the frame actor, upload, lifecycle, frames as targets) and 6a-2b (0.137.0: the command
+context, weapon carriers, DINAB on a core, decoy frames, event triggers).
+
+**The pages behind it** were rendered for this section (2026-11-05): Frames and Frame Core (p.105), DINAB and Cores
+and Smart Frame Initiative (p.106), and Smart Frames (p.107).
+- **p.105.** "Smart frames are capable of independent existence in the Matrix, whether their creator is logged on or
+  not." Dumb frames, by contrast, "are linked to the decker's persona". "The Reaction attribute of a smart frame is
+  equal to the frame's Core Rating."
+- **p.106.**
+  - "All smart frame cores must be programmed with the DINAB option, which acts as the core's Computer Skill."
+  - "Smart frames have their own Reaction and Initiative Ratings": 1D6, plus one die per Core Rating point given to
+    Initiative.
+- **p.107.**
+  - "Smart frames can perform any action a dumb frame can. In addition, smart frames have their own 'skill' (their
+    DINAB Rating), and their own Response and Initiative ratings."
+  - "The decker uses a Free Action to give the smart frame a basic order, and the frame then carries out that order on
+    its own."
+  - "The frame has its own actions. In game terms, the player who controls the decker runs the frame as well, but the
+    frame's actions do not require any attention from the decker and do not use up any of the character's actions."
+
+**User rulings (2026-11-05):**
+1. **A smart frame keeps its OWN security tally on its host.** IC that its tally triggers goes after the frame. Trace
+   IC can't trace it: it has no jackpoint of its own. This holds whether its decker is logged on or not.
+2. **A basic order needs the decker logged on to the frame's host**, the same rule as event-trigger delivery (p.107).
+
+**Out of 6a-2c:**
+- SKs (6b) and command sets (6c);
+- a smart frame running Decoy, because decoy frames are dumb frames ("Any dumb frame can act as … decoy", p.107);
+- a smart frame running Redirect Datatrail, because it has no datatrail of its own (ruling 1).
+
+Both refusals name the rule.
+
+### 1. The smart frame acts as itself: the execution context
+6a-2b's `ctx = { frame }` had the decker roll for the frame. A smart frame's action uses `ctx = { frame, smart: true }`
+and is called with the FRAME as the acting actor: `systemTestNow(frame, host, op, { ctx })`, `attackOnce(frame, ctx)`,
+`vr2Maneuver(frame, ctx)` and `vr2ScanIcon(frame, ctx)`. So the commander and the icon are the same actor:
+
+| Read | A smart frame |
+|---|---|
+| who rolls | the frame (`frame.rollSuccessTest`), from its sheet, by its owner (the decker's player) or the GM |
+| skill | its DINAB rating, as Computer (p.106). Untrained never applies |
+| pools, Karma | none: a frame has neither. The dialogs already show none for an actor without them |
+| programs, attributes | its own copies and its derived `matrixPersona` |
+| host | its own (`frame.system.hostUuid`): it never logs on or moves |
+| session, tally, sheaf | its OWN session on that host (§2), never the decker's (ruling 1) |
+| Detection Factor | its Masking and Sleaze, less its own session's suppressions (`vr2DetectionFactor(frame, frame)`) |
+| action | its own, never the decker's. No `commitAction` (that only touches characters), and no `ownAction`: a smart frame acting doesn't end its decker's decoy frame |
+
+**`smartProblem(frame, { op, copy, after })`** in frames.mjs is the smart counterpart of `commandProblem`. It is
+checked before anything is spent, and `after` is checked after the roll (as 6a-2b R2 #1). It refuses:
+- not a smart frame, or ended;
+- the user doesn't own the frame;
+- its session is missing, or not on its host;
+- its host is shut down;
+- an operation in `NO_FRAME_OPS`, `decoy` or `redirectDatatrail` (out of scope above);
+- a copy that isn't in `activePrograms(frame)`.
+
+It does NOT need the decker anywhere: smart frames act "whether their creator is logged on or not".
+
+**DINAB as the skill doesn't wear.** p.103's −1 per failure is the DINAB *option running a program*; on a smart core
+p.106 makes it "the core's Computer Skill". A smart frame's test with its own skill is a skill test, so nothing wears.
+*Claude's reading, flagged in Risks.* A COPY carrying its own DINAB option still runs and wears as 5b, on the frame.
+
+**Every card a smart frame makes** carries `byFrame: true`. Its `actorUuid` and `attackerUuid` are the frame itself.
+
+### 2. The smart frame's own session (ruling 1)
+**Created with the frame.** `reconcileDocs` (6a-2a) creates a smart frame with
+`flags.sr2e.vr2Session = { id: <random>, hostUuid, hostName, tally: 0, receipts: {}, conn: null }` in the same
+`Actor.create` call, so the frame and its session appear in one write.
+- `liveSession(frame)` already accepts it: a session with `conn: null` on an actor with no `vr2Conn`.
+- No `newSession`, `sessionFor` or ledger: the frame never moves, so 7a's scopes and carries don't apply. The host's
+  own sheaf is the one that fires (`tallyUpdate` reads `s.owner ?? s.hostUuid`).
+
+**Tally events.** `applyTallyEvent` already resolves `ev.actorUuid`, which is the frame. Its writer is the message's
+author, who owns the frame. `tallyUpdate`'s trace acceleration reads `vr2Conn`, so it never applies. The sheaf
+pending/delivery path (`vr2SheafPending`, `deliverSheaf`, its `updateActor` hook) works on any actor. The GM's sheaf
+card names the frame.
+
+**IC triggered by its tally go after the frame.** The GM attacks the frame's token: 6a-2a's frame-target path, as
+today.
+
+**Trace IC can't trace a smart frame (ruling 1).** `attackOnce`'s existing refusal of trace IC vs a frame gets a
+smart-frame message: "a smart frame has no jackpoint to trace (its own existence, p.105)". A dumb frame keeps 6a-2b's
+"target the frame's owner".
+
+**Crash choices and suppressions on the frame's own session:**
+- an IC that a smart frame's attack crashes offers the suppress/register choice on the FRAME's session. The card's
+  `commanderUuid` and `commanderSession` are the frame's own (see §3), and `crashChoice` works on any actor with a
+  live session;
+- a data bomb that a smart frame sets off: `securityTarget(frame, st)` already returns the frame. The bomb's tally
+  prompt is the frame's session.
+
+### 3. Attacks by a smart frame
+`attackOnce(frame, { frame, smart: true })`:
+- the non-IC branch with `icon = actor = frame`;
+- `attackerComputer` = its DINAB (the Shield TN, p.100);
+- no deathworms;
+- the card's commander fields are the frame's own: `commanderUuid = frame.uuid`,
+  `commanderSession = liveSession(frame).id`.
+
+**A frame attacker key.** `attackerKeyOf(frame)` is "" today (no `vr2Conn`), and an empty key would break locks and
+tracks. A smart frame's key is `frame:<frameUuid>@<uploadId>`:
+- in vr2ic-rules.mjs, `isFrameKey(key)`, and `parseAttackerKey` returns `{ kind: "frame", uuid, upload }` for it;
+- `attackerEnded(key)` treats a frame key as ended when the frame has ended (`frameState`). So a smart frame's lock
+  or Track ends with it, as a decker's does with his connection;
+- every site that branches on `isDeckKey` to name or find the attacker gains the frame branch. Grepped:
+  - vr2.mjs ~2271, the leave/lock listing;
+  - vr2ic.mjs ~389 (the attacker's incarnation snapshot), ~1557, ~1709 and ~1820.
+
+**Admission.** A smart frame's attack on a connected decker is admitted as a decker's is: `admitDeckerCards` and its
+hook already accept `attackerType: "frame"` (6a-2b). The key is the frame key, and the incarnation (`attackerInc`) is
+0: a frame has no crash incarnations. It ends instead.
+
+**Track by a smart frame.** The trace fact's `via` (6a-2b) is the frame, so Relocate reads its Sensor and the track
+dies with it.
+
+**Slow by a smart frame.** `slowResult` writes `deckerUuid` = the frame and `session` = its session.
+- **The Suppress button (p.99)** lowers the suppressor's Detection Factor while the IC is hung. Its request goes on
+  the frame's OWNER's log with `frame: uploadId`: a frame has no log the sequencer passes, but its owner's facts
+  already carry it (6a-2a).
+- **The `slowSuppress` and `slowRelease` handlers** gain a frame branch: the session checked is the frame's, and the
+  fact's `deckerUuid` is the frame.
+- **`vr2DetectionFactor`'s Slow term** already counts suppressions whose `deckerUuid` is the actor's uuid, so the
+  frame's Detection Factor drops.
+
+### 4. Maneuvers, Scan Icon, triggers
+- **Maneuvers:** `vr2Maneuver(frame, ctx)` rolls the frame's Evasion with its Cloak copy.
+  - `tallyHolder` (6a-2b) becomes: a DUMB frame → its owner; a SMART frame → itself. A smart frame's evasion of IC is
+    counted against its own tally.
+- **Scan Icon:** its Scanner copy; it rolls its DINAB.
+- **Event triggers:** setting one on a smart frame is a basic order (§5), so it needs the decker on the host. Firing
+  and delivery are 6a-2b's, unchanged; the same-host check now really bites, because a smart frame outlives its
+  decker's visit.
+
+### 5. Basic orders (p.107; ruling 2)
+- **Order…** is a button on the decker's row for a running SMART frame (Matrix tab). It takes a free-text order, for
+  example "find and destroy the Black IC".
+- **A Free Action:** no `commitAction`, and no `ownAction`. Giving an order is talking to the frame, not acting on the
+  host, so it doesn't end a decoy frame.
+- **Refused unless** the decker is logged on to the frame's host (`currentPlace` under topology, else his live
+  session's host) and passes `vr2ActionGuard`.
+- **Recorded** as `vr2:order:<uploadId>:<id>` `{ type: "frameOrder", upload, text }` on the owner's log
+  (`recordEvent`, the decker's client). The frame's sheet shows the latest order, and a card is whispered to the
+  owner and the GMs.
+- **Its effect is narrative, and the player plays it out:** "the player who controls the decker runs the frame as
+  well". The order isn't machine-checked against the frame's actions, because the book gives an order no mechanics.
+- **An event trigger** set this way is an order with its `trigger` record (6a-2b §7), and the same host check applies.
+
+### 6. The frame's sheet: acting
+The smart frame's sheet gets the action buttons its owner and the GM use:
+- **System Operation…**, **Attack**, **Maneuver** and **Scan Icon**, each calling the shared function with
+  `ctx = { frame, smart: true }`;
+- the operation dialog is 6a-2b's `commandFrame` dialog, reused. With `smart`:
+  - it shows no Hacking Pool or Karma;
+  - it offers no core-DINAB checkbox: the DINAB is its skill;
+  - its title is the frame's;
+  - "Set an event trigger" is offered from the decker's **Order…** instead (§5).
+
+### 7. Initiative and combat (p.106; Decided #2)
+- **Initiative:** `SR2EActor#_getInitiativeParts` gets a `frame` branch. A smart frame is `{ base: coreRating, dice:
+  1 + initPoints, matrix: true }`, with the note "smart frame". A dumb frame has none; it's never a combatant.
+- **Joining combat** ("it joins an active combat when it's uploaded"):
+  - when the GM client (`reconcileDocs`) has created a smart frame's token, and its OWNER is a combatant in a started
+    combat on that token's scene, the frame becomes a combatant of that combat;
+  - this happens once, as the fact `frame-joined:<uploadId>:<combatId>` on the owner's log. A GM who removes the
+    combatant isn't overridden, and a restart doesn't re-add it;
+  - its initiative is rolled at once with the combat's own `rollInitiative`, as a late joiner's would be.
+- **Passes:** SR2ECombat's passes already work per combatant.
+- **Its own actions:** the frame acts on its own turns from its sheet. The system doesn't police action counts for
+  any actor, and frames are no exception.
+- **The phase key of a copy's own DINAB option** (5b: one run per phase). `phaseKey` (6a-2b) maps a frame to its
+  owner's phase. That is right for a dumb frame. A SMART frame that's a combatant uses its OWN phase, and otherwise
+  its owner's.
+- **Ended:** 6a-2a's cleanup already deletes the combatants of an ended frame.
+
+### 8. Reactive security on a smart frame's tests
+`offerTar` (vr2ic.mjs ~577): its buttons' `data-actor` is the card's `actorUuid`, which is the frame.
+- **Tar:** `tarStrike(frame, …)`. `ref.icon` is the frame (`useRef`), so 6a-2b's frame recipient applies.
+  `liveConn(frame)` is null and the deck is null, so there's no corruption (a frame has no storage).
+- **Worms:** never offered for a card with `byFrame` (no MPCP chip, as in 6a-2b).
+- **Poison scramble:** `poisonTest` reads Computer from skill items. For a frame it reads its DINAB (its skill).
+- **Data bombs:** above (§2).
+
+### 9. Tests (6a-2c)
+**Vitest:**
+- `parseAttackerKey` and `isFrameKey` on a frame key;
+- the frame branch of the initiative parts. The pure piece is `frameInitiative`, which exists; add a test that a dumb
+  frame has none.
+
+**Quench `sr2e.vr2-frames` additions:**
+- a smart frame's own session exists at creation; its System Test rolls its DINAB dice, raises ITS tally, not the
+  decker's, and has no pools;
+- it acts with its decker logged off (jacked out): allowed;
+- a smart frame's Decoy and Redirect Datatrail are refused; a dumb frame's Command is unchanged;
+- trace IC vs a smart frame is refused with the no-jackpoint message;
+- an IC its attack crashes offers the choice on the frame's session;
+- a black-hammer lock from a smart frame ends when the frame crashes (the frame key);
+- an Order… is refused off the frame's host, and accepted on it: one record, shown on the sheet;
+- initiative: Core 6 with 2 points → base 6, 3D6; uploaded while its decker is in a started combat, it joins once,
+  and stays out after the GM removes it;
+- a copy's own DINAB on a smart combatant frame claims the frame's own phase.
+
 ## Requirements carried to the 6a / 6b / 6c plans (Codex R1, accepted)
 Each phase gets its own detailed plan, Codex-reviewed before code. It must answer:
 - **6a, frame decoys:** a separate mode from plain decoys (security goes after the frame, the decker stays inactive,
@@ -1152,6 +1358,8 @@ Each phase gets its own detailed plan, Codex-reviewed before code. It must answe
 - **6a-2b readings (Claude's, flagged for the user):** a Null Operation doesn't end a decoy frame (it is the book's
   way to wait, p.117); a decoy frame takes ALL proactive non-trace IC attacks with no die (p.107 "all security
   measures"), and outranks a 6a-0 decoy while it lives; cripplers hit a frame's attributes (it is an icon with them).
+- **6a-2c reading (Claude's, flagged for the user):** a smart frame's own DINAB-as-skill doesn't wear on failure
+  (p.103's wear is the option running a program; p.106 makes a smart core's DINAB its Computer skill).
 - **Concurrency:** a frame actor created by the GM client for a player's upload, and its crash on logoff through the
   sequencer, so a logoff on one device and a command on another can't race.
 - **Scale:** many frames on a host make many combatants. Fine for table scale.

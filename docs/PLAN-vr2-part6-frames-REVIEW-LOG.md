@@ -450,3 +450,8 @@ No findings. All three fixes are correct and complete within the requested scope
 VERDICT: APPROVED
 
 **6a-2b code APPROVED in round 2.**
+
+# 6a-2c plan review (smart frames)
+Started 2026-11-05. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round, brief names the code locations.
+User rulings before review: a smart frame keeps its own tally (trace can't trace it); orders need the decker on the
+frame's host.
