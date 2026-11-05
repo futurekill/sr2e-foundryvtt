@@ -1,6 +1,6 @@
 # Plan: VR2.0 part 7: grid topology
 _Draft 1 (2026-11-04). Reviewed PHASE BY PHASE (the part-6 lesson). **7a Codex-APPROVED round 3; BUILT and released in 0.132.0 (code review approved round 4).**
-**7b Codex-APPROVED round 4; BUILT and released in 0.133.0 (code review approved round 2)**; 7c gets its own section later. No code before review._
+**7b Codex-APPROVED round 4; BUILT and released in 0.133.0 (code review approved round 2)**; **"7c in detail" is under review** (2026-11-05). No code before review._
 
 Sources (rendered, image-only PDF; book = PDF − 8):
 - Matrix Topology pp.14–15;
@@ -688,6 +688,141 @@ so the answer is the GM's.
 - two redirects on one LTG count once; on two LTGs, twice. The redirect card's TN uses the jackpoint's trace
   modifier;
 - topology off: the trace, redirects and hosts are unchanged.
+
+## 7c in detail: satellite links (the part under review)
+
+Builds on 7a and 7b as released (0.132.0, 0.133.0). The pages behind it were rendered for this section (2026-11-05):
+**Satellite Links** (p.30), **Satlink Interface** (p.88), and the Random Host System-Rating Table (p.31).
+- **p.30.**
+  - "A decker [who] taps directly into a communications satellite … trades higher Access target numbers for partial
+    immunity to Trace IC. Signal lag over the satlink also reduces Reaction by −2."
+  - "While Trace IC can locate the satellite jackpoint, it cannot pinpoint the decker's physical location, making
+    physical response to the Matrix intrusion impossible. The other effects of a successful trace still apply."
+  - "To access the Matrix via a satellite, a decker must have a deck equipped with a satlink interface … The Base Time
+    to isolate the satellite and lock onto its transponder is 3 minutes … a successful Computer Test against a target
+    number based on the conditions … Satlink Target Numbers Table":
+    - open country, clear view of horizon 2;
+    - some obstructions 3;
+    - mountains or heavy forest 6;
+    - suburban 3;
+    - light urban 6;
+    - downtown urban 8;
+    - bad weather (more than overcast) +2.
+  - "Failure to achieve any successes means … fails to locate the satellite or lock on to its transponder … another
+    attempt after five minutes or so, and more frequently in dire situations."
+  - "For game purposes, satellites function as LTGs but are classified as Orange-Average or even Orange-Hard systems
+    with no reduction in Subsystem Ratings. Rate military and private corporate comsats as Red-Hard."
+  - "Once the decker locates the satellite, he can perform a Logon to LTG operation to access it. From the satellite,
+    a decker can perform a Logon to RTG operation to any RTG on earth. He can access most systems in near-earth orbit
+    as well, if they use that particular satellite."
+  - "Security tallies generated on a satellite carry over to the RTG that the decker accesses."
+- **p.28 (Jackpoints):** satellite uplink: Trace Factor "see p.30", Access +2, Base Bandwidth 50. 7a already applies
+  the +2. Bandwidth stays out of scope.
+- **p.88 (Satlink Interface):** a deck-mounted interface plus a dish.
+  - A large portable dish reduces the locate TN by 1, and a fixed-base earth station by 2.
+  - The standard dish and the temporary spray-polymer dish change nothing.
+  - Dish prices and interface construction belong to the purchase and deck-building systems: out of scope.
+- **p.31:** Average systems: Security Value 1D3+6, subsystems 2D3+9. Hard: 2D3+6 and 1D6+12. "No reduction in
+  Subsystem Ratings" means these rolls stand as rolled, unlike the unlisted public grid's −2.
+
+All of 7c needs `vr2Topology`, except the satlink's Reaction −2, which applies whenever the Matrix uses VR2.0 and the
+connection's jackpoint kind is satellite (the kind's numbers already apply then).
+
+### 1. The satlink interface
+- `deckModeFields()` gains:
+  - `satlink`, a BooleanField, initial false;
+  - `satDish`, a StringField from `standard | large | fixed | temporary`, initial `standard`, `blank: false`.
+- These are the same fields ICCM uses. They live on deck items and the manual `system.cyberdeck`, and
+  `_snapshotActiveDeck` copies them: add both to its `keys` and its `blank` defaults.
+- The deck sheet and the manual cyberdeck block get a checkbox and a dish select, beside ICCM.
+- Migration: none. The defaults mean "no satlink", which is true of every existing deck.
+
+### 2. Satellites are places
+- `HostData.kind` gains `satellite`. That is a choice added to an existing StringField, so existing documents stay
+  valid. 7a's trap check applies after the schema change: reload and check `invalidDocumentIds`.
+- In the pure rules (`module/rules/vr2-grids.mjs`):
+  - `GRID_KINDS` includes `satellite`: a satellite is a grid ("functions as an LTG").
+  - `GRID_OPS.satellite` = the LTG's operations (Redirect Datatrail).
+  - `scopeOf` → `satellite_<id>`, its own scope and owner, so a satellite's own sheaf fires.
+  - `traceClass` → `grid: true` with that scope. A trace started there loses interest when the decker leaves the
+    satellite (7b's rule, with the satellite as the "same RTG" set of one).
+- `reachable`, on a satellite S:
+  - Logon to RTG → any RTG ("to any RTG on earth");
+  - Logon to Host → any host with `grid` = S ("near-earth orbit … if they use that particular satellite");
+  - Logon to LTG → nothing.
+- **New grid…** gains a **Satellite** choice: Orange-Average, Orange-Hard or Red-Hard (military or corporate). It
+  rolls the p.31 dice in a visible chat roll, with no reduction, and creates a `kind: satellite` host. The pure
+  `satelliteRatings(difficulty, dice)` is tested on every boundary.
+
+### 3. Reaching the satellite
+**From a satellite jackpoint.** At a satellite-kind jackpoint (7a's snapshot, `connJackpoint(actor).kind ===
+"satellite"`), `reachable` with no place allows only Logon to LTG, and only to a `kind: satellite` place. That
+replaces 7a's interim "a satellite jackpoint acts as trid". If the jackpoint is wired to a satellite, it must be that
+one; unwired, any satellite.
+
+Two conditions, both checked in `reachable`, with the caller passing them in:
+- **a satlink deck:** `actor.system.cyberdeck.satlink`. Without it: "This deck has no satlink interface (VR2.0
+  p.88)";
+- **a lock on the satellite:** `flags.sr2e.vr2SatLock = { conn, card, ok }` with this connection's `conn` and `ok`
+  true. Without it: "Lock on to the satellite first (Locate satellite, p.30)".
+
+**Locate satellite.** A new Matrix-tab button, shown under topology while the decker is at a satellite jackpoint
+with no place yet. Its dialog:
+- **Conditions:** the six rows of the table, with their TN;
+- **Bad weather:** a checkbox for +2;
+- **Dish:** from the deck's `satDish`. Large −1, fixed-base −2, never below 2.
+
+It is a Computer Test with Hacking Pool and Karma, as other Computer Tests (a skill test, not a System Test: no host
+rolls, no tally).
+- **Successes > 0:** locked. The card says "isolated and locked on in 3 minutes ÷ successes" (SR2 base time).
+  The test runs in the `vr2op` queue, and the decker's client writes `vr2SatLock { conn, card, ok: true }`.
+- **0 successes:** the card says "no lock; another try in about five minutes (sooner in dire situations)". The
+  timing is the GM's (p.30: "as a rule of thumb"). Retrying replaces the lock record.
+- **Karma:** 7a's `updateChatMessage` hook also watches this card (`flags.sr2e.satLock` on the message). A reroll
+  that turns 0 into a success rewrites `ok` for the same `card` and `conn`. Deleting the card changes nothing.
+- A new connection needs a new lock. The record carries `conn`.
+
+### 4. On the satellite
+- **The tally carries to the RTG** (p.30, "carry over to the RTG that the decker accesses"). This reuses 7a's PLTG
+  carry exactly:
+  - a Logon to RTG from a satellite snapshots `carry = { tally: scopeTally(actor, satellite) }`;
+  - on its first `ok`, the carry event adds `max(0, carry − the RTG scope's seed)`, `exact` (no trace
+    acceleration), crossing the RTG's sheaf then;
+  - the condition in `systemTestNow` becomes: target is a PLTG, OR the decker is on a satellite and the operation is
+    Logon to RTG.
+- **Reaction −2** (signal lag; VR2.0, satellite jackpoint, topology on or off): in the Matrix-initiative branch of
+  `getInitiative` (documents/actor.mjs ~972), `naturalReaction − 2`, min 1, with the note "satlink lag −2". It is read
+  from `connJackpoint(actor).kind`.
+- **Trace finds the satellite, not the decker** (p.30):
+  - a trace that completes on a connection whose jackpoint kind is satellite still marks the decker traced (the tally
+    acceleration and the −1 to IC attacks; "the other effects … still apply");
+  - `noticeTraces`' located card replaces the physical-location text and the Security Asset Response Times table with
+    "It locates the satellite uplink: no physical location, so no physical response is possible (VR2.0 p.30)";
+  - `governsJackpoint` is false for a satellite jackpoint, so there's never a dump button. A satellite jackpoint
+    isn't wired to an RTG's LTG, and the p.47 dump needs "the RTG that governs the decker's jackpoint".
+- **The datatrail step on exit** (part 3: a trace still running when the decker leaves keeps the jackpoint findable
+  for 1D6−1 turns) still runs. What a late lock finds is the satellite, and the step's card says so.
+
+### 5. Tests (7c)
+**Vitest:**
+- `satelliteRatings` on the min and max of every die;
+- `scopeOf` and `traceClass` for a satellite;
+- `reachable`:
+  - from a satellite jackpoint, refused without a satlink, refused without a lock, then allowed only to a satellite
+    (only its wired one when wired);
+  - on a satellite: any RTG, its hosts, no LTG;
+- `GRID_OPS.satellite`;
+- the locate TN from conditions, weather and dish, floored at 2.
+
+**Quench `sr2e.vr2-grids` additions:**
+- a satellite jackpoint with no satlink deck: Logon to LTG refused;
+- with one: refused until **Locate satellite** succeeds, then onto the satellite;
+- a Karma reroll on a failed lock locks on;
+- the satellite's tally carries into the RTG when the logon succeeds, and only then;
+- the initiative note shows −2 Reaction on a satellite connection;
+- a completed trace on a satellite connection: the decker is traced, and the card says no physical location, with no
+  dump button;
+- topology off: a satellite jackpoint still gives Access +2 and −2 Reaction, and nothing else changes.
 
 ## Key decisions & trade-offs
 - **Grids are Host actors**, not a new type: zero changes to System Tests, IC and alerts. The cost: a GM must create
