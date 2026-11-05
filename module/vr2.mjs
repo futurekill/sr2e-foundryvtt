@@ -358,7 +358,9 @@ export function vr2DisconnectToGrid(actor) {
     if (!grid) return ui.notifications.warn("Disconnect to grid works from a host attached to a grid (VR2.0 p.14).");
     const s = await sessionFor(actor, grid);
     if (!s) return;
-    if (s.scope) await actor.update({ [`flags.sr2e.vr2Entered.${s.scope}`]: s.conn });
+    // On the grid now: entered, so no failed-access clock (code R3 #1).
+    if (s.scope) await actor.update({ [`flags.sr2e.vr2Entered.${s.scope}`]: s.conn, "flags.sr2e.vr2Session.forgetAt": null,
+      ...(actor.flags?.sr2e?.vr2Tallies?.[s.scope]?.forgetAt != null ? { [`flags.sr2e.vr2Tallies.${s.scope}.forgetAt`]: null } : {}) });
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">
       ${esc(actor.name)} disconnects from ${esc(at.name)} and is back on ${esc(grid.name)} (VR2.0 p.14).</div>` });
     return s;
