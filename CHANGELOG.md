@@ -16,6 +16,11 @@
   - A set is finished on the connection and host session that started it.
 - How-To Guides: *Leave a command set (VR2.0)*.
 
+### Changed
+- **Character sheet header:** one tidy grid with no dead space. The portrait now spans the name, race and condition
+  rows (it was a small square with empty space under it); the shadowtalk fills the right column beside them; the stats
+  band runs the full width, under the portrait too. Without shadowtalk, the rows take the full width.
+
 ## 0.139.0 — 2026-11-05
 
 ### Added

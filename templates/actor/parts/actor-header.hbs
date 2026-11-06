@@ -1,24 +1,22 @@
-<section class="sr2e-sheet-header flexrow">
+{{!-- One grid (css: SHEET HEADER): the portrait spans the name, race and condition rows; the shadowtalk spans the same
+     rows on the right; anything wider (shapeshifter rows, the stats band) runs the full width beneath. --}}
+<section class="sr2e-sheet-header {{#if shadowtalk}}has-talk{{/if}}">
   <div class="profile-img">
     <img src="{{actor.img}}" alt="{{actor.name}}" data-action="editImage" title="Click to change portrait" style="cursor:pointer;" />
   </div>
-  <div class="header-info flexcol">
 
-    {{!-- Row 1: Name + shadowtalk banter (fills the unused top-right space) --}}
-    <div class="header-name-row flexrow">
-      <div class="char-name-stack flexcol">
-        <input type="text" name="name" value="{{actor.name}}" placeholder="Street Name" class="char-name-input"
-               title="The handle this character runs under. Foundry uses it for the token, the sidebar and chat cards." />
-        <input type="text" name="system.realName" value="{{system.realName}}" placeholder="Government name (optional)"
-               class="char-realname-input" title="The name on the SIN, if the character admits to one. Never shown on tokens or chat." />
-      </div>
-      {{#if shadowtalk}}
-      <div class="sr2e-shadowtalk header-shadowtalk" title="Shadowland chatter — set frequency in system settings">
-        <span>&gt;&gt;&gt;&gt;&gt;[{{shadowtalk.text}}]&lt;&lt;&lt;&lt;&lt;</span>
-        <span class="sr2e-shadowtalk-by">— {{shadowtalk.by}}</span>
-      </div>
-      {{/if}}
-    </div>
+  <div class="char-name-stack flexcol">
+    <input type="text" name="name" value="{{actor.name}}" placeholder="Street Name" class="char-name-input"
+           title="The handle this character runs under. Foundry uses it for the token, the sidebar and chat cards." />
+    <input type="text" name="system.realName" value="{{system.realName}}" placeholder="Government name (optional)"
+           class="char-realname-input" title="The name on the SIN, if the character admits to one. Never shown on tokens or chat." />
+  </div>
+  {{#if shadowtalk}}
+  <div class="sr2e-shadowtalk header-shadowtalk" title="Shadowland chatter — set frequency in system settings">
+    <span>&gt;&gt;&gt;&gt;&gt;[{{shadowtalk.text}}]&lt;&lt;&lt;&lt;&lt;</span>
+    <span class="sr2e-shadowtalk-by">— {{shadowtalk.by}}</span>
+  </div>
+  {{/if}}
 
     {{!-- Row 2: Race (drag-drop from Metatypes compendium) + dice pool indicators --}}
     <div class="header-race-row flexrow">
@@ -58,6 +56,23 @@
       </div>
     </div>
 
+    {{!-- Row 2.5: Condition status --}}
+    <div class="header-condition-row flexrow">
+      <span class="condition-badge {{woundLevelClass woundLevel}}">
+        {{#ifEquals woundLevel "Undamaged"}}Healthy{{else}}{{woundLevel}}{{/ifEquals}}
+      </span>
+      <span class="condition-damage">
+        <span class="dmg-type">P</span>{{system.conditionMonitor.physical.value}}/{{system.conditionMonitor.physical.max}}
+        &nbsp;
+        <span class="dmg-type">S</span>{{system.conditionMonitor.stun.value}}/{{system.conditionMonitor.stun.max}}
+      </span>
+      {{#if system.sustainPenalty}}
+      <span class="condition-sustain" title="Sustained-spell penalty: +2 TN per sustained spell (spell locks exempt)">
+        <i class="fas fa-hand-sparkles"></i> +{{system.sustainPenalty}} TN
+      </span>
+      {{/if}}
+    </div>
+
     {{!-- Shapeshifter (Companion pp.36–38): species, form, regeneration, death checks --}}
     {{#ifEquals system.race "shapeshifter"}}
     <div class="header-race-row sr2e-shift-row flexrow">
@@ -92,23 +107,6 @@
     {{/if}}
     {{/ifEquals}}
 
-    {{!-- Row 2.5: Condition status --}}
-    <div class="header-condition-row flexrow">
-      <span class="condition-badge {{woundLevelClass woundLevel}}">
-        {{#ifEquals woundLevel "Undamaged"}}Healthy{{else}}{{woundLevel}}{{/ifEquals}}
-      </span>
-      <span class="condition-damage">
-        <span class="dmg-type">P</span>{{system.conditionMonitor.physical.value}}/{{system.conditionMonitor.physical.max}}
-        &nbsp;
-        <span class="dmg-type">S</span>{{system.conditionMonitor.stun.value}}/{{system.conditionMonitor.stun.max}}
-      </span>
-      {{#if system.sustainPenalty}}
-      <span class="condition-sustain" title="Sustained-spell penalty: +2 TN per sustained spell (spell locks exempt)">
-        <i class="fas fa-hand-sparkles"></i> +{{system.sustainPenalty}} TN
-      </span>
-      {{/if}}
-    </div>
-
     {{!-- Row 3: Stats grid — Essence | Nuyen | Good Karma | Karma Pool --}}
     <div class="header-stats-row flexrow">
       <div class="header-stat">
@@ -132,6 +130,4 @@
         <span class="hstat-value team-karma-value">{{teamKarma}}</span>
       </div>
     </div>
-
-  </div>
 </section>
