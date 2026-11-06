@@ -13096,16 +13096,26 @@ export function registerSR2EQuenchTests() {
         await clicking("ok", () => withFaces(Array(6).fill(5), () => P.upgradeDialog(a, p())), upSet(4));
         const t = P.taskOf(p());
         assert.deepEqual([t?.upgrade, t?.baseTime, t?.design?.rating], [true, 32 - 8, 4], "base time = new − current (p.107)");
+        assert.equal(game.messages.get(t.testMessageId)?.flags?.sr2e?.test?.tn, 4, "tested against the NEW rating");
         assert.isTrue(V.usablePrograms(a).includes(p()), "the current version keeps working");
         await p().update({ "system.rating": 3 });
         assert.equal(p().system.rating, 2, "the design is fixed while upgrading");
         await p().update({ "system.objectCodeOnly": true });
         assert.isFalse(p().system.objectCodeOnly, "so is its source");
+        // A mainframe must suit the NEW rating (SV ≥ 2 for R4; SV 1 would do for R2; p.101, code R1 #3).
+        await clicking("ok", () => P.programmingDialog(a, p()), (el) => { upSet(4)(el); const m = el?.querySelector('input[name="mainframe"]'); if (m) m.checked = true;
+          const sv = el?.querySelector('input[name="sv"]'); if (sv) sv.value = "1"; });
+        assert.equal(P.doneOf(P.taskOf(p())), 0, "a mainframe too weak for the new rating is refused");
         await clicking("ok", () => P.programmingDialog(a, p()), upSet(4));
         assert.isTrue(P.taskOf(p()).complete, "complete");
         assert.isTrue(await settle(() => p().system.rating === 4), "the sequencer applied it");
         assert.deepEqual([p().system.loadGen, a.system.nuyen, p().getFlag("sr2e", "paid")], [gen0 + 1, 100000, 400], "new object code; no money moved");
         assert.isNull(P.pendingUpgrade(p()));
+        // A duplicate apply request (a resend) writes nothing.
+        const { request } = await import("../vr2ic.mjs");
+        await request(a, "progApply", { item: p().id, gen: t.task });
+        await wait(1500);
+        assert.deepEqual([p().system.rating, p().system.loadGen], [4, gen0 + 1], "applied once");
       });
 
       it("upgrading needs the source code: object code only is refused until the decker writes it", async function () {
@@ -13144,9 +13154,14 @@ export function registerSR2EQuenchTests() {
         assert.equal(p().system.rating, 2, "locked while pending");
         await clicking("ok", () => P.programmingDialog(a, p()));
         assert.equal(P.taskOf(p()).task, 1, "no new task while pending");
-        await P.upgradeDialog(a, p());
+        // The apply's exemption admits only its exact target (code R1 #2).
+        await p().update({ "system.rating": 5, "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
+        assert.equal(p().system.rating, 2, "a write tagged as the apply but not its target is refused");
+        const gen0 = p().system.loadGen ?? 0;
+        await Promise.all([P.upgradeDialog(a, p()), P.upgradeDialog(a, p())]);   // two Apply clicks at once
         assert.isTrue(await settle(() => p().system.rating === 3), "Apply upgrade applied it");
-        assert.equal(p().getFlag("sr2e", "upgradeApplied"), 1);
+        await wait(1500);
+        assert.deepEqual([p().getFlag("sr2e", "upgradeApplied"), p().system.loadGen], [1, gen0 + 1], "applied once");
         await p().update({ "system.rating": 2 });
         assert.deepEqual([p().system.rating, P.pendingUpgrade(p())], [2, null], "a later downgrade doesn't bring it back");
       });
@@ -13158,9 +13173,19 @@ export function registerSR2EQuenchTests() {
         await p().setFlag("sr2e", "paid", full);
         await p().update({ "system.objectCodeOnly": true });
         assert.isTrue(await settle(() => a.system.nuyen === 100000 + (full - Math.ceil(full * 0.75))), "refunds the 25%");
-        const before = a.system.nuyen, cost = p().system.cost;
+        assert.equal(p().system.cost, Math.ceil(full * 0.75), "the sheet shows the discounted price");
+        let before = a.system.nuyen, cost = p().system.cost;
         await p().update({ "system.options": [{ kind: "optimization", rating: 0, target: "" }] });
         assert.isTrue(await settle(() => p().system.cost > cost && a.system.nuyen === before - (p().system.cost - cost)), "the option is paid for");
+        before = a.system.nuyen; cost = p().system.cost;
+        await p().update({ "system.rating": 5 });
+        assert.isTrue(await settle(() => p().system.rating === 5 && a.system.nuyen === before - (p().system.cost - cost)), "a discounted rating edit pays the discounted difference");
+        const { derivedItemCost } = await import("../rules/sr2e-rules.mjs");
+        const full5 = derivedItemCost({ type: "program", rating: 5, multiplier: 1, activeOpts: p().system.activeOpts }, { vr2: true });
+        assert.equal(p().system.cost, Math.ceil(full5 * 0.75), "still discounted after the rating edit");
+        before = a.system.nuyen; cost = p().system.cost;
+        await p().update({ "system.objectCodeOnly": false });
+        assert.isTrue(await settle(() => !p().system.objectCodeOnly && a.system.nuyen === before - (p().system.cost - cost)), "buying the source pays the 25% back");
       });
     });
 

@@ -1462,6 +1462,15 @@ function placementFactsFor(item, link) {
 // the invariant holds however the field is changed, not only on the spend path.
 // Squeeze (VR2.0 p.104): an unloaded copy is compressed again — its decompression receipt goes with the load.
 // Programming (plan 5b §4): the design is fixed while a task writes it.
+/** The apply's write is exactly its target, its marker and the load generation (code R1 #2). */
+function applyIsExact(changes, pend) {
+  const sys = changes.system ?? {}, d = pend.design;
+  return changes.flags?.sr2e?.upgradeApplied === pend.gen && !("name" in changes)
+    && Object.keys(sys).every(k => ["rating", "options", "manufacturer", "loadGen"].includes(k))
+    && (sys.rating === undefined || sys.rating === d.rating) && (sys.manufacturer === undefined || sys.manufacturer === d.manufacturer)
+    && (sys.options === undefined || foundry.utils.objectsEqual({ o: sys.options.map(o => ({ kind: o.kind, rating: o.rating, target: o.target })) }, { o: d.options }));   // objectsEqual won't take bare arrays
+}
+
 Hooks.on("preUpdateItem", (item, changes, options) => {
   if (item.type !== "program") return;
   if (changes.system?.loaded === false && item.flags?.sr2e?.decompressed != null) {
@@ -1472,7 +1481,7 @@ Hooks.on("preUpdateItem", (item, changes, options) => {
   // Upgrading (VR2.0 p.107; PLAN-vr2-upgrading §2): also while an upgrade is complete but not yet applied, and its
   // eligibility (source, command set) with it. The sequencer's apply is the one write let through.
   const ps = programmingState(item), pend = pendingUpgrade(item);
-  if (pend && options?.sr2eUpgradeApply === pend.gen) return;
+  if (pend && options?.sr2eUpgradeApply === pend.gen && applyIsExact(changes, pend)) return;
   const keys = ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore",
     ...(ps.task?.upgrade && (ps.writing || pend) ? ["objectCodeOnly", "commandSet"] : [])];
   if ((ps.writing || pend || loadingState(item).writing) && ("name" in changes || keys.some(k => k in (changes.system ?? {})))) {
@@ -1577,7 +1586,7 @@ function changedDrivers(item, changes) {
   for (const k of PURCHASE_DRIVERS) {
     const v = changes.system?.[k];
     // A program's options (VR2.0 p.107: the design size prices it) compare by value.
-    if (k === "options") { if (v !== undefined && item.type === "program" && !foundry.utils.objectsEqual(v, item._source.system.options ?? [])) changed[k] = v; }
+    if (k === "options") { if (v !== undefined && item.type === "program" && !foundry.utils.objectsEqual({ o: v }, { o: item._source.system.options ?? [] })) changed[k] = v; }   // bare arrays never compare equal
     else if (v !== undefined && v !== item.system[k]) changed[k] = v;
   }
   return changed;

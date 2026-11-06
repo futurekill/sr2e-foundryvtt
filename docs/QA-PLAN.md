@@ -1046,3 +1046,14 @@ If those five all work, the core loop is healthy.
       **Upload finished (GM)** → the set opens with Control first.
 - [ ] Leave the host before settling: Settle step is refused. GM: Executed / Purged / Cancel / Change tests on the host sheet.
 
+## VR2.0 program upgrading (`sr2e.vr2-options` batch; docs/PLAN-vr2-upgrading.md)
+- [ ] Matrix ruleset VR2.0. Browse R2 on the Matrix tab → **↑** → new rating 4 → Next → Roll: the card says base time
+      24 days (32 − 8) ÷ successes, TN 4. The row shows *upgrading to 4* and Browse still works (Browse a host).
+- [ ] While upgrading, change its rating on the sheet → refused; tick *Object code only* → refused.
+- [ ] Log days with the code button until done → *is upgraded* card; the rating becomes 4 (GM client); nuyen unchanged.
+- [ ] Utility options on: an Attack-4M → ↑ → tick Limit (target IC) → base time 0 → the next code-button click
+      completes it with no days asked.
+- [ ] A program with *Object code only* ticked: ↑ → "needs the source code". Its price on the sheet is 75%.
+- [ ] A bought program (paid): tick *Object code only* → 25% refunded; add an option on the sheet → the difference
+      is charged.
+

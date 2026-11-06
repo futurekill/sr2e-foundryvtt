@@ -254,7 +254,7 @@ async function startDialog(actor, item, up = null) {
     label: `${up ? "Upgrading" : "Programming"} ${esc(item.name)}: Computer (${rating})`, tnContext: { kind: "other" } });
   if (!res) return;
   const now = stateOf(item);
-  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing || stateOf(item, LOAD).writing || (up && upgradeProblem(live(item)))) {
+  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing || stateOf(item, LOAD).writing || pendingUpgrade(live(item)) || (up && upgradeProblem(live(item)))) {
     return ui.notifications.warn(`${item.name} changed (or another device started writing it) during the test: start again.`);
   }
   // The next generation number: two devices starting at once claim the same id, and the server keeps one.

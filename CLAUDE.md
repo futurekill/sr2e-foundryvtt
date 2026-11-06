@@ -207,6 +207,10 @@ players' clients create `request`s. Monitors and IC are changed only there. Unde
 Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: decker attackers use
 `deck:<uuid>@<conn>` keys — parse with `parseAttackerKey`) are done, and so are utility options and programming
 (part 5b, docs/PLAN-vr2-part5b.md: act through `activePrograms`/`spendUse`, read counts via `attackSuccesses`).
+Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
+`design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
+sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the
+`flags.sr2e.upgradeApplied` marker). Source code is derived (`hasSource`: not `objectCodeOnly`, or a completed write).
 Part 6a-0 (Decoy, Null Operation, Scan Icon; `module/rules/vr2-decoy-rules.mjs`) is done: the live decoy is FOLDED
 from `decoy` records + the Decoy card's live verdict (newest successful-or-deleted record only, never a fall-back);
 a decoyed IC attack is still admitted (`admit.decoy`) and resolved only by the `decoyHit` handler.

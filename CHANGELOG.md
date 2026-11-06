@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **VR2.0 program upgrading** (VR2.0 p.107): the new ↑ button on a program row raises its rating and/or adds
+  options. It's a programming task: base time = the new version's less the current one's, and the Computer Test is
+  against the new rating; log days as usual. The program **keeps working at its current version** until the upgrade
+  is done, then the GM's client writes the new version (no money moves; a loaded program counts as new object code).
+  Command sets and frame cores can't be upgraded. Adding Limit makes the design smaller: base time 0, so it's done on
+  the test.
+- **Object code only** (VR2.0 p.107): a checkbox on a program's sheet, 25% off its price. It can't be upgraded
+  until you write it yourself (that gives you the source code).
+- How-To Guides: *Upgrade a program (VR2.0)*.
+
+### Changed
+- **Buying programs:** adding or removing a utility option on a bought program now charges or refunds the difference
+  (the price comes from the design size, p.107); before, only its rating did. Ticking *Object code only* refunds 25%.
+
 ## 0.140.0 — 2026-11-06
 
 ### Added
