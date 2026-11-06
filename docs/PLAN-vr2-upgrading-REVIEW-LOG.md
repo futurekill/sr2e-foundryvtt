@@ -100,3 +100,26 @@ VERDICT: REVISE
 ### Claude's response (fix abdccea)
 - **Accepted:** `applyIsExact` builds the design AFTER the write (fields left out keep their values) and requires it
   to equal the pending target; a Quench case writes the marker with a partial target and is refused.
+
+## Code round 3 — Codex (fresh session, fix only; ~140k input tokens)
+
+- **P2 — [module/sr2e.mjs:1486](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sr2e.mjs:1486): R2 #1 remains bypassable through a marker-only update.** For a pending generation 1, `update({"flags.sr2e.upgradeApplied": 1}, {sr2eUpgradeApply: 1})` fails `applyIsExact`, but falls through because no locked design field is present. The marker permanently suppresses recovery without applying the target. Reject an invalid apply-marker write explicitly.
+
+- **P2 — [module/quench/sr2e-quench.mjs:13160](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/quench/sr2e-quench.mjs:13160): The new regression case also passes before the fix.** Its Optimization option differs from the pending target’s empty options, so the old predicate already rejects it. Use a rating-plus-options target and submit only one matching target field plus the marker.
+
+Confirmed with extracted predicates; Quench was not run. The added named import introduces no new dependency edge: `sr2e.mjs` already imported `programming.mjs`.
+
+VERDICT: REVISE
+### Claude's response (fix 64e873b)
+- **#1 accepted:** any write of `flags.sr2e.upgradeApplied` other than the exact apply is refused.
+- **#2 accepted:** the pending test's target is rating 3 + Optimization; a rating-only write with the marker, and a
+  marker alone, are both refused; the real apply lands both.
+
+## Code round 4 — Codex (fresh session, fix only; ~90k input tokens)
+
+No concrete bugs found in 64e873b. It closes R3 #1–#2: the guard rejects marker-only writes while admitting the exact apply, and the revised test exercises a matching but incomplete target. No legitimate update path was found blocked.
+
+Quench was inspected, not run.
+
+VERDICT: APPROVED
+**Code review converged in 4 rounds. Built for 0.141.0.**

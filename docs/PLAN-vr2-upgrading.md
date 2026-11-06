@@ -1,5 +1,5 @@
 # Plan: VR2.0 program upgrading (and object-code pricing)
-_Draft 4 (2026-11-06): **Codex-APPROVED (round 4)**. Rounds in PLAN-vr2-upgrading-REVIEW-LOG.md: rewritten against the current `module/programming.mjs` (5b's append-only `prog:` records,
+_Draft 4 (2026-11-06): **Codex-APPROVED (round 4); BUILT for 0.141.0 (code review 4 rounds)**. Rounds in PLAN-vr2-upgrading-REVIEW-LOG.md: rewritten against the current `module/programming.mjs` (5b's append-only `prog:` records,
 `foldProgramming`, `designOf`). Draft 0 (2026-11-03) predated the records and is replaced._
 
 Source: VR2.0 p.107, "Upgrading" and "Buying Programs" (PDF 115, rendered).

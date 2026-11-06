@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.141.0 — 2026-11-06
 
 ### Added
 - **VR2.0 program upgrading** (VR2.0 p.107): the new ↑ button on a program row raises its rating and/or adds

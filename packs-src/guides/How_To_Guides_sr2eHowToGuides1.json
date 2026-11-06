@@ -170,6 +170,31 @@
       }
     },
     {
+      "_id": "3c7184e172c5c621",
+      "name": "Upgrade a program (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 700000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a decker raises a program&#39;s rating, or adds options to it, without losing the version they have\n(Virtual Realities 2.0 p.107).</p>\n<p><img src=\"systems/sr2e/assets/guides/upgrade.gif\" alt=\"The decker clicks the up arrow on Browse, sets the new rating, rolls the test, and logs days until the upgrade is applied\"></p>\n<p><strong>Needs:</strong> the Matrix ruleset on <em>Virtual Realities 2.0</em> (GM settings); for options, <strong>VR2.0 utility options</strong> too.\nThe program must have its source code: not ticked <strong>Object code only</strong>, or written by the decker.</p>\n<p><strong>The decker</strong></p>\n<ol>\n<li><strong>Upgrade.</strong> Click the <strong>↑</strong> button on the program&#39;s row. Set the <strong>new rating</strong> and tick any options to add\n(rated ones take a rating; Limit takes its target), then <strong>Next</strong>.</li>\n<li><strong>Roll the test.</strong> Tick any team members, then <strong>Roll</strong>: Computer against the <strong>new</strong> rating. The base time is\nthe new version&#39;s less the current one&#39;s, ÷ your successes.</li>\n<li><strong>Log the work</strong> with the code button, as for writing. The row shows <em>upgrading to 4 3/5d</em>. The program still\nworks at its old rating meanwhile, and its design is locked.</li>\n<li><strong>Done.</strong> When the days reach the period, the new version replaces the old one (the GM&#39;s client writes it). If the\nrow says <em>upgrade done: applying</em> for long, click <strong>↑</strong> again to resend it.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>No money moves: you programmed it. A loaded program counts as new object code.</li>\n<li>Adding Limit makes the design smaller, so there&#39;s no base time: it&#39;s done on the test.</li>\n<li>Command sets and frame cores can&#39;t be upgraded. The ⊘ button abandons an upgrade; the old version stays.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "053780d8d28d0772",
       "name": "Hit several IC with an Area attack (VR2.0)",
       "type": "text",
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
