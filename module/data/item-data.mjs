@@ -1096,6 +1096,8 @@ export class ProgramData extends SR2EDataModel {
       // VR2.0 part 6c: a command-set program (p.105): no rating, a rolled design size of 1D6 × 20 Mp.
       commandSet: new fields.BooleanField({ initial: false }),
       csSize: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // VR2.0 p.107: bought as object code only (−25%); it can't be upgraded until the decker writes it (has source).
+      objectCodeOnly: new fields.BooleanField({ initial: false }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -1145,7 +1147,7 @@ export class ProgramData extends SR2EDataModel {
     // module is Foundry-free and must not touch game.settings itself.
     this.cost = derivedItemCost({ type: "program", rating: this.rating,
                                   multiplier: this.multiplier,
-                                  category: this.category, activeOpts: opts.active }, { vr2 });
+                                  category: this.category, activeOpts: opts.active, objectCodeOnly: this.objectCodeOnly }, { vr2 });
   }
 }
 

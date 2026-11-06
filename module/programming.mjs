@@ -8,7 +8,9 @@
  */
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { baseTime, workDone, toolBonus, teamTerms, programmingCap, sensitiveSkill, mainframeAdequate,
-  PROGRAMMING_TOOLS, foldProgramming } from "./rules/vr2-options.mjs";
+  PROGRAMMING_TOOLS, foldProgramming, deriveProgram, UTILITY_OPTIONS, UTILITY_OPTION_KINDS, LIMIT_TARGETS } from "./rules/vr2-options.mjs";
+import { request, addHandlers } from "./vr2ic.mjs";
+import { utilityOptionsOn } from "./vr2-mode.mjs";
 import { recordEvent, eventsOf } from "./claims.mjs";
 import { claimId } from "./rules/claim-rules.mjs";
 import { coreDinabProblem, loadingTerms, loadProblems } from "./rules/vr2-frames.mjs";
@@ -54,12 +56,82 @@ export const doneOf = (task) => Object.values(task?.log ?? {}).reduce((n, l) => 
 /** Not usable yet: being written, or never written. */
 export const unfinished = (item) => stateOf(item).unfinished;
 export const writingOf = (item) => stateOf(item).writing;
+/** Upgrading needs the source code (VR2.0 p.107): bought with it, or written by the decker (a completed writing task). */
+export const hasSource = (item) => !item.system.objectCodeOnly || programmingState(item).sourced;
+/**
+ * A completed upgrade not yet applied (PLAN-vr2-upgrading §2 step 4): the latest task, its gen above the applied
+ * marker, and the design still the one it upgraded. Null otherwise.
+ */
+export function pendingUpgrade(item) {
+  const t = programmingState(item).task;
+  if (!t?.upgrade || !t.complete || (item.flags?.sr2e?.upgradeApplied ?? 0) >= t.task) return null;
+  return foundry.utils.objectsEqual(designOf(item), t.from) ? { gen: t.task, design: t.design } : null;
+}
 
 export async function programmingDialog(actor, item) {
   if (!item || item.type !== "program") return;
   if (!item.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can program.`);
+  if (pendingUpgrade(live(item))) return ui.notifications.warn(`${item.name}'s upgrade is complete: apply it first.`);
   const s = stateOf(item);
   return s.writing ? workDialog(actor, item, s.current) : startDialog(actor, item);
+}
+
+/** Why a program can't be upgraded now (VR2.0 p.107), or "". */
+function upgradeProblem(item) {
+  const s = stateOf(item);
+  if (item.system.commandSet) return "Command sets can't be upgraded (VR2.0 p.107).";
+  if (item.system.isCore) return "A frame core's design is rewritten, not upgraded (VR2.0 p.105).";
+  if (pendingUpgrade(live(item))) return `${item.name}'s last upgrade is complete: apply it first.`;
+  if (s.writing || stateOf(item, LOAD).writing) return `${item.name} is being ${s.writing ? "programmed" : "loaded"}: finish or abandon that first.`;
+  if (s.unfinished) return `${item.name} isn't written yet: program it first.`;
+  if (!hasSource(live(item))) return `${item.name} is object code only: upgrading needs the source code (VR2.0 p.107).`;
+  return "";
+}
+
+/**
+ * Upgrade (VR2.0 p.107; PLAN-vr2-upgrading §2): raise the rating and/or add options. A programming task whose base
+ * time is the new version's less the current one's; the test is against the upgraded rating. The program keeps
+ * working at its current design meanwhile.
+ */
+export async function upgradeDialog(actor, item) {
+  if (!item || item.type !== "program") return;
+  if (!item.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can program.`);
+  const pend = pendingUpgrade(live(item));
+  if (pend) return request(actor, "progApply", { item: item.id, gen: pend.gen });   // the recovery: the handler re-checks
+  const why = upgradeProblem(item);
+  if (why) return ui.notifications.warn(why);
+  const src = item._source.system, have = new Set((src.options ?? []).map(o => o.kind));
+  const optsOn = utilityOptionsOn();
+  const addable = optsOn ? [...(UTILITY_OPTIONS[item.system.utility] ?? []), "sensitive"].filter(k => !have.has(k)) : [];
+  const row = (k) => `<div class="form-group"><label><input type="checkbox" name="add_${k}"> ${esc(k)}</label>
+    ${UTILITY_OPTION_KINDS[k]?.rated ? `<input type="number" name="r_${k}" value="1" min="1" title="Rating (1 to the program's rating)">` : ""}
+    ${k === "limit" ? `<select name="t_limit">${Object.entries(LIMIT_TARGETS).map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("")}</select>` : ""}
+    ${k === "sensitive" ? `<input type="text" name="m_sensitive" value="${esc(src.manufacturer ?? "")}" placeholder="Manufacturer">` : ""}</div>`;
+  const pick = await foundry.applications.api.DialogV2.prompt({ window: { title: `Upgrade ${item.name}` },
+    content: `<div>
+      <p>Now: rating ${item.system.rating}, design size ${item.system.designSize} Mp${(src.options ?? []).length ? `, options ${(src.options ?? []).map(o => esc(o.kind)).join(", ")}` : ""}.
+        Base time = the new version's less this one's; the Computer Test is against the new rating (VR2.0 p.107). It keeps working until the upgrade is done.</p>
+      <div class="form-group"><label>New rating:</label><input type="number" name="rating" value="${item.system.rating}" min="${item.system.rating}"></div>
+      ${addable.length ? `<fieldset><legend>Add options (p.102–104)</legend>${addable.map(row).join("")}</fieldset>` : ""}
+    </div>`,
+    ok: { label: "Next", callback: (e, b) => { const f = b.form.elements;
+      return { rating: parseInt(f.rating.value) || 0, add: addable.filter(k => f[`add_${k}`]?.checked).map(k => ({ kind: k,
+        rating: UTILITY_OPTION_KINDS[k]?.rated ? parseInt(f[`r_${k}`].value) || 0 : 0, target: k === "limit" ? f.t_limit.value : "" })),
+        manufacturer: addable.includes("sensitive") && f.add_sensitive?.checked ? String(f.m_sensitive.value).trim() : null }; } } }).catch(() => null);
+  if (!pick) return;
+  if (pick.rating < item.system.rating) return ui.notifications.warn("An upgrade can't lower the rating.");
+  if (pick.rating === item.system.rating && !pick.add.length) return ui.notifications.warn("That's the version it already is.");
+  const target = { rating: pick.rating, options: [...(src.options ?? []).map(o => ({ kind: o.kind, rating: o.rating, target: o.target })), ...pick.add],
+    ...(pick.manufacturer != null ? { manufacturer: pick.manufacturer } : {}) };
+  // The item's own schema validates the whole proposed version (plan R1 #7); then no added option may come out inert.
+  try { item.validate({ changes: { system: target }, clean: true, strict: true }); }
+  catch (err) { return ui.notifications.warn(`That version isn't valid: ${err.message}`); }
+  const d = deriveProgram(item.name, { ...src, ...target }, { vr2: true, optionsOn: optsOn });
+  const dead = d.inertOpts.find(o => o.i >= (src.options ?? []).length);
+  if (dead) return ui.notifications.warn(`${dead.kind}: ${dead.why}.`);
+  const from = designOf(item);
+  return startDialog(actor, item, { from, design: { ...from, ...target, options: target.options }, rating: target.rating,
+    designSize: d.designSize, activeOpts: d.activeOpts, fromSize: item.system.designSize ?? item.system.size });
 }
 
 /** Part 6a-1: load programs onto a written frame core (p.106), or work on the loading task under way. */
@@ -143,17 +215,21 @@ export async function newProject(actor) {
 }
 
 /** Start (p.100–101): base time from the design size; the Computer (Program Rating) Test sets the task period. */
-async function startDialog(actor, item) {
+async function startDialog(actor, item, up = null) {
   // A core being loaded can't be programmed at the same time (code R1 #3).
   if (stateOf(item, LOAD).writing) return ui.notifications.warn(`${item.name} is being loaded: finish or abandon that first.`);
   const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && computerOf(a) > 0);
-  const sensitive = item.system.activeOpts?.some(o => o.kind === "sensitive");
+  // An upgrade (`up`) is tested and timed on the NEW version (VR2.0 p.107): its rating, options and design size.
+  const sensitive = (up ? up.activeOpts : item.system.activeOpts)?.some(o => o.kind === "sensitive");
+  const rating = up ? up.rating : item.system.rating;
   // The design is captured BEFORE the dialog and the roll, and re-checked before the task is recorded.
-  const plan = designOf(item);
-  const design = item.system.designSize ?? item.system.size, base = baseTime(design);
-  const pick = await foundry.applications.api.DialogV2.prompt({ window: { title: `Program ${item.name}` },
+  const plan = up ? up.from : designOf(item);
+  const design = up ? up.designSize : item.system.designSize ?? item.system.size;
+  const base = up ? Math.max(0, baseTime(design) - baseTime(up.fromSize)) : baseTime(design);
+  const pick = await foundry.applications.api.DialogV2.prompt({ window: { title: `${up ? "Upgrade" : "Program"} ${item.name}` },
     content: `<div>
-      <p>Design size ${design} Mp → base time ${base} days (VR2.0 p.100). Computer Test against the program's rating, ${item.system.rating}.</p>
+      <p>${up ? `New design size ${design} Mp: base time ${base} days (the new version's ${baseTime(design)} less this one's ${baseTime(up.fromSize)}; VR2.0 p.107)`
+        : `Design size ${design} Mp → base time ${base} days (VR2.0 p.100)`}. Computer Test against ${up ? "the new" : "the program's"} rating, ${rating}.</p>
       ${others.length ? `<div class="form-group"><label title="Team (p.102): up to half the best Computer Skill (round down) members; the test uses their average skill (round up).">Team:</label>
         <div>${others.map(a => `<label style="display:block;"><input type="checkbox" name="team" value="${esc(a.uuid)}"> ${esc(a.name)} (Computer ${computerOf(a)})</label>`).join("")}</div></div>` : ""}
       ${sensitive ? `<p class="hint">Sensitive (p.104): the test uses the average of Computer and Computer Theory / Matrix Theory.</p>` : ""}
@@ -166,7 +242,7 @@ async function startDialog(actor, item) {
   const skills = members.map(m => sensitive ? sensitiveSkill(programmingSkillOf(m), skillOf(m, /^(computer|matrix) theory/i)) : programmingSkillOf(m));
   const cap = programmingCap(item.system.utility, computers);
   const maxSize = teamTerms(computers).maxSize;   // membership: the best COMPUTER skill (p.102), not a specialization
-  if (item.system.rating > cap) return ui.notifications.warn(`${members.length > 1 ? "This team" : actor.name} can write ${item.name} up to rating ${cap} (VR2.0 p.98, p.101–102${item.system.isCore ? ", p.105" : ""}).`);
+  if (rating > cap) return ui.notifications.warn(`${members.length > 1 ? "This team" : actor.name} can write ${item.name} up to rating ${cap} (VR2.0 p.98, p.101–102${item.system.isCore ? ", p.105" : ""}).`);
   // Part 6a-1: a frame core's own rules (p.105–106): a legal design, DINAB within the programmer's Computer.
   if (item.system.isCore) {
     const why = item.system.coreProblems?.[0] ?? coreDinabProblem(item.system.activeOpts, Math.max(0, ...computers));
@@ -174,20 +250,20 @@ async function startDialog(actor, item) {
   }
   if (members.length > 1 && members.length > maxSize) return ui.notifications.warn(`A team led by Computer ${Math.max(...computers)} has at most ${maxSize} members (p.102).`);
   const dice = members.length > 1 ? teamTerms(skills).skill : skills[0];
-  const res = await actor.rollSuccessTest(Math.max(0, dice), Math.max(2, item.system.rating), {
-    label: `Programming ${esc(item.name)}: Computer (${item.system.rating})`, tnContext: { kind: "other" } });
+  const res = await actor.rollSuccessTest(Math.max(0, dice), Math.max(2, rating), {
+    label: `${up ? "Upgrading" : "Programming"} ${esc(item.name)}: Computer (${rating})`, tnContext: { kind: "other" } });
   if (!res) return;
   const now = stateOf(item);
-  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing || stateOf(item, LOAD).writing) {
+  if (!foundry.utils.objectsEqual(designOf(live(item)), plan) || now.writing || stateOf(item, LOAD).writing || (up && upgradeProblem(live(item)))) {
     return ui.notifications.warn(`${item.name} changed (or another device started writing it) during the test: start again.`);
   }
   // The next generation number: two devices starting at once claim the same id, and the server keeps one.
   const gen = now.nextGen;
-  if (!await recordEvent(live(item), `prog:start:${gen}`, { type: "progStart", gen, testMessageId: res.testMessageId, design: plan,
-    designSize: design, baseTime: base, team: team.map(a => a.uuid) })) {
+  if (!await recordEvent(live(item), `prog:start:${gen}`, { type: "progStart", gen, testMessageId: res.testMessageId,
+    design: up ? up.design : plan, designSize: design, baseTime: base, team: team.map(a => a.uuid), ...(up ? { upgrade: true, from: up.from } : {}) })) {
     return ui.notifications.warn(`Another device started writing ${item.name} at the same moment: open it again.`);
   }
-  say(actor, `${esc(actor.name)} starts programming ${esc(item.name)}: base time ${base} days ÷ the test's successes
+  say(actor, `${esc(actor.name)} starts ${up ? `upgrading ${esc(item.name)} to rating ${rating}${up.design.options.length > plan.options.length ? ` + ${up.design.options.slice(plan.options.length).map(o => esc(o.kind)).join(", ")}` : ""} (it keeps working meanwhile)` : `programming ${esc(item.name)}`}: base time ${base} days ÷ the test's successes
     (Karma may still change them, until the first day of work).`);
 }
 
@@ -197,6 +273,8 @@ async function workDialog(actor, item, id, fam = PROG) {
   const team = (task.team ?? []).length > 0;
   const done = doneOf(task), period = task.period ?? null;
   if (period != null && done >= period) return complete(actor, item, id, fam);
+  // An upgrade with no base time (adding Limit, p.104/p.107): the test's successes decide it; no days to log.
+  if (task.baseTime === 0) return (task.frozen || await freezePeriod(actor, item, id, fam)) ? complete(actor, item, id, fam) : undefined;
   const tools = Object.entries(PROGRAMMING_TOOLS).map(([k, t]) => `<label style="display:block;"><input type="checkbox" name="${k}"> ${esc(t.label)} (+${t.bonus})</label>`).join("");
   const pick = await foundry.applications.api.DialogV2.prompt({ window: { title: `${fam === LOAD ? "Loading" : "Programming"} ${item.name}` },
     content: `<div>
@@ -211,7 +289,7 @@ async function workDialog(actor, item, id, fam = PROG) {
         tools: Object.fromEntries(Object.keys(PROGRAMMING_TOOLS).map(k => [k, !!f[k]?.checked])) }; } } }).catch(() => null);
   if (!pick) return;
   if (stateOf(item, fam).current !== id || !stateOf(item, fam).writing) return ui.notifications.warn(`${item.name}'s task changed meanwhile: open it again.`);
-  const rating = fam === LOAD ? task.loadingRating : item.system.rating;
+  const rating = fam === LOAD ? task.loadingRating : task.design?.rating ?? item.system.rating;   // an upgrade: the new rating (plan R1 #8)
   if (!team && pick.tools.mainframe && !mainframeAdequate(pick.sv, rating)) {
     return ui.notifications.warn(`A mainframe needs a Security Value of at least half the rating (${Math.ceil(rating / 2)}; p.101).`);
   }
@@ -253,13 +331,18 @@ async function freezePeriod(actor, item, id, fam = PROG) {
 async function complete(actor, item, id, fam = PROG) {
   const s = stateOf(item, fam), task = s.tasks[id];
   if (!task || task.end) return ui.notifications.warn(`${item.name}'s task already ended.`);
-  if (!foundry.utils.objectsEqual(designOf(live(item)), task.design)) {
+  if (!foundry.utils.objectsEqual(designOf(live(item)), task.upgrade ? task.from : task.design)) {
     return ui.notifications.warn(`${item.name}'s design changed since the task started: start a new task for the new design.`);
   }
   // A loading task's winning end record carries the whole load (6a-1 R1 #4): the active load is read from it.
   const payload = fam === LOAD ? { copies: task.load, coreDesign: task.design, loadingRating: task.loadingRating } : undefined;
   if (!await recordEvent(live(item), `${fam}end:${id}`, { type: "progEnd", task: id, outcome: "complete", ...(payload ? { payload } : {}) })) {
     return ui.notifications.warn(`${item.name}'s task ended on another device (${stateOf(item, fam).tasks[id]?.end ?? "?"}).`);
+  }
+  if (task.upgrade) {
+    // The new version is written by the sequencer, which re-checks in its queue (PLAN-vr2-upgrading §2 step 3).
+    say(actor, `<strong>${esc(item.name)} is upgraded</strong> to rating ${task.design.rating} (${task.period} days of work; VR2.0 p.107).`);
+    return request(actor, "progApply", { item: item.id, gen: id });
   }
   say(actor, fam === LOAD ? `<strong>${esc(item.name)} is loaded</strong> with ${(task.load ?? []).map(c => esc(c.name)).join(", ")} (${task.period} days; VR2.0 p.106).`
     : `<strong>${esc(item.name)} is written</strong> (${task.period} days of work; VR2.0 p.101).`);
@@ -272,9 +355,24 @@ export async function abandon(actor, item, fam = null) {
   const s = stateOf(item, fam), id = s.current;
   if (!s.writing) return;
   const usableBefore = fam === LOAD || !foldProgramming(eventsOf(live(item)).filter(r => (r.task ?? r.gen) !== id)).unfinished;
-  if (!await foundry.applications.api.DialogV2.confirm({ window: { title: item.name }, content: `<p>Abandon ${fam === LOAD ? "loading" : "programming"} ${esc(item.name)}? The work done is lost${usableBefore ? (fam === LOAD ? "; its previous load stays" : "") : ", and the program stays unwritten"}.</p>`, rejectClose: false })) return;
+  if (!await foundry.applications.api.DialogV2.confirm({ window: { title: item.name }, content: `<p>Abandon ${fam === LOAD ? "loading" : s.task?.upgrade ? "upgrading" : "programming"} ${esc(item.name)}? The work done is lost${usableBefore ? (fam === LOAD ? "; its previous load stays" : s.task?.upgrade ? "; the current version stays" : "") : ", and the program stays unwritten"}.</p>`, rejectClose: false })) return;
   // ONE end per task (server-arbitrated): an abandon racing a completion leaves exactly one of them.
   if (!await recordEvent(live(item), `${fam}end:${id}`, { type: "progEnd", task: id, outcome: "abandon" })) {
     ui.notifications.warn(`${item.name}'s task already ended (${stateOf(item, fam).tasks[id]?.end ?? "?"}).`);
   }
+}
+
+/** The sequencer's half of an upgrade (PLAN-vr2-upgrading §2 step 3): applied once, re-checked in its queue. */
+export function registerProgrammingHandlers() {
+  addHandlers({
+    async progApply(actor, r) {
+      const item = actor.items.get(r.item), pend = item ? pendingUpgrade(item) : null;
+      if (!pend || pend.gen !== r.gen) return { ok: true, tell: false };   // applied already, or not pending: nothing to write
+      const d = pend.design;
+      await item.update({ system: { rating: d.rating, options: d.options, manufacturer: d.manufacturer,
+        ...(item.system.loaded ? { loadGen: (item.system.loadGen ?? 0) + 1 } : {}) },   // new object code (§Decided 2)
+        flags: { sr2e: { upgradeApplied: pend.gen } } }, { sr2eNoCharge: true, sr2eUpgradeApply: pend.gen });
+      return { ok: true };
+    }
+  });
 }

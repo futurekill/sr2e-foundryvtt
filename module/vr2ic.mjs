@@ -1879,6 +1879,7 @@ export async function sheetOp(doc, op, arg) {
   if (op === "restore") { const V = await import("./vr2.mjs"); return V.vr2Restore(doc, doc.items.get(arg)); }
   if (op === "decompress") { const V = await import("./vr2.mjs"); return V.vr2Decompress(doc, doc.items.get(arg)); }
   if (op === "programming") { const P = await import("./programming.mjs"); return P.programmingDialog(doc, doc.items.get(arg)); }
+  if (op === "programUpgrade") { const P = await import("./programming.mjs"); return P.upgradeDialog(doc, doc.items.get(arg)); }
   if (op === "programNew") { const P = await import("./programming.mjs"); return P.newProject(doc); }
   if (op === "programAbandon") { const P = await import("./programming.mjs"); return P.abandon(doc, doc.items.get(arg)); }
   if (op === "frameLoad") { const P = await import("./programming.mjs"); return P.loadDialog(doc, doc.items.get(arg)); }

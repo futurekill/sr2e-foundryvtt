@@ -1,7 +1,7 @@
 // VR2.0 utility options and programming (pp.100–104): the book's own examples.
 import { describe, it, expect } from "vitest";
 import { activeOptions, programSizes, defenseTN, areaTN, skulkTally, utilityOf, toolBonus, baseTime, taskPeriod, workDone,
-         teamTerms, mainframeAdequate, limitAllows, programmingCap, sensitiveSkill, foldProgramming } from "../module/rules/vr2-options.mjs";
+         teamTerms, mainframeAdequate, limitAllows, programmingCap, sensitiveSkill, foldProgramming, deriveProgram } from "../module/rules/vr2-options.mjs";
 import { programSize, programCostVR2, derivedItemCost } from "../module/rules/sr2e-rules.mjs";
 
 describe("option sizes and price (p.103)", () => {
@@ -153,5 +153,39 @@ describe("programSizes rounds once (code review R3 #1)", () => {
     const s = programSizes({ rating: 3, multiplier: 1.5, options: [{ kind: "optimization", rating: 0 }] });
     expect([s.design, s.price]).toEqual([27, 2700]);
     expect(programSizes({ rating: 3, multiplier: 1.5 }).design).toBe(14);   // no options: ceil(13.5), as programSize
+  });
+});
+
+describe("upgrading (VR2.0 p.107; PLAN-vr2-upgrading)", () => {
+  const m = { vr2: true, optionsOn: true };
+  const size = (name, sys) => deriveProgram(name, sys, m).designSize;
+  const upgradeBase = (from, to) => Math.max(0, baseTime(to) - baseTime(from));
+  it("base time = the new version's less the current one's", () => {
+    expect(upgradeBase(size("Browse", { rating: 2, multiplier: 1 }), size("Browse", { rating: 4, multiplier: 1 }))).toBe(32 - 8);
+    const a = { rating: 4, multiplier: 1, damageLevel: "M" };
+    expect([size("Attack", a), size("Attack", { ...a, options: [{ kind: "oneShot" }] })]).toEqual([48, 72]);
+    expect(upgradeBase(48, 72)).toBe(144 - 96);
+  });
+  it("adding Limit shrinks the design: base time 0 (user ruling 2026-11-03)", () => {
+    const a = { rating: 4, multiplier: 1, damageLevel: "M" };
+    expect(upgradeBase(48, size("Attack", { ...a, options: [{ kind: "limit", target: "ic" }] }))).toBe(0);
+  });
+  const start = (gen, extra = {}) => ({ key: `prog:start:${gen}`, type: "progStart", gen, baseTime: 8, testMessageId: `t${gen}`, ...extra });
+  const end = (task, outcome) => ({ key: `prog:end:${task}`, type: "progEnd", task, outcome });
+  it("the program keeps working while its upgrade is written; a rewrite doesn't", () => {
+    expect(foldProgramming([start(1, { upgrade: true })])).toMatchObject({ writing: true, unfinished: false });
+    expect(foldProgramming([start(1)])).toMatchObject({ writing: true, unfinished: true });
+  });
+  it("the source code: a completed WRITING task gives it; a completed upgrade doesn't", () => {
+    expect(foldProgramming([]).sourced).toBe(false);
+    expect(foldProgramming([start(1), end(1, "complete")]).sourced).toBe(true);
+    expect(foldProgramming([start(1, { upgrade: true }), end(1, "complete")]).sourced).toBe(false);
+    expect(foldProgramming([start(1), end(1, "abandon")]).sourced).toBe(false);
+  });
+  it("object code only is 25% off under VR2.0, and only there", () => {
+    const sys = { type: "program", rating: 4, multiplier: 2 };
+    const full = derivedItemCost(sys, { vr2: true });
+    expect(derivedItemCost({ ...sys, objectCodeOnly: true }, { vr2: true })).toBe(Math.ceil(full * 0.75));
+    expect(derivedItemCost({ ...sys, objectCodeOnly: true }, { vr2: false })).toBe(derivedItemCost(sys, { vr2: false }));
   });
 });

@@ -14,7 +14,7 @@ import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { gridSheetContext, gridEdit } from "../grids.mjs";
 import { liveSession, isCompressed, dinabLeft, optionOf, currentPlace, topoSnapshot, atSatUplink } from "../vr2.mjs";
 import { disconnectTarget } from "../rules/vr2-grids.mjs";
-import { taskOf, doneOf, writingOf, unfinished, loadingState } from "../programming.mjs";
+import { taskOf, doneOf, writingOf, unfinished, loadingState, pendingUpgrade } from "../programming.mjs";
 import { programUnusable } from "../data/actor-data.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
@@ -576,8 +576,12 @@ export function chargenBudgetOf(actor) {
 function programBadges(actor, i) {
   const task = taskOf(i), writing = writingOf(i);
   const opts = utilityOptionsOn();
+  const pending = !!pendingUpgrade(i);
   return { task: { done: doneOf(task), period: task?.period ?? null, writing,
-      unwritten: !writing && unfinished(i) },
+      unwritten: !writing && unfinished(i),
+      // Upgrading (VR2.0 p.107): the target, and whether the row offers Upgrade or Apply upgrade.
+      upgradeTo: writing && task?.upgrade ? task.design.rating : null, pending,
+      canUpgrade: pending || (!writing && !unfinished(i) && !i.system.isCore && !i.system.commandSet && !loadingState(i).writing) },
     compressed: opts && i.system.loaded && isCompressed(i), dinab: opts && optionOf(i, "dinab") ? dinabLeft(i) : null,
     hasDinab: !!(opts && optionOf(i, "dinab")),
     spent: opts && !!optionOf(i, "oneShot") && i.system.loaded && programUnusable(actor, i),

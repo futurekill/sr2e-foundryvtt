@@ -217,7 +217,11 @@ export function foldProgramming(records = [], prefix = "prog:") {
   }
   const task = starts.length ? tasks[starts.at(-1).gen] : null;
   const writing = !!task && !task.end;
-  return { tasks, current: task?.task ?? null, task, nextGen: (task?.task ?? 0) + 1, writing, unfinished: writing || !usable };
+  // Upgrading (VR2.0 p.107): the current version keeps working while its upgrade is written. A completed WRITING task
+  // (not an upgrade) means the decker has the source code.
+  const sourced = starts.some(r => tasks[r.gen].complete && !r.upgrade);
+  return { tasks, current: task?.task ?? null, task, nextGen: (task?.task ?? 0) + 1, writing,
+    unfinished: (writing && !task.upgrade) || !usable, sourced };
 }
 
 /**

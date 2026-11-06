@@ -90,7 +90,7 @@ import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "
 import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
-import { programmingState, loadingState } from "./programming.mjs";
+import { programmingState, loadingState, pendingUpgrade, registerProgrammingHandlers } from "./programming.mjs";
 import { activeOptions } from "./rules/vr2-options.mjs";
 
 /**
@@ -533,6 +533,7 @@ Hooks.once("init", async () => {
   registerGridHooks();
   registerFrameHooks();
   registerCommandSetHooks();
+  registerProgrammingHandlers();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();
@@ -1413,7 +1414,7 @@ Hooks.on("updateCombat", (combat, changed) => {
 // transact against every character who owns the item. They are still READ below —
 // each configuration is priced with its own row and Street Index — they just don't
 // TRIGGER anything.
-const PURCHASE_DRIVERS = ["rating", "grade", "bodySystem", "force", "grantedSkillCategory",
+const PURCHASE_DRIVERS = ["rating", "options", "objectCodeOnly", "grade", "bodySystem", "force", "grantedSkillCategory",
                           "bondedWeaponId", "category", "focusType", "strengthMinimum", "secondhandDiscount",
                           // A cyberlimb option is priced by where it's attached (Cybertechnology p.51).
                           "linkedLimbId", "limbSurcharge", "limbAdjacent",
@@ -1461,16 +1462,22 @@ function placementFactsFor(item, link) {
 // the invariant holds however the field is changed, not only on the spend path.
 // Squeeze (VR2.0 p.104): an unloaded copy is compressed again — its decompression receipt goes with the load.
 // Programming (plan 5b §4): the design is fixed while a task writes it.
-Hooks.on("preUpdateItem", (item, changes) => {
+Hooks.on("preUpdateItem", (item, changes, options) => {
   if (item.type !== "program") return;
   if (changes.system?.loaded === false && item.flags?.sr2e?.decompressed != null) {
     foundry.utils.setProperty(changes, "flags.sr2e.-=decompressed", null);
   }
   // Everything `designOf` (programming.mjs) captures, identity included, while a task is writing it.
   // Part 6a-1: a frame core's design too, and while it is being LOADED as well as written (R1 #6).
-  if ((programmingState(item).writing || loadingState(item).writing) && ("name" in changes
-      || ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore"].some(k => k in (changes.system ?? {})))) {
-    ui.notifications.warn(`${item.name} is being ${loadingState(item).writing ? "loaded" : "programmed"}: its design is fixed until the task completes (or abandon the task).`);
+  // Upgrading (VR2.0 p.107; PLAN-vr2-upgrading §2): also while an upgrade is complete but not yet applied, and its
+  // eligibility (source, command set) with it. The sequencer's apply is the one write let through.
+  const ps = programmingState(item), pend = pendingUpgrade(item);
+  if (pend && options?.sr2eUpgradeApply === pend.gen) return;
+  const keys = ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore",
+    ...(ps.task?.upgrade && (ps.writing || pend) ? ["objectCodeOnly", "commandSet"] : [])];
+  if ((ps.writing || pend || loadingState(item).writing) && ("name" in changes || keys.some(k => k in (changes.system ?? {})))) {
+    ui.notifications.warn(pend ? `${item.name}'s upgrade is complete and being applied: its design is fixed until then.`
+      : `${item.name} is being ${loadingState(item).writing ? "loaded" : ps.task?.upgrade ? "upgraded" : "programmed"}: its design is fixed until the task completes (or abandon the task).`);
     return false;
   }
 });
@@ -1520,7 +1527,7 @@ function repriceDelta(item, changed, paid) {
     limbOption: item.system.limbOption, costPerRating: item.system.costPerRating,
     costMultiplierOfBase: item.system.costMultiplierOfBase, linkedLimbId: item.system.linkedLimbId,
     limbSurcharge: item.system.limbSurcharge, limbAdjacent: item.system.limbAdjacent,
-    eyes: item.system.eyes, secondhand: item.system.secondhand,
+    eyes: item.system.eyes, secondhand: item.system.secondhand, objectCodeOnly: item.system.objectCodeOnly,
     // Utility options (VR2.0 p.103): which are active depends on the rating, so each side gets its own (code review R1 #4).
     activeOpts: item.type === "program" && utilityOptionsOn()
       ? activeOptions(item.system.utility, over.rating ?? item.system.rating, over.options ?? item.system.options ?? []).active : item.system.activeOpts,
@@ -1569,7 +1576,9 @@ function changedDrivers(item, changes) {
   const changed = {};
   for (const k of PURCHASE_DRIVERS) {
     const v = changes.system?.[k];
-    if (v !== undefined && v !== item.system[k]) changed[k] = v;
+    // A program's options (VR2.0 p.107: the design size prices it) compare by value.
+    if (k === "options") { if (v !== undefined && item.type === "program" && !foundry.utils.objectsEqual(v, item._source.system.options ?? [])) changed[k] = v; }
+    else if (v !== undefined && v !== item.system[k]) changed[k] = v;
   }
   return changed;
 }

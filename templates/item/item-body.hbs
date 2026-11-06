@@ -967,8 +967,14 @@
   </div>
   <div class="form-group">
     <label>Cost:</label>
-    <span>{{system.cost}}¥ <em style="opacity:.6;">({{#if vr2}}design size × the rating's price band, p.107{{else}}Size × 100{{/if}})</em></span>
+    <span>{{system.cost}}¥ <em style="opacity:.6;">({{#if vr2}}design size × the rating's price band, p.107{{#if system.objectCodeOnly}}, −25% object code{{/if}}{{else}}Size × 100{{/if}})</em></span>
   </div>
+  {{#if vr2}}
+  <div class="form-group">
+    <label title="Bought without the source code: 25% off, and it can't be upgraded until the decker writes it (VR2.0 p.107)">Object code only:</label>
+    <input type="checkbox" name="system.objectCodeOnly" {{checked system.objectCodeOnly}} />
+  </div>
+  {{/if}}
   <div class="form-group">
     <label>Loaded:</label>
     <input type="checkbox" name="system.loaded" {{checked system.loaded}} />

@@ -2719,9 +2719,11 @@ export function derivedItemCost(sys, ctx = {}) {
     if (!num(sys.rating) || !num(sys.multiplier)) return null;
     // Utility Options (VR2.0 p.103): the design size × the base rating's band; `activeOpts` is resolved by the
     // data model (setting + allow-list), so no options = programCostVR2 exactly.
-    return ctx.vr2 ? (sys.activeOpts?.length ? programSizes({ rating: sys.rating, multiplier: sys.multiplier, options: sys.activeOpts }).price
-                                             : programCostVR2(sys.rating, sys.multiplier))
-                   : programCost(sys.rating, sys.multiplier, sys.category === "persona");
+    if (!ctx.vr2) return programCost(sys.rating, sys.multiplier, sys.category === "persona");
+    const price = sys.activeOpts?.length ? programSizes({ rating: sys.rating, multiplier: sys.multiplier, options: sys.activeOpts }).price
+                                         : programCostVR2(sys.rating, sys.multiplier);
+    // Object code only (VR2.0 p.107): 25% off the listed price.
+    return sys.objectCodeOnly ? Math.ceil(price * 0.75 - 1e-9) : price;
   }
   if (sys.type === "focus") {
     // A WEAPON focus bonded to a weapon prices off that weapon's Reach (p.126) and

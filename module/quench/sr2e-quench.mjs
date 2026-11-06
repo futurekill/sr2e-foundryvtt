@@ -13074,6 +13074,94 @@ export function registerSR2EQuenchTests() {
         const C = B + 1, starts = await Promise.all([1, 2].map(() => recordEvent(p(), `prog:start:${C}`, { type: "progStart", gen: C, design: {}, designSize: 4, baseTime: 8, team: [] })));
         assert.equal(starts.filter(Boolean).length, 1, "one start per generation");
       });
+
+      // Upgrading (VR2.0 p.107; docs/PLAN-vr2-upgrading.md).
+      const upSet = (rating, add = []) => (el) => {
+        const r = el?.querySelector('input[name="rating"]'); if (r) r.value = String(rating);
+        for (const k of add) { const c = el?.querySelector(`input[name="add_${k}"]`); if (c) c.checked = true; }
+        const d = el?.querySelector('input[name="days"]'); if (d) d.value = "30";
+      };
+      const coder = async (name, prog) => {
+        const a = await mk({ name, type: "character", system: { nuyen: 100000 } });
+        await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 6, category: "active" } },
+          { type: "program", system: { multiplier: 1, loaded: true, category: "other", ...prog.system }, name: prog.name, flags: prog.flags ?? {} }]);
+        return [a, () => a.items.getName(prog.name)];
+      };
+
+      it("upgrading: R2 → R4 is the difference in base time, tested at the new rating; it keeps working, costs nothing", async function () {
+        this.timeout(30000);
+        const P = await import("../programming.mjs");
+        const [a, p] = await coder("Quench UP Coder", { name: "Browse", system: { rating: 2 }, flags: { sr2e: { paid: 400 } } });
+        const gen0 = p().system.loadGen ?? 0;
+        await clicking("ok", () => withFaces(Array(6).fill(5), () => P.upgradeDialog(a, p())), upSet(4));
+        const t = P.taskOf(p());
+        assert.deepEqual([t?.upgrade, t?.baseTime, t?.design?.rating], [true, 32 - 8, 4], "base time = new − current (p.107)");
+        assert.isTrue(V.usablePrograms(a).includes(p()), "the current version keeps working");
+        await p().update({ "system.rating": 3 });
+        assert.equal(p().system.rating, 2, "the design is fixed while upgrading");
+        await p().update({ "system.objectCodeOnly": true });
+        assert.isFalse(p().system.objectCodeOnly, "so is its source");
+        await clicking("ok", () => P.programmingDialog(a, p()), upSet(4));
+        assert.isTrue(P.taskOf(p()).complete, "complete");
+        assert.isTrue(await settle(() => p().system.rating === 4), "the sequencer applied it");
+        assert.deepEqual([p().system.loadGen, a.system.nuyen, p().getFlag("sr2e", "paid")], [gen0 + 1, 100000, 400], "new object code; no money moved");
+        assert.isNull(P.pendingUpgrade(p()));
+      });
+
+      it("upgrading needs the source code: object code only is refused until the decker writes it", async function () {
+        this.timeout(20000);
+        const P = await import("../programming.mjs");
+        const { recordEvent } = await import("../claims.mjs");
+        const [a, p] = await coder("Quench UP Object", { name: "Browse", system: { rating: 2, objectCodeOnly: true } });
+        await clicking("ok", () => P.upgradeDialog(a, p()), upSet(3));
+        assert.isNull(P.taskOf(p()), "refused: no task");
+        await recordEvent(p(), "prog:start:1", { type: "progStart", gen: 1, design: P.designOf(p()), designSize: 4, baseTime: 8, team: [] });
+        await recordEvent(p(), "prog:end:1", { type: "progEnd", task: 1, outcome: "complete" });
+        assert.isTrue(P.hasSource(p()), "written by the decker: has the source");
+      });
+
+      it("upgrading by adding Limit: base time 0, done on the test (no days)", async function () {
+        this.timeout(20000);
+        const P = await import("../programming.mjs");
+        const [a, p] = await coder("Quench UP Limit", { name: "Attack", system: { rating: 4, damageLevel: "M" } });
+        await clicking("ok", () => withFaces(Array(6).fill(5), () => P.upgradeDialog(a, p())), upSet(4, ["limit"]));
+        assert.equal(P.taskOf(p())?.baseTime, 0);
+        await clicking("ok", () => P.programmingDialog(a, p()));
+        assert.isTrue(P.taskOf(p()).complete, "complete on the test");
+        assert.isTrue(await settle(() => (p().system.options ?? []).some(o => o.kind === "limit")), "applied");
+      });
+
+      it("a completed upgrade not yet applied is pending: locked, no new task, Apply applies it once; a later downgrade stays", async function () {
+        this.timeout(20000);
+        const P = await import("../programming.mjs");
+        const { recordEvent } = await import("../claims.mjs");
+        const [a, p] = await coder("Quench UP Pending", { name: "Browse", system: { rating: 2 } });
+        const from = P.designOf(p());
+        await recordEvent(p(), "prog:start:1", { type: "progStart", gen: 1, upgrade: true, from, design: { ...from, rating: 3 }, designSize: 9, baseTime: 10, team: [] });
+        await recordEvent(p(), "prog:end:1", { type: "progEnd", task: 1, outcome: "complete" });
+        assert.deepEqual(P.pendingUpgrade(p()), { gen: 1, design: { ...from, rating: 3 } }, "pending (no marker yet)");
+        await p().update({ "system.rating": 5 });
+        assert.equal(p().system.rating, 2, "locked while pending");
+        await clicking("ok", () => P.programmingDialog(a, p()));
+        assert.equal(P.taskOf(p()).task, 1, "no new task while pending");
+        await P.upgradeDialog(a, p());
+        assert.isTrue(await settle(() => p().system.rating === 3), "Apply upgrade applied it");
+        assert.equal(p().getFlag("sr2e", "upgradeApplied"), 1);
+        await p().update({ "system.rating": 2 });
+        assert.deepEqual([p().system.rating, P.pendingUpgrade(p())], [2, null], "a later downgrade doesn't bring it back");
+      });
+
+      it("buying programs (p.107): object code only refunds 25%; adding an option on the sheet charges the difference", async function () {
+        this.timeout(20000);
+        const [a, p] = await coder("Quench UP Price", { name: "Browse", system: { rating: 4 } });
+        const full = p().system.cost;
+        await p().setFlag("sr2e", "paid", full);
+        await p().update({ "system.objectCodeOnly": true });
+        assert.isTrue(await settle(() => a.system.nuyen === 100000 + (full - Math.ceil(full * 0.75))), "refunds the 25%");
+        const before = a.system.nuyen, cost = p().system.cost;
+        await p().update({ "system.options": [{ kind: "optimization", rating: 0, target: "" }] });
+        assert.isTrue(await settle(() => p().system.cost > cost && a.system.nuyen === before - (p().system.cost - cost)), "the option is paid for");
+      });
     });
 
     quench.registerBatch("sr2e.vr2-ic", (context) => {
