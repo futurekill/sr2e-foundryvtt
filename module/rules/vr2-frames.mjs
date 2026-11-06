@@ -219,3 +219,73 @@ export function joinStep({ eligible = false, joining = false, joined = false } =
   if (joining) return "finish";
   return eligible ? "start" : "none";
 }
+
+// ── Part 6b: semi-autonomous knowbots (VR2.0 pp.140–141) ──────────────────────────────
+
+const PERSONA = ["bod", "evasion", "masking", "sensor"];
+/** The p.141 sample SKs (MPCP/Bod/Evasion/Masking/Sensor): each persona split totals MPCP × 3. */
+export const SK_PRESETS = [[7, 6, 5, 5, 5], [8, 6, 6, 6, 6], [9, 8, 7, 6, 6], [10, 8, 8, 7, 7], [11, 9, 8, 8, 8], [12, 9, 9, 9, 9]];
+
+/** Why an SK's ratings break p.140, as reasons; empty = legal. MPCP 7–12 (1D6 + 6); each ≤ MPCP; Σ ≤ MPCP × 3. */
+export function skProblems({ mpcp = 0, ...attrs } = {}) {
+  const m = Number(mpcp) || 0, out = [];
+  if (m < 7 || m > 12) out.push(`An SK's MPCP is 1D6 + 6: 7 to 12, not ${m} (p.140).`);
+  for (const k of PERSONA) if ((Number(attrs[k]) || 0) > m) out.push(`${k[0].toUpperCase()}${k.slice(1)} ${attrs[k]} exceeds MPCP ${m} (p.140).`);
+  const sum = PERSONA.reduce((n, k) => n + (Number(attrs[k]) || 0), 0);
+  if (sum > m * 3) out.push(`Bod + Evasion + Masking + Sensor (${sum}) exceeds MPCP × 3 (${m * 3}) (p.140).`);
+  return out;
+}
+
+/** Initiative dice from Utility Pool points (p.141): 0 → 1D6, 1 → 2D6, 3 → 3D6, 5 → 4D6 (the maximum). */
+export const SK_INIT_STEPS = { 0: 1, 1: 2, 3: 3, 5: 4 };
+export const skInitDice = (points = 0) => SK_INIT_STEPS[Number(points) || 0] ?? 1;
+
+const TWO_FOR_ONE = /^(black hammer|killjoy)/i;
+/** A utility's pool cost (p.141): 1 point per rating point; black hammer and killjoy 2. */
+export const poolCost = (name, rating) => (Number(rating) || 0) * (TWO_FOR_ONE.test(String(name ?? "")) ? 2 : 1);
+const isLockable = (name) => /^(restore|medic)/i.test(String(name ?? ""));
+
+/**
+ * Why an allocation breaks p.141, as reasons; empty = legal.
+ * @param {{pool: number, mpcp: number, alloc: {name: string, rating: number}[], init: number, locked: Object<string, number>}} p
+ */
+export function poolProblems({ pool = 0, mpcp = 0, alloc = [], init = 0, locked = {} } = {}) {
+  const out = [];
+  const total = alloc.reduce((n, a) => n + poolCost(a.name, a.rating), 0) + (Number(init) || 0);
+  if (total > pool) out.push(`The allocation costs ${total}: the pool holds ${pool} (black hammer and killjoy cost 2 a point, p.141).`);
+  for (const a of alloc) if ((Number(a.rating) || 0) > mpcp) out.push(`${a.name}-${a.rating} exceeds MPCP ${mpcp} (p.141).`);
+  if (!((Number(init) || 0) in SK_INIT_STEPS)) out.push(`Initiative takes 1, 3 or 5 points (2D6, 3D6, 4D6), not ${init} (p.141).`);
+  const names = new Set(alloc.map(a => a.name.toLowerCase()));
+  for (const [name, r] of Object.entries(locked ?? {})) {
+    const now = alloc.find(a => a.name.toLowerCase() === name.toLowerCase())?.rating ?? 0;
+    if (r > 0 && (!names.has(name.toLowerCase()) || now < r)) out.push(`${name}'s ${r} points are locked until the SK regenerates on its native host (p.141).`);
+  }
+  return out;
+}
+/** The locks after an allocation (p.141): restore and medic never drop below what they held. */
+export function nextLocks(locked = {}, alloc = []) {
+  const out = { ...locked };
+  for (const a of alloc) if (isLockable(a.name)) out[a.name] = Math.max(out[a.name] ?? 0, Number(a.rating) || 0);
+  return out;
+}
+
+/**
+ * An SK's condition, folded in ORDER (6b §5, R1 #7, R3 #2): hits add boxes, losses add per attribute, a full repair
+ * zeroes both, a partial repair heals boxes or one attribute. A repair sits at its `at` seq (an arrival's move), not
+ * the seq it was written with. `upto` folds only what came up to that seq (a replayed resolution's "after").
+ */
+export function skCondition(records = [], upto = Infinity) {
+  const pos = (e) => (e.type === "skRepair" ? (e.at ?? e.seq ?? 0) : (e.seq ?? 0));
+  const evs = records.filter(e => ["frameHit", "frameAttr", "skRepair"].includes(e.type) && pos(e) <= upto)
+    .sort((a, b) => pos(a) - pos(b) || (a.type === "skRepair") - (b.type === "skRepair"));
+  let monitor = 0;
+  const lost = { bod: 0, evasion: 0, masking: 0, sensor: 0 }, seen = new Set();
+  for (const e of evs) {
+    if (e.type === "frameHit") { if (seen.has(`h${e.card}`)) continue; seen.add(`h${e.card}`); monitor = Math.min(10, monitor + (Number(e.boxes) || 0)); }
+    else if (e.type === "frameAttr") { if (seen.has(`a${e.card}`)) continue; seen.add(`a${e.card}`); if (e.attr in lost) lost[e.attr] += Number(e.lost) || 0; }
+    else if (e.full) { monitor = 0; for (const k in lost) lost[k] = 0; }
+    else if (e.boxes) monitor = Math.max(0, monitor - (Number(e.boxes) || 0));
+    else if (e.attr in lost) lost[e.attr] = Math.max(0, lost[e.attr] - (Number(e.points) || 0));
+  }
+  return { monitor, lost };
+}

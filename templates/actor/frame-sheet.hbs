@@ -3,12 +3,20 @@
     <img src="{{actor.img}}" alt="{{actor.name}}" />
     <div class="title-block">
       <span class="actor-name">{{actor.name}}</span>
-      <span class="subtitle">{{#ifEquals system.kind "smart"}}Smart{{else}}Dumb{{/ifEquals}} frame — Core {{system.coreRating}}</span>
+      <span class="subtitle">{{#ifEquals system.kind "sk"}}SK — MPCP {{system.coreRating}}{{else}}{{#ifEquals system.kind "smart"}}Smart{{else}}Dumb{{/ifEquals}} frame — Core {{system.coreRating}}{{/ifEquals}}</span>
     </div>
   </header>
   {{#if frame.state.ended}}<p class="rule-note" style="color:#c44;"><strong>Gone:</strong> {{frame.state.why}}.</p>{{/if}}
-  <p class="rule-note">Running on <strong>{{frame.host}}</strong> for <strong>{{frame.owner}}</strong> (VR2.0 p.105–107).
-    {{#ifEquals system.kind "dumb"}}A dumb frame crashes when its decker leaves this host.{{else}}A smart frame runs on whether its decker is logged on or not.{{/ifEquals}}</p>
+  {{#if frame.sk}}<p class="rule-note">A semi-autonomous knowbot (VR2.0 p.140–141): MPCP {{system.coreRating}}, Computer {{system.dinab}}.
+    {{#if frame.sk.here}}On <strong>{{frame.sk.here}}</strong>{{else}}<strong>Between hosts</strong>{{/if}}; native host <strong>{{frame.sk.native}}</strong>.
+    <br><strong>Utility Pool</strong> {{frame.sk.pool}}: {{frame.sk.used}} allocated, {{frame.sk.free}} free{{#if frame.sk.init}} (Initiative +{{frame.sk.init}}){{/if}}.
+    {{#each frame.sk.items as |i|}}<br>{{i.name}}-{{i.rating}}{{#if i.level}} {{i.level}}{{/if}}{{/each}}
+    {{#if frame.sk.isGM}}<br><button type="button" data-action="vr2ic" data-op="skAllocate" data-arg="" title="Allocate the Utility Pool: a Free Action (p.141)">Allocate…</button>
+      {{#if frame.sk.here}}<button type="button" data-action="vr2ic" data-op="skLogoff" data-arg="" title="Leave this host: SKs can't jack out (p.141)">Graceful Logoff</button>
+      {{else}}<button type="button" data-action="vr2ic" data-op="skLogon" data-arg="" title="Logon to Host; its native host needs no test (its passcode, p.140)">Logon to Host…</button>{{/if}}
+      {{#if frame.sk.onNative}}{{#if frame.sk.damaged}}<button type="button" data-action="vr2ic" data-op="skRegenerate" data-arg="" title="On its native host: Medic or Restore at MPCP, no pool (a Complex Action, p.140)">Regenerate</button>{{/if}}{{/if}}{{/if}}</p>
+  {{else}}<p class="rule-note">Running on <strong>{{frame.host}}</strong> for <strong>{{frame.owner}}</strong> (VR2.0 p.105–107).
+    {{#ifEquals system.kind "dumb"}}A dumb frame crashes when its decker leaves this host.{{else}}A smart frame runs on whether its decker is logged on or not.{{/ifEquals}}</p>{{/if}}
   <div class="field-grid">
     <label class="field"><span>Bod</span><strong>{{frame.attrs.bod}}{{#ifEquals frame.attrs.bod system.bod}}{{else}} <small>of {{system.bod}}</small>{{/ifEquals}}</strong></label>
     <label class="field"><span>Evasion</span><strong>{{frame.attrs.evasion}}{{#ifEquals frame.attrs.evasion system.evasion}}{{else}} <small>of {{system.evasion}}</small>{{/ifEquals}}</strong></label>
@@ -16,6 +24,7 @@
     <label class="field"><span>Sensor</span><strong>{{frame.attrs.sensor}}{{#ifEquals frame.attrs.sensor system.sensor}}{{else}} <small>of {{system.sensor}}</small>{{/ifEquals}}</strong></label>
     {{#if system.dinab}}<label class="field" title="A smart frame's Computer skill; a dumb core's DINAB runs one program per action of its decker's, −1 when a run fails (p.103, p.106)"><span>DINAB</span><strong>{{frame.dinabLeft}}{{#ifEquals frame.dinabLeft system.dinab}}{{else}} <small>of {{system.dinab}}</small>{{/ifEquals}}</strong></label>{{/if}}
     {{#ifEquals system.kind "smart"}}<label class="field" title="Reaction = Core Rating; 1D6 + 1 per Initiative point (p.106)"><span>Initiative</span><strong>{{system.coreRating}} + {{frame.initDice}}D6</strong></label>{{/ifEquals}}
+    {{#ifEquals system.kind "sk"}}<label class="field" title="Reaction = MPCP; 1D6, or 2/3/4D6 for 1/3/5 pool points (p.141)"><span>Initiative</span><strong>{{system.coreRating}} + {{frame.initDice}}D6</strong></label>{{/ifEquals}}
   </div>
   {{#if frame.smart}}<p class="rule-note"><strong>Its own tally</strong> on this host: {{frame.tally}}
     {{#if frame.order}}<br><strong>Order:</strong> {{frame.order}}{{/if}}

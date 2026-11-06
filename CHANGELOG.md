@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.139.0 — 2026-11-05
+
+### Added
+- **VR2.0 semi-autonomous knowbots (SKs)** (VR2.0 pp.140–141), the GM's mobile icons:
+  - **New SK…** in the Actor Directory (GM, VR2.0 Matrix): pick its native host; MPCP rolls 1D6 + 6, persona ratings
+    are checked (each ≤ MPCP, total ≤ MPCP × 3) or taken from the p.141 presets, and its Utility Pool rolls MPCP + 1D6.
+  - **Utility Pool:** **Allocate…** on its sheet (a Free Action). One point per rating point, up to its MPCP; black
+    hammer and killjoy cost 2; Initiative takes 1, 3 or 5 points (2D6, 3D6, 4D6). Restore and medic points stay locked
+    until it regenerates on its native host. Allocated utilities are real programs, so every utility rule applies.
+  - **It acts like a smart frame:** **Act…**, its MPCP as its Computer, its own security tally on each host; trace IC
+    can't trace it.
+  - **It moves:** Graceful Logoff to leave a host (it can't jack out), Logon to Host to arrive. A logon's tally is the
+    destination's; its native host needs no test (its passcode).
+  - **Repair:** arriving at its native host repairs everything and unlocks the pool; **Regenerate** there heals it at
+    Medic or Restore strength equal to its MPCP, without the pool.
+  - Ten boxes crash it for good: its tokens and combatants go, and the actor stays as the GM's record.
+  - The p.141 sample table's "Pool: 9 to 17" for MPCP-8 is a misprint for 9 to 14 (MPCP + 1D6).
+- How-To Guides: *Run an SK (VR2.0)*.
+
 ## 0.138.0 — 2026-11-05
 
 ### Added

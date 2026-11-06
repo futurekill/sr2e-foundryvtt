@@ -13,7 +13,7 @@ import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rul
 import { foldCym, cymWillpower, band, cymSocial, magicSurcharge, perPoint, overflowMax } from "../rules/cym-rules.mjs";
 import { isReflexEnhancer, socialModifiers, wareRule, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions, MUSCLE } from "../rules/ware-rules.mjs";
 import { isVR2, variableLTGOn } from "../vr2-mode.mjs";
-import { frameAttrLosses, coreDinabLeft } from "../rules/vr2-frames.mjs";
+import { frameAttrLosses, coreDinabLeft, skCondition } from "../rules/vr2-frames.mjs";
 import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
@@ -2451,7 +2451,10 @@ export class FrameData extends SR2EDataModel {
     const fields = foundry.data.fields;
     const n = () => new fields.NumberField({ integer: true, initial: 0, min: 0 });
     return {
-      kind: new fields.StringField({ initial: "dumb", blank: false, choices: { dumb: "Dumb", smart: "Smart" } }),
+      // Part 6b: "sk", a semi-autonomous knowbot (pp.140–141): coreRating = MPCP, dinab = Computer, uploadId = its id.
+      kind: new fields.StringField({ initial: "dumb", blank: false, choices: { dumb: "Dumb", smart: "Smart", sk: "SK" } }),
+      nativeHostUuid: new fields.StringField({ initial: "", blank: true }),
+      pool: n(),
       coreRating: n(), bod: n(), evasion: n(), masking: n(), sensor: n(), initPoints: n(), dinab: n(),
       ownerUuid: new fields.StringField({ initial: "", blank: true }),
       coreUuid: new fields.StringField({ initial: "", blank: true }),
@@ -2470,10 +2473,15 @@ export class FrameData extends SR2EDataModel {
     let owner = null;
     try { owner = this.ownerUuid ? fromUuidSync(this.ownerUuid) : null; } catch (e) { owner = null; }
     const upload = this.uploadId || this.parent?.id;
-    const lost = owner ? frameAttrLosses(eventsOf(owner), upload) : { bod: 0, evasion: 0, masking: 0, sensor: 0 };
+    // Part 6b: an SK's facts are on itself, folded in order with its repairs (§5).
+    const lost = this.kind === "sk" ? skCondition(this.parent ? eventsOf(this.parent) : []).lost
+      : owner ? frameAttrLosses(eventsOf(owner), upload) : { bod: 0, evasion: 0, masking: 0, sensor: 0 };
     // Persona-shaped (p.105: "the Core Rating is used in place of an MPCP Rating"), so persona readers use one accessor.
     this.matrixPersona = Object.fromEntries(["bod", "evasion", "masking", "sensor"].map(k => [k, Math.max(0, this[k] - lost[k])]));
     this.mpcp = this.coreRating;
+    // Part 6b: an SK's Initiative points, from its latest allocation (p.141).
+    this.skInit = this.kind === "sk" && this.parent
+      ? (eventsOf(this.parent).filter(e => e.type === "skAlloc").sort((a, b) => (a.rev ?? 0) - (b.rev ?? 0)).at(-1)?.init ?? 0) : 0;
     // Core DINAB left (§5): one point per failed run, worn on this frame.
     this.dinabLeft = coreDinabLeft(this.dinab, this.parent?.flags?.sr2e?.coreDinabWear, upload);
   }

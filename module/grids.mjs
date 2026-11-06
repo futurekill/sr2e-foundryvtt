@@ -4,7 +4,7 @@
  * sessions in module/vr2.mjs. Grids are Host actors with a `kind`.
  */
 import { RTG_TABLE, easyGridRatings, variableShift, reachable, wiringFits, LOGON_OPS, GRID_KINDS, satelliteRatings, satelliteFormula } from "./rules/vr2-grids.mjs";
-import { topologyOn, variableLTGOn } from "./vr2-mode.mjs";
+import { topologyOn, variableLTGOn, isVR2 } from "./vr2-mode.mjs";
 import { topoSnapshot, settleLogon, knownPlaces, settleMapping, satLockKarma } from "./vr2.mjs";
 import { systemTestVerdict } from "./rules/sr2e-rules.mjs";
 
@@ -200,9 +200,18 @@ export function registerGridHooks() {
     settleMapping(actor, st);
   });
   Hooks.on("renderActorDirectory", (app, html) => {
-    if (!game.user.isGM || !topologyOn()) return;
+    if (!game.user.isGM || !isVR2()) return;
     const root = html instanceof HTMLElement ? html : html[0];
     const bar = root?.querySelector(".header-actions");
+    // Part 6b: New SK… (VR2.0 p.140–141), the GM's.
+    if (bar && !bar.querySelector(".sr2e-new-sk")) {
+      const sk = document.createElement("button");
+      sk.type = "button"; sk.className = "sr2e-new-sk";
+      sk.innerHTML = `<i class="fa-solid fa-robot"></i> New SK`;
+      sk.addEventListener("click", async () => (await import("./frames.mjs")).newSkDialog());
+      bar.append(sk);
+    }
+    if (!topologyOn()) return;
     if (!bar || bar.querySelector(".sr2e-new-grid")) return;
     const btn = document.createElement("button");
     btn.type = "button"; btn.className = "sr2e-new-grid";

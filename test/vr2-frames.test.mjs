@@ -212,3 +212,35 @@ describe("part 6a-2c", () => {
     expect(joinStep({ eligible: true, joining: true, joined: true })).toBe("none");
   });
 });
+
+describe("part 6b: SKs", () => {
+  it("skProblems: every p.141 sample is legal; MPCP, single ratings and the ×3 total are enforced", async () => {
+    const { skProblems, SK_PRESETS } = await import("../module/rules/vr2-frames.mjs");
+    for (const [mpcp, bod, evasion, masking, sensor] of SK_PRESETS) expect(skProblems({ mpcp, bod, evasion, masking, sensor })).toEqual([]);
+    expect(skProblems({ mpcp: 13, bod: 1 })).toHaveLength(1);
+    expect(skProblems({ mpcp: 7, bod: 8 })).toHaveLength(1);
+    expect(skProblems({ mpcp: 7, bod: 6, evasion: 6, masking: 6, sensor: 6 })).toHaveLength(1);
+  });
+  it("poolProblems: 2:1 black hammer, Initiative steps, rating ≤ MPCP, cost ≤ pool, locks (p.141)", async () => {
+    const { poolProblems, poolCost, skInitDice, nextLocks } = await import("../module/rules/vr2-frames.mjs");
+    expect(poolCost("Black Hammer", 4)).toBe(8);
+    expect(poolProblems({ pool: 12, mpcp: 8, alloc: [{ name: "Attack", rating: 6 }, { name: "Armor", rating: 3 }], init: 3 })).toEqual([]);
+    expect(poolProblems({ pool: 12, mpcp: 8, alloc: [{ name: "Black Hammer", rating: 7 }] })).toHaveLength(1);
+    expect(poolProblems({ pool: 20, mpcp: 8, alloc: [{ name: "Attack", rating: 9 }] })).toHaveLength(1);
+    expect(poolProblems({ pool: 20, mpcp: 8, alloc: [], init: 2 })).toHaveLength(1);
+    expect(poolProblems({ pool: 20, mpcp: 8, alloc: [{ name: "Medic", rating: 2 }], locked: { Medic: 4 } })).toHaveLength(1);
+    expect([0, 1, 3, 5].map(skInitDice)).toEqual([1, 2, 3, 4]);
+    expect(nextLocks({ Medic: 4 }, [{ name: "Medic", rating: 2 }, { name: "Restore", rating: 3 }, { name: "Attack", rating: 5 }])).toEqual({ Medic: 4, Restore: 3 });
+  });
+  it("skCondition: hits, a partial Medic, a loss, a full repair at its move's seq, more hits", async () => {
+    const { skCondition } = await import("../module/rules/vr2-frames.mjs");
+    const recs = [
+      { type: "frameHit", card: "a", boxes: 4, seq: 1 }, { type: "frameHit", card: "a", boxes: 4, seq: 2 },
+      { type: "skRepair", boxes: 2, seq: 3 }, { type: "frameAttr", card: "b", attr: "bod", lost: 2, seq: 4 },
+      { type: "frameHit", card: "c", boxes: 3, seq: 6 },
+      // An arrival's repair written later (seq 9) but placed at its move (5): the hit at 6 isn't healed.
+      { type: "skRepair", full: true, at: 5, seq: 9 }];
+    expect(skCondition(recs)).toEqual({ monitor: 3, lost: { bod: 0, evasion: 0, masking: 0, sensor: 0 } });
+    expect(skCondition(recs, 4)).toEqual({ monitor: 2, lost: { bod: 2, evasion: 0, masking: 0, sensor: 0 } });
+  });
+});

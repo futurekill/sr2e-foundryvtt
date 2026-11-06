@@ -234,7 +234,13 @@ Part 6a-2c (0.138.0): a SMART frame acts as itself — `ctx = { frame, smart: tr
 Computer, no pools), its OWN session/tally (`flags.sr2e.vr2Session`, created with it), attacker key `frame:<uuid>@<upload>`
 (`isActorKey`/`attackerEnded`). Requests about a frame go on its OWNER's log (frames have no pass); combat joining is
 two receipts (frameJoining → combatant `_id` = upload id → frameJoined), never re-added after.
-Remaining deferred: SKs (6b), command sets (6c) — each needs its own Codex-reviewed plan meeting the
+Part 6b (0.139.0): an SK is a frame actor of `kind: "sk"` (GM-run, `_id` = its incarnation id, no owner): its facts are
+on ITSELF (`factsOf`), written only by the sequencer; where it is = its `sk-move` facts, completed IN ORDER by the
+idempotent `skPass` (moves, pool items, tar, wear/resolutions, crash cleanup); `vr2Session` is its current or
+attempting session, failed-attempt sessions stashed in `flags.sr2e.skSessions`; one seq-ordered `skCondition` fold
+(full repairs sit at their move's seq). Pool allocations are `sk-alloc:<rev>` facts with item ids, materialized by
+`reconcileSkItems` (item locks bypassed only with `sr2eSkPool`).
+Remaining deferred: command sets (6c) — each needs its own Codex-reviewed plan meeting the
 requirements in docs/PLAN-vr2-part6-frames.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;

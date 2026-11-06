@@ -14652,6 +14652,103 @@ export function registerSR2EQuenchTests() {
         await cleanupFrames();
       });
 
+      // ── 6b: SKs ──
+      /** An SK on `native`: MPCP 8 (8/6/6/6/6), Utility Pool 12, created as New SK… does. */
+      const makeSK = async (native, extra = {}) => {
+        const id = foundry.utils.randomID(16);
+        const sk = await Actor.create({ _id: id, name: "Quench SK", type: "frame", system: { kind: "sk", coreRating: 8, dinab: 8, bod: 6, evasion: 6,
+          masking: 6, sensor: 6, pool: 12, uploadId: id, nativeHostUuid: native.uuid, hostUuid: native.uuid, ...extra } }, { keepId: true });
+        made.push(sk);
+        await F.skPass(sk);
+        return sk;
+      };
+      /** Allocate through the real dialog: rows [[name, rating]], Initiative points; `before` runs once the dialog is up. */
+      const allocate = async (sk, rows, init = 0, before = null) => {
+        const id = Hooks.on("renderDialogV2", (app) => setTimeout(async () => {
+          const el = app.element;
+          if (!el?.querySelector('input[name="n0"]')) return;
+          if (before) await before();
+          for (let i = 0; i < 8; i++) { const n = el.querySelector(`input[name="n${i}"]`), r = el.querySelector(`input[name="r${i}"]`); if (n) { n.value = rows[i]?.[0] ?? ""; r.value = rows[i]?.[1] ?? ""; } }
+          el.querySelector('select[name="init"]').value = String(init);
+          el.querySelector('button[data-action="go"]').click();
+        }, 50));
+        try { await F.skAllocate(sk); } finally { Hooks.off("renderDialogV2", id); }
+      };
+      const skRecs = (sk, type) => Y.recordsOf(sk).filter(e => e.type === type);
+
+      it("6b: an SK starts on its native host with its own session; its pool allocation makes real, versioned utilities", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const sk = await makeSK(h);
+        assert.equal(skRecs(sk, "skMove").length, 1, "its first move: born on its native host");
+        assert.deepEqual([sk.system.hostUuid, V.liveSession(sk)?.hostUuid], [h.uuid, h.uuid]);
+        await allocate(sk, [["Attack", 6], ["Armor", 3]], 3);
+        const att0 = sk.items.getName("Attack"), arm0 = sk.items.getName("Armor");
+        assert.ok(att0 && arm0, "the pool's utilities are items");
+        const p = sk._getInitiativeParts();
+        assert.deepEqual([p.base, p.dice], [8, 3], "MPCP + 3D6 for 3 points (p.141)");
+        await allocate(sk, [["Attack", 4], ["Armor", 3]], 3);
+        assert.notEqual(sk.items.getName("Attack")?.id, att0.id, "a changed rating is a fresh version");
+        assert.equal(sk.items.getName("Armor")?.id, arm0.id, "an unchanged one keeps its item (and wear)");
+        // Over the pool, and a stale dialog: refused, nothing written.
+        const rev = skRecs(sk, "skAlloc").length;
+        await allocate(sk, [["Black Hammer", 7]]);
+        await allocate(sk, [["Attack", 2]], 0, () => Y.sequencer(() => Y.fact(sk, `sk-alloc:${rev + 1}`, { type: "skAlloc", rev: rev + 1, init: 0, items: [], locked: {} })));
+        assert.equal(skRecs(sk, "skAlloc").length, rev + 1, "only the interloper's allocation landed");
+      });
+
+      it("6b: medic points lock until it regenerates on its native host; damage folds in order; it moves by Graceful Logoff and Logon", async function () {
+        this.timeout(50000);
+        const h = await host(), h2 = await host("Quench Frames Host 2");
+        const sk = await makeSK(h);
+        await allocate(sk, [["Medic", 3], ["Deception", 4], ["Analyze", 4]]);
+        const rev = skRecs(sk, "skAlloc").length;
+        await allocate(sk, [["Medic", 1], ["Deception", 4], ["Analyze", 4]]);
+        assert.equal(skRecs(sk, "skAlloc").length, rev, "medic points can't drop until regeneration (p.141)");
+        // It acts: MPCP dice, its own tally.
+        const n = sysCards().length;
+        await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1], () => V.vr2SystemTest(sk, h, "locateIC", { ctx: { frame: sk, smart: true } }));
+        const st = sysCards()[n]?.flags.sr2e.vr2SystemTest;
+        assert.equal(st?.successes, 8, "MPCP-8 as its Computer");
+        assert.equal(V.liveSession(sk).tally, st.hostSuccesses, "its own tally");
+        // Graceful Logoff (Access 6 − Deception 4 = TN 2), then Logon to Host 2: the tally lands on Host 2's session.
+        await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1], () => F.skMove(sk, "gracefulLogoff"));
+        assert.ok(await settle(() => sk.system.hostUuid === ""), "between hosts");
+        await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1], () => F.skMove(sk, "logonHost", h2));
+        assert.ok(await settle(() => sk.system.hostUuid === h2.uuid), "on Host 2");
+        assert.equal(V.liveSession(sk).hostUuid, h2.uuid);
+        assert.equal(V.liveSession(sk).tally, 2, "the logon's tally is the destination's");
+        // Damage on Host 2, then home: the native host repairs it and unlocks the medic points (p.140).
+        await F.hitFrame(sk, "quench-sk-hit", 4);
+        assert.equal(F.frameState(sk).monitor, 4);
+        await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1], () => F.skMove(sk, "gracefulLogoff"));
+        await settle(() => sk.system.hostUuid === "");
+        await F.skMove(sk, "logonHost", h);
+        assert.ok(await settle(() => sk.system.hostUuid === h.uuid), "home, no test (its passcode)");
+        assert.equal(F.frameState(sk).monitor, 0, "repaired");
+        await allocate(sk, [["Medic", 1], ["Deception", 4], ["Analyze", 4]]);
+        assert.equal(skRecs(sk, "skAlloc").length, rev + 1, "unlocked");
+        // Regenerate on its native host: MPCP dice as Medic.
+        await F.hitFrame(sk, "quench-sk-hit-2", 3);
+        await clicking("medic", () => withFaces([6, 6, 1, 1, 1, 1, 1, 1, 1, 1], () => F.skRegenerate(sk)));
+        assert.ok(await settle(() => F.frameState(sk).monitor < 3), "regenerated");
+      });
+
+      it("6b: ten boxes crash an SK for good: its token goes, the actor stays, and it can't move or allocate", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const sk = await makeSK(h);
+        if (canvas?.ready) await tokenFor(sk, 3);
+        await F.hitFrame(sk, "quench-sk-kill", 10);
+        assert.isTrue(F.frameState(sk).ended, "crashed (p.141)");
+        assert.ok(await settle(() => !canvas?.ready || !canvas.scene.tokens.some(t => t.actorId === sk.id)), "its token removed");
+        assert.ok(game.actors.get(sk.id), "the actor stays as the GM's record");
+        const moves = skRecs(sk, "skMove").length;
+        await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1], () => F.skMove(sk, "gracefulLogoff"));
+        assert.equal(skRecs(sk, "skMove").length, moves, "no move once crashed");
+        await dropTokens();
+      });
+
       it("changing a written core's design unwrites it and voids its load until it is written and loaded again", async function () {
         this.timeout(40000);
         const a = await coder();

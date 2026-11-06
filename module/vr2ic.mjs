@@ -667,7 +667,7 @@ export async function bombEnd(actor, bomb, outcome, card) {
       flags: { sr2e: { matrix: st } } });
     if (st.targetConn != null) await request(actor, "attack", { card: msg.id, icKey, cls: "white", program: "data-bomb" });
     // Whose tally (6a-2c R1 #2): a smart frame's own; a dumb frame's or the decker's own test, the decker's.
-    const holder = target.type === "frame" && target.system.kind === "smart" ? target : actor;
+    const holder = target.type === "frame" && target.system.kind !== "dumb" ? target : actor;
     const s = (await import("./vr2.mjs")).liveSession(holder);
     if (s) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: holder }), content: `<div class="sr2e-item-card">
       The explosion adds ${bomb.system.rating} to ${esc(holder.name)}'s tally, unless a point of Detection Factor suppresses it (p.41).
@@ -814,7 +814,7 @@ async function reconcileTarFact(actor, t) {
   if (t.pit > 0 && deck) await recordEvent(deck, `${DECK}corrupt:${t.programKey}:${t.g}:tar-${t.card}`, { type: "corrupt", programKey: t.programKey, g: t.g });
 }
 /** Sequencer pass step: finish every interrupted winning tar strike (older facts lack the context and are skipped). */
-async function reconcileTar(actor) {
+export async function reconcileTar(actor) {
   for (const t of recordsOf(actor).filter(e => e.type === "tar" && e.v === 2 && e.won)) await reconcileTarFact(actor, t);
 }
 
@@ -1887,10 +1887,16 @@ export async function sheetOp(doc, op, arg) {
   // Part 6a-2c: a basic order to a smart frame (the decker's sheet); the smart frame acting (its own sheet).
   if (op === "frameOrder") { const F = await import("./frames.mjs"); return F.orderFrame(doc, game.actors.get(arg)); }
   if (op === "frameAct") { const F = await import("./frames.mjs"); return F.commandFrame(doc, doc); }
+  // Part 6b: an SK's pool, moves and regeneration (its sheet; the GM's).
+  if (op === "skAllocate") { const F = await import("./frames.mjs"); return F.skAllocate(doc); }
+  if (op === "skLogon") { const F = await import("./frames.mjs"); return F.skLogonDialog(doc); }
+  if (op === "skLogoff") { const F = await import("./frames.mjs"); return F.skMove(doc, "gracefulLogoff"); }
+  if (op === "skRegenerate") { const F = await import("./frames.mjs"); return F.skRegenerate(doc); }
   if (op === "triggerFire") { const F = await import("./frames.mjs"); const [fid, key] = arg.split("|"); const fr = game.actors.get(fid); return fr && F.fireTrigger(fr, key); }
   if (op === "frameDecompress") { const F = await import("./frames.mjs"); return F.decompressFrame(doc, doc.items.get(arg)); }
   if (op === "slowRelease") {
     const [card, icUuid] = arg.split("|");
+    if (doc.type === "frame" && doc.system.kind === "sk") return isSequencer() ? sequencer(() => HANDLERS.slowRelease(doc, { card, icUuid })) : ui.notifications.warn("The active GM runs an SK.");
     if (doc.type === "frame") { const o = sync(doc.system.ownerUuid); return o && request(o, "slowRelease", { card, icUuid, frame: doc.system.uploadId || doc.id }); }
     return request(doc, "slowRelease", { card, icUuid });
   }
@@ -1973,6 +1979,8 @@ export async function icOp(uuid, op, arg) {
   if (op === "slowSuppress") {
     const [card, icUuid] = arg.split("|");
     // A smart frame has no log the sequencer passes: its requests go on its owner's, naming it (6a-2c §3).
+    // An SK has no owner: it's the GM's, so the sequencer runs the handler on it directly (6b).
+    if (actor.type === "frame" && actor.system.kind === "sk") return isSequencer() ? sequencer(() => HANDLERS.slowSuppress(actor, { card, icUuid })) : ui.notifications.warn("The active GM runs an SK.");
     if (actor.type === "frame") { const o = sync(actor.system.ownerUuid); return o && request(o, "slowSuppress", { card, icUuid, frame: actor.system.uploadId || actor.id }); }
     return request(actor, "slowSuppress", { card, icUuid });
   }

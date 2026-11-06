@@ -1,4 +1,5 @@
 import { shiftView } from "../shapeshift.mjs";
+import { skInitDice } from "../rules/vr2-frames.mjs";
 import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf } from "../rules/shapeshift-rules.mjs";
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
 import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs";
@@ -2453,14 +2454,23 @@ export class SR2EFrameSheet extends SR2EBaseActorSheet {
     const { programUnusable } = await import("../data/actor-data.mjs");
     const s = this.document.system, st = frameState(this.document);
     const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
-    context.frame = { state: st, boxes: Array.from({ length: 10 }, (_, i) => i < st.monitor), initDice: 1 + (s.initPoints ?? 0),
+    context.frame = { state: st, boxes: Array.from({ length: 10 }, (_, i) => i < st.monitor), initDice: s.kind === "sk" ? skInitDice(s.skInit) : 1 + (s.initPoints ?? 0),
       owner: sync(s.ownerUuid)?.name ?? "(gone)", host: sync(s.hostUuid)?.name ?? "(gone)",
       programs: this.document.items.filter(i => i.type === "program").map(i => ({ name: i.name, rating: i.system.rating, effective: i.system.effectiveRating,
         crashed: programUnusable(this.document, i) })),
       // Part 6a-2b: the attributes after crippler losses, core DINAB left, and event triggers (the GM fires them).
       attrs: s.matrixPersona ?? {}, dinabLeft: s.dinabLeft ?? 0, isGM: game.user.isGM,
       // Part 6a-2c: a smart frame acts from here, with its own tally, latest order and Slow suppressions.
-      smart: s.kind === "smart", canAct: s.kind === "smart" && this.document.isOwner && !st.ended,
+      smart: s.kind !== "dumb", canAct: s.kind !== "dumb" && this.document.isOwner && !st.ended && !!s.hostUuid,
+      // Part 6b: an SK's pool, place and repair.
+      sk: s.kind === "sk" ? (() => {
+        const recs = Y.recordsOf(this.document);
+        const a = recs.filter(e => e.type === "skAlloc").sort((x, y) => (x.rev ?? 0) - (y.rev ?? 0)).at(-1);
+        const used = (a?.items ?? []).reduce((n, i) => n + i.rating * (/^(black hammer|killjoy)/i.test(i.name) ? 2 : 1), 0) + (a?.init ?? 0);
+        return { pool: s.pool, used, free: s.pool - used, items: a?.items ?? [], init: a?.init ?? 0, isGM: game.user.isGM && !st.ended,
+          native: sync(s.nativeHostUuid)?.name ?? "(gone)", here: s.hostUuid ? (sync(s.hostUuid)?.name ?? "?") : "",
+          onNative: !!s.hostUuid && s.hostUuid === s.nativeHostUuid, damaged: st.monitor > 0 || Object.values(s.matrixPersona ?? {}).some((v, i) => v < [s.bod, s.evasion, s.masking, s.sensor][i]) };
+      })() : null,
       tally: this.document.flags?.sr2e?.vr2Session?.tally ?? 0, order: orderOf(this.document)?.text ?? "",
       suppressions: Y.allIC().flatMap(ic => Y.slowSuppressions(ic).filter(e => e.deckerUuid === this.document.uuid).map(e => ({ name: ic.name, arg: `${e.card}|${ic.uuid}` }))),
       triggers: triggersOf(this.document).map(t => ({ key: t.key, note: t.note, watch: { host: "host events", users: "users", both: "host events and users" }[t.watch] ?? t.watch })) };

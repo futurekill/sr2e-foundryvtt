@@ -1000,7 +1000,7 @@ If those five all work, the core loop is healthy.
 - [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
       button.
 
-## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c)
+## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c, 6b)
 - [ ] New program → Frame core *Smart*, rating 6, Bod 2 / Evasion 2 / Masking 1 / Sensor 1, DINAB-4: size (6 + 4)² × 3
       = 300 Mp. Without DINAB the sheet lists the problem and programming refuses.
 - [ ] Write it (the code button), then **Load programs…**: pick two programs over the capacity → refused; within it →
@@ -1033,4 +1033,11 @@ If those five all work, the core loop is healthy.
 - [ ] **Order…** from another host: refused; on its host: the order shows on the frame's sheet.
 - [ ] Start a combat with your decker in it: the smart frame joins with Core + 1D6 (+1 per point). Remove it: it stays out.
 - [ ] Trace IC targeting a smart frame: refused (no jackpoint).
+- [ ] 6b (VR2.0 Matrix on): Actor Directory → **New SK**, a preset, its native host: the SK sheet shows MPCP, pool, "On <host>".
+- [ ] **Allocate…** Attack-6, Armor-3, Initiative 3: items listed; Initiative MPCP + 3D6. Black Hammer-7 on a 12 pool: refused.
+- [ ] Allocate Medic-3, then lower it: refused until it's been home and repaired.
+- [ ] **Act…** an operation: MPCP dice; its tally rises. **Graceful Logoff** → "Between hosts"; **Logon to Host…** another
+      host: on it, with that host's tally.
+- [ ] Damage it, then Logon to its native host: no test, repaired. **Regenerate** there heals boxes.
+- [ ] Ten boxes: its token goes; the actor stays, crashed.
 
