@@ -684,3 +684,7 @@ Seven direct Restore TN assertions passed. Vitest could not start because its co
 VERDICT: APPROVED
 
 **6b code APPROVED in round 3.**
+
+# 6c plan review (command sets)
+Started 2026-11-06. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round. User rulings before review:
+a command-set program is created with no test (1D6 × 20 Mp); its upload is timed like a frame's.

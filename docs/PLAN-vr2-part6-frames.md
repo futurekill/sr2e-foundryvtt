@@ -1624,6 +1624,135 @@ active GM.
 - 10 boxes: crashed, the token removed, the actor kept and marked crashed;
 - trace IC targeting an SK is refused.
 
+## 6c in detail: command sets
+
+**Status: plan under review.**
+
+The pages were rendered for this section (2026-11-06): Command Sets (p.104–105).
+- **p.104.** "A command set consists of a simple program of orders that a decker can leave on a host to be executed
+  at a later time. Writing a command set may require one or more Subsystem Tests, depending on the tasks the decker
+  wants the host to perform." The book's examples:
+  - a Slave Test to manipulate a remote device ("opening a security door at a specific time or after receiving a
+    specific signal");
+  - a Files Test to print or erase a file;
+  - an Access Test to open a SAN at a given time.
+
+  "The gamemaster determines the specific Subsystem Test needed for the command set (when in doubt, use a Control
+  Test). The deception utility reduces the target numbers for all these tests."
+- **p.105.**
+  - "More complex sequences of action require the decker to write a program in advance and upload it. The design size
+    of such programs is 1D6 × 20 Mp. After uploading the program, the decker must make a successful Control Test to
+    load the program into the host."
+  - "Total any successes the host scores in opposing these Subsystem Tests. Divide the sum into 24. The result is the
+    number of hours the program will continue to run on the host without being detected and purged. If the host scores
+    no successes, the command set remains undetected for 48 hours."
+- **Upgrading (p.107)** excludes command sets ("with the exception of command sets"): nothing to do here.
+
+**User rulings (2026-11-06):**
+1. **A complex set's program is created with no test.** The decker creates a command-set program item; its design
+   size rolls 1D6 × 20 Mp, it takes storage memory like any program, and writing time is the GM's call. The book gives
+   it no rating, so a programming test would need an invented TN.
+2. **Its upload is timed like a frame's** (0.136.0): size ÷ the deck's I/O seconds (p.91). In combat it is counted
+   by Combat Turns; outside combat the GM finishes it. Leaving the host loses it.
+
+**Readings (Claude's, flagged in Risks):**
+- **24 ÷ the sum is kept as a fraction:** 5 successes → 4.8 hours = 4 h 48 min. Time has no rounding problem.
+- **Every test made for the set counts** toward the sum and must succeed: the task tests and the load test alike.
+  "These Subsystem Tests" names them all. A failed test means the set doesn't work, and the card says so.
+
+### 1. What a command set is
+**One set = durable facts on its HOST**, written by the sequencer: the host is the GM's, and the set lives there after
+the decker leaves.
+- `cs-open:<id>` `{ type: "csOpen", id, decker, name, orders, kind: "simple" | "program", tasks: ["slave", …],
+  conn, sessionId, upload? }`. The decker requests it; the sequencer writes it after checking he is ON that host
+  (`currentPlace` under topology, else his live session's).
+- `cs-test:<id>:<card>` `{ type: "csTest", id, card, sub }`: one per test card, admitted only for that set's next
+  required test, the decker's live connection and the same host session.
+- `cs-mark:<id>:<what>` `{ what: "executed" | "purged" | "cancelled" }`, the GM's marks.
+
+**Everything else is derived, never stored** (pure `csState({ open, tests, cards, now })` in a new
+`module/rules/vr2-command-sets.mjs`):
+- **The steps:** the load test (`control`, program sets only) followed by the task tests, in order.
+- **pending**, with the next step; **failed** (a test card shows a failure); **loaded** (every step has a successful
+  card). A card's successes and verdict are read LIVE, so Karma counts, as 6a-0 reads Decoy cards.
+- **The host's sum:** Σ `hostSuccesses` over its test cards (fixed at the roll).
+- **hours** = sum > 0 ? 24 ÷ sum : 48.
+- **loadedAt:** the `seq`-ordered last test fact's world time (`at`, which `fact` records as `game.time.worldTime`
+  in the payload).
+- **purgeAt** = loadedAt + hours × 3600, and **undetected** while `now < purgeAt` and no `purged` mark.
+
+### 2. The tests (p.104): one operation
+**A new System Operation** `commandSet: { subsystem: "targeted", utility: "Deception" }`.
+- It's run with `opts.subsystem` = the step's subsystem, so `systemTestNow` handles it like Analyze Subsystem: TN =
+  that subsystem less Deception, the host's opposing roll, and the tally (these tests raise the tally like any).
+- Under topology, `reachable` already allows a non-logon operation only on the host the decker is on, and grids
+  refuse it (not in `GRID_OPS`).
+- After the roll, the decker's client sends `request(decker, "csTest", { id, card, sub })`. The handler admits it if
+  the set is pending, `sub` is its next step, the card is this decker's `commandSet` test on that host, and the
+  connection and session match.
+
+### 3. Simple and complex sets (the decker)
+**Command set…** on the Matrix tab (VR2.0, on a host) opens a dialog:
+- a name and the orders (free text: what, and when or on which signal);
+- **tasks:** one or more subsystems (Access, Control, Index, Files, Slave), with **Control** as the default. "The
+  gamemaster determines the specific Subsystem Test" is table talk; the GM can change the steps from the host sheet
+  while the set is still pending (§5);
+- **simple**, or **from a program**: a command-set program item from the decker's storage.
+
+The card that opens the set lists its steps, each with a **Test** button for its next step. Each runs §2.
+
+**Complex sets (ruling 1–2):**
+- **The program item:** a `program` with `commandSet: true`. **New command-set program** on the Matrix tab creates
+  it, rolling its design size (a visible 1D6 × 20 roll). It has no rating, sits in storage, is never loaded as a
+  utility (`usablePrograms` excludes it, as cores), and its actual size counts toward storage memory.
+- **The upload:** 0.136.0's machinery, generalized. The sequencer's `upload` handler gains a kind, so an `uploadOpen`
+  fact may be `{ kind: "commandSet", snapshot: { name, size } }`:
+  - `settleUpload`, `tickUploads` and departure are unchanged (`snapshot.coreName` becomes the shared `name`);
+  - `reconcileDocs` and `stateFor` skip command-set uploads: no actor is made;
+  - when the upload is done, the set's `csOpen` fact is written by the same handler (`kind: "program", upload: id`),
+    and its first step is the Control load test.
+  - A set whose upload ended (`uploadEnd`) never opens.
+
+### 4. The decker leaving
+A set is left on the host on purpose: once it's **loaded**, the decker leaving changes nothing.
+- **Pending** steps need the decker on that host, connection and session. A step requested after he left is refused,
+  and the set stays pending. The GM can cancel it, or the decker can log back on and finish.
+- **Under topology**, a new session on the same host is a new session (7b), so finishing it means a new set.
+  *Flagged in Risks: the book doesn't say a half-written set survives a logoff; refusing is the cautious reading.*
+
+### 5. The host sheet (the GM)
+A **Command sets** section lists every set:
+- its name, decker, orders, kind and steps (each ✓ / ✗ / pending, with the host's successes);
+- its status: pending, failed, loaded, executed, purged or cancelled;
+- for a loaded set: "undetected for H h M min (until <world time>)", or "found and purged (p.105)" once world time
+  passes `purgeAt`. The sheet re-renders on `updateWorldTime`.
+
+GM buttons, each a request handled by the sequencer and refused for a non-GM requester (as `uploadDone`):
+- **Executed** (it ran its orders);
+- **Purged** (security found it early);
+- **Cancel** (a pending set);
+- **Change step** (a pending set's remaining steps: "the gamemaster determines").
+
+A loaded set past `purgeAt` shows as purged without a mark: it is derived.
+
+### 6. Tests (6c)
+**Vitest** (`vr2-command-sets.mjs`):
+- `csState` steps, pending/failed/loaded;
+- the sum and hours: 24 ÷ 5 = 4.8, 0 → 48;
+- purgeAt and undetected;
+- a Karma reroll flipping a failed step to a success (live card);
+- the load step first for program sets.
+
+**Quench (`sr2e.vr2-frames`, or a new `sr2e.vr2-command-sets`):**
+- a simple Slave set: open, test (TN = Slave − Deception), loaded; its hours from the host's successes; the host
+  sheet shows it; world time past `purgeAt` → purged;
+- a test for a step out of order, or after the decker left: refused;
+- a program set: the item rolls its size; upload (manual clock) → the set opens with the Control step; a failed
+  Control test → failed;
+- an upload interrupted by leaving: no set;
+- GM marks: a non-GM's request is refused;
+- a command-set program is never a usable utility.
+
 ## Requirements carried to the 6a / 6b / 6c plans (Codex R1, accepted)
 Each phase gets its own detailed plan, Codex-reviewed before code. It must answer:
 - **6a, frame decoys:** a separate mode from plain decoys (security goes after the frame, the decker stays inactive,
@@ -1677,6 +1806,9 @@ Each phase gets its own detailed plan, Codex-reviewed before code. It must answe
 - **6b readings (Claude's, flagged for the user):** SKs are the GM's icons (writes through the sequencer); an SK's
   Logon to Host isn't limited by grid topology (the book gives a deckless icon no route rules); logging on to its
   native host needs no test (its passcode); a crashed SK's actor is kept as the GM's record.
+- **6c readings (Claude's, flagged for the user):** 24 ÷ the sum is kept fractional (5 → 4 h 48 min); every test made
+  for a set (task and load) counts toward the sum and must succeed; a half-written set's remaining steps need the
+  decker still on that host session.
 - **Concurrency:** a frame actor created by the GM client for a player's upload, and its crash on logoff through the
   sequencer, so a logoff on one device and a command on another can't race.
 - **Scale:** many frames on a host make many combatants. Fine for table scale.
