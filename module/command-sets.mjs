@@ -93,11 +93,14 @@ export async function testStep(actor, hostUuid, id) {
     buttons: [{ action: "go", label: "Roll", default: true, callback: (ev, b) => ({ hacking: Math.max(0, Math.min(hackingMax, parseInt(b.form.elements.hacking.value) || 0)) }) },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!o || o === "cancel") return;
-  // ONE test per step (code R1 #2): claimed durably before the roll, its card recorded after; Karma goes on that card.
-  const step = set.state.next;
-  if (!await recordEvent(actor, `vr2:cs-roll:${id}:${step}`, { type: "csRoll", id, step })) return ui.notifications.warn("This step has already been rolled: settle its card.");
+  // ONE test per step (code R1 #2): the FIRST rolled card is bound durably (the deterministic record key is the
+  // arbiter); a refused or cancelled roll binds nothing, so the step is never stuck. Karma goes on that card.
+  const step = set.state.next, bound = () => recordsOf(actor).some(e => e.type === "csCard" && e.id === id && e.step === step);
+  if (bound()) return ui.notifications.warn("This step has already been rolled: settle its card.");
   const res = await vr2SystemTest(actor, host, "commandSet", { subsystem: set.state.nextSub, cs: { id, step }, hacking: o.hacking });
-  if (res?.cardId) await recordEvent(actor, `vr2:cs-card:${id}:${step}`, { type: "csCard", id, step, card: res.cardId });
+  if (res?.cardId && !await recordEvent(actor, `vr2:cs-card:${id}:${step}`, { type: "csCard", id, step, card: res.cardId })) {
+    ui.notifications.warn("Another roll of this step came first: settle that card.");
+  }
   return res;
 }
 
@@ -215,8 +218,14 @@ export function markSet(host, id, what) {
 function gmRequest(host, id, kind, data) {
   const open = setsOn(host).find(s => s.open.id === id)?.open, d = sync(open?.decker);
   if (d) return request(d, kind, { host: host.uuid, id, ...data });
+  // shortcut: a set whose decker was deleted has no log to queue on; the active GM (always present) handles it directly.
   if (!isSequencer()) return ui.notifications.warn("The active GM handles a set whose decker is gone.");
   return sequencer(() => HANDLERS_CS[kind](null, { host: host.uuid, id, user: game.user.id, ...data }));
+}
+/** The first step the GM may change (code R2 #2): a step whose test is already rolled keeps its subsystem. */
+function editableFrom(set) {
+  const d = sync(set.open.decker), n = set.state.next;
+  return d && recordsOf(d).some(e => e.type === "csCard" && e.id === set.open.id && e.step === n) ? n + 1 : n;
 }
 const HANDLERS_CS = {
   async csMark(actor, r) {
@@ -230,7 +239,7 @@ const HANDLERS_CS = {
     if (!game.users.get(r.user)?.isGM) return { ok: false, why: "the GM changes a command set's tests" };
     const host = sync(r.host), set = setsOn(host).find(s => s.open.id === r.id);
     const steps = (r.steps ?? []).filter(k => SUBS.includes(k));
-    if (!set || !csAdmits(set.state.status, "steps") || set.state.next !== r.from || !steps.length) return { ok: false, why: "the set changed meanwhile: reopen" };
+    if (!set || !csAdmits(set.state.status, "steps") || r.from !== editableFrom(set) || !steps.length) return { ok: false, why: "the set changed meanwhile: reopen" };
     const k = recordsOf(host).filter(e => e.type === "csSteps" && e.id === r.id).length;
     await fact(host, `cs-steps:${r.id}:${k}`, { type: "csSteps", id: r.id, from: r.from, steps });
     return { ok: true };
@@ -242,7 +251,7 @@ export async function changeSteps(host, id) {
   if (!game.user.isGM) return ui.notifications.warn("The GM changes a command set's tests.");
   const set = setsOn(host).find(s => s.open.id === id);
   if (!set || !csAdmits(set.state.status, "steps")) return;
-  const from = set.state.next, rest = set.state.list.slice(from);
+  const from = editableFrom(set), rest = set.state.list.slice(from);
   const sel = (i, v) => `<select name="s${i}"><option value="">—</option>${SUBS.map(k => `<option value="${k}" ${k === v ? "selected" : ""}>${esc(subLabel(k))}</option>`).join("")}</select>`;
   const steps = await foundry.applications.api.DialogV2.wait({ window: { title: `${set.open.name}: the remaining tests` }, rejectClose: false,
     content: `<p>The gamemaster determines the Subsystem Tests (VR2.0 p.104). Settled: ${from}.</p>${[0, 1, 2].map(i => sel(i, rest[i])).join("")}`,
