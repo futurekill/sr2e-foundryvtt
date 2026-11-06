@@ -3976,7 +3976,12 @@ export function registerSR2EQuenchTests() {
     quench.registerBatch("sr2e.skill-tiers", (context) => {
       const { describe, it, assert, after } = context;
       const made = [];
-      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+      after(async function () {
+        this.timeout(15000);
+        // Finishing creation offers the starting money (p.47); an open offer would catch later batches' dialog clicks.
+        for (const app of [...foundry.applications.instances.values()]) if (app.title?.startsWith("Starting money — Quench")) await app.close();
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
 
       async function pc(chargen = true, skills = []) {
         const a = await Actor.create({
@@ -7600,6 +7605,8 @@ export function registerSR2EQuenchTests() {
       });
       after(async () => { await game.settings.set("sr2e", "autoChargePurchases", autoCharge); });
       afterEach(async () => {
+        // A purchase dialog a test left open would catch the next batch's dialog clicks.
+        for (const app of [...foundry.applications.instances.values()]) if (app.constructor.name === "DialogV2" && /^Buy /.test(app.title ?? "")) app.close();
         // Only what this batch created (purchases notify; they post no chat).
         const actors = made.actors.splice(0).filter(id => game.actors.has(id));
         if (actors.length) await Actor.deleteDocuments(actors);
