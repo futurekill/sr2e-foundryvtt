@@ -1663,62 +1663,90 @@ The pages were rendered for this section (2026-11-06): Command Sets (p.104–105
 ### 1. What a command set is
 **One set = durable facts on its HOST**, written by the sequencer: the host is the GM's, and the set lives there after
 the decker leaves.
-- `cs-open:<id>` `{ type: "csOpen", id, decker, name, orders, kind: "simple" | "program", tasks: ["slave", …],
-  conn, sessionId, upload? }`. The decker requests it; the sequencer writes it after checking he is ON that host
-  (`currentPlace` under topology, else his live session's).
-- `cs-test:<id>:<card>` `{ type: "csTest", id, card, sub }`: one per test card, admitted only for that set's next
-  required test, the decker's live connection and the same host session.
-- `cs-mark:<id>:<what>` `{ what: "executed" | "purged" | "cancelled" }`, the GM's marks.
+- **`cs-open:<id>`** `{ type: "csOpen", id, decker, name, orders, kind: "simple" | "program", steps: [sub, …], conn,
+  sessionId, upload? }`.
+  - A SIMPLE set is opened by the decker's request; the sequencer writes it after checking he is ON that host
+    (`currentPlace` under topology, else his live session's).
+  - A PROGRAM set is NEVER opened by request (R1 #3). Only the sequencer opens it, from its own completed command-set
+    upload (§3), and its id is the upload id.
+- **`cs-step:<id>:<n>`** `{ type: "csStep", id, n, sub, success, hostSuccesses, card, at }`: step n, SETTLED once by
+  the sequencer (§2).
+  - `at` is `game.time.worldTime`, sampled by the sequencer and stored explicitly: `fact` adds only `seq` (R1 #1).
+  - Its verdict and the host's successes are FROZEN in the fact. The card's test is closed then, so no Karma comes
+    later (R1 #7).
+- **`cs-steps:<id>:<k>`** `{ type: "csSteps", id, from, steps }`: the GM changes the REMAINING steps from step `from`
+  ("the gamemaster determines", R1 #8). The latest one applies.
+- **`cs-mark:<id>`** `{ type: "csMark", id, what: "executed" | "purged" | "cancelled" }`: the GM's terminal mark, once
+  (R1 #8).
 
-**Everything else is derived, never stored** (pure `csState({ open, tests, cards, now })` in a new
-`module/rules/vr2-command-sets.mjs`):
-- **The steps:** the load test (`control`, program sets only) followed by the task tests, in order.
-- **pending**, with the next step; **failed** (a test card shows a failure); **loaded** (every step has a successful
-  card). A card's successes and verdict are read LIVE, so Karma counts, as 6a-0 reads Decoy cards.
-- **The host's sum:** Σ `hostSuccesses` over its test cards (fixed at the roll).
-- **hours** = sum > 0 ? 24 ÷ sum : 48.
-- **loadedAt:** the `seq`-ordered last test fact's world time (`at`, which `fact` records as `game.time.worldTime`
-  in the payload).
-- **purgeAt** = loadedAt + hours × 3600, and **undetected** while `now < purgeAt` and no `purged` mark.
+**Everything else is derived, never stored.** The pure `csState({ open, steps, changes, marks, now })` in a new
+`module/rules/vr2-command-sets.mjs` folds them:
+- **the step list:** the open fact's steps, with the latest change applied from its `from`;
+- **pending** (with the next step), **failed** (a settled step failed), **loaded** (every step settled and
+  successful), or the GM's mark: **executed**, **purged** or **cancelled**;
+- **the host's sum:** Σ the settled steps' `hostSuccesses`;
+- **hours** = sum > 0 ? 24 ÷ sum : 48;
+- **loadedAt** = the last step's `at`; **purgeAt** = loadedAt + hours × 3600;
+- **undetected** while `now < purgeAt` and no mark. Past `purgeAt` it reads as purged without a mark.
 
-### 2. The tests (p.104): one operation
+Admission (every request below) refuses a set that isn't pending.
+
+### 2. The tests (p.104): one operation, bound to its set and step
 **A new System Operation** `commandSet: { subsystem: "targeted", utility: "Deception" }`.
-- It's run with `opts.subsystem` = the step's subsystem, so `systemTestNow` handles it like Analyze Subsystem: TN =
-  that subsystem less Deception, the host's opposing roll, and the tally (these tests raise the tally like any).
+- It's run with `opts.subsystem` = the step's subsystem and `opts.cs = { id, step }`. `systemTestNow` stamps `cs` on
+  the card (R1 #2), and otherwise handles it like Analyze Subsystem: TN = that subsystem less Deception, the host's
+  opposing roll, the tally.
 - Under topology, `reachable` already allows a non-logon operation only on the host the decker is on, and grids
   refuse it (not in `GRID_OPS`).
-- After the roll, the decker's client sends `request(decker, "csTest", { id, card, sub })`. The handler admits it if
-  the set is pending, `sub` is its next step, the card is this decker's `commandSet` test on that host, and the
-  connection and session match.
+
+**Settling a step (R1 #2, #7).** Karma is spent on the card as usual. Then **Settle step** on the card sends
+`request(decker, "csStep", { id, step, card })`. The sequencer admits it only if:
+- the set is pending, and `step` is its NEXT step;
+- the card is a `commandSet` test card stamped with this `cs.id` and `cs.step`, whose `sub` is that step's subsystem;
+- its `actorUuid` is this decker, and its `hostUuid`, `conn` and `sessionId` are the set's host and the decker's LIVE
+  connection and session, NOW;
+- no `cs-step:<id>:<n>` exists yet: one settlement per step, so a card can't serve twice.
+
+Then it closes the card's test (`freezeSuccesses`) and writes the step fact with the frozen verdict, the host's
+successes and `at`. A decker who left before settling can't settle: the step stays pending (§4).
 
 ### 3. Simple and complex sets (the decker)
 **Command set…** on the Matrix tab (VR2.0, on a host) opens a dialog:
 - a name and the orders (free text: what, and when or on which signal);
-- **tasks:** one or more subsystems (Access, Control, Index, Files, Slave), with **Control** as the default. "The
-  gamemaster determines the specific Subsystem Test" is table talk; the GM can change the steps from the host sheet
-  while the set is still pending (§5);
-- **simple**, or **from a program**: a command-set program item from the decker's storage.
+- **tasks:** one or more subsystems (Access, Control, Index, Files, Slave), with **Control** as the default.
+- **Simple:** opens the set by request.
+- **From a program:** the decker picks a command-set program item, and it starts the upload instead (below).
 
-The card that opens the set lists its steps, each with a **Test** button for its next step. Each runs §2.
+The set's card lists its steps; the next step has a **Test** button, and its rolled card has **Settle step** (§2).
 
 **Complex sets (ruling 1–2):**
-- **The program item:** a `program` with `commandSet: true`. **New command-set program** on the Matrix tab creates
-  it, rolling its design size (a visible 1D6 × 20 roll). It has no rating, sits in storage, is never loaded as a
-  utility (`usablePrograms` excludes it, as cores), and its actual size counts toward storage memory.
-- **The upload:** 0.136.0's machinery, generalized. The sequencer's `upload` handler gains a kind, so an `uploadOpen`
-  fact may be `{ kind: "commandSet", snapshot: { name, size } }`:
-  - `settleUpload`, `tickUploads` and departure are unchanged (`snapshot.coreName` becomes the shared `name`);
-  - `reconcileDocs` and `stateFor` skip command-set uploads: no actor is made;
-  - when the upload is done, the set's `csOpen` fact is written by the same handler (`kind: "program", upload: id`),
-    and its first step is the Control load test.
-  - A set whose upload ended (`uploadEnd`) never opens.
+- **The program item (R1 #6).** `ProgramData` gains `commandSet` (BooleanField, initial false) and `csSize`
+  (integer ≥ 0, the rolled design size).
+  - Derivation branches: a command-set program's design size and actual size are `csSize`, and its rating is unused
+    (it is created with rating 1, so the existing `min: 1` holds). Every other program derives as today, both
+    directions assigned (CLAUDE.md's derived-state rule).
+  - `usablePrograms` excludes it, as it excludes cores, and the program row shows no loaded toggle. Storage memory
+    counts its `csSize`.
+  - **New command-set program** on the Matrix tab creates it with a visible 1D6 × 20 roll.
+- **The upload, generalized from 0.136.0.** The decker's client requests `csUpload`
+  `{ upload: id, item, name, orders, steps, host, conn, sessionId }`. A new handler validates it like `upload` does
+  (on that host, connection, session, I/O > 0, a command-set item of his):
+  - it writes the same `uploadOpen` fact, with `kind: "commandSet"`, `seconds = ⌈csSize ÷ I/O⌉`, and a snapshot
+    holding the WHOLE set definition `{ coreName: <the set's name>, name, orders, steps, item }` (R1 #4);
+  - `coreName` keeps its name, so frame records and every reader of it are untouched (R1 #5).
+- **Everything about the upload clock is shared.** `settleUpload`, `tickUploads`, the manual **Upload finished
+  (GM)** and departure don't care what's uploaded. `reconcileDocs` and `stateFor` skip `kind: "commandSet"`: no
+  actor is made.
+- **Opening on completion, reconciled (R1 #4).** In `reconcileOwner` (the decker's sequencer pass), every completed
+  `commandSet` upload with no `cs-open:<upload>` on its host gets one, from the snapshot: `kind: "program"`, steps =
+  `["control", …snapshot.steps]` (the load test first). It is idempotent and keyed by the upload id, so an
+  interruption after `uploadDone` is finished by the next pass. An `uploadEnd` never opens a set.
 
 ### 4. The decker leaving
 A set is left on the host on purpose: once it's **loaded**, the decker leaving changes nothing.
-- **Pending** steps need the decker on that host, connection and session. A step requested after he left is refused,
-  and the set stays pending. The GM can cancel it, or the decker can log back on and finish.
-- **Under topology**, a new session on the same host is a new session (7b), so finishing it means a new set.
-  *Flagged in Risks: the book doesn't say a half-written set survives a logoff; refusing is the cautious reading.*
+- **Pending** steps need the decker on that host, connection and session at settlement (§2). After he leaves, no
+  step can settle, and the set stays pending until the GM cancels it.
+- *Flagged in Risks: the book doesn't say a half-written set survives a logoff; refusing is the cautious reading.*
 
 ### 5. The host sheet (the GM)
 A **Command sets** section lists every set:
@@ -1727,7 +1755,8 @@ A **Command sets** section lists every set:
 - for a loaded set: "undetected for H h M min (until <world time>)", or "found and purged (p.105)" once world time
   passes `purgeAt`. The sheet re-renders on `updateWorldTime`.
 
-GM buttons, each a request handled by the sequencer and refused for a non-GM requester (as `uploadDone`):
+GM buttons, each a request handled by the sequencer and refused for a non-GM requester (as `uploadDone`). Each writes
+the fact named in §1, and a set's state already folds them:
 - **Executed** (it ran its orders);
 - **Purged** (security found it early);
 - **Cancel** (a pending set);
@@ -1740,13 +1769,15 @@ A loaded set past `purgeAt` shows as purged without a mark: it is derived.
 - `csState` steps, pending/failed/loaded;
 - the sum and hours: 24 ÷ 5 = 4.8, 0 → 48;
 - purgeAt and undetected;
-- a Karma reroll flipping a failed step to a success (live card);
+- a GM step change from step n; marks are terminal;
 - the load step first for program sets.
 
 **Quench (`sr2e.vr2-frames`, or a new `sr2e.vr2-command-sets`):**
 - a simple Slave set: open, test (TN = Slave − Deception), loaded; its hours from the host's successes; the host
   sheet shows it; world time past `purgeAt` → purged;
-- a test for a step out of order, or after the decker left: refused;
+- a settle for a step out of order, a card of another set or subsystem, a second settle of a step, or after the
+  decker left: refused (R1 #2, #7);
+- Karma on the card before settling counts; the settled card is closed (no later Karma);
 - a program set: the item rolls its size; upload (manual clock) → the set opens with the Control step; a failed
   Control test → failed;
 - an upload interrupted by leaving: no set;

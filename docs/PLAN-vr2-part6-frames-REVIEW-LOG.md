@@ -688,3 +688,46 @@ VERDICT: APPROVED
 # 6c plan review (command sets)
 Started 2026-11-06. MAX_ROUNDS=5. Fresh `codex exec -s read-only` session per round. User rulings before review:
 a command-set program is created with no test (1D6 × 20 Mp); its upload is timed like a frame's.
+
+## 6c Round 1 — Codex (fresh session; ~185k input tokens)
+
+1. **World-time derivation uses a nonexistent field.** Plan: §1, lines 1680–1682. Code: `module/vr2ic.mjs:81`, `fact()`. It adds only `seq`, not `at`; consequently `loadedAt` is undefined and `purgeAt` cannot be calculated.
+   **Fix:** Explicitly include sequencer-sampled `at: game.time.worldTime` in command-set test facts.
+
+2. **Cards are not bound to a particular set or step.** Plan: §2, lines 1690–1692. Code: `module/vr2.mjs:808–823` records actor, host, connection, session and `sub`, but no set or step identity. The stated checks allow an earlier same-session card to satisfy a later step, reuse across sets, and—unless explicitly checked—a request’s `sub` to misrepresent the card’s actual subsystem. Keys containing both set ID and card ID do not prevent reuse across sets.
+   **Fix:** Stamp set ID and step identity into the rolled card, validate its actual `sub` and full actor/host/connection/session identity, and enforce one admission per step/card.
+
+3. **Program uploads can bypass their prerequisite.** Plan: §1, lines 1666–1668, and §3, lines 1712–1714. Code: `module/vr2ic.mjs:1495–1504` delegates admission entirely to individual handlers. Opening a set checks presence, but does not explicitly forbid requesting `kind: "program"` without a completed upload; `upload?` is optional.
+   **Fix:** Allow direct opens only for simple sets; derive program-set opens exclusively from a matching sequencer-validated completed command-set upload.
+
+4. **Upload completion has no reliable path to `csOpen`.** Plan: §3, lines 1708–1714. Code: `module/frames.mjs:159–163,226–245,299–302,320–325`. Completion occurs through manual handling, combat ticks or reconciliation; the initial `upload` handler does not run again. Moreover, `settleUpload()` immediately returns when `uploadDone` exists, so an interruption between writing completion and opening the host set would strand it permanently. The proposed snapshot also omits orders and tasks needed to reconstruct the set.
+   **Fix:** Persist the complete command-set definition with the upload and reconcile every completed command-set upload into an idempotent host `csOpen` on the sequencer.
+
+5. **Renaming the snapshot field breaks existing frame records.** Plan: §3, line 1710. Code: `module/frames.mjs:144–145,235–243,308,359–361`. Existing durable snapshots contain `coreName`; frame creation and reporting still consume it. Replacing it with `name` without compatibility handling loses names either for historical uploads or newly created frames.
+   **Fix:** Preserve `coreName` for frames or update all consumers with a backward-compatible `name ?? coreName` accessor.
+
+6. **The program’s rolled size will be overwritten.** Plan: §3, lines 1705–1707. Code: `module/data/item-data.mjs:1054–1100,1124–1125`; `module/vr2.mjs:52–56`. `ProgramData` has no `commandSet` schema field, requires a positive rating, and unconditionally replaces size/design size with ordinary program derivation. Merely creating an item with the proposed flag and rolled size does not preserve its memory footprint.
+   **Fix:** Define the flag and durable rolled size in the schema, branch command-set size derivation, and explicitly exclude these items from usable utilities.
+
+7. **Live Karma can activate a failed set after departure.** Plan: §1, lines 1676–1682; §4, lines 1717–1720; §6, line 1743. Code: `module/vr2.mjs:808–823` supplies the mutable card referenced by the plan. Admit a failed final test, leave, then reroll it successfully: pure live-card derivation changes the set to loaded without another admission check, backdating its lifetime to the failed test fact. Thus it finishes despite the stated connection/session requirement.
+   **Fix:** Keep Karma eligibility, but require a sequencer-admitted successful completion on the original live connection/session and record its completion time.
+
+8. **GM changes and terminal marks are absent from the state contract.** Plan: §1, lines 1671–1682, and §5, lines 1730–1736. Code: `module/vr2ic.mjs:81,1495–1504` provides facts and request dispatch, not automatic state integration. `csState({ open, tests, cards, now })` receives neither marks nor step changes; no durable step-change record is defined. Cancellation therefore cannot reliably block further admission, and edited steps cannot be replayed from the specified facts.
+   **Fix:** Define sequencer-written step-change facts and fold them and terminal marks into state and admission checks.
+
+VERDICT: REVISE
+### Claude's response
+All 8 accepted; §1–§4 rewritten.
+- #1: step facts store `at: game.time.worldTime`, sampled by the sequencer.
+- #2: cards carry `cs: { id, step }`; a step is SETTLED by an explicit request that checks the card's stamp,
+  subsystem, actor, host, connection and live session, once per step.
+- #3: program sets are never opened by request: only the sequencer opens one, from its own completed upload.
+- #4: the upload snapshot holds the whole set definition; `reconcileOwner` opens each completed command-set upload's
+  set idempotently (keyed by the upload id).
+- #5: the snapshot keeps `coreName` (= the set's name); nothing is renamed.
+- #6: `ProgramData.commandSet` + `csSize`, a derivation branch (size = csSize, both directions), excluded from usable
+  utilities, storage counted.
+- #7: a step's verdict and host successes are frozen when it's settled (the card's test closed), and settling needs
+  the live connection and session: Karma can't revive it later.
+- #8: GM step changes (`cs-steps`) and terminal marks (`cs-mark`) are facts folded by `csState` and checked by every
+  admission.
