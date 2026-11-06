@@ -87,3 +87,16 @@ VERDICT: REVISE
   option comparisons now wrap them in an object.)
 - **#3 accepted:** tests for the TN, mainframe adequacy at the new rating, duplicate and concurrent `progApply`
   (one write), discount removal and a discounted rating edit.
+
+## Code round 2 — Codex (fresh session, fix only; ~102k input tokens)
+
+Findings #1 and #3 are addressed; #2 remains incomplete.
+
+- **P2 — module/sr2e.mjs:1470–1471:** `applyIsExact` accepts omitted target fields. For a pending rating-plus-options upgrade, writing only the target rating and matching marker passes, permanently losing the added options because recovery now considers it applied. Confirmed with the extracted predicate. **Fix:** Compare the complete resulting design against `pend.design` before accepting the marker.
+
+Quench tests were inspected, not run.
+
+VERDICT: REVISE
+### Claude's response (fix abdccea)
+- **Accepted:** `applyIsExact` builds the design AFTER the write (fields left out keep their values) and requires it
+  to equal the pending target; a Quench case writes the marker with a partial target and is refused.

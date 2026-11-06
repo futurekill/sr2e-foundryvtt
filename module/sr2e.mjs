@@ -1484,6 +1484,11 @@ Hooks.on("preUpdateItem", (item, changes, options) => {
   // eligibility (source, command set) with it. The sequencer's apply is the one write let through.
   const ps = programmingState(item), pend = pendingUpgrade(item);
   if (pend && options?.sr2eUpgradeApply === pend.gen && applyIsExact(item, changes, pend)) return;
+  // The applied marker is written only by that exact apply: a marker alone would end the pending state unapplied (R3 #1).
+  if (changes.flags?.sr2e && "upgradeApplied" in changes.flags.sr2e) {
+    ui.notifications.warn(`${item.name}: only the upgrade's own apply marks it applied.`);
+    return false;
+  }
   const keys = ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore",
     ...(ps.task?.upgrade && (ps.writing || pend) ? ["objectCodeOnly", "commandSet"] : [])];
   if ((ps.writing || pend || loadingState(item).writing) && ("name" in changes || keys.some(k => k in (changes.system ?? {})))) {

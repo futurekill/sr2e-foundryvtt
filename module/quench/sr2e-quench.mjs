@@ -13147,9 +13147,10 @@ export function registerSR2EQuenchTests() {
         const { recordEvent } = await import("../claims.mjs");
         const [a, p] = await coder("Quench UP Pending", { name: "Browse", system: { rating: 2 } });
         const from = P.designOf(p());
-        await recordEvent(p(), "prog:start:1", { type: "progStart", gen: 1, upgrade: true, from, design: { ...from, rating: 3 }, designSize: 9, baseTime: 10, team: [] });
+        const OPT = [{ kind: "optimization", rating: 0, target: "" }];
+        await recordEvent(p(), "prog:start:1", { type: "progStart", gen: 1, upgrade: true, from, design: { ...from, rating: 3, options: OPT }, designSize: 18, baseTime: 28, team: [] });
         await recordEvent(p(), "prog:end:1", { type: "progEnd", task: 1, outcome: "complete" });
-        assert.deepEqual(P.pendingUpgrade(p()), { gen: 1, design: { ...from, rating: 3 } }, "pending (no marker yet)");
+        assert.deepEqual(P.pendingUpgrade(p()), { gen: 1, design: { ...from, rating: 3, options: OPT } }, "pending (no marker yet)");
         await p().update({ "system.rating": 5 });
         assert.equal(p().system.rating, 2, "locked while pending");
         await clicking("ok", () => P.programmingDialog(a, p()));
@@ -13157,11 +13158,14 @@ export function registerSR2EQuenchTests() {
         // The apply's exemption admits only its exact target (code R1 #2).
         await p().update({ "system.rating": 5, "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
         assert.equal(p().system.rating, 2, "a write tagged as the apply but not its target is refused");
-        await p().update({ "system.options": [{ kind: "optimization", rating: 0, target: "" }], "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
-        assert.deepEqual([p().system.options.length, P.pendingUpgrade(p())?.gen], [0, 1], "nor is one that leaves part of the target out (R2 #1)");
+        await p().update({ "system.rating": 3, "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
+        assert.deepEqual([p().system.rating, P.pendingUpgrade(p())?.gen], [2, 1], "nor is one that leaves part of the target (its option) out (R2 #1)");
+        await p().update({ "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
+        assert.equal(P.pendingUpgrade(p())?.gen, 1, "nor a marker alone (R3 #1)");
         const gen0 = p().system.loadGen ?? 0;
         await Promise.all([P.upgradeDialog(a, p()), P.upgradeDialog(a, p())]);   // two Apply clicks at once
         assert.isTrue(await settle(() => p().system.rating === 3), "Apply upgrade applied it");
+        assert.deepEqual(p().system.options.map(o => o.kind), ["optimization"], "with its option");
         await wait(1500);
         assert.deepEqual([p().getFlag("sr2e", "upgradeApplied"), p().system.loadGen], [1, gen0 + 1], "applied once");
         await p().update({ "system.rating": 2 });
