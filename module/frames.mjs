@@ -18,7 +18,7 @@ import { liveSession, currentPlace, addWear, commitAction, dinabZeroed, activePr
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
 import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflineSeqs, frameEnds, copyStats,
   liveDecoyFrame, openDecoyFrames, triggerProblems, frameAttrLosses, NO_FRAME_OPS, NO_SMART_OPS, joinStep,
-  skProblems, poolProblems, nextLocks, skCondition, SK_PRESETS } from "./rules/vr2-frames.mjs";
+  skProblems, poolProblems, nextLocks, skCondition, skRestoreTN, SK_PRESETS } from "./rules/vr2-frames.mjs";
 import { attributeLoss, systemTestVerdict, medicTN } from "./rules/sr2e-rules.mjs";
 import { restorePoints } from "./rules/vr2ic-rules.mjs";
 import { once, recordEvent } from "./claims.mjs";
@@ -760,6 +760,8 @@ const skHostId = (uuid) => String(uuid ?? "").split(".").pop();
  * session follow the latest move. An SK with no move is on its native host (R3 #1). Call only inside `sequencer`.
  */
 async function completeMoves(sk) {
+  // Every outstanding tally event lands BEFORE a logoff can delete its session (code R2 #1).
+  await reconcileSkTallies(sk);
   if (!movesOf(sk).length) await fact(sk, "sk-move:0", { type: "skMove", n: 0, to: sk.system.nativeHostUuid, from: "", initial: true });
   for (const m of movesOf(sk)) {
     if (!m.to && m.sessionId && sk.flags?.sr2e?.vr2Session?.id === m.sessionId) await sk.update({ "flags.sr2e.-=vr2Session": null });
@@ -832,7 +834,6 @@ export function skPass(sk) {
   if (!isSequencer() || !isSK(sk) || !game.actors.has(sk.id)) return Promise.resolve();
   return sequencer(async () => {
     await completeMoves(sk);
-    await reconcileSkTallies(sk);
     await reconcileSkItems(sk);
     await (await import("./vr2ic.mjs")).reconcileTar(sk);   // an interrupted tar strike on its pool items
     await replayWear(sk); await replayResolutions(sk);
@@ -962,9 +963,8 @@ export async function skRegenerate(sk) {
   if (pick === "medic") tn = medicTN(c.monitor);
   else {
     // Restore's TN: the rating of the program that did the damage, the higher if several (p.100).
-    // Only damage still outstanding: since the last full repair (code R1 #8).
-    const recs = recordsOf(sk), lastFull = Math.max(-1, ...recs.filter(e => e.type === "skRepair" && e.full).map(e => e.at ?? e.seq ?? 0));
-    tn = Math.max(2, ...recs.filter(e => e.type === "frameAttr" && e.attr === pick && e.lost > 0 && (e.seq ?? 0) > lastFull).map(e => Number(e.rating) || 2));
+    // Only damage still outstanding, folded in order (code R1 #8, R2 #2).
+    tn = skRestoreTN(recordsOf(sk), pick);
   }
   const r = await sk.rollSuccessTest(Math.max(1, mpcp), tn, { label: `${sk.name} regenerates (${pick === "medic" ? "Medic" : `Restore ${pick}`}, TN ${tn})`, closed: true, tnContext: { kind: "other" }, tnPolicy: "table" });
   if (!r) return;

@@ -244,3 +244,13 @@ describe("part 6b: SKs", () => {
     expect(skCondition(recs, 4)).toEqual({ monitor: 2, lost: { bod: 2, evasion: 0, masking: 0, sensor: 0 } });
   });
 });
+describe("part 6b: Restore TN", () => {
+  it("only damage still outstanding sets it; a repair that clears the loss forgets the old ratings", async () => {
+    const { skRestoreTN } = await import("../module/rules/vr2-frames.mjs");
+    const recs = [{ type: "frameAttr", attr: "bod", lost: 2, rating: 8, seq: 1 }, { type: "skRepair", attr: "bod", points: 2, seq: 2 },
+      { type: "frameAttr", attr: "bod", lost: 1, rating: 3, seq: 3 }];
+    expect(skRestoreTN(recs, "bod")).toBe(3);
+    expect(skRestoreTN(recs.slice(0, 1), "bod")).toBe(8);
+    expect(skRestoreTN([...recs.slice(0, 1), { type: "skRepair", full: true, at: 1.5, seq: 9 }, recs[2]], "bod")).toBe(3);
+  });
+});

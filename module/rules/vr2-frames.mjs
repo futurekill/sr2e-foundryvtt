@@ -289,3 +289,18 @@ export function skCondition(records = [], upto = Infinity) {
   }
   return { monitor, lost };
 }
+/**
+ * Restore's TN on an SK (p.100: "the rating of the program that did the damage, the higher if several"), from damage
+ * STILL outstanding (6b code R1 #8, R2 #2): folded in order; any repair that clears the attribute's loss forgets the
+ * ratings that caused it.
+ */
+export function skRestoreTN(records = [], attr) {
+  const pos = (e) => (e.type === "skRepair" ? (e.at ?? e.seq ?? 0) : (e.seq ?? 0));
+  let loss = 0, ratings = [];
+  for (const e of records.filter(x => x.type === "frameAttr" || x.type === "skRepair").sort((a, b) => pos(a) - pos(b))) {
+    if (e.type === "frameAttr") { if (e.attr === attr && e.lost > 0) { loss += e.lost; ratings.push(Number(e.rating) || 2); } }
+    else if (e.full) { loss = 0; ratings = []; }
+    else if (e.attr === attr) { loss = Math.max(0, loss - (Number(e.points) || 0)); if (!loss) ratings = []; }
+  }
+  return Math.max(2, ...ratings);
+}
