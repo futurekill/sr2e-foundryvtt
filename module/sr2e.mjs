@@ -90,7 +90,7 @@ import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "
 import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
 import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
-import { programmingState, loadingState, pendingUpgrade, registerProgrammingHandlers } from "./programming.mjs";
+import { programmingState, loadingState, pendingUpgrade, registerProgrammingHandlers, designOf } from "./programming.mjs";
 import { activeOptions } from "./rules/vr2-options.mjs";
 
 /**
@@ -1462,13 +1462,15 @@ function placementFactsFor(item, link) {
 // the invariant holds however the field is changed, not only on the spend path.
 // Squeeze (VR2.0 p.104): an unloaded copy is compressed again — its decompression receipt goes with the load.
 // Programming (plan 5b §4): the design is fixed while a task writes it.
-/** The apply's write is exactly its target, its marker and the load generation (code R1 #2). */
-function applyIsExact(changes, pend) {
-  const sys = changes.system ?? {}, d = pend.design;
-  return changes.flags?.sr2e?.upgradeApplied === pend.gen && !("name" in changes)
-    && Object.keys(sys).every(k => ["rating", "options", "manufacturer", "loadGen"].includes(k))
-    && (sys.rating === undefined || sys.rating === d.rating) && (sys.manufacturer === undefined || sys.manufacturer === d.manufacturer)
-    && (sys.options === undefined || foundry.utils.objectsEqual({ o: sys.options.map(o => ({ kind: o.kind, rating: o.rating, target: o.target })) }, { o: d.options }));   // objectsEqual won't take bare arrays
+/** The apply's write makes the design EXACTLY its target, with its marker (code R1 #2, R2 #1). */
+function applyIsExact(item, changes, pend) {
+  const sys = changes.system ?? {};
+  if (changes.flags?.sr2e?.upgradeApplied !== pend.gen || "name" in changes
+    || !Object.keys(sys).every(k => ["rating", "options", "manufacturer", "loadGen"].includes(k))) return false;
+  // The design after this write (fields the write leaves out keep their current values).
+  const after = { ...designOf(item), ...("rating" in sys ? { rating: sys.rating } : {}), ...("manufacturer" in sys ? { manufacturer: sys.manufacturer } : {}),
+    ...("options" in sys ? { options: sys.options.map(o => ({ kind: o.kind, rating: o.rating, target: o.target })) } : {}) };
+  return foundry.utils.objectsEqual(after, pend.design);
 }
 
 Hooks.on("preUpdateItem", (item, changes, options) => {
@@ -1481,7 +1483,7 @@ Hooks.on("preUpdateItem", (item, changes, options) => {
   // Upgrading (VR2.0 p.107; PLAN-vr2-upgrading §2): also while an upgrade is complete but not yet applied, and its
   // eligibility (source, command set) with it. The sequencer's apply is the one write let through.
   const ps = programmingState(item), pend = pendingUpgrade(item);
-  if (pend && options?.sr2eUpgradeApply === pend.gen && applyIsExact(changes, pend)) return;
+  if (pend && options?.sr2eUpgradeApply === pend.gen && applyIsExact(item, changes, pend)) return;
   const keys = ["rating", "multiplier", "options", "damageLevel", "offense", "manufacturer", "category", "frameCore",
     ...(ps.task?.upgrade && (ps.writing || pend) ? ["objectCodeOnly", "commandSet"] : [])];
   if ((ps.writing || pend || loadingState(item).writing) && ("name" in changes || keys.some(k => k in (changes.system ?? {})))) {

@@ -13157,6 +13157,8 @@ export function registerSR2EQuenchTests() {
         // The apply's exemption admits only its exact target (code R1 #2).
         await p().update({ "system.rating": 5, "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
         assert.equal(p().system.rating, 2, "a write tagged as the apply but not its target is refused");
+        await p().update({ "system.options": [{ kind: "optimization", rating: 0, target: "" }], "flags.sr2e.upgradeApplied": 1 }, { sr2eUpgradeApply: 1 });
+        assert.deepEqual([p().system.options.length, P.pendingUpgrade(p())?.gen], [0, 1], "nor is one that leaves part of the target out (R2 #1)");
         const gen0 = p().system.loadGen ?? 0;
         await Promise.all([P.upgradeDialog(a, p()), P.upgradeDialog(a, p())]);   // two Apply clicks at once
         assert.isTrue(await settle(() => p().system.rating === 3), "Apply upgrade applied it");

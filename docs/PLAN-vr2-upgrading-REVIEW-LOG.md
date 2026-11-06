@@ -70,3 +70,20 @@ No concrete flaws found in draft 4’s R3 fixes. The sequencer serializes automa
 
 VERDICT: APPROVED
 **Plan approved in 4 rounds.**
+
+## Code round 1 — Codex (fresh session; ~228k input tokens)
+
+- **P1 — [module/programming.mjs:257](module/programming.mjs:257): Pending upgrade can be lost through an already-open rewrite dialog.** Open Programming on device A; device B starts and completes an upgrade whose apply is pending; submit A’s test. The pending check only runs when `up` is set, so A records a newer rewrite task, making the completed upgrade permanently cease to be pending. **Fix:** Recheck `pendingUpgrade(live(item))` unconditionally before recording either kind of start.
+
+- **P2 — [module/sr2e.mjs:1475](module/sr2e.mjs:1475): Apply exemption bypasses the entire design lock.** Supplying the pending generation as `sr2eUpgradeApply` permits arbitrary rating, name, options, or eligibility changes without matching the target or setting the applied marker. This violates the plan’s explicit requirement that the exemption admit exactly the target write. **Fix:** Validate the proposed design against `pend.design`, require the matching marker, and reject unrelated locked-field changes before granting the exemption.
+
+- **P2 — [module/quench/sr2e-quench.mjs:13091](module/quench/sr2e-quench.mjs:13091): Required regression coverage for risky paths is missing.** The new tests never exercise mainframe adequacy against the target rating, duplicate `progApply` requests, discount removal, or a discounted rating edit; the “tested at the new rating” test also never asserts the rolled TN. **Fix:** Add those plan-required assertions, including duplicate requests through the sequencer and verification that rating, `loadGen`, and money change only once.
+
+VERDICT: REVISE
+### Claude's response (fix 6731eb2)
+- **#1 accepted:** every start (write or upgrade) re-checks `pendingUpgrade` after the roll.
+- **#2 accepted:** `applyIsExact`: the exemption needs the marker, only rating/options/manufacturer/loadGen, and values
+  equal to the pending target. (Found while testing: `foundry.utils.objectsEqual` never equates two bare arrays; both
+  option comparisons now wrap them in an object.)
+- **#3 accepted:** tests for the TN, mainframe adequacy at the new rating, duplicate and concurrent `progApply`
+  (one write), discount removal and a discounted rating edit.
