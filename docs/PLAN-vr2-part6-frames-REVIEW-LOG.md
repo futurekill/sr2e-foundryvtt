@@ -752,3 +752,10 @@ All 3 accepted.
   marks are terminal.
 - #3: step changes record `from` = the settled count (checked), and ALL of them fold in seq order from their `from`,
   so settled steps are never rewritten.
+
+## 6c Round 3 — Codex (fresh session, fix only; ~63k input tokens)
+
+No findings. The fix binds settlement to the original connection/session and current host presence, admits terminal actions in the appropriate states, and folds step changes in sequence while preserving settled steps. It sufficiently addresses all three round-2 findings; no new defect identified within scope.
+
+VERDICT: APPROVED
+**6c plan APPROVED in round 3.**
