@@ -11,6 +11,7 @@
  */
 import { recordsOf, fact, sequencer, isSequencer, request, addHandlers, freezeSuccesses, hostOffline, vr2ActionGuard } from "./vr2ic.mjs";
 import { recordEvent } from "./claims.mjs";
+import { enqueueAttack } from "./engagement.mjs";
 import { liveSession, currentPlace, vr2SystemTest } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
 import { csState, csAdmits } from "./rules/vr2-command-sets.mjs";
@@ -93,15 +94,22 @@ export async function testStep(actor, hostUuid, id) {
     buttons: [{ action: "go", label: "Roll", default: true, callback: (ev, b) => ({ hacking: Math.max(0, Math.min(hackingMax, parseInt(b.form.elements.hacking.value) || 0)) }) },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!o || o === "cancel") return;
-  // ONE test per step (code R1 #2): the FIRST rolled card is bound durably (the deterministic record key is the
-  // arbiter); a refused or cancelled roll binds nothing, so the step is never stuck. Karma goes on that card.
-  const step = set.state.next, bound = () => recordsOf(actor).some(e => e.type === "csCard" && e.id === id && e.step === step);
-  if (bound()) return ui.notifications.warn("This step has already been rolled: settle its card.");
-  const res = await vr2SystemTest(actor, host, "commandSet", { subsystem: set.state.nextSub, cs: { id, step }, hacking: o.hacking });
-  if (res?.cardId && !await recordEvent(actor, `vr2:cs-card:${id}:${step}`, { type: "csCard", id, step, card: res.cardId })) {
-    ui.notifications.warn("Another roll of this step came first: settle that card.");
-  }
-  return res;
+  // ONE test per step (code R1 #2, R3 #1–#2): rolls of a set are serialized on this client and re-read the set just
+  // before rolling (a GM edit meanwhile is honoured); the FIRST rolled card whose subsystem is still the step's is
+  // bound durably (the record key is the arbiter). A refused roll binds nothing, so the step is never stuck.
+  // shortcut: two devices of one player rolling the same step at the same instant can both roll (only the first card
+  // binds; the other's tally stands) — a cross-device lock would need a request round-trip before every roll.
+  return enqueueAttack(`cs:${actor.uuid}:${id}`, async () => {
+    const now = setsOn(host).find(s => s.open.id === id);
+    if (!now || now.state.status !== "pending") return ui.notifications.warn("That command set isn't waiting for a test.");
+    const step = now.state.next, sub = now.state.nextSub;
+    if (recordsOf(actor).some(e => e.type === "csCard" && e.id === id && e.step === step)) return ui.notifications.warn("This step has already been rolled: settle its card.");
+    const res = await vr2SystemTest(actor, host, "commandSet", { subsystem: sub, cs: { id, step }, hacking: o.hacking });
+    if (!res?.cardId) return res;
+    if (setsOn(host).find(s => s.open.id === id)?.state.nextSub !== sub) { ui.notifications.warn("The GM changed this step while you rolled: roll it again."); return res; }
+    if (!await recordEvent(actor, `vr2:cs-card:${id}:${step}`, { type: "csCard", id, step, card: res.cardId })) ui.notifications.warn("Another roll of this step came first: settle that card.");
+    return res;
+  });
 }
 
 /** Settle step (§2): sent after any Karma; the sequencer admits it and freezes the card. */
