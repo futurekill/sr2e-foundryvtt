@@ -4535,9 +4535,10 @@ export function registerSR2EQuenchTests() {
           // unambiguous — a tie must not silently become a Body test.
           const a = await pc({ body: { base: 4 }, willpower: { base: 4 } });
           await a.applyDamage("stun", 2);
+          const n0 = game.messages.size;   // only this test's cards
           await a.recoverStun();
           // The label records which attribute was used; a tie must say Willpower.
-          const msgs = game.messages.contents.slice(-4)
+          const msgs = game.messages.contents.slice(n0)
             .filter(m => /Recover Stun/.test(m.flavor ?? m.content ?? ""));
           if (msgs.length) {
             assert.match(msgs.at(-1).flavor ?? msgs.at(-1).content, /Willpower/,
@@ -4553,8 +4554,10 @@ export function registerSR2EQuenchTests() {
     // and its BOUNDARY rather than its dice, because those are the parts that are
     // deterministic and the parts that go wrong quietly.
     quench.registerBatch("sr2e.guards-boundaries", (context) => {
-      const { describe, it, assert, after } = context;
+      const { describe, it, assert, before, after } = context;
       const made = [], msgs = [];
+      let T0 = Infinity;   // only this batch's own cards are cleaned up
+      before(() => { T0 = Date.now() - 1000; });
       after(async () => {
         for (const m of msgs) { try { await m.delete(); } catch (e) {} }
         for (const a of made) { try { await a.delete(); } catch (e) {} }
@@ -4575,7 +4578,7 @@ export function registerSR2EQuenchTests() {
           const a = await mk({ name: "Quench Decker 2", type: "character",
             system: { willpower: { base: 6 }, dumpShock: true } });
           await a.recoverDumpShock();
-          for (const m of game.messages.contents.slice(-2)) msgs.push(m);
+          for (const m of game.messages.contents.slice(-2).filter(x => (x._stats?.createdTime ?? 0) >= T0)) msgs.push(m);
           // Whichever way the dice fell, the flag and the message must AGREE —
           // a cleared flag with a "still disoriented" card, or vice versa, is the
           // failure worth catching.
@@ -4642,14 +4645,17 @@ export function registerSR2EQuenchTests() {
     // that are deterministic — type gates, attribute selection, and the rounding
     // and floors in the ram arithmetic.
     quench.registerBatch("sr2e.astral-resist-ram", (context) => {
-      const { describe, it, assert, after } = context;
+      const { describe, it, assert, before, after } = context;
       const made = [], msgs = [];
+      // Only cards this batch posted are ever cleaned up, never the world's own chat.
+      let T0 = Infinity;
+      before(() => { T0 = Date.now() - 1000; });
       after(async () => {
         for (const m of msgs) { try { await m.delete(); } catch (e) {} }
         for (const a of made) { try { await a.delete(); } catch (e) {} }
       });
       const mk = async (d) => { const a = await Actor.create(d); made.push(a); return a; };
-      const since = () => game.messages.contents.slice(-3);
+      const since = () => game.messages.contents.filter(m => (m._stats?.createdTime ?? 0) >= T0).slice(-3);
 
       describe("rollAstralAttack", () => {
         it("refuses actor types that have no astral existence", async () => {
@@ -6430,13 +6436,14 @@ export function registerSR2EQuenchTests() {
       it("a point with no measurable range and no explicit range is refused", async function () {
         this.timeout(15000);
         if (!canvas?.ready) this.skip();
+        const n0 = game.messages.size;   // only this test's cards are cleaned up, never the world's
         const loner = await Actor.create({ name: "Quench PG Loner", type: "character" });   // no token on the scene
         const g = await nade(loner, 2);
         await g.roll({ blastPoint: { x: o.x, y: o.y, sceneId: canvas.scene.id } });
         assert.equal(g.system.quantity, 2, "refused before spending");
         await g.roll({ blastPoint: { x: o.x, y: o.y, sceneId: canvas.scene.id }, range: "short" });
         assert.equal(g.system.quantity, 1, "an explicit range lets it go");
-        made.messages.push(...game.messages.contents.slice(-6).map(x => x.id));
+        made.messages.push(...game.messages.contents.slice(n0).map(x => x.id));
       });
     }, { displayName: "SR2E: Grenades at a Point" });
 
