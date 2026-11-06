@@ -829,3 +829,45 @@ VERDICT: REVISE
   lock would need a request round-trip before every roll.
 - **#2 accepted:** the set is re-read before rolling (a GM edit is honoured), and a card is bound only if its
   subsystem is still the step's.
+
+## 6c Code round 4 — Codex (fresh session, fix only)
+
+One remaining correctness issue:
+
+- **[P1] Subsystem check and card binding still race** — [command-sets.mjs:109](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/command-sets.mjs:109). The subsystem check passes, then `recordEvent` asynchronously creates the binding. Meanwhile, `csSteps` can validate `editableFrom(set)` before that binding exists and commit a subsystem change. Both writes succeed, leaving an old-subsystem card permanently bound: settlement rejects it, and subsequent rolls refuse because `csCard` exists. This can happen on one client; it is separate from the accepted two-device double-roll limit. Perform validation and binding through the same sequencer as GM edits.
+
+The per-set queue fixes overlapping local attempts. No queue deadlock found: `cs:${actor.uuid}:${id}` and `vr2op:${actor.uuid}` are distinct keys, with no reverse dependency.
+
+VERDICT: REVISE
+### Claude's response (fix 2a7d75c)
+- **Accepted:** the binding moved to the sequencer. The client requests `csBind`; the handler checks the step and its
+  subsystem and writes the `csCard` fact on the host, in the same queue as the GM's `csSteps` edits, so the check and
+  the write can no longer interleave with an edit.
+
+## 6c Code round 5 — Codex (fresh session, fix only; ~117k input tokens)
+
+The host binding correctly serializes `csBind` with `csSteps`, closing the reported GM-edit race. However, it introduces one regression:
+
+**[P2] Timeout permits another roll before binding resolves** — [module/command-sets.mjs:109](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/command-sets.mjs:109). `request()` awaits request creation, not sequencer completion. After five seconds without a host binding, `testStep` releases its queue and suggests rolling again—even if the original request remains pending. A delayed sequencer or temporarily absent GM therefore lets the **same client** roll the same step again, spending resources and adding tally twice. This exceeds the accepted simultaneous two-device limitation; previously, the local durable binding blocked that second roll.
+
+Keep unresolved binding requests blocking further rolls. Distinguish an explicit sequencer rejection from a timeout, and permit retry only after rejection.
+
+VERDICT: REVISE
+### Claude's response (fix 11bee63)
+- **Accepted:** an unanswered `csBind` request (no `done` fact yet) now blocks another roll of that step, durably
+  (it survives a reload). The client's post-roll wait waits on that, not on a 5 s timer; only an answered request lets
+  the step be rolled again.
+
+## 6c Code round 6 — Codex (fresh session, fix only)
+
+The fix closes the timeout finding: after the wait expires, the unanswered actor request still blocks another roll.
+
+- `e.key` matches `done.req`; both use the full request record key.
+- Handler exceptions are caught and receive a `done` fact, clearing the pending guard.
+- A deleted host yields no set; `csBind` returns a refusal that also receives `done`.
+- Successful binds remain protected by `boundCard`; refused binds permit retry.
+
+No new stuck state or bug found in the scoped read-only review.
+
+VERDICT: APPROVED
+**6c code review converged in 6 rounds.**
