@@ -759,3 +759,73 @@ No findings. The fix binds settlement to the original connection/session and cur
 
 VERDICT: APPROVED
 **6c plan APPROVED in round 3.**
+
+## 6c Code round 1 — Codex (fresh session, commit 6007bf9; ~285k input tokens)
+
+1. **templates/actor/parts/actor-matrix.hbs:124 — First-use controls are hidden.** `vr2CommandSets` is an empty array for a decker without sets, which Handlebars treats as false. Both creation buttons disappear, so the normal UI cannot create the first set or program.  
+   **Fix:** Gate creation controls on a separate VR2/connection flag, independently of the list’s contents.
+
+2. **module/command-sets.mjs:93 — Repeated tests allow result shopping.** Until settlement, Test can roll unlimited cards for the same step; `csStep` accepts whichever card the player chooses. Failed tests and other cards’ host successes never enter the set’s state, violating the requirement that every test counts and must succeed.  
+   **Fix:** Durably bind each step to one admitted test card and allow Karma on that card before settlement.
+
+3. **module/command-sets.mjs:106 — Admission can bind a set to another host’s session.** After a failed topology logon from host A to B, `currentPlace` remains A while the live session belongs to B. `onIt` accepts opening or uploading on A with B’s session ID. Testing on A then creates a new session, making the set impossible to settle.  
+   **Fix:** Establish and validate a session belonging to the set’s host before capturing its original session ID.
+
+4. **module/command-sets.mjs:124 — Uploads bypass the decker’s action guard.** Neither `commandSetDialog` nor `csUpload` checks `vr2ActionGuard`; a decker whose icon is down or whose exit is underway can initiate an upload while the connection remains live. Existing frame uploads reject this.  
+   **Fix:** Apply the action guard before requesting an upload and recheck eligibility at sequencer admission.
+
+5. **module/command-sets.mjs:70 — Uploading leaves decoy-frame protection active.** The command-set upload path never calls `ownAction`, unlike `uploadFrame`. A decker can actively upload while security continues treating them as inactive and targeting their decoy frame.  
+   **Fix:** Record the upload as the decker’s own action using the existing decoy invalidation path.
+
+6. **module/command-sets.mjs:199 — Secondary GMs cannot administer sets.** `markSet` and `changeSteps` reject any GM who is not the active sequencer. The approved plan requires GM requests routed to the sequencer, so another connected GM’s host-sheet controls do not work.  
+   **Fix:** Route marks and step changes through request handlers that validate the requesting user’s GM status.
+
+7. **module/command-sets.mjs:131 — Program-upload admission accepts zero tasks.** Unlike `csOpen`, `csUpload` filters the requested steps but never rejects an empty result. A direct request with empty or invalid steps creates a program set requiring only its Control load test, bypassing the required task tests.  
+   **Fix:** Reject uploads whose validated task list is empty before writing `uploadOpen`.
+
+VERDICT: REVISE
+### Claude's response (fix 3853bfd)
+All 7 accepted.
+- #1: the creation buttons show whenever the decker is connected (`vr2CsOn`).
+- #2: one test card per step, bound durably (in round 2 changed to "the first rolled card binds").
+- #3: admission requires the live session to BE the set's host's, and the action guard.
+- #4–#5: the dialog checks `vr2ActionGuard`; a program upload calls `ownAction`.
+- #6: GM marks and step changes are requests on the set's decker's log (any GM).
+- #7: a program upload with no tasks is refused.
+
+## 6c Code round 2 — Codex (fresh session, fix only; ~199k input tokens)
+
+1. **[P1] `module/command-sets.mjs:98` — A refused test permanently consumes the step.** The durable claim precedes `vr2SystemTest`, which can return without rolling—for example, when the icon is down or the host is unreachable. No card is bound, but every subsequent attempt is rejected. Cancelling the initial dialog is safe; downstream refusals are not.  
+   **Fix:** Make pre-roll claims recoverable, releasing them on confirmed no-roll exits and recovering existing cards after interrupted completion.
+
+2. **[P1] `module/command-sets.mjs:233` — Changing an already-rolled pending step makes it impossible to complete.** Roll Control without settling, then have a GM change that step to Files. Settlement rejects the Control card at line 162, while the new claim at line 98 prevents rolling Files.  
+   **Fix:** Lock the current step’s subsystem once rolling begins, allowing edits only to subsequent steps.
+
+3. **[P2] `module/command-sets.mjs:218` — Secondary-GM support remains incomplete when the decker is deleted.** Command sets persist on their hosts, but `gmRequest` explicitly refuses secondary GMs when the original decker no longer resolves. They still cannot mark or change those sets.  
+   **Fix:** Route orphaned-set requests through a surviving document processed by the active GM.
+
+Fixes **1, 3, 4, 5, and 7** otherwise look correct. Fix **2** introduces the blocking cases above; fix **6** retains an unsupported case. No duplicate-handler registration or sequencer deadlock found in the changed paths. Review targets commit `3853bfd`, excluding working-tree edits.
+
+VERDICT: REVISE
+### Claude's response (fix 72a8673)
+- **#1 accepted** (already fixed in the working tree when the review ran): no pre-roll claim; the first rolled card is
+  bound by a deterministic record key, so a refused roll leaves the step open.
+- **#2 accepted:** a step whose card is bound keeps its subsystem; the GM edits from the step after it.
+- **#3 rejected:** a deleted decker's set is handled by the active GM directly. A GM is always present by design
+  ([[sr2e-gm-always-present]]); a shortcut comment says so.
+
+## 6c Code round 3 — Codex (fresh session, fix only; ~124k input tokens)
+
+1. **[P1] `module/command-sets.mjs:98–101` — Overlapping attempts now roll twice.** Two open dialogs can both pass `bound()` before either records its card. `vr2SystemTest` queues execution but never rechecks the binding, so both tests spend resources and add security tally; rejecting the second card afterward cannot undo those effects.
+   **Fix:** Serialize admission, rolling, and binding per step across clients, releasing admission when a roll is refused.
+
+2. **[P1] `module/command-sets.mjs:228,242` — A GM edit can still make a step impossible to finish.** While `vr2SystemTest` is awaiting completion, no `csCard` exists, so `editableFrom()` permits replacing the current subsystem. The returning test then binds its old-subsystem card permanently: settlement rejects the mismatch at line 165, and retries fail `bound()`. A test dialog opened before the edit also retains the old subsystem.
+   **Fix:** Revalidate the current step/subsystem on roll admission and serialize GM edits against in-flight tests through card binding.
+
+VERDICT: REVISE
+### Claude's response (fix edb38f2)
+- **#1 accepted in part:** a set's rolls are serialized per client and re-check the binding just before rolling. A
+  same-instant double roll from two DEVICES stays a documented shortcut (only the first card binds); a cross-device
+  lock would need a request round-trip before every roll.
+- **#2 accepted:** the set is re-read before rolling (a GM edit is honoured), and a card is bound only if its
+  subsystem is still the step's.

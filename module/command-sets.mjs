@@ -10,7 +10,6 @@
  * timed upload (`uploadOpen` with `snapshot.kind: "commandSet"`); the set opens from the completed upload.
  */
 import { recordsOf, fact, sequencer, isSequencer, request, addHandlers, freezeSuccesses, hostOffline, vr2ActionGuard } from "./vr2ic.mjs";
-import { recordEvent } from "./claims.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { liveSession, currentPlace, vr2SystemTest } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
@@ -103,14 +102,20 @@ export async function testStep(actor, hostUuid, id) {
     const now = setsOn(host).find(s => s.open.id === id);
     if (!now || now.state.status !== "pending") return ui.notifications.warn("That command set isn't waiting for a test.");
     const step = now.state.next, sub = now.state.nextSub;
-    if (recordsOf(actor).some(e => e.type === "csCard" && e.id === id && e.step === step)) return ui.notifications.warn("This step has already been rolled: settle its card.");
+    if (boundCard(host, id, step)) return ui.notifications.warn("This step has already been rolled: settle its card.");
     const res = await vr2SystemTest(actor, host, "commandSet", { subsystem: sub, cs: { id, step }, hacking: o.hacking });
     if (!res?.cardId) return res;
-    if (setsOn(host).find(s => s.open.id === id)?.state.nextSub !== sub) { ui.notifications.warn("The GM changed this step while you rolled: roll it again."); return res; }
-    if (!await recordEvent(actor, `vr2:cs-card:${id}:${step}`, { type: "csCard", id, step, card: res.cardId })) ui.notifications.warn("Another roll of this step came first: settle that card.");
+    // Bound by the sequencer, in the same order as the GM's step edits (code R4 #1); the queue waits for the verdict.
+    await request(actor, "csBind", { host: host.uuid, id, step, card: res.cardId });
+    const t0 = Date.now();
+    while (!boundCard(host, id, step) && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
+    if (boundCard(host, id, step) !== res.cardId) ui.notifications.warn("That roll can't be this step's (the GM changed the step, or another roll came first): settle the bound card, or roll again.");
     return res;
   });
 }
+
+/** The card bound to a step (a fact on the host), or null. */
+const boundCard = (host, id, step) => recordsOf(host).find(e => e.type === "csCard" && e.id === id && e.step === step)?.card ?? null;
 
 /** Settle step (§2): sent after any Karma; the sequencer admits it and freezes the card. */
 export function settleStep(message) {
@@ -160,6 +165,18 @@ addHandlers({
         title="The upload's time has passed (no combat is counting it)">Upload finished (GM)</button></div>` : "<br><em>Counted at each round's end.</em>"}</div>` });
     return { ok: true };
   },
+  /**
+   * Bind a step's FIRST rolled card (code R1 #2, R4 #1), in the sequencer's order with the GM's step edits: only while
+   * the step is next, unbound, and still the card's subsystem; the card must be this decker's stamped test.
+   */
+  async csBind(actor, r) {
+    const host = sync(r.host), set = setsOn(host).find(s => s.open.id === r.id);
+    if (!set || set.state.status !== "pending" || set.state.next !== r.step || boundCard(host, r.id, r.step)) return { ok: false, why: "that step isn't open for a card" };
+    const st = game.messages.get(r.card)?.flags?.sr2e?.vr2SystemTest;
+    if (!st || st.cs?.id !== r.id || st.cs?.step !== r.step || st.sub !== set.state.nextSub || st.actorUuid !== actor.uuid || set.open.decker !== actor.uuid) return { ok: false, why: "not this step's test" };
+    await fact(host, `cs-card:${r.id}:${r.step}`, { type: "csCard", id: r.id, step: r.step, card: r.card });
+    return { ok: true };
+  },
   /** Settle a step (§2, R1 #2, #7, R2 #1): bound to the set, its step, its subsystem, its ORIGINAL connection and session. */
   async csStep(actor, r, f) {
     const host = sync(r.host), set = setsOn(host).find(s => s.open.id === r.id);
@@ -167,8 +184,8 @@ addHandlers({
     if (!csAdmits(set.state.status, "settle")) return { ok: false, why: `the set is ${set.state.status}` };
     if (r.step !== set.state.next) return { ok: false, why: "not its next step" };
     if (recordsOf(host).some(e => e.type === "csStep" && e.id === r.id && e.n === r.step)) return { ok: true };
-    // The step's ONE rolled card (code R1 #2): the decker's durable record names it.
-    if (recordsOf(actor).find(e => e.type === "csCard" && e.id === r.id && e.step === r.step)?.card !== r.card) return { ok: false, why: "not this step's card" };
+    // The step's ONE rolled card (code R1 #2, R4 #1): bound by the sequencer on the host.
+    if (boundCard(host, r.id, r.step) !== r.card) return { ok: false, why: "not this step's card" };
     const st = game.messages.get(r.card)?.flags?.sr2e?.vr2SystemTest, o = set.open;
     if (!st || st.operation !== "commandSet" || st.cs?.id !== r.id || st.cs?.step !== r.step || st.sub !== set.state.nextSub) return { ok: false, why: "that card isn't this step's test" };
     if (st.actorUuid !== actor.uuid || o.decker !== actor.uuid || st.hostUuid !== host.uuid || st.conn !== o.conn || st.sessionId !== o.sessionId) return { ok: false, why: "that card is from another decker, host or session" };
@@ -232,8 +249,8 @@ function gmRequest(host, id, kind, data) {
 }
 /** The first step the GM may change (code R2 #2): a step whose test is already rolled keeps its subsystem. */
 function editableFrom(set) {
-  const d = sync(set.open.decker), n = set.state.next;
-  return d && recordsOf(d).some(e => e.type === "csCard" && e.id === set.open.id && e.step === n) ? n + 1 : n;
+  const n = set.state.next;
+  return boundCard(set.host, set.open.id, n) ? n + 1 : n;
 }
 const HANDLERS_CS = {
   async csMark(actor, r) {
