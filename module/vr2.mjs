@@ -686,7 +686,7 @@ export function renderSystemTestCard(st) {
   const v = systemTestVerdict(st.successes, st.hostSuccesses);
   return `<div class="sr2e-item-card sr2e-vr2-systest">
     <strong>${esc(st.actorName)} — ${esc(st.opLabel)}${st.icon && !st.byFrame ? ` through ${esc(st.icon.name)}` : ""}</strong>
-    ${st.byFrame ? `<br><em>A smart frame acting on its own: its DINAB as its skill, its own tally (VR2.0 p.107).</em>` : ""}
+    ${st.byFrame ? `<br><em>${st.sk ? "An SK acting on its own: its MPCP as its Computer, its own tally (VR2.0 p.140–141)." : "A smart frame acting on its own: its DINAB as its skill, its own tally (VR2.0 p.107)."}</em>` : ""}
     ${st.icon && !st.byFrame ? `<br><em>${st.coreDinab ? `${esc(st.icon.name)}'s core DINAB runs it (a Free Action, p.106)` : `A command to ${esc(st.icon.name)}: a Simple Action (p.106)`}; the frame's programs and attributes, ${esc(st.actorName)}'s datatrail.</em>` : ""}
     <br>vs ${esc(st.hostName)}: ${esc(st.subsystemLabel)} ${st.subsystem}${st.console ? " (halved: console access)" : ""}${st.utility ? ` − ${esc(st.utilityName)} ${st.utility}` : ""}${st.jackAccess ? ` ${st.jackAccess > 0 ? "+" : "−"} ${Math.abs(st.jackAccess)} jackpoint` : ""}${st.goal ? ` ${st.goal > 0 ? "+ 1 vague goal" : "− 1 definite goal"}` : ""} → TN ${st.tn}.
     <br>The host rolls Security Value ${st.securityValue}${st.svMod ? ` (base ${st.securityValue - st.svMod} +${st.svMod} for ${esc(st.waited ?? "the wait")}, p.117)` : ""} vs Detection Factor ${st.df}${st.redirectDf ? " (less the jackpoint's trace modifier, p.117)" : ""}: ${plural(st.hostSuccesses, "success")}.
@@ -810,7 +810,7 @@ async function systemTestNow(actor, host, operation, opts) {
     successes: res.successes, hostSuccesses: hostRoll.successes, sessionId: session.id, testMessageId: res.testMessageId,
     // Part 3: what reactive IC (tar, worms, bombs) needs to act on this test (plan §4).
     hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem), sub,
-    ...(ctx ? { icon: { uuid: icon.uuid, upload: icon.system.uploadId || icon.id, name: icon.name }, ...(smart ? { byFrame: true, owner: icon.system.ownerUuid || icon.uuid } : { command: true }) } : {}),
+    ...(ctx ? { icon: { uuid: icon.uuid, upload: icon.system.uploadId || icon.id, name: icon.name }, ...(smart ? { byFrame: true, owner: icon.system.ownerUuid || icon.uuid, ...(icon.system.kind === "sk" ? { sk: true } : {}) } : { command: true }) } : {}),
     ...(coreDinab ? { coreDinab: true } : {}),
     allOnes: (res.dice ?? []).length > 0 && res.dice.every(d => d.total === 1),
     deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null,

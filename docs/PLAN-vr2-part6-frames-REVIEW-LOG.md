@@ -625,3 +625,62 @@ No findings. Recording the departed session ID and deleting only the matching en
 
 VERDICT: APPROVED
 **6b plan APPROVED in round 5.**
+
+## 6b Code round 1 — Codex (fresh session, commit 9c53cc9; ~439k input tokens)
+
+1. **module/frames.mjs:854 — Concurrent logons can use the wrong destination session.** Session setup runs before `vr2SystemTest` enters its operation queue. Two logons can both pass the between-hosts check, then replace each other’s attempt sessions. Tests can charge the wrong host, and both successful moves can commit without an intervening logoff because `moveFact` rechecks only `ended`. **Fix:** serialize the entire movement operation and fence admission/completion against the expected location and session.
+
+2. **module/frames.mjs:771 — Returning home discards a failed attempt’s tally.** After failing to log onto A, logging onto the native host overwrites A’s live attempt session without stashing it. After leaving home, another attempt at A starts at zero. **Fix:** preserve the outgoing failed-attempt session before replacing it during arrival reconciliation.
+
+3. **module/vr2.mjs:823 — SK tests still write tally outside the GM sequencer.** An OWNER player can use Act, and `applyTallyEvent` writes the SK directly through `sessionQueue`, using author/ownership checks rather than the active GM. That queue also does not serialize against SK movement. **Fix:** route SK tally application through the active GM sequencer, completing pending moves before applying it.
+
+4. **module/vr2.mjs:553 — Stashed sessions cannot receive outstanding tally events.** `applyTallyEvent` only searches `liveSession`, and recovery likewise only considers the live session. An interrupted tally write becomes unrecoverable while its failed-attempt session is stashed, contrary to the approved destination-session recovery requirement. **Fix:** resolve SK tally events by session ID across both live and stashed sessions, updating the matching path.
+
+5. **module/vr2ic.mjs:1417 — Host shutdown never schedules SK cleanup.** The shutdown loop schedules only frame owners; SKs have none. Host effects also do not trigger `scheduleSk`. Consequently, shutdown-ended SK tokens and combatants remain until an unrelated SK event or reload. **Fix:** schedule each affected SK’s pass when its host goes offline.
+
+6. **module/frames.mjs:69 — Deleting the resident host leaves an SK alive and stranded.** A missing host makes `shut` false, so `skCleanup` does nothing even when the deletion hook schedules reconciliation. Logoff rejects the missing host, while logon rejects the nonempty `hostUuid`. **Fix:** treat a missing host referenced by the latest arrival as a terminal condition and clean up the SK.
+
+7. **module/frames.mjs:975 — Creation bypasses the sequencer and fails on a secondary GM.** Any GM creates the actor directly, but `skPass` returns immediately unless that GM is the active sequencer. The creation hook does not schedule ownerless SKs, leaving the new actor without its initial move or session until reload/handoff. **Fix:** create the actor and initial arrival inside the active GM sequencer, with creation recovery scheduled there.
+
+8. **module/frames.mjs:935 — Restore TN includes damage already repaired.** The maximum scans every historical attribute hit. After fully repairing rating-12 damage and later taking rating-3 damage to that attribute, Regenerate still rolls against 12. **Fix:** derive the TN from outstanding damage after folding full and partial repairs, using `restoreState` semantics.
+
+VERDICT: REVISE
+### Claude's response (fix 117c4a3)
+All 8 accepted.
+- #1: `skMove` runs in a per-SK queue (`skmove:<uuid>`) end to end, and its move fact is fenced on the move count and
+  location the test started from.
+- #2: an arrival stashes the outgoing failed-attempt session in `skSessions`.
+- #3–#4: an SK's tally events are never written by `applyTallyEvent`. The active GM's SK pass
+  (`reconcileSkTallies`, scheduled by a `createChatMessage` hook) applies them by session id to the live or a
+  stashed session.
+- #5: `tickShutdown` schedules the passes of SKs on the host.
+- #6: a deleted host it's on ends the SK.
+- #7: creation and its first move run in the sequencer, and a `createActor` hook schedules recovery.
+- #8: Restore's TN from outstanding damage (completed in round 2).
+
+## 6b Code round 2 — Codex (fresh session, fix only; ~157k input tokens)
+
+1. **[P1] `module/vr2.mjs:552` — Deferred tally application loses successful logoff events.** `applyTallyEvent` now returns after scheduling a pass. If `skMove` completes before that pass, `completeMoves` deletes the departing session (`frames.mjs:765`). The pass then cannot match the logoff’s system-test or Probe events, so crossed sheaf steps—including shutdown—never fire. Running `completeMoves` before reconciliation also preserves this failure during recovery.
+   **Fix:** Reconcile outstanding tally events inside the sequencer before deleting a departing session, including during move recovery.
+
+2. **[P2] `module/frames.mjs:966` — Restore still counts repaired attribute damage.** Filtering after the last `full` repair ignores attribute-specific regeneration. For example, rating-8 damage is completely restored through `{attr, points}`, then rating-3 damage hits that attribute: the next Restore still uses TN 8. Round-1 finding 8 remains incompletely fixed.
+   **Fix:** Fold attribute damage and repairs in sequence, clearing contributing ratings whenever that attribute’s outstanding loss reaches zero.
+
+The other fixes appear sound on static inspection. I found no introduced queue deadlock, pass loop, or decker/smart-frame tally regression. The Quench changes accommodate deferred application but do not cover these failures; Foundry tests were not run.
+
+VERDICT: REVISE
+### Claude's response (fix 9db3692)
+- **#1 accepted.** `completeMoves` reconciles every outstanding tally event first, so a logoff's own test and Probe
+  land before its session is deleted.
+- **#2 accepted.** `skRestoreTN` folds an attribute's damage and repairs in order; clearing a loss forgets the old
+  ratings (a Vitest case).
+
+## 6b Code round 3 — Codex (fresh session, fix only; ~238k input tokens)
+
+No findings. Both fixes correctly address the round-2 issues; no new defect identified within scope.
+
+Seven direct Restore TN assertions passed. Vitest could not start because its config loader requires a temporary file, blocked by the read-only sandbox.
+
+VERDICT: APPROVED
+
+**6b code APPROVED in round 3.**

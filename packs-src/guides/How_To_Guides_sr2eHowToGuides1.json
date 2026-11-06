@@ -393,6 +393,31 @@
         "format": 1,
         "content": "<p><strong>Goal:</strong> put a smart frame to work: it acts on its own turns, with its own skill and tally (Virtual Realities 2.0\npp.105–107).</p>\n<p><img src=\"systems/sr2e/assets/guides/smart-frame.gif\" alt=\"A smart frame takes an order, then acts on its own from its sheet\"></p>\n<p><strong>The decker</strong></p>\n<ol>\n<li>Build, load and upload a <strong>smart</strong> frame core (see <em>Build and load a frame core</em> and <em>Upload and run a frame</em>).</li>\n<li>On its host, click <strong>Order…</strong> on the frame&#39;s row and type its basic order. It&#39;s a Free Action.</li>\n</ol>\n<p><strong>Running the frame</strong> (the decker&#39;s player, or the GM)</p>\n<ol>\n<li>Open the frame&#39;s sheet and click <strong>Act…</strong>.</li>\n<li>Pick a System Operation, or target an icon and pick an attack, Scan Icon or a maneuver.</li>\n<li>The frame rolls its DINAB rating; its own tally rises on its sheet.</li>\n</ol>\n<p><strong>In combat</strong></p>\n<ul>\n<li>The frame joins a combat its decker fights in, with Core Rating + 1D6 (+1 die per Initiative point), and acts on its\nown turns. Remove it from the tracker and it stays out.</li>\n</ul>\n<p><em>Tips</em></p>\n<ul>\n<li>It keeps running after the decker jacks out, until it crashes or its host shuts down.</li>\n<li>Trace IC can&#39;t trace a smart frame. Decoy needs a dumb frame.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
       }
+    },
+    {
+      "_id": "2fb3bdcd8280c112",
+      "name": "Run an SK (VR2.0)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1600000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> put a semi-autonomous knowbot into a run: create it, give it utilities, and move it between hosts (Virtual\nRealities 2.0 pp.140–141). This is the GM&#39;s.</p>\n<p><img src=\"systems/sr2e/assets/guides/sk.gif\" alt=\"The GM creates an SK, allocates its Utility Pool and logs it on to another host\"></p>\n<p><strong>Create it</strong></p>\n<ol>\n<li>Make its native host (a Host actor).</li>\n<li>In the Actor Directory, click <strong>New SK</strong>. Pick the native host and a preset, or leave MPCP and the pool blank to\nroll them.</li>\n</ol>\n<p><strong>Give it utilities</strong></p>\n<ol>\n<li>On its sheet, click <strong>Allocate…</strong>. Type a utility and its rating on each row (up to its MPCP), and pick Initiative\npoints.</li>\n<li>Black hammer and killjoy cost 2 points per rating point. Restore and medic points stay until it has been home.</li>\n</ol>\n<p><strong>Run it</strong></p>\n<ul>\n<li><strong>Act…</strong>: an operation, an attack, Scan Icon or a maneuver, with its MPCP as its skill.</li>\n<li><strong>Graceful Logoff</strong> to leave a host, then <strong>Logon to Host…</strong> to arrive elsewhere. Home needs no test.</li>\n<li>Damaged? Log it on to its native host: it&#39;s repaired. Already home: <strong>Regenerate</strong>.</li>\n</ul>\n<p><em>Tips</em></p>\n<ul>\n<li>Add it to a combat from its token, like IC.</li>\n<li>Ten boxes crash it for good; the sheet stays as a record.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/The-Matrix\">The Matrix</a>.</li>\n</ul>\n"
+      }
     }
   ],
   "_key": "!journal!sr2eHowToGuides1"
