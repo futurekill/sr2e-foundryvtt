@@ -121,7 +121,7 @@
       </button>
       {{/if}}
     </div>
-    {{#if vr2CommandSets}}<p class="rule-note"><i class="fas fa-scroll"></i> <strong>Command sets</strong> (VR2.0 p.104–105):
+    {{#if vr2CsOn}}<p class="rule-note"><i class="fas fa-scroll"></i> <strong>Command sets</strong> (VR2.0 p.104–105):
       <button type="button" data-action="vr2ic" data-op="csNew" title="Leave orders on the host you're on: Subsystem Tests (Control when in doubt), or a command-set program you upload">Command set…</button>
       <button type="button" data-action="vr2ic" data-op="csProgram" title="Create a command-set program: its design size rolls 1D6 × 20 Mp (p.105)">New command-set program</button>
       {{#each vr2CommandSets as |c|}}<br>{{c.name}} on {{c.host}}: <em>{{c.status}}</em>{{#if c.next}} — next: {{c.next}}

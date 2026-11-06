@@ -1000,7 +1000,7 @@ If those five all work, the core loop is healthy.
 - [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
       button.
 
-## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c, 6b)
+## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c, 6b, 6c)
 - [ ] New program → Frame core *Smart*, rating 6, Bod 2 / Evasion 2 / Masking 1 / Sensor 1, DINAB-4: size (6 + 4)² × 3
       = 300 Mp. Without DINAB the sheet lists the problem and programming refuses.
 - [ ] Write it (the code button), then **Load programs…**: pick two programs over the capacity → refused; within it →
@@ -1040,4 +1040,9 @@ If those five all work, the core loop is healthy.
       host: on it, with that host's tally.
 - [ ] Damage it, then Logon to its native host: no test, repaired. **Regenerate** there heals boxes.
 - [ ] Ten boxes: its token goes; the actor stays, crashed.
+- [ ] 6c: on a host, **Command set…** with a Slave task: the decker's Matrix tab lists it with **Test**; roll, then
+      **Settle step**: "loaded", undetected for 24 ÷ the host's successes hours; the host sheet shows the countdown.
+- [ ] **New command-set program**: a 1D6 × 20 Mp program with no load toggle. Command set… from it: an upload card;
+      **Upload finished (GM)** → the set opens with Control first.
+- [ ] Leave the host before settling: Settle step is refused. GM: Executed / Purged / Cancel / Change tests on the host sheet.
 

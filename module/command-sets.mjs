@@ -9,7 +9,8 @@
  * Its state is folded by `csState` (rules/vr2-command-sets.mjs), never stored. A program set's upload is 0.136.0's
  * timed upload (`uploadOpen` with `snapshot.kind: "commandSet"`); the set opens from the completed upload.
  */
-import { recordsOf, fact, sequencer, isSequencer, request, addHandlers, freezeSuccesses, hostOffline } from "./vr2ic.mjs";
+import { recordsOf, fact, sequencer, isSequencer, request, addHandlers, freezeSuccesses, hostOffline, vr2ActionGuard } from "./vr2ic.mjs";
+import { recordEvent } from "./claims.mjs";
 import { liveSession, currentPlace, vr2SystemTest } from "./vr2.mjs";
 import { topologyOn, isVR2 } from "./vr2-mode.mjs";
 import { csState, csAdmits } from "./rules/vr2-command-sets.mjs";
@@ -43,6 +44,7 @@ export const setsOf = (actor) => game.actors.filter(a => a.type === "host").flat
 /** Command set… (§3): a simple set opens by request; a program set starts its timed upload. */
 export async function commandSetDialog(actor) {
   if (!isVR2() || !actor.system.vr2Conn) return ui.notifications.warn("Leave a command set while you're in the Matrix (VR2.0).");
+  { const why = vr2ActionGuard(actor); if (why) return ui.notifications.warn(why); }   // code R1 #4
   const host = hostHere(actor);
   if (!host) return ui.notifications.warn("Log on to the host the command set runs on (VR2.0 p.104).");
   const programs = actor.items.filter(i => i.type === "program" && i.system.commandSet);
@@ -67,6 +69,7 @@ export async function commandSetDialog(actor) {
   if (!o.prog) return request(actor, "csOpen", { id: foundry.utils.randomID(16), ...base });
   const item = actor.items.get(o.prog);
   if (!(Number(actor.system.cyberdeck?.ioSpeed) > 0)) return ui.notifications.warn("Your deck has no I/O bandwidth to upload with (p.91).");
+  await (await import("./frames.mjs")).ownAction(actor, "Upload a command set");   // the decker acts: a decoy frame ends (code R1 #5)
   return request(actor, "csUpload", { upload: foundry.utils.randomID(16), item: item.id, ...base });
 }
 
@@ -90,7 +93,12 @@ export async function testStep(actor, hostUuid, id) {
     buttons: [{ action: "go", label: "Roll", default: true, callback: (ev, b) => ({ hacking: Math.max(0, Math.min(hackingMax, parseInt(b.form.elements.hacking.value) || 0)) }) },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!o || o === "cancel") return;
-  return vr2SystemTest(actor, host, "commandSet", { subsystem: set.state.nextSub, cs: { id, step: set.state.next }, hacking: o.hacking });
+  // ONE test per step (code R1 #2): claimed durably before the roll, its card recorded after; Karma goes on that card.
+  const step = set.state.next;
+  if (!await recordEvent(actor, `vr2:cs-roll:${id}:${step}`, { type: "csRoll", id, step })) return ui.notifications.warn("This step has already been rolled: settle its card.");
+  const res = await vr2SystemTest(actor, host, "commandSet", { subsystem: set.state.nextSub, cs: { id, step }, hacking: o.hacking });
+  if (res?.cardId) await recordEvent(actor, `vr2:cs-card:${id}:${step}`, { type: "csCard", id, step, card: res.cardId });
+  return res;
 }
 
 /** Settle step (§2): sent after any Karma; the sequencer admits it and freezes the card. */
@@ -104,7 +112,7 @@ export function settleStep(message) {
 
 /** He is ON that host, on that connection and session, now. */
 const onIt = (actor, f, hostUuid, conn, sessionId) => !!f.live && f.live.n === conn && liveSession(actor)?.id === sessionId
-  && hostHere(actor)?.uuid === hostUuid;
+  && liveSession(actor)?.hostUuid === hostUuid && hostHere(actor)?.uuid === hostUuid && !vr2ActionGuard(actor);   // the session IS that host's (code R1 #3)
 
 addHandlers({
   /** A simple set (§1): opened only for a decker ON that host; program sets never open by request (R1 #3). */
@@ -129,6 +137,7 @@ addHandlers({
     const seconds = uploadSeconds(item.system.csSize, actor.system.cyberdeck?.ioSpeed);
     if (seconds == null) return { ok: false, why: "no I/O bandwidth" };
     const steps = (r.steps ?? []).filter(k => SUBS.includes(k));
+    if (!steps.length) return { ok: false, why: "no tasks" };   // code R1 #7
     const combat = game.combats.find(c => c.started && c.combatants.some(cb => cb.actor?.uuid === actor.uuid)) ?? null;
     const clock = combat ? { combatId: combat.id, startRound: combat.round } : { manual: true };
     if (!await fact(actor, `upload-open:${r.upload}`, { type: "uploadOpen", upload: r.upload, conn: r.conn, sessionId: r.sessionId, host: host.uuid, seconds, clock,
@@ -147,6 +156,8 @@ addHandlers({
     if (!csAdmits(set.state.status, "settle")) return { ok: false, why: `the set is ${set.state.status}` };
     if (r.step !== set.state.next) return { ok: false, why: "not its next step" };
     if (recordsOf(host).some(e => e.type === "csStep" && e.id === r.id && e.n === r.step)) return { ok: true };
+    // The step's ONE rolled card (code R1 #2): the decker's durable record names it.
+    if (recordsOf(actor).find(e => e.type === "csCard" && e.id === r.id && e.step === r.step)?.card !== r.card) return { ok: false, why: "not this step's card" };
     const st = game.messages.get(r.card)?.flags?.sr2e?.vr2SystemTest, o = set.open;
     if (!st || st.operation !== "commandSet" || st.cs?.id !== r.id || st.cs?.step !== r.step || st.sub !== set.state.nextSub) return { ok: false, why: "that card isn't this step's test" };
     if (st.actorUuid !== actor.uuid || o.decker !== actor.uuid || st.hostUuid !== host.uuid || st.conn !== o.conn || st.sessionId !== o.sessionId) return { ok: false, why: "that card is from another decker, host or session" };
@@ -197,16 +208,38 @@ export async function reconcileCommandSets(owner) {
 
 /** Executed / Purged / Cancel (§5): a terminal mark, admitted per action, in the sequencer. */
 export function markSet(host, id, what) {
-  if (!game.user.isGM || !isSequencer()) return ui.notifications.warn("The active GM marks a command set.");
-  return sequencer(async () => {
-    const set = setsOn(host).find(s => s.open.id === id);
-    if (!set || !csAdmits(set.state.status, what)) return ui.notifications.warn(`That set is ${set?.state.status ?? "gone"}.`);
-    await fact(host, `cs-mark:${id}`, { type: "csMark", id, what });
-  });
+  if (!game.user.isGM) return ui.notifications.warn("The GM marks a command set.");
+  return gmRequest(host, id, "csMark", { what });
 }
+/** Any GM's action reaches the sequencer as a request on the set's decker's log (code R1 #6); with no decker, directly. */
+function gmRequest(host, id, kind, data) {
+  const open = setsOn(host).find(s => s.open.id === id)?.open, d = sync(open?.decker);
+  if (d) return request(d, kind, { host: host.uuid, id, ...data });
+  if (!isSequencer()) return ui.notifications.warn("The active GM handles a set whose decker is gone.");
+  return sequencer(() => HANDLERS_CS[kind](null, { host: host.uuid, id, user: game.user.id, ...data }));
+}
+const HANDLERS_CS = {
+  async csMark(actor, r) {
+    if (!game.users.get(r.user)?.isGM) return { ok: false, why: "the GM marks a command set" };
+    const host = sync(r.host), set = setsOn(host).find(s => s.open.id === r.id);
+    if (!set || !["executed", "purged", "cancelled"].includes(r.what) || !csAdmits(set.state.status, r.what)) return { ok: false, why: `that set is ${set?.state.status ?? "gone"}` };
+    await fact(host, `cs-mark:${r.id}`, { type: "csMark", id: r.id, what: r.what });
+    return { ok: true };
+  },
+  async csSteps(actor, r) {
+    if (!game.users.get(r.user)?.isGM) return { ok: false, why: "the GM changes a command set's tests" };
+    const host = sync(r.host), set = setsOn(host).find(s => s.open.id === r.id);
+    const steps = (r.steps ?? []).filter(k => SUBS.includes(k));
+    if (!set || !csAdmits(set.state.status, "steps") || set.state.next !== r.from || !steps.length) return { ok: false, why: "the set changed meanwhile: reopen" };
+    const k = recordsOf(host).filter(e => e.type === "csSteps" && e.id === r.id).length;
+    await fact(host, `cs-steps:${r.id}:${k}`, { type: "csSteps", id: r.id, from: r.from, steps });
+    return { ok: true };
+  }
+};
+addHandlers(HANDLERS_CS);
 /** Change the remaining steps (§1, R2 #3): from the settled count, in the sequencer. */
 export async function changeSteps(host, id) {
-  if (!game.user.isGM || !isSequencer()) return ui.notifications.warn("The active GM changes a command set's tests.");
+  if (!game.user.isGM) return ui.notifications.warn("The GM changes a command set's tests.");
   const set = setsOn(host).find(s => s.open.id === id);
   if (!set || !csAdmits(set.state.status, "steps")) return;
   const from = set.state.next, rest = set.state.list.slice(from);
@@ -216,12 +249,7 @@ export async function changeSteps(host, id) {
     buttons: [{ action: "go", label: "Set", default: true, callback: (ev, b) => [0, 1, 2].map(i => b.form.elements[`s${i}`].value).filter(Boolean) },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }] });
   if (!Array.isArray(steps) || !steps.length) return;
-  return sequencer(async () => {
-    const now = setsOn(host).find(s => s.open.id === id);
-    if (!now || !csAdmits(now.state.status, "steps") || now.state.next !== from) return ui.notifications.warn("The set changed meanwhile: reopen.");
-    const k = recordsOf(host).filter(e => e.type === "csSteps" && e.id === id).length;
-    await fact(host, `cs-steps:${id}:${k}`, { type: "csSteps", id, from, steps });
-  });
+  return gmRequest(host, id, "csSteps", { from, steps });
 }
 
 /** The host sheet's list (§5). */

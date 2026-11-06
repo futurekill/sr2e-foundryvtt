@@ -1606,7 +1606,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       { const F = await import("../frames.mjs"); const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
         const decoy = F.liveDecoyFrameOf(actor)?.frame;
         // Part 6c: this decker's command sets, and the buttons to leave one (VR2.0, in the Matrix).
-        { const C = await import("../command-sets.mjs"); context.vr2CommandSets = actor.system.vr2Conn
+        { const C = await import("../command-sets.mjs"); context.vr2CsOn = !!actor.system.vr2Conn; context.vr2CommandSets = actor.system.vr2Conn
           ? C.setsOf(actor).filter(s => !["executed", "purged", "cancelled"].includes(s.state.status)).map(s => ({ name: s.open.name, host: s.host.name, status: s.state.status,
             next: s.state.status === "pending" ? CONFIG.SR2E.vr2Subsystems?.[s.state.nextSub] ?? s.state.nextSub : "", arg: `${s.host.uuid}|${s.open.id}`,
             left: s.state.status === "loaded" ? C.hoursText((s.state.purgeAt - game.time.worldTime) / 3600) : "" })) : null; }

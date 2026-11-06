@@ -1626,7 +1626,7 @@ active GM.
 
 ## 6c in detail: command sets
 
-**Status: plan Codex-APPROVED round 3 (2026-11-06); not built.**
+**Status: plan Codex-APPROVED round 3 (2026-11-06); BUILT for 0.140.0.**
 
 The pages were rendered for this section (2026-11-06): Command Sets (p.104–105).
 - **p.104.** "A command set consists of a simple program of orders that a decker can leave on a host to be executed

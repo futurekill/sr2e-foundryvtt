@@ -240,7 +240,11 @@ idempotent `skPass` (moves, pool items, tar, wear/resolutions, crash cleanup); `
 attempting session, failed-attempt sessions stashed in `flags.sr2e.skSessions`; one seq-ordered `skCondition` fold
 (full repairs sit at their move's seq). Pool allocations are `sk-alloc:<rev>` facts with item ids, materialized by
 `reconcileSkItems` (item locks bypassed only with `sr2eSkPool`).
-Remaining deferred: command sets (6c) — each needs its own Codex-reviewed plan meeting the
+Part 6c (0.140.0; `module/command-sets.mjs`): a command set is facts on its HOST (csOpen / csStep / csSteps / csMark),
+folded by `csState`; a step is SETTLED by request, bound to the set's original connection and session, its verdict
+frozen then; a program set's upload is 0.136.0's `uploadOpen` with `snapshot.kind: "commandSet"` (it makes no actor),
+and `reconcileOwner` opens its set. Remaining VR2.0: the upgrading plan (docs/PLAN-vr2-upgrading.md).
+Remaining deferred (was): command sets (6c) — each needs its own Codex-reviewed plan meeting the
 requirements in docs/PLAN-vr2-part6-frames.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;

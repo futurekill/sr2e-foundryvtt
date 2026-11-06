@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.140.0 — 2026-11-06
+
+### Added
+- **VR2.0 command sets** (VR2.0 pp.104–105): orders a decker leaves on a host to run later.
+  - **Command set…** on the Matrix tab (on a host): a name, the orders, and one or more Subsystem Tests (Control when
+    in doubt; the GM names them). Each is the new *Command Set* operation with Deception: roll it from the Matrix tab,
+    spend any Karma, then **Settle step** on its card.
+  - **Complex sets** run from a **command-set program**: **New command-set program** rolls its design size, 1D6 × 20
+    Mp (no test: the book gives it no rating). Pick it in Command set… and it uploads like a frame (size ÷ I/O seconds,
+    p.91); once the upload finishes, a Control Test loads it, then its tasks.
+  - **Undetected for 24 ÷ the host's successes against its tests, in hours** (48 if none). The host's sheet lists every
+    set with its countdown on world time, and it reads "purged" once that runs out.
+  - The GM marks a set **Executed** or **Purged**, **Cancels** an unfinished one, or **Changes** its remaining tests.
+  - A set is finished on the connection and host session that started it.
+- How-To Guides: *Leave a command set (VR2.0)*.
+
 ## 0.139.0 — 2026-11-05
 
 ### Added
