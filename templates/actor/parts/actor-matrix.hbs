@@ -121,6 +121,11 @@
       </button>
       {{/if}}
     </div>
+    {{#if vr2CommandSets}}<p class="rule-note"><i class="fas fa-scroll"></i> <strong>Command sets</strong> (VR2.0 p.104–105):
+      <button type="button" data-action="vr2ic" data-op="csNew" title="Leave orders on the host you're on: Subsystem Tests (Control when in doubt), or a command-set program you upload">Command set…</button>
+      <button type="button" data-action="vr2ic" data-op="csProgram" title="Create a command-set program: its design size rolls 1D6 × 20 Mp (p.105)">New command-set program</button>
+      {{#each vr2CommandSets as |c|}}<br>{{c.name}} on {{c.host}}: <em>{{c.status}}</em>{{#if c.next}} — next: {{c.next}}
+        <button type="button" data-action="vr2ic" data-op="csTest" data-arg="{{c.arg}}" title="Roll this step's Subsystem Test; then settle it on its card">Test</button>{{/if}}{{#if c.left}} — undetected {{c.left}}{{/if}}{{/each}}</p>{{/if}}
     {{#if vr2Frames.length}}
     <p class="rule-note"><i class="fas fa-cubes"></i> <strong>Frames running</strong> (VR2.0 p.105–107):
       {{#each vr2Frames as |f|}}<br><a data-action="vr2ic" data-op="frameOpen" data-arg="{{f.id}}">{{f.name}}</a> ({{f.kind}}) on {{f.host}}, {{f.monitor}}/10{{#if f.decoy}} — <strong>decoy frame</strong>{{/if}}
@@ -239,6 +244,7 @@
             {{#if program.spent}}<em title="One-shot (p.104): fired; Swap Memory reloads it">spent</em>{{/if}}
             {{#if program.hasDinab}}<em title="DINAB rating left on this load (p.103)">DINAB {{program.dinab}}</em>{{/if}}
             {{#if program.task.writing}}<em title="Programming (p.100–102)">writing{{#if program.task.period}} {{program.task.done}}/{{program.task.period}}d{{/if}}</em>{{/if}}{{#if program.task.unwritten}}<em title="Its programming failed or was abandoned: it was never written (p.100). Start programming again.">unwritten</em>{{/if}}
+            {{#if program.system.commandSet}}<em class="sr2e-core-badge" title="A command-set program (VR2.0 p.105): pick it in Command set… to upload it to a host">Command set</em>{{/if}}
             {{#if program.core}}<em class="sr2e-core-badge" title="A frame core (VR2.0 p.105–106): load programs onto it, then upload it to a host">Core: {{program.core.kind}} {{program.core.rating}}{{#unless program.core.written}}, not written{{/unless}}</em>
               {{#if program.core.loading}}<em title="Loading programs (p.106)">loading{{#if program.core.loading.period}} {{program.core.loading.done}}/{{program.core.loading.period}}d{{/if}}</em>{{/if}}
               {{#if program.core.copies}}<em title="Loaded copies; frame size {{program.core.size}} Mp (p.106)">[{{program.core.copies}}]</em>{{/if}}
@@ -248,7 +254,7 @@
             {{#if ../vr2}}<a data-action="vr2ic" data-op="frameUpload" data-arg="{{program.id}}" title="Upload this frame to the host you're on: it runs when the upload completes (VR2.0 p.106)"><i class="fas fa-upload"></i></a>
             {{#if program.core.squeezed}}<a data-action="vr2ic" data-op="frameDecompress" data-arg="{{program.id}}" title="Decompress the frame before uploading it (a Complex Action, VR2.0 p.106)"><i class="fas fa-up-right-and-down-left-from-center"></i></a>{{/if}}{{/if}}
             {{#if program.core.loading}}<a data-action="vr2ic" data-op="programAbandon" data-arg="{{program.id}}" title="Abandon the loading task (the previous load stays)"><i class="fas fa-ban"></i></a>{{/if}}
-            {{else}}<a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>{{/if}}
+            {{else}}{{#unless program.system.commandSet}}<a data-action="toggleEquip" title="Load/Unload"><i class="fas fa-power-off"></i></a>{{/unless}}{{/if}}
             {{#if ../vr2}}<a data-action="vr2SwapMemory" title="Swap Memory: a fresh copy at full rating (VR2.0 p.99)"><i class="fas fa-rotate"></i></a>
             {{#if program.isMedic}}<a data-action="vr2Medic" title="Medic: repair the icon (a Complex Action, VR2.0 p.100)"><i class="fas fa-kit-medical"></i></a>{{/if}}
             {{#if program.compressed}}<a data-action="vr2ic" data-op="decompress" data-arg="{{program.id}}" title="Decompress (a Complex Action, VR2.0 p.104)"><i class="fas fa-up-right-and-down-left-from-center"></i></a>{{/if}}

@@ -2726,7 +2726,8 @@ async function promptSystemOperationOptions(actor) {
   }).join("");
 
   const vr2 = isVR2();
-  const ops = vr2 ? CONFIG.SR2E.vr2SystemOperations : CONFIG.SR2E.systemOperations;
+  // A command set's tests run from its own card (part 6c), never from this list.
+  const ops = vr2 ? Object.fromEntries(Object.entries(CONFIG.SR2E.vr2SystemOperations).filter(([k]) => k !== "commandSet")) : CONFIG.SR2E.systemOperations;
   // Part 7a: under grid topology, each operation lists only the places it can reach from where the decker is (p.14–30).
   const topo = vr2 && topologyOn() && actor.system.vr2Conn ? (() => {
     const t = topoSnapshot(), at = currentPlace(actor)?.uuid ?? null, jack = connJackpoint(actor), known = knownPlaces(actor), mapped = mappedHubs(actor);

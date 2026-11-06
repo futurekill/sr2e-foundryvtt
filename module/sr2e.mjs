@@ -43,6 +43,7 @@ import { registerAstralFormHooks } from "./astral-forms.mjs";
 import { registerPersonaTokenHooks } from "./persona-tokens.mjs";
 import { registerGridHooks } from "./grids.mjs";
 import { registerFrameHooks } from "./frames.mjs";
+import { registerCommandSetHooks } from "./command-sets.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
 import { registerPhoneLink } from "./companion/phone-link.mjs";
@@ -531,6 +532,7 @@ Hooks.once("init", async () => {
   registerPersonaTokenHooks();
   registerGridHooks();
   registerFrameHooks();
+  registerCommandSetHooks();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();

@@ -202,7 +202,7 @@ export const coreDinabLeft = (rating, wear = {}, uploadId = "") =>
   Math.max(0, (Number(rating) || 0) - Object.keys(wear ?? {}).filter(k => k.startsWith(`${uploadId}_`)).length);
 
 /** Operations a frame never runs (§2): it doesn't move, and Null Operation is the decker's own waiting. */
-export const NO_FRAME_OPS = new Set(["logonHost", "logonLTG", "logonRTG", "gracefulLogoff", "nullOp"]);
+export const NO_FRAME_OPS = new Set(["logonHost", "logonLTG", "logonRTG", "gracefulLogoff", "nullOp", "commandSet"]);
 
 // ── Part 6a-2c: smart frames ─────────────────────────────────────────────────────────
 

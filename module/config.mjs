@@ -853,7 +853,9 @@ SR2E.vr2SystemOperations = {
   defuse:             { label: "Defuse Data Bomb",    subsystem: "targeted", utility: "Defuse" },
   // Part 6a-0 (docs/PLAN-vr2-part6-frames.md; p.112, p.117).
   decoy:              { label: "Decoy",               subsystem: "control", utility: "Mirrors" },
-  nullOp:             { label: "Null Operation",      subsystem: "control", utility: "Deception" }
+  nullOp:             { label: "Null Operation",      subsystem: "control", utility: "Deception" },
+  // Part 6c (p.104): a command set's tests; the GM names the subsystem (Control when in doubt).
+  commandSet:         { label: "Command Set",         subsystem: "targeted", utility: "Deception" }
 };
 
 // Alert states (SR2E p.168). Passive adds +50% to IC ratings (applied by the

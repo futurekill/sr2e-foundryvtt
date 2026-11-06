@@ -232,7 +232,7 @@ async function settleUpload(actor, open, manual = false) {
     : departed(actor, open, open.seq) ? "the decker left the host" : null;
   if (gone) {
     if (await fact(actor, `upload-end:${id}`, { type: "uploadEnd", upload: id, why: gone })) {
-      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">The ${esc(open.snapshot.coreName)} upload is lost: ${esc(gone)} (p.106).</div>` });
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">The ${esc(open.snapshot.coreName)} upload is lost: ${esc(gone)} (${open.snapshot.kind === "commandSet" ? "p.105" : "p.106"}).</div>` });
     }
     return;
   }
@@ -240,7 +240,7 @@ async function settleUpload(actor, open, manual = false) {
   if (!manual && ticks * 3 < open.seconds) return;
   if (await fact(actor, `upload-done:${id}`, { type: "uploadDone", upload: id })) {
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="sr2e-item-card">The <strong>${esc(open.snapshot.coreName)}</strong>
-      frame is uploaded to ${esc(host.name)} and starts running (VR2.0 p.106).</div>` });
+      ${open.snapshot.kind === "commandSet" ? `command set is uploaded to ${esc(host.name)}: a Control Test loads it (VR2.0 p.105).` : `frame is uploaded to ${esc(host.name)} and starts running (VR2.0 p.106).`}</div>` });
   }
 }
 
@@ -301,6 +301,7 @@ export async function reconcileOwner(actor) {
   for (const open of recordsOf(actor).filter(e => e.type === "uploadOpen")) await settleUpload(actor, open);
   for (const done of recordsOf(actor).filter(e => e.type === "uploadDone")) {
     const id = done.upload;
+    if (of(recordsOf(actor), "uploadOpen", id)?.snapshot?.kind === "commandSet") continue;   // 6c: not a frame
     if (of(recordsOf(actor), "frameEnd", id)) continue;
     const st = stateFor(actor, id);
     if (st.ended && await fact(actor, `frame-end:${id}`, { type: "frameEnd", upload: id, why: st.why })) {
@@ -309,6 +310,7 @@ export async function reconcileOwner(actor) {
         frame is gone: ${esc(st.why)}.</div>` });
     }
   }
+  await (await import("./command-sets.mjs")).reconcileCommandSets(actor);   // 6c: completed uploads open their sets
   await replayWear(actor);
   await replayResolutions(actor);
   await replayTriggerReports(actor);
@@ -349,7 +351,7 @@ async function reconcileDocs(owner) {
   const recs = recordsOf(owner);
   for (const done of recs.filter(e => e.type === "uploadDone")) {
     const id = done.upload, open = of(recs, "uploadOpen", id);
-    if (!open) continue;
+    if (!open || open.snapshot?.kind === "commandSet") continue;   // 6c: a command set makes no actor
     let frame = game.actors.get(id);
     const ended = () => stateFor(owner, id).ended;
     if (!frame && !ended()) {

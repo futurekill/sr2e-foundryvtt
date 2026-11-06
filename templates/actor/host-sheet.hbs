@@ -63,6 +63,13 @@
         <a data-action="hostSheafRemove" data-id="{{row.id}}" title="Remove this step"><i class="fas fa-trash"></i></a>
       {{else}} no steps.{{/each}}
       <br><button type="button" data-action="hostSheafAdd"><i class="fas fa-plus"></i> Add step</button></p>
+    {{#if commandSets.length}}<p class="rule-note"><strong>Command sets</strong> (VR2.0 p.104–105):
+      {{#each commandSets as |c|}}<br><strong>{{c.name}}</strong> by {{c.decker}} ({{c.kind}}): {{c.orders}} — <em>{{c.status}}</em>, tests {{c.steps}} ({{c.settled}} settled; the host's {{c.sum}})
+        {{#if c.left}}, undetected for {{c.left}}{{/if}}
+        {{#if c.canMark}}<button type="button" data-action="vr2ic" data-op="csExecuted" data-arg="{{c.id}}" title="It ran its orders">Executed</button>
+          <button type="button" data-action="vr2ic" data-op="csPurged" data-arg="{{c.id}}" title="Security found and purged it early">Purged</button>{{/if}}
+        {{#if c.canCancel}}<button type="button" data-action="vr2ic" data-op="csSteps" data-arg="{{c.id}}" title="The gamemaster determines the Subsystem Tests (p.104)">Change tests</button>
+          <button type="button" data-action="vr2ic" data-op="csCancel" data-arg="{{c.id}}" title="Cancel this unfinished set">Cancel</button>{{/if}}{{/each}}</p>{{/if}}
     {{#if grid}}
     <fieldset class="vr2-grid">
       <legend>Grid (VR2.0 p.14–30)</legend>

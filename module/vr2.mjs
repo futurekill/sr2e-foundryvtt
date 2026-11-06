@@ -52,7 +52,8 @@ const opQueue = (actor, fn) => enqueueAttack(`vr2op:${actor.uuid}`, fn);
 export function usablePrograms(actor) {
   const vr2 = isVR2();
   // A frame core is never a utility on the deck (part 6a-1): it runs only as an uploaded frame.
-  return actor.items.filter(i => i.type === "program" && i.system.loaded && !i.system.isCore
+  // Nor is a command-set program (part 6c): it's uploaded to a host, never run.
+  return actor.items.filter(i => i.type === "program" && i.system.loaded && !i.system.isCore && !i.system.commandSet
     && (!vr2 || (!programUnusable(actor, i) && (i.system.effectiveRating ?? 0) > 0)));
 }
 
@@ -698,6 +699,8 @@ export function renderSystemTestCard(st) {
     ${st.hubNote ? `<br><em>On the hub: this covers the whole host network; the GM says which host has it (p.36).</em>` : ""}
     ${st.logon ? `<br><em>${v.success ? `${esc(st.actorName)} is on ${esc(st.hostName)}.` : `Log-on refused: ${esc(st.actorName)} stays where they were.`}</em>` : ""}
     ${st.operation === "locateAccessNode" && v.success ? `<div class="sr2e-karma-actions"><button type="button" class="sr2e-vr2-reveal" data-actor="${esc(st.actorUuid)}">Reveal an address… (GM, p.114)</button></div>` : ""}
+    ${st.cs ? `<br><em>A command set's step: spend any Karma, then settle it (VR2.0 p.104).</em><div class="sr2e-karma-actions"><button type="button" class="sr2e-cs-settle"
+      title="Fix this result for the command set: the host's successes count toward how long it runs undetected">Settle step</button></div>` : ""}
     ${st.operation === "decoy" && st.icon ? `<br><em>${v.success ? `A decoy frame: while ${esc(st.actorName)} stays inactive, security goes after ${esc(st.icon.name)} (not trace IC; p.107).` : "No decoy frame."}</em>` : ""}
     ${st.operation === "decoy" && !st.icon ? `<br><em>${v.success ? `A decoy copy of the icon: a proactive IC attacking ${esc(st.actorName)} hits it on 1D6 ≤ ${st.successes} (not trace IC; p.112).` : "No decoy."}</em>` : ""}
   </div>`;
@@ -725,6 +728,8 @@ async function systemTestNow(actor, host, operation, opts) {
   }
   if (!op || host?.type !== "host") return ui.notifications.warn("Choose a host and a System Operation.");
   if (Y.hostOffline(host)) return ui.notifications.warn(`${host.name} is shut down (VR2.0 p.53).`);
+  // Part 6c: a command set's test runs only from its set's card, stamped with the set and step (R1 #2).
+  if (operation === "commandSet" && !opts.cs?.id) return ui.notifications.warn("Run a command set's tests from its card.");
   // Part 7a: under grid topology only what the book allows from where the decker is (p.14–30), checked before
   // anything is spent or rolled; a logon carries its attempt record.
   const conn = actor.system.vr2Conn;
@@ -812,6 +817,7 @@ async function systemTestNow(actor, host, operation, opts) {
     hostUuid: host.uuid, conn: actor.system.vr2Conn?.n ?? null, utilityRef: useRef(utilityItem), sub,
     ...(ctx ? { icon: { uuid: icon.uuid, upload: icon.system.uploadId || icon.id, name: icon.name }, ...(smart ? { byFrame: true, owner: icon.system.ownerUuid || icon.uuid, ...(icon.system.kind === "sk" ? { sk: true } : {}) } : { command: true }) } : {}),
     ...(coreDinab ? { coreDinab: true } : {}),
+    ...(operation === "commandSet" ? { cs: { id: opts.cs.id, step: opts.cs.step } } : {}),
     allOnes: (res.dice ?? []).length > 0 && res.dice.every(d => d.total === 1),
     deck: actor.system.vr2Deck?.uuid ?? null, bombKey: opts.bombKey ?? null,
     ...(svMod ? { svMod, waited: opts.waited ?? "" } : {}), ...(secret ? { secret: true } : {}),

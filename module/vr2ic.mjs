@@ -1884,6 +1884,17 @@ export async function sheetOp(doc, op, arg) {
   if (op === "frameLoad") { const P = await import("./programming.mjs"); return P.loadDialog(doc, doc.items.get(arg)); }
   if (op === "frameUpload") { const F = await import("./frames.mjs"); return F.uploadFrame(doc, doc.items.get(arg)); }
   if (op === "frameOpen") return game.actors.get(arg)?.sheet.render(true);
+  // Part 6c: command sets (the decker's Matrix tab; the GM's host sheet).
+  if (op.startsWith("cs")) {
+    const C = await import("./command-sets.mjs");
+    if (op === "csNew") return C.commandSetDialog(doc);
+    if (op === "csProgram") return C.newCommandSetProgram(doc);
+    if (op === "csTest") { const [h, id] = arg.split("|"); return C.testStep(doc, h, id); }
+    if (op === "csExecuted") return C.markSet(doc, arg, "executed");
+    if (op === "csPurged") return C.markSet(doc, arg, "purged");
+    if (op === "csCancel") return C.markSet(doc, arg, "cancelled");
+    if (op === "csSteps") return C.changeSteps(doc, arg);
+  }
   // Part 6a-2b: command a dumb frame (§2); the GM fires an event trigger (§7, `arg` = frameId|triggerKey).
   if (op === "frameCommand") { const F = await import("./frames.mjs"); return F.commandFrame(doc, game.actors.get(arg)); }
   // Part 6a-2c: a basic order to a smart frame (the decker's sheet); the smart frame acting (its own sheet).

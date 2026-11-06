@@ -1093,6 +1093,9 @@ export class ProgramData extends SR2EDataModel {
         sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         initPoints: new fields.NumberField({ integer: true, initial: 0, min: 0 })
       }),
+      // VR2.0 part 6c: a command-set program (p.105): no rating, a rolled design size of 1D6 × 20 Mp.
+      commandSet: new fields.BooleanField({ initial: false }),
+      csSize: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -1121,8 +1124,9 @@ export class ProgramData extends SR2EDataModel {
     this.activeOpts = opts.active;
     this.inertOpts = opts.inert;
     // Program memory size = Rating² × Multiplier (same in both rulesets); options change it (p.103).
-    this.size = d.size;
-    this.designSize = d.designSize;
+    // A command-set program (part 6c) has no rating: its rolled size is both — assigned in both directions.
+    this.size = this.commandSet ? this.csSize : d.size;
+    this.designSize = this.commandSet ? this.csSize : d.designSize;
     // Part 6a-1: a frame core's checks, capacity, Initiative, written state and active load — derived, never stored.
     this.isCore = vr2 && !!this.frameCore?.kind;
     if (this.isCore) {

@@ -14749,6 +14749,88 @@ export function registerSR2EQuenchTests() {
         await dropTokens();
       });
 
+      // ── 6c: command sets ──
+      const csDecker = async () => { const a = await decker(); await a.createEmbeddedDocuments("Item", [{ name: "Deception", type: "program", system: { rating: 4, loaded: true } }]); return a; };
+      const CS = () => import("../command-sets.mjs");
+      const setOn = async (h, id) => (await CS()).setsOn(h).find(s => s.open.id === id);
+      /** Leave a set through the real dialog. */
+      const leaveSet = async (a, { name = "Quench Set", steps = ["slave"], prog = "" } = {}) => clicking("go", async () => (await CS()).commandSetDialog(a), (el) => {
+        el.querySelector('input[name="name"]').value = name;
+        for (let i = 0; i < 3; i++) el.querySelector(`select[name="s${i}"]`).value = steps[i] ?? "";
+        el.querySelector('select[name="prog"]').value = prog;
+      });
+      /** Roll a step (Computer 4 vs TN 2 with Deception-4: `faces` then the host's), then settle it. */
+      const stepCard = async (a, h, id, faces) => { const n = sysCards().length; await clicking("go", () => withFaces(faces, async () => (await CS()).testStep(a, h.uuid, id))); return sysCards()[n]; };
+
+      it("6c: a simple set: the decker leaves it, tests and settles each step; it runs undetected 24 ÷ the host's successes hours", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await csDecker();
+        await V.sessionFor(a, h);
+        await leaveSet(a, { steps: ["slave"] });
+        assert.ok(await settle(() => Y.recordsOf(h).some(e => e.type === "csOpen")), "opened on the host");
+        const id = Y.recordsOf(h).find(e => e.type === "csOpen").id;
+        // Computer 4 at 5s vs Slave 6 − Deception 4 = TN 2; the host's SV 4: two 5s.
+        const card = await stepCard(a, h, id, [5, 5, 5, 5, 5, 5, 1, 1]);
+        assert.deepEqual(card?.flags.sr2e.vr2SystemTest.cs, { id, step: 0 }, "stamped with its set and step");
+        await Y.request(a, "csStep", { id, step: 0, card: card.id, host: h.uuid });
+        await Y.request(a, "csStep", { id, step: 0, card: card.id, host: h.uuid });
+        assert.ok(await settle(() => Y.recordsOf(h).filter(e => e.type === "csStep").length === 1), "settled once");
+        const s = (await setOn(h, id)).state;
+        assert.deepEqual([s.status, s.sum, s.hours], ["loaded", 2, 12], "24 ÷ 2 = 12 hours (p.105)");
+        assert.equal((await CS()).setsOn(h, s.purgeAt + 1).find(x => x.open.id === id).state.status, "purged", "found and purged once its time runs out");
+      });
+
+      it("6c: a step settles only in its order, from the session that started it; a failed step fails the set", async function () {
+        this.timeout(40000);
+        const h = await host(), h2 = await host("Quench Frames Host 2");
+        const a = await csDecker();
+        await V.sessionFor(a, h);
+        await leaveSet(a, { steps: ["control", "files"] });
+        assert.ok(await settle(() => Y.recordsOf(h).some(e => e.type === "csOpen")));
+        const id = Y.recordsOf(h).find(e => e.type === "csOpen").id;
+        const card = await stepCard(a, h, id, [1, 1, 1, 1, 5, 5, 5, 5]);
+        // Away and back: a new session can't settle it.
+        await V.sessionFor(a, h2); await V.sessionFor(a, h);
+        await Y.request(a, "csStep", { id, step: 0, card: card.id, host: h.uuid });
+        await wait(800);
+        assert.equal(Y.recordsOf(h).filter(e => e.type === "csStep").length, 0, "refused from another session");
+        assert.equal((await setOn(h, id)).state.status, "pending");
+        // A second set, settled with a failing card: failed.
+        await leaveSet(a, { name: "Quench Set 2", steps: ["control"] });
+        assert.ok(await settle(() => Y.recordsOf(h).filter(e => e.type === "csOpen").length === 2));
+        const id2 = Y.recordsOf(h).find(e => e.type === "csOpen" && e.name === "Quench Set 2").id;
+        const bad = await stepCard(a, h, id2, [1, 1, 1, 1, 5, 5, 5, 5]);
+        await Y.request(a, "csStep", { id: id2, step: 0, card: bad.id, host: h.uuid });
+        assert.ok(await settle(() => Y.recordsOf(h).some(e => e.type === "csStep" && e.id === id2)));
+        assert.equal((await setOn(h, id2)).state.status, "failed");
+        // The first set's card can't serve the second set.
+        await Y.request(a, "csStep", { id: id2, step: 0, card: card.id, host: h.uuid });
+        await wait(500);
+        assert.equal(Y.recordsOf(h).filter(e => e.type === "csStep" && e.id === id2).length, 1);
+      });
+
+      it("6c: a program set: its program rolls 1D6 × 20 Mp and is never a utility; its upload opens the set with the Control load first", async function () {
+        this.timeout(40000);
+        const h = await host();
+        const a = await csDecker();
+        await withFaces([3], async () => (await CS()).newCommandSetProgram(a));
+        const prog = a.items.find(i => i.system.commandSet);
+        assert.deepEqual([prog?.system.csSize, prog?.system.size], [60, 60], "3 × 20 Mp, its storage size");
+        await prog.update({ "system.loaded": true });
+        assert.isFalse(V.usablePrograms(a).includes(a.items.get(prog.id)), "never a usable utility");
+        for (const app of [...foundry.applications.instances.values()]) if (app.document?.id === prog.id) await app.close();
+        await V.sessionFor(a, h);
+        await leaveSet(a, { name: "Quench Program Set", steps: ["slave"], prog: prog.id });
+        assert.ok(await settle(() => recs(a, "uploadOpen").some(e => e.snapshot?.kind === "commandSet")), "the upload is open");
+        const up = recs(a, "uploadOpen").find(e => e.snapshot?.kind === "commandSet").upload;
+        assert.equal(Y.recordsOf(h).filter(e => e.type === "csOpen").length, 0, "no set before the upload is done");
+        await Y.request(a, "uploadDone", { upload: up });
+        assert.ok(await settle(() => Y.recordsOf(h).some(e => e.type === "csOpen" && e.id === up)), "opened from the completed upload");
+        assert.deepEqual((await setOn(h, up)).state.list, ["control", "slave"], "the Control load first (p.105)");
+        assert.notOk(game.actors.get(up), "no frame actor");
+      });
+
       it("changing a written core's design unwrites it and voids its load until it is written and loaded again", async function () {
         this.timeout(40000);
         const a = await coder();

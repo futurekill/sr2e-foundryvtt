@@ -1605,6 +1605,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       // Part 6a-2a: the frames this decker is running.
       { const F = await import("../frames.mjs"); const sync = (u) => { try { return u ? fromUuidSync(u) : null; } catch (e) { return null; } };
         const decoy = F.liveDecoyFrameOf(actor)?.frame;
+        // Part 6c: this decker's command sets, and the buttons to leave one (VR2.0, in the Matrix).
+        { const C = await import("../command-sets.mjs"); context.vr2CommandSets = actor.system.vr2Conn
+          ? C.setsOf(actor).filter(s => !["executed", "purged", "cancelled"].includes(s.state.status)).map(s => ({ name: s.open.name, host: s.host.name, status: s.state.status,
+            next: s.state.status === "pending" ? CONFIG.SR2E.vr2Subsystems?.[s.state.nextSub] ?? s.state.nextSub : "", arg: `${s.host.uuid}|${s.open.id}`,
+            left: s.state.status === "loaded" ? C.hoursText((s.state.purgeAt - game.time.worldTime) / 3600) : "" })) : null; }
         context.vr2Frames = F.framesOf(actor).map(f => ({ id: f.id, name: f.name, kind: f.system.kind, host: sync(f.system.hostUuid)?.name ?? "?", monitor: F.frameState(f).monitor,
           decoy: decoy === (f.system.uploadId || f.id) })); }
       // Part 7a: where the decker is on the grids, and (GM) the unlisted addresses he knows (p.114).
@@ -2416,6 +2421,8 @@ export class SR2EHostSheet extends SR2EBaseActorSheet {
       context.tallies = game.actors.filter(a => liveSession(a)?.hostUuid === uuid || liveSession(a)?.owner === uuid)
         .map(a => ({ name: a.name, tally: liveSession(a).tally ?? 0 }));
       if (topologyOn()) context.grid = gridSheetContext(this.document);
+      // Part 6c: the command sets left on this host (the GM's view).
+      context.commandSets = (await import("../command-sets.mjs")).hostSetsContext(this.document);
       const run = hostShutdown(this.document);
       context.shutdown = run ? { left: run.left, turns: run.turns, warning: run.warning, offline: run.offline, manual: !!run.clock?.manual } : null;
     }
