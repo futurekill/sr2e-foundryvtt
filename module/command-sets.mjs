@@ -103,16 +103,24 @@ export async function testStep(actor, hostUuid, id) {
     if (!now || now.state.status !== "pending") return ui.notifications.warn("That command set isn't waiting for a test.");
     const step = now.state.next, sub = now.state.nextSub;
     if (boundCard(host, id, step)) return ui.notifications.warn("This step has already been rolled: settle its card.");
+    if (bindPending(actor, id, step)) return ui.notifications.warn("This step's last roll is still waiting for the GM's client to bind it.");
     const res = await vr2SystemTest(actor, host, "commandSet", { subsystem: sub, cs: { id, step }, hacking: o.hacking });
     if (!res?.cardId) return res;
     // Bound by the sequencer, in the same order as the GM's step edits (code R4 #1); the queue waits for the verdict.
     await request(actor, "csBind", { host: host.uuid, id, step, card: res.cardId });
+    // An unanswered bind keeps blocking rolls (durably, above), so a slow sequencer never allows a second roll (code R5 #1).
     const t0 = Date.now();
-    while (!boundCard(host, id, step) && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
-    if (boundCard(host, id, step) !== res.cardId) ui.notifications.warn("That roll can't be this step's (the GM changed the step, or another roll came first): settle the bound card, or roll again.");
+    while (bindPending(actor, id, step) && Date.now() - t0 < 5000) await new Promise(r => setTimeout(r, 100));
+    if (!bindPending(actor, id, step) && boundCard(host, id, step) !== res.cardId) ui.notifications.warn("That roll can't be this step's (the GM changed the step, or another roll came first): settle the bound card, or roll again.");
     return res;
   });
 }
+
+/** A csBind request for this step that the sequencer hasn't answered yet (no `done` fact). */
+const bindPending = (actor, id, step) => {
+  const recs = recordsOf(actor), done = new Set(recs.filter(e => e.type === "done").map(e => e.req));
+  return recs.some(e => e.type === "req" && e.kind === "csBind" && e.id === id && e.step === step && !done.has(e.key));
+};
 
 /** The card bound to a step (a fact on the host), or null. */
 const boundCard = (host, id, step) => recordsOf(host).find(e => e.type === "csCard" && e.id === id && e.step === step)?.card ?? null;
