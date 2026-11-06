@@ -1675,13 +1675,15 @@ the decker leaves.
   - Its verdict and the host's successes are FROZEN in the fact. The card's test is closed then, so no Karma comes
     later (R1 #7).
 - **`cs-steps:<id>:<k>`** `{ type: "csSteps", id, from, steps }`: the GM changes the REMAINING steps from step `from`
-  ("the gamemaster determines", R1 #8). The latest one applies.
+  ("the gamemaster determines", R1 #8). `from` is the number of steps already settled when it is written, and the
+  request is refused otherwise. ALL changes fold in `seq` order, each replacing the list from its `from` onward, so a
+  settled step is never rewritten (R2 #3).
 - **`cs-mark:<id>`** `{ type: "csMark", id, what: "executed" | "purged" | "cancelled" }`: the GM's terminal mark, once
   (R1 #8).
 
 **Everything else is derived, never stored.** The pure `csState({ open, steps, changes, marks, now })` in a new
 `module/rules/vr2-command-sets.mjs` folds them:
-- **the step list:** the open fact's steps, with the latest change applied from its `from`;
+- **the step list:** the open fact's steps, then every change in `seq` order, each from its `from`;
 - **pending** (with the next step), **failed** (a settled step failed), **loaded** (every step settled and
   successful), or the GM's mark: **executed**, **purged** or **cancelled**;
 - **the host's sum:** Σ the settled steps' `hostSuccesses`;
@@ -1689,7 +1691,11 @@ the decker leaves.
 - **loadedAt** = the last step's `at`; **purgeAt** = loadedAt + hours × 3600;
 - **undetected** while `now < purgeAt` and no mark. Past `purgeAt` it reads as purged without a mark.
 
-Admission (every request below) refuses a set that isn't pending.
+**Admission per action (R2 #2):**
+- settling a step and changing steps need the set **pending**;
+- **Cancel** needs **pending**;
+- **Executed** and **Purged** need **loaded**;
+- any terminal mark refuses another.
 
 ### 2. The tests (p.104): one operation, bound to its set and step
 **A new System Operation** `commandSet: { subsystem: "targeted", utility: "Deception" }`.
@@ -1703,8 +1709,9 @@ Admission (every request below) refuses a set that isn't pending.
 `request(decker, "csStep", { id, step, card })`. The sequencer admits it only if:
 - the set is pending, and `step` is its NEXT step;
 - the card is a `commandSet` test card stamped with this `cs.id` and `cs.step`, whose `sub` is that step's subsystem;
-- its `actorUuid` is this decker, and its `hostUuid`, `conn` and `sessionId` are the set's host and the decker's LIVE
-  connection and session, NOW;
+- its `actorUuid` is this decker, and its `hostUuid`, `conn` and `sessionId` equal the SET's host, and the set's
+  ORIGINAL `conn` and `sessionId` (from `csOpen`), AND the decker's live connection and session now, with him ON
+  that host (R2 #1). A reconnect, or a new session on the same host, can't finish an abandoned set.
 - no `cs-step:<id>:<n>` exists yet: one settlement per step, so a card can't serve twice.
 
 Then it closes the card's test (`freezeSuccesses`) and writes the step fact with the frozen verdict, the host's
@@ -1739,7 +1746,7 @@ The set's card lists its steps; the next step has a **Test** button, and its rol
   actor is made.
 - **Opening on completion, reconciled (R1 #4).** In `reconcileOwner` (the decker's sequencer pass), every completed
   `commandSet` upload with no `cs-open:<upload>` on its host gets one, from the snapshot: `kind: "program"`, steps =
-  `["control", …snapshot.steps]` (the load test first). It is idempotent and keyed by the upload id, so an
+  `["control", …snapshot.steps]` (the load test first). `conn` and `sessionId` are the upload's (R2 #1). It is idempotent and keyed by the upload id, so an
   interruption after `uploadDone` is finished by the next pass. An `uploadEnd` never opens a set.
 
 ### 4. The decker leaving

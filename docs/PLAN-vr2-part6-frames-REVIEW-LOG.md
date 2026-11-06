@@ -731,3 +731,24 @@ All 8 accepted; §1–§4 rewritten.
   the live connection and session: Karma can't revive it later.
 - #8: GM step changes (`cs-steps`) and terminal marks (`cs-mark`) are facts folded by `csState` and checked by every
   admission.
+
+## 6c Round 2 — Codex (fresh session, revisions only; ~130k input tokens)
+
+1. **Settlement does not enforce the set’s original connection/session (§2).** It compares the card with the decker’s *current* connection/session, but never with `csOpen.conn/sessionId`. After reconnecting, the decker can roll a new stamped card and finish the abandoned set, contradicting revised §4. `systemTestNow` stamps the new session; `request` supplies no additional admission checks.  
+   **Fix:** Require the card and live connection/session to match the set’s original connection/session, and verify current presence on its host.
+
+2. **The blanket pending-only admission rule blocks GM terminal marks (§1).** “Every request below” rejects loaded sets, so **Executed** and **Purged** cannot operate on the loaded sets they are intended to mark. The request dispatcher delegates these checks entirely to the handler.  
+   **Fix:** Define admission per action: settlement/step edits require pending; execution/early purge permit loaded; cancellation permits pending.
+
+3. **Applying only the latest step change loses earlier accepted edits (§1).** For example, change step 0 from Control to Slave, settle Slave, then change the remaining step 1. Applying only the latest change to the original open list restores Control at step 0, leaving its settled Slave fact inconsistent with the reconstructed list.  
+   **Fix:** Fold all step-change facts in sequence order, preserving the settled prefix and allowing each change to replace only remaining steps.
+
+VERDICT: REVISE
+### Claude's response
+All 3 accepted.
+- #1: settlement requires the card AND the decker's live connection/session to equal the set's ORIGINAL ones (from
+  `csOpen`, or the upload's for a program set), and the decker on that host.
+- #2: admission is per action: settle and step changes need pending; Cancel pending; Executed and Purged need loaded;
+  marks are terminal.
+- #3: step changes record `from` = the settled count (checked), and ALL of them fold in seq order from their `from`,
+  so settled steps are never rewritten.
