@@ -22,6 +22,7 @@ import { uploadSeconds, uploadTurns, departedSince, frameMonitor, shutdownOfflin
 import { attributeLoss, systemTestVerdict, medicTN } from "./rules/sr2e-rules.mjs";
 import { restorePoints } from "./rules/vr2ic-rules.mjs";
 import { once, recordEvent } from "./claims.mjs";
+import { enqueueAttack } from "./engagement.mjs";
 import { miscDiceHTML, readMiscDice } from "./dialogs/roll-modifiers.mjs";
 import { GRID_KINDS } from "./rules/vr2-grids.mjs";
 import { personaOn } from "./jackpoints.mjs";
@@ -67,7 +68,8 @@ export function skState(sk) {
   const move = movesOf(sk).at(-1);
   const host = move?.to ? sync(move.to) : null;
   const shut = host?.type === "host" && shutdownOfflineSeqs(recordsOf(host)).some(q => q > (move.seq ?? 0));
-  const why = monitor >= 10 ? "crashed" : shut ? "its host shut down" : null;
+  // A deleted host it was on takes it with it (code R1 #6).
+  const why = monitor >= 10 ? "crashed" : move?.to && host?.type !== "host" ? "its host is gone" : shut ? "its host shut down" : null;
   return { monitor, why, ended: !!why };
 }
 
@@ -768,9 +770,30 @@ async function completeMoves(sk) {
   const last = movesOf(sk).at(-1), s = sk.flags?.sr2e?.vr2Session;
   if (last.to && s?.hostUuid !== last.to) {
     const stash = sk.flags?.sr2e?.skSessions?.[skHostId(last.to)];
-    await sk.update({ "flags.sr2e.vr2Session": stash?.id ? stash : freshSession(sync(last.to)), [`flags.sr2e.skSessions.-=${skHostId(last.to)}`]: null });
+    // A failed attempt's session it leaves behind keeps its tally (code R1 #2).
+    await sk.update({ "flags.sr2e.vr2Session": stash?.id ? stash : freshSession(sync(last.to)), [`flags.sr2e.skSessions.-=${skHostId(last.to)}`]: null,
+      ...(s?.id && s.hostUuid ? { [`flags.sr2e.skSessions.${skHostId(s.hostUuid)}`]: s } : {}) });
   }
   if ((sk.system.hostUuid ?? "") !== (last.to ?? "")) await sk.update({ "system.hostUuid": last.to ?? "" });
+}
+
+/**
+ * Apply every tally event of this SK's tests that hasn't landed (code R1 #3–#4): by its session id, on the live or a
+ * stashed session; the sheaf-pending entries stay outside sessions (`tallyUpdate`). Inside the sequencer.
+ */
+async function reconcileSkTallies(sk) {
+  const V = await import("./vr2.mjs");
+  for (const m of game.messages) {
+    const e = m.flags?.sr2e?.vr2TallyEvent ?? (m.flags?.sr2e?.vr2SystemTest ? { eventId: m.id, actorUuid: m.flags.sr2e.vr2SystemTest.actorUuid,
+      sessionId: m.flags.sr2e.vr2SystemTest.sessionId, base: m.flags.sr2e.vr2SystemTest.hostSuccesses } : null);
+    if (!e || e.actorUuid !== sk.uuid) continue;
+    const live = sk.flags?.sr2e?.vr2Session;
+    const stashKey = Object.entries(sk.flags?.sr2e?.skSessions ?? {}).find(([, x]) => x?.id === e.sessionId)?.[0];
+    const s = live?.id === e.sessionId ? live : stashKey ? sk.flags.sr2e.skSessions[stashKey] : null;
+    if (!s || s.receipts?.[e.eventId] != null) continue;
+    const path = live?.id === e.sessionId ? "flags.sr2e.vr2Session" : `flags.sr2e.skSessions.${stashKey}`;
+    await sk.update(V.tallyUpdate(sk, s, e.base, e.eventId, { path }));
+  }
 }
 
 /** The latest allocation fact, or an empty one (6b §3). */
@@ -809,6 +832,7 @@ export function skPass(sk) {
   if (!isSequencer() || !isSK(sk) || !game.actors.has(sk.id)) return Promise.resolve();
   return sequencer(async () => {
     await completeMoves(sk);
+    await reconcileSkTallies(sk);
     await reconcileSkItems(sk);
     await (await import("./vr2ic.mjs")).reconcileTar(sk);   // an interrupted tar strike on its pool items
     await replayWear(sk); await replayResolutions(sk);
@@ -827,12 +851,18 @@ const gmOnly = () => { if (isSequencer()) return true; ui.notifications.warn("Th
  * Logon to Host / Graceful Logoff (6b §4): an SK leaves a host only by Graceful Logoff, and logs on only from between
  * hosts. A logon's attempt session is the DESTINATION's, so its tally lands there; only success writes a move fact.
  */
-export async function skMove(sk, op, dest = null) {
+export function skMove(sk, op, dest = null) {
+  // The whole move, test included, one at a time per SK (code R1 #1).
+  return enqueueAttack(`skmove:${sk?.uuid}`, () => skMoveNow(sk, op, dest));
+}
+async function skMoveNow(sk, op, dest = null) {
   if (!isSK(sk) || !gmOnly()) return;
   if (frameState(sk).ended) return ui.notifications.warn(`${sk.name} has crashed.`);
+  const n0 = movesOf(sk).length, at0 = sk.system.hostUuid ?? "";
+  // Fenced: no other move landed meanwhile, and it is still where the test started (code R1 #1).
   const moveFact = (data) => sequencer(async () => {
     await completeMoves(sk);
-    if (frameState(sk).ended) return;
+    if (frameState(sk).ended || movesOf(sk).length !== n0 || (sk.system.hostUuid ?? "") !== at0) return;
     const n = movesOf(sk).length;
     await fact(sk, `sk-move:${n}`, { type: "skMove", n, ...data });
     await completeMoves(sk);
@@ -932,7 +962,9 @@ export async function skRegenerate(sk) {
   if (pick === "medic") tn = medicTN(c.monitor);
   else {
     // Restore's TN: the rating of the program that did the damage, the higher if several (p.100).
-    tn = Math.max(2, ...recordsOf(sk).filter(e => e.type === "frameAttr" && e.attr === pick && e.lost > 0).map(e => Number(e.rating) || 2));
+    // Only damage still outstanding: since the last full repair (code R1 #8).
+    const recs = recordsOf(sk), lastFull = Math.max(-1, ...recs.filter(e => e.type === "skRepair" && e.full).map(e => e.at ?? e.seq ?? 0));
+    tn = Math.max(2, ...recs.filter(e => e.type === "frameAttr" && e.attr === pick && e.lost > 0 && (e.seq ?? 0) > lastFull).map(e => Number(e.rating) || 2));
   }
   const r = await sk.rollSuccessTest(Math.max(1, mpcp), tn, { label: `${sk.name} regenerates (${pick === "medic" ? "Medic" : `Restore ${pick}`}, TN ${tn})`, closed: true, tnContext: { kind: "other" }, tnPolicy: "table" });
   if (!r) return;
@@ -971,11 +1003,16 @@ export async function newSkDialog() {
   const why = skProblems({ mpcp, ...attrs });
   if (why.length) return ui.notifications.warn(why.join(" "));
   const pool = o.pool ? Number(o.pool) : await roll(`${mpcp} + 1d6`, `${o.name || "SK"}'s Utility Pool: MPCP + 1D6 (VR2.0 p.141)`);
+  if (!gmOnly()) return;
   const host = game.actors.get(o.host), id = foundry.utils.randomID(16);
-  const sk = await Actor.create({ _id: id, name: o.name || "SK", type: "frame", img: "icons/svg/eye.svg",
-    prototypeToken: { actorLink: true, name: o.name || "SK", disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE },
-    system: { kind: "sk", coreRating: mpcp, dinab: mpcp, ...attrs, pool, uploadId: id, nativeHostUuid: host.uuid, hostUuid: host.uuid } }, { keepId: true });
-  if (sk) await skPass(sk);
+  // Created, and its first arrival written, in the sequencer (code R1 #7); a lost first move is the pass's.
+  const sk = await sequencer(async () => {
+    const a = await Actor.create({ _id: id, name: o.name || "SK", type: "frame", img: "icons/svg/eye.svg",
+      prototypeToken: { actorLink: true, name: o.name || "SK", disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE },
+      system: { kind: "sk", coreRating: mpcp, dinab: mpcp, ...attrs, pool, uploadId: id, nativeHostUuid: host.uuid, hostUuid: host.uuid } }, { keepId: true });
+    if (a) await completeMoves(a);
+    return a;
+  });
   sk?.sheet.render(true);
   return sk;
 }
@@ -986,6 +1023,13 @@ export function registerFrameHooks() {
   setFrameEnded((fr) => frameState(fr).ended);
   // 6b §5: an SK's own record lands → its pass (the active GM's).
   Hooks.on("createActiveEffect", (e) => { if (isSK(e.parent) && e.flags?.sr2e?.claim?.durable) scheduleSk(e.parent); });
+  Hooks.on("createActor", (a) => { if (isSK(a)) scheduleSk(a); });   // creation recovery (code R1 #7)
+  // An SK's tally events are applied by the active GM's pass, whoever rolled the test (code R1 #3).
+  Hooks.on("createChatMessage", (m) => {
+    const u = m.flags?.sr2e?.vr2TallyEvent?.actorUuid ?? m.flags?.sr2e?.vr2SystemTest?.actorUuid;
+    const a = u ? sync(u) : null;
+    if (isSK(a)) scheduleSk(a);
+  });
   // 6a-2c §7 (R2 #2): a smart frame may newly belong in a combat — when one starts, or its owner joins one.
   const ownsSmart = (a) => a?.type === "character" && game.actors.some(f => f.type === "frame" && f.system.kind === "smart" && f.system.ownerUuid === a.uuid);
   Hooks.on("updateCombat", (c, ch) => { if (ch?.started === true || ("round" in (ch ?? {}) && c.started)) for (const cb of c.combatants) if (ownsSmart(cb.actor)) schedule(cb.actor); });

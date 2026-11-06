@@ -518,12 +518,13 @@ export function vr2DisconnectToGrid(actor) {
  * The tally update for `base` more host successes, with its receipt and every sheaf row it
  * crosses, as ONE update (docs/PLAN-vr2-part2.md §1). Call inside the session queue.
  */
-function tallyUpdate(actor, s, base, eventId, { exact = false } = {}) {
+export function tallyUpdate(actor, s, base, eventId, { exact = false, path = "flags.sr2e.vr2Session" } = {}) {
   // Part 3: a traced decker's tally accelerates, +1 per increase (p.46); a carried tally is already counted (part 7a).
   const traced = !exact && actor.system?.vr2Conn ? !!Y.foldOf(actor).live?.traced : false;
   const add = exact ? Math.max(0, Number(base) || 0) : traceTally(Math.max(0, Number(base) || 0), traced);
   const tally = (s.tally ?? 0) + add;
-  const update = { "flags.sr2e.vr2Session.tally": tally, [`flags.sr2e.vr2Session.receipts.${eventId}`]: add };
+  // An SK's stashed session has its own path (6b); the sheaf-pending entries stay outside sessions either way.
+  const update = { [`${path}.tally`]: tally, [`${path}.receipts.${eventId}`]: add };
   // Part 7a: one tally across an RTG and its LTGs fires the RTG's sheaf (the scope's owner).
   const host = sync(s.owner ?? s.hostUuid);
   for (const row of sheafCrossed(host?.system?.sheaf, s.tally ?? 0, tally)) {
@@ -547,6 +548,8 @@ function eventOf(m) {
 export function applyTallyEvent(message) {
   const ev = eventOf(message);
   const actor = ev ? sync(ev.actorUuid) : null;
+  // Part 6b (code R1 #3–#4): an SK's tally is written by the active GM's SK pass, by session id (live or stashed).
+  if (actor?.type === "frame" && actor.system.kind === "sk") return import("./frames.mjs").then(F => { F.scheduleSk(actor); return false; });
   if (!ev || !actor?.isOwner || !message.isAuthor) return Promise.resolve(false);
   return sessionQueue(actor, async () => {
     const s = liveSession(actor);

@@ -1415,6 +1415,8 @@ async function tickShutdown(host, boundary) {
   for (const a of deckers) await openExit(a, "shutdown");
   // Part 6a-2a: "a shutdown wipes out all frames" (p.53): their owners' passes see it (derived, so it replays).
   for (const f of game.actors.filter(x => x.type === "frame" && x.system.hostUuid === host.uuid)) { const o = sync(f.system.ownerUuid); if (o) schedule(o); }
+  // 6b (code R1 #5): an SK has no owner; its own pass cleans it up.
+  { const F = await import("./frames.mjs"); for (const sk of game.actors.filter(x => F.isSK(x) && x.system.hostUuid === host.uuid)) F.scheduleSk(sk); }
   await ChatMessage.create({ content: `<div class="sr2e-item-card"><strong>${esc(host.name)} shuts down.</strong> Every decker still on it is dumped; frames and running programs crash (VR2.0 p.53).</div>` });
   for (const a of deckers) schedule(a);
 }

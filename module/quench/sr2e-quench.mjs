@@ -14710,14 +14710,14 @@ export function registerSR2EQuenchTests() {
         await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1], () => V.vr2SystemTest(sk, h, "locateIC", { ctx: { frame: sk, smart: true } }));
         const st = sysCards()[n]?.flags.sr2e.vr2SystemTest;
         assert.equal(st?.successes, 8, "MPCP-8 as its Computer");
-        assert.equal(V.liveSession(sk).tally, st.hostSuccesses, "its own tally");
+        assert.ok(await settle(() => V.liveSession(sk).tally === st.hostSuccesses), "its own tally (applied by the GM's SK pass)");
         // Graceful Logoff (Access 6 − Deception 4 = TN 2), then Logon to Host 2: the tally lands on Host 2's session.
         await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1], () => F.skMove(sk, "gracefulLogoff"));
         assert.ok(await settle(() => sk.system.hostUuid === ""), "between hosts");
         await withFaces([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1], () => F.skMove(sk, "logonHost", h2));
         assert.ok(await settle(() => sk.system.hostUuid === h2.uuid), "on Host 2");
         assert.equal(V.liveSession(sk).hostUuid, h2.uuid);
-        assert.equal(V.liveSession(sk).tally, 2, "the logon's tally is the destination's");
+        assert.ok(await settle(() => V.liveSession(sk).tally === 2), "the logon's tally is the destination's");
         // Damage on Host 2, then home: the native host repairs it and unlocks the medic points (p.140).
         await F.hitFrame(sk, "quench-sk-hit", 4);
         assert.equal(F.frameState(sk).monitor, 4);
