@@ -1,5 +1,5 @@
 # Plan: the vehicle builder (Rigger 2 design rules), correct vehicle stats
-_Draft 2 (2026-11-07; Codex plan round 1 applied). Phase 1 of the vehicle work; Phase 2 (in-play vehicle rules) gets its own plan._
+_Draft 4 (2026-11-07): **Codex-APPROVED (round 4)**. Phase 1 of the vehicle work; Phase 2 (in-play vehicle rules) gets its own plan._
 
 ## Goal
 A custom vehicle can be designed in a guided **Workshop** that a player understands without the book open. Every
@@ -81,9 +81,16 @@ price }`. `dpLines` itemizes every Design Point with its page, so the Workshop a
   `engineCustomizationCost` charges only the last level's multiplier, and the notes said Accel +5: both wrong.) Its
   failure risk (a GM's secret Build/Repair test, TN 6 when done in design) is shown as a note for the GM.
 - **Budgets** (p.112–113, p.115): Σ CF consumed ≤ Cargo, Σ Load reduction ≤ Load; over budget blocks "Create" ("No
-  vehicle can carry more…"). CF stays fractional (ruling 6). **The saved stats are what's LEFT** (p.113: "subtracted
-  from the vehicle's Cargo and Load"): Steffi's buggy ends at Cargo 4.5 and Load 45, and those are what the actor
-  stores as its usable cargo and load; the gross ratings and the consumption are kept in the design for the review.
+  vehicle can carry more…"). CF stays fractional (ruling 6).
+- **One capacity rule for design mods and later customizations (plan R2 #3):** the actor stores the GROSS Cargo and
+  Load ratings; the data model derives the usable `cargoFree` / `loadFree` = gross − Σ the consumption of the
+  design's OPTIONS (fuel-tank increases, hydrofoil, living amenities, medical gear: stored on the design) − Σ the
+  consumption of EVERY installed mod (design or customization, p.113, p.120), each counted exactly once by one
+  shared pure function that the data model and the Workshop's budget both call; everything that reads usable cargo
+  or load reads those.
+  So nothing counts twice and nothing is forgotten. Steffi's buggy stores Cargo 6 / Load 70 and shows 4.5 / 45.
+  The Workshop's budget check counts all installed mods too; only DESIGN mods add Design Points (customizations
+  are ¥-priced, p.118).
 - **Mark-Up** (table p.114): base from the chassis category; Special Features add (Smart Materials +0.5 is automatic;
   medical/ambulance +1, specialized non-combat +0.25–2.5, unusual equipment +0.2–1.2: GM-picked within the range);
   Special Designs multiply (luxury 1.5–2.5, security 2–3, military 3–5, drone 0.1), applied one after another, never
@@ -138,11 +145,18 @@ restores every choice. Every number has its page reference on hover.
   fixed-wing → Winged Plane, rotor → Rotor Craft, vectored-thrust → Vectored Thrust, special → the chassis' special
   skill), written on create and update.
 - **Modifications are embedded items with an identity**: a Workshop-installed mod is a `vehicle_mod` item flagged
-  `flags.sr2e.designMod = true`; the design lists them by item id. On save the Workshop creates, updates and deletes
+  `flags.sr2e.designMod = true`. **The flagged items themselves are the record** (their current rating included);
+  the design stores no copy of them, so a rating changed or an item deleted on the sheet is simply what the Workshop
+  finds when it reopens: a deleted one simply isn't there (nothing is recreated, and nothing is reported). On save the Workshop creates, updates and deletes
   only its own flagged items. Mods added on the sheet afterwards are **customizations** (book p.118: installed after
-  manufacture, ¥ priced, Installation Test) and the Workshop shows them read-only, never touching them.
-- **Base vs effective stats**: the engine writes BASE stats (chassis + plant + options, cargo/load net of
-  consumption). Mod effects that the data model already applies from embedded items (armor, signature …) are NOT
+  manufacture, ¥ priced, Installation Test); the Workshop shows them read-only, counts their CF/Load in the budget,
+  and never touches them.
+- **One classification-aware aggregation (plan R3 #4)** replaces today's two paths that sum every item's DP and ¥
+  (`actor-sheet.mjs` Apply ~1994 and the sheet summary ~2119, which lose the flags via `map(i => i.system)`): design
+  DP from flagged items only, customization ¥ from unflagged items only, capacity from all. The vehicle sheet, the
+  Workshop and Apply all call it.
+- **Base vs effective stats**: the engine writes BASE stats (chassis + plant + options, with GROSS Cargo and Load,
+  never net: see the capacity rule). Mod effects that the data model already applies from embedded items (armor, signature …) are NOT
   baked into the base, so nothing counts twice; the Review shows the effective stats by running the same shared
   mod-effect function the data model uses (extracted to a pure helper).
 - **Editing a vehicle with no design** (any production vehicle) never starts a design silently: "Design from scratch
@@ -151,6 +165,9 @@ restores every choice. Every number has its page reference on hover.
 - **Old (v1) designs** are not repriced on load. Opening one in the Workshop maps what maps (chassis, plant, speed,
   accel, load, cargo, armor DP as Armor mod points) and lists what doesn't (a flat Mark-Up and the manual "Extra DP"
   become GM-entered values; a scalar Handling purchase is applied on-road), for the owner to confirm before saving.
+  **Its installed mods are classified in the same review (plan R2 #1):** each keeps its item id; v1 counted every
+  installed mod's DP, so each is proposed as a design mod (flagged on save), and the owner can mark any as a later
+  customization instead.
 
 ### 1d. Vehicle data and the stats audit
 - **VehicleData** gains the R2 stat line: off-road Handling, stall speed, Economy (+ unit, idle), Fuel (type, size),

@@ -33,3 +33,38 @@ VERDICT: REVISE
   update; full runtime delivery of every table; chassis → vehicle type and driving skill.
 - Also found while reading p.120: engine customization is Acceleration +2 per level (not +5), and its cost is summed
   level by level.
+
+## Plan round 2 — Codex (fresh session, fixes only; ~172k input tokens)
+
+- **Existing v1 design mods lose their provenance:** migration maps scalar choices but never classifies existing embedded mods; the new flag rule treats them as post-manufacture customizations, dropping their design DP. **Fix:** review and classify existing items during v1 conversion, preserving their IDs and flagging confirmed design mods ([plan:140–153](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-vehicle-builder.md:140); current aggregation: `module/sheets/actor-sheet.mjs:1994`).
+- **Item IDs alone do not resolve sheet-side edits:** restoring stored choices can overwrite a flagged mod’s changed rating or recreate one deleted on the sheet. **Fix:** specify that reopening reconciles stored choices against current embedded items, including changed ratings and missing IDs, before calculating or saving ([plan:134–143](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-vehicle-builder.md:134)).
+- **Read-only customizations lack a capacity contract:** the plan preserves their items but does not specify including their consumption when recalculating saved Cargo/Load, allowing Workshop updates to restore occupied capacity or shrink beneath installed equipment. **Fix:** include all installed customizations in capacity validation and net saved stats while excluding their costs from design DP (R2 p.120; [plan:142–147](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-vehicle-builder.md:142)).
+
+VERDICT: REVISE
+### Claude's response (draft 3)
+- **#1 accepted:** v1 conversion classifies existing mods in its review; each keeps its id and is proposed as a design
+  mod (v1 counted them), the owner can mark any as a customization.
+- **#2 accepted:** the flagged items are the record (ratings included); the design keeps no copy, so sheet edits and
+  deletions are what the Workshop finds, and deleted ones are reported, never recreated.
+- **#3 accepted, and it replaces round 1's "net" storage:** the actor stores GROSS Cargo/Load; the data model derives
+  usable `cargoFree`/`loadFree` from every installed mod; the Workshop's budget counts all mods, DP only design mods.
+
+## Plan round 3 — Codex (fresh session, fixes only; ~157k input tokens)
+
+- **Gross/net contradiction:** [line 151](docs/PLAN-vehicle-builder.md:151) still requires net Cargo/Load, so the new derived subtraction would charge consumption twice; **fix:** explicitly replace that instruction with gross storage.
+- **Option consumption disappears:** [the new formula](docs/PLAN-vehicle-builder.md:85) subtracts only installed mods, omitting fuel-tank increases, hydrofoil, living amenities and medical gear stored as design options; **fix:** subtract option consumption and item consumption exactly once in both derived capacities and Workshop budgets.
+- **Deleted-item reporting has no record:** [lines 145–147](docs/PLAN-vehicle-builder.md:145) promise to report previously deleted items while retaining no history identifying them; **fix:** retain an ID-only deletion history or remove the reporting promise.
+- **Existing aggregation ignores classification:** [Apply](module/sheets/actor-sheet.mjs:1994) and [the sheet summary](module/sheets/actor-sheet.mjs:2119) aggregate every item’s DP and ¥ cost, discarding flags through `map(i => i.system)`; **fix:** explicitly replace both paths with shared classification-aware aggregation—design DP from flagged items, customization costs from unflagged items, capacity consumption from all.
+
+VERDICT: REVISE
+### Claude's response (draft 4)
+- **#1 accepted:** the stale "net of consumption" line now says gross.
+- **#2 accepted:** the derived capacity subtracts design OPTIONS' consumption too, once, through one shared function
+  used by the data model and the Workshop.
+- **#3 accepted:** the deletion "report" promise is dropped (no history is kept; a deleted mod just isn't there).
+- **#4 accepted:** one classification-aware aggregation replaces both existing sum-everything paths.
+
+## Plan round 4 — Codex (fresh session, fixes only; ~63k input tokens)
+
+VERDICT: APPROVED
+**Plan approved in 4 rounds.**
