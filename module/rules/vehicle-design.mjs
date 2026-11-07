@@ -303,7 +303,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     if (bought > 0 && v < floor) problem("handlingFloor", `Handling can't go below ${floor} (half the chassis' ${orig}, rounded up), Smart Materials included: buy at most ${Math.max(0, orig - (sm ? 1 : 0) - floor)}.`, "p.116");
     return Math.max(v, floor);   // Smart Materials alone never takes it under the floor either
   };
-  const handling = pair
+  let handling = pair
     ? { onRoad: final(origOn, track === "onRoad" ? hBought : 0), offRoad: final(origOff, track === "offRoad" ? hBought : 0) }
     : final(origOn, hBought);
 
@@ -401,15 +401,59 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     if (auto && num0(auto.rating) > 2 && !rigger) problem("bikeAutonav", "A bike can't have Autonav above 2 without rigger adaptation.", "p.109");
   }
 
-  const cap = vehicleCapacity({ cargo, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods, build);
-  if (cap.modCfFree < -1e-9) problem("cfOver", `The options and mods need ${cap.cfUsed} CF; the vehicle has ${cargo}.`, "p.115");
+  // Stat effects of the mods installed in design (p.120–146), and drive-by-wire's one-time +10% (p.124).
+  const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
+  const transport = /transport|tractor/i.test(ch.name ?? "");
+  for (const m of mods) {
+    if (m.design === false || !m.effects) continue;
+    const vars = modVars(m, build);
+    for (const k of Object.keys(fx)) {
+      const f = m.effects[`${k}@${cat}`] ?? (transport ? m.effects[`${k}@transport`] : undefined) ?? m.effects[k];
+      if (f == null || f === "") continue;
+      const v = evalExpr(String(f), vars);
+      if (v == null) { problem("badFormula", `${m.name}: its ${k} effect "${f}" can't be worked out.`, m.page ?? "p.118"); continue; }
+      if (k.endsWith("Mult")) fx[k] *= v; else fx[k] += v;
+    }
+  }
+  // Drive-by-wire: ONE +10% (not per level), split among Acceleration / Speed / Load in whole percents (p.124).
+  const dbw = mods.find(m => m.design !== false && keyOf(m) === "drive-by-wire" && num0(m.rating) > 0);
+  let dbwSplit = null;
+  if (dbw) {
+    const raw = { acceleration: 10, speed: 0, load: 0, ...(design.dbwSplit ?? {}) };
+    dbwSplit = Object.fromEntries(["acceleration", "speed", "load"].map(k => [k, num0(raw[k])]));
+    const vals = Object.values(dbwSplit);
+    if (vals.some(v => v < 0 || !Number.isInteger(v)) || vals.reduce((a, b) => a + b, 0) !== 10)
+      problem("dbwSplit", "Drive-by-wire's +10% must be split in whole percents adding up to 10 (Acceleration, Speed, Load).", "p.124");
+  }
+  const pct = (v, k) => v == null || !dbwSplit?.[k] ? v : Math.round(v * (1 + dbwSplit[k] / 100));
+  const preTurbo = speed.value;
+  if (speed.value != null) speed.value = pct(Math.floor((speed.value + fx.speed) * fx.speedMult), "speed");   // floats: "round down" (p.144)
+  // Turbocharging: no further than the vehicle's maximum Speed × 1.25 (rounded down), but always 1 level (p.122).
+  const turbo = mods.find(m => m.design !== false && keyOf(m) === "turbocharging" && num0(m.rating) > 1);
+  if (turbo && speed.max != null && preTurbo != null && preTurbo + 15 * num0(turbo.rating) > Math.floor(speed.max * 1.25))
+    problem("turboMax", `Turbocharging can raise Speed only to ${Math.floor(speed.max * 1.25)} (the maximum × 1.25), or by 1 level.`, "p.122");
+  if (accel.value != null) accel.value = pct(accel.value + fx.acceleration, "acceleration");
+  load.value = pct(load.value, "load");
+  // Armor: +1 Handling per 6 points added (p.127).
+  const armorHandling = Math.floor(fx.armor / 6);
+  fx.handling += armorHandling; fx.handlingOff += armorHandling;
+  if (fx.handling || fx.handlingOff) {
+    if (typeof handling === "object") { handling.onRoad += fx.handling; handling.offRoad += fx.handlingOff; }
+    else handling += fx.handling;
+  }
+  if (economy != null && fx.economyMult !== 1) economy *= fx.economyMult;
+  const sigFinal = signature == null ? null : signature + fx.signature;
+
+  const cargoFinal = cargo + fx.cargo;
+  const cap = vehicleCapacity({ cargo: cargoFinal, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods, build);
+  if (cap.modCfFree < -1e-9) problem("cfOver", `The options and mods need ${cap.cfUsed} CF; the vehicle has ${cargoFinal}.`, "p.115");
   if (cap.loadFree < -1e-9) problem("loadOver", `The options and mods weigh ${cap.loadUsed} kg; the vehicle's Load is ${load.value}.`, "p.115");
 
   const dp = Math.round(lines.reduce((s, l) => s + l.dp, 0) * 100) / 100;
   const markUp = markUpFactor(cat, design.markUp ?? {}, tables.markUp ?? {}, { smartMaterials: sm });
   const stats = {
-    handling, body, armor: num0(cell(ch.armor)), speed: speed.value, stallSpeed: cell(pp.speed?.stall),
-    acceleration: accel.value, load: load.value, cargo, signature,
+    handling, body, armor: num0(cell(ch.armor)) + fx.armor, speed: speed.value, stallSpeed: cell(pp.speed?.stall),
+    acceleration: accel.value, load: load.value, cargo: cargoFinal, signature: sigFinal, dbwSplit,
     autonav: cell(ch.autonav), pilot: cell(ch.pilot), sensor: cell(ch.sensor),
     seating: ch.seating ?? "", seatingExtra, entryPoints: ch.entry ?? "", setupTime: ch.setup ?? "", ltProfile: design.takeoff ? design.takeoff.toUpperCase() : (ch.lt ?? ch.ltProfile ?? ""),
     economy, economyUnit: pp.economy?.unit ?? "", economyIdle: typeof pp.economy?.idle === "object" ? [pp.economy.idle.start, pp.economy.idle.max].filter(Boolean).join(" / ") : (pp.economy?.idle ?? ""), fuelType: pp.engine, fuelSize: fuel, fuelUnit: pp.fuel?.unit ?? "",

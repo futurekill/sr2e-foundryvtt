@@ -12702,6 +12702,134 @@ export function registerSR2EQuenchTests() {
         assert.isNull(v.system.handlingOffRoad);
         await v.sheet.close();
       });
+
+      // ── The Workshop (docs/PLAN-vehicle-builder.md §1c), with the Rigger 2 module's tables ──────────────────
+      const W = () => import("../apps/vehicle-workshop.mjs");
+      const haveTables = () => Object.keys(CONFIG.SR2E.vehicleDesignTables?.chassis ?? {}).length > 0;
+      const pause = (ms = 350) => new Promise(r => setTimeout(r, ms));
+      const press = async (ws, sel) => { const el = ws.element.querySelector(sel); if (!el) throw new Error(`no ${sel}`); el.click(); await pause(); };
+      const field = async (ws, sel, v) => { const el = ws.element.querySelector(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change")); await pause(); };
+      const addMod = async (ws, name) => {
+        for (let i = 0; i < 40 && !ws.element.querySelector('[data-action="addMod"]'); i++) await pause(100);
+        const row = [...ws.element.querySelectorAll(".ws-mods tbody tr")].find(tr => tr.children[0]?.innerText.split("\n")[0].trim() === name && tr.querySelector('[data-action="addMod"]'));
+        if (!row) throw new Error(`no catalog row ${name}`);
+        row.querySelector('[data-action="addMod"]').click(); await pause();
+      };
+      const closeWorkshops = async () => { for (const a of [...foundry.applications.instances.values()]) if (a.id?.startsWith("sr2e-vehicle-workshop")) await a.close(); };
+
+      it("the Workshop builds Rich's sports car through its buttons: 1,214 DP, 303,500¥, flagged design mods (R2 p.111–115)", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(30000);
+        await closeWorkshops();
+        const ws = await (await W()).VehicleWorkshop.open();
+        await pause(600);
+        await press(ws, '[data-action="pickChassis"][data-key="sportsCar"]');
+        await press(ws, '[data-action="pickPlant"][data-key="gasoline-cars-sports-car"]');
+        await field(ws, '[data-field="smartMaterials"]', true);
+        await press(ws, '[data-action="toMax"][data-key="speed"]');
+        await press(ws, '[data-action="toMax"][data-key="acceleration"]');
+        for (let i = 0; i < 10; i++) await press(ws, '[data-action="bump"][data-path="load"][data-by="10"]');
+        await press(ws, '[data-action="bump"][data-path="handling"][data-by="1"]');
+        assert.isTrue(ws.element.querySelector('[data-action="bump"][data-path="handling"][data-by="1"]').disabled, "Handling stops at its floor (ruling 5)");
+        await press(ws, '[data-action="step"][data-step="mods"]');
+        for (const n of ["Nitrous Oxide Injectors", "Datajack Port", "Sensors (Vehicle Sensor System)", "Rigger Adaptation", "Crash Cage"]) await addMod(ws, n);
+        const setRating = async (name, v) => { const tr = [...ws.element.querySelectorAll(".ws-mods tbody tr")].find(t => t.children[0]?.innerText.startsWith(name)); const inp = tr.querySelector("input"); inp.value = v; inp.dispatchEvent(new Event("change")); await pause(); };
+        await setRating("Nitrous Oxide Injectors", 6);
+        await setRating("Sensors", 2);
+        await press(ws, '[data-action="step"][data-step="price"]');
+        await field(ws, '[data-field="markUp.features.unusual"]', "1");
+        await field(ws, "[data-name]", "Quench Vehicle JPS");
+        await press(ws, '[data-action="save"]');
+        await pause(1200);
+        const v = game.actors.getName("Quench Vehicle JPS");
+        made.push(v);
+        assert.ok(v, "created");
+        assert.deepEqual([v.system.designPointValue, v.system.cost, v.system.handling, v.system.handlingOffRoad, v.system.speed, v.system.acceleration],
+          [1214, 303500, 2, 7, 311, 21]);
+        assert.deepEqual([v.system.cargo, v.system.cargoFree, v.system.load, v.system.loadFree], [3, 0.5, 140, 80], "gross stored, free derived");
+        assert.lengthOf(v.items.filter(i => i.getFlag("sr2e", "designMod")), 5);
+        assert.equal(v.system.design.version, 2);
+        await ws.close();
+      });
+
+      it("editing: a removed design mod is deleted, a sheet-added customization is never touched, the price follows", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(30000);
+        await closeWorkshops();
+        const { workshopUpdate } = await W();
+        const { designVehicle } = await import("../rules/vehicle-design.mjs");
+        const T = CONFIG.SR2E.vehicleDesignTables, design = { chassisKey: "sandBuggy", powerPlantKey: "gasoline-cars-subcompact-and-sand-buggy" };
+        const r = designVehicle(design, T);
+        const v = await Actor.create({ name: "Quench Vehicle Edit", type: "vehicle", ...foundry.utils.expandObject(workshopUpdate(design, r, T.chassis.sandBuggy, T.powerPlants[design.powerPlantKey])) });
+        made.push(v);
+        await v.createEmbeddedDocuments("Item", [{ name: "Roll Bars", type: "vehicle_mod", system: { designPoints: 0 }, flags: { sr2e: { designMod: true } } },
+          { name: "Ring Mount", type: "vehicle_mod", system: { designPoints: 10, cfConsumed: 1, loadReduction: 25, mountPoints: 2 }, flags: { sr2e: { designMod: true } } },
+          { name: "Quench Spotlight", type: "vehicle_mod", system: { designPoints: 6 } }]);
+        const ws = await (await W()).VehicleWorkshop.open(v);
+        await pause(600);
+        await press(ws, '[data-action="step"][data-step="mods"]');
+        for (let i = 0; i < 40 && !ws.element.querySelector('[data-action="removeMod"]'); i++) await pause(100);
+        const ring = [...ws.element.querySelectorAll(".ws-mods tbody tr")].find(tr => tr.innerText.startsWith("Ring Mount") && tr.querySelector('[data-action="removeMod"]'));
+        ring.querySelector('[data-action="removeMod"]').click(); await pause();
+        assert.notOk([...ws.element.querySelectorAll(".ws-mods tbody tr")].find(tr => tr.innerText.startsWith("Quench Spotlight"))?.querySelector('[data-action="removeMod"]'), "a customization can't be removed here");
+        await press(ws, '[data-action="save"]');
+        await pause(1000);
+        assert.deepEqual(v.items.map(i => i.name).sort(), ["Quench Spotlight", "Roll Bars"]);
+        assert.equal(v.system.designPointValue, 45, "Ring Mount's 10 DP gone; the customization adds none");
+        await ws.close();
+      });
+
+      it("a production vehicle is only redesigned after a confirmation showing what changes", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(20000);
+        await closeWorkshops();
+        const v = await Actor.create({ name: "Quench Vehicle Production", type: "vehicle", system: { speed: 99, handling: 5 } });
+        made.push(v);
+        const ws = await (await W()).VehicleWorkshop.open(v);
+        await pause(600);
+        await press(ws, '[data-action="step"][data-step="chassis"]');
+        await press(ws, '[data-action="pickChassis"][data-key="sandBuggy"]');
+        await press(ws, '[data-action="pickPlant"][data-key="gasoline-cars-subcompact-and-sand-buggy"]');
+        const confirm = foundry.applications.api.DialogV2.confirm;
+        let shown = "";
+        try {
+          foundry.applications.api.DialogV2.confirm = async (o) => { shown = o.content; return false; };
+          await press(ws, '[data-action="save"]'); await pause(600);
+          assert.equal(v.system.speed, 99, "declined: nothing changes");
+          assert.match(shown, /speed/, "the diff lists the changed stats");
+          foundry.applications.api.DialogV2.confirm = async () => true;
+          await press(ws, '[data-action="save"]'); await pause(800);
+          assert.deepEqual([v.system.speed, v.system.design.version], [90, 2]);
+        } finally { foundry.applications.api.DialogV2.confirm = confirm; await ws.close(); }
+      });
+
+      it("an old Design-tab design is converted by name, with notes to check (plan §1c)", async function () {
+        if (!haveTables()) this.skip();
+        const { convertV1 } = await W();
+        const c = convertV1({ chassisKey: "chassis-cars-sports-car", powerPlantKey: "pp-gasoline-sports-car",
+          improvements: { speed: 20, handling: 1, armor: 2 }, modDP: 30, markUp: 2 }, CONFIG.SR2E.vehicleDesignTables);
+        assert.deepEqual([c.design.chassisKey, c.design.powerPlantKey, c.design.speed, c.design.handling, c.design.gmDP],
+          ["sportsCar", "gasoline-cars-sports-car", 20, 1, 30]);
+        assert.isAtLeast(c.notes.length, 3, "handling track, armor, mark-up are flagged for the owner");
+      });
+
+      it("a character's \"Design a vehicle\" links the new vehicle to them", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(20000);
+        await closeWorkshops();
+        const pc = await Actor.create({ name: "Quench Vehicle Rigger", type: "character" });
+        made.push(pc);
+        const ws = await (await W()).VehicleWorkshop.open(null, { linkTo: pc });
+        await pause(600);
+        await press(ws, '[data-action="pickChassis"][data-key="sandBuggy"]');
+        await press(ws, '[data-action="pickPlant"][data-key="gasoline-cars-subcompact-and-sand-buggy"]');
+        await field(ws, "[data-name]", "Quench Vehicle Linked");
+        await press(ws, '[data-action="save"]'); await pause(1000);
+        const v = game.actors.getName("Quench Vehicle Linked");
+        made.push(v);
+        assert.include(pc.system.linkedVehicles, v.uuid);
+        await ws.close();
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {

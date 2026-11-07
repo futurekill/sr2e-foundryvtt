@@ -1372,7 +1372,7 @@ export class VehicleModData extends SR2EDataModel {
       rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       // Design-Point cost of this mod as a vehicle-design option (Rigger 2
-      // design-from-scratch), evaluated against `rating` by rules.modDesignPoints:
+      // design-from-scratch), evaluated against `rating` by module/rules/vehicle-design.mjs modDesignDP:
       //   dpTable (by rating) > dpPerLevel (×rating) > designPoints (flat).
       // 0 for ¥-priced customizations, which instead add their `cost`.
       designPoints: new fields.NumberField({ initial: 0, min: 0 }),
@@ -1404,6 +1404,11 @@ export class VehicleModData extends SR2EDataModel {
       // only:<categories>, not:<categories>, engine:<engines>, notDrone, minBody:<n>, needsEngineCustom, needsRemote,
       // needsRiggerBase, notWith:<modKeys>, notAircraftUnlessElectric (module/rules/vehicle-design.mjs modProblems).
       maxRating: new fields.StringField({ initial: "", blank: true }),
+      // What it does to the vehicle's stats when installed in design (p.120–146), as formulas over R and B:
+      // handling / handlingOff (on-/off-road; negative = better), speed, acceleration, signature, economyMult, speedMult.
+      // A key may end in @<category> (bike, car, boat, fixedWing, rotor…) or @transport to apply only there; the specific
+      // key wins over the plain one. E.g. Drive-by-Wire { handling: "-R", handlingOff: "-R" }.
+      effects: new fields.ObjectField({ initial: {} }),
       restrictions: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
       modKey: new fields.StringField({ initial: "", blank: true }),

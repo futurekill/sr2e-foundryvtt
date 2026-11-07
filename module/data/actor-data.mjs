@@ -2011,10 +2011,9 @@ export class VehicleData extends SR2EDataModel {
       }),
       autonav: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       notes: new fields.HTMLField({ initial: "" }),
-      // Rigger 2 design-from-scratch state (book p.108-123). Populated on the
-      // vehicle sheet's Design tab; "Apply to Vehicle" writes the resolved base
-      // stats onto the fields above. Keys reference CONFIG.SR2E.vehicleDesign,
-      // which a content module (sr2e-rigger-2) registers at runtime.
+      // The design: version 2 is the Workshop's (module/apps/vehicle-workshop.mjs; `choices` drives
+      // module/rules/vehicle-design.mjs). Version 1 fields below are the old Design tab's, kept so the Workshop can
+      // convert them; nothing else reads them.
       design: new fields.SchemaField({
         chassisKey:    new fields.StringField({ initial: "", blank: true }),
         powerPlantKey: new fields.StringField({ initial: "", blank: true }),

@@ -7,7 +7,7 @@ import { cyberDamageOn } from "../cyberdamage.mjs";
 import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { rowsListValue, wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
-import { resolveVehicleDesign, aggregateModDesign, modDesignPoints, streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
+import { streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
@@ -15,6 +15,7 @@ import { gridSheetContext, gridEdit } from "../grids.mjs";
 import { liveSession, isCompressed, dinabLeft, optionOf, currentPlace, topoSnapshot, atSatUplink } from "../vr2.mjs";
 import { disconnectTarget } from "../rules/vr2-grids.mjs";
 import { taskOf, doneOf, writingOf, unfinished, loadingState, pendingUpgrade } from "../programming.mjs";
+import { designVehicle } from "../rules/vehicle-design.mjs";
 import { programUnusable } from "../data/actor-data.mjs";
 import { deckerContext, hostShutdown } from "../vr2ic.mjs";
 import { elementalHolderOf, spellBlockedByElemental, boundElementals, aidReservation, liveBoundSpirits } from "../elementals.mjs";
@@ -1983,43 +1984,6 @@ function isModRated(s = {}) {
 }
 
 /**
- * "Apply to Vehicle" — resolve the stored design against the registered tables
- * and write the computed base stats onto the vehicle's actual fields (Rigger 2
- * p.108-123). Refuses if the design is incomplete or its DP can't be computed
- * (e.g. a drone-formula chassis). @this {SR2EVehicleSheet}
- */
-/** The build numbers a mod formula needs, for the legacy Design tab (its own tables). */
-function legacyBuild(actor, stored, tables) {
-  const n = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
-  const ch = tables?.chassis?.[stored.chassisKey];
-  // The SELECTED chassis' Body/Pilot (what Apply will write), else the vehicle's own (code review R2 #1).
-  return { body: ch?.body != null ? n(ch.body) : n(actor.system.body), pilot: ch?.pilot != null ? n(ch.pilot) : n(actor.system.pilot),
-    chassisDP: n(ch?.dp), plantDP: n(tables?.powerPlants?.[stored.powerPlantKey]?.dp) };
-}
-
-async function onApplyVehicleDesign(event, target) {
-  const actor = this.document;
-  const stored = actor.system.design ?? {};
-  // Fold installed mods into the build (same as the live readout).
-  const modItems = actor.items.filter(i => i.type === "vehicle_mod");
-  const modAgg = aggregateModDesign(modItems.map(i => i.system), legacyBuild(actor, stored, CONFIG.SR2E.vehicleDesign));
-  const effectiveDesign = { ...stored, modDP: (Number(stored.modDP) || 0) + modAgg.designPoints };
-  const result = resolveVehicleDesign(effectiveDesign, CONFIG.SR2E.vehicleDesign);
-  if (!result.valid) {
-    ui.notifications?.warn(game.i18n.localize("SR2E.Design.CannotApply"));
-    return;
-  }
-  const update = {};
-  for (const [key, value] of Object.entries(result.baseStats)) {
-    update[`system.${key}`] = value;
-  }
-  // Total cost = design cost + ¥-priced customization mods on top.
-  update["system.cost"] = (result.cost || 0) + modAgg.cost;
-  await actor.update(update);
-  ui.notifications?.info(game.i18n.format("SR2E.Design.Applied", { name: actor.name }));
-}
-
-/**
  * Fire a weapon mounted on this vehicle from the vehicle sheet.
  *
  * Vehicle weapons are fired by a gunner (a character) using Gunnery (SR2E p.105) —
@@ -2073,7 +2037,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     position: { width: 600, height: 600 },
     actions: {
       switchTab: SHARED_ACTIONS.switchTab,
-      applyDesign: onApplyVehicleDesign,
+      openWorkshop: async function () { (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(this.document); },
       fireWeapon: onFireVehicleWeapon,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
@@ -2113,95 +2077,22 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
   }
 
   /**
-   * Build the Design-tab view model: the live resolve result plus grouped
-   * dropdown options drawn from CONFIG.SR2E.vehicleDesign (empty until a
-   * content module like Rigger 2 registers its tables).
+   * The Design tab: a summary of the Workshop design (docs/PLAN-vehicle-builder.md §1c), with a live re-check against
+   * the vehicle's current modifications, and the button that opens the Workshop.
    * @private
    */
   _prepareDesign() {
-    const tables = CONFIG.SR2E.vehicleDesign ?? { chassis: {}, powerPlants: {} };
-    const stored = this.document.system.design ?? {};
-
-    // Installed modifications fold into the build: design-option mods add their
-    // Design Points; ¥-priced customization mods add their cost on top. So
-    // dragging a mod onto the vehicle moves the DP and/or the total cost.
-    const modItems = this.document.items.filter(i => i.type === "vehicle_mod");
-    const modAgg = aggregateModDesign(modItems.map(i => i.system), legacyBuild(this.document, stored, tables));
-    const manualModDP = Number(stored.modDP) || 0;
-    const effectiveDesign = { ...stored, modDP: manualModDP + modAgg.designPoints };
-    const result = resolveVehicleDesign(effectiveDesign, tables);
-    const totalCost = (result.cost || 0) + modAgg.cost;
-
-    // CF / Load budgets (book p.115): mods consume Cargo Factor from the chassis'
-    // Cargo Rating and kilograms from the power plant's Load Rating; neither may
-    // be exceeded. Capacities come from the selected chassis / power plant.
-    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-    const cfCap = num(result.chassis?.cargoMax);
-    const loadCap = num(result.powerPlant?.loadMax);
-    const cfUsed = Math.round(modAgg.cf * 100) / 100;
-    const loadUsed = Math.round(modAgg.load * 100) / 100;
-
-    const groupBy = (map, keyFn, selectedKey) => {
-      const groups = {};
-      for (const [key, entry] of Object.entries(map ?? {})) {
-        const g = keyFn(entry) || "Other";
-        (groups[g] ??= []).push({ key, name: entry.name ?? key, dp: entry.dp, selected: key === selectedKey });
-      }
-      return Object.entries(groups)
-        .map(([label, options]) => ({ label, options: options.sort((a, b) => String(a.name).localeCompare(String(b.name))) }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-    };
-
-    const chassisGroups    = groupBy(tables.chassis,     e => e.group,  stored.chassisKey);
-    const powerPlantGroups = groupBy(tables.powerPlants, e => e.engine, stored.powerPlantKey);
-
-    const ratings = Object.entries(CONFIG.SR2E.vehicleDesignRatings).map(([key, def]) => ({
-      key, label: def.label, dp: def.dp, value: stored.improvements?.[key] ?? 0
-    }));
-
-    const fmt = (n) => Number(n || 0).toLocaleString();
-    const installedMods = modItems.map(i => ({
-      id: i.id, name: i.name,
-      rating: Number(i.system.rating) || 0,
-      rated: isModRated(i.system),
-      designPoints: modDesignPoints(i.system, legacyBuild(this.document, stored, tables)),
-      cost: Number(i.system.cost) || 0
-    }));
-
-    // Mark-Up Factor table (book p.114): suggest the base from the chosen
-    // chassis category; the GM applies equipment/special-design factors.
-    const markupCfg = CONFIG.SR2E.vehicleMarkup ?? {};
-    const markupCategory = result.chassis?.group ?? null;
-    const markupBase = markupCategory ? markupCfg.chassisBase?.[markupCategory] : null;
-
-    return {
-      ...result,
-      designPoints: result.designPoints,
-      cost: totalCost,
-      hasData: chassisGroups.length > 0 || powerPlantGroups.length > 0,
-      chassisGroups,
-      powerPlantGroups,
-      ratings,
-      modDP: stored.modDP ?? 0,
-      markUp: stored.markUp ?? 1,
-      markupCategory,
-      markupBase,
-      markupEquipment: markupCfg.equipment ?? [],
-      markupSpecial: markupCfg.specialDesign ?? [],
-      flatOptions: CONFIG.SR2E.vehicleDesignFlatOptions ?? [],
-      cfUsed, cfCap,
-      cfOver: cfCap != null && cfUsed > cfCap,
-      loadUsed, loadCap,
-      loadOver: loadCap != null && loadUsed > loadCap,
-      showBudgets: cfCap != null || loadCap != null || cfUsed > 0 || loadUsed > 0,
-      installedMods,
-      hasMods: installedMods.length > 0,
-      modDPFromItems: modAgg.designPoints,
-      modCost: modAgg.cost,
-      modCostLabel: fmt(modAgg.cost),
-      designPointsLabel: fmt(result.designPoints),
-      costLabel: fmt(totalCost)
-    };
+    const sys = this.document.system, d = sys.design ?? {};
+    const tables = CONFIG.SR2E.vehicleDesignTables ?? { chassis: {} };
+    const haveTables = Object.keys(tables.chassis ?? {}).length > 0;
+    if (d.version !== 2) return { haveTables, v1: !!d.chassisKey, none: !d.chassisKey };
+    const mods = this.document.items.filter(i => i.type === "vehicle_mod")
+      .map(i => ({ ...i.system, name: i.name, design: !!i.getFlag("sr2e", "designMod") }));
+    const live = haveTables ? designVehicle(d.choices ?? {}, tables, { mods }) : null;
+    return { haveTables, v2: true, chassis: tables.chassis?.[d.chassisKey]?.name ?? d.chassisKey,
+      plant: (p => p ? `${p.label.replace(/^[^:]+: /, "")} (${p.engine.replace(/([A-Z])/g, " $1").toLowerCase()})` : d.powerPlantKey)(tables.powerPlants?.[d.powerPlantKey]),
+      dp: sys.designPointValue, price: sys.cost,
+      problems: live?.problems ?? [], changed: !!live && (live.dp !== sys.designPointValue) };
   }
 }
 

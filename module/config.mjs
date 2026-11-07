@@ -1015,31 +1015,13 @@ SR2E.metamagic = {
 };
 
 // ---------------------------------------------------------------------------
-// VEHICLE DESIGN (Rigger 2 "design from scratch", book p.108-123)
-// The core system ships the Design-tab UI and the point-buy math
-// (module/rules/sr2e-rules.mjs), but NOT the Rigger 2 Chassis / Power Plant
-// tables — those are sourcebook content. A content module (sr2e-rigger-2)
-// populates this registry at runtime via registerVehicleDesignData(), so the
-// Design tab is empty (with a hint) until such a module is enabled.
-//
-// Normalized entry shapes the Design tab + resolveVehicleDesign() expect:
-//   chassis[slug]     = { name, group, dp, handling, body, armor, pilot,
-//                         sensor, autonav, cargoStart, cargoMax, seating }
-//   powerPlants[slug] = { name, engine, dp, speedStart, speedMax, accelStart,
-//                         accelMax, loadStart, loadMax, sig }
-// (dp may be a non-numeric "drone formula" string; the resolver flags those.)
+// VEHICLE DESIGN (Rigger 2 "design from scratch", book p.108–146; docs/PLAN-vehicle-builder.md)
+// The system ships the rules (module/rules/vehicle-design.mjs) and the Workshop (module/apps/vehicle-workshop.mjs);
+// the Rigger 2 module registers the book's tables below.
 // ---------------------------------------------------------------------------
-SR2E.vehicleDesign = { chassis: {}, powerPlants: {} };
-
-/**
- * Merge design-table data into the registry. Idempotent per-key (later wins).
- * @param {{chassis?:object, powerPlants?:object}} data
- */
-SR2E.registerVehicleDesignData = function registerVehicleDesignData({ chassis = {}, powerPlants = {} } = {}) {
-  Object.assign(SR2E.vehicleDesign.chassis, chassis);
-  Object.assign(SR2E.vehicleDesign.powerPlants, powerPlants);
-  return SR2E.vehicleDesign;
-};
+// The old Design tab's registry is gone (the Workshop replaced it). This stand-in stays because the Rigger 2 module
+// 0.6.0 still calls it before registering the new tables; drop it once that module no longer does.
+SR2E.registerVehicleDesignData = function registerVehicleDesignData() { return null; };
 
 // The Rigger 2 design tables for the design engine (module/rules/vehicle-design.mjs; docs/PLAN-vehicle-builder.md),
 // keyed by each row's `key`: chassis (p.170–171), power plants (p.167–169, every column, each listing the chassis it
@@ -1059,60 +1041,6 @@ SR2E.registerVehicleDesignTables = function registerVehicleDesignTables({ chassi
   return SR2E.vehicleDesignTables;
 };
 
-// Buyable ratings on the Design tab, with their per-point Design-Point cost
-// (mirrors DESIGN_OPTION_COSTS in module/rules; p.115).
-SR2E.vehicleDesignRatings = {
-  handling:     { label: "SR2E.Design.Handling",     dp: 25 },
-  speed:        { label: "SR2E.Design.Speed",        dp: 2 },
-  acceleration: { label: "SR2E.Design.Acceleration", dp: 25 },
-  armor:        { label: "SR2E.Design.Armor",        dp: 50 },
-  cargo:        { label: "SR2E.Design.Cargo",        dp: 5 },
-  load:         { label: "SR2E.Design.Load",         dp: 0.1 },
-  economy:      { label: "SR2E.Design.Economy",      dp: 5 },
-  signature:    { label: "SR2E.Design.Signature",    dp: 200 },
-  fuel:         { label: "SR2E.Design.Fuel",         dp: 25 }
-};
-
-// Flat / special design options that aren't per-point rating buys (book p.116-117).
-// Shown on the Design tab as a reference; add the listed Design Points to the
-// build via the manual "Extra DP" field.
-SR2E.vehicleDesignFlatOptions = [
-  { label: "Smart Materials (also +0.5 Mark-Up; raises Speed/Accel/Load maxes, −1 Handling)", dp: "100" },
-  { label: "Add STOL profile (fixed-wing)", dp: "250" },
-  { label: "Add VSTOL profile (fixed-wing)", dp: "400" },
-  { label: "Medical-Treatment Gear (225 CF, 50 kg/patient)", dp: "400 + 80/patient" },
-  { label: "Living Amenities — Basic / Improved / High (needs 200 CF)", dp: "40 / 50+40 / 100+40 per passenger" },
-  { label: "Hydrofoil Capability (motorboats)", dp: "see p.116" },
-  { label: "Improve Robot's Learning Pool", dp: "GM's discretion" }
-];
-
-// Mark-Up Factors Table (Rigger 2 p.114). Final cost = Design Points × Mark-Up
-// × 100, where Mark-Up = (chassis-category base + Σ equipment modifiers) ×
-// Π special-design multipliers. The modifier/multiplier values are GM-set within
-// ranges, so the Design tab auto-fills the base from the chosen chassis category
-// and shows this table for reference; the GM sets the final Mark-Up.
-SR2E.vehicleMarkup = {
-  // Base Mark-Up Factor by chassis category, keyed by the chassis group label
-  // the content module registers (CONFIG.SR2E.vehicleDesign.chassis[*].group).
-  chassisBase: {
-    "Bikes": 0.5, "Cars": 1, "Boats": 1, "Hovercraft": 2.5, "Rotorcraft": 2.5,
-    "Fixed Wing": 2.5, "Vector Thrust": 2.5, "Special": 2.5
-  },
-  // Added to the base Mark-Up (GM-set within the listed range).
-  equipment: [
-    { label: "Smart materials used in design", value: "+0.5" },
-    { label: "Ambulance / medical-treatment vehicle", value: "+1" },
-    { label: "Specialized non-combat vehicle (e.g. fire truck)", value: "+0.25 to +2.5" },
-    { label: "Unusual / uncommon accessories & features", value: "+0.2 to +1.2" }
-  ],
-  // Multiply the total Mark-Up (these stack multiplicatively, never add).
-  specialDesign: [
-    { label: "Luxury vehicle", value: "×1.5 to ×2.5" },
-    { label: "Security grade", value: "×2.0 to ×3.0" },
-    { label: "Military grade", value: "×3.0 to ×5.0" },
-    { label: "Drone", value: "×0.1" }
-  ]
-};
 
 /**
  * Language → family (SR2E p.74). A specific language is a Specialization of a

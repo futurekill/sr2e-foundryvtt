@@ -4215,6 +4215,11 @@ const SHARED_ACTIONS = {
    * Unlink a vehicle from this character.
    * @this {ApplicationV2}
    */
+  /** Design a new vehicle in the Workshop, linked to this character when it's created. */
+  openWorkshop: async function() {
+    (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(null, { linkTo: this.document });
+  },
+
   unlinkVehicle: async function(event, target) {
     event.preventDefault();
     const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;

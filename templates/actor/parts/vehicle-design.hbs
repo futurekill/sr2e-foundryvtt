@@ -1,144 +1,20 @@
 <section class="tab-content vehicle-design {{#if tab.active}}active{{/if}}" data-tab="design" data-group="primary">
-
-  {{#unless design.hasData}}
-  <div class="design-empty">
-    <p><i class="fas fa-circle-info"></i> {{localize "SR2E.Design.NoData"}}</p>
+  <div class="design-summary">
+    {{#if design.v2}}
+    <p><strong>{{design.chassis}}</strong> chassis, <strong>{{design.plant}}</strong> power plant.</p>
+    <p>{{grouped design.dp}} Design Points · {{grouped design.price}}¥ <span class="design-ref">(Rigger 2 p.108–146)</span></p>
+    {{#if design.changed}}<p class="design-warn"><i class="fas fa-circle-info"></i> Its modifications changed since the design was saved: open the Workshop and save again to update the price.</p>{{/if}}
+    {{#if design.problems.length}}<ul class="design-problems">{{#each design.problems}}<li>{{msg}}</li>{{/each}}</ul>{{/if}}
+    {{else if design.v1}}
+    <p>This vehicle was designed with the old Design tab. Open the Workshop to carry the design over (you check each step before saving).</p>
+    {{else}}
+    <p>Not designed from scratch: its stats are its own (a production vehicle, or entered by hand). The Workshop can design it from scratch;
+      saving there replaces its stats, and it shows you what changes first.</p>
+    {{/if}}
+    {{#if design.haveTables}}
+    <button type="button" data-action="openWorkshop"><i class="fas fa-screwdriver-wrench"></i> Open the Workshop</button>
+    {{else}}
+    <p class="design-ref">The Workshop needs the <em>SR2E: Rigger 2</em> module (0.6.0 or later) for its chassis and power plants.</p>
+    {{/if}}
   </div>
-  {{else}}
-
-  <fieldset class="design-pickers">
-    <legend>{{localize "SR2E.Design.BuildTitle"}}</legend>
-
-    <div class="form-group">
-      <label>{{localize "SR2E.Design.Chassis"}}</label>
-      <select name="system.design.chassisKey">
-        <option value="">—</option>
-        {{#each design.chassisGroups as |grp|}}
-        <optgroup label="{{grp.label}}">
-          {{#each grp.options as |o|}}
-          <option value="{{o.key}}" {{#if o.selected}}selected{{/if}}>{{o.name}} ({{o.dp}} DP)</option>
-          {{/each}}
-        </optgroup>
-        {{/each}}
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label>{{localize "SR2E.Design.PowerPlant"}}</label>
-      <select name="system.design.powerPlantKey">
-        <option value="">—</option>
-        {{#each design.powerPlantGroups as |grp|}}
-        <optgroup label="{{grp.label}}">
-          {{#each grp.options as |o|}}
-          <option value="{{o.key}}" {{#if o.selected}}selected{{/if}}>{{o.name}} ({{o.dp}} DP)</option>
-          {{/each}}
-        </optgroup>
-        {{/each}}
-      </select>
-    </div>
-  </fieldset>
-
-  <fieldset class="design-improvements">
-    <legend title="{{localize 'SR2E.Design.ImprovementsHint'}}">{{localize "SR2E.Design.Improvements"}}</legend>
-    <div class="improvement-grid">
-      {{#each design.ratings as |r|}}
-      <div class="improvement-item">
-        <label>{{localize r.label}} <span class="dp-cost" title="Design Points per point bought">{{r.dp}} DP</span></label>
-        <input type="number" name="system.design.improvements.{{r.key}}" value="{{r.value}}" min="0" />
-      </div>
-      {{/each}}
-    </div>
-  </fieldset>
-
-  {{#if design.flatOptions.length}}
-  <details class="flat-options-reference">
-    <summary>{{localize "SR2E.Design.FlatOptions"}}</summary>
-    <ul>{{#each design.flatOptions as |o|}}<li>{{o.label}} <em>{{o.dp}} DP</em></li>{{/each}}</ul>
-  </details>
-  {{/if}}
-
-  <fieldset class="design-extras">
-    <div class="form-group">
-      <label title="Extra Design Points not covered by an installed mod item — added on top of the mods below">{{localize "SR2E.Design.ModDP"}}</label>
-      <input type="number" name="system.design.modDP" value="{{design.modDP}}" min="0" />
-    </div>
-    <div class="form-group">
-      <label title="GM-set Mark-Up Factor: (chassis-category base + equipment modifiers) × special-design multipliers (Rigger 2 p.114)">{{localize "SR2E.Design.MarkUp"}}</label>
-      <input type="number" step="0.1" name="system.design.markUp" value="{{design.markUp}}" min="0" />
-      {{#if design.markupBase}}<span class="markup-suggest" title="Base Mark-Up for the {{design.markupCategory}} chassis category">{{design.markupCategory}} base: {{design.markupBase}}</span>{{/if}}
-    </div>
-  </fieldset>
-
-  <details class="markup-reference">
-    <summary>{{localize "SR2E.Design.MarkupReference"}}</summary>
-    <p class="markup-formula">Mark-Up = (chassis base + equipment modifiers) × special-design multipliers. Cost = Design Points × Mark-Up × 100¥.</p>
-    <div class="markup-cols">
-      <div>
-        <strong>+ Equipment</strong>
-        <ul>{{#each design.markupEquipment as |e|}}<li>{{e.label}} <em>{{e.value}}</em></li>{{/each}}</ul>
-      </div>
-      <div>
-        <strong>× Special design</strong>
-        <ul>{{#each design.markupSpecial as |s|}}<li>{{s.label}} <em>{{s.value}}</em></li>{{/each}}</ul>
-      </div>
-    </div>
-  </details>
-
-  {{#if design.hasMods}}
-  <fieldset class="design-mods">
-    <legend title="Modifications on this vehicle fold into the build: design-option mods add Design Points; ¥-priced mods add cost">{{localize "SR2E.Design.InstalledMods"}}</legend>
-    <div class="item-list">
-      {{#each design.installedMods as |mod|}}
-      <div class="item-row flexrow" data-item-id="{{mod.id}}">
-        <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}</span>
-        {{#if mod.rated}}{{#if ../editable}}
-        <label class="item-rating" title="Rating">R <input type="number" data-field="system.rating" value="{{mod.rating}}" min="0" /></label>
-        {{/if}}{{/if}}
-        <span class="item-meta">{{#if mod.designPoints}}{{mod.designPoints}} DP{{/if}}{{#if mod.cost}}{{#if mod.designPoints}} · {{/if}}{{mod.cost}}¥{{/if}}</span>
-      </div>
-      {{/each}}
-    </div>
-    <div class="design-mods-total">
-      {{localize "SR2E.Design.ModTotal"}}: {{design.modDPFromItems}} DP + {{design.modCostLabel}}¥
-    </div>
-  </fieldset>
-  {{/if}}
-
-  {{#if design.showBudgets}}
-  <div class="design-budgets">
-    <div class="budget-item {{#if design.cfOver}}over{{/if}}" title="Cargo Factor consumed by mods vs the chassis' Cargo Rating (book p.115)">
-      <span class="budget-label">{{localize "SR2E.Design.CargoFactor"}}</span>
-      <span class="budget-value">{{design.cfUsed}}{{#if design.cfCap}} / {{design.cfCap}}{{/if}} CF</span>
-    </div>
-    <div class="budget-item {{#if design.loadOver}}over{{/if}}" title="Load (kg) consumed by mods vs the power plant's Load Rating (book p.115)">
-      <span class="budget-label">{{localize "SR2E.Design.LoadRating"}}</span>
-      <span class="budget-value">{{design.loadUsed}}{{#if design.loadCap}} / {{design.loadCap}}{{/if}} kg</span>
-    </div>
-  </div>
-  {{#if design.cfOver}}<p class="design-warning"><i class="fas fa-triangle-exclamation"></i> {{localize "SR2E.Design.OverCargo"}}</p>{{/if}}
-  {{#if design.loadOver}}<p class="design-warning"><i class="fas fa-triangle-exclamation"></i> {{localize "SR2E.Design.OverLoad"}}</p>{{/if}}
-  {{/if}}
-
-  <div class="design-readout">
-    <div class="readout-item">
-      <span class="readout-label">{{localize "SR2E.Design.DesignPoints"}}</span>
-      <span class="readout-value">{{design.designPointsLabel}}</span>
-    </div>
-    <div class="readout-item">
-      <span class="readout-label">{{localize "SR2E.Design.Cost"}}</span>
-      <span class="readout-value">{{design.costLabel}}¥</span>
-    </div>
-  </div>
-
-  {{#unless design.valid}}
-  <p class="design-warning"><i class="fas fa-triangle-exclamation"></i> {{localize "SR2E.Design.Incomplete"}}</p>
-  {{/unless}}
-
-  {{#if editable}}
-  <button type="button" class="design-apply" data-action="applyDesign" {{#unless design.valid}}disabled{{/unless}}>
-    <i class="fas fa-wand-magic-sparkles"></i> {{localize "SR2E.Design.Apply"}}
-  </button>
-  {{/if}}
-
-  {{/unless}}
 </section>

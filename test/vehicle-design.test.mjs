@@ -252,6 +252,25 @@ describe("one capacity rule and build-relative mod costs", () => {
     const mounts = [{ name: "Ring Mount", mountPoints: 2 }, { name: "Fixed Mount (External Hardpoint)", mountPoints: 2 }];
     expect(designVehicle(base, tables, { mods: mounts }).problems.map(p => p.code)).toContain("mountPoints");   // 4 > Body 3
   });
+
+  it("mods' stat effects in design: turbocharging, drive-by-wire's split +10%, armor Handling, sidecar (p.122–145)", () => {
+    const base = { chassisKey: "sportsCar", powerPlantKey: "gasSports" };
+    const turbo = (R) => ({ name: "Turbocharging", modKey: "turbocharging", rating: R, dpFormula: "E x 1.75 x R",
+      effects: { speed: "15 x R", acceleration: "10 x R", signature: "-R", economyMult: "0.95^R" } });
+    const t2 = designVehicle(base, tables, { mods: [turbo(2)] }).stats;
+    expect([t2.speed, t2.acceleration, t2.signature, Math.round(t2.economy * 1e4) / 1e4]).toEqual([190, 30, 0, 5.415]);
+    expect(designVehicle(base, tables, { mods: [turbo(11)] }).problems.map(p => p.code)).not.toContain("turboMax");  // 325 ≤ 337
+    expect(designVehicle(base, tables, { mods: [turbo(12)] }).problems.map(p => p.code)).toContain("turboMax");      // 340 > 270 × 1.25
+    const dbw = { name: "Drive-by-Wire", modKey: "drive-by-wire", rating: 1, effects: { handling: "-R", handlingOff: "-R" } };
+    const armor = { name: "Standard Vehicle Armor", rating: 6, effects: { armor: "R" } };
+    const r = designVehicle({ ...base, dbwSplit: { speed: 4, acceleration: 6 } }, tables, { mods: [dbw, armor] });
+    expect(r.problems).toEqual([]);
+    expect([r.stats.speed, r.stats.acceleration, r.stats.armor, r.stats.handling]).toEqual([166, 11, 6, { onRoad: 4, offRoad: 8 }]);
+    expect(designVehicle({ ...base, dbwSplit: { speed: 5 } }, tables, { mods: [dbw] }).problems.map(p => p.code)).toContain("dbwSplit");
+    const side = { name: "Sidecar", effects: { cargo: "4", handling: "1", handlingOff: "1", speed: "-15", economyMult: "0.9" } };
+    const s = designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "gasBuggy" }, tables, { mods: [side] }).stats;
+    expect([s.cargo, s.speed, s.economy, s.handling]).toEqual([8, 75, 7.2, { onRoad: 5, offRoad: 5 }]);
+  });
 });
 
 // The real, re-transcribed Rigger 2 tables (../sr2e-rigger-2/tools/data, docs/DESIGN-DATA-CHECK.md there), when that

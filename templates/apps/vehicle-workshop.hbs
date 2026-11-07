@@ -1,0 +1,288 @@
+<div class="ws-root">
+  {{#unless haveTables}}
+  <div class="ws-empty">
+    <i class="fas fa-screwdriver-wrench"></i>
+    <p>The Workshop builds vehicles with the <strong>Rigger 2</strong> design rules. Enable the <em>SR2E: Rigger 2</em> module
+      (0.6.0 or later) to load its chassis, power plants and modifications.</p>
+  </div>
+  {{else}}
+  <header class="ws-head">
+    <input type="text" class="ws-name" data-name value="{{name}}" aria-label="Vehicle name" />
+    <button type="button" class="ws-save" data-action="save" {{#unless canSave}}disabled{{/unless}}
+      title="{{#if canSave}}Write this design to the vehicle{{else}}Finish the chassis and power plant, and clear the problems in the summary{{/if}}">
+      <i class="fas fa-floppy-disk"></i> {{saveLabel}}</button>
+  </header>
+  {{#if notes.length}}
+  <ul class="ws-notes">{{#each notes}}<li>{{this}}</li>{{/each}}</ul>
+  {{/if}}
+
+  <div class="ws-body">
+    <nav class="ws-steps" aria-label="Design steps">
+      {{#each steps}}
+      <button type="button" class="ws-stepbtn {{#if active}}active{{/if}} {{#if done}}done{{/if}}" data-action="step" data-step="{{key}}" {{#if locked}}disabled{{/if}}>
+        <span class="ws-stepn">{{#if done}}<i class="fas fa-check"></i>{{else}}{{n}}{{/if}}</span> {{label}}</button>
+      {{/each}}
+    </nav>
+
+    <section class="ws-step">
+      {{#if chassisStep}}
+      <h2>Pick a chassis <span class="ws-ref">Rigger 2 p.108–111, table p.170–171</span></h2>
+      <p class="ws-hint">The chassis fixes the Body and sets the starting Handling, Armor, cargo space, seating and its Design Points.</p>
+      <div class="ws-tabs" role="tablist">
+        {{#each chassisStep.categories}}<button type="button" role="tab" class="{{#if active}}active{{/if}}" data-action="category" data-category="{{key}}">{{label}}</button>{{/each}}
+      </div>
+      <div class="ws-cards">
+        {{#each chassisStep.rows}}
+        <button type="button" class="ws-card {{#if selected}}selected{{/if}}" data-action="pickChassis" data-key="{{key}}" title="{{page}}">
+          <span class="ws-card-title">{{name}}{{#if drone}} <em class="ws-tag">drone</em>{{/if}}</span>
+          <span class="ws-card-dp">{{dp}} DP</span>
+          <span class="ws-card-stats">Handling {{handling}} · Body {{body}} · Armor {{armor}} · Cargo {{cargo}} CF · Seats {{seating}}
+            {{#if lt}} · {{lt}}{{/if}}{{#if accessories}}<br><span class="ws-muted">Comes with {{accessories}}</span>{{/if}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      {{#if plantStep}}
+      <h2>Pick a power plant <span class="ws-ref">p.112, table p.167–169</span></h2>
+      <p class="ws-hint">Only the power plants the table lists for a <strong>{{chassis.name}}</strong>. Each gives the starting and maximum Speed,
+        Acceleration and Load (design options raise them up to the maximum), the Signature, Economy and fuel.</p>
+      {{#each plantStep.groups}}
+      <h3>{{engine}}</h3>
+      <div class="ws-cards">
+        {{#each rows}}
+        <button type="button" class="ws-card {{#if selected}}selected{{/if}}" data-action="pickPlant" data-key="{{key}}" title="{{page}}">
+          <span class="ws-card-title">{{label}}</span><span class="ws-card-dp">{{dp}} DP</span>
+          <span class="ws-card-stats">Speed {{speed}} · Accel {{accel}} · Load {{load}} · Sig {{sig}}<br>
+            <span class="ws-muted">Economy {{economy}} {{idle}} · Fuel {{fuel}}</span></span>
+        </button>
+        {{/each}}
+      </div>
+      {{else}}<p class="ws-hint">Pick a chassis first.</p>{{/each}}
+      {{/if}}
+
+      {{#if optionsStep}}
+      <h2>Design options <span class="ws-ref">p.115–118</span></h2>
+      <p class="ws-hint">Raise ratings up to the power plant's maximum; lowering them is free and never refunds Design Points (p.112).</p>
+      <table class="ws-opts">
+        <thead><tr><th>Rating</th><th>Now</th><th>Range</th><th></th><th>DP</th></tr></thead>
+        <tbody>
+        {{#each optionsStep.rows}}
+        <tr>
+          <th title="{{page}}: {{perStep}} DP per {{#if (eq step 10)}}10 {{unit}}{{else}}+1{{/if}}">{{label}}</th>
+          <td class="ws-val">{{value}} {{unit}}</td>
+          <td class="ws-muted">{{start}}–{{hi}}</td>
+          <td class="ws-stepper">
+            <button type="button" data-action="bump" data-path="{{key}}" data-by="-{{step}}" aria-label="Lower {{label}}">−</button>
+            <button type="button" data-action="bump" data-path="{{key}}" data-by="{{step}}" {{#unless canUp}}disabled{{/unless}} aria-label="Raise {{label}}">+</button>
+            <button type="button" data-action="toMax" data-key="{{key}}" {{#unless canUp}}disabled{{/unless}}>max</button>
+          </td>
+          <td class="ws-dp">{{cost}}</td>
+        </tr>
+        {{/each}}
+        <tr>
+          <th title="p.116: 25 DP per point; never below half the chassis' original, rounded up, Smart Materials included">Handling</th>
+          <td class="ws-val">{{optionsStep.handling.value}}</td>
+          <td class="ws-muted">floor {{optionsStep.handling.floor}}</td>
+          <td class="ws-stepper">
+            <button type="button" data-action="bump" data-path="handling" data-by="-1" aria-label="Worse handling (free)">−</button>
+            <button type="button" data-action="bump" data-path="handling" data-by="1" {{#unless optionsStep.handling.canUp}}disabled{{/unless}} aria-label="Better handling">+</button>
+            {{#if optionsStep.handling.ground}}
+            <select data-field="handlingTrack" aria-label="Which Handling"><option value="onRoad" {{#if (eq optionsStep.handling.track "onRoad")}}selected{{/if}}>on-road</option>
+              <option value="offRoad" {{#if (eq optionsStep.handling.track "offRoad")}}selected{{/if}}>off-road</option></select>
+            {{/if}}
+          </td>
+          <td class="ws-dp">{{multiply optionsStep.handling.bought 25}}</td>
+        </tr>
+        {{#if optionsStep.economy.has}}
+        <tr>
+          <th title="p.116: 5 DP per 5% step, each ×1.05 of the starting Economy, up to the plant's maximum">Economy</th>
+          <td class="ws-val">{{optionsStep.economy.value}} {{optionsStep.economy.unit}}</td>
+          <td class="ws-muted">max {{optionsStep.economy.hi}}</td>
+          <td class="ws-stepper">
+            <button type="button" data-action="bump" data-path="economySteps" data-by="-1" {{#unless optionsStep.economy.steps}}disabled{{/unless}}>−</button>
+            <button type="button" data-action="bump" data-path="economySteps" data-by="1" {{#unless optionsStep.economy.canUp}}disabled{{/unless}}>+5%</button>
+          </td>
+          <td class="ws-dp">{{multiply optionsStep.economy.steps 5}}</td>
+        </tr>
+        {{/if}}
+        {{#if optionsStep.fuel.has}}
+        <tr>
+          <th title="Fuel Tank Capacity Table, p.116: {{optionsStep.fuel.row.dp}} DP per {{optionsStep.fuel.row.increase}} {{optionsStep.fuel.row.unit}}">Fuel tank</th>
+          <td class="ws-val">{{optionsStep.fuel.value}} {{optionsStep.fuel.unit}}</td>
+          <td class="ws-muted">+{{optionsStep.fuel.row.increase}} a step</td>
+          <td class="ws-stepper">
+            <button type="button" data-action="bump" data-path="fuelSteps" data-by="-1" {{#unless optionsStep.fuel.steps}}disabled{{/unless}}>−</button>
+            <button type="button" data-action="bump" data-path="fuelSteps" data-by="1">+</button>
+          </td>
+          <td class="ws-dp">{{multiply optionsStep.fuel.steps optionsStep.fuel.row.dp}}</td>
+        </tr>
+        {{/if}}
+        <tr>
+          <th title="p.117: 200 DP per level. As a rule, 1 level for vehicles sold to the public, 2 for security, 3+ military only (the GM's call)">Signature</th>
+          <td class="ws-val">{{optionsStep.signature.value}}</td>
+          <td class="ws-muted">+{{optionsStep.signature.levels}} levels</td>
+          <td class="ws-stepper">
+            <button type="button" data-action="bump" data-path="signature" data-by="-1" {{#unless optionsStep.signature.levels}}disabled{{/unless}}>−</button>
+            <button type="button" data-action="bump" data-path="signature" data-by="1">+</button>
+          </td>
+          <td class="ws-dp">{{multiply optionsStep.signature.levels 200}}</td>
+        </tr>
+        </tbody>
+      </table>
+
+      <h3>Special options</h3>
+      <div class="ws-grid">
+        <label class="ws-check" title="p.117: 100 DP; Handling −1, a +1 on Stress Tests, maxima ×1.15, Mark-Up +0.5, Availability +4">
+          <input type="checkbox" data-field="smartMaterials" {{#if optionsStep.smartMaterials}}checked{{/if}} /> Smart materials <span class="ws-muted">100 DP</span></label>
+        <label class="ws-check {{#unless optionsStep.takeoff.allowed}}ws-off{{/unless}}" title="p.116: fixed-wing aircraft only">
+          Takeoff/landing
+          <select data-field="takeoff" {{#unless optionsStep.takeoff.allowed}}disabled{{/unless}}>
+            <option value="" {{#unless optionsStep.takeoff.value}}selected{{/unless}}>Standard</option>
+            <option value="stol" {{#if (eq optionsStep.takeoff.value "stol")}}selected{{/if}}>STOL (250 DP)</option>
+            <option value="vstol" {{#if (eq optionsStep.takeoff.value "vstol")}}selected{{/if}}>VSTOL (400 DP)</option>
+          </select>{{#unless optionsStep.takeoff.allowed}} <span class="ws-muted">fixed-wing only</span>{{/unless}}</label>
+        <label class="ws-check {{#unless optionsStep.hydrofoil.allowed}}ws-off{{/unless}}" title="p.116: motorboats except skiffs; 50 DP, 8 CF">
+          <input type="checkbox" data-field="hydrofoil" {{#if optionsStep.hydrofoil.value}}checked{{/if}} {{#unless optionsStep.hydrofoil.allowed}}disabled{{/unless}} />
+          Hydrofoil{{#unless optionsStep.hydrofoil.allowed}} <span class="ws-muted">motorboats only</span>{{/unless}}</label>
+        <label class="ws-check" title="p.117: basic 40/occupant, improved 50 + 40/occupant, high 100 + 40/occupant (driver included); 200 CF (160 stay usable for gear), 100 kg">
+          Living amenities
+          <select data-field="amenities.level">
+            <option value="" {{#unless optionsStep.amenities.level}}selected{{/unless}}>None</option>
+            <option value="basic" {{#if (eq optionsStep.amenities.level "basic")}}selected{{/if}}>Basic</option>
+            <option value="improved" {{#if (eq optionsStep.amenities.level "improved")}}selected{{/if}}>Improved</option>
+            <option value="high" {{#if (eq optionsStep.amenities.level "high")}}selected{{/if}}>High</option>
+          </select>
+          <input type="number" data-field="amenities.occupants" value="{{optionsStep.amenities.occupants}}" min="1" aria-label="Occupants, driver included" /> occupants</label>
+        <label class="ws-check" title="p.117: 400 + 80 DP per patient; 225 CF; 500 kg; +2.5 seats per patient">
+          Medical-treatment gear <input type="number" data-field="medicalPatients" value="{{optionsStep.medical}}" min="0" aria-label="Patients" /> patients</label>
+        <label class="ws-check" title="p.118: 150 DP per level, up to the drive-by-wire level (add Drive-by-Wire in Modifications)">
+          Structural agility <input type="number" data-field="structuralAgility" value="{{optionsStep.agility}}" min="0" aria-label="Levels" /> levels</label>
+      </div>
+
+      <h3>Engine customization <span class="ws-ref">p.120</span></h3>
+      <p class="ws-hint">Beyond the power plant's maximum, up to its maximum × 1.75. Each level costs the plant's Design Points × 1.25, +0.5 for each further
+        level. The GM makes a secret engine-failure test (TN 6 in design).</p>
+      <div class="ws-grid">
+        <label class="ws-check">Speed +30 <input type="number" data-field="engineCustom.speed" value="{{optionsStep.engineCustom.speed}}" min="0" /> levels</label>
+        {{#if optionsStep.engineCustom.hasAccel}}<label class="ws-check">Acceleration +2 <input type="number" data-field="engineCustom.acceleration" value="{{optionsStep.engineCustom.acceleration}}" min="0" /> levels</label>{{/if}}
+        <label class="ws-check">Load +{{optionsStep.engineCustom.loadStep}} kg <input type="number" data-field="engineCustom.load" value="{{optionsStep.engineCustom.load}}" min="0" /> levels</label>
+      </div>
+      {{#if isGM}}
+      <label class="ws-check" title="Options whose Design Points are the GM's call (robot learning pool, p.117)">GM-set design options
+        <input type="number" data-field="gmDP" value="{{optionsStep.gmDP}}" min="0" /> DP</label>
+      {{/if}}
+      {{/if}}
+
+      {{#if modsStep}}
+      <h2>Modifications <span class="ws-ref">p.118–146</span></h2>
+      <p class="ws-hint">In design a modification costs its Design Points (never its ¥) and takes Cargo Factor and Load. Ones the book allows only
+        after the vehicle is built are marked.</p>
+      {{#if modsStep.installed.length}}
+      <h3>Installed</h3>
+      <table class="ws-mods">
+        <thead><tr><th>Modification</th><th>Rating</th><th>DP</th><th>CF</th><th>kg</th><th></th></tr></thead>
+        <tbody>
+        {{#each modsStep.installed}}
+        <tr class="{{#if customization}}ws-custom{{/if}}">
+          <td>{{name}}{{#if customization}} <em class="ws-tag" title="Added on the sheet after the vehicle was built (a customization, p.118): it takes space but costs no Design Points">customization</em>{{/if}}</td>
+          <td>{{#if rated}}{{#if customization}}{{rating}}{{else}}<input type="number" data-field="mod.{{uid}}.rating" value="{{rating}}" min="0" {{#if maxRating}}title="Maximum: {{maxRating}}"{{/if}} />{{/if}}{{else}}—{{/if}}</td>
+          <td>{{dp}}</td><td>{{cf}}</td><td>{{load}}</td>
+          <td>{{#unless customization}}<button type="button" class="ws-icon" data-action="removeMod" data-uid="{{uid}}" aria-label="Remove {{name}}"><i class="fas fa-trash"></i></button>{{/unless}}</td>
+        </tr>
+        {{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+      {{#if modsStep.dbw}}
+      <fieldset class="ws-dbw">
+        <legend>Drive-by-wire's one-time +10% <span class="ws-ref">p.124</span></legend>
+        <p class="ws-hint">Split it among the three in whole percents adding up to 10.</p>
+        <label>Acceleration <input type="number" data-field="dbwSplit.acceleration" value="{{modsStep.dbw.acceleration}}" min="0" max="10" />%</label>
+        <label>Speed <input type="number" data-field="dbwSplit.speed" value="{{modsStep.dbw.speed}}" min="0" max="10" />%</label>
+        <label>Load <input type="number" data-field="dbwSplit.load" value="{{modsStep.dbw.load}}" min="0" max="10" />%</label>
+      </fieldset>
+      {{/if}}
+      <h3>Catalog</h3>
+      <input type="search" class="ws-search" data-mod-filter value="{{modsStep.filter}}" placeholder="Search: armor, turret, sensors…" aria-label="Search modifications" />
+      <table class="ws-mods">
+        <thead><tr><th>Modification</th><th>DP (rating 1)</th><th>CF</th><th>kg</th><th></th></tr></thead>
+        <tbody>
+        {{#each modsStep.catalog}}
+        <tr class="{{#if blocked}}ws-blocked{{/if}}" title="{{page}}{{#if blocked}} — {{blocked}}{{/if}}">
+          <td>{{name}}{{#if blocked}}<br><span class="ws-muted">{{blocked}}</span>{{/if}}</td><td>{{dp}}</td><td>{{cf}}</td><td>{{load}}</td>
+          <td><button type="button" class="ws-icon" data-action="addMod" data-uuid="{{uuid}}" {{#if blocked}}disabled{{/if}} aria-label="Add {{name}}"><i class="fas fa-plus"></i></button></td>
+        </tr>
+        {{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+
+      {{#if priceStep}}
+      <h2>Price <span class="ws-ref">Mark-Up Factors Table, p.114</span></h2>
+      <p class="ws-hint">Price = Design Points × Mark-Up × 100. Special features add to the base Mark-Up; special designs multiply it, one after
+        another (never added). The gamemaster has the final say.</p>
+      <table class="ws-opts">
+        <tr><th>Base ({{chassis.name}})</th><td colspan="2">
+          {{#if priceStep.baseRange}}<input type="number" data-field="markUp.base" value="{{priceStep.baseValue}}" min="{{priceStep.baseRange.lo}}" max="{{priceStep.baseRange.hi}}" step="0.05" />
+            <span class="ws-muted">{{priceStep.baseRange.lo}}–{{priceStep.baseRange.hi}}</span>{{else}}{{priceStep.base}}{{/if}}</td></tr>
+        {{#if priceStep.smart}}<tr><th>Smart materials</th><td colspan="2">+0.5</td></tr>{{/if}}
+        {{#each priceStep.features}}
+        <tr><th>{{label}}</th><td colspan="2">
+          {{#if fixed}}<input type="checkbox" data-field="markUp.features.{{key}}" {{#if value}}checked{{/if}} /> +{{fixed}}
+          {{else}}<input type="number" data-field="markUp.features.{{key}}" value="{{value}}" min="0" max="{{hi}}" step="0.05" /> <span class="ws-muted">0, or {{lo}}–{{hi}}</span>{{/if}}</td></tr>
+        {{/each}}
+        {{#each priceStep.multipliers}}
+        <tr><th>{{label}}</th><td colspan="2">
+          {{#if fixed}}<input type="checkbox" data-field="markUp.multipliers.{{key}}" {{#if value}}checked{{/if}} /> ×{{fixed}}{{#if suggest}} <span class="ws-muted">(this chassis is a drone)</span>{{/if}}
+          {{else}}<input type="number" data-field="markUp.multipliers.{{key}}" value="{{value}}" min="0" max="{{hi}}" step="0.05" /> <span class="ws-muted">0, or ×{{lo}}–{{hi}}</span>{{/if}}</td></tr>
+        {{/each}}
+        <tr><th>Round the price</th><td colspan="2"><select data-field="markUp.round" data-number>
+          <option value="0" {{#unless priceStep.round}}selected{{/unless}}>No</option>
+          <option value="500" {{#if (eq priceStep.round 500)}}selected{{/if}}>to 500¥</option>
+          <option value="1000" {{#if (eq priceStep.round 1000)}}selected{{/if}}>to 1,000¥</option></select></td></tr>
+      </table>
+      {{#if priceStep.militaryHint}}<p class="ws-hint">{{priceStep.militaryHint}}</p>{{/if}}
+      {{/if}}
+
+      {{#if (eq step "review")}}
+      <h2>Review</h2>
+      {{#if summary.ready}}
+      <p class="ws-hint">The vehicle as the book's stat line. {{#if result.valid}}Ready to save.{{else}}Clear the problems in the summary first.{{/if}}</p>
+      <dl class="ws-statline">
+        <dt>Chassis</dt><dd>{{summary.chassisName}}</dd><dt>Power plant</dt><dd>{{summary.plantName}}</dd>
+        <dt>Seating</dt><dd>{{summary.seating}}</dd><dt>Entry</dt><dd>{{summary.entry}}</dd>
+        <dt>Economy</dt><dd>{{summary.economy}}</dd><dt>Fuel</dt><dd>{{summary.fuel}}</dd>
+        {{#if summary.lt}}<dt>L/T profile</dt><dd>{{summary.lt}}</dd>{{/if}}{{#if summary.setup}}<dt>Setup</dt><dd>{{summary.setup}}</dd>{{/if}}
+      </dl>
+      {{else}}<p class="ws-hint">Pick a chassis and a power plant to start.</p>{{/if}}
+      {{/if}}
+
+      <footer class="ws-nav">
+        <button type="button" data-action="back" {{#if first}}disabled{{/if}}><i class="fas fa-arrow-left"></i> Back</button>
+        <button type="button" data-action="next" {{#if last}}disabled{{/if}}>Next <i class="fas fa-arrow-right"></i></button>
+      </footer>
+    </section>
+
+    <aside class="ws-summary" aria-label="Live summary">
+      {{#if summary.ready}}
+      <div class="ws-stats">{{#each summary.stats}}<div><span>{{k}}</span><strong>{{v}}</strong></div>{{/each}}</div>
+      <div class="ws-budget {{#if summary.cf.over}}over{{/if}}" title="Cargo Factor taken by options and modifications (p.115){{#if summary.cf.restricted}}; living amenities leave {{summary.cf.restricted}} CF usable for gear{{/if}}">
+        <span>Cargo {{summary.cf.used}} / {{summary.cf.total}} CF</span><div class="ws-bar"><div style="width:{{summary.cf.pct}}%"></div></div></div>
+      <div class="ws-budget {{#if summary.load.over}}over{{/if}}" title="Load taken by options and modifications (p.115)">
+        <span>Load {{summary.load.used}} / {{summary.load.total}} kg</span><div class="ws-bar"><div style="width:{{summary.load.pct}}%"></div></div></div>
+      <div class="ws-total"><span>Design Points</span><strong>{{summary.dp}}</strong></div>
+      <details class="ws-lines"><summary>Where they come from</summary>
+        <ul>{{#each summary.lines}}<li><span>{{label}}</span><span title="{{page}}">{{dp}}</span></li>{{/each}}</ul></details>
+      <div class="ws-total"><span>Mark-Up</span><strong>×{{summary.markUp}}</strong></div>
+      <div class="ws-total ws-price"><span>Price</span><strong>{{grouped summary.price}}¥</strong></div>
+      {{else}}
+      <p class="ws-hint">The summary fills in as you pick a chassis and a power plant.</p>
+      {{/if}}
+      {{#if (and summary.ready summary.problems.length)}}
+      <ul class="ws-problems" role="alert">{{#each summary.problems}}<li title="{{page}}"><i class="fas fa-triangle-exclamation"></i> {{msg}}</li>{{/each}}</ul>
+      {{/if}}
+    </aside>
+  </div>
+  {{/unless}}
+</div>
