@@ -70,7 +70,7 @@ This system implements the core rules from Shadowrun 2nd Edition, bringing the c
 - **Matrix Jackpoints** — A Region behaviour on a terminal: jacking in moves the decker's view to a Matrix map with their persona (see docs/MATRIX.md)
 - **Drugs, Toxins & Addiction** — Use a dose, onset and duration, crash, and the full Shadowtech addiction rules (p.85–100), tracked per character; optional Calendaria integration for deadlines
 - **Purchasing** — Dropping gear onto a character offers a buy dialog with rating and grade pricing, charges nuyen, and refunds on removal (optional)
-- **Vehicle Design** — A Design tab that builds a vehicle from scratch with the design engine (tables supplied by the Rigger 2 module)
+- **Vehicle Workshop** — Design a vehicle by Rigger 2's rules (p.108–146) in a guided window: chassis, power plant, design options, modifications with their stat effects, Mark-Up, and a live stat line, Design Point breakdown and price (tables supplied by the Rigger 2 module)
 - **Movement Limit** — Optionally caps each token's move in combat at its SR2 walk/run rate (p.83)
 - **Mobile Companion** — On a phone or tablet, players get a touch-first character screen instead of the map: rolls, attacks, spells, conjuring, chat, and targets shared with their computer (see "Playing on a phone" below)
 - **Combat Sounds** — Gunfire by weapon class and burst/auto, melee, bows, blasts, spells by category, reloads and the empty-gun click; one sound per action for the whole table (world setting)
