@@ -1400,6 +1400,11 @@ export class VehicleModData extends SR2EDataModel {
       designNuyen: new fields.BooleanField({ initial: false }),
       // Weapon-mount points: a hardpoint counts 2, a firmpoint 1; their total may not exceed the Body (p.131).
       mountPoints: new fields.NumberField({ initial: 0, min: 0 }),
+      // Its printed maximum as a formula (e.g. "3", "2 x B", "B x 10 - B x B"), and its printed restrictions as tokens:
+      // only:<categories>, not:<categories>, engine:<engines>, notDrone, minBody:<n>, needsEngineCustom, needsRemote,
+      // needsRiggerBase, notWith:<modKeys>, notAircraftUnlessElectric (module/rules/vehicle-design.mjs modProblems).
+      maxRating: new fields.StringField({ initial: "", blank: true }),
+      restrictions: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
       modKey: new fields.StringField({ initial: "", blank: true }),
       installed: new fields.BooleanField({ initial: false }),

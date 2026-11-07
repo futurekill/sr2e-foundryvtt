@@ -1,3 +1,4 @@
+import { modDesignDP as vdModDesignDP, modCf as vdModCf, modLoad as vdModLoad } from "./vehicle-design.mjs";
 /**
  * Pure SR2E rules math — no Foundry dependencies.
  *
@@ -949,8 +950,8 @@ export function resolveVehicleDesign(design = {}, tables = {}) {
  * @param {object} m  vehicle_mod system data
  * @returns {number}
  */
-export function modDesignPoints(m = {}) {
-  return ratedModValue(m.rating, m.designPoints, m.dpPerLevel, m.dpTable);
+export function modDesignPoints(m = {}, build = {}) {
+  return vdModDesignDP(m, build);   // one pricing: module/rules/vehicle-design.mjs (formulas included)
 }
 
 /**
@@ -970,13 +971,13 @@ export function ratedModValue(rating, flat, perLevel, table) {
 }
 
 /** Cargo Factor a mod consumes from the chassis' Cargo Rating (book p.115). */
-export function modCfConsumed(m = {}) {
-  return ratedModValue(m.rating, m.cfConsumed, m.cfPerLevel, m.cfTable);
+export function modCfConsumed(m = {}, build = {}) {
+  return vdModCf(m, build);
 }
 
 /** Kilograms a mod takes from the power plant's Load Rating (book p.115). */
-export function modLoadReduction(m = {}) {
-  return ratedModValue(m.rating, m.loadReduction, m.loadPerLevel, m.loadTable);
+export function modLoadReduction(m = {}, build = {}) {
+  return vdModLoad(m, build);
 }
 
 /**
@@ -988,13 +989,13 @@ export function modLoadReduction(m = {}) {
  * @param {Array<object>} mods  vehicle_mod system data
  * @returns {{designPoints:number, cost:number}}
  */
-export function aggregateModDesign(mods = []) {
+export function aggregateModDesign(mods = [], build = {}) {
   let designPoints = 0, cost = 0, cf = 0, load = 0;
   for (const m of mods) {
-    designPoints += modDesignPoints(m);
+    designPoints += modDesignPoints(m, build);
     cost += designNum(m?.cost) ?? 0;
-    cf += modCfConsumed(m);
-    load += modLoadReduction(m);
+    cf += modCfConsumed(m, build);
+    load += modLoadReduction(m, build);
   }
   return { designPoints, cost, cf, load };
 }

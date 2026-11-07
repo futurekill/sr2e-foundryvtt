@@ -24,15 +24,23 @@
 export function evalExpr(v, vars = {}) {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v !== "string") return null;
-  const src = v.replace(/[×xX*]/g, "*").replace(/[÷]/g, "/").replace(/\s+/g, "");
+  // × and a standalone x (not the x inside "max") multiply.
+  const src = v.replace(/×/g, "*").replace(/(?<![a-z])[xX](?![a-z])/g, "*").replace(/[÷]/g, "/").replace(/\s+/g, "");
   if (!src || /^(na|—|-)$/i.test(src)) return null;
   let i = 0;
   const peek = () => src[i];
   const atom = () => {
     const m = /^\d+(\.\d+)?/.exec(src.slice(i));
     if (m) { i += m[0].length; return Number(m[0]); }
-    const f = /^(floor|ceil)\(/.exec(src.slice(i));
-    if (f) { i += f[0].length; const r = expr(); if (peek() !== ")") throw new Error("paren"); i++; return Math[f[1]](r); }
+    const f = /^(floor|ceil|min|max)\(/.exec(src.slice(i));
+    if (f) {
+      i += f[0].length;
+      const args = [expr()];
+      while (peek() === ",") { i++; args.push(expr()); }
+      if (peek() !== ")") throw new Error("paren");
+      i++;
+      return Math[f[1]](...args);
+    }
     if (/[A-Z]/.test(peek() ?? "")) { const k = src[i++]; if (!(k in vars)) throw new Error(`unknown ${k}`); return Number(vars[k]) || 0; }
     if (peek() === "(") { i++; const r = expr(); if (peek() !== ")") throw new Error("paren"); i++; return r; }
     if (peek() === "-") { i++; return -atom(); }
@@ -61,6 +69,9 @@ export function evalExpr(v, vars = {}) {
     return i === src.length && Number.isFinite(r) ? r : null;
   } catch (e) { return null; }
 }
+
+/** A formula's syntax is valid (all variables set to 1): for validators. */
+export const formulaOk = (f) => !f || evalExpr(f, { R: 1, B: 1, P: 1, C: 1, E: 1, K: 1 }) !== null;
 
 /** A Power Plant Table cell, B = the chassis' Body. */
 export const evalCell = (v, body = 0) => evalExpr(v, { B: body });
@@ -119,6 +130,35 @@ export function ratedValue(rating, flat, perLevel, table) {
 const modVars = (m, build = {}) => ({ R: num0(m.rating), B: num0(build.body), P: num0(build.pilot), C: num0(build.chassisDP),
   E: num0(build.plantDP), K: num0(build.engineCustomDP) });
 const formula = (f, m, build) => f ? (evalExpr(f, modVars(m, build)) ?? 0) : 0;
+
+const AIRCRAFT = new Set(["fixedWing", "rotor", "vector"]);
+/**
+ * Why a mod can't go on this build (its printed maximum and restrictions, p.118–146), as messages. `ctx`: { category,
+ * engine, drone, body, engineCustomLevels, keys (the modKeys installed) }.
+ */
+export function modProblems(m = {}, build = {}, ctx = {}) {
+  const out = [];
+  for (const k of ["dpFormula", "cfFormula", "loadFormula", "maxRating"]) {
+    if (m[k] && evalExpr(m[k], modVars(m, build)) === null) out.push(`its ${k} "${m[k]}" can't be worked out`);
+  }
+  const max = m.maxRating ? evalExpr(m.maxRating, modVars(m, build)) : null;
+  if (max != null && num0(m.rating) > max) out.push(`its rating ${m.rating} is over the maximum ${max}`);
+  const keys = ctx.keys ?? new Set();
+  for (const t of m.restrictions ?? []) {
+    const [tag, arg = ""] = t.split(":"), list = arg.split(",").filter(Boolean);
+    if (tag === "only" && !list.includes(ctx.category)) out.push(`it fits ${list.join("/")} only`);
+    else if (tag === "not" && list.includes(ctx.category)) out.push(`not on a ${ctx.category}`);
+    else if (tag === "engine" && !list.includes(ctx.engine)) out.push(`it needs a ${list.join("/")} engine`);
+    else if (tag === "notDrone" && ctx.drone) out.push("not on a drone");
+    else if (tag === "minBody" && num0(ctx.body) < Number(arg)) out.push(`it needs Body ${arg} or more`);
+    else if (tag === "needsEngineCustom" && !num0(ctx.engineCustomLevels)) out.push("it needs engine customization");
+    else if (tag === "needsRemote" && !ctx.drone && !keys.has("remote-control-interface")) out.push("it needs a Remote-Control Interface (or a drone)");
+    else if (tag === "needsRiggerBase" && (!(ctx.drone || keys.has("datajack-port") || keys.has("remote-control-interface")) || !keys.has("sensors"))) out.push("it needs a datajack port or remote-control interface, and sensors");
+    else if (tag === "notWith" && list.some(k => keys.has(k))) out.push(`it can't be combined with ${list.filter(k => keys.has(k)).join(", ")}`);
+    else if (tag === "notAircraftUnlessElectric" && AIRCRAFT.has(ctx.category) && ctx.engine !== "electric") out.push("aircraft can't take it unless electrically powered");
+  }
+  return out;
+}
 
 /** A mod's Design Cost in this build: its rated value plus its build-relative formula (p.118–146). */
 export function modDesignDP(m = {}, build = {}) {
@@ -335,13 +375,21 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
 
   // Mods installed in design: their Design Cost (p.113). Every installed mod counts against capacity.
   const ecDP = lines.filter(l => l.label.startsWith("Engine customization")).reduce((t, l) => t + l.dp, 0);
-  const build = { chassisDP: chassisDP ?? 0, plantDP: plantDP ?? 0, body, pilot: num0(cell(ch.pilot)), engineCustomDP: ecDP };
+  const keyOf = (m) => m.modKey || m.key || "";
+  const keys = new Set(mods.map(keyOf).filter(Boolean));
+  // The Pilot the build actually has: a Remote-Control Interface gives 1, advanced programming raises it (p.125–126).
+  const rpap = mods.find(m => keyOf(m) === "remote-pilot");
+  const pilot = Math.max(num0(cell(ch.pilot)), keys.has("remote-control-interface") ? 1 : 0, rpap ? num0(rpap.rating) : 0);
+  const build = { chassisDP: chassisDP ?? 0, plantDP: plantDP ?? 0, body, pilot, engineCustomDP: ecDP };
+  const ctx = { category: cat, engine: pp.engine, drone: !!ch.drone, body, keys,
+    engineCustomLevels: Object.values(design.engineCustom ?? {}).reduce((t, l) => t + num0(l), 0) };
   let designNuyen = 0, mountPoints = 0;
   for (const m of mods) {
+    mountPoints += num0(m.mountPoints);   // every installed mount counts toward the Body limit (p.131)
     if (m.design === false) continue;
     if (m.designable === false) problem("notDesignable", `${m.name} can't be added during design; install it afterwards as a customization.`, m.page ?? "p.118");
+    for (const why of modProblems(m, build, ctx)) problem("modRestriction", `${m.name}: ${why}.`, m.page ?? "p.118");
     if (m.designNuyen) designNuyen += num0(m.cost);
-    mountPoints += num0(m.mountPoints);
     add(`${m.name}${num0(m.rating) ? ` ${m.rating}` : ""}`, modDesignDP(m, build), m.page ?? "p.118");
   }
   if (mountPoints > body) problem("mountPoints", `Weapon mounts need ${mountPoints} points (hardpoint 2, firmpoint 1); a Body ${body} vehicle has ${body}.`, "p.131");

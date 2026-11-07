@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.142.1 — 2026-11-07
+
+### Added
+- **Vehicle modifications can carry formulas** for costs that depend on the vehicle (Rigger 2 p.118–146): Design
+  Points, Cargo Factor and Load over its rating, Body, Pilot, the chassis' and power plant's Design Points and the
+  engine customization's (e.g. Drive-by-Wire = chassis DP × 1.75 per level; armor weighs Body × Body × 5 kg per point).
+  The sheet's free Cargo and Load use them. A mod can also be marked **customization only**, **priced in ¥ in design**
+  (special tires), and given **weapon-mount points** (hardpoint 2, firmpoint 1), which a design holds to the vehicle's
+  Body (p.131).
+- A registry for the re-transcribed Rigger 2 design tables (`CONFIG.SR2E.vehicleDesignTables`), filled by the
+  Rigger 2 module 0.6.0.
+
+### Changed
+- The design engine reads the real tables' field names and refuses a hydrofoil on a sailboat (p.116).
+
 ## 0.142.0 — 2026-11-07
 
 ### Added

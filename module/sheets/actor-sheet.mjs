@@ -1988,12 +1988,19 @@ function isModRated(s = {}) {
  * p.108-123). Refuses if the design is incomplete or its DP can't be computed
  * (e.g. a drone-formula chassis). @this {SR2EVehicleSheet}
  */
+/** The build numbers a mod formula needs, for the legacy Design tab (its own tables). */
+function legacyBuild(actor, stored, tables) {
+  const n = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+  return { body: n(actor.system.body), pilot: n(actor.system.pilot), chassisDP: n(tables?.chassis?.[stored.chassisKey]?.dp),
+    plantDP: n(tables?.powerPlants?.[stored.powerPlantKey]?.dp) };
+}
+
 async function onApplyVehicleDesign(event, target) {
   const actor = this.document;
   const stored = actor.system.design ?? {};
   // Fold installed mods into the build (same as the live readout).
   const modItems = actor.items.filter(i => i.type === "vehicle_mod");
-  const modAgg = aggregateModDesign(modItems.map(i => i.system));
+  const modAgg = aggregateModDesign(modItems.map(i => i.system), legacyBuild(actor, stored, CONFIG.SR2E.vehicleDesign));
   const effectiveDesign = { ...stored, modDP: (Number(stored.modDP) || 0) + modAgg.designPoints };
   const result = resolveVehicleDesign(effectiveDesign, CONFIG.SR2E.vehicleDesign);
   if (!result.valid) {
@@ -2117,7 +2124,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     // Design Points; ¥-priced customization mods add their cost on top. So
     // dragging a mod onto the vehicle moves the DP and/or the total cost.
     const modItems = this.document.items.filter(i => i.type === "vehicle_mod");
-    const modAgg = aggregateModDesign(modItems.map(i => i.system));
+    const modAgg = aggregateModDesign(modItems.map(i => i.system), legacyBuild(this.document, stored, tables));
     const manualModDP = Number(stored.modDP) || 0;
     const effectiveDesign = { ...stored, modDP: manualModDP + modAgg.designPoints };
     const result = resolveVehicleDesign(effectiveDesign, tables);
@@ -2155,7 +2162,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       id: i.id, name: i.name,
       rating: Number(i.system.rating) || 0,
       rated: isModRated(i.system),
-      designPoints: modDesignPoints(i.system),
+      designPoints: modDesignPoints(i.system, legacyBuild(this.document, stored, tables)),
       cost: Number(i.system.cost) || 0
     }));
 

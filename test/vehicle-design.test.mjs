@@ -217,6 +217,24 @@ describe("one capacity rule and build-relative mod costs", () => {
     expect(modCf({ rating: 7, cfFormula: "floor(0.25 x R)" }, build)).toBe(1);                  // Power amplifier 7
     expect(modDesignDP({ dpFormula: "Q x 2" }, build)).toBe(0);                                 // unknown variable: nothing
   });
+  it("code review R2: upgraded Pilot, maxima and restrictions, every mount counts, bad formulas are problems", () => {
+    const base = { chassisKey: "sportsCar", powerPlantKey: "gasSports" };
+    const fddm = designVehicle(base, tables, { mods: [{ name: "Remote-Control Interface", modKey: "remote-control-interface", dpFormula: "25 x B" },
+      { name: "Remote Pilot Advanced Programming", modKey: "remote-pilot", rating: 3, dpTable: [0, 50, 250, 1250, 5000] },
+      { name: "BattleTac FDDM Receiver Module", dpFormula: "P x 350", restrictions: ["needsRemote"] }] });
+    expect(fddm.dpLines.find(l => /FDDM/.test(l.label)).dp).toBe(1050);   // Pilot 3 × 350 (p.136)
+    expect(fddm.valid).toBe(true);
+    const codes = (r) => r.problems.map(p => p.msg).join(" | ");
+    expect(codes(designVehicle(base, tables, { mods: [{ name: "RAM", rating: 4, dpFormula: "R^3 x 50", maxRating: "3" }] }))).toMatch(/over the maximum 3/);
+    expect(codes(designVehicle(base, tables, { mods: [{ name: "Active Thermal Masking", rating: 1, dpFormula: "K x 2", restrictions: ["needsEngineCustom"] }] }))).toMatch(/engine customization/);
+    expect(codes(designVehicle(base, tables, { mods: [{ name: "Sidecar", restrictions: ["only:bike"] }] }))).toMatch(/bike only/);
+    const mounts = [{ name: "Ring Mount", mountPoints: 2 }, { name: "Old hardpoint", mountPoints: 2, design: false }];
+    expect(designVehicle(base, tables, { mods: mounts }).problems.map(p => p.code)).toContain("mountPoints");   // 4 > Body 3, customization counted
+    expect(codes(designVehicle(base, tables, { mods: [{ name: "Broken", dpFormula: "B x (" }] }))).toMatch(/can't be worked out/);
+    // Mechanical arms: 8,000 DP per enhancement point for 1–3, 10,000 for 4+, no cap but Strength ≤ 10 × Body (p.145).
+    const arms = (r) => modDesignDP({ rating: r, dpFormula: "B x 250 + R x 8000 + min(1, max(0, R - 3)) x R x 2000" }, { body: 3 });
+    expect([arms(3), arms(4), arms(11)]).toEqual([750 + 24000, 750 + 40000, 750 + 110000]);
+  });
   it("customization-only mods, ¥-priced tires, and the mount-point limit (p.131)", () => {
     const base = { chassisKey: "sandBuggy", powerPlantKey: "gasBuggy" };
     expect(designVehicle(base, tables, { mods: [{ name: "Ablative Armor", designable: false }] }).problems.map(p => p.code)).toContain("notDesignable");
