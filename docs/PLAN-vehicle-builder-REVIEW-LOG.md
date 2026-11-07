@@ -153,3 +153,12 @@ VERDICT: REVISE
 - **All three accepted:** the legacy build takes the SELECTED chassis' Body/Pilot; active thermal masking's maximum is
   "min(2, L)" with L = the build's engine-customization levels (p.130); rigger adaptation accepts the chassis' own
   Sensor 1+ as well as a sensor mod (p.126). Vitest for each.
+
+## Code (release 2) round 3 — Codex (fresh session, fixes only)
+
+No concrete findings. The two commits close all three round 2 findings without an identified new bug.
+
+Read-only checks against the exact system commit passed for selected-chassis pricing, masking limits, and built-in sensors. Module pack validation also passed.
+
+VERDICT: APPROVED
+**Release 2 approved in 3 rounds: system 0.142.1 + Rigger 2 module 0.6.0.**

@@ -1,5 +1,5 @@
 # Plan: the vehicle builder (Rigger 2 design rules), correct vehicle stats
-_Draft 4 (2026-11-07): **Codex-APPROVED (round 4)**. Release 1 (engine + data model) BUILT for 0.142.0. Phase 1 of the vehicle work; Phase 2 (in-play vehicle rules) gets its own plan._
+_Draft 4 (2026-11-07): **Codex-APPROVED (round 4)**. Release 1 (engine + data model) BUILT for 0.142.0; release 2 (data) for 0.142.1 + Rigger 2 0.6.0. Phase 1 of the vehicle work; Phase 2 (in-play vehicle rules) gets its own plan._
 
 ## Goal
 A custom vehicle can be designed in a guided **Workshop** that a player understands without the book open. Every
