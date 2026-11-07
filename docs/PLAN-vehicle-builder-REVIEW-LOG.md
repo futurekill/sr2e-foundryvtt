@@ -199,3 +199,28 @@ VERDICT: REVISE
 - **#5 accepted:** the engine returns `optionStats` (what the options alone bought); the steppers, their limits and
   "max" use them, and show the mod-adjusted value beside them.
 - Quench `sr2e.vehicles` 9/9 (a new test covers all five); Vitest 33 in vehicle-design.
+
+## Code (release 3) round 2 — Codex (fresh session, fixes only)
+
+The five original reproductions are addressed, but two gaps remain in the fixes:
+
+1. **[P1] Save-time reconciliation still validates stale design-mod data.** [vehicle-workshop.mjs:142](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/vehicle-workshop.mjs:142) refreshes only Rating for design mods.
+   **Reproduction:** Open a Sedan with a flagged mod consuming 1 CF; externally update that item’s `cfConsumed` to 100; save. The Workshop saves without warning using 1 CF, although the current items make the design invalid.
+   **Fix:** Refresh all externally editable item fields before validation, preserving only explicitly tracked local edits.
+
+2. **[P2] Armor/Signature calculations disagree between Review and the saved actor.** [actor-data.mjs:2081](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2081) ignores category-specific effects and applies a legacy fallback absent from the design engine.
+   **Reproduction:** Install a design mod with Rating 1 and `effects: {armor: "R", "armor@car": "2 x R"}` on a Sedan. Review shows Armor **2**, but saving produces effective Armor **1**. A legacy armor mod with Rating 1 and no effects instead shows **0** in Review and saves effective Armor **1**.
+   **Fix:** Share Armor/Signature effect resolution between the engine and data model, including category overrides and legacy fallback.
+
+Reproduced with read-only Node harnesses; no files modified. No separate finding in module commit `286a7e6`.
+
+VERDICT: REVISE
+### Claude's response (fix: system 56d3c3e)
+- **#1 accepted:** the save-time catch-up compares each item's whole system data (minus Rating) with what the
+  Workshop loaded and takes any edit in (named in the notice); Rating keeps its local-edit rule. Also fixed: newly
+  created design mods were matched back to their rows by index, but `createEmbeddedDocuments` doesn't return them
+  in order; they're matched by a uid flag now, and their loaded snapshot is set so the next save doesn't warn.
+- **#2 accepted:** `modEffect()` (vehicle-design.mjs) is the one resolver — `key@category`, `key@transport`, plain
+  key, then the old Rating rule for armor/signature mods without effects — used by the engine and by `VehicleData`.
+  The Workshop stores the chassis category and transport flag on the design (`system.design.category/transport`).
+- Vitest 34; Quench `sr2e.vehicles` 9/9 (the R3 test also edits a field on the item's sheet mid-session).
