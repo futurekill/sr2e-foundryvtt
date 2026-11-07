@@ -271,6 +271,17 @@ describe("one capacity rule and build-relative mod costs", () => {
     const s = designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "gasBuggy" }, tables, { mods: [side] }).stats;
     expect([s.cargo, s.speed, s.economy, s.handling]).toEqual([8, 75, 7.2, { onRoad: 5, offRoad: 5 }]);
   });
+
+  it("code review R3: option limits read what the options bought; the save strips the mods' Armor/Signature", () => {
+    const base = { chassisKey: "sportsCar", powerPlantKey: "gasSports", speed: 110 };
+    const turbo = { name: "Turbo", modKey: "turbocharging", rating: 1, effects: { speed: "15 x R", signature: "-R" } };
+    const armor = { name: "Armor", rating: 2, effects: { armor: "R" } };
+    const r = designVehicle(base, tables, { mods: [turbo, armor] });
+    expect(r.problems).toEqual([]);
+    expect([r.optionStats.speed, r.stats.speed]).toEqual([270, 285]);   // the max applies to 270, not 285
+    expect(r.modEffects).toEqual({ armor: 2, signature: -1 });
+    expect([r.stats.armor, r.stats.signature]).toEqual([2, 1]);
+  });
 });
 
 // The real, re-transcribed Rigger 2 tables (../sr2e-rigger-2/tools/data, docs/DESIGN-DATA-CHECK.md there), when that

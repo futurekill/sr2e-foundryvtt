@@ -4186,3 +4186,8 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 @container (max-width: 900px) { .sr2e-workshop .ws-body { grid-template-columns: minmax(0, 1fr) 240px; }
   .sr2e-workshop .ws-steps { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sr2e-border); } }
 .sr2e-workshop .window-content { container-type: inline-size; }
+.sr2e-workshop .ws-chip { font-size: 11px; padding: 1px 8px; line-height: 1.6; width: auto; border: 1px solid var(--sr2e-gold-dim); color: var(--sr2e-gold); background: transparent; }
+.sr2e-workshop .ws-dbw { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 8px 0; }
+.sr2e-workshop .ws-dbw legend { padding: 0 4px; }
+.sr2e-workshop .ws-dbw .ws-hint { flex-basis: 100%; margin: 0; }
+.sr2e-workshop .ws-dbw input { width: 48px; }

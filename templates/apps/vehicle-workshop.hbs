@@ -70,7 +70,7 @@
         {{#each optionsStep.rows}}
         <tr>
           <th title="{{page}}: {{perStep}} DP per {{#if (eq step 10)}}10 {{unit}}{{else}}+1{{/if}}">{{label}}</th>
-          <td class="ws-val">{{value}} {{unit}}</td>
+          <td class="ws-val">{{value}} {{unit}}{{#if withMods}} <span class="ws-muted" title="With the modifications installed">→ {{withMods}}</span>{{/if}}</td>
           <td class="ws-muted">{{start}}–{{hi}}</td>
           <td class="ws-stepper">
             <button type="button" data-action="bump" data-path="{{key}}" data-by="-{{step}}" aria-label="Lower {{label}}">−</button>
@@ -188,7 +188,8 @@
           <td>{{name}}{{#if customization}} <em class="ws-tag" title="Added on the sheet after the vehicle was built (a customization, p.118): it takes space but costs no Design Points">customization</em>{{/if}}</td>
           <td>{{#if rated}}{{#if customization}}{{rating}}{{else}}<input type="number" data-field="mod.{{uid}}.rating" value="{{rating}}" min="0" {{#if maxRating}}title="Maximum: {{maxRating}}"{{/if}} />{{/if}}{{else}}—{{/if}}</td>
           <td>{{dp}}</td><td>{{cf}}</td><td>{{load}}</td>
-          <td>{{#unless customization}}<button type="button" class="ws-icon" data-action="removeMod" data-uid="{{uid}}" aria-label="Remove {{name}}"><i class="fas fa-trash"></i></button>{{/unless}}</td>
+          <td>{{#if converted}}<button type="button" class="ws-chip" data-action="classify" data-uid="{{uid}}" title="From the old design: count it in the design, or keep it as a customization added later">{{#if customization}}customization{{else}}in design{{/if}}</button>
+            {{else}}{{#unless customization}}<button type="button" class="ws-icon" data-action="removeMod" data-uid="{{uid}}" aria-label="Remove {{name}}"><i class="fas fa-trash"></i></button>{{/unless}}{{/if}}</td>
         </tr>
         {{/each}}
         </tbody>

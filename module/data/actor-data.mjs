@@ -7,7 +7,7 @@ import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs"
 import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
-import { vehicleCapacity } from "../rules/vehicle-design.mjs";
+import { vehicleCapacity, evalExpr } from "../rules/vehicle-design.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -2069,12 +2069,18 @@ export class VehicleData extends SR2EDataModel {
     // Points; signature mods (Thermal Baffles, RAM, Active Thermal Masking) add
     // to Signature. Kept as a derived bonus so the base stat stays editable
     // (effective = base + mod bonus); see effectiveArmor / effectiveSignature.
+    // A mod with an Armor / Signature effect formula (Rigger 2 p.122–134: turbocharging −1 per level, turrets −1,
+    // ablative 2 × level up to Body) counts by it, once; one without, by its Rating as before. The Workshop saves
+    // stats without its design mods' share for that reason.
     let modArmor = 0, modSignature = 0;
     for (const item of (this.parent?.items ?? [])) {
       if (item.type !== "vehicle_mod") continue;
       const rating = Number(item.system.rating) || 0;
-      if (item.system.modType === "armor") modArmor += rating;
-      else if (item.system.modType === "signature") modSignature += rating;
+      const fx = item.system.effects ?? {};
+      const vars = { R: rating, B: Number(this.body) || 0 };
+      const by = (k, legacy) => fx[k] != null && fx[k] !== "" ? (evalExpr(String(fx[k]), vars) ?? 0) : (legacy ? rating : 0);
+      modArmor += by("armor", item.system.modType === "armor");
+      modSignature += by("signature", item.system.modType === "signature");
     }
     this.modArmor = modArmor;
     this.modSignature = modSignature;

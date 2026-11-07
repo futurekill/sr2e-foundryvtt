@@ -78,7 +78,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
       step: VehicleWorkshop.#onStep, pickChassis: VehicleWorkshop.#onPickChassis, pickPlant: VehicleWorkshop.#onPickPlant,
       bump: VehicleWorkshop.#onBump, toMax: VehicleWorkshop.#onToMax, addMod: VehicleWorkshop.#onAddMod,
       removeMod: VehicleWorkshop.#onRemoveMod, category: VehicleWorkshop.#onCategory, save: VehicleWorkshop.#onSave,
-      next: VehicleWorkshop.#onNext, back: VehicleWorkshop.#onBack
+      next: VehicleWorkshop.#onNext, back: VehicleWorkshop.#onBack, classify: VehicleWorkshop.#onClassify
     }
   };
 
@@ -107,15 +107,44 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
       this.step = "review";
     }
     // Mods: the Workshop's own (flagged) items, and every other mod as a read-only customization. A converted old
-    // design proposes its mods as design mods (the old tab counted them all), and the owner can drop any.
+    // design proposes its mods as design mods (the old tab counted them all); the owner marks any as a customization.
     this.mods = [];
-    for (const i of this.actor?.items ?? []) {
-      if (i.type !== "vehicle_mod") continue;
-      const mine = i.getFlag("sr2e", "designMod") || this.convertMods;
-      this.mods.push({ uid: foundry.utils.randomID(), itemId: i.id, name: i.name, img: i.img, system: foundry.utils.deepClone(i.system),
-        design: !!mine, customization: !mine });
-    }
+    for (const i of this.actor?.items ?? []) if (i.type === "vehicle_mod") this.mods.push(this.#modFromItem(i, this.convertMods));
     this.catalog = null;
+    this.removed = new Set();   // item ids removed here, deleted on save
+  }
+
+  #modFromItem(i, convert = false) {
+    const mine = !!i.getFlag("sr2e", "designMod") || convert;
+    return { uid: foundry.utils.randomID(), itemId: i.id, name: i.name, img: i.img, system: foundry.utils.deepClone(i.system),
+      design: mine, customization: !mine, converted: convert && !i.getFlag("sr2e", "designMod"), loadedRating: num(i.system.rating) };
+  }
+
+  /**
+   * Before a save, catch up with the vehicle's items as they are NOW: items added or removed elsewhere join or leave,
+   * and a rating changed on the sheet wins unless it was also changed here. Returns what was adopted, for a notice.
+   */
+  #refreshFromActor() {
+    const actor = this.actor;
+    if (!actor) return [];
+    const adopted = [];
+    const live = new Map(actor.items.filter(i => i.type === "vehicle_mod").map(i => [i.id, i]));
+    for (const m of this.mods) if (m.itemId && !live.has(m.itemId)) adopted.push(`${m.name} removed`);
+    this.mods = this.mods.filter(m => !m.itemId || live.has(m.itemId));
+    for (const m of this.mods) {
+      const item = m.itemId && live.get(m.itemId);
+      if (!item) continue;
+      const now = num(item.system.rating);
+      if (now !== m.loadedRating) {
+        if (num(m.system.rating) === m.loadedRating) { m.system.rating = now; adopted.push(`${m.name} is now ${now}`); }
+        else adopted.push(`${m.name} was set to ${now} on the sheet; the Workshop's ${m.system.rating} is kept`);
+      }
+      if (m.customization) m.system = foundry.utils.deepClone(item.system);
+      m.loadedRating = now;
+    }
+    const known = new Set([...this.mods.map(m => m.itemId), ...this.removed]);
+    for (const i of live.values()) if (!known.has(i.id)) { this.mods.push(this.#modFromItem(i)); adopted.push(i.name); }
+    return adopted;
   }
 
   get title() { return this.actor ? `Vehicle Workshop: ${this.actor.name}` : "Vehicle Workshop: new vehicle"; }
@@ -182,13 +211,15 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   #optionsStep(r, ch, pp) {
     if (!ch || !pp) return null;
     const d = this.design, lim = r.limits ?? {}, body = num(ch.body), cell = (v) => evalCell(v, body);
-    const stat = (key, label, page, perStep, unit, value, start, max, step = 1) => ({
-      key, label, page, perStep, unit, value, start, hi: max, step, delta: num(d[key]),
-      canUp: max == null || value + step <= max, cost: Math.max(0, num(d[key])) / step * perStep });
+    // value = what the options bought (their limit applies to it); withMods = the stat once mods change it.
+    const o = r.optionStats ?? {};
+    const stat = (key, label, page, perStep, unit, withMods, start, max, step = 1) => ({
+      key, label, page, perStep, unit, value: o[key], withMods: withMods !== o[key] ? withMods : null, start, hi: max, step, delta: num(d[key]),
+      canUp: max == null || o[key] + step <= max, cost: Math.max(0, num(d[key])) / step * perStep });
     const ground = (ch.category === "bike" || ch.category === "car") && typeof ch.handling === "object";
     const orig = ground ? ch.handling[d.handlingTrack === "offRoad" ? "offRoad" : "onRoad"] : num(ch.handling);
     const floor = Math.ceil(orig / 2);
-    const hNow = ground ? r.stats.handling?.[d.handlingTrack === "offRoad" ? "offRoad" : "onRoad"] : r.stats.handling;
+    const hNow = ground ? o.handling?.[d.handlingTrack === "offRoad" ? "offRoad" : "onRoad"] : o.handling;
     const ecoStart = cell(pp.economy?.start);
     return {
       rows: [
@@ -227,7 +258,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
       return { uuid: m.uuid, name: m.name, type: m.system.modType, dp: m.system.designNuyen ? `${m.system.cost}¥` : modDesignDP(s, build),
         cf: modCf(s, build), load: modLoad(s, build), blocked: why.join("; "), page: (/Design specifications (p\.\d+)/.exec(m.system.notes ?? "") ?? [])[1] ?? "" };
     });
-    const installed = this.mods.map(m => ({ uid: m.uid, name: m.name, rating: m.system.rating, customization: m.customization,
+    const installed = this.mods.map(m => ({ uid: m.uid, name: m.name, rating: m.system.rating, customization: m.customization, converted: m.converted,
       rated: !!(m.system.dpPerLevel || m.system.dpTable?.length || m.system.cfPerLevel || /R/.test(`${m.system.dpFormula}${m.system.cfFormula}${m.system.loadFormula}`)),
       maxRating: m.system.maxRating, dp: m.customization ? "—" : (m.system.designNuyen ? `${m.system.cost}¥` : modDesignDP(m.system, build)),
       cf: modCf(m.system, build), load: modLoad(m.system, build) }));
@@ -348,7 +379,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   static #onToMax(event, target) {
     const key = target.dataset.key, r = this.result();
     const max = r.limits?.[key], step = key === "load" ? 10 : 1;
-    const start = { speed: r.stats.speed, acceleration: r.stats.acceleration, load: r.stats.load, cargo: r.stats.cargo }[key] - num(this.design[key]);
+    const start = num(r.optionStats?.[key]) - num(this.design[key]);   // the table's start: options only, never mods
     if (max != null && start != null) this.design[key] = Math.floor((max - start) / step) * step;
     this.render();
   }
@@ -362,14 +393,29 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
+  /** A converted old design's mod: count it in the design, or keep it as a later customization (plan §1c). */
+  static #onClassify(event, target) {
+    const m = this.mods.find(x => x.uid === target.dataset.uid);
+    if (!m?.converted) return;
+    m.customization = !m.customization;
+    m.design = !m.customization;
+    this.render();
+  }
+
   static #onRemoveMod(event, target) {
     const m = this.mods.find(x => x.uid === target.dataset.uid);
     if (!m || m.customization) return;
     this.mods = this.mods.filter(x => x !== m);
+    if (m.itemId) this.removed.add(m.itemId);
     this.render();
   }
 
   static async #onSave() {
+    const adopted = this.#refreshFromActor();
+    if (adopted.length) {
+      this.render();
+      return ui.notifications.warn(`The vehicle changed while the Workshop was open (${adopted.join(", ")}). Check the design, then save again.`);
+    }
     const r = this.result();
     const tables = this.tables, ch = tables.chassis[this.design.chassisKey], pp = tables.powerPlants[this.design.powerPlantKey];
     if (!ch || !pp) return ui.notifications.warn("Pick a chassis and a power plant first.");
@@ -398,6 +444,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     ui.notifications.info(`${this.actor.name} saved: ${r.dp} Design Points, ${r.price.toLocaleString()}¥.`);
     this.notes = [];
     this.convertMods = false;
+    for (const m of this.mods) m.converted = false;
     this.render();
   }
 
@@ -409,6 +456,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const toDelete = actor.items.filter(i => i.type === "vehicle_mod" && i.getFlag("sr2e", "designMod") && !keepIds.has(i.id)).map(i => i.id);
     if (toDelete.length) await actor.deleteEmbeddedDocuments("Item", toDelete);
     const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "flags.sr2e.designMod": true }));
+    for (const m of mine) m.loadedRating = num(m.system.rating);
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
     const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { sr2e: { designMod: true } } }));
     if (creates.length) {
@@ -427,10 +475,10 @@ export function workshopUpdate(design, r, ch, pp, name) {
   const pair = typeof s.handling === "object";
   return {
     ...(name ? { name } : {}),
-    "system.vehicleType": t.vehicleType, ...(t.skill ? { "system.skill": t.skill } : {}),
+    "system.vehicleType": t.vehicleType, "system.skill": t.skill ?? "",
     "system.handling": pair ? s.handling.onRoad : s.handling, "system.handlingOffRoad": pair ? s.handling.offRoad : null,
     "system.speed": num(s.speed), "system.stallSpeed": num(s.stallSpeed), "system.acceleration": num(s.acceleration),
-    "system.body": num(s.body), "system.armor": num(s.armor), "system.signature": num(s.signature),
+    "system.body": num(s.body), "system.armor": num(s.armor) - num(r.modEffects?.armor), "system.signature": num(s.signature) - num(r.modEffects?.signature),
     "system.pilot": num(s.pilot), "system.sensor": num(s.sensor), "system.autonav": num(s.autonav),
     "system.cargo": num(s.cargo), "system.load": num(s.load),
     "system.seating": String(s.seating ?? ""), "system.seatingExtra": num(s.seatingExtra), "system.entryPoints": String(s.entryPoints ?? ""),

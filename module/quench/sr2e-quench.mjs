@@ -12830,6 +12830,61 @@ export function registerSR2EQuenchTests() {
         assert.include(pc.system.linkedVehicles, v.uuid);
         await ws.close();
       });
+
+      it("code review R3: armor/signature counted once, sheet edits survive a save, converted mods classified, skill reset, option max ignores mods", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(40000);
+        await closeWorkshops();
+        const { VehicleWorkshop, workshopUpdate } = await W();
+        const { designVehicle } = await import("../rules/vehicle-design.mjs");
+        const T = CONFIG.SR2E.vehicleDesignTables, sedanPP = Object.keys(T.powerPlants).find(k => T.powerPlants[k].engine === "gasoline" && T.powerPlants[k].chassis?.includes("sedan"));
+        const armorMod = (rating) => ({ name: "Standard Vehicle Armor", type: "vehicle_mod", flags: { sr2e: { designMod: true } },
+          system: { modType: "armor", rating, dpPerLevel: 50, loadFormula: "B x B x 5 x R", effects: { armor: "R" } } });
+        // #1 + #2: a design with armor 1 saves base Armor 0 (effective 1); a sheet edit to 2 while the Workshop is open survives.
+        const design = { chassisKey: "sedan", powerPlantKey: sedanPP, load: 200 };
+        const r = designVehicle(design, T, { mods: [armorMod(1).system] });
+        const v = await Actor.create({ name: "Quench Vehicle R3", type: "vehicle", ...foundry.utils.expandObject(workshopUpdate(design, r, T.chassis.sedan, T.powerPlants[sedanPP])) });
+        made.push(v);
+        await v.createEmbeddedDocuments("Item", [armorMod(1)]);
+        assert.equal(r.stats.armor, 1, "the review shows Armor 1");
+        assert.deepEqual([v.system.armor, v.system.effectiveArmor], [0, 1], "stored without the mod; the sheet adds it once");
+        const ws = await VehicleWorkshop.open(v);
+        await pause(600);
+        await v.items.getName("Standard Vehicle Armor").update({ "system.rating": 2 });
+        await press(ws, '[data-action="save"]'); await pause(800);
+        assert.equal(v.items.getName("Standard Vehicle Armor").system.rating, 2, "the first save only catches up and warns");
+        await press(ws, '[data-action="save"]'); await pause(1000);
+        assert.deepEqual([v.items.getName("Standard Vehicle Armor").system.rating, v.system.effectiveArmor], [2, 2], "the sheet's edit wins and counts once");
+        // #5: Speed max with turbocharging buys up to the plant's maximum, not maximum − 15.
+        const turbo = { name: "Turbocharging", type: "vehicle_mod", system: { rating: 1, modKey: "turbocharging", dpFormula: "E x 1.75 x R",
+          effects: { speed: "15 x R", acceleration: "10 x R", signature: "-R", economyMult: "0.95^R" } } };
+        ws.mods.push({ uid: "turboquench", itemId: null, name: turbo.name, system: turbo.system, design: true, customization: false });
+        await press(ws, '[data-action="step"][data-step="options"]');
+        await press(ws, '[data-action="toMax"][data-key="speed"]');
+        const pp = T.powerPlants[sedanPP];
+        assert.equal(ws.result().optionStats.speed, pp.speed.max, "options alone reach the maximum");
+        assert.equal(ws.result().stats.speed, pp.speed.max + 15, "turbocharging on top");
+        await ws.close();
+        // #4: a bike's Bike skill doesn't stick when the design becomes a car.
+        const bikeCh = Object.keys(T.chassis).find(k => T.chassis[k].category === "bike");
+        assert.equal(workshopUpdate(design, r, T.chassis[bikeCh], pp)["system.skill"], "bike");
+        assert.equal(workshopUpdate(design, r, T.chassis.sedan, pp)["system.skill"], "", "the car default, written explicitly");
+        // #3: a converted old design's mod can be kept as a customization: it stays unflagged and costs no DP.
+        const old = await Actor.create({ name: "Quench Vehicle V1", type: "vehicle", system: { design: { chassisKey: "chassis-cars-sports-car", powerPlantKey: "pp-gasoline-sports-car" } } });
+        made.push(old);
+        await old.createEmbeddedDocuments("Item", [{ name: "Quench Aftermarket", type: "vehicle_mod", system: { designPoints: 40 } }]);
+        const w2 = await VehicleWorkshop.open(old);
+        await pause(600);
+        await press(w2, '[data-action="step"][data-step="mods"]');
+        const dpBefore = w2.result().dp;
+        await press(w2, '[data-action="classify"]');
+        assert.equal(w2.result().dp, dpBefore - 40, "a customization costs no Design Points");
+        await press(w2, '[data-action="save"]'); await pause(1000);
+        const item = old.items.getName("Quench Aftermarket");
+        assert.ok(item, "never deleted");
+        assert.notOk(item.getFlag("sr2e", "designMod"), "stays a customization");
+        await w2.close();
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {

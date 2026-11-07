@@ -283,7 +283,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
       if (cap != null && v > cap) problem(`${key}OverCustom`, `Engine customization can raise ${unitLabel} only to ${cap} (the plant's maximum × 1.75).`, "p.120");
       add(`Engine customization: ${unitLabel} ×${levels} level${levels === 1 ? "" : "s"}`, engineCustomizationDP(plantDP ?? 0, levels), "p.120");
     }
-    return { value: v, start, max };
+    return { value: v, start, max, bought: start == null ? null : start + delta };
   };
   const speed = rating("speed", pp.speed?.start, pp.speed?.max, OPTION_DP.speed, "Speed", "p.117");
   const accel = rating("acceleration", pp.acceleration?.start, pp.acceleration?.max, OPTION_DP.acceleration, "Acceleration", "p.115");
@@ -401,6 +401,9 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     if (auto && num0(auto.rating) > 2 && !rigger) problem("bikeAutonav", "A bike can't have Autonav above 2 without rigger adaptation.", "p.109");
   }
 
+  // What the design options alone bought (the option steppers' limits apply to these, not to mod-adjusted stats).
+  const optionStats = { speed: speed.bought, acceleration: accel.bought, load: load.bought, cargo,
+    handling: typeof handling === "object" ? { ...handling } : handling };
   // Stat effects of the mods installed in design (p.120–146), and drive-by-wire's one-time +10% (p.124).
   const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
   const transport = /transport|tractor/i.test(ch.name ?? "");
@@ -462,7 +465,10 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   return { valid: problems.length === 0, problems, dpLines: lines, dp, stats,
     limits: { speed: speed.max, acceleration: accel.max, load: load.max, cargo: cargoMax, economy: ecoMax },
     options: { cf: Math.round(optCf * 100) / 100, load: optLoad, restrictedCf },
-    budgets: cap, markUp, designNuyen,
+    budgets: cap, markUp, designNuyen, optionStats,
+    // The design mods' Armor and Signature: the sheet adds every mod's own (VehicleData.modArmor), so a save stores the
+    // stats without them.
+    modEffects: { armor: fx.armor, signature: fx.signature },
     // Design Points × Mark-Up × 100, plus what design-installed tires and the like cost in ¥ (p.115, p.146).
     price: designPrice(dp, markUp.total, num0(design.markUp?.round)) + designNuyen };
 }
