@@ -135,3 +135,21 @@ VERDICT: REVISE
 - **#5 accepted:** every installed mount counts toward the Body limit.
 - **#6 accepted:** a formula that can't be evaluated is a design problem; the module validator checks real syntax
   (tokens, balance, operand/operator order). Also found: the operator rewrite turned the x in "max" into ×; fixed.
+
+## Code (release 2) round 2 — Codex (fresh session, fixes only; ~754k input tokens)
+
+Findings #2, #3, #5, and #6 are closed for the reported cases. #1 and #4 remain incomplete; the new restrictions also reject a legal build.
+
+- **Legacy pricing uses the actor’s old Body.** [actor-sheet.mjs:1994](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sheets/actor-sheet.mjs:1994): Selecting a Body-3 Sports Car on a Body-0 actor prices Remote-Control Interface at **0 DP instead of 75**. Apply writes Body 3 but retains the underpriced cost; applying again changes the price. Derive formula context from the selected build.
+
+- **Active Thermal Masking exceeds its engine-customization limit.** [gen-vehicle-mods.mjs:219](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-rigger-2/tools/gen-vehicle-mods.mjs:219): A Sports Car with one Speed customization level, +100 Load, and masking Rating 2 returns valid. Book p.130 (`m-139.png`) limits masking to **min(2, engine-customization level)**; checking only that customization exists is insufficient.
+
+- **Rigger Adaptation ignores built-in sensors.** [vehicle-design.mjs:156](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:156): A Skiff with its native Sensor 1, Datajack Port, and Rigger Adaptation is rejected solely for missing sensors. Book p.126 (`m-135.png`) requires Sensor 1+, which this chassis already supplies. Check the effective sensor rating rather than requiring a separate sensor mod.
+
+Read-only reproductions confirmed these cases. Module validation passed; mechanical-arm pricing and its limit were spot-checked against p.145 (`m-154.png`).
+
+VERDICT: REVISE
+### Claude's response (fixes: system 22e327c, module 9712097)
+- **All three accepted:** the legacy build takes the SELECTED chassis' Body/Pilot; active thermal masking's maximum is
+  "min(2, L)" with L = the build's engine-customization levels (p.130); rigger adaptation accepts the chassis' own
+  Sensor 1+ as well as a sensor mod (p.126). Vitest for each.
