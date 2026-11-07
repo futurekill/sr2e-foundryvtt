@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **The Vehicle Workshop** (vehicle builder release 3, docs/PLAN-vehicle-builder.md): a guided window that designs a
+  vehicle by Rigger 2's rules (p.108–146) in six steps (chassis, power plant, design options, modifications, Mark-Up,
+  review), with a live summary of the stat line, Cargo/Load budgets, Design Points (itemized, with pages) and price.
+  Open it from the Actors sidebar (**Vehicle Workshop**), a character's Vehicles tab (**Design a vehicle**, which links
+  the new vehicle to that character), or a vehicle's Design tab (**Open the Workshop**). Anyone with the "Create New
+  Actors" permission can build one; owners can redesign theirs.
+- **Modifications change the stats in design** as the book prints: turbocharging (+15 Speed, +10 Acceleration, −1
+  Signature, Economy ×0.95 a level, up to the maximum Speed × 1.25), drive-by-wire (−1 Handling a level and a one-time
+  +10% split as you choose between Acceleration, Speed and Load), suspensions and control surfaces, armor (+1 Handling
+  per 6 points), thermal baffles and RAM, turrets (−1 Signature), aircraft floats and motorcycle sidecars.
+- The option steppers show what the options bought, with the modified value beside it, so "max" always buys up to
+  the power plant's maximum.
+
+### Changed
+- The vehicle **Design** tab now shows the Workshop's summary (and whether the saved design still checks out); the
+  old in-tab designer is gone. An old design opens in the Workshop converted, with notes on what to check; each of its
+  modifications can be kept in the design or marked as a customization added later.
+- Saving over a production vehicle (one not designed in the Workshop) asks first and lists what changes.
+- Saving catches up with the vehicle first: a modification added, removed or re-rated on the sheet while the
+  Workshop was open is taken in (or named, if both changed it) before anything is written.
+- A modification's Armor and Signature now come from its effect where it has one (ablative armor adds 2 × its
+  level, at most the Body, p.127), and count once.
+
 ## 0.142.1 — 2026-11-07
 
 ### Added

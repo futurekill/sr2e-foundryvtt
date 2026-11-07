@@ -1063,4 +1063,18 @@ If those five all work, the core loop is healthy.
       shows "→ 4.5 free" and "→ 45 free". Delete the port: 5 free.
 - [ ] Off-road Handling, Stall and the *More* fields (entry, fuel, economy, L/T, setup, Availability, Street Index,
       Design Points, other features) save and reload.
+- [ ] **Workshop** (Actors sidebar → Vehicle Workshop, Rigger 2 module on): Sports Car + gasoline plant, Smart
+      materials, Speed and Acceleration "max", Load +100, Handling +1 (then + is disabled at the floor), mods Nitrous 6,
+      Datajack Port, Sensors 2, Rigger Adaptation, Crash Cage, Unusual Mark-Up 1 → 1,214 DP, 303,500¥, Handling 2/7.
+- [ ] Add Drive-by-Wire 1: a "+10%" box appears; split 6 Acceleration / 4 Speed; a split not adding up to 10 is a
+      problem in the summary. Turbocharging 1 shows "Speed 270 → 285" in the options step and "max" still buys 270.
+- [ ] Armor 2 in design: Review shows Armor 2; after saving, the sheet shows Armor 2 (not 4).
+- [ ] Open a saved design, change a design mod's rating on the vehicle sheet, save the Workshop: it warns and takes
+      the sheet's value; save again writes.
+- [ ] A vehicle with an old Design-tab design: the Workshop lists notes; a mod's "in design" chip toggles to
+      "customization" (DP drop); after saving that mod is still on the vehicle and unflagged.
+- [ ] A character's Vehicles tab → Design a vehicle → save: the vehicle is linked to the character. A player without
+      "Create New Actors" gets a warning, nothing is created.
+- [ ] A production vehicle (no design) → Workshop → save: the confirmation lists the changed stats; Cancel changes
+      nothing.
 

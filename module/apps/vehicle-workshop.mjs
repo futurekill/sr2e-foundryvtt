@@ -8,7 +8,7 @@
  * record (their ratings included). Mods added on the sheet later are customizations: shown read-only, counted for
  * capacity and mount points, never touched.
  */
-import { designVehicle, evalCell, modDesignDP, modCf, modLoad, modProblems } from "../rules/vehicle-design.mjs";
+import { designVehicle, evalCell, modDesignDP, modCf, modLoad, modProblems, isTransport } from "../rules/vehicle-design.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -117,7 +117,8 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   #modFromItem(i, convert = false) {
     const mine = !!i.getFlag("sr2e", "designMod") || convert;
     return { uid: foundry.utils.randomID(), itemId: i.id, name: i.name, img: i.img, system: foundry.utils.deepClone(i.system),
-      design: mine, customization: !mine, converted: convert && !i.getFlag("sr2e", "designMod"), loadedRating: num(i.system.rating) };
+      design: mine, customization: !mine, converted: convert && !i.getFlag("sr2e", "designMod"), loadedRating: num(i.system.rating),
+      loadedSys: sansRating(i.system) };
   }
 
   /**
@@ -139,8 +140,12 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
         if (num(m.system.rating) === m.loadedRating) { m.system.rating = now; adopted.push(`${m.name} is now ${now}`); }
         else adopted.push(`${m.name} was set to ${now} on the sheet; the Workshop's ${m.system.rating} is kept`);
       }
+      // Everything but the Rating is edited only on the item's sheet: a change there is always taken in.
+      const sys = sansRating(item.system);
+      if (sys !== m.loadedSys) { m.system = { ...foundry.utils.deepClone(item.system), rating: m.system.rating }; if (!m.customization) adopted.push(`${m.name} was edited`); }
       if (m.customization) m.system = foundry.utils.deepClone(item.system);
       m.loadedRating = now;
+      m.loadedSys = sys;
     }
     const known = new Set([...this.mods.map(m => m.itemId), ...this.removed]);
     for (const i of live.values()) if (!known.has(i.id)) { this.mods.push(this.#modFromItem(i)); adopted.push(i.name); }
@@ -458,15 +463,21 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "flags.sr2e.designMod": true }));
     for (const m of mine) m.loadedRating = num(m.system.rating);
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
-    const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { sr2e: { designMod: true } } }));
+    const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { sr2e: { designMod: true, wsUid: m.uid } } }));
     if (creates.length) {
       // Each new item takes its id back, so the next save updates it instead of adding another.
       const made = await actor.createEmbeddedDocuments("Item", creates);
-      const fresh = mine.filter(m => !m.itemId);
-      made.forEach((doc, i) => { if (fresh[i]) fresh[i].itemId = doc.id; });
+      // Matched by uid: createEmbeddedDocuments doesn't return them in order.
+      for (const doc of made) {
+        const m = mine.find(x => !x.itemId && x.uid === doc.getFlag("sr2e", "wsUid"));
+        if (m) Object.assign(m, { itemId: doc.id, loadedRating: num(doc.system.rating), loadedSys: sansRating(doc.system) });
+      }
     }
   }
 }
+
+/** An item's system data minus its Rating, to spot edits made on its sheet. */
+const sansRating = (sys) => JSON.stringify({ ...(sys?.toObject?.() ?? sys), rating: 0 });
 
 /** The actor update a design writes: BASE stats (gross Cargo/Load), the vehicle type, the stored design. */
 export function workshopUpdate(design, r, ch, pp, name) {
@@ -487,7 +498,7 @@ export function workshopUpdate(design, r, ch, pp, name) {
     "system.fuelType": String(s.fuelType ?? ""), "system.fuelSize": num(s.fuelSize), "system.fuelUnit": String(s.fuelUnit ?? ""),
     "system.otherFeatures": (s.accessories ?? []).join(", "),
     "system.designPointValue": num(r.dp), "system.cost": num(r.price),
-    "system.design.version": 2, "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
+    "system.design.version": 2, "system.design.category": ch.category ?? "", "system.design.transport": isTransport(ch), "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
     "system.design.choices": foundry.utils.deepClone(design),
     "system.design.optionCf": num(r.options?.cf), "system.design.optionLoad": num(r.options?.load), "system.design.restrictedCf": num(r.options?.restrictedCf)
   };

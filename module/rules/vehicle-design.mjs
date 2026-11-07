@@ -131,6 +131,24 @@ const modVars = (m, build = {}) => ({ R: num0(m.rating), B: num0(build.body), P:
   E: num0(build.plantDP), K: num0(build.engineCustomDP), L: num0(build.engineCustomLevels) });
 const formula = (f, m, build) => f ? (evalExpr(f, modVars(m, build)) ?? 0) : 0;
 
+/**
+ * One stat effect of a mod (p.120–146): its `effects` formula for this key — `key@<category>` first, then
+ * `key@transport` on a transport or tractor, then the plain key — evaluated over R B P C E K L. A mod without an Armor /
+ * Signature formula falls back to the old rule (an armor / signature mod adds its Rating). Returns null when the mod has
+ * no such effect, else { formula, value } (value null when the formula can't be worked out). The design engine and
+ * VehicleData both use it, so the Workshop's review and the saved vehicle agree.
+ */
+/** Medium/heavy transports and tractors take some mods' `@transport` effect (p.125). */
+export const isTransport = (ch = {}) => /transport|tractor/i.test(ch.name ?? "");
+
+export function modEffect(m = {}, key, { category = "", transport = false, build = {} } = {}) {
+  const fx = m.effects ?? {};
+  const f = [fx[`${key}@${category}`], transport ? fx[`${key}@transport`] : undefined, fx[key]].find(v => v != null && v !== "");
+  if (f != null) return { formula: String(f), value: evalExpr(String(f), modVars(m, build)) };
+  if ((key === "armor" || key === "signature") && m.modType === key) return { formula: "R", value: num0(m.rating) };
+  return null;
+}
+
 const AIRCRAFT = new Set(["fixedWing", "rotor", "vector"]);
 /**
  * Why a mod can't go on this build (its printed maximum and restrictions, p.118–146), as messages. `ctx`: { category,
@@ -406,16 +424,14 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     handling: typeof handling === "object" ? { ...handling } : handling };
   // Stat effects of the mods installed in design (p.120–146), and drive-by-wire's one-time +10% (p.124).
   const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
-  const transport = /transport|tractor/i.test(ch.name ?? "");
+  const transport = isTransport(ch);
   for (const m of mods) {
-    if (m.design === false || !m.effects) continue;
-    const vars = modVars(m, build);
+    if (m.design === false) continue;
     for (const k of Object.keys(fx)) {
-      const f = m.effects[`${k}@${cat}`] ?? (transport ? m.effects[`${k}@transport`] : undefined) ?? m.effects[k];
-      if (f == null || f === "") continue;
-      const v = evalExpr(String(f), vars);
-      if (v == null) { problem("badFormula", `${m.name}: its ${k} effect "${f}" can't be worked out.`, m.page ?? "p.118"); continue; }
-      if (k.endsWith("Mult")) fx[k] *= v; else fx[k] += v;
+      const e = modEffect(m, k, { category: cat, transport, build });
+      if (!e) continue;
+      if (e.value == null) { problem("badFormula", `${m.name}: its ${k} effect "${e.formula}" can't be worked out.`, m.page ?? "p.118"); continue; }
+      if (k.endsWith("Mult")) fx[k] *= e.value; else fx[k] += e.value;
     }
   }
   // Drive-by-wire: ONE +10% (not per level), split among Acceleration / Speed / Load in whole percents (p.124).

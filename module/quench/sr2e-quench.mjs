@@ -12855,6 +12855,13 @@ export function registerSR2EQuenchTests() {
         assert.equal(v.items.getName("Standard Vehicle Armor").system.rating, 2, "the first save only catches up and warns");
         await press(ws, '[data-action="save"]'); await pause(1000);
         assert.deepEqual([v.items.getName("Standard Vehicle Armor").system.rating, v.system.effectiveArmor], [2, 2], "the sheet's edit wins and counts once");
+        // Round 2: any other field edited on the item's sheet is taken in too (here its CF, which now overflows).
+        await v.items.getName("Standard Vehicle Armor").update({ "system.cfPerLevel": 100 });
+        await press(ws, '[data-action="save"]'); await pause(800);
+        assert.equal(ws.mods.find(m => m.name === "Standard Vehicle Armor").system.cfPerLevel, 100, "the edit is taken in");
+        assert.isFalse(ws.result().valid, "and the design is checked with it");
+        await v.items.getName("Standard Vehicle Armor").update({ "system.cfPerLevel": 0 });
+        await press(ws, '[data-action="save"]'); await pause(800);
         // #5: Speed max with turbocharging buys up to the plant's maximum, not maximum − 15.
         const turbo = { name: "Turbocharging", type: "vehicle_mod", system: { rating: 1, modKey: "turbocharging", dpFormula: "E x 1.75 x R",
           effects: { speed: "15 x R", acceleration: "10 x R", signature: "-R", economyMult: "0.95^R" } } };

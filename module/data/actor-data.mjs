@@ -7,7 +7,7 @@ import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs"
 import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
-import { vehicleCapacity, evalExpr } from "../rules/vehicle-design.mjs";
+import { vehicleCapacity, modEffect } from "../rules/vehicle-design.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -2034,6 +2034,9 @@ export class VehicleData extends SR2EDataModel {
         // Version 1 = the old Design tab's fields above, never repriced on load.
         version: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
         choices: new fields.ObjectField({ initial: {} }),
+        // The chassis' category and whether it's a transport/tractor, for mods' per-category effects (modEffect).
+        category: new fields.StringField({ initial: "", blank: true }),
+        transport: new fields.BooleanField({ initial: false }),
         // The design options' fixed consumption (fuel tank, hydrofoil, amenities, medical gear), for the capacity rule.
         optionCf: new fields.NumberField({ initial: 0, min: 0 }),
         optionLoad: new fields.NumberField({ initial: 0, min: 0 }),
@@ -2075,12 +2078,9 @@ export class VehicleData extends SR2EDataModel {
     let modArmor = 0, modSignature = 0;
     for (const item of (this.parent?.items ?? [])) {
       if (item.type !== "vehicle_mod") continue;
-      const rating = Number(item.system.rating) || 0;
-      const fx = item.system.effects ?? {};
-      const vars = { R: rating, B: Number(this.body) || 0 };
-      const by = (k, legacy) => fx[k] != null && fx[k] !== "" ? (evalExpr(String(fx[k]), vars) ?? 0) : (legacy ? rating : 0);
-      modArmor += by("armor", item.system.modType === "armor");
-      modSignature += by("signature", item.system.modType === "signature");
+      const ctx = { category: this.design.category, transport: this.design.transport, build: { body: this.body, pilot: this.pilot } };
+      modArmor += modEffect(item.system, "armor", ctx)?.value ?? 0;
+      modSignature += modEffect(item.system, "signature", ctx)?.value ?? 0;
     }
     this.modArmor = modArmor;
     this.modSignature = modSignature;

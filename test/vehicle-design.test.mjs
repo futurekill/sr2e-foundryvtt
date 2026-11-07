@@ -3,7 +3,7 @@
 // p.116, Mark-Up Factors Table p.114). User rulings 2026-11-07: Acceleration 2 DP/pt; the Handling floor binds the
 // final rating, Smart Materials included; CF stays fractional.
 import { describe, it, expect } from "vitest";
-import { evalCell, designVehicle, engineCustomizationDP, markUpFactor, designPrice, vehicleCapacity, modDesignDP, modCf, modLoad } from "../module/rules/vehicle-design.mjs";
+import { modEffect, evalCell, designVehicle, engineCustomizationDP, markUpFactor, designPrice, vehicleCapacity, modDesignDP, modCf, modLoad } from "../module/rules/vehicle-design.mjs";
 
 const tables = {
   chassis: {
@@ -281,6 +281,17 @@ describe("one capacity rule and build-relative mod costs", () => {
     expect([r.optionStats.speed, r.stats.speed]).toEqual([270, 285]);   // the max applies to 270, not 285
     expect(r.modEffects).toEqual({ armor: 2, signature: -1 });
     expect([r.stats.armor, r.stats.signature]).toEqual([2, 1]);
+  });
+
+  it("code review R3 round 2: one effect resolver (category override, legacy Rating) for the engine and the sheet", () => {
+    const catMod = { name: "X", rating: 1, effects: { armor: "R", "armor@car": "2 x R" } };
+    const legacy = { name: "Old armor", rating: 1, modType: "armor" };
+    expect(modEffect(catMod, "armor", { category: "car" }).value).toBe(2);
+    expect(modEffect(catMod, "armor", { category: "boat" }).value).toBe(1);
+    expect(modEffect(legacy, "armor").value).toBe(1);
+    expect(modEffect({ name: "Y", rating: 3 }, "armor")).toBeNull();
+    const r = designVehicle({ chassisKey: "sportsCar", powerPlantKey: "gasSports", load: 160 }, tables, { mods: [catMod, legacy] });
+    expect([r.stats.armor, r.modEffects.armor]).toEqual([3, 3]);   // what the sheet adds back from the same items
   });
 });
 

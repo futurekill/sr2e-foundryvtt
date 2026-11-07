@@ -210,8 +210,12 @@ Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: dec
 Vehicle design (docs/PLAN-vehicle-builder.md, in progress): `module/rules/vehicle-design.mjs` is the ONE place the
 Rigger 2 design rules live (pure; `designVehicle` + the shared `vehicleCapacity` the data model also calls: usable
 cargo/load = gross − design options − every mod). Vehicles store GROSS Cargo/Load. Rulings: Acceleration 2 DP/pt; the
-Handling floor binds the final rating incl. Smart Materials; CF fractional. The old Design tab (`resolveVehicleDesign`)
-stays until the Workshop replaces it.
+Handling floor binds the final rating incl. Smart Materials; CF fractional. The Workshop
+(`module/apps/vehicle-workshop.mjs`, release 3) is the only designer: it saves BASE stats (gross Cargo/Load, Armor and
+Signature WITHOUT the design mods' `modEffects`, because `VehicleData` adds every mod's own once) and owns only the
+mod items flagged `flags.sr2e.designMod`; unflagged mods are customizations it never edits or deletes. Mod stat
+effects in design are `VehicleModData.effects` formulas; option steppers read `optionStats` (options only), never the
+mod-adjusted stats.
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the
