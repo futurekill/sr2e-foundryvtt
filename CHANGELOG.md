@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.141.2 — 2026-11-06
+
+### Fixed
+- **Astral-only tokens:** clearing a token's astral-only button (for example when a spirit or a focus manifests) now
+  takes off its purple, translucent astral look straight away. Before, it kept looking astral until something else
+  redrew the token.
+
 ## 0.141.1 — 2026-11-06
 
 ### Fixed

@@ -85,7 +85,10 @@ globalThis.Hooks?.on("updateActor", (actor, changes) => {
 });
 globalThis.Hooks?.on("controlToken", () => refreshTokenVisibility());
 globalThis.Hooks?.on("updateToken", (doc, changes) => {
-  if (foundry.utils.getProperty(changes, "flags.sr2e.astralOnly") !== undefined) refreshTokenVisibility();
+  if (foundry.utils.getProperty(changes, "flags.sr2e.astralOnly") === undefined) return;
+  // Redraw its image too: the astral tint is painted over the mesh, and only a mesh refresh takes it off again.
+  doc.object?.renderFlags.set({ refreshMesh: true });
+  refreshTokenVisibility();
 });
 
 // GM toggle: an "astral-only" button on the Token HUD.

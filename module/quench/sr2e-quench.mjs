@@ -6074,6 +6074,21 @@ export function registerSR2EQuenchTests() {
           assert.isAbove(spirit.system.conditionMonitor.stun.value, 0);
         });
       });
+
+      it("clearing astral-only takes the purple astral look off a token (and setting it puts it back)", async function () {
+        if (!canvas?.ready) this.skip();
+        const a = await Actor.create({ name: "Quench Astral Tint", type: "npc" });
+        const d = canvas.dimensions;
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...(await a.getTokenDocument()).toObject(),
+          x: d.sceneX, y: d.sceneY, flags: { sr2e: { astralOnly: true } } }]);
+        const look = async () => { await new Promise(r => setTimeout(r, 300)); const o = canvas.tokens.get(t.id); o.applyRenderFlags();
+          return [Number(o.mesh.tint), Math.round(o.mesh.alpha * 100)]; };
+        assert.deepEqual(await look(), [0xB68CFF, 78], "astral");
+        await t.setFlag("sr2e", "astralOnly", false);
+        assert.deepEqual(await look(), [0xFFFFFF, 100], "manifested: normal again");
+        await t.setFlag("sr2e", "astralOnly", true);
+        assert.deepEqual(await look(), [0xB68CFF, 78], "astral again");
+      });
     }, { displayName: "SR2E: Astral" });
 
     // ── Karma reaches ranged damage cards and launchers (RULES-AUDIT-3 C8) ───
