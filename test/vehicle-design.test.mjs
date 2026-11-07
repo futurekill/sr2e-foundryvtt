@@ -231,6 +231,15 @@ describe("one capacity rule and build-relative mod costs", () => {
     const mounts = [{ name: "Ring Mount", mountPoints: 2 }, { name: "Old hardpoint", mountPoints: 2, design: false }];
     expect(designVehicle(base, tables, { mods: mounts }).problems.map(p => p.code)).toContain("mountPoints");   // 4 > Body 3, customization counted
     expect(codes(designVehicle(base, tables, { mods: [{ name: "Broken", dpFormula: "B x (" }] }))).toMatch(/can't be worked out/);
+    // R2 round 2: masking ≤ min(2, customization levels) (p.130); the chassis' own Sensor counts for rigger adaptation (p.126).
+    const masking = (levels, r) => designVehicle({ ...base, speed: 110, engineCustom: { speed: levels } }, tables,
+      { mods: [{ name: "Active Thermal Masking", rating: r, maxRating: "min(2, L)", restrictions: ["needsEngineCustom"] }] });
+    expect(codes(masking(1, 2))).toMatch(/over the maximum 1/);
+    expect(masking(2, 2).problems.filter(p => /Masking/.test(p.msg))).toEqual([]);
+    const t2 = { ...tables, chassis: { ...tables.chassis, sportsCar: { ...tables.chassis.sportsCar, sensor: 1 } } };
+    const rig = [{ name: "Datajack Port", modKey: "datajack-port" }, { name: "Rigger Adaptation", restrictions: ["needsRiggerBase"] }];
+    expect(designVehicle(base, t2, { mods: rig }).problems).toEqual([]);
+    expect(codes(designVehicle(base, tables, { mods: rig }))).toMatch(/Sensor 1/);
     // Mechanical arms: 8,000 DP per enhancement point for 1–3, 10,000 for 4+, no cap but Strength ≤ 10 × Body (p.145).
     const arms = (r) => modDesignDP({ rating: r, dpFormula: "B x 250 + R x 8000 + min(1, max(0, R - 3)) x R x 2000" }, { body: 3 });
     expect([arms(3), arms(4), arms(11)]).toEqual([750 + 24000, 750 + 40000, 750 + 110000]);

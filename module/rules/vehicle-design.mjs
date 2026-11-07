@@ -71,7 +71,7 @@ export function evalExpr(v, vars = {}) {
 }
 
 /** A formula's syntax is valid (all variables set to 1): for validators. */
-export const formulaOk = (f) => !f || evalExpr(f, { R: 1, B: 1, P: 1, C: 1, E: 1, K: 1 }) !== null;
+export const formulaOk = (f) => !f || evalExpr(f, { R: 1, B: 1, P: 1, C: 1, E: 1, K: 1, L: 1 }) !== null;
 
 /** A Power Plant Table cell, B = the chassis' Body. */
 export const evalCell = (v, body = 0) => evalExpr(v, { B: body });
@@ -128,7 +128,7 @@ export function ratedValue(rating, flat, perLevel, table) {
 
 /** The variables a mod formula sees: its rating and the build's numbers. */
 const modVars = (m, build = {}) => ({ R: num0(m.rating), B: num0(build.body), P: num0(build.pilot), C: num0(build.chassisDP),
-  E: num0(build.plantDP), K: num0(build.engineCustomDP) });
+  E: num0(build.plantDP), K: num0(build.engineCustomDP), L: num0(build.engineCustomLevels) });
 const formula = (f, m, build) => f ? (evalExpr(f, modVars(m, build)) ?? 0) : 0;
 
 const AIRCRAFT = new Set(["fixedWing", "rotor", "vector"]);
@@ -153,7 +153,7 @@ export function modProblems(m = {}, build = {}, ctx = {}) {
     else if (tag === "minBody" && num0(ctx.body) < Number(arg)) out.push(`it needs Body ${arg} or more`);
     else if (tag === "needsEngineCustom" && !num0(ctx.engineCustomLevels)) out.push("it needs engine customization");
     else if (tag === "needsRemote" && !ctx.drone && !keys.has("remote-control-interface")) out.push("it needs a Remote-Control Interface (or a drone)");
-    else if (tag === "needsRiggerBase" && (!(ctx.drone || keys.has("datajack-port") || keys.has("remote-control-interface")) || !keys.has("sensors"))) out.push("it needs a datajack port or remote-control interface, and sensors");
+    else if (tag === "needsRiggerBase" && (!(ctx.drone || keys.has("datajack-port") || keys.has("remote-control-interface")) || !(num0(ctx.sensor) >= 1 || keys.has("sensors")))) out.push("it needs a datajack port or remote-control interface, and Sensor 1 or more");
     else if (tag === "notWith" && list.some(k => keys.has(k))) out.push(`it can't be combined with ${list.filter(k => keys.has(k)).join(", ")}`);
     else if (tag === "notAircraftUnlessElectric" && AIRCRAFT.has(ctx.category) && ctx.engine !== "electric") out.push("aircraft can't take it unless electrically powered");
   }
@@ -380,9 +380,9 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   // The Pilot the build actually has: a Remote-Control Interface gives 1, advanced programming raises it (p.125–126).
   const rpap = mods.find(m => keyOf(m) === "remote-pilot");
   const pilot = Math.max(num0(cell(ch.pilot)), keys.has("remote-control-interface") ? 1 : 0, rpap ? num0(rpap.rating) : 0);
-  const build = { chassisDP: chassisDP ?? 0, plantDP: plantDP ?? 0, body, pilot, engineCustomDP: ecDP };
-  const ctx = { category: cat, engine: pp.engine, drone: !!ch.drone, body, keys,
-    engineCustomLevels: Object.values(design.engineCustom ?? {}).reduce((t, l) => t + num0(l), 0) };
+  const ecLevels = Object.values(design.engineCustom ?? {}).reduce((t, l) => t + num0(l), 0);
+  const build = { chassisDP: chassisDP ?? 0, plantDP: plantDP ?? 0, body, pilot, engineCustomDP: ecDP, engineCustomLevels: ecLevels };
+  const ctx = { category: cat, engine: pp.engine, drone: !!ch.drone, body, keys, sensor: cell(ch.sensor), engineCustomLevels: ecLevels };
   let designNuyen = 0, mountPoints = 0;
   for (const m of mods) {
     mountPoints += num0(m.mountPoints);   // every installed mount counts toward the Body limit (p.131)

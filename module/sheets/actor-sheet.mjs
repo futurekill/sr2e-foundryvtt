@@ -1991,8 +1991,10 @@ function isModRated(s = {}) {
 /** The build numbers a mod formula needs, for the legacy Design tab (its own tables). */
 function legacyBuild(actor, stored, tables) {
   const n = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
-  return { body: n(actor.system.body), pilot: n(actor.system.pilot), chassisDP: n(tables?.chassis?.[stored.chassisKey]?.dp),
-    plantDP: n(tables?.powerPlants?.[stored.powerPlantKey]?.dp) };
+  const ch = tables?.chassis?.[stored.chassisKey];
+  // The SELECTED chassis' Body/Pilot (what Apply will write), else the vehicle's own (code review R2 #1).
+  return { body: ch?.body != null ? n(ch.body) : n(actor.system.body), pilot: ch?.pilot != null ? n(ch.pilot) : n(actor.system.pilot),
+    chassisDP: n(ch?.dp), plantDP: n(tables?.powerPlants?.[stored.powerPlantKey]?.dp) };
 }
 
 async function onApplyVehicleDesign(event, target) {
