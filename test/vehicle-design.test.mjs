@@ -3,7 +3,7 @@
 // p.116, Mark-Up Factors Table p.114). User rulings 2026-11-07: Acceleration 2 DP/pt; the Handling floor binds the
 // final rating, Smart Materials included; CF stays fractional.
 import { describe, it, expect } from "vitest";
-import { evalCell, designVehicle, engineCustomizationDP, markUpFactor, designPrice, vehicleCapacity, modDesignDP } from "../module/rules/vehicle-design.mjs";
+import { evalCell, designVehicle, engineCustomizationDP, markUpFactor, designPrice, vehicleCapacity, modDesignDP, modCf, modLoad } from "../module/rules/vehicle-design.mjs";
 
 const tables = {
   chassis: {
@@ -206,11 +206,24 @@ describe("one capacity rule and build-relative mod costs", () => {
     expect(vehicleCapacity({ cargo: 210, load: 200, optionCf: 200, optionLoad: 100, restrictedCf: 160 }))
       .toMatchObject({ modCfFree: 10, cargoFree: 170 });
   });
-  it("a mod priced × chassis DP, × Body or × Pilot", () => {
-    const build = { chassisDP: 110, plantDP: 65, body: 3, pilot: 2 };
-    expect(modDesignDP({ dpBasis: "chassisDP", dpFactor: 1.75 }, build)).toBe(192.5);
-    expect(modDesignDP({ dpBasis: "body", dpFactor: 25 }, build)).toBe(75);
-    expect(modDesignDP({ dpBasis: "pilot", dpFactor: 350 }, build)).toBe(700);
+  it("build-relative mod formulas (p.118–146)", () => {
+    const build = { chassisDP: 110, plantDP: 65, body: 3, pilot: 2, engineCustomDP: 100 };
+    expect(modDesignDP({ rating: 2, dpFormula: "C x 1.75 x R" }, build)).toBe(385);            // Drive-by-Wire 2
+    expect(modDesignDP({ dpFormula: "25 x B" }, build)).toBe(75);                               // Remote-Control Interface
+    expect(modDesignDP({ dpFormula: "P x 350" }, build)).toBe(700);                             // BattleTac FDDM
+    expect(modDesignDP({ rating: 3, dpFormula: "R^3 x 50" }, build)).toBe(1350);                // RAM 3
+    expect(modDesignDP({ rating: 2, dpFormula: "K x (2 x R + 0.125 x R x (R - 1))" }, build)).toBe(425); // Active Thermal Masking 2
+    expect(modLoad({ rating: 4, loadFormula: "B x B x 5 x R" }, build)).toBe(180);              // Standard armor 4
+    expect(modCf({ rating: 7, cfFormula: "floor(0.25 x R)" }, build)).toBe(1);                  // Power amplifier 7
+    expect(modDesignDP({ dpFormula: "Q x 2" }, build)).toBe(0);                                 // unknown variable: nothing
+  });
+  it("customization-only mods, ¥-priced tires, and the mount-point limit (p.131)", () => {
+    const base = { chassisKey: "sandBuggy", powerPlantKey: "gasBuggy" };
+    expect(designVehicle(base, tables, { mods: [{ name: "Ablative Armor", designable: false }] }).problems.map(p => p.code)).toContain("notDesignable");
+    const tires = designVehicle(base, tables, { mods: [{ name: "Performance tires", designNuyen: true, cost: 900 }] });
+    expect([tires.dp, tires.designNuyen, tires.price]).toEqual([45, 900, 45 * 100 + 900]);
+    const mounts = [{ name: "Ring Mount", mountPoints: 2 }, { name: "Fixed Mount (External Hardpoint)", mountPoints: 2 }];
+    expect(designVehicle(base, tables, { mods: mounts }).problems.map(p => p.code)).toContain("mountPoints");   // 4 > Body 3
   });
 });
 
@@ -242,6 +255,19 @@ describe.skipIf(!haveR2)("the transcribed Rigger 2 tables", () => {
       handlingTrack: "offRoad", acceleration: 2, cargo: 2, load: 30, markUp: { multipliers: { security: 2 } } }, real,
       { mods: [{ name: "Electronics Port", designPoints: 10, cfConsumed: 0.5 }, { name: "Ring Mount", designPoints: 10, cfConsumed: 1, loadReduction: 25 }, { name: "Pintle Mount", designPoints: 1 }] });
     expect([steffi.dp, steffi.price, steffi.stats.economy, steffi.stats.fuelSize]).toEqual([108, 21600, 8, 40]);
+  });
+  it("the worked examples' mods, from the generated mod items (book p.113–115)", async () => {
+    const { readdirSync } = await import("node:fs");
+    const dir = new URL("../../packs-src/r2-vehicle-mods/", R2);
+    const items = Object.fromEntries(readdirSync(dir).filter(f => f.endsWith(".json")).map(f => JSON.parse(readFileSync(new URL(f, dir), "utf8"))).map(d => [d.name, d.system]));
+    const take = (name, rating) => ({ name, ...items[name], ...(rating != null ? { rating } : {}) });
+    const rich = designVehicle({ chassisKey: "sportsCar", powerPlantKey: "gasoline-cars-sports-car" }, real, { mods: [
+      take("Nitrous Oxide Injectors", 6), take("Datajack Port"), take("Rigger Adaptation"), take("Sensors (Vehicle Sensor System)", 2), take("Crash Cage")] });
+    expect(rich.dp - 175).toBe(580);                                   // p.114: "Total Design Points = 580"
+    expect([rich.budgets.cfUsed, rich.budgets.loadUsed]).toEqual([2.5, 60]);   // p.114 prints CF 2.5 (Load "90": its own items sum to 60)
+    const steffi = designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "gasoline-cars-subcompact-and-sand-buggy" }, real, { mods: [
+      take("Roll Bars"), take("Electronics Port", 1), take("Ring Mount"), take("Pintle Mount")] });
+    expect([steffi.dp - 45, steffi.budgets.cfUsed, steffi.budgets.loadUsed]).toEqual([21, 1.5, 25]);   // p.113
   });
   it("a Body-formula drone: a tracked electric Small Crawler (Body 1)", () => {
     const r = designVehicle({ chassisKey: "crawlerSmall", powerPlantKey: "electric-tracked-drone" }, real);

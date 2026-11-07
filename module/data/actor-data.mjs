@@ -2083,7 +2083,7 @@ export class VehicleData extends SR2EDataModel {
     // module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
     const mods = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod").map(i => i.system);
     const cap = vehicleCapacity({ cargo: this.cargo, load: this.load, optionCf: this.design.optionCf,
-      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf }, mods);
+      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf }, mods, { body: this.body, pilot: this.pilot });
     this.cargoFree = cap.cargoFree;
     this.loadFree = cap.loadFree;
   }

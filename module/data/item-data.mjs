@@ -1387,11 +1387,19 @@ export class VehicleModData extends SR2EDataModel {
       loadReduction: new fields.NumberField({ initial: 0, min: 0 }),
       loadPerLevel:  new fields.NumberField({ initial: 0, min: 0 }),
       loadTable: new fields.ArrayField(new fields.NumberField({ min: 0 }), { initial: [] }),
-      // Build-relative Design Cost (Rigger 2 p.118–146): designPoints + basis × dpFactor (× rating if per level),
-      // the basis being the chassis' or power plant's DP, the Body or the Pilot (module/rules/vehicle-design.mjs).
-      dpBasis: new fields.StringField({ initial: "", blank: true, choices: { "": "—", chassisDP: "Chassis DP", plantDP: "Power plant DP", body: "Body", pilot: "Pilot" } }),
-      dpFactor: new fields.NumberField({ initial: 0, min: 0 }),
-      dpBasisPerLevel: new fields.BooleanField({ initial: false }),
+      // Build-relative values (Rigger 2 p.118–146), ADDED to the flat/per-level/table value above: a formula over
+      // R (its rating), B (Body), P (Pilot), C (the chassis' DP), E (the power plant's DP) and K (the build's engine
+      // customization DP), with + − × ÷ ^ ( ) and floor()/ceil(). E.g. Drive-by-Wire "C x 1.75 x R", RAM "R^3 x 50",
+      // armor Load "B x B x 5 x R" (module/rules/vehicle-design.mjs).
+      dpFormula: new fields.StringField({ initial: "", blank: true }),
+      cfFormula: new fields.StringField({ initial: "", blank: true }),
+      loadFormula: new fields.StringField({ initial: "", blank: true }),
+      // Not a design option (p.118–146 "may not be added during the design process": ablative armor, missile mounts…).
+      designable: new fields.BooleanField({ initial: true }),
+      // In design its ¥ cost is added to the final price instead of Design Points (special tires, p.115 and p.146).
+      designNuyen: new fields.BooleanField({ initial: false }),
+      // Weapon-mount points: a hardpoint counts 2, a firmpoint 1; their total may not exceed the Body (p.131).
+      mountPoints: new fields.NumberField({ initial: 0, min: 0 }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
       modKey: new fields.StringField({ initial: "", blank: true }),
       installed: new fields.BooleanField({ initial: false }),

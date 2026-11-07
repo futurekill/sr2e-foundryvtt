@@ -16,32 +16,35 @@
 /* ── Body formulas (Power Plant Table "B denotes Body", p.169) ──────────────────────────────────────────────────── */
 
 /**
- * Evaluate a table cell: a number, or a formula over B (the chassis' Body) such as "5 x B", "10 + (30 x B)",
- * "60 x B^3", "9 - B". Returns null for an empty / NA / unreadable cell. A tiny recursive-descent parser: numbers,
- * B, + − × (x, *, ×) ÷ (/), ^ and parentheses. No eval.
+ * Evaluate a table cell or a mod formula: a number, or an expression over single-letter variables — B (Body) in the
+ * Power Plant Table ("5 x B", "10 + (30 x B)", "60 x B^3", "9 - B"); R, B, P, C, E, K in mod formulas — with
+ * + − × (x, *, ×) ÷ (/) ^ ( ) and floor()/ceil(). Returns null for an empty / NA / unreadable cell. A recursive-descent
+ * parser; no eval.
  */
-export function evalCell(v, body = 0) {
+export function evalExpr(v, vars = {}) {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v !== "string") return null;
   const src = v.replace(/[×xX*]/g, "*").replace(/[÷]/g, "/").replace(/\s+/g, "");
   if (!src || /^(na|—|-)$/i.test(src)) return null;
   let i = 0;
   const peek = () => src[i];
-  const num = () => {
+  const atom = () => {
     const m = /^\d+(\.\d+)?/.exec(src.slice(i));
     if (m) { i += m[0].length; return Number(m[0]); }
-    if (peek() === "B") { i++; return Number(body) || 0; }
+    const f = /^(floor|ceil)\(/.exec(src.slice(i));
+    if (f) { i += f[0].length; const r = expr(); if (peek() !== ")") throw new Error("paren"); i++; return Math[f[1]](r); }
+    if (/[A-Z]/.test(peek() ?? "")) { const k = src[i++]; if (!(k in vars)) throw new Error(`unknown ${k}`); return Number(vars[k]) || 0; }
     if (peek() === "(") { i++; const r = expr(); if (peek() !== ")") throw new Error("paren"); i++; return r; }
-    if (peek() === "-") { i++; return -num(); }
+    if (peek() === "-") { i++; return -atom(); }
     throw new Error(`unexpected ${peek()}`);
   };
-  const pow = () => { let b = num(); while (peek() === "^") { i++; b = b ** num(); } return b; };
+  const pow = () => { let b = atom(); while (peek() === "^") { i++; b = b ** atom(); } return b; };
   const term = () => {
     let a = pow();
     for (;;) {
       if (peek() === "*") { i++; a *= pow(); }
       else if (peek() === "/") { i++; a /= pow(); }
-      else if (peek() === "B" || peek() === "(" || /\d/.test(peek() ?? "")) a *= pow();   // "60B3" style juxtaposition
+      else if (/[A-Z(\d]/.test(peek() ?? "")) a *= pow();   // "60B3" style juxtaposition
       else return a;
     }
   };
@@ -58,6 +61,9 @@ export function evalCell(v, body = 0) {
     return i === src.length && Number.isFinite(r) ? r : null;
   } catch (e) { return null; }
 }
+
+/** A Power Plant Table cell, B = the chassis' Body. */
+export const evalCell = (v, body = 0) => evalExpr(v, { B: body });
 
 /* ── The design options (p.115–118) ─────────────────────────────────────────────────────────────────────────── */
 
@@ -109,30 +115,29 @@ export function ratedValue(rating, flat, perLevel, table) {
   return num0(flat) + num0(perLevel) * Math.max(r, 0);
 }
 
-/**
- * A mod's Design Cost in this build. Build-relative costs multiply a basis: `dpBasis` "chassisDP" | "plantDP" |
- * "body" | "pilot", by `dpFactor` (× the rating when `dpPerLevel` is set as a flag of per-level scaling).
- */
+/** The variables a mod formula sees: its rating and the build's numbers. */
+const modVars = (m, build = {}) => ({ R: num0(m.rating), B: num0(build.body), P: num0(build.pilot), C: num0(build.chassisDP),
+  E: num0(build.plantDP), K: num0(build.engineCustomDP) });
+const formula = (f, m, build) => f ? (evalExpr(f, modVars(m, build)) ?? 0) : 0;
+
+/** A mod's Design Cost in this build: its rated value plus its build-relative formula (p.118–146). */
 export function modDesignDP(m = {}, build = {}) {
-  const basis = { chassisDP: build.chassisDP, plantDP: build.plantDP, body: build.body, pilot: build.pilot }[m.dpBasis];
-  if (m.dpBasis && basis != null) {
-    const per = num0(basis) * num0(m.dpFactor);
-    return num0(m.designPoints) + (m.dpBasisPerLevel ? per * Math.max(num0(m.rating), 0) : per);
-  }
-  return ratedValue(m.rating, m.designPoints, m.dpPerLevel, m.dpTable);
+  if (m.designable === false || m.designNuyen) return 0;
+  return ratedValue(m.rating, m.designPoints, m.dpPerLevel, m.dpTable) + formula(m.dpFormula, m, build);
 }
 
-/** The CF and Load a mod consumes (p.115, p.120). */
-export const modCf = (m = {}) => ratedValue(m.rating, m.cfConsumed, m.cfPerLevel, m.cfTable);
-export const modLoad = (m = {}) => ratedValue(m.rating, m.loadReduction, m.loadPerLevel, m.loadTable);
+/** The CF and Load a mod consumes (p.115, p.120): rated value plus formula. */
+export const modCf = (m = {}, build = {}) => ratedValue(m.rating, m.cfConsumed, m.cfPerLevel, m.cfTable) + formula(m.cfFormula, m, build);
+export const modLoad = (m = {}, build = {}) => ratedValue(m.rating, m.loadReduction, m.loadPerLevel, m.loadTable) + formula(m.loadFormula, m, build);
 
 /**
  * THE capacity rule (plan §1a "one capacity rule"): usable Cargo/Load = gross − the design options' consumption −
  * every installed mod's (design or customization). The data model and the Workshop both call this, so nothing is
  * counted twice or forgotten. `restricted`: CF still usable for gear/passengers but not for mods (living amenities).
+ * `build` gives formulas their Body etc.
  */
-export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad = 0, restrictedCf = 0 } = {}, mods = []) {
-  const modsCf = mods.reduce((s, m) => s + modCf(m), 0), modsLoad = mods.reduce((s, m) => s + modLoad(m), 0);
+export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad = 0, restrictedCf = 0 } = {}, mods = [], build = {}) {
+  const modsCf = mods.reduce((s, m) => s + modCf(m, build), 0), modsLoad = mods.reduce((s, m) => s + modLoad(m, build), 0);
   const cfUsed = num0(optionCf) + modsCf, loadUsed = num0(optionLoad) + modsLoad;
   const round = (n) => Math.round(n * 100) / 100;
   return { cargo: num0(cargo), load: num0(load), cfUsed: round(cfUsed), loadUsed: round(loadUsed),
@@ -329,8 +334,17 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   if (num0(design.gmDP)) add("GM-set design options", num0(design.gmDP), "p.117");
 
   // Mods installed in design: their Design Cost (p.113). Every installed mod counts against capacity.
-  const build = { chassisDP: chassisDP ?? 0, plantDP: plantDP ?? 0, body, pilot: num0(cell(ch.pilot)) };
-  for (const m of mods) if (m.design !== false) add(`${m.name}${num0(m.rating) ? ` ${m.rating}` : ""}`, modDesignDP(m, build), m.page ?? "p.118");
+  const ecDP = lines.filter(l => l.label.startsWith("Engine customization")).reduce((t, l) => t + l.dp, 0);
+  const build = { chassisDP: chassisDP ?? 0, plantDP: plantDP ?? 0, body, pilot: num0(cell(ch.pilot)), engineCustomDP: ecDP };
+  let designNuyen = 0, mountPoints = 0;
+  for (const m of mods) {
+    if (m.design === false) continue;
+    if (m.designable === false) problem("notDesignable", `${m.name} can't be added during design; install it afterwards as a customization.`, m.page ?? "p.118");
+    if (m.designNuyen) designNuyen += num0(m.cost);
+    mountPoints += num0(m.mountPoints);
+    add(`${m.name}${num0(m.rating) ? ` ${m.rating}` : ""}`, modDesignDP(m, build), m.page ?? "p.118");
+  }
+  if (mountPoints > body) problem("mountPoints", `Weapon mounts need ${mountPoints} points (hardpoint 2, firmpoint 1); a Body ${body} vehicle has ${body}.`, "p.131");
 
   // Bikes: Autonav above 2 only with rigger adaptation (p.109).
   if (cat === "bike") {
@@ -339,7 +353,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     if (auto && num0(auto.rating) > 2 && !rigger) problem("bikeAutonav", "A bike can't have Autonav above 2 without rigger adaptation.", "p.109");
   }
 
-  const cap = vehicleCapacity({ cargo, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods);
+  const cap = vehicleCapacity({ cargo, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods, build);
   if (cap.modCfFree < -1e-9) problem("cfOver", `The options and mods need ${cap.cfUsed} CF; the vehicle has ${cargo}.`, "p.115");
   if (cap.loadFree < -1e-9) problem("loadOver", `The options and mods weigh ${cap.loadUsed} kg; the vehicle's Load is ${load.value}.`, "p.115");
 
@@ -356,5 +370,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   return { valid: problems.length === 0, problems, dpLines: lines, dp, stats,
     limits: { speed: speed.max, acceleration: accel.max, load: load.max, cargo: cargoMax, economy: ecoMax },
     options: { cf: Math.round(optCf * 100) / 100, load: optLoad, restrictedCf },
-    budgets: cap, markUp, price: designPrice(dp, markUp.total, num0(design.markUp?.round)) };
+    budgets: cap, markUp, designNuyen,
+    // Design Points × Mark-Up × 100, plus what design-installed tires and the like cost in ¥ (p.115, p.146).
+    price: designPrice(dp, markUp.total, num0(design.markUp?.round)) + designNuyen };
 }
