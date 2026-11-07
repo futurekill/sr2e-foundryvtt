@@ -103,3 +103,35 @@ Direct checks against the commit passed for precision, DP, and maximum enforceme
 
 VERDICT: APPROVED
 **Release 1 approved in 3 rounds: 0.142.0.**
+
+## Code (release 2) round 1 — Codex (fresh session; ~728k input tokens)
+
+Found six issues:
+
+1. **Legacy Design tab drops formula-based costs.** [gen-vehicle-mods.mjs:219](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-rigger-2/tools/gen-vehicle-mods.mjs:219) replaces RAM’s numeric DP with `dpFormula`, but [sr2e-rules.mjs:954](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/sr2e-rules.mjs:954) ignores formulas. Rating-2 RAM contributes **0 DP**, versus 400 in the new engine, affecting both preview and Apply. **Fix:** route legacy aggregation through the formula-aware helpers with the selected build’s context.
+
+2. **BattleTac uses the chassis’ original Pilot.** [vehicle-design.mjs:338](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:338) ignores installed Pilot upgrades when binding `P`. A Sports Car with Remote-Control Interface, Pilot-3 programming, and FDDM returns valid while charging **0 DP for FDDM instead of 1,050** (p.136). **Fix:** resolve the build’s upgraded Pilot before evaluating Pilot-dependent costs.
+
+3. **Mechanical-arm enhancement costs stop increasing after 10.** [gen-vehicle-mods.mjs:280](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-rigger-2/tools/gen-vehicle-mods.mjs:280) supplies a ten-entry table that `ratedValue` clamps. Body 3 with enhancement 11 costs **100,750 instead of 110,750 DP**; Strength 20 remains within the printed Body × 10 limit (p.145). **Fix:** replace the finite table with a tiered per-point calculation and enforce the Strength limit.
+
+4. **Mod prerequisites and maxima are not enforced.** [vehicle-design.mjs:342](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:342) checks `designable` but lacks the printed restrictions. A Sports Car with Load increased to 100 accepts active thermal masking without engine customization, charging **0 DP**; RAM Rating 4 also returns valid despite its maximum of 3 (p.130). **Fix:** encode and enforce mod prerequisites and rating limits before pricing.
+
+5. **Existing customizations bypass the mount-point budget.** [vehicle-design.mjs:341](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:341) skips customization mounts before summing their points. A Body-3 Sports Car accepts two external hardpoints totaling **4 points** when one has `design:false`. **Fix:** count every installed mount before skipping customization DP.
+
+6. **Malformed formulas silently become free mods.** [vehicle-design.mjs:121](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:121) converts parse failure to zero. `dpFormula: "B x ("` passes the module validator’s character whitelist and produces a valid design with no mod charge. **Fix:** validate actual expression syntax and propagate evaluation failures into design problems.
+
+Read-only checks: module validation passed; all 162 listed chassis/plant pairings returned valid; shipped mod formulas parsed. Findings were reproduced directly, with relevant mod rules spot-checked against rendered pages.
+
+VERDICT: REVISE
+### Claude's response (fixes: system 429809e, module 7140b90)
+- **#1 accepted:** the legacy tab's aggregation goes through the engine's formula-aware pricing with a build from its
+  own tables (RAM 2 now adds 400 DP there: verified live, 575 DP).
+- **#2 accepted:** the build's Pilot = max(chassis, 1 with a Remote-Control Interface, advanced programming's rating).
+- **#3 accepted:** mechanical arms = B × 250 + R × 8,000, 10,000 per point from 4 (a formula, no cap), with
+  maxRating "B x 10 - B x B" (Strength ≤ 10 × Body, p.145).
+- **#4 accepted:** every mod carries its printed maximum (`maxRating` formula) and restrictions (tokens: only/not
+  category, engine, notDrone, minBody, needsEngineCustom, needsRemote, needsRiggerBase, notWith, notAircraftUnlessElectric),
+  read from p.120–146; the engine's `modProblems` reports them.
+- **#5 accepted:** every installed mount counts toward the Body limit.
+- **#6 accepted:** a formula that can't be evaluated is a design problem; the module validator checks real syntax
+  (tokens, balance, operand/operator order). Also found: the operator rewrite turned the x in "max" into ×; fixed.
