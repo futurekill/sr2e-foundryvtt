@@ -12660,6 +12660,37 @@ export function registerSR2EQuenchTests() {
       });
     });
 
+    // ── Vehicles (docs/PLAN-vehicle-builder.md) ──────────────────────────────────────────────────────────────────
+    quench.registerBatch("sr2e.vehicles", (context) => {
+      const { it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+
+      it("usable Cargo and Load: gross − design options − every mod (one capacity rule; Rigger 2 p.113, p.115)", async () => {
+        const v = await Actor.create({ name: "Quench Vehicle Capacity", type: "vehicle",
+          system: { cargo: 6, load: 70, design: { optionCf: 0.5, optionLoad: 5 } } });
+        made.push(v);
+        await v.createEmbeddedDocuments("Item", [
+          { name: "Ring Mount", type: "vehicle_mod", system: { cfConsumed: 1, loadReduction: 25 } },
+          { name: "Sensors", type: "vehicle_mod", system: { rating: 2, cfTable: [0.5, 1], loadReduction: 10 } }]);
+        assert.deepEqual([v.system.cargoFree, v.system.loadFree], [6 - 0.5 - 1 - 1, 70 - 5 - 25 - 10]);
+        await v.items.getName("Sensors").delete();
+        assert.deepEqual([v.system.cargoFree, v.system.loadFree], [4.5, 40], "a removed mod gives its space back");
+      });
+
+      it("the Rigger 2 stat line saves and reads back on any vehicle", async () => {
+        const v = await Actor.create({ name: "Quench Vehicle Statline", type: "vehicle", system: {
+          handlingOffRoad: 8, stallSpeed: 40, economy: 6, economyUnit: "km/liter", fuelType: "gasoline", fuelSize: 60,
+          fuelUnit: "liters", entryPoints: "2+1t", ltProfile: "VSTOL", designPointValue: 1214 } });
+        made.push(v);
+        assert.deepEqual([v.system.handlingOffRoad, v.system.stallSpeed, v.system.fuelSize, v.system.entryPoints, v.system.design.version],
+          [8, 40, 60, "2+1t", 1], "a vehicle without a Workshop design stays version 1");
+        const plain = await Actor.create({ name: "Quench Vehicle Plain", type: "vehicle" });
+        made.push(plain);
+        assert.isNull(plain.system.handlingOffRoad, "one Handling rating unless it has an off-road one");
+      });
+    }, { displayName: "SR2E: Vehicles" });
+
     quench.registerBatch("sr2e.vr2-options", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [], tokens = [];

@@ -7,6 +7,7 @@ import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs"
 import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
+import { vehicleCapacity } from "../rules/vehicle-design.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -2029,8 +2030,32 @@ export class VehicleData extends SR2EDataModel {
           fuel:         new fields.NumberField({ integer: true, initial: 0, min: 0 })
         }),
         modDP:  new fields.NumberField({ initial: 0, min: 0 }),
-        markUp: new fields.NumberField({ initial: 1, min: 0 })
-      })
+        markUp: new fields.NumberField({ initial: 1, min: 0 }),
+        // Version 2 (docs/PLAN-vehicle-builder.md): the Workshop's choices for module/rules/vehicle-design.mjs.
+        // Version 1 = the old Design tab's fields above, never repriced on load.
+        version: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
+        choices: new fields.ObjectField({ initial: {} }),
+        // The design options' fixed consumption (fuel tank, hydrofoil, amenities, medical gear), for the capacity rule.
+        optionCf: new fields.NumberField({ initial: 0, min: 0 }),
+        optionLoad: new fields.NumberField({ initial: 0, min: 0 }),
+        restrictedCf: new fields.NumberField({ initial: 0, min: 0 })
+      }),
+      // The Rigger 2 stat line (p.148 format) beyond the ratings above. All additive: nothing existing changes meaning.
+      handlingOffRoad: new fields.NumberField({ integer: true, initial: null, nullable: true, min: 0 }),
+      stallSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      economy: new fields.NumberField({ initial: 0, min: 0 }),
+      economyUnit: new fields.StringField({ initial: "", blank: true }),
+      economyIdle: new fields.StringField({ initial: "", blank: true }),
+      fuelType: new fields.StringField({ initial: "", blank: true }),
+      fuelSize: new fields.NumberField({ initial: 0, min: 0 }),
+      fuelUnit: new fields.StringField({ initial: "", blank: true }),
+      entryPoints: new fields.StringField({ initial: "", blank: true }),
+      ltProfile: new fields.StringField({ initial: "", blank: true }),
+      setupTime: new fields.StringField({ initial: "", blank: true }),
+      otherFeatures: new fields.StringField({ initial: "", blank: true }),
+      seatingExtra: new fields.NumberField({ initial: 0, min: 0 }),
+      designPointValue: new fields.NumberField({ initial: 0, min: 0 }),
+      streetIndex: new fields.NumberField({ initial: 0, min: 0 })
     };
   }
 
@@ -2054,6 +2079,13 @@ export class VehicleData extends SR2EDataModel {
     }
     this.modArmor = modArmor;
     this.modSignature = modSignature;
+    // Usable Cargo and Load: gross − the design options − EVERY mod on the vehicle (the one capacity rule,
+    // module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
+    const mods = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod").map(i => i.system);
+    const cap = vehicleCapacity({ cargo: this.cargo, load: this.load, optionCf: this.design.optionCf,
+      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf }, mods);
+    this.cargoFree = cap.cargoFree;
+    this.loadFree = cap.loadFree;
   }
 
   /** Effective Armor = base + armor-mod Armor Points. */

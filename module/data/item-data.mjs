@@ -1387,6 +1387,13 @@ export class VehicleModData extends SR2EDataModel {
       loadReduction: new fields.NumberField({ initial: 0, min: 0 }),
       loadPerLevel:  new fields.NumberField({ initial: 0, min: 0 }),
       loadTable: new fields.ArrayField(new fields.NumberField({ min: 0 }), { initial: [] }),
+      // Build-relative Design Cost (Rigger 2 p.118–146): designPoints + basis × dpFactor (× rating if per level),
+      // the basis being the chassis' or power plant's DP, the Body or the Pilot (module/rules/vehicle-design.mjs).
+      dpBasis: new fields.StringField({ initial: "", blank: true, choices: { "": "—", chassisDP: "Chassis DP", plantDP: "Power plant DP", body: "Body", pilot: "Pilot" } }),
+      dpFactor: new fields.NumberField({ initial: 0, min: 0 }),
+      dpBasisPerLevel: new fields.BooleanField({ initial: false }),
+      // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
+      modKey: new fields.StringField({ initial: "", blank: true }),
       installed: new fields.BooleanField({ initial: false }),
       notes: new fields.StringField({ initial: "" })
     };

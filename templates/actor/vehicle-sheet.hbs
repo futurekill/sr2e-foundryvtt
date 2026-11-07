@@ -23,12 +23,20 @@
     <legend>Vehicle Statistics</legend>
     <div class="stat-grid">
       <div class="stat-item">
-        <label>Handling</label>
+        <label title="On-road (or the only rating). Ground vehicles also have an off-road rating (Rigger 2 p.109).">Handling</label>
         <input type="number" name="system.handling" value="{{system.handling}}" />
+      </div>
+      <div class="stat-item">
+        <label title="Off-road Handling, for bikes and cars (Rigger 2 p.109). Blank for vehicles with one rating.">Off-road</label>
+        <input type="number" name="system.handlingOffRoad" value="{{system.handlingOffRoad}}" placeholder="—" />
       </div>
       <div class="stat-item">
         <label>Speed</label>
         <input type="number" name="system.speed" value="{{system.speed}}" />
+      </div>
+      <div class="stat-item">
+        <label title="Fixed-wing aircraft: the stall speed (Rigger 2 p.117). 0 for everything else.">Stall</label>
+        <input type="number" name="system.stallSpeed" value="{{system.stallSpeed}}" />
       </div>
       <div class="stat-item">
         <label>Accel</label>
@@ -60,6 +68,16 @@
         <label>Autonav</label>
         <input type="number" name="system.autonav" value="{{system.autonav}}" />
       </div>
+      <div class="stat-item">
+        <label title="Cargo Factor. The number after the arrow is what's still free once design options and every modification take their share (Rigger 2 p.113, p.115).">Cargo (CF)</label>
+        <input type="number" name="system.cargo" value="{{system.cargo}}" step="0.5" />
+        <span class="stat-effective" title="Free Cargo Factor">→ {{system.cargoFree}} free</span>
+      </div>
+      <div class="stat-item">
+        <label title="Load in kg. The number after the arrow is what's still free (Rigger 2 p.113, p.115).">Load (kg)</label>
+        <input type="number" name="system.load" value="{{system.load}}" />
+        <span class="stat-effective" title="Free Load">→ {{system.loadFree}} free</span>
+      </div>
     </div>
   </fieldset>
 
@@ -80,6 +98,24 @@
         <label>Cost:</label>
         <input type="number" name="system.cost" value="{{system.cost}}" />
       </div>
+      <details class="vehicle-statline">
+        <summary title="The rest of the Rigger 2 stat line (p.148 format)">More (entry, fuel, economy…)</summary>
+        <div class="form-group"><label>Entry points:</label><input type="text" name="system.entryPoints" value="{{system.entryPoints}}" placeholder="e.g. 2+1t" /></div>
+        <div class="form-group"><label>Fuel:</label>
+          <input type="text" name="system.fuelType" value="{{system.fuelType}}" placeholder="gasoline" style="max-width:7em" />
+          <input type="number" name="system.fuelSize" value="{{system.fuelSize}}" style="max-width:5em" />
+          <input type="text" name="system.fuelUnit" value="{{system.fuelUnit}}" placeholder="liters" style="max-width:5em" /></div>
+        <div class="form-group"><label>Economy:</label>
+          <input type="number" name="system.economy" value="{{system.economy}}" step="0.01" style="max-width:5em" />
+          <input type="text" name="system.economyUnit" value="{{system.economyUnit}}" placeholder="km/liter" style="max-width:6em" />
+          <input type="text" name="system.economyIdle" value="{{system.economyIdle}}" placeholder="idle" style="max-width:8em" /></div>
+        <div class="form-group"><label title="Landing/takeoff profile (aircraft)">L/T profile:</label><input type="text" name="system.ltProfile" value="{{system.ltProfile}}" /></div>
+        <div class="form-group"><label title="Drones: setup/breakdown time">Setup:</label><input type="text" name="system.setupTime" value="{{system.setupTime}}" /></div>
+        <div class="form-group"><label>Availability:</label><input type="text" name="system.availability" value="{{system.availability}}" /></div>
+        <div class="form-group"><label>Street Index:</label><input type="number" name="system.streetIndex" value="{{system.streetIndex}}" step="0.05" /></div>
+        <div class="form-group"><label title="The vehicle's Design Point Value (Rigger 2 vehicle list)">Design Points:</label><input type="number" name="system.designPointValue" value="{{system.designPointValue}}" /></div>
+        <div class="form-group"><label>Other features:</label><input type="text" name="system.otherFeatures" value="{{system.otherFeatures}}" /></div>
+      </details>
     </fieldset>
   </div>
 
