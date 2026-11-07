@@ -1041,6 +1041,24 @@ SR2E.registerVehicleDesignData = function registerVehicleDesignData({ chassis = 
   return SR2E.vehicleDesign;
 };
 
+// The Rigger 2 design tables for the design engine (module/rules/vehicle-design.mjs; docs/PLAN-vehicle-builder.md),
+// keyed by each row's `key`: chassis (p.170–171), power plants (p.167–169, every column, each listing the chassis it
+// fits), the Fuel Tank Capacity Table (p.116) and the Mark-Up Factors Table (p.114). Registered by the content module.
+SR2E.vehicleDesignTables = { chassis: {}, powerPlants: {}, fuel: {}, markUp: {} };
+
+/**
+ * Register the design tables (arrays of rows, or keyed objects). Later wins per key.
+ * @param {{chassis?:object[]|object, powerPlants?:object[]|object, fuel?:object, markUp?:object}} data
+ */
+SR2E.registerVehicleDesignTables = function registerVehicleDesignTables({ chassis = [], powerPlants = [], fuel = {}, markUp = {} } = {}) {
+  const keyed = (rows) => Array.isArray(rows) ? Object.fromEntries(rows.map(r => [r.key, r])) : rows;
+  Object.assign(SR2E.vehicleDesignTables.chassis, keyed(chassis));
+  Object.assign(SR2E.vehicleDesignTables.powerPlants, keyed(powerPlants));
+  Object.assign(SR2E.vehicleDesignTables.fuel, fuel);
+  Object.assign(SR2E.vehicleDesignTables.markUp, markUp);
+  return SR2E.vehicleDesignTables;
+};
+
 // Buyable ratings on the Design tab, with their per-point Design-Point cost
 // (mirrors DESIGN_OPTION_COSTS in module/rules; p.115).
 SR2E.vehicleDesignRatings = {

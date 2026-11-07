@@ -205,7 +205,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   if (!design.powerPlantKey) problem("noPlant", "Pick a power plant.", "p.112");
   else if (!pp) problem("unknownPlant", "That power plant isn't in the loaded tables.", "p.167");
   if (ch && pp && Array.isArray(pp.chassis) && !pp.chassis.includes(design.chassisKey)) {
-    problem("plantNotForChassis", `The Power Plant Table doesn't list ${pp.name} for a ${ch.name}.`, "p.112");
+    problem("plantNotForChassis", `The Power Plant Table doesn't list ${pp.name ?? pp.label} for a ${ch.name}.`, "p.112");
   }
   if (!ch || !pp) return { valid: false, problems, dpLines: lines, dp: lines.reduce((s, l) => s + l.dp, 0), stats: {}, budgets: null, markUp: null, price: 0 };
 
@@ -213,9 +213,9 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   const cell = (v) => evalCell(v, body);
   const chassisDP = cell(ch.dp), plantDP = cell(pp.dp);
   if (chassisDP == null) problem("chassisDP", `${ch.name}'s Design Points aren't readable in the table.`, ch.page);
-  if (plantDP == null) problem("plantDP", `${pp.name}'s Design Points aren't readable in the table.`, pp.page);
+  if (plantDP == null) problem("plantDP", `${pp.name ?? pp.label}'s Design Points aren't readable in the table.`, pp.page);
   add(`Chassis: ${ch.name}`, chassisDP ?? 0, ch.page ?? "p.170");
-  add(`Power plant: ${pp.name}`, plantDP ?? 0, pp.page ?? "p.167");
+  add(`Power plant: ${pp.name ?? pp.label}`, plantDP ?? 0, pp.page ?? "p.167");
 
   const sm = !!design.smartMaterials;
   if (sm) add("Smart materials", OPTION_DP.smartMaterials, "p.117");
@@ -305,7 +305,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     add(design.takeoff === "stol" ? "STOL" : "VSTOL", OPTION_DP[design.takeoff], "p.116");
   }
   if (design.hydrofoil) {
-    if (cat !== "boat" || ch.subtype === "skiff" || ch.subtype === "sail") problem("hydrofoilCategory", "Hydrofoils fit motorboats only, never skiffs.", "p.116");
+    if (cat !== "boat" || ch.subtype === "skiff" || pp.engine === "sail") problem("hydrofoilCategory", "Hydrofoils fit motorboats only, never skiffs or sailboats.", "p.116");
     add("Hydrofoil", OPTION_DP.hydrofoil, "p.116"); optCf += OPTION_USE.hydrofoil.cf;
   }
   const am = design.amenities ?? {};
@@ -349,8 +349,8 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     handling, body, armor: num0(cell(ch.armor)), speed: speed.value, stallSpeed: cell(pp.speed?.stall),
     acceleration: accel.value, load: load.value, cargo, signature,
     autonav: cell(ch.autonav), pilot: cell(ch.pilot), sensor: cell(ch.sensor),
-    seating: ch.seating ?? "", seatingExtra, entryPoints: ch.entry ?? "", setupTime: ch.setup ?? "", ltProfile: design.takeoff ? design.takeoff.toUpperCase() : (ch.ltProfile ?? ""),
-    economy, economyUnit: pp.economy?.unit ?? "", economyIdle: pp.economy?.idle ?? "", fuelType: pp.engine, fuelSize: fuel, fuelUnit: pp.fuel?.unit ?? "",
+    seating: ch.seating ?? "", seatingExtra, entryPoints: ch.entry ?? "", setupTime: ch.setup ?? "", ltProfile: design.takeoff ? design.takeoff.toUpperCase() : (ch.lt ?? ch.ltProfile ?? ""),
+    economy, economyUnit: pp.economy?.unit ?? "", economyIdle: typeof pp.economy?.idle === "object" ? [pp.economy.idle.start, pp.economy.idle.max].filter(Boolean).join(" / ") : (pp.economy?.idle ?? ""), fuelType: pp.engine, fuelSize: fuel, fuelUnit: pp.fuel?.unit ?? "",
     accessories: ch.accessories ?? []
   };
   return { valid: problems.length === 0, problems, dpLines: lines, dp, stats,

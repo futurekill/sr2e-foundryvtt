@@ -213,3 +213,38 @@ describe("one capacity rule and build-relative mod costs", () => {
     expect(modDesignDP({ dpBasis: "pilot", dpFactor: 350 }, build)).toBe(700);
   });
 });
+
+// The real, re-transcribed Rigger 2 tables (../sr2e-rigger-2/tools/data, docs/DESIGN-DATA-CHECK.md there), when that
+// module is checked out next to the system (skipped in the system's own CI).
+import { existsSync, readFileSync } from "node:fs";
+const R2 = new URL("../../sr2e-rigger-2/tools/data/", import.meta.url);
+const haveR2 = existsSync(new URL("design-chassis.json", R2));
+describe.skipIf(!haveR2)("the transcribed Rigger 2 tables", () => {
+  const load = (f) => JSON.parse(readFileSync(new URL(f, R2), "utf8"));
+  const keyed = (rows) => Object.fromEntries(rows.map(r => [r.key, r]));
+  const rules = haveR2 ? load("design-rules.json") : {};
+  const real = haveR2 ? { chassis: keyed(load("design-chassis.json").chassis), powerPlants: keyed(load("design-powerplants.json").powerPlants),
+    fuel: rules.fuel, markUp: rules.markUp } : {};
+  it("every chassis × every power plant the table lists for it computes (Body formulas included)", () => {
+    let n = 0; const bad = [];
+    for (const p of Object.values(real.powerPlants)) for (const c of p.chassis) {
+      const r = designVehicle({ chassisKey: c, powerPlantKey: p.key }, real);
+      if (r.problems.length || !(Number.isFinite(r.dp) && r.dp > 0)) bad.push(`${c} + ${p.key}: ${r.problems.map(x => x.code).join(",")} dp=${r.dp}`);
+      n++;
+    }
+    expect(bad).toEqual([]);
+    expect(n).toBeGreaterThan(150);
+  });
+  it("the worked examples on the real rows: Rich 599 before Load/Handling; Steffi 108 with her mods", () => {
+    const rich = designVehicle({ chassisKey: "sportsCar", powerPlantKey: "gasoline-cars-sports-car", smartMaterials: true, acceleration: 11, speed: 151 }, real);
+    expect([rich.dp, rich.stats.speed, rich.stats.acceleration]).toEqual([599, 311, 21]);
+    const steffi = designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "gasoline-cars-subcompact-and-sand-buggy", handling: 1,
+      handlingTrack: "offRoad", acceleration: 2, cargo: 2, load: 30, markUp: { multipliers: { security: 2 } } }, real,
+      { mods: [{ name: "Electronics Port", designPoints: 10, cfConsumed: 0.5 }, { name: "Ring Mount", designPoints: 10, cfConsumed: 1, loadReduction: 25 }, { name: "Pintle Mount", designPoints: 1 }] });
+    expect([steffi.dp, steffi.price, steffi.stats.economy, steffi.stats.fuelSize]).toEqual([108, 21600, 8, 40]);
+  });
+  it("a Body-formula drone: a tracked electric Small Crawler (Body 1)", () => {
+    const r = designVehicle({ chassisKey: "crawlerSmall", powerPlantKey: "electric-tracked-drone" }, real);
+    expect([r.dp, r.stats.signature, r.limits.load, r.stats.fuelSize]).toEqual([115 + 5, 8, 500, 40]);
+  });
+});
