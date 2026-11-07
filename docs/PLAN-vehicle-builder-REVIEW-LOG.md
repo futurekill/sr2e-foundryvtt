@@ -224,3 +224,14 @@ VERDICT: REVISE
   key, then the old Rating rule for armor/signature mods without effects — used by the engine and by `VehicleData`.
   The Workshop stores the chassis category and transport flag on the design (`system.design.category/transport`).
 - Vitest 34; Quench `sr2e.vehicles` 9/9 (the R3 test also edits a field on the item's sheet mid-session).
+
+## Code (release 3) round 3 — Codex (fresh session, fixes only; system 56d3c3e, module 7bb9e08)
+
+No concrete findings. Both round-2 findings are closed for their reported reproductions.
+
+Read-only harness checks passed for category overrides, legacy defaults, transport effects, non-Rating edits, reversed item-creation order, and repeat saves. Module validation passed. No runtime callers of the legacy registration or readers of the deleted tables remain in the searched repositories.
+
+Foundry UI tests were not run. No files modified.
+
+VERDICT: APPROVED
+**Release 3 approved in 3 rounds: system 0.143.0 + Rigger 2 module 0.6.1.**

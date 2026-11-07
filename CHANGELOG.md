@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.143.0 — 2026-11-07
 
 ### Added
 - **The Vehicle Workshop** (vehicle builder release 3, docs/PLAN-vehicle-builder.md): a guided window that designs a

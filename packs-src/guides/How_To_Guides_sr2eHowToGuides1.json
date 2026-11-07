@@ -20,6 +20,31 @@
   },
   "pages": [
     {
+      "_id": "3ba50808f81a3b66",
+      "name": "Design a custom vehicle",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a rigger (or anyone) designs their own vehicle by Rigger 2&#39;s rules (pp.108–146) and gets it on their\ncharacter.</p>\n<p><img src=\"systems/sr2e/assets/guides/workshop.gif\" alt=\"The Workshop: pick the sports car chassis and engine, buy Speed, Acceleration and Load, add drive-by-wire and armor, check the review and create the vehicle\"></p>\n<p><strong>GM, once:</strong> turn on the <strong>Rigger 2</strong> module (it brings the design tables and the modifications). To let players\nbuild their own, give them <strong>Create New Actors</strong> in <strong>Settings → Configure Permissions</strong>.</p>\n<p><strong>The designer</strong></p>\n<ol>\n<li><strong>Open the Workshop.</strong> On your character&#39;s <strong>Vehicles</strong> tab click <strong>Design a vehicle</strong> (the new vehicle is linked\nto you), or use <strong>Vehicle Workshop</strong> at the top of the Actors sidebar.</li>\n<li><strong>Chassis.</strong> Pick a category (bikes, cars, boats, aircraft, drones…), then a chassis. Each card shows its\nHandling, Body, Cargo and Design Points.</li>\n<li><strong>Power plant.</strong> Only the engines the book lists for that chassis are offered, grouped by fuel.</li>\n<li><strong>Design options.</strong> Buy Speed, Acceleration, Load, Cargo, better Handling, Economy, fuel, Signature, smart\nmaterials, amenities, engine customization and so on. <strong>max</strong> buys up to the plant&#39;s maximum. A + that&#39;s greyed\nout has hit a limit (hover the row for the rule).</li>\n<li><strong>Modifications.</strong> Search the catalog and click + to add. A row you can&#39;t add says why (wrong vehicle, needs\nanother mod first…). Set ratings in the Installed table. Mods that change stats (turbocharging, drive-by-wire,\nsuspension, armor…) show in the summary. Drive-by-wire asks how to split its one-time +10%.</li>\n<li><strong>Price.</strong> Set the Mark-Up (luxury, security, military, unusual features). The price is Design Points × Mark-Up\n× 100¥.</li>\n<li><strong>Review</strong>, name it at the top, and click <strong>Create vehicle</strong>.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Anything wrong with the design (over the Load, over a maximum, a mod that doesn&#39;t fit) is listed in red in the\nsummary, and the vehicle can&#39;t be saved until it&#39;s fixed.</li>\n<li>To change a design later, open the vehicle&#39;s <strong>Design</strong> tab → <strong>Open the Workshop</strong>. Mods added on the sheet after\nthe vehicle was built are <em>customizations</em>: they take space but cost no Design Points, and the Workshop leaves them\nalone.</li>\n<li>Redesigning a vehicle that wasn&#39;t built in the Workshop (one from a compendium) asks first and shows what changes.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -34,7 +59,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 100000,
+      "sort": 200000,
       "ownership": {
         "default": -1
       },
@@ -59,7 +84,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
@@ -84,7 +109,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
@@ -109,7 +134,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
