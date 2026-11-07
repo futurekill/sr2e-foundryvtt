@@ -1058,3 +1058,9 @@ If those five all work, the core loop is healthy.
 - [ ] A bought program (paid): tick *Object code only* → 25% refunded; add an option on the sheet → the difference
       is charged.
 
+## Vehicles (`sr2e.vehicles` batch; docs/PLAN-vehicle-builder.md)
+- [ ] A vehicle with Cargo 6 / Load 70, add a Ring Mount (1 CF, 25 kg) and an Electronics Port (0.5 CF): the sheet
+      shows "→ 4.5 free" and "→ 45 free". Delete the port: 5 free.
+- [ ] Off-road Handling, Stall and the *More* fields (entry, fuel, economy, L/T, setup, Availability, Street Index,
+      Design Points, other features) save and reload.
+

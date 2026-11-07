@@ -190,6 +190,14 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   const problems = [], lines = [];
   const add = (label, dp, page) => { if (dp) lines.push({ label, dp: Math.round(dp * 100) / 100, page }); };
   const problem = (code, msg, page) => problems.push({ code, msg, page });
+  // Every count and level is a whole number (a half level would grant half an effect for no cost).
+  for (const [k, v] of [["speed", design.speed], ["acceleration", design.acceleration], ["load", design.load],
+    ["handling", design.handling], ["cargo", design.cargo], ["economySteps", design.economySteps],
+    ["fuelSteps", design.fuelSteps], ["signature", design.signature], ["structuralAgility", design.structuralAgility],
+    ["medicalPatients", design.medicalPatients], ["amenities.occupants", design.amenities?.occupants],
+    ...Object.entries(design.engineCustom ?? {}).map(([r, l]) => [`engineCustom.${r}`, l])]) {
+    if (v != null && v !== "" && !Number.isInteger(Number(v))) problem("notWhole", `${k} must be a whole number.`, "p.115");
+  }
   const ch = tables.chassis?.[design.chassisKey] ?? null;
   const pp = tables.powerPlants?.[design.powerPlantKey] ?? null;
   if (!design.chassisKey) problem("noChassis", "Pick a chassis.", "p.109");
@@ -265,7 +273,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   const ecoStart = cell(pp.economy?.start), ecoMax = cell(pp.economy?.max), steps = Math.max(0, num0(design.economySteps));
   let economy = ecoStart;
   if (steps && ecoStart != null) {
-    economy = Math.round(ecoStart * 1.05 ** steps * 100) / 100;
+    economy = Math.round(ecoStart * 1.05 ** steps * 1e6) / 1e6;   // full precision (0.05 → 0.0525); display rounds
     add(`Economy +${steps * 5}%`, steps * OPTION_DP.economy, "p.116");
     if (ecoMax != null && economy > ecoMax + 1e-9) problem("economyOverMax", `Economy can't exceed the plant's maximum ${ecoMax}.`, "p.116");
   }
@@ -307,7 +315,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     add(`Living amenities (${am.level}, ${occ} incl. driver)`, flat + per * occ, "p.117");
     optCf += OPTION_USE.amenities.cf; optLoad += OPTION_USE.amenities.load; restrictedCf += OPTION_USE.amenities.usableCf;
   }
-  const patients = Math.max(0, Math.min(2, num0(design.medicalPatients)));
+  const patients = Math.max(0, num0(design.medicalPatients));   // one, two "and so on" (p.117)
   if (patients) {
     add(`Medical-treatment gear (${patients} patient${patients === 1 ? "" : "s"})`, OPTION_DP.medicalBase + OPTION_DP.medicalPerPatient * patients, "p.117");
     optCf += OPTION_USE.medical.cf; optLoad += OPTION_USE.medical.load; seatingExtra += 2.5 * patients;

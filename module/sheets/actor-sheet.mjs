@@ -440,7 +440,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       input.addEventListener("change", (event) => {
         event.stopPropagation();
         let value = input.value;
-        if (input.type === "number")   value = parseFloat(value) || 0;
+        // `data-nullable`: an emptied box means "no rating" (e.g. off-road Handling), not 0.
+        if (input.type === "number")   value = input.dataset.nullable !== undefined && value.trim() === "" ? null : parseFloat(value) || 0;
         if (input.type === "checkbox") value = input.checked;
         this.document.update({ [input.name]: value });
       });

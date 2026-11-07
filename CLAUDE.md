@@ -207,6 +207,11 @@ players' clients create `request`s. Monitors and IC are changed only there. Unde
 Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: decker attackers use
 `deck:<uuid>@<conn>` keys — parse with `parseAttackerKey`) are done, and so are utility options and programming
 (part 5b, docs/PLAN-vr2-part5b.md: act through `activePrograms`/`spendUse`, read counts via `attackSuccesses`).
+Vehicle design (docs/PLAN-vehicle-builder.md, in progress): `module/rules/vehicle-design.mjs` is the ONE place the
+Rigger 2 design rules live (pure; `designVehicle` + the shared `vehicleCapacity` the data model also calls: usable
+cargo/load = gross − design options − every mod). Vehicles store GROSS Cargo/Load. Rulings: Acceleration 2 DP/pt; the
+Handling floor binds the final rating incl. Smart Materials; CF fractional. The old Design tab (`resolveVehicleDesign`)
+stays until the Workshop replaces it.
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the

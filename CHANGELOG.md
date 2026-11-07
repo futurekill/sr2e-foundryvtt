@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Vehicles: the full Rigger 2 stat line** (Rigger 2 p.148 format) on every vehicle sheet: an **off-road Handling**
+  for bikes and cars, the **stall speed** of fixed-wing aircraft, and under *More*: entry points, fuel (type, size),
+  economy (with its idle rate), landing/takeoff profile, setup time, Availability, Street Index, Design Points and
+  other features.
+- **Free Cargo and Load:** the sheet shows how much Cargo Factor and Load are still free once the design options and
+  every installed modification take their share (Rigger 2 p.113, p.115).
+- **A new vehicle design engine** (the first part of the vehicle builder overhaul, docs/PLAN-vehicle-builder.md):
+  the Rigger 2 design rules exactly as printed (p.108–120), with an itemized, page-referenced Design Point
+  breakdown. It isn't wired to a screen yet: the Workshop that uses it comes in a later release, and the current
+  Design tab works as before until then.
+
 ## 0.141.2 — 2026-11-06
 
 ### Fixed

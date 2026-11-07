@@ -162,6 +162,18 @@ describe("the other options", () => {
     expect(r.dpLines.find(l => /Medical/.test(l.label)).dp).toBe(560);
     expect(r.stats.seatingExtra).toBe(5);
   });
+  it("medical gear takes any number of patients (\"and so on\", p.117): 3 → 640 DP, +7.5 seats", () => {
+    const r = designVehicle({ ...base, medicalPatients: 3 }, tables);
+    expect([r.dpLines.find(l => /Medical/.test(l.label)).dp, r.stats.seatingExtra]).toEqual([640, 7.5]);
+  });
+  it("economy keeps its precision (0.05 + 5% = 0.0525)", () => {
+    const t = { ...tables, powerPlants: { ...tables.powerPlants, tiny: { ...tables.powerPlants.gasBuggy, chassis: ["sandBuggy"], economy: { start: 0.05, max: 0.25 } } } };
+    expect(designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "tiny", economySteps: 1 }, t).stats.economy).toBe(0.0525);
+  });
+  it("half levels and fractional steps are refused, never free", () => {
+    expect(designVehicle({ ...base, engineCustom: { speed: 0.5 } }, tables).problems.map(p => p.code)).toContain("notWhole");
+    expect(designVehicle({ ...base, economySteps: 1.5 }, tables).problems.map(p => p.code)).toContain("notWhole");
+  });
   it("structural agility needs a drive-by-wire level at least as high (p.118)", () => {
     expect(designVehicle({ ...base, structuralAgility: 2 }, tables, { mods: [{ name: "Drive-by-Wire", rating: 1 }] })
       .problems.map(p => p.code)).toContain("agilityNeedsDbw");

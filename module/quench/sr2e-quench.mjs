@@ -12689,6 +12689,19 @@ export function registerSR2EQuenchTests() {
         made.push(plain);
         assert.isNull(plain.system.handlingOffRoad, "one Handling rating unless it has an off-road one");
       });
+
+      it("emptying the Off-road box on the sheet saves no rating (null), not 0", async function () {
+        this.timeout(10000);
+        const v = await Actor.create({ name: "Quench Vehicle Offroad", type: "vehicle", system: { handlingOffRoad: 6 } });
+        made.push(v);
+        await v.sheet.render(true);
+        for (let i = 0; i < 40 && !v.sheet.rendered; i++) await new Promise(r => setTimeout(r, 50));
+        const input = v.sheet.element.querySelector('input[name="system.handlingOffRoad"]');
+        input.value = ""; input.dispatchEvent(new Event("change"));
+        for (let i = 0; i < 40 && v.system.handlingOffRoad !== null; i++) await new Promise(r => setTimeout(r, 50));
+        assert.isNull(v.system.handlingOffRoad);
+        await v.sheet.close();
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {
