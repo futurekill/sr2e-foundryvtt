@@ -126,7 +126,7 @@ describe("the other options", () => {
   const base = { chassisKey: "sandBuggy", powerPlantKey: "gasBuggy" };
   it("Economy: 5 DP per 5% step, compounding on the initial rating, capped at the plant's maximum (p.116)", () => {
     const r = designVehicle({ ...base, economySteps: 2 }, tables);
-    expect(r.stats.economy).toBe(8.82);
+    expect(r.stats.economy).toBeCloseTo(8.82, 10);
     expect(r.dp).toBe(45 + 10);
     expect(designVehicle({ ...base, economySteps: 9 }, tables).problems.map(p => p.code)).toContain("economyOverMax");
   });
@@ -168,7 +168,8 @@ describe("the other options", () => {
   });
   it("economy keeps its precision (0.05 + 5% = 0.0525)", () => {
     const t = { ...tables, powerPlants: { ...tables.powerPlants, tiny: { ...tables.powerPlants.gasBuggy, chassis: ["sandBuggy"], economy: { start: 0.05, max: 0.25 } } } };
-    expect(designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "tiny", economySteps: 1 }, t).stats.economy).toBe(0.0525);
+    expect(designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "tiny", economySteps: 1 }, t).stats.economy).toBeCloseTo(0.0525, 12);
+    expect(designVehicle({ chassisKey: "sandBuggy", powerPlantKey: "tiny", economySteps: 3 }, t).stats.economy).toBeCloseTo(0.05788125, 12);
   });
   it("half levels and fractional steps are refused, never free", () => {
     expect(designVehicle({ ...base, engineCustom: { speed: 0.5 } }, tables).problems.map(p => p.code)).toContain("notWhole");

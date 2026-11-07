@@ -273,7 +273,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   const ecoStart = cell(pp.economy?.start), ecoMax = cell(pp.economy?.max), steps = Math.max(0, num0(design.economySteps));
   let economy = ecoStart;
   if (steps && ecoStart != null) {
-    economy = Math.round(ecoStart * 1.05 ** steps * 1e6) / 1e6;   // full precision (0.05 → 0.0525); display rounds
+    economy = ecoStart * 1.05 ** steps;   // full precision (0.05 → 0.0525); only display rounds
     add(`Economy +${steps * 5}%`, steps * OPTION_DP.economy, "p.116");
     if (ecoMax != null && economy > ecoMax + 1e-9) problem("economyOverMax", `Economy can't exceed the plant's maximum ${ecoMax}.`, "p.116");
   }
