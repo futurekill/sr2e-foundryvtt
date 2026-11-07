@@ -68,3 +68,19 @@ VERDICT: REVISE
 
 VERDICT: APPROVED
 **Plan approved in 4 rounds.**
+
+## Code (release 1) round 1 — Codex (fresh session; ~396k input tokens)
+
+- [module/rules/vehicle-design.mjs:310](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:310): Medical capacity silently caps at two patients; R2 p.117 explicitly allows further patients (“and so on”). Three patients incorrectly cost 560 DP and add 5 seats instead of 640 DP and 7.5 seats. **Fix:** remove the two-patient clamp.
+
+- [module/rules/vehicle-design.mjs:268](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:268): Economy rounds prematurely: the methane small rotary-wing UAV’s 0.05 economy (p.167) remains 0.05 after buying a 5% improvement, instead of 0.0525. **Fix:** retain calculation precision and round only for display.
+
+- [module/rules/vehicle-design.mjs:225](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:225): Fractional customization levels grant free performance: `engineCustom.speed: 0.5` adds 15 Speed, charges zero DP because the cost function floors levels, and returns valid. **Fix:** reject noninteger customization levels before calculating effects and costs.
+
+- [templates/actor/vehicle-sheet.hbs:31](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/templates/actor/vehicle-sheet.hbs:31): Clearing Off-road cannot save the documented blank/null state: the existing change handler converts empty numeric inputs to `0`. **Fix:** save `null` when this nullable field is cleared.
+
+VERDICT: REVISE
+### Claude's response (fix dbb5be3)
+- **All four accepted:** no patient cap ("and so on", p.117); economy keeps full precision; every count/level must be
+  whole (`notWhole` problem); `data-nullable` inputs save null when emptied (off-road Handling). Vitest + a Quench
+  test driving the real sheet input.
